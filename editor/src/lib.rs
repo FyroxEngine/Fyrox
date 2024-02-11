@@ -1182,17 +1182,20 @@ impl Editor {
             );
 
             if let Some(game_scene) = current_scene_entry.controller.downcast_mut::<GameScene>() {
+                let graph = &mut engine.scenes[game_scene.scene].graph;
                 self.animation_editor.handle_ui_message(
                     message,
                     &current_scene_entry.selection,
-                    game_scene,
-                    engine,
+                    graph,
+                    game_scene.scene_content_root,
+                    &mut engine.user_interface,
+                    &engine.resource_manager,
                     &self.message_sender,
                 );
                 self.ragdoll_wizard.handle_ui_message(
                     message,
                     &mut engine.user_interface,
-                    &mut engine.scenes[game_scene.scene].graph,
+                    graph,
                     game_scene,
                     &self.message_sender,
                 );
@@ -1288,6 +1291,16 @@ impl Editor {
                     .handle_ui_message(message, game_scene, engine);
             } else if let Some(ui_scene) = current_scene_entry.controller.downcast_mut::<UiScene>()
             {
+                let ui_root = ui_scene.ui.root();
+                self.animation_editor.handle_ui_message(
+                    message,
+                    &current_scene_entry.selection,
+                    &mut ui_scene.ui,
+                    ui_root,
+                    &mut engine.user_interface,
+                    &engine.resource_manager,
+                    &self.message_sender,
+                );
                 self.world_viewer.handle_ui_message(
                     message,
                     &mut UiSceneWorldViewerDataProvider {
@@ -1494,8 +1507,8 @@ impl Editor {
             if let Some(game_scene) = current_scene_entry.controller.downcast_mut::<GameScene>() {
                 self.animation_editor.sync_to_model(
                     &current_scene_entry.selection,
-                    game_scene,
-                    engine,
+                    &mut engine.user_interface,
+                    &mut engine.scenes[game_scene.scene].graph,
                 );
                 self.absm_editor
                     .sync_to_model(&current_scene_entry.selection, game_scene, engine);
@@ -1525,6 +1538,11 @@ impl Editor {
                 );
             } else if let Some(ui_scene) = current_scene_entry.controller.downcast_mut::<UiScene>()
             {
+                self.animation_editor.sync_to_model(
+                    &current_scene_entry.selection,
+                    &mut engine.user_interface,
+                    &mut ui_scene.ui,
+                );
                 self.world_viewer.sync_to_model(
                     &UiSceneWorldViewerDataProvider {
                         ui: &mut ui_scene.ui,
@@ -1655,10 +1673,15 @@ impl Editor {
                     .leave_preview_mode(game_scene, engine);
                 self.audio_preview_panel
                     .leave_preview_mode(game_scene, engine);
-                self.animation_editor
-                    .try_leave_preview_mode(game_scene, engine);
+                self.animation_editor.try_leave_preview_mode(
+                    &mut engine.scenes[game_scene.scene].graph,
+                    &engine.user_interface,
+                );
                 self.absm_editor
                     .try_leave_preview_mode(&entry.selection, game_scene, engine);
+            } else if let Some(ui_scene) = entry.controller.downcast_mut::<UiScene>() {
+                self.animation_editor
+                    .try_leave_preview_mode(&mut ui_scene.ui, &self.engine.user_interface);
             }
         }
     }
@@ -2058,11 +2081,20 @@ impl Editor {
         if let Some(entry) = self.scenes.current_scene_entry_ref() {
             if let Some(game_scene) = entry.controller.downcast_ref::<GameScene>() {
                 self.light_panel.update(game_scene, &mut self.engine);
-                self.animation_editor
-                    .update(&entry.selection, game_scene, &self.engine);
+                self.animation_editor.update(
+                    &entry.selection,
+                    &self.engine.user_interface,
+                    &self.engine.scenes[game_scene.scene].graph,
+                );
                 self.audio_preview_panel
                     .update(&entry.selection, game_scene, &self.engine);
                 self.scene_viewer.update(game_scene, &mut self.engine);
+            } else if let Some(ui_scene) = entry.controller.downcast_ref::<UiScene>() {
+                self.animation_editor.update(
+                    &entry.selection,
+                    &self.engine.user_interface,
+                    &ui_scene.ui,
+                );
             }
         }
 
@@ -2125,14 +2157,20 @@ impl Editor {
                         );
                         self.animation_editor.handle_message(
                             &message,
-                            game_scene,
-                            &mut self.engine,
+                            &mut self.engine.scenes[game_scene.scene].graph,
+                            &self.engine.user_interface,
                         );
                         self.absm_editor.handle_message(
                             &message,
                             &entry.selection,
                             game_scene,
                             &mut self.engine,
+                        );
+                    } else if let Some(ui_scene) = entry.controller.downcast_mut::<UiScene>() {
+                        self.animation_editor.handle_message(
+                            &message,
+                            &mut ui_scene.ui,
+                            &self.engine.user_interface,
                         );
                     }
 

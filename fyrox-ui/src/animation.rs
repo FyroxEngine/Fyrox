@@ -118,6 +118,7 @@ impl BoundValueCollectionExt for BoundValueCollection {
 #[derive(Visit, Reflect, Clone, Debug, ComponentProvider)]
 pub struct AnimationPlayer {
     widget: Widget,
+    #[component(include)]
     animations: InheritableVariable<AnimationContainer>,
     auto_apply: bool,
 }

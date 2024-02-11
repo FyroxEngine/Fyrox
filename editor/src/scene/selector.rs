@@ -1,5 +1,6 @@
 use crate::utils::make_node_name;
 use fyrox::graph::BaseSceneGraph;
+use fyrox::graph::{SceneGraph, SceneGraphNode};
 use fyrox::{
     core::{
         algebra::Vector2, parking_lot::Mutex, pool::ErasedHandle, pool::Handle,
@@ -22,7 +23,6 @@ use fyrox::{
         window::{Window, WindowBuilder, WindowMessage},
         BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
     },
-    scene::{graph::Graph, node::Node},
 };
 use std::{
     ops::{Deref, DerefMut},
@@ -38,15 +38,15 @@ pub struct HierarchyNode {
 }
 
 impl HierarchyNode {
-    pub fn from_scene_node(
-        node_handle: Handle<Node>,
-        ignored_node: Handle<Node>,
-        graph: &Graph,
-    ) -> Self {
-        let node = &graph[node_handle];
+    pub fn from_scene_node<G, N>(node_handle: Handle<N>, ignored_node: Handle<N>, graph: &G) -> Self
+    where
+        G: SceneGraph<Node = N>,
+        N: SceneGraphNode<SceneGraph = G>,
+    {
+        let node = &graph.node(node_handle);
 
         Self {
-            name: node.name_owned(),
+            name: node.name().to_string(),
             handle: node_handle.into(),
             children: node
                 .children()

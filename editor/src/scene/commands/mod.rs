@@ -12,10 +12,10 @@ use fyrox::{
     asset::manager::ResourceManager,
     core::{log::Log, pool::Handle, reflect::prelude::*, type_traits::prelude::*},
     engine::SerializationContext,
-    graph::{BaseSceneGraph, SceneGraphNode},
+    graph::{AbstractSceneGraph, BaseSceneGraph, SceneGraphNode},
     scene::{graph::SubGraph, node::Node, Scene},
 };
-use std::sync::Arc;
+use std::{any::Any, sync::Arc};
 
 pub mod effect;
 pub mod graph;

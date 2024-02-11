@@ -1,9 +1,10 @@
+use crate::animation::command::fetch_animations_container;
 use crate::{
     absm::{
         command::fetch_machine,
         selection::{AbsmSelection, SelectedEntity},
     },
-    animation::{self, command::fetch_animation_player, selection::AnimationSelection},
+    animation::{self, selection::AnimationSelection},
     asset::item::AssetItem,
     audio::AudioBusSelection,
     camera::{CameraController, PickingOptions},
@@ -1056,8 +1057,7 @@ impl SceneController for GameScene {
                     .filter_map(|e| {
                         if let &animation::selection::SelectedEntity::Signal(id) = e {
                             make_command(args, move |ctx| {
-                                fetch_animation_player(animation_player, ctx.get_mut())
-                                    .animations_mut()[animation]
+                                fetch_animations_container(animation_player, ctx)[animation]
                                     .signals_mut()
                                     .iter_mut()
                                     .find(|s| s.id == id)
@@ -1155,7 +1155,7 @@ impl SceneController for GameScene {
                     .to_string(),
             )
         } else {
-            selection.as_animation().map(|animation_selection| {
+            selection.as_animation::<Node>().map(|animation_selection| {
                 scene.graph[animation_selection.animation_player]
                     .doc()
                     .to_string()
@@ -1300,12 +1300,15 @@ impl Selection {
 
     define_downcast!(AbsmSelection, as_absm, as_absm_mut, is_absm);
 
-    define_downcast!(
-        AnimationSelection,
-        as_animation,
-        as_animation_mut,
-        is_animation
-    );
+    pub fn as_animation<N: 'static>(&self) -> Option<&AnimationSelection<N>> {
+        self.0.as_ref().and_then(|s| s.downcast_ref())
+    }
+    pub fn as_animation_mut<N: 'static>(&mut self) -> Option<&mut AnimationSelection<N>> {
+        self.0.as_mut().and_then(|s| s.downcast_mut())
+    }
+    pub fn is_animation<N: 'static>(&mut self) -> bool {
+        self.as_animation::<N>().is_some()
+    }
 
     define_downcast!(UiSelection, as_ui, as_ui_mut, is_ui);
 }

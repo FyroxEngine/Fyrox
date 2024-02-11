@@ -1,4 +1,3 @@
-use crate::command::{Command, CommandGroup};
 use crate::{
     animation::{
         command::{
@@ -9,20 +8,25 @@ use crate::{
         },
         selection::AnimationSelection,
     },
+    command::{Command, CommandGroup},
     gui::make_dropdown_list_option_universal,
     load_image,
     message::MessageSender,
     scene::{
         commands::ChangeSelectionCommand,
         selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
-        GameScene, Selection,
+        Selection,
     },
     send_sync_message,
 };
-use fyrox::graph::BaseSceneGraph;
 use fyrox::{
     asset::manager::ResourceManager,
-    core::{algebra::Vector2, futures::executor::block_on, log::Log, math::Rect, pool::Handle},
+    core::{
+        algebra::Vector2, futures::executor::block_on, log::Log, math::Rect, pool::ErasedHandle,
+        pool::Handle,
+    },
+    generic_animation::{Animation, AnimationContainer, RootMotionSettings},
+    graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
     gui::{
         border::BorderBuilder,
         button::{Button, ButtonBuilder, ButtonMessage},
@@ -45,11 +49,6 @@ use fyrox::{
         VerticalAlignment, BRUSH_BRIGHT, BRUSH_LIGHT,
     },
     resource::model::{Model, ModelResourceExtension},
-    scene::{
-        animation::{absm::prelude::*, prelude::*},
-        node::Node,
-        Scene,
-    },
 };
 use std::path::Path;
 
@@ -76,7 +75,7 @@ pub struct Toolbar {
     pub reimport: Handle<UiNode>,
     pub node_selector: Handle<UiNode>,
     pub import_file_selector: Handle<UiNode>,
-    pub selected_import_root: Handle<Node>,
+    pub selected_import_root: ErasedHandle,
     pub looping: Handle<UiNode>,
     pub enabled: Handle<UiNode>,
     root_motion_dropdown_area: RootMotionDropdownArea,
@@ -189,17 +188,20 @@ impl RootMotionDropdownArea {
 }
 
 impl RootMotionDropdownArea {
-    pub fn handle_ui_message(
+    pub fn handle_ui_message<G, N>(
         &mut self,
         message: &UiMessage,
-        scene: &Scene,
+        graph: &G,
         sender: &MessageSender,
         ui: &mut UserInterface,
-        animation: &Animation,
-        game_scene: &GameScene,
-        selection: &AnimationSelection,
-    ) {
-        let send_command = |settings: Option<RootMotionSettings>| {
+        animation: &Animation<Handle<N>>,
+        root: Handle<N>,
+        selection: &AnimationSelection<N>,
+    ) where
+        G: SceneGraph<Node = N>,
+        N: SceneGraphNode<SceneGraph = G>,
+    {
+        let send_command = |settings: Option<RootMotionSettings<Handle<N>>>| {
             sender.do_scene_command(SetAnimationRootMotionSettingsCommand {
                 node_handle: selection.animation_player,
                 animation_handle: selection.animation,
@@ -256,11 +258,7 @@ impl RootMotionDropdownArea {
                     ui.send_message(NodeSelectorMessage::hierarchy(
                         self.node_selector,
                         MessageDirection::ToWidget,
-                        HierarchyNode::from_scene_node(
-                            game_scene.scene_content_root,
-                            game_scene.editor_objects_root,
-                            &scene.graph,
-                        ),
+                        HierarchyNode::from_scene_node(root, Handle::NONE, graph),
                     ));
 
                     ui.send_message(NodeSelectorMessage::selection(
@@ -310,7 +308,15 @@ impl RootMotionDropdownArea {
         }
     }
 
-    pub fn sync_to_model(&self, animation: &Animation, scene: &Scene, ui: &mut UserInterface) {
+    pub fn sync_to_model<G, N>(
+        &self,
+        animation: &Animation<Handle<N>>,
+        graph: &G,
+        ui: &mut UserInterface,
+    ) where
+        G: SceneGraph<Node = N>,
+        N: SceneGraphNode,
+    {
         fn sync_checked(ui: &UserInterface, check_box: Handle<UiNode>, checked: bool) {
             send_sync_message(
                 ui,
@@ -344,8 +350,7 @@ impl RootMotionDropdownArea {
                         .unwrap()
                         .content,
                     MessageDirection::ToWidget,
-                    scene
-                        .graph
+                    graph
                         .try_get(settings.node)
                         .map(|n| n.name().to_owned())
                         .unwrap_or_else(|| String::from("<Unassigned>")),
@@ -364,7 +369,7 @@ pub enum ToolbarAction {
     None,
     EnterPreviewMode,
     LeavePreviewMode,
-    SelectAnimation(Handle<Animation>),
+    SelectAnimation(ErasedHandle),
     PlayPause,
     Stop,
 }
@@ -827,20 +832,24 @@ impl Toolbar {
         }
     }
 
-    pub fn handle_ui_message(
+    pub fn handle_ui_message<G, N>(
         &mut self,
         message: &UiMessage,
         sender: &MessageSender,
-        scene: &Scene,
+        graph: &G,
         ui: &mut UserInterface,
-        animation_player_handle: Handle<Node>,
-        animations: &AnimationContainer,
-        game_scene: &GameScene,
-        selection: &AnimationSelection,
-    ) -> ToolbarAction {
+        animation_player_handle: Handle<N>,
+        animations: &AnimationContainer<Handle<N>>,
+        root: Handle<N>,
+        selection: &AnimationSelection<N>,
+    ) -> ToolbarAction
+    where
+        G: SceneGraph<Node = N>,
+        N: SceneGraphNode<SceneGraph = G>,
+    {
         if let Some(animation) = animations.try_get(selection.animation) {
             self.root_motion_dropdown_area
-                .handle_ui_message(message, scene, sender, ui, animation, game_scene, selection);
+                .handle_ui_message(message, graph, sender, ui, animation, root, selection);
         }
 
         if let Some(DropdownListMessage::SelectionChanged(Some(index))) = message.data() {
@@ -854,7 +863,7 @@ impl Toolbar {
                     .items()[*index];
                 let animation = ui
                     .node(item)
-                    .user_data_cloned::<Handle<Animation>>()
+                    .user_data_cloned::<Handle<Animation<Handle<N>>>>()
                     .unwrap();
                 sender.do_scene_command(ChangeSelectionCommand::new(Selection::new(
                     AnimationSelection {
@@ -863,7 +872,7 @@ impl Toolbar {
                         entities: vec![],
                     },
                 )));
-                return ToolbarAction::SelectAnimation(animation);
+                return ToolbarAction::SelectAnimation(animation.into());
             }
         } else if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.play_pause {
@@ -982,27 +991,26 @@ impl Toolbar {
         ToolbarAction::None
     }
 
-    pub fn post_handle_ui_message(
+    pub fn post_handle_ui_message<G, N>(
         &mut self,
         message: &UiMessage,
         sender: &MessageSender,
         ui: &UserInterface,
-        animation_player_handle: Handle<Node>,
-        scene: &Scene,
+        animation_player_handle: Handle<N>,
+        graph: &G,
+        root: Handle<N>,
         editor_selection: &Selection,
-        game_scene: &GameScene,
         resource_manager: &ResourceManager,
-    ) {
+    ) where
+        G: SceneGraph<Node = N>,
+        N: SceneGraphNode<SceneGraph = G>,
+    {
         if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.import || message.destination() == self.reimport {
                 ui.send_message(NodeSelectorMessage::hierarchy(
                     self.node_selector,
                     MessageDirection::ToWidget,
-                    HierarchyNode::from_scene_node(
-                        game_scene.scene_content_root,
-                        game_scene.editor_objects_root,
-                        &scene.graph,
-                    ),
+                    HierarchyNode::from_scene_node(root, Handle::NONE, graph),
                 ));
 
                 ui.send_message(WindowMessage::open_modal(
@@ -1040,8 +1048,10 @@ impl Toolbar {
             if message.destination() == self.import_file_selector {
                 match block_on(resource_manager.request::<Model>(path)) {
                     Ok(model) => {
+                        // TODO
+                        /*
                         let mut animations = model
-                            .retarget_animations_directly(self.selected_import_root, &scene.graph);
+                            .retarget_animations_directly(self.selected_import_root.into(), graph);
 
                         let file_stem = path
                             .file_stem()
@@ -1087,7 +1097,7 @@ impl Toolbar {
                                     }
                                 }
                             }
-                        }
+                        }*/
                     }
                     Err(err) => Log::err(format!(
                         "Failed to load {} animation file! Reason: {:?}",
@@ -1117,14 +1127,17 @@ impl Toolbar {
         }
     }
 
-    pub fn sync_to_model(
+    pub fn sync_to_model<G, N>(
         &self,
-        animations: &AnimationContainer,
-        selection: &AnimationSelection,
-        scene: &Scene,
+        animations: &AnimationContainer<Handle<N>>,
+        selection: &AnimationSelection<N>,
+        graph: &G,
         ui: &mut UserInterface,
         in_preview_mode: bool,
-    ) {
+    ) where
+        G: SceneGraph<Node = N>,
+        N: SceneGraphNode,
+    {
         let new_items = animations
             .pair_iter()
             .map(|(h, a)| {
@@ -1151,7 +1164,7 @@ impl Toolbar {
         let mut selected_animation_valid = false;
         if let Some(animation) = animations.try_get(selection.animation) {
             self.root_motion_dropdown_area
-                .sync_to_model(animation, scene, ui);
+                .sync_to_model(animation, graph, ui);
 
             selected_animation_valid = true;
             send_sync_message(
