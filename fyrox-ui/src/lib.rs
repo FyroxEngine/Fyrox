@@ -294,12 +294,14 @@ pub use control::*;
 use fyrox_core::futures::future::join_all;
 use fyrox_core::log::Log;
 use fyrox_graph::{
-    BaseSceneGraph, NodeHandleMap, NodeMapping, PrefabData, SceneGraph, SceneGraphNode,
+    AbstractSceneGraph, AbstractSceneNode, BaseSceneGraph, NodeHandleMap, NodeMapping, PrefabData,
+    SceneGraph, SceneGraphNode,
 };
 pub use node::*;
 pub use thickness::*;
 
 pub use fyrox_animation as generic_animation;
+use fyrox_core::pool::ErasedHandle;
 
 // TODO: Make this part of UserInterface struct.
 pub const COLOR_COAL_BLACK: Color = Color::opaque(10, 10, 10);
@@ -2799,6 +2801,23 @@ impl PrefabData for UserInterface {
     #[inline]
     fn mapping(&self) -> NodeMapping {
         NodeMapping::UseHandles
+    }
+}
+
+impl AbstractSceneGraph for UserInterface {
+    fn try_get_node_untyped(&self, handle: ErasedHandle) -> Option<&dyn AbstractSceneNode> {
+        self.nodes
+            .try_borrow(handle.into())
+            .map(|n| n as &dyn AbstractSceneNode)
+    }
+
+    fn try_get_node_untyped_mut(
+        &mut self,
+        handle: ErasedHandle,
+    ) -> Option<&mut dyn AbstractSceneNode> {
+        self.nodes
+            .try_borrow_mut(handle.into())
+            .map(|n| n as &mut dyn AbstractSceneNode)
     }
 }
 
