@@ -690,7 +690,7 @@ impl Visit for UserInterface {
         self.double_click_time_slice
             .visit("DoubleClickTimeSlice", &mut region)?;
 
-        if visitor.is_reading() {
+        if region.is_reading() {
             for node in self.nodes.iter() {
                 self.methods_registry.register(node.deref());
             }
