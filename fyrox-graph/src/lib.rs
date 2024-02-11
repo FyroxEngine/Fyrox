@@ -680,30 +680,6 @@ pub trait BaseSceneGraph: 'static {
             self.set_root(scheme.root);
         }
     }
-
-    /// Create a graph depth traversal iterator.
-    #[inline]
-    fn traverse_iter(
-        &self,
-        from: Handle<Self::Node>,
-    ) -> GraphTraverseIterator<'_, Self, Self::Node> {
-        GraphTraverseIterator {
-            graph: self,
-            stack: vec![from],
-        }
-    }
-
-    /// Create a graph depth traversal iterator.
-    #[inline]
-    fn traverse_handle_iter(
-        &self,
-        from: Handle<Self::Node>,
-    ) -> GraphHandleTraverseIterator<'_, Self, Self::Node> {
-        GraphHandleTraverseIterator {
-            graph: self,
-            stack: vec![from],
-        }
-    }
 }
 
 pub trait SceneGraph: BaseSceneGraph {
@@ -941,6 +917,30 @@ pub trait SceneGraph: BaseSceneGraph {
             parents_parent_handle,
             ((position as isize + offset) as usize).clamp(0, parents_parent_ref.children().len()),
         ))
+    }
+
+    /// Create a graph depth traversal iterator.
+    #[inline]
+    fn traverse_iter(
+        &self,
+        from: Handle<Self::Node>,
+    ) -> GraphTraverseIterator<'_, Self, Self::Node> {
+        GraphTraverseIterator {
+            graph: self,
+            stack: vec![from],
+        }
+    }
+
+    /// Create a graph depth traversal iterator.
+    #[inline]
+    fn traverse_handle_iter(
+        &self,
+        from: Handle<Self::Node>,
+    ) -> GraphHandleTraverseIterator<'_, Self, Self::Node> {
+        GraphHandleTraverseIterator {
+            graph: self,
+            stack: vec![from],
+        }
     }
 
     /// This method checks integrity of the graph and restores it if needed. For example, if a node

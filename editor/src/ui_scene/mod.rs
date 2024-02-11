@@ -24,6 +24,7 @@ use crate::{
     },
     Message,
 };
+use fyrox::graph::SceneGraph;
 use fyrox::{
     core::{
         algebra::{Vector2, Vector3},

@@ -7,7 +7,7 @@ use crate::{
     },
     Message,
 };
-use fyrox::graph::BaseSceneGraph;
+use fyrox::graph::SceneGraph;
 use fyrox::{
     core::pool::Handle,
     engine::Engine,
