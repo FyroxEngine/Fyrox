@@ -200,7 +200,7 @@ impl AnimationEditor {
                 scene,
                 &mut engine.user_interface,
                 selection.animation_player,
-                animation_player,
+                animation_player.animations(),
                 editor_selection,
                 game_scene,
                 &selection,
@@ -577,7 +577,7 @@ impl AnimationEditor {
             .and_then(|n| n.query_component_ref::<AnimationPlayer>())
         {
             self.toolbar.sync_to_model(
-                animation_player,
+                animation_player.animations(),
                 &selection,
                 scene,
                 &mut engine.user_interface,

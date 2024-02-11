@@ -195,7 +195,7 @@ impl RootMotionDropdownArea {
         scene: &Scene,
         sender: &MessageSender,
         ui: &mut UserInterface,
-        animation_player: &AnimationPlayer,
+        animation: &Animation,
         game_scene: &GameScene,
         selection: &AnimationSelection,
     ) {
@@ -207,118 +207,110 @@ impl RootMotionDropdownArea {
             });
         };
 
-        if let Some(animation) = animation_player.animations().try_get(selection.animation) {
-            if let Some(CheckBoxMessage::Check(Some(value))) = message.data() {
-                if message.direction() == MessageDirection::FromWidget {
-                    if message.destination() == self.enabled {
-                        send_command(value.then(Default::default));
-                    } else if message.destination() == self.ignore_x {
-                        if let Some(settings) = animation.root_motion_settings_ref() {
-                            send_command(Some(RootMotionSettings {
-                                ignore_x_movement: *value,
-                                ..*settings
-                            }));
-                        }
-                    } else if message.destination() == self.ignore_y {
-                        if let Some(settings) = animation.root_motion_settings_ref() {
-                            send_command(Some(RootMotionSettings {
-                                ignore_y_movement: *value,
-                                ..*settings
-                            }));
-                        }
-                    } else if message.destination() == self.ignore_z {
-                        if let Some(settings) = animation.root_motion_settings_ref() {
-                            send_command(Some(RootMotionSettings {
-                                ignore_z_movement: *value,
-                                ..*settings
-                            }));
-                        }
-                    } else if message.destination() == self.ignore_rotation {
-                        if let Some(settings) = animation.root_motion_settings_ref() {
-                            send_command(Some(RootMotionSettings {
-                                ignore_rotations: *value,
-                                ..*settings
-                            }));
-                        }
-                    }
-                }
-            } else if let Some(ButtonMessage::Click) = message.data() {
-                if let Some(settings) = animation.root_motion_settings_ref() {
-                    if message.destination() == self.select_node {
-                        self.node_selector = NodeSelectorWindowBuilder::new(
-                            WindowBuilder::new(
-                                WidgetBuilder::new().with_width(300.0).with_height(400.0),
-                            )
-                            .with_title(WindowTitle::text("Select a Root Node"))
-                            .open(false),
-                        )
-                        .build(&mut ui.build_ctx());
-
-                        ui.send_message(NodeSelectorMessage::hierarchy(
-                            self.node_selector,
-                            MessageDirection::ToWidget,
-                            HierarchyNode::from_scene_node(
-                                game_scene.scene_content_root,
-                                game_scene.editor_objects_root,
-                                &scene.graph,
-                            ),
-                        ));
-
-                        ui.send_message(NodeSelectorMessage::selection(
-                            self.node_selector,
-                            MessageDirection::ToWidget,
-                            if settings.node.is_some() {
-                                vec![settings.node.into()]
-                            } else {
-                                vec![]
-                            },
-                        ));
-
-                        ui.send_message(WindowMessage::open_modal(
-                            self.node_selector,
-                            MessageDirection::ToWidget,
-                            true,
-                        ));
-                    }
-                }
-            } else if let Some(NodeSelectorMessage::Selection(node_selection)) = message.data() {
-                if message.destination() == self.node_selector
-                    && message.direction() == MessageDirection::FromWidget
-                {
+        if let Some(CheckBoxMessage::Check(Some(value))) = message.data() {
+            if message.direction() == MessageDirection::FromWidget {
+                if message.destination() == self.enabled {
+                    send_command(value.then(Default::default));
+                } else if message.destination() == self.ignore_x {
                     if let Some(settings) = animation.root_motion_settings_ref() {
-                        sender.do_scene_command(SetAnimationRootMotionSettingsCommand {
-                            node_handle: selection.animation_player,
-                            animation_handle: selection.animation,
-                            value: Some(RootMotionSettings {
-                                node: node_selection
-                                    .first()
-                                    .cloned()
-                                    .map(Handle::from)
-                                    .unwrap_or_default(),
-                                ..*settings
-                            }),
-                        });
+                        send_command(Some(RootMotionSettings {
+                            ignore_x_movement: *value,
+                            ..*settings
+                        }));
+                    }
+                } else if message.destination() == self.ignore_y {
+                    if let Some(settings) = animation.root_motion_settings_ref() {
+                        send_command(Some(RootMotionSettings {
+                            ignore_y_movement: *value,
+                            ..*settings
+                        }));
+                    }
+                } else if message.destination() == self.ignore_z {
+                    if let Some(settings) = animation.root_motion_settings_ref() {
+                        send_command(Some(RootMotionSettings {
+                            ignore_z_movement: *value,
+                            ..*settings
+                        }));
+                    }
+                } else if message.destination() == self.ignore_rotation {
+                    if let Some(settings) = animation.root_motion_settings_ref() {
+                        send_command(Some(RootMotionSettings {
+                            ignore_rotations: *value,
+                            ..*settings
+                        }));
                     }
                 }
-            } else if let Some(WindowMessage::Close) = message.data() {
-                if message.destination() == self.node_selector {
-                    ui.send_message(WidgetMessage::remove(
+            }
+        } else if let Some(ButtonMessage::Click) = message.data() {
+            if let Some(settings) = animation.root_motion_settings_ref() {
+                if message.destination() == self.select_node {
+                    self.node_selector = NodeSelectorWindowBuilder::new(
+                        WindowBuilder::new(
+                            WidgetBuilder::new().with_width(300.0).with_height(400.0),
+                        )
+                        .with_title(WindowTitle::text("Select a Root Node"))
+                        .open(false),
+                    )
+                    .build(&mut ui.build_ctx());
+
+                    ui.send_message(NodeSelectorMessage::hierarchy(
                         self.node_selector,
                         MessageDirection::ToWidget,
+                        HierarchyNode::from_scene_node(
+                            game_scene.scene_content_root,
+                            game_scene.editor_objects_root,
+                            &scene.graph,
+                        ),
                     ));
-                    self.node_selector = Handle::NONE;
+
+                    ui.send_message(NodeSelectorMessage::selection(
+                        self.node_selector,
+                        MessageDirection::ToWidget,
+                        if settings.node.is_some() {
+                            vec![settings.node.into()]
+                        } else {
+                            vec![]
+                        },
+                    ));
+
+                    ui.send_message(WindowMessage::open_modal(
+                        self.node_selector,
+                        MessageDirection::ToWidget,
+                        true,
+                    ));
                 }
+            }
+        } else if let Some(NodeSelectorMessage::Selection(node_selection)) = message.data() {
+            if message.destination() == self.node_selector
+                && message.direction() == MessageDirection::FromWidget
+            {
+                if let Some(settings) = animation.root_motion_settings_ref() {
+                    sender.do_scene_command(SetAnimationRootMotionSettingsCommand {
+                        node_handle: selection.animation_player,
+                        animation_handle: selection.animation,
+                        value: Some(RootMotionSettings {
+                            node: node_selection
+                                .first()
+                                .cloned()
+                                .map(Handle::from)
+                                .unwrap_or_default(),
+                            ..*settings
+                        }),
+                    });
+                }
+            }
+        } else if let Some(WindowMessage::Close) = message.data() {
+            if message.destination() == self.node_selector {
+                ui.send_message(WidgetMessage::remove(
+                    self.node_selector,
+                    MessageDirection::ToWidget,
+                ));
+                self.node_selector = Handle::NONE;
             }
         }
     }
 
-    pub fn sync_to_model(
-        &self,
-        animation_player: &AnimationPlayer,
-        selection: &AnimationSelection,
-        scene: &Scene,
-        ui: &mut UserInterface,
-    ) {
+    pub fn sync_to_model(&self, animation: &Animation, scene: &Scene, ui: &mut UserInterface) {
         fn sync_checked(ui: &UserInterface, check_box: Handle<UiNode>, checked: bool) {
             send_sync_message(
                 ui,
@@ -326,46 +318,44 @@ impl RootMotionDropdownArea {
             );
         }
 
-        if let Some(animation) = animation_player.animations().try_get(selection.animation) {
-            let root_motion_enabled = animation.root_motion_settings_ref().is_some();
+        let root_motion_enabled = animation.root_motion_settings_ref().is_some();
 
-            sync_checked(ui, self.enabled, root_motion_enabled);
+        sync_checked(ui, self.enabled, root_motion_enabled);
 
-            for widget in [
-                self.select_node,
-                self.ignore_x,
-                self.ignore_y,
-                self.ignore_z,
-                self.ignore_rotation,
-            ] {
-                send_sync_message(
-                    ui,
-                    WidgetMessage::enabled(widget, MessageDirection::ToWidget, root_motion_enabled),
-                );
-            }
+        for widget in [
+            self.select_node,
+            self.ignore_x,
+            self.ignore_y,
+            self.ignore_z,
+            self.ignore_rotation,
+        ] {
+            send_sync_message(
+                ui,
+                WidgetMessage::enabled(widget, MessageDirection::ToWidget, root_motion_enabled),
+            );
+        }
 
-            if let Some(settings) = animation.root_motion_settings_ref() {
-                send_sync_message(
-                    ui,
-                    TextMessage::text(
-                        *ui.node(self.select_node)
-                            .query_component::<Button>()
-                            .unwrap()
-                            .content,
-                        MessageDirection::ToWidget,
-                        scene
-                            .graph
-                            .try_get(settings.node)
-                            .map(|n| n.name().to_owned())
-                            .unwrap_or_else(|| String::from("<Unassigned>")),
-                    ),
-                );
+        if let Some(settings) = animation.root_motion_settings_ref() {
+            send_sync_message(
+                ui,
+                TextMessage::text(
+                    *ui.node(self.select_node)
+                        .query_component::<Button>()
+                        .unwrap()
+                        .content,
+                    MessageDirection::ToWidget,
+                    scene
+                        .graph
+                        .try_get(settings.node)
+                        .map(|n| n.name().to_owned())
+                        .unwrap_or_else(|| String::from("<Unassigned>")),
+                ),
+            );
 
-                sync_checked(ui, self.ignore_x, settings.ignore_x_movement);
-                sync_checked(ui, self.ignore_y, settings.ignore_y_movement);
-                sync_checked(ui, self.ignore_z, settings.ignore_z_movement);
-                sync_checked(ui, self.ignore_rotation, settings.ignore_rotations);
-            }
+            sync_checked(ui, self.ignore_x, settings.ignore_x_movement);
+            sync_checked(ui, self.ignore_y, settings.ignore_y_movement);
+            sync_checked(ui, self.ignore_z, settings.ignore_z_movement);
+            sync_checked(ui, self.ignore_rotation, settings.ignore_rotations);
         }
     }
 }
@@ -844,20 +834,15 @@ impl Toolbar {
         scene: &Scene,
         ui: &mut UserInterface,
         animation_player_handle: Handle<Node>,
-        animation_player: &AnimationPlayer,
+        animations: &AnimationContainer,
         editor_selection: &Selection,
         game_scene: &GameScene,
         selection: &AnimationSelection,
     ) -> ToolbarAction {
-        self.root_motion_dropdown_area.handle_ui_message(
-            message,
-            scene,
-            sender,
-            ui,
-            animation_player,
-            game_scene,
-            selection,
-        );
+        if let Some(animation) = animations.try_get(selection.animation) {
+            self.root_motion_dropdown_area
+                .handle_ui_message(message, scene, sender, ui, animation, game_scene, selection);
+        }
 
         if let Some(DropdownListMessage::SelectionChanged(Some(index))) = message.data() {
             if message.destination() == self.animations
@@ -898,11 +883,7 @@ impl Toolbar {
                     MessageDirection::ToWidget,
                 ));
             } else if message.destination() == self.remove_current_animation {
-                if animation_player
-                    .animations()
-                    .try_get(selection.animation)
-                    .is_some()
-                {
+                if animations.try_get(selection.animation).is_some() {
                     let group = vec![
                         Command::new(ChangeSelectionCommand::new(
                             Selection::new(AnimationSelection {
@@ -941,8 +922,7 @@ impl Toolbar {
                 sender
                     .do_scene_command(AddAnimationCommand::new(animation_player_handle, animation));
             } else if message.destination() == self.clone_current_animation {
-                if let Some(animation) = animation_player.animations().try_get(selection.animation)
-                {
+                if let Some(animation) = animations.try_get(selection.animation) {
                     let mut animation_clone = animation.clone();
                     animation_clone.set_name(format!("{} Copy", animation.name()));
 
@@ -977,8 +957,7 @@ impl Toolbar {
         } else if let Some(NumericUpDownMessage::<f32>::Value(value)) = message.data() {
             if message.direction() == MessageDirection::FromWidget {
                 if message.destination() == self.time_slice_start {
-                    let mut time_slice =
-                        animation_player.animations()[selection.animation].time_slice();
+                    let mut time_slice = animations[selection.animation].time_slice();
                     time_slice.start = value.min(time_slice.end);
                     sender.do_scene_command(SetAnimationTimeSliceCommand {
                         node_handle: animation_player_handle,
@@ -986,8 +965,7 @@ impl Toolbar {
                         value: time_slice,
                     });
                 } else if message.destination() == self.time_slice_end {
-                    let mut time_slice =
-                        animation_player.animations()[selection.animation].time_slice();
+                    let mut time_slice = animations[selection.animation].time_slice();
                     time_slice.end = value.max(time_slice.start);
                     sender.do_scene_command(SetAnimationTimeSliceCommand {
                         node_handle: animation_player_handle,
@@ -1144,17 +1122,13 @@ impl Toolbar {
 
     pub fn sync_to_model(
         &self,
-        animation_player: &AnimationPlayer,
+        animations: &AnimationContainer,
         selection: &AnimationSelection,
         scene: &Scene,
         ui: &mut UserInterface,
         in_preview_mode: bool,
     ) {
-        self.root_motion_dropdown_area
-            .sync_to_model(animation_player, selection, scene, ui);
-
-        let new_items = animation_player
-            .animations()
+        let new_items = animations
             .pair_iter()
             .map(|(h, a)| {
                 make_dropdown_list_option_universal(&mut ui.build_ctx(), a.name(), 22.0, h)
@@ -1171,15 +1145,17 @@ impl Toolbar {
             DropdownListMessage::selection(
                 self.animations,
                 MessageDirection::ToWidget,
-                animation_player
-                    .animations()
+                animations
                     .pair_iter()
                     .position(|(h, _)| h == selection.animation),
             ),
         );
 
         let mut selected_animation_valid = false;
-        if let Some(animation) = animation_player.animations().try_get(selection.animation) {
+        if let Some(animation) = animations.try_get(selection.animation) {
+            self.root_motion_dropdown_area
+                .sync_to_model(animation, scene, ui);
+
             selected_animation_valid = true;
             send_sync_message(
                 ui,
