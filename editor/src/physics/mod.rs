@@ -5,7 +5,7 @@ use crate::{
     scene::{GameScene, Selection},
     Message,
 };
-use fyrox::graph::SceneGraph;
+use fyrox::graph::{BaseSceneGraph, SceneGraph};
 use fyrox::{
     core::{algebra::Vector3, pool::Handle, reflect::Reflect},
     engine::Engine,

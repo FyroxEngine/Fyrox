@@ -6,7 +6,7 @@ use crate::{
     settings::Settings,
     ui_scene::{UiScene, UiSelection},
 };
-use fyrox::graph::SceneGraph;
+use fyrox::graph::BaseSceneGraph;
 use fyrox::{
     core::{
         algebra::Vector2,

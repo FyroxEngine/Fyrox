@@ -12,7 +12,7 @@ use fyrox::{
         TypeUuidProvider,
     },
     engine::Engine,
-    graph::SceneGraph,
+    graph::BaseSceneGraph,
     gui::{BuildContext, UiNode},
 };
 

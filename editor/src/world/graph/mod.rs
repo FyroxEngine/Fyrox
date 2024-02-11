@@ -15,7 +15,7 @@ use crate::{
         WorldViewerDataProvider,
     },
 };
-use fyrox::graph::SceneGraphNode;
+use fyrox::graph::{BaseSceneGraph, SceneGraphNode};
 use fyrox::{
     asset::{manager::ResourceManager, untyped::UntypedResource},
     core::{

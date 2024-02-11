@@ -4,7 +4,7 @@ use crate::settings::{
     scene::{SceneCameraSettings, SceneSettings},
     Settings,
 };
-use fyrox::graph::SceneGraph;
+use fyrox::graph::BaseSceneGraph;
 use fyrox::{
     core::{
         algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3},

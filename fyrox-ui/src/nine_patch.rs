@@ -12,7 +12,7 @@ use crate::{
     BuildContext, Control, UiNode, UserInterface,
 };
 use fyrox_core::variable::InheritableVariable;
-use fyrox_graph::SceneGraph;
+use fyrox_graph::BaseSceneGraph;
 use fyrox_resource::untyped::UntypedResource;
 use std::ops::{Deref, DerefMut};
 

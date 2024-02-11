@@ -5,7 +5,7 @@ use crate::{
     core::pool::Handle, font::FontResource, message::UiMessage, RestrictionEntry, UiNode,
     UserInterface,
 };
-use fyrox_graph::SceneGraph;
+use fyrox_graph::BaseSceneGraph;
 use std::{
     ops::{Index, IndexMut},
     sync::mpsc::Sender,

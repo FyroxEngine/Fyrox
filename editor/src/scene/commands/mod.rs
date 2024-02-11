@@ -12,7 +12,7 @@ use fyrox::{
     asset::manager::ResourceManager,
     core::{log::Log, pool::Handle, reflect::prelude::*, type_traits::prelude::*},
     engine::SerializationContext,
-    graph::{SceneGraph, SceneGraphNode},
+    graph::{BaseSceneGraph, SceneGraphNode},
     scene::{graph::SubGraph, node::Node, Scene},
 };
 use std::sync::Arc;

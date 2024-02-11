@@ -7,7 +7,7 @@
 
 use crate::core::{reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*};
 use fyrox_core::uuid_provider;
-use fyrox_graph::SceneGraph;
+use fyrox_graph::{BaseSceneGraph, SceneGraph};
 use std::{
     cell::RefCell,
     ops::{Deref, DerefMut},

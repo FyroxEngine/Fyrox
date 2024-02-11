@@ -30,7 +30,7 @@ use crate::{
         Scene,
     },
 };
-use fyrox_graph::SceneGraph;
+use fyrox_graph::{BaseSceneGraph, SceneGraph};
 use rapier2d::prelude::RigidBodyHandle;
 use std::{
     cell::Cell,

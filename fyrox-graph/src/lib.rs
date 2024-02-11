@@ -558,7 +558,7 @@ impl<N> Default for LinkScheme<N> {
     }
 }
 
-pub trait SceneGraph: Sized + 'static {
+pub trait BaseSceneGraph: 'static {
     type Prefab: PrefabData<Graph = Self>;
     type Node: SceneGraphNode<SceneGraph = Self, ResourceData = Self::Prefab>;
 
@@ -568,12 +568,11 @@ pub trait SceneGraph: Sized + 'static {
     /// Sets the new root of the graph. If used incorrectly, it may create isolated sub-graphs.
     fn set_root(&mut self, root: Handle<Self::Node>);
 
-    /// Creates new iterator that iterates over internal collection giving (handle; node) pairs.
-    fn pair_iter(&self) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)>;
+    /// Tries to borrow a node, returns Some(node) if the handle is valid, None - otherwise.
+    fn try_get(&self, handle: Handle<Self::Node>) -> Option<&Self::Node>;
 
-    /// Creates an iterator that has linear iteration order over internal collection
-    /// of nodes. It does *not* perform any tree traversal!
-    fn linear_iter_mut(&mut self) -> impl Iterator<Item = &mut Self::Node>;
+    /// Tries to borrow a node, returns Some(node) if the handle is valid, None - otherwise.
+    fn try_get_mut(&mut self, handle: Handle<Self::Node>) -> Option<&mut Self::Node>;
 
     /// Checks whether the given node handle is valid or not.
     fn is_valid_handle(&self, handle: Handle<Self::Node>) -> bool;
@@ -594,12 +593,6 @@ pub trait SceneGraph: Sized + 'static {
     /// graph.
     fn isolate_node(&mut self, node_handle: Handle<Self::Node>);
 
-    /// Tries to borrow a node, returns Some(node) if the handle is valid, None - otherwise.
-    fn try_get(&self, handle: Handle<Self::Node>) -> Option<&Self::Node>;
-
-    /// Tries to borrow a node, returns Some(node) if the handle is valid, None - otherwise.
-    fn try_get_mut(&mut self, handle: Handle<Self::Node>) -> Option<&mut Self::Node>;
-
     /// Borrows a node by its handle.
     fn node(&self, handle: Handle<Self::Node>) -> &Self::Node {
         self.try_get(handle).expect("The handle must be valid!")
@@ -609,6 +602,117 @@ pub trait SceneGraph: Sized + 'static {
     fn node_mut(&mut self, handle: Handle<Self::Node>) -> &mut Self::Node {
         self.try_get_mut(handle).expect("The handle must be valid!")
     }
+
+    /// Reorders the node hierarchy so the `new_root` becomes the root node for the entire hierarchy
+    /// under the `prev_root` node. For example, if we have this hierarchy and want to set `C` as
+    /// the new root:
+    ///
+    /// ```text
+    /// Root_
+    ///      |_A_
+    ///          |_B
+    ///          |_C_
+    ///             |_D
+    /// ```
+    ///
+    /// The new hierarchy will become:
+    ///
+    /// ```text
+    /// C_
+    ///   |_D
+    ///   |_A_
+    ///   |   |_B
+    ///   |_Root
+    /// ```    
+    ///
+    /// This method returns an instance of [`LinkScheme`], that could be used to revert the hierarchy
+    /// back to its original. See [`Self::apply_link_scheme`] for more info.
+    #[inline]
+    #[allow(clippy::unnecessary_to_owned)] // False-positive
+    fn change_hierarchy_root(
+        &mut self,
+        prev_root: Handle<Self::Node>,
+        new_root: Handle<Self::Node>,
+    ) -> LinkScheme<Self::Node> {
+        let mut scheme = LinkScheme::default();
+
+        if prev_root == new_root {
+            return scheme;
+        }
+
+        scheme
+            .links
+            .push((prev_root, self.node(prev_root).parent()));
+
+        scheme.links.push((new_root, self.node(new_root).parent()));
+
+        self.isolate_node(new_root);
+
+        for prev_root_child in self.node(prev_root).children().to_vec() {
+            self.link_nodes(prev_root_child, new_root);
+            scheme.links.push((prev_root_child, prev_root));
+        }
+
+        self.link_nodes(prev_root, new_root);
+
+        if prev_root == self.root() {
+            self.set_root(new_root);
+            scheme.root = prev_root;
+        } else {
+            scheme.root = self.root();
+        }
+
+        scheme
+    }
+
+    /// Applies the given link scheme to the graph, basically reverting graph structure to the one
+    /// that was before the call of [`Self::change_hierarchy_root`].
+    #[inline]
+    fn apply_link_scheme(&mut self, mut scheme: LinkScheme<Self::Node>) {
+        for (child, parent) in scheme.links.drain(..) {
+            if parent.is_some() {
+                self.link_nodes(child, parent);
+            } else {
+                self.isolate_node(child);
+            }
+        }
+        if scheme.root.is_some() {
+            self.set_root(scheme.root);
+        }
+    }
+
+    /// Create a graph depth traversal iterator.
+    #[inline]
+    fn traverse_iter(
+        &self,
+        from: Handle<Self::Node>,
+    ) -> GraphTraverseIterator<'_, Self, Self::Node> {
+        GraphTraverseIterator {
+            graph: self,
+            stack: vec![from],
+        }
+    }
+
+    /// Create a graph depth traversal iterator.
+    #[inline]
+    fn traverse_handle_iter(
+        &self,
+        from: Handle<Self::Node>,
+    ) -> GraphHandleTraverseIterator<'_, Self, Self::Node> {
+        GraphHandleTraverseIterator {
+            graph: self,
+            stack: vec![from],
+        }
+    }
+}
+
+pub trait SceneGraph: BaseSceneGraph {
+    /// Creates new iterator that iterates over internal collection giving (handle; node) pairs.
+    fn pair_iter(&self) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)>;
+
+    /// Creates an iterator that has linear iteration order over internal collection
+    /// of nodes. It does *not* perform any tree traversal!
+    fn linear_iter_mut(&mut self) -> impl Iterator<Item = &mut Self::Node>;
 
     /// Tries to borrow a node and fetch its component of specified type.
     #[inline]
@@ -800,84 +904,6 @@ pub trait SceneGraph: Sized + 'static {
         })
     }
 
-    /// Reorders the node hierarchy so the `new_root` becomes the root node for the entire hierarchy
-    /// under the `prev_root` node. For example, if we have this hierarchy and want to set `C` as
-    /// the new root:
-    ///
-    /// ```text
-    /// Root_
-    ///      |_A_
-    ///          |_B
-    ///          |_C_
-    ///             |_D
-    /// ```
-    ///
-    /// The new hierarchy will become:
-    ///
-    /// ```text
-    /// C_
-    ///   |_D
-    ///   |_A_
-    ///   |   |_B
-    ///   |_Root
-    /// ```    
-    ///
-    /// This method returns an instance of [`LinkScheme`], that could be used to revert the hierarchy
-    /// back to its original. See [`Self::apply_link_scheme`] for more info.
-    #[inline]
-    #[allow(clippy::unnecessary_to_owned)] // False-positive
-    fn change_hierarchy_root(
-        &mut self,
-        prev_root: Handle<Self::Node>,
-        new_root: Handle<Self::Node>,
-    ) -> LinkScheme<Self::Node> {
-        let mut scheme = LinkScheme::default();
-
-        if prev_root == new_root {
-            return scheme;
-        }
-
-        scheme
-            .links
-            .push((prev_root, self.node(prev_root).parent()));
-
-        scheme.links.push((new_root, self.node(new_root).parent()));
-
-        self.isolate_node(new_root);
-
-        for prev_root_child in self.node(prev_root).children().to_vec() {
-            self.link_nodes(prev_root_child, new_root);
-            scheme.links.push((prev_root_child, prev_root));
-        }
-
-        self.link_nodes(prev_root, new_root);
-
-        if prev_root == self.root() {
-            self.set_root(new_root);
-            scheme.root = prev_root;
-        } else {
-            scheme.root = self.root();
-        }
-
-        scheme
-    }
-
-    /// Applies the given link scheme to the graph, basically reverting graph structure to the one
-    /// that was before the call of [`Self::change_hierarchy_root`].
-    #[inline]
-    fn apply_link_scheme(&mut self, mut scheme: LinkScheme<Self::Node>) {
-        for (child, parent) in scheme.links.drain(..) {
-            if parent.is_some() {
-                self.link_nodes(child, parent);
-            } else {
-                self.isolate_node(child);
-            }
-        }
-        if scheme.root.is_some() {
-            self.set_root(scheme.root);
-        }
-    }
-
     /// The same as [`Self::find`], but only returns node handle which will be [`Handle::NONE`]
     /// if nothing is found.
     #[inline]
@@ -888,27 +914,6 @@ pub trait SceneGraph: Sized + 'static {
         self.find(root_node, cmp)
             .map(|(h, _)| h)
             .unwrap_or_default()
-    }
-
-    /// Create a graph depth traversal iterator.
-    #[inline]
-    fn traverse_iter(&self, from: Handle<Self::Node>) -> impl Iterator<Item = &Self::Node> {
-        GraphTraverseIterator {
-            graph: self,
-            stack: vec![from],
-        }
-    }
-
-    /// Create a graph depth traversal iterator.
-    #[inline]
-    fn traverse_handle_iter(
-        &self,
-        from: Handle<Self::Node>,
-    ) -> impl Iterator<Item = Handle<Self::Node>> {
-        GraphHandleTraverseIterator {
-            graph: self,
-            stack: vec![from],
-        }
     }
 
     /// Returns position of the node in its parent children list and the handle to the parent. Adds
@@ -1247,12 +1252,12 @@ pub trait SceneGraph: Sized + 'static {
 }
 
 /// Iterator that traverses tree in depth and returns shared references to nodes.
-pub struct GraphTraverseIterator<'a, G, N> {
+pub struct GraphTraverseIterator<'a, G: ?Sized, N> {
     graph: &'a G,
     stack: Vec<Handle<N>>,
 }
 
-impl<'a, G, N> Iterator for GraphTraverseIterator<'a, G, N>
+impl<'a, G: ?Sized, N> Iterator for GraphTraverseIterator<'a, G, N>
 where
     G: SceneGraph<Node = N>,
     N: SceneGraphNode,
@@ -1276,7 +1281,7 @@ where
 }
 
 /// Iterator that traverses tree in depth and returns handles to nodes.
-pub struct GraphHandleTraverseIterator<'a, G, N> {
+pub struct GraphHandleTraverseIterator<'a, G: ?Sized, N> {
     graph: &'a G,
     stack: Vec<Handle<N>>,
 }
@@ -1303,7 +1308,7 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::{NodeMapping, PrefabData, SceneGraph, SceneGraphNode};
+    use crate::{BaseSceneGraph, NodeMapping, PrefabData, SceneGraph, SceneGraphNode};
     use fyrox_core::{
         pool::{Handle, Pool},
         reflect::prelude::*,
@@ -1458,7 +1463,7 @@ mod test {
         }
     }
 
-    impl SceneGraph for Graph {
+    impl BaseSceneGraph for Graph {
         type Prefab = Graph;
         type Node = Node;
 
@@ -1468,14 +1473,6 @@ mod test {
 
         fn set_root(&mut self, root: Handle<Self::Node>) {
             self.root = root;
-        }
-
-        fn pair_iter(&self) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)> {
-            self.nodes.pair_iter()
-        }
-
-        fn linear_iter_mut(&mut self) -> impl Iterator<Item = &mut Self::Node> {
-            self.nodes.iter_mut()
         }
 
         fn is_valid_handle(&self, handle: Handle<Self::Node>) -> bool {
@@ -1539,6 +1536,16 @@ mod test {
 
         fn try_get_mut(&mut self, handle: Handle<Self::Node>) -> Option<&mut Self::Node> {
             self.nodes.try_borrow_mut(handle)
+        }
+    }
+
+    impl SceneGraph for Graph {
+        fn pair_iter(&self) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)> {
+            self.nodes.pair_iter()
+        }
+
+        fn linear_iter_mut(&mut self) -> impl Iterator<Item = &mut Self::Node> {
+            self.nodes.iter_mut()
         }
     }
 

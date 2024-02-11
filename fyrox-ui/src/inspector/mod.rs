@@ -32,7 +32,7 @@ use crate::{
 };
 use copypasta::ClipboardProvider;
 use fyrox_core::uuid_provider;
-use fyrox_graph::SceneGraph;
+use fyrox_graph::BaseSceneGraph;
 use std::sync::Arc;
 use std::{
     any::{Any, TypeId},

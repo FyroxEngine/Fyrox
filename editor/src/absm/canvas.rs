@@ -9,7 +9,7 @@ use crate::{
     },
     utils::fetch_node_screen_center_ui,
 };
-use fyrox::graph::SceneGraph;
+use fyrox::graph::BaseSceneGraph;
 use fyrox::{
     core::{
         algebra::{Matrix3, Point2, Vector2},

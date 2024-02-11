@@ -10,7 +10,7 @@ use crate::{
     world::WorldViewerItemContextMenu,
     Engine, Message, MessageDirection,
 };
-use fyrox::graph::{SceneGraph, SceneGraphNode};
+use fyrox::graph::{BaseSceneGraph, SceneGraphNode};
 use fyrox::{
     core::pool::Handle,
     gui::{

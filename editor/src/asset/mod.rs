@@ -9,7 +9,7 @@ use crate::{
     utils::window_content,
     AssetItem, Message, Mode,
 };
-use fyrox::graph::SceneGraph;
+use fyrox::graph::BaseSceneGraph;
 use fyrox::{
     asset::{
         manager::ResourceManager,

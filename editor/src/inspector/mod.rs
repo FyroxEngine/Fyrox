@@ -9,7 +9,7 @@ use crate::{
     Brush, Engine, Message, Mode, WidgetMessage, WrapMode, MSG_SYNC_FLAG,
 };
 use fyrox::core::pool::ErasedHandle;
-use fyrox::graph::SceneGraph;
+use fyrox::graph::BaseSceneGraph;
 use fyrox::{
     asset::manager::ResourceManager,
     core::{

@@ -1,4 +1,4 @@
-use fyrox::graph::SceneGraph;
+use fyrox::graph::BaseSceneGraph;
 use fyrox::{
     core::{algebra::Vector2, pool::ErasedHandle, pool::Handle, visitor::Visitor},
     gui::{

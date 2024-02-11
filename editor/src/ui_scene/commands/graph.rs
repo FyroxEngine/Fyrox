@@ -7,7 +7,7 @@ use crate::{
     ui_scene::{commands::UiSceneContext, UiSelection},
     Message,
 };
-use fyrox::graph::{LinkScheme, SceneGraph, SceneGraphNode};
+use fyrox::graph::{BaseSceneGraph, LinkScheme, SceneGraphNode};
 use fyrox::{
     core::pool::Handle,
     gui::{SubGraph, UiNode, UserInterface},

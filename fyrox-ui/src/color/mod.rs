@@ -21,7 +21,7 @@ use crate::{
     BuildContext, Control, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use fyrox_core::uuid_provider;
-use fyrox_graph::SceneGraph;
+use fyrox_graph::BaseSceneGraph;
 use std::{
     ops::{Deref, DerefMut},
     sync::mpsc::Sender,

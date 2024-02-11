@@ -37,7 +37,7 @@ use fyrox::{
     },
     engine::Engine,
     fxhash::FxHashSet,
-    graph::{SceneGraph, SceneGraphNode},
+    graph::{BaseSceneGraph, SceneGraphNode},
     gui::{
         brush::Brush,
         draw::{CommandTexture, Draw},

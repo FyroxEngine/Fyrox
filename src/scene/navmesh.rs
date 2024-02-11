@@ -22,7 +22,7 @@ use crate::{
     utils::navmesh::Navmesh,
 };
 use fyrox_core::parking_lot::{RwLockReadGuard, RwLockWriteGuard};
-use fyrox_graph::SceneGraph;
+use fyrox_graph::BaseSceneGraph;
 use std::{
     ops::{Deref, DerefMut},
     sync::Arc,

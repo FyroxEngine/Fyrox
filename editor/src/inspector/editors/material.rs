@@ -2,7 +2,7 @@ use crate::{
     asset::item::AssetItem, inspector::EditorEnvironment, message::MessageSender, Message,
     MessageDirection,
 };
-use fyrox::graph::SceneGraph;
+use fyrox::graph::BaseSceneGraph;
 use fyrox::{
     asset::{core::pool::Handle, manager::ResourceManager, state::ResourceState},
     core::{

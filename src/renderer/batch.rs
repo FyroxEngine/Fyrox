@@ -22,6 +22,7 @@ use crate::{
 };
 use fxhash::{FxBuildHasher, FxHashMap, FxHasher};
 
+use fyrox_graph::BaseSceneGraph;
 use std::{
     any::TypeId,
     collections::hash_map::DefaultHasher,

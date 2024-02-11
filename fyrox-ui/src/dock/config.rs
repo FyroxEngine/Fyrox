@@ -6,7 +6,7 @@ use crate::{
     window::WindowMessage,
     Orientation, UiNode, UserInterface,
 };
-use fyrox_graph::SceneGraph;
+use fyrox_graph::{BaseSceneGraph, SceneGraph};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Clone, Default, Serialize, Deserialize)]

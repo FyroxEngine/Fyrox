@@ -1,4 +1,4 @@
-use fyrox::graph::SceneGraph;
+use fyrox::graph::BaseSceneGraph;
 use fyrox::{
     core::{
         algebra::Vector2, make_pretty_type_name, parking_lot::Mutex, pool::Handle,

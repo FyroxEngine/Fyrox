@@ -27,7 +27,7 @@ use crate::{
     },
 };
 use fyrox_core::uuid_provider;
-use fyrox_graph::SceneGraph;
+use fyrox_graph::BaseSceneGraph;
 use fyrox_resource::state::LoadError;
 use fyrox_resource::untyped::ResourceKind;
 use lazy_static::lazy_static;

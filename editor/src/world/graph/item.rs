@@ -1,6 +1,6 @@
 use crate::{load_image, message::MessageSender, utils::make_node_name, Message};
 use fyrox::core::color::Color;
-use fyrox::graph::SceneGraph;
+use fyrox::graph::BaseSceneGraph;
 use fyrox::gui::draw::{CommandTexture, Draw};
 use fyrox::{
     asset::untyped::UntypedResource,

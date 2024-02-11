@@ -2,7 +2,7 @@ use crate::{
     gui::{make_dropdown_list_option, make_image_button_with_tooltip},
     load_image, Brush, Color, DropdownListBuilder, Engine,
 };
-use fyrox::graph::SceneGraph;
+use fyrox::graph::BaseSceneGraph;
 use fyrox::{
     core::{
         log::{LogMessage, MessageKind},

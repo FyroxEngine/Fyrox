@@ -1,6 +1,6 @@
 use crate::ui_scene::selection::UiSelection;
 use fyrox::core::pool::Handle;
-use fyrox::graph::SceneGraph;
+use fyrox::graph::BaseSceneGraph;
 use fyrox::gui::{UiNode, UserInterface};
 use std::collections::HashMap;
 
