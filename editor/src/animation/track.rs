@@ -715,14 +715,17 @@ impl TrackList {
     pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,
-        editor_selection: &Selection,
+        selection: &AnimationSelection,
         game_scene: &GameScene,
         sender: &MessageSender,
-        animation_player: Handle<Node>,
-        animation: Handle<Animation>,
         ui: &mut UserInterface,
         scene: &Scene,
     ) {
+        let selected_animation = scene
+            .graph
+            .try_get_of_type::<AnimationPlayer>(selection.animation_player)
+            .and_then(|ap| ap.animations().try_get(selection.animation));
+
         if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.add_track
                 || message.destination() == self.add_position_track
@@ -789,24 +792,22 @@ impl TrackList {
 
                 if filter_text.is_empty() {
                     // Focus currently selected entity when clearing the filter.
-                    if let Some(scene_selection) = editor_selection.as_animation() {
-                        if let Some(first) = scene_selection.entities.first() {
-                            let ui_node = match first {
-                                SelectedEntity::Track(id) => {
-                                    self.track_views.get(id).cloned().unwrap_or_default()
-                                }
-                                SelectedEntity::Curve(id) => {
-                                    self.curve_views.get(id).cloned().unwrap_or_default()
-                                }
-                                _ => Default::default(),
-                            };
-                            if ui_node.is_some() {
-                                ui.send_message(ScrollViewerMessage::bring_into_view(
-                                    self.scroll_viewer,
-                                    MessageDirection::ToWidget,
-                                    ui_node,
-                                ));
+                    if let Some(first) = selection.entities.first() {
+                        let ui_node = match first {
+                            SelectedEntity::Track(id) => {
+                                self.track_views.get(id).cloned().unwrap_or_default()
                             }
+                            SelectedEntity::Curve(id) => {
+                                self.curve_views.get(id).cloned().unwrap_or_default()
+                            }
+                            _ => Default::default(),
+                        };
+                        if ui_node.is_some() {
+                            ui.send_message(ScrollViewerMessage::bring_into_view(
+                                self.scroll_viewer,
+                                MessageDirection::ToWidget,
+                                ui_node,
+                            ));
                         }
                     }
                 }
@@ -834,45 +835,43 @@ impl TrackList {
                         }
                         PropertyBindingMode::Position => {
                             sender.do_scene_command(AddTrackCommand::new(
-                                animation_player,
-                                animation,
+                                selection.animation_player,
+                                selection.animation,
                                 Track::new_position().with_target(self.selected_node),
                             ));
                         }
                         PropertyBindingMode::Rotation => {
                             sender.do_scene_command(AddTrackCommand::new(
-                                animation_player,
-                                animation,
+                                selection.animation_player,
+                                selection.animation,
                                 Track::new_rotation().with_target(self.selected_node),
                             ));
                         }
                         PropertyBindingMode::Scale => {
                             sender.do_scene_command(AddTrackCommand::new(
-                                animation_player,
-                                animation,
+                                selection.animation_player,
+                                selection.animation,
                                 Track::new_scale().with_target(self.selected_node),
                             ));
                         }
                     }
                 }
             } else if message.destination() == self.context_menu.target_node_selector {
-                if let Some(scene_selection) = editor_selection.as_animation() {
-                    if let Some(first) = node_selection.first() {
-                        let mut commands = Vec::new();
+                if let Some(first) = node_selection.first() {
+                    let mut commands = Vec::new();
 
-                        for entity in scene_selection.entities.iter() {
-                            if let SelectedEntity::Track(id) = entity {
-                                commands.push(Command::new(SetTrackTargetCommand {
-                                    animation_player_handle: scene_selection.animation_player,
-                                    animation_handle: scene_selection.animation,
-                                    track: *id,
-                                    target: (*first).into(),
-                                }));
-                            }
+                    for entity in selection.entities.iter() {
+                        if let SelectedEntity::Track(id) = entity {
+                            commands.push(Command::new(SetTrackTargetCommand {
+                                animation_player_handle: selection.animation_player,
+                                animation_handle: selection.animation,
+                                track: *id,
+                                target: (*first).into(),
+                            }));
                         }
-
-                        sender.do_scene_command(CommandGroup::from(commands));
                     }
+
+                    sender.do_scene_command(CommandGroup::from(commands));
                 }
             }
         } else if let Some(PropertySelectorMessage::Selection(selected_properties)) = message.data()
@@ -901,8 +900,8 @@ impl TrackList {
                                     track.set_target(self.selected_node);
 
                                     sender.do_scene_command(AddTrackCommand::new(
-                                        animation_player,
-                                        animation,
+                                        selection.animation_player,
+                                        selection.animation,
                                         track,
                                     ));
                                 }
@@ -922,17 +921,19 @@ impl TrackList {
                 && message.direction() == MessageDirection::FromWidget
             {
                 if let Some(entry) = selected_properties.first() {
-                    self.rebind_property(entry, &scene.graph, editor_selection, sender);
+                    if let Some(animation) = selected_animation {
+                        self.rebind_property(entry, &scene.graph, selection, animation, sender);
+                    }
                 }
             }
-        } else if let Some(TreeRootMessage::Selected(selection)) = message.data() {
+        } else if let Some(TreeRootMessage::Selected(tree_selection)) = message.data() {
             if message.destination() == self.tree_root
                 && message.direction == MessageDirection::FromWidget
             {
-                let selection = Selection::new(AnimationSelection {
-                    animation_player,
-                    animation,
-                    entities: selection
+                let new_selection = Selection::new(AnimationSelection {
+                    animation_player: selection.animation_player,
+                    animation: selection.animation,
+                    entities: tree_selection
                         .iter()
                         .filter_map(|s| {
                             let selected_widget = ui.node(*s);
@@ -951,50 +952,40 @@ impl TrackList {
                 });
 
                 sender.do_scene_command(ChangeSelectionCommand::new(
-                    selection,
-                    editor_selection.clone(),
+                    new_selection,
+                    Selection::new(selection.clone()),
                 ));
             }
         } else if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination() == self.context_menu.remove_track {
-                if let Some(selection) = editor_selection.as_animation() {
-                    if let Some(animation_player) = scene
-                        .graph
-                        .try_get(selection.animation_player)
-                        .and_then(|n| n.query_component_ref::<AnimationPlayer>())
-                    {
-                        if let Some(animation) =
-                            animation_player.animations().try_get(selection.animation)
-                        {
-                            let mut commands = vec![Command::new(ChangeSelectionCommand::new(
-                                Selection::new(AnimationSelection {
-                                    animation_player: selection.animation_player,
-                                    animation: selection.animation,
-                                    // Just reset inner selection.
-                                    entities: vec![],
-                                }),
-                                editor_selection.clone(),
-                            ))];
+                if let Some(animation) = selected_animation {
+                    let mut commands = vec![Command::new(ChangeSelectionCommand::new(
+                        Selection::new(AnimationSelection {
+                            animation_player: selection.animation_player,
+                            animation: selection.animation,
+                            // Just reset inner selection.
+                            entities: vec![],
+                        }),
+                        Selection::new(selection.clone()),
+                    ))];
 
-                            for entity in selection.entities.iter() {
-                                if let SelectedEntity::Track(id) = entity {
-                                    let index = animation
-                                        .tracks()
-                                        .iter()
-                                        .position(|t| t.id() == *id)
-                                        .unwrap();
+                    for entity in selection.entities.iter() {
+                        if let SelectedEntity::Track(id) = entity {
+                            let index = animation
+                                .tracks()
+                                .iter()
+                                .position(|t| t.id() == *id)
+                                .unwrap();
 
-                                    commands.push(Command::new(RemoveTrackCommand::new(
-                                        selection.animation_player,
-                                        selection.animation,
-                                        index,
-                                    )));
-                                }
-                            }
-
-                            sender.do_scene_command(CommandGroup::from(commands));
+                            commands.push(Command::new(RemoveTrackCommand::new(
+                                selection.animation_player,
+                                selection.animation,
+                                index,
+                            )));
                         }
                     }
+
+                    sender.do_scene_command(CommandGroup::from(commands));
                 }
             } else if message.destination() == self.context_menu.set_target {
                 self.context_menu.target_node_selector = NodeSelectorWindowBuilder::new(
@@ -1014,75 +1005,57 @@ impl TrackList {
                     true,
                 ));
             } else if message.destination() == self.context_menu.rebind {
-                self.on_rebind_clicked(&scene.graph, editor_selection, ui);
+                if let Some(animation) = selected_animation {
+                    self.on_rebind_clicked(&scene.graph, selection, animation, ui);
+                }
             } else if message.destination() == self.context_menu.duplicate {
-                if let Some(selection) = editor_selection.as_animation() {
-                    if let Some(animation_player) = scene
-                        .graph
-                        .try_get(selection.animation_player)
-                        .and_then(|n| n.query_component_ref::<AnimationPlayer>())
-                    {
-                        if let Some(animation) =
-                            animation_player.animations().try_get(selection.animation)
-                        {
-                            let commands = selection
-                                .entities
-                                .iter()
-                                .filter_map(|e| match e {
-                                    SelectedEntity::Track(track_id) => {
-                                        let index = animation
-                                            .tracks()
-                                            .iter()
-                                            .position(|t| t.id() == *track_id)
-                                            .unwrap();
+                if let Some(animation) = selected_animation {
+                    let commands = selection
+                        .entities
+                        .iter()
+                        .filter_map(|e| match e {
+                            SelectedEntity::Track(track_id) => {
+                                let index = animation
+                                    .tracks()
+                                    .iter()
+                                    .position(|t| t.id() == *track_id)
+                                    .unwrap();
 
-                                        let mut track = animation.tracks()[index].clone();
+                                let mut track = animation.tracks()[index].clone();
 
-                                        track.set_id(Uuid::new_v4());
+                                track.set_id(Uuid::new_v4());
 
-                                        Some(Command::new(AddTrackCommand::new(
-                                            selection.animation_player,
-                                            selection.animation,
-                                            track,
-                                        )))
-                                    }
-                                    _ => None,
-                                })
-                                .collect::<Vec<_>>();
+                                Some(Command::new(AddTrackCommand::new(
+                                    selection.animation_player,
+                                    selection.animation,
+                                    track,
+                                )))
+                            }
+                            _ => None,
+                        })
+                        .collect::<Vec<_>>();
 
-                            sender.do_scene_command(CommandGroup::from(commands));
-                        }
-                    }
+                    sender.do_scene_command(CommandGroup::from(commands));
                 }
             }
         } else if let Some(TrackViewMessage::TrackEnabled(enabled)) = message.data() {
             if message.direction() == MessageDirection::FromWidget {
-                if let Some(selection) = editor_selection.as_animation() {
-                    if let Some(animation_player) = scene
-                        .graph
-                        .try_get(selection.animation_player)
-                        .and_then(|n| n.query_component_ref::<AnimationPlayer>())
+                if let Some(animation) = selected_animation {
+                    if let Some(track_view_ref) = ui
+                        .node(message.destination())
+                        .query_component::<TrackView>()
                     {
-                        if let Some(animation) =
-                            animation_player.animations().try_get(selection.animation)
+                        if animation
+                            .tracks()
+                            .iter()
+                            .any(|t| t.id() == track_view_ref.id)
                         {
-                            if let Some(track_view_ref) = ui
-                                .node(message.destination())
-                                .query_component::<TrackView>()
-                            {
-                                if animation
-                                    .tracks()
-                                    .iter()
-                                    .any(|t| t.id() == track_view_ref.id)
-                                {
-                                    sender.do_scene_command(SetTrackEnabledCommand {
-                                        animation_player_handle: selection.animation_player,
-                                        animation_handle: selection.animation,
-                                        track: track_view_ref.id,
-                                        enabled: *enabled,
-                                    })
-                                }
-                            }
+                            sender.do_scene_command(SetTrackEnabledCommand {
+                                animation_player_handle: selection.animation_player,
+                                animation_handle: selection.animation,
+                                track: track_view_ref.id,
+                                enabled: *enabled,
+                            })
                         }
                     }
                 }
@@ -1140,24 +1113,10 @@ impl TrackList {
     fn on_rebind_clicked(
         &mut self,
         graph: &Graph,
-        editor_selection: &Selection,
+        selection: &AnimationSelection,
+        animation: &Animation,
         ui: &mut UserInterface,
     ) {
-        let Some(selection) = editor_selection.as_animation() else {
-            return;
-        };
-
-        let Some(animation_player) = graph
-            .try_get(selection.animation_player)
-            .and_then(|n| n.query_component_ref::<AnimationPlayer>())
-        else {
-            return;
-        };
-
-        let Some(animation) = animation_player.animations().try_get(selection.animation) else {
-            return;
-        };
-
         let Some(first_selected_track) = selection.first_selected_track() else {
             return;
         };
@@ -1176,24 +1135,10 @@ impl TrackList {
         &self,
         desc: &PropertyDescriptorData,
         graph: &Graph,
-        editor_selection: &Selection,
+        selection: &AnimationSelection,
+        animation: &Animation,
         sender: &MessageSender,
     ) {
-        let Some(selection) = editor_selection.as_animation() else {
-            return;
-        };
-
-        let Some(animation_player) = graph
-            .try_get(selection.animation_player)
-            .and_then(|n| n.query_component_ref::<AnimationPlayer>())
-        else {
-            return;
-        };
-
-        let Some(animation) = animation_player.animations().try_get(selection.animation) else {
-            return;
-        };
-
         let Some(first_selected_track) = selection.first_selected_track() else {
             return;
         };
@@ -1250,14 +1195,13 @@ impl TrackList {
     pub fn sync_to_model(
         &mut self,
         animation: &Animation,
-        animation_handle: Handle<Animation>,
         graph: &Graph,
-        editor_selection: &Selection,
+        selection: &AnimationSelection,
         ui: &mut UserInterface,
     ) {
-        if self.selected_animation != animation_handle {
+        if self.selected_animation != selection.animation {
             self.clear(ui);
-            self.selected_animation = animation_handle;
+            self.selected_animation = selection.animation;
         }
 
         match animation.tracks().len().cmp(&self.track_views.len()) {
@@ -1425,43 +1369,41 @@ impl TrackList {
             }
         }
 
-        if let Some(selection) = editor_selection.as_animation() {
-            let mut any_track_selected = false;
-            let tree_selection = selection
-                .entities
-                .iter()
-                .filter_map(|e| match e {
-                    SelectedEntity::Track(id) => {
-                        any_track_selected = true;
-                        self.track_views.get(id).cloned()
-                    }
-                    SelectedEntity::Curve(id) => self.curve_views.get(id).cloned(),
-                    SelectedEntity::Signal(_) => None,
-                })
-                .collect();
+        let mut any_track_selected = false;
+        let tree_selection = selection
+            .entities
+            .iter()
+            .filter_map(|e| match e {
+                SelectedEntity::Track(id) => {
+                    any_track_selected = true;
+                    self.track_views.get(id).cloned()
+                }
+                SelectedEntity::Curve(id) => self.curve_views.get(id).cloned(),
+                SelectedEntity::Signal(_) => None,
+            })
+            .collect();
 
-            send_sync_message(
-                ui,
-                TreeRootMessage::select(self.tree_root, MessageDirection::ToWidget, tree_selection),
-            );
+        send_sync_message(
+            ui,
+            TreeRootMessage::select(self.tree_root, MessageDirection::ToWidget, tree_selection),
+        );
 
-            send_sync_message(
-                ui,
-                WidgetMessage::enabled(
-                    self.context_menu.remove_track,
-                    MessageDirection::ToWidget,
-                    any_track_selected,
-                ),
-            );
-            send_sync_message(
-                ui,
-                WidgetMessage::enabled(
-                    self.context_menu.set_target,
-                    MessageDirection::ToWidget,
-                    any_track_selected,
-                ),
-            );
-        }
+        send_sync_message(
+            ui,
+            WidgetMessage::enabled(
+                self.context_menu.remove_track,
+                MessageDirection::ToWidget,
+                any_track_selected,
+            ),
+        );
+        send_sync_message(
+            ui,
+            WidgetMessage::enabled(
+                self.context_menu.set_target,
+                MessageDirection::ToWidget,
+                any_track_selected,
+            ),
+        );
 
         for track_model in animation.tracks() {
             if let Some(track_view) = self.track_views.get(&track_model.id()) {

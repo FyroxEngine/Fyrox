@@ -190,7 +190,7 @@ impl AnimationEditor {
 
         let scene = &mut engine.scenes[game_scene.scene];
 
-        if let Some(animation_player) = scene
+        if let Some(animation_player_ref) = scene
             .graph
             .try_get_of_type::<AnimationPlayer>(selection.animation_player)
         {
@@ -200,16 +200,17 @@ impl AnimationEditor {
                 scene,
                 &mut engine.user_interface,
                 selection.animation_player,
-                animation_player.animations(),
+                animation_player_ref.animations(),
                 editor_selection,
                 game_scene,
                 &selection,
             );
 
-            let animation_player = scene
+            let animations = scene
                 .graph
                 .try_get_mut_of_type::<AnimationPlayer>(selection.animation_player)
-                .unwrap();
+                .unwrap()
+                .animations_mut();
 
             if let Some(msg) = message.data::<CurveEditorMessage>() {
                 if message.destination() == self.curve_editor
@@ -254,17 +255,11 @@ impl AnimationEditor {
             } else if let Some(msg) = message.data::<RulerMessage>() {
                 if message.destination() == self.ruler
                     && message.direction() == MessageDirection::FromWidget
-                    && animation_player
-                        .animations()
-                        .try_get(selection.animation)
-                        .is_some()
+                    && animations.try_get(selection.animation).is_some()
                 {
                     match msg {
                         RulerMessage::Value(value) => {
-                            if let Some(animation) = animation_player
-                                .animations_mut()
-                                .try_get_mut(selection.animation)
-                            {
+                            if let Some(animation) = animations.try_get_mut(selection.animation) {
                                 animation.set_time_position(*value);
                             }
                         }
@@ -281,9 +276,7 @@ impl AnimationEditor {
                             });
                         }
                         RulerMessage::RemoveSignal(id) => {
-                            if let Some(animation) =
-                                animation_player.animations().try_get(selection.animation)
-                            {
+                            if let Some(animation) = animations.try_get(selection.animation) {
                                 sender.do_scene_command(RemoveAnimationSignal {
                                     animation_player_handle: selection.animation_player,
                                     animation_handle: selection.animation,
@@ -376,7 +369,7 @@ impl AnimationEditor {
                     }
                 }
                 ToolbarAction::SelectAnimation(animation) => {
-                    let animation_ref = &animation_player.animations()[animation];
+                    let animation_ref = &animations[animation];
 
                     let size = engine
                         .user_interface
@@ -400,20 +393,14 @@ impl AnimationEditor {
                 }
                 ToolbarAction::PlayPause => {
                     if self.preview_mode_data.is_some() {
-                        if let Some(animation) = animation_player
-                            .animations_mut()
-                            .try_get_mut(selection.animation)
-                        {
+                        if let Some(animation) = animations.try_get_mut(selection.animation) {
                             animation.set_enabled(!animation.is_enabled());
                         }
                     }
                 }
                 ToolbarAction::Stop => {
                     if self.preview_mode_data.is_some() {
-                        if let Some(animation) = animation_player
-                            .animations_mut()
-                            .try_get_mut(selection.animation)
-                        {
+                        if let Some(animation) = animations.try_get_mut(selection.animation) {
                             animation.rewind();
                             animation.set_enabled(false);
                         }
@@ -423,11 +410,9 @@ impl AnimationEditor {
 
             self.track_list.handle_ui_message(
                 message,
-                editor_selection,
+                &selection,
                 game_scene,
                 sender,
-                selection.animation_player,
-                selection.animation,
                 &mut engine.user_interface,
                 scene,
             );
@@ -576,20 +561,21 @@ impl AnimationEditor {
             .try_get(selection.animation_player)
             .and_then(|n| n.query_component_ref::<AnimationPlayer>())
         {
+            let animations = animation_player.animations();
+
             self.toolbar.sync_to_model(
-                animation_player.animations(),
+                animations,
                 &selection,
                 scene,
                 &mut engine.user_interface,
                 self.preview_mode_data.is_some(),
             );
 
-            if let Some(animation) = animation_player.animations().try_get(selection.animation) {
+            if let Some(animation) = animations.try_get(selection.animation) {
                 self.track_list.sync_to_model(
                     animation,
-                    selection.animation,
                     &scene.graph,
-                    editor_selection,
+                    &selection,
                     &mut engine.user_interface,
                 );
 
