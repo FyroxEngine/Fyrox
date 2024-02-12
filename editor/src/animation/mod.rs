@@ -14,6 +14,8 @@ use crate::{
     scene::{commands::ChangeSelectionCommand, Selection},
     send_sync_message, Message,
 };
+use fyrox::graph::PrefabData;
+use fyrox::resource::model::AnimationSource;
 use fyrox::{
     asset::manager::ResourceManager,
     core::{
@@ -237,7 +239,7 @@ impl AnimationEditor {
         ));
     }
 
-    pub fn handle_ui_message<G, N>(
+    pub fn handle_ui_message<P, G, N>(
         &mut self,
         message: &UiMessage,
         editor_selection: &Selection,
@@ -248,8 +250,9 @@ impl AnimationEditor {
         sender: &MessageSender,
         node_overrides: &mut FxHashSet<Handle<N>>,
     ) where
-        G: SceneGraph<Node = N>,
-        N: SceneGraphNode<SceneGraph = G>,
+        P: PrefabData<Graph = G> + AnimationSource<Node = N, SceneGraph = G, Prefab = P>,
+        G: SceneGraph<Node = N, Prefab = P>,
+        N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
     {
         let selection = fetch_selection(editor_selection);
 
@@ -514,7 +517,7 @@ impl AnimationEditor {
 
         // Revert state of nodes.
         for (handle, node) in preview_data.downcast::<PreviewModeData<N>>().unwrap().nodes {
-            assert!(node_overrides.remove(&handle));
+            node_overrides.remove(&handle);
             *graph.node_mut(handle) = node;
         }
     }

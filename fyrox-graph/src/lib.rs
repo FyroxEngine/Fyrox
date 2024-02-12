@@ -12,6 +12,7 @@ use fyrox_core::{
     ComponentProvider, NameProvider,
 };
 use fyrox_resource::{untyped::UntypedResource, Resource, TypedResourceData};
+use std::any::Any;
 use std::cmp::Ordering;
 use std::fmt::Debug;
 use std::{
@@ -537,6 +538,20 @@ pub trait SceneGraphNode: AbstractSceneNode + Clone + 'static {
 
         previous_value
     }
+
+    /// Tries to borrow a component of given type.
+    #[inline]
+    fn component_ref<T: Any>(&self) -> Option<&T> {
+        ComponentProvider::query_component_ref(self, TypeId::of::<T>())
+            .and_then(|c| c.downcast_ref())
+    }
+
+    /// Tries to borrow a component of given type.
+    #[inline]
+    fn component_mut<T: Any>(&mut self) -> Option<&mut T> {
+        ComponentProvider::query_component_mut(self, TypeId::of::<T>())
+            .and_then(|c| c.downcast_mut())
+    }
 }
 
 pub trait PrefabData: TypedResourceData + 'static {
@@ -696,6 +711,10 @@ pub trait BaseSceneGraph: AbstractSceneGraph {
 pub trait SceneGraph: BaseSceneGraph {
     /// Creates new iterator that iterates over internal collection giving (handle; node) pairs.
     fn pair_iter(&self) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)>;
+
+    /// Creates an iterator that has linear iteration order over internal collection
+    /// of nodes. It does *not* perform any tree traversal!
+    fn linear_iter(&self) -> impl Iterator<Item = &Self::Node>;
 
     /// Creates an iterator that has linear iteration order over internal collection
     /// of nodes. It does *not* perform any tree traversal!

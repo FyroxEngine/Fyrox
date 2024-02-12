@@ -26,7 +26,7 @@ use fyrox::{
         pool::Handle,
     },
     generic_animation::{Animation, AnimationContainer, RootMotionSettings},
-    graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
+    graph::{BaseSceneGraph, PrefabData, SceneGraph, SceneGraphNode},
     gui::{
         border::BorderBuilder,
         button::{Button, ButtonBuilder, ButtonMessage},
@@ -48,7 +48,7 @@ use fyrox::{
         BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
         VerticalAlignment, BRUSH_BRIGHT, BRUSH_LIGHT,
     },
-    resource::model::{Model, ModelResourceExtension},
+    resource::model::AnimationSource,
 };
 use std::path::Path;
 
@@ -991,7 +991,7 @@ impl Toolbar {
         ToolbarAction::None
     }
 
-    pub fn post_handle_ui_message<G, N>(
+    pub fn post_handle_ui_message<P, G, N>(
         &mut self,
         message: &UiMessage,
         sender: &MessageSender,
@@ -1002,8 +1002,9 @@ impl Toolbar {
         editor_selection: &Selection,
         resource_manager: &ResourceManager,
     ) where
-        G: SceneGraph<Node = N>,
-        N: SceneGraphNode<SceneGraph = G>,
+        P: PrefabData<Graph = G> + AnimationSource<Node = N, SceneGraph = G, Prefab = P>,
+        G: SceneGraph<Node = N, Prefab = P>,
+        N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
     {
         if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.import || message.destination() == self.reimport {
@@ -1046,12 +1047,15 @@ impl Toolbar {
             }
         } else if let Some(FileSelectorMessage::Commit(path)) = message.data() {
             if message.destination() == self.import_file_selector {
-                match block_on(resource_manager.request::<Model>(path)) {
+                match block_on(resource_manager.request::<P>(path)) {
                     Ok(model) => {
-                        // TODO
-                        /*
-                        let mut animations = model
-                            .retarget_animations_directly(self.selected_import_root.into(), graph);
+                        let model_kind = model.kind();
+                        let data = model.data_ref();
+                        let mut animations = data.retarget_animations_directly(
+                            self.selected_import_root.into(),
+                            graph,
+                            model_kind,
+                        );
 
                         let file_stem = path
                             .file_stem()
@@ -1097,7 +1101,7 @@ impl Toolbar {
                                     }
                                 }
                             }
-                        }*/
+                        }
                     }
                     Err(err) => Log::err(format!(
                         "Failed to load {} animation file! Reason: {:?}",
