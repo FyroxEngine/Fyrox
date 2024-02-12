@@ -1301,7 +1301,7 @@ impl Editor {
                     &mut engine.user_interface,
                     &engine.resource_manager,
                     &self.message_sender,
-                    &mut Default::default(), // TODO
+                    ui_scene.ui_update_switches.node_overrides.as_mut().unwrap(),
                 );
                 self.world_viewer.handle_ui_message(
                     message,
@@ -1682,7 +1682,7 @@ impl Editor {
                 self.animation_editor.try_leave_preview_mode(
                     &mut ui_scene.ui,
                     &self.engine.user_interface,
-                    &mut Default::default(), // TODO
+                    ui_scene.ui_update_switches.node_overrides.as_mut().unwrap(),
                 );
             }
         }
@@ -2176,7 +2176,7 @@ impl Editor {
                             &message,
                             &mut ui_scene.ui,
                             &self.engine.user_interface,
-                            &mut Default::default(), // TODO
+                            ui_scene.ui_update_switches.node_overrides.as_mut().unwrap(),
                         );
                     }
 
@@ -2668,7 +2668,9 @@ fn update(editor: &mut Editor, window_target: &EventLoopWindowTarget<()>) {
 
         editor.update(FIXED_TIMESTEP);
 
-        editor.engine.post_update(FIXED_TIMESTEP);
+        editor
+            .engine
+            .post_update(FIXED_TIMESTEP, &Default::default());
 
         editor.post_update();
 

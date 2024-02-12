@@ -428,7 +428,7 @@ impl StateGraphViewer {
         }
 
         // Force update layout to be able to fetch positions of nodes for transitions.
-        ui.update(ui.screen_size(), 0.0);
+        ui.update_layout(ui.screen_size());
 
         // Sync transitions.
         match transitions

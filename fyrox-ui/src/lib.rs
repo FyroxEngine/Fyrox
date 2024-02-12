@@ -624,6 +624,13 @@ impl WidgetMethodsRegistry {
     }
 }
 
+/// A set of switches that allows you to disable a particular step of UI update pipeline.
+#[derive(Clone, PartialEq, Eq, Default)]
+pub struct UiUpdateSwitches {
+    /// A set of nodes that will be updated, everything else won't be updated.
+    pub node_overrides: Option<FxHashSet<Handle<UiNode>>>,
+}
+
 #[derive(Reflect, Debug)]
 pub struct UserInterface {
     screen_size: Vector2<f32>,
@@ -1062,14 +1069,8 @@ impl UserInterface {
         }
     }
 
-    pub fn update(&mut self, screen_size: Vector2<f32>, dt: f32) {
-        scope_profile!();
-
+    pub fn update_layout(&mut self, screen_size: Vector2<f32>) {
         self.screen_size = screen_size;
-
-        for entry in self.double_click_entries.values_mut() {
-            entry.timer -= dt;
-        }
 
         self.handle_layout_events();
 
@@ -1090,14 +1091,30 @@ impl UserInterface {
                 Rect::new(0.0, 0.0, self.screen_size.x, self.screen_size.y),
             );
         }
+    }
 
-        let update_subs = std::mem::take(&mut self.methods_registry.on_update);
-        for &handle in update_subs.iter() {
-            let (ticket, mut node) = self.nodes.take_reserve(handle);
-            node.update(dt, self);
-            self.nodes.put_back(ticket, node);
+    pub fn update(&mut self, screen_size: Vector2<f32>, dt: f32, switches: &UiUpdateSwitches) {
+        for entry in self.double_click_entries.values_mut() {
+            entry.timer -= dt;
         }
-        self.methods_registry.on_update = update_subs;
+
+        self.update_layout(screen_size);
+
+        if let Some(node_overrides) = switches.node_overrides.as_ref() {
+            for &handle in node_overrides.iter() {
+                let (ticket, mut node) = self.nodes.take_reserve(handle);
+                node.update(dt, self);
+                self.nodes.put_back(ticket, node);
+            }
+        } else {
+            let update_subs = std::mem::take(&mut self.methods_registry.on_update);
+            for &handle in update_subs.iter() {
+                let (ticket, mut node) = self.nodes.take_reserve(handle);
+                node.update(dt, self);
+                self.nodes.put_back(ticket, node);
+            }
+            self.methods_registry.on_update = update_subs;
+        }
 
         self.update_tooltips(dt);
 
@@ -1554,7 +1571,7 @@ impl UserInterface {
                 }
 
                 if message.need_perform_layout() {
-                    self.update(self.screen_size, 0.0);
+                    self.update_layout(self.screen_size);
                 }
 
                 for &handle in self.methods_registry.preview_message.iter() {
@@ -3215,10 +3232,10 @@ mod test {
                 .with_height(widget_size.y),
         )
         .build(&mut ui.build_ctx());
-        ui.update(screen_size, 0.0); // Make sure layout was calculated.
+        ui.update(screen_size, 0.0, &Default::default()); // Make sure layout was calculated.
         ui.send_message(WidgetMessage::center(widget, MessageDirection::ToWidget));
         while ui.poll_message().is_some() {}
-        ui.update(screen_size, 0.0);
+        ui.update(screen_size, 0.0, &Default::default());
         let expected_position = (screen_size - widget_size).scale(0.5);
         let actual_position = ui.node(widget).actual_local_position();
         assert_eq!(actual_position, expected_position);
@@ -3232,7 +3249,7 @@ mod test {
         let text_box = TextBoxBuilder::new(WidgetBuilder::new()).build(&mut ui.build_ctx());
 
         // Make sure layout was calculated.
-        ui.update(screen_size, 0.0);
+        ui.update(screen_size, 0.0, &Default::default());
 
         assert!(ui.poll_message().is_none());
 

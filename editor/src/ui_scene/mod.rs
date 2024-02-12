@@ -25,6 +25,7 @@ use crate::{
     Message,
 };
 use fyrox::graph::SceneGraph;
+use fyrox::gui::UiUpdateSwitches;
 use fyrox::{
     core::{
         algebra::{Vector2, Vector3},
@@ -63,6 +64,7 @@ pub struct UiScene {
     pub message_sender: MessageSender,
     pub clipboard: Clipboard,
     pub preview_instance: Option<PreviewInstance>,
+    pub ui_update_switches: UiUpdateSwitches,
 }
 
 impl UiScene {
@@ -73,6 +75,10 @@ impl UiScene {
             message_sender,
             clipboard: Default::default(),
             preview_instance: None,
+            ui_update_switches: UiUpdateSwitches {
+                // Disable update for everything.
+                node_overrides: Some(Default::default()),
+            },
         }
     }
 
@@ -381,7 +387,8 @@ impl SceneController for UiScene {
         _settings: &mut Settings,
         screen_bounds: Rect<f32>,
     ) -> Option<TextureResource> {
-        self.ui.update(screen_bounds.size, dt);
+        self.ui
+            .update(screen_bounds.size, dt, &self.ui_update_switches);
 
         // Create new render target if preview frame has changed its size.
         let mut new_render_target = None;

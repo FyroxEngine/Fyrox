@@ -618,7 +618,7 @@ impl StateViewer {
             }
 
             // Force update layout to be able to fetch positions of nodes for transitions.
-            ui.update(ui.screen_size(), 0.0);
+            ui.update_layout(ui.screen_size());
 
             // Sync connections - remove old ones and create new. Since there is no separate data model
             // for connection we can't find which connection has changed and sync only it, instead we
