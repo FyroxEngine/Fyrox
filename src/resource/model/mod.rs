@@ -265,7 +265,7 @@ pub trait AnimationSource {
     ///
     /// # Panic
     ///
-    /// Panics if `dest_animation_player` is invalid handle, or the node does not have [`AnimationPlayer`]
+    /// Panics if `dest_animation_player` is invalid handle, or the node does not have [`AnimationContainer`]
     /// component.
     fn retarget_animations_to_player(
         &self,
@@ -376,7 +376,7 @@ pub trait ModelResourceExtension: Sized {
     ///
     /// # Panic
     ///
-    /// Panics if `dest_animation_player` is invalid handle, or the node does not have [`AnimationPlayer`]
+    /// Panics if `dest_animation_player` is invalid handle, or the node does not have [`AnimationContainer`]
     /// component.
     fn retarget_animations_to_player(
         &self,

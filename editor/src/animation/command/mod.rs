@@ -16,10 +16,9 @@ use fyrox::{
         signal::AnimationSignal, track::Track, value::ValueBinding, Animation, AnimationContainer,
         RootMotionSettings,
     },
-    graph::BaseSceneGraph,
+    graph::{BaseSceneGraph, SceneGraphNode},
 };
 use std::{
-    any::TypeId,
     fmt::Debug,
     ops::{IndexMut, Range},
 };
@@ -38,15 +37,12 @@ pub fn fetch_animations_container<N: Debug + 'static>(
             .scene
             .graph
             .node_mut(ErasedHandle::from(handle).into())
-            .query_component_mut::<InheritableVariable<AnimationContainer<Handle<N>>>>()
+            .component_mut::<InheritableVariable<AnimationContainer<Handle<N>>>>()
             .unwrap()
     } else if let Some(ui) = context2.component_mut::<UiSceneContext>() {
         ui.ui
             .node_mut(ErasedHandle::from(handle).into())
-            .query_component_mut(TypeId::of::<
-                InheritableVariable<AnimationContainer<Handle<N>>>,
-            >())
-            .and_then(|c| c.downcast_mut::<InheritableVariable<AnimationContainer<Handle<N>>>>())
+            .component_mut::<InheritableVariable<AnimationContainer<Handle<N>>>>()
             .unwrap()
     } else {
         panic!("Unsupported container!")
