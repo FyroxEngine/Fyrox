@@ -1031,7 +1031,7 @@ impl Toolbar {
                 && message.direction() == MessageDirection::FromWidget
             {
                 if let Some(first) = selected_nodes.first() {
-                    self.selected_import_root = (*first).into();
+                    self.selected_import_root = *first;
 
                     ui.send_message(WindowMessage::open_modal(
                         self.import_file_selector,

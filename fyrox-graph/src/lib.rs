@@ -1595,6 +1595,10 @@ mod test {
             self.nodes.pair_iter()
         }
 
+        fn linear_iter(&self) -> impl Iterator<Item = &Self::Node> {
+            self.nodes.iter()
+        }
+
         fn linear_iter_mut(&mut self) -> impl Iterator<Item = &mut Self::Node> {
             self.nodes.iter_mut()
         }

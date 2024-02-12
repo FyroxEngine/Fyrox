@@ -1512,7 +1512,7 @@ impl Editor {
                 self.animation_editor.sync_to_model(
                     &current_scene_entry.selection,
                     &mut engine.user_interface,
-                    &mut engine.scenes[game_scene.scene].graph,
+                    &engine.scenes[game_scene.scene].graph,
                 );
                 self.absm_editor
                     .sync_to_model(&current_scene_entry.selection, game_scene, engine);
@@ -1545,7 +1545,7 @@ impl Editor {
                 self.animation_editor.sync_to_model(
                     &current_scene_entry.selection,
                     &mut engine.user_interface,
-                    &mut ui_scene.ui,
+                    &ui_scene.ui,
                 );
                 self.world_viewer.sync_to_model(
                     &UiSceneWorldViewerDataProvider {
