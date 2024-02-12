@@ -262,7 +262,6 @@ impl AudioPanel {
                 if let Some(selection) = editor_selection.as_audio_bus() {
                     let mut commands = vec![Command::new(ChangeSelectionCommand::new(
                         Selection::new_empty(),
-                        editor_selection.clone(),
                     ))];
 
                     for &bus in &selection.buses {
@@ -286,12 +285,11 @@ impl AudioPanel {
                     ui,
                 );
 
-                sender.do_scene_command(ChangeSelectionCommand::new(
-                    Selection::new(AudioBusSelection {
+                sender.do_scene_command(ChangeSelectionCommand::new(Selection::new(
+                    AudioBusSelection {
                         buses: vec![effect],
-                    }),
-                    editor_selection.clone(),
-                ))
+                    },
+                )))
             }
         } else if let Some(AudioBusViewMessage::ChangeParent(new_parent)) = message.data() {
             if message.direction() == MessageDirection::FromWidget {

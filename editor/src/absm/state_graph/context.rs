@@ -248,7 +248,6 @@ impl NodeContextMenu {
 
                     let mut group = vec![Command::new(ChangeSelectionCommand::new(
                         Selection::new(new_selection),
-                        editor_selection.clone(),
                     ))];
 
                     group.extend(transitions_to_remove.map(|transition| {
@@ -359,10 +358,7 @@ impl TransitionContextMenu {
                         .unwrap();
 
                     let group = vec![
-                        Command::new(ChangeSelectionCommand::new(
-                            Selection::new(new_selection),
-                            editor_selection.clone(),
-                        )),
+                        Command::new(ChangeSelectionCommand::new(Selection::new(new_selection))),
                         Command::new(DeleteTransitionCommand::new(
                             absm_node_handle,
                             layer_index,

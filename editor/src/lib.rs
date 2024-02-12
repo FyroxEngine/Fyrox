@@ -1074,7 +1074,7 @@ impl Editor {
                                     {
                                         sender.send(Message::OpenNodeRemovalDialog);
                                     } else {
-                                        sender.send(Message::DoGameSceneCommand(
+                                        sender.send(Message::DoCommand(
                                             make_delete_selection_command(
                                                 &entry.selection,
                                                 game_scene,
@@ -1085,11 +1085,8 @@ impl Editor {
                                 }
                             } else if let Some(selection) = entry.selection.as_ui() {
                                 if let Some(ui_scene) = entry.controller.downcast_mut::<UiScene>() {
-                                    sender.send(Message::DoUiSceneCommand(
-                                        selection.make_deletion_command(
-                                            &ui_scene.ui,
-                                            entry.selection.clone(),
-                                        ),
+                                    sender.send(Message::DoCommand(
+                                        selection.make_deletion_command(&ui_scene.ui),
                                     ));
                                 }
                             }
@@ -1185,18 +1182,21 @@ impl Editor {
             );
 
             if let Some(game_scene) = current_scene_entry.controller.downcast_mut::<GameScene>() {
+                let graph = &mut engine.scenes[game_scene.scene].graph;
                 self.animation_editor.handle_ui_message(
                     message,
                     &current_scene_entry.selection,
-                    game_scene,
-                    engine,
+                    graph,
+                    game_scene.scene_content_root,
+                    &mut engine.user_interface,
+                    &engine.resource_manager,
                     &self.message_sender,
+                    game_scene.graph_switches.node_overrides.as_mut().unwrap(),
                 );
                 self.ragdoll_wizard.handle_ui_message(
                     message,
                     &mut engine.user_interface,
-                    &mut engine.scenes[game_scene.scene].graph,
-                    &current_scene_entry.selection,
+                    graph,
                     game_scene,
                     &self.message_sender,
                 );
@@ -1292,6 +1292,17 @@ impl Editor {
                     .handle_ui_message(message, game_scene, engine);
             } else if let Some(ui_scene) = current_scene_entry.controller.downcast_mut::<UiScene>()
             {
+                let ui_root = ui_scene.ui.root();
+                self.animation_editor.handle_ui_message(
+                    message,
+                    &current_scene_entry.selection,
+                    &mut ui_scene.ui,
+                    ui_root,
+                    &mut engine.user_interface,
+                    &engine.resource_manager,
+                    &self.message_sender,
+                    &mut Default::default(), // TODO
+                );
                 self.world_viewer.handle_ui_message(
                     message,
                     &mut UiSceneWorldViewerDataProvider {
@@ -1483,10 +1494,12 @@ impl Editor {
 
         if let Some(current_scene_entry) = self.scenes.current_scene_entry_mut() {
             self.command_stack_viewer.sync_to_model(
-                current_scene_entry.controller.top_command_index(),
-                current_scene_entry
-                    .controller
-                    .command_names(&mut current_scene_entry.selection, engine),
+                current_scene_entry.command_stack.top,
+                current_scene_entry.controller.command_names(
+                    &mut current_scene_entry.command_stack,
+                    &mut current_scene_entry.selection,
+                    engine,
+                ),
                 &mut engine.user_interface,
             );
             self.inspector.sync_to_model(
@@ -1498,8 +1511,8 @@ impl Editor {
             if let Some(game_scene) = current_scene_entry.controller.downcast_mut::<GameScene>() {
                 self.animation_editor.sync_to_model(
                     &current_scene_entry.selection,
-                    game_scene,
-                    engine,
+                    &mut engine.user_interface,
+                    &engine.scenes[game_scene.scene].graph,
                 );
                 self.absm_editor
                     .sync_to_model(&current_scene_entry.selection, game_scene, engine);
@@ -1529,6 +1542,11 @@ impl Editor {
                 );
             } else if let Some(ui_scene) = current_scene_entry.controller.downcast_mut::<UiScene>()
             {
+                self.animation_editor.sync_to_model(
+                    &current_scene_entry.selection,
+                    &mut engine.user_interface,
+                    &ui_scene.ui,
+                );
                 self.world_viewer.sync_to_model(
                     &UiSceneWorldViewerDataProvider {
                         ui: &mut ui_scene.ui,
@@ -1581,27 +1599,15 @@ impl Editor {
         for_each_plugin!(self.plugins => on_post_update(self));
     }
 
-    fn do_game_scene_command(&mut self, command: Command) -> bool {
+    fn do_current_scene_command(&mut self, command: Command) -> bool {
         let engine = &mut self.engine;
         if let Some(current_scene_entry) = self.scenes.current_scene_entry_mut() {
-            if let Some(game_scene) = current_scene_entry.controller.downcast_mut::<GameScene>() {
-                game_scene.do_command(command, &mut current_scene_entry.selection, engine);
-            }
-
-            current_scene_entry.has_unsaved_changes = true;
-
-            true
-        } else {
-            false
-        }
-    }
-
-    fn do_ui_scene_command(&mut self, command: Command) -> bool {
-        let engine = &mut self.engine;
-        if let Some(current_scene_entry) = self.scenes.current_scene_entry_mut() {
-            if let Some(ui_scene) = current_scene_entry.controller.downcast_mut::<UiScene>() {
-                ui_scene.do_command(command, &mut current_scene_entry.selection, engine);
-            }
+            current_scene_entry.controller.do_command(
+                &mut current_scene_entry.command_stack,
+                command,
+                &mut current_scene_entry.selection,
+                engine,
+            );
 
             current_scene_entry.has_unsaved_changes = true;
 
@@ -1614,9 +1620,11 @@ impl Editor {
     fn undo_current_scene_command(&mut self) -> bool {
         let engine = &mut self.engine;
         if let Some(current_scene_entry) = self.scenes.current_scene_entry_mut() {
-            current_scene_entry
-                .controller
-                .undo(&mut current_scene_entry.selection, engine);
+            current_scene_entry.controller.undo(
+                &mut current_scene_entry.command_stack,
+                &mut current_scene_entry.selection,
+                engine,
+            );
             current_scene_entry.has_unsaved_changes = true;
             true
         } else {
@@ -1627,9 +1635,11 @@ impl Editor {
     fn redo_current_scene_command(&mut self) -> bool {
         let engine = &mut self.engine;
         if let Some(current_scene_entry) = self.scenes.current_scene_entry_mut() {
-            current_scene_entry
-                .controller
-                .redo(&mut current_scene_entry.selection, engine);
+            current_scene_entry.controller.redo(
+                &mut current_scene_entry.command_stack,
+                &mut current_scene_entry.selection,
+                engine,
+            );
             current_scene_entry.has_unsaved_changes = true;
             true
         } else {
@@ -1640,9 +1650,11 @@ impl Editor {
     fn clear_current_scene_command_stack(&mut self) -> bool {
         let engine = &mut self.engine;
         if let Some(current_scene_entry) = self.scenes.current_scene_entry_mut() {
-            current_scene_entry
-                .controller
-                .clear_command_stack(&mut current_scene_entry.selection, engine);
+            current_scene_entry.controller.clear_command_stack(
+                &mut current_scene_entry.command_stack,
+                &mut current_scene_entry.selection,
+                engine,
+            );
             true
         } else {
             false
@@ -1659,10 +1671,19 @@ impl Editor {
                     .leave_preview_mode(game_scene, engine);
                 self.audio_preview_panel
                     .leave_preview_mode(game_scene, engine);
-                self.animation_editor
-                    .try_leave_preview_mode(game_scene, engine);
+                self.animation_editor.try_leave_preview_mode(
+                    &mut engine.scenes[game_scene.scene].graph,
+                    &engine.user_interface,
+                    game_scene.graph_switches.node_overrides.as_mut().unwrap(),
+                );
                 self.absm_editor
                     .try_leave_preview_mode(&entry.selection, game_scene, engine);
+            } else if let Some(ui_scene) = entry.controller.downcast_mut::<UiScene>() {
+                self.animation_editor.try_leave_preview_mode(
+                    &mut ui_scene.ui,
+                    &self.engine.user_interface,
+                    &mut Default::default(), // TODO
+                );
             }
         }
     }
@@ -1831,7 +1852,9 @@ impl Editor {
 
         let engine = &mut self.engine;
         if let Some(mut entry) = self.scenes.take_scene(id) {
-            entry.controller.on_destroy(engine, &mut entry.selection);
+            entry
+                .controller
+                .on_destroy(&mut entry.command_stack, engine, &mut entry.selection);
 
             // Preview frame has scene frame texture assigned, it must be cleared explicitly,
             // otherwise it will show last rendered frame in preview which is not what we want.
@@ -2062,11 +2085,20 @@ impl Editor {
         if let Some(entry) = self.scenes.current_scene_entry_ref() {
             if let Some(game_scene) = entry.controller.downcast_ref::<GameScene>() {
                 self.light_panel.update(game_scene, &mut self.engine);
-                self.animation_editor
-                    .update(&entry.selection, game_scene, &self.engine);
+                self.animation_editor.update(
+                    &entry.selection,
+                    &self.engine.user_interface,
+                    &self.engine.scenes[game_scene.scene].graph,
+                );
                 self.audio_preview_panel
                     .update(&entry.selection, game_scene, &self.engine);
                 self.scene_viewer.update(game_scene, &mut self.engine);
+            } else if let Some(ui_scene) = entry.controller.downcast_ref::<UiScene>() {
+                self.animation_editor.update(
+                    &entry.selection,
+                    &self.engine.user_interface,
+                    &ui_scene.ui,
+                );
             }
         }
 
@@ -2129,14 +2161,22 @@ impl Editor {
                         );
                         self.animation_editor.handle_message(
                             &message,
-                            game_scene,
-                            &mut self.engine,
+                            &mut self.engine.scenes[game_scene.scene].graph,
+                            &self.engine.user_interface,
+                            game_scene.graph_switches.node_overrides.as_mut().unwrap(),
                         );
                         self.absm_editor.handle_message(
                             &message,
                             &entry.selection,
                             game_scene,
                             &mut self.engine,
+                        );
+                    } else if let Some(ui_scene) = entry.controller.downcast_mut::<UiScene>() {
+                        self.animation_editor.handle_message(
+                            &message,
+                            &mut ui_scene.ui,
+                            &self.engine.user_interface,
+                            &mut Default::default(), // TODO
                         );
                     }
 
@@ -2148,11 +2188,8 @@ impl Editor {
                 self.scene_viewer.handle_message(&message, &mut self.engine);
 
                 match message {
-                    Message::DoGameSceneCommand(command) => {
-                        needs_sync |= self.do_game_scene_command(command);
-                    }
-                    Message::DoUiSceneCommand(command) => {
-                        needs_sync |= self.do_ui_scene_command(command);
+                    Message::DoCommand(command) => {
+                        needs_sync |= self.do_current_scene_command(command);
                     }
                     Message::UndoCurrentSceneCommand => {
                         needs_sync |= self.undo_current_scene_command();

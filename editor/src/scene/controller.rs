@@ -1,3 +1,4 @@
+use crate::command::{Command, CommandStack};
 use crate::{
     scene::Selection,
     settings::{keys::KeyBindings, Settings},
@@ -75,7 +76,6 @@ pub trait SceneController: 'static {
         screen_bounds: Rect<f32>,
         engine: &mut Engine,
         settings: &Settings,
-        editor_selection: &Selection,
     );
 
     fn render_target(&self, engine: &Engine) -> Option<TextureResource>;
@@ -89,11 +89,34 @@ pub trait SceneController: 'static {
         engine: &mut Engine,
     ) -> Result<String, String>;
 
-    fn undo(&mut self, selection: &mut Selection, engine: &mut Engine);
+    fn do_command(
+        &mut self,
+        command_stack: &mut CommandStack,
+        command: Command,
+        selection: &mut Selection,
+        engine: &mut Engine,
+    );
 
-    fn redo(&mut self, selection: &mut Selection, engine: &mut Engine);
+    fn undo(
+        &mut self,
+        command_stack: &mut CommandStack,
+        selection: &mut Selection,
+        engine: &mut Engine,
+    );
 
-    fn clear_command_stack(&mut self, selection: &mut Selection, engine: &mut Engine);
+    fn redo(
+        &mut self,
+        command_stack: &mut CommandStack,
+        selection: &mut Selection,
+        engine: &mut Engine,
+    );
+
+    fn clear_command_stack(
+        &mut self,
+        command_stack: &mut CommandStack,
+        selection: &mut Selection,
+        engine: &mut Engine,
+    );
 
     fn on_before_render(&mut self, editor_selection: &Selection, engine: &mut Engine);
 
@@ -111,14 +134,22 @@ pub trait SceneController: 'static {
 
     fn is_interacting(&self) -> bool;
 
-    fn on_destroy(&mut self, engine: &mut Engine, selection: &mut Selection);
+    fn on_destroy(
+        &mut self,
+        command_stack: &mut CommandStack,
+        engine: &mut Engine,
+        selection: &mut Selection,
+    );
 
     fn on_message(&mut self, message: &Message, selection: &Selection, engine: &mut Engine)
         -> bool;
 
-    fn top_command_index(&self) -> Option<usize>;
-
-    fn command_names(&mut self, selection: &mut Selection, engine: &mut Engine) -> Vec<String>;
+    fn command_names(
+        &mut self,
+        command_stack: &mut CommandStack,
+        selection: &mut Selection,
+        engine: &mut Engine,
+    ) -> Vec<String>;
 
     fn first_selected_entity(
         &self,

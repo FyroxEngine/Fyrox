@@ -1,44 +1,67 @@
-use crate::command::CommandContext;
 use crate::{
     animation::selection::AnimationSelection,
-    command::CommandTrait,
+    command::{CommandContext, CommandTrait},
     scene::{commands::GameSceneContext, Selection},
+    ui_scene::commands::UiSceneContext,
 };
 use fyrox::{
     core::{
         curve::Curve,
         log::Log,
-        pool::{Handle, Ticket},
+        pool::{ErasedHandle, Handle, Ticket},
         uuid::Uuid,
+        variable::InheritableVariable,
     },
-    scene::{
-        animation::{absm::prelude::*, prelude::*},
-        node::Node,
+    generic_animation::{
+        signal::AnimationSignal, track::Track, value::ValueBinding, Animation, AnimationContainer,
+        RootMotionSettings,
     },
+    graph::{BaseSceneGraph, SceneGraphNode},
 };
 use std::{
     fmt::Debug,
     ops::{IndexMut, Range},
 };
 
-pub fn fetch_animation_player(
-    handle: Handle<Node>,
-    context: &mut GameSceneContext,
-) -> &mut AnimationPlayer {
-    context.scene.graph[handle]
-        .query_component_mut::<AnimationPlayer>()
-        .unwrap()
+pub fn fetch_animations_container<N: Debug + 'static>(
+    handle: Handle<N>,
+    context: &mut dyn CommandContext,
+) -> &mut InheritableVariable<AnimationContainer<Handle<N>>> {
+    // SAFETY: Borrow checker cannot resolve lifetime properly in the following `if` chain.
+    // This is safe to do, because there's only one mutable reference anyway. Should be fixed
+    // with Polonius.
+    let context2 = unsafe { &mut *(context as *mut dyn CommandContext) };
+
+    if let Some(game_scene) = context.component_mut::<GameSceneContext>() {
+        game_scene
+            .scene
+            .graph
+            .node_mut(ErasedHandle::from(handle).into())
+            .component_mut::<InheritableVariable<AnimationContainer<Handle<N>>>>()
+            .unwrap()
+    } else if let Some(ui) = context2.component_mut::<UiSceneContext>() {
+        ui.ui
+            .node_mut(ErasedHandle::from(handle).into())
+            .component_mut::<InheritableVariable<AnimationContainer<Handle<N>>>>()
+            .unwrap()
+    } else {
+        panic!("Unsupported container!")
+    }
 }
 
 #[derive(Debug)]
-pub struct AddTrackCommand {
-    animation_player: Handle<Node>,
-    animation: Handle<Animation>,
-    track: Option<Track>,
+pub struct AddTrackCommand<N: Debug + 'static> {
+    animation_player: Handle<N>,
+    animation: Handle<Animation<Handle<N>>>,
+    track: Option<Track<Handle<N>>>,
 }
 
-impl AddTrackCommand {
-    pub fn new(animation_player: Handle<Node>, animation: Handle<Animation>, track: Track) -> Self {
+impl<N: Debug + 'static> AddTrackCommand<N> {
+    pub fn new(
+        animation_player: Handle<N>,
+        animation: Handle<Animation<Handle<N>>>,
+        track: Track<Handle<N>>,
+    ) -> Self {
         Self {
             animation_player,
             animation,
@@ -47,35 +70,36 @@ impl AddTrackCommand {
     }
 }
 
-impl CommandTrait for AddTrackCommand {
+impl<N: Debug + 'static> CommandTrait for AddTrackCommand<N> {
     fn name(&mut self, _: &dyn CommandContext) -> String {
         "Add Track".to_string()
     }
 
     fn execute(&mut self, context: &mut dyn CommandContext) {
-        let context = context.get_mut::<GameSceneContext>();
-        fetch_animation_player(self.animation_player, context).animations_mut()[self.animation]
+        fetch_animations_container(self.animation_player, context)[self.animation]
             .add_track(self.track.take().unwrap());
     }
 
     fn revert(&mut self, context: &mut dyn CommandContext) {
-        let context = context.get_mut::<GameSceneContext>();
-        self.track = fetch_animation_player(self.animation_player, context).animations_mut()
-            [self.animation]
-            .pop_track();
+        self.track =
+            fetch_animations_container(self.animation_player, context)[self.animation].pop_track();
     }
 }
 
 #[derive(Debug)]
-pub struct RemoveTrackCommand {
-    animation_player: Handle<Node>,
-    animation: Handle<Animation>,
+pub struct RemoveTrackCommand<N: Debug + 'static> {
+    animation_player: Handle<N>,
+    animation: Handle<Animation<Handle<N>>>,
     index: usize,
-    track: Option<Track>,
+    track: Option<Track<Handle<N>>>,
 }
 
-impl RemoveTrackCommand {
-    pub fn new(animation_player: Handle<Node>, animation: Handle<Animation>, index: usize) -> Self {
+impl<N: Debug + 'static> RemoveTrackCommand<N> {
+    pub fn new(
+        animation_player: Handle<N>,
+        animation: Handle<Animation<Handle<N>>>,
+        index: usize,
+    ) -> Self {
         Self {
             animation_player,
             animation,
@@ -85,39 +109,35 @@ impl RemoveTrackCommand {
     }
 }
 
-impl CommandTrait for RemoveTrackCommand {
+impl<N: Debug + 'static> CommandTrait for RemoveTrackCommand<N> {
     fn name(&mut self, _: &dyn CommandContext) -> String {
         "Remove Track".to_string()
     }
 
     fn execute(&mut self, context: &mut dyn CommandContext) {
-        let context = context.get_mut::<GameSceneContext>();
         self.track = Some(
-            fetch_animation_player(self.animation_player, context).animations_mut()[self.animation]
+            fetch_animations_container(self.animation_player, context)[self.animation]
                 .remove_track(self.index),
         );
     }
 
     fn revert(&mut self, context: &mut dyn CommandContext) {
-        let context = context.get_mut::<GameSceneContext>();
-        fetch_animation_player(self.animation_player, context).animations_mut()[self.animation]
+        fetch_animations_container(self.animation_player, context)[self.animation]
             .insert_track(self.index, self.track.take().unwrap());
     }
 }
 
 #[derive(Debug)]
-pub struct ReplaceTrackCurveCommand {
-    pub animation_player: Handle<Node>,
-    pub animation: Handle<Animation>,
+pub struct ReplaceTrackCurveCommand<N: Debug + 'static> {
+    pub animation_player: Handle<N>,
+    pub animation: Handle<Animation<Handle<N>>>,
     pub curve: Curve,
 }
 
-impl ReplaceTrackCurveCommand {
+impl<N: Debug + 'static> ReplaceTrackCurveCommand<N> {
     fn swap(&mut self, context: &mut dyn CommandContext) {
-        let context = context.get_mut::<GameSceneContext>();
-        for track in fetch_animation_player(self.animation_player, context).animations_mut()
-            [self.animation]
-            .tracks_mut()
+        for track in
+            fetch_animations_container(self.animation_player, context)[self.animation].tracks_mut()
         {
             for curve in track.data_container_mut().curves_mut() {
                 if curve.id() == self.curve.id() {
@@ -131,7 +151,7 @@ impl ReplaceTrackCurveCommand {
     }
 }
 
-impl CommandTrait for ReplaceTrackCurveCommand {
+impl<N: Debug + 'static> CommandTrait for ReplaceTrackCurveCommand<N> {
     fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Replace Track Curve".to_string()
     }
@@ -146,27 +166,27 @@ impl CommandTrait for ReplaceTrackCurveCommand {
 }
 
 #[derive(Debug)]
-pub enum AddAnimationCommand {
+pub enum AddAnimationCommand<N: Debug + 'static> {
     Unknown,
     NonExecuted {
-        animation_player: Handle<Node>,
-        animation: Animation,
+        animation_player: Handle<N>,
+        animation: Animation<Handle<N>>,
     },
     Executed {
-        animation_player: Handle<Node>,
-        animation: Handle<Animation>,
+        animation_player: Handle<N>,
+        animation: Handle<Animation<Handle<N>>>,
         selection: Selection,
     },
     Reverted {
-        animation_player: Handle<Node>,
-        animation: Animation,
-        ticket: Ticket<Animation>,
+        animation_player: Handle<N>,
+        animation: Animation<Handle<N>>,
+        ticket: Ticket<Animation<Handle<N>>>,
         selection: Selection,
     },
 }
 
-impl AddAnimationCommand {
-    pub fn new(animation_player: Handle<Node>, animation: Animation) -> Self {
+impl<N: Debug + 'static> AddAnimationCommand<N> {
+    pub fn new(animation_player: Handle<N>, animation: Animation<Handle<N>>) -> Self {
         Self::NonExecuted {
             animation_player,
             animation,
@@ -174,24 +194,22 @@ impl AddAnimationCommand {
     }
 }
 
-impl CommandTrait for AddAnimationCommand {
+impl<N: Debug + 'static> CommandTrait for AddAnimationCommand<N> {
     fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Add Animation".to_string()
     }
 
     fn execute(&mut self, context: &mut dyn CommandContext) {
-        let context = context.get_mut::<GameSceneContext>();
         match std::mem::replace(self, Self::Unknown) {
             AddAnimationCommand::NonExecuted {
                 animation_player,
                 animation,
             } => {
-                let handle = fetch_animation_player(animation_player, context)
-                    .animations_mut()
-                    .add(animation);
+                let handle = fetch_animations_container(animation_player, context).add(animation);
+                let current_selection = context.get_mut::<&mut Selection>();
 
                 let old_selection = std::mem::replace(
-                    context.selection,
+                    *current_selection,
                     Selection::new(AnimationSelection {
                         animation_player,
                         animation: handle,
@@ -211,11 +229,11 @@ impl CommandTrait for AddAnimationCommand {
                 ticket,
                 selection,
             } => {
-                let handle = fetch_animation_player(animation_player, context)
-                    .animations_mut()
+                let handle = fetch_animations_container(animation_player, context)
                     .put_back(ticket, animation);
 
-                let old_selection = std::mem::replace(context.selection, selection);
+                let current_selection = context.get_mut::<&mut Selection>();
+                let old_selection = std::mem::replace(*current_selection, selection);
 
                 *self = Self::Executed {
                     animation_player,
@@ -228,18 +246,17 @@ impl CommandTrait for AddAnimationCommand {
     }
 
     fn revert(&mut self, context: &mut dyn CommandContext) {
-        let context = context.get_mut::<GameSceneContext>();
         match std::mem::replace(self, Self::Unknown) {
             AddAnimationCommand::Executed {
                 animation_player,
                 animation,
                 selection,
             } => {
-                let (ticket, animation) = fetch_animation_player(animation_player, context)
-                    .animations_mut()
-                    .take_reserve(animation);
+                let (ticket, animation) =
+                    fetch_animations_container(animation_player, context).take_reserve(animation);
 
-                let old_selection = std::mem::replace(context.selection, selection);
+                let current_selection = context.get_mut::<&mut Selection>();
+                let old_selection = std::mem::replace(*current_selection, selection);
 
                 *self = Self::Reverted {
                     animation_player,
@@ -253,40 +270,37 @@ impl CommandTrait for AddAnimationCommand {
     }
 
     fn finalize(&mut self, context: &mut dyn CommandContext) {
-        let context = context.get_mut::<GameSceneContext>();
         if let AddAnimationCommand::Reverted {
             animation_player,
             ticket,
             ..
         } = std::mem::replace(self, Self::Unknown)
         {
-            fetch_animation_player(animation_player, context)
-                .animations_mut()
-                .forget_ticket(ticket);
+            fetch_animations_container(animation_player, context).forget_ticket(ticket);
         }
     }
 }
 
 #[derive(Debug)]
-pub enum RemoveAnimationCommand {
+pub enum RemoveAnimationCommand<N: Debug + 'static> {
     Unknown,
     NonExecuted {
-        animation_player: Handle<Node>,
-        animation: Handle<Animation>,
+        animation_player: Handle<N>,
+        animation: Handle<Animation<Handle<N>>>,
     },
     Executed {
-        animation_player: Handle<Node>,
-        animation: Animation,
-        ticket: Ticket<Animation>,
+        animation_player: Handle<N>,
+        animation: Animation<Handle<N>>,
+        ticket: Ticket<Animation<Handle<N>>>,
     },
     Reverted {
-        animation_player: Handle<Node>,
-        animation: Handle<Animation>,
+        animation_player: Handle<N>,
+        animation: Handle<Animation<Handle<N>>>,
     },
 }
 
-impl RemoveAnimationCommand {
-    pub fn new(animation_player: Handle<Node>, animation: Handle<Animation>) -> Self {
+impl<N: Debug + 'static> RemoveAnimationCommand<N> {
+    pub fn new(animation_player: Handle<N>, animation: Handle<Animation<Handle<N>>>) -> Self {
         Self::NonExecuted {
             animation_player,
             animation,
@@ -294,13 +308,12 @@ impl RemoveAnimationCommand {
     }
 }
 
-impl CommandTrait for RemoveAnimationCommand {
+impl<N: Debug + 'static> CommandTrait for RemoveAnimationCommand<N> {
     fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Remove Animation".to_string()
     }
 
     fn execute(&mut self, context: &mut dyn CommandContext) {
-        let context = context.get_mut::<GameSceneContext>();
         match std::mem::replace(self, Self::Unknown) {
             RemoveAnimationCommand::NonExecuted {
                 animation_player,
@@ -310,9 +323,8 @@ impl CommandTrait for RemoveAnimationCommand {
                 animation_player,
                 animation,
             } => {
-                let (ticket, animation) = fetch_animation_player(animation_player, context)
-                    .animations_mut()
-                    .take_reserve(animation);
+                let (ticket, animation) =
+                    fetch_animations_container(animation_player, context).take_reserve(animation);
 
                 *self = Self::Executed {
                     animation_player,
@@ -325,15 +337,13 @@ impl CommandTrait for RemoveAnimationCommand {
     }
 
     fn revert(&mut self, context: &mut dyn CommandContext) {
-        let context = context.get_mut::<GameSceneContext>();
         match std::mem::replace(self, Self::Unknown) {
             RemoveAnimationCommand::Executed {
                 animation_player,
                 animation,
                 ticket,
             } => {
-                let handle = fetch_animation_player(animation_player, context)
-                    .animations_mut()
+                let handle = fetch_animations_container(animation_player, context)
                     .put_back(ticket, animation);
 
                 *self = Self::Reverted {
@@ -346,40 +356,35 @@ impl CommandTrait for RemoveAnimationCommand {
     }
 
     fn finalize(&mut self, context: &mut dyn CommandContext) {
-        let context = context.get_mut::<GameSceneContext>();
         if let RemoveAnimationCommand::Executed {
             animation_player,
             ticket,
             ..
         } = std::mem::replace(self, Self::Unknown)
         {
-            fetch_animation_player(animation_player, context)
-                .animations_mut()
-                .forget_ticket(ticket);
+            fetch_animations_container(animation_player, context).forget_ticket(ticket);
         }
     }
 }
 
 #[derive(Debug)]
-pub struct ReplaceAnimationCommand {
-    pub animation_player: Handle<Node>,
-    pub animation_handle: Handle<Animation>,
-    pub animation: Animation,
+pub struct ReplaceAnimationCommand<N: Debug + 'static> {
+    pub animation_player: Handle<N>,
+    pub animation_handle: Handle<Animation<Handle<N>>>,
+    pub animation: Animation<Handle<N>>,
 }
 
-impl ReplaceAnimationCommand {
+impl<N: Debug + 'static> ReplaceAnimationCommand<N> {
     fn swap(&mut self, context: &mut dyn CommandContext) {
-        let context = context.get_mut::<GameSceneContext>();
         std::mem::swap(
-            fetch_animation_player(self.animation_player, context)
-                .animations_mut()
+            fetch_animations_container(self.animation_player, context)
                 .get_mut(self.animation_handle),
             &mut self.animation,
         );
     }
 }
 
-impl CommandTrait for ReplaceAnimationCommand {
+impl<N: Debug + 'static> CommandTrait for ReplaceAnimationCommand<N> {
     fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Replace Animation".to_string()
     }
@@ -397,44 +402,40 @@ impl CommandTrait for ReplaceAnimationCommand {
 macro_rules! define_animation_swap_command {
     ($name:ident<$value_type:ty>($self:ident, $context:ident) $swap:block) => {
         #[derive(Debug)]
-        pub struct $name {
-            pub node_handle: Handle<Node>,
-            pub animation_handle: Handle<Animation>,
+        pub struct $name<N: Debug + 'static> {
+            pub node_handle: Handle<N>,
+            pub animation_handle: Handle<Animation<Handle<N>>>,
             pub value: $value_type,
         }
 
-        impl $name {
-            fn swap(&mut $self, $context: &mut GameSceneContext) {
+        impl<N: Debug + 'static> $name<N> {
+            fn swap(&mut $self, $context: &mut dyn CommandContext) {
                 $swap
             }
         }
 
-        impl CommandTrait for $name {
+        impl<N: Debug + 'static> CommandTrait for $name<N> {
             fn name(&mut self, _context: &dyn CommandContext) -> String {
                 stringify!($name).to_string()
             }
 
             fn execute(&mut self, context: &mut dyn CommandContext) {
-                let context = context.get_mut::<GameSceneContext>();
                 self.swap(context)
             }
 
             fn revert(&mut self, context: &mut dyn CommandContext) {
-                let context = context.get_mut::<GameSceneContext>();
                 self.swap(context)
             }
         }
     };
 }
 
-fn fetch_animation(
-    animation_player: Handle<Node>,
-    animation: Handle<Animation>,
-    ctx: &mut GameSceneContext,
-) -> &mut Animation {
-    fetch_animation_player(animation_player, ctx)
-        .animations_mut()
-        .index_mut(animation)
+fn fetch_animation<N: Debug + 'static>(
+    animation_player: Handle<N>,
+    animation: Handle<Animation<Handle<N>>>,
+    ctx: &mut dyn CommandContext,
+) -> &mut Animation<Handle<N>> {
+    fetch_animations_container(animation_player, ctx).index_mut(animation)
 }
 
 define_animation_swap_command!(SetAnimationSpeedCommand<f32>(self, context) {
@@ -472,7 +473,7 @@ define_animation_swap_command!(SetAnimationEnabledCommand<bool>(self, context) {
     self.value = old;
 });
 
-define_animation_swap_command!(SetAnimationRootMotionSettingsCommand<Option<RootMotionSettings>>(self, context) {
+define_animation_swap_command!(SetAnimationRootMotionSettingsCommand<Option<RootMotionSettings<Handle<N>>>>(self, context) {
     let animation = fetch_animation(self.node_handle, self.animation_handle, context);
     let old = animation.root_motion_settings_ref().cloned();
     animation.set_root_motion_settings(self.value.clone());
@@ -480,41 +481,38 @@ define_animation_swap_command!(SetAnimationRootMotionSettingsCommand<Option<Root
 });
 
 #[derive(Debug)]
-pub struct AddAnimationSignal {
-    pub animation_player_handle: Handle<Node>,
-    pub animation_handle: Handle<Animation>,
+pub struct AddAnimationSignal<N: Debug + 'static> {
+    pub animation_player_handle: Handle<N>,
+    pub animation_handle: Handle<Animation<Handle<N>>>,
     pub signal: Option<AnimationSignal>,
 }
 
-impl CommandTrait for AddAnimationSignal {
+impl<N: Debug + 'static> CommandTrait for AddAnimationSignal<N> {
     fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Add Animation Signal".to_string()
     }
 
     fn execute(&mut self, context: &mut dyn CommandContext) {
-        let context = context.get_mut::<GameSceneContext>();
         fetch_animation(self.animation_player_handle, self.animation_handle, context)
             .add_signal(self.signal.take().unwrap());
     }
 
     fn revert(&mut self, context: &mut dyn CommandContext) {
-        let context = context.get_mut::<GameSceneContext>();
         self.signal = fetch_animation(self.animation_player_handle, self.animation_handle, context)
             .pop_signal();
     }
 }
 
 #[derive(Debug)]
-pub struct MoveAnimationSignal {
-    pub animation_player_handle: Handle<Node>,
-    pub animation_handle: Handle<Animation>,
+pub struct MoveAnimationSignal<N: Debug + 'static> {
+    pub animation_player_handle: Handle<N>,
+    pub animation_handle: Handle<Animation<Handle<N>>>,
     pub signal: Uuid,
     pub time: f32,
 }
 
-impl MoveAnimationSignal {
+impl<N: Debug + 'static> MoveAnimationSignal<N> {
     fn swap(&mut self, context: &mut dyn CommandContext) {
-        let context = context.get_mut::<GameSceneContext>();
         std::mem::swap(
             &mut fetch_animation(self.animation_player_handle, self.animation_handle, context)
                 .signals_mut()
@@ -527,7 +525,7 @@ impl MoveAnimationSignal {
     }
 }
 
-impl CommandTrait for MoveAnimationSignal {
+impl<N: Debug + 'static> CommandTrait for MoveAnimationSignal<N> {
     fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Move Animation Signal".to_string()
     }
@@ -542,27 +540,25 @@ impl CommandTrait for MoveAnimationSignal {
 }
 
 #[derive(Debug)]
-pub struct RemoveAnimationSignal {
-    pub animation_player_handle: Handle<Node>,
-    pub animation_handle: Handle<Animation>,
+pub struct RemoveAnimationSignal<N: Debug + 'static> {
+    pub animation_player_handle: Handle<N>,
+    pub animation_handle: Handle<Animation<Handle<N>>>,
     pub signal_index: usize,
     pub signal: Option<AnimationSignal>,
 }
 
-impl CommandTrait for RemoveAnimationSignal {
+impl<N: Debug + 'static> CommandTrait for RemoveAnimationSignal<N> {
     fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Remove Animation".to_string()
     }
 
     fn execute(&mut self, context: &mut dyn CommandContext) {
-        let context = context.get_mut::<GameSceneContext>();
         let animation =
             fetch_animation(self.animation_player_handle, self.animation_handle, context);
         self.signal = Some(animation.remove_signal(self.signal_index));
     }
 
     fn revert(&mut self, context: &mut dyn CommandContext) {
-        let context = context.get_mut::<GameSceneContext>();
         let animation =
             fetch_animation(self.animation_player_handle, self.animation_handle, context);
         animation.insert_signal(self.signal_index, self.signal.take().unwrap());
@@ -570,16 +566,15 @@ impl CommandTrait for RemoveAnimationSignal {
 }
 
 #[derive(Debug)]
-pub struct SetTrackEnabledCommand {
-    pub animation_player_handle: Handle<Node>,
-    pub animation_handle: Handle<Animation>,
+pub struct SetTrackEnabledCommand<N: Debug + 'static> {
+    pub animation_player_handle: Handle<N>,
+    pub animation_handle: Handle<Animation<Handle<N>>>,
     pub track: Uuid,
     pub enabled: bool,
 }
 
-impl SetTrackEnabledCommand {
+impl<N: Debug + 'static> SetTrackEnabledCommand<N> {
     fn swap(&mut self, context: &mut dyn CommandContext) {
-        let context = context.get_mut::<GameSceneContext>();
         let track = fetch_animation(self.animation_player_handle, self.animation_handle, context)
             .tracks_mut()
             .iter_mut()
@@ -592,7 +587,7 @@ impl SetTrackEnabledCommand {
     }
 }
 
-impl CommandTrait for SetTrackEnabledCommand {
+impl<N: Debug + 'static> CommandTrait for SetTrackEnabledCommand<N> {
     fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Set Track Enabled".to_string()
     }
@@ -607,16 +602,15 @@ impl CommandTrait for SetTrackEnabledCommand {
 }
 
 #[derive(Debug)]
-pub struct SetTrackTargetCommand {
-    pub animation_player_handle: Handle<Node>,
-    pub animation_handle: Handle<Animation>,
+pub struct SetTrackTargetCommand<N: Debug + 'static> {
+    pub animation_player_handle: Handle<N>,
+    pub animation_handle: Handle<Animation<Handle<N>>>,
     pub track: Uuid,
-    pub target: Handle<Node>,
+    pub target: Handle<N>,
 }
 
-impl SetTrackTargetCommand {
+impl<N: Debug + 'static> SetTrackTargetCommand<N> {
     fn swap(&mut self, context: &mut dyn CommandContext) {
-        let context = context.get_mut::<GameSceneContext>();
         let track = fetch_animation(self.animation_player_handle, self.animation_handle, context)
             .tracks_mut()
             .iter_mut()
@@ -629,7 +623,7 @@ impl SetTrackTargetCommand {
     }
 }
 
-impl CommandTrait for SetTrackTargetCommand {
+impl<N: Debug + 'static> CommandTrait for SetTrackTargetCommand<N> {
     fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Set Track Target".to_string()
     }
@@ -644,16 +638,15 @@ impl CommandTrait for SetTrackTargetCommand {
 }
 
 #[derive(Debug)]
-pub struct SetTrackBindingCommand {
-    pub animation_player_handle: Handle<Node>,
-    pub animation_handle: Handle<Animation>,
+pub struct SetTrackBindingCommand<N: Debug + 'static> {
+    pub animation_player_handle: Handle<N>,
+    pub animation_handle: Handle<Animation<Handle<N>>>,
     pub track: Uuid,
     pub binding: ValueBinding,
 }
 
-impl SetTrackBindingCommand {
+impl<N: Debug + 'static> SetTrackBindingCommand<N> {
     fn swap(&mut self, context: &mut dyn CommandContext) {
-        let context = context.get_mut::<GameSceneContext>();
         let track = fetch_animation(self.animation_player_handle, self.animation_handle, context)
             .tracks_mut()
             .iter_mut()
@@ -666,7 +659,7 @@ impl SetTrackBindingCommand {
     }
 }
 
-impl CommandTrait for SetTrackBindingCommand {
+impl<N: Debug + 'static> CommandTrait for SetTrackBindingCommand<N> {
     fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Set Track Binding".to_string()
     }

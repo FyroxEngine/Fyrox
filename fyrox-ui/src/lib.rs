@@ -690,8 +690,10 @@ impl Visit for UserInterface {
         self.double_click_time_slice
             .visit("DoubleClickTimeSlice", &mut region)?;
 
-        for node in self.nodes.iter() {
-            self.methods_registry.register(node.deref());
+        if region.is_reading() {
+            for node in self.nodes.iter() {
+                self.methods_registry.register(node.deref());
+            }
         }
 
         Ok(())
@@ -2933,6 +2935,11 @@ impl SceneGraph for UserInterface {
     #[inline]
     fn pair_iter(&self) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)> {
         self.nodes.pair_iter()
+    }
+
+    #[inline]
+    fn linear_iter(&self) -> impl Iterator<Item = &Self::Node> {
+        self.nodes.iter()
     }
 
     #[inline]

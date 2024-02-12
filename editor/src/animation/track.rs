@@ -1,5 +1,6 @@
 #![allow(clippy::manual_map)]
 
+use crate::animation::animation_container_ref;
 use crate::command::{Command, CommandGroup};
 use crate::{
     animation::{
@@ -20,11 +21,13 @@ use crate::{
             PropertySelectorWindowBuilder,
         },
         selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
-        GameScene, Selection,
+        Selection,
     },
     send_sync_message, utils,
 };
+use fyrox::core::pool::ErasedHandle;
 use fyrox::graph::BaseSceneGraph;
+use fyrox::graph::{SceneGraph, SceneGraphNode};
 use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3, Vector4},
@@ -40,6 +43,12 @@ use fyrox::{
         visitor::prelude::*,
     },
     fxhash::{FxHashMap, FxHashSet},
+    generic_animation::{
+        container::{TrackDataContainer, TrackValueKind},
+        track::Track,
+        value::{ValueBinding, ValueType},
+        Animation,
+    },
     gui::{
         brush::Brush,
         button::{ButtonBuilder, ButtonMessage},
@@ -63,7 +72,6 @@ use fyrox::{
         VerticalAlignment, BRUSH_BRIGHT, BRUSH_TEXT,
     },
     resource::texture::TextureBytes,
-    scene::{animation::prelude::*, graph::Graph, node::Node, Scene},
 };
 use std::{
     any::TypeId,
@@ -253,7 +261,7 @@ struct TrackView {
     #[component(include)]
     tree: Tree,
     id: Uuid,
-    target: Handle<Node>,
+    target: ErasedHandle,
     track_enabled_switch: Handle<UiNode>,
     track_enabled: bool,
     name_text: Handle<UiNode>,
@@ -388,7 +396,7 @@ impl Control for TrackView {
 struct TrackViewBuilder {
     tree_builder: TreeBuilder,
     id: Uuid,
-    target: Handle<Node>,
+    target: ErasedHandle,
     name: String,
     track_enabled: bool,
 }
@@ -409,7 +417,7 @@ impl TrackViewBuilder {
         self
     }
 
-    pub fn with_target(mut self, target: Handle<Node>) -> Self {
+    pub fn with_target(mut self, target: ErasedHandle) -> Self {
         self.target = target;
         self
     }
@@ -561,14 +569,14 @@ pub struct TrackList {
     add_scale_track: Handle<UiNode>,
     node_selector: Handle<UiNode>,
     property_selector: Handle<UiNode>,
-    selected_node: Handle<Node>,
-    group_views: FxHashMap<Handle<Node>, Handle<UiNode>>,
+    selected_node: ErasedHandle,
+    group_views: FxHashMap<ErasedHandle, Handle<UiNode>>,
     track_views: FxHashMap<Uuid, Handle<UiNode>>,
     curve_views: FxHashMap<Uuid, Handle<UiNode>>,
     context_menu: TrackContextMenu,
     property_binding_mode: PropertyBindingMode,
     scroll_viewer: Handle<UiNode>,
-    selected_animation: Handle<Animation>,
+    selected_animation: ErasedHandle,
 }
 
 #[derive(Clone)]
@@ -712,17 +720,21 @@ impl TrackList {
         }
     }
 
-    pub fn handle_ui_message(
+    pub fn handle_ui_message<G, N>(
         &mut self,
         message: &UiMessage,
-        editor_selection: &Selection,
-        game_scene: &GameScene,
+        selection: &AnimationSelection<N>,
+        root: Handle<N>,
         sender: &MessageSender,
-        animation_player: Handle<Node>,
-        animation: Handle<Animation>,
         ui: &mut UserInterface,
-        scene: &Scene,
-    ) {
+        graph: &G,
+    ) where
+        G: SceneGraph<Node = N>,
+        N: SceneGraphNode<SceneGraph = G>,
+    {
+        let selected_animation = animation_container_ref(graph, selection.animation_player)
+            .and_then(|c| c.try_get(selection.animation));
+
         if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.add_track
                 || message.destination() == self.add_position_track
@@ -733,11 +745,7 @@ impl TrackList {
                     WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
                         .with_title(WindowTitle::text("Select a Node To Animate")),
                 )
-                .with_hierarchy(HierarchyNode::from_scene_node(
-                    game_scene.scene_content_root,
-                    game_scene.editor_objects_root,
-                    &scene.graph,
-                ))
+                .with_hierarchy(HierarchyNode::from_scene_node(root, Handle::NONE, graph))
                 .build(&mut ui.build_ctx());
 
                 ui.send_message(WindowMessage::open_modal(
@@ -789,24 +797,22 @@ impl TrackList {
 
                 if filter_text.is_empty() {
                     // Focus currently selected entity when clearing the filter.
-                    if let Some(scene_selection) = editor_selection.as_animation() {
-                        if let Some(first) = scene_selection.entities.first() {
-                            let ui_node = match first {
-                                SelectedEntity::Track(id) => {
-                                    self.track_views.get(id).cloned().unwrap_or_default()
-                                }
-                                SelectedEntity::Curve(id) => {
-                                    self.curve_views.get(id).cloned().unwrap_or_default()
-                                }
-                                _ => Default::default(),
-                            };
-                            if ui_node.is_some() {
-                                ui.send_message(ScrollViewerMessage::bring_into_view(
-                                    self.scroll_viewer,
-                                    MessageDirection::ToWidget,
-                                    ui_node,
-                                ));
+                    if let Some(first) = selection.entities.first() {
+                        let ui_node = match first {
+                            SelectedEntity::Track(id) => {
+                                self.track_views.get(id).cloned().unwrap_or_default()
                             }
+                            SelectedEntity::Curve(id) => {
+                                self.curve_views.get(id).cloned().unwrap_or_default()
+                            }
+                            _ => Default::default(),
+                        };
+                        if ui_node.is_some() {
+                            ui.send_message(ScrollViewerMessage::bring_into_view(
+                                self.scroll_viewer,
+                                MessageDirection::ToWidget,
+                                ui_node,
+                            ));
                         }
                     }
                 }
@@ -825,54 +831,52 @@ impl TrackList {
         } else if let Some(NodeSelectorMessage::Selection(node_selection)) = message.data() {
             if message.destination() == self.node_selector {
                 if let Some(first) = node_selection.first() {
-                    self.selected_node = (*first).into();
+                    self.selected_node = *first;
 
                     match self.property_binding_mode {
                         PropertyBindingMode::Generic => {
                             self.property_selector =
-                                Self::open_property_selector(&scene.graph, (*first).into(), ui);
+                                Self::open_property_selector(graph, (*first).into(), ui);
                         }
                         PropertyBindingMode::Position => {
                             sender.do_scene_command(AddTrackCommand::new(
-                                animation_player,
-                                animation,
-                                Track::new_position().with_target(self.selected_node),
+                                selection.animation_player,
+                                selection.animation,
+                                Track::new_position().with_target(self.selected_node.into()),
                             ));
                         }
                         PropertyBindingMode::Rotation => {
                             sender.do_scene_command(AddTrackCommand::new(
-                                animation_player,
-                                animation,
-                                Track::new_rotation().with_target(self.selected_node),
+                                selection.animation_player,
+                                selection.animation,
+                                Track::new_rotation().with_target(self.selected_node.into()),
                             ));
                         }
                         PropertyBindingMode::Scale => {
                             sender.do_scene_command(AddTrackCommand::new(
-                                animation_player,
-                                animation,
-                                Track::new_scale().with_target(self.selected_node),
+                                selection.animation_player,
+                                selection.animation,
+                                Track::new_scale().with_target(self.selected_node.into()),
                             ));
                         }
                     }
                 }
             } else if message.destination() == self.context_menu.target_node_selector {
-                if let Some(scene_selection) = editor_selection.as_animation() {
-                    if let Some(first) = node_selection.first() {
-                        let mut commands = Vec::new();
+                if let Some(first) = node_selection.first() {
+                    let mut commands = Vec::new();
 
-                        for entity in scene_selection.entities.iter() {
-                            if let SelectedEntity::Track(id) = entity {
-                                commands.push(Command::new(SetTrackTargetCommand {
-                                    animation_player_handle: scene_selection.animation_player,
-                                    animation_handle: scene_selection.animation,
-                                    track: *id,
-                                    target: (*first).into(),
-                                }));
-                            }
+                    for entity in selection.entities.iter() {
+                        if let SelectedEntity::Track(id) = entity {
+                            commands.push(Command::new(SetTrackTargetCommand {
+                                animation_player_handle: selection.animation_player,
+                                animation_handle: selection.animation,
+                                track: *id,
+                                target: (*first).into(),
+                            }));
                         }
-
-                        sender.do_scene_command(CommandGroup::from(commands));
                     }
+
+                    sender.do_scene_command(CommandGroup::from(commands));
                 }
             }
         } else if let Some(PropertySelectorMessage::Selection(selected_properties)) = message.data()
@@ -880,7 +884,7 @@ impl TrackList {
             if message.destination() == self.property_selector
                 && message.direction() == MessageDirection::FromWidget
             {
-                if let Some(node) = scene.graph.try_get(self.selected_node) {
+                if let Some(node) = graph.try_get(self.selected_node.into()) {
                     for property_path in selected_properties {
                         node.resolve_path(&property_path.path, &mut |result| match result {
                             Ok(property) => {
@@ -898,11 +902,11 @@ impl TrackList {
                                         },
                                     );
 
-                                    track.set_target(self.selected_node);
+                                    track.set_target(self.selected_node.into());
 
                                     sender.do_scene_command(AddTrackCommand::new(
-                                        animation_player,
-                                        animation,
+                                        selection.animation_player,
+                                        selection.animation,
                                         track,
                                     ));
                                 }
@@ -922,17 +926,19 @@ impl TrackList {
                 && message.direction() == MessageDirection::FromWidget
             {
                 if let Some(entry) = selected_properties.first() {
-                    self.rebind_property(entry, &scene.graph, editor_selection, sender);
+                    if let Some(animation) = selected_animation {
+                        self.rebind_property(entry, graph, selection, animation, sender);
+                    }
                 }
             }
-        } else if let Some(TreeRootMessage::Selected(selection)) = message.data() {
+        } else if let Some(TreeRootMessage::Selected(tree_selection)) = message.data() {
             if message.destination() == self.tree_root
                 && message.direction == MessageDirection::FromWidget
             {
-                let selection = Selection::new(AnimationSelection {
-                    animation_player,
-                    animation,
-                    entities: selection
+                let new_selection = Selection::new(AnimationSelection {
+                    animation_player: selection.animation_player,
+                    animation: selection.animation,
+                    entities: tree_selection
                         .iter()
                         .filter_map(|s| {
                             let selected_widget = ui.node(*s);
@@ -950,62 +956,44 @@ impl TrackList {
                         .collect(),
                 });
 
-                sender.do_scene_command(ChangeSelectionCommand::new(
-                    selection,
-                    editor_selection.clone(),
-                ));
+                sender.do_scene_command(ChangeSelectionCommand::new(new_selection));
             }
         } else if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination() == self.context_menu.remove_track {
-                if let Some(selection) = editor_selection.as_animation() {
-                    if let Some(animation_player) = scene
-                        .graph
-                        .try_get(selection.animation_player)
-                        .and_then(|n| n.query_component_ref::<AnimationPlayer>())
-                    {
-                        if let Some(animation) =
-                            animation_player.animations().try_get(selection.animation)
-                        {
-                            let mut commands = vec![Command::new(ChangeSelectionCommand::new(
-                                Selection::new(AnimationSelection {
-                                    animation_player: selection.animation_player,
-                                    animation: selection.animation,
-                                    // Just reset inner selection.
-                                    entities: vec![],
-                                }),
-                                editor_selection.clone(),
-                            ))];
+                if let Some(animation) = selected_animation {
+                    let mut commands = vec![Command::new(ChangeSelectionCommand::new(
+                        Selection::new(AnimationSelection {
+                            animation_player: selection.animation_player,
+                            animation: selection.animation,
+                            // Just reset inner selection.
+                            entities: vec![],
+                        }),
+                    ))];
 
-                            for entity in selection.entities.iter() {
-                                if let SelectedEntity::Track(id) = entity {
-                                    let index = animation
-                                        .tracks()
-                                        .iter()
-                                        .position(|t| t.id() == *id)
-                                        .unwrap();
+                    for entity in selection.entities.iter() {
+                        if let SelectedEntity::Track(id) = entity {
+                            let index = animation
+                                .tracks()
+                                .iter()
+                                .position(|t| t.id() == *id)
+                                .unwrap();
 
-                                    commands.push(Command::new(RemoveTrackCommand::new(
-                                        selection.animation_player,
-                                        selection.animation,
-                                        index,
-                                    )));
-                                }
-                            }
-
-                            sender.do_scene_command(CommandGroup::from(commands));
+                            commands.push(Command::new(RemoveTrackCommand::new(
+                                selection.animation_player,
+                                selection.animation,
+                                index,
+                            )));
                         }
                     }
+
+                    sender.do_scene_command(CommandGroup::from(commands));
                 }
             } else if message.destination() == self.context_menu.set_target {
                 self.context_menu.target_node_selector = NodeSelectorWindowBuilder::new(
                     WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
                         .with_title(WindowTitle::text("Select a New Target Node")),
                 )
-                .with_hierarchy(HierarchyNode::from_scene_node(
-                    game_scene.scene_content_root,
-                    game_scene.editor_objects_root,
-                    &scene.graph,
-                ))
+                .with_hierarchy(HierarchyNode::from_scene_node(root, Handle::NONE, graph))
                 .build(&mut ui.build_ctx());
 
                 ui.send_message(WindowMessage::open_modal(
@@ -1014,75 +1002,57 @@ impl TrackList {
                     true,
                 ));
             } else if message.destination() == self.context_menu.rebind {
-                self.on_rebind_clicked(&scene.graph, editor_selection, ui);
+                if let Some(animation) = selected_animation {
+                    self.on_rebind_clicked(graph, selection, animation, ui);
+                }
             } else if message.destination() == self.context_menu.duplicate {
-                if let Some(selection) = editor_selection.as_animation() {
-                    if let Some(animation_player) = scene
-                        .graph
-                        .try_get(selection.animation_player)
-                        .and_then(|n| n.query_component_ref::<AnimationPlayer>())
-                    {
-                        if let Some(animation) =
-                            animation_player.animations().try_get(selection.animation)
-                        {
-                            let commands = selection
-                                .entities
-                                .iter()
-                                .filter_map(|e| match e {
-                                    SelectedEntity::Track(track_id) => {
-                                        let index = animation
-                                            .tracks()
-                                            .iter()
-                                            .position(|t| t.id() == *track_id)
-                                            .unwrap();
+                if let Some(animation) = selected_animation {
+                    let commands = selection
+                        .entities
+                        .iter()
+                        .filter_map(|e| match e {
+                            SelectedEntity::Track(track_id) => {
+                                let index = animation
+                                    .tracks()
+                                    .iter()
+                                    .position(|t| t.id() == *track_id)
+                                    .unwrap();
 
-                                        let mut track = animation.tracks()[index].clone();
+                                let mut track = animation.tracks()[index].clone();
 
-                                        track.set_id(Uuid::new_v4());
+                                track.set_id(Uuid::new_v4());
 
-                                        Some(Command::new(AddTrackCommand::new(
-                                            selection.animation_player,
-                                            selection.animation,
-                                            track,
-                                        )))
-                                    }
-                                    _ => None,
-                                })
-                                .collect::<Vec<_>>();
+                                Some(Command::new(AddTrackCommand::new(
+                                    selection.animation_player,
+                                    selection.animation,
+                                    track,
+                                )))
+                            }
+                            _ => None,
+                        })
+                        .collect::<Vec<_>>();
 
-                            sender.do_scene_command(CommandGroup::from(commands));
-                        }
-                    }
+                    sender.do_scene_command(CommandGroup::from(commands));
                 }
             }
         } else if let Some(TrackViewMessage::TrackEnabled(enabled)) = message.data() {
             if message.direction() == MessageDirection::FromWidget {
-                if let Some(selection) = editor_selection.as_animation() {
-                    if let Some(animation_player) = scene
-                        .graph
-                        .try_get(selection.animation_player)
-                        .and_then(|n| n.query_component_ref::<AnimationPlayer>())
+                if let Some(animation) = selected_animation {
+                    if let Some(track_view_ref) = ui
+                        .node(message.destination())
+                        .query_component::<TrackView>()
                     {
-                        if let Some(animation) =
-                            animation_player.animations().try_get(selection.animation)
+                        if animation
+                            .tracks()
+                            .iter()
+                            .any(|t| t.id() == track_view_ref.id)
                         {
-                            if let Some(track_view_ref) = ui
-                                .node(message.destination())
-                                .query_component::<TrackView>()
-                            {
-                                if animation
-                                    .tracks()
-                                    .iter()
-                                    .any(|t| t.id() == track_view_ref.id)
-                                {
-                                    sender.do_scene_command(SetTrackEnabledCommand {
-                                        animation_player_handle: selection.animation_player,
-                                        animation_handle: selection.animation,
-                                        track: track_view_ref.id,
-                                        enabled: *enabled,
-                                    })
-                                }
-                            }
+                            sender.do_scene_command(SetTrackEnabledCommand {
+                                animation_player_handle: selection.animation_player,
+                                animation_handle: selection.animation,
+                                track: track_view_ref.id,
+                                enabled: *enabled,
+                            })
                         }
                     }
                 }
@@ -1090,13 +1060,17 @@ impl TrackList {
         }
     }
 
-    fn open_property_selector(
-        graph: &Graph,
-        node: Handle<Node>,
+    fn open_property_selector<G, N>(
+        graph: &G,
+        node: Handle<N>,
         ui: &mut UserInterface,
-    ) -> Handle<UiNode> {
+    ) -> Handle<UiNode>
+    where
+        G: SceneGraph<Node = N>,
+        N: SceneGraphNode,
+    {
         let mut descriptors = Vec::new();
-        graph[node].as_reflect(&mut |node| {
+        graph.node(node).as_reflect(&mut |node| {
             descriptors = object_to_property_tree("", node, &mut |field: &FieldInfo| {
                 let type_id = field.reflect_value.type_id();
                 type_id != TypeId::of::<TextureBytes>()
@@ -1137,27 +1111,16 @@ impl TrackList {
         property_selector
     }
 
-    fn on_rebind_clicked(
+    fn on_rebind_clicked<G, N>(
         &mut self,
-        graph: &Graph,
-        editor_selection: &Selection,
+        graph: &G,
+        selection: &AnimationSelection<N>,
+        animation: &Animation<Handle<N>>,
         ui: &mut UserInterface,
-    ) {
-        let Some(selection) = editor_selection.as_animation() else {
-            return;
-        };
-
-        let Some(animation_player) = graph
-            .try_get(selection.animation_player)
-            .and_then(|n| n.query_component_ref::<AnimationPlayer>())
-        else {
-            return;
-        };
-
-        let Some(animation) = animation_player.animations().try_get(selection.animation) else {
-            return;
-        };
-
+    ) where
+        G: SceneGraph<Node = N>,
+        N: SceneGraphNode,
+    {
         let Some(first_selected_track) = selection.first_selected_track() else {
             return;
         };
@@ -1172,28 +1135,17 @@ impl TrackList {
         }
     }
 
-    fn rebind_property(
+    fn rebind_property<G, N>(
         &self,
         desc: &PropertyDescriptorData,
-        graph: &Graph,
-        editor_selection: &Selection,
+        graph: &G,
+        selection: &AnimationSelection<N>,
+        animation: &Animation<Handle<N>>,
         sender: &MessageSender,
-    ) {
-        let Some(selection) = editor_selection.as_animation() else {
-            return;
-        };
-
-        let Some(animation_player) = graph
-            .try_get(selection.animation_player)
-            .and_then(|n| n.query_component_ref::<AnimationPlayer>())
-        else {
-            return;
-        };
-
-        let Some(animation) = animation_player.animations().try_get(selection.animation) else {
-            return;
-        };
-
+    ) where
+        G: SceneGraph<Node = N>,
+        N: SceneGraphNode,
+    {
         let Some(first_selected_track) = selection.first_selected_track() else {
             return;
         };
@@ -1244,20 +1196,22 @@ impl TrackList {
         ));
         self.group_views.clear();
         self.track_views.clear();
-        self.selected_node = Handle::NONE;
+        self.selected_node = Default::default();
     }
 
-    pub fn sync_to_model(
+    pub fn sync_to_model<G, N>(
         &mut self,
-        animation: &Animation,
-        animation_handle: Handle<Animation>,
-        graph: &Graph,
-        editor_selection: &Selection,
+        animation: &Animation<Handle<N>>,
+        graph: &G,
+        selection: &AnimationSelection<N>,
         ui: &mut UserInterface,
-    ) {
-        if self.selected_animation != animation_handle {
+    ) where
+        G: SceneGraph<Node = N>,
+        N: SceneGraphNode,
+    {
+        if Handle::<Animation<Handle<N>>>::from(self.selected_animation) != selection.animation {
             self.clear(ui);
-            self.selected_animation = animation_handle;
+            self.selected_animation = selection.animation.into();
         }
 
         match animation.tracks().len().cmp(&self.track_views.len()) {
@@ -1331,7 +1285,8 @@ impl TrackList {
                         .map(|v| ui.node(*v))
                         .all(|v| v.query_component::<TrackView>().unwrap().id != model_track.id())
                     {
-                        let parent_group = match self.group_views.entry(model_track.target()) {
+                        let parent_group = match self.group_views.entry(model_track.target().into())
+                        {
                             Entry::Occupied(entry) => *entry.get(),
                             Entry::Vacant(entry) => {
                                 let ctx = &mut ui.build_ctx();
@@ -1403,7 +1358,7 @@ impl TrackList {
                         )
                         .with_track_enabled(model_track.is_enabled())
                         .with_id(model_track.id())
-                        .with_target(model_track.target())
+                        .with_target(model_track.target().into())
                         .with_name(format!("{}", model_track.binding()))
                         .build(ctx);
 
@@ -1425,43 +1380,41 @@ impl TrackList {
             }
         }
 
-        if let Some(selection) = editor_selection.as_animation() {
-            let mut any_track_selected = false;
-            let tree_selection = selection
-                .entities
-                .iter()
-                .filter_map(|e| match e {
-                    SelectedEntity::Track(id) => {
-                        any_track_selected = true;
-                        self.track_views.get(id).cloned()
-                    }
-                    SelectedEntity::Curve(id) => self.curve_views.get(id).cloned(),
-                    SelectedEntity::Signal(_) => None,
-                })
-                .collect();
+        let mut any_track_selected = false;
+        let tree_selection = selection
+            .entities
+            .iter()
+            .filter_map(|e| match e {
+                SelectedEntity::Track(id) => {
+                    any_track_selected = true;
+                    self.track_views.get(id).cloned()
+                }
+                SelectedEntity::Curve(id) => self.curve_views.get(id).cloned(),
+                SelectedEntity::Signal(_) => None,
+            })
+            .collect();
 
-            send_sync_message(
-                ui,
-                TreeRootMessage::select(self.tree_root, MessageDirection::ToWidget, tree_selection),
-            );
+        send_sync_message(
+            ui,
+            TreeRootMessage::select(self.tree_root, MessageDirection::ToWidget, tree_selection),
+        );
 
-            send_sync_message(
-                ui,
-                WidgetMessage::enabled(
-                    self.context_menu.remove_track,
-                    MessageDirection::ToWidget,
-                    any_track_selected,
-                ),
-            );
-            send_sync_message(
-                ui,
-                WidgetMessage::enabled(
-                    self.context_menu.set_target,
-                    MessageDirection::ToWidget,
-                    any_track_selected,
-                ),
-            );
-        }
+        send_sync_message(
+            ui,
+            WidgetMessage::enabled(
+                self.context_menu.remove_track,
+                MessageDirection::ToWidget,
+                any_track_selected,
+            ),
+        );
+        send_sync_message(
+            ui,
+            WidgetMessage::enabled(
+                self.context_menu.set_target,
+                MessageDirection::ToWidget,
+                any_track_selected,
+            ),
+        );
 
         for track_model in animation.tracks() {
             if let Some(track_view) = self.track_views.get(&track_model.id()) {
@@ -1479,7 +1432,7 @@ impl TrackList {
 
                 let mut validation_result = Ok(());
                 if let Some(target) = graph.try_get(track_model.target()) {
-                    if let Some(parent_group) = self.group_views.get(&track_model.target()) {
+                    if let Some(parent_group) = self.group_views.get(&track_model.target().into()) {
                         send_sync_message(
                             ui,
                             TextMessage::text(

@@ -178,7 +178,7 @@ impl NodeRemovalDialog {
                     MessageDirection::ToWidget,
                 ));
 
-                sender.send(Message::DoGameSceneCommand(make_delete_selection_command(
+                sender.send(Message::DoCommand(make_delete_selection_command(
                     editor_selection,
                     game_scene,
                     engine,

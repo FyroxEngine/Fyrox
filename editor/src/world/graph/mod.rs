@@ -223,10 +223,9 @@ impl<'a> WorldViewerDataProvider for EditorSceneWrapper<'a> {
                 let group = vec![
                     Command::new(AddModelCommand::new(sub_graph)),
                     Command::new(LinkNodesCommand::new(instance, node.into())),
-                    Command::new(ChangeSelectionCommand::new(
-                        Selection::new(GraphSelection::single_or_empty(instance)),
-                        self.selection.clone(),
-                    )),
+                    Command::new(ChangeSelectionCommand::new(Selection::new(
+                        GraphSelection::single_or_empty(instance),
+                    ))),
                 ];
 
                 self.sender.do_scene_command(CommandGroup::from(group));
@@ -255,10 +254,8 @@ impl<'a> WorldViewerDataProvider for EditorSceneWrapper<'a> {
         }
 
         if &new_selection != self.selection {
-            self.sender.do_scene_command(ChangeSelectionCommand::new(
-                new_selection,
-                self.selection.clone(),
-            ));
+            self.sender
+                .do_scene_command(ChangeSelectionCommand::new(new_selection));
         }
     }
 }

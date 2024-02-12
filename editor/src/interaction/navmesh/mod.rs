@@ -320,10 +320,7 @@ impl InteractionMode for EditNavmeshMode {
 
                 if &new_selection != editor_selection {
                     self.message_sender
-                        .do_scene_command(ChangeSelectionCommand::new(
-                            new_selection,
-                            editor_selection.clone(),
-                        ));
+                        .do_scene_command(ChangeSelectionCommand::new(new_selection));
                 }
             }
         }
@@ -464,12 +461,9 @@ impl InteractionMode for EditNavmeshMode {
 
                             // Discard selection.
                             self.message_sender
-                                .do_scene_command(ChangeSelectionCommand::new(
-                                    Selection::new(NavmeshSelection::empty(
-                                        selection.navmesh_node(),
-                                    )),
-                                    editor_selection.clone(),
-                                ));
+                                .do_scene_command(ChangeSelectionCommand::new(Selection::new(
+                                    NavmeshSelection::empty(selection.navmesh_node()),
+                                )));
                         }
                     }
                 }
@@ -622,10 +616,9 @@ impl InteractionMode for EditNavmeshMode {
                             )));
                         }
 
-                        commands.push(Command::new(ChangeSelectionCommand::new(
-                            Selection::new(NavmeshSelection::empty(selection.navmesh_node())),
-                            editor_selection.clone(),
-                        )));
+                        commands.push(Command::new(ChangeSelectionCommand::new(Selection::new(
+                            NavmeshSelection::empty(selection.navmesh_node()),
+                        ))));
 
                         self.message_sender
                             .do_scene_command(CommandGroup::from(commands));
@@ -650,10 +643,9 @@ impl InteractionMode for EditNavmeshMode {
                         );
 
                         self.message_sender
-                            .do_scene_command(ChangeSelectionCommand::new(
-                                Selection::new(selection),
-                                editor_selection.clone(),
-                            ));
+                            .do_scene_command(ChangeSelectionCommand::new(Selection::new(
+                                selection,
+                            )));
                     }
 
                     true

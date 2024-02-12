@@ -191,10 +191,7 @@ impl Toolbar {
                 let mut new_selection = selection;
                 new_selection.layer = Some(*index);
                 new_selection.entities.clear();
-                sender.do_scene_command(ChangeSelectionCommand::new(
-                    Selection::new(new_selection),
-                    editor_selection.clone(),
-                ));
+                sender.do_scene_command(ChangeSelectionCommand::new(Selection::new(new_selection)));
             }
         } else if let Some(TextMessage::Text(text)) = message.data() {
             if message.destination() == self.layer_name
@@ -306,8 +303,8 @@ impl Toolbar {
                     if let Some(layer_index) = selection.layer {
                         let mut commands = Vec::new();
 
-                        commands.push(Command::new(ChangeSelectionCommand::new(
-                            Selection::new(AbsmSelection {
+                        commands.push(Command::new(ChangeSelectionCommand::new(Selection::new(
+                            AbsmSelection {
                                 absm_node_handle: selection.absm_node_handle,
                                 layer: if absm_node.machine().layers().len() > 1 {
                                     Some(0)
@@ -315,9 +312,8 @@ impl Toolbar {
                                     None
                                 },
                                 entities: vec![],
-                            }),
-                            editor_selection.clone(),
-                        )));
+                            },
+                        ))));
 
                         commands.push(Command::new(RemoveLayerCommand::new(
                             selection.absm_node_handle,
