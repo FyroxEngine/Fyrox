@@ -183,6 +183,7 @@ pub use copypasta;
 pub use fyrox_core as core;
 use message::TouchPhase;
 
+pub mod absm;
 mod alignment;
 pub mod animation;
 pub mod bit;
