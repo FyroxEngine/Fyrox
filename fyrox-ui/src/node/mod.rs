@@ -1,15 +1,15 @@
 //! UI node is a type-agnostic wrapper for any widget type. See [`UiNode`] docs for more info.
 
-use crate::widget::Widget;
 use crate::{
-    core::{reflect::prelude::*, visitor::prelude::*},
+    core::{
+        pool::Handle, reflect::prelude::*, uuid_provider, variable, visitor::prelude::*,
+        ComponentProvider, NameProvider,
+    },
+    widget::Widget,
     BaseControl, Control, UserInterface,
 };
-use fyrox_core::pool::Handle;
-use fyrox_core::{variable, ComponentProvider, NameProvider};
 use fyrox_graph::SceneGraphNode;
-use fyrox_resource::untyped::UntypedResource;
-use fyrox_resource::Resource;
+use fyrox_resource::{untyped::UntypedResource, Resource};
 use std::{
     any::{Any, TypeId},
     fmt::{Debug, Formatter},
@@ -25,6 +25,8 @@ pub mod container;
 /// casting, component querying, etc. You could also be interested in [`Control`] docs, since it
 /// contains all the interesting stuff and detailed description for each method.
 pub struct UiNode(pub Box<dyn Control>);
+
+uuid_provider!(UiNode = "d9b45ecc-91b0-40ea-a92a-4a7dee4667c9");
 
 impl ComponentProvider for UiNode {
     #[inline]
