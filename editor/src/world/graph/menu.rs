@@ -176,7 +176,7 @@ impl SceneNodeContextMenu {
         {
             if let Some(graph_selection) = editor_selection.as_graph() {
                 if let Some(first) = graph_selection.nodes().first() {
-                    sender.do_scene_command(AddNodeCommand::new(node, *first, true));
+                    sender.do_command(AddNodeCommand::new(node, *first, true));
                 }
             }
         } else if let Some(replacement) =
@@ -185,7 +185,7 @@ impl SceneNodeContextMenu {
         {
             if let Some(graph_selection) = editor_selection.as_graph() {
                 if let Some(first) = graph_selection.nodes().first() {
-                    sender.do_scene_command(ReplaceNodeCommand {
+                    sender.do_command(ReplaceNodeCommand {
                         handle: *first,
                         node: replacement,
                     });
@@ -222,7 +222,7 @@ impl SceneNodeContextMenu {
                     if let Some(graph_selection) = editor_selection.as_graph() {
                         if let Some(first) = graph_selection.nodes.first() {
                             if !game_scene.clipboard.is_empty() {
-                                sender.do_scene_command(PasteCommand::new(*first));
+                                sender.do_command(PasteCommand::new(*first));
                             }
                         }
                     }
@@ -244,7 +244,7 @@ impl SceneNodeContextMenu {
                 } else if message.destination() == self.make_root {
                     if let Some(graph_selection) = editor_selection.as_graph() {
                         if let Some(first) = graph_selection.nodes.first() {
-                            sender.do_scene_command(SetGraphRootCommand {
+                            sender.do_command(SetGraphRootCommand {
                                 root: *first,
                                 link_scheme: Default::default(),
                             });
@@ -281,7 +281,7 @@ impl SceneNodeContextMenu {
                                 )
                             }
                         }
-                        sender.do_scene_command(CommandGroup::from(commands));
+                        sender.do_command(CommandGroup::from(commands));
                     }
                 }
             } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data()

@@ -283,7 +283,7 @@ impl StateViewer {
                                 })
                                 .collect::<Vec<_>>();
 
-                            sender.do_scene_command(CommandGroup::from(commands));
+                            sender.do_command(CommandGroup::from(commands));
                         }
                         AbsmCanvasMessage::SelectionChanged(selection) => {
                             if message.direction() == MessageDirection::FromWidget {
@@ -307,7 +307,7 @@ impl StateViewer {
                                 });
 
                                 if !selection.is_empty() && &selection != editor_selection {
-                                    sender.do_scene_command(ChangeSelectionCommand::new(selection));
+                                    sender.do_command(ChangeSelectionCommand::new(selection));
                                 }
                             }
                         }
@@ -326,7 +326,7 @@ impl StateViewer {
                             match dest_node_ref {
                                 PoseNode::PlayAnimation(_) => {}
                                 PoseNode::BlendAnimations(_) => {
-                                    sender.do_scene_command(SetBlendAnimationsPoseSourceCommand {
+                                    sender.do_command(SetBlendAnimationsPoseSourceCommand {
                                         node_handle: absm_node_handle,
                                         layer_index,
                                         handle: dest_node,
@@ -335,7 +335,7 @@ impl StateViewer {
                                     });
                                 }
                                 PoseNode::BlendAnimationsByIndex(_) => {
-                                    sender.do_scene_command(
+                                    sender.do_command(
                                         SetBlendAnimationByIndexInputPoseSourceCommand {
                                             node_handle: absm_node_handle,
                                             layer_index,
@@ -346,7 +346,7 @@ impl StateViewer {
                                     );
                                 }
                                 PoseNode::BlendSpace(_) => {
-                                    sender.do_scene_command(SetBlendSpacePoseSourceCommand {
+                                    sender.do_command(SetBlendSpacePoseSourceCommand {
                                         node_handle: absm_node_handle,
                                         layer_index,
                                         handle: dest_node,

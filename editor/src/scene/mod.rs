@@ -405,7 +405,7 @@ impl GameScene {
             .is_valid_handle(handle.into())
         {
             self.sender
-                .do_scene_command(ChangeSelectionCommand::new(Selection::new(
+                .do_command(ChangeSelectionCommand::new(Selection::new(
                     GraphSelection::single_or_empty(handle.into()),
                 )))
         }
@@ -626,7 +626,7 @@ impl SceneController for GameScene {
                         ))),
                     ];
 
-                    self.sender.do_scene_command(CommandGroup::from(group));
+                    self.sender.do_command(CommandGroup::from(group));
                 } else if let Some(tex) = engine
                     .resource_manager
                     .try_request::<Texture>(relative_path)
@@ -654,7 +654,7 @@ impl SceneController for GameScene {
 
                             if node.is_mesh() {
                                 self.sender
-                                    .do_scene_command(SetMeshTextureCommand::new(result.node, tex));
+                                    .do_command(SetMeshTextureCommand::new(result.node, tex));
                             }
                         }
                     }
@@ -1144,7 +1144,7 @@ impl SceneController for GameScene {
             self.sender
                 .send(Message::DoCommand(group.into_iter().next().unwrap()))
         } else {
-            self.sender.do_scene_command(CommandGroup::from(group));
+            self.sender.do_command(CommandGroup::from(group));
         }
     }
 

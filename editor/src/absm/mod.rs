@@ -629,7 +629,7 @@ impl AbsmEditor {
                                         // No input sockets
                                     }
                                     PoseNode::BlendAnimations(_) => {
-                                        sender.do_scene_command(AddPoseSourceCommand::new(
+                                        sender.do_command(AddPoseSourceCommand::new(
                                             selection.absm_node_handle,
                                             node.model_handle,
                                             layer_index,
@@ -637,7 +637,7 @@ impl AbsmEditor {
                                         ));
                                     }
                                     PoseNode::BlendAnimationsByIndex(_) => {
-                                        sender.do_scene_command(AddInputCommand::new(
+                                        sender.do_command(AddInputCommand::new(
                                             selection.absm_node_handle,
                                             node.model_handle,
                                             layer_index,
@@ -645,7 +645,7 @@ impl AbsmEditor {
                                         ));
                                     }
                                     PoseNode::BlendSpace(_) => {
-                                        sender.do_scene_command(AddBlendSpacePointCommand::new(
+                                        sender.do_command(AddBlendSpacePointCommand::new(
                                             selection.absm_node_handle,
                                             node.model_handle,
                                             layer_index,

@@ -165,7 +165,7 @@ impl CanvasContextMenu {
             };
 
             if let Some(pose_node) = pose_node {
-                sender.do_scene_command(AddPoseNodeCommand::new(
+                sender.do_command(AddPoseNodeCommand::new(
                     absm_node_handle,
                     layer_index,
                     pose_node,
@@ -246,7 +246,7 @@ impl NodeContextMenu {
                         }
                     }));
 
-                    sender.do_scene_command(CommandGroup::from(group));
+                    sender.do_command(CommandGroup::from(group));
                 }
             } else if message.destination() == self.set_as_root {
                 let root = ui
@@ -255,7 +255,7 @@ impl NodeContextMenu {
                     .unwrap()
                     .model_handle;
 
-                sender.do_scene_command(SetStateRootPoseCommand {
+                sender.do_command(SetStateRootPoseCommand {
                     node_handle: absm_node_handle,
                     layer_index,
                     handle: machine_layer.node(root).parent_state,
@@ -331,7 +331,7 @@ impl ConnectionContextMenu {
                         // No connections
                     }
                     PoseNode::BlendAnimations(_) => {
-                        sender.do_scene_command(SetBlendAnimationsPoseSourceCommand {
+                        sender.do_command(SetBlendAnimationsPoseSourceCommand {
                             node_handle: absm_node_handle,
                             layer_index,
                             handle: model_handle,
@@ -340,7 +340,7 @@ impl ConnectionContextMenu {
                         })
                     }
                     PoseNode::BlendAnimationsByIndex(_) => {
-                        sender.do_scene_command(SetBlendAnimationByIndexInputPoseSourceCommand {
+                        sender.do_command(SetBlendAnimationByIndexInputPoseSourceCommand {
                             node_handle: absm_node_handle,
                             layer_index,
                             handle: model_handle,
@@ -348,15 +348,13 @@ impl ConnectionContextMenu {
                             value: Default::default(),
                         })
                     }
-                    PoseNode::BlendSpace(_) => {
-                        sender.do_scene_command(SetBlendSpacePoseSourceCommand {
-                            node_handle: absm_node_handle,
-                            layer_index,
-                            handle: model_handle,
-                            index,
-                            value: Default::default(),
-                        })
-                    }
+                    PoseNode::BlendSpace(_) => sender.do_command(SetBlendSpacePoseSourceCommand {
+                        node_handle: absm_node_handle,
+                        layer_index,
+                        handle: model_handle,
+                        index,
+                        value: Default::default(),
+                    }),
                 }
             }
         } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {

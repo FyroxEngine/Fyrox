@@ -198,7 +198,7 @@ impl<'a> WorldViewerDataProvider for EditorSceneWrapper<'a> {
                 }
 
                 if !commands.is_empty() {
-                    self.sender.do_scene_command(commands);
+                    self.sender.do_command(commands);
                 }
             }
         }
@@ -228,7 +228,7 @@ impl<'a> WorldViewerDataProvider for EditorSceneWrapper<'a> {
                     ))),
                 ];
 
-                self.sender.do_scene_command(CommandGroup::from(group));
+                self.sender.do_command(CommandGroup::from(group));
             }
         }
     }
@@ -255,7 +255,7 @@ impl<'a> WorldViewerDataProvider for EditorSceneWrapper<'a> {
 
         if &new_selection != self.selection {
             self.sender
-                .do_scene_command(ChangeSelectionCommand::new(new_selection));
+                .do_command(ChangeSelectionCommand::new(new_selection));
         }
     }
 }

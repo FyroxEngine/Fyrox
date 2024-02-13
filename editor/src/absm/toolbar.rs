@@ -192,14 +192,14 @@ impl Toolbar {
                 let mut new_selection = selection;
                 new_selection.layer = Some(*index);
                 new_selection.entities.clear();
-                sender.do_scene_command(ChangeSelectionCommand::new(Selection::new(new_selection)));
+                sender.do_command(ChangeSelectionCommand::new(Selection::new(new_selection)));
             }
         } else if let Some(TextMessage::Text(text)) = message.data() {
             if message.destination() == self.layer_name
                 && message.direction() == MessageDirection::FromWidget
             {
                 if let Some(layer_index) = selection.layer {
-                    sender.do_scene_command(SetLayerNameCommand {
+                    sender.do_command(SetLayerNameCommand {
                         absm_node_handle: selection.absm_node_handle,
                         layer_index,
                         name: text.clone(),
@@ -217,7 +217,7 @@ impl Toolbar {
                         .text(),
                 );
 
-                sender.do_scene_command(AddLayerCommand {
+                sender.do_command(AddLayerCommand {
                     absm_node_handle: selection.absm_node_handle,
                     layer: Some(layer),
                 });
@@ -315,7 +315,7 @@ impl Toolbar {
                             layer_index,
                         )));
 
-                        sender.do_scene_command(CommandGroup::from(commands));
+                        sender.do_command(CommandGroup::from(commands));
                     }
                 }
             }
@@ -330,7 +330,7 @@ impl Toolbar {
                             .map(|h| Handle::<N>::from(*h))
                             .collect::<Vec<_>>(),
                     );
-                    sender.do_scene_command(SetLayerMaskCommand {
+                    sender.do_command(SetLayerMaskCommand {
                         absm_node_handle: selection.absm_node_handle,
                         layer_index,
                         mask: new_mask,

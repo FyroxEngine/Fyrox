@@ -168,7 +168,7 @@ impl StateGraphViewer {
                         if message.direction() == MessageDirection::FromWidget {
                             let source = fetch_state_node_model_handle(*source_node, ui);
                             let dest = fetch_state_node_model_handle(*dest_node, ui);
-                            sender.do_scene_command(AddTransitionCommand::new(
+                            sender.do_command(AddTransitionCommand::new(
                                 absm_node_handle,
                                 layer_index,
                                 Transition::new("Transition", source, dest, 1.0, ""),
@@ -192,7 +192,7 @@ impl StateGraphViewer {
                             })
                             .collect::<Vec<_>>();
 
-                        sender.do_scene_command(CommandGroup::from(commands));
+                        sender.do_command(CommandGroup::from(commands));
                     }
                     AbsmCanvasMessage::SelectionChanged(selection) => {
                         if message.direction() == MessageDirection::FromWidget {
@@ -222,7 +222,7 @@ impl StateGraphViewer {
                             });
 
                             if !selection.is_empty() && &selection != editor_selection {
-                                sender.do_scene_command(ChangeSelectionCommand::new(selection));
+                                sender.do_command(ChangeSelectionCommand::new(selection));
                             }
                         }
                     }
@@ -244,7 +244,7 @@ impl StateGraphViewer {
                                 })
                                 .collect::<Vec<_>>();
 
-                            sender.do_scene_command(CommandGroup::from(commands));
+                            sender.do_command(CommandGroup::from(commands));
                         }
                     }
                     _ => (),

@@ -981,7 +981,7 @@ impl RagdollPreset {
             ))),
         ];
 
-        sender.do_scene_command(CommandGroup::from(group).with_custom_name("Generate Ragdoll"));
+        sender.do_command(CommandGroup::from(group).with_custom_name("Generate Ragdoll"));
     }
 }
 

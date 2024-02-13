@@ -85,7 +85,7 @@ impl UiScene {
     fn select_object(&mut self, handle: ErasedHandle) {
         if self.ui.try_get(handle.into()).is_some() {
             self.message_sender
-                .do_ui_scene_command(ChangeSelectionCommand::new(Selection::new(
+                .do_command(ChangeSelectionCommand::new(Selection::new(
                     UiSelection::single_or_empty(handle.into()),
                 )))
         }
@@ -225,8 +225,7 @@ impl SceneController for UiScene {
                 ))),
             ];
 
-            self.message_sender
-                .do_ui_scene_command(CommandGroup::from(group));
+            self.message_sender.do_command(CommandGroup::from(group));
         }
     }
 
@@ -549,8 +548,7 @@ impl SceneController for UiScene {
             self.message_sender
                 .send(Message::DoCommand(group.into_iter().next().unwrap()))
         } else {
-            self.message_sender
-                .do_ui_scene_command(CommandGroup::from(group));
+            self.message_sender.do_command(CommandGroup::from(group));
         }
     }
 

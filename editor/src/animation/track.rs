@@ -839,21 +839,21 @@ impl TrackList {
                                 Self::open_property_selector(graph, (*first).into(), ui);
                         }
                         PropertyBindingMode::Position => {
-                            sender.do_scene_command(AddTrackCommand::new(
+                            sender.do_command(AddTrackCommand::new(
                                 selection.animation_player,
                                 selection.animation,
                                 Track::new_position().with_target(self.selected_node.into()),
                             ));
                         }
                         PropertyBindingMode::Rotation => {
-                            sender.do_scene_command(AddTrackCommand::new(
+                            sender.do_command(AddTrackCommand::new(
                                 selection.animation_player,
                                 selection.animation,
                                 Track::new_rotation().with_target(self.selected_node.into()),
                             ));
                         }
                         PropertyBindingMode::Scale => {
-                            sender.do_scene_command(AddTrackCommand::new(
+                            sender.do_command(AddTrackCommand::new(
                                 selection.animation_player,
                                 selection.animation,
                                 Track::new_scale().with_target(self.selected_node.into()),
@@ -876,7 +876,7 @@ impl TrackList {
                         }
                     }
 
-                    sender.do_scene_command(CommandGroup::from(commands));
+                    sender.do_command(CommandGroup::from(commands));
                 }
             }
         } else if let Some(PropertySelectorMessage::Selection(selected_properties)) = message.data()
@@ -904,7 +904,7 @@ impl TrackList {
 
                                     track.set_target(self.selected_node.into());
 
-                                    sender.do_scene_command(AddTrackCommand::new(
+                                    sender.do_command(AddTrackCommand::new(
                                         selection.animation_player,
                                         selection.animation,
                                         track,
@@ -956,7 +956,7 @@ impl TrackList {
                         .collect(),
                 });
 
-                sender.do_scene_command(ChangeSelectionCommand::new(new_selection));
+                sender.do_command(ChangeSelectionCommand::new(new_selection));
             }
         } else if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination() == self.context_menu.remove_track {
@@ -986,7 +986,7 @@ impl TrackList {
                         }
                     }
 
-                    sender.do_scene_command(CommandGroup::from(commands));
+                    sender.do_command(CommandGroup::from(commands));
                 }
             } else if message.destination() == self.context_menu.set_target {
                 self.context_menu.target_node_selector = NodeSelectorWindowBuilder::new(
@@ -1032,7 +1032,7 @@ impl TrackList {
                         })
                         .collect::<Vec<_>>();
 
-                    sender.do_scene_command(CommandGroup::from(commands));
+                    sender.do_command(CommandGroup::from(commands));
                 }
             }
         } else if let Some(TrackViewMessage::TrackEnabled(enabled)) = message.data() {
@@ -1047,7 +1047,7 @@ impl TrackList {
                             .iter()
                             .any(|t| t.id() == track_view_ref.id)
                         {
-                            sender.do_scene_command(SetTrackEnabledCommand {
+                            sender.do_command(SetTrackEnabledCommand {
                                 animation_player_handle: selection.animation_player,
                                 animation_handle: selection.animation,
                                 track: track_view_ref.id,
@@ -1171,7 +1171,7 @@ impl TrackList {
                 let types = type_id_to_supported_type(property_type);
 
                 if let Some((_, actual_value_type)) = types {
-                    sender.do_scene_command(SetTrackBindingCommand {
+                    sender.do_command(SetTrackBindingCommand {
                         animation_player_handle: selection.animation_player,
                         animation_handle: selection.animation,
                         track: first_selected_track,

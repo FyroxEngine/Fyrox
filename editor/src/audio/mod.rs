@@ -255,7 +255,7 @@ impl AudioPanel {
     ) {
         if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.add_bus {
-                sender.do_scene_command(AddAudioBusCommand::new(AudioBus::new(
+                sender.do_command(AddAudioBusCommand::new(AudioBus::new(
                     "AudioBus".to_string(),
                 )))
             } else if message.destination() == self.remove_bus {
@@ -268,7 +268,7 @@ impl AudioPanel {
                         commands.push(Command::new(RemoveAudioBusCommand::new(bus)));
                     }
 
-                    sender.do_scene_command(CommandGroup::from(commands));
+                    sender.do_command(CommandGroup::from(commands));
                 }
             }
         } else if let Some(ListViewMessage::SelectionChanged(Some(effect_index))) = message.data() {
@@ -285,7 +285,7 @@ impl AudioPanel {
                     ui,
                 );
 
-                sender.do_scene_command(ChangeSelectionCommand::new(Selection::new(
+                sender.do_command(ChangeSelectionCommand::new(Selection::new(
                     AudioBusSelection {
                         buses: vec![effect],
                     },
@@ -301,7 +301,7 @@ impl AudioPanel {
 
                 let child = audio_bus_view_ref.bus;
 
-                sender.do_scene_command(LinkAudioBuses {
+                sender.do_command(LinkAudioBuses {
                     child,
                     parent: *new_parent,
                 });
@@ -315,7 +315,7 @@ impl AudioPanel {
                         _ => unreachable!(),
                     };
 
-                    sender.do_scene_command(SetRendererCommand::new(renderer));
+                    sender.do_command(SetRendererCommand::new(renderer));
                 } else if message.destination() == self.distance_model {
                     let distance_model = match index {
                         0 => DistanceModel::None,
@@ -325,7 +325,7 @@ impl AudioPanel {
                         _ => unreachable!(),
                     };
 
-                    sender.do_scene_command(SetDistanceModelCommand::new(distance_model));
+                    sender.do_command(SetDistanceModelCommand::new(distance_model));
                 }
             }
         } else if let Some(ResourceFieldMessage::Value(resource)) =
@@ -334,7 +334,7 @@ impl AudioPanel {
             if message.destination() == self.hrir_resource
                 && message.direction() == MessageDirection::FromWidget
             {
-                sender.do_scene_command(SetHrtfRendererHrirSphereResource::new(resource.clone()));
+                sender.do_command(SetHrtfRendererHrirSphereResource::new(resource.clone()));
             }
         }
     }

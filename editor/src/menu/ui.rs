@@ -234,7 +234,7 @@ impl UiMenu {
                 } else {
                     Handle::NONE
                 };
-                sender.do_ui_scene_command(AddWidgetCommand::new(sub_graph, parent, true));
+                sender.do_command(AddWidgetCommand::new(sub_graph, parent, true));
             }
         }
     }

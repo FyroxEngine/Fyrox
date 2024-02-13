@@ -910,7 +910,7 @@ impl BlendSpaceEditor {
                                     }
                                 }
                                 BlendSpaceFieldMessage::MovePoint { index, position } => {
-                                    sender.do_scene_command(SetBlendSpacePointPositionCommand {
+                                    sender.do_command(SetBlendSpacePointPositionCommand {
                                         node_handle: selection.absm_node_handle,
                                         handle: *first,
                                         layer_index,
@@ -918,16 +918,17 @@ impl BlendSpaceEditor {
                                         value: position,
                                     });
                                 }
-                                BlendSpaceFieldMessage::RemovePoint(index) => sender
-                                    .do_scene_command(RemoveBlendSpacePointCommand {
+                                BlendSpaceFieldMessage::RemovePoint(index) => {
+                                    sender.do_command(RemoveBlendSpacePointCommand {
                                         scene_node_handle: selection.absm_node_handle,
                                         node_handle: *first,
                                         layer_index,
                                         point_index: index,
                                         point: None,
-                                    }),
+                                    })
+                                }
                                 BlendSpaceFieldMessage::AddPoint(pos) => {
-                                    sender.do_scene_command(AddBlendSpacePointCommand {
+                                    sender.do_command(AddBlendSpacePointCommand {
                                         node_handle: selection.absm_node_handle,
                                         handle: *first,
                                         layer_index,

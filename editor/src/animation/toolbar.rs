@@ -202,7 +202,7 @@ impl RootMotionDropdownArea {
         N: SceneGraphNode<SceneGraph = G>,
     {
         let send_command = |settings: Option<RootMotionSettings<Handle<N>>>| {
-            sender.do_scene_command(SetAnimationRootMotionSettingsCommand {
+            sender.do_command(SetAnimationRootMotionSettingsCommand {
                 node_handle: selection.animation_player,
                 animation_handle: selection.animation,
                 value: settings,
@@ -283,7 +283,7 @@ impl RootMotionDropdownArea {
                 && message.direction() == MessageDirection::FromWidget
             {
                 if let Some(settings) = animation.root_motion_settings_ref() {
-                    sender.do_scene_command(SetAnimationRootMotionSettingsCommand {
+                    sender.do_command(SetAnimationRootMotionSettingsCommand {
                         node_handle: selection.animation_player,
                         animation_handle: selection.animation,
                         value: Some(RootMotionSettings {
@@ -865,7 +865,7 @@ impl Toolbar {
                     .node(item)
                     .user_data_cloned::<Handle<Animation<Handle<N>>>>()
                     .unwrap();
-                sender.do_scene_command(ChangeSelectionCommand::new(Selection::new(
+                sender.do_command(ChangeSelectionCommand::new(Selection::new(
                     AnimationSelection {
                         animation_player: animation_player_handle,
                         animation,
@@ -905,10 +905,10 @@ impl Toolbar {
                         )),
                     ];
 
-                    sender.do_scene_command(CommandGroup::from(group));
+                    sender.do_command(CommandGroup::from(group));
                 }
             } else if message.destination() == self.rename_current_animation {
-                sender.do_scene_command(SetAnimationNameCommand {
+                sender.do_command(SetAnimationNameCommand {
                     node_handle: animation_player_handle,
                     animation_handle: selection.animation,
                     value: ui
@@ -925,14 +925,13 @@ impl Toolbar {
                         .unwrap()
                         .text(),
                 );
-                sender
-                    .do_scene_command(AddAnimationCommand::new(animation_player_handle, animation));
+                sender.do_command(AddAnimationCommand::new(animation_player_handle, animation));
             } else if message.destination() == self.clone_current_animation {
                 if let Some(animation) = animations.try_get(selection.animation) {
                     let mut animation_clone = animation.clone();
                     animation_clone.set_name(format!("{} Copy", animation.name()));
 
-                    sender.do_scene_command(AddAnimationCommand::new(
+                    sender.do_command(AddAnimationCommand::new(
                         animation_player_handle,
                         animation_clone,
                     ));
@@ -947,13 +946,13 @@ impl Toolbar {
                         ToolbarAction::LeavePreviewMode
                     };
                 } else if message.destination() == self.looping {
-                    sender.do_scene_command(SetAnimationLoopingCommand {
+                    sender.do_command(SetAnimationLoopingCommand {
                         node_handle: animation_player_handle,
                         animation_handle: selection.animation,
                         value: *checked,
                     });
                 } else if message.destination() == self.enabled {
-                    sender.do_scene_command(SetAnimationEnabledCommand {
+                    sender.do_command(SetAnimationEnabledCommand {
                         node_handle: animation_player_handle,
                         animation_handle: selection.animation,
                         value: *checked,
@@ -965,7 +964,7 @@ impl Toolbar {
                 if message.destination() == self.time_slice_start {
                     let mut time_slice = animations[selection.animation].time_slice();
                     time_slice.start = value.min(time_slice.end);
-                    sender.do_scene_command(SetAnimationTimeSliceCommand {
+                    sender.do_command(SetAnimationTimeSliceCommand {
                         node_handle: animation_player_handle,
                         animation_handle: selection.animation,
                         value: time_slice,
@@ -973,13 +972,13 @@ impl Toolbar {
                 } else if message.destination() == self.time_slice_end {
                     let mut time_slice = animations[selection.animation].time_slice();
                     time_slice.end = value.max(time_slice.start);
-                    sender.do_scene_command(SetAnimationTimeSliceCommand {
+                    sender.do_command(SetAnimationTimeSliceCommand {
                         node_handle: animation_player_handle,
                         animation_handle: selection.animation,
                         value: time_slice,
                     });
                 } else if message.destination() == self.speed {
-                    sender.do_scene_command(SetAnimationSpeedCommand {
+                    sender.do_command(SetAnimationSpeedCommand {
                         node_handle: animation_player_handle,
                         animation_handle: selection.animation,
                         value: *value,
@@ -1084,7 +1083,7 @@ impl Toolbar {
                                         .collect::<Vec<_>>(),
                                 );
 
-                                sender.do_scene_command(group);
+                                sender.do_command(group);
                             }
                             ImportMode::Reimport => {
                                 if let Some(selection) = editor_selection.as_animation() {
@@ -1093,7 +1092,7 @@ impl Toolbar {
                                     }
 
                                     if !animations.is_empty() {
-                                        sender.do_scene_command(ReplaceAnimationCommand {
+                                        sender.do_command(ReplaceAnimationCommand {
                                             animation_player: selection.animation_player,
                                             animation_handle: selection.animation,
                                             animation: animations.into_iter().next().unwrap(),

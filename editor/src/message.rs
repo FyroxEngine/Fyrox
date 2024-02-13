@@ -84,14 +84,7 @@ unsafe impl Send for MessageSender {}
 unsafe impl Sync for MessageSender {}
 
 impl MessageSender {
-    pub fn do_scene_command<C>(&self, cmd: C)
-    where
-        C: CommandTrait,
-    {
-        self.send(Message::DoCommand(Command::new(cmd)))
-    }
-
-    pub fn do_ui_scene_command<C>(&self, cmd: C)
+    pub fn do_command<C>(&self, cmd: C)
     where
         C: CommandTrait,
     {

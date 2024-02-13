@@ -125,7 +125,7 @@ impl InteractionMode for UiSelectInteractionMode {
 
         if &new_selection != editor_selection {
             self.message_sender
-                .do_ui_scene_command(ChangeSelectionCommand::new(new_selection));
+                .do_command(ChangeSelectionCommand::new(new_selection));
         }
         engine
             .user_interface

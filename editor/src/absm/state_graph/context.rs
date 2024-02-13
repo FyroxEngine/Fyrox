@@ -81,7 +81,7 @@ impl CanvasContextMenu {
             if message.destination() == self.create_state {
                 let screen_position = ui.node(self.menu.handle()).screen_position();
 
-                sender.do_scene_command(AddStateCommand::new(
+                sender.do_command(AddStateCommand::new(
                     absm_node_handle,
                     layer_index,
                     State {
@@ -121,7 +121,7 @@ impl CanvasContextMenu {
                         ))
                     })
                     .collect::<Vec<_>>();
-                sender.do_scene_command(CommandGroup::from(commands));
+                sender.do_command(CommandGroup::from(commands));
             }
         }
     }
@@ -266,10 +266,10 @@ impl NodeContextMenu {
                         ))
                     }));
 
-                    sender.do_scene_command(CommandGroup::from(group));
+                    sender.do_command(CommandGroup::from(group));
                 }
             } else if message.destination() == self.set_as_entry_state {
-                sender.do_scene_command(SetMachineEntryStateCommand {
+                sender.do_command(SetMachineEntryStateCommand {
                     node_handle: absm_node_handle,
                     layer: layer_index,
                     entry: ui
@@ -366,7 +366,7 @@ impl TransitionContextMenu {
                         )),
                     ];
 
-                    sender.do_scene_command(CommandGroup::from(group));
+                    sender.do_command(CommandGroup::from(group));
                 }
             }
         } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {

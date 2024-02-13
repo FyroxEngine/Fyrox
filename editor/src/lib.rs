@@ -1041,15 +1041,11 @@ impl Editor {
                     if let Some(controller) = self.scenes.current_scene_controller_mut() {
                         if let Some(game_scene) = controller.downcast_mut::<GameScene>() {
                             if !game_scene.clipboard.is_empty() {
-                                sender.do_scene_command(PasteCommand::new(
-                                    game_scene.scene_content_root,
-                                ));
+                                sender.do_command(PasteCommand::new(game_scene.scene_content_root));
                             }
                         } else if let Some(ui_scene) = controller.downcast_mut::<UiScene>() {
                             if !ui_scene.clipboard.is_empty() {
-                                sender.do_ui_scene_command(PasteWidgetCommand::new(
-                                    ui_scene.ui.root(),
-                                ));
+                                sender.do_command(PasteWidgetCommand::new(ui_scene.ui.root()));
                             }
                         }
                     }

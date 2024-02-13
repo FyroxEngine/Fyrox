@@ -124,7 +124,7 @@ impl InteractionMode for ScaleInteractionMode {
                                 })
                                 .collect::<Vec<_>>(),
                         );
-                        self.message_sender.do_scene_command(commands);
+                        self.message_sender.do_command(commands);
                     }
                 }
             }
@@ -159,7 +159,7 @@ impl InteractionMode for ScaleInteractionMode {
 
             if &new_selection != editor_selection {
                 self.message_sender
-                    .do_scene_command(ChangeSelectionCommand::new(new_selection));
+                    .do_command(ChangeSelectionCommand::new(new_selection));
             }
         }
     }
