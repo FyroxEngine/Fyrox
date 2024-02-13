@@ -114,7 +114,7 @@ where
         .map(|v| v.get_value_mut_silent())
 }
 
-fn animation_player<G, N>(
+fn animation_container<G, N>(
     graph: &mut G,
     handle: Handle<N>,
 ) -> Option<(Handle<N>, &mut AnimationContainer<Handle<N>>)>
@@ -129,8 +129,8 @@ where
 
     graph
         .try_get_mut(animation_player_handle)
-        .and_then(|n| n.component_mut::<AnimationContainer<Handle<N>>>())
-        .map(|ac| (animation_player_handle, ac))
+        .and_then(|n| n.component_mut::<InheritableVariable<AnimationContainer<Handle<N>>>>())
+        .map(|ac| (animation_player_handle, ac.get_value_mut_silent()))
 }
 
 fn machine_container_ref<G, N>(graph: &G, handle: Handle<N>) -> Option<&Machine<Handle<N>>>
@@ -144,7 +144,7 @@ where
         .map(|v| v.get_value_ref())
 }
 
-fn animation_player_ref<G, N>(
+pub fn animation_container_ref<G, N>(
     graph: &G,
     handle: Handle<N>,
 ) -> Option<(Handle<N>, &AnimationContainer<Handle<N>>)>
@@ -158,8 +158,10 @@ where
         .and_then(|ap| {
             graph
                 .try_get(**ap)
-                .and_then(|n| n.component_ref::<AnimationContainer<Handle<N>>>())
-                .map(|ac| (**ap, ac))
+                .and_then(|n| {
+                    n.component_ref::<InheritableVariable<AnimationContainer<Handle<N>>>>()
+                })
+                .map(|ac| (**ap, &**ac))
         })
 }
 
@@ -334,7 +336,7 @@ impl AbsmEditor {
         if self.preview_mode_data.is_some() {
             let selection = fetch_selection(editor_selection);
 
-            let animation_player = animation_player(graph, selection.absm_node_handle)
+            let animation_player = animation_container(graph, selection.absm_node_handle)
                 .map(|pair| pair.0)
                 .unwrap_or_default();
 
@@ -403,7 +405,7 @@ impl AbsmEditor {
                         ui,
                         layer,
                         editor_selection,
-                        animation_player_ref(graph, selection.absm_node_handle).map(|(_, c)| c),
+                        animation_container_ref(graph, selection.absm_node_handle).map(|(_, c)| c),
                     );
                     self.blend_space_editor.sync_to_model(
                         machine.parameters(),
@@ -542,7 +544,7 @@ impl AbsmEditor {
                     let machine_clone = machine.clone();
 
                     if let Some((animation_container_handle, animations)) =
-                        animation_player(graph, selection.absm_node_handle)
+                        animation_container(graph, selection.absm_node_handle)
                     {
                         assert!(node_overrides.insert(animation_container_handle));
 
@@ -564,9 +566,10 @@ impl AbsmEditor {
                 }
                 ToolbarAction::LeavePreviewMode => {
                     if self.preview_mode_data.is_some() {
-                        let animation_player = animation_player(graph, selection.absm_node_handle)
-                            .map(|pair| pair.0)
-                            .unwrap_or_default();
+                        let animation_player =
+                            animation_container(graph, selection.absm_node_handle)
+                                .map(|pair| pair.0)
+                                .unwrap_or_default();
                         assert!(node_overrides.remove(&selection.absm_node_handle));
                         assert!(node_overrides.remove(&animation_player));
 

@@ -1,6 +1,6 @@
 use crate::{
     absm::{
-        animation_player_ref,
+        animation_container_ref,
         command::{AddLayerCommand, RemoveLayerCommand, SetLayerMaskCommand, SetLayerNameCommand},
         fetch_selection, machine_container_ref,
         selection::AbsmSelection,
@@ -232,7 +232,7 @@ impl Toolbar {
                 let mut unique_nodes = FxHashSet::default();
                 if let Some(machine) = machine_container_ref(graph, selection.absm_node_handle) {
                     if let Some((_, animations)) =
-                        animation_player_ref(graph, selection.absm_node_handle)
+                        animation_container_ref(graph, selection.absm_node_handle)
                     {
                         for animation in animations.iter() {
                             for track in animation.tracks() {
