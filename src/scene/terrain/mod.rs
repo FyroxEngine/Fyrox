@@ -1020,7 +1020,7 @@ impl Terrain {
 
             for iy in 0..chunk.height_map_size.y {
                 let kz = iy as f32 / (chunk.height_map_size.y - 1) as f32;
-                for ix in 0..chunk.height_map_size.y {
+                for ix in 0..chunk.height_map_size.x {
                     let kx = ix as f32 / (chunk.height_map_size.x - 1) as f32;
 
                     let pixel_position = chunk.local_position()
