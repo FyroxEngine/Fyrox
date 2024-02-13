@@ -1,24 +1,26 @@
-use crate::command::{Command, CommandGroup};
 use crate::{
     absm::{
+        animation_player_ref,
         command::{AddLayerCommand, RemoveLayerCommand, SetLayerMaskCommand, SetLayerNameCommand},
-        fetch_selection,
+        fetch_selection, machine_container_ref,
         selection::AbsmSelection,
     },
+    command::{Command, CommandGroup},
     gui::make_dropdown_list_option,
     load_image,
     message::MessageSender,
     scene::{
         commands::ChangeSelectionCommand,
         selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
-        GameScene, Selection,
+        Selection,
     },
     send_sync_message,
 };
-use fyrox::graph::{BaseSceneGraph, SceneGraph};
 use fyrox::{
     core::{pool::ErasedHandle, pool::Handle},
     fxhash::FxHashSet,
+    generic_animation::machine::{mask::LayerMask, Machine, MachineLayer},
+    graph::{BaseSceneGraph, PrefabData, SceneGraph, SceneGraphNode},
     gui::{
         button::{ButtonBuilder, ButtonMessage},
         check_box::{CheckBoxBuilder, CheckBoxMessage},
@@ -33,11 +35,6 @@ use fyrox::{
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
         BRUSH_BRIGHT,
-    },
-    scene::{
-        animation::{absm::prelude::*, prelude::*},
-        graph::Graph,
-        node::Node,
     },
 };
 
@@ -163,15 +160,19 @@ impl Toolbar {
         }
     }
 
-    pub fn handle_ui_message(
+    pub fn handle_ui_message<P, G, N>(
         &mut self,
         message: &UiMessage,
         editor_selection: &Selection,
-        game_scene: &GameScene,
         sender: &MessageSender,
-        graph: &Graph,
+        graph: &G,
         ui: &mut UserInterface,
-    ) -> ToolbarAction {
+    ) -> ToolbarAction
+    where
+        P: PrefabData<Graph = G>,
+        G: SceneGraph<Node = N, Prefab = P>,
+        N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
+    {
         let selection = fetch_selection(editor_selection);
 
         if let Some(CheckBoxMessage::Check(Some(value))) = message.data() {
@@ -229,15 +230,11 @@ impl Toolbar {
 
                 // Collect all scene nodes from every animation in the associated animation player.
                 let mut unique_nodes = FxHashSet::default();
-                if let Some(absm_node) = graph
-                    .try_get(selection.absm_node_handle)
-                    .and_then(|n| n.query_component_ref::<AnimationBlendingStateMachine>())
-                {
-                    if let Some(animation_player) = graph
-                        .try_get(absm_node.animation_player())
-                        .and_then(|n| n.query_component_ref::<AnimationPlayer>())
+                if let Some(machine) = machine_container_ref(graph, selection.absm_node_handle) {
+                    if let Some((_, animations)) =
+                        animation_player_ref(graph, selection.absm_node_handle)
                     {
-                        for animation in animation_player.animations().iter() {
+                        for animation in animations.iter() {
                             for track in animation.tracks() {
                                 unique_nodes.insert(track.target());
                             }
@@ -257,7 +254,7 @@ impl Toolbar {
                     for local_root in local_roots {
                         root.children.push(HierarchyNode::from_scene_node(
                             local_root,
-                            game_scene.editor_objects_root,
+                            Handle::NONE,
                             graph,
                         ));
                     }
@@ -279,7 +276,7 @@ impl Toolbar {
                     ));
 
                     if let Some(layer_index) = selection.layer {
-                        if let Some(layer) = absm_node.machine().layers().get(layer_index) {
+                        if let Some(layer) = machine.layers().get(layer_index) {
                             let selection = layer
                                 .mask()
                                 .inner()
@@ -297,16 +294,14 @@ impl Toolbar {
                     }
                 }
             } else if message.destination() == self.remove_layer {
-                if let Some(absm_node) = graph
-                    .try_get_of_type::<AnimationBlendingStateMachine>(selection.absm_node_handle)
-                {
+                if let Some(machine) = machine_container_ref(graph, selection.absm_node_handle) {
                     if let Some(layer_index) = selection.layer {
                         let mut commands = Vec::new();
 
                         commands.push(Command::new(ChangeSelectionCommand::new(Selection::new(
                             AbsmSelection {
                                 absm_node_handle: selection.absm_node_handle,
-                                layer: if absm_node.machine().layers().len() > 1 {
+                                layer: if machine.layers().len() > 1 {
                                     Some(0)
                                 } else {
                                     None
@@ -332,7 +327,7 @@ impl Toolbar {
                     let new_mask = LayerMask::from(
                         mask_selection
                             .iter()
-                            .map(|h| Handle::<Node>::from(*h))
+                            .map(|h| Handle::<N>::from(*h))
                             .collect::<Vec<_>>(),
                     );
                     sender.do_scene_command(SetLayerMaskCommand {
@@ -354,14 +349,17 @@ impl Toolbar {
         ToolbarAction::None
     }
 
-    pub fn sync_to_model(
+    pub fn sync_to_model<P, G, N>(
         &mut self,
-        absm_node: &AnimationBlendingStateMachine,
+        machine: &Machine<Handle<N>>,
         ui: &mut UserInterface,
-        selection: &AbsmSelection,
-    ) {
-        let layers = absm_node
-            .machine()
+        selection: &AbsmSelection<N>,
+    ) where
+        P: PrefabData<Graph = G>,
+        G: SceneGraph<Node = N, Prefab = P>,
+        N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
+    {
+        let layers = machine
             .layers()
             .iter()
             .map(|l| make_dropdown_list_option(&mut ui.build_ctx(), l.name()))
@@ -382,7 +380,7 @@ impl Toolbar {
         );
 
         if let Some(layer_index) = selection.layer {
-            if let Some(layer) = absm_node.machine().layers().get(layer_index) {
+            if let Some(layer) = machine.layers().get(layer_index) {
                 send_sync_message(
                     ui,
                     TextMessage::text(

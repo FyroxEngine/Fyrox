@@ -247,7 +247,7 @@ impl DerefMut for AnimationBlendingStateMachine {
 }
 
 impl NodeTrait for AnimationBlendingStateMachine {
-    crate::impl_query_component!();
+    crate::impl_query_component!(animation_player: InheritableVariable<Handle<Node>>);
 
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.base.local_bounding_box()

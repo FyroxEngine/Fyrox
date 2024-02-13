@@ -1193,6 +1193,14 @@ impl Editor {
                     &self.message_sender,
                     game_scene.graph_switches.node_overrides.as_mut().unwrap(),
                 );
+                self.absm_editor.handle_ui_message(
+                    message,
+                    &self.message_sender,
+                    &current_scene_entry.selection,
+                    graph,
+                    &mut engine.user_interface,
+                    game_scene.graph_switches.node_overrides.as_mut().unwrap(),
+                );
                 self.ragdoll_wizard.handle_ui_message(
                     message,
                     &mut engine.user_interface,
@@ -1225,13 +1233,7 @@ impl Editor {
                     game_scene,
                     engine,
                 );
-                self.absm_editor.handle_ui_message(
-                    message,
-                    engine,
-                    &self.message_sender,
-                    &current_scene_entry.selection,
-                    game_scene,
-                );
+
                 self.audio_panel.handle_ui_message(
                     message,
                     &current_scene_entry.selection,
@@ -1514,8 +1516,11 @@ impl Editor {
                     &mut engine.user_interface,
                     &engine.scenes[game_scene.scene].graph,
                 );
-                self.absm_editor
-                    .sync_to_model(&current_scene_entry.selection, game_scene, engine);
+                self.absm_editor.sync_to_model(
+                    &current_scene_entry.selection,
+                    &engine.scenes[game_scene.scene].graph,
+                    &mut engine.user_interface,
+                );
                 self.scene_settings.sync_to_model(game_scene, engine);
                 let sender = &self.message_sender;
                 self.world_viewer.sync_to_model(
@@ -1676,8 +1681,12 @@ impl Editor {
                     &engine.user_interface,
                     game_scene.graph_switches.node_overrides.as_mut().unwrap(),
                 );
-                self.absm_editor
-                    .try_leave_preview_mode(&entry.selection, game_scene, engine);
+                self.absm_editor.try_leave_preview_mode(
+                    &entry.selection,
+                    &mut engine.scenes[game_scene.scene].graph,
+                    &mut engine.user_interface,
+                    game_scene.graph_switches.node_overrides.as_mut().unwrap(),
+                );
             } else if let Some(ui_scene) = entry.controller.downcast_mut::<UiScene>() {
                 self.animation_editor.try_leave_preview_mode(
                     &mut ui_scene.ui,
@@ -2168,8 +2177,9 @@ impl Editor {
                         self.absm_editor.handle_message(
                             &message,
                             &entry.selection,
-                            game_scene,
-                            &mut self.engine,
+                            &mut self.engine.scenes[game_scene.scene].graph,
+                            &mut self.engine.user_interface,
+                            game_scene.graph_switches.node_overrides.as_mut().unwrap(),
                         );
                     } else if let Some(ui_scene) = entry.controller.downcast_mut::<UiScene>() {
                         self.animation_editor.handle_message(
@@ -2341,8 +2351,11 @@ impl Editor {
 
             // TODO
             if let Some(game_scene) = controller.downcast_ref::<GameScene>() {
-                self.absm_editor
-                    .update(&entry.selection, game_scene, &mut self.engine);
+                self.absm_editor.update(
+                    &entry.selection,
+                    &mut self.engine.scenes[game_scene.scene].graph,
+                    &mut self.engine.user_interface,
+                );
             }
 
             if let Some(mode) = entry.current_interaction_mode {

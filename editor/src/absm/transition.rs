@@ -5,6 +5,7 @@ use crate::{
     },
     utils::fetch_node_center,
 };
+use fyrox::core::pool::ErasedHandle;
 use fyrox::{
     core::{
         algebra::Vector2,
@@ -24,7 +25,6 @@ use fyrox::{
         widget::{Widget, WidgetBuilder, WidgetMessage},
         BuildContext, Control, UiNode, UserInterface,
     },
-    scene::animation::absm::prelude::*,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -49,7 +49,7 @@ impl TransitionMessage {
 pub struct TransitionView {
     widget: Widget,
     pub segment: Segment,
-    pub model_handle: Handle<Transition>,
+    pub model_handle: ErasedHandle,
     #[component(include)]
     selectable: Selectable,
     activity_factor: f32,
@@ -176,7 +176,7 @@ impl TransitionBuilder {
         self
     }
 
-    pub fn build(self, model_handle: Handle<Transition>, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, model_handle: ErasedHandle, ctx: &mut BuildContext) -> Handle<UiNode> {
         let transition = TransitionView {
             widget: self
                 .widget_builder

@@ -1172,7 +1172,7 @@ impl SceneController for GameScene {
                     .try_get_bus_ref(*h)
                     .map(|bus| bus.doc().to_string())
             })
-        } else if let Some(absm_selection) = selection.as_absm() {
+        } else if let Some(absm_selection) = selection.as_absm::<Node>() {
             Some(
                 scene.graph[absm_selection.absm_node_handle]
                     .doc()
@@ -1322,7 +1322,15 @@ impl Selection {
         is_audio_bus
     );
 
-    define_downcast!(AbsmSelection, as_absm, as_absm_mut, is_absm);
+    pub fn as_absm<N: 'static>(&self) -> Option<&AbsmSelection<N>> {
+        self.0.as_ref().and_then(|s| s.downcast_ref())
+    }
+    pub fn as_absm_mut<N: 'static>(&mut self) -> Option<&mut AbsmSelection<N>> {
+        self.0.as_mut().and_then(|s| s.downcast_mut())
+    }
+    pub fn is_absm<N: 'static>(&mut self) -> bool {
+        self.as_absm::<N>().is_some()
+    }
 
     pub fn as_animation<N: 'static>(&self) -> Option<&AnimationSelection<N>> {
         self.0.as_ref().and_then(|s| s.downcast_ref())

@@ -112,12 +112,7 @@ where
 {
     graph
         .try_get_mut(handle)
-        .and_then(|n| {
-            n.query_component_mut(TypeId::of::<
-                InheritableVariable<AnimationContainer<Handle<N>>>,
-            >())
-        })
-        .and_then(|a| a.downcast_mut::<InheritableVariable<AnimationContainer<Handle<N>>>>())
+        .and_then(|n| n.component_mut::<InheritableVariable<AnimationContainer<Handle<N>>>>())
         .map(|v| v.get_value_mut_silent())
 }
 
