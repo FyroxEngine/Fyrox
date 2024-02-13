@@ -1,14 +1,15 @@
-use crate::scene::Selection;
 use crate::{
-    menu::create_menu_item, message::MessageSender, ui_scene::commands::graph::AddWidgetCommand,
-    ui_scene::UiScene,
+    menu::create_menu_item,
+    message::MessageSender,
+    scene::Selection,
+    ui_scene::{commands::graph::AddWidgetCommand, UiScene},
 };
-use fyrox::gui::animation::AnimationPlayerBuilder;
-use fyrox::gui::screen::ScreenBuilder;
 use fyrox::{
     core::pool::Handle,
     fxhash::FxHashMap,
     gui::{
+        absm::AnimationBlendingStateMachineBuilder,
+        animation::AnimationPlayerBuilder,
         border::BorderBuilder,
         button::ButtonBuilder,
         canvas::CanvasBuilder,
@@ -28,6 +29,7 @@ use fyrox::{
         path::PathEditorBuilder,
         popup::PopupBuilder,
         progress_bar::ProgressBarBuilder,
+        screen::ScreenBuilder,
         scroll_bar::ScrollBarBuilder,
         scroll_viewer::ScrollViewerBuilder,
         searchbar::SearchBarBuilder,
@@ -191,6 +193,10 @@ impl UiMenu {
             }),
             UiMenuEntry::new("AnimationPlayer", |name, ctx| {
                 AnimationPlayerBuilder::new(WidgetBuilder::new().with_name(name)).build(ctx)
+            }),
+            UiMenuEntry::new("Animation Blending State Machine", |name, ctx| {
+                AnimationBlendingStateMachineBuilder::new(WidgetBuilder::new().with_name(name))
+                    .build(ctx)
             }),
         ]
     }
