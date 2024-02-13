@@ -1301,6 +1301,14 @@ impl Editor {
                     &self.message_sender,
                     ui_scene.ui_update_switches.node_overrides.as_mut().unwrap(),
                 );
+                self.absm_editor.handle_ui_message(
+                    message,
+                    &self.message_sender,
+                    &current_scene_entry.selection,
+                    &mut ui_scene.ui,
+                    &mut engine.user_interface,
+                    ui_scene.ui_update_switches.node_overrides.as_mut().unwrap(),
+                );
                 self.world_viewer.handle_ui_message(
                     message,
                     &mut UiSceneWorldViewerDataProvider {
