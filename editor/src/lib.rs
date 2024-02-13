@@ -1552,6 +1552,11 @@ impl Editor {
                     &mut engine.user_interface,
                     &ui_scene.ui,
                 );
+                self.absm_editor.sync_to_model(
+                    &current_scene_entry.selection,
+                    &ui_scene.ui,
+                    &mut engine.user_interface,
+                );
                 self.world_viewer.sync_to_model(
                     &UiSceneWorldViewerDataProvider {
                         ui: &mut ui_scene.ui,
@@ -1691,6 +1696,12 @@ impl Editor {
                 self.animation_editor.try_leave_preview_mode(
                     &mut ui_scene.ui,
                     &self.engine.user_interface,
+                    ui_scene.ui_update_switches.node_overrides.as_mut().unwrap(),
+                );
+                self.absm_editor.try_leave_preview_mode(
+                    &entry.selection,
+                    &mut ui_scene.ui,
+                    &mut self.engine.user_interface,
                     ui_scene.ui_update_switches.node_overrides.as_mut().unwrap(),
                 );
             }
@@ -2188,6 +2199,13 @@ impl Editor {
                             &self.engine.user_interface,
                             ui_scene.ui_update_switches.node_overrides.as_mut().unwrap(),
                         );
+                        self.absm_editor.handle_message(
+                            &message,
+                            &entry.selection,
+                            &mut ui_scene.ui,
+                            &mut self.engine.user_interface,
+                            ui_scene.ui_update_switches.node_overrides.as_mut().unwrap(),
+                        );
                     }
 
                     needs_sync |=
@@ -2349,11 +2367,16 @@ impl Editor {
                     .set_render_target(&self.engine.user_interface, Some(new_render_target));
             }
 
-            // TODO
             if let Some(game_scene) = controller.downcast_ref::<GameScene>() {
                 self.absm_editor.update(
                     &entry.selection,
                     &mut self.engine.scenes[game_scene.scene].graph,
+                    &mut self.engine.user_interface,
+                );
+            } else if let Some(ui_scene) = controller.downcast_mut::<UiScene>() {
+                self.absm_editor.update(
+                    &entry.selection,
+                    &mut ui_scene.ui,
                     &mut self.engine.user_interface,
                 );
             }
