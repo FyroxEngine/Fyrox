@@ -55,7 +55,7 @@ impl MenuMessage {
 /// A set of messages that can be used to manipulate a [`MenuItem`] widget at runtime.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MenuItemMessage {
-    /// Opens the menu item's popup with inner items.  
+    /// Opens the menu item's popup with inner items.
     Open,
     /// Closes the menu item's popup with inner items.
     Close,
@@ -793,7 +793,9 @@ impl<'a, 'b> MenuItemBuilder<'a, 'b> {
             .build(ctx)
         });
 
-        ctx.link(content, decorator);
+        if content.is_some() {
+            ctx.link(content, decorator);
+        }
 
         let panel;
         let popup = PopupBuilder::new(WidgetBuilder::new().with_min_size(Vector2::new(10.0, 10.0)))
