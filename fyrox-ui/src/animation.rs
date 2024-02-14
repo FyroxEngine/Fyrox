@@ -122,6 +122,7 @@ pub struct AnimationPlayer {
     widget: Widget,
     #[component(include)]
     pub(crate) animations: InheritableVariable<AnimationContainer>,
+    #[component(include)]
     auto_apply: bool,
 }
 

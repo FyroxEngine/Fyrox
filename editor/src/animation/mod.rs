@@ -14,6 +14,7 @@ use crate::{
     scene::{commands::ChangeSelectionCommand, Selection},
     send_sync_message, Message,
 };
+use fyrox::core::log::Log;
 use fyrox::graph::PrefabData;
 use fyrox::resource::model::AnimationSource;
 use fyrox::{
@@ -370,6 +371,14 @@ impl AnimationEditor {
 
                     let animation_player_node =
                         graph.try_get_mut(selection.animation_player).unwrap();
+
+                    // HACK. This is unreliable to just use `bool` here. It should be wrapped into
+                    // newtype or something.
+                    if let Some(auto_apply) = animation_player_node.component_mut::<bool>() {
+                        *auto_apply = true;
+                    } else {
+                        Log::warn("No `auto_apply` component in animation player!")
+                    }
 
                     // Save state of animation player first.
                     let initial_animation_player_handle = selection.animation_player;

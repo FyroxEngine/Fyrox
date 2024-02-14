@@ -294,7 +294,10 @@ impl DerefMut for AnimationPlayer {
 }
 
 impl NodeTrait for AnimationPlayer {
-    crate::impl_query_component!(animations: InheritableVariable<AnimationContainer>);
+    crate::impl_query_component!(
+        animations: InheritableVariable<AnimationContainer>,
+        auto_apply: bool
+    );
 
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.base.local_bounding_box()
