@@ -1,12 +1,12 @@
-use crate::absm::command::fetch_machine;
-use crate::command::make_command;
-use crate::message::MessageSender;
 use crate::{
-    inspector::editors::make_property_editors_container, Message, MessageDirection, MSG_SYNC_FLAG,
+    absm::command::fetch_machine, command::make_command,
+    inspector::editors::make_property_editors_container, message::MessageSender, Message,
+    MessageDirection, MSG_SYNC_FLAG,
 };
-use fyrox::graph::BaseSceneGraph;
 use fyrox::{
     core::{log::Log, pool::Handle},
+    generic_animation::machine::parameter::{Parameter, ParameterContainer, ParameterDefinition},
+    graph::{BaseSceneGraph, PrefabData, SceneGraph, SceneGraphNode},
     gui::{
         inspector::{
             editors::{
@@ -23,7 +23,6 @@ use fyrox::{
         window::{WindowBuilder, WindowTitle},
         BuildContext, UiNode, UserInterface,
     },
-    scene::{animation::absm::prelude::*, node::Node},
 };
 use std::sync::Arc;
 
@@ -66,12 +65,12 @@ impl ParameterPanel {
     pub fn on_selection_changed(
         &self,
         ui: &mut UserInterface,
-        absm_node: Option<&AnimationBlendingStateMachine>,
+        parameters: Option<&ParameterContainer>,
     ) {
-        let inspector_context = absm_node
-            .map(|absm_node| {
+        let inspector_context = parameters
+            .map(|parameters| {
                 InspectorContext::from_object(
-                    absm_node.machine().parameters(),
+                    parameters,
                     &mut ui.build_ctx(),
                     self.property_editors.clone(),
                     None,
@@ -98,11 +97,7 @@ impl ParameterPanel {
         ));
     }
 
-    pub fn sync_to_model(
-        &mut self,
-        ui: &mut UserInterface,
-        absm_node: &AnimationBlendingStateMachine,
-    ) {
+    pub fn sync_to_model(&mut self, ui: &mut UserInterface, parameters: &ParameterContainer) {
         let ctx = ui
             .node(self.inspector)
             .cast::<fyrox::gui::inspector::Inspector>()
@@ -110,27 +105,25 @@ impl ParameterPanel {
             .context()
             .clone();
 
-        if let Err(sync_errors) = ctx.sync(
-            absm_node.machine().parameters(),
-            ui,
-            0,
-            true,
-            Default::default(),
-        ) {
+        if let Err(sync_errors) = ctx.sync(parameters, ui, 0, true, Default::default()) {
             for error in sync_errors {
                 Log::err(format!("Failed to sync property. Reason: {:?}", error))
             }
         }
     }
 
-    pub fn handle_ui_message(
+    pub fn handle_ui_message<P, G, N>(
         &mut self,
         message: &UiMessage,
         sender: &MessageSender,
-        absm_node_handle: Handle<Node>,
-        absm_node: &mut AnimationBlendingStateMachine,
+        absm_node_handle: Handle<N>,
+        parameters: &mut ParameterContainer,
         is_in_preview_mode: bool,
-    ) {
+    ) where
+        P: PrefabData<Graph = G>,
+        G: SceneGraph<Node = N, Prefab = P>,
+        N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
+    {
         if message.destination() == self.inspector
             && message.direction() == MessageDirection::FromWidget
         {
@@ -140,10 +133,7 @@ impl ParameterPanel {
                 if is_in_preview_mode {
                     PropertyAction::from_field_kind(&args.value).apply(
                         &args.path(),
-                        absm_node
-                            .machine_mut()
-                            .get_value_mut_silent()
-                            .parameters_mut(),
+                        parameters,
                         &mut |result| {
                             Log::verify(result);
                         },

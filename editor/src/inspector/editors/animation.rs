@@ -1,11 +1,13 @@
 //! Animation selector for `Handle<Animation>` fields.
 
 use crate::{gui::make_dropdown_list_option_universal, inspector::EditorEnvironment, Message};
+use fyrox::generic_animation::EntityId;
 use fyrox::{
     core::pool::Handle,
     gui::{
         button::{ButtonBuilder, ButtonMessage},
         dropdown_list::{DropdownListBuilder, DropdownListMessage},
+        generic_animation::machine::Machine,
         inspector::{
             editors::{
                 PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
@@ -16,7 +18,6 @@ use fyrox::{
         message::{MessageDirection, UiMessage},
         widget::WidgetBuilder,
     },
-    scene::animation::absm::prelude::*,
 };
 use std::{
     any::TypeId,
@@ -192,12 +193,30 @@ where
     }
 }
 
-#[derive(Debug)]
-pub struct MachinePropertyEditorDefinition;
+pub struct MachinePropertyEditorDefinition<T> {
+    phantom: PhantomData<T>,
+}
 
-impl PropertyEditorDefinition for MachinePropertyEditorDefinition {
+impl<T> Debug for MachinePropertyEditorDefinition<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "MachinePropertyEditorDefinition")
+    }
+}
+
+impl<T> Default for MachinePropertyEditorDefinition<T> {
+    fn default() -> Self {
+        Self {
+            phantom: PhantomData,
+        }
+    }
+}
+
+impl<T> PropertyEditorDefinition for MachinePropertyEditorDefinition<T>
+where
+    T: Send + Sync + EntityId,
+{
     fn value_type_id(&self) -> TypeId {
-        TypeId::of::<Machine>()
+        TypeId::of::<Machine<T>>()
     }
 
     fn create_instance(

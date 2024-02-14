@@ -104,6 +104,7 @@ pub struct AnimationBlendingStateMachine {
     widget: Widget,
     #[component(include)]
     machine: InheritableVariable<Machine>,
+    #[component(include)]
     animation_player: InheritableVariable<Handle<UiNode>>,
 }
 

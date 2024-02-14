@@ -124,11 +124,10 @@ impl NavmeshPanel {
                         })
                         .collect::<Vec<_>>();
 
-                    self.sender
-                        .do_scene_command(ConnectNavmeshEdgesCommand::new(
-                            selection.navmesh_node(),
-                            [vertices[0], vertices[1]],
-                        ));
+                    self.sender.do_command(ConnectNavmeshEdgesCommand::new(
+                        selection.navmesh_node(),
+                        [vertices[0], vertices[1]],
+                    ));
                 }
             }
         }
@@ -320,7 +319,7 @@ impl InteractionMode for EditNavmeshMode {
 
                 if &new_selection != editor_selection {
                     self.message_sender
-                        .do_scene_command(ChangeSelectionCommand::new(new_selection));
+                        .do_command(ChangeSelectionCommand::new(new_selection));
                 }
             }
         }
@@ -378,8 +377,7 @@ impl InteractionMode for EditNavmeshMode {
                         }
                     }
 
-                    self.message_sender
-                        .do_scene_command(CommandGroup::from(commands));
+                    self.message_sender.do_command(CommandGroup::from(commands));
                 }
             }
         }
@@ -460,10 +458,9 @@ impl InteractionMode for EditNavmeshMode {
                             });
 
                             // Discard selection.
-                            self.message_sender
-                                .do_scene_command(ChangeSelectionCommand::new(Selection::new(
-                                    NavmeshSelection::empty(selection.navmesh_node()),
-                                )));
+                            self.message_sender.do_command(ChangeSelectionCommand::new(
+                                Selection::new(NavmeshSelection::empty(selection.navmesh_node())),
+                            ));
                         }
                     }
                 }
@@ -620,8 +617,7 @@ impl InteractionMode for EditNavmeshMode {
                             NavmeshSelection::empty(selection.navmesh_node()),
                         ))));
 
-                        self.message_sender
-                            .do_scene_command(CommandGroup::from(commands));
+                        self.message_sender.do_command(CommandGroup::from(commands));
                     }
 
                     true
@@ -643,9 +639,7 @@ impl InteractionMode for EditNavmeshMode {
                         );
 
                         self.message_sender
-                            .do_scene_command(ChangeSelectionCommand::new(Selection::new(
-                                selection,
-                            )));
+                            .do_command(ChangeSelectionCommand::new(Selection::new(selection)));
                     }
 
                     true

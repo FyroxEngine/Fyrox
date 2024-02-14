@@ -116,8 +116,7 @@ impl InteractionMode for MoveWidgetsInteractionMode {
                         ))
                     })
                     .collect::<Vec<_>>();
-                self.sender
-                    .do_ui_scene_command(CommandGroup::from(commands));
+                self.sender.do_command(CommandGroup::from(commands));
             }
         } else {
             let picked = ui_scene.ui.hit_test(mouse_pos);
@@ -132,9 +131,7 @@ impl InteractionMode for MoveWidgetsInteractionMode {
                 };
                 new_selection.insert_or_exclude(picked);
                 self.sender
-                    .do_ui_scene_command(ChangeSelectionCommand::new(Selection::new(
-                        new_selection,
-                    )));
+                    .do_command(ChangeSelectionCommand::new(Selection::new(new_selection)));
             }
         }
     }

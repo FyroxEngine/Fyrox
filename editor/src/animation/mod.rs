@@ -112,12 +112,7 @@ where
 {
     graph
         .try_get_mut(handle)
-        .and_then(|n| {
-            n.query_component_mut(TypeId::of::<
-                InheritableVariable<AnimationContainer<Handle<N>>>,
-            >())
-        })
-        .and_then(|a| a.downcast_mut::<InheritableVariable<AnimationContainer<Handle<N>>>>())
+        .and_then(|n| n.component_mut::<InheritableVariable<AnimationContainer<Handle<N>>>>())
         .map(|v| v.get_value_mut_silent())
 }
 
@@ -276,7 +271,7 @@ impl AnimationEditor {
                 {
                     match msg {
                         CurveEditorMessage::Sync(curve) => {
-                            sender.do_scene_command(ReplaceTrackCurveCommand {
+                            sender.do_command(ReplaceTrackCurveCommand {
                                 animation_player: selection.animation_player,
                                 animation: selection.animation,
                                 curve: curve.clone(),
@@ -321,7 +316,7 @@ impl AnimationEditor {
                             }
                         }
                         RulerMessage::AddSignal(time) => {
-                            sender.do_scene_command(AddAnimationSignal {
+                            sender.do_command(AddAnimationSignal {
                                 animation_player_handle: selection.animation_player,
                                 animation_handle: selection.animation,
                                 signal: Some(AnimationSignal {
@@ -334,7 +329,7 @@ impl AnimationEditor {
                         }
                         RulerMessage::RemoveSignal(id) => {
                             if let Some(animation) = animations.try_get(selection.animation) {
-                                sender.do_scene_command(RemoveAnimationSignal {
+                                sender.do_command(RemoveAnimationSignal {
                                     animation_player_handle: selection.animation_player,
                                     animation_handle: selection.animation,
                                     signal_index: animation
@@ -347,7 +342,7 @@ impl AnimationEditor {
                             }
                         }
                         RulerMessage::MoveSignal { id, new_position } => {
-                            sender.do_scene_command(MoveAnimationSignal {
+                            sender.do_command(MoveAnimationSignal {
                                 animation_player_handle: selection.animation_player,
                                 animation_handle: selection.animation,
                                 signal: *id,
@@ -355,7 +350,7 @@ impl AnimationEditor {
                             });
                         }
                         RulerMessage::SelectSignal(id) => {
-                            sender.do_scene_command(ChangeSelectionCommand::new(Selection::new(
+                            sender.do_command(ChangeSelectionCommand::new(Selection::new(
                                 AnimationSelection {
                                     animation_player: selection.animation_player,
                                     animation: selection.animation,

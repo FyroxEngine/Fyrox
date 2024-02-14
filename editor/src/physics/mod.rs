@@ -236,7 +236,7 @@ impl ColliderControlPanel {
                 }
             }
             if !commands.is_empty() {
-                sender.do_scene_command(CommandGroup::from(commands));
+                sender.do_command(CommandGroup::from(commands));
             }
         }
     }

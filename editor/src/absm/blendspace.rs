@@ -10,7 +10,6 @@ use crate::{
     message::MessageSender,
     send_sync_message,
 };
-use fyrox::graph::BaseSceneGraph;
 use fyrox::{
     core::{
         algebra::Vector2,
@@ -22,6 +21,11 @@ use fyrox::{
         uuid_provider,
         visitor::prelude::*,
     },
+    generic_animation::machine::{
+        node::blendspace::BlendSpacePoint, node::PoseNode, parameter::Parameter,
+        parameter::ParameterContainer, Machine, MachineLayer,
+    },
+    graph::{BaseSceneGraph, PrefabData, SceneGraph, SceneGraphNode},
     gui::{
         brush::Brush,
         define_constructor, define_widget_deref,
@@ -37,7 +41,6 @@ use fyrox::{
         BuildContext, Control, HorizontalAlignment, RcUiNodeHandle, Thickness, UiNode,
         UserInterface, VerticalAlignment, BRUSH_DARK, BRUSH_LIGHT, BRUSH_LIGHTEST,
     },
-    scene::animation::absm::prelude::*,
 };
 use std::{
     cell::Cell,
@@ -790,13 +793,17 @@ impl BlendSpaceEditor {
         ));
     }
 
-    pub fn sync_to_model(
+    pub fn sync_to_model<P, G, N>(
         &mut self,
         parameters: &ParameterContainer,
-        layer: &MachineLayer,
-        selection: &AbsmSelection,
+        layer: &MachineLayer<Handle<N>>,
+        selection: &AbsmSelection<N>,
         ui: &mut UserInterface,
-    ) {
+    ) where
+        P: PrefabData<Graph = G>,
+        G: SceneGraph<Node = N, Prefab = P>,
+        N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
+    {
         if let Some(SelectedEntity::PoseNode(first)) = selection.entities.first() {
             if let PoseNode::BlendSpace(blend_space) = layer.node(*first) {
                 let sync_text = |destination: Handle<UiNode>, text: String| {
@@ -870,14 +877,18 @@ impl BlendSpaceEditor {
         }
     }
 
-    pub fn handle_ui_message(
+    pub fn handle_ui_message<P, G, N>(
         &mut self,
-        selection: &AbsmSelection,
+        selection: &AbsmSelection<N>,
         message: &UiMessage,
         sender: &MessageSender,
-        machine: &mut Machine,
+        machine: &mut Machine<Handle<N>>,
         is_preview_mode_active: bool,
-    ) {
+    ) where
+        P: PrefabData<Graph = G>,
+        G: SceneGraph<Node = N, Prefab = P>,
+        N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
+    {
         if let Some(SelectedEntity::PoseNode(first)) = selection.entities.first() {
             if let Some(layer_index) = selection.layer {
                 if let PoseNode::BlendSpace(blend_space) =
@@ -899,7 +910,7 @@ impl BlendSpaceEditor {
                                     }
                                 }
                                 BlendSpaceFieldMessage::MovePoint { index, position } => {
-                                    sender.do_scene_command(SetBlendSpacePointPositionCommand {
+                                    sender.do_command(SetBlendSpacePointPositionCommand {
                                         node_handle: selection.absm_node_handle,
                                         handle: *first,
                                         layer_index,
@@ -907,16 +918,17 @@ impl BlendSpaceEditor {
                                         value: position,
                                     });
                                 }
-                                BlendSpaceFieldMessage::RemovePoint(index) => sender
-                                    .do_scene_command(RemoveBlendSpacePointCommand {
+                                BlendSpaceFieldMessage::RemovePoint(index) => {
+                                    sender.do_command(RemoveBlendSpacePointCommand {
                                         scene_node_handle: selection.absm_node_handle,
                                         node_handle: *first,
                                         layer_index,
                                         point_index: index,
                                         point: None,
-                                    }),
+                                    })
+                                }
                                 BlendSpaceFieldMessage::AddPoint(pos) => {
-                                    sender.do_scene_command(AddBlendSpacePointCommand {
+                                    sender.do_command(AddBlendSpacePointCommand {
                                         node_handle: selection.absm_node_handle,
                                         handle: *first,
                                         layer_index,

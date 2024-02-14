@@ -1,4 +1,3 @@
-use crate::command::{Command, CommandGroup};
 use crate::{
     absm::{
         command::{
@@ -12,13 +11,19 @@ use crate::{
         node::AbsmNode,
         selection::SelectedEntity,
     },
+    command::{Command, CommandGroup},
     menu::create_menu_item,
     message::MessageSender,
     scene::{commands::ChangeSelectionCommand, Selection},
 };
-use fyrox::graph::BaseSceneGraph;
+use fyrox::graph::SceneGraphNode;
 use fyrox::{
     core::{algebra::Vector2, pool::Handle},
+    generic_animation::machine::{
+        node::{blendspace::BlendSpace, blendspace::BlendSpacePoint, BasePoseNode},
+        BlendAnimations, BlendAnimationsByIndex, MachineLayer, PlayAnimation, PoseNode, State,
+    },
+    graph::BaseSceneGraph,
     gui::{
         menu::MenuItemMessage,
         message::UiMessage,
@@ -27,7 +32,6 @@ use fyrox::{
         widget::WidgetBuilder,
         BuildContext, RcUiNodeHandle, UiNode, UserInterface,
     },
-    scene::{animation::absm::prelude::*, node::Node},
 };
 
 pub struct CanvasContextMenu {
@@ -87,13 +91,13 @@ impl CanvasContextMenu {
         }
     }
 
-    pub fn handle_ui_message(
+    pub fn handle_ui_message<N: SceneGraphNode>(
         &mut self,
         sender: &MessageSender,
         message: &UiMessage,
-        current_state: Handle<State>,
+        current_state: Handle<State<Handle<N>>>,
         ui: &mut UserInterface,
-        absm_node_handle: Handle<Node>,
+        absm_node_handle: Handle<N>,
         layer_index: usize,
     ) {
         if let Some(MenuItemMessage::Click) = message.data() {
@@ -161,7 +165,7 @@ impl CanvasContextMenu {
             };
 
             if let Some(pose_node) = pose_node {
-                sender.do_scene_command(AddPoseNodeCommand::new(
+                sender.do_command(AddPoseNodeCommand::new(
                     absm_node_handle,
                     layer_index,
                     pose_node,
@@ -210,14 +214,14 @@ impl NodeContextMenu {
         }
     }
 
-    pub fn handle_ui_message(
+    pub fn handle_ui_message<N: SceneGraphNode>(
         &mut self,
         message: &UiMessage,
-        machine_layer: &MachineLayer,
+        machine_layer: &MachineLayer<Handle<N>>,
         sender: &MessageSender,
         ui: &UserInterface,
         editor_selection: &Selection,
-        absm_node_handle: Handle<Node>,
+        absm_node_handle: Handle<N>,
         layer_index: usize,
     ) {
         if let Some(MenuItemMessage::Click) = message.data() {
@@ -242,16 +246,16 @@ impl NodeContextMenu {
                         }
                     }));
 
-                    sender.do_scene_command(CommandGroup::from(group));
+                    sender.do_command(CommandGroup::from(group));
                 }
             } else if message.destination() == self.set_as_root {
                 let root = ui
                     .node(self.placement_target)
-                    .query_component::<AbsmNode<PoseNode>>()
+                    .query_component::<AbsmNode<PoseNode<Handle<N>>>>()
                     .unwrap()
                     .model_handle;
 
-                sender.do_scene_command(SetStateRootPoseCommand {
+                sender.do_command(SetStateRootPoseCommand {
                     node_handle: absm_node_handle,
                     layer_index,
                     handle: machine_layer.node(root).parent_state,
@@ -293,13 +297,13 @@ impl ConnectionContextMenu {
         }
     }
 
-    pub fn handle_ui_message(
+    pub fn handle_ui_message<N: SceneGraphNode>(
         &mut self,
         message: &UiMessage,
         ui: &mut UserInterface,
         sender: &MessageSender,
-        machine_layer: &MachineLayer,
-        absm_node_handle: Handle<Node>,
+        machine_layer: &MachineLayer<Handle<N>>,
+        absm_node_handle: Handle<N>,
         layer_index: usize,
     ) {
         if let Some(MenuItemMessage::Click) = message.data() {
@@ -311,7 +315,7 @@ impl ConnectionContextMenu {
 
                 let dest_node_ref = ui
                     .node(connection_ref.dest_node)
-                    .query_component::<AbsmNode<PoseNode>>()
+                    .query_component::<AbsmNode<PoseNode<Handle<N>>>>()
                     .unwrap();
 
                 let index = dest_node_ref
@@ -327,7 +331,7 @@ impl ConnectionContextMenu {
                         // No connections
                     }
                     PoseNode::BlendAnimations(_) => {
-                        sender.do_scene_command(SetBlendAnimationsPoseSourceCommand {
+                        sender.do_command(SetBlendAnimationsPoseSourceCommand {
                             node_handle: absm_node_handle,
                             layer_index,
                             handle: model_handle,
@@ -336,7 +340,7 @@ impl ConnectionContextMenu {
                         })
                     }
                     PoseNode::BlendAnimationsByIndex(_) => {
-                        sender.do_scene_command(SetBlendAnimationByIndexInputPoseSourceCommand {
+                        sender.do_command(SetBlendAnimationByIndexInputPoseSourceCommand {
                             node_handle: absm_node_handle,
                             layer_index,
                             handle: model_handle,
@@ -344,15 +348,13 @@ impl ConnectionContextMenu {
                             value: Default::default(),
                         })
                     }
-                    PoseNode::BlendSpace(_) => {
-                        sender.do_scene_command(SetBlendSpacePoseSourceCommand {
-                            node_handle: absm_node_handle,
-                            layer_index,
-                            handle: model_handle,
-                            index,
-                            value: Default::default(),
-                        })
-                    }
+                    PoseNode::BlendSpace(_) => sender.do_command(SetBlendSpacePoseSourceCommand {
+                        node_handle: absm_node_handle,
+                        layer_index,
+                        handle: model_handle,
+                        index,
+                        value: Default::default(),
+                    }),
                 }
             }
         } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {

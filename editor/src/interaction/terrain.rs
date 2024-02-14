@@ -227,23 +227,21 @@ impl InteractionMode for TerrainInteractionMode {
                         match self.brush.mode {
                             BrushMode::ModifyHeightMap { .. }
                             | BrushMode::FlattenHeightMap { .. } => {
-                                self.message_sender.do_scene_command(
-                                    ModifyTerrainHeightCommand::new(
+                                self.message_sender
+                                    .do_command(ModifyTerrainHeightCommand::new(
                                         handle,
                                         std::mem::take(&mut self.heightmaps),
                                         new_heightmaps,
-                                    ),
-                                );
+                                    ));
                             }
                             BrushMode::DrawOnMask { layer, .. } => {
-                                self.message_sender.do_scene_command(
-                                    ModifyTerrainLayerMaskCommand::new(
+                                self.message_sender
+                                    .do_command(ModifyTerrainLayerMaskCommand::new(
                                         handle,
                                         std::mem::take(&mut self.masks),
                                         copy_layer_masks(terrain, layer),
                                         layer,
-                                    ),
-                                );
+                                    ));
                             }
                         }
 

@@ -1,4 +1,5 @@
 //! A special container that is able to create widgets by their type UUID.
+use crate::absm::AnimationBlendingStateMachine;
 use crate::{
     animation::AnimationPlayer,
     bit::BitField,
@@ -200,6 +201,7 @@ impl WidgetConstructorContainer {
         container.add::<TextBox>();
         container.add::<Screen>();
         container.add::<AnimationPlayer>();
+        container.add::<AnimationBlendingStateMachine>();
 
         container
     }

@@ -1,24 +1,26 @@
 use crate::{
+    absm::animation_container_ref,
     gui::make_image_button_with_tooltip,
     inspector::editors::make_property_editors_container,
     load_image,
     message::MessageSender,
     scene::{controller::SceneController, GameScene, Selection},
     send_sync_message,
+    ui_scene::UiScene,
     utils::window_content,
     Brush, Engine, Message, Mode, WidgetMessage, WrapMode, MSG_SYNC_FLAG,
 };
-use fyrox::core::pool::ErasedHandle;
-use fyrox::graph::BaseSceneGraph;
 use fyrox::{
     asset::manager::ResourceManager,
     core::{
         color::Color,
         log::{Log, MessageKind},
+        pool::ErasedHandle,
         pool::Handle,
         reflect::prelude::*,
     },
     engine::SerializationContext,
+    graph::BaseSceneGraph,
     gui::{
         button::ButtonMessage,
         grid::{Column, GridBuilder, Row},
@@ -33,14 +35,13 @@ use fyrox::{
         window::{WindowBuilder, WindowTitle},
         BuildContext, Thickness, UiNode, UserInterface,
     },
-    scene::animation::{absm::AnimationBlendingStateMachine, AnimationPlayer},
 };
 use std::{any::Any, sync::Arc};
 
 pub mod editors;
 pub mod handlers;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct AnimationDefinition {
     name: String,
     handle: ErasedHandle,
@@ -128,17 +129,30 @@ fn fetch_available_animations(
     controller: &dyn SceneController,
     engine: &Engine,
 ) -> Vec<AnimationDefinition> {
-    if let Some(game_scene) = controller.downcast_ref::<GameScene>() {
-        let graph = &engine.scenes[game_scene.scene].graph;
-        if let Some(absm_selection) = selection.as_absm() {
-            if let Some(animation_player) = graph
-                .try_get(absm_selection.absm_node_handle)
-                .and_then(|n| n.query_component_ref::<AnimationBlendingStateMachine>())
-                .and_then(|absm| graph.try_get(absm.animation_player()))
-                .and_then(|n| n.query_component_ref::<AnimationPlayer>())
+    if let Some(ui_scene) = controller.downcast_ref::<UiScene>() {
+        // TODO: Remove duplicated code.
+        if let Some(absm_selection) = selection.as_absm::<UiNode>() {
+            if let Some((_, animation_player)) =
+                animation_container_ref(&ui_scene.ui, absm_selection.absm_node_handle)
             {
                 return animation_player
-                    .animations()
+                    .pair_iter()
+                    .map(|(handle, anim)| AnimationDefinition {
+                        name: anim.name().to_string(),
+                        handle: handle.into(),
+                    })
+                    .collect();
+            }
+        }
+    }
+
+    if let Some(game_scene) = controller.downcast_ref::<GameScene>() {
+        if let Some(absm_selection) = selection.as_absm() {
+            if let Some((_, animation_player)) = animation_container_ref(
+                &engine.scenes[game_scene.scene].graph,
+                absm_selection.absm_node_handle,
+            ) {
+                return animation_player
                     .pair_iter()
                     .map(|(handle, anim)| AnimationDefinition {
                         name: anim.name().to_string(),

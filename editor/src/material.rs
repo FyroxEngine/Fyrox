@@ -609,7 +609,7 @@ impl MaterialEditor {
                     && message.direction() == MessageDirection::FromWidget
                 {
                     if let ResourceFieldMessage::Value(Some(value)) = msg {
-                        sender.do_scene_command(SetMaterialShaderCommand::new(
+                        sender.do_command(SetMaterialShaderCommand::new(
                             material.clone(),
                             value.clone(),
                         ));
@@ -721,7 +721,7 @@ impl MaterialEditor {
                 };
 
                 if let Some(property_value) = property_value {
-                    sender.do_scene_command(SetMaterialPropertyValueCommand::new(
+                    sender.do_command(SetMaterialPropertyValueCommand::new(
                         material,
                         property_name.clone(),
                         property_value,

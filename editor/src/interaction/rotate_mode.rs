@@ -132,7 +132,7 @@ impl InteractionMode for RotateInteractionMode {
                                 .collect::<Vec<Command>>(),
                         );
                         // Commit changes.
-                        self.message_sender.do_scene_command(commands);
+                        self.message_sender.do_command(commands);
                     }
                 }
             }
@@ -167,7 +167,7 @@ impl InteractionMode for RotateInteractionMode {
 
             if &new_selection != editor_selection {
                 self.message_sender
-                    .do_scene_command(ChangeSelectionCommand::new(new_selection));
+                    .do_command(ChangeSelectionCommand::new(new_selection));
             }
         }
     }

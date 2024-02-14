@@ -139,14 +139,14 @@ impl WidgetContextMenu {
                     if let Some(ui_selection) = editor_selection.as_ui() {
                         if let Some(first) = ui_selection.widgets.first() {
                             if !ui_scene.clipboard.is_empty() {
-                                sender.do_ui_scene_command(PasteWidgetCommand::new(*first));
+                                sender.do_command(PasteWidgetCommand::new(*first));
                             }
                         }
                     }
                 } else if message.destination() == self.make_root {
                     if let Some(selection) = editor_selection.as_ui() {
                         if let Some(first) = selection.widgets.first() {
-                            sender.do_ui_scene_command(SetUiRootCommand {
+                            sender.do_command(SetUiRootCommand {
                                 root: *first,
                                 link_scheme: Default::default(),
                             });
