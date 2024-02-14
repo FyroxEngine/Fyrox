@@ -1,3 +1,4 @@
+use crate::absm::{EventAction, EventKind};
 use crate::vector_image::Primitive;
 use crate::{
     bit::BitField,
@@ -79,6 +80,7 @@ use crate::{
     VerticalAlignment,
 };
 use fxhash::FxHashMap;
+use fyrox_animation::machine::Parameter;
 use fyrox_core::parking_lot::{RwLock, RwLockReadGuard};
 use std::cell::RefCell;
 use std::sync::Arc;
@@ -354,6 +356,13 @@ impl PropertyEditorDefinitionContainer {
         container.insert(InheritablePropertyEditorDefinition::<Vec<char>>::new());
 
         container.insert(InheritablePropertyEditorDefinition::<Thickness>::new());
+
+        container.register_inheritable_enum::<EventKind, _>();
+
+        container.insert(InspectablePropertyEditorDefinition::<EventAction>::new());
+        container.register_inheritable_vec_collection::<EventAction>();
+
+        container.insert(EnumPropertyEditorDefinition::<Parameter>::new());
 
         reg_inspectables!(
             container,

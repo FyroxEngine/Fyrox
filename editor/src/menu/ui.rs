@@ -8,7 +8,7 @@ use fyrox::{
     core::pool::Handle,
     fxhash::FxHashMap,
     gui::{
-        absm::AnimationBlendingStateMachineBuilder,
+        absm::{AbsmEventProviderBuilder, AnimationBlendingStateMachineBuilder},
         animation::AnimationPlayerBuilder,
         border::BorderBuilder,
         button::ButtonBuilder,
@@ -197,6 +197,9 @@ impl UiMenu {
             UiMenuEntry::new("Animation Blending State Machine", |name, ctx| {
                 AnimationBlendingStateMachineBuilder::new(WidgetBuilder::new().with_name(name))
                     .build(ctx)
+            }),
+            UiMenuEntry::new("AbsmEventProvider", |name, ctx| {
+                AbsmEventProviderBuilder::new(WidgetBuilder::new().with_name(name)).build(ctx)
             }),
         ]
     }

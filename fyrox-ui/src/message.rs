@@ -418,9 +418,10 @@ pub enum ButtonState {
 }
 
 /// A set of possible mouse buttons.
-#[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Copy, Visit, Reflect)]
+#[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Copy, Default, Visit, Reflect)]
 pub enum MouseButton {
     /// Left mouse button.
+    #[default]
     Left,
     /// Right mouse button.
     Right,

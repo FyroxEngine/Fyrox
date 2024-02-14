@@ -8,12 +8,14 @@ use crate::{
         visitor::prelude::*,
     },
     define_widget_deref,
-    message::UiMessage,
-    widget::{Widget, WidgetBuilder},
+    message::{KeyCode, MouseButton, UiMessage},
+    widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, UiNode, UserInterface,
 };
-use fyrox_graph::SceneGraphNode;
+use fyrox_animation::machine::Parameter;
+use fyrox_graph::{SceneGraph, SceneGraphNode};
 use std::ops::{Deref, DerefMut};
+use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 /// UI-specific root motion settings.
 pub type RootMotionSettings = crate::generic_animation::RootMotionSettings<Handle<UiNode>>;
@@ -99,7 +101,8 @@ pub mod prelude {
 ///
 /// The node does **not** contain any animations, instead it just takes animations from an animation
 /// player node and mixes them.
-#[derive(Visit, Reflect, Clone, Debug, Default, ComponentProvider)]
+#[derive(Visit, Reflect, Clone, Debug, Default, ComponentProvider, TypeUuidProvider)]
+#[type_uuid(id = "4b08c753-2a10-41e3-8fb2-4fd0517e86bc")]
 pub struct AnimationBlendingStateMachine {
     widget: Widget,
     #[component(include)]
@@ -134,12 +137,6 @@ impl AnimationBlendingStateMachine {
     /// Returns an animation player used by the node.
     pub fn animation_player(&self) -> Handle<UiNode> {
         *self.animation_player
-    }
-}
-
-impl TypeUuidProvider for AnimationBlendingStateMachine {
-    fn type_uuid() -> Uuid {
-        uuid!("4b08c753-2a10-41e3-8fb2-4fd0517e86bc")
     }
 }
 
@@ -211,5 +208,137 @@ impl AnimationBlendingStateMachineBuilder {
     /// Creates new node and adds it to the user interface.
     pub fn build(self, ui: &mut BuildContext) -> Handle<UiNode> {
         ui.add_node(self.build_node())
+    }
+}
+
+#[derive(
+    Visit,
+    Reflect,
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    TypeUuidProvider,
+    AsRefStr,
+    EnumString,
+    EnumVariantNames,
+)]
+#[type_uuid(id = "291e8734-47df-408e-8b2c-57bfb941d8ec")]
+pub enum EventKind {
+    #[default]
+    MouseEnter,
+    MouseLeave,
+    MouseMove,
+    MouseDown(MouseButton),
+    MouseUp(MouseButton),
+    MouseWheel,
+    KeyDown(KeyCode),
+    KeyUp(KeyCode),
+    Focus,
+    Unfocus,
+    TouchStarted,
+    TouchEnded,
+    TouchMoved,
+    TouchCancelled,
+    DoubleTap,
+}
+
+#[derive(Visit, Reflect, Clone, Debug, Default, PartialEq, TypeUuidProvider)]
+#[type_uuid(id = "15f306b8-3bb8-4b35-87bd-6e9e5d748454")]
+pub struct EventAction {
+    kind: EventKind,
+    parameter_name: String,
+    parameter_value: Parameter,
+}
+
+/// A widget that listens for particular events and sets parameters in an ABSM accordingly.
+#[derive(Visit, Reflect, Clone, Debug, Default, ComponentProvider, TypeUuidProvider)]
+#[type_uuid(id = "15f306b8-3bb8-4b35-87bd-6e9e5d748455")]
+pub struct AbsmEventProvider {
+    widget: Widget,
+    actions: InheritableVariable<Vec<EventAction>>,
+    absm: InheritableVariable<Handle<UiNode>>,
+}
+
+define_widget_deref!(AbsmEventProvider);
+
+impl AbsmEventProvider {
+    fn on_event(&self, ui: &mut UserInterface, kind: EventKind) {
+        let Some(action) = self.actions.iter().find(|a| a.kind == kind) else {
+            return;
+        };
+
+        let Some(absm) = ui.try_get_mut_of_type::<AnimationBlendingStateMachine>(*self.absm) else {
+            return;
+        };
+
+        absm.machine_mut()
+            .set_parameter(&action.parameter_name, action.parameter_value);
+    }
+}
+
+impl Control for AbsmEventProvider {
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
+        self.widget.handle_routed_message(ui, message);
+
+        let Some(msg) = message.data::<WidgetMessage>() else {
+            return;
+        };
+
+        use WidgetMessage as Msg;
+        match msg {
+            Msg::MouseDown { button, .. } => self.on_event(ui, EventKind::MouseDown(*button)),
+            Msg::MouseUp { button, .. } => self.on_event(ui, EventKind::MouseUp(*button)),
+            Msg::MouseMove { .. } => self.on_event(ui, EventKind::MouseMove),
+            Msg::MouseWheel { .. } => self.on_event(ui, EventKind::MouseWheel),
+            Msg::MouseLeave => self.on_event(ui, EventKind::MouseLeave),
+            Msg::MouseEnter => self.on_event(ui, EventKind::MouseEnter),
+            Msg::Focus => self.on_event(ui, EventKind::Focus),
+            Msg::Unfocus => self.on_event(ui, EventKind::Unfocus),
+            Msg::TouchStarted { .. } => self.on_event(ui, EventKind::TouchStarted),
+            Msg::TouchEnded { .. } => self.on_event(ui, EventKind::TouchEnded),
+            Msg::TouchMoved { .. } => self.on_event(ui, EventKind::TouchMoved),
+            Msg::TouchCancelled { .. } => self.on_event(ui, EventKind::TouchCancelled),
+            Msg::DoubleTap { .. } => self.on_event(ui, EventKind::DoubleTap),
+            Msg::KeyUp(key) => self.on_event(ui, EventKind::KeyUp(*key)),
+            Msg::KeyDown(key) => self.on_event(ui, EventKind::KeyDown(*key)),
+            _ => (),
+        }
+    }
+}
+
+pub struct AbsmEventProviderBuilder {
+    widget_builder: WidgetBuilder,
+    actions: Vec<EventAction>,
+    absm: Handle<UiNode>,
+}
+
+impl AbsmEventProviderBuilder {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
+        Self {
+            widget_builder,
+            actions: Default::default(),
+            absm: Default::default(),
+        }
+    }
+
+    pub fn with_actions(mut self, actions: Vec<EventAction>) -> Self {
+        self.actions = actions;
+        self
+    }
+
+    pub fn with_absm(mut self, absm: Handle<UiNode>) -> Self {
+        self.absm = absm;
+        self
+    }
+
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+        let provider = AbsmEventProvider {
+            widget: self.widget_builder.build(),
+            actions: self.actions.into(),
+            absm: self.absm.into(),
+        };
+
+        ctx.add_node(UiNode::new(provider))
     }
 }
