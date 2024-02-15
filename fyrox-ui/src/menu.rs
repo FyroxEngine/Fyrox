@@ -741,6 +741,7 @@ impl<'a, 'b> MenuItemBuilder<'a, 'b> {
                         TextBuilder::new(
                             WidgetBuilder::new()
                                 .with_margin(Thickness::left(2.0))
+                                .on_row(1)
                                 .on_column(1),
                         )
                         .with_text(text)
@@ -751,6 +752,7 @@ impl<'a, 'b> MenuItemBuilder<'a, 'b> {
                             WidgetBuilder::new()
                                 .with_horizontal_alignment(HorizontalAlignment::Right)
                                 .with_margin(Thickness::uniform(1.0))
+                                .on_row(1)
                                 .on_column(2),
                         )
                         .with_text(shortcut)
@@ -760,6 +762,7 @@ impl<'a, 'b> MenuItemBuilder<'a, 'b> {
                         VectorImageBuilder::new(
                             WidgetBuilder::new()
                                 .with_visibility(!self.items.is_empty())
+                                .on_row(1)
                                 .on_column(3)
                                 .with_foreground(BRUSH_BRIGHT)
                                 .with_horizontal_alignment(HorizontalAlignment::Center)
@@ -771,7 +774,9 @@ impl<'a, 'b> MenuItemBuilder<'a, 'b> {
                         Handle::NONE
                     }),
             )
+            .add_row(Row::stretch())
             .add_row(Row::auto())
+            .add_row(Row::stretch())
             .add_column(Column::auto())
             .add_column(Column::stretch())
             .add_column(Column::auto())
