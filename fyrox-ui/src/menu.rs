@@ -795,6 +795,7 @@ impl<'a, 'b> MenuItemBuilder<'a, 'b> {
             .add_column(Column::stretch())
             .add_column(Column::auto())
             .add_column(Column::strict(10.0))
+            .add_column(Column::strict(5.0))
             .build(ctx),
             Some(MenuItemContent::TextCentered(text)) => {
                 TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::left_right(5.0)))
