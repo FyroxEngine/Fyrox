@@ -93,6 +93,7 @@ use fyrox::{
     },
 };
 use std::{path::Path, sync::Arc};
+use fyrox::script::Script;
 
 pub mod animation;
 pub mod font;
@@ -392,7 +393,12 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
     container.register_inheritable_enum::<sound::Renderer, _>();
     container.register_inheritable_enum::<RenderPath, _>();
 
+    container.insert(InspectablePropertyEditorDefinition::<Option<Vec<Option<Script>>>>::new());
+    container.insert(InspectablePropertyEditorDefinition::<Vec<Option<Script>>>::new());
+    container.insert(VecCollectionPropertyEditorDefinition::<Option<Script>>::new());
     container.insert(ScriptPropertyEditorDefinition {});
+    container.insert(InspectablePropertyEditorDefinition::<Script>::new());
+
     container.insert(BitFieldPropertyEditorDefinition::<BitMask>::new());
 
     container.register_inheritable_inspectable::<BallShape>();

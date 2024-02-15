@@ -446,7 +446,14 @@ impl Graph {
         S: ScriptTrait,
     {
         self.find(root_node, &mut |n| {
-            n.script().and_then(|s| s.cast::<S>()).is_some()
+            if let Some(scripts) = &n.scripts {
+                for script in scripts {
+                    if script.as_ref().and_then(|s| s.cast::<S>()).is_some() {
+                        return true;
+                    }
+                }
+            }
+            false
         })
     }
 
@@ -1353,43 +1360,43 @@ impl Graph {
 
     /// Tries to borrow a node using the given handle, fetch its script and cast it to the specified type.
     #[inline]
-    pub fn try_get_script_of<T>(&self, node: Handle<Node>) -> Option<&T>
+    pub fn try_get_script_of<T>(&self, node: Handle<Node>, index: usize) -> Option<&T>
     where
         T: ScriptTrait,
     {
-        self.try_get(node).and_then(|node| node.try_get_script())
+        self.try_get(node).and_then(|node| node.try_get_script(index))
     }
 
     /// Tries to borrow a node using the given handle, fetch its script and cast it to the specified type.
     #[inline]
-    pub fn try_get_script_of_mut<T>(&mut self, node: Handle<Node>) -> Option<&mut T>
+    pub fn try_get_script_of_mut<T>(&mut self, node: Handle<Node>, index: usize) -> Option<&mut T>
     where
         T: ScriptTrait,
     {
         self.try_get_mut(node)
-            .and_then(|node| node.try_get_script_mut())
+            .and_then(|node| node.try_get_script_mut(index))
     }
 
     /// Tries to borrow a node using the given handle and fetch a reference to a component of the given type
     /// from the script of the node.
     #[inline]
-    pub fn try_get_script_component_of<C>(&self, node: Handle<Node>) -> Option<&C>
+    pub fn try_get_script_component_of<C>(&self, node: Handle<Node>, index: usize) -> Option<&C>
     where
         C: Any,
     {
         self.try_get(node)
-            .and_then(|node| node.try_get_script_component())
+            .and_then(|node| node.try_get_script_component(index))
     }
 
     /// Tries to borrow a node using the given handle and fetch a reference to a component of the given type
     /// from the script of the node.
     #[inline]
-    pub fn try_get_script_component_of_mut<C>(&mut self, node: Handle<Node>) -> Option<&mut C>
+    pub fn try_get_script_component_of_mut<C>(&mut self, node: Handle<Node>, index: usize) -> Option<&mut C>
     where
         C: Any,
     {
         self.try_get_mut(node)
-            .and_then(|node| node.try_get_script_component_mut())
+            .and_then(|node| node.try_get_script_component_mut(index))
     }
 
     /// Returns a handle of the node that has the given id.
@@ -1534,7 +1541,7 @@ impl BaseSceneGraph for Graph {
     fn add_node(&mut self, mut node: Self::Node) -> Handle<Self::Node> {
         let children = node.children.clone();
         node.children.clear();
-        let has_script = node.script.is_some();
+        let has_script = node.scripts.is_some();
         let handle = self.pool.spawn(node);
 
         if self.root.is_none() {
