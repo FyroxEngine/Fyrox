@@ -15,8 +15,7 @@ use crate::{
     text_box::{TextBoxBuilder, TextCommitMode},
     tree::{Tree, TreeBuilder, TreeMessage, TreeRoot, TreeRootBuilder, TreeRootMessage},
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, NodeHandleMapping, RcUiNodeHandle, Thickness, UiNode, UserInterface,
-    VerticalAlignment,
+    BuildContext, Control, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use core::time;
 use std::{
@@ -27,7 +26,7 @@ use std::{
     ops::{Deref, DerefMut},
     path::{Component, Path, PathBuf, Prefix},
     sync::{
-        mpsc::{self, Receiver, Sender},
+        mpsc::{self, Receiver},
         Arc,
     },
     thread,
@@ -36,12 +35,11 @@ use std::{
 mod menu;
 mod selector;
 
-pub use selector::*;
-
-use fyrox_core::algebra::Vector2;
 use fyrox_core::parking_lot::Mutex;
 use fyrox_core::uuid_provider;
+use fyrox_graph::BaseSceneGraph;
 use notify::Watcher;
+pub use selector::*;
 #[cfg(not(target_arch = "wasm32"))]
 use sysinfo::{DiskExt, RefreshKind, SystemExt};
 
@@ -208,12 +206,6 @@ impl FileBrowser {
 uuid_provider!(FileBrowser = "b7f4610e-4b0c-4671-9b4a-60bb45268928");
 
 impl Control for FileBrowser {
-    fn resolve(&mut self, node_map: &NodeHandleMapping) {
-        node_map.resolve(&mut self.tree_root);
-        node_map.resolve(&mut self.path_text);
-        node_map.resolve(&mut self.scroll_viewer);
-    }
-
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
@@ -412,6 +404,7 @@ impl Control for FileBrowser {
                     message.destination(),
                     MessageDirection::ToWidget,
                     vec![],
+                    true,
                 ));
             }
         } else if let Some(WidgetMessage::Drop(dropped)) = message.data() {
@@ -478,10 +471,10 @@ impl Control for FileBrowser {
         }
     }
 
-    fn update(&mut self, _dt: f32, sender: &Sender<UiMessage>, _screen_size: Vector2<f32>) {
+    fn update(&mut self, _dt: f32, ui: &mut UserInterface) {
         if let Ok(event) = self.fs_receiver.as_ref().unwrap().try_recv() {
             if event.need_rescan() {
-                let _ = sender.send(FileBrowserMessage::rescan(
+                ui.send_message(FileBrowserMessage::rescan(
                     self.handle,
                     MessageDirection::ToWidget,
                 ));
@@ -489,14 +482,14 @@ impl Control for FileBrowser {
                 for path in event.paths.iter() {
                     match event.kind {
                         notify::EventKind::Remove(_) => {
-                            let _ = sender.send(FileBrowserMessage::remove(
+                            ui.send_message(FileBrowserMessage::remove(
                                 self.handle,
                                 MessageDirection::ToWidget,
                                 path.clone(),
                             ));
                         }
                         notify::EventKind::Create(_) => {
-                            let _ = sender.send(FileBrowserMessage::add(
+                            ui.send_message(FileBrowserMessage::add(
                                 self.handle,
                                 MessageDirection::ToWidget,
                                 path.clone(),
@@ -757,7 +750,7 @@ fn build_all(
             entries.sort_unstable_by(sort_dir_entries);
             for entry in entries {
                 let path = entry.path();
-                #[allow(clippy::blocks_in_if_conditions)]
+                #[allow(clippy::blocks_in_conditions)]
                 if filter
                     .as_mut()
                     .map_or(true, |f| f.0.borrow_mut().deref_mut().lock()(&path))
@@ -982,7 +975,11 @@ impl FileBrowserBuilder {
             FileBrowserMode::Open => Default::default(),
         };
 
-        let widget = self.widget_builder.with_child(grid).build();
+        let widget = self
+            .widget_builder
+            .with_need_update(true)
+            .with_child(grid)
+            .build();
 
         let the_path = match &self.root {
             Some(path) => path.clone(),

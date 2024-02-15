@@ -30,6 +30,7 @@ use fyrox::{
     },
     utils::navmesh::NavmeshAgent,
 };
+use fyrox_graph::SceneGraph;
 use winit::keyboard::PhysicalKey;
 
 struct GameScene {

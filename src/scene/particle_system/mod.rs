@@ -30,6 +30,7 @@ use crate::{
         },
     },
 };
+use fyrox_graph::BaseSceneGraph;
 use std::{
     cmp::Ordering,
     fmt::Debug,

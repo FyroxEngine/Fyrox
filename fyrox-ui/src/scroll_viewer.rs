@@ -16,8 +16,9 @@ use crate::{
     scroll_bar::{ScrollBar, ScrollBarBuilder, ScrollBarMessage},
     scroll_panel::{ScrollPanelBuilder, ScrollPanelMessage},
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, NodeHandleMapping, Orientation, UiNode, UserInterface,
+    BuildContext, Control, Orientation, UiNode, UserInterface,
 };
+use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};
 
 /// A set of messages that could be used to alternate the state of a [`ScrollViewer`] widget.
@@ -164,13 +165,6 @@ crate::define_widget_deref!(ScrollViewer);
 uuid_provider!(ScrollViewer = "173e869f-7da0-4ae2-915a-5d545d8150cc");
 
 impl Control for ScrollViewer {
-    fn resolve(&mut self, node_map: &NodeHandleMapping) {
-        node_map.resolve(&mut self.content);
-        node_map.resolve(&mut self.scroll_panel);
-        node_map.resolve(&mut self.v_scroll_bar);
-        node_map.resolve(&mut self.h_scroll_bar);
-    }
-
     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
         let size = self.widget.arrange_override(ui, final_size);
 
@@ -208,7 +202,7 @@ impl Control for ScrollViewer {
                 };
 
                 if let Some(scroll_bar) = ui.node(scroll_bar).cast::<ScrollBar>() {
-                    let old_value = scroll_bar.value;
+                    let old_value = *scroll_bar.value;
                     let new_value = old_value - amount * scroll_speed;
                     if (old_value - new_value).abs() > f32::EPSILON {
                         message.set_handled(true);
@@ -269,7 +263,7 @@ impl Control for ScrollViewer {
                             if let Some(scroll_bar) = ui.node(self.v_scroll_bar).cast::<ScrollBar>()
                             {
                                 let visibility =
-                                    (scroll_bar.max - scroll_bar.min).abs() >= f32::EPSILON;
+                                    (*scroll_bar.max - *scroll_bar.min).abs() >= f32::EPSILON;
                                 ui.send_message(WidgetMessage::visibility(
                                     self.v_scroll_bar,
                                     MessageDirection::ToWidget,
@@ -282,7 +276,7 @@ impl Control for ScrollViewer {
                             if let Some(scroll_bar) = ui.node(self.h_scroll_bar).cast::<ScrollBar>()
                             {
                                 let visibility =
-                                    (scroll_bar.max - scroll_bar.min).abs() >= f32::EPSILON;
+                                    (*scroll_bar.max - *scroll_bar.min).abs() >= f32::EPSILON;
                                 ui.send_message(WidgetMessage::visibility(
                                     self.h_scroll_bar,
                                     MessageDirection::ToWidget,

@@ -7,6 +7,7 @@
 
 use crate::core::{reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*};
 use fyrox_core::uuid_provider;
+use fyrox_graph::{BaseSceneGraph, SceneGraph};
 use std::{
     cell::RefCell,
     ops::{Deref, DerefMut},
@@ -21,7 +22,7 @@ use crate::{
     dock::config::{DockingManagerLayoutDescriptor, FloatingWindowDescriptor, TileDescriptor},
     message::{MessageDirection, UiMessage},
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, NodeHandleMapping, UiNode, UserInterface,
+    BuildContext, Control, UiNode, UserInterface,
 };
 
 pub use tile::*;
@@ -50,10 +51,6 @@ crate::define_widget_deref!(DockingManager);
 uuid_provider!(DockingManager = "b04299f7-3f6b-45f1-89a6-0dce4ad929e1");
 
 impl Control for DockingManager {
-    fn resolve(&mut self, node_map: &NodeHandleMapping) {
-        node_map.resolve_slice(&mut self.floating_windows.borrow_mut());
-    }
-
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
@@ -65,12 +62,12 @@ impl Control for DockingManager {
                     let mut stack = vec![root_tile_handle];
                     while let Some(tile_handle) = stack.pop() {
                         if let Some(tile) = ui
-                            .try_get_node(tile_handle)
+                            .try_get(tile_handle)
                             .and_then(|n| n.query_component::<Tile>())
                         {
                             match tile.content {
                                 TileContent::Window(window) => {
-                                    if ui.try_get_node(window).is_some() {
+                                    if ui.try_get(window).is_some() {
                                         windows.push(window);
                                     }
                                 }
@@ -104,9 +101,8 @@ impl Control for DockingManager {
                     // Restore floating windows.
                     self.floating_windows.borrow_mut().clear();
                     for floating_window_desc in layout_descriptor.floating_windows.iter() {
-                        let floating_window = ui.find_by_criteria_down(ui.root(), &|n| {
-                            n.name == floating_window_desc.name
-                        });
+                        let floating_window =
+                            ui.find_handle(ui.root(), &mut |n| n.name == floating_window_desc.name);
                         if floating_window.is_some() {
                             self.floating_windows.borrow_mut().push(floating_window);
 
@@ -160,7 +156,7 @@ impl DockingManager {
                 .borrow()
                 .iter()
                 .filter_map(|h| {
-                    ui.try_get_node(*h).map(|w| FloatingWindowDescriptor {
+                    ui.try_get(*h).map(|w| FloatingWindowDescriptor {
                         name: w.name.clone(),
                         position: w.actual_local_position(),
                         size: w.actual_local_size(),

@@ -21,6 +21,7 @@ use crate::{
     },
 };
 use fyrox_core::uuid_provider;
+use fyrox_graph::BaseSceneGraph;
 use rapier2d::dynamics::ImpulseJointHandle;
 use std::{
     cell::{Cell, RefCell},

@@ -376,28 +376,28 @@ impl Control for Text {
                         }
                     }
                     &TextMessage::Shadow(shadow) => {
-                        if text_ref.shadow != shadow {
+                        if *text_ref.shadow != shadow {
                             text_ref.set_shadow(shadow);
                             drop(text_ref);
                             self.invalidate_layout();
                         }
                     }
                     TextMessage::ShadowBrush(brush) => {
-                        if &text_ref.shadow_brush != brush {
+                        if &*text_ref.shadow_brush != brush {
                             text_ref.set_shadow_brush(brush.clone());
                             drop(text_ref);
                             self.invalidate_layout();
                         }
                     }
                     &TextMessage::ShadowDilation(dilation) => {
-                        if text_ref.shadow_dilation != dilation {
+                        if *text_ref.shadow_dilation != dilation {
                             text_ref.set_shadow_dilation(dilation);
                             drop(text_ref);
                             self.invalidate_layout();
                         }
                     }
                     &TextMessage::ShadowOffset(offset) => {
-                        if text_ref.shadow_offset != offset {
+                        if *text_ref.shadow_offset != offset {
                             text_ref.set_shadow_offset(offset);
                             drop(text_ref);
                             self.invalidate_layout();

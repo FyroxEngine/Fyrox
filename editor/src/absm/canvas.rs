@@ -20,6 +20,7 @@ use fyrox::{
         uuid_provider,
         visitor::prelude::*,
     },
+    graph::BaseSceneGraph,
     gui::{
         brush::Brush,
         define_constructor, define_widget_deref,
@@ -191,7 +192,7 @@ impl AbsmCanvas {
         T: 'static,
     {
         if ui
-            .try_get_node(node_handle)
+            .try_get(node_handle)
             .map_or(false, |n| n.has_component::<T>())
         {
             return node_handle;
@@ -269,8 +270,8 @@ impl AbsmCanvas {
                 {
                     if transition_handle == transition.handle() {
                         if let (Some(source_state), Some(dest_state)) = (
-                            ui.try_get_node(transition.segment.source),
-                            ui.try_get_node(transition.segment.dest),
+                            ui.try_get(transition.segment.source),
+                            ui.try_get(transition.segment.dest),
                         ) {
                             let source_pos = source_state.center();
                             let dest_pos = dest_state.center();

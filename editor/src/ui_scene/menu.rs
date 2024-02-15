@@ -2,10 +2,15 @@ use crate::{
     menu::{create_menu_item, create_menu_item_shortcut, ui::UiMenu},
     message::MessageSender,
     scene::{controller::SceneController, Selection},
-    ui_scene::{commands::graph::PasteWidgetCommand, UiScene},
+    ui_scene::{
+        commands::graph::{PasteWidgetCommand, SetUiRootCommand},
+        UiScene,
+    },
+    utils,
     world::WorldViewerItemContextMenu,
     Engine, Message, MessageDirection,
 };
+use fyrox::graph::{BaseSceneGraph, SceneGraphNode};
 use fyrox::{
     core::pool::Handle,
     gui::{
@@ -17,6 +22,7 @@ use fyrox::{
         BuildContext, RcUiNodeHandle, UiNode,
     },
 };
+use std::path::PathBuf;
 
 pub struct WidgetContextMenu {
     menu: RcUiNodeHandle,
@@ -25,6 +31,8 @@ pub struct WidgetContextMenu {
     widgets_menu: UiMenu,
     placement_target: Handle<UiNode>,
     paste: Handle<UiNode>,
+    make_root: Handle<UiNode>,
+    open_asset: Handle<UiNode>,
 }
 
 impl WorldViewerItemContextMenu for WidgetContextMenu {
@@ -33,11 +41,27 @@ impl WorldViewerItemContextMenu for WidgetContextMenu {
     }
 }
 
+fn resource_path_of_first_selected_node(
+    editor_selection: &Selection,
+    ui_scene: &UiScene,
+) -> Option<PathBuf> {
+    if let Some(ui_selection) = editor_selection.as_ui() {
+        if let Some(first) = ui_selection.widgets.first() {
+            if let Some(resource) = ui_scene.ui.try_get(*first).and_then(|n| n.resource()) {
+                return resource.kind().into_path();
+            }
+        }
+    }
+    None
+}
+
 impl WidgetContextMenu {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let delete_selection;
         let copy_selection;
         let paste;
+        let make_root;
+        let open_asset;
 
         let widgets_menu = UiMenu::new(UiMenu::default_entries(), "Create Child Widget", ctx);
 
@@ -59,6 +83,14 @@ impl WidgetContextMenu {
                             paste = create_menu_item("Paste As Child", vec![], ctx);
                             paste
                         })
+                        .with_child({
+                            make_root = create_menu_item("Make Root", vec![], ctx);
+                            make_root
+                        })
+                        .with_child({
+                            open_asset = create_menu_item("Open Asset", vec![], ctx);
+                            open_asset
+                        })
                         .with_child(widgets_menu.menu),
                 )
                 .build(ctx),
@@ -73,6 +105,8 @@ impl WidgetContextMenu {
             copy_selection,
             placement_target: Default::default(),
             paste,
+            make_root,
+            open_asset,
         }
     }
 
@@ -90,24 +124,40 @@ impl WidgetContextMenu {
 
             if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
                 if message.destination() == self.delete_selection {
-                    if let Selection::Ui(ui_selection) = editor_selection {
-                        sender.send(Message::DoUiSceneCommand(
-                            ui_selection
-                                .make_deletion_command(&ui_scene.ui, editor_selection.clone()),
+                    if let Some(ui_selection) = editor_selection.as_ui() {
+                        sender.send(Message::DoCommand(
+                            ui_selection.make_deletion_command(&ui_scene.ui),
                         ));
                     }
                 } else if message.destination() == self.copy_selection {
-                    if let Selection::Ui(ui_selection) = editor_selection {
+                    if let Some(ui_selection) = editor_selection.as_ui() {
                         ui_scene
                             .clipboard
                             .fill_from_selection(ui_selection, &ui_scene.ui);
                     }
                 } else if message.destination() == self.paste {
-                    if let Selection::Ui(ui_selection) = editor_selection {
+                    if let Some(ui_selection) = editor_selection.as_ui() {
                         if let Some(first) = ui_selection.widgets.first() {
                             if !ui_scene.clipboard.is_empty() {
-                                sender.do_ui_scene_command(PasteWidgetCommand::new(*first));
+                                sender.do_command(PasteWidgetCommand::new(*first));
                             }
+                        }
+                    }
+                } else if message.destination() == self.make_root {
+                    if let Some(selection) = editor_selection.as_ui() {
+                        if let Some(first) = selection.widgets.first() {
+                            sender.do_command(SetUiRootCommand {
+                                root: *first,
+                                link_scheme: Default::default(),
+                            });
+                        }
+                    }
+                } else if message.destination() == self.open_asset {
+                    if let Some(path) =
+                        resource_path_of_first_selected_node(editor_selection, ui_scene)
+                    {
+                        if utils::is_native_scene(&path) {
+                            sender.send(Message::LoadScene(path));
                         }
                     }
                 }

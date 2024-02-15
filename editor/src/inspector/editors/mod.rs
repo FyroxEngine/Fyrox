@@ -15,7 +15,8 @@ use crate::{
     },
     message::MessageSender,
 };
-use fyrox::script::Script;
+use fyrox::gui::font::FontResource;
+use fyrox::gui::UiNode;
 use fyrox::{
     asset::{manager::ResourceManager, Resource},
     core::{
@@ -23,6 +24,7 @@ use fyrox::{
         parking_lot::Mutex,
         pool::{ErasedHandle, Handle},
     },
+    gui,
     gui::inspector::editors::{
         bit::BitFieldPropertyEditorDefinition, collection::VecCollectionPropertyEditorDefinition,
         enumeration::EnumPropertyEditorDefinition, inherit::InheritablePropertyEditorDefinition,
@@ -43,8 +45,8 @@ use fyrox::{
             TextureResource, TextureWrapMode,
         },
     },
+    scene,
     scene::{
-        animation::{absm::prelude::*, prelude::*},
         base::{Base, LevelOfDetail, LodGroup, Mobility, Property, PropertyValue},
         camera::{
             ColorGradingLut, Exposure, OrthographicProjection, PerspectiveProjection, Projection,
@@ -121,27 +123,96 @@ pub fn make_status_enum_editor_definition() -> EnumPropertyEditorDefinition<Stat
     }
 }
 
+fn register_absm_property_editors<T>(container: &PropertyEditorDefinitionContainer)
+where
+    T: 'static,
+{
+    use fyrox::generic_animation::machine::{
+        node::{
+            blendspace::{BlendSpace, BlendSpacePoint},
+            BasePoseNode,
+        },
+        state::{StateAction, StateActionWrapper},
+        transition::{AndNode, LogicNode, NotNode, OrNode, XorNode},
+        BlendAnimations, BlendAnimationsByIndex, BlendPose, IndexedBlendInput, Machine,
+        PlayAnimation, PoseNode, PoseWeight, State,
+    };
+
+    container.insert(InspectablePropertyEditorDefinition::<BasePoseNode<Handle<T>>>::new());
+    container.insert(InspectablePropertyEditorDefinition::<
+        IndexedBlendInput<Handle<T>>,
+    >::new());
+    container.insert(VecCollectionPropertyEditorDefinition::<
+        IndexedBlendInput<Handle<T>>,
+    >::new());
+    container.insert(InspectablePropertyEditorDefinition::<
+        BlendSpacePoint<Handle<T>>,
+    >::new());
+    container.insert(VecCollectionPropertyEditorDefinition::<
+        BlendSpacePoint<Handle<T>>,
+    >::new());
+    container.insert(InspectablePropertyEditorDefinition::<BlendPose<Handle<T>>>::new());
+    container.insert(VecCollectionPropertyEditorDefinition::<BlendPose<Handle<T>>>::new());
+    container.insert(EnumPropertyEditorDefinition::<PoseWeight>::new());
+    container.insert(EnumPropertyEditorDefinition::<StateAction<Handle<T>>>::new());
+    container.insert(InspectablePropertyEditorDefinition::<
+        StateActionWrapper<Handle<T>>,
+    >::new());
+    container.insert(VecCollectionPropertyEditorDefinition::<
+        StateActionWrapper<Handle<T>>,
+    >::new());
+    container.insert(InspectablePropertyEditorDefinition::<
+        BlendAnimationsByIndex<Handle<T>>,
+    >::new());
+    container.insert(InspectablePropertyEditorDefinition::<
+        BlendAnimations<Handle<T>>,
+    >::new());
+    container.insert(InspectablePropertyEditorDefinition::<BlendSpace<Handle<T>>>::new());
+    container.insert(InspectablePropertyEditorDefinition::<
+        PlayAnimation<Handle<T>>,
+    >::new());
+
+    container.insert(InspectablePropertyEditorDefinition::<
+        Handle<PoseNode<Handle<T>>>,
+    >::new());
+    container.insert(InspectablePropertyEditorDefinition::<
+        Handle<State<Handle<T>>>,
+    >::new());
+
+    container.insert(MachinePropertyEditorDefinition::<Handle<T>>::default());
+    container.insert(InheritablePropertyEditorDefinition::<Machine<Handle<T>>>::new());
+
+    container.insert(EnumPropertyEditorDefinition::<LogicNode<Handle<T>>>::new());
+    container.insert(InspectablePropertyEditorDefinition::<AndNode<Handle<T>>>::new());
+    container.insert(InspectablePropertyEditorDefinition::<OrNode<Handle<T>>>::new());
+    container.insert(InspectablePropertyEditorDefinition::<XorNode<Handle<T>>>::new());
+    container.insert(InspectablePropertyEditorDefinition::<NotNode<Handle<T>>>::new());
+}
+
 pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorDefinitionContainer {
     let container = PropertyEditorDefinitionContainer::new();
 
     container.insert(TexturePropertyEditorDefinition { untyped: false });
     container.insert(TexturePropertyEditorDefinition { untyped: true });
     container.insert(FontPropertyEditorDefinition);
+    container.insert(InheritablePropertyEditorDefinition::<FontResource>::new());
     container.insert(InheritablePropertyEditorDefinition::<Option<TextureResource>>::new());
     container.register_inheritable_vec_collection::<Option<TextureResource>>();
-
-    container.insert(InheritablePropertyEditorDefinition::<Handle<Node>>::new());
 
     container.insert(MaterialPropertyEditorDefinition {
         sender: Mutex::new(sender.clone()),
     });
     container.insert(InheritablePropertyEditorDefinition::<MaterialResource>::new());
 
+    container.insert(InheritablePropertyEditorDefinition::<Handle<Node>>::new());
     container.register_inheritable_vec_collection::<Handle<Node>>();
     container.insert(NodeHandlePropertyEditorDefinition::new(
         sender.clone(),
         EntityKind::SceneNode,
     ));
+
+    container.insert(InheritablePropertyEditorDefinition::<Handle<UiNode>>::new());
+    container.register_inheritable_vec_collection::<Handle<UiNode>>();
     container.insert(NodeHandlePropertyEditorDefinition::new(
         sender.clone(),
         EntityKind::UiNode,
@@ -321,13 +392,7 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
     container.register_inheritable_enum::<sound::Renderer, _>();
     container.register_inheritable_enum::<RenderPath, _>();
 
-    container.insert(InspectablePropertyEditorDefinition::<
-        Option<Vec<Option<Script>>>,
-    >::new());
-    container.insert(InspectablePropertyEditorDefinition::<Vec<Option<Script>>>::new());
-    container.insert(VecCollectionPropertyEditorDefinition::<Option<Script>>::new());
     container.insert(ScriptPropertyEditorDefinition {});
-
     container.insert(BitFieldPropertyEditorDefinition::<BitMask>::new());
 
     container.register_inheritable_inspectable::<BallShape>();
@@ -353,39 +418,33 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
     container.insert(InheritablePropertyEditorDefinition::<SurfaceSharedData>::new());
     container.insert(InheritablePropertyEditorDefinition::<Status>::new());
 
-    container.insert(InspectablePropertyEditorDefinition::<BasePoseNode>::new());
-    container.insert(InspectablePropertyEditorDefinition::<IndexedBlendInput>::new());
-    container.insert(VecCollectionPropertyEditorDefinition::<IndexedBlendInput>::new());
-    container.insert(InspectablePropertyEditorDefinition::<BlendSpacePoint>::new());
-    container.insert(VecCollectionPropertyEditorDefinition::<BlendSpacePoint>::new());
-    container.insert(InspectablePropertyEditorDefinition::<BlendPose>::new());
-    container.insert(VecCollectionPropertyEditorDefinition::<BlendPose>::new());
-    container.insert(EnumPropertyEditorDefinition::<PoseWeight>::new());
-    container.insert(EnumPropertyEditorDefinition::<StateAction>::new());
-    container.insert(InspectablePropertyEditorDefinition::<StateActionWrapper>::new());
-    container.insert(VecCollectionPropertyEditorDefinition::<StateActionWrapper>::new());
-    container.insert(InspectablePropertyEditorDefinition::<BlendAnimationsByIndex>::new());
-    container.insert(InspectablePropertyEditorDefinition::<BlendAnimations>::new());
-    container.insert(InspectablePropertyEditorDefinition::<BlendSpace>::new());
-    container.insert(InspectablePropertyEditorDefinition::<PlayAnimation>::new());
+    register_absm_property_editors::<Node>(&container);
+    register_absm_property_editors::<UiNode>(&container);
 
-    container.insert(InspectablePropertyEditorDefinition::<Handle<PoseNode>>::new());
-    container.insert(InspectablePropertyEditorDefinition::<Handle<State>>::new());
+    container.insert(VecCollectionPropertyEditorDefinition::<
+        Handle<scene::animation::Animation>,
+    >::new());
+    container.insert(AnimationPropertyEditorDefinition::<
+        scene::animation::Animation,
+    >::default());
 
-    container.insert(VecCollectionPropertyEditorDefinition::<Handle<Animation>>::new());
-    container.insert(AnimationPropertyEditorDefinition);
+    container.insert(VecCollectionPropertyEditorDefinition::<
+        Handle<gui::animation::Animation>,
+    >::new());
+    container.insert(AnimationPropertyEditorDefinition::<gui::animation::Animation>::default());
 
-    container.insert(AnimationContainerPropertyEditorDefinition);
-    container.insert(InheritablePropertyEditorDefinition::<AnimationContainer>::new());
-
-    container.insert(MachinePropertyEditorDefinition);
-    container.insert(InheritablePropertyEditorDefinition::<Machine>::new());
-
-    container.insert(EnumPropertyEditorDefinition::<LogicNode>::new());
-    container.insert(InspectablePropertyEditorDefinition::<AndNode>::new());
-    container.insert(InspectablePropertyEditorDefinition::<OrNode>::new());
-    container.insert(InspectablePropertyEditorDefinition::<XorNode>::new());
-    container.insert(InspectablePropertyEditorDefinition::<NotNode>::new());
+    container.insert(AnimationContainerPropertyEditorDefinition::<
+        scene::animation::AnimationContainer,
+    >::default());
+    container.insert(AnimationContainerPropertyEditorDefinition::<
+        gui::animation::AnimationContainer,
+    >::default());
+    container.insert(InheritablePropertyEditorDefinition::<
+        scene::animation::AnimationContainer,
+    >::new());
+    container.insert(InheritablePropertyEditorDefinition::<
+        gui::animation::AnimationContainer,
+    >::new());
 
     container.insert(InspectablePropertyEditorDefinition::<ParticleSystemRng>::new());
     container.insert(EnumPropertyEditorDefinition::<PolygonFillMode>::new());

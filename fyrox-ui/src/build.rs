@@ -5,6 +5,7 @@ use crate::{
     core::pool::Handle, font::FontResource, message::UiMessage, RestrictionEntry, UiNode,
     UserInterface,
 };
+use fyrox_graph::BaseSceneGraph;
 use std::{
     ops::{Index, IndexMut},
     sync::mpsc::Sender,
@@ -119,7 +120,7 @@ impl<'a> BuildContext<'a> {
 
     /// Tries to fetch the node by its handle. Returns `None` if the handle is invalid.
     pub fn try_get_node(&self, node: Handle<UiNode>) -> Option<&UiNode> {
-        self.ui.try_get_node(node)
+        self.ui.try_get(node)
     }
 
     /// Tries to fetch the node by its handle. Returns `None` if the handle is invalid.

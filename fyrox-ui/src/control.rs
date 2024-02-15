@@ -5,7 +5,7 @@ use crate::{
     draw::DrawingContext,
     message::{OsEvent, UiMessage},
     widget::Widget,
-    NodeHandleMapping, UiNode, UserInterface,
+    UiNode, UserInterface,
 };
 use fyrox_core::{ComponentProvider, TypeUuidProvider};
 use std::{
@@ -62,10 +62,6 @@ where
 pub trait Control:
     BaseControl + Deref<Target = Widget> + DerefMut + Reflect + Visit + ComponentProvider
 {
-    /// This method will be called right after the widget was cloned. It is used remap handles in the widgets
-    /// to their respective copies from the copied hierarchy.
-    fn resolve(&mut self, #[allow(unused_variables)] node_map: &NodeHandleMapping) {}
-
     /// This method will be called before the widget is destroyed (dropped). At the moment, when this
     /// method is called, the widget is still in the widget graph and can be accessed via handles. It
     /// is guaranteed to be called once, and only if the widget is deleted via [`crate::widget::WidgetMessage::remove`].
@@ -87,6 +83,7 @@ pub trait Control:
     /// #     ops::{Deref, DerefMut},
     /// # };
     /// # use fyrox_core::uuid_provider;
+    /// # use fyrox_graph::BaseSceneGraph;
     /// #
     /// #[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
     /// struct MyWidget {
@@ -253,15 +250,22 @@ pub trait Control:
     /// for [`DrawingContext`] for more info.
     fn draw(&self, #[allow(unused_variables)] drawing_context: &mut DrawingContext) {}
 
+    /// The same as [`Self::draw`], but it runs after all descendant widgets are rendered.
+    fn post_draw(&self, #[allow(unused_variables)] drawing_context: &mut DrawingContext) {}
+
     /// This method is called every frame and can be used to update internal variables of the widget, that
     /// can be used to animated your widget. Its main difference from other methods, is that it does **not**
     /// provide access to any other widget in the UI. Instead, you can only send messages to widgets to
     /// force them to change their state.
+    ///
+    /// ## Important notes
+    ///
+    /// Due to performance reasons, you **must** set `.with_need_update(true)` in widget builder to
+    /// force library to call `update` method!
     fn update(
         &mut self,
         #[allow(unused_variables)] dt: f32,
-        #[allow(unused_variables)] sender: &Sender<UiMessage>,
-        #[allow(unused_variables)] screen_size: Vector2<f32>,
+        #[allow(unused_variables)] ui: &mut UserInterface,
     ) {
     }
 

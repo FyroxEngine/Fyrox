@@ -6,6 +6,7 @@ use crate::{
         math::aabb::AxisAlignedBoundingBox,
         pool::{Handle, Pool},
     },
+    graph::SceneGraph,
     scene::{graph::Graph, node::Node},
 };
 

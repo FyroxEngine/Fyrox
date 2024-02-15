@@ -21,6 +21,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
+use fyrox_core::variable::InheritableVariable;
 use std::ops::{Deref, DerefMut, Range};
 
 /// A set of messages, that can be used to modify/fetch the state of a [`RangeEditor`] widget instance.
@@ -110,11 +111,11 @@ where
     /// Base widget of the range editor.
     pub widget: Widget,
     /// Current value of the range editor.
-    pub value: Range<T>,
+    pub value: InheritableVariable<Range<T>>,
     /// A handle to numeric field that is used to show/modify start value of current range.
-    pub start: Handle<UiNode>,
+    pub start: InheritableVariable<Handle<UiNode>>,
     /// A handle to numeric field that is used to show/modify end value of current range.
-    pub end: Handle<UiNode>,
+    pub end: InheritableVariable<Handle<UiNode>>,
 }
 
 impl<T> Deref for RangeEditor<T>
@@ -161,16 +162,16 @@ where
         if message.direction() == MessageDirection::ToWidget && message.flags != SYNC_FLAG {
             if let Some(RangeEditorMessage::Value(range)) = message.data::<RangeEditorMessage<T>>()
             {
-                if message.destination() == self.handle && self.value != *range {
-                    self.value = range.clone();
+                if message.destination() == self.handle && *self.value != *range {
+                    self.value.set_value_and_mark_modified(range.clone());
 
                     ui.send_message(NumericUpDownMessage::value(
-                        self.start,
+                        *self.start,
                         MessageDirection::ToWidget,
                         range.start,
                     ));
                     ui.send_message(NumericUpDownMessage::value(
-                        self.end,
+                        *self.end,
                         MessageDirection::ToWidget,
                         range.end,
                     ));
@@ -180,7 +181,7 @@ where
             } else if let Some(NumericUpDownMessage::Value(value)) =
                 message.data::<NumericUpDownMessage<T>>()
             {
-                if message.destination() == self.start {
+                if message.destination() == *self.start {
                     if *value < self.value.end {
                         ui.send_message(RangeEditorMessage::value(
                             self.handle,
@@ -192,14 +193,14 @@ where
                         ));
                     } else {
                         let mut msg = NumericUpDownMessage::value(
-                            self.start,
+                            *self.start,
                             MessageDirection::ToWidget,
                             self.value.end,
                         );
                         msg.flags = SYNC_FLAG;
                         ui.send_message(msg);
                     }
-                } else if message.destination() == self.end {
+                } else if message.destination() == *self.end {
                     if *value > self.value.start {
                         ui.send_message(RangeEditorMessage::value(
                             self.handle,
@@ -211,7 +212,7 @@ where
                         ));
                     } else {
                         let mut msg = NumericUpDownMessage::value(
-                            self.end,
+                            *self.end,
                             MessageDirection::ToWidget,
                             self.value.start,
                         );
@@ -293,9 +294,9 @@ where
                     .build(ctx),
                 )
                 .build(),
-            value: self.value,
-            start,
-            end,
+            value: self.value.into(),
+            start: start.into(),
+            end: end.into(),
         };
 
         ctx.add_node(UiNode::new(editor))

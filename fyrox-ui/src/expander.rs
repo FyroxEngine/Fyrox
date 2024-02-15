@@ -15,6 +15,7 @@ use crate::{
     BuildContext, Control, UiNode, UserInterface, VerticalAlignment,
 };
 use fyrox_core::uuid_provider;
+use fyrox_core::variable::InheritableVariable;
 use std::ops::{Deref, DerefMut};
 
 /// A set messages that can be used to either alternate the state of an [`Expander`] widget, or to listen for
@@ -137,11 +138,11 @@ pub struct Expander {
     /// Base widget of the expander.
     pub widget: Widget,
     /// Current content of the expander.
-    pub content: Handle<UiNode>,
+    pub content: InheritableVariable<Handle<UiNode>>,
     /// Current expander check box of the expander.
-    pub expander: Handle<UiNode>,
+    pub expander: InheritableVariable<Handle<UiNode>>,
     /// A flag, that indicates whether the expander is expanded or collapsed.
-    pub is_expanded: bool,
+    pub is_expanded: InheritableVariable<bool>,
 }
 
 crate::define_widget_deref!(Expander);
@@ -153,24 +154,24 @@ impl Control for Expander {
         if let Some(&ExpanderMessage::Expand(expand)) = message.data::<ExpanderMessage>() {
             if message.destination() == self.handle()
                 && message.direction() == MessageDirection::ToWidget
-                && self.is_expanded != expand
+                && *self.is_expanded != expand
             {
                 // Switch state of expander.
                 ui.send_message(CheckBoxMessage::checked(
-                    self.expander,
+                    *self.expander,
                     MessageDirection::ToWidget,
                     Some(expand),
                 ));
                 // Show or hide content.
                 ui.send_message(WidgetMessage::visibility(
-                    self.content,
+                    *self.content,
                     MessageDirection::ToWidget,
                     expand,
                 ));
-                self.is_expanded = expand;
+                self.is_expanded.set_value_and_mark_modified(expand);
             }
         } else if let Some(CheckBoxMessage::Check(value)) = message.data::<CheckBoxMessage>() {
-            if message.destination() == self.expander
+            if message.destination() == *self.expander
                 && message.direction() == MessageDirection::FromWidget
             {
                 ui.send_message(ExpanderMessage::expand(
@@ -290,9 +291,9 @@ impl ExpanderBuilder {
                     .build(ctx),
                 )
                 .build(),
-            content: self.content,
-            expander,
-            is_expanded: self.is_expanded,
+            content: self.content.into(),
+            expander: expander.into(),
+            is_expanded: self.is_expanded.into(),
         });
         ctx.add_node(e)
     }

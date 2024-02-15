@@ -66,6 +66,7 @@ pub struct InheritableVariable<T> {
 }
 
 impl<T: Clone> Clone for InheritableVariable<T> {
+    #[inline]
     fn clone(&self) -> Self {
         Self {
             value: self.value.clone(),
@@ -75,12 +76,14 @@ impl<T: Clone> Clone for InheritableVariable<T> {
 }
 
 impl<T> From<T> for InheritableVariable<T> {
+    #[inline]
     fn from(v: T) -> Self {
         InheritableVariable::new_modified(v)
     }
 }
 
 impl<T: PartialEq> PartialEq for InheritableVariable<T> {
+    #[inline]
     fn eq(&self, other: &Self) -> bool {
         // `custom` flag intentionally ignored!
         self.value.eq(&other.value)
@@ -90,6 +93,7 @@ impl<T: PartialEq> PartialEq for InheritableVariable<T> {
 impl<T: Eq> Eq for InheritableVariable<T> {}
 
 impl<T: Default> Default for InheritableVariable<T> {
+    #[inline]
     fn default() -> Self {
         Self {
             value: T::default(),
@@ -100,12 +104,14 @@ impl<T: Default> Default for InheritableVariable<T> {
 
 impl<T: Clone> InheritableVariable<T> {
     /// Clones wrapped value.
+    #[inline]
     pub fn clone_inner(&self) -> T {
         self.value.clone()
     }
 
     /// Tries to sync a value in a data model with a value in the inheritable variable. The value
     /// will be synced only if it was marked as needs sync.
+    #[inline]
     pub fn try_sync_model<S: FnOnce(T)>(&self, setter: S) -> bool {
         if self.need_sync() {
             // Drop flag first.
@@ -126,6 +132,7 @@ impl<T: Clone> InheritableVariable<T> {
 impl<T> InheritableVariable<T> {
     /// Creates new modified variable from given value. This method should always be used to create inheritable
     /// variables in the engine.
+    #[inline]
     pub fn new_modified(value: T) -> Self {
         Self {
             value,
@@ -134,6 +141,7 @@ impl<T> InheritableVariable<T> {
     }
 
     /// Creates new variable without any flags set.
+    #[inline]
     pub fn new_non_modified(value: T) -> Self {
         Self {
             value,
@@ -142,6 +150,7 @@ impl<T> InheritableVariable<T> {
     }
 
     /// Creates new variable from a given value with custom flags.
+    #[inline]
     pub fn new_with_flags(value: T, flags: VariableFlags) -> Self {
         Self {
             value,
@@ -150,28 +159,33 @@ impl<T> InheritableVariable<T> {
     }
 
     /// Replaces value and also raises the [`VariableFlags::MODIFIED`] flag.
+    #[inline]
     pub fn set_value_and_mark_modified(&mut self, value: T) -> T {
         self.mark_modified_and_need_sync();
         std::mem::replace(&mut self.value, value)
     }
 
     /// Replaces value and flags.
+    #[inline]
     pub fn set_value_with_flags(&mut self, value: T, flags: VariableFlags) -> T {
         self.flags.set(flags);
         std::mem::replace(&mut self.value, value)
     }
 
     /// Replaces current value without marking the variable modified.
+    #[inline]
     pub fn set_value_silent(&mut self, value: T) -> T {
         std::mem::replace(&mut self.value, value)
     }
 
     /// Returns true if the respective data model's variable must be synced.
+    #[inline]
     pub fn need_sync(&self) -> bool {
         self.flags.get().contains(VariableFlags::NEED_SYNC)
     }
 
     /// Returns a reference to the wrapped value.
+    #[inline]
     pub fn get_value_ref(&self) -> &T {
         &self.value
     }
@@ -181,6 +195,7 @@ impl<T> InheritableVariable<T> {
     /// # Important notes.
     ///
     /// The method raises `modified` flag, no matter if actual modification was made!
+    #[inline]
     pub fn get_value_mut_and_mark_modified(&mut self) -> &mut T {
         self.mark_modified_and_need_sync();
         &mut self.value
@@ -191,16 +206,19 @@ impl<T> InheritableVariable<T> {
     /// # Important notes.
     ///
     /// This method does not mark the value as modified!
+    #[inline]
     pub fn get_value_mut_silent(&mut self) -> &mut T {
         &mut self.value
     }
 
     /// Returns true if variable was modified and should not be overwritten during property inheritance.
+    #[inline]
     pub fn is_modified(&self) -> bool {
         self.flags.get().contains(VariableFlags::MODIFIED)
     }
 
     /// Marks value as modified, so its value won't be overwritten during property inheritance.
+    #[inline]
     pub fn mark_modified(&mut self) {
         self.flags
             .get_mut()
@@ -208,10 +226,12 @@ impl<T> InheritableVariable<T> {
     }
 
     /// Deconstructs the variable and returns the wrapped value.
+    #[inline]
     pub fn take(self) -> T {
         self.value
     }
 
+    #[inline]
     fn mark_modified_and_need_sync(&mut self) {
         self.flags
             .get_mut()
@@ -222,12 +242,14 @@ impl<T> InheritableVariable<T> {
 impl<T> Deref for InheritableVariable<T> {
     type Target = T;
 
+    #[inline]
     fn deref(&self) -> &Self::Target {
         &self.value
     }
 }
 
 impl<T> DerefMut for InheritableVariable<T> {
+    #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.mark_modified_and_need_sync();
         &mut self.value
@@ -276,43 +298,58 @@ impl<T> Reflect for InheritableVariable<T>
 where
     T: Reflect + Clone + PartialEq + Debug,
 {
+    #[inline]
+    fn source_path() -> &'static str {
+        file!()
+    }
+
+    #[inline]
     fn type_name(&self) -> &'static str {
         self.value.type_name()
     }
 
+    #[inline]
     fn doc(&self) -> &'static str {
         self.value.doc()
     }
 
+    #[inline]
     fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo])) {
         self.value.fields_info(func)
     }
 
+    #[inline]
     fn into_any(self: Box<Self>) -> Box<dyn Any> {
         Box::new(self.value).into_any()
     }
 
+    #[inline]
     fn as_any(&self, func: &mut dyn FnMut(&dyn Any)) {
         self.value.as_any(func)
     }
 
+    #[inline]
     fn as_any_mut(&mut self, func: &mut dyn FnMut(&mut dyn Any)) {
         self.value.as_any_mut(func)
     }
 
+    #[inline]
     fn as_reflect(&self, func: &mut dyn FnMut(&dyn Reflect)) {
         self.value.as_reflect(func)
     }
 
+    #[inline]
     fn as_reflect_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect)) {
         self.value.as_reflect_mut(func)
     }
 
+    #[inline]
     fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
         self.mark_modified_and_need_sync();
         self.value.set(value)
     }
 
+    #[inline]
     fn set_field(
         &mut self,
         field: &str,
@@ -323,44 +360,53 @@ where
         self.value.set_field(field, value, func)
     }
 
+    #[inline]
     fn fields(&self, func: &mut dyn FnMut(&[&dyn Reflect])) {
         self.value.fields(func)
     }
 
+    #[inline]
     fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [&mut dyn Reflect])) {
         self.value.fields_mut(func)
     }
 
+    #[inline]
     fn field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
         self.value.field(name, func)
     }
 
+    #[inline]
     fn field_mut(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut dyn Reflect>)) {
         // Any modifications inside of compound structs must mark the variable as modified.
         self.mark_modified_and_need_sync();
         self.value.field_mut(name, func)
     }
 
+    #[inline]
     fn as_array(&self, func: &mut dyn FnMut(Option<&dyn ReflectArray>)) {
         self.value.as_array(func)
     }
 
+    #[inline]
     fn as_array_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectArray>)) {
         // Any modifications inside of inheritable arrays must mark the variable as modified.
         self.mark_modified_and_need_sync();
         self.value.as_array_mut(func)
     }
 
+    #[inline]
     fn as_list(&self, func: &mut dyn FnMut(Option<&dyn ReflectList>)) {
         self.value.as_list(func)
     }
 
+    #[inline]
     fn as_list_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectList>)) {
         // Any modifications inside of inheritable lists must mark the variable as modified.
         self.mark_modified_and_need_sync();
         self.value.as_list_mut(func)
     }
 
+    #[inline]
     fn as_inheritable_variable(
         &self,
         func: &mut dyn FnMut(Option<&dyn ReflectInheritableVariable>),
@@ -368,6 +414,7 @@ where
         func(Some(self))
     }
 
+    #[inline]
     fn as_inheritable_variable_mut(
         &mut self,
         func: &mut dyn FnMut(Option<&mut dyn ReflectInheritableVariable>),
@@ -418,22 +465,27 @@ where
         result
     }
 
+    #[inline]
     fn reset_modified_flag(&mut self) {
         self.flags.get_mut().remove(VariableFlags::MODIFIED)
     }
 
+    #[inline]
     fn flags(&self) -> VariableFlags {
         self.flags.get()
     }
 
+    #[inline]
     fn set_flags(&mut self, flags: VariableFlags) {
         self.flags.set(flags)
     }
 
+    #[inline]
     fn is_modified(&self) -> bool {
         self.is_modified()
     }
 
+    #[inline]
     fn value_equals(&self, other: &dyn ReflectInheritableVariable) -> bool {
         let mut output_result = false;
         other.as_reflect(&mut |reflect| {
@@ -447,18 +499,22 @@ where
         output_result
     }
 
+    #[inline]
     fn clone_value_box(&self) -> Box<dyn Reflect> {
         Box::new(self.value.clone())
     }
 
+    #[inline]
     fn mark_modified(&mut self) {
         self.mark_modified()
     }
 
+    #[inline]
     fn inner_value_mut(&mut self) -> &mut dyn Reflect {
         &mut self.value
     }
 
+    #[inline]
     fn inner_value_ref(&self) -> &dyn Reflect {
         &self.value
     }

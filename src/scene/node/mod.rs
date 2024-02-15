@@ -4,6 +4,7 @@
 
 #![warn(missing_docs)]
 
+use crate::resource::model::Model;
 use crate::{
     asset::untyped::UntypedResource,
     core::{
@@ -16,6 +17,7 @@ use crate::{
         variable::mark_inheritable_properties_non_modified,
         visitor::{Visit, VisitResult, Visitor},
     },
+    graph::SceneGraphNode,
     renderer::batch::RenderContext,
     resource::model::ModelResource,
     scene::{
@@ -39,7 +41,8 @@ use crate::{
         Scene,
     },
 };
-use fyrox_core::ComponentProvider;
+use fyrox_core::{ComponentProvider, NameProvider};
+use fyrox_resource::Resource;
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
@@ -183,7 +186,7 @@ pub trait NodeTrait: BaseNodeTrait + Reflect + Visit {
     /// Synchronizes internal state of the node with components of scene graph. It has limited usage
     /// and mostly allows you to sync the state of backing entity with the state of the node.
     /// For example the engine use it to sync native rigid body properties after some property was
-    /// changed in the [`crate::scene::rigidbody::RigidBody`] node.  
+    /// changed in the [`crate::scene::rigidbody::RigidBody`] node.
     fn sync_native(
         &self,
         #[allow(unused_variables)] self_handle: Handle<Node>,
@@ -306,6 +309,64 @@ pub trait NodeTrait: BaseNodeTrait + Reflect + Visit {
 #[derive(Debug)]
 pub struct Node(Box<dyn NodeTrait>);
 
+impl Clone for Node {
+    fn clone(&self) -> Self {
+        self.0.clone_box()
+    }
+}
+
+impl SceneGraphNode for Node {
+    type Base = Base;
+    type SceneGraph = Graph;
+    type ResourceData = Model;
+
+    fn base(&self) -> &Self::Base {
+        self.0.deref()
+    }
+
+    fn set_base(&mut self, base: Self::Base) {
+        ***self = base;
+    }
+
+    fn is_resource_instance_root(&self) -> bool {
+        self.is_resource_instance_root
+    }
+
+    fn original_handle_in_resource(&self) -> Handle<Self> {
+        self.original_handle_in_resource
+    }
+
+    fn set_original_handle_in_resource(&mut self, handle: Handle<Self>) {
+        self.original_handle_in_resource = handle;
+    }
+
+    fn resource(&self) -> Option<Resource<Self::ResourceData>> {
+        self.resource.clone()
+    }
+
+    fn self_handle(&self) -> Handle<Self> {
+        self.self_handle
+    }
+
+    fn parent(&self) -> Handle<Self> {
+        self.parent
+    }
+
+    fn children(&self) -> &[Handle<Self>] {
+        &self.children
+    }
+
+    fn children_mut(&mut self) -> &mut [Handle<Self>] {
+        &mut self.children
+    }
+}
+
+impl NameProvider for Node {
+    fn name(&self) -> &str {
+        &self.0.name
+    }
+}
+
 impl ComponentProvider for Node {
     fn query_component_ref(&self, type_id: TypeId) -> Option<&dyn Any> {
         self.0.query_component_ref(type_id)
@@ -411,7 +472,7 @@ impl Node {
     /// # use fyrox::scene::light::BaseLight;
     /// # use fyrox::scene::light::directional::DirectionalLight;
     /// # use fyrox::scene::node::{Node};
-    ///  
+    ///
     /// fn base_light_ref(directional_light: &Node) -> &BaseLight {
     ///     directional_light.query_component_ref::<BaseLight>().expect("Must have base light")
     /// }
@@ -439,7 +500,7 @@ impl Node {
     /// # use fyrox::scene::light::BaseLight;
     /// # use fyrox::scene::light::directional::DirectionalLight;
     /// # use fyrox::scene::node::{Node};
-    ///  
+    ///
     /// fn base_light_mut(directional_light: &mut Node) -> &mut BaseLight {
     ///     directional_light.query_component_mut::<BaseLight>().expect("Must have base light")
     /// }
@@ -515,6 +576,10 @@ impl Visit for Node {
 }
 
 impl Reflect for Node {
+    fn source_path() -> &'static str {
+        file!()
+    }
+
     fn type_name(&self) -> &'static str {
         self.0.deref().type_name()
     }
@@ -605,6 +670,7 @@ mod test {
         },
         script::{Script, ScriptTrait},
     };
+    use fyrox_graph::SceneGraph;
     use std::{fs, path::Path, sync::Arc};
 
     #[derive(Debug, Clone, Reflect, Visit, Default)]
@@ -688,6 +754,13 @@ mod test {
         serialization_context
             .script_constructors
             .add::<MyScript>("MyScript");
+
+        assert!(serialization_context
+            .script_constructors
+            .map()
+            .iter()
+            .any(|s| &s.1.source_path == file!()));
+
         engine::initialize_resource_manager_loaders(
             &resource_manager,
             Arc::new(serialization_context),

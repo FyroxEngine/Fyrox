@@ -16,9 +16,10 @@ use crate::{
     message::UiMessage,
     widget::{Widget, WidgetBuilder},
     wrap_panel::WrapPanelBuilder,
-    BuildContext, Control, MessageDirection, MouseButton, NodeHandleMapping, Orientation,
-    Thickness, UiNode, UserInterface, WidgetMessage,
+    BuildContext, Control, MessageDirection, MouseButton, Orientation, Thickness, UiNode,
+    UserInterface, WidgetMessage,
 };
+use fyrox_graph::BaseSceneGraph;
 use std::{
     fmt::Debug,
     mem,
@@ -137,10 +138,6 @@ impl<T> Control for BitField<T>
 where
     T: BitContainer,
 {
-    fn resolve(&mut self, node_map: &NodeHandleMapping) {
-        node_map.resolve_slice(&mut self.bit_switches)
-    }
-
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 

@@ -1,15 +1,23 @@
 use crate::{
-    scene::Selection,
-    ui_scene::commands::{
-        graph::DeleteWidgetsSubGraphCommand, ChangeUiSelectionCommand, UiCommandGroup,
-        UiSceneCommand,
-    },
+    command::{Command, CommandGroup},
+    scene::{commands::ChangeSelectionCommand, SelectionContainer},
+    ui_scene::commands::graph::DeleteWidgetsSubGraphCommand,
 };
-use fyrox::{core::pool::Handle, gui::UiNode, gui::UserInterface};
+use fyrox::{
+    core::pool::Handle,
+    graph::BaseSceneGraph,
+    gui::{UiNode, UserInterface},
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct UiSelection {
     pub widgets: Vec<Handle<UiNode>>,
+}
+
+impl SelectionContainer for UiSelection {
+    fn len(&self) -> usize {
+        self.widgets.len()
+    }
 }
 
 impl UiSelection {
@@ -78,24 +86,18 @@ impl UiSelection {
         root_widgets
     }
 
-    pub fn make_deletion_command(
-        &self,
-        ui: &UserInterface,
-        old_selection: Selection,
-    ) -> UiSceneCommand {
+    pub fn make_deletion_command(&self, ui: &UserInterface) -> Command {
         // Change selection first.
-        let mut command_group = UiCommandGroup::from(vec![UiSceneCommand::new(
-            ChangeUiSelectionCommand::new(Default::default(), old_selection),
+        let mut command_group = CommandGroup::from(vec![Command::new(
+            ChangeSelectionCommand::new(Default::default()),
         )]);
 
         let root_nodes = self.root_widgets(ui);
 
         for root_node in root_nodes {
-            command_group.push(UiSceneCommand::new(DeleteWidgetsSubGraphCommand::new(
-                root_node,
-            )));
+            command_group.push(DeleteWidgetsSubGraphCommand::new(root_node));
         }
 
-        UiSceneCommand::new(command_group)
+        Command::new(command_group)
     }
 }

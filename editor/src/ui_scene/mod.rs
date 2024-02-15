@@ -6,15 +6,21 @@ pub mod selection;
 pub mod utils;
 
 use crate::{
+    absm::{command::fetch_machine, selection::SelectedEntity},
+    animation::{self, command::fetch_animations_container},
+    asset::item::AssetItem,
+    command::{make_command, Command, CommandGroup, CommandStack},
     inspector::editors::handle::HandlePropertyEditorMessage,
     message::MessageSender,
-    scene::{controller::SceneController, selector::HierarchyNode, Selection},
+    scene::{
+        commands::ChangeSelectionCommand, controller::SceneController, selector::HierarchyNode,
+        Selection,
+    },
     settings::{keys::KeyBindings, Settings},
     ui_scene::{
         clipboard::Clipboard,
         commands::{
-            make_set_widget_property_command, ChangeUiSelectionCommand, UiCommand, UiCommandGroup,
-            UiCommandStack, UiSceneContext,
+            graph::AddUiPrefabCommand, widget::RevertWidgetPropertyCommand, UiSceneContext,
         },
         selection::UiSelection,
     },
@@ -22,20 +28,27 @@ use crate::{
 };
 use fyrox::{
     core::{
-        algebra::Vector2,
+        algebra::{Vector2, Vector3},
         color::Color,
+        futures::executor::block_on,
         log::Log,
+        make_relative_path,
         math::Rect,
         pool::{ErasedHandle, Handle},
         reflect::Reflect,
     },
     engine::Engine,
+    fxhash::FxHashSet,
+    graph::SceneGraph,
+    graph::{BaseSceneGraph, SceneGraphNode},
     gui::{
+        absm::AnimationBlendingStateMachine,
+        animation::AnimationPlayer,
         brush::Brush,
         draw::{CommandTexture, Draw},
         inspector::PropertyChanged,
         message::{KeyCode, MessageDirection, MouseButton},
-        UiNode, UserInterface,
+        UiNode, UiUpdateSwitches, UserInterface, UserInterfaceResourceExtension,
     },
     renderer::framework::gpu_texture::PixelKind,
     resource::texture::{TextureKind, TextureResource, TextureResourceExtension},
@@ -43,12 +56,18 @@ use fyrox::{
 };
 use std::{any::Any, fs::File, io::Write, path::Path};
 
+pub struct PreviewInstance {
+    pub instance: Handle<UiNode>,
+    pub nodes: FxHashSet<Handle<UiNode>>,
+}
+
 pub struct UiScene {
     pub ui: UserInterface,
     pub render_target: TextureResource,
-    pub command_stack: UiCommandStack,
     pub message_sender: MessageSender,
     pub clipboard: Clipboard,
+    pub preview_instance: Option<PreviewInstance>,
+    pub ui_update_switches: UiUpdateSwitches,
 }
 
 impl UiScene {
@@ -56,38 +75,22 @@ impl UiScene {
         Self {
             ui,
             render_target: TextureResource::new_render_target(200, 200),
-            command_stack: UiCommandStack::new(false),
             message_sender,
             clipboard: Default::default(),
+            preview_instance: None,
+            ui_update_switches: UiUpdateSwitches {
+                // Disable update for everything.
+                node_overrides: Some(Default::default()),
+            },
         }
     }
 
-    pub fn do_command(
-        &mut self,
-        command: Box<dyn UiCommand>,
-        selection: &mut Selection,
-        _engine: &mut Engine,
-    ) {
-        self.command_stack.do_command(
-            command,
-            UiSceneContext {
-                ui: &mut self.ui,
-                selection,
-                message_sender: &self.message_sender,
-                clipboard: &mut self.clipboard,
-            },
-        );
-
-        self.ui.invalidate_layout();
-    }
-
-    fn select_object(&mut self, handle: ErasedHandle, selection: &Selection) {
-        if self.ui.try_get_node(handle.into()).is_some() {
+    fn select_object(&mut self, handle: ErasedHandle) {
+        if self.ui.try_get(handle.into()).is_some() {
             self.message_sender
-                .do_ui_scene_command(ChangeUiSelectionCommand::new(
-                    Selection::Ui(UiSelection::single_or_empty(handle.into())),
-                    selection.clone(),
-                ))
+                .do_command(ChangeSelectionCommand::new(Selection::new(
+                    UiSelection::single_or_empty(handle.into()),
+                )))
         }
     }
 }
@@ -155,21 +158,78 @@ impl SceneController for UiScene {
 
     fn on_drag_over(
         &mut self,
-        _handle: Handle<UiNode>,
-        _screen_bounds: Rect<f32>,
-        _engine: &mut Engine,
-        _settings: &Settings,
+        handle: Handle<UiNode>,
+        screen_bounds: Rect<f32>,
+        engine: &mut Engine,
+        settings: &Settings,
     ) {
+        match self.preview_instance.as_ref() {
+            None => {
+                if let Some(item) = engine.user_interface.node(handle).cast::<AssetItem>() {
+                    // Make sure all resources loaded with relative paths only.
+                    // This will make scenes portable.
+                    if let Ok(relative_path) = make_relative_path(&item.path) {
+                        // No model was loaded yet, do it.
+                        if let Some(prefab) = engine
+                            .resource_manager
+                            .try_request::<UserInterface>(relative_path)
+                            .and_then(|m| block_on(m).ok())
+                        {
+                            // Instantiate the model.
+                            let (instance, _) = prefab.instantiate(&mut self.ui);
+
+                            let nodes = self
+                                .ui
+                                .traverse_handle_iter(instance)
+                                .collect::<FxHashSet<Handle<UiNode>>>();
+
+                            self.preview_instance = Some(PreviewInstance { instance, nodes });
+                        }
+                    }
+                }
+            }
+            Some(preview) => {
+                let cursor_pos = engine.user_interface.cursor_position();
+                let rel_pos = cursor_pos - screen_bounds.position;
+
+                let root = self.ui.node_mut(preview.instance);
+                root.set_desired_local_position(
+                    settings
+                        .move_mode_settings
+                        .try_snap_vector_to_grid(Vector3::new(rel_pos.x, rel_pos.y, 0.0))
+                        .xy(),
+                );
+                root.invalidate_layout();
+            }
+        }
     }
 
     fn on_drop(
         &mut self,
-        _handle: Handle<UiNode>,
+        handle: Handle<UiNode>,
         _screen_bounds: Rect<f32>,
         _engine: &mut Engine,
         _settings: &Settings,
-        _editor_selection: &Selection,
     ) {
+        if handle.is_none() {
+            return;
+        }
+
+        if let Some(preview) = self.preview_instance.take() {
+            // Immediately after extract if from the scene to subgraph. This is required to not violate
+            // the rule of one place of execution, only commands allowed to modify the scene.
+            let sub_graph = self.ui.take_reserve_sub_graph(preview.instance);
+
+            let group = vec![
+                Command::new(AddUiPrefabCommand::new(sub_graph)),
+                // We also want to select newly instantiated model.
+                Command::new(ChangeSelectionCommand::new(Selection::new(
+                    UiSelection::single_or_empty(preview.instance),
+                ))),
+            ];
+
+            self.message_sender.do_command(CommandGroup::from(group));
+        }
     }
 
     fn render_target(&self, _engine: &Engine) -> Option<TextureResource> {
@@ -210,35 +270,73 @@ impl SceneController for UiScene {
         }
     }
 
-    fn undo(&mut self, selection: &mut Selection, _engine: &mut Engine) {
-        self.command_stack.undo(UiSceneContext {
-            ui: &mut self.ui,
+    fn do_command(
+        &mut self,
+        command_stack: &mut CommandStack,
+        command: Command,
+        selection: &mut Selection,
+        _engine: &mut Engine,
+    ) {
+        UiSceneContext::exec(
+            &mut self.ui,
             selection,
-            message_sender: &self.message_sender,
-            clipboard: &mut self.clipboard,
-        });
+            self.message_sender.clone(),
+            &mut self.clipboard,
+            |ctx| {
+                command_stack.do_command(command, ctx);
+            },
+        );
 
         self.ui.invalidate_layout();
     }
 
-    fn redo(&mut self, selection: &mut Selection, _engine: &mut Engine) {
-        self.command_stack.redo(UiSceneContext {
-            ui: &mut self.ui,
+    fn undo(
+        &mut self,
+        command_stack: &mut CommandStack,
+        selection: &mut Selection,
+        _engine: &mut Engine,
+    ) {
+        UiSceneContext::exec(
+            &mut self.ui,
             selection,
-            message_sender: &self.message_sender,
-            clipboard: &mut self.clipboard,
-        });
+            self.message_sender.clone(),
+            &mut self.clipboard,
+            |ctx| command_stack.undo(ctx),
+        );
 
         self.ui.invalidate_layout();
     }
 
-    fn clear_command_stack(&mut self, selection: &mut Selection, _engine: &mut Engine) {
-        self.command_stack.clear(UiSceneContext {
-            ui: &mut self.ui,
+    fn redo(
+        &mut self,
+        command_stack: &mut CommandStack,
+        selection: &mut Selection,
+        _engine: &mut Engine,
+    ) {
+        UiSceneContext::exec(
+            &mut self.ui,
             selection,
-            message_sender: &self.message_sender,
-            clipboard: &mut self.clipboard,
-        });
+            self.message_sender.clone(),
+            &mut self.clipboard,
+            |ctx| command_stack.redo(ctx),
+        );
+
+        self.ui.invalidate_layout();
+    }
+
+    fn clear_command_stack(
+        &mut self,
+        command_stack: &mut CommandStack,
+        selection: &mut Selection,
+        _engine: &mut Engine,
+    ) {
+        UiSceneContext::exec(
+            &mut self.ui,
+            selection,
+            self.message_sender.clone(),
+            &mut self.clipboard,
+            |ctx| command_stack.clear(ctx),
+        );
 
         self.ui.invalidate_layout();
     }
@@ -247,9 +345,9 @@ impl SceneController for UiScene {
         self.ui.draw();
 
         // Draw selection on top.
-        if let Selection::Ui(selection) = editor_selection {
+        if let Some(selection) = editor_selection.as_ui() {
             for node in selection.widgets.iter() {
-                if let Some(node) = self.ui.try_get_node(*node) {
+                if let Some(node) = self.ui.try_get(*node) {
                     let bounds = node.screen_bounds();
                     let clip_bounds = node.clip_bounds();
                     let drawing_context = self.ui.get_drawing_context_mut();
@@ -291,7 +389,8 @@ impl SceneController for UiScene {
         _settings: &mut Settings,
         screen_bounds: Rect<f32>,
     ) -> Option<TextureResource> {
-        self.ui.update(screen_bounds.size, dt);
+        self.ui
+            .update(screen_bounds.size, dt, &self.ui_update_switches);
 
         // Create new render target if preview frame has changed its size.
         let mut new_render_target = None;
@@ -317,17 +416,30 @@ impl SceneController for UiScene {
         false
     }
 
-    fn on_destroy(&mut self, _engine: &mut Engine) {}
+    fn on_destroy(
+        &mut self,
+        command_stack: &mut CommandStack,
+        _engine: &mut Engine,
+        selection: &mut Selection,
+    ) {
+        UiSceneContext::exec(
+            &mut self.ui,
+            selection,
+            self.message_sender.clone(),
+            &mut self.clipboard,
+            |ctx| command_stack.clear(ctx),
+        );
+    }
 
     fn on_message(
         &mut self,
         message: &Message,
-        selection: &Selection,
+        _selection: &Selection,
         engine: &mut Engine,
     ) -> bool {
         match message {
             Message::SelectObject { handle } => {
-                self.select_object(*handle, selection);
+                self.select_object(*handle);
             }
             Message::SyncNodeHandleName { view, handle } => {
                 engine
@@ -336,7 +448,7 @@ impl SceneController for UiScene {
                         *view,
                         MessageDirection::ToWidget,
                         self.ui
-                            .try_get_node((*handle).into())
+                            .try_get((*handle).into())
                             .map(|n| n.name().to_owned()),
                     ));
             }
@@ -355,21 +467,27 @@ impl SceneController for UiScene {
         false
     }
 
-    fn top_command_index(&self) -> Option<usize> {
-        self.command_stack.top
-    }
-
-    fn command_names(&mut self, selection: &mut Selection, _engine: &mut Engine) -> Vec<String> {
-        self.command_stack
+    fn command_names(
+        &mut self,
+        command_stack: &mut CommandStack,
+        selection: &mut Selection,
+        _engine: &mut Engine,
+    ) -> Vec<String> {
+        command_stack
             .commands
             .iter_mut()
             .map(|c| {
-                c.name(&UiSceneContext {
-                    ui: &mut self.ui,
+                let mut name = String::new();
+                UiSceneContext::exec(
+                    &mut self.ui,
                     selection,
-                    message_sender: &self.message_sender,
-                    clipboard: &mut self.clipboard,
-                })
+                    self.message_sender.clone(),
+                    &mut self.clipboard,
+                    |ctx| {
+                        name = c.name(ctx);
+                    },
+                );
+                name
             })
             .collect::<Vec<_>>()
     }
@@ -380,10 +498,48 @@ impl SceneController for UiScene {
         _scenes: &SceneContainer,
         callback: &mut dyn FnMut(&dyn Reflect),
     ) {
-        if let Selection::Ui(selection) = selection {
+        if let Some(selection) = selection.as_ui() {
             if let Some(first) = selection.widgets.first() {
-                if let Some(node) = self.ui.try_get_node(*first).map(|n| n as &dyn Reflect) {
+                if let Some(node) = self.ui.try_get(*first).map(|n| n as &dyn Reflect) {
                     (callback)(node)
+                }
+            }
+        } else if let Some(selection) = selection.as_animation() {
+            if let Some(animation) = self
+                .ui
+                .try_get_of_type::<AnimationPlayer>(selection.animation_player)
+                .and_then(|player| player.animations().try_get(selection.animation))
+            {
+                if let Some(animation::selection::SelectedEntity::Signal(id)) =
+                    selection.entities.first()
+                {
+                    if let Some(signal) = animation.signals().iter().find(|s| s.id == *id) {
+                        (callback)(signal as &dyn Reflect);
+                    }
+                }
+            }
+        } else if let Some(selection) = selection.as_absm() {
+            if let Some(node) = self
+                .ui
+                .try_get_of_type::<AnimationBlendingStateMachine>(selection.absm_node_handle)
+            {
+                if let Some(first) = selection.entities.first() {
+                    let machine = node.machine();
+                    if let Some(layer_index) = selection.layer {
+                        if let Some(layer) = machine.layers().get(layer_index) {
+                            match first {
+                                SelectedEntity::Transition(transition) => {
+                                    (callback)(&layer.transitions()[*transition] as &dyn Reflect)
+                                }
+                                SelectedEntity::State(state) => {
+                                    (callback)(&layer.states()[*state] as &dyn Reflect)
+                                }
+                                SelectedEntity::PoseNode(pose) => {
+                                    (callback)(&layer.nodes()[*pose] as &dyn Reflect)
+                                }
+                            };
+                        }
+                    }
                 }
             }
         }
@@ -395,19 +551,99 @@ impl SceneController for UiScene {
         selection: &Selection,
         _engine: &mut Engine,
     ) {
-        let group = match selection {
-            Selection::Ui(selection) => selection
+        let group = if let Some(selection) = selection.as_ui() {
+            selection
                 .widgets
                 .iter()
                 .filter_map(|&node_handle| {
-                    if self.ui.try_get_node(node_handle).is_some() {
-                        make_set_widget_property_command(node_handle, args)
+                    if let Some(node) = self.ui.try_get(node_handle) {
+                        if args.is_inheritable() {
+                            // Prevent reverting property value if there's no parent resource.
+                            if node.resource().is_some() {
+                                Some(Command::new(RevertWidgetPropertyCommand::new(
+                                    args.path(),
+                                    node_handle,
+                                )))
+                            } else {
+                                None
+                            }
+                        } else {
+                            make_command(args, move |ctx| {
+                                ctx.get_mut::<UiSceneContext>().ui.node_mut(node_handle)
+                            })
+                        }
                     } else {
                         None
                     }
                 })
-                .collect::<Vec<_>>(),
-            _ => vec![],
+                .collect::<Vec<_>>()
+        } else if let Some(selection) = selection.as_animation() {
+            if self
+                .ui
+                .try_get_of_type::<AnimationPlayer>(selection.animation_player)
+                .and_then(|player| player.animations().try_get(selection.animation))
+                .is_some()
+            {
+                let animation_player = selection.animation_player;
+                let animation = selection.animation;
+                selection
+                    .entities
+                    .iter()
+                    .filter_map(|e| {
+                        if let &animation::selection::SelectedEntity::Signal(id) = e {
+                            make_command(args, move |ctx| {
+                                fetch_animations_container(animation_player, ctx)[animation]
+                                    .signals_mut()
+                                    .iter_mut()
+                                    .find(|s| s.id == id)
+                                    .unwrap()
+                            })
+                        } else {
+                            None
+                        }
+                    })
+                    .collect()
+            } else {
+                vec![]
+            }
+        } else if let Some(selection) = selection.as_absm() {
+            if self
+                .ui
+                .try_get(selection.absm_node_handle)
+                .and_then(|n| n.component_ref::<AnimationBlendingStateMachine>())
+                .is_some()
+            {
+                if let Some(layer_index) = selection.layer {
+                    let absm_node_handle = selection.absm_node_handle;
+                    selection
+                        .entities
+                        .iter()
+                        .filter_map(|ent| match *ent {
+                            SelectedEntity::Transition(transition) => {
+                                make_command(args, move |ctx| {
+                                    let machine = fetch_machine(ctx, absm_node_handle);
+                                    &mut machine.layers_mut()[layer_index].transitions_mut()
+                                        [transition]
+                                })
+                            }
+                            SelectedEntity::State(state) => make_command(args, move |ctx| {
+                                let machine = fetch_machine(ctx, absm_node_handle);
+                                &mut machine.layers_mut()[layer_index].states_mut()[state]
+                            }),
+                            SelectedEntity::PoseNode(pose) => make_command(args, move |ctx| {
+                                let machine = fetch_machine(ctx, absm_node_handle);
+                                &mut machine.layers_mut()[layer_index].nodes_mut()[pose]
+                            }),
+                        })
+                        .collect()
+                } else {
+                    vec![]
+                }
+            } else {
+                vec![]
+            }
+        } else {
+            vec![]
         };
 
         if group.is_empty() {
@@ -416,20 +652,20 @@ impl SceneController for UiScene {
             }
         } else if group.len() == 1 {
             self.message_sender
-                .send(Message::DoUiSceneCommand(group.into_iter().next().unwrap()))
+                .send(Message::DoCommand(group.into_iter().next().unwrap()))
         } else {
-            self.message_sender
-                .do_ui_scene_command(UiCommandGroup::from(group));
+            self.message_sender.do_command(CommandGroup::from(group));
         }
     }
 
     fn provide_docs(&self, selection: &Selection, _engine: &Engine) -> Option<String> {
-        match selection {
-            Selection::Ui(selection) => selection
+        if let Some(selection) = selection.as_ui() {
+            selection
                 .widgets
                 .first()
-                .and_then(|h| self.ui.try_get_node(*h).map(|n| n.doc().to_string())),
-            _ => None,
+                .and_then(|h| self.ui.try_get(*h).map(|n| n.doc().to_string()))
+        } else {
+            None
         }
     }
 }

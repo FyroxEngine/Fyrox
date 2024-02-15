@@ -18,10 +18,10 @@ use crate::{
     popup::{Placement, PopupBuilder, PopupMessage},
     text::TextBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, NodeHandleMapping, Orientation, Thickness, UiNode, UserInterface,
-    VerticalAlignment,
+    BuildContext, Control, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use fyrox_core::uuid_provider;
+use fyrox_graph::BaseSceneGraph;
 use std::{
     ops::{Deref, DerefMut},
     sync::mpsc::Sender,
@@ -796,20 +796,6 @@ impl ColorPicker {
 uuid_provider!(ColorPicker = "b7a5d650-5b77-4938-83c1-37f3fe107885");
 
 impl Control for ColorPicker {
-    fn resolve(&mut self, node_map: &NodeHandleMapping) {
-        node_map.resolve(&mut self.hue_bar);
-        node_map.resolve(&mut self.alpha_bar);
-        node_map.resolve(&mut self.saturation_brightness_field);
-        node_map.resolve(&mut self.red);
-        node_map.resolve(&mut self.green);
-        node_map.resolve(&mut self.blue);
-        node_map.resolve(&mut self.alpha);
-        node_map.resolve(&mut self.hue);
-        node_map.resolve(&mut self.saturation);
-        node_map.resolve(&mut self.brightness);
-        node_map.resolve(&mut self.color_mark);
-    }
-
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 

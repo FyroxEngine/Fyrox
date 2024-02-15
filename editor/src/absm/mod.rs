@@ -10,13 +10,20 @@ use crate::{
         toolbar::{Toolbar, ToolbarAction},
     },
     message::MessageSender,
-    scene::{GameScene, Selection},
+    scene::Selection,
     Message,
 };
 use fyrox::{
-    core::{color::Color, pool::Handle},
-    engine::Engine,
+    core::{color::Color, pool::ErasedHandle, pool::Handle, variable::InheritableVariable},
     fxhash::FxHashSet,
+    generic_animation::{
+        machine::{
+            event::Event, node::blendspace::BlendSpacePoint, BlendPose, IndexedBlendInput, Machine,
+            PoseNode, State,
+        },
+        AnimationContainer,
+    },
+    graph::{BaseSceneGraph, PrefabData, SceneGraph, SceneGraphNode},
     gui::{
         check_box::CheckBoxMessage,
         dock::{DockingManagerBuilder, TileBuilder, TileContent},
@@ -26,12 +33,8 @@ use fyrox::{
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, UiNode, UserInterface,
     },
-    scene::{
-        animation::{absm::prelude::*, prelude::*},
-        node::Node,
-        Scene,
-    },
 };
+use std::{any::Any, fmt::Debug};
 
 mod blendspace;
 mod canvas;
@@ -54,23 +57,39 @@ const BORDER_COLOR: Color = Color::opaque(70, 70, 70);
 const NORMAL_ROOT_COLOR: Color = Color::opaque(40, 80, 0);
 const SELECTED_ROOT_COLOR: Color = Color::opaque(60, 100, 0);
 
-struct PreviewModeData {
-    machine: Machine,
-    nodes: Vec<(Handle<Node>, Node)>,
+struct PreviewModeData<N: 'static> {
+    machine: Machine<Handle<N>>,
+    nodes: Vec<(Handle<N>, N)>,
 }
 
-fn fetch_selection(editor_selection: &Selection) -> AbsmSelection {
-    if let Selection::Absm(ref selection) = editor_selection {
+fn fetch_selection<N>(editor_selection: &Selection) -> AbsmSelection<N>
+where
+    N: Debug,
+{
+    if let Some(selection) = editor_selection.as_absm() {
         // Some selection in an animation.
         AbsmSelection {
             absm_node_handle: selection.absm_node_handle,
             layer: selection.layer,
             entities: selection.entities.clone(),
         }
-    } else if let Selection::Graph(ref selection) = editor_selection {
-        // Only some AnimationPlayer is selected.
+    } else if let Some(selection) = editor_selection.as_graph() {
+        // Only some AnimationPlayer in a graph is selected.
         AbsmSelection {
-            absm_node_handle: selection.nodes.first().cloned().unwrap_or_default(),
+            absm_node_handle: ErasedHandle::from(
+                selection.nodes.first().cloned().unwrap_or_default(),
+            )
+            .into(),
+            layer: None,
+            entities: vec![],
+        }
+    } else if let Some(selection) = editor_selection.as_ui() {
+        // Only some AnimationPlayer in a UI is selected.
+        AbsmSelection {
+            absm_node_handle: ErasedHandle::from(
+                selection.widgets.first().cloned().unwrap_or_default(),
+            )
+            .into(),
             layer: None,
             entities: vec![],
         }
@@ -84,14 +103,76 @@ fn fetch_selection(editor_selection: &Selection) -> AbsmSelection {
     }
 }
 
+fn machine_container<G, N>(graph: &mut G, handle: Handle<N>) -> Option<&mut Machine<Handle<N>>>
+where
+    G: SceneGraph<Node = N>,
+    N: SceneGraphNode<SceneGraph = G>,
+{
+    graph
+        .try_get_mut(handle)
+        .and_then(|n| n.component_mut::<InheritableVariable<Machine<Handle<N>>>>())
+        .map(|v| v.get_value_mut_silent())
+}
+
+fn animation_container<G, N>(
+    graph: &mut G,
+    handle: Handle<N>,
+) -> Option<(Handle<N>, &mut AnimationContainer<Handle<N>>)>
+where
+    G: SceneGraph<Node = N>,
+    N: SceneGraphNode<SceneGraph = G>,
+{
+    let animation_player_handle = *graph
+        .try_get(handle)
+        .and_then(|n| n.component_ref::<InheritableVariable<Handle<N>>>())
+        .cloned()?;
+
+    graph
+        .try_get_mut(animation_player_handle)
+        .and_then(|n| n.component_mut::<InheritableVariable<AnimationContainer<Handle<N>>>>())
+        .map(|ac| (animation_player_handle, ac.get_value_mut_silent()))
+}
+
+fn machine_container_ref<G, N>(graph: &G, handle: Handle<N>) -> Option<&Machine<Handle<N>>>
+where
+    G: SceneGraph<Node = N>,
+    N: SceneGraphNode<SceneGraph = G>,
+{
+    graph
+        .try_get(handle)
+        .and_then(|n| n.component_ref::<InheritableVariable<Machine<Handle<N>>>>())
+        .map(|v| v.get_value_ref())
+}
+
+pub fn animation_container_ref<G, N>(
+    graph: &G,
+    handle: Handle<N>,
+) -> Option<(Handle<N>, &AnimationContainer<Handle<N>>)>
+where
+    G: SceneGraph<Node = N>,
+    N: SceneGraphNode<SceneGraph = G>,
+{
+    graph
+        .try_get(handle)
+        .and_then(|n| n.component_ref::<InheritableVariable<Handle<N>>>())
+        .and_then(|ap| {
+            graph
+                .try_get(**ap)
+                .and_then(|n| {
+                    n.component_ref::<InheritableVariable<AnimationContainer<Handle<N>>>>()
+                })
+                .map(|ac| (**ap, &**ac))
+        })
+}
+
 pub struct AbsmEditor {
     pub window: Handle<UiNode>,
     state_graph_viewer: StateGraphViewer,
     state_viewer: StateViewer,
     parameter_panel: ParameterPanel,
-    prev_absm: Handle<Node>,
+    prev_absm: ErasedHandle,
     toolbar: Toolbar,
-    preview_mode_data: Option<PreviewModeData>,
+    preview_mode_data: Option<Box<dyn Any>>,
     blend_space_editor: BlendSpaceEditor,
 }
 
@@ -169,14 +250,18 @@ impl AbsmEditor {
         }
     }
 
-    fn enter_preview_mode(
+    fn enter_preview_mode<P, G, N>(
         &mut self,
-        machine: Machine,
-        animation_targets: FxHashSet<Handle<Node>>,
-        scene: &Scene,
+        machine: Machine<Handle<N>>,
+        animation_targets: FxHashSet<Handle<N>>,
+        graph: &G,
         ui: &UserInterface,
-        node_overrides: &mut FxHashSet<Handle<Node>>,
-    ) {
+        node_overrides: &mut FxHashSet<Handle<N>>,
+    ) where
+        P: PrefabData<Graph = G>,
+        G: SceneGraph<Node = N, Prefab = P>,
+        N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
+    {
         assert!(self.preview_mode_data.is_none());
 
         ui.send_message(CheckBoxMessage::checked(
@@ -191,22 +276,26 @@ impl AbsmEditor {
         }
 
         // Save state of affected nodes.
-        self.preview_mode_data = Some(PreviewModeData {
+        self.preview_mode_data = Some(Box::new(PreviewModeData {
             machine,
             nodes: animation_targets
                 .into_iter()
-                .map(|t| (t, scene.graph[t].clone_box()))
+                .map(|t| (t, graph.node(t).clone()))
                 .collect(),
-        });
+        }));
     }
 
-    fn leave_preview_mode(
+    fn leave_preview_mode<P, G, N>(
         &mut self,
-        scene: &mut Scene,
+        graph: &mut G,
         ui: &mut UserInterface,
-        absm: Handle<Node>,
-        node_overrides: &mut FxHashSet<Handle<Node>>,
-    ) {
+        absm: Handle<N>,
+        node_overrides: &mut FxHashSet<Handle<N>>,
+    ) where
+        P: PrefabData<Graph = G>,
+        G: SceneGraph<Node = N, Prefab = P>,
+        N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
+    {
         ui.send_message(CheckBoxMessage::checked(
             self.toolbar.preview,
             MessageDirection::ToWidget,
@@ -216,50 +305,45 @@ impl AbsmEditor {
         let preview_data = self
             .preview_mode_data
             .take()
-            .expect("Unable to leave ABSM preview mode!");
+            .expect("Unable to leave ABSM preview mode!")
+            .downcast::<PreviewModeData<N>>()
+            .expect("Types must match!");
 
         // Revert state of nodes.
         for (handle, node) in preview_data.nodes {
             assert!(node_overrides.remove(&handle));
-            scene.graph[handle] = node;
+            *graph.node_mut(handle) = node;
         }
 
-        let absm_node = scene.graph[absm]
-            .query_component_mut::<AnimationBlendingStateMachine>()
-            .unwrap();
+        let machine = machine_container(graph, absm).unwrap();
 
-        *absm_node.machine_mut().get_value_mut_silent() = preview_data.machine;
+        *machine = preview_data.machine;
 
-        self.parameter_panel.sync_to_model(ui, absm_node);
+        self.parameter_panel.sync_to_model(ui, machine.parameters());
     }
 
-    pub fn try_leave_preview_mode(
+    pub fn try_leave_preview_mode<P, G, N>(
         &mut self,
         editor_selection: &Selection,
-        game_scene: &mut GameScene,
-        engine: &mut Engine,
-    ) {
+        graph: &mut G,
+        ui: &mut UserInterface,
+        node_overrides: &mut FxHashSet<Handle<N>>,
+    ) where
+        P: PrefabData<Graph = G>,
+        G: SceneGraph<Node = N, Prefab = P>,
+        N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
+    {
         if self.preview_mode_data.is_some() {
             let selection = fetch_selection(editor_selection);
 
-            let scene = &mut engine.scenes[game_scene.scene];
+            let animation_player = animation_container(graph, selection.absm_node_handle)
+                .map(|pair| pair.0)
+                .unwrap_or_default();
 
-            if let Some(absm) = scene
-                .graph
-                .try_get_mut(selection.absm_node_handle)
-                .and_then(|n| n.query_component_mut::<AnimationBlendingStateMachine>())
-            {
-                let node_overrides = game_scene.graph_switches.node_overrides.as_mut().unwrap();
-                assert!(node_overrides.remove(&selection.absm_node_handle));
-                assert!(node_overrides.remove(&absm.animation_player()));
+            assert!(node_overrides.remove(&selection.absm_node_handle));
+            assert!(node_overrides.remove(&animation_player));
 
-                self.leave_preview_mode(
-                    scene,
-                    &mut engine.user_interface,
-                    selection.absm_node_handle,
-                    node_overrides,
-                );
-            }
+            self.leave_preview_mode(graph, ui, selection.absm_node_handle, node_overrides);
         }
     }
 
@@ -267,50 +351,53 @@ impl AbsmEditor {
         self.preview_mode_data.is_some()
     }
 
-    pub fn handle_message(
+    pub fn handle_message<P, G, N>(
         &mut self,
         message: &Message,
         editor_selection: &Selection,
-        game_scene: &mut GameScene,
-        engine: &mut Engine,
-    ) {
+        graph: &mut G,
+        ui: &mut UserInterface,
+        node_overrides: &mut FxHashSet<Handle<N>>,
+    ) where
+        P: PrefabData<Graph = G>,
+        G: SceneGraph<Node = N, Prefab = P>,
+        N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
+    {
         // Leave preview mode before execution of any scene command.
-        if let Message::DoGameSceneCommand(_)
+        if let Message::DoCommand(_)
         | Message::UndoCurrentSceneCommand
         | Message::RedoCurrentSceneCommand = message
         {
-            self.try_leave_preview_mode(editor_selection, game_scene, engine);
+            self.try_leave_preview_mode(editor_selection, graph, ui, node_overrides);
         }
     }
 
-    pub fn sync_to_model(
+    pub fn sync_to_model<P, G, N>(
         &mut self,
         editor_selection: &Selection,
-        game_scene: &GameScene,
-        engine: &mut Engine,
-    ) {
+        graph: &G,
+        ui: &mut UserInterface,
+    ) where
+        P: PrefabData<Graph = G>,
+        G: SceneGraph<Node = N, Prefab = P>,
+        N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
+    {
         let prev_absm = self.prev_absm;
 
         let selection = fetch_selection(editor_selection);
 
-        let ui = &mut engine.user_interface;
-        let scene = &engine.scenes[game_scene.scene];
+        let machine = machine_container_ref(graph, selection.absm_node_handle);
 
-        let absm_node = scene
-            .graph
-            .try_get(selection.absm_node_handle)
-            .and_then(|n| n.query_component_ref::<AnimationBlendingStateMachine>());
-
-        if selection.absm_node_handle != prev_absm {
-            self.parameter_panel.on_selection_changed(ui, absm_node);
-            self.prev_absm = selection.absm_node_handle;
+        if prev_absm != selection.absm_node_handle.into() {
+            self.parameter_panel
+                .on_selection_changed(ui, machine.as_ref().map(|m| m.parameters()));
+            self.prev_absm = selection.absm_node_handle.into();
         }
 
-        if let Some(absm_node) = absm_node {
-            self.parameter_panel.sync_to_model(ui, absm_node);
-            self.toolbar.sync_to_model(absm_node, ui, &selection);
+        if let Some(machine) = machine {
+            self.parameter_panel.sync_to_model(ui, machine.parameters());
+            self.toolbar.sync_to_model(machine, ui, &selection);
             if let Some(layer_index) = selection.layer {
-                let machine = absm_node.machine();
                 if let Some(layer) = machine.layers().get(layer_index) {
                     self.state_graph_viewer
                         .sync_to_model(layer, ui, editor_selection);
@@ -318,8 +405,7 @@ impl AbsmEditor {
                         ui,
                         layer,
                         editor_selection,
-                        absm_node,
-                        &scene.graph,
+                        animation_container_ref(graph, selection.absm_node_handle).map(|(_, c)| c),
                     );
                     self.blend_space_editor.sync_to_model(
                         machine.parameters(),
@@ -348,42 +434,41 @@ impl AbsmEditor {
         ));
     }
 
-    pub fn update(
+    pub fn update<P, G, N>(
         &mut self,
         editor_selection: &Selection,
-        game_scene: &GameScene,
-        engine: &mut Engine,
-    ) {
-        self.handle_machine_events(editor_selection, game_scene, engine);
+        graph: &mut G,
+        ui: &mut UserInterface,
+    ) where
+        P: PrefabData<Graph = G>,
+        G: SceneGraph<Node = N, Prefab = P>,
+        N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
+    {
+        self.handle_machine_events(editor_selection, graph, ui);
     }
 
-    pub fn handle_machine_events(
+    pub fn handle_machine_events<P, G, N>(
         &self,
         editor_selection: &Selection,
-        game_scene: &GameScene,
-        engine: &mut Engine,
-    ) {
-        let scene = &mut engine.scenes[game_scene.scene];
+        graph: &mut G,
+        ui: &mut UserInterface,
+    ) where
+        P: PrefabData<Graph = G>,
+        G: SceneGraph<Node = N, Prefab = P>,
+        N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
+    {
         let selection = fetch_selection(editor_selection);
 
-        if let Some(absm) = scene
-            .graph
-            .try_get_mut(selection.absm_node_handle)
-            .and_then(|n| n.query_component_mut::<AnimationBlendingStateMachine>())
-        {
-            let machine = absm.machine_mut().get_value_mut_silent();
-
+        if let Some(machine) = machine_container(graph, selection.absm_node_handle) {
             if let Some(layer_index) = selection.layer {
                 if let Some(layer) = machine.layers_mut().get_mut(layer_index) {
                     while let Some(event) = layer.pop_event() {
                         match event {
                             Event::ActiveStateChanged { new: state, .. } => {
-                                self.state_graph_viewer
-                                    .activate_state(&engine.user_interface, state);
+                                self.state_graph_viewer.activate_state(ui, state);
                             }
                             Event::ActiveTransitionChanged(transition) => {
-                                self.state_graph_viewer
-                                    .activate_transition(&engine.user_interface, transition);
+                                self.state_graph_viewer.activate_transition(ui, transition);
                             }
                             _ => (),
                         }
@@ -393,30 +478,29 @@ impl AbsmEditor {
         }
     }
 
-    pub fn handle_ui_message(
+    pub fn handle_ui_message<P, G, N>(
         &mut self,
         message: &UiMessage,
-        engine: &mut Engine,
         sender: &MessageSender,
         editor_selection: &Selection,
-        game_scene: &mut GameScene,
-    ) {
-        let scene = &mut engine.scenes[game_scene.scene];
-        let ui = &mut engine.user_interface;
+        graph: &mut G,
+        ui: &mut UserInterface,
+        node_overrides: &mut FxHashSet<Handle<N>>,
+    ) where
+        P: PrefabData<Graph = G>,
+        G: SceneGraph<Node = N, Prefab = P>,
+        N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
+    {
         let selection = fetch_selection(editor_selection);
 
-        if let Some(absm_node) = scene
-            .graph
-            .try_get_mut(selection.absm_node_handle)
-            .and_then(|n| n.query_component_mut::<AnimationBlendingStateMachine>())
-        {
+        if let Some(machine) = machine_container(graph, selection.absm_node_handle) {
             if let Some(layer_index) = selection.layer {
                 self.state_viewer.handle_ui_message(
                     message,
                     ui,
                     sender,
                     selection.absm_node_handle,
-                    absm_node,
+                    machine,
                     layer_index,
                     editor_selection,
                 );
@@ -425,7 +509,7 @@ impl AbsmEditor {
                     ui,
                     sender,
                     selection.absm_node_handle,
-                    absm_node,
+                    machine,
                     layer_index,
                     editor_selection,
                 );
@@ -433,7 +517,7 @@ impl AbsmEditor {
                     &selection,
                     message,
                     sender,
-                    absm_node.machine_mut(),
+                    machine,
                     self.preview_mode_data.is_some(),
                 );
             }
@@ -442,52 +526,39 @@ impl AbsmEditor {
                 message,
                 sender,
                 selection.absm_node_handle,
-                absm_node,
+                machine.parameters_mut(),
                 self.preview_mode_data.is_some(),
             );
 
-            let action = self.toolbar.handle_ui_message(
-                message,
-                editor_selection,
-                game_scene,
-                sender,
-                &scene.graph,
-                ui,
-            );
+            let action =
+                self.toolbar
+                    .handle_ui_message(message, editor_selection, sender, graph, ui);
 
-            let absm_node = scene
-                .graph
-                .try_get_mut(selection.absm_node_handle)
-                .and_then(|n| n.query_component_mut::<AnimationBlendingStateMachine>())
-                .unwrap();
+            let machine = machine_container(graph, selection.absm_node_handle).unwrap();
 
             match action {
                 ToolbarAction::None => {}
                 ToolbarAction::EnterPreviewMode => {
-                    let node_overrides = game_scene.graph_switches.node_overrides.as_mut().unwrap();
                     assert!(node_overrides.insert(selection.absm_node_handle));
-                    assert!(node_overrides.insert(absm_node.animation_player()));
 
-                    let machine = (**absm_node.machine()).clone();
+                    let machine_clone = machine.clone();
 
-                    let animation_player = absm_node.animation_player();
-
-                    if let Some(animation_player) = scene
-                        .graph
-                        .try_get_mut(animation_player)
-                        .and_then(|n| n.query_component_mut::<AnimationPlayer>())
+                    if let Some((animation_container_handle, animations)) =
+                        animation_container(graph, selection.absm_node_handle)
                     {
+                        assert!(node_overrides.insert(animation_container_handle));
+
                         let mut animation_targets = FxHashSet::default();
-                        for animation in animation_player.animations_mut().iter_mut() {
+                        for animation in animations.iter_mut() {
                             for track in animation.tracks() {
                                 animation_targets.insert(track.target());
                             }
                         }
 
                         self.enter_preview_mode(
-                            machine,
+                            machine_clone,
                             animation_targets,
-                            scene,
+                            graph,
                             ui,
                             node_overrides,
                         );
@@ -495,13 +566,15 @@ impl AbsmEditor {
                 }
                 ToolbarAction::LeavePreviewMode => {
                     if self.preview_mode_data.is_some() {
-                        let node_overrides =
-                            game_scene.graph_switches.node_overrides.as_mut().unwrap();
+                        let animation_player =
+                            animation_container(graph, selection.absm_node_handle)
+                                .map(|pair| pair.0)
+                                .unwrap_or_default();
                         assert!(node_overrides.remove(&selection.absm_node_handle));
-                        assert!(node_overrides.remove(&absm_node.animation_player()));
+                        assert!(node_overrides.remove(&animation_player));
 
                         self.leave_preview_mode(
-                            scene,
+                            graph,
                             ui,
                             selection.absm_node_handle,
                             node_overrides,
@@ -512,21 +585,17 @@ impl AbsmEditor {
         }
 
         if let Some(msg) = message.data::<AbsmNodeMessage>() {
-            if let Some(absm_node) = scene
-                .graph
-                .try_get_mut(selection.absm_node_handle)
-                .and_then(|n| n.query_component_mut::<AnimationBlendingStateMachine>())
-            {
+            if let Some(machine) = machine_container(graph, selection.absm_node_handle) {
                 match msg {
                     AbsmNodeMessage::Enter => {
                         if let Some(node) = ui
                             .node(message.destination())
-                            .query_component::<AbsmNode<State>>()
+                            .query_component::<AbsmNode<State<Handle<N>>>>()
                         {
                             if let Some(layer_index) = selection.layer {
                                 self.state_viewer.set_state(
                                     node.model_handle,
-                                    absm_node,
+                                    machine,
                                     layer_index,
                                     ui,
                                 );
@@ -537,11 +606,11 @@ impl AbsmEditor {
                     AbsmNodeMessage::Edit => {
                         if let Some(node) = ui
                             .node(message.destination())
-                            .query_component::<AbsmNode<PoseNode>>()
+                            .query_component::<AbsmNode<PoseNode<Handle<N>>>>()
                         {
                             if let Some(layer_index) = selection.layer {
-                                let model_ref = &absm_node.machine().layers()[layer_index].nodes()
-                                    [node.model_handle];
+                                let model_ref =
+                                    &machine.layers()[layer_index].nodes()[node.model_handle];
 
                                 if let PoseNode::BlendSpace(_) = model_ref {
                                     self.blend_space_editor.open(ui);
@@ -552,18 +621,18 @@ impl AbsmEditor {
                     AbsmNodeMessage::AddInput => {
                         if let Some(node) = ui
                             .node(message.destination())
-                            .query_component::<AbsmNode<PoseNode>>()
+                            .query_component::<AbsmNode<PoseNode<Handle<N>>>>()
                         {
                             if let Some(layer_index) = selection.layer {
-                                let model_ref = &absm_node.machine().layers()[layer_index].nodes()
-                                    [node.model_handle];
+                                let model_ref =
+                                    &machine.layers()[layer_index].nodes()[node.model_handle];
 
                                 match model_ref {
                                     PoseNode::PlayAnimation(_) => {
                                         // No input sockets
                                     }
                                     PoseNode::BlendAnimations(_) => {
-                                        sender.do_scene_command(AddPoseSourceCommand::new(
+                                        sender.do_command(AddPoseSourceCommand::new(
                                             selection.absm_node_handle,
                                             node.model_handle,
                                             layer_index,
@@ -571,7 +640,7 @@ impl AbsmEditor {
                                         ));
                                     }
                                     PoseNode::BlendAnimationsByIndex(_) => {
-                                        sender.do_scene_command(AddInputCommand::new(
+                                        sender.do_command(AddInputCommand::new(
                                             selection.absm_node_handle,
                                             node.model_handle,
                                             layer_index,
@@ -579,7 +648,7 @@ impl AbsmEditor {
                                         ));
                                     }
                                     PoseNode::BlendSpace(_) => {
-                                        sender.do_scene_command(AddBlendSpacePointCommand::new(
+                                        sender.do_command(AddBlendSpacePointCommand::new(
                                             selection.absm_node_handle,
                                             node.model_handle,
                                             layer_index,

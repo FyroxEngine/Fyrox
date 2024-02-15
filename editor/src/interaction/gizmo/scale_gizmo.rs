@@ -2,6 +2,7 @@ use crate::{
     make_color_material, scene::GameScene, set_mesh_diffuse_color,
     world::graph::selection::GraphSelection, Engine,
 };
+use fyrox::graph::BaseSceneGraph;
 use fyrox::{
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector2, Vector3},

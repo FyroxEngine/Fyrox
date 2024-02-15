@@ -1,4 +1,5 @@
-use crate::{GameSceneCommandTrait, GameSceneContext};
+use crate::command::CommandContext;
+use crate::{CommandTrait, GameSceneContext};
 use fyrox::scene::sound::{context::SoundContext, DistanceModel, HrirSphereResource, Renderer};
 
 macro_rules! define_sound_context_command {
@@ -21,16 +22,18 @@ macro_rules! define_sound_context_command {
                 }
             }
 
-            impl GameSceneCommandTrait for $name {
-                fn name(&mut self, _context: &GameSceneContext) -> String {
+            impl CommandTrait for $name {
+                fn name(&mut self, _context: &dyn CommandContext) -> String {
                     $human_readable_name.to_owned()
                 }
 
-                fn execute(&mut self, context: &mut GameSceneContext) {
+                fn execute(&mut self, context: &mut dyn CommandContext) {
+                    let context = context.get_mut::<GameSceneContext>();
                     self.swap(&mut context.scene.graph.sound_context);
                 }
 
-                fn revert(&mut self, context: &mut GameSceneContext) {
+                fn revert(&mut self, context: &mut dyn CommandContext) {
+                    let context = context.get_mut::<GameSceneContext>();
                     self.swap(&mut context.scene.graph.sound_context);
                 }
             }
@@ -62,16 +65,18 @@ impl SetHrtfRendererHrirSphereResource {
     }
 }
 
-impl GameSceneCommandTrait for SetHrtfRendererHrirSphereResource {
-    fn name(&mut self, _context: &GameSceneContext) -> String {
+impl CommandTrait for SetHrtfRendererHrirSphereResource {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Set Hrtf Renderer Hrir Sphere Resource".to_owned()
     }
 
-    fn execute(&mut self, context: &mut GameSceneContext) {
+    fn execute(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
         self.swap(&mut context.scene.graph.sound_context);
     }
 
-    fn revert(&mut self, context: &mut GameSceneContext) {
+    fn revert(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
         self.swap(&mut context.scene.graph.sound_context);
     }
 }

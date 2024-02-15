@@ -2,6 +2,7 @@ use crate::{
     scene::{GameScene, Selection},
     send_sync_message, Message, FIXED_TIMESTEP,
 };
+use fyrox::graph::SceneGraph;
 use fyrox::gui::HorizontalAlignment;
 use fyrox::{
     core::pool::Handle,
@@ -204,7 +205,7 @@ impl ParticleSystemPreviewControlPanel {
         game_scene: &mut GameScene,
         engine: &mut Engine,
     ) {
-        if let Message::DoGameSceneCommand(_)
+        if let Message::DoCommand(_)
         | Message::UndoCurrentSceneCommand
         | Message::RedoCurrentSceneCommand = message
         {
@@ -213,7 +214,7 @@ impl ParticleSystemPreviewControlPanel {
 
         if let Message::SelectionChanged { .. } = message {
             let scene = &engine.scenes[game_scene.scene];
-            if let Selection::Graph(ref selection) = editor_selection {
+            if let Some(selection) = editor_selection.as_graph() {
                 let any_particle_system_selected = selection
                     .nodes
                     .iter()
@@ -251,7 +252,7 @@ impl ParticleSystemPreviewControlPanel {
         let scene = &engine.scenes[game_scene.scene];
         let node_overrides = game_scene.graph_switches.node_overrides.as_mut().unwrap();
 
-        if let Selection::Graph(ref new_graph_selection) = editor_selection {
+        if let Some(new_graph_selection) = editor_selection.as_graph() {
             // Enable particle systems from new selection.
             for &node_handle in &new_graph_selection.nodes {
                 if scene
@@ -295,7 +296,7 @@ impl ParticleSystemPreviewControlPanel {
         game_scene: &mut GameScene,
         engine: &mut Engine,
     ) {
-        if let Selection::Graph(ref selection) = editor_selection {
+        if let Some(selection) = editor_selection.as_graph() {
             if let Some(ButtonMessage::Click) = message.data() {
                 let scene = &mut engine.scenes[game_scene.scene];
 

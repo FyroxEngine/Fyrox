@@ -19,6 +19,7 @@ use crate::{
         Scene,
     },
 };
+use fyrox_graph::{BaseSceneGraph, SceneGraph};
 use std::ops::{Deref, DerefMut};
 
 /// Scene specific root motion settings.
@@ -126,15 +127,16 @@ impl LayerMaskExt for LayerMask {
 /// procedural animations), then the following example is for you.
 ///
 /// ```rust
-/// use fyrox::{
-///     core::pool::Handle,
-///     scene::{
-///         animation::{absm::prelude::*, prelude::*},
-///         base::BaseBuilder,
-///         graph::Graph,
-///         node::Node,
-///     },
-/// };
+/// # use fyrox::{
+/// #     core::pool::Handle,
+/// #     scene::{
+/// #         animation::{absm::prelude::*, prelude::*},
+/// #         base::BaseBuilder,
+/// #         graph::Graph,
+/// #         node::Node,
+/// #     },
+/// # };
+/// # use fyrox_graph::SceneGraph;
 ///
 /// fn create_walk_idle_state_machine(
 ///     animation_player_handle: Handle<Node>,
@@ -245,7 +247,10 @@ impl DerefMut for AnimationBlendingStateMachine {
 }
 
 impl NodeTrait for AnimationBlendingStateMachine {
-    crate::impl_query_component!();
+    crate::impl_query_component!(
+        machine: InheritableVariable<Machine>,
+        animation_player: InheritableVariable<Handle<Node>>
+    );
 
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.base.local_bounding_box()

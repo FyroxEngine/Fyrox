@@ -1,13 +1,15 @@
-use crate::scene::Selection;
 use crate::{
-    menu::create_menu_item, message::MessageSender, ui_scene::commands::graph::AddWidgetCommand,
-    ui_scene::UiScene,
+    menu::create_menu_item,
+    message::MessageSender,
+    scene::Selection,
+    ui_scene::{commands::graph::AddWidgetCommand, UiScene},
 };
-use fyrox::gui::screen::ScreenBuilder;
 use fyrox::{
     core::pool::Handle,
     fxhash::FxHashMap,
     gui::{
+        absm::{AbsmEventProviderBuilder, AnimationBlendingStateMachineBuilder},
+        animation::AnimationPlayerBuilder,
         border::BorderBuilder,
         button::ButtonBuilder,
         canvas::CanvasBuilder,
@@ -27,6 +29,7 @@ use fyrox::{
         path::PathEditorBuilder,
         popup::PopupBuilder,
         progress_bar::ProgressBarBuilder,
+        screen::ScreenBuilder,
         scroll_bar::ScrollBarBuilder,
         scroll_viewer::ScrollViewerBuilder,
         searchbar::SearchBarBuilder,
@@ -188,6 +191,16 @@ impl UiMenu {
             UiMenuEntry::new("WrapPanel", |name, ctx| {
                 WrapPanelBuilder::new(WidgetBuilder::new().with_name(name)).build(ctx)
             }),
+            UiMenuEntry::new("AnimationPlayer", |name, ctx| {
+                AnimationPlayerBuilder::new(WidgetBuilder::new().with_name(name)).build(ctx)
+            }),
+            UiMenuEntry::new("Animation Blending State Machine", |name, ctx| {
+                AnimationBlendingStateMachineBuilder::new(WidgetBuilder::new().with_name(name))
+                    .build(ctx)
+            }),
+            UiMenuEntry::new("AbsmEventProvider", |name, ctx| {
+                AbsmEventProviderBuilder::new(WidgetBuilder::new().with_name(name)).build(ctx)
+            }),
         ]
     }
 
@@ -219,12 +232,12 @@ impl UiMenu {
             if let Some(entry) = self.constructors.get_mut(&message.destination()) {
                 let ui_node_handle = (entry.constructor)(&entry.name, &mut scene.ui.build_ctx());
                 let sub_graph = scene.ui.take_reserve_sub_graph(ui_node_handle);
-                let parent = if let Selection::Ui(selection) = selection {
+                let parent = if let Some(selection) = selection.as_ui() {
                     selection.widgets.first().cloned().unwrap_or_default()
                 } else {
                     Handle::NONE
                 };
-                sender.do_ui_scene_command(AddWidgetCommand::new(sub_graph, parent, true));
+                sender.do_command(AddWidgetCommand::new(sub_graph, parent, true));
             }
         }
     }

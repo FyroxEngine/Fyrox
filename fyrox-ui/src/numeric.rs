@@ -26,9 +26,11 @@ use crate::{
     text_box::{TextBox, TextBoxBuilder},
     utils::{make_arrow, ArrowDirection},
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Thickness, UiNode,
-    UserInterface, VerticalAlignment, BRUSH_DARK, BRUSH_LIGHT,
+    BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
+    VerticalAlignment, BRUSH_DARK, BRUSH_LIGHT,
 };
+use fyrox_core::variable::InheritableVariable;
+use fyrox_graph::BaseSceneGraph;
 use std::{
     cmp::Ordering,
     fmt::{Debug, Display},
@@ -246,27 +248,27 @@ pub struct NumericUpDown<T: NumericType> {
     /// Base widget of the [`NumericUpDown`] widget.
     pub widget: Widget,
     /// A handle of the input field (usually a [`TextBox`] instance).
-    pub field: Handle<UiNode>,
+    pub field: InheritableVariable<Handle<UiNode>>,
     /// A handle of the increase button.
-    pub increase: Handle<UiNode>,
+    pub increase: InheritableVariable<Handle<UiNode>>,
     /// A handle of the decrease button.
-    pub decrease: Handle<UiNode>,
+    pub decrease: InheritableVariable<Handle<UiNode>>,
     /// Current value of the widget.
-    pub value: T,
+    pub value: InheritableVariable<T>,
     /// Step value of the widget.
-    pub step: T,
+    pub step: InheritableVariable<T>,
     /// Min value of the widget.
-    pub min_value: T,
+    pub min_value: InheritableVariable<T>,
     /// Max value of the widget.
-    pub max_value: T,
+    pub max_value: InheritableVariable<T>,
     /// Current precision of the widget in decimal places.
-    pub precision: usize,
+    pub precision: InheritableVariable<usize>,
     /// Internal dragging context.
     #[visit(skip)]
     #[reflect(hidden)]
     pub drag_context: Option<DragContext<T>>,
     /// Defines how movement in Y axis will be translated in the actual value change. It is some sort of a scaling modifier.
-    pub drag_value_scaling: f32,
+    pub drag_value_scaling: InheritableVariable<f32>,
 }
 
 impl<T: NumericType> Deref for NumericUpDown<T> {
@@ -285,20 +287,20 @@ impl<T: NumericType> DerefMut for NumericUpDown<T> {
 
 impl<T: NumericType> NumericUpDown<T> {
     fn clamp_value(&self, value: T) -> T {
-        clamp(value, self.min_value, self.max_value)
+        clamp(value, *self.min_value, *self.max_value)
     }
 
     fn sync_text_field(&self, ui: &UserInterface) {
         ui.send_message(TextMessage::text(
-            self.field,
+            *self.field,
             MessageDirection::ToWidget,
-            format!("{:.1$}", self.value, self.precision),
+            format!("{:.1$}", *self.value, *self.precision),
         ));
     }
 
     fn sync_value_to_bounds_if_needed(&self, ui: &UserInterface) {
-        let clamped = self.clamp_value(self.value);
-        if self.value != clamped {
+        let clamped = self.clamp_value(*self.value);
+        if *self.value != clamped {
             ui.send_message(NumericUpDownMessage::value(
                 self.handle,
                 MessageDirection::ToWidget,
@@ -309,7 +311,7 @@ impl<T: NumericType> NumericUpDown<T> {
 
     fn try_parse_value(&mut self, ui: &mut UserInterface) {
         // Parse input only when focus is lost from text field.
-        if let Some(field) = ui.node(self.field).cast::<TextBox>() {
+        if let Some(field) = ui.node(*self.field).cast::<TextBox>() {
             if let Ok(value) = field.text().parse::<T>() {
                 let value = self.clamp_value(value);
                 ui.send_message(NumericUpDownMessage::value(
@@ -386,17 +388,11 @@ where
 }
 
 impl<T: NumericType> Control for NumericUpDown<T> {
-    fn resolve(&mut self, node_map: &NodeHandleMapping) {
-        node_map.resolve(&mut self.field);
-        node_map.resolve(&mut self.increase);
-        node_map.resolve(&mut self.decrease);
-    }
-
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
         if let Some(msg) = message.data::<WidgetMessage>() {
-            if message.destination() == self.field {
+            if message.destination() == *self.field {
                 match msg {
                     WidgetMessage::Unfocus => {
                         self.try_parse_value(ui);
@@ -415,10 +411,10 @@ impl<T: NumericType> Control for NumericUpDown<T> {
                     // We can activate dragging either by clicking on increase or decrease buttons.
                     if *button == MouseButton::Left
                         && (ui
-                            .node(self.increase)
+                            .node(*self.increase)
                             .has_descendant(message.destination(), ui)
                             || ui
-                                .node(self.decrease)
+                                .node(*self.decrease)
                                 .has_descendant(message.destination(), ui))
                     {
                         self.drag_context = Some(DragContext::PreDrag {
@@ -432,7 +428,7 @@ impl<T: NumericType> Control for NumericUpDown<T> {
                             DragContext::PreDrag { start_mouse_pos } => {
                                 if (pos.y - start_mouse_pos).abs() >= 5.0 {
                                     self.drag_context = Some(DragContext::Dragging {
-                                        start_value: self.value,
+                                        start_value: *self.value,
                                         start_mouse_pos: *start_mouse_pos,
                                     });
                                 }
@@ -443,19 +439,19 @@ impl<T: NumericType> Control for NumericUpDown<T> {
                             } => {
                                 // Just change visual value while dragging; do not touch actual value.
                                 ui.send_message(TextMessage::text(
-                                    self.field,
+                                    *self.field,
                                     MessageDirection::ToWidget,
                                     format!(
                                         "{:.1$}",
                                         calculate_value_by_offset(
                                             *start_value,
-                                            ((*start_mouse_pos - pos.y) * self.drag_value_scaling)
+                                            ((*start_mouse_pos - pos.y) * *self.drag_value_scaling)
                                                 as i32,
-                                            self.step,
-                                            self.min_value,
-                                            self.max_value
+                                            *self.step,
+                                            *self.min_value,
+                                            *self.max_value
                                         ),
-                                        self.precision
+                                        *self.precision
                                     ),
                                 ));
                             }
@@ -471,15 +467,15 @@ impl<T: NumericType> Control for NumericUpDown<T> {
                 match msg {
                     NumericUpDownMessage::Value(value) => {
                         let clamped = self.clamp_value(*value);
-                        if self.value != clamped {
-                            self.value = clamped;
+                        if *self.value != clamped {
+                            self.value.set_value_and_mark_modified(clamped);
 
                             self.sync_text_field(ui);
 
                             let mut msg = NumericUpDownMessage::value(
                                 self.handle,
                                 MessageDirection::FromWidget,
-                                self.value,
+                                *self.value,
                             );
                             // We must maintain flags
                             msg.set_handled(message.handled());
@@ -488,29 +484,29 @@ impl<T: NumericType> Control for NumericUpDown<T> {
                         }
                     }
                     NumericUpDownMessage::MinValue(min_value) => {
-                        if self.min_value.ne(min_value) {
-                            self.min_value = *min_value;
+                        if (*self.min_value).ne(min_value) {
+                            self.min_value.set_value_and_mark_modified(*min_value);
                             ui.send_message(message.reverse());
                             self.sync_value_to_bounds_if_needed(ui);
                         }
                     }
                     NumericUpDownMessage::MaxValue(max_value) => {
-                        if self.max_value.ne(max_value) {
-                            self.max_value = *max_value;
+                        if (*self.max_value).ne(max_value) {
+                            self.max_value.set_value_and_mark_modified(*max_value);
                             ui.send_message(message.reverse());
                             self.sync_value_to_bounds_if_needed(ui);
                         }
                     }
                     NumericUpDownMessage::Step(step) => {
-                        if self.step.ne(step) {
-                            self.step = *step;
+                        if (*self.step).ne(step) {
+                            self.step.set_value_and_mark_modified(*step);
                             ui.send_message(message.reverse());
                             self.sync_text_field(ui);
                         }
                     }
                     NumericUpDownMessage::Precision(precision) => {
-                        if self.precision.ne(precision) {
-                            self.precision = *precision;
+                        if (*self.precision).ne(precision) {
+                            self.precision.set_value_and_mark_modified(*precision);
                             ui.send_message(message.reverse());
                             self.sync_text_field(ui);
                         }
@@ -518,7 +514,7 @@ impl<T: NumericType> Control for NumericUpDown<T> {
                 }
             }
         } else if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
-            if message.destination() == self.decrease || message.destination() == self.increase {
+            if message.destination() == *self.decrease || message.destination() == *self.increase {
                 if let Some(DragContext::Dragging {
                     start_value,
                     start_mouse_pos,
@@ -529,22 +525,22 @@ impl<T: NumericType> Control for NumericUpDown<T> {
                         MessageDirection::ToWidget,
                         calculate_value_by_offset(
                             start_value,
-                            ((start_mouse_pos - ui.cursor_position().y) * self.drag_value_scaling)
+                            ((start_mouse_pos - ui.cursor_position().y) * *self.drag_value_scaling)
                                 as i32,
-                            self.step,
-                            self.min_value,
-                            self.max_value,
+                            *self.step,
+                            *self.min_value,
+                            *self.max_value,
                         ),
                     ));
-                } else if message.destination() == self.decrease {
-                    let value = self.clamp_value(saturating_sub(self.value, self.step));
+                } else if message.destination() == *self.decrease {
+                    let value = self.clamp_value(saturating_sub(*self.value, *self.step));
                     ui.send_message(NumericUpDownMessage::value(
                         self.handle(),
                         MessageDirection::ToWidget,
                         value,
                     ));
-                } else if message.destination() == self.increase {
-                    let value = self.clamp_value(saturating_add(self.value, self.step));
+                } else if message.destination() == *self.increase {
+                    let value = self.clamp_value(saturating_add(*self.value, *self.step));
 
                     ui.send_message(NumericUpDownMessage::value(
                         self.handle(),
@@ -719,16 +715,16 @@ impl<T: NumericType> NumericUpDownBuilder<T> {
 
         let node = NumericUpDown {
             widget: self.widget_builder.with_child(back).build(),
-            increase,
-            decrease,
-            field,
-            value: self.value,
-            step: self.step,
-            min_value: self.min_value,
-            max_value: self.max_value,
-            precision: self.precision,
+            increase: increase.into(),
+            decrease: decrease.into(),
+            field: field.into(),
+            value: self.value.into(),
+            step: self.step.into(),
+            min_value: self.min_value.into(),
+            max_value: self.max_value.into(),
+            precision: self.precision.into(),
             drag_context: None,
-            drag_value_scaling: self.drag_value_scaling,
+            drag_value_scaling: self.drag_value_scaling.into(),
         };
 
         ctx.add_node(UiNode::new(node))

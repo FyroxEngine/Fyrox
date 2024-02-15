@@ -7,8 +7,9 @@ use crate::{
     send_sync_message,
     utils::enable_widget,
     BuildProfile, DropdownListBuilder, GameScene, Message, Mode, SaveSceneConfirmationDialogAction,
-    SceneContainer, Selection, Settings,
+    SceneContainer, Settings,
 };
+use fyrox::graph::BaseSceneGraph;
 use fyrox::{
     core::{color::Color, math::Rect, pool::Handle, uuid::Uuid},
     engine::Engine,
@@ -329,7 +330,7 @@ impl SceneViewer {
         if let Message::SetInteractionMode(mode) = message {
             if let Some(&active_button) = self.interaction_modes.get(mode) {
                 for &mode_button in self.interaction_modes.values() {
-                    let decorator = engine
+                    let decorator = *engine
                         .user_interface
                         .node(mode_button)
                         .query_component::<Button>()
@@ -682,9 +683,9 @@ impl SceneViewer {
                 ),
             );
 
-            if let (Some(game_scene), Selection::Graph(selection)) = (
+            if let (Some(game_scene), Some(selection)) = (
                 entry.controller.downcast_ref::<GameScene>(),
-                &entry.selection,
+                entry.selection.as_graph(),
             ) {
                 let scene = &engine.scenes[game_scene.scene];
                 if let Some((_, position)) = selection.global_rotation_position(&scene.graph) {

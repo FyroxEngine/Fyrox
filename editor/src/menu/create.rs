@@ -73,7 +73,7 @@ impl CreateEntityRootMenu {
             .sub_menus
             .handle_ui_message(message, sender, controller, selection)
         {
-            sender.do_scene_command(AddNodeCommand::new(node, Handle::NONE, true));
+            sender.do_command(AddNodeCommand::new(node, Handle::NONE, true));
         }
     }
 

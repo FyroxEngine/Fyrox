@@ -1,3 +1,5 @@
+use crate::command::{Command, CommandGroup};
+use crate::scene::SelectionContainer;
 use crate::{
     camera::PickingOptions,
     interaction::{
@@ -15,7 +17,7 @@ use crate::{
                 AddNavmeshEdgeCommand, ConnectNavmeshEdgesCommand, DeleteNavmeshVertexCommand,
                 MoveNavmeshVertexCommand,
             },
-            ChangeSelectionCommand, CommandGroup, GameSceneCommand,
+            ChangeSelectionCommand,
         },
         controller::SceneController,
         GameScene, Selection,
@@ -24,6 +26,7 @@ use crate::{
     utils::window_content,
     Mode,
 };
+use fyrox::graph::SceneGraph;
 use fyrox::{
     core::{
         algebra::{Vector2, Vector3},
@@ -59,15 +62,12 @@ pub struct NavmeshPanel {
 }
 
 fn fetch_selection(editor_selection: &Selection) -> Option<NavmeshSelection> {
-    if let Selection::Navmesh(ref selection) = editor_selection {
+    if let Some(selection) = editor_selection.as_navmesh() {
         Some(selection.clone())
-    } else if let Selection::Graph(ref selection) = editor_selection {
-        Some(NavmeshSelection::new(
-            selection.nodes.first().cloned().unwrap_or_default(),
-            vec![],
-        ))
     } else {
-        None
+        editor_selection.as_graph().map(|selection| {
+            NavmeshSelection::new(selection.nodes.first().cloned().unwrap_or_default(), vec![])
+        })
     }
 }
 
@@ -124,11 +124,10 @@ impl NavmeshPanel {
                         })
                         .collect::<Vec<_>>();
 
-                    self.sender
-                        .do_scene_command(ConnectNavmeshEdgesCommand::new(
-                            selection.navmesh_node(),
-                            [vertices[0], vertices[1]],
-                        ));
+                    self.sender.do_command(ConnectNavmeshEdgesCommand::new(
+                        selection.navmesh_node(),
+                        [vertices[0], vertices[1]],
+                    ));
                 }
             }
         }
@@ -316,14 +315,11 @@ impl InteractionMode for EditNavmeshMode {
                     }
                 }
 
-                let new_selection = Selection::Navmesh(new_selection);
+                let new_selection = Selection::new(new_selection);
 
                 if &new_selection != editor_selection {
                     self.message_sender
-                        .do_scene_command(ChangeSelectionCommand::new(
-                            new_selection,
-                            editor_selection.clone(),
-                        ));
+                        .do_command(ChangeSelectionCommand::new(new_selection));
                 }
             }
         }
@@ -357,14 +353,12 @@ impl InteractionMode for EditNavmeshMode {
                     match drag_context {
                         DragContext::MoveSelection { initial_positions } => {
                             for vertex in selection.unique_vertices().iter() {
-                                commands.push(GameSceneCommand::new(
-                                    MoveNavmeshVertexCommand::new(
-                                        selection.navmesh_node(),
-                                        *vertex,
-                                        *initial_positions.get(vertex).unwrap(),
-                                        navmesh.vertices()[*vertex],
-                                    ),
-                                ));
+                                commands.push(Command::new(MoveNavmeshVertexCommand::new(
+                                    selection.navmesh_node(),
+                                    *vertex,
+                                    *initial_positions.get(vertex).unwrap(),
+                                    navmesh.vertices()[*vertex],
+                                )));
                             }
                         }
                         DragContext::EdgeDuplication {
@@ -374,7 +368,7 @@ impl InteractionMode for EditNavmeshMode {
                             let va = vertices[0];
                             let vb = vertices[1];
 
-                            commands.push(GameSceneCommand::new(AddNavmeshEdgeCommand::new(
+                            commands.push(Command::new(AddNavmeshEdgeCommand::new(
                                 selection.navmesh_node(),
                                 (va, vb),
                                 opposite_edge,
@@ -383,8 +377,7 @@ impl InteractionMode for EditNavmeshMode {
                         }
                     }
 
-                    self.message_sender
-                        .do_scene_command(CommandGroup::from(commands));
+                    self.message_sender.do_command(CommandGroup::from(commands));
                 }
             }
         }
@@ -465,13 +458,9 @@ impl InteractionMode for EditNavmeshMode {
                             });
 
                             // Discard selection.
-                            self.message_sender
-                                .do_scene_command(ChangeSelectionCommand::new(
-                                    Selection::Navmesh(NavmeshSelection::empty(
-                                        selection.navmesh_node(),
-                                    )),
-                                    editor_selection.clone(),
-                                ));
+                            self.message_sender.do_command(ChangeSelectionCommand::new(
+                                Selection::new(NavmeshSelection::empty(selection.navmesh_node())),
+                            ));
                         }
                     }
                 }
@@ -618,19 +607,17 @@ impl InteractionMode for EditNavmeshMode {
                         let mut commands = Vec::new();
 
                         for vertex in selection.unique_vertices().iter().rev().cloned() {
-                            commands.push(GameSceneCommand::new(DeleteNavmeshVertexCommand::new(
+                            commands.push(Command::new(DeleteNavmeshVertexCommand::new(
                                 selection.navmesh_node(),
                                 vertex,
                             )));
                         }
 
-                        commands.push(GameSceneCommand::new(ChangeSelectionCommand::new(
-                            Selection::Navmesh(NavmeshSelection::empty(selection.navmesh_node())),
-                            editor_selection.clone(),
-                        )));
+                        commands.push(Command::new(ChangeSelectionCommand::new(Selection::new(
+                            NavmeshSelection::empty(selection.navmesh_node()),
+                        ))));
 
-                        self.message_sender
-                            .do_scene_command(CommandGroup::from(commands));
+                        self.message_sender.do_command(CommandGroup::from(commands));
                     }
 
                     true
@@ -652,10 +639,7 @@ impl InteractionMode for EditNavmeshMode {
                         );
 
                         self.message_sender
-                            .do_scene_command(ChangeSelectionCommand::new(
-                                Selection::Navmesh(selection),
-                                editor_selection.clone(),
-                            ));
+                            .do_command(ChangeSelectionCommand::new(Selection::new(selection)));
                     }
 
                     true

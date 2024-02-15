@@ -8,6 +8,7 @@ use crate::{
 };
 use fyrox::asset::manager::ResourceManager;
 use fyrox::core::parking_lot::Mutex;
+use fyrox::graph::BaseSceneGraph;
 use fyrox::{
     core::{
         algebra::{Matrix4, Vector2, Vector3, Vector4},
@@ -608,7 +609,7 @@ impl MaterialEditor {
                     && message.direction() == MessageDirection::FromWidget
                 {
                     if let ResourceFieldMessage::Value(Some(value)) = msg {
-                        sender.do_scene_command(SetMaterialShaderCommand::new(
+                        sender.do_command(SetMaterialShaderCommand::new(
                             material.clone(),
                             value.clone(),
                         ));
@@ -624,12 +625,12 @@ impl MaterialEditor {
                 if message.destination() == self.texture_context_menu.show_in_asset_browser
                     && self.texture_context_menu.target.is_some()
                 {
-                    let path = engine
+                    let path = (*engine
                         .user_interface
                         .node(self.texture_context_menu.target)
                         .cast::<Image>()
                         .unwrap()
-                        .texture
+                        .texture)
                         .clone()
                         .and_then(|t| t.kind().into_path());
 
@@ -720,7 +721,7 @@ impl MaterialEditor {
                 };
 
                 if let Some(property_value) = property_value {
-                    sender.do_scene_command(SetMaterialPropertyValueCommand::new(
+                    sender.do_command(SetMaterialPropertyValueCommand::new(
                         material,
                         property_name.clone(),
                         property_value,

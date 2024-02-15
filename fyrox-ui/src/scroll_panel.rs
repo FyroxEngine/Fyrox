@@ -17,6 +17,7 @@ use crate::{
     BuildContext, Control, UiNode, UserInterface,
 };
 use fyrox_core::uuid_provider;
+use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};
 
 /// A set of messages, that is used to modify the state of a scroll panel.
@@ -253,7 +254,7 @@ impl Control for ScrollPanel {
                         self.invalidate_arrange();
                     }
                     ScrollPanelMessage::BringIntoView(handle) => {
-                        if let Some(node_to_focus_ref) = ui.try_get_node(handle) {
+                        if let Some(node_to_focus_ref) = ui.try_get(handle) {
                             let size = node_to_focus_ref.actual_local_size();
                             let mut parent = handle;
                             let mut relative_position = Vector2::default();

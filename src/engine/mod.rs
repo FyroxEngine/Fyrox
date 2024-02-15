@@ -29,7 +29,7 @@ use crate::{
     renderer::{framework::error::FrameworkError, framework::state::GlKind, Renderer},
     resource::{
         curve::{loader::CurveLoader, CurveResourceState},
-        model::{loader::ModelLoader, Model, ModelResource, NodeMapping},
+        model::{loader::ModelLoader, Model, ModelResource},
         texture::{loader::TextureLoader, Texture, TextureKind},
     },
     scene::{
@@ -72,13 +72,16 @@ use raw_window_handle::HasRawWindowHandle;
 use std::{ffi::CString, num::NonZeroU32};
 
 use crate::engine::task::TaskPoolHandler;
+use crate::graph::SceneGraph;
 use crate::resource::texture;
 use crate::scene::navmesh;
 use crate::script::PluginsRefMut;
 use fyrox_core::task::TaskPool;
+use fyrox_graph::{BaseSceneGraph, NodeMapping};
+use fyrox_resource::Resource;
 use fyrox_ui::font::BUILT_IN_FONT;
 use fyrox_ui::loader::UserInterfaceLoader;
-use fyrox_ui::{font::loader::FontLoader, font::Font};
+use fyrox_ui::{font::loader::FontLoader, font::Font, UiUpdateSwitches};
 use std::ops::DerefMut;
 use std::{
     any::TypeId,
@@ -1568,7 +1571,7 @@ impl Engine {
     ) {
         self.handle_async_scene_loading(dt, lag, window_target);
         self.pre_update(dt, window_target, lag, switches);
-        self.post_update(dt);
+        self.post_update(dt, &Default::default());
     }
 
     fn handle_async_scene_loading(
@@ -1640,7 +1643,7 @@ impl Engine {
                         if request.options.derived {
                             // Create a resource, that will point to the scene we've loaded the
                             // scene from and force scene nodes to inherit data from them.
-                            let model = ModelResource::new_ok(
+                            let model = Resource::new_ok(
                                 ResourceKind::External(request.path.clone()),
                                 Model {
                                     mapping: NodeMapping::UseHandles,
@@ -1802,13 +1805,14 @@ impl Engine {
     ///
     /// Normally, this is called from `Engine::update()`.
     /// You should only call this manually if you don't use that method.
-    pub fn post_update(&mut self, dt: f32) {
+    pub fn post_update(&mut self, dt: f32, ui_update_switches: &UiUpdateSwitches) {
         if let GraphicsContext::Initialized(ref ctx) = self.graphics_context {
             let inner_size = ctx.window.inner_size();
             let window_size = Vector2::new(inner_size.width as f32, inner_size.height as f32);
 
             let time = instant::Instant::now();
-            self.user_interface.update(window_size, dt);
+            self.user_interface
+                .update(window_size, dt, ui_update_switches);
             self.performance_statistics.ui_time = instant::Instant::now() - time;
             self.elapsed_time += dt;
         }
@@ -2306,6 +2310,7 @@ mod test {
     };
     use std::sync::Arc;
 
+    use crate::graph::BaseSceneGraph;
     use fyrox_ui::UserInterface;
     use std::sync::mpsc::{self, Sender, TryRecvError};
 

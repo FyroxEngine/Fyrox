@@ -1,21 +1,34 @@
+use crate::command::{Command, CommandGroup};
+use crate::scene::commands::graph::SetGraphNodeChildPosition;
 use crate::{
     load_image,
     message::MessageSender,
     scene::{
         commands::{
-            graph::LinkNodesCommand, ChangeSelectionCommand, CommandGroup, GameSceneCommand,
+            graph::{AddModelCommand, LinkNodesCommand},
+            ChangeSelectionCommand,
         },
         GameScene, Selection,
     },
-    world::graph::selection::GraphSelection,
-    world::WorldViewerDataProvider,
+    world::{
+        graph::{item::DropAnchor, selection::GraphSelection},
+        WorldViewerDataProvider,
+    },
 };
-use fyrox::asset::untyped::UntypedResource;
+use fyrox::graph::{BaseSceneGraph, SceneGraphNode};
 use fyrox::{
-    core::pool::{ErasedHandle, Handle},
+    asset::{manager::ResourceManager, untyped::UntypedResource},
+    core::{
+        algebra::Vector3,
+        futures::executor::block_on,
+        make_relative_path,
+        pool::{ErasedHandle, Handle},
+    },
+    graph::SceneGraph,
+    resource::model::{Model, ModelResourceExtension},
     scene::{node::Node, Scene},
 };
-use std::{borrow::Cow, path::Path};
+use std::{borrow::Cow, path::Path, path::PathBuf};
 
 pub mod item;
 pub mod menu;
@@ -24,9 +37,11 @@ pub mod selection;
 pub struct EditorSceneWrapper<'a> {
     pub selection: &'a Selection,
     pub game_scene: &'a GameScene,
-    pub scene: &'a Scene,
+    pub scene: &'a mut Scene,
     pub path: Option<&'a Path>,
     pub sender: &'a MessageSender,
+    pub resource_manager: &'a ResourceManager,
+    pub instantiation_scale: Vector3<f32>,
 }
 
 impl<'a> WorldViewerDataProvider for EditorSceneWrapper<'a> {
@@ -56,6 +71,17 @@ impl<'a> WorldViewerDataProvider for EditorSceneWrapper<'a> {
             .graph
             .try_get(node.into())
             .map_or(0, |node| node.children().len())
+    }
+
+    fn nth_child(&self, node: ErasedHandle, i: usize) -> ErasedHandle {
+        self.scene
+            .graph
+            .node(node.into())
+            .children()
+            .get(i)
+            .cloned()
+            .unwrap_or_default()
+            .into()
     }
 
     fn is_node_has_child(&self, node: ErasedHandle, child: ErasedHandle) -> bool {
@@ -109,7 +135,7 @@ impl<'a> WorldViewerDataProvider for EditorSceneWrapper<'a> {
     }
 
     fn selection(&self) -> Vec<ErasedHandle> {
-        if let Selection::Graph(ref graph_selection) = self.selection {
+        if let Some(graph_selection) = self.selection.as_graph() {
             graph_selection
                 .nodes
                 .iter()
@@ -120,38 +146,89 @@ impl<'a> WorldViewerDataProvider for EditorSceneWrapper<'a> {
         }
     }
 
-    fn on_drop(&self, child: ErasedHandle, parent: ErasedHandle) {
+    fn on_change_hierarchy_request(
+        &self,
+        child: ErasedHandle,
+        parent: ErasedHandle,
+        anchor: DropAnchor,
+    ) {
         let child: Handle<Node> = child.into();
         let parent: Handle<Node> = parent.into();
 
-        if let Selection::Graph(ref selection) = self.selection {
+        if let Some(selection) = self.selection.as_graph() {
             if selection.nodes.contains(&child) {
-                let mut commands = Vec::new();
+                let mut commands = CommandGroup::default();
 
-                for &node_handle in selection.nodes.iter() {
+                'selection_loop: for &node_handle in selection.nodes.iter() {
                     // Make sure we won't create any loops - child must not have parent in its
                     // descendants.
-                    let mut attach = true;
                     let mut p = parent;
                     while p.is_some() {
                         if p == node_handle {
-                            attach = false;
-                            break;
+                            continue 'selection_loop;
                         }
                         p = self.scene.graph[p].parent();
                     }
 
-                    if attach {
-                        commands.push(GameSceneCommand::new(LinkNodesCommand::new(
-                            node_handle,
-                            parent,
-                        )));
+                    match anchor {
+                        DropAnchor::Side { index_offset, .. } => {
+                            if let Some((parents_parent, position)) =
+                                self.scene.graph.relative_position(parent, index_offset)
+                            {
+                                if let Some(node) = self.scene.graph.try_get(node_handle) {
+                                    if node.parent() != parents_parent {
+                                        commands.push(LinkNodesCommand::new(
+                                            node_handle,
+                                            parents_parent,
+                                        ));
+                                    }
+                                }
+
+                                commands.push(SetGraphNodeChildPosition {
+                                    node: parents_parent,
+                                    child: node_handle,
+                                    position,
+                                });
+                            }
+                        }
+                        DropAnchor::OnTop => {
+                            commands.push(LinkNodesCommand::new(node_handle, parent));
+                        }
                     }
                 }
 
                 if !commands.is_empty() {
-                    self.sender.do_scene_command(CommandGroup::from(commands));
+                    self.sender.do_command(commands);
                 }
+            }
+        }
+    }
+
+    fn on_asset_dropped(&mut self, path: PathBuf, node: ErasedHandle) {
+        if let Ok(relative_path) = make_relative_path(path) {
+            if let Some(model) = self
+                .resource_manager
+                .try_request::<Model>(relative_path)
+                .and_then(|m| block_on(m).ok())
+            {
+                // Instantiate the model.
+                let instance = model.instantiate(self.scene);
+
+                self.scene.graph[instance]
+                    .local_transform_mut()
+                    .set_scale(self.instantiation_scale);
+
+                let sub_graph = self.scene.graph.take_reserve_sub_graph(instance);
+
+                let group = vec![
+                    Command::new(AddModelCommand::new(sub_graph)),
+                    Command::new(LinkNodesCommand::new(instance, node.into())),
+                    Command::new(ChangeSelectionCommand::new(Selection::new(
+                        GraphSelection::single_or_empty(instance),
+                    ))),
+                ];
+
+                self.sender.do_command(CommandGroup::from(group));
             }
         }
     }
@@ -165,25 +242,20 @@ impl<'a> WorldViewerDataProvider for EditorSceneWrapper<'a> {
     }
 
     fn on_selection_changed(&self, selection: &[ErasedHandle]) {
-        let mut new_selection = Selection::None;
+        let mut new_selection = Selection::default();
         for &selected_item in selection {
-            match new_selection {
-                Selection::None => {
+            match new_selection.as_graph_mut() {
+                Some(selection) => selection.insert_or_exclude(selected_item.into()),
+                None => {
                     new_selection =
-                        Selection::Graph(GraphSelection::single_or_empty(selected_item.into()));
+                        Selection::new(GraphSelection::single_or_empty(selected_item.into()));
                 }
-                Selection::Graph(ref mut selection) => {
-                    selection.insert_or_exclude(selected_item.into())
-                }
-                _ => (),
             }
         }
 
         if &new_selection != self.selection {
-            self.sender.do_scene_command(ChangeSelectionCommand::new(
-                new_selection,
-                self.selection.clone(),
-            ));
+            self.sender
+                .do_command(ChangeSelectionCommand::new(new_selection));
         }
     }
 }

@@ -23,6 +23,7 @@ use crate::{
     BuildContext, Control, MessageDirection, Thickness, UiNode, UserInterface, VerticalAlignment,
     Widget, WidgetMessage,
 };
+use fyrox_graph::BaseSceneGraph;
 use std::{
     any::TypeId,
     fmt::{Debug, Formatter},

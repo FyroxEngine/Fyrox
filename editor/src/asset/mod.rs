@@ -9,6 +9,7 @@ use crate::{
     utils::window_content,
     AssetItem, Message, Mode,
 };
+use fyrox::graph::BaseSceneGraph;
 use fyrox::{
     asset::{
         manager::ResourceManager,
@@ -178,7 +179,7 @@ impl ContextMenu {
         } else if let Some(MenuItemMessage::Click) = message.data() {
             if let Some(item) = engine
                 .user_interface
-                .try_get_node(self.placement_target)
+                .try_get(self.placement_target)
                 .and_then(|n| n.cast::<AssetItem>())
             {
                 if message.destination() == self.delete {
@@ -872,7 +873,7 @@ impl AssetBrowser {
             if message.destination() == self.context_menu.dependencies {
                 if let Some(item) = engine
                     .user_interface
-                    .try_get_node(self.context_menu.placement_target)
+                    .try_get(self.context_menu.placement_target)
                     .and_then(|n| n.cast::<AssetItem>())
                 {
                     if let Ok(resource) =
@@ -965,7 +966,7 @@ impl AssetBrowser {
             true
         }
 
-        if let Some(item) = ui.try_get_node(dropped).and_then(|n| n.cast::<AssetItem>()) {
+        if let Some(item) = ui.try_get(dropped).and_then(|n| n.cast::<AssetItem>()) {
             if let Ok(relative_path) = make_relative_path(target_dir) {
                 if let Ok(resource) = block_on(resource_manager.request_untyped(&item.path)) {
                     if let Some(path) = resource.kind().path_owned() {

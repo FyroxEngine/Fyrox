@@ -22,6 +22,7 @@ use crate::{
     utils::navmesh::Navmesh,
 };
 use fyrox_core::parking_lot::{RwLockReadGuard, RwLockWriteGuard};
+use fyrox_graph::BaseSceneGraph;
 use std::{
     ops::{Deref, DerefMut},
     sync::Arc,
@@ -123,6 +124,7 @@ impl Visit for Container {
 ///
 /// ```rust
 /// # use fyrox::scene::{navmesh::NavigationalMesh, Scene};
+/// # use fyrox_graph::SceneGraph;
 /// fn find_navmesh<'a>(scene: &'a mut Scene, name: &str) -> &'a mut NavigationalMesh {
 ///     let handle = scene.graph.find_by_name_from_root(name).unwrap().0;
 ///     scene.graph[handle].as_navigational_mesh_mut()

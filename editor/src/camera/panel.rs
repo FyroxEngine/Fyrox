@@ -2,6 +2,7 @@ use crate::{
     scene::{GameScene, Selection},
     send_sync_message, Message,
 };
+use fyrox::graph::SceneGraph;
 use fyrox::gui::{HorizontalAlignment, Thickness};
 use fyrox::{
     core::pool::Handle,
@@ -69,7 +70,7 @@ impl CameraPreviewControlPanel {
         game_scene: &mut GameScene,
         engine: &mut Engine,
     ) {
-        if let Message::DoGameSceneCommand(_)
+        if let Message::DoCommand(_)
         | Message::UndoCurrentSceneCommand
         | Message::RedoCurrentSceneCommand = message
         {
@@ -78,7 +79,7 @@ impl CameraPreviewControlPanel {
 
         if let Message::SelectionChanged { .. } = message {
             let scene = &engine.scenes[game_scene.scene];
-            if let Selection::Graph(ref selection) = editor_selection {
+            if let Some(selection) = editor_selection.as_graph() {
                 let any_camera = selection
                     .nodes
                     .iter()
@@ -116,7 +117,7 @@ impl CameraPreviewControlPanel {
         let scene = &engine.scenes[game_scene.scene];
         let node_overrides = game_scene.graph_switches.node_overrides.as_mut().unwrap();
 
-        if let Selection::Graph(ref new_graph_selection) = editor_selection {
+        if let Some(new_graph_selection) = editor_selection.as_graph() {
             // Enable cameras from new selection.
             for &node_handle in &new_graph_selection.nodes {
                 if scene.graph.try_get_of_type::<Camera>(node_handle).is_some() {

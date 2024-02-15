@@ -1,5 +1,6 @@
 use crate::ui_scene::selection::UiSelection;
 use fyrox::core::pool::Handle;
+use fyrox::graph::BaseSceneGraph;
 use fyrox::gui::{UiNode, UserInterface};
 use std::collections::HashMap;
 
@@ -32,9 +33,9 @@ fn deep_clone_nodes(
     let mut old_new_mapping = HashMap::new();
 
     for &root_node in root_nodes.iter() {
-        let (_, old_to_new) = source_graph.copy_node_to(root_node, dest_ui);
+        let (_, old_to_new) = source_graph.copy_node_to(root_node, dest_ui, &mut |_, _, _| {});
         // Merge mappings.
-        for (old, new) in old_to_new.hash_map {
+        for (old, new) in old_to_new.into_inner() {
             old_new_mapping.insert(old, new);
         }
     }

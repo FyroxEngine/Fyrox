@@ -1,9 +1,15 @@
 //! UI node is a type-agnostic wrapper for any widget type. See [`UiNode`] docs for more info.
 
 use crate::{
-    core::{reflect::prelude::*, visitor::prelude::*},
-    BaseControl, Control,
+    core::{
+        pool::Handle, reflect::prelude::*, uuid_provider, variable, visitor::prelude::*,
+        ComponentProvider, NameProvider,
+    },
+    widget::Widget,
+    BaseControl, Control, UserInterface,
 };
+use fyrox_graph::SceneGraphNode;
+use fyrox_resource::{untyped::UntypedResource, Resource};
 use std::{
     any::{Any, TypeId},
     fmt::{Debug, Formatter},
@@ -19,6 +25,79 @@ pub mod container;
 /// casting, component querying, etc. You could also be interested in [`Control`] docs, since it
 /// contains all the interesting stuff and detailed description for each method.
 pub struct UiNode(pub Box<dyn Control>);
+
+uuid_provider!(UiNode = "d9b45ecc-91b0-40ea-a92a-4a7dee4667c9");
+
+impl ComponentProvider for UiNode {
+    #[inline]
+    fn query_component_ref(&self, type_id: TypeId) -> Option<&dyn Any> {
+        self.0.query_component_ref(type_id)
+    }
+
+    #[inline]
+    fn query_component_mut(&mut self, type_id: TypeId) -> Option<&mut dyn Any> {
+        self.0.query_component_mut(type_id)
+    }
+}
+
+impl Clone for UiNode {
+    #[inline]
+    fn clone(&self) -> Self {
+        Self(self.0.clone_boxed())
+    }
+}
+
+impl SceneGraphNode for UiNode {
+    type Base = Widget;
+    type SceneGraph = UserInterface;
+    type ResourceData = UserInterface;
+
+    fn base(&self) -> &Self::Base {
+        self.0.deref()
+    }
+
+    fn set_base(&mut self, base: Self::Base) {
+        ***self = base;
+    }
+
+    fn is_resource_instance_root(&self) -> bool {
+        self.is_resource_instance_root
+    }
+
+    fn original_handle_in_resource(&self) -> Handle<Self> {
+        self.original_handle_in_resource
+    }
+
+    fn set_original_handle_in_resource(&mut self, handle: Handle<Self>) {
+        self.original_handle_in_resource = handle;
+    }
+
+    fn resource(&self) -> Option<Resource<Self::ResourceData>> {
+        self.resource.clone()
+    }
+
+    fn self_handle(&self) -> Handle<Self> {
+        self.handle
+    }
+
+    fn parent(&self) -> Handle<Self> {
+        self.parent
+    }
+
+    fn children(&self) -> &[Handle<Self>] {
+        &self.children
+    }
+
+    fn children_mut(&mut self) -> &mut [Handle<Self>] {
+        &mut self.children
+    }
+}
+
+impl NameProvider for UiNode {
+    fn name(&self) -> &str {
+        &self.0.name
+    }
+}
 
 impl Debug for UiNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -138,6 +217,31 @@ impl UiNode {
     {
         self.query_component::<T>().is_some()
     }
+
+    pub(crate) fn set_inheritance_data(
+        &mut self,
+        original_handle: Handle<UiNode>,
+        model: Resource<UserInterface>,
+    ) {
+        // Notify instantiated node about resource it was created from.
+        self.resource = Some(model.clone());
+
+        // Reset resource instance root flag, this is needed because a node after instantiation cannot
+        // be a root anymore.
+        self.is_resource_instance_root = false;
+
+        // Reset inheritable properties, so property inheritance system will take properties
+        // from parent objects on resolve stage.
+        self.as_reflect_mut(&mut |reflect| {
+            variable::mark_inheritable_properties_non_modified(
+                reflect,
+                &[TypeId::of::<UntypedResource>()],
+            )
+        });
+
+        // Fill original handles to instances.
+        self.original_handle_in_resource = original_handle;
+    }
 }
 
 impl Visit for UiNode {
@@ -147,6 +251,10 @@ impl Visit for UiNode {
 }
 
 impl Reflect for UiNode {
+    fn source_path() -> &'static str {
+        file!()
+    }
+
     fn type_name(&self) -> &'static str {
         Reflect::type_name(self.0.deref())
     }

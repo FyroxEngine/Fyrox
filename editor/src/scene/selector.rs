@@ -1,4 +1,6 @@
 use crate::utils::make_node_name;
+use fyrox::graph::BaseSceneGraph;
+use fyrox::graph::{SceneGraph, SceneGraphNode};
 use fyrox::{
     core::{
         algebra::Vector2, parking_lot::Mutex, pool::ErasedHandle, pool::Handle,
@@ -19,10 +21,8 @@ use fyrox::{
         tree::{Tree, TreeBuilder, TreeRootBuilder, TreeRootMessage},
         widget::{Widget, WidgetBuilder, WidgetMessage},
         window::{Window, WindowBuilder, WindowMessage},
-        BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, Thickness,
-        UiNode, UserInterface,
+        BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
     },
-    scene::{graph::Graph, node::Node},
 };
 use std::{
     ops::{Deref, DerefMut},
@@ -38,15 +38,15 @@ pub struct HierarchyNode {
 }
 
 impl HierarchyNode {
-    pub fn from_scene_node(
-        node_handle: Handle<Node>,
-        ignored_node: Handle<Node>,
-        graph: &Graph,
-    ) -> Self {
-        let node = &graph[node_handle];
+    pub fn from_scene_node<G, N>(node_handle: Handle<N>, ignored_node: Handle<N>, graph: &G) -> Self
+    where
+        G: SceneGraph<Node = N>,
+        N: SceneGraphNode<SceneGraph = G>,
+    {
+        let node = &graph.node(node_handle);
 
         Self {
-            name: node.name_owned(),
+            name: node.name().to_string(),
             handle: node_handle.into(),
             children: node
                 .children()
@@ -381,10 +381,6 @@ impl DerefMut for NodeSelectorWindow {
 uuid_provider!(NodeSelectorWindow = "5bb00f15-d6ec-4f0e-af7e-9472b0e290b4");
 
 impl Control for NodeSelectorWindow {
-    fn resolve(&mut self, node_map: &NodeHandleMapping) {
-        self.window.resolve(node_map);
-    }
-
     fn on_remove(&self, sender: &Sender<UiMessage>) {
         self.window.on_remove(sender);
     }
@@ -401,8 +397,8 @@ impl Control for NodeSelectorWindow {
         self.window.draw(drawing_context)
     }
 
-    fn update(&mut self, dt: f32, sender: &Sender<UiMessage>, screen_size: Vector2<f32>) {
-        self.window.update(dt, sender, screen_size)
+    fn update(&mut self, dt: f32, ui: &mut UserInterface) {
+        self.window.update(dt, ui)
     }
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {

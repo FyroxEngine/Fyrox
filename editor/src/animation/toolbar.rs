@@ -8,19 +8,25 @@ use crate::{
         },
         selection::AnimationSelection,
     },
+    command::{Command, CommandGroup},
     gui::make_dropdown_list_option_universal,
     load_image,
     message::MessageSender,
     scene::{
-        commands::{ChangeSelectionCommand, CommandGroup, GameSceneCommand},
+        commands::ChangeSelectionCommand,
         selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
-        GameScene, Selection,
+        Selection,
     },
     send_sync_message,
 };
 use fyrox::{
     asset::manager::ResourceManager,
-    core::{algebra::Vector2, futures::executor::block_on, log::Log, math::Rect, pool::Handle},
+    core::{
+        algebra::Vector2, futures::executor::block_on, log::Log, math::Rect, pool::ErasedHandle,
+        pool::Handle,
+    },
+    generic_animation::{Animation, AnimationContainer, RootMotionSettings},
+    graph::{BaseSceneGraph, PrefabData, SceneGraph, SceneGraphNode},
     gui::{
         border::BorderBuilder,
         button::{Button, ButtonBuilder, ButtonMessage},
@@ -42,12 +48,7 @@ use fyrox::{
         BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
         VerticalAlignment, BRUSH_BRIGHT, BRUSH_LIGHT,
     },
-    resource::model::{Model, ModelResourceExtension},
-    scene::{
-        animation::{absm::prelude::*, prelude::*},
-        node::Node,
-        Scene,
-    },
+    resource::model::AnimationSource,
 };
 use std::path::Path;
 
@@ -74,7 +75,7 @@ pub struct Toolbar {
     pub reimport: Handle<UiNode>,
     pub node_selector: Handle<UiNode>,
     pub import_file_selector: Handle<UiNode>,
-    pub selected_import_root: Handle<Node>,
+    pub selected_import_root: ErasedHandle,
     pub looping: Handle<UiNode>,
     pub enabled: Handle<UiNode>,
     root_motion_dropdown_area: RootMotionDropdownArea,
@@ -187,136 +188,135 @@ impl RootMotionDropdownArea {
 }
 
 impl RootMotionDropdownArea {
-    pub fn handle_ui_message(
+    pub fn handle_ui_message<G, N>(
         &mut self,
         message: &UiMessage,
-        scene: &Scene,
+        graph: &G,
         sender: &MessageSender,
         ui: &mut UserInterface,
-        animation_player: &AnimationPlayer,
-        game_scene: &GameScene,
-        selection: &AnimationSelection,
-    ) {
-        let send_command = |settings: Option<RootMotionSettings>| {
-            sender.do_scene_command(SetAnimationRootMotionSettingsCommand {
+        animation: &Animation<Handle<N>>,
+        root: Handle<N>,
+        selection: &AnimationSelection<N>,
+    ) where
+        G: SceneGraph<Node = N>,
+        N: SceneGraphNode<SceneGraph = G>,
+    {
+        let send_command = |settings: Option<RootMotionSettings<Handle<N>>>| {
+            sender.do_command(SetAnimationRootMotionSettingsCommand {
                 node_handle: selection.animation_player,
                 animation_handle: selection.animation,
                 value: settings,
             });
         };
 
-        if let Some(animation) = animation_player.animations().try_get(selection.animation) {
-            if let Some(CheckBoxMessage::Check(Some(value))) = message.data() {
-                if message.direction() == MessageDirection::FromWidget {
-                    if message.destination() == self.enabled {
-                        send_command(value.then(Default::default));
-                    } else if message.destination() == self.ignore_x {
-                        if let Some(settings) = animation.root_motion_settings_ref() {
-                            send_command(Some(RootMotionSettings {
-                                ignore_x_movement: *value,
-                                ..*settings
-                            }));
-                        }
-                    } else if message.destination() == self.ignore_y {
-                        if let Some(settings) = animation.root_motion_settings_ref() {
-                            send_command(Some(RootMotionSettings {
-                                ignore_y_movement: *value,
-                                ..*settings
-                            }));
-                        }
-                    } else if message.destination() == self.ignore_z {
-                        if let Some(settings) = animation.root_motion_settings_ref() {
-                            send_command(Some(RootMotionSettings {
-                                ignore_z_movement: *value,
-                                ..*settings
-                            }));
-                        }
-                    } else if message.destination() == self.ignore_rotation {
-                        if let Some(settings) = animation.root_motion_settings_ref() {
-                            send_command(Some(RootMotionSettings {
-                                ignore_rotations: *value,
-                                ..*settings
-                            }));
-                        }
-                    }
-                }
-            } else if let Some(ButtonMessage::Click) = message.data() {
-                if let Some(settings) = animation.root_motion_settings_ref() {
-                    if message.destination() == self.select_node {
-                        self.node_selector = NodeSelectorWindowBuilder::new(
-                            WindowBuilder::new(
-                                WidgetBuilder::new().with_width(300.0).with_height(400.0),
-                            )
-                            .with_title(WindowTitle::text("Select a Root Node"))
-                            .open(false),
-                        )
-                        .build(&mut ui.build_ctx());
-
-                        ui.send_message(NodeSelectorMessage::hierarchy(
-                            self.node_selector,
-                            MessageDirection::ToWidget,
-                            HierarchyNode::from_scene_node(
-                                game_scene.scene_content_root,
-                                game_scene.editor_objects_root,
-                                &scene.graph,
-                            ),
-                        ));
-
-                        ui.send_message(NodeSelectorMessage::selection(
-                            self.node_selector,
-                            MessageDirection::ToWidget,
-                            if settings.node.is_some() {
-                                vec![settings.node.into()]
-                            } else {
-                                vec![]
-                            },
-                        ));
-
-                        ui.send_message(WindowMessage::open_modal(
-                            self.node_selector,
-                            MessageDirection::ToWidget,
-                            true,
-                        ));
-                    }
-                }
-            } else if let Some(NodeSelectorMessage::Selection(node_selection)) = message.data() {
-                if message.destination() == self.node_selector
-                    && message.direction() == MessageDirection::FromWidget
-                {
+        if let Some(CheckBoxMessage::Check(Some(value))) = message.data() {
+            if message.direction() == MessageDirection::FromWidget {
+                if message.destination() == self.enabled {
+                    send_command(value.then(Default::default));
+                } else if message.destination() == self.ignore_x {
                     if let Some(settings) = animation.root_motion_settings_ref() {
-                        sender.do_scene_command(SetAnimationRootMotionSettingsCommand {
-                            node_handle: selection.animation_player,
-                            animation_handle: selection.animation,
-                            value: Some(RootMotionSettings {
-                                node: node_selection
-                                    .first()
-                                    .cloned()
-                                    .map(Handle::from)
-                                    .unwrap_or_default(),
-                                ..*settings
-                            }),
-                        });
+                        send_command(Some(RootMotionSettings {
+                            ignore_x_movement: *value,
+                            ..*settings
+                        }));
+                    }
+                } else if message.destination() == self.ignore_y {
+                    if let Some(settings) = animation.root_motion_settings_ref() {
+                        send_command(Some(RootMotionSettings {
+                            ignore_y_movement: *value,
+                            ..*settings
+                        }));
+                    }
+                } else if message.destination() == self.ignore_z {
+                    if let Some(settings) = animation.root_motion_settings_ref() {
+                        send_command(Some(RootMotionSettings {
+                            ignore_z_movement: *value,
+                            ..*settings
+                        }));
+                    }
+                } else if message.destination() == self.ignore_rotation {
+                    if let Some(settings) = animation.root_motion_settings_ref() {
+                        send_command(Some(RootMotionSettings {
+                            ignore_rotations: *value,
+                            ..*settings
+                        }));
                     }
                 }
-            } else if let Some(WindowMessage::Close) = message.data() {
-                if message.destination() == self.node_selector {
-                    ui.send_message(WidgetMessage::remove(
+            }
+        } else if let Some(ButtonMessage::Click) = message.data() {
+            if let Some(settings) = animation.root_motion_settings_ref() {
+                if message.destination() == self.select_node {
+                    self.node_selector = NodeSelectorWindowBuilder::new(
+                        WindowBuilder::new(
+                            WidgetBuilder::new().with_width(300.0).with_height(400.0),
+                        )
+                        .with_title(WindowTitle::text("Select a Root Node"))
+                        .open(false),
+                    )
+                    .build(&mut ui.build_ctx());
+
+                    ui.send_message(NodeSelectorMessage::hierarchy(
                         self.node_selector,
                         MessageDirection::ToWidget,
+                        HierarchyNode::from_scene_node(root, Handle::NONE, graph),
                     ));
-                    self.node_selector = Handle::NONE;
+
+                    ui.send_message(NodeSelectorMessage::selection(
+                        self.node_selector,
+                        MessageDirection::ToWidget,
+                        if settings.node.is_some() {
+                            vec![settings.node.into()]
+                        } else {
+                            vec![]
+                        },
+                    ));
+
+                    ui.send_message(WindowMessage::open_modal(
+                        self.node_selector,
+                        MessageDirection::ToWidget,
+                        true,
+                    ));
                 }
+            }
+        } else if let Some(NodeSelectorMessage::Selection(node_selection)) = message.data() {
+            if message.destination() == self.node_selector
+                && message.direction() == MessageDirection::FromWidget
+            {
+                if let Some(settings) = animation.root_motion_settings_ref() {
+                    sender.do_command(SetAnimationRootMotionSettingsCommand {
+                        node_handle: selection.animation_player,
+                        animation_handle: selection.animation,
+                        value: Some(RootMotionSettings {
+                            node: node_selection
+                                .first()
+                                .cloned()
+                                .map(Handle::from)
+                                .unwrap_or_default(),
+                            ..*settings
+                        }),
+                    });
+                }
+            }
+        } else if let Some(WindowMessage::Close) = message.data() {
+            if message.destination() == self.node_selector {
+                ui.send_message(WidgetMessage::remove(
+                    self.node_selector,
+                    MessageDirection::ToWidget,
+                ));
+                self.node_selector = Handle::NONE;
             }
         }
     }
 
-    pub fn sync_to_model(
+    pub fn sync_to_model<G, N>(
         &self,
-        animation_player: &AnimationPlayer,
-        selection: &AnimationSelection,
-        scene: &Scene,
+        animation: &Animation<Handle<N>>,
+        graph: &G,
         ui: &mut UserInterface,
-    ) {
+    ) where
+        G: SceneGraph<Node = N>,
+        N: SceneGraphNode,
+    {
         fn sync_checked(ui: &UserInterface, check_box: Handle<UiNode>, checked: bool) {
             send_sync_message(
                 ui,
@@ -324,46 +324,43 @@ impl RootMotionDropdownArea {
             );
         }
 
-        if let Some(animation) = animation_player.animations().try_get(selection.animation) {
-            let root_motion_enabled = animation.root_motion_settings_ref().is_some();
+        let root_motion_enabled = animation.root_motion_settings_ref().is_some();
 
-            sync_checked(ui, self.enabled, root_motion_enabled);
+        sync_checked(ui, self.enabled, root_motion_enabled);
 
-            for widget in [
-                self.select_node,
-                self.ignore_x,
-                self.ignore_y,
-                self.ignore_z,
-                self.ignore_rotation,
-            ] {
-                send_sync_message(
-                    ui,
-                    WidgetMessage::enabled(widget, MessageDirection::ToWidget, root_motion_enabled),
-                );
-            }
+        for widget in [
+            self.select_node,
+            self.ignore_x,
+            self.ignore_y,
+            self.ignore_z,
+            self.ignore_rotation,
+        ] {
+            send_sync_message(
+                ui,
+                WidgetMessage::enabled(widget, MessageDirection::ToWidget, root_motion_enabled),
+            );
+        }
 
-            if let Some(settings) = animation.root_motion_settings_ref() {
-                send_sync_message(
-                    ui,
-                    TextMessage::text(
-                        ui.node(self.select_node)
-                            .query_component::<Button>()
-                            .unwrap()
-                            .content,
-                        MessageDirection::ToWidget,
-                        scene
-                            .graph
-                            .try_get(settings.node)
-                            .map(|n| n.name().to_owned())
-                            .unwrap_or_else(|| String::from("<Unassigned>")),
-                    ),
-                );
+        if let Some(settings) = animation.root_motion_settings_ref() {
+            send_sync_message(
+                ui,
+                TextMessage::text(
+                    *ui.node(self.select_node)
+                        .query_component::<Button>()
+                        .unwrap()
+                        .content,
+                    MessageDirection::ToWidget,
+                    graph
+                        .try_get(settings.node)
+                        .map(|n| n.name().to_owned())
+                        .unwrap_or_else(|| String::from("<Unassigned>")),
+                ),
+            );
 
-                sync_checked(ui, self.ignore_x, settings.ignore_x_movement);
-                sync_checked(ui, self.ignore_y, settings.ignore_y_movement);
-                sync_checked(ui, self.ignore_z, settings.ignore_z_movement);
-                sync_checked(ui, self.ignore_rotation, settings.ignore_rotations);
-            }
+            sync_checked(ui, self.ignore_x, settings.ignore_x_movement);
+            sync_checked(ui, self.ignore_y, settings.ignore_y_movement);
+            sync_checked(ui, self.ignore_z, settings.ignore_z_movement);
+            sync_checked(ui, self.ignore_rotation, settings.ignore_rotations);
         }
     }
 }
@@ -372,7 +369,7 @@ pub enum ToolbarAction {
     None,
     EnterPreviewMode,
     LeavePreviewMode,
-    SelectAnimation(Handle<Animation>),
+    SelectAnimation(ErasedHandle),
     PlayPause,
     Stop,
 }
@@ -835,27 +832,25 @@ impl Toolbar {
         }
     }
 
-    pub fn handle_ui_message(
+    pub fn handle_ui_message<G, N>(
         &mut self,
         message: &UiMessage,
         sender: &MessageSender,
-        scene: &Scene,
+        graph: &G,
         ui: &mut UserInterface,
-        animation_player_handle: Handle<Node>,
-        animation_player: &AnimationPlayer,
-        editor_selection: &Selection,
-        game_scene: &GameScene,
-        selection: &AnimationSelection,
-    ) -> ToolbarAction {
-        self.root_motion_dropdown_area.handle_ui_message(
-            message,
-            scene,
-            sender,
-            ui,
-            animation_player,
-            game_scene,
-            selection,
-        );
+        animation_player_handle: Handle<N>,
+        animations: &AnimationContainer<Handle<N>>,
+        root: Handle<N>,
+        selection: &AnimationSelection<N>,
+    ) -> ToolbarAction
+    where
+        G: SceneGraph<Node = N>,
+        N: SceneGraphNode<SceneGraph = G>,
+    {
+        if let Some(animation) = animations.try_get(selection.animation) {
+            self.root_motion_dropdown_area
+                .handle_ui_message(message, graph, sender, ui, animation, root, selection);
+        }
 
         if let Some(DropdownListMessage::SelectionChanged(Some(index))) = message.data() {
             if message.destination() == self.animations
@@ -868,17 +863,16 @@ impl Toolbar {
                     .items()[*index];
                 let animation = ui
                     .node(item)
-                    .user_data_cloned::<Handle<Animation>>()
+                    .user_data_cloned::<Handle<Animation<Handle<N>>>>()
                     .unwrap();
-                sender.do_scene_command(ChangeSelectionCommand::new(
-                    Selection::Animation(AnimationSelection {
+                sender.do_command(ChangeSelectionCommand::new(Selection::new(
+                    AnimationSelection {
                         animation_player: animation_player_handle,
                         animation,
                         entities: vec![],
-                    }),
-                    editor_selection.clone(),
-                ));
-                return ToolbarAction::SelectAnimation(animation);
+                    },
+                )));
+                return ToolbarAction::SelectAnimation(animation.into());
             }
         } else if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.play_pause {
@@ -896,30 +890,25 @@ impl Toolbar {
                     MessageDirection::ToWidget,
                 ));
             } else if message.destination() == self.remove_current_animation {
-                if animation_player
-                    .animations()
-                    .try_get(selection.animation)
-                    .is_some()
-                {
+                if animations.try_get(selection.animation).is_some() {
                     let group = vec![
-                        GameSceneCommand::new(ChangeSelectionCommand::new(
-                            Selection::Animation(AnimationSelection {
+                        Command::new(ChangeSelectionCommand::new(Selection::new(
+                            AnimationSelection {
                                 animation_player: animation_player_handle,
                                 animation: Default::default(),
                                 entities: vec![],
-                            }),
-                            editor_selection.clone(),
-                        )),
-                        GameSceneCommand::new(RemoveAnimationCommand::new(
+                            },
+                        ))),
+                        Command::new(RemoveAnimationCommand::new(
                             animation_player_handle,
                             selection.animation,
                         )),
                     ];
 
-                    sender.do_scene_command(CommandGroup::from(group));
+                    sender.do_command(CommandGroup::from(group));
                 }
             } else if message.destination() == self.rename_current_animation {
-                sender.do_scene_command(SetAnimationNameCommand {
+                sender.do_command(SetAnimationNameCommand {
                     node_handle: animation_player_handle,
                     animation_handle: selection.animation,
                     value: ui
@@ -936,15 +925,13 @@ impl Toolbar {
                         .unwrap()
                         .text(),
                 );
-                sender
-                    .do_scene_command(AddAnimationCommand::new(animation_player_handle, animation));
+                sender.do_command(AddAnimationCommand::new(animation_player_handle, animation));
             } else if message.destination() == self.clone_current_animation {
-                if let Some(animation) = animation_player.animations().try_get(selection.animation)
-                {
+                if let Some(animation) = animations.try_get(selection.animation) {
                     let mut animation_clone = animation.clone();
                     animation_clone.set_name(format!("{} Copy", animation.name()));
 
-                    sender.do_scene_command(AddAnimationCommand::new(
+                    sender.do_command(AddAnimationCommand::new(
                         animation_player_handle,
                         animation_clone,
                     ));
@@ -959,13 +946,13 @@ impl Toolbar {
                         ToolbarAction::LeavePreviewMode
                     };
                 } else if message.destination() == self.looping {
-                    sender.do_scene_command(SetAnimationLoopingCommand {
+                    sender.do_command(SetAnimationLoopingCommand {
                         node_handle: animation_player_handle,
                         animation_handle: selection.animation,
                         value: *checked,
                     });
                 } else if message.destination() == self.enabled {
-                    sender.do_scene_command(SetAnimationEnabledCommand {
+                    sender.do_command(SetAnimationEnabledCommand {
                         node_handle: animation_player_handle,
                         animation_handle: selection.animation,
                         value: *checked,
@@ -975,25 +962,23 @@ impl Toolbar {
         } else if let Some(NumericUpDownMessage::<f32>::Value(value)) = message.data() {
             if message.direction() == MessageDirection::FromWidget {
                 if message.destination() == self.time_slice_start {
-                    let mut time_slice =
-                        animation_player.animations()[selection.animation].time_slice();
+                    let mut time_slice = animations[selection.animation].time_slice();
                     time_slice.start = value.min(time_slice.end);
-                    sender.do_scene_command(SetAnimationTimeSliceCommand {
+                    sender.do_command(SetAnimationTimeSliceCommand {
                         node_handle: animation_player_handle,
                         animation_handle: selection.animation,
                         value: time_slice,
                     });
                 } else if message.destination() == self.time_slice_end {
-                    let mut time_slice =
-                        animation_player.animations()[selection.animation].time_slice();
+                    let mut time_slice = animations[selection.animation].time_slice();
                     time_slice.end = value.max(time_slice.start);
-                    sender.do_scene_command(SetAnimationTimeSliceCommand {
+                    sender.do_command(SetAnimationTimeSliceCommand {
                         node_handle: animation_player_handle,
                         animation_handle: selection.animation,
                         value: time_slice,
                     });
                 } else if message.destination() == self.speed {
-                    sender.do_scene_command(SetAnimationSpeedCommand {
+                    sender.do_command(SetAnimationSpeedCommand {
                         node_handle: animation_player_handle,
                         animation_handle: selection.animation,
                         value: *value,
@@ -1005,27 +990,27 @@ impl Toolbar {
         ToolbarAction::None
     }
 
-    pub fn post_handle_ui_message(
+    pub fn post_handle_ui_message<P, G, N>(
         &mut self,
         message: &UiMessage,
         sender: &MessageSender,
         ui: &UserInterface,
-        animation_player_handle: Handle<Node>,
-        scene: &Scene,
+        animation_player_handle: Handle<N>,
+        graph: &G,
+        root: Handle<N>,
         editor_selection: &Selection,
-        game_scene: &GameScene,
         resource_manager: &ResourceManager,
-    ) {
+    ) where
+        P: PrefabData<Graph = G> + AnimationSource<Node = N, SceneGraph = G, Prefab = P>,
+        G: SceneGraph<Node = N, Prefab = P>,
+        N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
+    {
         if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.import || message.destination() == self.reimport {
                 ui.send_message(NodeSelectorMessage::hierarchy(
                     self.node_selector,
                     MessageDirection::ToWidget,
-                    HierarchyNode::from_scene_node(
-                        game_scene.scene_content_root,
-                        game_scene.editor_objects_root,
-                        &scene.graph,
-                    ),
+                    HierarchyNode::from_scene_node(root, Handle::NONE, graph),
                 ));
 
                 ui.send_message(WindowMessage::open_modal(
@@ -1045,7 +1030,7 @@ impl Toolbar {
                 && message.direction() == MessageDirection::FromWidget
             {
                 if let Some(first) = selected_nodes.first() {
-                    self.selected_import_root = (*first).into();
+                    self.selected_import_root = *first;
 
                     ui.send_message(WindowMessage::open_modal(
                         self.import_file_selector,
@@ -1061,10 +1046,15 @@ impl Toolbar {
             }
         } else if let Some(FileSelectorMessage::Commit(path)) = message.data() {
             if message.destination() == self.import_file_selector {
-                match block_on(resource_manager.request::<Model>(path)) {
+                match block_on(resource_manager.request::<P>(path)) {
                     Ok(model) => {
-                        let mut animations = model
-                            .retarget_animations_directly(self.selected_import_root, &scene.graph);
+                        let model_kind = model.kind();
+                        let data = model.data_ref();
+                        let mut animations = data.retarget_animations_directly(
+                            self.selected_import_root.into(),
+                            graph,
+                            model_kind,
+                        );
 
                         let file_stem = path
                             .file_stem()
@@ -1085,7 +1075,7 @@ impl Toolbar {
                                     animations
                                         .into_iter()
                                         .map(|a| {
-                                            GameSceneCommand::new(AddAnimationCommand::new(
+                                            Command::new(AddAnimationCommand::new(
                                                 animation_player_handle,
                                                 a,
                                             ))
@@ -1093,16 +1083,16 @@ impl Toolbar {
                                         .collect::<Vec<_>>(),
                                 );
 
-                                sender.do_scene_command(group);
+                                sender.do_command(group);
                             }
                             ImportMode::Reimport => {
-                                if let Selection::Animation(ref selection) = editor_selection {
+                                if let Some(selection) = editor_selection.as_animation() {
                                     if animations.len() > 1 {
                                         Log::warn("More than one animation found! Only first will be used");
                                     }
 
                                     if !animations.is_empty() {
-                                        sender.do_scene_command(ReplaceAnimationCommand {
+                                        sender.do_command(ReplaceAnimationCommand {
                                             animation_player: selection.animation_player,
                                             animation_handle: selection.animation,
                                             animation: animations.into_iter().next().unwrap(),
@@ -1140,19 +1130,18 @@ impl Toolbar {
         }
     }
 
-    pub fn sync_to_model(
+    pub fn sync_to_model<G, N>(
         &self,
-        animation_player: &AnimationPlayer,
-        selection: &AnimationSelection,
-        scene: &Scene,
+        animations: &AnimationContainer<Handle<N>>,
+        selection: &AnimationSelection<N>,
+        graph: &G,
         ui: &mut UserInterface,
         in_preview_mode: bool,
-    ) {
-        self.root_motion_dropdown_area
-            .sync_to_model(animation_player, selection, scene, ui);
-
-        let new_items = animation_player
-            .animations()
+    ) where
+        G: SceneGraph<Node = N>,
+        N: SceneGraphNode,
+    {
+        let new_items = animations
             .pair_iter()
             .map(|(h, a)| {
                 make_dropdown_list_option_universal(&mut ui.build_ctx(), a.name(), 22.0, h)
@@ -1169,15 +1158,17 @@ impl Toolbar {
             DropdownListMessage::selection(
                 self.animations,
                 MessageDirection::ToWidget,
-                animation_player
-                    .animations()
+                animations
                     .pair_iter()
                     .position(|(h, _)| h == selection.animation),
             ),
         );
 
         let mut selected_animation_valid = false;
-        if let Some(animation) = animation_player.animations().try_get(selection.animation) {
+        if let Some(animation) = animations.try_get(selection.animation) {
+            self.root_motion_dropdown_area
+                .sync_to_model(animation, graph, ui);
+
             selected_animation_valid = true;
             send_sync_message(
                 ui,

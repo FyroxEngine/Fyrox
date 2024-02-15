@@ -1,13 +1,14 @@
 use crate::{
-    define_command_stack, send_sync_message, utils::create_file_selector, MessageBoxButtons,
-    MessageBoxMessage, MSG_SYNC_FLAG,
+    command::{Command, CommandContext, CommandStack, CommandTrait},
+    send_sync_message,
+    utils::create_file_selector,
+    MessageBoxButtons, MessageBoxMessage, MSG_SYNC_FLAG,
 };
-use fyrox::asset::untyped::ResourceKind;
 use fyrox::{
-    asset::Resource,
+    asset::{untyped::ResourceKind, Resource},
     core::{
-        color::Color, curve::Curve, futures::executor::block_on, pool::Handle, visitor::prelude::*,
-        visitor::Visitor,
+        color::Color, curve::Curve, futures::executor::block_on, pool::Handle,
+        type_traits::prelude::*, visitor::prelude::*, visitor::Visitor,
     },
     engine::Engine,
     gui::{
@@ -29,10 +30,10 @@ use fyrox::{
 };
 use std::{fmt::Debug, path::PathBuf};
 
-#[derive(Debug)]
+#[derive(Debug, ComponentProvider)]
 pub struct CurveEditorContext {}
 
-define_command_stack!(CurveCommand, CurveCommandStack, CurveEditorContext);
+impl CommandContext for CurveEditorContext {}
 
 #[derive(Debug)]
 struct ModifyCurveCommand {
@@ -46,16 +47,16 @@ impl ModifyCurveCommand {
     }
 }
 
-impl CurveCommand for ModifyCurveCommand {
-    fn name(&mut self, _: &CurveEditorContext) -> String {
+impl CommandTrait for ModifyCurveCommand {
+    fn name(&mut self, _: &dyn CommandContext) -> String {
         "Modify Curve".to_owned()
     }
 
-    fn execute(&mut self, _: &mut CurveEditorContext) {
+    fn execute(&mut self, _: &mut dyn CommandContext) {
         self.swap();
     }
 
-    fn revert(&mut self, _: &mut CurveEditorContext) {
+    fn revert(&mut self, _: &mut dyn CommandContext) {
         self.swap();
     }
 }
@@ -82,7 +83,7 @@ pub struct CurveEditorWindow {
     ok: Handle<UiNode>,
     cancel: Handle<UiNode>,
     curve_resource: Option<CurveResource>,
-    command_stack: CurveCommandStack,
+    command_stack: CommandStack,
     menu: Menu,
     load_file_selector: Handle<UiNode>,
     save_file_selector: Handle<UiNode>,
@@ -265,7 +266,7 @@ impl CurveEditorWindow {
             ok,
             cancel,
             curve_resource: None,
-            command_stack: CurveCommandStack::new(false),
+            command_stack: CommandStack::new(false),
             menu: Menu {
                 file: FileMenu { new, save, load },
                 edit: EditMenu { undo, redo },
@@ -335,7 +336,7 @@ impl CurveEditorWindow {
 
         self.modified = false;
 
-        self.command_stack.clear(CurveEditorContext {});
+        self.command_stack.clear(&mut CurveEditorContext {});
     }
 
     fn sync_title(&self, ui: &UserInterface) {
@@ -362,7 +363,7 @@ impl CurveEditorWindow {
     fn clear(&mut self, ui: &UserInterface) {
         self.path = Default::default();
         self.backup = Default::default();
-        self.command_stack.clear(CurveEditorContext {});
+        self.command_stack.clear(&mut CurveEditorContext {});
         self.curve_resource = None;
         self.sync_title(ui);
         ui.send_message(WidgetMessage::enabled(
@@ -439,11 +440,11 @@ impl CurveEditorWindow {
             {
                 if let Some(curve_resource) = self.curve_resource.as_ref() {
                     self.command_stack.do_command(
-                        Box::new(ModifyCurveCommand {
+                        Command::new(ModifyCurveCommand {
                             curve_resource: curve_resource.clone(),
                             curve: curve.clone(),
                         }),
-                        CurveEditorContext {},
+                        &mut CurveEditorContext {},
                     );
 
                     self.modified = true;
@@ -451,11 +452,11 @@ impl CurveEditorWindow {
             }
         } else if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination() == self.menu.edit.undo {
-                self.command_stack.undo(CurveEditorContext {});
+                self.command_stack.undo(&mut CurveEditorContext {});
 
                 self.sync_to_model(ui);
             } else if message.destination() == self.menu.edit.redo {
-                self.command_stack.redo(CurveEditorContext {});
+                self.command_stack.redo(&mut CurveEditorContext {});
 
                 self.sync_to_model(ui);
             } else if message.destination() == self.menu.file.load {

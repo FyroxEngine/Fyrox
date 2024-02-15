@@ -20,10 +20,11 @@ use crate::{
     utils::{make_arrow_primitives, ArrowDirection},
     vector_image::VectorImageBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, RestrictionEntry,
-    Thickness, UiNode, UserInterface, VerticalAlignment, BRUSH_BRIGHT, BRUSH_BRIGHT_BLUE,
-    BRUSH_PRIMARY,
+    BuildContext, Control, HorizontalAlignment, Orientation, RestrictionEntry, Thickness, UiNode,
+    UserInterface, VerticalAlignment, BRUSH_BRIGHT, BRUSH_BRIGHT_BLUE, BRUSH_PRIMARY,
 };
+use fyrox_core::variable::InheritableVariable;
+use fyrox_graph::{BaseSceneGraph, SceneGraph};
 use std::{
     ops::{Deref, DerefMut},
     sync::mpsc::Sender,
@@ -54,7 +55,7 @@ impl MenuMessage {
 /// A set of messages that can be used to manipulate a [`MenuItem`] widget at runtime.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MenuItemMessage {
-    /// Opens the menu item's popup with inner items.  
+    /// Opens the menu item's popup with inner items.
     Open,
     /// Closes the menu item's popup with inner items.
     Close,
@@ -187,7 +188,7 @@ impl Control for Menu {
                                 ));
                                 // We have to search in popup content too because menu shows its content
                                 // in popup and content could be another menu item.
-                                stack.push(item.popup);
+                                stack.push(*item.popup);
                             }
                             // Continue depth search.
                             stack.extend_from_slice(node.children());
@@ -220,7 +221,7 @@ impl Control for Menu {
                     'depth_search: while let Some(handle) = stack.pop() {
                         let node = ui.node(handle);
                         if let Some(item) = node.cast::<MenuItem>() {
-                            let popup = ui.node(item.popup);
+                            let popup = ui.node(*item.popup);
                             if popup.screen_bounds().contains(pos) && popup.is_globally_visible() {
                                 // Once we found that we clicked inside some descendant menu item
                                 // we can immediately stop search - we don't want to close menu
@@ -230,7 +231,7 @@ impl Control for Menu {
                             }
                             // We have to search in popup content too because menu shows its content
                             // in popup and content could be another menu item.
-                            stack.push(item.popup);
+                            stack.push(*item.popup);
                         }
                         // Continue depth search.
                         stack.extend_from_slice(node.children());
@@ -265,17 +266,17 @@ pub struct MenuItem {
     /// Base widget of the menu item.
     pub widget: Widget,
     /// Current items of the menu item
-    pub items: Vec<Handle<UiNode>>,
+    pub items: InheritableVariable<Vec<Handle<UiNode>>>,
     /// A handle of a popup that holds the items of the menu item.
-    pub popup: Handle<UiNode>,
+    pub popup: InheritableVariable<Handle<UiNode>>,
     /// A handle of a panel widget that arranges items of the menu item.
-    pub panel: Handle<UiNode>,
+    pub panel: InheritableVariable<Handle<UiNode>>,
     /// Current placement of the menu item.
-    pub placement: MenuItemPlacement,
+    pub placement: InheritableVariable<MenuItemPlacement>,
     /// A flag, that defines whether the menu item is clickable when it has sub-items or not.
-    pub clickable_when_not_empty: bool,
+    pub clickable_when_not_empty: InheritableVariable<bool>,
     /// A handle to the decorator of the item.
-    pub decorator: Handle<UiNode>,
+    pub decorator: InheritableVariable<Handle<UiNode>>,
 }
 
 crate::define_widget_deref!(MenuItem);
@@ -288,14 +289,14 @@ crate::define_widget_deref!(MenuItem);
 fn find_menu(from: Handle<UiNode>, ui: &UserInterface) -> Handle<UiNode> {
     let mut handle = from;
     while handle.is_some() {
-        if let Some((_, popup)) = ui.try_borrow_by_type_up::<Popup>(handle) {
+        if let Some((_, popup)) = ui.find_component_up::<Popup>(handle) {
             // Continue search from parent menu item of popup.
             handle = popup
                 .user_data_cloned::<Handle<UiNode>>()
                 .unwrap_or_default();
         } else {
             // Maybe we have Menu as parent for MenuItem.
-            return ui.find_by_criteria_up(handle, |n| n.cast::<Menu>().is_some());
+            return ui.find_handle_up(handle, &mut |n| n.cast::<Menu>().is_some());
         }
     }
     Default::default()
@@ -307,7 +308,7 @@ fn is_any_menu_item_contains_point(ui: &UserInterface, pt: Vector2<f32>) -> bool
         .pair_iter()
         .filter_map(|(h, n)| n.query_component::<MenuItem>().map(|menu| (h, menu)))
     {
-        if ui.try_borrow_by_type_up::<Menu>(handle).is_none()
+        if ui.find_component_up::<Menu>(handle).is_none()
             && menu.is_globally_visible()
             && menu.screen_bounds().contains(pt)
         {
@@ -320,7 +321,7 @@ fn is_any_menu_item_contains_point(ui: &UserInterface, pt: Vector2<f32>) -> bool
 fn close_menu_chain(from: Handle<UiNode>, ui: &UserInterface) {
     let mut handle = from;
     while handle.is_some() {
-        let popup_handle = ui.find_by_criteria_up(handle, |n| n.has_component::<Popup>());
+        let popup_handle = ui.find_handle_up(handle, &mut |n| n.has_component::<Popup>());
 
         if let Some(popup) = ui.node(popup_handle).query_component::<Popup>() {
             ui.send_message(PopupMessage::close(
@@ -347,15 +348,10 @@ impl Control for MenuItem {
         // So we have to remove it manually.
         sender
             .send(WidgetMessage::remove(
-                self.popup,
+                *self.popup,
                 MessageDirection::ToWidget,
             ))
             .unwrap();
-    }
-
-    fn resolve(&mut self, node_map: &NodeHandleMapping) {
-        node_map.resolve_slice(&mut self.items);
-        node_map.resolve(&mut self.popup);
     }
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
@@ -378,7 +374,7 @@ impl Control for MenuItem {
                 }
                 WidgetMessage::MouseUp { .. } => {
                     if !message.handled() {
-                        if self.items.is_empty() || self.clickable_when_not_empty {
+                        if self.items.is_empty() || *self.clickable_when_not_empty {
                             ui.send_message(MenuItemMessage::click(
                                 self.handle(),
                                 MessageDirection::ToWidget,
@@ -429,23 +425,23 @@ impl Control for MenuItem {
                 match msg {
                     MenuItemMessage::Open => {
                         if !self.items.is_empty() {
-                            let placement = match self.placement {
+                            let placement = match *self.placement {
                                 MenuItemPlacement::Bottom => Placement::LeftBottom(self.handle),
                                 MenuItemPlacement::Right => Placement::RightTop(self.handle),
                             };
 
                             // Open popup.
                             ui.send_message(PopupMessage::placement(
-                                self.popup,
+                                *self.popup,
                                 MessageDirection::ToWidget,
                                 placement,
                             ));
                             ui.send_message(PopupMessage::open(
-                                self.popup,
+                                *self.popup,
                                 MessageDirection::ToWidget,
                             ));
                             ui.send_message(DecoratorMessage::select(
-                                self.decorator,
+                                *self.decorator,
                                 MessageDirection::ToWidget,
                                 true,
                             ));
@@ -453,11 +449,11 @@ impl Control for MenuItem {
                     }
                     MenuItemMessage::Close => {
                         ui.send_message(PopupMessage::close(
-                            self.popup,
+                            *self.popup,
                             MessageDirection::ToWidget,
                         ));
                         ui.send_message(DecoratorMessage::select(
-                            self.decorator,
+                            *self.decorator,
                             MessageDirection::ToWidget,
                             false,
                         ));
@@ -467,7 +463,7 @@ impl Control for MenuItem {
                         ui.send_message(WidgetMessage::link(
                             *item,
                             MessageDirection::ToWidget,
-                            self.panel,
+                            *self.panel,
                         ));
                         self.items.push(*item);
                     }
@@ -493,11 +489,11 @@ impl Control for MenuItem {
                             ui.send_message(WidgetMessage::link(
                                 item,
                                 MessageDirection::ToWidget,
-                                self.panel,
+                                *self.panel,
                             ));
                         }
 
-                        self.items = items.clone();
+                        self.items.set_value_and_mark_modified(items.clone());
                     }
                 }
             }
@@ -548,14 +544,14 @@ impl Control for MenuItem {
         // Allow closing "orphaned" menus by clicking outside of them.
         if let OsEvent::MouseInput { state, .. } = event {
             if *state == ButtonState::Pressed {
-                if let Some(popup) = ui.node(self.popup).query_component::<Popup>() {
-                    if popup.is_open {
+                if let Some(popup) = ui.node(*self.popup).query_component::<Popup>() {
+                    if *popup.is_open {
                         // Ensure that cursor is outside of any menus.
                         if !is_any_menu_item_contains_point(ui, ui.cursor_position())
                             && find_menu(self.parent(), ui).is_none()
                         {
                             ui.send_message(PopupMessage::close(
-                                self.popup,
+                                *self.popup,
                                 MessageDirection::ToWidget,
                             ));
 
@@ -594,7 +590,8 @@ impl MenuBuilder {
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         for &item in self.items.iter() {
             if let Some(item) = ctx[item].cast_mut::<MenuItem>() {
-                item.placement = MenuItemPlacement::Bottom;
+                item.placement
+                    .set_value_and_mark_modified(MenuItemPlacement::Bottom);
             }
         }
 
@@ -743,7 +740,6 @@ impl<'a, 'b> MenuItemBuilder<'a, 'b> {
                     .with_child(
                         TextBuilder::new(
                             WidgetBuilder::new()
-                                .with_vertical_alignment(VerticalAlignment::Center)
                                 .with_margin(Thickness::left(2.0))
                                 .on_column(1),
                         )
@@ -753,7 +749,6 @@ impl<'a, 'b> MenuItemBuilder<'a, 'b> {
                     .with_child(
                         TextBuilder::new(
                             WidgetBuilder::new()
-                                .with_vertical_alignment(VerticalAlignment::Center)
                                 .with_horizontal_alignment(HorizontalAlignment::Right)
                                 .with_margin(Thickness::uniform(1.0))
                                 .on_column(2),
@@ -798,7 +793,9 @@ impl<'a, 'b> MenuItemBuilder<'a, 'b> {
             .build(ctx)
         });
 
-        ctx.link(content, decorator);
+        if content.is_some() {
+            ctx.link(content, decorator);
+        }
 
         let panel;
         let popup = PopupBuilder::new(WidgetBuilder::new().with_min_size(Vector2::new(10.0, 10.0)))
@@ -820,12 +817,12 @@ impl<'a, 'b> MenuItemBuilder<'a, 'b> {
                 .with_preview_messages(true)
                 .with_child(decorator)
                 .build(),
-            popup,
-            items: self.items,
-            placement: MenuItemPlacement::Right,
-            panel,
-            clickable_when_not_empty: false,
-            decorator,
+            popup: popup.into(),
+            items: self.items.into(),
+            placement: MenuItemPlacement::Right.into(),
+            panel: panel.into(),
+            clickable_when_not_empty: false.into(),
+            decorator: decorator.into(),
         };
 
         let handle = ctx.add_node(UiNode::new(menu));

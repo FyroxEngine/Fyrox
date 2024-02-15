@@ -9,15 +9,15 @@ use crate::{
         selection::SelectedEntity,
         transition::TransitionView,
     },
+    command::{Command, CommandGroup},
     menu::create_menu_item,
     message::MessageSender,
-    scene::{
-        commands::{ChangeSelectionCommand, CommandGroup, GameSceneCommand},
-        Selection,
-    },
+    scene::{commands::ChangeSelectionCommand, Selection},
 };
 use fyrox::{
     core::pool::Handle,
+    generic_animation::machine::{Machine, State, Transition},
+    graph::BaseSceneGraph,
     gui::{
         menu::MenuItemMessage,
         message::{MessageDirection, UiMessage},
@@ -26,8 +26,8 @@ use fyrox::{
         widget::WidgetBuilder,
         BuildContext, RcUiNodeHandle, UiNode, UserInterface,
     },
-    scene::{animation::absm::prelude::*, node::Node},
 };
+use std::fmt::Debug;
 
 use super::fetch_state_node_model_handle;
 
@@ -69,19 +69,19 @@ impl CanvasContextMenu {
         }
     }
 
-    pub fn handle_ui_message(
+    pub fn handle_ui_message<N: Debug + 'static>(
         &mut self,
         sender: &MessageSender,
         message: &UiMessage,
         ui: &mut UserInterface,
-        absm_node_handle: Handle<Node>,
+        absm_node_handle: Handle<N>,
         layer_index: usize,
     ) {
         if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination() == self.create_state {
                 let screen_position = ui.node(self.menu.handle()).screen_position();
 
-                sender.do_scene_command(AddStateCommand::new(
+                sender.do_command(AddStateCommand::new(
                     absm_node_handle,
                     layer_index,
                     State {
@@ -114,14 +114,14 @@ impl CanvasContextMenu {
                             fetch_state_node_model_handle(**source_node, ui),
                             fetch_state_node_model_handle(**dest_node, ui),
                         );
-                        GameSceneCommand::new(AddTransitionCommand::new(
+                        Command::new(AddTransitionCommand::new(
                             absm_node_handle,
                             layer_index,
                             Transition::new("Transition", source, dest, 1.0, ""),
                         ))
                     })
                     .collect::<Vec<_>>();
-                sender.do_scene_command(CommandGroup::from(commands));
+                sender.do_command(CommandGroup::from(commands));
             }
         }
     }
@@ -192,17 +192,16 @@ impl NodeContextMenu {
         }
     }
 
-    pub fn handle_ui_message(
+    pub fn handle_ui_message<N: Debug + 'static>(
         &mut self,
         message: &UiMessage,
         ui: &mut UserInterface,
         sender: &MessageSender,
-        absm_node_handle: Handle<Node>,
-        absm_node: &AnimationBlendingStateMachine,
+        absm_node_handle: Handle<N>,
+        machine: &Machine<Handle<N>>,
         layer_index: usize,
         editor_selection: &Selection,
     ) {
-        let machine = absm_node.machine();
         if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination() == self.create_transition {
                 ui.send_message(AbsmCanvasMessage::switch_mode(
@@ -215,7 +214,7 @@ impl NodeContextMenu {
                     },
                 ))
             } else if message.destination == self.remove {
-                if let Selection::Absm(ref selection) = editor_selection {
+                if let Some(selection) = editor_selection.as_absm() {
                     let states_to_remove = selection
                         .entities
                         .iter()
@@ -247,13 +246,12 @@ impl NodeContextMenu {
                     let mut new_selection = selection.clone();
                     new_selection.entities.clear();
 
-                    let mut group = vec![GameSceneCommand::new(ChangeSelectionCommand::new(
-                        Selection::Absm(new_selection),
-                        editor_selection.clone(),
+                    let mut group = vec![Command::new(ChangeSelectionCommand::new(
+                        Selection::new(new_selection),
                     ))];
 
                     group.extend(transitions_to_remove.map(|transition| {
-                        GameSceneCommand::new(DeleteTransitionCommand::new(
+                        Command::new(DeleteTransitionCommand::new(
                             absm_node_handle,
                             layer_index,
                             transition,
@@ -261,22 +259,22 @@ impl NodeContextMenu {
                     }));
 
                     group.extend(states_to_remove.into_iter().map(|state| {
-                        GameSceneCommand::new(DeleteStateCommand::new(
+                        Command::new(DeleteStateCommand::new(
                             absm_node_handle,
                             layer_index,
                             state,
                         ))
                     }));
 
-                    sender.do_scene_command(CommandGroup::from(group));
+                    sender.do_command(CommandGroup::from(group));
                 }
             } else if message.destination() == self.set_as_entry_state {
-                sender.do_scene_command(SetMachineEntryStateCommand {
+                sender.do_command(SetMachineEntryStateCommand {
                     node_handle: absm_node_handle,
                     layer: layer_index,
                     entry: ui
                         .node(self.placement_target)
-                        .query_component::<AbsmNode<State>>()
+                        .query_component::<AbsmNode<State<Handle<N>>>>()
                         .unwrap()
                         .model_handle,
                 });
@@ -295,7 +293,7 @@ impl NodeContextMenu {
                     .children()
                     .iter()
                     .cloned()
-                    .filter(|c| ui.node(*c).has_component::<AbsmNode<State>>())
+                    .filter(|c| ui.node(*c).has_component::<AbsmNode<State<Handle<N>>>>())
                     .collect::<Vec<_>>();
                 ui.send_message(AbsmCanvasMessage::commit_transition_to_all_nodes(
                     self.canvas,
@@ -339,18 +337,18 @@ impl TransitionContextMenu {
         }
     }
 
-    pub fn handle_ui_message(
+    pub fn handle_ui_message<N: Debug + 'static>(
         &mut self,
         message: &UiMessage,
         ui: &mut UserInterface,
         sender: &MessageSender,
-        absm_node_handle: Handle<Node>,
+        absm_node_handle: Handle<N>,
         layer_index: usize,
         editor_selection: &Selection,
     ) {
         if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination == self.remove {
-                if let Selection::Absm(ref selection) = editor_selection {
+                if let Some(selection) = editor_selection.as_absm::<N>() {
                     let mut new_selection = selection.clone();
                     new_selection.entities.clear();
 
@@ -360,18 +358,15 @@ impl TransitionContextMenu {
                         .unwrap();
 
                     let group = vec![
-                        GameSceneCommand::new(ChangeSelectionCommand::new(
-                            Selection::Absm(new_selection),
-                            editor_selection.clone(),
-                        )),
-                        GameSceneCommand::new(DeleteTransitionCommand::new(
+                        Command::new(ChangeSelectionCommand::new(Selection::new(new_selection))),
+                        Command::new(DeleteTransitionCommand::new(
                             absm_node_handle,
                             layer_index,
-                            transition_ref.model_handle,
+                            transition_ref.model_handle.into(),
                         )),
                     ];
 
-                    sender.do_scene_command(CommandGroup::from(group));
+                    sender.do_command(CommandGroup::from(group));
                 }
             }
         } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {

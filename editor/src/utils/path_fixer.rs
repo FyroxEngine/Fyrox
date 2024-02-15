@@ -3,6 +3,7 @@
 
 use crate::{make_scene_file_filter, Message};
 use fyrox::asset::untyped::ResourceKind;
+use fyrox::graph::{BaseSceneGraph, SceneGraph};
 use fyrox::{
     asset::{manager::ResourceManager, untyped::UntypedResource},
     core::{
@@ -228,7 +229,7 @@ impl PathFixer {
             .cast::<ListView>()
             .unwrap()
             .items()[index];
-        let item_text = ui.find_by_criteria_down(item, &|n| n.cast::<Text>().is_some());
+        let item_text = ui.find_handle(item, &mut |n| n.cast::<Text>().is_some());
 
         assert!(item_text.is_some());
 

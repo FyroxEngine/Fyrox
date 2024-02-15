@@ -17,6 +17,7 @@ use crate::{
     BuildContext, Control, UiNode, UserInterface,
 };
 use fyrox_core::uuid_provider;
+use fyrox_core::variable::InheritableVariable;
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::{Display, Formatter},
@@ -157,23 +158,23 @@ impl HotKeyEditorMessage {
 #[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
 pub struct HotKeyEditor {
     widget: Widget,
-    text: Handle<UiNode>,
-    value: HotKey,
-    editing: bool,
+    text: InheritableVariable<Handle<UiNode>>,
+    value: InheritableVariable<HotKey>,
+    editing: InheritableVariable<bool>,
 }
 
 define_widget_deref!(HotKeyEditor);
 
 impl HotKeyEditor {
     fn set_editing(&mut self, editing: bool, ui: &UserInterface) {
-        self.editing = editing;
+        self.editing.set_value_and_mark_modified(editing);
         ui.send_message(TextMessage::text(
-            self.text,
+            *self.text,
             MessageDirection::ToWidget,
-            if self.editing {
+            if *self.editing {
                 "[WAITING INPUT]".to_string()
             } else {
-                format!("{}", self.value)
+                format!("{}", *self.value)
             },
         ));
     }
@@ -199,7 +200,7 @@ impl Control for HotKeyEditor {
         if let Some(msg) = message.data::<WidgetMessage>() {
             match msg {
                 WidgetMessage::KeyDown(key) => {
-                    if self.editing
+                    if *self.editing
                         && !matches!(
                             *key,
                             KeyCode::ControlLeft
@@ -224,7 +225,7 @@ impl Control for HotKeyEditor {
                 }
                 WidgetMessage::MouseDown { button, .. } => {
                     if *button == MouseButton::Left {
-                        if self.editing {
+                        if *self.editing {
                             self.set_editing(false, ui);
                         } else {
                             self.set_editing(true, ui);
@@ -232,7 +233,7 @@ impl Control for HotKeyEditor {
                     }
                 }
                 WidgetMessage::Unfocus => {
-                    if self.editing {
+                    if *self.editing {
                         self.set_editing(false, ui);
                     }
                 }
@@ -243,13 +244,13 @@ impl Control for HotKeyEditor {
         if message.destination() == self.handle && message.direction() == MessageDirection::ToWidget
         {
             if let Some(HotKeyEditorMessage::Value(value)) = message.data() {
-                if value != &self.value {
-                    self.value = value.clone();
+                if value != &*self.value {
+                    self.value.set_value_and_mark_modified(value.clone());
 
                     ui.send_message(TextMessage::text(
-                        self.text,
+                        *self.text,
                         MessageDirection::ToWidget,
-                        format!("{}", self.value),
+                        format!("{}", *self.value),
                     ));
 
                     ui.send_message(message.reverse());
@@ -288,9 +289,9 @@ impl HotKeyEditorBuilder {
 
         let editor = HotKeyEditor {
             widget: self.widget_builder.with_child(text).build(),
-            text,
-            editing: false,
-            value: self.value,
+            text: text.into(),
+            editing: false.into(),
+            value: self.value.into(),
         };
 
         ctx.add_node(UiNode::new(editor))
@@ -374,23 +375,23 @@ impl KeyBindingEditorMessage {
 #[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
 pub struct KeyBindingEditor {
     widget: Widget,
-    text: Handle<UiNode>,
-    value: KeyBinding,
-    editing: bool,
+    text: InheritableVariable<Handle<UiNode>>,
+    value: InheritableVariable<KeyBinding>,
+    editing: InheritableVariable<bool>,
 }
 
 define_widget_deref!(KeyBindingEditor);
 
 impl KeyBindingEditor {
     fn set_editing(&mut self, editing: bool, ui: &UserInterface) {
-        self.editing = editing;
+        self.editing.set_value_and_mark_modified(editing);
         ui.send_message(TextMessage::text(
-            self.text,
+            *self.text,
             MessageDirection::ToWidget,
-            if self.editing {
+            if *self.editing {
                 "[WAITING INPUT]".to_string()
             } else {
-                format!("{}", self.value)
+                format!("{}", *self.value)
             },
         ));
     }
@@ -426,7 +427,7 @@ impl Control for KeyBindingEditor {
                 }
                 WidgetMessage::MouseDown { button, .. } => {
                     if *button == MouseButton::Left {
-                        if self.editing {
+                        if *self.editing {
                             self.set_editing(false, ui);
                         } else {
                             self.set_editing(true, ui);
@@ -434,7 +435,7 @@ impl Control for KeyBindingEditor {
                     }
                 }
                 WidgetMessage::Unfocus => {
-                    if self.editing {
+                    if *self.editing {
                         self.set_editing(false, ui);
                     }
                 }
@@ -445,13 +446,13 @@ impl Control for KeyBindingEditor {
         if message.destination() == self.handle && message.direction() == MessageDirection::ToWidget
         {
             if let Some(KeyBindingEditorMessage::Value(value)) = message.data() {
-                if value != &self.value {
-                    self.value = value.clone();
+                if value != &*self.value {
+                    self.value.set_value_and_mark_modified(value.clone());
 
                     ui.send_message(TextMessage::text(
-                        self.text,
+                        *self.text,
                         MessageDirection::ToWidget,
-                        format!("{}", self.value),
+                        format!("{}", *self.value),
                     ));
 
                     ui.send_message(message.reverse());
@@ -490,9 +491,9 @@ impl KeyBindingEditorBuilder {
 
         let editor = KeyBindingEditor {
             widget: self.widget_builder.with_child(text).build(),
-            text,
-            editing: false,
-            value: self.value,
+            text: text.into(),
+            editing: false.into(),
+            value: self.value.into(),
         };
 
         ctx.add_node(UiNode::new(editor))

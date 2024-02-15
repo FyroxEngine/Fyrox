@@ -37,6 +37,7 @@ pub use fyrox_sound::{
 };
 
 use crate::scene::Scene;
+use fyrox_graph::BaseSceneGraph;
 use fyrox_resource::state::ResourceState;
 use fyrox_sound::source::SoundSource;
 use std::{

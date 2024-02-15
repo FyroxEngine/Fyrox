@@ -161,6 +161,10 @@ impl<'a, 'b> PartialEq<Self> for FieldInfo<'a, 'b> {
 /// for every type that should support `Reflect` trait. It is a good compromise between development speed
 /// and the quality of the string output.
 pub trait Reflect: Any + Debug {
+    fn source_path() -> &'static str
+    where
+        Self: Sized;
+
     fn type_name(&self) -> &'static str;
 
     fn doc(&self) -> &'static str;
@@ -1056,6 +1060,10 @@ impl dyn ReflectList {
 #[macro_export]
 macro_rules! blank_reflect {
     () => {
+        fn source_path() -> &'static str {
+            file!()
+        }
+
         fn type_name(&self) -> &'static str {
             std::any::type_name::<Self>()
         }
@@ -1106,6 +1114,10 @@ macro_rules! blank_reflect {
 #[macro_export]
 macro_rules! delegate_reflect {
     () => {
+        fn source_path() -> &'static str {
+            file!()
+        }
+
         fn type_name(&self) -> &'static str {
             self.deref().type_name()
         }
@@ -1164,6 +1176,93 @@ macro_rules! delegate_reflect {
 
         fn as_list_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectList>)) {
             self.deref_mut().as_list_mut(func)
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! newtype_reflect {
+    () => {
+        fn type_name(&self) -> &'static str {
+            self.0.type_name()
+        }
+
+        fn doc(&self) -> &'static str {
+            self.0.doc()
+        }
+
+        fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo])) {
+            self.0.fields_info(func)
+        }
+
+        fn into_any(self: Box<Self>) -> Box<dyn Any> {
+            self
+        }
+
+        fn as_any(&self, func: &mut dyn FnMut(&dyn Any)) {
+            self.0.as_any(func)
+        }
+
+        fn as_any_mut(&mut self, func: &mut dyn FnMut(&mut dyn Any)) {
+            self.0.as_any_mut(func)
+        }
+
+        fn as_reflect(&self, func: &mut dyn FnMut(&dyn Reflect)) {
+            self.0.as_reflect(func)
+        }
+
+        fn as_reflect_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect)) {
+            self.0.as_reflect_mut(func)
+        }
+
+        fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
+            self.0.set(value)
+        }
+
+        fn field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
+            self.0.field(name, func)
+        }
+
+        fn field_mut(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut dyn Reflect>)) {
+            self.0.field_mut(name, func)
+        }
+
+        fn as_array(&self, func: &mut dyn FnMut(Option<&dyn ReflectArray>)) {
+            self.0.as_array(func)
+        }
+
+        fn as_array_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectArray>)) {
+            self.0.as_array_mut(func)
+        }
+
+        fn as_list(&self, func: &mut dyn FnMut(Option<&dyn ReflectList>)) {
+            self.0.as_list(func)
+        }
+
+        fn as_list_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectList>)) {
+            self.0.as_list_mut(func)
+        }
+
+        fn as_inheritable_variable(
+            &self,
+            func: &mut dyn FnMut(Option<&dyn ReflectInheritableVariable>),
+        ) {
+            self.0.as_inheritable_variable(func)
+        }
+
+        fn as_inheritable_variable_mut(
+            &mut self,
+            func: &mut dyn FnMut(Option<&mut dyn ReflectInheritableVariable>),
+        ) {
+            self.0.as_inheritable_variable_mut(func)
+        }
+
+        fn as_hash_map(&self, func: &mut dyn FnMut(Option<&dyn ReflectHashMap>)) {
+            self.0.as_hash_map(func)
+        }
+
+        fn as_hash_map_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectHashMap>)) {
+            self.0.as_hash_map_mut(func)
         }
     };
 }

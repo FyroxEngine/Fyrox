@@ -14,9 +14,10 @@ use crate::{
     define_constructor,
     message::{MessageDirection, UiMessage},
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, NodeHandleMapping, UiNode, UserInterface,
+    BuildContext, Control, UiNode, UserInterface,
 };
 use fyrox_core::uuid_provider;
+use fyrox_core::variable::InheritableVariable;
 use std::ops::{Deref, DerefMut};
 
 /// A set of messages that can be used to modify the state of a progress bar.
@@ -74,11 +75,11 @@ pub struct ProgressBar {
     /// Base widget of the progress bar.
     pub widget: Widget,
     /// Current progress of the progress bar.
-    pub progress: f32,
+    pub progress: InheritableVariable<f32>,
     /// Handle of a widget that is used to show the progress.
-    pub indicator: Handle<UiNode>,
+    pub indicator: InheritableVariable<Handle<UiNode>>,
     /// Container widget of the bar of the progress bar.
-    pub body: Handle<UiNode>,
+    pub body: InheritableVariable<Handle<UiNode>>,
 }
 
 crate::define_widget_deref!(ProgressBar);
@@ -86,22 +87,17 @@ crate::define_widget_deref!(ProgressBar);
 uuid_provider!(ProgressBar = "d6ebb853-d945-46bc-86db-4c8b5d5faf8e");
 
 impl Control for ProgressBar {
-    fn resolve(&mut self, node_map: &NodeHandleMapping) {
-        node_map.resolve(&mut self.indicator);
-        node_map.resolve(&mut self.body);
-    }
-
     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
         let size = self.widget.arrange_override(ui, final_size);
 
         ui.send_message(WidgetMessage::width(
-            self.indicator,
+            *self.indicator,
             MessageDirection::ToWidget,
-            size.x * self.progress,
+            size.x * *self.progress,
         ));
 
         ui.send_message(WidgetMessage::height(
-            self.indicator,
+            *self.indicator,
             MessageDirection::ToWidget,
             size.y,
         ));
@@ -116,7 +112,7 @@ impl Control for ProgressBar {
             if let Some(&ProgressBarMessage::Progress(progress)) =
                 message.data::<ProgressBarMessage>()
             {
-                if progress != self.progress {
+                if progress != *self.progress {
                     self.set_progress(progress);
                     self.invalidate_layout();
                 }
@@ -127,7 +123,8 @@ impl Control for ProgressBar {
 
 impl ProgressBar {
     fn set_progress(&mut self, progress: f32) {
-        self.progress = progress.clamp(0.0, 1.0);
+        self.progress
+            .set_value_and_mark_modified(progress.clamp(0.0, 1.0));
     }
 }
 
@@ -187,9 +184,9 @@ impl ProgressBarBuilder {
 
         let progress_bar = ProgressBar {
             widget: self.widget_builder.with_child(body).build(),
-            progress: self.progress,
-            indicator,
-            body,
+            progress: self.progress.into(),
+            indicator: indicator.into(),
+            body: body.into(),
         };
 
         ctx.add_node(UiNode::new(progress_bar))

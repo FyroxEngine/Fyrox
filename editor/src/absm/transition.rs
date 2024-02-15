@@ -5,6 +5,7 @@ use crate::{
     },
     utils::fetch_node_center,
 };
+use fyrox::core::pool::ErasedHandle;
 use fyrox::{
     core::{
         algebra::Vector2,
@@ -24,12 +25,8 @@ use fyrox::{
         widget::{Widget, WidgetBuilder, WidgetMessage},
         BuildContext, Control, UiNode, UserInterface,
     },
-    scene::animation::absm::prelude::*,
 };
-use std::{
-    ops::{Deref, DerefMut},
-    sync::mpsc::Sender,
-};
+use std::ops::{Deref, DerefMut};
 
 const PICKED_COLOR: Color = Color::opaque(100, 100, 100);
 const NORMAL_COLOR: Color = Color::opaque(80, 80, 80);
@@ -52,7 +49,7 @@ impl TransitionMessage {
 pub struct TransitionView {
     widget: Widget,
     pub segment: Segment,
-    pub model_handle: Handle<Transition>,
+    pub model_handle: ErasedHandle,
     #[component(include)]
     selectable: Selectable,
     activity_factor: f32,
@@ -148,7 +145,7 @@ impl Control for TransitionView {
         }
     }
 
-    fn update(&mut self, dt: f32, _sender: &Sender<UiMessage>, _screen_size: Vector2<f32>) {
+    fn update(&mut self, dt: f32, _ui: &mut UserInterface) {
         // Slowly fade.
         self.activity_factor = (self.activity_factor - dt).max(0.0);
     }
@@ -179,12 +176,13 @@ impl TransitionBuilder {
         self
     }
 
-    pub fn build(self, model_handle: Handle<Transition>, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, model_handle: ErasedHandle, ctx: &mut BuildContext) -> Handle<UiNode> {
         let transition = TransitionView {
             widget: self
                 .widget_builder
                 .with_foreground(NORMAL_BRUSH.clone())
                 .with_clip_to_bounds(false)
+                .with_need_update(true)
                 .build(),
             segment: Segment {
                 source: self.source,

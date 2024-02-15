@@ -1,14 +1,10 @@
 use crate::{
+    command::{Command, CommandGroup},
     interaction::{make_interaction_mode_button, InteractionMode},
     message::MessageSender,
-    scene::{controller::SceneController, Selection},
+    scene::{commands::ChangeSelectionCommand, controller::SceneController, Selection},
     settings::Settings,
-    ui_scene::{
-        commands::{
-            widget::MoveWidgetCommand, ChangeUiSelectionCommand, UiCommandGroup, UiSceneCommand,
-        },
-        UiScene,
-    },
+    ui_scene::{commands::widget::MoveWidgetCommand, UiScene},
 };
 use fyrox::{
     core::{
@@ -16,6 +12,7 @@ use fyrox::{
         TypeUuidProvider,
     },
     engine::Engine,
+    graph::BaseSceneGraph,
     gui::{BuildContext, UiNode},
 };
 
@@ -60,13 +57,13 @@ impl InteractionMode for MoveWidgetsInteractionMode {
             return;
         };
 
-        if let Selection::Ui(selection) = editor_selection {
+        if let Some(selection) = editor_selection.as_ui() {
             let mut in_bounds = false;
             let entries = selection
                 .widgets
                 .iter()
                 .filter_map(|w| {
-                    if let Some(widget_ref) = ui_scene.ui.try_get_node(*w) {
+                    if let Some(widget_ref) = ui_scene.ui.try_get(*w) {
                         if !in_bounds && widget_ref.screen_bounds().contains(mouse_position) {
                             in_bounds = true;
                         }
@@ -112,21 +109,20 @@ impl InteractionMode for MoveWidgetsInteractionMode {
                     .entries
                     .into_iter()
                     .map(|e| {
-                        UiSceneCommand::new(MoveWidgetCommand::new(
+                        Command::new(MoveWidgetCommand::new(
                             e.widget,
                             e.initial_local_position,
                             e.new_local_position,
                         ))
                     })
                     .collect::<Vec<_>>();
-                self.sender
-                    .do_ui_scene_command(UiCommandGroup::from(commands));
+                self.sender.do_command(CommandGroup::from(commands));
             }
         } else {
             let picked = ui_scene.ui.hit_test(mouse_pos);
             if picked.is_some() {
-                let mut new_selection = if let (Selection::Ui(current), true) = (
-                    editor_selection,
+                let mut new_selection = if let (Some(current), true) = (
+                    editor_selection.as_ui(),
                     engine.user_interface.keyboard_modifiers().control,
                 ) {
                     current.clone()
@@ -135,10 +131,7 @@ impl InteractionMode for MoveWidgetsInteractionMode {
                 };
                 new_selection.insert_or_exclude(picked);
                 self.sender
-                    .do_ui_scene_command(ChangeUiSelectionCommand::new(
-                        Selection::Ui(new_selection),
-                        editor_selection.clone(),
-                    ));
+                    .do_command(ChangeSelectionCommand::new(Selection::new(new_selection)));
             }
         }
     }
@@ -162,7 +155,7 @@ impl InteractionMode for MoveWidgetsInteractionMode {
                 let new_screen_space_position = mouse_position - entry.delta;
                 let parent_inv_transform = ui_scene
                     .ui
-                    .try_get_node(ui_scene.ui.node(entry.widget).parent)
+                    .try_get(ui_scene.ui.node(entry.widget).parent)
                     .and_then(|w| w.visual_transform().try_inverse())
                     .unwrap_or_default();
                 let new_local_position = parent_inv_transform.transform_point(&Point2::new(

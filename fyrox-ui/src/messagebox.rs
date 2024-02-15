@@ -19,14 +19,12 @@ use crate::{
     text::{TextBuilder, TextMessage},
     widget::{Widget, WidgetBuilder},
     window::{Window, WindowBuilder, WindowMessage, WindowTitle},
-    BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, RestrictionEntry,
-    Thickness, UiNode, UserInterface,
+    BuildContext, Control, HorizontalAlignment, Orientation, RestrictionEntry, Thickness, UiNode,
+    UserInterface,
 };
 use fyrox_core::uuid_provider;
-use std::{
-    ops::{Deref, DerefMut},
-    sync::mpsc::Sender,
-};
+use fyrox_core::variable::InheritableVariable;
+use std::ops::{Deref, DerefMut};
 
 /// A set of messages that can be used to communicate with message boxes.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -160,15 +158,15 @@ pub struct MessageBox {
     #[component(include)]
     pub window: Window,
     /// Current set of buttons of the message box.
-    pub buttons: MessageBoxButtons,
+    pub buttons: InheritableVariable<MessageBoxButtons>,
     /// A handle of `Ok`/`Yes` buttons.
-    pub ok_yes: Handle<UiNode>,
+    pub ok_yes: InheritableVariable<Handle<UiNode>>,
     /// A handle of `No` button.
-    pub no: Handle<UiNode>,
+    pub no: InheritableVariable<Handle<UiNode>>,
     /// A handle of `Cancel` button.
-    pub cancel: Handle<UiNode>,
+    pub cancel: InheritableVariable<Handle<UiNode>>,
     /// A handle of text widget.
-    pub text: Handle<UiNode>,
+    pub text: InheritableVariable<Handle<UiNode>>,
 }
 
 impl Deref for MessageBox {
@@ -190,14 +188,6 @@ uuid_provider!(MessageBox = "b14c0012-4383-45cf-b9a1-231415d95373");
 // Message box extends Window widget so it delegates most of calls
 // to inner window.
 impl Control for MessageBox {
-    fn resolve(&mut self, node_map: &NodeHandleMapping) {
-        self.window.resolve(node_map);
-        node_map.resolve(&mut self.ok_yes);
-        node_map.resolve(&mut self.no);
-        node_map.resolve(&mut self.cancel);
-        node_map.resolve(&mut self.text);
-    }
-
     fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         self.window.measure_override(ui, available_size)
     }
@@ -210,16 +200,16 @@ impl Control for MessageBox {
         self.window.draw(drawing_context)
     }
 
-    fn update(&mut self, dt: f32, sender: &Sender<UiMessage>, screen_size: Vector2<f32>) {
-        self.window.update(dt, sender, screen_size);
+    fn update(&mut self, dt: f32, ui: &mut UserInterface) {
+        self.window.update(dt, ui);
     }
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.window.handle_routed_message(ui, message);
 
         if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
-            if message.destination() == self.ok_yes {
-                let result = match self.buttons {
+            if message.destination() == *self.ok_yes {
+                let result = match *self.buttons {
                     MessageBoxButtons::Ok => MessageBoxResult::Ok,
                     MessageBoxButtons::YesNo => MessageBoxResult::Yes,
                     MessageBoxButtons::YesNoCancel => MessageBoxResult::Yes,
@@ -229,13 +219,13 @@ impl Control for MessageBox {
                     MessageDirection::ToWidget,
                     result,
                 ));
-            } else if message.destination() == self.cancel {
+            } else if message.destination() == *self.cancel {
                 ui.send_message(MessageBoxMessage::close(
                     self.handle(),
                     MessageDirection::ToWidget,
                     MessageBoxResult::Cancel,
                 ));
-            } else if message.destination() == self.no {
+            } else if message.destination() == *self.no {
                 ui.send_message(MessageBoxMessage::close(
                     self.handle(),
                     MessageDirection::ToWidget,
@@ -255,7 +245,7 @@ impl Control for MessageBox {
 
                     if let Some(text) = text {
                         ui.send_message(TextMessage::text(
-                            self.text,
+                            *self.text,
                             MessageDirection::ToWidget,
                             text.clone(),
                         ));
@@ -463,12 +453,12 @@ impl<'b> MessageBoxBuilder<'b> {
         let is_open = self.window_builder.open;
 
         let message_box = MessageBox {
-            buttons: self.buttons,
+            buttons: self.buttons.into(),
             window: self.window_builder.with_content(content).build_window(ctx),
-            ok_yes,
-            no,
-            cancel,
-            text,
+            ok_yes: ok_yes.into(),
+            no: no.into(),
+            cancel: cancel.into(),
+            text: text.into(),
         };
 
         let handle = ctx.add_node(UiNode::new(message_box));

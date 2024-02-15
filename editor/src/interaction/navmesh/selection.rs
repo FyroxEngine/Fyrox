@@ -1,3 +1,4 @@
+use crate::scene::SelectionContainer;
 use fyrox::{
     core::{math::TriangleEdge, pool::Handle},
     scene::node::Node,
@@ -19,6 +20,12 @@ pub struct NavmeshSelection {
     navmesh_node: Handle<Node>,
     entities: Vec<NavmeshEntity>,
     unique_vertices: RefCell<BTreeSet<usize>>,
+}
+
+impl SelectionContainer for NavmeshSelection {
+    fn len(&self) -> usize {
+        self.entities.len()
+    }
 }
 
 impl NavmeshSelection {
@@ -57,18 +64,6 @@ impl NavmeshSelection {
 
     pub fn first(&self) -> Option<&NavmeshEntity> {
         self.entities.first()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.entities.is_empty()
-    }
-
-    pub fn is_single_selection(&self) -> bool {
-        self.entities.len() == 1
-    }
-
-    pub fn len(&self) -> usize {
-        self.entities.len()
     }
 
     pub fn unique_vertices(&self) -> Ref<'_, BTreeSet<usize>> {

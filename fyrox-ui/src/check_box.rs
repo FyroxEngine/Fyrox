@@ -16,10 +16,10 @@ use crate::{
     message::{MessageDirection, UiMessage},
     vector_image::{Primitive, VectorImageBuilder},
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, HorizontalAlignment, MouseButton, NodeHandleMapping, Thickness, UiNode,
-    UserInterface, VerticalAlignment, BRUSH_BRIGHT, BRUSH_BRIGHT_BLUE, BRUSH_DARKEST, BRUSH_LIGHT,
-    BRUSH_TEXT,
+    BuildContext, Control, HorizontalAlignment, MouseButton, Thickness, UiNode, UserInterface,
+    VerticalAlignment, BRUSH_BRIGHT, BRUSH_BRIGHT_BLUE, BRUSH_DARKEST, BRUSH_LIGHT, BRUSH_TEXT,
 };
+use fyrox_core::variable::InheritableVariable;
 use std::ops::{Deref, DerefMut};
 
 /// A set of possible check box messages.
@@ -134,24 +134,18 @@ pub struct CheckBox {
     /// Base widget of the check box.
     pub widget: Widget,
     /// Current state of the check box.
-    pub checked: Option<bool>,
+    pub checked: InheritableVariable<Option<bool>>,
     /// Check mark that is used when the state is `Some(true)`.
-    pub check_mark: Handle<UiNode>,
+    pub check_mark: InheritableVariable<Handle<UiNode>>,
     /// Check mark that is used when the state is `Some(false)`.
-    pub uncheck_mark: Handle<UiNode>,
+    pub uncheck_mark: InheritableVariable<Handle<UiNode>>,
     /// Check mark that is used when the state is `None`.
-    pub undefined_mark: Handle<UiNode>,
+    pub undefined_mark: InheritableVariable<Handle<UiNode>>,
 }
 
 crate::define_widget_deref!(CheckBox);
 
 impl Control for CheckBox {
-    fn resolve(&mut self, node_map: &NodeHandleMapping) {
-        node_map.resolve(&mut self.check_mark);
-        node_map.resolve(&mut self.uncheck_mark);
-        node_map.resolve(&mut self.undefined_mark);
-    }
-
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
@@ -172,7 +166,7 @@ impl Control for CheckBox {
                     {
                         ui.release_mouse_capture();
 
-                        if let Some(value) = self.checked {
+                        if let Some(value) = *self.checked {
                             // Invert state if it is defined.
                             ui.send_message(CheckBoxMessage::checked(
                                 self.handle(),
@@ -194,9 +188,9 @@ impl Control for CheckBox {
         } else if let Some(&CheckBoxMessage::Check(value)) = message.data::<CheckBoxMessage>() {
             if message.direction() == MessageDirection::ToWidget
                 && message.destination() == self.handle()
-                && self.checked != value
+                && *self.checked != value
             {
-                self.checked = value;
+                self.checked.set_value_and_mark_modified(value);
 
                 ui.send_message(message.reverse());
 
@@ -204,34 +198,34 @@ impl Control for CheckBox {
                     match value {
                         None => {
                             ui.send_message(WidgetMessage::visibility(
-                                self.check_mark,
+                                *self.check_mark,
                                 MessageDirection::ToWidget,
                                 false,
                             ));
                             ui.send_message(WidgetMessage::visibility(
-                                self.uncheck_mark,
+                                *self.uncheck_mark,
                                 MessageDirection::ToWidget,
                                 false,
                             ));
                             ui.send_message(WidgetMessage::visibility(
-                                self.undefined_mark,
+                                *self.undefined_mark,
                                 MessageDirection::ToWidget,
                                 true,
                             ));
                         }
                         Some(value) => {
                             ui.send_message(WidgetMessage::visibility(
-                                self.check_mark,
+                                *self.check_mark,
                                 MessageDirection::ToWidget,
                                 value,
                             ));
                             ui.send_message(WidgetMessage::visibility(
-                                self.uncheck_mark,
+                                *self.uncheck_mark,
                                 MessageDirection::ToWidget,
                                 !value,
                             ));
                             ui.send_message(WidgetMessage::visibility(
-                                self.undefined_mark,
+                                *self.undefined_mark,
                                 MessageDirection::ToWidget,
                                 false,
                             ));
@@ -408,10 +402,10 @@ impl CheckBoxBuilder {
 
         let cb = CheckBox {
             widget: self.widget_builder.with_child(grid).build(),
-            checked: self.checked,
-            check_mark,
-            uncheck_mark,
-            undefined_mark,
+            checked: self.checked.into(),
+            check_mark: check_mark.into(),
+            uncheck_mark: uncheck_mark.into(),
+            undefined_mark: undefined_mark.into(),
         };
         ctx.add_node(UiNode::new(cb))
     }

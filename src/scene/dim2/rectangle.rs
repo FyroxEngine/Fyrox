@@ -27,6 +27,7 @@ use crate::{
         node::{Node, NodeTrait},
     },
 };
+use fyrox_graph::BaseSceneGraph;
 use std::{
     hash::{Hash, Hasher},
     ops::{Deref, DerefMut},

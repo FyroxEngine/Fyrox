@@ -5,6 +5,7 @@ use crate::{
     HorizontalAlignment, VerticalAlignment,
 };
 use fyrox_core::uuid_provider;
+use fyrox_core::variable::InheritableVariable;
 use std::ops::Range;
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
@@ -84,8 +85,8 @@ uuid_provider!(WrapMode = "f1290ceb-3fee-461f-a1e9-f9450bd06805");
 
 #[derive(Default, Clone, Debug, Visit, Reflect)]
 pub struct FormattedText {
-    font: FontResource,
-    text: Vec<char>,
+    font: InheritableVariable<FontResource>,
+    text: InheritableVariable<Vec<char>>,
     // Temporary buffer used to split text on lines. We need it to reduce memory allocations
     // when we changing text too frequently, here we sacrifice some memory in order to get
     // more performance.
@@ -96,20 +97,20 @@ pub struct FormattedText {
     #[visit(skip)]
     #[reflect(hidden)]
     glyphs: Vec<TextGlyph>,
-    vertical_alignment: VerticalAlignment,
-    horizontal_alignment: HorizontalAlignment,
-    brush: Brush,
+    vertical_alignment: InheritableVariable<VerticalAlignment>,
+    horizontal_alignment: InheritableVariable<HorizontalAlignment>,
+    brush: InheritableVariable<Brush>,
     #[visit(skip)]
     #[reflect(hidden)]
     constraint: Vector2<f32>,
-    wrap: WrapMode,
-    mask_char: Option<char>,
+    wrap: InheritableVariable<WrapMode>,
+    mask_char: InheritableVariable<Option<char>>,
     #[visit(rename = "Height")]
-    font_size: f32,
-    pub shadow: bool,
-    pub shadow_brush: Brush,
-    pub shadow_dilation: f32,
-    pub shadow_offset: Vector2<f32>,
+    font_size: InheritableVariable<f32>,
+    pub shadow: InheritableVariable<bool>,
+    pub shadow_brush: InheritableVariable<Brush>,
+    pub shadow_dilation: InheritableVariable<f32>,
+    pub shadow_offset: InheritableVariable<Vector2<f32>>,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -124,20 +125,20 @@ impl FormattedText {
     }
 
     pub fn get_font(&self) -> FontResource {
-        self.font.clone()
+        (*self.font).clone()
     }
 
     pub fn set_font(&mut self, font: FontResource) -> &mut Self {
-        self.font = font;
+        self.font.set_value_and_mark_modified(font);
         self
     }
 
     pub fn font_size(&self) -> f32 {
-        self.font_size
+        *self.font_size
     }
 
     pub fn set_font_size(&mut self, font_size: f32) -> &mut Self {
-        self.font_size = font_size;
+        self.font_size.set_value_and_mark_modified(font_size);
         self
     }
 
@@ -146,33 +147,35 @@ impl FormattedText {
     }
 
     pub fn set_vertical_alignment(&mut self, vertical_alignment: VerticalAlignment) -> &mut Self {
-        self.vertical_alignment = vertical_alignment;
+        self.vertical_alignment
+            .set_value_and_mark_modified(vertical_alignment);
         self
     }
 
     pub fn vertical_alignment(&self) -> VerticalAlignment {
-        self.vertical_alignment
+        *self.vertical_alignment
     }
 
     pub fn set_horizontal_alignment(
         &mut self,
         horizontal_alignment: HorizontalAlignment,
     ) -> &mut Self {
-        self.horizontal_alignment = horizontal_alignment;
+        self.horizontal_alignment
+            .set_value_and_mark_modified(horizontal_alignment);
         self
     }
 
     pub fn horizontal_alignment(&self) -> HorizontalAlignment {
-        self.horizontal_alignment
+        *self.horizontal_alignment
     }
 
     pub fn set_brush(&mut self, brush: Brush) -> &mut Self {
-        self.brush = brush;
+        self.brush.set_value_and_mark_modified(brush);
         self
     }
 
     pub fn brush(&self) -> Brush {
-        self.brush.clone()
+        (*self.brush).clone()
     }
 
     pub fn set_constraint(&mut self, constraint: Vector2<f32>) -> &mut Self {
@@ -194,7 +197,7 @@ impl FormattedText {
             for index in range {
                 // We can't trust the range values, check to prevent panic.
                 if let Some(glyph) = self.text.get(index) {
-                    width += font.glyph_advance(*glyph, self.font_size);
+                    width += font.glyph_advance(*glyph, *self.font_size);
                 }
             }
         }
@@ -202,42 +205,43 @@ impl FormattedText {
     }
 
     pub fn set_text<P: AsRef<str>>(&mut self, text: P) -> &mut Self {
-        self.text = text.as_ref().chars().collect();
+        self.text
+            .set_value_and_mark_modified(text.as_ref().chars().collect());
         self
     }
 
     pub fn set_wrap(&mut self, wrap: WrapMode) -> &mut Self {
-        self.wrap = wrap;
+        self.wrap.set_value_and_mark_modified(wrap);
         self
     }
 
     /// Sets whether the shadow enabled or not.
     pub fn set_shadow(&mut self, shadow: bool) -> &mut Self {
-        self.shadow = shadow;
+        self.shadow.set_value_and_mark_modified(shadow);
         self
     }
 
     /// Sets desired shadow brush. It will be used to render the shadow.
     pub fn set_shadow_brush(&mut self, brush: Brush) -> &mut Self {
-        self.shadow_brush = brush;
+        self.shadow_brush.set_value_and_mark_modified(brush);
         self
     }
 
     /// Sets desired shadow dilation in units. Keep in mind that the dilation is absolute,
     /// not percentage-based.
     pub fn set_shadow_dilation(&mut self, thickness: f32) -> &mut Self {
-        self.shadow_dilation = thickness;
+        self.shadow_dilation.set_value_and_mark_modified(thickness);
         self
     }
 
     /// Sets desired shadow offset in units.
     pub fn set_shadow_offset(&mut self, offset: Vector2<f32>) -> &mut Self {
-        self.shadow_offset = offset;
+        self.shadow_offset.set_value_and_mark_modified(offset);
         self
     }
 
     pub fn wrap_mode(&self) -> WrapMode {
-        self.wrap
+        *self.wrap
     }
 
     pub fn insert_char(&mut self, code: char, index: usize) -> &mut Self {
@@ -270,11 +274,11 @@ impl FormattedText {
         };
 
         let masked_text;
-        let text = if let Some(mask_char) = self.mask_char {
+        let text = if let Some(mask_char) = *self.mask_char {
             masked_text = (0..self.text.len()).map(|_| mask_char).collect();
             &masked_text
         } else {
-            &self.text
+            &*self.text
         };
 
         // Split on lines.
@@ -283,16 +287,16 @@ impl FormattedText {
         let mut word: Option<Word> = None;
         self.lines.clear();
         for (i, &character) in text.iter().enumerate() {
-            let advance = match font.glyph(character, self.font_size) {
+            let advance = match font.glyph(character, *self.font_size) {
                 Some(glyph) => glyph.advance,
-                None => self.font_size,
+                None => *self.font_size,
             };
             let is_new_line = character == '\n' || character == '\r';
             let new_width = current_line.width + advance;
             let is_white_space = character.is_whitespace();
             let word_ended = word.is_some() && is_white_space || i == self.text.len() - 1;
 
-            if self.wrap == WrapMode::Word && !is_white_space {
+            if *self.wrap == WrapMode::Word && !is_white_space {
                 match word.as_mut() {
                     Some(word) => {
                         word.width += advance;
@@ -316,9 +320,9 @@ impl FormattedText {
                 current_line.begin = if is_new_line { i + 1 } else { i };
                 current_line.end = current_line.begin;
                 current_line.width = advance;
-                total_height += font.ascender(self.font_size);
+                total_height += font.ascender(*self.font_size);
             } else {
-                match self.wrap {
+                match *self.wrap {
                     WrapMode::NoWrap => {
                         current_line.width = new_width;
                         current_line.end += 1;
@@ -329,7 +333,7 @@ impl FormattedText {
                             current_line.begin = if is_new_line { i + 1 } else { i };
                             current_line.end = current_line.begin + 1;
                             current_line.width = advance;
-                            total_height += font.ascender(self.font_size);
+                            total_height += font.ascender(*self.font_size);
                         } else {
                             current_line.width = new_width;
                             current_line.end += 1;
@@ -346,7 +350,7 @@ impl FormattedText {
                                     self.lines.push(current_line);
                                     current_line.begin = current_line.end;
                                     current_line.width = 0.0;
-                                    total_height += font.ascender(self.font_size);
+                                    total_height += font.ascender(*self.font_size);
                                 } else if current_line.width + word.width > self.constraint.x {
                                     // The word will exceed horizontal constraint, we have to
                                     // commit current line and move the word in the next line.
@@ -354,7 +358,7 @@ impl FormattedText {
                                     current_line.begin = i - word.length;
                                     current_line.end = i;
                                     current_line.width = word.width;
-                                    total_height += font.ascender(self.font_size);
+                                    total_height += font.ascender(*self.font_size);
                                 } else {
                                     // The word does not exceed horizontal constraint, append it
                                     // to the line.
@@ -376,20 +380,20 @@ impl FormattedText {
         // Commit rest of text.
         if current_line.begin != current_line.end {
             for &character in text.iter().skip(current_line.end) {
-                let advance = match font.glyph(character, self.font_size) {
+                let advance = match font.glyph(character, *self.font_size) {
                     Some(glyph) => glyph.advance,
-                    None => self.font_size,
+                    None => *self.font_size,
                 };
                 current_line.width += advance;
             }
             current_line.end = self.text.len();
             self.lines.push(current_line);
-            total_height += font.ascender(self.font_size);
+            total_height += font.ascender(*self.font_size);
         }
 
         // Align lines according to desired alignment.
         for line in self.lines.iter_mut() {
-            match self.horizontal_alignment {
+            match *self.horizontal_alignment {
                 HorizontalAlignment::Left => line.x_offset = 0.0,
                 HorizontalAlignment::Center => {
                     if self.constraint.x.is_infinite() {
@@ -412,7 +416,7 @@ impl FormattedText {
         // Generate glyphs for each text line.
         self.glyphs.clear();
 
-        let cursor_y_start = match self.vertical_alignment {
+        let cursor_y_start = match *self.vertical_alignment {
             VerticalAlignment::Top => 0.0,
             VerticalAlignment::Center => {
                 if self.constraint.y.is_infinite() {
@@ -441,9 +445,9 @@ impl FormattedText {
         for line in self.lines.iter_mut() {
             cursor.x = line.x_offset;
 
-            let ascender = font.ascender(self.font_size);
+            let ascender = font.ascender(*self.font_size);
             for &character in text.iter().take(line.end).skip(line.begin) {
-                match font.glyph(character, self.font_size) {
+                match font.glyph(character, *self.font_size) {
                     Some(glyph) => {
                         // Insert glyph
                         let rect = Rect::new(
@@ -467,9 +471,9 @@ impl FormattedText {
                         // Insert invalid symbol
                         let rect = Rect::new(
                             cursor.x,
-                            cursor.y + font.ascender(self.font_size),
-                            self.font_size,
-                            self.font_size,
+                            cursor.y + font.ascender(*self.font_size),
+                            *self.font_size,
+                            *self.font_size,
                         );
                         self.glyphs.push(TextGlyph {
                             bounds: rect,
@@ -480,13 +484,13 @@ impl FormattedText {
                     }
                 }
             }
-            line.height = font.ascender(self.font_size);
+            line.height = font.ascender(*self.font_size);
             line.y_offset = cursor.y;
-            cursor.y += font.ascender(self.font_size);
+            cursor.y += font.ascender(*self.font_size);
         }
 
         // Minus here is because descender has negative value.
-        let mut full_size = Vector2::new(0.0, total_height - font.descender(self.font_size));
+        let mut full_size = Vector2::new(0.0, total_height - font.descender(*self.font_size));
         for line in self.lines.iter() {
             full_size.x = line.width.max(full_size.x);
         }
@@ -597,21 +601,21 @@ impl FormattedTextBuilder {
 
     pub fn build(self) -> FormattedText {
         FormattedText {
-            text: self.text.chars().collect(),
+            text: self.text.chars().collect::<Vec<char>>().into(),
             lines: Vec::new(),
             glyphs: Vec::new(),
-            vertical_alignment: self.vertical_alignment,
-            horizontal_alignment: self.horizontal_alignment,
-            brush: self.brush,
+            vertical_alignment: self.vertical_alignment.into(),
+            horizontal_alignment: self.horizontal_alignment.into(),
+            brush: self.brush.into(),
             constraint: self.constraint,
-            wrap: self.wrap,
-            mask_char: self.mask_char,
-            font_size: self.font_size,
-            shadow: self.shadow,
-            shadow_brush: self.shadow_brush,
-            font: self.font,
-            shadow_dilation: self.shadow_dilation,
-            shadow_offset: self.shadow_offset,
+            wrap: self.wrap.into(),
+            mask_char: self.mask_char.into(),
+            font_size: self.font_size.into(),
+            shadow: self.shadow.into(),
+            shadow_brush: self.shadow_brush.into(),
+            font: self.font.into(),
+            shadow_dilation: self.shadow_dilation.into(),
+            shadow_offset: self.shadow_offset.into(),
         }
     }
 }

@@ -65,6 +65,11 @@ where
     P: PayloadContainer<Element = T> + Reflect,
 {
     #[inline]
+    fn source_path() -> &'static str {
+        file!()
+    }
+
+    #[inline]
     fn type_name(&self) -> &'static str {
         std::any::type_name::<Self>()
     }
@@ -245,9 +250,10 @@ where
     }
 }
 
-impl<T> Default for Pool<T>
+impl<T, P> Default for Pool<T, P>
 where
     T: 'static,
+    P: PayloadContainer<Element = T> + 'static,
 {
     #[inline]
     fn default() -> Self {
@@ -259,6 +265,16 @@ where
 pub struct Ticket<T> {
     index: u32,
     marker: PhantomData<T>,
+}
+
+impl<T> Drop for Ticket<T> {
+    fn drop(&mut self) {
+        panic!(
+            "An object at index {} must be returned to a pool it was taken from! \
+            Call Pool::forget_ticket if you don't need the object anymore.",
+            self.index
+        )
+    }
 }
 
 impl<T: Clone> Clone for PoolRecord<T> {
@@ -928,7 +944,9 @@ where
             .expect("Ticket index was invalid");
         let old = record.payload.replace(value);
         assert!(old.is_none());
-        Handle::new(ticket.index, record.generation)
+        let handle = Handle::new(ticket.index, record.generation);
+        std::mem::forget(ticket);
+        handle
     }
 
     /// Forgets that value at ticket was reserved and makes it usable again.
@@ -937,6 +955,7 @@ where
     #[inline]
     pub fn forget_ticket(&mut self, ticket: Ticket<T>) {
         self.free_stack.push(ticket.index);
+        std::mem::forget(ticket);
     }
 
     /// Returns total capacity of pool. Capacity has nothing about real amount of objects in pool!
@@ -1432,7 +1451,7 @@ where
 #[cfg(test)]
 mod test {
     use crate::{
-        pool::{AtomicHandle, Handle, Pool, PoolRecord, Ticket, INVALID_GENERATION},
+        pool::{AtomicHandle, Handle, Pool, PoolRecord, INVALID_GENERATION},
         visitor::{Visit, Visitor},
     };
 
@@ -1638,16 +1657,6 @@ mod test {
     }
 
     #[test]
-    fn pool_take_reserve() {
-        let mut pool = Pool::<u32>::new();
-        let a = pool.spawn(42);
-
-        let (t, payload) = pool.take_reserve(a);
-        assert_eq!(t.index, 0);
-        assert_eq!(payload, 42);
-    }
-
-    #[test]
     fn pool_try_take_reserve() {
         let mut pool = Pool::<u32>::new();
 
@@ -1656,27 +1665,22 @@ mod test {
 
         let b = pool.spawn(42);
 
-        let (t, payload) = pool.try_take_reserve(b).unwrap();
-        assert_eq!(t.index, 0);
+        let (ticket, payload) = pool.try_take_reserve(b).unwrap();
+        assert_eq!(ticket.index, 0);
         assert_eq!(payload, 42);
 
         assert!(pool.try_take_reserve(a).is_none());
         assert!(pool.try_take_reserve(b).is_none());
+
+        pool.forget_ticket(ticket);
     }
 
     #[test]
     fn pool_put_back() {
         let mut pool = Pool::<u32>::new();
         let a = pool.spawn(42);
-        pool.take_reserve(a);
-
-        let b = pool.put_back(
-            Ticket::<u32> {
-                index: 0,
-                marker: std::marker::PhantomData,
-            },
-            42,
-        );
+        let (ticket, value) = pool.take_reserve(a);
+        let b = pool.put_back(ticket, value);
 
         assert_eq!(a, b);
     }
@@ -1685,12 +1689,9 @@ mod test {
     fn pool_forget_ticket() {
         let mut pool = Pool::<u32>::new();
         let a = pool.spawn(42);
-        pool.take_reserve(a);
+        let (ticket, _) = pool.take_reserve(a);
 
-        pool.forget_ticket(Ticket::<u32> {
-            index: 0,
-            marker: std::marker::PhantomData,
-        });
+        pool.forget_ticket(ticket);
 
         let b = pool.spawn(42);
 
@@ -1752,7 +1753,8 @@ mod test {
         let mut pool = Pool::<u32>::new();
         let a = pool.spawn(42);
         let _ = pool.spawn(5);
-        pool.take_reserve(a);
+        let (ticket, _) = pool.take_reserve(a);
+        pool.forget_ticket(ticket);
 
         assert_eq!(pool.alive_count(), 1);
     }
@@ -1762,9 +1764,11 @@ mod test {
         let mut pool = Pool::<u32>::new();
         let a = pool.spawn(42);
         let _ = pool.spawn(5);
-        pool.take_reserve(a);
+        let (ticket, _) = pool.take_reserve(a);
 
         assert_eq!(pool.total_count(), 2);
+
+        pool.forget_ticket(ticket);
     }
 
     #[test]

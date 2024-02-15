@@ -183,7 +183,9 @@ pub use copypasta;
 pub use fyrox_core as core;
 use message::TouchPhase;
 
+pub mod absm;
 mod alignment;
+pub mod animation;
 pub mod bit;
 pub mod border;
 pub mod brush;
@@ -265,11 +267,16 @@ use crate::{
 };
 use copypasta::ClipboardContext;
 use fxhash::{FxHashMap, FxHashSet};
-use fyrox_resource::{io::ResourceIo, manager::ResourceManager, ResourceData};
+use fyrox_resource::{
+    io::FsResourceIo, io::ResourceIo, manager::ResourceManager, untyped::UntypedResource, Resource,
+    ResourceData,
+};
 use serde::{Deserialize, Serialize};
+use std::any::TypeId;
+use std::ops::Deref;
 use std::{
     any::Any,
-    cell::{Cell, Ref, RefCell, RefMut},
+    cell::{Ref, RefCell, RefMut},
     collections::{btree_set::BTreeSet, hash_map::Entry, VecDeque},
     error::Error,
     fmt::{Debug, Formatter},
@@ -285,9 +292,17 @@ use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 pub use alignment::*;
 pub use build::*;
 pub use control::*;
-use fyrox_resource::io::FsResourceIo;
+use fyrox_core::futures::future::join_all;
+use fyrox_core::log::Log;
+use fyrox_graph::{
+    AbstractSceneGraph, AbstractSceneNode, BaseSceneGraph, NodeHandleMap, NodeMapping, PrefabData,
+    SceneGraph, SceneGraphNode,
+};
 pub use node::*;
 pub use thickness::*;
+
+pub use fyrox_animation as generic_animation;
+use fyrox_core::pool::ErasedHandle;
 
 // TODO: Make this part of UserInterface struct.
 pub const COLOR_COAL_BLACK: Color = Color::opaque(10, 10, 10);
@@ -422,51 +437,6 @@ pub enum Orientation {
 }
 
 uuid_provider!(Orientation = "1c6ad1b0-3f4c-48be-87dd-6929cb3577bf");
-
-type NodeHandle = Handle<UiNode>;
-
-/// Node handle mapping is used to map handles when copying an arbitrary hierarchy of widgets. This
-/// is needed, because internally, widgets could contain handles to some other widgets which must
-/// point to their respective copies when a widget hierarchy was copied.
-#[derive(Default)]
-pub struct NodeHandleMapping {
-    /// Internal old-handle-to-new-handle mapping.
-    pub hash_map: FxHashMap<NodeHandle, NodeHandle>,
-}
-
-impl NodeHandleMapping {
-    /// Adds new old -> new mapping.
-    pub fn add_mapping(&mut self, old: Handle<UiNode>, new: Handle<UiNode>) {
-        self.hash_map.insert(old, new);
-    }
-
-    /// Tries to fetch new handle of a node using its old handle.
-    pub fn resolve(&self, old: &mut Handle<UiNode>) {
-        // None handles aren't mapped.
-        if old.is_some() {
-            if let Some(clone) = self.hash_map.get(old) {
-                *old = *clone;
-            }
-        }
-    }
-
-    /// The same as [`Self::resolve`], but for case when a handle is wrapped into [`Cell`].
-    pub fn resolve_cell(&self, old: &mut Cell<Handle<UiNode>>) {
-        // None handles aren't mapped.
-        if Cell::get(old).is_some() {
-            if let Some(clone) = self.hash_map.get(&old.get()) {
-                Cell::set(old, *clone)
-            }
-        }
-    }
-
-    /// The same as [`Self::resolve`], but for case when you have a slice of handles.
-    pub fn resolve_slice(&self, slice: &mut [Handle<UiNode>]) {
-        for item in slice {
-            self.resolve(item);
-        }
-    }
-}
 
 #[derive(Default, Clone)]
 pub struct NodeStatistics(pub FxHashMap<&'static str, isize>);
@@ -624,11 +594,48 @@ impl Debug for Clipboard {
     }
 }
 
-#[derive(Visit, Reflect, Debug)]
+#[derive(Default, Debug, Clone)]
+struct WidgetMethodsRegistry {
+    preview_message: FxHashSet<Handle<UiNode>>,
+    on_update: FxHashSet<Handle<UiNode>>,
+    handle_os_event: FxHashSet<Handle<UiNode>>,
+}
+
+impl WidgetMethodsRegistry {
+    fn register<T: Control + ?Sized>(&mut self, node: &T) {
+        let node_handle = node.handle();
+
+        if node.preview_messages {
+            assert!(self.preview_message.insert(node_handle));
+        }
+        if node.handle_os_events {
+            assert!(self.handle_os_event.insert(node_handle));
+        }
+        if node.need_update {
+            assert!(self.on_update.insert(node_handle));
+        }
+    }
+
+    fn unregister<T: Control + ?Sized>(&mut self, node: &T) {
+        let node_handle = node.handle();
+
+        self.preview_message.remove(&node_handle);
+        self.on_update.remove(&node_handle);
+        self.handle_os_event.remove(&node_handle);
+    }
+}
+
+/// A set of switches that allows you to disable a particular step of UI update pipeline.
+#[derive(Clone, PartialEq, Eq, Default)]
+pub struct UiUpdateSwitches {
+    /// A set of nodes that will be updated, everything else won't be updated.
+    pub node_overrides: Option<FxHashSet<Handle<UiNode>>>,
+}
+
+#[derive(Reflect, Debug)]
 pub struct UserInterface {
     screen_size: Vector2<f32>,
     nodes: Pool<UiNode, WidgetContainer>,
-    #[visit(skip)]
     #[reflect(hidden)]
     drawing_context: DrawingContext,
     visual_debug: bool,
@@ -638,45 +645,67 @@ pub struct UserInterface {
     captured_node: Handle<UiNode>,
     keyboard_focus_node: Handle<UiNode>,
     cursor_position: Vector2<f32>,
-    #[visit(skip)]
     #[reflect(hidden)]
     receiver: Receiver<UiMessage>,
-    #[visit(skip)]
     #[reflect(hidden)]
     sender: Sender<UiMessage>,
     stack: Vec<Handle<UiNode>>,
     picking_stack: Vec<RestrictionEntry>,
-    #[visit(skip)]
     #[reflect(hidden)]
     bubble_queue: VecDeque<Handle<UiNode>>,
     drag_context: DragContext,
     mouse_state: MouseState,
     keyboard_modifiers: KeyboardModifiers,
     cursor_icon: CursorIcon,
-    #[visit(skip)]
     #[reflect(hidden)]
     active_tooltip: Option<TooltipEntry>,
-    #[visit(skip)]
     #[reflect(hidden)]
-    preview_set: FxHashSet<Handle<UiNode>>,
-    #[visit(skip)]
+    methods_registry: WidgetMethodsRegistry,
     #[reflect(hidden)]
     clipboard: Clipboard,
-    #[visit(skip)]
     #[reflect(hidden)]
     layout_events_receiver: Receiver<LayoutEvent>,
-    #[visit(skip)]
     #[reflect(hidden)]
     layout_events_sender: Sender<LayoutEvent>,
-    #[visit(skip)]
     need_update_global_transform: bool,
-    #[visit(skip)]
     #[reflect(hidden)]
     pub default_font: FontResource,
-    #[visit(skip)]
     #[reflect(hidden)]
     double_click_entries: FxHashMap<MouseButton, DoubleClickEntry>,
     pub double_click_time_slice: f32,
+}
+
+impl Visit for UserInterface {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        let mut region = visitor.enter_region(name)?;
+
+        self.screen_size.visit("ScreenSize", &mut region)?;
+        self.nodes.visit("Nodes", &mut region)?;
+        self.visual_debug.visit("VisualDebug", &mut region)?;
+        self.root_canvas.visit("RootCanvas", &mut region)?;
+        self.picked_node.visit("PickedNode", &mut region)?;
+        self.prev_picked_node.visit("PrevPickedNode", &mut region)?;
+        self.captured_node.visit("CapturedNode", &mut region)?;
+        self.keyboard_focus_node
+            .visit("KeyboardFocusNode", &mut region)?;
+        self.cursor_position.visit("CursorPosition", &mut region)?;
+        self.picking_stack.visit("PickingStack", &mut region)?;
+        self.drag_context.visit("DragContext", &mut region)?;
+        self.mouse_state.visit("MouseState", &mut region)?;
+        self.keyboard_modifiers
+            .visit("KeyboardModifiers", &mut region)?;
+        self.cursor_icon.visit("CursorIcon", &mut region)?;
+        self.double_click_time_slice
+            .visit("DoubleClickTimeSlice", &mut region)?;
+
+        if region.is_reading() {
+            for node in self.nodes.iter() {
+                self.methods_registry.register(node.deref());
+            }
+        }
+
+        Ok(())
+    }
 }
 
 impl Clone for UserInterface {
@@ -711,7 +740,7 @@ impl Clone for UserInterface {
             keyboard_modifiers: self.keyboard_modifiers,
             cursor_icon: self.cursor_icon,
             active_tooltip: self.active_tooltip.clone(),
-            preview_set: self.preview_set.clone(),
+            methods_registry: self.methods_registry.clone(),
             clipboard: Clipboard(ClipboardContext::new().ok().map(RefCell::new)),
             layout_events_receiver,
             layout_events_sender,
@@ -762,8 +791,6 @@ fn draw_node(
         return;
     }
 
-    let start_index = drawing_context.get_commands().len();
-
     let pushed = if !is_node_enabled(nodes, node_handle) {
         drawing_context.push_opacity(0.4);
         true
@@ -776,11 +803,14 @@ fn draw_node(
 
     drawing_context.transform_stack.push(node.visual_transform);
 
-    node.draw(drawing_context);
-
-    let end_index = drawing_context.get_commands().len();
-    for i in start_index..end_index {
-        node.command_indices.borrow_mut().push(i);
+    // Draw
+    {
+        let start_index = drawing_context.get_commands().len();
+        node.draw(drawing_context);
+        let end_index = drawing_context.get_commands().len();
+        node.command_indices
+            .borrow_mut()
+            .extend(start_index..end_index);
     }
 
     // Continue on children
@@ -789,6 +819,16 @@ fn draw_node(
         if !nodes[child_node].is_draw_on_top() {
             draw_node(nodes, child_node, drawing_context);
         }
+    }
+
+    // Post draw.
+    {
+        let start_index = drawing_context.get_commands().len();
+        node.post_draw(drawing_context);
+        let end_index = drawing_context.get_commands().len();
+        node.command_indices
+            .borrow_mut()
+            .extend(start_index..end_index);
     }
 
     drawing_context.transform_stack.pop();
@@ -820,6 +860,16 @@ pub struct SubGraph {
     pub descendants: Vec<(Ticket<UiNode>, UiNode)>,
 
     pub parent: Handle<UiNode>,
+}
+
+fn remap_handles(old_new_mapping: &NodeHandleMap<UiNode>, ui: &mut UserInterface) {
+    // Iterate over instantiated nodes and remap handles.
+    for (_, &new_node_handle) in old_new_mapping.inner().iter() {
+        old_new_mapping.remap_handles(
+            &mut ui.nodes[new_node_handle],
+            &[TypeId::of::<UntypedResource>()],
+        );
+    }
 }
 
 impl UserInterface {
@@ -855,7 +905,7 @@ impl UserInterface {
             keyboard_modifiers: Default::default(),
             cursor_icon: Default::default(),
             active_tooltip: Default::default(),
-            preview_set: Default::default(),
+            methods_registry: Default::default(),
             clipboard: Clipboard(ClipboardContext::new().ok().map(RefCell::new)),
             layout_events_receiver,
             layout_events_sender,
@@ -1020,14 +1070,8 @@ impl UserInterface {
         }
     }
 
-    pub fn update(&mut self, screen_size: Vector2<f32>, dt: f32) {
-        scope_profile!();
-
+    pub fn update_layout(&mut self, screen_size: Vector2<f32>) {
         self.screen_size = screen_size;
-
-        for entry in self.double_click_entries.values_mut() {
-            entry.timer -= dt;
-        }
 
         self.handle_layout_events();
 
@@ -1048,10 +1092,29 @@ impl UserInterface {
                 Rect::new(0.0, 0.0, self.screen_size.x, self.screen_size.y),
             );
         }
+    }
 
-        let sender = self.sender.clone();
-        for node in self.nodes.iter_mut() {
-            node.update(dt, &sender, self.screen_size)
+    pub fn update(&mut self, screen_size: Vector2<f32>, dt: f32, switches: &UiUpdateSwitches) {
+        for entry in self.double_click_entries.values_mut() {
+            entry.timer -= dt;
+        }
+
+        self.update_layout(screen_size);
+
+        if let Some(node_overrides) = switches.node_overrides.as_ref() {
+            for &handle in node_overrides.iter() {
+                let (ticket, mut node) = self.nodes.take_reserve(handle);
+                node.update(dt, self);
+                self.nodes.put_back(ticket, node);
+            }
+        } else {
+            let update_subs = std::mem::take(&mut self.methods_registry.on_update);
+            for &handle in update_subs.iter() {
+                let (ticket, mut node) = self.nodes.take_reserve(handle);
+                node.update(dt, self);
+                self.nodes.put_back(ticket, node);
+            }
+            self.methods_registry.on_update = update_subs;
         }
 
         self.update_tooltips(dt);
@@ -1410,56 +1473,6 @@ impl UserInterface {
         }
     }
 
-    /// Searches a node down on tree starting from give root that matches a criteria
-    /// defined by a given func.
-    pub fn find_by_criteria_down<Func>(
-        &self,
-        node_handle: Handle<UiNode>,
-        func: &Func,
-    ) -> Handle<UiNode>
-    where
-        Func: Fn(&UiNode) -> bool,
-    {
-        if let Some(node) = self.nodes.try_borrow(node_handle) {
-            if func(node) {
-                return node_handle;
-            }
-
-            for child_handle in node.children() {
-                let result = self.find_by_criteria_down(*child_handle, func);
-
-                if result.is_some() {
-                    return result;
-                }
-            }
-        }
-
-        Handle::NONE
-    }
-
-    /// Searches a node up on tree starting from given root that matches a criteria
-    /// defined by a given func.
-    pub fn find_by_criteria_up<Func>(
-        &self,
-        node_handle: Handle<UiNode>,
-        func: Func,
-    ) -> Handle<UiNode>
-    where
-        Func: Fn(&UiNode) -> bool,
-    {
-        if let Some(node) = self.nodes.try_borrow(node_handle) {
-            if func(node) {
-                return node_handle;
-            }
-
-            if node.parent().is_some() {
-                return self.find_by_criteria_up(node.parent(), func);
-            }
-        }
-
-        Handle::NONE
-    }
-
     /// Checks if specified node is a child of some other node on `root_handle`. This method
     /// is useful to understand if some event came from some node down by tree.
     pub fn is_node_child_of(
@@ -1476,7 +1489,7 @@ impl UserInterface {
     fn calculate_clip_bounds(&self, node: Handle<UiNode>, parent_bounds: Rect<f32>) {
         let node = &self.nodes[node];
 
-        let screen_bounds = if node.clip_to_bounds {
+        let screen_bounds = if *node.clip_to_bounds {
             node.screen_bounds()
         } else {
             Rect::new(0.0, 0.0, self.screen_size.x, self.screen_size.y)
@@ -1487,98 +1500,6 @@ impl UserInterface {
         for &child in node.children() {
             self.calculate_clip_bounds(child, node.clip_bounds.get());
         }
-    }
-
-    /// Checks if specified node is a direct child of some other node on `root_handle`.
-    pub fn is_node_direct_child_of(
-        &self,
-        node_handle: Handle<UiNode>,
-        root_handle: Handle<UiNode>,
-    ) -> bool {
-        for child_handle in self.nodes.borrow(root_handle).children() {
-            if *child_handle == node_handle {
-                return true;
-            }
-        }
-        false
-    }
-
-    /// Searches a node by name up on tree starting from given root node.
-    pub fn find_by_name_up(&self, node_handle: Handle<UiNode>, name: &str) -> Handle<UiNode> {
-        self.find_by_criteria_up(node_handle, |node| node.name() == name)
-    }
-
-    /// Searches a node by name down on tree starting from given root node.
-    pub fn find_by_name_down(&self, node_handle: Handle<UiNode>, name: &str) -> Handle<UiNode> {
-        self.find_by_criteria_down(node_handle, &|node| node.name() == name)
-    }
-
-    /// Searches a node by name down on tree starting from root canvas.
-    pub fn find_by_name_down_from_root(&self, name: &str) -> Handle<UiNode> {
-        self.find_by_criteria_down(self.root_canvas, &|node| node.name() == name)
-    }
-
-    /// Searches a node by name up on tree starting from given root node and tries to borrow it if exists.
-    pub fn borrow_by_name_up(&self, start_node_handle: Handle<UiNode>, name: &str) -> &UiNode {
-        self.nodes
-            .borrow(self.find_by_name_up(start_node_handle, name))
-    }
-
-    /// Searches a node by name down on tree starting from given root node and tries to borrow it if exists.
-    pub fn borrow_by_name_down(&self, start_node_handle: Handle<UiNode>, name: &str) -> &UiNode {
-        self.nodes
-            .borrow(self.find_by_name_down(start_node_handle, name))
-    }
-
-    /// Searches for a node up on tree that satisfies some criteria and then borrows
-    /// shared reference.
-    ///
-    /// # Panics
-    ///
-    /// It will panic if there no node that satisfies given criteria.
-    pub fn borrow_by_criteria_up<Func>(
-        &self,
-        start_node_handle: Handle<UiNode>,
-        func: Func,
-    ) -> &UiNode
-    where
-        Func: Fn(&UiNode) -> bool,
-    {
-        self.nodes
-            .borrow(self.find_by_criteria_up(start_node_handle, func))
-    }
-
-    pub fn try_borrow_by_criteria_up<Func>(
-        &self,
-        start_node_handle: Handle<UiNode>,
-        func: Func,
-    ) -> Option<&UiNode>
-    where
-        Func: Fn(&UiNode) -> bool,
-    {
-        self.nodes
-            .try_borrow(self.find_by_criteria_up(start_node_handle, func))
-    }
-
-    pub fn try_borrow_by_type_up<T>(
-        &self,
-        node_handle: Handle<UiNode>,
-    ) -> Option<(Handle<UiNode>, &T)>
-    where
-        T: Control,
-    {
-        if let Some(node) = self.nodes.try_borrow(node_handle) {
-            let casted = node.cast::<T>();
-            if let Some(casted) = casted {
-                return Some((node_handle, casted));
-            }
-
-            if node.parent().is_some() {
-                return self.try_borrow_by_type_up(node.parent());
-            }
-        }
-
-        None
     }
 
     /// Returns instance of message sender which can be used to push messages into queue
@@ -1651,10 +1572,10 @@ impl UserInterface {
                 }
 
                 if message.need_perform_layout() {
-                    self.update(self.screen_size, 0.0);
+                    self.update_layout(self.screen_size);
                 }
 
-                for &handle in self.preview_set.iter() {
+                for &handle in self.methods_registry.preview_message.iter() {
                     if let Some(node_ref) = self.nodes.try_borrow(handle) {
                         node_ref.preview_message(self, &mut message);
                     }
@@ -1668,7 +1589,7 @@ impl UserInterface {
                             // Keep order of children of a parent node of a node that changed z-index
                             // the same as z-index of children.
                             if let Some(parent) =
-                                self.try_get_node(message.destination()).map(|n| n.parent())
+                                self.try_get(message.destination()).map(|n| n.parent())
                             {
                                 self.stack.clear();
                                 for child in self.nodes.borrow(parent).children() {
@@ -1814,8 +1735,8 @@ impl UserInterface {
                             margin,
                         } => {
                             if let (Some(node), Some(relative_node)) = (
-                                self.try_get_node(message.destination()),
-                                self.try_get_node(*relative_to),
+                                self.try_get(message.destination()),
+                                self.try_get(*relative_to),
                             ) {
                                 // Calculate new anchor point in screen coordinate system.
                                 let relative_node_screen_size = relative_node.screen_bounds().size;
@@ -1871,7 +1792,7 @@ impl UserInterface {
                                     }
                                 }
 
-                                if let Some(parent) = self.try_get_node(node.parent()) {
+                                if let Some(parent) = self.try_get(node.parent()) {
                                     // Transform screen anchor point into the local coordinate system
                                     // of the parent node.
                                     let local_anchor_point =
@@ -2215,7 +2136,7 @@ impl UserInterface {
                     let mut stack = vec![self.drag_context.drag_preview];
                     while let Some(handle) = stack.pop() {
                         let preview_node = &mut self.nodes[handle];
-                        preview_node.hit_test_visibility = false;
+                        preview_node.hit_test_visibility.set_value_silent(false);
                         stack.extend_from_slice(preview_node.children());
                     }
 
@@ -2510,19 +2431,15 @@ impl UserInterface {
 
         self.prev_picked_node = self.picked_node;
 
-        for i in 0..self.nodes.get_capacity() {
-            let handle = self.nodes.handle_from_index(i);
+        let on_os_event_subs = std::mem::take(&mut self.methods_registry.handle_os_event);
 
-            if let Some(node_ref) = self.nodes.try_borrow(handle) {
-                if node_ref.handle_os_events {
-                    let (ticket, mut node) = self.nodes.take_reserve(handle);
-
-                    node.handle_os_event(handle, self, event);
-
-                    self.nodes.put_back(ticket, node);
-                }
-            }
+        for &handle in on_os_event_subs.iter() {
+            let (ticket, mut node) = self.nodes.take_reserve(handle);
+            node.handle_os_event(handle, self, event);
+            self.nodes.put_back(ticket, node);
         }
+
+        self.methods_registry.handle_os_event = on_os_event_subs;
 
         event_processed
     }
@@ -2535,35 +2452,12 @@ impl UserInterface {
         self.root_canvas
     }
 
-    pub fn add_node(&mut self, mut node: UiNode) -> Handle<UiNode> {
-        let children = node.children().to_vec();
-        node.clear_children();
-        let node_handle = self.nodes.spawn(node);
-        if self.root_canvas.is_some() {
-            self.link_nodes(node_handle, self.root_canvas, false);
-        }
-        for child in children {
-            self.link_nodes(child, node_handle, false)
-        }
-        let node = self.nodes[node_handle].deref_mut();
-        node.layout_events_sender = Some(self.layout_events_sender.clone());
-        if node.preview_messages {
-            self.preview_set.insert(node_handle);
-        }
-        node.handle = node_handle;
-        node.invalidate_layout();
-        self.layout_events_sender
-            .send(LayoutEvent::VisibilityChanged(node_handle))
-            .unwrap();
-        node_handle
-    }
-
     /// Extracts a widget from the user interface and reserves its handle. It is used to temporarily take
     /// ownership over the widget, and then put the widget back using the returned ticket. Extracted
     /// widget is detached from its parent!
     #[inline]
     pub fn take_reserve(&mut self, handle: Handle<UiNode>) -> (Ticket<UiNode>, UiNode) {
-        self.unlink_node_internal(handle);
+        self.isolate_node(handle);
         self.nodes.take_reserve(handle)
     }
 
@@ -2658,39 +2552,6 @@ impl UserInterface {
         self.picking_stack.last().cloned()
     }
 
-    /// Use WidgetMessage::remove(...) to remove node.
-    fn remove_node(&mut self, node: Handle<UiNode>) {
-        self.unlink_node_internal(node);
-
-        let sender = self.sender.clone();
-        let mut stack = vec![node];
-        while let Some(handle) = stack.pop() {
-            if self.prev_picked_node == handle {
-                self.prev_picked_node = Handle::NONE;
-            }
-            if self.picked_node == handle {
-                self.try_set_picked_node(Handle::NONE);
-            }
-            if self.captured_node == handle {
-                self.captured_node = Handle::NONE;
-            }
-            if self.keyboard_focus_node == handle {
-                self.keyboard_focus_node = Handle::NONE;
-            }
-            self.remove_picking_restriction(handle);
-
-            let node_ref = self.nodes.borrow(handle);
-            stack.extend_from_slice(node_ref.children());
-
-            // Notify node that it is about to be deleted so it will have a chance to remove
-            // other widgets (like popups).
-            node_ref.on_remove(&sender);
-
-            self.nodes.free(handle);
-            self.preview_set.remove(&handle);
-        }
-    }
-
     pub fn drag_context(&self) -> &DragContext {
         &self.drag_context
     }
@@ -2704,43 +2565,9 @@ impl UserInterface {
         in_front: bool,
     ) {
         assert_ne!(child_handle, parent_handle);
-        self.unlink_node_internal(child_handle);
+        self.isolate_node(child_handle);
         self.nodes[child_handle].set_parent(parent_handle);
         self.nodes[parent_handle].add_child(child_handle, in_front);
-    }
-
-    /// Unlinks the specified widget from its parent, so the widget will become root.
-    #[inline]
-    fn unlink_node_internal(&mut self, node_handle: Handle<UiNode>) {
-        // Replace parent handle of child
-        let node = self.nodes.borrow_mut(node_handle);
-        let parent_handle = node.parent();
-        if parent_handle.is_some() {
-            node.set_parent(Handle::NONE);
-
-            // Remove child from parent's children list
-            self.nodes[parent_handle].remove_child(node_handle);
-        }
-    }
-
-    /// Unlinks specified node from its parent and attaches back to root canvas.
-    ///
-    /// Use [WidgetMessage::remove](enum.WidgetMessage.html#method.remove) to unlink
-    /// a node at runtime!
-    #[inline]
-    pub fn unlink_node(&mut self, node_handle: Handle<UiNode>) {
-        self.unlink_node_internal(node_handle);
-        self.link_nodes(node_handle, self.root_canvas, false);
-    }
-
-    #[inline]
-    pub fn node(&self, node_handle: Handle<UiNode>) -> &UiNode {
-        self.nodes.borrow(node_handle)
-    }
-
-    #[inline]
-    pub fn try_get_node(&self, node_handle: Handle<UiNode>) -> Option<&UiNode> {
-        self.nodes.try_borrow(node_handle)
     }
 
     #[inline]
@@ -2754,13 +2581,11 @@ impl UserInterface {
     }
 
     pub fn copy_node(&mut self, node: Handle<UiNode>) -> Handle<UiNode> {
-        let mut map = NodeHandleMapping::default();
+        let mut old_new_mapping = NodeHandleMap::default();
 
-        let root = self.copy_node_recursive(node, &mut map);
+        let root = self.copy_node_recursive(node, &mut old_new_mapping);
 
-        for &node_handle in map.hash_map.values() {
-            self.nodes[node_handle].resolve(&map);
-        }
+        remap_handles(&old_new_mapping, self);
 
         root
     }
@@ -2769,7 +2594,7 @@ impl UserInterface {
     fn copy_node_recursive(
         &mut self,
         node_handle: Handle<UiNode>,
-        map: &mut NodeHandleMapping,
+        old_new_mapping: &mut NodeHandleMap<UiNode>,
     ) -> Handle<UiNode> {
         let node = self.nodes.borrow(node_handle);
         let mut cloned = UiNode(node.clone_boxed());
@@ -2777,37 +2602,44 @@ impl UserInterface {
 
         let mut cloned_children = Vec::new();
         for child in node.children().to_vec() {
-            cloned_children.push(self.copy_node_recursive(child, map));
+            cloned_children.push(self.copy_node_recursive(child, old_new_mapping));
         }
 
         cloned.set_children(cloned_children);
         let copy_handle = self.add_node(cloned);
-        map.add_mapping(node_handle, copy_handle);
+        old_new_mapping.insert(node_handle, copy_handle);
         copy_handle
     }
 
-    pub fn copy_node_to(
+    pub fn copy_node_to<Post>(
         &self,
         node: Handle<UiNode>,
         dest: &mut UserInterface,
-    ) -> (Handle<UiNode>, NodeHandleMapping) {
-        let mut map = NodeHandleMapping::default();
+        post_process_callback: &mut Post,
+    ) -> (Handle<UiNode>, NodeHandleMap<UiNode>)
+    where
+        Post: FnMut(Handle<UiNode>, Handle<UiNode>, &mut UiNode),
+    {
+        let mut old_new_mapping = NodeHandleMap::default();
 
-        let root = self.copy_node_to_recursive(node, dest, &mut map);
+        let root =
+            self.copy_node_to_recursive(node, dest, &mut old_new_mapping, post_process_callback);
 
-        for &node_handle in map.hash_map.values() {
-            dest.nodes[node_handle].resolve(&map);
-        }
+        remap_handles(&old_new_mapping, dest);
 
-        (root, map)
+        (root, old_new_mapping)
     }
 
-    fn copy_node_to_recursive(
+    fn copy_node_to_recursive<Post>(
         &self,
         node_handle: Handle<UiNode>,
         dest: &mut UserInterface,
-        map: &mut NodeHandleMapping,
-    ) -> Handle<UiNode> {
+        old_new_mapping: &mut NodeHandleMap<UiNode>,
+        post_process_callback: &mut Post,
+    ) -> Handle<UiNode>
+    where
+        Post: FnMut(Handle<UiNode>, Handle<UiNode>, &mut UiNode),
+    {
         let node = self.nodes.borrow(node_handle);
         let children = node.children.clone();
 
@@ -2818,11 +2650,19 @@ impl UserInterface {
         let cloned_node_handle = dest.add_node(cloned);
 
         for child in children {
-            let cloned_child_node_handle = self.copy_node_to_recursive(child, dest, map);
+            let cloned_child_node_handle =
+                self.copy_node_to_recursive(child, dest, old_new_mapping, post_process_callback);
             dest.link_nodes(cloned_child_node_handle, cloned_node_handle, false);
         }
 
-        map.add_mapping(node_handle, cloned_node_handle);
+        old_new_mapping.insert(node_handle, cloned_node_handle);
+
+        post_process_callback(
+            cloned_node_handle,
+            node_handle,
+            dest.try_get_node_mut(cloned_node_handle).unwrap(),
+        );
+
         cloned_node_handle
     }
 
@@ -2831,14 +2671,13 @@ impl UserInterface {
         node: Handle<UiNode>,
         limit: Option<usize>,
     ) -> Handle<UiNode> {
-        let mut map = NodeHandleMapping::default();
+        let mut old_new_mapping = NodeHandleMap::default();
         let mut counter = 0;
 
-        let root = self.copy_node_recursive_with_limit(node, &mut map, limit, &mut counter);
+        let root =
+            self.copy_node_recursive_with_limit(node, &mut old_new_mapping, limit, &mut counter);
 
-        for &node_handle in map.hash_map.values() {
-            self.nodes[node_handle].resolve(&map);
-        }
+        remap_handles(&old_new_mapping, self);
 
         root
     }
@@ -2847,7 +2686,7 @@ impl UserInterface {
     fn copy_node_recursive_with_limit(
         &mut self,
         node_handle: Handle<UiNode>,
-        map: &mut NodeHandleMapping,
+        old_new_mapping: &mut NodeHandleMap<UiNode>,
         limit: Option<usize>,
         counter: &mut usize,
     ) -> Handle<UiNode> {
@@ -2863,7 +2702,8 @@ impl UserInterface {
 
         let mut cloned_children = Vec::new();
         for child in node.children().to_vec() {
-            let cloned_child = self.copy_node_recursive_with_limit(child, map, limit, counter);
+            let cloned_child =
+                self.copy_node_recursive_with_limit(child, old_new_mapping, limit, counter);
             if cloned_child.is_some() {
                 cloned_children.push(cloned_child);
             } else {
@@ -2873,7 +2713,7 @@ impl UserInterface {
 
         cloned.set_children(cloned_children);
         let copy_handle = self.add_node(cloned);
-        map.add_mapping(node_handle, copy_handle);
+        old_new_mapping.insert(node_handle, copy_handle);
 
         *counter += 1;
 
@@ -2901,6 +2741,36 @@ impl UserInterface {
         .await
     }
 
+    fn restore_dynamic_node_data(&mut self) {
+        for (handle, widget) in self.nodes.pair_iter_mut() {
+            widget.handle = handle;
+            widget.layout_events_sender = Some(self.layout_events_sender.clone());
+            widget.invalidate_layout();
+        }
+    }
+
+    pub fn resolve(&mut self) {
+        self.restore_dynamic_node_data();
+        self.restore_original_handles_and_inherit_properties(&[], |_, _| {});
+        self.update_visual_transform();
+        self.update_global_visibility(self.root_canvas);
+        let instances = self.restore_integrity(|model, model_data, handle, dest_graph| {
+            model_data.copy_node_to(handle, dest_graph, &mut |_, original_handle, node| {
+                node.set_inheritance_data(original_handle, model.clone());
+            })
+        });
+        self.remap_handles(&instances);
+    }
+
+    /// Collects all resources used by the user interface. It uses reflection to "scan" the contents
+    /// of the user interface, so if some fields marked with `#[reflect(hidden)]` attribute, then
+    /// such field will be ignored!
+    pub fn collect_used_resources(&self) -> FxHashSet<UntypedResource> {
+        let mut collection = FxHashSet::default();
+        fyrox_resource::collect_used_resources(self, &mut collection);
+        collection
+    }
+
     #[allow(clippy::arc_with_non_send_sync)]
     pub async fn load_from_file_ex<P: AsRef<Path>>(
         path: P,
@@ -2908,18 +2778,213 @@ impl UserInterface {
         resource_manager: ResourceManager,
         io: &dyn ResourceIo,
     ) -> Result<Self, VisitError> {
-        let mut visitor = Visitor::load_from_memory(&io.load_file(path.as_ref()).await?)?;
-        let (sender, receiver) = mpsc::channel();
-        visitor.blackboard.register(constructors);
-        visitor.blackboard.register(Arc::new(sender.clone()));
-        visitor.blackboard.register(Arc::new(resource_manager));
-        let mut ui = UserInterface::new_with_channel(sender, receiver, Vector2::new(100.0, 100.0));
-        ui.visit("Ui", &mut visitor)?;
-        for widget in ui.nodes.iter_mut() {
-            widget.layout_events_sender = Some(ui.layout_events_sender.clone());
-            widget.invalidate_layout();
-        }
+        let mut ui = {
+            let mut visitor = Visitor::load_from_memory(&io.load_file(path.as_ref()).await?)?;
+            let (sender, receiver) = mpsc::channel();
+            visitor.blackboard.register(constructors);
+            visitor.blackboard.register(Arc::new(sender.clone()));
+            visitor.blackboard.register(Arc::new(resource_manager));
+            let mut ui =
+                UserInterface::new_with_channel(sender, receiver, Vector2::new(100.0, 100.0));
+            ui.visit("Ui", &mut visitor)?;
+            ui
+        };
+
+        Log::info("UserInterface - Collecting resources used by the scene...");
+
+        let used_resources = ui.collect_used_resources();
+
+        let used_resources_count = used_resources.len();
+
+        Log::info(format!(
+            "UserInterface - {} resources collected. Waiting them to load...",
+            used_resources_count
+        ));
+
+        // Wait everything.
+        join_all(used_resources.into_iter()).await;
+
+        ui.resolve();
+
         Ok(ui)
+    }
+}
+
+impl PrefabData for UserInterface {
+    type Graph = Self;
+
+    #[inline]
+    fn graph(&self) -> &Self::Graph {
+        self
+    }
+
+    #[inline]
+    fn mapping(&self) -> NodeMapping {
+        NodeMapping::UseHandles
+    }
+}
+
+impl AbstractSceneGraph for UserInterface {
+    fn try_get_node_untyped(&self, handle: ErasedHandle) -> Option<&dyn AbstractSceneNode> {
+        self.nodes
+            .try_borrow(handle.into())
+            .map(|n| n as &dyn AbstractSceneNode)
+    }
+
+    fn try_get_node_untyped_mut(
+        &mut self,
+        handle: ErasedHandle,
+    ) -> Option<&mut dyn AbstractSceneNode> {
+        self.nodes
+            .try_borrow_mut(handle.into())
+            .map(|n| n as &mut dyn AbstractSceneNode)
+    }
+}
+
+impl BaseSceneGraph for UserInterface {
+    type Prefab = Self;
+    type Node = UiNode;
+
+    #[inline]
+    fn root(&self) -> Handle<Self::Node> {
+        self.root_canvas
+    }
+
+    #[inline]
+    fn set_root(&mut self, root: Handle<Self::Node>) {
+        self.root_canvas = root;
+    }
+
+    #[inline]
+    fn try_get(&self, handle: Handle<Self::Node>) -> Option<&Self::Node> {
+        self.nodes.try_borrow(handle)
+    }
+
+    #[inline]
+    fn try_get_mut(&mut self, handle: Handle<Self::Node>) -> Option<&mut Self::Node> {
+        self.nodes.try_borrow_mut(handle)
+    }
+
+    #[inline]
+    fn is_valid_handle(&self, handle: Handle<Self::Node>) -> bool {
+        self.nodes.is_valid_handle(handle)
+    }
+
+    #[inline]
+    fn add_node(&mut self, mut node: Self::Node) -> Handle<Self::Node> {
+        let children = node.children().to_vec();
+        node.clear_children();
+        let node_handle = self.nodes.spawn(node);
+        if self.root_canvas.is_some() {
+            self.link_nodes(node_handle, self.root_canvas, false);
+        }
+        for child in children {
+            self.link_nodes(child, node_handle, false)
+        }
+        let node = self.nodes[node_handle].deref_mut();
+        node.layout_events_sender = Some(self.layout_events_sender.clone());
+        node.handle = node_handle;
+        self.methods_registry.register(node);
+        node.invalidate_layout();
+        self.layout_events_sender
+            .send(LayoutEvent::VisibilityChanged(node_handle))
+            .unwrap();
+        node_handle
+    }
+
+    #[inline]
+    fn remove_node(&mut self, node: Handle<Self::Node>) {
+        self.isolate_node(node);
+
+        let sender = self.sender.clone();
+        let mut stack = vec![node];
+        while let Some(handle) = stack.pop() {
+            if self.prev_picked_node == handle {
+                self.prev_picked_node = Handle::NONE;
+            }
+            if self.picked_node == handle {
+                self.try_set_picked_node(Handle::NONE);
+            }
+            if self.captured_node == handle {
+                self.captured_node = Handle::NONE;
+            }
+            if self.keyboard_focus_node == handle {
+                self.keyboard_focus_node = Handle::NONE;
+            }
+            self.remove_picking_restriction(handle);
+
+            let node_ref = self.nodes.borrow(handle);
+            stack.extend_from_slice(node_ref.children());
+
+            // Notify node that it is about to be deleted so it will have a chance to remove
+            // other widgets (like popups).
+            node_ref.on_remove(&sender);
+
+            self.methods_registry.unregister(node_ref.deref());
+            self.nodes.free(handle);
+        }
+    }
+
+    #[inline]
+    fn link_nodes(&mut self, child: Handle<Self::Node>, parent: Handle<Self::Node>) {
+        self.link_nodes(child, parent, false)
+    }
+
+    #[inline]
+    fn unlink_node(&mut self, node_handle: Handle<Self::Node>) {
+        self.isolate_node(node_handle);
+        self.link_nodes(node_handle, self.root_canvas, false);
+    }
+
+    #[inline]
+    fn isolate_node(&mut self, node_handle: Handle<Self::Node>) {
+        let node = self.nodes.borrow_mut(node_handle);
+        let parent_handle = node.parent();
+        if parent_handle.is_some() {
+            node.set_parent(Handle::NONE);
+
+            // Remove child from parent's children list
+            self.nodes[parent_handle].remove_child(node_handle);
+        }
+    }
+}
+
+impl SceneGraph for UserInterface {
+    #[inline]
+    fn pair_iter(&self) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)> {
+        self.nodes.pair_iter()
+    }
+
+    #[inline]
+    fn linear_iter(&self) -> impl Iterator<Item = &Self::Node> {
+        self.nodes.iter()
+    }
+
+    #[inline]
+    fn linear_iter_mut(&mut self) -> impl Iterator<Item = &mut Self::Node> {
+        self.nodes.iter_mut()
+    }
+}
+
+pub trait UserInterfaceResourceExtension {
+    fn instantiate(&self, ui: &mut UserInterface) -> (Handle<UiNode>, NodeHandleMap<UiNode>);
+}
+
+impl UserInterfaceResourceExtension for Resource<UserInterface> {
+    fn instantiate(&self, ui: &mut UserInterface) -> (Handle<UiNode>, NodeHandleMap<UiNode>) {
+        let resource = self.clone();
+        let mut data = self.state();
+        let data = data.data().expect("The resource must be loaded!");
+
+        let (root, mapping) =
+            data.copy_node_to(data.root_canvas, ui, &mut |_, original_handle, node| {
+                node.set_inheritance_data(original_handle, resource.clone());
+            });
+
+        // Explicitly mark as root node.
+        ui.node_mut(root).is_resource_instance_root = true;
+
+        (root, mapping)
     }
 }
 
@@ -3146,6 +3211,7 @@ mod test {
         widget::{WidgetBuilder, WidgetMessage},
         OsEvent, UserInterface,
     };
+    use fyrox_graph::BaseSceneGraph;
 
     #[test]
     fn test_transform_size() {
@@ -3167,10 +3233,10 @@ mod test {
                 .with_height(widget_size.y),
         )
         .build(&mut ui.build_ctx());
-        ui.update(screen_size, 0.0); // Make sure layout was calculated.
+        ui.update(screen_size, 0.0, &Default::default()); // Make sure layout was calculated.
         ui.send_message(WidgetMessage::center(widget, MessageDirection::ToWidget));
         while ui.poll_message().is_some() {}
-        ui.update(screen_size, 0.0);
+        ui.update(screen_size, 0.0, &Default::default());
         let expected_position = (screen_size - widget_size).scale(0.5);
         let actual_position = ui.node(widget).actual_local_position();
         assert_eq!(actual_position, expected_position);
@@ -3184,7 +3250,7 @@ mod test {
         let text_box = TextBoxBuilder::new(WidgetBuilder::new()).build(&mut ui.build_ctx());
 
         // Make sure layout was calculated.
-        ui.update(screen_size, 0.0);
+        ui.update(screen_size, 0.0, &Default::default());
 
         assert!(ui.poll_message().is_none());
 

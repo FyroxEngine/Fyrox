@@ -328,6 +328,125 @@ pub trait Draw {
         }
     }
 
+    fn push_arc_path(
+        &mut self,
+        center: Vector2<f32>,
+        radius: f32,
+        angles: Range<f32>,
+        subdivisions: usize,
+    ) {
+        let mut start_angle = math::wrap_angle(angles.start);
+        let mut end_angle = math::wrap_angle(angles.end);
+
+        if start_angle > end_angle {
+            std::mem::swap(&mut start_angle, &mut end_angle);
+        }
+
+        let d = (end_angle - start_angle) / subdivisions as f32;
+
+        let mut angle = start_angle;
+        while angle < end_angle {
+            let p0 = center + Vector2::new(angle.cos() * radius, angle.sin() * radius);
+
+            self.push_vertex(p0, Default::default());
+
+            angle += d;
+        }
+    }
+
+    fn push_line_path(&mut self, a: Vector2<f32>, b: Vector2<f32>) {
+        self.push_vertex(a, Default::default());
+        self.push_vertex(b, Default::default());
+    }
+
+    fn push_rounded_rect_filled(
+        &mut self,
+        rect: &Rect<f32>,
+        mut corner_radius: f32,
+        corner_subdivisions: usize,
+    ) {
+        // Restrict corner radius in available rectangle.
+        let min_axis = rect.w().min(rect.h());
+        corner_radius = corner_radius.min(min_axis * 0.5);
+
+        let center_index = self.last_vertex_index();
+        self.push_vertex(rect.center(), Default::default());
+
+        // Add segments.
+
+        // Vertical lines
+        {
+            let left_top = Vector2::new(rect.x(), rect.y() + corner_radius);
+            let right_top = Vector2::new(rect.x() + rect.w(), rect.y() + corner_radius);
+            let right_bottom =
+                Vector2::new(rect.x() + rect.w(), rect.y() + rect.h() - corner_radius);
+            let left_bottom = Vector2::new(rect.x(), rect.y() + rect.h() - corner_radius);
+
+            self.push_line_path(right_top, right_bottom);
+            self.push_line_path(left_bottom, left_top);
+        }
+
+        // Horizontal lines
+        {
+            let left_top = Vector2::new(rect.x() + corner_radius, rect.y());
+            let right_top = Vector2::new(rect.x() + rect.w() - corner_radius, rect.y());
+            let right_bottom =
+                Vector2::new(rect.x() + rect.w() - corner_radius, rect.y() + rect.h());
+            let left_bottom = Vector2::new(rect.x() + corner_radius, rect.y() + rect.h());
+
+            self.push_line_path(left_top, right_top);
+            self.push_line_path(right_bottom, left_bottom);
+        }
+
+        // Corner arcs.
+        {
+            // Left top corner.
+            self.push_arc_path(
+                rect.position + Vector2::repeat(corner_radius),
+                corner_radius,
+                180.0f32.to_radians()..270.0f32.to_radians(),
+                corner_subdivisions,
+            );
+            // Right top corner.
+            self.push_arc_path(
+                Vector2::new(
+                    rect.position.x + rect.w() - corner_radius,
+                    rect.position.y + corner_radius,
+                ),
+                corner_radius,
+                270.0f32.to_radians()..359.99f32.to_radians(),
+                corner_subdivisions,
+            );
+            // Right bottom corner.
+            self.push_arc_path(
+                Vector2::new(
+                    rect.position.x + rect.w() - corner_radius,
+                    rect.position.y + rect.h() - corner_radius,
+                ),
+                corner_radius,
+                0.0f32.to_radians()..90.0f32.to_radians(),
+                corner_subdivisions,
+            );
+            // Left bottom corner.
+            self.push_arc_path(
+                Vector2::new(
+                    rect.position.x + corner_radius,
+                    rect.position.y + rect.h() - corner_radius,
+                ),
+                corner_radius,
+                90.0f32.to_radians()..180.0f32.to_radians(),
+                corner_subdivisions,
+            );
+        }
+
+        // Connect all vertices.
+        let last_vertex_index = self.last_vertex_index();
+        for i in center_index..last_vertex_index.saturating_sub(1) {
+            let next = i + 1;
+            self.push_triangle(i, next, center_index)
+        }
+    }
+
     fn push_rounded_rect(
         &mut self,
         rect: &Rect<f32>,
@@ -337,7 +456,7 @@ pub trait Draw {
     ) {
         // Restrict corner radius in available rectangle.
         let min_axis = rect.w().min(rect.h());
-        corner_radius = corner_radius.max(min_axis * 0.5);
+        corner_radius = corner_radius.min(min_axis * 0.5);
 
         let offset = thickness * 0.5;
 
@@ -721,15 +840,15 @@ impl DrawingContext {
         }
 
         // Draw shadow, if any.
-        if formatted_text.shadow {
+        if *formatted_text.shadow {
             draw(
                 formatted_text,
                 self,
                 clip_bounds,
                 position,
-                formatted_text.shadow_dilation,
-                formatted_text.shadow_offset,
-                formatted_text.shadow_brush.clone(),
+                *formatted_text.shadow_dilation,
+                *formatted_text.shadow_offset,
+                (*formatted_text.shadow_brush).clone(),
                 &font,
             );
         }

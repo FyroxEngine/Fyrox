@@ -1,10 +1,12 @@
+use crate::scene::commands::ChangeSelectionCommand;
 use crate::{
     interaction::{make_interaction_mode_button, InteractionMode},
     message::MessageSender,
     scene::{controller::SceneController, Selection},
     settings::Settings,
-    ui_scene::{commands::ChangeUiSelectionCommand, UiScene, UiSelection},
+    ui_scene::{UiScene, UiSelection},
 };
+use fyrox::graph::BaseSceneGraph;
 use fyrox::{
     core::{
         algebra::Vector2,
@@ -119,14 +121,11 @@ impl InteractionMode for UiSelectInteractionMode {
             self.stack.extend_from_slice(node.children());
         }
 
-        let new_selection = Selection::Ui(ui_selection);
+        let new_selection = Selection::new(ui_selection);
 
         if &new_selection != editor_selection {
             self.message_sender
-                .do_ui_scene_command(ChangeUiSelectionCommand::new(
-                    new_selection,
-                    editor_selection.clone(),
-                ));
+                .do_command(ChangeSelectionCommand::new(new_selection));
         }
         engine
             .user_interface

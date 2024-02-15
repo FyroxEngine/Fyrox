@@ -26,6 +26,7 @@ use crate::{
 };
 use fxhash::FxHashSet;
 use fyrox_core::uuid_provider;
+use fyrox_graph::BaseSceneGraph;
 use std::sync::mpsc::Sender;
 use std::{
     cell::{Cell, RefCell},
@@ -590,11 +591,11 @@ impl Control for CurveEditor {
         }
     }
 
-    fn update(&mut self, _dt: f32, sender: &Sender<UiMessage>, _screen_size: Vector2<f32>) {
+    fn update(&mut self, _dt: f32, ui: &mut UserInterface) {
         if let Some(timer) = self.zoom_to_fit_timer.as_mut() {
             *timer = timer.saturating_sub(1);
             if *timer == 0 {
-                self.zoom_to_fit(sender);
+                self.zoom_to_fit(&ui.sender);
                 self.zoom_to_fit_timer = None;
             }
         }
@@ -1427,6 +1428,7 @@ impl CurveEditorBuilder {
                 .widget_builder
                 .with_context_menu(context_menu.clone())
                 .with_preview_messages(true)
+                .with_need_update(true)
                 .build(),
             key_container: keys,
             zoom: Vector2::new(1.0, 1.0),

@@ -1,4 +1,5 @@
 use crate::inspector::editors::spritesheet::SpriteSheetFramesPropertyEditorMessage;
+use fyrox::graph::BaseSceneGraph;
 use fyrox::{
     core::{
         algebra::Vector2, color::Color, parking_lot::Mutex, pool::Handle, reflect::prelude::*,
@@ -19,8 +20,8 @@ use fyrox::{
         utils::make_simple_tooltip,
         widget::{Widget, WidgetBuilder, WidgetMessage},
         window::{Window, WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, Thickness,
-        UiNode, UserInterface, VerticalAlignment,
+        BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+        VerticalAlignment,
     },
     scene::animation::spritesheet::prelude::*,
 };
@@ -62,10 +63,6 @@ impl DerefMut for SpriteSheetFramesEditorWindow {
 uuid_provider!(SpriteSheetFramesEditorWindow = "55607fe0-2996-418d-ad31-a5b96fdfa4b7");
 
 impl Control for SpriteSheetFramesEditorWindow {
-    fn resolve(&mut self, node_map: &NodeHandleMapping) {
-        self.window.resolve(node_map);
-    }
-
     fn on_remove(&self, sender: &Sender<UiMessage>) {
         self.window.on_remove(sender);
     }
@@ -82,18 +79,16 @@ impl Control for SpriteSheetFramesEditorWindow {
         self.window.draw(drawing_context)
     }
 
-    fn update(&mut self, dt: f32, sender: &Sender<UiMessage>, screen_size: Vector2<f32>) {
-        self.window.update(dt, sender, screen_size);
+    fn update(&mut self, dt: f32, ui: &mut UserInterface) {
+        self.window.update(dt, ui);
 
         self.animation.update(dt);
         self.animation.play();
-        sender
-            .send(ImageMessage::uv_rect(
-                self.preview_image,
-                MessageDirection::ToWidget,
-                self.animation.current_frame_uv_rect().unwrap_or_default(),
-            ))
-            .unwrap();
+        ui.send_message(ImageMessage::uv_rect(
+            self.preview_image,
+            MessageDirection::ToWidget,
+            self.animation.current_frame_uv_rect().unwrap_or_default(),
+        ));
     }
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
@@ -337,56 +332,61 @@ impl SpriteSheetFramesEditorWindow {
         .build(ctx);
 
         let editor = Self {
-            window: WindowBuilder::new(WidgetBuilder::new().with_width(450.0).with_height(400.0))
-                .can_resize(true)
-                .with_content(
-                    GridBuilder::new(
-                        WidgetBuilder::new()
-                            .with_child({
-                                preview_container = BorderBuilder::new(
-                                    WidgetBuilder::new()
-                                        .with_margin(Thickness::uniform(1.0))
-                                        .on_column(0)
-                                        .on_row(0)
-                                        .with_child(
-                                            ImageBuilder::new(
-                                                WidgetBuilder::new()
-                                                    .with_margin(Thickness::uniform(1.0)),
-                                            )
-                                            .with_opt_texture(container.texture().map(Into::into))
-                                            .build(ctx),
+            window: WindowBuilder::new(
+                WidgetBuilder::new()
+                    .with_need_update(true)
+                    .with_width(450.0)
+                    .with_height(400.0),
+            )
+            .can_resize(true)
+            .with_content(
+                GridBuilder::new(
+                    WidgetBuilder::new()
+                        .with_child({
+                            preview_container = BorderBuilder::new(
+                                WidgetBuilder::new()
+                                    .with_margin(Thickness::uniform(1.0))
+                                    .on_column(0)
+                                    .on_row(0)
+                                    .with_child(
+                                        ImageBuilder::new(
+                                            WidgetBuilder::new()
+                                                .with_margin(Thickness::uniform(1.0)),
                                         )
-                                        .with_child(grid),
-                                )
-                                .build(ctx);
-                                preview_container
-                            })
-                            .with_child(
-                                GridBuilder::new(
-                                    WidgetBuilder::new()
-                                        .on_column(1)
-                                        .on_row(0)
-                                        .with_child(preview_image)
-                                        .with_child(params_grid)
-                                        .with_child(buttons_container),
-                                )
-                                .add_column(Column::stretch())
-                                .add_row(Row::stretch())
-                                .add_row(Row::auto())
-                                .add_row(Row::stretch())
-                                .add_row(Row::strict(25.0))
-                                .build(ctx),
-                            ),
-                    )
-                    .add_row(Row::stretch())
-                    .add_column(Column::stretch())
-                    .add_column(Column::strict(150.0))
-                    .build(ctx),
+                                        .with_opt_texture(container.texture().map(Into::into))
+                                        .build(ctx),
+                                    )
+                                    .with_child(grid),
+                            )
+                            .build(ctx);
+                            preview_container
+                        })
+                        .with_child(
+                            GridBuilder::new(
+                                WidgetBuilder::new()
+                                    .on_column(1)
+                                    .on_row(0)
+                                    .with_child(preview_image)
+                                    .with_child(params_grid)
+                                    .with_child(buttons_container),
+                            )
+                            .add_column(Column::stretch())
+                            .add_row(Row::stretch())
+                            .add_row(Row::auto())
+                            .add_row(Row::stretch())
+                            .add_row(Row::strict(25.0))
+                            .build(ctx),
+                        ),
                 )
-                .open(false)
-                .can_minimize(false)
-                .with_title(WindowTitle::text("Sprite Sheet Frames Editor"))
-                .build_window(ctx),
+                .add_row(Row::stretch())
+                .add_column(Column::stretch())
+                .add_column(Column::strict(150.0))
+                .build(ctx),
+            )
+            .open(false)
+            .can_minimize(false)
+            .with_title(WindowTitle::text("Sprite Sheet Frames Editor"))
+            .build_window(ctx),
             animation: SpriteSheetAnimation::with_container(container),
             editor,
             ok,

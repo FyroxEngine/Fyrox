@@ -1,4 +1,6 @@
+use crate::command::CommandGroup;
 use crate::scene::commands::sound_context::SetHrtfRendererHrirSphereResource;
+use crate::scene::SelectionContainer;
 use crate::{
     audio::bus::{AudioBusView, AudioBusViewBuilder, AudioBusViewMessage},
     gui::make_dropdown_list_option,
@@ -7,15 +9,15 @@ use crate::{
     scene::commands::{
         effect::{AddAudioBusCommand, LinkAudioBuses, RemoveAudioBusCommand},
         sound_context::{SetDistanceModelCommand, SetRendererCommand},
-        CommandGroup,
     },
     send_sync_message,
     utils::window_content,
-    ChangeSelectionCommand, GameScene, GameSceneCommand, GridBuilder, MessageDirection, Mode,
-    Selection, UserInterface,
+    ChangeSelectionCommand, Command, GameScene, GridBuilder, MessageDirection, Mode, Selection,
+    UserInterface,
 };
 use fyrox::asset::manager::ResourceManager;
 use fyrox::core::parking_lot::Mutex;
+use fyrox::graph::BaseSceneGraph;
 use fyrox::{
     core::{futures::executor::block_on, pool::Handle},
     engine::Engine,
@@ -47,12 +49,8 @@ pub struct AudioBusSelection {
     pub buses: Vec<Handle<AudioBus>>,
 }
 
-impl AudioBusSelection {
-    pub fn is_empty(&self) -> bool {
-        self.buses.is_empty()
-    }
-
-    pub fn len(&self) -> usize {
+impl SelectionContainer for AudioBusSelection {
+    fn len(&self) -> usize {
         self.buses.len()
     }
 }
@@ -257,21 +255,20 @@ impl AudioPanel {
     ) {
         if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.add_bus {
-                sender.do_scene_command(AddAudioBusCommand::new(AudioBus::new(
+                sender.do_command(AddAudioBusCommand::new(AudioBus::new(
                     "AudioBus".to_string(),
                 )))
             } else if message.destination() == self.remove_bus {
-                if let Selection::AudioBus(ref selection) = editor_selection {
-                    let mut commands = vec![GameSceneCommand::new(ChangeSelectionCommand::new(
-                        Selection::None,
-                        editor_selection.clone(),
+                if let Some(selection) = editor_selection.as_audio_bus() {
+                    let mut commands = vec![Command::new(ChangeSelectionCommand::new(
+                        Selection::new_empty(),
                     ))];
 
                     for &bus in &selection.buses {
-                        commands.push(GameSceneCommand::new(RemoveAudioBusCommand::new(bus)));
+                        commands.push(Command::new(RemoveAudioBusCommand::new(bus)));
                     }
 
-                    sender.do_scene_command(CommandGroup::from(commands));
+                    sender.do_command(CommandGroup::from(commands));
                 }
             }
         } else if let Some(ListViewMessage::SelectionChanged(Some(effect_index))) = message.data() {
@@ -288,12 +285,11 @@ impl AudioPanel {
                     ui,
                 );
 
-                sender.do_scene_command(ChangeSelectionCommand::new(
-                    Selection::AudioBus(AudioBusSelection {
+                sender.do_command(ChangeSelectionCommand::new(Selection::new(
+                    AudioBusSelection {
                         buses: vec![effect],
-                    }),
-                    editor_selection.clone(),
-                ))
+                    },
+                )))
             }
         } else if let Some(AudioBusViewMessage::ChangeParent(new_parent)) = message.data() {
             if message.direction() == MessageDirection::FromWidget {
@@ -305,7 +301,7 @@ impl AudioPanel {
 
                 let child = audio_bus_view_ref.bus;
 
-                sender.do_scene_command(LinkAudioBuses {
+                sender.do_command(LinkAudioBuses {
                     child,
                     parent: *new_parent,
                 });
@@ -319,7 +315,7 @@ impl AudioPanel {
                         _ => unreachable!(),
                     };
 
-                    sender.do_scene_command(SetRendererCommand::new(renderer));
+                    sender.do_command(SetRendererCommand::new(renderer));
                 } else if message.destination() == self.distance_model {
                     let distance_model = match index {
                         0 => DistanceModel::None,
@@ -329,7 +325,7 @@ impl AudioPanel {
                         _ => unreachable!(),
                     };
 
-                    sender.do_scene_command(SetDistanceModelCommand::new(distance_model));
+                    sender.do_command(SetDistanceModelCommand::new(distance_model));
                 }
             }
         } else if let Some(ResourceFieldMessage::Value(resource)) =
@@ -338,7 +334,7 @@ impl AudioPanel {
             if message.destination() == self.hrir_resource
                 && message.direction() == MessageDirection::FromWidget
             {
-                sender.do_scene_command(SetHrtfRendererHrirSphereResource::new(resource.clone()));
+                sender.do_command(SetHrtfRendererHrirSphereResource::new(resource.clone()));
             }
         }
     }
@@ -415,7 +411,7 @@ impl AudioPanel {
         let mut selection_index = None;
         let mut is_primary_bus_selected = false;
 
-        if let Selection::AudioBus(ref selection) = editor_selection {
+        if let Some(selection) = editor_selection.as_audio_bus() {
             for (index, item) in items.into_iter().enumerate() {
                 let bus_handle = item_bus(item, ui);
 

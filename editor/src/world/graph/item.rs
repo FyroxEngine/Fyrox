@@ -1,4 +1,7 @@
 use crate::{load_image, message::MessageSender, utils::make_node_name, Message};
+use fyrox::core::color::Color;
+use fyrox::graph::BaseSceneGraph;
+use fyrox::gui::draw::{CommandTexture, Draw};
 use fyrox::{
     asset::untyped::UntypedResource,
     core::{
@@ -16,14 +19,12 @@ use fyrox::{
         tree::{Tree, TreeBuilder},
         utils::make_simple_tooltip,
         widget::{Widget, WidgetBuilder, WidgetMessage},
-        BuildContext, Control, NodeHandleMapping, Thickness, UiNode, UserInterface,
-        VerticalAlignment,
+        BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
 };
 use std::{
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
-    sync::mpsc::Sender,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -35,6 +36,15 @@ pub enum SceneItemMessage {
 impl SceneItemMessage {
     define_constructor!(SceneItemMessage:Name => fn name(String), layout: false);
     define_constructor!(SceneItemMessage:Validate => fn validate(Result<(), String>), layout: false);
+}
+
+#[derive(Copy, Clone)]
+pub enum DropAnchor {
+    Side {
+        visual_offset: f32,
+        index_offset: isize,
+    },
+    OnTop,
 }
 
 #[derive(Visit, Reflect, ComponentProvider)]
@@ -50,6 +60,9 @@ pub struct SceneItem {
     #[reflect(hidden)]
     #[visit(skip)]
     sender: MessageSender,
+    #[reflect(hidden)]
+    #[visit(skip)]
+    pub drop_anchor: DropAnchor,
 }
 
 impl SceneItem {
@@ -68,6 +81,7 @@ impl Clone for SceneItem {
             entity_handle: self.entity_handle,
             warning_icon: self.warning_icon,
             sender: self.sender.clone(),
+            drop_anchor: self.drop_anchor,
         }
     }
 }
@@ -95,11 +109,6 @@ impl DerefMut for SceneItem {
 uuid_provider!(SceneItem = "16f35257-a250-413b-ab51-b1ad086a3a9c");
 
 impl Control for SceneItem {
-    fn resolve(&mut self, node_map: &NodeHandleMapping) {
-        self.tree.resolve(node_map);
-        node_map.resolve(&mut self.text_name);
-    }
-
     fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         self.tree.measure_override(ui, available_size)
     }
@@ -108,12 +117,30 @@ impl Control for SceneItem {
         self.tree.arrange_override(ui, final_size)
     }
 
-    fn draw(&self, drawing_context: &mut DrawingContext) {
+    fn post_draw(&self, drawing_context: &mut DrawingContext) {
         self.tree.draw(drawing_context);
+
+        let width = self.screen_bounds().w();
+        match self.drop_anchor {
+            DropAnchor::Side { visual_offset, .. } => {
+                drawing_context.push_line(
+                    Vector2::new(0.0, visual_offset),
+                    Vector2::new(width, visual_offset),
+                    2.0,
+                );
+            }
+            DropAnchor::OnTop => {}
+        }
+        drawing_context.commit(
+            self.clip_bounds().inflate(0.0, 2.0),
+            Brush::Solid(Color::CORN_FLOWER_BLUE),
+            CommandTexture::None,
+            None,
+        );
     }
 
-    fn update(&mut self, dt: f32, sender: &Sender<UiMessage>, screen_size: Vector2<f32>) {
-        self.tree.update(dt, sender, screen_size);
+    fn update(&mut self, dt: f32, ui: &mut UserInterface) {
+        self.tree.update(dt, ui);
     }
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
@@ -169,6 +196,37 @@ impl Control for SceneItem {
                     .send(Message::FocusObject(self.entity_handle.into()));
                 message.set_handled(true);
                 message.flags |= flag;
+            }
+        } else if let Some(msg) = message.data::<WidgetMessage>() {
+            match msg {
+                WidgetMessage::DragOver(_) => {
+                    if let Some(background) = ui.try_get(self.tree.background) {
+                        let cursor_pos = ui.cursor_position();
+                        let bounds = background.screen_bounds();
+                        let deflated_bounds = bounds.deflate(0.0, 5.0);
+                        if bounds.contains(cursor_pos) {
+                            if cursor_pos.y < deflated_bounds.y() {
+                                self.drop_anchor = DropAnchor::Side {
+                                    visual_offset: 0.0,
+                                    index_offset: 0,
+                                };
+                            } else if deflated_bounds.contains(cursor_pos) {
+                                self.drop_anchor = DropAnchor::OnTop;
+                            } else if cursor_pos.y > deflated_bounds.y() + deflated_bounds.h() {
+                                self.drop_anchor = DropAnchor::Side {
+                                    visual_offset: bounds.h() - 1.0,
+                                    index_offset: 0,
+                                };
+                            }
+                        } else {
+                            self.drop_anchor = DropAnchor::OnTop;
+                        }
+                    }
+                }
+                WidgetMessage::MouseLeave => {
+                    self.drop_anchor = DropAnchor::OnTop;
+                }
+                _ => (),
             }
         }
     }
@@ -236,7 +294,7 @@ impl SceneItemBuilder {
                             .with_width(16.0)
                             .with_height(16.0)
                             .on_column(0)
-                            .with_margin(Thickness::uniform(1.0))
+                            .with_margin(Thickness::left_right(1.0))
                             .with_visibility(self.icon.is_some()),
                     )
                     .with_opt_texture(self.icon)
@@ -249,7 +307,7 @@ impl SceneItemBuilder {
                                 self.text_brush
                                     .unwrap_or(Brush::Solid(fyrox::gui::COLOR_FOREGROUND)),
                             )
-                            .with_margin(Thickness::uniform(1.0))
+                            .with_margin(Thickness::left(1.0))
                             .on_column(1)
                             .with_vertical_alignment(VerticalAlignment::Center),
                     )
@@ -279,6 +337,7 @@ impl SceneItemBuilder {
             grid: content,
             warning_icon: Default::default(),
             sender,
+            drop_anchor: DropAnchor::OnTop,
         };
 
         ctx.add_node(UiNode::new(item))

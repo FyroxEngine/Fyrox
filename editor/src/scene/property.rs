@@ -1,3 +1,4 @@
+use fyrox::graph::BaseSceneGraph;
 use fyrox::{
     core::{
         algebra::Vector2, make_pretty_type_name, parking_lot::Mutex, pool::Handle,
@@ -19,8 +20,7 @@ use fyrox::{
         tree::{Tree, TreeBuilder, TreeRootBuilder, TreeRootMessage},
         widget::{Widget, WidgetBuilder, WidgetMessage},
         window::{Window, WindowBuilder, WindowMessage},
-        BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, Thickness,
-        UiNode, UserInterface,
+        BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
     },
 };
 use std::{
@@ -436,10 +436,6 @@ impl DerefMut for PropertySelectorWindow {
 uuid_provider!(PropertySelectorWindow = "725e4a10-eca6-4345-9833-d54dae2f20f2");
 
 impl Control for PropertySelectorWindow {
-    fn resolve(&mut self, node_map: &NodeHandleMapping) {
-        self.window.resolve(node_map)
-    }
-
     fn on_remove(&self, sender: &Sender<UiMessage>) {
         self.window.on_remove(sender)
     }
@@ -456,8 +452,8 @@ impl Control for PropertySelectorWindow {
         self.window.draw(drawing_context)
     }
 
-    fn update(&mut self, dt: f32, sender: &Sender<UiMessage>, screen_size: Vector2<f32>) {
-        self.window.update(dt, sender, screen_size)
+    fn update(&mut self, dt: f32, ui: &mut UserInterface) {
+        self.window.update(dt, ui)
     }
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {

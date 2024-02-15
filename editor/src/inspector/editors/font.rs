@@ -1,4 +1,5 @@
 use crate::{asset::item::AssetItem, inspector::EditorEnvironment};
+use fyrox::graph::BaseSceneGraph;
 use fyrox::{
     asset::{manager::ResourceManager, untyped::ResourceKind},
     core::{

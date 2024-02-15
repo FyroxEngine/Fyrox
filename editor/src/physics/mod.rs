@@ -1,11 +1,11 @@
+use crate::command::{Command, CommandGroup, SetPropertyCommand};
+use crate::scene::commands::GameSceneContext;
 use crate::{
     message::MessageSender,
-    scene::{
-        commands::{CommandGroup, GameSceneCommand, SetPropertyCommand},
-        GameScene, Selection,
-    },
+    scene::{GameScene, Selection},
     Message,
 };
+use fyrox::graph::{BaseSceneGraph, SceneGraph};
 use fyrox::{
     core::{algebra::Vector3, pool::Handle, reflect::Reflect},
     engine::Engine,
@@ -33,13 +33,18 @@ pub struct ColliderControlPanel {
 fn set_property<T: Reflect>(
     name: &str,
     value: T,
-    commands: &mut Vec<GameSceneCommand>,
+    commands: &mut Vec<Command>,
     selected_collider: Handle<Node>,
 ) {
-    commands.push(GameSceneCommand::new(SetPropertyCommand::new(
-        selected_collider,
+    commands.push(Command::new(SetPropertyCommand::new(
         name.into(),
         Box::new(value) as Box<dyn Reflect>,
+        move |ctx| {
+            ctx.get_mut::<GameSceneContext>()
+                .scene
+                .graph
+                .node_mut(selected_collider)
+        },
     )));
 }
 
@@ -89,7 +94,7 @@ impl ColliderControlPanel {
         if let Message::SelectionChanged { .. } = message {
             let mut collider_selected = false;
 
-            if let Selection::Graph(selection) = selection {
+            if let Some(selection) = selection.as_graph() {
                 for selected in selection.nodes() {
                     let scene = &engine.scenes[game_scene.scene];
 
@@ -132,7 +137,7 @@ impl ColliderControlPanel {
                 return;
             };
 
-            let Selection::Graph(selection) = selection else {
+            let Some(selection) = selection.as_graph() else {
                 return;
             };
 
@@ -231,7 +236,7 @@ impl ColliderControlPanel {
                 }
             }
             if !commands.is_empty() {
-                sender.do_scene_command(CommandGroup::from(commands));
+                sender.do_command(CommandGroup::from(commands));
             }
         }
     }

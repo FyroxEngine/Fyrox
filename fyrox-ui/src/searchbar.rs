@@ -22,6 +22,7 @@ use crate::{
     BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment, BRUSH_DARKER,
     BRUSH_LIGHT, BRUSH_LIGHTEST,
 };
+use fyrox_core::variable::InheritableVariable;
 use std::ops::{Deref, DerefMut};
 
 /// A set of messages that can be used to get the state of a search bar.
@@ -78,9 +79,9 @@ pub struct SearchBar {
     /// Base widget of the search bar.
     pub widget: Widget,
     /// A handle of a text box widget used for text input.
-    pub text_box: Handle<UiNode>,
+    pub text_box: InheritableVariable<Handle<UiNode>>,
     /// A handle of a button, that is used to clear the text.
-    pub clear: Handle<UiNode>,
+    pub clear: InheritableVariable<Handle<UiNode>>,
 }
 
 define_widget_deref!(SearchBar);
@@ -95,14 +96,14 @@ impl Control for SearchBar {
         {
             if let Some(SearchBarMessage::Text(text)) = message.data() {
                 ui.send_message(TextMessage::text(
-                    self.text_box,
+                    *self.text_box,
                     MessageDirection::ToWidget,
                     text.clone(),
                 ));
             }
         }
 
-        if message.destination() == self.clear {
+        if message.destination() == *self.clear {
             if let Some(ButtonMessage::Click) = message.data() {
                 ui.send_message(SearchBarMessage::text(
                     self.handle,
@@ -112,7 +113,7 @@ impl Control for SearchBar {
             }
         }
 
-        if message.destination() == self.text_box
+        if message.destination() == *self.text_box
             && message.direction() == MessageDirection::FromWidget
         {
             if let Some(TextMessage::Text(text)) = message.data() {
@@ -206,8 +207,8 @@ impl SearchBarBuilder {
 
         let search_bar = SearchBar {
             widget: self.widget_builder.with_child(content).build(),
-            text_box,
-            clear,
+            text_box: text_box.into(),
+            clear: clear.into(),
         };
 
         ctx.add_node(UiNode::new(search_bar))

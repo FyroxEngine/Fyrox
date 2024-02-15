@@ -1,3 +1,5 @@
+use crate::command::{Command, CommandGroup};
+use crate::scene::SelectionContainer;
 use crate::{
     camera::PickingOptions,
     interaction::{
@@ -6,9 +8,7 @@ use crate::{
     },
     message::MessageSender,
     scene::{
-        commands::{
-            graph::RotateNodeCommand, ChangeSelectionCommand, CommandGroup, GameSceneCommand,
-        },
+        commands::{graph::RotateNodeCommand, ChangeSelectionCommand},
         controller::SceneController,
         GameScene, Selection,
     },
@@ -86,7 +86,7 @@ impl InteractionMode for RotateInteractionMode {
         }) {
             if self.rotation_gizmo.handle_pick(result.node, graph) {
                 let graph = &mut engine.scenes[game_scene.scene].graph;
-                if let Selection::Graph(selection) = editor_selection {
+                if let Some(selection) = editor_selection.as_graph() {
                     self.interacting = true;
                     self.initial_rotations = selection.local_rotations(graph);
                 }
@@ -112,7 +112,7 @@ impl InteractionMode for RotateInteractionMode {
         self.rotation_gizmo.reset_state(graph);
 
         if self.interacting {
-            if let Selection::Graph(selection) = editor_selection {
+            if let Some(selection) = editor_selection.as_graph() {
                 if !selection.is_empty() {
                     self.interacting = false;
                     let current_rotation = selection.local_rotations(graph);
@@ -123,16 +123,16 @@ impl InteractionMode for RotateInteractionMode {
                                 .iter()
                                 .zip(self.initial_rotations.iter().zip(current_rotation.iter()))
                                 .map(|(&node, (&old_rotation, &new_rotation))| {
-                                    GameSceneCommand::new(RotateNodeCommand::new(
+                                    Command::new(RotateNodeCommand::new(
                                         node,
                                         old_rotation,
                                         new_rotation,
                                     ))
                                 })
-                                .collect::<Vec<GameSceneCommand>>(),
+                                .collect::<Vec<Command>>(),
                         );
                         // Commit changes.
-                        self.message_sender.do_scene_command(commands);
+                        self.message_sender.do_command(commands);
                     }
                 }
             }
@@ -152,25 +152,22 @@ impl InteractionMode for RotateInteractionMode {
                     only_meshes: false,
                 })
                 .map(|result| {
-                    if let (Selection::Graph(selection), true) = (
-                        editor_selection,
+                    if let (Some(selection), true) = (
+                        editor_selection.as_graph(),
                         engine.user_interface.keyboard_modifiers().control,
                     ) {
                         let mut selection = selection.clone();
                         selection.insert_or_exclude(result.node);
-                        Selection::Graph(selection)
+                        Selection::new(selection)
                     } else {
-                        Selection::Graph(GraphSelection::single_or_empty(result.node))
+                        Selection::new(GraphSelection::single_or_empty(result.node))
                     }
                 })
-                .unwrap_or_else(|| Selection::Graph(GraphSelection::default()));
+                .unwrap_or_else(|| Selection::new(GraphSelection::default()));
 
             if &new_selection != editor_selection {
                 self.message_sender
-                    .do_scene_command(ChangeSelectionCommand::new(
-                        new_selection,
-                        editor_selection.clone(),
-                    ));
+                    .do_command(ChangeSelectionCommand::new(new_selection));
             }
         }
     }
@@ -191,7 +188,7 @@ impl InteractionMode for RotateInteractionMode {
 
         let graph = &mut engine.scenes[game_scene.scene].graph;
 
-        if let Selection::Graph(selection) = editor_selection {
+        if let Some(selection) = editor_selection.as_graph() {
             if self.interacting {
                 let rotation_delta = self.rotation_gizmo.calculate_rotation_delta(
                     game_scene.camera_controller.camera,
@@ -258,7 +255,7 @@ impl InteractionMode for RotateInteractionMode {
             return;
         };
 
-        if let Selection::Graph(selection) = editor_selection {
+        if let Some(selection) = editor_selection.as_graph() {
             let graph = &mut engine.scenes[game_scene.scene].graph;
             if editor_selection.is_empty() || game_scene.preview_camera.is_some() {
                 self.rotation_gizmo.set_visible(graph, false);

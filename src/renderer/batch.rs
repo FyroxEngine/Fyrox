@@ -7,6 +7,7 @@ use crate::{
         pool::Handle,
         sstorage::ImmutableString,
     },
+    graph::SceneGraph,
     material::MaterialResource,
     renderer::{cache::TimeToLive, framework::geometry_buffer::ElementRange},
     scene::{
@@ -21,6 +22,7 @@ use crate::{
 };
 use fxhash::{FxBuildHasher, FxHashMap, FxHasher};
 
+use fyrox_graph::BaseSceneGraph;
 use std::{
     any::TypeId,
     collections::hash_map::DefaultHasher,

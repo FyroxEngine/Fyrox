@@ -43,6 +43,7 @@ use crate::{
         node::{Node, NodeTrait},
     },
 };
+use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};
 
 /// See module docs.

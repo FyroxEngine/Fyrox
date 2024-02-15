@@ -15,6 +15,7 @@ use crate::{
     BuildContext, Control, UiNode, UserInterface,
 };
 use fyrox_core::uuid_provider;
+use fyrox_core::variable::InheritableVariable;
 use fyrox_resource::untyped::UntypedResource;
 use std::ops::{Deref, DerefMut};
 
@@ -160,13 +161,13 @@ pub struct Image {
     /// Base widget of the image.
     pub widget: Widget,
     /// Current texture of the image.
-    pub texture: Option<UntypedResource>,
+    pub texture: InheritableVariable<Option<UntypedResource>>,
     /// Defines whether to vertically flip the image or not.
-    pub flip: bool,
+    pub flip: InheritableVariable<bool>,
     /// Specifies arbitrary portion of the texture.
-    pub uv_rect: Rect<f32>,
+    pub uv_rect: InheritableVariable<Rect<f32>>,
     /// Defines whether to use checkerboard background or not.
-    pub checkerboard_background: bool,
+    pub checkerboard_background: InheritableVariable<bool>,
 }
 
 crate::define_widget_deref!(Image);
@@ -177,12 +178,12 @@ impl Control for Image {
     fn draw(&self, drawing_context: &mut DrawingContext) {
         let bounds = self.widget.bounding_rect();
 
-        if self.checkerboard_background {
+        if *self.checkerboard_background {
             draw_checker_board(bounds, self.clip_bounds(), 8.0, drawing_context);
         }
 
-        if self.texture.is_some() || !self.checkerboard_background {
-            let tex_coords = if self.flip {
+        if self.texture.is_some() || !*self.checkerboard_background {
+            let tex_coords = if *self.flip {
                 Some([
                     Vector2::new(self.uv_rect.position.x, self.uv_rect.position.y),
                     Vector2::new(
@@ -231,16 +232,17 @@ impl Control for Image {
             if message.destination() == self.handle {
                 match msg {
                     ImageMessage::Texture(tex) => {
-                        self.texture = tex.clone();
+                        self.texture.set_value_and_mark_modified(tex.clone());
                     }
                     &ImageMessage::Flip(flip) => {
-                        self.flip = flip;
+                        self.flip.set_value_and_mark_modified(flip);
                     }
                     ImageMessage::UvRect(uv_rect) => {
-                        self.uv_rect = *uv_rect;
+                        self.uv_rect.set_value_and_mark_modified(*uv_rect);
                     }
                     ImageMessage::CheckerboardBackground(value) => {
-                        self.checkerboard_background = *value;
+                        self.checkerboard_background
+                            .set_value_and_mark_modified(*value);
                     }
                 }
             }
@@ -310,10 +312,10 @@ impl ImageBuilder {
 
         let image = Image {
             widget: self.widget_builder.build(),
-            texture: self.texture,
-            flip: self.flip,
-            uv_rect: self.uv_rect,
-            checkerboard_background: self.checkerboard_background,
+            texture: self.texture.into(),
+            flip: self.flip.into(),
+            uv_rect: self.uv_rect.into(),
+            checkerboard_background: self.checkerboard_background.into(),
         };
         UiNode::new(image)
     }

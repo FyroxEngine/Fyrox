@@ -18,10 +18,11 @@ use crate::{
     stack_panel::StackPanelBuilder,
     utils::{make_arrow, ArrowDirection},
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, MouseButton, NodeHandleMapping, Thickness, UiNode, UserInterface,
-    VerticalAlignment, BRUSH_DARK, BRUSH_DARKEST,
+    BuildContext, Control, MouseButton, Thickness, UiNode, UserInterface, VerticalAlignment,
+    BRUSH_DARK, BRUSH_DARKEST,
 };
 use fyrox_core::uuid_provider;
+use fyrox_graph::{BaseSceneGraph, SceneGraph};
 use std::ops::{Deref, DerefMut};
 
 /// Opaque selection state of a tree.
@@ -58,7 +59,13 @@ pub enum TreeMessage {
     /// any child items.
     SetExpanderShown(bool),
     /// A message, that is use to specify a new set of children items of a tree.
-    SetItems(Vec<Handle<UiNode>>),
+    SetItems {
+        /// A set of handles to new tree items.
+        items: Vec<Handle<UiNode>>,
+        /// A flag, that defines whether the previous items should be deleted or not. `false` is
+        /// usually used to reorder existing items.
+        remove_previous: bool,
+    },
     // Private, do not use. For internal needs only. Use TreeRootMessage::Selected.
     #[doc(hidden)]
     Select(SelectionState),
@@ -83,7 +90,7 @@ impl TreeMessage {
     );
     define_constructor!(
         /// Creates [`TreeMessage::SetItems`] message.
-        TreeMessage:SetItems => fn set_items(Vec<Handle<UiNode >>), layout: false
+        TreeMessage:SetItems => fn set_items(items: Vec<Handle<UiNode>>, remove_previous: bool), layout: false
     );
     define_constructor!(
         /// Creates [`TreeMessage::Select`] message.
@@ -227,13 +234,6 @@ crate::define_widget_deref!(Tree);
 uuid_provider!(Tree = "e090e913-393a-4192-a220-e1d87e272170");
 
 impl Control for Tree {
-    fn resolve(&mut self, node_map: &NodeHandleMapping) {
-        node_map.resolve(&mut self.content);
-        node_map.resolve(&mut self.expander);
-        node_map.resolve(&mut self.panel);
-        node_map.resolve(&mut self.background);
-    }
-
     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
         let size = self.widget.arrange_override(ui, final_size);
 
@@ -269,7 +269,7 @@ impl Control for Tree {
                         // Prevent selection changes by Alt+Click to be able to drag'n'drop tree items.
                         if !keyboard_modifiers.alt {
                             if let Some((tree_root_handle, tree_root)) =
-                                ui.try_borrow_by_type_up::<TreeRoot>(self.parent())
+                                ui.find_component_up::<TreeRoot>(self.parent())
                             {
                                 let selection = if keyboard_modifiers.control {
                                     let mut selection = tree_root.selected.clone();
@@ -459,12 +459,17 @@ impl Control for Tree {
                             self.items.remove(pos);
                         }
                     }
-                    TreeMessage::SetItems(items) => {
-                        for &item in self.items.iter() {
-                            ui.send_message(WidgetMessage::remove(
-                                item,
-                                MessageDirection::ToWidget,
-                            ));
+                    TreeMessage::SetItems {
+                        items,
+                        remove_previous,
+                    } => {
+                        if *remove_previous {
+                            for &item in self.items.iter() {
+                                ui.send_message(WidgetMessage::remove(
+                                    item,
+                                    MessageDirection::ToWidget,
+                                ));
+                            }
                         }
                         for &item in items {
                             ui.send_message(WidgetMessage::link(
@@ -705,11 +710,6 @@ crate::define_widget_deref!(TreeRoot);
 uuid_provider!(TreeRoot = "cf7c0476-f779-4e4b-8b7e-01a23ff51a72");
 
 impl Control for TreeRoot {
-    fn resolve(&mut self, node_map: &NodeHandleMapping) {
-        node_map.resolve(&mut self.panel);
-        node_map.resolve_slice(&mut self.selected);
-    }
-
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 

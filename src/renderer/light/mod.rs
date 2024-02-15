@@ -5,6 +5,7 @@ use crate::{
         math::{frustum::Frustum, Matrix4Ext, Rect, TriangleDefinition},
         scope_profile,
     },
+    graph::SceneGraph,
     renderer::{
         cache::shader::ShaderCache,
         flat_shader::FlatShader,

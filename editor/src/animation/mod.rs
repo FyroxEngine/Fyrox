@@ -1,4 +1,3 @@
-use crate::message::MessageSender;
 use crate::{
     animation::{
         command::{
@@ -11,13 +10,22 @@ use crate::{
         toolbar::{Toolbar, ToolbarAction},
         track::TrackList,
     },
-    scene::{commands::ChangeSelectionCommand, GameScene, Selection},
+    message::MessageSender,
+    scene::{commands::ChangeSelectionCommand, Selection},
     send_sync_message, Message,
 };
+use fyrox::core::log::Log;
+use fyrox::graph::PrefabData;
+use fyrox::resource::model::AnimationSource;
 use fyrox::{
-    core::{algebra::Vector2, math::Rect, pool::Handle, uuid::Uuid},
-    engine::Engine,
+    asset::manager::ResourceManager,
+    core::{
+        algebra::Vector2, math::Rect, pool::ErasedHandle, pool::Handle, uuid::Uuid,
+        variable::InheritableVariable,
+    },
     fxhash::FxHashSet,
+    generic_animation::{signal::AnimationSignal, AnimationContainer},
+    graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
     gui::{
         border::BorderBuilder,
         check_box::CheckBoxMessage,
@@ -28,8 +36,8 @@ use fyrox::{
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, UiNode, UserInterface, BRUSH_DARK, BRUSH_PRIMARY,
     },
-    scene::{animation::prelude::*, node::Node, Scene},
 };
+use std::any::{Any, TypeId};
 
 pub mod command;
 mod ruler;
@@ -38,8 +46,12 @@ mod thumb;
 mod toolbar;
 mod track;
 
-struct PreviewModeData {
-    nodes: Vec<(Handle<Node>, Node)>,
+pub trait PreviewData {
+    fn enter(&mut self);
+}
+
+struct PreviewModeData<N: 'static> {
+    nodes: Vec<(Handle<N>, N)>,
 }
 
 pub struct AnimationEditor {
@@ -49,22 +61,35 @@ pub struct AnimationEditor {
     toolbar: Toolbar,
     content: Handle<UiNode>,
     ruler: Handle<UiNode>,
-    preview_mode_data: Option<PreviewModeData>,
+    preview_mode_data: Option<Box<dyn Any>>,
     thumb: Handle<UiNode>,
 }
 
-fn fetch_selection(editor_selection: &Selection) -> AnimationSelection {
-    if let Selection::Animation(ref selection) = editor_selection {
+fn fetch_selection<N>(editor_selection: &Selection) -> AnimationSelection<N> {
+    if let Some(selection) = editor_selection.as_animation() {
         // Some selection in an animation.
         AnimationSelection {
             animation_player: selection.animation_player,
             animation: selection.animation,
             entities: selection.entities.clone(),
         }
-    } else if let Selection::Graph(ref selection) = editor_selection {
-        // Only some AnimationPlayer is selected.
+    } else if let Some(selection) = editor_selection.as_graph() {
+        // Only some AnimationPlayer in Game Scene is selected.
         AnimationSelection {
-            animation_player: selection.nodes.first().cloned().unwrap_or_default(),
+            animation_player: ErasedHandle::from(
+                selection.nodes.first().cloned().unwrap_or_default(),
+            )
+            .into(),
+            animation: Default::default(),
+            entities: vec![],
+        }
+    } else if let Some(selection) = editor_selection.as_ui() {
+        // Only some AnimationPlayer in UI Scene is selected.
+        AnimationSelection {
+            animation_player: ErasedHandle::from(
+                selection.widgets.first().cloned().unwrap_or_default(),
+            )
+            .into(),
             animation: Default::default(),
             entities: vec![],
         }
@@ -76,6 +101,39 @@ fn fetch_selection(editor_selection: &Selection) -> AnimationSelection {
             entities: vec![],
         }
     }
+}
+
+fn animation_container<G, N>(
+    graph: &mut G,
+    handle: Handle<N>,
+) -> Option<&mut AnimationContainer<Handle<N>>>
+where
+    G: SceneGraph<Node = N>,
+    N: SceneGraphNode<SceneGraph = G>,
+{
+    graph
+        .try_get_mut(handle)
+        .and_then(|n| n.component_mut::<InheritableVariable<AnimationContainer<Handle<N>>>>())
+        .map(|v| v.get_value_mut_silent())
+}
+
+fn animation_container_ref<G, N>(
+    graph: &G,
+    handle: Handle<N>,
+) -> Option<&AnimationContainer<Handle<N>>>
+where
+    G: SceneGraph<Node = N>,
+    N: SceneGraphNode<SceneGraph = G>,
+{
+    graph
+        .try_get(handle)
+        .and_then(|n| {
+            n.query_component_ref(TypeId::of::<
+                InheritableVariable<AnimationContainer<Handle<N>>>,
+            >())
+        })
+        .and_then(|a| a.downcast_ref::<InheritableVariable<AnimationContainer<Handle<N>>>>())
+        .map(|v| v.get_value_ref())
 }
 
 impl AnimationEditor {
@@ -177,47 +235,44 @@ impl AnimationEditor {
         ));
     }
 
-    pub fn handle_ui_message(
+    pub fn handle_ui_message<P, G, N>(
         &mut self,
         message: &UiMessage,
         editor_selection: &Selection,
-        game_scene: &mut GameScene,
-        engine: &mut Engine,
+        graph: &mut G,
+        root: Handle<N>,
+        ui: &mut UserInterface,
+        resource_manager: &ResourceManager,
         sender: &MessageSender,
-    ) {
+        node_overrides: &mut FxHashSet<Handle<N>>,
+    ) where
+        P: PrefabData<Graph = G> + AnimationSource<Node = N, SceneGraph = G, Prefab = P>,
+        G: SceneGraph<Node = N, Prefab = P>,
+        N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
+    {
         let selection = fetch_selection(editor_selection);
 
-        let scene = &mut engine.scenes[game_scene.scene];
-
-        if let Some(animation_player) = scene
-            .graph
-            .try_get_of_type::<AnimationPlayer>(selection.animation_player)
-        {
+        if let Some(container) = animation_container_ref(graph, selection.animation_player) {
             let toolbar_action = self.toolbar.handle_ui_message(
                 message,
                 sender,
-                scene,
-                &mut engine.user_interface,
+                graph,
+                ui,
                 selection.animation_player,
-                animation_player,
-                editor_selection,
-                game_scene,
+                container,
+                root,
                 &selection,
             );
 
-            let animation_player = scene
-                .graph
-                .try_get_mut_of_type::<AnimationPlayer>(selection.animation_player)
-                .unwrap();
+            let animations = animation_container(graph, selection.animation_player).unwrap();
 
             if let Some(msg) = message.data::<CurveEditorMessage>() {
                 if message.destination() == self.curve_editor
                     && message.direction() == MessageDirection::FromWidget
                 {
-                    let ui = &engine.user_interface;
                     match msg {
                         CurveEditorMessage::Sync(curve) => {
-                            sender.do_scene_command(ReplaceTrackCurveCommand {
+                            sender.do_command(ReplaceTrackCurveCommand {
                                 animation_player: selection.animation_player,
                                 animation: selection.animation,
                                 curve: curve.clone(),
@@ -253,22 +308,16 @@ impl AnimationEditor {
             } else if let Some(msg) = message.data::<RulerMessage>() {
                 if message.destination() == self.ruler
                     && message.direction() == MessageDirection::FromWidget
-                    && animation_player
-                        .animations()
-                        .try_get(selection.animation)
-                        .is_some()
+                    && animations.try_get(selection.animation).is_some()
                 {
                     match msg {
                         RulerMessage::Value(value) => {
-                            if let Some(animation) = animation_player
-                                .animations_mut()
-                                .try_get_mut(selection.animation)
-                            {
+                            if let Some(animation) = animations.try_get_mut(selection.animation) {
                                 animation.set_time_position(*value);
                             }
                         }
                         RulerMessage::AddSignal(time) => {
-                            sender.do_scene_command(AddAnimationSignal {
+                            sender.do_command(AddAnimationSignal {
                                 animation_player_handle: selection.animation_player,
                                 animation_handle: selection.animation,
                                 signal: Some(AnimationSignal {
@@ -280,10 +329,8 @@ impl AnimationEditor {
                             });
                         }
                         RulerMessage::RemoveSignal(id) => {
-                            if let Some(animation) =
-                                animation_player.animations().try_get(selection.animation)
-                            {
-                                sender.do_scene_command(RemoveAnimationSignal {
+                            if let Some(animation) = animations.try_get(selection.animation) {
+                                sender.do_command(RemoveAnimationSignal {
                                     animation_player_handle: selection.animation_player,
                                     animation_handle: selection.animation,
                                     signal_index: animation
@@ -296,7 +343,7 @@ impl AnimationEditor {
                             }
                         }
                         RulerMessage::MoveSignal { id, new_position } => {
-                            sender.do_scene_command(MoveAnimationSignal {
+                            sender.do_command(MoveAnimationSignal {
                                 animation_player_handle: selection.animation_player,
                                 animation_handle: selection.animation,
                                 signal: *id,
@@ -304,14 +351,13 @@ impl AnimationEditor {
                             });
                         }
                         RulerMessage::SelectSignal(id) => {
-                            sender.do_scene_command(ChangeSelectionCommand::new(
-                                Selection::Animation(AnimationSelection {
+                            sender.do_command(ChangeSelectionCommand::new(Selection::new(
+                                AnimationSelection {
                                     animation_player: selection.animation_player,
                                     animation: selection.animation,
                                     entities: vec![SelectedEntity::Signal(*id)],
-                                }),
-                                editor_selection.clone(),
-                            ));
+                                },
+                            )));
                         }
                         _ => (),
                     }
@@ -321,25 +367,27 @@ impl AnimationEditor {
             match toolbar_action {
                 ToolbarAction::None => {}
                 ToolbarAction::EnterPreviewMode => {
-                    let node_overrides = game_scene.graph_switches.node_overrides.as_mut().unwrap();
                     assert!(node_overrides.insert(selection.animation_player));
 
                     let animation_player_node =
-                        scene.graph.try_get_mut(selection.animation_player).unwrap();
+                        graph.try_get_mut(selection.animation_player).unwrap();
+
+                    // HACK. This is unreliable to just use `bool` here. It should be wrapped into
+                    // newtype or something.
+                    if let Some(auto_apply) = animation_player_node.component_mut::<bool>() {
+                        *auto_apply = true;
+                    } else {
+                        Log::warn("No `auto_apply` component in animation player!")
+                    }
 
                     // Save state of animation player first.
                     let initial_animation_player_handle = selection.animation_player;
-                    let initial_animation_player = animation_player_node.clone_box();
+                    let initial_animation_player = animation_player_node.clone();
 
                     // Now we can freely modify the state of the animation player in the scene - all
                     // changes will be reverted at the exit of the preview mode.
-                    let animation_player = animation_player_node
-                        .query_component_mut::<AnimationPlayer>()
-                        .unwrap();
-
-                    animation_player.set_auto_apply(true);
-
-                    let animations = animation_player.animations_mut();
+                    let animations =
+                        animation_container(graph, selection.animation_player).unwrap();
 
                     // Disable every animation, except preview one.
                     for (handle, animation) in animations.pair_iter_mut() {
@@ -359,60 +407,45 @@ impl AnimationEditor {
                             initial_animation_player_handle,
                             initial_animation_player,
                             animation_targets,
-                            scene,
-                            &engine.user_interface,
+                            graph,
+                            ui,
                             node_overrides,
                         );
                     }
                 }
                 ToolbarAction::LeavePreviewMode => {
                     if self.preview_mode_data.is_some() {
-                        self.leave_preview_mode(
-                            scene,
-                            &engine.user_interface,
-                            game_scene.graph_switches.node_overrides.as_mut().unwrap(),
-                        );
+                        self.leave_preview_mode(graph, ui, node_overrides);
                     }
                 }
                 ToolbarAction::SelectAnimation(animation) => {
-                    let animation_ref = &animation_player.animations()[animation];
+                    let animation_ref = &animations[animation.into()];
 
-                    let size = engine
-                        .user_interface
-                        .node(self.curve_editor)
-                        .actual_local_size();
+                    let size = ui.node(self.curve_editor).actual_local_size();
                     let zoom = size.x / animation_ref.length().max(f32::EPSILON);
 
-                    engine.user_interface.send_message(CurveEditorMessage::zoom(
+                    ui.send_message(CurveEditorMessage::zoom(
                         self.curve_editor,
                         MessageDirection::ToWidget,
                         Vector2::new(zoom, zoom),
                     ));
 
-                    engine
-                        .user_interface
-                        .send_message(CurveEditorMessage::view_position(
-                            self.curve_editor,
-                            MessageDirection::ToWidget,
-                            Vector2::new(0.5 * (size.x - animation_ref.length()), -0.5 * size.y),
-                        ));
+                    ui.send_message(CurveEditorMessage::view_position(
+                        self.curve_editor,
+                        MessageDirection::ToWidget,
+                        Vector2::new(0.5 * (size.x - animation_ref.length()), -0.5 * size.y),
+                    ));
                 }
                 ToolbarAction::PlayPause => {
                     if self.preview_mode_data.is_some() {
-                        if let Some(animation) = animation_player
-                            .animations_mut()
-                            .try_get_mut(selection.animation)
-                        {
+                        if let Some(animation) = animations.try_get_mut(selection.animation) {
                             animation.set_enabled(!animation.is_enabled());
                         }
                     }
                 }
                 ToolbarAction::Stop => {
                     if self.preview_mode_data.is_some() {
-                        if let Some(animation) = animation_player
-                            .animations_mut()
-                            .try_get_mut(selection.animation)
-                        {
+                        if let Some(animation) = animations.try_get_mut(selection.animation) {
                             animation.rewind();
                             animation.set_enabled(false);
                         }
@@ -420,39 +453,34 @@ impl AnimationEditor {
                 }
             }
 
-            self.track_list.handle_ui_message(
-                message,
-                editor_selection,
-                game_scene,
-                sender,
-                selection.animation_player,
-                selection.animation,
-                &mut engine.user_interface,
-                scene,
-            );
+            self.track_list
+                .handle_ui_message(message, &selection, root, sender, ui, graph);
         }
 
         self.toolbar.post_handle_ui_message(
             message,
             sender,
-            &engine.user_interface,
+            ui,
             selection.animation_player,
-            scene,
+            graph,
+            root,
             editor_selection,
-            game_scene,
-            &engine.resource_manager,
+            resource_manager,
         );
     }
 
-    fn enter_preview_mode(
+    fn enter_preview_mode<G, N>(
         &mut self,
-        initial_animation_player_handle: Handle<Node>,
-        initial_animation_player: Node,
-        animation_targets: FxHashSet<Handle<Node>>,
-        scene: &Scene,
+        initial_animation_player_handle: Handle<N>,
+        initial_animation_player: N,
+        animation_targets: FxHashSet<Handle<N>>,
+        graph: &G,
         ui: &UserInterface,
-        node_overrides: &mut FxHashSet<Handle<Node>>,
-    ) {
+        node_overrides: &mut FxHashSet<Handle<N>>,
+    ) where
+        G: SceneGraph<Node = N>,
+        N: SceneGraphNode,
+    {
         assert!(self.preview_mode_data.is_none());
 
         self.toolbar.on_preview_mode_changed(ui, true);
@@ -464,7 +492,7 @@ impl AnimationEditor {
         let mut data = PreviewModeData {
             nodes: animation_targets
                 .into_iter()
-                .map(|t| (t, scene.graph[t].clone_box()))
+                .map(|t| (t, graph.node(t).clone()))
                 .collect(),
         };
 
@@ -472,15 +500,18 @@ impl AnimationEditor {
             .push((initial_animation_player_handle, initial_animation_player));
 
         // Save state of affected nodes.
-        self.preview_mode_data = Some(data);
+        self.preview_mode_data = Some(Box::new(data));
     }
 
-    fn leave_preview_mode(
+    fn leave_preview_mode<G, N>(
         &mut self,
-        scene: &mut Scene,
+        graph: &mut G,
         ui: &UserInterface,
-        node_overrides: &mut FxHashSet<Handle<Node>>,
-    ) {
+        node_overrides: &mut FxHashSet<Handle<N>>,
+    ) where
+        G: SceneGraph<Node = N>,
+        N: SceneGraphNode<SceneGraph = G>,
+    {
         self.toolbar.on_preview_mode_changed(ui, false);
 
         let preview_data = self
@@ -489,21 +520,23 @@ impl AnimationEditor {
             .expect("Unable to leave animation preview mode!");
 
         // Revert state of nodes.
-        for (handle, node) in preview_data.nodes {
-            assert!(node_overrides.remove(&handle));
-            scene.graph[handle] = node;
+        for (handle, node) in preview_data.downcast::<PreviewModeData<N>>().unwrap().nodes {
+            node_overrides.remove(&handle);
+            *graph.node_mut(handle) = node;
         }
     }
 
-    pub fn try_leave_preview_mode(&mut self, game_scene: &mut GameScene, engine: &mut Engine) {
+    pub fn try_leave_preview_mode<G, N>(
+        &mut self,
+        graph: &mut G,
+        ui: &UserInterface,
+        node_overrides: &mut FxHashSet<Handle<N>>,
+    ) where
+        G: SceneGraph<Node = N>,
+        N: SceneGraphNode<SceneGraph = G>,
+    {
         if self.preview_mode_data.is_some() {
-            let scene = &mut engine.scenes[game_scene.scene];
-
-            self.leave_preview_mode(
-                scene,
-                &engine.user_interface,
-                game_scene.graph_switches.node_overrides.as_mut().unwrap(),
-            );
+            self.leave_preview_mode(graph, ui, node_overrides);
         }
     }
 
@@ -511,18 +544,22 @@ impl AnimationEditor {
         self.preview_mode_data.is_some()
     }
 
-    pub fn handle_message(
+    pub fn handle_message<G, N>(
         &mut self,
         message: &Message,
-        game_scene: &mut GameScene,
-        engine: &mut Engine,
-    ) {
+        graph: &mut G,
+        ui: &UserInterface,
+        node_overrides: &mut FxHashSet<Handle<N>>,
+    ) where
+        G: SceneGraph<Node = N>,
+        N: SceneGraphNode<SceneGraph = G>,
+    {
         // Leave preview mode before execution of any scene command.
-        if let Message::DoGameSceneCommand(_)
+        if let Message::DoCommand(_)
         | Message::UndoCurrentSceneCommand
         | Message::RedoCurrentSceneCommand = message
         {
-            self.try_leave_preview_mode(game_scene, engine);
+            self.try_leave_preview_mode(graph, ui, node_overrides);
         }
     }
 
@@ -531,23 +568,16 @@ impl AnimationEditor {
         self.track_list.clear(ui);
     }
 
-    pub fn update(
-        &mut self,
-        editor_selection: &Selection,
-        game_scene: &GameScene,
-        engine: &Engine,
-    ) {
+    pub fn update<G, N>(&mut self, editor_selection: &Selection, ui: &UserInterface, graph: &G)
+    where
+        G: SceneGraph<Node = N>,
+        N: SceneGraphNode<SceneGraph = G>,
+    {
         let selection = fetch_selection(editor_selection);
 
-        let scene = &engine.scenes[game_scene.scene];
-
-        if let Some(animation_player) = scene
-            .graph
-            .try_get(selection.animation_player)
-            .and_then(|n| n.query_component_ref::<AnimationPlayer>())
-        {
-            if let Some(animation) = animation_player.animations().try_get(selection.animation) {
-                engine.user_interface.send_message(ThumbMessage::position(
+        if let Some(container) = animation_container_ref(graph, selection.animation_player) {
+            if let Some(animation) = container.try_get(selection.animation) {
+                ui.send_message(ThumbMessage::position(
                     self.thumb,
                     MessageDirection::ToWidget,
                     animation.time_position(),
@@ -556,44 +586,36 @@ impl AnimationEditor {
         }
     }
 
-    pub fn sync_to_model(
+    pub fn sync_to_model<G, N>(
         &mut self,
         editor_selection: &Selection,
-        game_scene: &GameScene,
-        engine: &mut Engine,
-    ) {
+        ui: &mut UserInterface,
+        graph: &G,
+    ) where
+        G: SceneGraph<Node = N>,
+        N: SceneGraphNode<SceneGraph = G>,
+    {
         let selection = fetch_selection(editor_selection);
-
-        let scene = &engine.scenes[game_scene.scene];
 
         let mut is_animation_player_selected = false;
         let mut is_animation_selected = false;
         let mut is_curve_selected = false;
 
-        if let Some(animation_player) = scene
-            .graph
-            .try_get(selection.animation_player)
-            .and_then(|n| n.query_component_ref::<AnimationPlayer>())
-        {
+        if let Some(animations) = animation_container_ref(graph, selection.animation_player) {
             self.toolbar.sync_to_model(
-                animation_player,
+                animations,
                 &selection,
-                scene,
-                &mut engine.user_interface,
+                graph,
+                ui,
                 self.preview_mode_data.is_some(),
             );
 
-            if let Some(animation) = animation_player.animations().try_get(selection.animation) {
-                self.track_list.sync_to_model(
-                    animation,
-                    selection.animation,
-                    &scene.graph,
-                    editor_selection,
-                    &mut engine.user_interface,
-                );
+            if let Some(animation) = animations.try_get(selection.animation) {
+                self.track_list
+                    .sync_to_model(animation, graph, &selection, ui);
 
                 send_sync_message(
-                    &engine.user_interface,
+                    ui,
                     CurveEditorMessage::hightlight_zones(
                         self.curve_editor,
                         MessageDirection::ToWidget,
@@ -610,7 +632,7 @@ impl AnimationEditor {
                 );
 
                 send_sync_message(
-                    &engine.user_interface,
+                    ui,
                     RulerMessage::sync_signals(
                         self.ruler,
                         MessageDirection::ToWidget,
@@ -635,7 +657,7 @@ impl AnimationEditor {
                             .find(|c| &c.id() == selected_curve_id)
                     }) {
                         send_sync_message(
-                            &engine.user_interface,
+                            ui,
                             CurveEditorMessage::sync(
                                 self.curve_editor,
                                 MessageDirection::ToWidget,
@@ -649,8 +671,6 @@ impl AnimationEditor {
             }
             is_animation_player_selected = true;
         }
-
-        let ui = &engine.user_interface;
 
         if !is_animation_selected || !is_animation_player_selected {
             self.track_list.clear(ui);

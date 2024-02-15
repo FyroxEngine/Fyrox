@@ -21,6 +21,7 @@ use crate::{
         pool::Handle,
         sstorage::ImmutableString,
     },
+    graph::BaseSceneGraph,
     material::{shader::SamplerFallback, PropertyValue},
     resource::{
         fbx::{

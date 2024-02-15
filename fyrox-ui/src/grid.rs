@@ -4,14 +4,16 @@
 #![warn(missing_docs)]
 
 use crate::{
-    core::{algebra::Vector2, math::Rect, pool::Handle, scope_profile},
-    core::{reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
+    core::{
+        algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, scope_profile,
+        type_traits::prelude::*, uuid_provider, variable::InheritableVariable, visitor::prelude::*,
+    },
     draw::{CommandTexture, Draw, DrawingContext},
     message::UiMessage,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
 };
-use fyrox_core::uuid_provider;
+use fyrox_graph::BaseSceneGraph;
 use std::{
     cell::RefCell,
     ops::{Deref, DerefMut},
@@ -162,13 +164,13 @@ pub struct Grid {
     /// Base widget of the grid.
     pub widget: Widget,
     /// A set of rows of the grid.
-    pub rows: RefCell<Vec<Row>>,
+    pub rows: InheritableVariable<RefCell<Vec<Row>>>,
     /// A set of columns of the grid.
-    pub columns: RefCell<Vec<Column>>,
+    pub columns: InheritableVariable<RefCell<Vec<Column>>>,
     /// Defines whether to draw grid's border or not. It could be useful for debugging purposes.
-    pub draw_border: bool,
+    pub draw_border: InheritableVariable<bool>,
     /// Defines border thickness when `draw_border` is on.
-    pub border_thickness: f32,
+    pub border_thickness: InheritableVariable<f32>,
     /// Current set of cells of the grid.
     #[visit(skip)]
     #[reflect(hidden)]
@@ -478,7 +480,7 @@ impl Control for Grid {
     }
 
     fn draw(&self, drawing_context: &mut DrawingContext) {
-        if self.draw_border {
+        if *self.draw_border {
             let bounds = self.widget.bounding_rect();
 
             let left_top = Vector2::new(bounds.x(), bounds.y());
@@ -486,20 +488,20 @@ impl Control for Grid {
             let right_bottom = Vector2::new(bounds.x() + bounds.w(), bounds.y() + bounds.h());
             let left_bottom = Vector2::new(bounds.x(), bounds.y() + bounds.h());
 
-            drawing_context.push_line(left_top, right_top, self.border_thickness);
-            drawing_context.push_line(right_top, right_bottom, self.border_thickness);
-            drawing_context.push_line(right_bottom, left_bottom, self.border_thickness);
-            drawing_context.push_line(left_bottom, left_top, self.border_thickness);
+            drawing_context.push_line(left_top, right_top, *self.border_thickness);
+            drawing_context.push_line(right_top, right_bottom, *self.border_thickness);
+            drawing_context.push_line(right_bottom, left_bottom, *self.border_thickness);
+            drawing_context.push_line(left_bottom, left_top, *self.border_thickness);
 
             for column in self.columns.borrow().iter() {
                 let a = Vector2::new(bounds.x() + column.location, bounds.y());
                 let b = Vector2::new(bounds.x() + column.location, bounds.y() + bounds.h());
-                drawing_context.push_line(a, b, self.border_thickness);
+                drawing_context.push_line(a, b, *self.border_thickness);
             }
             for row in self.rows.borrow().iter() {
                 let a = Vector2::new(bounds.x(), bounds.y() + row.location);
                 let b = Vector2::new(bounds.x() + bounds.w(), bounds.y() + row.location);
-                drawing_context.push_line(a, b, self.border_thickness);
+                drawing_context.push_line(a, b, *self.border_thickness);
             }
 
             drawing_context.commit(
@@ -577,10 +579,10 @@ impl GridBuilder {
     pub fn build(self, ui: &mut BuildContext) -> Handle<UiNode> {
         let grid = Grid {
             widget: self.widget_builder.build(),
-            rows: RefCell::new(self.rows),
-            columns: RefCell::new(self.columns),
-            draw_border: self.draw_border,
-            border_thickness: self.border_thickness,
+            rows: RefCell::new(self.rows).into(),
+            columns: RefCell::new(self.columns).into(),
+            draw_border: self.draw_border.into(),
+            border_thickness: self.border_thickness.into(),
             cells: Default::default(),
             groups: Default::default(),
         };

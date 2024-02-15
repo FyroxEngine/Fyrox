@@ -71,7 +71,7 @@ impl EditMenu {
     ) {
         if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
             if message.destination() == self.copy {
-                if let Selection::Graph(selection) = editor_selection {
+                if let Some(selection) = editor_selection.as_graph() {
                     if let Some(game_scene) = controller.downcast_mut::<GameScene>() {
                         game_scene.clipboard.fill_from_selection(
                             selection,
@@ -83,7 +83,7 @@ impl EditMenu {
             } else if message.destination() == self.paste {
                 if let Some(game_scene) = controller.downcast_mut::<GameScene>() {
                     if !game_scene.clipboard.is_empty() {
-                        sender.do_scene_command(PasteCommand::new(game_scene.scene_content_root));
+                        sender.do_command(PasteCommand::new(game_scene.scene_content_root));
                     }
                 }
             } else if message.destination() == self.undo {

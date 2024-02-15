@@ -1,5 +1,6 @@
 use crate::interaction::make_interaction_mode_button;
 use crate::scene::controller::SceneController;
+use crate::scene::SelectionContainer;
 use crate::{
     interaction::InteractionMode,
     make_color_material,
@@ -13,6 +14,7 @@ use crate::{
 };
 use fyrox::core::uuid::{uuid, Uuid};
 use fyrox::core::TypeUuidProvider;
+use fyrox::graph::BaseSceneGraph;
 use fyrox::gui::{HorizontalAlignment, Thickness, VerticalAlignment};
 use fyrox::{
     core::{
@@ -157,7 +159,7 @@ impl InteractionMode for TerrainInteractionMode {
             return;
         };
 
-        if let Selection::Graph(selection) = editor_selection {
+        if let Some(selection) = editor_selection.as_graph() {
             if selection.is_single_selection() {
                 let graph = &mut engine.scenes[game_scene.scene].graph;
                 let handle = selection.nodes()[0];
@@ -209,7 +211,7 @@ impl InteractionMode for TerrainInteractionMode {
             return;
         };
 
-        if let Selection::Graph(selection) = editor_selection {
+        if let Some(selection) = editor_selection.as_graph() {
             if selection.is_single_selection() {
                 let graph = &mut engine.scenes[game_scene.scene].graph;
                 let handle = selection.nodes()[0];
@@ -225,23 +227,21 @@ impl InteractionMode for TerrainInteractionMode {
                         match self.brush.mode {
                             BrushMode::ModifyHeightMap { .. }
                             | BrushMode::FlattenHeightMap { .. } => {
-                                self.message_sender.do_scene_command(
-                                    ModifyTerrainHeightCommand::new(
+                                self.message_sender
+                                    .do_command(ModifyTerrainHeightCommand::new(
                                         handle,
                                         std::mem::take(&mut self.heightmaps),
                                         new_heightmaps,
-                                    ),
-                                );
+                                    ));
                             }
                             BrushMode::DrawOnMask { layer, .. } => {
-                                self.message_sender.do_scene_command(
-                                    ModifyTerrainLayerMaskCommand::new(
+                                self.message_sender
+                                    .do_command(ModifyTerrainLayerMaskCommand::new(
                                         handle,
                                         std::mem::take(&mut self.masks),
                                         copy_layer_masks(terrain, layer),
                                         layer,
-                                    ),
-                                );
+                                    ));
                             }
                         }
 
@@ -266,7 +266,7 @@ impl InteractionMode for TerrainInteractionMode {
             return;
         };
 
-        if let Selection::Graph(selection) = editor_selection {
+        if let Some(selection) = editor_selection.as_graph() {
             if selection.is_single_selection() {
                 let graph = &mut engine.scenes[game_scene.scene].graph;
                 let handle = selection.nodes()[0];
@@ -368,7 +368,7 @@ impl InteractionMode for TerrainInteractionMode {
         _controller: &mut dyn SceneController,
         _engine: &mut Engine,
     ) {
-        if let Selection::Graph(selection) = editor_selection {
+        if let Some(selection) = editor_selection.as_graph() {
             if selection.is_single_selection() {
                 self.brush_panel.handle_ui_message(message, &mut self.brush);
             }

@@ -1,6 +1,6 @@
+use crate::command::CommandContext;
 use crate::{
-    command::GameSceneCommandTrait, create_terrain_layer_material,
-    scene::commands::GameSceneContext,
+    command::CommandTrait, create_terrain_layer_material, scene::commands::GameSceneContext,
 };
 use fyrox::core::log::Log;
 use fyrox::resource::texture::{
@@ -32,17 +32,19 @@ impl AddTerrainLayerCommand {
     }
 }
 
-impl GameSceneCommandTrait for AddTerrainLayerCommand {
-    fn name(&mut self, _context: &GameSceneContext) -> String {
+impl CommandTrait for AddTerrainLayerCommand {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Add Terrain Layer".to_owned()
     }
 
-    fn execute(&mut self, context: &mut GameSceneContext) {
+    fn execute(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
         let terrain = context.scene.graph[self.terrain].as_terrain_mut();
         terrain.add_layer(self.layer.take().unwrap(), std::mem::take(&mut self.masks));
     }
 
-    fn revert(&mut self, context: &mut GameSceneContext) {
+    fn revert(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
         let terrain = context.scene.graph[self.terrain].as_terrain_mut();
         let (layer, masks) = terrain.pop_layer().unwrap();
         self.layer = Some(layer);
@@ -69,12 +71,13 @@ impl DeleteTerrainLayerCommand {
     }
 }
 
-impl GameSceneCommandTrait for DeleteTerrainLayerCommand {
-    fn name(&mut self, _context: &GameSceneContext) -> String {
+impl CommandTrait for DeleteTerrainLayerCommand {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Delete Terrain Layer".to_owned()
     }
 
-    fn execute(&mut self, context: &mut GameSceneContext) {
+    fn execute(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
         let (layer, masks) = context.scene.graph[self.terrain]
             .as_terrain_mut()
             .remove_layer(self.index);
@@ -83,7 +86,8 @@ impl GameSceneCommandTrait for DeleteTerrainLayerCommand {
         self.masks = masks;
     }
 
-    fn revert(&mut self, context: &mut GameSceneContext) {
+    fn revert(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
         let terrain = context.scene.graph[self.terrain].as_terrain_mut();
         terrain.insert_layer(
             self.layer.take().unwrap(),
@@ -116,7 +120,8 @@ impl ModifyTerrainHeightCommand {
         }
     }
 
-    pub fn swap(&mut self, context: &mut GameSceneContext) {
+    pub fn swap(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
         let terrain = context.scene.graph[self.terrain].as_terrain_mut();
         let heigth_map_size = terrain.height_map_size();
         for (chunk, (old, new)) in terrain.chunks_mut().iter_mut().zip(
@@ -146,16 +151,16 @@ impl ModifyTerrainHeightCommand {
     }
 }
 
-impl GameSceneCommandTrait for ModifyTerrainHeightCommand {
-    fn name(&mut self, _context: &GameSceneContext) -> String {
+impl CommandTrait for ModifyTerrainHeightCommand {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Modify Terrain Height".to_owned()
     }
 
-    fn execute(&mut self, context: &mut GameSceneContext) {
+    fn execute(&mut self, context: &mut dyn CommandContext) {
         self.swap(context);
     }
 
-    fn revert(&mut self, context: &mut GameSceneContext) {
+    fn revert(&mut self, context: &mut dyn CommandContext) {
         self.swap(context);
     }
 }
@@ -186,7 +191,8 @@ impl ModifyTerrainLayerMaskCommand {
         }
     }
 
-    pub fn swap(&mut self, context: &mut GameSceneContext) {
+    pub fn swap(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
         let terrain = context.scene.graph[self.terrain].as_terrain_mut();
 
         for (i, chunk) in terrain.chunks_mut().iter_mut().enumerate() {
@@ -211,16 +217,16 @@ impl ModifyTerrainLayerMaskCommand {
     }
 }
 
-impl GameSceneCommandTrait for ModifyTerrainLayerMaskCommand {
-    fn name(&mut self, _context: &GameSceneContext) -> String {
+impl CommandTrait for ModifyTerrainLayerMaskCommand {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Modify Terrain Layer Mask".to_owned()
     }
 
-    fn execute(&mut self, context: &mut GameSceneContext) {
+    fn execute(&mut self, context: &mut dyn CommandContext) {
         self.swap(context);
     }
 
-    fn revert(&mut self, context: &mut GameSceneContext) {
+    fn revert(&mut self, context: &mut dyn CommandContext) {
         self.swap(context);
     }
 }

@@ -32,18 +32,17 @@ use crate::{
         pool::{Handle, MultiBorrowContext, Pool, Ticket},
         reflect::prelude::*,
         sstorage::ImmutableString,
-        variable::{self, try_inherit_properties},
         visitor::{Visit, VisitResult, Visitor},
     },
+    graph::{NodeHandleMap, SceneGraph},
     material::{shader::SamplerFallback, MaterialResource, PropertyValue},
-    resource::model::{ModelResource, ModelResourceExtension, NodeMapping},
+    resource::model::{Model, ModelResource, ModelResourceExtension},
     scene::{
         base::{NodeScriptMessage, SceneNodeId},
         camera::Camera,
         dim2::{self},
         graph::{
             event::{GraphEvent, GraphEventBroadcaster},
-            map::NodeHandleMap,
             physics::{PhysicsPerformanceStatistics, PhysicsWorld},
         },
         mesh::buffer::{
@@ -61,6 +60,8 @@ use crate::{
     utils::lightmap::Lightmap,
 };
 use fxhash::{FxHashMap, FxHashSet};
+use fyrox_core::pool::ErasedHandle;
+use fyrox_graph::{AbstractSceneGraph, AbstractSceneNode, BaseSceneGraph};
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
@@ -70,7 +71,6 @@ use std::{
 };
 
 pub mod event;
-pub mod map;
 pub mod physics;
 
 /// Graph performance statistics. Allows you to find out "hot" parts of the scene graph, which
@@ -189,7 +189,7 @@ pub struct SubGraph {
     pub parent: Handle<Node>,
 }
 
-fn remap_handles(old_new_mapping: &NodeHandleMap, dest_graph: &mut Graph) {
+fn remap_handles(old_new_mapping: &NodeHandleMap<Node>, dest_graph: &mut Graph) {
     // Iterate over instantiated nodes and remap handles.
     for (_, &new_node_handle) in old_new_mapping.inner().iter() {
         old_new_mapping.remap_handles(
@@ -307,67 +307,12 @@ impl Graph {
 
     /// Sets new root of the graph and attaches the old root to the new root. Old root becomes a child
     /// node of the new root.
-    pub fn change_root(&mut self, root: Node) {
+    pub fn change_root_node(&mut self, root: Node) {
         let prev_root = self.root;
         self.root = Handle::NONE;
         let handle = self.add_node(root);
         assert_eq!(self.root, handle);
         self.link_nodes(prev_root, handle);
-    }
-
-    /// Makes a node in the graph the new root of the graph. All children nodes of the previous root will
-    /// become children nodes of the new root. Old root will become a child node of the new root.
-    pub fn change_root_inplace(&mut self, new_root: Handle<Node>) {
-        let prev_root = self.root;
-        self.unlink_internal(new_root);
-        let prev_root_children = self
-            .try_get(prev_root)
-            .map(|r| r.children.clone())
-            .unwrap_or_default();
-        for child in prev_root_children {
-            self.link_nodes(child, new_root);
-        }
-        if prev_root.is_some() {
-            self.link_nodes(prev_root, new_root);
-        }
-        self.root = new_root;
-    }
-
-    /// Adds new node to the graph. Node will be transferred into implementation-defined
-    /// storage and you'll get a handle to the node. Node will be automatically attached
-    /// to root node of graph, it is required because graph can contain only one root.
-    #[inline]
-    pub fn add_node(&mut self, mut node: Node) -> Handle<Node> {
-        let children = node.children.clone();
-        node.children.clear();
-        let has_script = node.has_scripts_assigned();
-        let handle = self.pool.spawn(node);
-
-        if self.root.is_none() {
-            self.root = handle;
-        } else {
-            self.link_nodes(handle, self.root);
-        }
-
-        for child in children {
-            self.link_nodes(child, handle);
-        }
-
-        self.event_broadcaster.broadcast(GraphEvent::Added(handle));
-        if has_script {
-            self.script_message_sender
-                .send(NodeScriptMessage::InitializeScript { handle })
-                .unwrap();
-        }
-
-        let sender = self.script_message_sender.clone();
-        let node = &mut self.pool[handle];
-        node.self_handle = handle;
-        node.script_message_sender = Some(sender);
-
-        self.instance_id_map.insert(node.instance_id, handle);
-
-        handle
     }
 
     /// Tries to find references of the given node in other scene nodes. It could be used to check if the node is
@@ -425,36 +370,10 @@ impl Graph {
         self.root
     }
 
-    /// Tries to borrow a node, returns Some(node) if the handle is valid, None - otherwise.
-    #[inline]
-    pub fn try_get(&self, handle: Handle<Node>) -> Option<&Node> {
-        self.pool.try_borrow(handle)
-    }
-
-    /// Tries to borrow a node and fetch its component of specified type.
-    #[inline]
-    pub fn try_get_of_type<T>(&self, handle: Handle<Node>) -> Option<&T>
-    where
-        T: 'static,
-    {
-        self.try_get(handle)
-            .and_then(|n| n.query_component_ref::<T>())
-    }
-
     /// Tries to mutably borrow a node, returns Some(node) if the handle is valid, None - otherwise.
     #[inline]
     pub fn try_get_mut(&mut self, handle: Handle<Node>) -> Option<&mut Node> {
         self.pool.try_borrow_mut(handle)
-    }
-
-    /// Tries to mutably borrow a node and fetch its component of specified type.
-    #[inline]
-    pub fn try_get_mut_of_type<T>(&mut self, handle: Handle<Node>) -> Option<&mut T>
-    where
-        T: 'static,
-    {
-        self.try_get_mut(handle)
-            .and_then(|n| n.query_component_mut::<T>())
     }
 
     /// Begins multi-borrow that allows you borrow to as many shared references to the graph
@@ -496,53 +415,6 @@ impl Graph {
         self.pool.begin_multi_borrow()
     }
 
-    /// Destroys the node and its children recursively. Scripts of the destroyed nodes will be removed in the next
-    /// update tick.
-    #[inline]
-    pub fn remove_node(&mut self, node_handle: Handle<Node>) {
-        self.unlink_internal(node_handle);
-
-        self.stack.clear();
-        self.stack.push(node_handle);
-        while let Some(handle) = self.stack.pop() {
-            for &child in self.pool[handle].children().iter() {
-                self.stack.push(child);
-            }
-
-            // Remove associated entities.
-            let mut node = self.pool.free(handle);
-            self.instance_id_map.remove(&node.instance_id);
-            node.on_removed_from_graph(self);
-
-            self.event_broadcaster
-                .broadcast(GraphEvent::Removed(handle));
-        }
-    }
-
-    fn unlink_internal(&mut self, node_handle: Handle<Node>) {
-        // Replace parent handle of child
-        let parent_handle = std::mem::replace(&mut self.pool[node_handle].parent, Handle::NONE);
-
-        // Remove child from parent's children list
-        if let Some(parent) = self.pool.try_borrow_mut(parent_handle) {
-            if let Some(i) = parent.children().iter().position(|h| *h == node_handle) {
-                parent.children.remove(i);
-            }
-        }
-
-        let (ticket, mut node) = self.pool.take_reserve(node_handle);
-        node.on_unlink(self);
-        self.pool.put_back(ticket, node);
-    }
-
-    /// Links specified child with specified parent.
-    #[inline]
-    pub fn link_nodes(&mut self, child: Handle<Node>, parent: Handle<Node>) {
-        self.unlink_internal(child);
-        self.pool[child].parent = parent;
-        self.pool[parent].children.push(child);
-    }
-
     /// Links specified child with specified parent while keeping the
     /// child's global position and rotation.
     #[inline]
@@ -566,163 +438,16 @@ impl Graph {
         self.link_nodes(child, parent);
     }
 
-    /// Unlinks specified node from its parent and attaches it to root graph node.
-    #[inline]
-    pub fn unlink_node(&mut self, node_handle: Handle<Node>) {
-        self.unlink_internal(node_handle);
-        self.link_nodes(node_handle, self.root);
-        self.pool[node_handle]
-            .local_transform_mut()
-            .set_position(Vector3::default());
-    }
-
-    /// Tries to find a copy of `node_handle` in hierarchy tree starting from `root_handle`.
-    #[inline]
-    pub fn find_copy_of(
-        &self,
-        root_handle: Handle<Node>,
-        node_handle: Handle<Node>,
-    ) -> Handle<Node> {
-        let root = &self.pool[root_handle];
-        if root.original_handle_in_resource() == node_handle {
-            return root_handle;
-        }
-
-        for child_handle in root.children() {
-            let out = self.find_copy_of(*child_handle, node_handle);
-            if out.is_some() {
-                return out;
-            }
-        }
-
-        Handle::NONE
-    }
-
-    /// Searches for a node down the tree starting from the specified node using the specified closure. Returns a tuple
-    /// with a handle and a reference to the found node. If nothing is found, it returns [`None`].
-    #[inline]
-    pub fn find<C>(&self, root_node: Handle<Node>, cmp: &mut C) -> Option<(Handle<Node>, &Node)>
-    where
-        C: FnMut(&Node) -> bool,
-    {
-        self.pool.try_borrow(root_node).and_then(|root| {
-            if cmp(root) {
-                Some((root_node, root))
-            } else {
-                root.children().iter().find_map(|c| self.find(*c, cmp))
-            }
-        })
-    }
-
-    /// Searches for a node down the tree starting from the specified node using the specified closure. Returns a tuple
-    /// with a handle and a reference to the mapped value. If nothing is found, it returns [`None`].
-    #[inline]
-    pub fn find_map<C, T>(&self, root_node: Handle<Node>, cmp: &mut C) -> Option<(Handle<Node>, &T)>
-    where
-        C: FnMut(&Node) -> Option<&T>,
-        T: ?Sized,
-    {
-        self.pool.try_borrow(root_node).and_then(|root| {
-            if let Some(x) = cmp(root) {
-                Some((root_node, x))
-            } else {
-                root.children().iter().find_map(|c| self.find_map(*c, cmp))
-            }
-        })
-    }
-
-    /// Searches for a node up the tree starting from the specified node using the specified closure. Returns a tuple
-    /// with a handle and a reference to the found node. If nothing is found, it returns [`None`].
-    #[inline]
-    pub fn find_up<C>(&self, root_node: Handle<Node>, cmp: &mut C) -> Option<(Handle<Node>, &Node)>
-    where
-        C: FnMut(&Node) -> bool,
-    {
-        let mut handle = root_node;
-        while let Some(node) = self.pool.try_borrow(handle) {
-            if cmp(node) {
-                return Some((handle, node));
-            }
-            handle = node.parent;
-        }
-        None
-    }
-
-    /// Searches for a node up the tree starting from the specified node using the specified closure. Returns a tuple
-    /// with a handle and a reference to the mapped value. If nothing is found, it returns [`None`].
-    #[inline]
-    pub fn find_up_map<C, T>(
-        &self,
-        root_node: Handle<Node>,
-        cmp: &mut C,
-    ) -> Option<(Handle<Node>, &T)>
-    where
-        C: FnMut(&Node) -> Option<&T>,
-        T: ?Sized,
-    {
-        let mut handle = root_node;
-        while let Some(node) = self.pool.try_borrow(handle) {
-            if let Some(x) = cmp(node) {
-                return Some((handle, x));
-            }
-            handle = node.parent;
-        }
-        None
-    }
-
-    /// Searches for a node with the specified name down the tree starting from the specified node. Returns a tuple with
-    /// a handle and a reference to the found node. If nothing is found, it returns [`None`].
-    #[inline]
-    pub fn find_by_name(
-        &self,
-        root_node: Handle<Node>,
-        name: &str,
-    ) -> Option<(Handle<Node>, &Node)> {
-        self.find(root_node, &mut |node| node.name() == name)
-    }
-
-    /// Searches for a node with the specified name up the tree starting from the specified node. Returns a tuple with a
-    /// handle and a reference to the found node. If nothing is found, it returns [`None`].
-    #[inline]
-    pub fn find_up_by_name(
-        &self,
-        root_node: Handle<Node>,
-        name: &str,
-    ) -> Option<(Handle<Node>, &Node)> {
-        self.find_up(root_node, &mut |node| node.name() == name)
-    }
-
-    /// Searches for a node with the specified name down the tree starting from the graph root. Returns a tuple with a
-    /// handle and a reference to the found node. If nothing is found, it returns [`None`].
-    #[inline]
-    pub fn find_by_name_from_root(&self, name: &str) -> Option<(Handle<Node>, &Node)> {
-        self.find_by_name(self.root, name)
-    }
-
     /// Searches for a **first** node with a script of the given type `S` in the hierarchy starting from the
     /// given `root_node`.
     #[inline]
-    pub fn find_first_by_script<S>(
-        &self,
-        root_node: Handle<Node>,
-        index: usize,
-    ) -> Option<(Handle<Node>, &Node)>
+    pub fn find_first_by_script<S>(&self, root_node: Handle<Node>) -> Option<(Handle<Node>, &Node)>
     where
         S: ScriptTrait,
     {
         self.find(root_node, &mut |n| {
-            n.script(index).and_then(|s| s.cast::<S>()).is_some()
+            n.script().and_then(|s| s.cast::<S>()).is_some()
         })
-    }
-
-    /// Searches node using specified compare closure starting from root. Returns a tuple with a handle and
-    /// a reference to the found node. If nothing is found, it returns [`None`].
-    #[inline]
-    pub fn find_from_root<C>(&self, cmp: &mut C) -> Option<(Handle<Node>, &Node)>
-    where
-        C: FnMut(&Node) -> bool,
-    {
-        self.find(self.root, cmp)
     }
 
     /// Creates deep copy of node with all children. This is relatively heavy operation!
@@ -747,7 +472,7 @@ impl Graph {
         filter: &mut F,
         pre_process_callback: &mut Pre,
         post_process_callback: &mut Post,
-    ) -> (Handle<Node>, NodeHandleMap)
+    ) -> (Handle<Node>, NodeHandleMap<Node>)
     where
         F: FnMut(Handle<Node>, &Node) -> bool,
         Pre: FnMut(Handle<Node>, &mut Node),
@@ -787,7 +512,7 @@ impl Graph {
         &mut self,
         node_handle: Handle<Node>,
         filter: &mut F,
-    ) -> (Handle<Node>, NodeHandleMap)
+    ) -> (Handle<Node>, NodeHandleMap<Node>)
     where
         F: FnMut(Handle<Node>, &Node) -> bool,
     {
@@ -804,7 +529,7 @@ impl Graph {
             // Copy parent first.
             let parent_copy = clear_links(self.pool[*parent].clone_box());
             let parent_copy_handle = self.add_node(parent_copy);
-            old_new_mapping.map.insert(*parent, parent_copy_handle);
+            old_new_mapping.insert(*parent, parent_copy_handle);
 
             if root_handle.is_none() {
                 root_handle = parent_copy_handle;
@@ -815,7 +540,7 @@ impl Graph {
                 if filter(child, &self.pool[child]) {
                     let child_copy = clear_links(self.pool[child].clone_box());
                     let child_copy_handle = self.add_node(child_copy);
-                    old_new_mapping.map.insert(child, child_copy_handle);
+                    old_new_mapping.insert(child, child_copy_handle);
                     self.link_nodes(child_copy_handle, parent_copy_handle);
                 }
             }
@@ -847,7 +572,7 @@ impl Graph {
         &self,
         root_handle: Handle<Node>,
         dest_graph: &mut Graph,
-        old_new_mapping: &mut NodeHandleMap,
+        old_new_mapping: &mut NodeHandleMap<Node>,
         filter: &mut F,
         pre_process_callback: &mut Pre,
         post_process_callback: &mut Post,
@@ -861,7 +586,7 @@ impl Graph {
         let mut dest_node = clear_links(src_node.clone_box());
         pre_process_callback(root_handle, &mut dest_node);
         let dest_copy_handle = dest_graph.add_node(dest_node);
-        old_new_mapping.map.insert(root_handle, dest_copy_handle);
+        old_new_mapping.insert(root_handle, dest_copy_handle);
         for &src_child_handle in src_node.children() {
             if filter(src_child_handle, &self.pool[src_child_handle]) {
                 let dest_child_handle = self.copy_node_raw(
@@ -883,306 +608,6 @@ impl Graph {
             &mut dest_graph[dest_copy_handle],
         );
         dest_copy_handle
-    }
-
-    fn restore_original_handles_and_inherit_properties(&mut self) {
-        // Iterate over each node in the graph and resolve original handles. Original handle is a handle
-        // to a node in resource from which a node was instantiated from. Also sync inheritable properties
-        // if needed.
-        for node in self.pool.iter_mut() {
-            if let Some(model) = node.resource() {
-                let mut header = model.state();
-                let model_kind = header.kind().clone();
-                if let Some(data) = header.data() {
-                    let resource_graph = &data.get_scene().graph;
-
-                    let resource_node = match data.mapping {
-                        NodeMapping::UseNames => {
-                            // For some models we can resolve it only by names of nodes, but this is not
-                            // reliable way of doing this, because some editors allow nodes to have same
-                            // names for objects, but here we'll assume that modellers will not create
-                            // models with duplicated names and user of the engine reads log messages.
-                            resource_graph
-                                .pair_iter()
-                                .find_map(|(handle, resource_node)| {
-                                    if resource_node.name() == node.name() {
-                                        Some((resource_node, handle))
-                                    } else {
-                                        None
-                                    }
-                                })
-                        }
-                        NodeMapping::UseHandles => {
-                            // Use original handle directly.
-                            resource_graph
-                                .pool
-                                .try_borrow(node.original_handle_in_resource)
-                                .map(|resource_node| {
-                                    (resource_node, node.original_handle_in_resource)
-                                })
-                        }
-                    };
-
-                    if let Some((resource_node, original)) = resource_node {
-                        node.original_handle_in_resource = original;
-                        node.inv_bind_pose_transform = resource_node.inv_bind_pose_transform();
-
-                        // Check if the actual node types (this and parent's) are equal, and if not - copy the
-                        // node and replace its base.
-                        let mut types_match = true;
-                        node.as_reflect(&mut |node_reflect| {
-                            resource_node.as_reflect(&mut |resource_node_reflect| {
-                                types_match =
-                                    node_reflect.type_id() == resource_node_reflect.type_id();
-
-                                if !types_match {
-                                    Log::warn(format!(
-                                        "Node {}({}:{}) instance \
-                                        have different type than in the respective parent \
-                                        asset {}. The type will be fixed.",
-                                        node.name(),
-                                        node.self_handle.index(),
-                                        node.self_handle.generation(),
-                                        model_kind
-                                    ));
-                                }
-                            })
-                        });
-                        if !types_match {
-                            let base = (**node).clone();
-                            let mut resource_node_clone = resource_node.clone_box();
-                            variable::mark_inheritable_properties_non_modified(
-                                &mut resource_node_clone as &mut dyn Reflect,
-                                &[
-                                    TypeId::of::<UntypedResource>(),
-                                    TypeId::of::<navmesh::Container>(),
-                                ],
-                            );
-                            **resource_node_clone = base;
-                            *node = resource_node_clone;
-                        }
-
-                        // Then try to inherit properties.
-                        node.as_reflect_mut(&mut |node_reflect| {
-                            resource_node.as_reflect(&mut |resource_node_reflect| {
-                                Log::verify(try_inherit_properties(
-                                    node_reflect,
-                                    resource_node_reflect,
-                                    // Do not try to inspect resources, because it most likely cause a deadlock.
-                                    &[
-                                        std::any::TypeId::of::<UntypedResource>(),
-                                        TypeId::of::<navmesh::Container>(),
-                                    ],
-                                ));
-                            })
-                        })
-                    } else {
-                        Log::warn(format!(
-                            "Unable to find original handle for node {}. The node will be removed!",
-                            node.name(),
-                        ))
-                    }
-                }
-            }
-        }
-
-        Log::writeln(MessageKind::Information, "Original handles resolved!");
-    }
-
-    // Maps handles in properties of instances after property inheritance. It is needed, because when a
-    // property contains node handle, the handle cannot be used directly after inheritance. Instead, it
-    // must be mapped to respective instance first.
-    //
-    // To do so, we at first, build node handle mapping (original handle -> instance handle) starting from
-    // instance root. Then we must find all inheritable properties and try to remap them to instance handles.
-    fn remap_handles(&mut self, instances: &[(Handle<Node>, ModelResource)]) {
-        for (instance_root, resource) in instances {
-            // Prepare old -> new handle mapping first by walking over the graph
-            // starting from instance root.
-            let mut old_new_mapping = NodeHandleMap::default();
-            let mut traverse_stack = vec![*instance_root];
-            while let Some(node_handle) = traverse_stack.pop() {
-                let node = &self.pool[node_handle];
-                if let Some(node_resource) = node.resource().as_ref() {
-                    // We're interested only in instance nodes.
-                    if node_resource == resource {
-                        let previous_mapping = old_new_mapping
-                            .map
-                            .insert(node.original_handle_in_resource, node_handle);
-                        // There should be no such node.
-                        if previous_mapping.is_some() {
-                            Log::warn(format!(
-                                "There are multiple original nodes for {:?}! Previous was {:?}. \
-                                This can happen if a respective node was deleted.",
-                                node_handle, node.original_handle_in_resource
-                            ))
-                        }
-                    }
-                }
-
-                traverse_stack.extend_from_slice(node.children());
-            }
-
-            // Lastly, remap handles. We can't do this in single pass because there could
-            // be cross references.
-            for (_, handle) in old_new_mapping.map.iter() {
-                old_new_mapping.remap_inheritable_handles(
-                    &mut self.pool[*handle],
-                    &[TypeId::of::<UntypedResource>()],
-                );
-            }
-        }
-    }
-
-    // This method checks integrity of the graph and restores it if needed. For example, if a node was added in a parent asset,
-    // then it must be added in the graph. Alternatively, if a node was deleted in a parent asset, then its instance must be
-    // deleted in the graph.
-    fn restore_integrity(&mut self) -> Vec<(Handle<Node>, ModelResource)> {
-        Log::writeln(MessageKind::Information, "Checking integrity...");
-
-        let instances = self
-            .pool
-            .pair_iter()
-            .filter_map(|(h, n)| {
-                if n.is_resource_instance_root {
-                    Some((h, n.resource().unwrap()))
-                } else {
-                    None
-                }
-            })
-            .collect::<Vec<_>>();
-
-        let instance_count = instances.len();
-        let mut restored_count = 0;
-
-        for (instance_root, resource) in instances.iter().cloned() {
-            // Step 1. Find and remove orphaned nodes.
-            let mut nodes_to_delete = Vec::new();
-            for node in self.traverse_iter(instance_root) {
-                if let Some(resource) = node.resource() {
-                    let kind = resource.kind().clone();
-                    if let Some(model) = resource.state().data() {
-                        if !model
-                            .scene
-                            .graph
-                            .is_valid_handle(node.original_handle_in_resource)
-                        {
-                            nodes_to_delete.push(node.self_handle);
-
-                            Log::warn(format!(
-                                "Node {} ({}:{}) and its children will be deleted, because it \
-                    does not exist in the parent asset `{}`!",
-                                node.name(),
-                                node.self_handle.index(),
-                                node.self_handle.generation(),
-                                kind
-                            ))
-                        }
-                    } else {
-                        Log::warn(format!(
-                            "Node {} ({}:{}) and its children will be deleted, because its \
-                    parent asset `{}` failed to load!",
-                            node.name(),
-                            node.self_handle.index(),
-                            node.self_handle.generation(),
-                            kind
-                        ))
-                    }
-                }
-            }
-
-            for node_to_delete in nodes_to_delete {
-                if self.is_valid_handle(node_to_delete) {
-                    self.remove_node(node_to_delete);
-                }
-            }
-
-            // Step 2. Look for missing nodes and create appropriate instances for them.
-            let mut model = resource.state();
-            let model_kind = model.kind().clone();
-            if let Some(data) = model.data() {
-                let resource_graph = &data.get_scene().graph;
-
-                let resource_instance_root = self.pool[instance_root].original_handle_in_resource;
-
-                if resource_instance_root.is_none() {
-                    let instance = &self.pool[instance_root];
-                    Log::writeln(
-                        MessageKind::Warning,
-                        format!(
-                            "There is an instance of resource {} \
-                    but original node {} cannot be found!",
-                            model_kind,
-                            instance.name()
-                        ),
-                    );
-
-                    continue;
-                }
-
-                let mut traverse_stack = vec![resource_instance_root];
-                while let Some(resource_node_handle) = traverse_stack.pop() {
-                    let resource_node = &resource_graph[resource_node_handle];
-
-                    // Root of the resource is not belongs to resource, it is just a convenient way of
-                    // consolidation all descendants under a single node.
-                    let mut compare =
-                        |n: &Node| n.original_handle_in_resource == resource_node_handle;
-
-                    if resource_node_handle != resource_graph.root
-                        && self.find(instance_root, &mut compare).is_none()
-                    {
-                        Log::writeln(
-                            MessageKind::Warning,
-                            format!(
-                                "Instance of node {} is missing. Restoring integrity...",
-                                resource_node.name()
-                            ),
-                        );
-
-                        // Instantiate missing node.
-                        let (copy, old_to_new_mapping) = ModelResource::instantiate_from(
-                            resource.clone(),
-                            data,
-                            resource_node_handle,
-                            self,
-                            &mut |_, _| {},
-                        );
-
-                        restored_count += old_to_new_mapping.map.len();
-
-                        // Link it with existing node.
-                        if resource_node.parent().is_some() {
-                            let parent = self.find(instance_root, &mut |n| {
-                                n.original_handle_in_resource == resource_node.parent()
-                            });
-
-                            if let Some((parent_handle, _)) = parent {
-                                self.link_nodes(copy, parent_handle);
-                            } else {
-                                // Fail-safe route - link with root of instance.
-                                self.link_nodes(copy, instance_root);
-                            }
-                        } else {
-                            // Fail-safe route - link with root of instance.
-                            self.link_nodes(copy, instance_root);
-                        }
-                    }
-
-                    traverse_stack.extend_from_slice(resource_node.children());
-                }
-            }
-        }
-
-        Log::writeln(
-            MessageKind::Information,
-            format!(
-                "Integrity restored for {} instances! {} new nodes were added!",
-                instance_count, restored_count
-            ),
-        );
-
-        instances
     }
 
     fn restore_dynamic_node_data(&mut self) {
@@ -1207,9 +632,16 @@ impl Graph {
 
         self.restore_dynamic_node_data();
         self.mark_ancestor_nodes_as_modified();
-        self.restore_original_handles_and_inherit_properties();
+        self.restore_original_handles_and_inherit_properties(
+            &[TypeId::of::<navmesh::Container>()],
+            |resource_node, node| {
+                node.inv_bind_pose_transform = resource_node.inv_bind_pose_transform;
+            },
+        );
         self.update_hierarchical_data();
-        let instances = self.restore_integrity();
+        let instances = self.restore_integrity(|model, model_data, handle, dest_graph| {
+            ModelResource::instantiate_from(model, model_data, handle, dest_graph, &mut |_, _| {})
+        });
         self.remap_handles(&instances);
 
         // Update cube maps for sky boxes.
@@ -1509,12 +941,6 @@ impl Graph {
         );
     }
 
-    /// Checks whether given node handle is valid or not.
-    #[inline]
-    pub fn is_valid_handle(&self, node_handle: Handle<Node>) -> bool {
-        self.pool.is_valid_handle(node_handle)
-    }
-
     fn sync_native(&mut self, switches: &GraphUpdateSwitches) {
         let mut sync_context = SyncContext {
             nodes: &self.pool,
@@ -1626,9 +1052,10 @@ impl Graph {
     /// available indices and try to convert them to handles.
     ///
     /// ```
-    /// use fyrox::scene::node::Node;
-    /// use fyrox::scene::graph::Graph;
-    /// use fyrox::scene::pivot::Pivot;
+    /// # use fyrox::scene::node::Node;
+    /// # use fyrox::scene::graph::Graph;
+    /// # use fyrox::scene::pivot::Pivot;
+    /// # use fyrox_graph::BaseSceneGraph;
     /// let mut graph = Graph::new();
     /// graph.add_node(Node::new(Pivot::default()));
     /// graph.add_node(Node::new(Pivot::default()));
@@ -1649,9 +1076,10 @@ impl Graph {
     /// or point to a vacant pool entry.
     ///
     /// ```
-    /// use fyrox::scene::node::Node;
-    /// use fyrox::scene::graph::Graph;
-    /// use fyrox::scene::pivot::Pivot;
+    /// # use fyrox::scene::node::Node;
+    /// # use fyrox::scene::graph::Graph;
+    /// # use fyrox::scene::pivot::Pivot;
+    /// # use fyrox_graph::BaseSceneGraph;
     /// let mut graph = Graph::new();
     /// graph.add_node(Node::new(Pivot::default()));
     /// graph.add_node(Node::new(Pivot::default()));
@@ -1675,19 +1103,6 @@ impl Graph {
         self.pool.iter()
     }
 
-    /// Creates an iterator that has linear iteration order over internal collection
-    /// of nodes. It does *not* perform any tree traversal!
-    #[inline]
-    pub fn linear_iter_mut(&mut self) -> impl Iterator<Item = &mut Node> {
-        self.pool.iter_mut()
-    }
-
-    /// Creates new iterator that iterates over internal collection giving (handle; node) pairs.
-    #[inline]
-    pub fn pair_iter(&self) -> impl Iterator<Item = (Handle<Node>, &Node)> {
-        self.pool.pair_iter()
-    }
-
     /// Creates new iterator that iterates over internal collection giving (handle; node) pairs.
     #[inline]
     pub fn pair_iter_mut(&mut self) -> impl Iterator<Item = (Handle<Node>, &mut Node)> {
@@ -1699,7 +1114,7 @@ impl Graph {
     /// detached from its parent!
     #[inline]
     pub fn take_reserve(&mut self, handle: Handle<Node>) -> (Ticket<Node>, Node) {
-        self.unlink_internal(handle);
+        self.isolate_node(handle);
         let (ticket, node) = self.take_reserve_internal(handle);
         self.instance_id_map.remove(&node.instance_id);
         (ticket, node)
@@ -1791,34 +1206,6 @@ impl Graph {
         self.pool.alive_count()
     }
 
-    /// Create a graph depth traversal iterator.
-    ///
-    /// # Notes
-    ///
-    /// This method allocates temporal array so it is not cheap! Should not be
-    /// used on each frame.
-    #[inline]
-    pub fn traverse_iter(&self, from: Handle<Node>) -> GraphTraverseIterator {
-        GraphTraverseIterator {
-            graph: self,
-            stack: vec![from],
-        }
-    }
-
-    /// Create a graph depth traversal iterator which will emit *handles* to nodes.
-    ///
-    /// # Notes
-    ///
-    /// This method allocates temporal array so it is not cheap! Should not be
-    /// used on each frame.
-    #[inline]
-    pub fn traverse_handle_iter(&self, from: Handle<Node>) -> GraphHandleTraverseIterator {
-        GraphHandleTraverseIterator {
-            graph: self,
-            stack: vec![from],
-        }
-    }
-
     /// Creates deep copy of graph. Allows filtering while copying, returns copy and
     /// old-to-new node mapping.
     #[inline]
@@ -1828,7 +1215,7 @@ impl Graph {
         filter: &mut F,
         pre_process_callback: &mut Pre,
         post_process_callback: &mut Post,
-    ) -> (Self, NodeHandleMap)
+    ) -> (Self, NodeHandleMap<Node>)
     where
         F: FnMut(Handle<Node>, &Node) -> bool,
         Pre: FnMut(Handle<Node>, &mut Node),
@@ -1966,48 +1353,43 @@ impl Graph {
 
     /// Tries to borrow a node using the given handle, fetch its script and cast it to the specified type.
     #[inline]
-    pub fn try_get_script_of<T>(&self, node: Handle<Node>, index: usize) -> Option<&T>
+    pub fn try_get_script_of<T>(&self, node: Handle<Node>) -> Option<&T>
     where
         T: ScriptTrait,
     {
-        self.try_get(node)
-            .and_then(|node| node.try_get_script(index))
+        self.try_get(node).and_then(|node| node.try_get_script())
     }
 
     /// Tries to borrow a node using the given handle, fetch its script and cast it to the specified type.
     #[inline]
-    pub fn try_get_script_of_mut<T>(&mut self, node: Handle<Node>, index: usize) -> Option<&mut T>
+    pub fn try_get_script_of_mut<T>(&mut self, node: Handle<Node>) -> Option<&mut T>
     where
         T: ScriptTrait,
     {
         self.try_get_mut(node)
-            .and_then(|node| node.try_get_script_mut(index))
+            .and_then(|node| node.try_get_script_mut())
     }
 
     /// Tries to borrow a node using the given handle and fetch a reference to a component of the given type
     /// from the script of the node.
     #[inline]
-    pub fn try_get_script_component_of<C>(&self, node: Handle<Node>, index: usize) -> Option<&C>
+    pub fn try_get_script_component_of<C>(&self, node: Handle<Node>) -> Option<&C>
     where
         C: Any,
     {
         self.try_get(node)
-            .and_then(|node| node.try_get_script_component(index))
+            .and_then(|node| node.try_get_script_component())
     }
 
     /// Tries to borrow a node using the given handle and fetch a reference to a component of the given type
     /// from the script of the node.
     #[inline]
-    pub fn try_get_script_component_of_mut<C>(
-        &mut self,
-        node: Handle<Node>,
-        index: usize,
-    ) -> Option<&mut C>
+    pub fn try_get_script_component_of_mut<C>(&mut self, node: Handle<Node>) -> Option<&mut C>
     where
         C: Any,
     {
         self.try_get_mut(node)
-            .and_then(|node| node.try_get_script_component_mut(index))
+            .and_then(|node| node.try_get_script_component_mut())
     }
 
     /// Returns a handle of the node that has the given id.
@@ -2092,51 +1474,6 @@ where
     }
 }
 
-/// Iterator that traverses tree in depth and returns shared references to nodes.
-pub struct GraphTraverseIterator<'a> {
-    graph: &'a Graph,
-    stack: Vec<Handle<Node>>,
-}
-
-impl<'a> Iterator for GraphTraverseIterator<'a> {
-    type Item = &'a Node;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if let Some(handle) = self.stack.pop() {
-            let node = &self.graph[handle];
-
-            for child_handle in node.children() {
-                self.stack.push(*child_handle);
-            }
-
-            return Some(node);
-        }
-
-        None
-    }
-}
-
-/// Iterator that traverses tree in depth and returns handles to nodes.
-pub struct GraphHandleTraverseIterator<'a> {
-    graph: &'a Graph,
-    stack: Vec<Handle<Node>>,
-}
-
-impl<'a> Iterator for GraphHandleTraverseIterator<'a> {
-    type Item = Handle<Node>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if let Some(handle) = self.stack.pop() {
-            for child_handle in self.graph[handle].children() {
-                self.stack.push(*child_handle);
-            }
-
-            return Some(handle);
-        }
-        None
-    }
-}
-
 impl Visit for Graph {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         // Pool must be empty, otherwise handles will be invalid and everything will blow up.
@@ -2157,8 +1494,161 @@ impl Visit for Graph {
     }
 }
 
+impl AbstractSceneGraph for Graph {
+    fn try_get_node_untyped(&self, handle: ErasedHandle) -> Option<&dyn AbstractSceneNode> {
+        self.pool
+            .try_borrow(handle.into())
+            .map(|n| n as &dyn AbstractSceneNode)
+    }
+
+    fn try_get_node_untyped_mut(
+        &mut self,
+        handle: ErasedHandle,
+    ) -> Option<&mut dyn AbstractSceneNode> {
+        self.pool
+            .try_borrow_mut(handle.into())
+            .map(|n| n as &mut dyn AbstractSceneNode)
+    }
+}
+
+impl BaseSceneGraph for Graph {
+    type Prefab = Model;
+    type Node = Node;
+
+    #[inline]
+    fn root(&self) -> Handle<Self::Node> {
+        self.root
+    }
+
+    #[inline]
+    fn set_root(&mut self, root: Handle<Self::Node>) {
+        self.root = root;
+    }
+
+    #[inline]
+    fn is_valid_handle(&self, handle: Handle<Self::Node>) -> bool {
+        self.pool.is_valid_handle(handle)
+    }
+
+    #[inline]
+    fn add_node(&mut self, mut node: Self::Node) -> Handle<Self::Node> {
+        let children = node.children.clone();
+        node.children.clear();
+        let has_script = node.script.is_some();
+        let handle = self.pool.spawn(node);
+
+        if self.root.is_none() {
+            self.root = handle;
+        } else {
+            self.link_nodes(handle, self.root);
+        }
+
+        for child in children {
+            self.link_nodes(child, handle);
+        }
+
+        self.event_broadcaster.broadcast(GraphEvent::Added(handle));
+        if has_script {
+            self.script_message_sender
+                .send(NodeScriptMessage::InitializeScript { handle })
+                .unwrap();
+        }
+
+        let sender = self.script_message_sender.clone();
+        let node = &mut self.pool[handle];
+        node.self_handle = handle;
+        node.script_message_sender = Some(sender);
+
+        self.instance_id_map.insert(node.instance_id, handle);
+
+        handle
+    }
+
+    #[inline]
+    fn remove_node(&mut self, node_handle: Handle<Self::Node>) {
+        self.isolate_node(node_handle);
+
+        self.stack.clear();
+        self.stack.push(node_handle);
+        while let Some(handle) = self.stack.pop() {
+            for &child in self.pool[handle].children().iter() {
+                self.stack.push(child);
+            }
+
+            // Remove associated entities.
+            let mut node = self.pool.free(handle);
+            self.instance_id_map.remove(&node.instance_id);
+            node.on_removed_from_graph(self);
+
+            self.event_broadcaster
+                .broadcast(GraphEvent::Removed(handle));
+        }
+    }
+
+    #[inline]
+    fn link_nodes(&mut self, child: Handle<Self::Node>, parent: Handle<Self::Node>) {
+        self.isolate_node(child);
+        self.pool[child].parent = parent;
+        self.pool[parent].children.push(child);
+    }
+
+    #[inline]
+    fn unlink_node(&mut self, node_handle: Handle<Node>) {
+        self.isolate_node(node_handle);
+        self.link_nodes(node_handle, self.root);
+        self.pool[node_handle]
+            .local_transform_mut()
+            .set_position(Vector3::default());
+    }
+
+    #[inline]
+    fn isolate_node(&mut self, node_handle: Handle<Self::Node>) {
+        // Replace parent handle of child
+        let parent_handle = std::mem::replace(&mut self.pool[node_handle].parent, Handle::NONE);
+
+        // Remove child from parent's children list
+        if let Some(parent) = self.pool.try_borrow_mut(parent_handle) {
+            if let Some(i) = parent.children().iter().position(|h| *h == node_handle) {
+                parent.children.remove(i);
+            }
+        }
+
+        let (ticket, mut node) = self.pool.take_reserve(node_handle);
+        node.on_unlink(self);
+        self.pool.put_back(ticket, node);
+    }
+
+    #[inline]
+    fn try_get(&self, handle: Handle<Self::Node>) -> Option<&Self::Node> {
+        self.pool.try_borrow(handle)
+    }
+
+    #[inline]
+    fn try_get_mut(&mut self, handle: Handle<Self::Node>) -> Option<&mut Self::Node> {
+        self.pool.try_borrow_mut(handle)
+    }
+}
+
+impl SceneGraph for Graph {
+    #[inline]
+    fn pair_iter(&self) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)> {
+        self.pool.pair_iter()
+    }
+
+    #[inline]
+    fn linear_iter(&self) -> impl Iterator<Item = &Self::Node> {
+        self.pool.iter()
+    }
+
+    #[inline]
+    fn linear_iter_mut(&mut self) -> impl Iterator<Item = &mut Self::Node> {
+        self.pool.iter_mut()
+    }
+}
+
 #[cfg(test)]
 mod test {
+    use crate::graph::SceneGraph;
     use crate::{
         asset::{io::FsResourceIo, manager::ResourceManager},
         core::{
@@ -2182,6 +1672,7 @@ mod test {
             Scene, SceneLoader,
         },
     };
+    use fyrox_graph::BaseSceneGraph;
     use std::{fs, path::Path, sync::Arc};
 
     #[test]
@@ -2249,66 +1740,6 @@ mod test {
             .unwrap();
         assert_eq!(result.0, a);
         assert_eq!(result.1, "A");
-    }
-
-    #[test]
-    fn test_change_root() {
-        let mut graph = Graph::new();
-
-        // Root_
-        //      |_A_
-        //          |_B
-        //          |_C_
-        //             |_D
-        let root = graph.root;
-        let b;
-        let c;
-        let d;
-        let a = PivotBuilder::new(BaseBuilder::new().with_children(&[
-            {
-                b = PivotBuilder::new(BaseBuilder::new()).build(&mut graph);
-                b
-            },
-            {
-                c = PivotBuilder::new(BaseBuilder::new().with_children(&[{
-                    d = PivotBuilder::new(BaseBuilder::new()).build(&mut graph);
-                    d
-                }]))
-                .build(&mut graph);
-                c
-            },
-        ]))
-        .build(&mut graph);
-
-        dbg!(root, a, b, c, d);
-
-        graph.change_root_inplace(c);
-
-        // C_
-        //      |_D
-        //      |_A_
-        //          |_B
-        //      |_Root
-        assert_eq!(graph.root, c);
-
-        assert_eq!(graph[graph.root].parent, Handle::NONE);
-        assert_eq!(graph[graph.root].children.len(), 3);
-
-        assert_eq!(graph[graph.root].children[0], d);
-        assert_eq!(graph[d].parent, graph.root);
-        assert!(graph[d].children.is_empty());
-
-        assert_eq!(graph[graph.root].children[1], a);
-        assert_eq!(graph[a].parent, graph.root);
-
-        assert_eq!(graph[graph.root].children[2], root);
-        assert_eq!(graph[root].parent, graph.root);
-
-        assert_eq!(graph[a].children.len(), 1);
-        assert_eq!(graph[a].children[0], b);
-        assert_eq!(graph[b].parent, a);
-
-        assert!(graph[b].children.is_empty());
     }
 
     fn create_scene() -> Scene {

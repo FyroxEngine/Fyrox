@@ -1,44 +1,49 @@
-use crate::{command::GameSceneCommandTrait, scene::commands::GameSceneContext};
+use crate::{
+    command::{CommandContext, CommandTrait},
+    scene::commands::GameSceneContext,
+    ui_scene::commands::UiSceneContext,
+};
+use fyrox::core::pool::ErasedHandle;
+use fyrox::core::variable::InheritableVariable;
+use fyrox::graph::{BaseSceneGraph, SceneGraphNode};
 use fyrox::{
     core::{
         algebra::Vector2,
         pool::{Handle, Ticket},
     },
-    scene::{animation::absm::prelude::*, node::Node},
+    generic_animation::machine::{
+        layer::MachineLayer, mask::LayerMask, Machine, PoseNode, State, Transition,
+    },
 };
 use std::fmt::Debug;
 
 pub mod blend;
-pub mod parameter;
-pub mod pose;
-pub mod state;
-pub mod transition;
 
 macro_rules! define_spawn_command {
     ($name:ident, $ent_type:ty, $container:ident) => {
         #[derive(Debug)]
-        pub enum $name {
+        pub enum $name<N: Debug + 'static> {
             Unknown,
             NonExecuted {
-                node_handle: Handle<Node>,
+                node_handle: Handle<N>,
                 layer_index: usize,
                 state: $ent_type,
             },
             Executed {
-                node_handle: Handle<Node>,
+                node_handle: Handle<N>,
                 layer_index: usize,
                 handle: Handle<$ent_type>,
             },
             Reverted {
-                node_handle: Handle<Node>,
+                node_handle: Handle<N>,
                 layer_index: usize,
                 ticket: Ticket<$ent_type>,
                 state: $ent_type,
             },
         }
 
-        impl $name {
-            pub fn new(node_handle: Handle<Node>, layer_index: usize, state: $ent_type) -> Self {
+        impl<N: Debug + 'static> $name<N> {
+            pub fn new(node_handle: Handle<N>, layer_index: usize, state: $ent_type) -> Self {
                 Self::NonExecuted {
                     node_handle,
                     layer_index,
@@ -47,12 +52,12 @@ macro_rules! define_spawn_command {
             }
         }
 
-        impl GameSceneCommandTrait for $name {
-            fn name(&mut self, _context: &GameSceneContext) -> String {
+        impl<N: Debug + 'static> CommandTrait for $name<N> {
+            fn name(&mut self, _context: &dyn CommandContext) -> String {
                 "Add State".to_string()
             }
 
-            fn execute(&mut self, context: &mut GameSceneContext) {
+            fn execute(&mut self, context: &mut dyn CommandContext) {
                 match std::mem::replace(self, $name::Unknown) {
                     $name::NonExecuted {
                         node_handle,
@@ -85,7 +90,7 @@ macro_rules! define_spawn_command {
                 }
             }
 
-            fn revert(&mut self, context: &mut GameSceneContext) {
+            fn revert(&mut self, context: &mut dyn CommandContext) {
                 match std::mem::replace(self, $name::Unknown) {
                     $name::Executed {
                         node_handle,
@@ -107,7 +112,7 @@ macro_rules! define_spawn_command {
                 }
             }
 
-            fn finalize(&mut self, context: &mut GameSceneContext) {
+            fn finalize(&mut self, context: &mut dyn CommandContext) {
                 if let $name::Reverted {
                     node_handle,
                     layer_index,
@@ -125,32 +130,32 @@ macro_rules! define_spawn_command {
     };
 }
 
-define_spawn_command!(AddTransitionCommand, Transition, transitions_mut);
+define_spawn_command!(AddTransitionCommand, Transition<Handle<N>>, transitions_mut);
 
 #[derive(Debug)]
-pub enum AddStateCommand {
+pub enum AddStateCommand<N: Debug + 'static> {
     Unknown,
     NonExecuted {
-        node_handle: Handle<Node>,
+        node_handle: Handle<N>,
         layer_index: usize,
-        state: State,
+        state: State<Handle<N>>,
     },
     Executed {
-        node_handle: Handle<Node>,
+        node_handle: Handle<N>,
         layer_index: usize,
-        handle: Handle<State>,
-        prev_entry_state: Handle<State>,
+        handle: Handle<State<Handle<N>>>,
+        prev_entry_state: Handle<State<Handle<N>>>,
     },
     Reverted {
-        node_handle: Handle<Node>,
+        node_handle: Handle<N>,
         layer_index: usize,
-        ticket: Ticket<State>,
-        state: State,
+        ticket: Ticket<State<Handle<N>>>,
+        state: State<Handle<N>>,
     },
 }
 
-impl AddStateCommand {
-    pub fn new(node_handle: Handle<Node>, layer_index: usize, state: State) -> Self {
+impl<N: Debug + 'static> AddStateCommand<N> {
+    pub fn new(node_handle: Handle<N>, layer_index: usize, state: State<Handle<N>>) -> Self {
         Self::NonExecuted {
             node_handle,
             layer_index,
@@ -159,22 +164,38 @@ impl AddStateCommand {
     }
 }
 
-fn fetch_machine<'a>(
-    context: &'a mut GameSceneContext,
-    node_handle: Handle<Node>,
-) -> &'a mut Machine {
-    context.scene.graph[node_handle]
-        .query_component_mut::<AnimationBlendingStateMachine>()
-        .unwrap()
-        .machine_mut()
+pub fn fetch_machine<N: Debug + 'static>(
+    context: &mut dyn CommandContext,
+    node_handle: Handle<N>,
+) -> &mut Machine<Handle<N>> {
+    // SAFETY: Borrow checker cannot resolve lifetime properly in the following `if` chain.
+    // This is safe to do, because there's only one mutable reference anyway. Should be fixed
+    // with Polonius.
+    let context2 = unsafe { &mut *(context as *mut dyn CommandContext) };
+
+    if let Some(game_scene) = context.component_mut::<GameSceneContext>() {
+        game_scene
+            .scene
+            .graph
+            .node_mut(ErasedHandle::from(node_handle).into())
+            .component_mut::<InheritableVariable<Machine<Handle<N>>>>()
+            .unwrap()
+    } else if let Some(ui) = context2.component_mut::<UiSceneContext>() {
+        ui.ui
+            .node_mut(ErasedHandle::from(node_handle).into())
+            .component_mut::<InheritableVariable<Machine<Handle<N>>>>()
+            .unwrap()
+    } else {
+        panic!("Unsupported container!")
+    }
 }
 
-impl GameSceneCommandTrait for AddStateCommand {
-    fn name(&mut self, _context: &GameSceneContext) -> String {
+impl<N: Debug + 'static> CommandTrait for AddStateCommand<N> {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Add State".to_string()
     }
 
-    fn execute(&mut self, context: &mut GameSceneContext) {
+    fn execute(&mut self, context: &mut dyn CommandContext) {
         match std::mem::replace(self, AddStateCommand::Unknown) {
             AddStateCommand::NonExecuted {
                 node_handle,
@@ -229,7 +250,7 @@ impl GameSceneCommandTrait for AddStateCommand {
         }
     }
 
-    fn revert(&mut self, context: &mut GameSceneContext) {
+    fn revert(&mut self, context: &mut dyn CommandContext) {
         match std::mem::replace(self, AddStateCommand::Unknown) {
             AddStateCommand::Executed {
                 node_handle,
@@ -256,7 +277,7 @@ impl GameSceneCommandTrait for AddStateCommand {
         }
     }
 
-    fn finalize(&mut self, context: &mut GameSceneContext) {
+    fn finalize(&mut self, context: &mut dyn CommandContext) {
         if let AddStateCommand::Reverted {
             node_handle,
             layer_index,
@@ -273,29 +294,29 @@ impl GameSceneCommandTrait for AddStateCommand {
 }
 
 #[derive(Debug)]
-pub enum AddPoseNodeCommand {
+pub enum AddPoseNodeCommand<N: Debug + 'static> {
     Unknown,
     NonExecuted {
-        node_handle: Handle<Node>,
+        node_handle: Handle<N>,
         layer_index: usize,
-        node: PoseNode,
+        node: PoseNode<Handle<N>>,
     },
     Executed {
-        node_handle: Handle<Node>,
+        node_handle: Handle<N>,
         layer_index: usize,
-        handle: Handle<PoseNode>,
-        prev_root_node: Handle<PoseNode>,
+        handle: Handle<PoseNode<Handle<N>>>,
+        prev_root_node: Handle<PoseNode<Handle<N>>>,
     },
     Reverted {
-        node_handle: Handle<Node>,
+        node_handle: Handle<N>,
         layer_index: usize,
-        ticket: Ticket<PoseNode>,
-        node: PoseNode,
+        ticket: Ticket<PoseNode<Handle<N>>>,
+        node: PoseNode<Handle<N>>,
     },
 }
 
-impl AddPoseNodeCommand {
-    pub fn new(node_handle: Handle<Node>, layer_index: usize, node: PoseNode) -> Self {
+impl<N: Debug + 'static> AddPoseNodeCommand<N> {
+    pub fn new(node_handle: Handle<N>, layer_index: usize, node: PoseNode<Handle<N>>) -> Self {
         Self::NonExecuted {
             node_handle,
             layer_index,
@@ -304,12 +325,12 @@ impl AddPoseNodeCommand {
     }
 }
 
-impl GameSceneCommandTrait for AddPoseNodeCommand {
-    fn name(&mut self, _context: &GameSceneContext) -> String {
+impl<N: Debug + 'static> CommandTrait for AddPoseNodeCommand<N> {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Add Pose Node".to_string()
     }
 
-    fn execute(&mut self, context: &mut GameSceneContext) {
+    fn execute(&mut self, context: &mut dyn CommandContext) {
         match std::mem::replace(self, AddPoseNodeCommand::Unknown) {
             AddPoseNodeCommand::NonExecuted {
                 node_handle,
@@ -365,7 +386,7 @@ impl GameSceneCommandTrait for AddPoseNodeCommand {
         }
     }
 
-    fn revert(&mut self, context: &mut GameSceneContext) {
+    fn revert(&mut self, context: &mut dyn CommandContext) {
         match std::mem::replace(self, AddPoseNodeCommand::Unknown) {
             AddPoseNodeCommand::Executed {
                 node_handle,
@@ -390,7 +411,7 @@ impl GameSceneCommandTrait for AddPoseNodeCommand {
         }
     }
 
-    fn finalize(&mut self, context: &mut GameSceneContext) {
+    fn finalize(&mut self, context: &mut dyn CommandContext) {
         if let AddPoseNodeCommand::Reverted {
             node_handle,
             layer_index,
@@ -408,17 +429,17 @@ impl GameSceneCommandTrait for AddPoseNodeCommand {
 macro_rules! define_move_command {
     ($name:ident, $ent_type:ty, $container:ident) => {
         #[derive(Debug)]
-        pub struct $name {
-            absm_node_handle: Handle<Node>,
+        pub struct $name<N: Debug + 'static> {
+            absm_node_handle: Handle<N>,
             layer_index: usize,
             node: Handle<$ent_type>,
             old_position: Vector2<f32>,
             new_position: Vector2<f32>,
         }
 
-        impl $name {
+        impl<N: Debug + 'static> $name<N> {
             pub fn new(
-                absm_node_handle: Handle<Node>,
+                absm_node_handle: Handle<N>,
                 node: Handle<$ent_type>,
                 layer_index: usize,
                 old_position: Vector2<f32>,
@@ -439,23 +460,23 @@ macro_rules! define_move_command {
                 position
             }
 
-            fn set_position(&self, context: &mut GameSceneContext, position: Vector2<f32>) {
+            fn set_position(&self, context: &mut dyn CommandContext, position: Vector2<f32>) {
                 let machine = fetch_machine(context, self.absm_node_handle);
                 machine.layers_mut()[self.layer_index].$container()[self.node].position = position;
             }
         }
 
-        impl GameSceneCommandTrait for $name {
-            fn name(&mut self, _context: &GameSceneContext) -> String {
+        impl<N: Debug + 'static> CommandTrait for $name<N> {
+            fn name(&mut self, _context: &dyn CommandContext) -> String {
                 "Move Entity".to_owned()
             }
 
-            fn execute(&mut self, context: &mut GameSceneContext) {
+            fn execute(&mut self, context: &mut dyn CommandContext) {
                 let position = self.swap();
                 self.set_position(context, position);
             }
 
-            fn revert(&mut self, context: &mut GameSceneContext) {
+            fn revert(&mut self, context: &mut dyn CommandContext) {
                 let position = self.swap();
                 self.set_position(context, position);
             }
@@ -463,35 +484,35 @@ macro_rules! define_move_command {
     };
 }
 
-define_move_command!(MoveStateNodeCommand, State, states_mut);
-define_move_command!(MovePoseNodeCommand, PoseNode, nodes_mut);
+define_move_command!(MoveStateNodeCommand, State<Handle<N>>, states_mut);
+define_move_command!(MovePoseNodeCommand, PoseNode<Handle<N>>, nodes_mut);
 
 macro_rules! define_free_command {
     ($name:ident, $ent_type:ty, $container:ident) => {
         #[derive(Debug)]
-        pub enum $name {
+        pub enum $name<N: Debug + 'static> {
             Unknown,
             NonExecuted {
-                node_handle: Handle<Node>,
+                node_handle: Handle<N>,
                 layer_index: usize,
                 entity_handle: Handle<$ent_type>,
             },
             Executed {
-                node_handle: Handle<Node>,
+                node_handle: Handle<N>,
                 layer_index: usize,
                 entity: $ent_type,
                 ticket: Ticket<$ent_type>,
             },
             Reverted {
-                node_handle: Handle<Node>,
+                node_handle: Handle<N>,
                 layer_index: usize,
                 entity_handle: Handle<$ent_type>,
             },
         }
 
-        impl $name {
+        impl<N: Debug + 'static> $name<N> {
             pub fn new(
-                node_handle: Handle<Node>,
+                node_handle: Handle<N>,
                 layer_index: usize,
                 entity_handle: Handle<$ent_type>,
             ) -> Self {
@@ -503,12 +524,12 @@ macro_rules! define_free_command {
             }
         }
 
-        impl GameSceneCommandTrait for $name {
-            fn name(&mut self, _context: &GameSceneContext) -> String {
+        impl<N: Debug + 'static> CommandTrait for $name<N> {
+            fn name(&mut self, _context: &dyn CommandContext) -> String {
                 "Free Entity".to_owned()
             }
 
-            fn execute(&mut self, context: &mut GameSceneContext) {
+            fn execute(&mut self, context: &mut dyn CommandContext) {
                 match std::mem::replace(self, Self::Unknown) {
                     Self::NonExecuted {
                         node_handle,
@@ -535,7 +556,7 @@ macro_rules! define_free_command {
                 }
             }
 
-            fn revert(&mut self, context: &mut GameSceneContext) {
+            fn revert(&mut self, context: &mut dyn CommandContext) {
                 match std::mem::replace(self, Self::Unknown) {
                     Self::Executed {
                         node_handle,
@@ -557,7 +578,7 @@ macro_rules! define_free_command {
                 }
             }
 
-            fn finalize(&mut self, context: &mut GameSceneContext) {
+            fn finalize(&mut self, context: &mut dyn CommandContext) {
                 match std::mem::replace(self, Self::Unknown) {
                     Self::Executed {
                         node_handle,
@@ -577,23 +598,27 @@ macro_rules! define_free_command {
     };
 }
 
-define_free_command!(DeleteStateCommand, State, states_mut);
-define_free_command!(DeletePoseNodeCommand, PoseNode, nodes_mut);
-define_free_command!(DeleteTransitionCommand, Transition, transitions_mut);
+define_free_command!(DeleteStateCommand, State<Handle<N>>, states_mut);
+define_free_command!(DeletePoseNodeCommand, PoseNode<Handle<N>>, nodes_mut);
+define_free_command!(
+    DeleteTransitionCommand,
+    Transition<Handle<N>>,
+    transitions_mut
+);
 
 #[macro_export]
 macro_rules! define_push_element_to_collection_command {
     ($name:ident<$model_handle:ty, $value_type:ty>($self:ident, $context:ident) $get_collection:block) => {
         #[derive(Debug)]
-        pub struct $name {
-            pub node_handle: Handle<Node>,
+        pub struct $name<N: Debug + 'static> {
+            pub node_handle: Handle<N>,
             pub handle: $model_handle,
             pub layer_index: usize,
             pub value: Option<$value_type>,
         }
 
-        impl $name {
-            pub fn new(node_handle: Handle<Node>, handle: $model_handle, layer_index: usize, value: $value_type) -> Self {
+        impl<N: Debug + 'static> $name<N> {
+            pub fn new(node_handle: Handle<N>, handle: $model_handle, layer_index: usize, value: $value_type) -> Self {
                 Self {
                     node_handle,
                     handle,
@@ -603,16 +628,16 @@ macro_rules! define_push_element_to_collection_command {
             }
         }
 
-        impl GameSceneCommandTrait for $name {
-            fn name(&mut self, _context: &GameSceneContext) -> String {
+        impl<N: Debug + 'static> CommandTrait for $name<N> {
+            fn name(&mut self, _context: &dyn CommandContext) -> String {
                 "Push Element To Collection".to_string()
             }
 
-            fn execute(&mut $self, $context: &mut GameSceneContext) {
+            fn execute(&mut $self, $context: &mut dyn CommandContext) {
                 ($get_collection).push($self.value.take().unwrap());
             }
 
-            fn revert(&mut $self, $context: &mut GameSceneContext) {
+            fn revert(&mut $self, $context: &mut dyn CommandContext) {
                 $self.value = Some(($get_collection).pop().unwrap());
             }
         }
@@ -640,17 +665,17 @@ macro_rules! define_remove_collection_element_command {
             }
         }
 
-        impl GameSceneCommandTrait for $name {
-            fn name(&mut self, _context: &GameSceneContext) -> String {
+        impl CommandTrait for $name {
+            fn name(&mut self, _context: &dyn CommandContext) -> String {
                 "Remove Collection Element".to_string()
             }
 
-            fn execute(&mut $self, $context: &mut GameSceneContext) {
+            fn execute(&mut $self, $context: &mut dyn CommandContext) {
                 let collection = $get_collection;
                 $self.value = Some(collection.remove($self.index));
             }
 
-            fn revert(&mut $self, $context: &mut GameSceneContext) {
+            fn revert(&mut $self, $context: &mut dyn CommandContext) {
                 let collection = $get_collection;
                 collection.insert($self.index, $self.value.take().unwrap())
             }
@@ -662,33 +687,33 @@ macro_rules! define_remove_collection_element_command {
 macro_rules! define_set_collection_element_command {
     ($name:ident<$model_handle:ty, $value_type:ty>($self:ident, $context:ident) $swap_value:block) => {
         #[derive(Debug)]
-        pub struct $name {
-            pub node_handle: Handle<Node>,
+        pub struct $name<N: Debug + 'static> {
+            pub node_handle: Handle<N>,
             pub handle: $model_handle,
             pub layer_index: usize,
             pub index: usize,
             pub value: $value_type,
         }
 
-        impl $name {
-            pub fn swap(&mut $self, $context: &mut GameSceneContext) {
+        impl<N: Debug + 'static> $name<N> {
+            pub fn swap(&mut $self, $context: &mut dyn CommandContext) {
                  $swap_value
             }
         }
 
-        impl GameSceneCommandTrait for $name {
+        impl<N: Debug + 'static> CommandTrait for $name<N> {
             fn name(&mut self,
                 #[allow(unused_variables)]
-                $context: &GameSceneContext
+                $context: &dyn CommandContext
             ) -> String {
                 "Set Collection Element".to_owned()
             }
 
-            fn execute(&mut self, $context: &mut GameSceneContext) {
+            fn execute(&mut self, $context: &mut dyn CommandContext) {
                 self.swap($context);
             }
 
-            fn revert(&mut self, $context: &mut GameSceneContext) {
+            fn revert(&mut self, $context: &mut dyn CommandContext) {
                 self.swap($context);
             }
         }
@@ -696,14 +721,14 @@ macro_rules! define_set_collection_element_command {
 }
 
 #[derive(Debug)]
-pub struct SetMachineEntryStateCommand {
-    pub node_handle: Handle<Node>,
+pub struct SetMachineEntryStateCommand<N: Debug + 'static> {
+    pub node_handle: Handle<N>,
     pub layer: usize,
-    pub entry: Handle<State>,
+    pub entry: Handle<State<Handle<N>>>,
 }
 
-impl SetMachineEntryStateCommand {
-    fn swap(&mut self, context: &mut GameSceneContext) {
+impl<N: Debug + 'static> SetMachineEntryStateCommand<N> {
+    fn swap(&mut self, context: &mut dyn CommandContext) {
         let machine = fetch_machine(context, self.node_handle);
         let layer = &mut machine.layers_mut()[self.layer];
 
@@ -713,16 +738,16 @@ impl SetMachineEntryStateCommand {
     }
 }
 
-impl GameSceneCommandTrait for SetMachineEntryStateCommand {
-    fn name(&mut self, _context: &GameSceneContext) -> String {
+impl<N: Debug + 'static> CommandTrait for SetMachineEntryStateCommand<N> {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Set Entry State".to_string()
     }
 
-    fn execute(&mut self, context: &mut GameSceneContext) {
+    fn execute(&mut self, context: &mut dyn CommandContext) {
         self.swap(context)
     }
 
-    fn revert(&mut self, context: &mut GameSceneContext) {
+    fn revert(&mut self, context: &mut dyn CommandContext) {
         self.swap(context)
     }
 }
@@ -731,8 +756,8 @@ impl GameSceneCommandTrait for SetMachineEntryStateCommand {
 macro_rules! define_absm_swap_command {
     ($name:ident<$model_type:ty, $value_type:ty>[$($field_name:ident:$field_type:ty),*]($self:ident, $context:ident) $get_field:block) => {
         #[derive(Debug)]
-        pub struct $name {
-            pub node_handle: Handle<Node>,
+        pub struct $name<N: Debug + 'static> {
+            pub node_handle: Handle<N>,
             pub handle: $model_type,
             pub value: $value_type,
             $(
@@ -740,44 +765,44 @@ macro_rules! define_absm_swap_command {
             )*
         }
 
-        impl $name {
-            fn swap(&mut $self, $context: &mut GameSceneContext) {
+        impl<N: Debug + 'static> $name<N> {
+            fn swap(&mut $self, $context: &mut dyn CommandContext) {
                 let field = $get_field;
 
                 std::mem::swap(field, &mut $self.value);
             }
         }
 
-        impl GameSceneCommandTrait for $name {
-            fn name(&mut self, _context: &GameSceneContext) -> String {
+        impl<N: Debug + 'static> CommandTrait for $name<N> {
+            fn name(&mut self, _context: &dyn CommandContext) -> String {
                 stringify!($name).to_string()
             }
 
-            fn execute(&mut self, context: &mut GameSceneContext) {
+            fn execute(&mut self, context: &mut dyn CommandContext) {
                 self.swap(context)
             }
 
-            fn revert(&mut self, context: &mut GameSceneContext) {
+            fn revert(&mut self, context: &mut dyn CommandContext) {
                 self.swap(context)
             }
         }
     };
 }
 
-define_absm_swap_command!(SetStateRootPoseCommand<Handle<State>, Handle<PoseNode>>[layer_index: usize](self, context) {
+define_absm_swap_command!(SetStateRootPoseCommand<Handle<State<Handle<N>>>, Handle<PoseNode<Handle<N>>>>[layer_index: usize](self, context) {
     let machine = fetch_machine(context, self.node_handle);
     &mut machine.layers_mut()[self.layer_index].states_mut()[self.handle].root
 });
 
 #[derive(Debug)]
-pub struct SetLayerNameCommand {
-    pub absm_node_handle: Handle<Node>,
+pub struct SetLayerNameCommand<N: Debug + 'static> {
+    pub absm_node_handle: Handle<N>,
     pub layer_index: usize,
     pub name: String,
 }
 
-impl SetLayerNameCommand {
-    fn swap(&mut self, context: &mut GameSceneContext) {
+impl<N: Debug + 'static> SetLayerNameCommand<N> {
+    fn swap(&mut self, context: &mut dyn CommandContext) {
         let layer =
             &mut fetch_machine(context, self.absm_node_handle).layers_mut()[self.layer_index];
         let prev = layer.name().to_string();
@@ -786,49 +811,49 @@ impl SetLayerNameCommand {
     }
 }
 
-impl GameSceneCommandTrait for SetLayerNameCommand {
-    fn name(&mut self, _context: &GameSceneContext) -> String {
+impl<N: Debug + 'static> CommandTrait for SetLayerNameCommand<N> {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Set Layer Name".to_string()
     }
 
-    fn execute(&mut self, context: &mut GameSceneContext) {
+    fn execute(&mut self, context: &mut dyn CommandContext) {
         self.swap(context)
     }
 
-    fn revert(&mut self, context: &mut GameSceneContext) {
+    fn revert(&mut self, context: &mut dyn CommandContext) {
         self.swap(context)
     }
 }
 
 #[derive(Debug)]
-pub struct AddLayerCommand {
-    pub absm_node_handle: Handle<Node>,
-    pub layer: Option<MachineLayer>,
+pub struct AddLayerCommand<N: Debug + 'static> {
+    pub absm_node_handle: Handle<N>,
+    pub layer: Option<MachineLayer<Handle<N>>>,
 }
 
-impl GameSceneCommandTrait for AddLayerCommand {
-    fn name(&mut self, _context: &GameSceneContext) -> String {
+impl<N: Debug + 'static> CommandTrait for AddLayerCommand<N> {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Add Layer".to_string()
     }
 
-    fn execute(&mut self, context: &mut GameSceneContext) {
+    fn execute(&mut self, context: &mut dyn CommandContext) {
         fetch_machine(context, self.absm_node_handle).add_layer(self.layer.take().unwrap());
     }
 
-    fn revert(&mut self, context: &mut GameSceneContext) {
+    fn revert(&mut self, context: &mut dyn CommandContext) {
         self.layer = fetch_machine(context, self.absm_node_handle).pop_layer();
     }
 }
 
 #[derive(Debug)]
-pub struct RemoveLayerCommand {
-    pub absm_node_handle: Handle<Node>,
+pub struct RemoveLayerCommand<N: Debug + 'static> {
+    pub absm_node_handle: Handle<N>,
     pub layer_index: usize,
-    pub layer: Option<MachineLayer>,
+    pub layer: Option<MachineLayer<Handle<N>>>,
 }
 
-impl RemoveLayerCommand {
-    pub fn new(absm_node_handle: Handle<Node>, layer_index: usize) -> Self {
+impl<N: Debug + 'static> RemoveLayerCommand<N> {
+    pub fn new(absm_node_handle: Handle<N>, layer_index: usize) -> Self {
         Self {
             absm_node_handle,
             layer_index,
@@ -837,31 +862,31 @@ impl RemoveLayerCommand {
     }
 }
 
-impl GameSceneCommandTrait for RemoveLayerCommand {
-    fn name(&mut self, _context: &GameSceneContext) -> String {
+impl<N: Debug + 'static> CommandTrait for RemoveLayerCommand<N> {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
         format!("Remove {} Layer", self.layer_index)
     }
 
-    fn execute(&mut self, context: &mut GameSceneContext) {
+    fn execute(&mut self, context: &mut dyn CommandContext) {
         self.layer =
             Some(fetch_machine(context, self.absm_node_handle).remove_layer(self.layer_index));
     }
 
-    fn revert(&mut self, context: &mut GameSceneContext) {
+    fn revert(&mut self, context: &mut dyn CommandContext) {
         fetch_machine(context, self.absm_node_handle)
             .insert_layer(self.layer_index, self.layer.take().unwrap());
     }
 }
 
 #[derive(Debug)]
-pub struct SetLayerMaskCommand {
-    pub absm_node_handle: Handle<Node>,
+pub struct SetLayerMaskCommand<N: Debug + 'static> {
+    pub absm_node_handle: Handle<N>,
     pub layer_index: usize,
-    pub mask: LayerMask,
+    pub mask: LayerMask<Handle<N>>,
 }
 
-impl SetLayerMaskCommand {
-    fn swap(&mut self, context: &mut GameSceneContext) {
+impl<N: Debug + 'static> SetLayerMaskCommand<N> {
+    fn swap(&mut self, context: &mut dyn CommandContext) {
         let layer =
             &mut fetch_machine(context, self.absm_node_handle).layers_mut()[self.layer_index];
         let old = layer.mask().clone();
@@ -869,16 +894,16 @@ impl SetLayerMaskCommand {
     }
 }
 
-impl GameSceneCommandTrait for SetLayerMaskCommand {
-    fn name(&mut self, _context: &GameSceneContext) -> String {
+impl<N: Debug + 'static> CommandTrait for SetLayerMaskCommand<N> {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Set Layer Mask".to_string()
     }
 
-    fn execute(&mut self, context: &mut GameSceneContext) {
+    fn execute(&mut self, context: &mut dyn CommandContext) {
         self.swap(context)
     }
 
-    fn revert(&mut self, context: &mut GameSceneContext) {
+    fn revert(&mut self, context: &mut dyn CommandContext) {
         self.swap(context)
     }
 }

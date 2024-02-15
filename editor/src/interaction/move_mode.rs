@@ -1,3 +1,4 @@
+use crate::command::{Command, CommandGroup};
 use crate::interaction::make_interaction_mode_button;
 use crate::message::MessageSender;
 use crate::scene::controller::SceneController;
@@ -8,9 +9,7 @@ use crate::{
         InteractionMode,
     },
     scene::{
-        commands::{
-            graph::MoveNodeCommand, ChangeSelectionCommand, CommandGroup, GameSceneCommand,
-        },
+        commands::{graph::MoveNodeCommand, ChangeSelectionCommand},
         GameScene, Selection,
     },
     settings::Settings,
@@ -19,6 +18,7 @@ use crate::{
 };
 use fyrox::core::uuid::{uuid, Uuid};
 use fyrox::core::TypeUuidProvider;
+use fyrox::graph::SceneGraph;
 use fyrox::gui::{BuildContext, UiNode};
 use fyrox::{
     core::{
@@ -317,7 +317,7 @@ impl InteractionMode for MoveInteractionMode {
             only_meshes: false,
         }) {
             if let Some(plane_kind) = self.move_gizmo.handle_pick(result.node, graph) {
-                if let Selection::Graph(selection) = editor_selection {
+                if let Some(selection) = editor_selection.as_graph() {
                     self.move_context = Some(MoveContext::from_graph_selection(
                         selection,
                         scene,
@@ -367,7 +367,7 @@ impl InteractionMode for MoveInteractionMode {
                         .objects
                         .iter()
                         .map(|initial_state| {
-                            GameSceneCommand::new(MoveNodeCommand::new(
+                            Command::new(MoveNodeCommand::new(
                                 initial_state.node,
                                 initial_state.initial_local_position,
                                 **scene.graph[initial_state.node].local_transform().position(),
@@ -378,7 +378,7 @@ impl InteractionMode for MoveInteractionMode {
 
                 // Commit changes.
                 self.message_sender
-                    .send(Message::DoGameSceneCommand(GameSceneCommand::new(commands)));
+                    .send(Message::DoCommand(Command::new(commands)));
             }
         } else {
             let new_selection = game_scene
@@ -396,25 +396,22 @@ impl InteractionMode for MoveInteractionMode {
                     only_meshes: false,
                 })
                 .map(|result| {
-                    if let (Selection::Graph(selection), true) = (
-                        editor_selection,
+                    if let (Some(selection), true) = (
+                        editor_selection.as_graph(),
                         engine.user_interface.keyboard_modifiers().control,
                     ) {
                         let mut selection = selection.clone();
                         selection.insert_or_exclude(result.node);
-                        Selection::Graph(selection)
+                        Selection::new(selection)
                     } else {
-                        Selection::Graph(GraphSelection::single_or_empty(result.node))
+                        Selection::new(GraphSelection::single_or_empty(result.node))
                     }
                 })
-                .unwrap_or_else(|| Selection::Graph(GraphSelection::default()));
+                .unwrap_or_else(|| Selection::new(GraphSelection::default()));
 
             if &new_selection != editor_selection {
                 self.message_sender
-                    .do_scene_command(ChangeSelectionCommand::new(
-                        new_selection,
-                        editor_selection.clone(),
-                    ));
+                    .do_command(ChangeSelectionCommand::new(new_selection));
             }
         }
     }

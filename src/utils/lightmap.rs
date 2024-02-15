@@ -21,6 +21,7 @@ use crate::{
         sstorage::ImmutableString,
         visitor::prelude::*,
     },
+    graph::SceneGraph,
     material::PropertyValue,
     resource::texture::{Texture, TextureKind, TexturePixelKind, TextureResource},
     scene::{

@@ -1,4 +1,3 @@
-use crate::message::MessageSender;
 use crate::{
     absm::{
         canvas::{AbsmCanvas, AbsmCanvasBuilder, AbsmCanvasMessage},
@@ -10,14 +9,16 @@ use crate::{
         transition::{TransitionBuilder, TransitionMessage, TransitionView},
         NORMAL_BACKGROUND, NORMAL_ROOT_COLOR, SELECTED_BACKGROUND, SELECTED_ROOT_COLOR,
     },
-    scene::{
-        commands::{ChangeSelectionCommand, CommandGroup, GameSceneCommand},
-        Selection,
-    },
+    command::{Command, CommandGroup},
+    message::MessageSender,
+    scene::{commands::ChangeSelectionCommand, Selection},
     send_sync_message,
 };
+use fyrox::graph::{PrefabData, SceneGraph, SceneGraphNode};
 use fyrox::{
-    core::pool::Handle,
+    core::pool::{ErasedHandle, Handle},
+    generic_animation::machine::{Machine, MachineLayer, State, Transition},
+    graph::BaseSceneGraph,
     gui::{
         border::BorderBuilder,
         message::{MessageDirection, UiMessage},
@@ -25,7 +26,6 @@ use fyrox::{
         window::{WindowBuilder, WindowTitle},
         BuildContext, Thickness, UiNode, UserInterface,
     },
-    scene::{animation::absm::prelude::*, node::Node},
 };
 use std::cmp::Ordering;
 
@@ -37,12 +37,19 @@ pub struct StateGraphViewer {
     canvas_context_menu: CanvasContextMenu,
     node_context_menu: NodeContextMenu,
     transition_context_menu: TransitionContextMenu,
-    last_selection: AbsmSelection,
+    prev_absm: ErasedHandle,
+    prev_layer: Option<usize>,
 }
 
-fn fetch_state_node_model_handle(handle: Handle<UiNode>, ui: &UserInterface) -> Handle<State> {
+fn fetch_state_node_model_handle<N>(
+    handle: Handle<UiNode>,
+    ui: &UserInterface,
+) -> Handle<State<Handle<N>>>
+where
+    N: 'static,
+{
     ui.node(handle)
-        .query_component::<AbsmNode<State>>()
+        .query_component::<AbsmNode<State<Handle<N>>>>()
         .unwrap()
         .model_handle
 }
@@ -82,7 +89,8 @@ impl StateGraphViewer {
             node_context_menu,
             canvas_context_menu,
             transition_context_menu,
-            last_selection: AbsmSelection::default(),
+            prev_absm: Default::default(),
+            prev_layer: None,
         }
     }
 
@@ -92,12 +100,18 @@ impl StateGraphViewer {
         }
     }
 
-    pub fn activate_transition(&self, ui: &UserInterface, transition: Handle<Transition>) {
+    pub fn activate_transition<N>(
+        &self,
+        ui: &UserInterface,
+        transition: Handle<Transition<Handle<N>>>,
+    ) where
+        N: 'static,
+    {
         if let Some(view_handle) = ui.node(self.canvas).children().iter().cloned().find(|c| {
             ui.node(*c)
                 .query_component::<TransitionView>()
                 .map_or(false, |transition_view_ref| {
-                    transition_view_ref.model_handle == transition
+                    transition == transition_view_ref.model_handle.into()
                 })
         }) {
             ui.send_message(TransitionMessage::activate(
@@ -107,7 +121,10 @@ impl StateGraphViewer {
         }
     }
 
-    pub fn activate_state(&self, ui: &UserInterface, state: Handle<State>) {
+    pub fn activate_state<N>(&self, ui: &UserInterface, state: Handle<State<Handle<N>>>)
+    where
+        N: 'static,
+    {
         for (state_view_handle, state_view_ref) in ui
             .node(self.canvas)
             .children()
@@ -115,7 +132,7 @@ impl StateGraphViewer {
             .cloned()
             .filter_map(|c| {
                 ui.node(c)
-                    .query_component::<AbsmNode<State>>()
+                    .query_component::<AbsmNode<State<Handle<N>>>>()
                     .map(|state_view_ref| (c, state_view_ref))
             })
         {
@@ -127,16 +144,20 @@ impl StateGraphViewer {
         }
     }
 
-    pub fn handle_ui_message(
+    pub fn handle_ui_message<P, G, N>(
         &mut self,
         message: &UiMessage,
         ui: &mut UserInterface,
         sender: &MessageSender,
-        absm_node_handle: Handle<Node>,
-        absm_node: &AnimationBlendingStateMachine,
+        absm_node_handle: Handle<N>,
+        machine: &Machine<Handle<N>>,
         layer_index: usize,
         editor_selection: &Selection,
-    ) {
+    ) where
+        P: PrefabData<Graph = G>,
+        G: SceneGraph<Node = N, Prefab = P>,
+        N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
+    {
         if message.destination() == self.canvas {
             if let Some(msg) = message.data::<AbsmCanvasMessage>() {
                 match msg {
@@ -147,7 +168,7 @@ impl StateGraphViewer {
                         if message.direction() == MessageDirection::FromWidget {
                             let source = fetch_state_node_model_handle(*source_node, ui);
                             let dest = fetch_state_node_model_handle(*dest_node, ui);
-                            sender.do_scene_command(AddTransitionCommand::new(
+                            sender.do_command(AddTransitionCommand::new(
                                 absm_node_handle,
                                 layer_index,
                                 Transition::new("Transition", source, dest, 1.0, ""),
@@ -161,7 +182,7 @@ impl StateGraphViewer {
                                 let state_handle = fetch_state_node_model_handle(e.node, ui);
                                 let new_position = ui.node(e.node).actual_local_position();
 
-                                GameSceneCommand::new(MoveStateNodeCommand::new(
+                                Command::new(MoveStateNodeCommand::new(
                                     absm_node_handle,
                                     state_handle,
                                     layer_index,
@@ -171,11 +192,11 @@ impl StateGraphViewer {
                             })
                             .collect::<Vec<_>>();
 
-                        sender.do_scene_command(CommandGroup::from(commands));
+                        sender.do_command(CommandGroup::from(commands));
                     }
                     AbsmCanvasMessage::SelectionChanged(selection) => {
                         if message.direction() == MessageDirection::FromWidget {
-                            let selection = Selection::Absm(AbsmSelection {
+                            let selection = Selection::new(AbsmSelection {
                                 absm_node_handle,
                                 layer: Some(layer_index),
                                 entities: selection
@@ -184,14 +205,14 @@ impl StateGraphViewer {
                                         let node_ref = ui.node(*n);
 
                                         if let Some(state_node) =
-                                            node_ref.query_component::<AbsmNode<State>>()
+                                            node_ref.query_component::<AbsmNode<State<Handle<N>>>>()
                                         {
                                             Some(SelectedEntity::State(state_node.model_handle))
                                         } else {
                                             node_ref.query_component::<TransitionView>().map(
                                                 |state_node| {
                                                     SelectedEntity::Transition(
-                                                        state_node.model_handle,
+                                                        state_node.model_handle.into(),
                                                     )
                                                 },
                                             )
@@ -201,10 +222,7 @@ impl StateGraphViewer {
                             });
 
                             if !selection.is_empty() && &selection != editor_selection {
-                                sender.do_scene_command(ChangeSelectionCommand::new(
-                                    selection,
-                                    editor_selection.clone(),
-                                ));
+                                sender.do_command(ChangeSelectionCommand::new(selection));
                             }
                         }
                     }
@@ -218,7 +236,7 @@ impl StateGraphViewer {
                                 .iter()
                                 .map(|node| {
                                     let dest_state = fetch_state_node_model_handle(*node, ui);
-                                    GameSceneCommand::new(AddTransitionCommand::new(
+                                    Command::new(AddTransitionCommand::new(
                                         absm_node_handle,
                                         layer_index,
                                         Transition::new("Transition", source, dest_state, 1.0, ""),
@@ -226,7 +244,7 @@ impl StateGraphViewer {
                                 })
                                 .collect::<Vec<_>>();
 
-                            sender.do_scene_command(CommandGroup::from(commands));
+                            sender.do_command(CommandGroup::from(commands));
                         }
                     }
                     _ => (),
@@ -239,7 +257,7 @@ impl StateGraphViewer {
             ui,
             sender,
             absm_node_handle,
-            absm_node,
+            machine,
             layer_index,
             editor_selection,
         );
@@ -260,12 +278,16 @@ impl StateGraphViewer {
         );
     }
 
-    pub fn sync_to_model(
+    pub fn sync_to_model<P, G, N>(
         &mut self,
-        machine_layer: &MachineLayer,
+        machine_layer: &MachineLayer<Handle<N>>,
         ui: &mut UserInterface,
         editor_selection: &Selection,
-    ) {
+    ) where
+        P: PrefabData<Graph = G>,
+        G: SceneGraph<Node = N, Prefab = P>,
+        N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
+    {
         let canvas = ui
             .node(self.canvas)
             .cast::<AbsmCanvas>()
@@ -275,10 +297,11 @@ impl StateGraphViewer {
 
         let mut states = Vec::new();
         let mut transitions = Vec::new();
-        if self.last_selection.layer != current_selection.layer
-            || self.last_selection.absm_node_handle != current_selection.absm_node_handle
+        if self.prev_layer != current_selection.layer
+            || current_selection.absm_node_handle != self.prev_absm.into()
         {
-            self.last_selection = current_selection.clone();
+            self.prev_layer = current_selection.layer;
+            self.prev_absm = current_selection.absm_node_handle.into();
             // Remove content of the previous layer/absm.
             self.clear(ui);
         } else {
@@ -286,7 +309,7 @@ impl StateGraphViewer {
                 .children()
                 .iter()
                 .cloned()
-                .filter(|c| ui.node(*c).has_component::<AbsmNode<State>>())
+                .filter(|c| ui.node(*c).has_component::<AbsmNode<State<Handle<N>>>>())
                 .collect::<Vec<_>>();
 
             transitions = canvas
@@ -306,7 +329,7 @@ impl StateGraphViewer {
                 for (state_handle, state) in machine_layer.states().pair_iter() {
                     if states.iter().all(|state_view| {
                         ui.node(*state_view)
-                            .query_component::<AbsmNode<State>>()
+                            .query_component::<AbsmNode<State<Handle<N>>>>()
                             .unwrap()
                             .model_handle
                             != state_handle
@@ -350,7 +373,7 @@ impl StateGraphViewer {
                         (
                             state_view,
                             ui.node(state_view)
-                                .query_component::<AbsmNode<State>>()
+                                .query_component::<AbsmNode<State<Handle<N>>>>()
                                 .unwrap()
                                 .model_handle,
                         )
@@ -380,7 +403,7 @@ impl StateGraphViewer {
         for state in states.iter() {
             let state_node = ui
                 .node(*state)
-                .query_component::<AbsmNode<State>>()
+                .query_component::<AbsmNode<State<Handle<N>>>>()
                 .unwrap();
             let state_model_handle = state_node.model_handle;
             let state_model_ref = &machine_layer.states()[state_node.model_handle];
@@ -432,7 +455,7 @@ impl StateGraphViewer {
         }
 
         // Force update layout to be able to fetch positions of nodes for transitions.
-        ui.update(ui.screen_size(), 0.0);
+        ui.update_layout(ui.screen_size());
 
         // Sync transitions.
         match transitions
@@ -443,14 +466,16 @@ impl StateGraphViewer {
                 // A transition was added.
                 for (transition_handle, transition) in machine_layer.transitions().pair_iter() {
                     if transitions.iter().all(|transition_view| {
-                        ui.node(*transition_view)
-                            .query_component::<TransitionView>()
-                            .unwrap()
-                            .model_handle
-                            != transition_handle
+                        transition_handle
+                            != ui
+                                .node(*transition_view)
+                                .query_component::<TransitionView>()
+                                .unwrap()
+                                .model_handle
+                                .into()
                     }) {
-                        fn find_state_view(
-                            state_handle: Handle<State>,
+                        fn find_state_view<N: 'static>(
+                            state_handle: Handle<State<Handle<N>>>,
                             states: &[Handle<UiNode>],
                             ui: &UserInterface,
                         ) -> Handle<UiNode> {
@@ -458,7 +483,7 @@ impl StateGraphViewer {
                                 .iter()
                                 .find(|s| {
                                     ui.node(**s)
-                                        .query_component::<AbsmNode<State>>()
+                                        .query_component::<AbsmNode<State<Handle<N>>>>()
                                         .unwrap()
                                         .model_handle
                                         == state_handle
@@ -473,7 +498,7 @@ impl StateGraphViewer {
                         )
                         .with_source(find_state_view(transition.source(), &states, ui))
                         .with_dest(find_state_view(transition.dest(), &states, ui))
-                        .build(transition_handle, &mut ui.build_ctx());
+                        .build(transition_handle.into(), &mut ui.build_ctx());
 
                         send_sync_message(
                             ui,
@@ -510,7 +535,7 @@ impl StateGraphViewer {
                     if machine_layer
                         .transitions()
                         .pair_iter()
-                        .all(|(h, _)| h != transition_model_handle)
+                        .all(|(h, _)| h != transition_model_handle.into())
                     {
                         send_sync_message(
                             ui,
@@ -538,15 +563,17 @@ impl StateGraphViewer {
             .iter()
             .filter_map(|entry| match entry {
                 SelectedEntity::Transition(transition) => transitions.iter().cloned().find(|t| {
-                    ui.node(*t)
-                        .query_component::<TransitionView>()
-                        .unwrap()
-                        .model_handle
-                        == *transition
+                    *transition
+                        == ui
+                            .node(*t)
+                            .query_component::<TransitionView>()
+                            .unwrap()
+                            .model_handle
+                            .into()
                 }),
                 SelectedEntity::State(state) => states.iter().cloned().find(|s| {
                     ui.node(*s)
-                        .query_component::<AbsmNode<State>>()
+                        .query_component::<AbsmNode<State<Handle<N>>>>()
                         .unwrap()
                         .model_handle
                         == *state
