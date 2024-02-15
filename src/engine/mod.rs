@@ -976,6 +976,10 @@ pub struct GraphicsContextParams {
     /// Whether to use vertical synchronization or not. V-sync will force your game to render frames with the synchronization
     /// rate of your monitor (which is ~60 FPS). Keep in mind that vertical synchronization might not be available on your OS.
     pub vsync: bool,
+
+    /// Amount of samples for MSAA. Must be a power of two (1, 2, 4, 8). `None` means disabled.
+    /// MSAA works only for forward rendering and does not work for deferred rendering.
+    pub msaa_sample_count: Option<u8>,
 }
 
 impl Default for GraphicsContextParams {
@@ -983,6 +987,7 @@ impl Default for GraphicsContextParams {
         Self {
             window_attributes: Default::default(),
             vsync: true,
+            msaa_sample_count: None,
         }
     }
 }
@@ -1187,6 +1192,7 @@ impl Engine {
     /// let graphics_context_params = GraphicsContextParams {
     ///     window_attributes,
     ///     vsync: true,
+    ///     msaa_sample_count: None
     /// };
     /// let task_pool = Arc::new(TaskPool::new());
     ///
@@ -1286,10 +1292,14 @@ impl Engine {
 
             #[cfg(not(target_arch = "wasm32"))]
             let (window, gl_context, gl_surface, glow_context, gl_kind) = {
-                let template = ConfigTemplateBuilder::new()
+                let mut template = ConfigTemplateBuilder::new()
                     .prefer_hardware_accelerated(Some(true))
                     .with_stencil_size(8)
                     .with_depth_size(24);
+
+                if let Some(sample_count) = params.msaa_sample_count {
+                    template = template.with_multisampling(sample_count);
+                }
 
                 let (opt_window, gl_config) = DisplayBuilder::new()
                     .with_window_builder(Some(window_builder))
@@ -1491,6 +1501,7 @@ impl Engine {
             self.graphics_context = GraphicsContext::Uninitialized(GraphicsContextParams {
                 window_attributes,
                 vsync: params.vsync,
+                msaa_sample_count: params.msaa_sample_count,
             });
 
             self.sound_engine.destroy_audio_output_device();
