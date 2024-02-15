@@ -642,6 +642,15 @@ pub enum MenuItemContent<'a, 'b> {
         /// Create an arrow or not.
         arrow: bool,
     },
+    /// Horizontally and Vertically centered text
+    ///
+    /// ```text
+    ///   _________________________
+    ///  |                        |
+    ///  |          text          |
+    ///  |________________________|
+    /// ```
+    TextCentered(&'a str),
     /// Allows to put any node into menu item. It allows to customize menu item how needed - i.e. put image in it, or other user
     /// control.
     Node(Handle<UiNode>),
@@ -676,6 +685,11 @@ impl<'a, 'b> MenuItemContent<'a, 'b> {
             icon: Default::default(),
             arrow: false,
         }
+    }
+
+    /// Creates a menu item content with only horizontally and vertically centered text.
+    pub fn text_centered(text: &'a str) -> Self {
+        MenuItemContent::TextCentered(text)
     }
 }
 
@@ -782,6 +796,13 @@ impl<'a, 'b> MenuItemBuilder<'a, 'b> {
             .add_column(Column::auto())
             .add_column(Column::strict(10.0))
             .build(ctx),
+            Some(MenuItemContent::TextCentered(text)) => {
+                TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::left_right(5.0)))
+                    .with_text(text)
+                    .with_horizontal_text_alignment(HorizontalAlignment::Center)
+                    .with_vertical_text_alignment(VerticalAlignment::Center)
+                    .build(ctx)
+            }
             Some(MenuItemContent::Node(node)) => node,
         };
 
