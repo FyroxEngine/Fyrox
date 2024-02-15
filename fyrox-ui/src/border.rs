@@ -86,6 +86,9 @@ pub struct Border {
     pub widget: Widget,
     /// Stroke thickness for each side of the border.
     pub stroke_thickness: InheritableVariable<Thickness>,
+    /// Corner radius.
+    #[visit(optional)]
+    pub corner_radius: InheritableVariable<f32>,
 }
 
 crate::define_widget_deref!(Border);
@@ -151,21 +154,50 @@ impl Control for Border {
 
     fn draw(&self, drawing_context: &mut DrawingContext) {
         let bounds = self.widget.bounding_rect();
-        DrawingContext::push_rect_filled(drawing_context, &bounds, None);
-        drawing_context.commit(
-            self.clip_bounds(),
-            self.widget.background(),
-            CommandTexture::None,
-            None,
-        );
 
-        drawing_context.push_rect_vary(&bounds, *self.stroke_thickness);
-        drawing_context.commit(
-            self.clip_bounds(),
-            self.widget.foreground(),
-            CommandTexture::None,
-            None,
-        );
+        if (*self.corner_radius).eq(&0.0) {
+            DrawingContext::push_rect_filled(drawing_context, &bounds, None);
+            drawing_context.commit(
+                self.clip_bounds(),
+                self.widget.background(),
+                CommandTexture::None,
+                None,
+            );
+
+            drawing_context.push_rect_vary(&bounds, *self.stroke_thickness);
+            drawing_context.commit(
+                self.clip_bounds(),
+                self.widget.foreground(),
+                CommandTexture::None,
+                None,
+            );
+        } else {
+            DrawingContext::push_rounded_rect_filled(
+                drawing_context,
+                &bounds,
+                *self.corner_radius,
+                16,
+            );
+            drawing_context.commit(
+                self.clip_bounds(),
+                self.widget.background(),
+                CommandTexture::None,
+                None,
+            );
+
+            drawing_context.push_rounded_rect(
+                &bounds,
+                self.stroke_thickness.left,
+                *self.corner_radius,
+                16,
+            );
+            drawing_context.commit(
+                self.clip_bounds(),
+                self.widget.foreground(),
+                CommandTexture::None,
+                None,
+            );
+        }
     }
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
@@ -217,6 +249,7 @@ impl BorderBuilder {
         Border {
             widget: self.widget_builder.build(),
             stroke_thickness: self.stroke_thickness.into(),
+            corner_radius: 0.0.into(),
         }
     }
 

@@ -561,6 +561,7 @@ impl Editor {
         let graphics_context_params = GraphicsContextParams {
             window_attributes,
             vsync: true,
+            msaa_sample_count: Some(4),
         };
 
         let serialization_context = Arc::new(SerializationContext::new());

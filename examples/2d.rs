@@ -223,6 +223,7 @@ fn main() {
         GraphicsContextParams {
             window_attributes: Default::default(),
             vsync: true,
+            msaa_sample_count: None,
         },
     );
     executor.add_plugin_constructor(GameConstructor);
