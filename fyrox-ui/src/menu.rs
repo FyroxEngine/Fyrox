@@ -642,6 +642,15 @@ pub enum MenuItemContent<'a, 'b> {
         /// Create an arrow or not.
         arrow: bool,
     },
+    /// Horizontally and Vertically centered text
+    ///
+    /// ```text
+    ///   _________________________
+    ///  |                        |
+    ///  |          text          |
+    ///  |________________________|
+    /// ```
+    TextCentered(&'a str),
     /// Allows to put any node into menu item. It allows to customize menu item how needed - i.e. put image in it, or other user
     /// control.
     Node(Handle<UiNode>),
@@ -676,6 +685,11 @@ impl<'a, 'b> MenuItemContent<'a, 'b> {
             icon: Default::default(),
             arrow: false,
         }
+    }
+
+    /// Creates a menu item content with only horizontally and vertically centered text.
+    pub fn text_centered(text: &'a str) -> Self {
+        MenuItemContent::TextCentered(text)
     }
 }
 
@@ -741,6 +755,7 @@ impl<'a, 'b> MenuItemBuilder<'a, 'b> {
                         TextBuilder::new(
                             WidgetBuilder::new()
                                 .with_margin(Thickness::left(2.0))
+                                .on_row(1)
                                 .on_column(1),
                         )
                         .with_text(text)
@@ -751,6 +766,7 @@ impl<'a, 'b> MenuItemBuilder<'a, 'b> {
                             WidgetBuilder::new()
                                 .with_horizontal_alignment(HorizontalAlignment::Right)
                                 .with_margin(Thickness::uniform(1.0))
+                                .on_row(1)
                                 .on_column(2),
                         )
                         .with_text(shortcut)
@@ -760,6 +776,7 @@ impl<'a, 'b> MenuItemBuilder<'a, 'b> {
                         VectorImageBuilder::new(
                             WidgetBuilder::new()
                                 .with_visibility(!self.items.is_empty())
+                                .on_row(1)
                                 .on_column(3)
                                 .with_foreground(BRUSH_BRIGHT)
                                 .with_horizontal_alignment(HorizontalAlignment::Center)
@@ -771,12 +788,22 @@ impl<'a, 'b> MenuItemBuilder<'a, 'b> {
                         Handle::NONE
                     }),
             )
+            .add_row(Row::stretch())
             .add_row(Row::auto())
+            .add_row(Row::stretch())
             .add_column(Column::auto())
             .add_column(Column::stretch())
             .add_column(Column::auto())
             .add_column(Column::strict(10.0))
+            .add_column(Column::strict(5.0))
             .build(ctx),
+            Some(MenuItemContent::TextCentered(text)) => {
+                TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::left_right(5.0)))
+                    .with_text(text)
+                    .with_horizontal_text_alignment(HorizontalAlignment::Center)
+                    .with_vertical_text_alignment(VerticalAlignment::Center)
+                    .build(ctx)
+            }
             Some(MenuItemContent::Node(node)) => node,
         };
 

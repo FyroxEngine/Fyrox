@@ -77,7 +77,7 @@ pub fn create_root_menu_item(
     ctx: &mut BuildContext,
 ) -> Handle<UiNode> {
     MenuItemBuilder::new(WidgetBuilder::new().with_margin(Thickness::right(10.0)))
-        .with_content(MenuItemContent::text_no_arrow(text))
+        .with_content(MenuItemContent::text_centered(text))
         .with_items(items)
         .build(ctx)
 }
