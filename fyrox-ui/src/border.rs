@@ -255,6 +255,8 @@ pub struct BorderBuilder {
     pub widget_builder: WidgetBuilder,
     /// Stroke thickness for each side of the border. Default is 1px wide border for each side.
     pub stroke_thickness: Thickness,
+    /// Radius at each of four corners of the border. Default is zero.
+    pub corner_radius: f32,
 }
 
 impl BorderBuilder {
@@ -263,12 +265,19 @@ impl BorderBuilder {
         Self {
             widget_builder,
             stroke_thickness: Thickness::uniform(1.0),
+            corner_radius: 0.0,
         }
     }
 
     /// Sets the desired stroke thickness for each side of the border.
     pub fn with_stroke_thickness(mut self, stroke_thickness: Thickness) -> Self {
         self.stroke_thickness = stroke_thickness;
+        self
+    }
+
+    /// Sets the desired corner radius.
+    pub fn with_corner_radius(mut self, corner_radius: f32) -> Self {
+        self.corner_radius = corner_radius;
         self
     }
 
@@ -280,7 +289,7 @@ impl BorderBuilder {
         Border {
             widget: self.widget_builder.build(),
             stroke_thickness: self.stroke_thickness.into(),
-            corner_radius: 0.0.into(),
+            corner_radius: self.corner_radius.into(),
         }
     }
 
