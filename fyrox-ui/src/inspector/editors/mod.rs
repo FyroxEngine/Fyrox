@@ -1,7 +1,5 @@
-use crate::absm::{EventAction, EventKind};
-use crate::text_box::TextCommitMode;
-use crate::vector_image::Primitive;
 use crate::{
+    absm::{EventAction, EventKind},
     bit::BitField,
     border::Border,
     brush::{Brush, GradientPoint},
@@ -13,6 +11,7 @@ use crate::{
         color_gradient::ColorGradient,
         curve::Curve,
         math::{Rect, SmoothAngle},
+        parking_lot::{RwLock, RwLockReadGuard},
         pool::Handle,
         reflect::{FieldInfo, FieldValue, Reflect},
         uuid::Uuid,
@@ -50,12 +49,10 @@ use crate::{
         },
         InspectorEnvironment, InspectorError, PropertyChanged, PropertyFilter,
     },
-    key::KeyBinding,
-    key::{HotKeyEditor, KeyBindingEditor},
+    key::{HotKeyEditor, KeyBinding, KeyBindingEditor},
     list_view::{ListView, ListViewItem},
     menu::{Menu, MenuItem},
-    message::CursorIcon,
-    message::UiMessage,
+    message::{CursorIcon, UiMessage},
     messagebox::MessageBox,
     nine_patch::NinePatch,
     numeric::NumericUpDown,
@@ -69,11 +66,11 @@ use crate::{
     stack_panel::StackPanel,
     tab_control::TabControl,
     text::Text,
-    text_box::TextBox,
+    text_box::{Position, SelectionRange, TextBox, TextCommitMode},
     tree::{Tree, TreeRoot},
     uuid::UuidEditor,
     vec::VecEditor,
-    vector_image::VectorImage,
+    vector_image::{Primitive, VectorImage},
     widget::Widget,
     window::Window,
     wrap_panel::WrapPanel,
@@ -82,10 +79,7 @@ use crate::{
 };
 use fxhash::FxHashMap;
 use fyrox_animation::machine::Parameter;
-use fyrox_core::parking_lot::{RwLock, RwLockReadGuard};
-use std::cell::RefCell;
-use std::sync::Arc;
-use std::{any::TypeId, fmt::Debug, ops::Range, str::FromStr};
+use std::{any::TypeId, cell::RefCell, fmt::Debug, ops::Range, str::FromStr, sync::Arc};
 use strum::VariantNames;
 
 pub mod array;
@@ -367,6 +361,11 @@ impl PropertyEditorDefinitionContainer {
 
         container.insert(EnumPropertyEditorDefinition::<TextCommitMode>::new());
         container.insert(InheritablePropertyEditorDefinition::<TextCommitMode>::new());
+
+        container.insert(EnumPropertyEditorDefinition::<SelectionRange>::new_optional());
+        container.insert(InheritablePropertyEditorDefinition::<Option<SelectionRange>>::new());
+
+        container.register_inheritable_inspectable::<Position>();
 
         reg_inspectables!(
             container,

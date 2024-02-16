@@ -145,7 +145,8 @@ pub enum TextCommitMode {
 }
 
 /// Defines a set of two positions in the text, that forms a specific range.
-#[derive(Copy, Clone, PartialEq, Eq, Debug, Visit, Reflect, Default)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Visit, Reflect, Default, TypeUuidProvider)]
+#[type_uuid(id = "04c8101b-cb34-47a5-af34-ecfb9b2fc426")]
 pub struct SelectionRange {
     /// Position of the beginning.
     pub begin: Position,
