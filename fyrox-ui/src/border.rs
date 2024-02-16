@@ -97,12 +97,19 @@ crate::define_widget_deref!(Border);
 pub enum BorderMessage {
     /// Allows you to set stroke thickness at runtime. See [`Self::stroke_thickness`] docs for more.
     StrokeThickness(Thickness),
+    /// Allows you to set corner radius at runtime. See [`Self::corner_radius`] docs for more.
+    CornerRadius(f32),
 }
 
 impl BorderMessage {
     define_constructor!(
         /// Creates a new [Self::StrokeThickness] message.
         BorderMessage:StrokeThickness => fn stroke_thickness(Thickness), layout: false
+    );
+
+    define_constructor!(
+        /// Creates a new [Self::CornerRadius] message.
+        BorderMessage:CornerRadius => fn corner_radius(f32), layout: false
     );
 }
 
@@ -219,12 +226,23 @@ impl Control for Border {
         if message.destination() == self.handle()
             && message.direction() == MessageDirection::ToWidget
         {
-            if let Some(BorderMessage::StrokeThickness(thickness)) = message.data() {
-                if *thickness != *self.stroke_thickness {
-                    self.stroke_thickness
-                        .set_value_and_mark_modified(*thickness);
-                    ui.send_message(message.reverse());
-                    self.invalidate_layout();
+            if let Some(msg) = message.data::<BorderMessage>() {
+                match msg {
+                    BorderMessage::StrokeThickness(thickness) => {
+                        if *thickness != *self.stroke_thickness {
+                            self.stroke_thickness
+                                .set_value_and_mark_modified(*thickness);
+                            ui.send_message(message.reverse());
+                            self.invalidate_layout();
+                        }
+                    }
+                    BorderMessage::CornerRadius(radius) => {
+                        if *radius != *self.corner_radius {
+                            self.corner_radius.set_value_and_mark_modified(*radius);
+                            ui.send_message(message.reverse());
+                            self.invalidate_layout();
+                        }
+                    }
                 }
             }
         }
