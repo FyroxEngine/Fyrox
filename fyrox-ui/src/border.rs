@@ -6,7 +6,7 @@
 use crate::{
     core::{
         algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, scope_profile,
-        type_traits::prelude::*, visitor::prelude::*,
+        type_traits::prelude::*, variable::InheritableVariable, visitor::prelude::*,
     },
     define_constructor,
     draw::{CommandTexture, Draw, DrawingContext},
@@ -14,7 +14,6 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, MessageDirection, Thickness, UiNode, UserInterface, BRUSH_PRIMARY,
 };
-use fyrox_core::variable::InheritableVariable;
 use std::ops::{Deref, DerefMut};
 
 /// The Border widget provides a stylized, static border around its child widget. Below is an example of creating a 1 pixel
@@ -107,12 +106,21 @@ impl BorderMessage {
     );
 }
 
+fn corner_offset(radius: f32) -> f32 {
+    radius * 0.5 * (std::f32::consts::SQRT_2 - 1.0)
+}
+
 impl Control for Border {
     fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         scope_profile!();
 
-        let margin_x = self.stroke_thickness.left + self.stroke_thickness.right;
-        let margin_y = self.stroke_thickness.top + self.stroke_thickness.bottom;
+        let corner_offset = corner_offset(*self.corner_radius);
+        let double_corner_offset = 2.0 * corner_offset;
+
+        let margin_x =
+            self.stroke_thickness.left + self.stroke_thickness.right + double_corner_offset;
+        let margin_y =
+            self.stroke_thickness.top + self.stroke_thickness.bottom + double_corner_offset;
 
         let size_for_child = Vector2::new(available_size.x - margin_x, available_size.y - margin_y);
         let mut desired_size = Vector2::default();
@@ -138,11 +146,16 @@ impl Control for Border {
     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
         scope_profile!();
 
+        let corner_offset = corner_offset(*self.corner_radius);
+        let double_corner_offset = 2.0 * corner_offset;
+
         let rect_for_child = Rect::new(
-            self.stroke_thickness.left,
-            self.stroke_thickness.top,
-            final_size.x - (self.stroke_thickness.right + self.stroke_thickness.left),
-            final_size.y - (self.stroke_thickness.bottom + self.stroke_thickness.top),
+            self.stroke_thickness.left + corner_offset,
+            self.stroke_thickness.top + corner_offset,
+            final_size.x
+                - (self.stroke_thickness.right + self.stroke_thickness.left + double_corner_offset),
+            final_size.y
+                - (self.stroke_thickness.bottom + self.stroke_thickness.top + double_corner_offset),
         );
 
         for child_handle in self.widget.children() {
