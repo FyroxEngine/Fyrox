@@ -285,57 +285,50 @@ pub struct FbxCluster {
 
 impl FbxCluster {
     fn read(cluster_handle: Handle<FbxNode>, nodes: &FbxNodeContainer) -> Result<Self, String> {
-        // For some reason FBX exported from Blender can have cluster without weights and
-        // indices. This is still valid and we have to return dummy in this case, instead of
-        // error.
+        let transform_handle = nodes.find(cluster_handle, "Transform")?;
+        let transform_node = nodes.get_by_name(transform_handle, "a")?;
+
+        if transform_node.attrib_count() != 16 {
+            return Err(format!(
+                "FBX: Wrong transform size! Expect 16, got {}",
+                transform_node.attrib_count()
+            ));
+        }
+
+        let mut transform = Matrix4::identity();
+        for i in 0..16 {
+            transform[i] = transform_node.get_attrib(i)?.as_f64()? as f32;
+        }
+
+        let mut weights = Vec::new();
+
         if let Ok(indices_handle) = nodes.find(cluster_handle, "Indexes") {
-            let indices = nodes.get_by_name(indices_handle, "a")?;
+            let indices_node = nodes.get_by_name(indices_handle, "a")?;
 
             let weights_handle = nodes.find(cluster_handle, "Weights")?;
-            let weights = nodes.get_by_name(weights_handle, "a")?;
+            let weights_node = nodes.get_by_name(weights_handle, "a")?;
 
-            let transform_handle = nodes.find(cluster_handle, "Transform")?;
-            let transform_node = nodes.get_by_name(transform_handle, "a")?;
-
-            if transform_node.attrib_count() != 16 {
-                return Err(format!(
-                    "FBX: Wrong transform size! Expect 16, got {}",
-                    transform_node.attrib_count()
-                ));
-            }
-
-            if indices.attrib_count() != weights.attrib_count() {
+            if indices_node.attrib_count() != weights_node.attrib_count() {
                 return Err(String::from(
                     "invalid cluster, weights count does not match index count",
                 ));
             }
 
-            let mut transform = Matrix4::identity();
-            for i in 0..16 {
-                transform[i] = transform_node.get_attrib(i)?.as_f64()? as f32;
-            }
+            weights = Vec::with_capacity(weights_node.attrib_count());
 
-            let mut cluster = FbxCluster {
-                model: Handle::NONE,
-                weights: Vec::with_capacity(weights.attrib_count()),
-                transform,
-            };
-
-            for i in 0..weights.attrib_count() {
-                cluster.weights.push((
-                    indices.get_attrib(i)?.as_i32()?,
-                    weights.get_attrib(i)?.as_f64()? as f32,
+            for i in 0..weights_node.attrib_count() {
+                weights.push((
+                    indices_node.get_attrib(i)?.as_i32()?,
+                    weights_node.get_attrib(i)?.as_f64()? as f32,
                 ));
             }
-
-            Ok(cluster)
-        } else {
-            Ok(FbxCluster {
-                model: Handle::NONE,
-                weights: Default::default(),
-                transform: Default::default(),
-            })
         }
+
+        Ok(FbxCluster {
+            model: Handle::NONE,
+            weights,
+            transform,
+        })
     }
 }
 
