@@ -14,6 +14,7 @@ use crate::{
         reflect::prelude::*,
         type_traits::prelude::*,
         uuid_provider,
+        variable::InheritableVariable,
         visitor::prelude::*,
     },
     define_constructor,
@@ -27,14 +28,14 @@ use crate::{
     BRUSH_DARKER, BRUSH_TEXT,
 };
 use copypasta::ClipboardProvider;
-use fyrox_core::variable::InheritableVariable;
-use std::sync::Arc;
 use std::{
     cell::RefCell,
     cmp::Ordering,
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
+    sync::Arc,
 };
+use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 /// A message that could be used to alternate text box widget's state or receive changes from it.
 ///
@@ -107,8 +108,25 @@ pub struct Position {
 }
 
 /// Defines the way, how the text box widget will commit the text that was typed in
-#[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Ord, Hash, Debug, Default, Visit, Reflect)]
+#[derive(
+    Copy,
+    Clone,
+    PartialOrd,
+    PartialEq,
+    Eq,
+    Ord,
+    Hash,
+    Debug,
+    Default,
+    Visit,
+    Reflect,
+    AsRefStr,
+    EnumString,
+    EnumVariantNames,
+    TypeUuidProvider,
+)]
 #[repr(u32)]
+#[type_uuid(id = "5fb7d6f0-c151-4a30-8350-2060749d74c6")]
 pub enum TextCommitMode {
     /// Text box will immediately send [`TextMessage::Text`] message after any change (after any pressed button).
     Immediate = 0,

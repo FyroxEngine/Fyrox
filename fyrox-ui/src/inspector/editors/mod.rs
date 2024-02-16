@@ -1,4 +1,5 @@
 use crate::absm::{EventAction, EventKind};
+use crate::text_box::TextCommitMode;
 use crate::vector_image::Primitive;
 use crate::{
     bit::BitField,
@@ -363,6 +364,9 @@ impl PropertyEditorDefinitionContainer {
         container.register_inheritable_vec_collection::<EventAction>();
 
         container.insert(EnumPropertyEditorDefinition::<Parameter>::new());
+
+        container.insert(EnumPropertyEditorDefinition::<TextCommitMode>::new());
+        container.insert(InheritablePropertyEditorDefinition::<TextCommitMode>::new());
 
         reg_inspectables!(
             container,
