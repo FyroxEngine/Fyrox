@@ -1026,21 +1026,22 @@ impl Control for TextBox {
             let text = self.formatted_text.borrow();
             let lines = text.get_lines();
             if selection_range.begin.line == selection_range.end.line {
-                let line = lines[selection_range.begin.line];
-                // Begin line
-                let offset =
-                    text.get_range_width(line.begin..(line.begin + selection_range.begin.offset));
-                let width = text.get_range_width(
-                    (line.begin + selection_range.begin.offset)
-                        ..(line.begin + selection_range.end.offset),
-                );
-                let selection_bounds = Rect::new(
-                    view_bounds.x() + line.x_offset + offset,
-                    view_bounds.y() + line.y_offset,
-                    width,
-                    line.height,
-                );
-                drawing_context.push_rect_filled(&selection_bounds, None);
+                if let Some(line) = lines.get(selection_range.begin.line) {
+                    // Begin line
+                    let offset = text
+                        .get_range_width(line.begin..(line.begin + selection_range.begin.offset));
+                    let width = text.get_range_width(
+                        (line.begin + selection_range.begin.offset)
+                            ..(line.begin + selection_range.end.offset),
+                    );
+                    let selection_bounds = Rect::new(
+                        view_bounds.x() + line.x_offset + offset,
+                        view_bounds.y() + line.y_offset,
+                        width,
+                        line.height,
+                    );
+                    drawing_context.push_rect_filled(&selection_bounds, None);
+                }
             } else {
                 for (i, line) in text.get_lines().iter().enumerate() {
                     if i >= selection_range.begin.line && i <= selection_range.end.line {
