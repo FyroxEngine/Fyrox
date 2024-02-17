@@ -10,6 +10,7 @@ mod document;
 pub mod error;
 mod scene;
 
+use crate::resource::texture::{TextureImportOptions, TextureResource, TextureResourceExtension};
 use crate::{
     asset::manager::ResourceManager,
     core::{
@@ -59,6 +60,7 @@ use crate::{
 };
 use fxhash::{FxHashMap, FxHashSet};
 use fyrox_resource::io::ResourceIo;
+use fyrox_resource::untyped::ResourceKind;
 use std::{cmp::Ordering, path::Path};
 
 /// Input angles in degrees
@@ -308,47 +310,60 @@ async fn create_surfaces(
                 let path = texture.get_file_path();
 
                 if let Some(filename) = path.file_name() {
-                    let texture_path = match model_import_options.material_search_options {
-                        MaterialSearchOptions::MaterialsDirectory(ref directory) => {
-                            Some(directory.join(filename))
-                        }
-                        MaterialSearchOptions::RecursiveUp => {
-                            let mut texture_path = None;
-                            let mut path = model_path.to_owned();
-                            while let Some(parent) = path.parent() {
-                                let candidate = parent.join(filename);
-                                if io.exists(&candidate).await {
-                                    texture_path = Some(candidate);
-                                    break;
-                                }
-                                path.pop();
+                    let texture_path = if texture.content.is_empty() {
+                        match model_import_options.material_search_options {
+                            MaterialSearchOptions::MaterialsDirectory(ref directory) => {
+                                Some(directory.join(filename))
                             }
-                            texture_path
-                        }
-                        MaterialSearchOptions::WorkingDirectory => {
-                            let mut texture_path = None;
+                            MaterialSearchOptions::RecursiveUp => {
+                                let mut texture_path = None;
+                                let mut path = model_path.to_owned();
+                                while let Some(parent) = path.parent() {
+                                    let candidate = parent.join(filename);
+                                    if io.exists(&candidate).await {
+                                        texture_path = Some(candidate);
+                                        break;
+                                    }
+                                    path.pop();
+                                }
+                                texture_path
+                            }
+                            MaterialSearchOptions::WorkingDirectory => {
+                                let mut texture_path = None;
 
-                            let path = Path::new(".");
+                                let path = Path::new(".");
 
-                            if let Ok(iter) = io.walk_directory(path).await {
-                                for dir in iter {
-                                    if io.is_dir(&dir).await {
-                                        let candidate = dir.join(filename);
-                                        if candidate.exists() {
-                                            texture_path = Some(candidate);
-                                            break;
+                                if let Ok(iter) = io.walk_directory(path).await {
+                                    for dir in iter {
+                                        if io.is_dir(&dir).await {
+                                            let candidate = dir.join(filename);
+                                            if candidate.exists() {
+                                                texture_path = Some(candidate);
+                                                break;
+                                            }
                                         }
                                     }
                                 }
-                            }
 
-                            texture_path
+                                texture_path
+                            }
+                            MaterialSearchOptions::UsePathDirectly => Some(path.clone()),
                         }
-                        MaterialSearchOptions::UsePathDirectly => Some(path.clone()),
+                    } else {
+                        Some(path.clone())
                     };
 
                     if let Some(texture_path) = texture_path {
-                        let texture = resource_manager.request::<Texture>(texture_path.as_path());
+                        let texture = if texture.content.is_empty() {
+                            resource_manager.request::<Texture>(texture_path.as_path())
+                        } else {
+                            TextureResource::load_from_memory(
+                                ResourceKind::External(texture_path.clone()),
+                                &texture.content,
+                                TextureImportOptions::default(),
+                            )
+                            .unwrap()
+                        };
 
                         // Make up your mind, Autodesk and Blender.
                         // Handle all possible combinations of links to auto-import materials.

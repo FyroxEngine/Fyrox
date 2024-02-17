@@ -143,9 +143,12 @@ where
                 .attributes
                 .push(read_string(file)?),
             b'R' => {
-                // Ignore Raw data
                 let length = i64::from(file.read_u32::<LittleEndian>()?);
-                file.seek(SeekFrom::Current(length))?;
+                let mut data = vec![0; length as usize];
+                file.read_exact(&mut data)?;
+                pool.borrow_mut(node_handle)
+                    .attributes
+                    .push(FbxAttribute::RawData(data));
             }
             _ => (),
         }

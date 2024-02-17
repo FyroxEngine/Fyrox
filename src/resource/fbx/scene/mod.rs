@@ -1,3 +1,4 @@
+use crate::resource::fbx::scene::video::FbxVideo;
 use crate::{
     core::{
         algebra::{Matrix4, Vector3},
@@ -24,6 +25,7 @@ pub mod geometry;
 pub mod light;
 pub mod model;
 pub mod texture;
+pub mod video;
 
 pub struct FbxScene {
     components: Pool<FbxComponent>,
@@ -82,6 +84,12 @@ impl FbxScene {
                         *object_handle,
                         nodes,
                     )?));
+                }
+                "Video" => {
+                    if object.get_attrib(2)?.as_string() == "Clip" {
+                        component_handle = components
+                            .spawn(FbxComponent::Video(FbxVideo::read(*object_handle, nodes)?));
+                    }
                 }
                 "NodeAttribute" => {
                     if object.attrib_count() > 2 && object.get_attrib(2)?.as_string() == "Light" {
@@ -207,6 +215,11 @@ fn link_child_with_parent_component(
                 channel.geometry = child_handle;
             }
         }
+        FbxComponent::Texture(texture) => {
+            if let FbxComponent::Video(video) = child {
+                texture.content = video.content.clone();
+            }
+        }
         // Ignore rest
         _ => (),
     }
@@ -217,6 +230,7 @@ pub enum FbxComponent {
     Cluster(FbxCluster),
     BlendShapeChannel(FbxBlendShapeChannel),
     Texture(FbxTexture),
+    Video(FbxVideo),
     Light(FbxLight),
     Model(Box<FbxModel>),
     Material(FbxMaterial),

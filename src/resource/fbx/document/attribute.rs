@@ -7,6 +7,7 @@ pub enum FbxAttribute {
     Long(i64),
     Bool(bool),
     String(String), // ASCII Fbx always have every attribute in string form
+    RawData(Vec<u8>),
 }
 
 impl std::fmt::Display for FbxAttribute {
@@ -18,6 +19,7 @@ impl std::fmt::Display for FbxAttribute {
             FbxAttribute::Long(long) => write!(f, "{}", long),
             FbxAttribute::Bool(boolean) => write!(f, "{}", boolean),
             FbxAttribute::String(string) => write!(f, "{}", string),
+            FbxAttribute::RawData(raw) => write!(f, "{:?}", raw),
         }
     }
 }
@@ -34,6 +36,7 @@ impl FbxAttribute {
                 Ok(i) => Ok(i),
                 Err(_) => Err(format!("Unable to convert string {} to i32", val)),
             },
+            FbxAttribute::RawData(_) => Err("Unable to convert raw data to i32".to_string()),
         }
     }
 
@@ -48,6 +51,7 @@ impl FbxAttribute {
                 Ok(i) => Ok(i),
                 Err(_) => Err(format!("Unable to convert string {} to i64", val)),
             },
+            FbxAttribute::RawData(_) => Err("Unable to convert raw data to i64".to_string()),
         }
     }
 
@@ -62,6 +66,7 @@ impl FbxAttribute {
                 Ok(i) => Ok(i),
                 Err(_) => Err(format!("Unable to convert string {} to f64", val)),
             },
+            FbxAttribute::RawData(_) => Err("Unable to convert raw data to f64".to_string()),
         }
     }
 
@@ -76,6 +81,7 @@ impl FbxAttribute {
                 Ok(i) => Ok(i),
                 Err(_) => Err(format!("Unable to convert string {} to f32", val)),
             },
+            FbxAttribute::RawData(_) => Err("Unable to convert raw data to f32".to_string()),
         }
     }
 
@@ -87,6 +93,7 @@ impl FbxAttribute {
             FbxAttribute::Long(val) => val.to_string(),
             FbxAttribute::Bool(val) => val.to_string(),
             FbxAttribute::String(val) => val.clone(),
+            FbxAttribute::RawData(val) => String::from_utf8_lossy(val).to_string(),
         }
     }
 }
