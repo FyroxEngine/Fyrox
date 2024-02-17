@@ -15,3 +15,4 @@ include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md"]
 [dependencies]
 fyrox = { version = "0.33.0", path = "../" }
 fyroxed_base = { version = "0.20.0", path = "../editor" }
+clap = { version = "4", features = ["derive"] }
