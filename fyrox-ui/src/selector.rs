@@ -100,6 +100,14 @@ impl Control for Selector {
                     }
 
                     self.items.set_value_and_mark_modified(items.clone());
+
+                    for (i, item) in self.items.iter().enumerate() {
+                        ui.send_message(WidgetMessage::visibility(
+                            *item,
+                            MessageDirection::ToWidget,
+                            self.current.map_or(false, |current| current == i),
+                        ));
+                    }
                 }
                 SelectorMessage::Current(current) => {
                     if &*self.current != current {
@@ -139,7 +147,9 @@ impl Control for Selector {
                 }
             } else if message.destination() == *self.next {
                 if let Some(current) = *self.current {
-                    let new_current = current.saturating_add(1);
+                    let new_current = current
+                        .saturating_add(1)
+                        .min(self.items.len().saturating_sub(1));
                     ui.send_message(SelectorMessage::current(
                         self.handle,
                         MessageDirection::ToWidget,
