@@ -4,6 +4,7 @@ use crate::{
     scene::Selection,
     ui_scene::{commands::graph::AddWidgetCommand, UiScene},
 };
+use fyrox::gui::selector::SelectorBuilder;
 use fyrox::{
     core::pool::Handle,
     fxhash::FxHashMap,
@@ -194,12 +195,15 @@ impl UiMenu {
             UiMenuEntry::new("AnimationPlayer", |name, ctx| {
                 AnimationPlayerBuilder::new(WidgetBuilder::new().with_name(name)).build(ctx)
             }),
-            UiMenuEntry::new("Animation Blending State Machine", |name, ctx| {
+            UiMenuEntry::new("AnimationBlendingStateMachine", |name, ctx| {
                 AnimationBlendingStateMachineBuilder::new(WidgetBuilder::new().with_name(name))
                     .build(ctx)
             }),
             UiMenuEntry::new("AbsmEventProvider", |name, ctx| {
                 AbsmEventProviderBuilder::new(WidgetBuilder::new().with_name(name)).build(ctx)
+            }),
+            UiMenuEntry::new("Selector", |name, ctx| {
+                SelectorBuilder::new(WidgetBuilder::new().with_name(name)).build(ctx)
             }),
         ]
     }

@@ -226,6 +226,7 @@ pub mod scroll_bar;
 pub mod scroll_panel;
 pub mod scroll_viewer;
 pub mod searchbar;
+pub mod selector;
 pub mod stack_panel;
 pub mod tab_control;
 pub mod text;
