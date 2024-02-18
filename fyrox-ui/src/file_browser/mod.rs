@@ -679,8 +679,6 @@ fn build_all(
         }
     }
 
-    dbg!(&dest_path);
-
     let dest_path_components = dest_path.components().collect::<Vec<Component>>();
     #[allow(unused_variables)]
     let dest_disk = dest_path_components.first().and_then(|c| {
@@ -745,7 +743,18 @@ fn build_all(
     for (i, component) in dest_path_components.iter().enumerate() {
         // Concat parts of path one by one.
         full_path = full_path.join(component.as_os_str());
-        let next = dest_path_components.get(i + 1).map(|p| full_path.join(p));
+
+        let next_component = dest_path_components.get(i + 1);
+
+        if let Some(next_component) = next_component {
+            if matches!(component, Component::Prefix(_))
+                && matches!(next_component, Component::RootDir)
+            {
+                continue;
+            }
+        }
+
+        let next = next_component.map(|p| full_path.join(p));
 
         let mut new_parent = parent;
         if let Ok(dir_iter) = std::fs::read_dir(&full_path) {
