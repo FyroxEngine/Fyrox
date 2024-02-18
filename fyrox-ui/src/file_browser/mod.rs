@@ -679,6 +679,12 @@ fn build_all(
         }
     }
 
+    // There should be at least one component in the path. If the path is empty, this means that
+    // it "points" to the current directory.
+    if dest_path == PathBuf::default() {
+        dest_path.push(".");
+    }
+
     let dest_path_components = dest_path.components().collect::<Vec<Component>>();
     #[allow(unused_variables)]
     let dest_disk = dest_path_components.first().and_then(|c| {
@@ -738,6 +744,7 @@ fn build_all(
 
     let mut path_item = Handle::NONE;
 
+    dbg!(&dest_path);
     // Try to build tree only for given path.
     let mut full_path = PathBuf::new();
     for (i, component) in dest_path_components.iter().enumerate() {
