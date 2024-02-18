@@ -110,7 +110,9 @@ impl Control for Selector {
                     }
                 }
                 SelectorMessage::Current(current) => {
-                    if &*self.current != current {
+                    if &*self.current != current
+                        && message.direction() == MessageDirection::ToWidget
+                    {
                         if let Some(current) = *self.current {
                             if let Some(current_item) = self.items.get(current) {
                                 ui.send_message(WidgetMessage::visibility(
@@ -132,6 +134,8 @@ impl Control for Selector {
                                 ));
                             }
                         }
+
+                        ui.send_message(message.reverse());
                     }
                 }
             }
