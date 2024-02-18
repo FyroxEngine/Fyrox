@@ -593,6 +593,7 @@ fn build_tree_item<P: AsRef<Path>>(
     path: P,
     parent_path: P,
     menu: RcUiNodeHandle,
+    expanded: bool,
     ctx: &mut BuildContext,
 ) -> Handle<UiNode> {
     let is_dir_empty = path
@@ -604,7 +605,7 @@ fn build_tree_item<P: AsRef<Path>>(
             .with_user_data(Arc::new(Mutex::new(path.as_ref().to_owned())))
             .with_context_menu(menu),
     )
-    .with_expanded(false)
+    .with_expanded(expanded)
     .with_always_show_expander(!is_dir_empty)
     .with_content(
         TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::left(4.0)))
@@ -628,7 +629,7 @@ fn build_tree<P: AsRef<Path>>(
     menu: RcUiNodeHandle,
     ui: &mut UserInterface,
 ) -> Handle<UiNode> {
-    let subtree = build_tree_item(path, parent_path, menu, &mut ui.build_ctx());
+    let subtree = build_tree_item(path, parent_path, menu, false, &mut ui.build_ctx());
     insert_subtree_in_parent(ui, parent, is_parent_root, subtree);
     subtree
 }
@@ -678,6 +679,8 @@ fn build_all(
         }
     }
 
+    dbg!(&dest_path);
+
     let dest_path_components = dest_path.components().collect::<Vec<Component>>();
     #[allow(unused_variables)]
     let dest_disk = dest_path_components.first().and_then(|c| {
@@ -699,7 +702,7 @@ fn build_all(
         } else {
             root.as_path()
         };
-        let item = build_tree_item(path, Path::new(""), menu.clone(), ctx);
+        let item = build_tree_item(path, Path::new(""), menu.clone(), true, ctx);
         root_items.push(item);
         item
     } else {
@@ -713,14 +716,14 @@ fn build_all(
                 .iter()
                 .map(|i| i.mount_point().to_string_lossy())
             {
-                let item = build_tree_item(disk.as_ref(), "", menu.clone(), ctx);
-
                 let disk_letter = disk.chars().next().unwrap() as u8;
+                let is_disk_part_of_path = dest_disk.map_or(false, |d| d == disk_letter);
 
-                if let Some(dest_disk) = dest_disk {
-                    if dest_disk == disk_letter {
-                        parent = item;
-                    }
+                let item =
+                    build_tree_item(disk.as_ref(), "", menu.clone(), is_disk_part_of_path, ctx);
+
+                if is_disk_part_of_path {
+                    parent = item;
                 }
 
                 root_items.push(item);
@@ -755,16 +758,24 @@ fn build_all(
                     .as_mut()
                     .map_or(true, |f| f.0.borrow_mut().deref_mut().lock()(&path))
                 {
-                    let item = build_tree_item(&path, &full_path, menu.clone(), ctx);
+                    let is_part_of_final_path = next.as_ref().map_or(false, |next| *next == path);
+
+                    let item = build_tree_item(
+                        &path,
+                        &full_path,
+                        menu.clone(),
+                        is_part_of_final_path,
+                        ctx,
+                    );
+
                     if parent.is_some() {
                         Tree::add_item(parent, item, ctx);
                     } else {
                         root_items.push(item);
                     }
-                    if let Some(next) = next.as_ref() {
-                        if *next == path {
-                            new_parent = item;
-                        }
+
+                    if is_part_of_final_path {
+                        new_parent = item;
                     }
 
                     if path == dest_path {
