@@ -1240,19 +1240,19 @@ impl TrackList {
                             assert!(self.curve_views.remove(&curve_item_ref.id).is_some());
                         }
 
-                        send_sync_message(
-                            ui,
-                            TreeRootMessage::remove_item(
-                                self.tree_root,
-                                MessageDirection::ToWidget,
-                                *track_view,
-                            ),
-                        );
-
                         assert!(self.track_views.remove(&track_view_data.id).is_some());
 
                         // Remove group if it is empty.
                         if let Some(group) = self.group_views.get(&track_view_data.target) {
+                            send_sync_message(
+                                ui,
+                                TreeMessage::remove_item(
+                                    *group,
+                                    MessageDirection::ToWidget,
+                                    *track_view,
+                                ),
+                            );
+
                             if ui
                                 .node(*group)
                                 .query_component::<Tree>()
