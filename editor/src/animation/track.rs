@@ -1070,12 +1070,14 @@ impl TrackList {
         N: SceneGraphNode,
     {
         let mut descriptors = Vec::new();
-        graph.node(node).as_reflect(&mut |node| {
-            descriptors = object_to_property_tree("", node, &mut |field: &FieldInfo| {
-                let type_id = field.reflect_value.type_id();
-                type_id != TypeId::of::<TextureBytes>()
+        if let Some(node) = graph.try_get(node) {
+            node.as_reflect(&mut |node| {
+                descriptors = object_to_property_tree("", node, &mut |field: &FieldInfo| {
+                    let type_id = field.reflect_value.type_id();
+                    type_id != TypeId::of::<TextureBytes>()
+                });
             });
-        });
+        }
 
         let property_selector = PropertySelectorWindowBuilder::new(
             WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
