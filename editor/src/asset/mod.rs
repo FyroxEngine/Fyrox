@@ -619,6 +619,18 @@ impl AssetBrowser {
             MessageDirection::ToWidget,
             Some(dir.to_owned()),
         ));
+
+        engine.user_interface.send_message(FileBrowserMessage::path(
+            self.folder_browser,
+            MessageDirection::ToWidget,
+            "./".into(),
+        ));
+
+        self.set_path(
+            Path::new("./"),
+            &mut engine.user_interface,
+            &engine.resource_manager,
+        );
     }
 
     fn find_icon_for_asset(
