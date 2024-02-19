@@ -1,3 +1,4 @@
+use crate::export::ExportWindow;
 use crate::{
     make_save_file_selector, make_scene_file_filter,
     menu::{create_menu_item, create_menu_item_shortcut, create_root_menu_item},
@@ -38,6 +39,7 @@ pub struct FileMenu {
     pub recent_files_container: Handle<UiNode>,
     pub recent_files: Vec<Handle<UiNode>>,
     pub open_scene_settings: Handle<UiNode>,
+    pub export_project: Handle<UiNode>,
 }
 
 fn make_recent_files_items(
@@ -64,6 +66,7 @@ impl FileMenu {
         let configure;
         let exit;
         let recent_files_container;
+        let export_project;
 
         let ctx = &mut engine.user_interface.build_ctx();
 
@@ -119,6 +122,10 @@ impl FileMenu {
                     configure
                 },
                 {
+                    export_project = create_menu_item("Export Project...", vec![], ctx);
+                    export_project
+                },
+                {
                     recent_files_container =
                         create_menu_item("Recent Files", recent_files.clone(), ctx);
                     recent_files_container
@@ -157,6 +164,7 @@ impl FileMenu {
             recent_files_container,
             recent_files,
             open_scene_settings,
+            export_project,
         }
     }
 
@@ -204,7 +212,7 @@ impl FileMenu {
         entry: Option<&mut EditorSceneEntry>,
         engine: &mut Engine,
         settings: &mut Settings,
-        panels: &Panels,
+        panels: &mut Panels,
     ) {
         self.settings
             .handle_message(message, engine, settings, sender);
@@ -284,6 +292,10 @@ impl FileMenu {
                         None,
                     ));
                 }
+            } else if message.destination() == self.export_project {
+                let export_window = ExportWindow::new(&mut engine.user_interface.build_ctx());
+                export_window.open(&engine.user_interface);
+                *panels.export_window = Some(export_window);
             } else if message.destination() == self.open_settings {
                 self.settings
                     .open(&mut engine.user_interface, settings, sender);

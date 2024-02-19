@@ -1,3 +1,4 @@
+use crate::export::ExportWindow;
 use crate::scene::controller::SceneController;
 use crate::{
     animation::AnimationEditor,
@@ -62,6 +63,7 @@ pub struct Panels<'b> {
     pub scene_settings: &'b SceneSettingsWindow,
     pub animation_editor: &'b AnimationEditor,
     pub ragdoll_wizard: &'b RagdollWizard,
+    pub export_window: &'b mut Option<ExportWindow>,
 }
 
 pub struct MenuContext<'a, 'b> {
@@ -195,7 +197,7 @@ impl Menu {
             ctx.game_scene,
             ctx.engine,
             ctx.settings,
-            &ctx.panels,
+            &mut ctx.panels,
         );
         self.view_menu.handle_ui_message(
             message,
