@@ -58,7 +58,14 @@ fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> io::Result<()> 
         if ty.is_dir() {
             copy_dir_all(entry.path(), dst.as_ref().join(entry.file_name()))?;
         } else {
-            fs::copy(entry.path(), dst.as_ref().join(entry.file_name()))?;
+            let from = entry.path();
+            let to = dst.as_ref().join(entry.file_name());
+            fs::copy(&from, &to)?;
+            Log::info(format!(
+                "{} successfully cloned to {}",
+                from.display(),
+                to.display()
+            ))
         }
     }
     Ok(())
@@ -189,19 +196,20 @@ fn copy_binaries(
     destination_folder: &Path,
 ) -> Result<(), String> {
     let mut binary_paths = vec![];
-    for entry in fs::read_dir(metadata.target_directory.join("release")).unwrap() {
-        if let Ok(entry) = entry {
-            if let Ok(file_metadata) = entry.metadata() {
-                if !file_metadata.file_type().is_file() {
-                    continue;
-                }
+    for entry in fs::read_dir(metadata.target_directory.join("release"))
+        .unwrap()
+        .flatten()
+    {
+        if let Ok(file_metadata) = entry.metadata() {
+            if !file_metadata.file_type().is_file() {
+                continue;
             }
+        }
 
-            if let Some(stem) = entry.path().file_stem() {
-                if stem == OsStr::new(package_name) {
-                    let _ = dbg!(entry.metadata());
-                    binary_paths.push(entry.path());
-                }
+        if let Some(stem) = entry.path().file_stem() {
+            if stem == OsStr::new(package_name) {
+                let _ = dbg!(entry.metadata());
+                binary_paths.push(entry.path());
             }
         }
     }
@@ -231,14 +239,12 @@ fn copy_binaries(
 }
 
 fn export(
-    mut destination_folder: PathBuf,
+    destination_folder: PathBuf,
     assets_folders: Vec<PathBuf>,
     cancel_flag: Arc<AtomicBool>,
     package_name: String,
 ) -> Result<(), String> {
     Log::info("Building the game...");
-
-    destination_folder = destination_folder.canonicalize().unwrap();
 
     prepare_build_dir(&destination_folder)?;
     let metadata = read_metadata()?;
