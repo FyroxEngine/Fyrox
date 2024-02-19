@@ -81,13 +81,16 @@ impl Log {
     {
         let mut msg = message.as_ref().to_owned();
         if kind as u32 >= self.verbosity as u32 {
-            for listener in self.listeners.iter() {
-                let _ = listener.send(LogMessage {
-                    kind,
-                    content: msg.clone(),
-                    time: Instant::now() - self.time_origin,
-                });
-            }
+            // Notify listeners about the message and remove all disconnected listeners.
+            self.listeners.retain(|listener| {
+                listener
+                    .send(LogMessage {
+                        kind,
+                        content: msg.clone(),
+                        time: Instant::now() - self.time_origin,
+                    })
+                    .is_ok()
+            });
 
             msg.insert_str(0, kind.as_str());
 
