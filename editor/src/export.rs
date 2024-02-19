@@ -1,3 +1,4 @@
+use cargo_metadata::Metadata;
 use fyrox::{
     core::{
         color::Color,
@@ -21,7 +22,9 @@ use fyrox::{
     },
 };
 use std::{
-    fs, io,
+    ffi::OsStr,
+    fs,
+    io::{self, BufRead, BufReader},
     path::{Path, PathBuf},
     process::Stdio,
     sync::{
@@ -43,7 +46,8 @@ pub struct ExportWindow {
     destination_path: Handle<UiNode>,
     destination_folder: PathBuf,
     cancel_flag: Arc<AtomicBool>,
-    receiver: Option<Receiver<LogMessage>>,
+    log_message_receiver: Option<Receiver<LogMessage>>,
+    build_result_receiver: Option<Receiver<Result<(), String>>>,
 }
 
 fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> io::Result<()> {
@@ -60,38 +64,98 @@ fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> io::Result<()> 
     Ok(())
 }
 
-fn export(destination_folder: PathBuf, assets_folders: Vec<PathBuf>, cancel_flag: Arc<AtomicBool>) {
-    Log::info("Building the game...");
+fn has_binary_package(name: &str, metadata: &Metadata) -> bool {
+    for package in metadata.packages.iter() {
+        if package.name == name {
+            for target in package.targets.iter() {
+                if target.is_bin() {
+                    return true;
+                }
+            }
+        }
+    }
 
+    false
+}
+
+fn read_metadata() -> Result<Metadata, String> {
+    return match std::process::Command::new("cargo")
+        .arg("metadata")
+        .stdout(Stdio::piped())
+        .spawn()
+    {
+        Ok(handle) => match handle.wait_with_output() {
+            Ok(output) => match serde_json::from_slice::<Metadata>(&output.stdout) {
+                Ok(metadata) => Ok(metadata),
+                Err(err) => Err(format!(
+                    "Unable to parse workspace metadata. Reason {:?}",
+                    err
+                )),
+            },
+            Err(err) => Err(format!(
+                "Unable to fetch project metadata. Reason {:?}",
+                err
+            )),
+        },
+        Err(err) => Err(format!(
+            "Unable to fetch project metadata. Reason {:?}",
+            err
+        )),
+    };
+}
+
+fn prepare_build_dir(path: &Path) -> Result<(), String> {
+    if path.exists() {
+        Log::info("Trying to delete previous build...");
+
+        if let Err(err) = fs::remove_dir_all(path) {
+            return Err(format!(
+                "Unable to remove previous build at destination path! Reason: {:?}",
+                err
+            ));
+        }
+    }
+
+    // Create the new clean folder.
+    if let Err(err) = fs::create_dir_all(path) {
+        return Err(format!(
+            "Unable to create build directory at destination path! Reason: {:?}",
+            err
+        ));
+    }
+
+    Ok(())
+}
+
+fn build_package(package_name: &str, cancel_flag: Arc<AtomicBool>) -> Result<(), String> {
     // Build the game first.
-    //  cargo +nightly build --package executor --out-dir=destination_folder -Z unstable-options
     let mut process = std::process::Command::new("cargo");
     let mut handle = match process
         .stderr(Stdio::piped())
-        .arg("+nightly")
         .arg("build")
         .arg("--package")
-        .arg("executor")
+        .arg(package_name)
         .arg("--release")
-        .arg("--out-dir")
-        .arg(&destination_folder)
-        .arg("-Z")
-        .arg("unstable-options")
         .spawn()
     {
         Ok(handle) => handle,
         Err(err) => {
-            Log::err(format!("Failed to build the game. Reason: {:?}", err));
-            return;
+            return Err(format!("Failed to build the game. Reason: {:?}", err));
         }
     };
+
+    let mut stderr = handle.stderr.take().unwrap();
 
     // Spin until the build is finished.
     loop {
         if cancel_flag.load(Ordering::Relaxed) {
             Log::verify(handle.kill());
             Log::warn("Build was cancelled.");
-            return;
+            return Ok(());
+        }
+
+        for line in BufReader::new(&mut stderr).lines().take(10).flatten() {
+            Log::writeln(MessageKind::Information, line);
         }
 
         match handle.try_wait() {
@@ -100,8 +164,7 @@ fn export(destination_folder: PathBuf, assets_folders: Vec<PathBuf>, cancel_flag
                     let err_code = 101;
                     let code = status.code().unwrap_or(err_code);
                     if code == err_code {
-                        Log::err("Failed to build the game.");
-                        return;
+                        return Err("Failed to build the game.".to_string());
                     } else {
                         Log::info("The game was built successfully.");
                         break;
@@ -109,25 +172,114 @@ fn export(destination_folder: PathBuf, assets_folders: Vec<PathBuf>, cancel_flag
                 }
             }
             Err(err) => {
-                Log::err(format!("Failed to build the game. Reason: {:?}", err));
-                return;
+                return Err(format!("Failed to build the game. Reason: {:?}", err));
             }
         }
 
         std::thread::sleep(Duration::from_millis(500));
     }
 
+    Ok(())
+}
+
+// TODO: This should be replaced with `--out-dir` flag to cargo when it is stabilized.
+fn copy_binaries(
+    metadata: &Metadata,
+    package_name: &str,
+    destination_folder: &Path,
+) -> Result<(), String> {
+    let mut binary_paths = vec![];
+    for entry in fs::read_dir(metadata.target_directory.join("release")).unwrap() {
+        if let Ok(entry) = entry {
+            if let Ok(file_metadata) = entry.metadata() {
+                if !file_metadata.file_type().is_file() {
+                    continue;
+                }
+            }
+
+            if let Some(stem) = entry.path().file_stem() {
+                if stem == OsStr::new(package_name) {
+                    let _ = dbg!(entry.metadata());
+                    binary_paths.push(entry.path());
+                }
+            }
+        }
+    }
+    for path in binary_paths {
+        if let Some(file_name) = path.file_name() {
+            match fs::copy(&path, &destination_folder.join(file_name)) {
+                Ok(_) => {
+                    Log::info(format!(
+                        "{} was successfully copied to the {} folder.",
+                        path.display(),
+                        destination_folder.display()
+                    ));
+                }
+                Err(err) => {
+                    Log::warn(format!(
+                        "Failed to copy {} file to the {} folder. Reason: {:?}",
+                        path.display(),
+                        destination_folder.display(),
+                        err
+                    ));
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn export(
+    mut destination_folder: PathBuf,
+    assets_folders: Vec<PathBuf>,
+    cancel_flag: Arc<AtomicBool>,
+    package_name: String,
+) -> Result<(), String> {
+    Log::info("Building the game...");
+
+    destination_folder = destination_folder.canonicalize().unwrap();
+
+    prepare_build_dir(&destination_folder)?;
+    let metadata = read_metadata()?;
+
+    if !has_binary_package(&package_name, &metadata) {
+        return Err(format!(
+            "The project does not have `{}` package.",
+            package_name
+        ));
+    }
+
+    build_package(&package_name, cancel_flag)?;
+
+    Log::info("Trying to copy the executable...");
+
+    copy_binaries(&metadata, &package_name, &destination_folder)?;
+
+    Log::info("Trying to copy the assets...");
+
     // Copy assets.
     for folder in assets_folders {
+        Log::info(format!(
+            "Trying to copy assets from {} to {}...",
+            folder.display(),
+            destination_folder.display()
+        ));
+
         Log::verify(copy_dir_all(&folder, destination_folder.join(&folder)));
     }
+
+    Ok(())
 }
 
 impl ExportWindow {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let instructions =
             "Select the target directory in which you want to export the current project. You can \
-            also specify the assets, that will be include in the final build.";
+            also specify the assets, that will be included in the final build.";
+
+        let destination_folder = PathBuf::from("./build/");
+        let assets_folders_list = vec![PathBuf::from("./data/")];
 
         let export;
         let cancel;
@@ -155,15 +307,21 @@ impl ExportWindow {
                                     .on_row(1)
                                     .with_margin(Thickness::uniform(2.0)),
                             )
-                            .with_path("./build/")
+                            .with_path(&destination_folder)
                             .build(ctx);
                             destination_path
                         })
                         .with_child({
+                            let items = assets_folders_list
+                                .iter()
+                                .map(|e| {
+                                    TextBuilder::new(WidgetBuilder::new())
+                                        .with_text(e.to_string_lossy())
+                                        .build(ctx)
+                                })
+                                .collect::<Vec<_>>();
                             assets_folders = ListViewBuilder::new(WidgetBuilder::new().on_row(2))
-                                .with_items(vec![TextBuilder::new(WidgetBuilder::new())
-                                    .with_text("./data")
-                                    .build(ctx)])
+                                .with_items(items)
                                 .build(ctx);
                             assets_folders
                         })
@@ -226,16 +384,17 @@ impl ExportWindow {
             export,
             cancel,
             assets_folders,
-            assets_folders_list: vec!["./data".into()],
+            assets_folders_list,
             destination_path,
-            destination_folder: Default::default(),
+            destination_folder,
             cancel_flag: Arc::new(AtomicBool::new(false)),
-            receiver: None,
+            log_message_receiver: None,
+            build_result_receiver: None,
         }
     }
 
     pub fn open(&self, ui: &UserInterface) {
-        ui.send_message(WindowMessage::open(
+        ui.send_message(WindowMessage::open_modal(
             self.window,
             MessageDirection::ToWidget,
             true,
@@ -251,7 +410,8 @@ impl ExportWindow {
             self.window,
             MessageDirection::ToWidget,
         ));
-        self.receiver = None;
+        self.log_message_receiver = None;
+        self.build_result_receiver = None;
     }
 
     pub fn handle_ui_message(&mut self, message: &UiMessage, ui: &UserInterface) {
@@ -259,16 +419,27 @@ impl ExportWindow {
             if message.destination() == self.export {
                 let (tx, rx) = mpsc::channel();
                 Log::add_listener(tx);
-                self.receiver = Some(rx);
+                self.log_message_receiver = Some(rx);
 
                 let destination_folder = self.destination_folder.clone();
                 let assets_folders_list = self.assets_folders_list.clone();
                 let cancel_flag = self.cancel_flag.clone();
 
+                let (tx, rx) = mpsc::channel();
+                self.build_result_receiver = Some(rx);
+
                 Log::verify(
                     std::thread::Builder::new()
                         .name("ExportWorkerThread".to_string())
-                        .spawn(|| export(destination_folder, assets_folders_list, cancel_flag)),
+                        .spawn(move || {
+                            tx.send(export(
+                                destination_folder,
+                                assets_folders_list,
+                                cancel_flag,
+                                "executor".to_string(),
+                            ))
+                            .expect("Channel must exist!")
+                        }),
                 );
 
                 ui.send_message(WidgetMessage::enabled(
@@ -283,8 +454,8 @@ impl ExportWindow {
     }
 
     pub fn update(&mut self, ui: &mut UserInterface) {
-        if let Some(receiver) = self.receiver.as_mut() {
-            while let Ok(message) = receiver.try_recv() {
+        if let Some(log_message_receiver) = self.log_message_receiver.as_mut() {
+            while let Ok(message) = log_message_receiver.try_recv() {
                 let ctx = &mut ui.build_ctx();
                 let color = match message.kind {
                     MessageKind::Information => Color::ANTIQUE_WHITE,
@@ -304,6 +475,23 @@ impl ExportWindow {
                     entry,
                     MessageDirection::ToWidget,
                     self.log,
+                ));
+            }
+        }
+
+        if let Some(receiver) = self.build_result_receiver.as_ref() {
+            if let Ok(result) = receiver.try_recv() {
+                match result {
+                    Ok(_) => {
+                        Log::info("Build finished!");
+                    }
+                    Err(err) => Log::err(format!("Build failed! Reason: {}", err)),
+                }
+
+                ui.send_message(WidgetMessage::enabled(
+                    self.export,
+                    MessageDirection::ToWidget,
+                    true,
                 ));
             }
         }
