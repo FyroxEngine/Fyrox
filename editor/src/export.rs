@@ -10,6 +10,7 @@ use fyrox::{
         border::BorderBuilder,
         brush::Brush,
         button::{ButtonBuilder, ButtonMessage},
+        decorator::DecoratorBuilder,
         formatted_text::WrapMode,
         grid::{Column, GridBuilder, Row},
         list_view::ListViewBuilder,
@@ -20,8 +21,9 @@ use fyrox::{
         text::TextBuilder,
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
+        wrap_panel::WrapPanelBuilder,
         BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
-        BRUSH_DARKER,
+        VerticalAlignment, BRUSH_DARKER,
     },
 };
 use std::{
@@ -310,9 +312,57 @@ impl ExportWindow {
         let assets_folders;
         let log_scroll_viewer;
 
-        let dest_path_section = StackPanelBuilder::new(
+        let supported_platforms = ["PC", "WASM\n(WIP)", "Android\n(WIP)"];
+
+        let platform_section = StackPanelBuilder::new(
             WidgetBuilder::new()
                 .on_row(1)
+                .with_child(make_title_text("Target Platform", 0, ctx))
+                .with_child(
+                    ListViewBuilder::new(
+                        WidgetBuilder::new()
+                            .with_margin(Thickness::uniform(2.0))
+                            .with_height(60.0),
+                    )
+                    .with_items_panel(
+                        WrapPanelBuilder::new(WidgetBuilder::new())
+                            .with_orientation(Orientation::Horizontal)
+                            .build(ctx),
+                    )
+                    .with_items(
+                        supported_platforms
+                            .iter()
+                            .map(|p| {
+                                DecoratorBuilder::new(BorderBuilder::new(
+                                    WidgetBuilder::new()
+                                        .with_width(50.0)
+                                        .with_height(50.0)
+                                        .with_margin(Thickness::uniform(1.0))
+                                        .with_child(
+                                            TextBuilder::new(WidgetBuilder::new())
+                                                .with_vertical_text_alignment(
+                                                    VerticalAlignment::Center,
+                                                )
+                                                .with_horizontal_text_alignment(
+                                                    HorizontalAlignment::Center,
+                                                )
+                                                .with_text(p)
+                                                .with_font_size(12.0)
+                                                .build(ctx),
+                                        ),
+                                ))
+                                .build(ctx)
+                            })
+                            .collect::<Vec<_>>(),
+                    )
+                    .build(ctx),
+                ),
+        )
+        .build(ctx);
+
+        let dest_path_section = StackPanelBuilder::new(
+            WidgetBuilder::new()
+                .on_row(2)
                 .with_child(make_title_text("Destination Folder", 0, ctx))
                 .with_child({
                     destination_path = PathEditorBuilder::new(
@@ -327,7 +377,7 @@ impl ExportWindow {
 
         let assets_section = StackPanelBuilder::new(
             WidgetBuilder::new()
-                .on_row(2)
+                .on_row(3)
                 .with_child(make_title_text("Assets Folders", 0, ctx))
                 .with_child(
                     BorderBuilder::new(
@@ -356,7 +406,7 @@ impl ExportWindow {
 
         let log_section = GridBuilder::new(
             WidgetBuilder::new()
-                .on_row(3)
+                .on_row(4)
                 .with_child(make_title_text("Export Log", 0, ctx))
                 .with_child(
                     BorderBuilder::new(
@@ -386,7 +436,7 @@ impl ExportWindow {
 
         let buttons_section = StackPanelBuilder::new(
             WidgetBuilder::new()
-                .on_row(4)
+                .on_row(5)
                 .with_horizontal_alignment(HorizontalAlignment::Right)
                 .with_child({
                     export = ButtonBuilder::new(
@@ -427,11 +477,13 @@ impl ExportWindow {
                             .with_text(instructions)
                             .build(ctx),
                         )
+                        .with_child(platform_section)
                         .with_child(dest_path_section)
                         .with_child(assets_section)
                         .with_child(log_section)
                         .with_child(buttons_section),
                 )
+                .add_row(Row::auto())
                 .add_row(Row::auto())
                 .add_row(Row::strict(42.0))
                 .add_row(Row::auto())
