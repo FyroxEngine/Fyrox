@@ -5,20 +5,23 @@ use fyrox::{
         log::{Log, LogMessage, MessageKind},
         pool::Handle,
     },
+    graph::BaseSceneGraph,
     gui::{
+        border::BorderBuilder,
         brush::Brush,
         button::{ButtonBuilder, ButtonMessage},
         formatted_text::WrapMode,
         grid::{Column, GridBuilder, Row},
         list_view::ListViewBuilder,
         message::{MessageDirection, UiMessage},
-        path::PathEditorBuilder,
-        scroll_viewer::ScrollViewerBuilder,
+        path::{PathEditorBuilder, PathEditorMessage},
+        scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+        BRUSH_DARKER,
     },
 };
 use std::{
@@ -44,6 +47,7 @@ pub struct ExportWindow {
     assets_folders: Handle<UiNode>,
     assets_folders_list: Vec<PathBuf>,
     destination_path: Handle<UiNode>,
+    log_scroll_viewer: Handle<UiNode>,
     destination_folder: PathBuf,
     cancel_flag: Arc<AtomicBool>,
     log_message_receiver: Option<Receiver<LogMessage>>,
@@ -208,7 +212,6 @@ fn copy_binaries(
 
         if let Some(stem) = entry.path().file_stem() {
             if stem == OsStr::new(package_name) {
-                let _ = dbg!(entry.metadata());
                 binary_paths.push(entry.path());
             }
         }
@@ -278,11 +281,24 @@ fn export(
     Ok(())
 }
 
+fn make_title_text(text: &str, row: usize, ctx: &mut BuildContext) -> Handle<UiNode> {
+    TextBuilder::new(
+        WidgetBuilder::new()
+            .on_row(row)
+            .with_foreground(Brush::Solid(Color::CORN_SILK))
+            .with_margin(Thickness::uniform(2.0)),
+    )
+    .with_font_size(14.0)
+    .with_text(text)
+    .build(ctx)
+}
+
 impl ExportWindow {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let instructions =
             "Select the target directory in which you want to export the current project. You can \
-            also specify the assets, that will be included in the final build.";
+            also specify the assets, that will be included in the final build. Previous content of \
+            the build folder will be completely erased when you press Export.";
 
         let destination_folder = PathBuf::from("./build/");
         let assets_folders_list = vec![PathBuf::from("./data/")];
@@ -292,6 +308,110 @@ impl ExportWindow {
         let log;
         let destination_path;
         let assets_folders;
+        let log_scroll_viewer;
+
+        let dest_path_section = StackPanelBuilder::new(
+            WidgetBuilder::new()
+                .on_row(1)
+                .with_child(make_title_text("Destination Folder", 0, ctx))
+                .with_child({
+                    destination_path = PathEditorBuilder::new(
+                        WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),
+                    )
+                    .with_path(&destination_folder)
+                    .build(ctx);
+                    destination_path
+                }),
+        )
+        .build(ctx);
+
+        let assets_section = StackPanelBuilder::new(
+            WidgetBuilder::new()
+                .on_row(2)
+                .with_child(make_title_text("Assets Folders", 0, ctx))
+                .with_child(
+                    BorderBuilder::new(
+                        WidgetBuilder::new()
+                            .with_background(BRUSH_DARKER)
+                            .with_child({
+                                let items = assets_folders_list
+                                    .iter()
+                                    .map(|e| {
+                                        TextBuilder::new(WidgetBuilder::new())
+                                            .with_text(e.to_string_lossy())
+                                            .build(ctx)
+                                    })
+                                    .collect::<Vec<_>>();
+                                assets_folders =
+                                    ListViewBuilder::new(WidgetBuilder::new().with_height(100.0))
+                                        .with_items(items)
+                                        .build(ctx);
+                                assets_folders
+                            }),
+                    )
+                    .build(ctx),
+                ),
+        )
+        .build(ctx);
+
+        let log_section = GridBuilder::new(
+            WidgetBuilder::new()
+                .on_row(3)
+                .with_child(make_title_text("Export Log", 0, ctx))
+                .with_child(
+                    BorderBuilder::new(
+                        WidgetBuilder::new()
+                            .on_row(1)
+                            .with_background(BRUSH_DARKER)
+                            .with_margin(Thickness::uniform(2.0))
+                            .with_child({
+                                log_scroll_viewer = ScrollViewerBuilder::new(
+                                    WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),
+                                )
+                                .with_content({
+                                    log = StackPanelBuilder::new(WidgetBuilder::new()).build(ctx);
+                                    log
+                                })
+                                .build(ctx);
+                                log_scroll_viewer
+                            }),
+                    )
+                    .build(ctx),
+                ),
+        )
+        .add_row(Row::auto())
+        .add_row(Row::stretch())
+        .add_column(Column::auto())
+        .build(ctx);
+
+        let buttons_section = StackPanelBuilder::new(
+            WidgetBuilder::new()
+                .on_row(4)
+                .with_horizontal_alignment(HorizontalAlignment::Right)
+                .with_child({
+                    export = ButtonBuilder::new(
+                        WidgetBuilder::new()
+                            .with_width(100.0)
+                            .with_margin(Thickness::uniform(2.0)),
+                    )
+                    .with_text("Export")
+                    .build(ctx);
+                    export
+                })
+                .with_child({
+                    cancel = ButtonBuilder::new(
+                        WidgetBuilder::new()
+                            .with_width(100.0)
+                            .with_margin(Thickness::uniform(2.0)),
+                    )
+                    .with_text("Cancel")
+                    .build(ctx);
+                    cancel
+                }),
+        )
+        .with_orientation(Orientation::Horizontal)
+        .build(ctx);
+
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(400.0).with_height(500.0))
             .open(false)
             .with_content(
@@ -307,75 +427,14 @@ impl ExportWindow {
                             .with_text(instructions)
                             .build(ctx),
                         )
-                        .with_child({
-                            destination_path = PathEditorBuilder::new(
-                                WidgetBuilder::new()
-                                    .on_row(1)
-                                    .with_margin(Thickness::uniform(2.0)),
-                            )
-                            .with_path(&destination_folder)
-                            .build(ctx);
-                            destination_path
-                        })
-                        .with_child({
-                            let items = assets_folders_list
-                                .iter()
-                                .map(|e| {
-                                    TextBuilder::new(WidgetBuilder::new())
-                                        .with_text(e.to_string_lossy())
-                                        .build(ctx)
-                                })
-                                .collect::<Vec<_>>();
-                            assets_folders = ListViewBuilder::new(WidgetBuilder::new().on_row(2))
-                                .with_items(items)
-                                .build(ctx);
-                            assets_folders
-                        })
-                        .with_child(
-                            ScrollViewerBuilder::new(
-                                WidgetBuilder::new()
-                                    .on_row(3)
-                                    .with_margin(Thickness::uniform(2.0)),
-                            )
-                            .with_content({
-                                log = StackPanelBuilder::new(WidgetBuilder::new()).build(ctx);
-                                log
-                            })
-                            .build(ctx),
-                        )
-                        .with_child(
-                            StackPanelBuilder::new(
-                                WidgetBuilder::new()
-                                    .on_row(4)
-                                    .with_horizontal_alignment(HorizontalAlignment::Right)
-                                    .with_child({
-                                        export = ButtonBuilder::new(
-                                            WidgetBuilder::new()
-                                                .with_width(100.0)
-                                                .with_margin(Thickness::uniform(2.0)),
-                                        )
-                                        .with_text("Export")
-                                        .build(ctx);
-                                        export
-                                    })
-                                    .with_child({
-                                        cancel = ButtonBuilder::new(
-                                            WidgetBuilder::new()
-                                                .with_width(100.0)
-                                                .with_margin(Thickness::uniform(2.0)),
-                                        )
-                                        .with_text("Cancel")
-                                        .build(ctx);
-                                        cancel
-                                    }),
-                            )
-                            .with_orientation(Orientation::Horizontal)
-                            .build(ctx),
-                        ),
+                        .with_child(dest_path_section)
+                        .with_child(assets_section)
+                        .with_child(log_section)
+                        .with_child(buttons_section),
                 )
                 .add_row(Row::auto())
-                .add_row(Row::strict(22.0))
-                .add_row(Row::strict(100.0))
+                .add_row(Row::strict(42.0))
+                .add_row(Row::auto())
                 .add_row(Row::stretch())
                 .add_row(Row::strict(26.0))
                 .add_column(Column::auto())
@@ -390,6 +449,7 @@ impl ExportWindow {
             export,
             cancel,
             assets_folders,
+            log_scroll_viewer,
             assets_folders_list,
             destination_path,
             destination_folder,
@@ -420,6 +480,12 @@ impl ExportWindow {
         self.build_result_receiver = None;
     }
 
+    fn clear_log(&self, ui: &UserInterface) {
+        for child in ui.node(self.log).children() {
+            ui.send_message(WidgetMessage::remove(*child, MessageDirection::ToWidget));
+        }
+    }
+
     pub fn handle_ui_message(&mut self, message: &UiMessage, ui: &UserInterface) {
         if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.export {
@@ -434,27 +500,39 @@ impl ExportWindow {
                 let (tx, rx) = mpsc::channel();
                 self.build_result_receiver = Some(rx);
 
-                Log::verify(
-                    std::thread::Builder::new()
-                        .name("ExportWorkerThread".to_string())
-                        .spawn(move || {
-                            tx.send(export(
-                                destination_folder,
-                                assets_folders_list,
-                                cancel_flag,
-                                "executor".to_string(),
-                            ))
-                            .expect("Channel must exist!")
-                        }),
-                );
-
                 ui.send_message(WidgetMessage::enabled(
                     self.export,
                     MessageDirection::ToWidget,
                     false,
                 ));
+
+                self.clear_log(ui);
+
+                Log::verify(
+                    std::thread::Builder::new()
+                        .name("ExportWorkerThread".to_string())
+                        .spawn(move || {
+                            if std::panic::catch_unwind(|| {
+                                tx.send(export(
+                                    destination_folder,
+                                    assets_folders_list,
+                                    cancel_flag,
+                                    "executor".to_string(),
+                                ))
+                                .expect("Channel must exist!")
+                            })
+                            .is_err()
+                            {
+                                Log::err("Unexpected error has occurred in the exporter thread.")
+                            }
+                        }),
+                );
             } else if message.destination() == self.cancel {
                 self.close_and_destroy(ui);
+            }
+        } else if let Some(PathEditorMessage::Path(path)) = message.data() {
+            if message.destination() == self.destination_path {
+                self.destination_folder = path.clone();
             }
         }
     }
@@ -473,14 +551,19 @@ impl ExportWindow {
                         .with_margin(Thickness::uniform(1.0))
                         .with_foreground(Brush::Solid(color)),
                 )
-                .with_wrap(WrapMode::Word)
-                .with_text(message.content)
+                .with_wrap(WrapMode::Letter)
+                .with_text(format!("> {}", message.content))
                 .build(ctx);
 
                 ui.send_message(WidgetMessage::link(
                     entry,
                     MessageDirection::ToWidget,
                     self.log,
+                ));
+
+                ui.send_message(ScrollViewerMessage::scroll_to_end(
+                    self.log_scroll_viewer,
+                    MessageDirection::ToWidget,
                 ));
             }
         }
