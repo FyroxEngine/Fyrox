@@ -202,7 +202,8 @@ impl TaskPoolHandler {
     ) where
         F: AsyncTask<T>,
         T: AsyncTaskResult,
-        for<'a, 'b, 'c> C: Fn(T, &mut S, &mut ScriptContext<'a, 'b, 'c>) -> Box<dyn AsyncTaskResult> + 'static,
+        for<'a, 'b, 'c> C:
+            Fn(T, &mut S, &mut ScriptContext<'a, 'b, 'c>) -> Box<dyn AsyncTaskResult> + 'static,
         S: ScriptTrait,
     {
         let task_id = self.task_pool.spawn_with_result(future);

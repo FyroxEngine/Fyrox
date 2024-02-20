@@ -1364,7 +1364,8 @@ impl Graph {
     where
         T: ScriptTrait,
     {
-        self.try_get(node).and_then(|node| node.try_get_script(index))
+        self.try_get(node)
+            .and_then(|node| node.try_get_script(index))
     }
 
     /// Tries to borrow a node using the given handle, fetch its script and cast it to the specified type.
@@ -1391,7 +1392,11 @@ impl Graph {
     /// Tries to borrow a node using the given handle and fetch a reference to a component of the given type
     /// from the script of the node.
     #[inline]
-    pub fn try_get_script_component_of_mut<C>(&mut self, node: Handle<Node>, index: usize) -> Option<&mut C>
+    pub fn try_get_script_component_of_mut<C>(
+        &mut self,
+        node: Handle<Node>,
+        index: usize,
+    ) -> Option<&mut C>
     where
         C: Any,
     {
