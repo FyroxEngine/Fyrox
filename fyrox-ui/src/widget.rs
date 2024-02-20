@@ -781,6 +781,9 @@ pub struct Widget {
     /// is called or not.
     #[visit(optional)]
     pub need_update: bool,
+    /// Enables (`false`) or disables (`true`) layout rounding.
+    #[visit(optional)]
+    pub ignore_layout_rounding: bool,
     /// Internal sender for layout events.
     #[reflect(hidden)]
     #[visit(skip)]
@@ -2095,6 +2098,7 @@ impl WidgetBuilder {
             preview_messages: self.preview_messages,
             handle_os_events: self.handle_os_events,
             need_update: self.need_update,
+            ignore_layout_rounding: false,
             layout_events_sender: None,
             layout_transform: self.layout_transform,
             render_transform: self.render_transform,

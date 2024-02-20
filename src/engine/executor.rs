@@ -97,6 +97,7 @@ impl Executor {
             GraphicsContextParams {
                 window_attributes,
                 vsync: true,
+                msaa_sample_count: None,
             },
         )
     }

@@ -226,6 +226,7 @@ pub mod scroll_bar;
 pub mod scroll_panel;
 pub mod scroll_viewer;
 pub mod searchbar;
+pub mod selector;
 pub mod stack_panel;
 pub mod tab_control;
 pub mod text;
@@ -1243,6 +1244,11 @@ impl UserInterface {
 
             size = transform_size(size, &node.layout_transform);
 
+            if !node.ignore_layout_rounding {
+                size.x = size.x.ceil();
+                size.y = size.y.ceil();
+            }
+
             size = node.arrange_override(self, size);
 
             size.x = size.x.min(final_rect.w());
@@ -1270,6 +1276,11 @@ impl UserInterface {
                 }
                 VerticalAlignment::Bottom => origin.y += available_size.y - size.y,
                 _ => (),
+            }
+
+            if !node.ignore_layout_rounding {
+                origin.x = origin.x.floor();
+                origin.y = origin.y.floor();
             }
 
             node.commit_arrange(origin, size);
@@ -1331,8 +1342,13 @@ impl UserInterface {
 
             desired_size += axes_margin;
 
-            desired_size.x = desired_size.x.min(available_size.x);
-            desired_size.y = desired_size.y.min(available_size.y);
+            if node.ignore_layout_rounding {
+                desired_size.x = desired_size.x.min(available_size.x);
+                desired_size.y = desired_size.y.min(available_size.y);
+            } else {
+                desired_size.x = desired_size.x.min(available_size.x).ceil();
+                desired_size.y = desired_size.y.min(available_size.y).ceil();
+            }
 
             node.commit_measure(desired_size);
         } else {

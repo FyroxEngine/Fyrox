@@ -6,6 +6,7 @@ use std::path::PathBuf;
 
 pub struct FbxTexture {
     filename: PathBuf,
+    pub content: Vec<u8>,
 }
 
 impl FbxTexture {
@@ -15,6 +16,7 @@ impl FbxTexture {
     ) -> Result<Self, String> {
         let mut texture = FbxTexture {
             filename: PathBuf::new(),
+            content: Default::default(),
         };
         if let Ok(relative_file_name_node) =
             nodes.get_by_name(texture_node_handle, "RelativeFilename")

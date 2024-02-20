@@ -1070,12 +1070,14 @@ impl TrackList {
         N: SceneGraphNode,
     {
         let mut descriptors = Vec::new();
-        graph.node(node).as_reflect(&mut |node| {
-            descriptors = object_to_property_tree("", node, &mut |field: &FieldInfo| {
-                let type_id = field.reflect_value.type_id();
-                type_id != TypeId::of::<TextureBytes>()
+        if let Some(node) = graph.try_get(node) {
+            node.as_reflect(&mut |node| {
+                descriptors = object_to_property_tree("", node, &mut |field: &FieldInfo| {
+                    let type_id = field.reflect_value.type_id();
+                    type_id != TypeId::of::<TextureBytes>()
+                });
             });
-        });
+        }
 
         let property_selector = PropertySelectorWindowBuilder::new(
             WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
@@ -1238,19 +1240,19 @@ impl TrackList {
                             assert!(self.curve_views.remove(&curve_item_ref.id).is_some());
                         }
 
-                        send_sync_message(
-                            ui,
-                            TreeRootMessage::remove_item(
-                                self.tree_root,
-                                MessageDirection::ToWidget,
-                                *track_view,
-                            ),
-                        );
-
                         assert!(self.track_views.remove(&track_view_data.id).is_some());
 
                         // Remove group if it is empty.
                         if let Some(group) = self.group_views.get(&track_view_data.target) {
+                            send_sync_message(
+                                ui,
+                                TreeMessage::remove_item(
+                                    *group,
+                                    MessageDirection::ToWidget,
+                                    *track_view,
+                                ),
+                            );
+
                             if ui
                                 .node(*group)
                                 .query_component::<Tree>()

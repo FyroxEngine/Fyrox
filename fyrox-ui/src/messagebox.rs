@@ -340,7 +340,8 @@ impl<'b> MessageBoxBuilder<'b> {
                         .with_text("OK")
                         .build(ctx);
                         ok_yes
-                    }),
+                    })
+                    .with_margin(Thickness::uniform(5.0)),
             )
             .add_row(Row::stretch())
             .add_row(Row::strict(25.0))
@@ -383,7 +384,8 @@ impl<'b> MessageBoxBuilder<'b> {
                         )
                         .with_orientation(Orientation::Horizontal)
                         .build(ctx),
-                    ),
+                    )
+                    .with_margin(Thickness::uniform(5.0)),
             )
             .add_row(Row::stretch())
             .add_row(Row::strict(25.0))
@@ -436,7 +438,8 @@ impl<'b> MessageBoxBuilder<'b> {
                         )
                         .with_orientation(Orientation::Horizontal)
                         .build(ctx),
-                    ),
+                    )
+                    .with_margin(Thickness::uniform(5.0)),
             )
             .add_row(Row::stretch())
             .add_row(Row::strict(25.0))

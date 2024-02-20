@@ -8,9 +8,63 @@ use std::{
 };
 use uuid::Uuid;
 
+// ========
+// Non-WASM
+#[cfg(not(target_arch = "wasm32"))]
+pub trait AsyncTaskResult: Any + Send + 'static {
+    fn into_any(self: Box<Self>) -> Box<dyn Any>;
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl<T> AsyncTaskResult for T
+where
+    T: Any + Send + 'static,
+{
+    fn into_any(self: Box<Self>) -> Box<dyn Any> {
+        self
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub trait AsyncTask<R: AsyncTaskResult>: Future<Output = R> + Send + 'static {}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl<T, R: AsyncTaskResult> AsyncTask<R> for T where T: Future<Output = R> + Send + 'static {}
+
+// ========
+// WASM
+#[cfg(target_arch = "wasm32")]
+pub trait AsyncTaskResult: Any + 'static {
+    fn into_any(self: Box<Self>) -> Box<dyn Any>;
+}
+
+#[cfg(target_arch = "wasm32")]
+impl<T> AsyncTaskResult for T
+where
+    T: Any + 'static,
+{
+    fn into_any(self: Box<Self>) -> Box<dyn Any> {
+        self
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+pub trait AsyncTask<R: AsyncTaskResult>: Future<Output = R> + 'static {}
+
+#[cfg(target_arch = "wasm32")]
+impl<T, R: AsyncTaskResult> AsyncTask<R> for T where T: Future<Output = R> + 'static {}
+
+// ========
+// Common
+impl dyn AsyncTaskResult {
+    pub fn downcast<T: AsyncTaskResult>(self: Box<Self>) -> Result<Box<T>, Box<dyn Any>> {
+        self.into_any().downcast()
+    }
+}
+
 pub struct TaskResult {
     pub id: Uuid,
-    pub payload: Box<dyn Any + Send>,
+    pub payload: Box<dyn AsyncTaskResult>,
 }
 
 pub struct TaskPool {
@@ -59,8 +113,8 @@ impl TaskPool {
     #[inline]
     pub fn spawn_with_result<F, T>(&self, future: F) -> Uuid
     where
-        F: Future<Output = T> + Send + 'static,
-        T: Send + 'static,
+        F: AsyncTask<T>,
+        T: AsyncTaskResult,
     {
         let id = Uuid::new_v4();
         let sender = self.sender.clone();

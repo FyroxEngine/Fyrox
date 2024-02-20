@@ -18,6 +18,7 @@ pub mod camera;
 pub mod command;
 pub mod configurator;
 pub mod curve_editor;
+pub mod export;
 pub mod gui;
 pub mod highlight;
 pub mod inspector;
@@ -156,6 +157,7 @@ use std::{
 };
 
 use crate::command::Command;
+use crate::export::ExportWindow;
 pub use message::Message;
 
 pub const FIXED_TIMESTEP: f32 = 1.0 / 60.0;
@@ -520,6 +522,7 @@ pub struct Editor {
     pub collider_control_panel: ColliderControlPanel,
     pub overlay_pass: Option<Rc<RefCell<OverlayRenderPass>>>,
     pub highlighter: Option<Rc<RefCell<HighlightRenderPass>>>,
+    pub export_window: Option<ExportWindow>,
 }
 
 impl Editor {
@@ -561,6 +564,7 @@ impl Editor {
         let graphics_context_params = GraphicsContextParams {
             window_attributes,
             vsync: true,
+            msaa_sample_count: Some(4),
         };
 
         let serialization_context = Arc::new(SerializationContext::new());
@@ -849,6 +853,7 @@ impl Editor {
             collider_control_panel,
             overlay_pass: None,
             highlighter: None,
+            export_window: None,
         };
 
         if let Some(data) = startup_data {
@@ -1140,6 +1145,7 @@ impl Editor {
                     scene_settings: &self.scene_settings,
                     animation_editor: &self.animation_editor,
                     ragdoll_wizard: &self.ragdoll_wizard,
+                    export_window: &mut self.export_window,
                 },
                 settings: &mut self.settings,
             },
@@ -1165,6 +1171,9 @@ impl Editor {
             &self.settings,
             &self.mode,
         );
+        if let Some(export_window) = self.export_window.as_mut() {
+            export_window.handle_ui_message(message, &engine.user_interface);
+        }
 
         let current_scene_entry = self.scenes.current_scene_entry_mut();
 
@@ -1739,6 +1748,7 @@ impl Editor {
             || self.animation_editor.is_in_preview_mode()
             || self.absm_editor.is_in_preview_mode()
             || self.light_panel.is_in_preview_mode()
+            || self.export_window.is_some()
             || is_any_plugin_in_preview_mode
             || self
                 .scenes
@@ -2105,6 +2115,9 @@ impl Editor {
         self.log.update(&mut self.engine);
         self.material_editor.update(&mut self.engine);
         self.asset_browser.update(&mut self.engine);
+        if let Some(export_window) = self.export_window.as_mut() {
+            export_window.update(&mut self.engine.user_interface);
+        }
 
         if let Some(entry) = self.scenes.current_scene_entry_ref() {
             if let Some(game_scene) = entry.controller.downcast_ref::<GameScene>() {

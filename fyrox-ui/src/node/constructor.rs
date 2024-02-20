@@ -1,6 +1,6 @@
 //! A special container that is able to create widgets by their type UUID.
-use crate::absm::{AbsmEventProvider, AnimationBlendingStateMachine};
 use crate::{
+    absm::{AbsmEventProvider, AnimationBlendingStateMachine},
     animation::AnimationPlayer,
     bit::BitField,
     border::Border,
@@ -34,6 +34,7 @@ use crate::{
     scroll_panel::ScrollPanel,
     scroll_viewer::ScrollViewer,
     searchbar::SearchBar,
+    selector::Selector,
     stack_panel::StackPanel,
     tab_control::TabControl,
     text::Text,
@@ -203,6 +204,7 @@ impl WidgetConstructorContainer {
         container.add::<AnimationPlayer>();
         container.add::<AnimationBlendingStateMachine>();
         container.add::<AbsmEventProvider>();
+        container.add::<Selector>();
 
         container
     }

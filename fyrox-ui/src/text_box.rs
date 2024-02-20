@@ -14,6 +14,7 @@ use crate::{
         reflect::prelude::*,
         type_traits::prelude::*,
         uuid_provider,
+        variable::InheritableVariable,
         visitor::prelude::*,
     },
     define_constructor,
@@ -27,14 +28,14 @@ use crate::{
     BRUSH_DARKER, BRUSH_TEXT,
 };
 use copypasta::ClipboardProvider;
-use fyrox_core::variable::InheritableVariable;
-use std::sync::Arc;
 use std::{
     cell::RefCell,
     cmp::Ordering,
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
+    sync::Arc,
 };
+use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 /// A message that could be used to alternate text box widget's state or receive changes from it.
 ///
@@ -107,8 +108,25 @@ pub struct Position {
 }
 
 /// Defines the way, how the text box widget will commit the text that was typed in
-#[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Ord, Hash, Debug, Default, Visit, Reflect)]
+#[derive(
+    Copy,
+    Clone,
+    PartialOrd,
+    PartialEq,
+    Eq,
+    Ord,
+    Hash,
+    Debug,
+    Default,
+    Visit,
+    Reflect,
+    AsRefStr,
+    EnumString,
+    EnumVariantNames,
+    TypeUuidProvider,
+)]
 #[repr(u32)]
+#[type_uuid(id = "5fb7d6f0-c151-4a30-8350-2060749d74c6")]
 pub enum TextCommitMode {
     /// Text box will immediately send [`TextMessage::Text`] message after any change (after any pressed button).
     Immediate = 0,
@@ -127,7 +145,8 @@ pub enum TextCommitMode {
 }
 
 /// Defines a set of two positions in the text, that forms a specific range.
-#[derive(Copy, Clone, PartialEq, Eq, Debug, Visit, Reflect, Default)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Visit, Reflect, Default, TypeUuidProvider)]
+#[type_uuid(id = "04c8101b-cb34-47a5-af34-ecfb9b2fc426")]
 pub struct SelectionRange {
     /// Position of the beginning.
     pub begin: Position,
@@ -1007,21 +1026,22 @@ impl Control for TextBox {
             let text = self.formatted_text.borrow();
             let lines = text.get_lines();
             if selection_range.begin.line == selection_range.end.line {
-                let line = lines[selection_range.begin.line];
-                // Begin line
-                let offset =
-                    text.get_range_width(line.begin..(line.begin + selection_range.begin.offset));
-                let width = text.get_range_width(
-                    (line.begin + selection_range.begin.offset)
-                        ..(line.begin + selection_range.end.offset),
-                );
-                let selection_bounds = Rect::new(
-                    view_bounds.x() + line.x_offset + offset,
-                    view_bounds.y() + line.y_offset,
-                    width,
-                    line.height,
-                );
-                drawing_context.push_rect_filled(&selection_bounds, None);
+                if let Some(line) = lines.get(selection_range.begin.line) {
+                    // Begin line
+                    let offset = text
+                        .get_range_width(line.begin..(line.begin + selection_range.begin.offset));
+                    let width = text.get_range_width(
+                        (line.begin + selection_range.begin.offset)
+                            ..(line.begin + selection_range.end.offset),
+                    );
+                    let selection_bounds = Rect::new(
+                        view_bounds.x() + line.x_offset + offset,
+                        view_bounds.y() + line.y_offset,
+                        width,
+                        line.height,
+                    );
+                    drawing_context.push_rect_filled(&selection_bounds, None);
+                }
             } else {
                 for (i, line) in text.get_lines().iter().enumerate() {
                     if i >= selection_range.begin.line && i <= selection_range.end.line {

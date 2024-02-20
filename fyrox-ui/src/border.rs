@@ -6,7 +6,7 @@
 use crate::{
     core::{
         algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, scope_profile,
-        type_traits::prelude::*, visitor::prelude::*,
+        type_traits::prelude::*, variable::InheritableVariable, visitor::prelude::*,
     },
     define_constructor,
     draw::{CommandTexture, Draw, DrawingContext},
@@ -14,7 +14,6 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, MessageDirection, Thickness, UiNode, UserInterface, BRUSH_PRIMARY,
 };
-use fyrox_core::variable::InheritableVariable;
 use std::ops::{Deref, DerefMut};
 
 /// The Border widget provides a stylized, static border around its child widget. Below is an example of creating a 1 pixel
@@ -86,6 +85,9 @@ pub struct Border {
     pub widget: Widget,
     /// Stroke thickness for each side of the border.
     pub stroke_thickness: InheritableVariable<Thickness>,
+    /// Corner radius.
+    #[visit(optional)]
+    pub corner_radius: InheritableVariable<f32>,
 }
 
 crate::define_widget_deref!(Border);
@@ -95,6 +97,8 @@ crate::define_widget_deref!(Border);
 pub enum BorderMessage {
     /// Allows you to set stroke thickness at runtime. See [`Self::stroke_thickness`] docs for more.
     StrokeThickness(Thickness),
+    /// Allows you to set corner radius at runtime. See [`Self::corner_radius`] docs for more.
+    CornerRadius(f32),
 }
 
 impl BorderMessage {
@@ -102,14 +106,28 @@ impl BorderMessage {
         /// Creates a new [Self::StrokeThickness] message.
         BorderMessage:StrokeThickness => fn stroke_thickness(Thickness), layout: false
     );
+
+    define_constructor!(
+        /// Creates a new [Self::CornerRadius] message.
+        BorderMessage:CornerRadius => fn corner_radius(f32), layout: false
+    );
+}
+
+fn corner_offset(radius: f32) -> f32 {
+    radius * 0.5 * (std::f32::consts::SQRT_2 - 1.0)
 }
 
 impl Control for Border {
     fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         scope_profile!();
 
-        let margin_x = self.stroke_thickness.left + self.stroke_thickness.right;
-        let margin_y = self.stroke_thickness.top + self.stroke_thickness.bottom;
+        let corner_offset = corner_offset(*self.corner_radius);
+        let double_corner_offset = 2.0 * corner_offset;
+
+        let margin_x =
+            self.stroke_thickness.left + self.stroke_thickness.right + double_corner_offset;
+        let margin_y =
+            self.stroke_thickness.top + self.stroke_thickness.bottom + double_corner_offset;
 
         let size_for_child = Vector2::new(available_size.x - margin_x, available_size.y - margin_y);
         let mut desired_size = Vector2::default();
@@ -135,11 +153,16 @@ impl Control for Border {
     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
         scope_profile!();
 
+        let corner_offset = corner_offset(*self.corner_radius);
+        let double_corner_offset = 2.0 * corner_offset;
+
         let rect_for_child = Rect::new(
-            self.stroke_thickness.left,
-            self.stroke_thickness.top,
-            final_size.x - (self.stroke_thickness.right + self.stroke_thickness.left),
-            final_size.y - (self.stroke_thickness.bottom + self.stroke_thickness.top),
+            self.stroke_thickness.left + corner_offset,
+            self.stroke_thickness.top + corner_offset,
+            final_size.x
+                - (self.stroke_thickness.right + self.stroke_thickness.left + double_corner_offset),
+            final_size.y
+                - (self.stroke_thickness.bottom + self.stroke_thickness.top + double_corner_offset),
         );
 
         for child_handle in self.widget.children() {
@@ -151,21 +174,50 @@ impl Control for Border {
 
     fn draw(&self, drawing_context: &mut DrawingContext) {
         let bounds = self.widget.bounding_rect();
-        DrawingContext::push_rect_filled(drawing_context, &bounds, None);
-        drawing_context.commit(
-            self.clip_bounds(),
-            self.widget.background(),
-            CommandTexture::None,
-            None,
-        );
 
-        drawing_context.push_rect_vary(&bounds, *self.stroke_thickness);
-        drawing_context.commit(
-            self.clip_bounds(),
-            self.widget.foreground(),
-            CommandTexture::None,
-            None,
-        );
+        if (*self.corner_radius).eq(&0.0) {
+            DrawingContext::push_rect_filled(drawing_context, &bounds, None);
+            drawing_context.commit(
+                self.clip_bounds(),
+                self.widget.background(),
+                CommandTexture::None,
+                None,
+            );
+
+            drawing_context.push_rect_vary(&bounds, *self.stroke_thickness);
+            drawing_context.commit(
+                self.clip_bounds(),
+                self.widget.foreground(),
+                CommandTexture::None,
+                None,
+            );
+        } else {
+            DrawingContext::push_rounded_rect_filled(
+                drawing_context,
+                &bounds,
+                *self.corner_radius,
+                16,
+            );
+            drawing_context.commit(
+                self.clip_bounds(),
+                self.widget.background(),
+                CommandTexture::None,
+                None,
+            );
+
+            drawing_context.push_rounded_rect(
+                &bounds,
+                self.stroke_thickness.left,
+                *self.corner_radius,
+                16,
+            );
+            drawing_context.commit(
+                self.clip_bounds(),
+                self.widget.foreground(),
+                CommandTexture::None,
+                None,
+            );
+        }
     }
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
@@ -174,12 +226,23 @@ impl Control for Border {
         if message.destination() == self.handle()
             && message.direction() == MessageDirection::ToWidget
         {
-            if let Some(BorderMessage::StrokeThickness(thickness)) = message.data() {
-                if *thickness != *self.stroke_thickness {
-                    self.stroke_thickness
-                        .set_value_and_mark_modified(*thickness);
-                    ui.send_message(message.reverse());
-                    self.invalidate_layout();
+            if let Some(msg) = message.data::<BorderMessage>() {
+                match msg {
+                    BorderMessage::StrokeThickness(thickness) => {
+                        if *thickness != *self.stroke_thickness {
+                            self.stroke_thickness
+                                .set_value_and_mark_modified(*thickness);
+                            ui.send_message(message.reverse());
+                            self.invalidate_layout();
+                        }
+                    }
+                    BorderMessage::CornerRadius(radius) => {
+                        if *radius != *self.corner_radius {
+                            self.corner_radius.set_value_and_mark_modified(*radius);
+                            ui.send_message(message.reverse());
+                            self.invalidate_layout();
+                        }
+                    }
                 }
             }
         }
@@ -192,6 +255,8 @@ pub struct BorderBuilder {
     pub widget_builder: WidgetBuilder,
     /// Stroke thickness for each side of the border. Default is 1px wide border for each side.
     pub stroke_thickness: Thickness,
+    /// Radius at each of four corners of the border. Default is zero.
+    pub corner_radius: f32,
 }
 
 impl BorderBuilder {
@@ -200,12 +265,19 @@ impl BorderBuilder {
         Self {
             widget_builder,
             stroke_thickness: Thickness::uniform(1.0),
+            corner_radius: 0.0,
         }
     }
 
     /// Sets the desired stroke thickness for each side of the border.
     pub fn with_stroke_thickness(mut self, stroke_thickness: Thickness) -> Self {
         self.stroke_thickness = stroke_thickness;
+        self
+    }
+
+    /// Sets the desired corner radius.
+    pub fn with_corner_radius(mut self, corner_radius: f32) -> Self {
+        self.corner_radius = corner_radius;
         self
     }
 
@@ -217,6 +289,7 @@ impl BorderBuilder {
         Border {
             widget: self.widget_builder.build(),
             stroke_thickness: self.stroke_thickness.into(),
+            corner_radius: self.corner_radius.into(),
         }
     }
 
