@@ -185,7 +185,6 @@ fn install_wasm_pack() -> Result<(), String> {
         .stderr(Stdio::piped())
         .arg("install")
         .arg("wasm-pack")
-        .arg("--force")
         .spawn()
     {
         Ok(handle) => match handle.wait_with_output() {
@@ -487,7 +486,7 @@ impl ExportWindow {
                             .map(|p| {
                                 DecoratorBuilder::new(BorderBuilder::new(
                                     WidgetBuilder::new()
-                                        .with_width(50.0)
+                                        .with_width(100.0)
                                         .with_height(50.0)
                                         .with_margin(Thickness::uniform(1.0))
                                         .with_child(
@@ -499,7 +498,7 @@ impl ExportWindow {
                                                     HorizontalAlignment::Center,
                                                 )
                                                 .with_text(p)
-                                                .with_font_size(12.0)
+                                                .with_font_size(14.0)
                                                 .build(ctx),
                                         ),
                                 ))
@@ -615,7 +614,7 @@ impl ExportWindow {
         .with_orientation(Orientation::Horizontal)
         .build(ctx);
 
-        let window = WindowBuilder::new(WidgetBuilder::new().with_width(400.0).with_height(500.0))
+        let window = WindowBuilder::new(WidgetBuilder::new().with_width(500.0).with_height(650.0))
             .open(false)
             .with_content(
                 GridBuilder::new(
@@ -641,7 +640,7 @@ impl ExportWindow {
                 .add_row(Row::strict(42.0))
                 .add_row(Row::auto())
                 .add_row(Row::stretch())
-                .add_row(Row::strict(26.0))
+                .add_row(Row::strict(32.0))
                 .add_column(Column::auto())
                 .build(ctx),
             )

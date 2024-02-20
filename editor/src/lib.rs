@@ -1748,6 +1748,7 @@ impl Editor {
             || self.animation_editor.is_in_preview_mode()
             || self.absm_editor.is_in_preview_mode()
             || self.light_panel.is_in_preview_mode()
+            || self.export_window.is_some()
             || is_any_plugin_in_preview_mode
             || self
                 .scenes
