@@ -165,6 +165,97 @@ fn prepare_build_dir(path: &Path) -> Result<(), String> {
     Ok(())
 }
 
+fn is_wasm_pack_installed() -> bool {
+    if let Ok(mut handle) = std::process::Command::new("wasm-pack --version").spawn() {
+        if let Ok(code) = handle.wait() {
+            if code.code().unwrap_or(1) == 0 {
+                return true;
+            }
+        }
+    }
+
+    false
+}
+
+fn install_wasm_pack() -> Result<(), String> {
+    Log::info("Trying to install wasm-pack...");
+
+    let mut process = std::process::Command::new("cargo");
+    match process
+        .stderr(Stdio::piped())
+        .arg("install")
+        .arg("wasm-pack")
+        .arg("--force")
+        .spawn()
+    {
+        Ok(handle) => match handle.wait_with_output() {
+            Ok(output) => {
+                if output.status.code().unwrap_or(1) == 0 {
+                    Log::info("wasm-pack installed successfully!");
+
+                    Ok(())
+                } else {
+                    Err(String::from_utf8_lossy(&output.stderr).to_string())
+                }
+            }
+            Err(err) => Err(format!("Unable to install wasm-pack. Reason: {:?}", err)),
+        },
+        Err(err) => Err(format!("Unable to install wasm-pack. Reason: {:?}", err)),
+    }
+}
+
+fn install_build_target(target: &str) -> Result<(), String> {
+    Log::info(format!("Trying to install {} build target...", target));
+
+    let mut process = std::process::Command::new("rustup");
+    match process
+        .stderr(Stdio::piped())
+        .arg("target")
+        .arg("add")
+        .arg(target)
+        .spawn()
+    {
+        Ok(handle) => match handle.wait_with_output() {
+            Ok(output) => {
+                if output.status.code().unwrap_or(1) == 0 {
+                    Log::info(format!("{} target installed successfully!", target));
+
+                    Ok(())
+                } else {
+                    Err(String::from_utf8_lossy(&output.stderr).to_string())
+                }
+            }
+            Err(err) => Err(format!(
+                "Unable to install {} target. Reason: {:?}",
+                target, err
+            )),
+        },
+        Err(err) => Err(format!(
+            "Unable to install {} target. Reason: {:?}",
+            target, err
+        )),
+    }
+}
+
+fn configure_build_environment(target_platform: TargetPlatform) -> Result<(), String> {
+    match target_platform {
+        TargetPlatform::PC => {
+            // Assume that rustup have installed the correct toolchain.
+            Ok(())
+        }
+        TargetPlatform::WebAssembly => {
+            // Check if the user have `wasm-pack` installed.
+            if is_wasm_pack_installed() {
+                Ok(())
+            } else {
+                install_wasm_pack()?;
+                install_build_target("wasm32-unknown-unknown")
+            }
+        }
+        TargetPlatform::Android => Err("Unimplemented!".to_string()),
+    }
+}
+
 fn build_package(
     package_name: &str,
     package_dir_path: &Utf8Path,
@@ -172,6 +263,8 @@ fn build_package(
     cancel_flag: Arc<AtomicBool>,
     destination_folder: &Path,
 ) -> Result<(), String> {
+    configure_build_environment(target_platform)?;
+
     let mut process = match target_platform {
         TargetPlatform::PC => {
             let mut process = std::process::Command::new("cargo");
@@ -306,7 +399,7 @@ fn export(
         TargetPlatform::Android => "executor-android",
     };
 
-    let Some(manifest_path) = package_manifest_path(&package_name, &metadata) else {
+    let Some(manifest_path) = package_manifest_path(package_name, &metadata) else {
         return Err(format!(
             "The project does not have `{}` package.",
             package_name
@@ -314,7 +407,7 @@ fn export(
     };
 
     build_package(
-        &package_name,
+        package_name,
         manifest_path.as_path().parent().unwrap(),
         target_platform,
         cancel_flag,
@@ -324,7 +417,7 @@ fn export(
     if let TargetPlatform::PC = target_platform {
         // TODO: This should be replaced with `--out-dir` flag to cargo when it is stabilized.
         Log::info("Trying to copy the executable...");
-        copy_binaries_pc(&metadata, &package_name, &destination_folder)?;
+        copy_binaries_pc(&metadata, package_name, &destination_folder)?;
     }
 
     Log::info("Trying to copy the assets...");
