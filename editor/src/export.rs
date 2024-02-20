@@ -85,15 +85,22 @@ pub struct ExportWindow {
     target_platform: TargetPlatform,
 }
 
-fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> io::Result<()> {
+fn copy_dir<F>(src: impl AsRef<Path>, dst: impl AsRef<Path>, filter: &F) -> io::Result<()>
+where
+    F: Fn(&Path) -> bool,
+{
     fs::create_dir_all(&dst)?;
     for entry in fs::read_dir(src)? {
         let entry = entry?;
         let ty = entry.file_type()?;
+        let path = entry.path();
+        if !filter(&path) {
+            continue;
+        }
         if ty.is_dir() {
-            copy_dir_all(entry.path(), dst.as_ref().join(entry.file_name()))?;
+            copy_dir(path, dst.as_ref().join(entry.file_name()), filter)?;
         } else {
-            let from = entry.path();
+            let from = path;
             let to = dst.as_ref().join(entry.file_name());
             fs::copy(&from, &to)?;
             Log::info(format!(
@@ -263,7 +270,6 @@ fn build_package(
     package_dir_path: &Utf8Path,
     target_platform: TargetPlatform,
     cancel_flag: Arc<AtomicBool>,
-    destination_folder: &Path,
 ) -> Result<(), String> {
     configure_build_environment(target_platform)?;
 
@@ -285,9 +291,7 @@ fn build_package(
                 .arg("build")
                 .arg(package_dir_path)
                 .arg("--target")
-                .arg("web")
-                .arg("--out-dir")
-                .arg(destination_folder);
+                .arg("web");
             process
         }
         TargetPlatform::Android => return Err("Unimplemented!".to_string()),
@@ -384,6 +388,26 @@ fn copy_binaries_pc(
     Ok(())
 }
 
+fn copy_binaries_wasm(package_dir_path: &Path, destination_folder: &Path) -> Result<(), String> {
+    copy_dir(package_dir_path, destination_folder, &|path: &Path| {
+        if path.is_file() {
+            if path.file_name() == Some(OsStr::new("Cargo.toml"))
+                || path.file_name() == Some(OsStr::new("README.md"))
+                || path.file_name() == Some(OsStr::new(".gitignore"))
+            {
+                return false;
+            }
+        } else if path.is_dir() {
+            if path.file_name() == Some(OsStr::new("src")) {
+                return false;
+            }
+        }
+
+        true
+    })
+    .map_err(|e| e.to_string())
+}
+
 fn export(
     destination_folder: PathBuf,
     assets_folders: Vec<PathBuf>,
@@ -408,18 +432,21 @@ fn export(
         ));
     };
 
-    build_package(
-        package_name,
-        manifest_path.as_path().parent().unwrap(),
-        target_platform,
-        cancel_flag,
-        &destination_folder,
-    )?;
+    let package_dir_path = manifest_path.as_path().parent().unwrap();
 
-    if let TargetPlatform::PC = target_platform {
-        // TODO: This should be replaced with `--out-dir` flag to cargo when it is stabilized.
-        Log::info("Trying to copy the executable...");
-        copy_binaries_pc(&metadata, package_name, &destination_folder)?;
+    build_package(package_name, package_dir_path, target_platform, cancel_flag)?;
+
+    match target_platform {
+        TargetPlatform::PC => {
+            // TODO: This should be replaced with `--out-dir` flag to cargo when it is stabilized.
+            Log::info("Trying to copy the executable...");
+            copy_binaries_pc(&metadata, package_name, &destination_folder)?;
+        }
+        TargetPlatform::WebAssembly => {
+            Log::info("Trying to copy the executable...");
+            copy_binaries_wasm(package_dir_path.as_std_path(), &destination_folder)?;
+        }
+        _ => {}
     }
 
     Log::info("Trying to copy the assets...");
@@ -432,7 +459,9 @@ fn export(
             destination_folder.display()
         ));
 
-        Log::verify(copy_dir_all(&folder, destination_folder.join(&folder)));
+        Log::verify(copy_dir(&folder, destination_folder.join(&folder), &|_| {
+            true
+        }));
     }
 
     Ok(())
@@ -486,7 +515,8 @@ impl ExportWindow {
                     .with_items(
                         TargetPlatform::VARIANTS
                             .iter()
-                            .map(|p| {
+                            .enumerate()
+                            .map(|(i, p)| {
                                 DecoratorBuilder::new(BorderBuilder::new(
                                     WidgetBuilder::new()
                                         .with_width(100.0)
@@ -505,7 +535,7 @@ impl ExportWindow {
                                                 .build(ctx),
                                         ),
                                 ))
-                                .with_selected(true)
+                                .with_selected(i == 0)
                                 .build(ctx)
                             })
                             .collect::<Vec<_>>(),
