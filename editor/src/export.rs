@@ -1,4 +1,7 @@
-use cargo_metadata::Metadata;
+use cargo_metadata::{
+    camino::{Utf8Path, Utf8PathBuf},
+    Metadata,
+};
 use fyrox::{
     core::{
         color::Color,
@@ -13,7 +16,7 @@ use fyrox::{
         decorator::DecoratorBuilder,
         formatted_text::WrapMode,
         grid::{Column, GridBuilder, Row},
-        list_view::ListViewBuilder,
+        list_view::{ListViewBuilder, ListViewMessage},
         message::{MessageDirection, UiMessage},
         path::{PathEditorBuilder, PathEditorMessage},
         scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
@@ -28,6 +31,7 @@ use fyrox::{
 };
 use std::{
     ffi::OsStr,
+    fmt::{Display, Formatter},
     fs,
     io::{self, BufRead, BufReader},
     path::{Path, PathBuf},
@@ -39,6 +43,29 @@ use std::{
     },
     time::Duration,
 };
+use strum::VariantNames;
+use strum_macros::EnumVariantNames;
+
+#[derive(Copy, Clone, EnumVariantNames)]
+enum TargetPlatform {
+    PC,
+    WebAssembly,
+    Android,
+}
+
+impl Display for TargetPlatform {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                TargetPlatform::PC => "PC",
+                TargetPlatform::WebAssembly => "WASM",
+                TargetPlatform::Android => "Android",
+            }
+        )
+    }
+}
 
 #[allow(dead_code)]
 pub struct ExportWindow {
@@ -54,6 +81,8 @@ pub struct ExportWindow {
     cancel_flag: Arc<AtomicBool>,
     log_message_receiver: Option<Receiver<LogMessage>>,
     build_result_receiver: Option<Receiver<Result<(), String>>>,
+    target_platform_list: Handle<UiNode>,
+    target_platform: TargetPlatform,
 }
 
 fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> io::Result<()> {
@@ -77,18 +106,14 @@ fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> io::Result<()> 
     Ok(())
 }
 
-fn has_binary_package(name: &str, metadata: &Metadata) -> bool {
+fn package_manifest_path(name: &str, metadata: &Metadata) -> Option<Utf8PathBuf> {
     for package in metadata.packages.iter() {
         if package.name == name {
-            for target in package.targets.iter() {
-                if target.is_bin() {
-                    return true;
-                }
-            }
+            return Some(package.manifest_path.clone());
         }
     }
 
-    false
+    None
 }
 
 fn read_metadata() -> Result<Metadata, String> {
@@ -140,17 +165,40 @@ fn prepare_build_dir(path: &Path) -> Result<(), String> {
     Ok(())
 }
 
-fn build_package(package_name: &str, cancel_flag: Arc<AtomicBool>) -> Result<(), String> {
-    // Build the game first.
-    let mut process = std::process::Command::new("cargo");
-    let mut handle = match process
-        .stderr(Stdio::piped())
-        .arg("build")
-        .arg("--package")
-        .arg(package_name)
-        .arg("--release")
-        .spawn()
-    {
+fn build_package(
+    package_name: &str,
+    package_dir_path: &Utf8Path,
+    target_platform: TargetPlatform,
+    cancel_flag: Arc<AtomicBool>,
+    destination_folder: &Path,
+) -> Result<(), String> {
+    let mut process = match target_platform {
+        TargetPlatform::PC => {
+            let mut process = std::process::Command::new("cargo");
+            process
+                .stderr(Stdio::piped())
+                .arg("build")
+                .arg("--package")
+                .arg(package_name)
+                .arg("--release");
+            process
+        }
+        TargetPlatform::WebAssembly => {
+            let mut process = std::process::Command::new("wasm-pack");
+            process
+                .stderr(Stdio::piped())
+                .arg("build")
+                .arg(package_dir_path)
+                .arg("--target")
+                .arg("web")
+                .arg("--out-dir")
+                .arg(destination_folder);
+            process
+        }
+        TargetPlatform::Android => return Err("Unimplemented!".to_string()),
+    };
+
+    let mut handle = match process.spawn() {
         Ok(handle) => handle,
         Err(err) => {
             return Err(format!("Failed to build the game. Reason: {:?}", err));
@@ -174,9 +222,8 @@ fn build_package(package_name: &str, cancel_flag: Arc<AtomicBool>) -> Result<(),
         match handle.try_wait() {
             Ok(status) => {
                 if let Some(status) = status {
-                    let err_code = 101;
-                    let code = status.code().unwrap_or(err_code);
-                    if code == err_code {
+                    let code = status.code().unwrap_or(1);
+                    if code != 0 {
                         return Err("Failed to build the game.".to_string());
                     } else {
                         Log::info("The game was built successfully.");
@@ -195,8 +242,7 @@ fn build_package(package_name: &str, cancel_flag: Arc<AtomicBool>) -> Result<(),
     Ok(())
 }
 
-// TODO: This should be replaced with `--out-dir` flag to cargo when it is stabilized.
-fn copy_binaries(
+fn copy_binaries_pc(
     metadata: &Metadata,
     package_name: &str,
     destination_folder: &Path,
@@ -247,25 +293,39 @@ fn export(
     destination_folder: PathBuf,
     assets_folders: Vec<PathBuf>,
     cancel_flag: Arc<AtomicBool>,
-    package_name: String,
+    target_platform: TargetPlatform,
 ) -> Result<(), String> {
     Log::info("Building the game...");
 
     prepare_build_dir(&destination_folder)?;
     let metadata = read_metadata()?;
 
-    if !has_binary_package(&package_name, &metadata) {
+    let package_name = match target_platform {
+        TargetPlatform::PC => "executor",
+        TargetPlatform::WebAssembly => "executor-wasm",
+        TargetPlatform::Android => "executor-android",
+    };
+
+    let Some(manifest_path) = package_manifest_path(&package_name, &metadata) else {
         return Err(format!(
             "The project does not have `{}` package.",
             package_name
         ));
+    };
+
+    build_package(
+        &package_name,
+        manifest_path.as_path().parent().unwrap(),
+        target_platform,
+        cancel_flag,
+        &destination_folder,
+    )?;
+
+    if let TargetPlatform::PC = target_platform {
+        // TODO: This should be replaced with `--out-dir` flag to cargo when it is stabilized.
+        Log::info("Trying to copy the executable...");
+        copy_binaries_pc(&metadata, &package_name, &destination_folder)?;
     }
-
-    build_package(&package_name, cancel_flag)?;
-
-    Log::info("Trying to copy the executable...");
-
-    copy_binaries(&metadata, &package_name, &destination_folder)?;
 
     Log::info("Trying to copy the assets...");
 
@@ -311,15 +371,14 @@ impl ExportWindow {
         let destination_path;
         let assets_folders;
         let log_scroll_viewer;
-
-        let supported_platforms = ["PC", "WASM\n(WIP)", "Android\n(WIP)"];
+        let target_platform_list;
 
         let platform_section = StackPanelBuilder::new(
             WidgetBuilder::new()
                 .on_row(1)
                 .with_child(make_title_text("Target Platform", 0, ctx))
-                .with_child(
-                    ListViewBuilder::new(
+                .with_child({
+                    target_platform_list = ListViewBuilder::new(
                         WidgetBuilder::new()
                             .with_margin(Thickness::uniform(2.0))
                             .with_height(60.0),
@@ -330,7 +389,7 @@ impl ExportWindow {
                             .build(ctx),
                     )
                     .with_items(
-                        supported_platforms
+                        TargetPlatform::VARIANTS
                             .iter()
                             .map(|p| {
                                 DecoratorBuilder::new(BorderBuilder::new(
@@ -355,8 +414,9 @@ impl ExportWindow {
                             })
                             .collect::<Vec<_>>(),
                     )
-                    .build(ctx),
-                ),
+                    .build(ctx);
+                    target_platform_list
+                }),
         )
         .build(ctx);
 
@@ -508,6 +568,8 @@ impl ExportWindow {
             cancel_flag: Arc::new(AtomicBool::new(false)),
             log_message_receiver: None,
             build_result_receiver: None,
+            target_platform_list,
+            target_platform: TargetPlatform::PC,
         }
     }
 
@@ -545,10 +607,6 @@ impl ExportWindow {
                 Log::add_listener(tx);
                 self.log_message_receiver = Some(rx);
 
-                let destination_folder = self.destination_folder.clone();
-                let assets_folders_list = self.assets_folders_list.clone();
-                let cancel_flag = self.cancel_flag.clone();
-
                 let (tx, rx) = mpsc::channel();
                 self.build_result_receiver = Some(rx);
 
@@ -560,6 +618,11 @@ impl ExportWindow {
 
                 self.clear_log(ui);
 
+                let destination_folder = self.destination_folder.clone();
+                let assets_folders_list = self.assets_folders_list.clone();
+                let cancel_flag = self.cancel_flag.clone();
+                let target_platform = self.target_platform;
+
                 Log::verify(
                     std::thread::Builder::new()
                         .name("ExportWorkerThread".to_string())
@@ -569,7 +632,7 @@ impl ExportWindow {
                                     destination_folder,
                                     assets_folders_list,
                                     cancel_flag,
-                                    "executor".to_string(),
+                                    target_platform,
                                 ))
                                 .expect("Channel must exist!")
                             })
@@ -585,6 +648,15 @@ impl ExportWindow {
         } else if let Some(PathEditorMessage::Path(path)) = message.data() {
             if message.destination() == self.destination_path {
                 self.destination_folder = path.clone();
+            }
+        } else if let Some(ListViewMessage::SelectionChanged(Some(index))) = message.data() {
+            if message.destination() == self.target_platform_list {
+                match *index {
+                    0 => self.target_platform = TargetPlatform::PC,
+                    1 => self.target_platform = TargetPlatform::WebAssembly,
+                    2 => self.target_platform = TargetPlatform::Android,
+                    _ => Log::err("Unhandled platform index!"),
+                }
             }
         }
     }
