@@ -744,7 +744,6 @@ fn build_all(
 
     let mut path_item = Handle::NONE;
 
-    dbg!(&dest_path);
     // Try to build tree only for given path.
     let mut full_path = PathBuf::new();
     for (i, component) in dest_path_components.iter().enumerate() {
