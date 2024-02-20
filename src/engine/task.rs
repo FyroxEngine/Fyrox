@@ -1,25 +1,32 @@
 //! Asynchronous task handler. See [`TaskPoolHandler`] for more info and usage examples.
 
-use crate::script::ScriptTrait;
 use crate::{
-    core::{pool::Handle, task::TaskPool, uuid::Uuid},
+    core::{
+        pool::Handle,
+        task::{AsyncTask, AsyncTaskResult, TaskPool},
+        uuid::Uuid,
+    },
     plugin::{Plugin, PluginContext},
     scene::{node::Node, Scene},
-    script::ScriptContext,
+    script::{ScriptContext, ScriptTrait},
 };
 use fxhash::FxHashMap;
-use std::{any::Any, future::Future, sync::Arc};
+use std::sync::Arc;
 
 pub(crate) type NodeTaskHandlerClosure = Box<
     dyn for<'a, 'b, 'c> Fn(
-        Box<dyn Any + Send>,
+        Box<dyn AsyncTaskResult>,
         &mut dyn ScriptTrait,
         &mut ScriptContext<'a, 'b, 'c>,
     ),
 >;
 
 pub(crate) type PluginTaskHandler = Box<
-    dyn for<'a, 'b> Fn(Box<dyn Any + Send>, &'a mut [Box<dyn Plugin>], &mut PluginContext<'a, 'b>),
+    dyn for<'a, 'b> Fn(
+        Box<dyn AsyncTaskResult>,
+        &'a mut [Box<dyn Plugin>],
+        &mut PluginContext<'a, 'b>,
+    ),
 >;
 
 pub(crate) struct NodeTaskHandler {
@@ -123,8 +130,8 @@ impl TaskPoolHandler {
     #[inline]
     pub fn spawn_plugin_task<F, T, P, C>(&mut self, future: F, on_complete: C)
     where
-        F: Future<Output = T> + Send + 'static,
-        T: Send + 'static,
+        F: AsyncTask<T>,
+        T: AsyncTaskResult,
         P: Plugin,
         for<'a, 'b> C: Fn(T, &mut P, &mut PluginContext<'a, 'b>) + 'static,
     {
@@ -136,8 +143,7 @@ impl TaskPoolHandler {
                     .iter_mut()
                     .find_map(|p| p.cast_mut::<P>())
                     .expect("Plugin must be present!");
-                let typed =
-                    Box::<dyn Any + Send>::downcast::<T>(result).expect("Types must match!");
+                let typed = result.downcast::<T>().expect("Types must match!");
                 on_complete(*typed, plugin, context)
             }),
         );
@@ -194,8 +200,8 @@ impl TaskPoolHandler {
         future: F,
         on_complete: C,
     ) where
-        F: Future<Output = T> + Send + 'static,
-        T: Send + 'static,
+        F: AsyncTask<T>,
+        T: AsyncTaskResult,
         for<'a, 'b, 'c> C: Fn(T, &mut S, &mut ScriptContext<'a, 'b, 'c>) + 'static,
         S: ScriptTrait,
     {
@@ -210,8 +216,7 @@ impl TaskPoolHandler {
                         .as_any_ref_mut()
                         .downcast_mut::<S>()
                         .expect("Types must match");
-                    let typed =
-                        Box::<dyn Any + Send>::downcast::<T>(result).expect("Types must match");
+                    let typed = result.downcast::<T>().expect("Types must match");
                     on_complete(*typed, script, context)
                 }),
             },

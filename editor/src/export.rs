@@ -177,29 +177,29 @@ fn is_wasm_pack_installed() -> bool {
     false
 }
 
-fn install_wasm_pack() -> Result<(), String> {
+fn cargo_install(crate_name: &str) -> Result<(), String> {
     Log::info("Trying to install wasm-pack...");
 
     let mut process = std::process::Command::new("cargo");
     match process
         .stderr(Stdio::piped())
         .arg("install")
-        .arg("wasm-pack")
+        .arg(crate_name)
         .spawn()
     {
         Ok(handle) => match handle.wait_with_output() {
             Ok(output) => {
                 if output.status.code().unwrap_or(1) == 0 {
-                    Log::info("wasm-pack installed successfully!");
+                    Log::info(format!("{crate_name} installed successfully!"));
 
                     Ok(())
                 } else {
                     Err(String::from_utf8_lossy(&output.stderr).to_string())
                 }
             }
-            Err(err) => Err(format!("Unable to install wasm-pack. Reason: {:?}", err)),
+            Err(err) => Err(format!("Unable to install {crate_name}. Reason: {:?}", err)),
         },
-        Err(err) => Err(format!("Unable to install wasm-pack. Reason: {:?}", err)),
+        Err(err) => Err(format!("Unable to install {crate_name}. Reason: {:?}", err)),
     }
 }
 
@@ -247,11 +247,14 @@ fn configure_build_environment(target_platform: TargetPlatform) -> Result<(), St
             if is_wasm_pack_installed() {
                 Ok(())
             } else {
-                install_wasm_pack()?;
+                cargo_install("wasm-pack")?;
                 install_build_target("wasm32-unknown-unknown")
             }
         }
-        TargetPlatform::Android => Err("Unimplemented!".to_string()),
+        TargetPlatform::Android => {
+            cargo_install("cargo-apk")?;
+            install_build_target("armv7-linux-androideabi")
+        }
     }
 }
 
@@ -502,6 +505,7 @@ impl ExportWindow {
                                                 .build(ctx),
                                         ),
                                 ))
+                                .with_selected(true)
                                 .build(ctx)
                             })
                             .collect::<Vec<_>>(),
