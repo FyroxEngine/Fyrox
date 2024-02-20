@@ -18,7 +18,7 @@ pub(crate) type NodeTaskHandlerClosure = Box<
         Box<dyn AsyncTaskResult>,
         &mut dyn ScriptTrait,
         &mut ScriptContext<'a, 'b, 'c>,
-    ),
+    ) -> Box<dyn AsyncTaskResult>,
 >;
 
 pub(crate) type PluginTaskHandler = Box<
@@ -202,7 +202,7 @@ impl TaskPoolHandler {
     ) where
         F: AsyncTask<T>,
         T: AsyncTaskResult,
-        for<'a, 'b, 'c> C: Fn(T, &mut S, &mut ScriptContext<'a, 'b, 'c>) + 'static,
+        for<'a, 'b, 'c> C: Fn(T, &mut S, &mut ScriptContext<'a, 'b, 'c>) -> Box<dyn AsyncTaskResult> + 'static,
         S: ScriptTrait,
     {
         let task_id = self.task_pool.spawn_with_result(future);
