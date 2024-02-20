@@ -544,6 +544,44 @@ impl Node {
         self.original_handle_in_resource = original_handle;
     }
 
+    /// Checks if all node's scrips were initialized
+    pub(crate) fn all_scripts_were_initialized(&self) -> bool {
+        if let Some(scripts) = &self.scripts {
+            if scripts.is_empty() {
+                return false;
+            }
+            let mut initialized = true;
+            for script in scripts.iter().flatten() {
+                if !script.initialized {
+                    initialized = false;
+                    break;
+                }
+            }
+            initialized
+        } else {
+            false
+        }
+    }
+
+    /// Checks if all node's scrips were started
+    pub(crate) fn all_scripts_were_started(&self) -> bool {
+        if let Some(scripts) = &self.scripts {
+            if scripts.is_empty() {
+                return false;
+            }
+            let mut started = true;
+            for script in scripts.iter().flatten() {
+                if !script.started {
+                    started = false;
+                    break;
+                }
+            }
+            started
+        } else {
+            false
+        }
+    }
+
     define_is_as!(Mesh => fn is_mesh, fn as_mesh, fn as_mesh_mut);
     define_is_as!(Pivot => fn is_pivot, fn as_pivot, fn as_pivot_mut);
     define_is_as!(Camera  => fn is_camera, fn as_camera, fn as_camera_mut);

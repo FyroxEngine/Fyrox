@@ -697,27 +697,23 @@ impl ScriptProcessor {
             let mut update_queue = VecDeque::new();
             let mut start_queue = VecDeque::new();
             for (handle, node) in scene.graph.pair_iter() {
-                let script = if let Some(scripts) = &node.scripts {
-                    scripts
-                } else {
+                if node.scripts.is_none() {
                     continue;
-                };
+                }
 
-                for script in script.iter().flatten() {
-                    if node.is_globally_enabled() {
-                        if script.initialized {
-                            if script.started {
-                                update_queue.push_back(handle);
-                            } else {
-                                start_queue.push_back(handle);
-                            }
+                if node.is_globally_enabled() {
+                    if node.all_scripts_were_initialized() {
+                        if node.all_scripts_were_started() {
+                            update_queue.push_back(handle);
                         } else {
-                            scene
-                                .graph
-                                .script_message_sender
-                                .send(NodeScriptMessage::InitializeScript { handle })
-                                .unwrap();
+                            start_queue.push_back(handle);
                         }
+                    } else {
+                        scene
+                            .graph
+                            .script_message_sender
+                            .send(NodeScriptMessage::InitializeScript { handle })
+                            .unwrap();
                     }
                 }
             }
@@ -757,10 +753,13 @@ impl ScriptProcessor {
                                         script.on_init(context);
                                         script.initialized = true;
                                     }
+                                });
 
+                                let node = &context.scene.graph[handle];
+                                if node.all_scripts_were_initialized() {
                                     // `on_start` must be called even if the script was initialized.
                                     start_queue.push_back(handle);
-                                });
+                                }
                             }
                             NodeScriptMessage::DestroyScript { handle, script } => {
                                 // Destruction is delayed to the end of the frame.
@@ -776,17 +775,21 @@ impl ScriptProcessor {
                         // Call `on_start` for every recently initialized node and go to next
                         // iteration of init loop. This is needed because `on_start` can spawn
                         // some other nodes that must be initialized before update.
-                        while let Some(node) = start_queue.pop_front() {
-                            context.handle = node;
+                        println!("{:?}", start_queue);
+                        while let Some(handle) = start_queue.pop_front() {
+                            context.handle = handle;
 
                             process_node(&mut context, &mut |script, context| {
                                 if !script.started {
                                     script.on_start(context);
                                     script.started = true;
-
-                                    update_queue.push_back(node);
                                 }
                             });
+
+                            let node = &context.scene.graph[handle];
+                            if node.all_scripts_were_initialized() {
+                                update_queue.push_back(handle);
+                            }
                         }
                     }
 
