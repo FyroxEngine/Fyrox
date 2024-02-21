@@ -766,7 +766,9 @@ impl ScriptProcessor {
                                     true
                                 };
 
-                                if script_initialized && node.all_secondary_scripts_were_initialized() {
+                                if script_initialized
+                                    && node.all_secondary_scripts_were_initialized()
+                                {
                                     // `on_start` must be called even if the script was initialized.
                                     start_queue.push_back(handle);
                                 }
@@ -1901,7 +1903,8 @@ impl Engine {
                         task_pool: &mut self.task_pool,
                     },
                 )
-            } else if let Some(node_task_handler) = self.task_pool.pop_node_task_handler(result.id) {
+            } else if let Some(node_task_handler) = self.task_pool.pop_node_task_handler(result.id)
+            {
                 // Handle script task.
                 if let Some(scripted_scene) = self
                     .script_processor
@@ -1910,9 +1913,7 @@ impl Engine {
                     .find(|e| e.handle == node_task_handler.scene_handle)
                 {
                     if let Some(scene) = self.scenes.try_get_mut(node_task_handler.scene_handle) {
-                        if let Some(node) =
-                            scene.graph.try_get_mut(node_task_handler.node_handle)
-                        {
+                        if let Some(node) = scene.graph.try_get_mut(node_task_handler.node_handle) {
                             let mut payload = result.payload;
 
                             if let Some(mut script) = node.script.take() {
