@@ -1,3 +1,4 @@
+use crate::{message::MessageSender, Message};
 use cargo_metadata::{
     camino::{Utf8Path, Utf8PathBuf},
     Metadata,
@@ -7,6 +8,7 @@ use fyrox::{
         color::Color,
         log::{Log, LogMessage, MessageKind},
         pool::Handle,
+        reflect::prelude::*,
     },
     graph::BaseSceneGraph,
     gui::{
@@ -16,9 +18,12 @@ use fyrox::{
         decorator::DecoratorBuilder,
         formatted_text::WrapMode,
         grid::{Column, GridBuilder, Row},
+        inspector::{
+            editors::PropertyEditorDefinitionContainer, Inspector, InspectorBuilder,
+            InspectorContext, InspectorMessage, PropertyAction,
+        },
         list_view::{ListViewBuilder, ListViewMessage},
         message::{MessageDirection, UiMessage},
-        path::{PathEditorBuilder, PathEditorMessage},
         scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
@@ -26,7 +31,7 @@ use fyrox::{
         window::{WindowBuilder, WindowMessage, WindowTitle},
         wrap_panel::WrapPanelBuilder,
         BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
-        VerticalAlignment, BRUSH_DARKER,
+        VerticalAlignment, BRUSH_DARKER, BRUSH_LIGHT,
     },
 };
 use std::{
@@ -46,8 +51,31 @@ use std::{
 use strum::VariantNames;
 use strum_macros::EnumVariantNames;
 
-#[derive(Copy, Clone, EnumVariantNames)]
+#[derive(Reflect, Debug, Clone)]
+struct ExportOptions {
+    #[reflect(hidden)]
+    target_platform: TargetPlatform,
+    destination_folder: PathBuf,
+    include_used_assets: bool,
+    assets_folders: Vec<PathBuf>,
+    ignored_extensions: Vec<String>,
+}
+
+impl Default for ExportOptions {
+    fn default() -> Self {
+        Self {
+            target_platform: Default::default(),
+            destination_folder: "./build/".into(),
+            assets_folders: vec!["./data/".into()],
+            include_used_assets: false,
+            ignored_extensions: vec!["log".to_string()],
+        }
+    }
+}
+
+#[derive(Copy, Clone, EnumVariantNames, Default, Debug)]
 enum TargetPlatform {
+    #[default]
     PC,
     WebAssembly,
     Android,
@@ -67,22 +95,18 @@ impl Display for TargetPlatform {
     }
 }
 
-#[allow(dead_code)]
 pub struct ExportWindow {
     pub window: Handle<UiNode>,
     log: Handle<UiNode>,
     export: Handle<UiNode>,
     cancel: Handle<UiNode>,
-    assets_folders: Handle<UiNode>,
-    assets_folders_list: Vec<PathBuf>,
-    destination_path: Handle<UiNode>,
     log_scroll_viewer: Handle<UiNode>,
-    destination_folder: PathBuf,
     cancel_flag: Arc<AtomicBool>,
     log_message_receiver: Option<Receiver<LogMessage>>,
     build_result_receiver: Option<Receiver<Result<(), String>>>,
     target_platform_list: Handle<UiNode>,
-    target_platform: TargetPlatform,
+    export_options: ExportOptions,
+    inspector: Handle<UiNode>,
 }
 
 fn copy_dir<F>(src: impl AsRef<Path>, dst: impl AsRef<Path>, filter: &F) -> io::Result<()>
@@ -408,18 +432,13 @@ fn copy_binaries_wasm(package_dir_path: &Path, destination_folder: &Path) -> Res
     .map_err(|e| e.to_string())
 }
 
-fn export(
-    destination_folder: PathBuf,
-    assets_folders: Vec<PathBuf>,
-    cancel_flag: Arc<AtomicBool>,
-    target_platform: TargetPlatform,
-) -> Result<(), String> {
+fn export(export_options: ExportOptions, cancel_flag: Arc<AtomicBool>) -> Result<(), String> {
     Log::info("Building the game...");
 
-    prepare_build_dir(&destination_folder)?;
+    prepare_build_dir(&export_options.destination_folder)?;
     let metadata = read_metadata()?;
 
-    let package_name = match target_platform {
+    let package_name = match export_options.target_platform {
         TargetPlatform::PC => "executor",
         TargetPlatform::WebAssembly => "executor-wasm",
         TargetPlatform::Android => "executor-android",
@@ -434,17 +453,25 @@ fn export(
 
     let package_dir_path = manifest_path.as_path().parent().unwrap();
 
-    build_package(package_name, package_dir_path, target_platform, cancel_flag)?;
+    build_package(
+        package_name,
+        package_dir_path,
+        export_options.target_platform,
+        cancel_flag,
+    )?;
 
-    match target_platform {
+    match export_options.target_platform {
         TargetPlatform::PC => {
             // TODO: This should be replaced with `--out-dir` flag to cargo when it is stabilized.
             Log::info("Trying to copy the executable...");
-            copy_binaries_pc(&metadata, package_name, &destination_folder)?;
+            copy_binaries_pc(&metadata, package_name, &export_options.destination_folder)?;
         }
         TargetPlatform::WebAssembly => {
             Log::info("Trying to copy the executable...");
-            copy_binaries_wasm(package_dir_path.as_std_path(), &destination_folder)?;
+            copy_binaries_wasm(
+                package_dir_path.as_std_path(),
+                &export_options.destination_folder,
+            )?;
         }
         _ => {}
     }
@@ -452,16 +479,18 @@ fn export(
     Log::info("Trying to copy the assets...");
 
     // Copy assets.
-    for folder in assets_folders {
+    for folder in export_options.assets_folders {
         Log::info(format!(
             "Trying to copy assets from {} to {}...",
             folder.display(),
-            destination_folder.display()
+            export_options.destination_folder.display()
         ));
 
-        Log::verify(copy_dir(&folder, destination_folder.join(&folder), &|_| {
-            true
-        }));
+        Log::verify(copy_dir(
+            &folder,
+            export_options.destination_folder.join(&folder),
+            &|_| true,
+        ));
     }
 
     Ok(())
@@ -486,14 +515,9 @@ impl ExportWindow {
             also specify the assets, that will be included in the final build. Previous content of \
             the build folder will be completely erased when you press Export.";
 
-        let destination_folder = PathBuf::from("./build/");
-        let assets_folders_list = vec![PathBuf::from("./data/")];
-
         let export;
         let cancel;
         let log;
-        let destination_path;
-        let assets_folders;
         let log_scroll_viewer;
         let target_platform_list;
 
@@ -546,45 +570,34 @@ impl ExportWindow {
         )
         .build(ctx);
 
-        let dest_path_section = StackPanelBuilder::new(
+        let export_options = ExportOptions::default();
+        let inspector;
+        let export_options_section = BorderBuilder::new(
             WidgetBuilder::new()
                 .on_row(2)
-                .with_child(make_title_text("Destination Folder", 0, ctx))
-                .with_child({
-                    destination_path = PathEditorBuilder::new(
+                .with_margin(Thickness::uniform(2.0))
+                .with_background(BRUSH_LIGHT)
+                .with_child(
+                    ScrollViewerBuilder::new(
                         WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),
                     )
-                    .with_path(&destination_folder)
-                    .build(ctx);
-                    destination_path
-                }),
-        )
-        .build(ctx);
+                    .with_content({
+                        let context = InspectorContext::from_object(
+                            &export_options,
+                            ctx,
+                            Arc::new(PropertyEditorDefinitionContainer::new()),
+                            None,
+                            1,
+                            0,
+                            true,
+                            Default::default(),
+                        );
 
-        let assets_section = StackPanelBuilder::new(
-            WidgetBuilder::new()
-                .on_row(3)
-                .with_child(make_title_text("Assets Folders", 0, ctx))
-                .with_child(
-                    BorderBuilder::new(
-                        WidgetBuilder::new()
-                            .with_background(BRUSH_DARKER)
-                            .with_child({
-                                let items = assets_folders_list
-                                    .iter()
-                                    .map(|e| {
-                                        TextBuilder::new(WidgetBuilder::new())
-                                            .with_text(e.to_string_lossy())
-                                            .build(ctx)
-                                    })
-                                    .collect::<Vec<_>>();
-                                assets_folders =
-                                    ListViewBuilder::new(WidgetBuilder::new().with_height(100.0))
-                                        .with_items(items)
-                                        .build(ctx);
-                                assets_folders
-                            }),
-                    )
+                        inspector = InspectorBuilder::new(WidgetBuilder::new())
+                            .with_context(context)
+                            .build(ctx);
+                        inspector
+                    })
                     .build(ctx),
                 ),
         )
@@ -592,7 +605,7 @@ impl ExportWindow {
 
         let log_section = GridBuilder::new(
             WidgetBuilder::new()
-                .on_row(4)
+                .on_row(3)
                 .with_child(make_title_text("Export Log", 0, ctx))
                 .with_child(
                     BorderBuilder::new(
@@ -622,7 +635,7 @@ impl ExportWindow {
 
         let buttons_section = StackPanelBuilder::new(
             WidgetBuilder::new()
-                .on_row(5)
+                .on_row(4)
                 .with_horizontal_alignment(HorizontalAlignment::Right)
                 .with_child({
                     export = ButtonBuilder::new(
@@ -664,15 +677,13 @@ impl ExportWindow {
                             .build(ctx),
                         )
                         .with_child(platform_section)
-                        .with_child(dest_path_section)
-                        .with_child(assets_section)
+                        .with_child(export_options_section)
                         .with_child(log_section)
                         .with_child(buttons_section),
                 )
                 .add_row(Row::auto())
                 .add_row(Row::auto())
-                .add_row(Row::strict(42.0))
-                .add_row(Row::auto())
+                .add_row(Row::strict(200.0))
                 .add_row(Row::stretch())
                 .add_row(Row::strict(32.0))
                 .add_column(Column::auto())
@@ -686,16 +697,13 @@ impl ExportWindow {
             log,
             export,
             cancel,
-            assets_folders,
             log_scroll_viewer,
-            assets_folders_list,
-            destination_path,
-            destination_folder,
             cancel_flag: Arc::new(AtomicBool::new(false)),
             log_message_receiver: None,
             build_result_receiver: None,
             target_platform_list,
-            target_platform: TargetPlatform::PC,
+            export_options,
+            inspector,
         }
     }
 
@@ -726,7 +734,12 @@ impl ExportWindow {
         }
     }
 
-    pub fn handle_ui_message(&mut self, message: &UiMessage, ui: &UserInterface) {
+    pub fn handle_ui_message(
+        &mut self,
+        message: &UiMessage,
+        ui: &UserInterface,
+        sender: &MessageSender,
+    ) {
         if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.export {
                 let (tx, rx) = mpsc::channel();
@@ -744,23 +757,16 @@ impl ExportWindow {
 
                 self.clear_log(ui);
 
-                let destination_folder = self.destination_folder.clone();
-                let assets_folders_list = self.assets_folders_list.clone();
                 let cancel_flag = self.cancel_flag.clone();
-                let target_platform = self.target_platform;
+                let export_options = self.export_options.clone();
 
                 Log::verify(
                     std::thread::Builder::new()
                         .name("ExportWorkerThread".to_string())
                         .spawn(move || {
                             if std::panic::catch_unwind(|| {
-                                tx.send(export(
-                                    destination_folder,
-                                    assets_folders_list,
-                                    cancel_flag,
-                                    target_platform,
-                                ))
-                                .expect("Channel must exist!")
+                                tx.send(export(export_options, cancel_flag))
+                                    .expect("Channel must exist!")
                             })
                             .is_err()
                             {
@@ -771,18 +777,42 @@ impl ExportWindow {
             } else if message.destination() == self.cancel {
                 self.close_and_destroy(ui);
             }
-        } else if let Some(PathEditorMessage::Path(path)) = message.data() {
-            if message.destination() == self.destination_path {
-                self.destination_folder = path.clone();
-            }
         } else if let Some(ListViewMessage::SelectionChanged(Some(index))) = message.data() {
             if message.destination() == self.target_platform_list {
                 match *index {
-                    0 => self.target_platform = TargetPlatform::PC,
-                    1 => self.target_platform = TargetPlatform::WebAssembly,
-                    2 => self.target_platform = TargetPlatform::Android,
+                    0 => self.export_options.target_platform = TargetPlatform::PC,
+                    1 => self.export_options.target_platform = TargetPlatform::WebAssembly,
+                    2 => self.export_options.target_platform = TargetPlatform::Android,
                     _ => Log::err("Unhandled platform index!"),
                 }
+            }
+        } else if let Some(InspectorMessage::PropertyChanged(args)) = message.data() {
+            if message.destination() == self.inspector
+                && message.direction() == MessageDirection::FromWidget
+            {
+                PropertyAction::from_field_kind(&args.value).apply(
+                    &args.path(),
+                    &mut self.export_options,
+                    &mut |result| {
+                        Log::verify(result);
+                    },
+                );
+                sender.send(Message::ForceSync);
+            }
+        }
+    }
+
+    pub fn sync_to_model(&self, ui: &mut UserInterface) {
+        let ctx = ui
+            .node(self.inspector)
+            .cast::<Inspector>()
+            .unwrap()
+            .context()
+            .clone();
+
+        if let Err(sync_errors) = ctx.sync(&self.export_options, ui, 0, true, Default::default()) {
+            for error in sync_errors {
+                Log::err(format!("Failed to sync property. Reason: {:?}", error))
             }
         }
     }

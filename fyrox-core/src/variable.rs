@@ -434,33 +434,29 @@ where
     ) -> Result<Option<Box<dyn Reflect>>, InheritError> {
         let mut result: Result<Option<Box<dyn Reflect>>, InheritError> = Ok(None);
 
-        // Cast directly to inner type, because any type that implements ReflectInheritableVariable,
-        // has delegating methods for almost every method of Reflect trait implementation.
-        parent.as_reflect(&mut |parent| {
-            parent.downcast_ref::<T>(&mut |downcasted| match downcasted {
-                Some(parent_value) => {
-                    if !self.is_modified() {
-                        let mut parent_value_clone = parent_value.clone();
+        match parent.inner_value_ref().as_any_raw().downcast_ref::<T>() {
+            Some(parent_value) => {
+                if !self.is_modified() {
+                    let mut parent_value_clone = parent_value.clone();
 
-                        mark_inheritable_properties_non_modified(
-                            &mut parent_value_clone,
-                            ignored_types,
-                        );
+                    mark_inheritable_properties_non_modified(
+                        &mut parent_value_clone,
+                        ignored_types,
+                    );
 
-                        result = Ok(Some(Box::new(std::mem::replace(
-                            &mut self.value,
-                            parent_value_clone,
-                        ))));
-                    }
+                    result = Ok(Some(Box::new(std::mem::replace(
+                        &mut self.value,
+                        parent_value_clone,
+                    ))));
                 }
-                None => {
-                    result = Err(InheritError::TypesMismatch {
-                        left_type: std::any::type_name::<T>(),
-                        right_type: parent.type_name(),
-                    });
-                }
-            });
-        });
+            }
+            None => {
+                result = Err(InheritError::TypesMismatch {
+                    left_type: self.inner_value_ref().type_name(),
+                    right_type: parent.inner_value_ref().type_name(),
+                });
+            }
+        }
 
         result
     }
@@ -688,6 +684,7 @@ pub fn mark_inheritable_properties_modified(object: &mut dyn Reflect, ignored_ty
 
 #[cfg(test)]
 mod test {
+    use std::cell::RefCell;
     use std::{cell::Cell, ops::DerefMut};
 
     use crate::{
@@ -1090,5 +1087,16 @@ mod test {
         v.set_flags(VariableFlags::NEED_SYNC);
 
         assert_eq!(v.flags(), VariableFlags::NEED_SYNC);
+    }
+
+    #[test]
+    fn inheritable_variable_ref_cell() {
+        let v = InheritableVariable::new_modified(RefCell::new(123u32));
+        assert_eq!(
+            v.inner_value_ref()
+                .as_any_raw()
+                .downcast_ref::<RefCell<u32>>(),
+            Some(&RefCell::new(123u32))
+        );
     }
 }

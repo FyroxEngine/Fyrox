@@ -1172,7 +1172,7 @@ impl Editor {
             &self.mode,
         );
         if let Some(export_window) = self.export_window.as_mut() {
-            export_window.handle_ui_message(message, &engine.user_interface);
+            export_window.handle_ui_message(message, &engine.user_interface, &self.message_sender);
         }
 
         let current_scene_entry = self.scenes.current_scene_entry_mut();
@@ -1506,6 +1506,9 @@ impl Editor {
         );
 
         self.scene_viewer.sync_to_model(&self.scenes, engine);
+        if let Some(exporter) = self.export_window.as_ref() {
+            exporter.sync_to_model(&mut engine.user_interface);
+        }
 
         if let Some(current_scene_entry) = self.scenes.current_scene_entry_mut() {
             self.command_stack_viewer.sync_to_model(

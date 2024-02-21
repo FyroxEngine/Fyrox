@@ -30,8 +30,7 @@ use fyrox::{
     gui::inspector::editors::{
         bit::BitFieldPropertyEditorDefinition, collection::VecCollectionPropertyEditorDefinition,
         enumeration::EnumPropertyEditorDefinition, inherit::InheritablePropertyEditorDefinition,
-        inspectable::InspectablePropertyEditorDefinition, path::PathPropertyEditorDefinition,
-        PropertyEditorDefinitionContainer,
+        inspectable::InspectablePropertyEditorDefinition, PropertyEditorDefinitionContainer,
     },
     gui::UserInterface,
     material::{
@@ -459,8 +458,6 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
 
     container.register_inheritable_inspectable::<Limb>();
     container.insert(VecCollectionPropertyEditorDefinition::<Limb>::new());
-
-    container.insert(PathPropertyEditorDefinition);
 
     container
 }

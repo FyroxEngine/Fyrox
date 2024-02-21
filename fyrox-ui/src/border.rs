@@ -88,6 +88,10 @@ pub struct Border {
     /// Corner radius.
     #[visit(optional)]
     pub corner_radius: InheritableVariable<f32>,
+    /// Enables or disables padding the children nodes by corner radius. If disabled, then the
+    /// children nodes layout won't be affected by the corner radius.
+    #[visit(optional)]
+    pub pad_by_corner_radius: InheritableVariable<bool>,
 }
 
 crate::define_widget_deref!(Border);
@@ -99,6 +103,9 @@ pub enum BorderMessage {
     StrokeThickness(Thickness),
     /// Allows you to set corner radius at runtime. See [`Self::corner_radius`] docs for more.
     CornerRadius(f32),
+    /// Allows you to enable or disable padding the children nodes by corner radius. See
+    /// [`Self::pad_by_corner_radius`] docs for more.
+    PadByCornerRadius(bool),
 }
 
 impl BorderMessage {
@@ -111,6 +118,10 @@ impl BorderMessage {
         /// Creates a new [Self::CornerRadius] message.
         BorderMessage:CornerRadius => fn corner_radius(f32), layout: false
     );
+    define_constructor!(
+        /// Creates a new [Self::PadByCornerRadius] message.
+        BorderMessage:PadByCornerRadius => fn pad_by_corner_radius(bool), layout: false
+    );
 }
 
 fn corner_offset(radius: f32) -> f32 {
@@ -121,7 +132,11 @@ impl Control for Border {
     fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         scope_profile!();
 
-        let corner_offset = corner_offset(*self.corner_radius);
+        let corner_offset = if *self.pad_by_corner_radius {
+            corner_offset(*self.corner_radius)
+        } else {
+            0.0
+        };
         let double_corner_offset = 2.0 * corner_offset;
 
         let margin_x =
@@ -153,7 +168,11 @@ impl Control for Border {
     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
         scope_profile!();
 
-        let corner_offset = corner_offset(*self.corner_radius);
+        let corner_offset = if *self.pad_by_corner_radius {
+            corner_offset(*self.corner_radius)
+        } else {
+            0.0
+        };
         let double_corner_offset = 2.0 * corner_offset;
 
         let rect_for_child = Rect::new(
@@ -243,6 +262,13 @@ impl Control for Border {
                             self.invalidate_layout();
                         }
                     }
+                    BorderMessage::PadByCornerRadius(pad) => {
+                        if *pad != *self.pad_by_corner_radius {
+                            self.pad_by_corner_radius.set_value_and_mark_modified(*pad);
+                            ui.send_message(message.reverse());
+                            self.invalidate_layout();
+                        }
+                    }
                 }
             }
         }
@@ -257,6 +283,9 @@ pub struct BorderBuilder {
     pub stroke_thickness: Thickness,
     /// Radius at each of four corners of the border. Default is zero.
     pub corner_radius: f32,
+    /// Enables or disables padding the children nodes by corner radius. If disabled, then the
+    /// children nodes layout won't be affected by the corner radius. Default is `true`.
+    pub pad_by_corner_radius: bool,
 }
 
 impl BorderBuilder {
@@ -266,6 +295,7 @@ impl BorderBuilder {
             widget_builder,
             stroke_thickness: Thickness::uniform(1.0),
             corner_radius: 0.0,
+            pad_by_corner_radius: true,
         }
     }
 
@@ -281,6 +311,12 @@ impl BorderBuilder {
         self
     }
 
+    /// Enables or disables padding the children nodes by corner radius.
+    pub fn with_pad_by_corner_radius(mut self, pad: bool) -> Self {
+        self.pad_by_corner_radius = pad;
+        self
+    }
+
     /// Creates a [`Border`] widget, but does not add it to the user interface. Also see [`Self::build`] docs.
     pub fn build_border(mut self) -> Border {
         if self.widget_builder.foreground.is_none() {
@@ -290,6 +326,7 @@ impl BorderBuilder {
             widget: self.widget_builder.build(),
             stroke_thickness: self.stroke_thickness.into(),
             corner_radius: self.corner_radius.into(),
+            pad_by_corner_radius: self.pad_by_corner_radius.into(),
         }
     }
 

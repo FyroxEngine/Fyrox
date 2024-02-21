@@ -1,3 +1,4 @@
+use crate::inspector::editors::path::PathPropertyEditorDefinition;
 use crate::{
     absm::{EventAction, EventKind},
     bit::BitField,
@@ -79,6 +80,7 @@ use crate::{
 };
 use fxhash::FxHashMap;
 use fyrox_animation::machine::Parameter;
+use std::path::PathBuf;
 use std::{any::TypeId, cell::RefCell, fmt::Debug, ops::Range, str::FromStr, sync::Arc};
 use strum::VariantNames;
 
@@ -228,9 +230,10 @@ impl PropertyEditorDefinitionContainer {
         container.insert(InheritablePropertyEditorDefinition::<bool>::new());
         container.insert(BoolPropertyEditorDefinition);
 
-        // String + InheritableVariable<String>
+        // String
         container.insert(StringPropertyEditorDefinition);
         container.insert(InheritablePropertyEditorDefinition::<String>::new());
+        container.insert(VecCollectionPropertyEditorDefinition::<String>::new());
 
         // NumericType + InheritableVariable<NumericType>
         reg_property_editor! { container, NumericPropertyEditorDefinition: default, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize }
@@ -283,6 +286,10 @@ impl PropertyEditorDefinitionContainer {
             Option<f64>, Option<f32>, Option<i64>, Option<u64>, Option<i32>, Option<u32>,
             Option<i16>, Option<u16>, Option<i8>, Option<u8>, Option<usize>, Option<isize>
         }
+
+        // Path
+        container.insert(PathPropertyEditorDefinition);
+        container.insert(VecCollectionPropertyEditorDefinition::<PathBuf>::new());
 
         // Color + InheritableVariable<Color>
         container.insert(ColorPropertyEditorDefinition);
