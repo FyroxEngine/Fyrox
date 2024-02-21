@@ -18,7 +18,7 @@ pub(crate) type NodeTaskHandlerClosure = Box<
         Box<dyn AsyncTaskResult>,
         &mut dyn ScriptTrait,
         &mut ScriptContext<'a, 'b, 'c>,
-    ) -> Box<dyn AsyncTaskResult>
+    ) -> Box<dyn AsyncTaskResult>,
 >;
 
 pub(crate) type PluginTaskHandler = Box<
