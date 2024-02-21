@@ -892,7 +892,7 @@ impl ScriptProcessor {
                         };
 
                     if let Some(scripts) = &mut scripts {
-                        for script in scripts.iter_mut().flatten() {
+                        for script in scripts.iter_mut().map(|i| i.0.as_mut()).flatten() {
                             // A script could not be initialized in case if we added a scene, and then immediately
                             // removed it. Calling `on_deinit` in this case would be a violation of API contract.
                             if script.initialized {
@@ -1057,7 +1057,7 @@ macro_rules! define_process_node {
 
                     // Put the script back to the node. We must do a checked borrow, because it is possible
                     // that the node is already destroyed by script logic.
-                    *vec_script = Some(script);
+                    *vec_script = crate::scene::base::ScriptWrapper(Some(script));
                 }
             }
 

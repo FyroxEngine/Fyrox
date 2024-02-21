@@ -221,19 +221,21 @@ impl ScriptPropertyEditorBuilder {
         definition_container: Arc<PropertyEditorDefinitionContainer>,
         ctx: &mut BuildContext,
     ) -> Handle<UiNode> {
-        let context = InspectorContext::from_object(
-            script,
-            ctx,
-            definition_container,
-            environment,
-            sync_flag,
-            layer_index,
-            generate_property_string_values,
-            filter,
-        );
+        let context = script.as_ref().map(|script| {
+            InspectorContext::from_object(
+                script,
+                ctx,
+                definition_container,
+                environment,
+                sync_flag,
+                layer_index,
+                generate_property_string_values,
+                filter,
+            )
+        });
 
         let inspector = InspectorBuilder::new(WidgetBuilder::new())
-            .with_context(context)
+            .with_opt_context(context)
             .build(ctx);
 
         ctx.add_node(UiNode::new(ScriptPropertyEditor {

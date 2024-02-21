@@ -18,9 +18,10 @@ use crate::{
     scene::{node::Node, transform::Transform},
     script::{Script, ScriptTrait},
 };
-use fyrox_core::uuid_provider;
+use fyrox_core::{combine_uuids, uuid, uuid_provider, TypeUuidProvider};
 use fyrox_graph::BaseSceneGraph;
 use serde::{Deserialize, Serialize};
+use std::ops::{Deref, DerefMut};
 use std::{any::Any, cell::Cell, sync::mpsc::Sender};
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
@@ -292,6 +293,29 @@ impl Visit for SceneNodeId {
     }
 }
 
+#[derive(Clone, Reflect, Debug, Default)]
+pub struct ScriptWrapper(pub Option<Script>);
+
+impl Deref for ScriptWrapper {
+    type Target = Option<Script>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for ScriptWrapper {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl TypeUuidProvider for ScriptWrapper {
+    fn type_uuid() -> Uuid {
+        uuid::uuid!("51bc577b-5a50-4a97-9b31-eda2f3d46c9d")
+    }
+}
+
 /// Base scene graph node is a simplest possible node, it is used to build more complex ones using composition.
 /// It contains all fundamental properties for each scene graph nodes, like local and global transforms, name,
 /// lifetime, etc. Base node is a building block for all complex node hierarchies - it contains list of children
@@ -407,7 +431,7 @@ pub struct Base {
     // WARNING: Setting a new script via reflection will break normal script destruction process!
     // Use it at your own risk only when you're completely sure what you are doing.
     #[reflect(setter = "set_script_internal")]
-    pub(crate) scripts: Option<Vec<Option<Script>>>,
+    pub(crate) scripts: Option<Vec<ScriptWrapper>>,
 
     enabled: InheritableVariable<bool>,
 
@@ -780,7 +804,7 @@ impl Base {
             self.remove_script(index);
 
             if index < scripts.len() {
-                scripts[index] = script;
+                scripts[index] = ScriptWrapper(script);
             }
 
             if let Some(sender) = self.script_message_sender.as_ref() {
@@ -799,7 +823,7 @@ impl Base {
     #[inline]
     pub fn add_script(&mut self, script: Script) {
         if let Some(scripts) = &mut self.scripts {
-            scripts.push(Some(script));
+            scripts.push(ScriptWrapper(Some(script)));
             if let Some(sender) = self.script_message_sender.as_ref() {
                 Log::verify(sender.send(NodeScriptMessage::InitializeScript {
                     handle: self.self_handle,
@@ -940,7 +964,7 @@ impl Base {
     pub fn script_cloned(&self, index: usize) -> Option<Script> {
         if let Some(scripts) = &self.scripts {
             if let Some(script) = scripts.get(index) {
-                script.clone()
+                script.clone().0
             } else {
                 None
             }
@@ -953,7 +977,7 @@ impl Base {
     #[inline]
     pub fn script_inner(&mut self, index: usize) -> Option<&mut Option<Script>> {
         if let Some(scripts) = &mut self.scripts {
-            scripts.get_mut(index)
+            scripts.get_mut(index).map(|i| &mut i.0)
         } else {
             None
         }
@@ -1118,7 +1142,7 @@ impl Visit for Base {
                         Log::err(format!("Unable to visit script. Reason: {:?}", e))
                     }
                 } else {
-                    script_buffer.push(script);
+                    script_buffer.push(ScriptWrapper(script));
                 }
             }
 
@@ -1156,7 +1180,7 @@ pub struct BaseBuilder {
     tag: String,
     frustum_culling: bool,
     cast_shadows: bool,
-    scripts: Option<Vec<Option<Script>>>,
+    scripts: Option<Vec<ScriptWrapper>>,
     instance_id: SceneNodeId,
     enabled: bool,
 }
@@ -1291,7 +1315,7 @@ impl BaseBuilder {
     #[inline]
     pub fn with_script(mut self, script: Script) -> Self {
         if let Some(scripts) = &mut self.scripts {
-            scripts.push(Some(script));
+            scripts.push(ScriptWrapper(Some(script)));
         }
         self
     }

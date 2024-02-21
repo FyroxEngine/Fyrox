@@ -551,7 +551,7 @@ impl Node {
                 return false;
             }
             let mut initialized = true;
-            for script in scripts.iter().flatten() {
+            for script in scripts.iter().map(|i| i.0.as_ref()).flatten() {
                 if !script.initialized {
                     initialized = false;
                     break;
@@ -570,7 +570,7 @@ impl Node {
                 return false;
             }
             let mut started = true;
-            for script in scripts.iter().flatten() {
+            for script in scripts.iter().map(|i| i.0.as_ref()).flatten() {
                 if !script.started {
                     started = false;
                     break;
