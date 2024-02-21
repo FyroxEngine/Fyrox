@@ -141,6 +141,21 @@ impl<'a, 'b> PartialEq<Self> for FieldInfo<'a, 'b> {
     }
 }
 
+pub trait ReflectBase: Any + Debug {
+    fn as_any_raw(&self) -> &dyn Any;
+    fn as_any_raw_mut(&mut self) -> &mut dyn Any;
+}
+
+impl<T: Reflect> ReflectBase for T {
+    fn as_any_raw(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_raw_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+}
+
 /// Trait for runtime reflection
 ///
 /// Derive macro is available.
@@ -160,7 +175,7 @@ impl<'a, 'b> PartialEq<Self> for FieldInfo<'a, 'b> {
 /// to string. `Display` isn't used here, because it can't be derived and it is very tedious to implement it
 /// for every type that should support `Reflect` trait. It is a good compromise between development speed
 /// and the quality of the string output.
-pub trait Reflect: Any + Debug {
+pub trait Reflect: ReflectBase {
     fn source_path() -> &'static str
     where
         Self: Sized;
