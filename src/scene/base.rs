@@ -18,7 +18,7 @@ use crate::{
     scene::{node::Node, transform::Transform},
     script::{Script, ScriptTrait},
 };
-use fyrox_core::{combine_uuids, uuid, uuid_provider, TypeUuidProvider};
+use fyrox_core::{uuid, uuid_provider, TypeUuidProvider};
 use fyrox_graph::BaseSceneGraph;
 use serde::{Deserialize, Serialize};
 use std::ops::{Deref, DerefMut};
@@ -424,14 +424,23 @@ pub struct Base {
     #[reflect(hidden)]
     pub(crate) instance_id: SceneNodeId,
 
-    // Current script of the scene node.
+    // The primary script of the scene node.
     //
     // # Important notes
     //
     // WARNING: Setting a new script via reflection will break normal script destruction process!
     // Use it at your own risk only when you're completely sure what you are doing.
     #[reflect(setter = "set_script_internal")]
-    pub(crate) scripts: Option<Vec<ScriptWrapper>>,
+    pub(crate) script: Option<Script>,
+
+    // Secondary scripts of the scene node.
+    //
+    // # Important notes
+    //
+    // WARNING: Setting a new script via reflection will break normal script destruction process!
+    // Use it at your own risk only when you're completely sure what you are doing.
+    #[reflect(setter = "set_secondary_scripts_internal")]
+    pub(crate) secondary_scripts: Vec<ScriptWrapper>,
 
     enabled: InheritableVariable<bool>,
 
@@ -441,7 +450,8 @@ pub struct Base {
 
 impl Drop for Base {
     fn drop(&mut self) {
-        self.remove_all_scripts();
+        self.remove_script();
+        self.remove_secondary_scripts();
     }
 }
 
@@ -751,46 +761,62 @@ impl Base {
         self.instance_id
     }
 
-    fn remove_script(&mut self, index: usize) {
-        if let Some(scripts) = &mut self.scripts {
-            // Send script to the graph to destroy script instances correctly.
-            if let Some(script) = scripts.get_mut(index) {
-                if let Some(script) = script.take() {
-                    if let Some(sender) = self.script_message_sender.as_ref() {
-                        Log::verify(sender.send(NodeScriptMessage::DestroyScript {
-                            script,
-                            handle: self.self_handle,
-                        }));
-                    } else {
-                        Log::warn(format!(
-                            "There is a script instance on a node {}, but no message sender. \
+    /// Removes the scene node script
+    fn remove_script(&mut self) {
+        // Send script to the graph to destroy script instances correctly.
+        if let Some(script) = self.script.take() {
+            if let Some(sender) = self.script_message_sender.as_ref() {
+                Log::verify(sender.send(NodeScriptMessage::DestroyScript {
+                    script,
+                    handle: self.self_handle,
+                }));
+            } else {
+                Log::warn(format!(
+                    "There is a script instance on a node {}, but no message sender. \
                     The script won't be correctly destroyed!",
-                            self.name(),
-                        ));
-                    }
+                    self.name(),
+                ))
+            }
+        }
+    }
+
+    /// Removes a secondary script from scene node by index
+    fn remove_secondary_script(&mut self, index: usize) {
+        // Send script to the graph to destroy script instances correctly.
+        if let Some(script) = self.secondary_scripts.get_mut(index) {
+            if let Some(script) = script.take() {
+                if let Some(sender) = self.script_message_sender.as_ref() {
+                    Log::verify(sender.send(NodeScriptMessage::DestroyScript {
+                        script,
+                        handle: self.self_handle,
+                    }));
+                } else {
+                    Log::warn(format!(
+                        "There is a script instance on a node {}, but no message sender. \
+                    The script won't be correctly destroyed!",
+                        self.name(),
+                    ));
                 }
             }
         }
     }
 
-    /// Removes all assigned scripts from scene node
-    fn remove_all_scripts(&mut self) {
-        if let Some(scripts) = &mut self.scripts {
-            for script in scripts.iter_mut() {
-                // Send script to the graph to destroy script instances correctly.
-                if let Some(script) = script.take() {
-                    if let Some(sender) = self.script_message_sender.as_ref() {
-                        Log::verify(sender.send(NodeScriptMessage::DestroyScript {
-                            script,
-                            handle: self.self_handle,
-                        }));
-                    } else {
-                        Log::warn(format!(
-                            "There is a script instance on a node {}, but no message sender. \
+    /// Removes all assigned secondary scripts from scene node
+    fn remove_secondary_scripts(&mut self) {
+        for script in self.secondary_scripts.iter_mut() {
+            // Send script to the graph to destroy script instances correctly.
+            if let Some(script) = script.take() {
+                if let Some(sender) = self.script_message_sender.as_ref() {
+                    Log::verify(sender.send(NodeScriptMessage::DestroyScript {
+                        script,
+                        handle: self.self_handle,
+                    }));
+                } else {
+                    Log::warn(format!(
+                        "There is a script instance on a node {}, but no message sender. \
                             The script won't be correctly destroyed!",
-                            self.name.as_str()
-                        ));
-                    }
+                        self.name.as_str()
+                    ));
                 }
             }
         }
@@ -798,33 +824,11 @@ impl Base {
 
     /// Sets new script for the scene node.
     #[inline]
-    pub fn set_script(&mut self, index: usize, script: Option<Script>) {
-        let scripts = self.scripts.take();
-        if let Some(mut scripts) = scripts {
-            self.remove_script(index);
-
-            if index < scripts.len() {
-                scripts[index] = ScriptWrapper(script);
-            }
-
-            if let Some(sender) = self.script_message_sender.as_ref() {
-                if scripts[index].is_some() {
-                    Log::verify(sender.send(NodeScriptMessage::InitializeScript {
-                        handle: self.self_handle,
-                    }));
-                }
-            }
-
-            self.scripts.replace(scripts);
-        }
-    }
-
-    /// Adds a new script to the scene node.
-    #[inline]
-    pub fn add_script(&mut self, script: Script) {
-        if let Some(scripts) = &mut self.scripts {
-            scripts.push(ScriptWrapper(Some(script)));
-            if let Some(sender) = self.script_message_sender.as_ref() {
+    pub fn set_script(&mut self, script: Option<Script>) {
+        self.remove_script();
+        self.script = script;
+        if let Some(sender) = self.script_message_sender.as_ref() {
+            if self.script.is_some() {
                 Log::verify(sender.send(NodeScriptMessage::InitializeScript {
                     handle: self.self_handle,
                 }));
@@ -832,13 +836,43 @@ impl Base {
         }
     }
 
-    fn set_script_internal(&mut self, (index, script): (usize, Option<Script>)) -> Option<Script> {
-        if let Some(scripts) = &mut self.scripts {
-            if let Some(vec_script) = scripts.get_mut(index) {
-                std::mem::replace(vec_script, script)
-            } else {
-                None
+    /// Sets a new secondary script for the scene node by index
+    #[inline]
+    pub fn set_secondary_script(&mut self, index: usize, script: Option<Script>) {
+        self.remove_secondary_script(index);
+        if index < self.secondary_scripts.len() {
+            self.secondary_scripts[index] = ScriptWrapper(script);
+        }
+        if let Some(sender) = self.script_message_sender.as_ref() {
+            if self.secondary_scripts[index].is_some() {
+                Log::verify(sender.send(NodeScriptMessage::InitializeScript {
+                    handle: self.self_handle,
+                }));
             }
+        }
+    }
+
+    /// Adds a new secondary script to the scene node.
+    #[inline]
+    pub fn add_secondary_script(&mut self, script: Script) {
+        self.secondary_scripts.push(ScriptWrapper(Some(script)));
+        if let Some(sender) = self.script_message_sender.as_ref() {
+            Log::verify(sender.send(NodeScriptMessage::InitializeScript {
+                handle: self.self_handle,
+            }));
+        }
+    }
+
+    fn set_script_internal(&mut self, script: Option<Script>) -> Option<Script> {
+        std::mem::replace(&mut self.script, script)
+    }
+
+    fn set_secondary_scripts_internal(
+        &mut self,
+        (index, script): (usize, Option<Script>),
+    ) -> Option<Script> {
+        if let Some(vec_script) = self.secondary_scripts.get_mut(index) {
+            std::mem::replace(vec_script, script)
         } else {
             None
         }
@@ -847,30 +881,36 @@ impl Base {
     /// Checks if the node has a script of a particular type. Returns `false` if there is no script
     /// at all, or if the script is not of a given type.
     #[inline]
-    pub fn has_script<T: ScriptTrait>(&self, index: usize) -> bool {
-        self.try_get_script::<T>(index).is_some()
+    pub fn has_script<T: ScriptTrait>(&self) -> bool {
+        self.try_get_script::<T>().is_some()
     }
 
-    /// Checks if the node has any scripts assigned
+    /// Checks if the node has a secondary script of a particular type. Returns `false` if there is no script
+    /// at all, or if the script is not of a given type.
     #[inline]
-    pub fn has_scripts_assigned(&self) -> bool {
-        if let Some(scripts) = &self.scripts {
-            scripts.iter().any(|script| script.is_some())
-        } else {
-            false
-        }
+    pub fn has_secondary_script<T: ScriptTrait>(&self, index: usize) -> bool {
+        self.try_get_secondary_script::<T>(index).is_some()
+    }
+
+    /// Checks if the node has any secondary scripts assigned
+    #[inline]
+    pub fn has_secondary_scripts_assigned(&self) -> bool {
+        self.secondary_scripts.iter().any(|script| script.is_some())
     }
 
     /// Tries to cast current script instance (if any) to given type and returns a shared reference
     /// to it on successful cast.
     #[inline]
-    pub fn try_get_script<T: ScriptTrait>(&self, index: usize) -> Option<&T> {
-        if let Some(scripts) = &self.scripts {
-            if let Some(script) = scripts.get(index) {
-                script.as_ref().and_then(|s| s.cast::<T>())
-            } else {
-                None
-            }
+    pub fn try_get_script<T: ScriptTrait>(&self) -> Option<&T> {
+        self.script.as_ref().and_then(|s| s.cast::<T>())
+    }
+
+    /// Tries to cast current script instance (if any) to given type and returns a shared reference
+    /// to it on successful cast.
+    #[inline]
+    pub fn try_get_secondary_script<T: ScriptTrait>(&self, index: usize) -> Option<&T> {
+        if let Some(script) = self.secondary_scripts.get(index) {
+            script.as_ref().and_then(|s| s.cast::<T>())
         } else {
             None
         }
@@ -878,16 +918,23 @@ impl Base {
 
     /// Tries to fetch a reference to a component of the given type from the script of the node.
     #[inline]
-    pub fn try_get_script_component<C>(&self, index: usize) -> Option<&C>
+    pub fn try_get_script_component<C>(&self) -> Option<&C>
     where
         C: Any,
     {
-        if let Some(scripts) = &self.scripts {
-            if let Some(script) = scripts.get(index) {
-                script.as_ref().and_then(|s| s.query_component_ref::<C>())
-            } else {
-                None
-            }
+        self.script
+            .as_ref()
+            .and_then(|s| s.query_component_ref::<C>())
+    }
+
+    /// Tries to fetch a reference to a component of the given type from the secondary script of the node.
+    #[inline]
+    pub fn try_get_secondary_script_component<C>(&self, index: usize) -> Option<&C>
+    where
+        C: Any,
+    {
+        if let Some(script) = self.secondary_scripts.get(index) {
+            script.as_ref().and_then(|s| s.query_component_ref::<C>())
         } else {
             None
         }
@@ -895,16 +942,23 @@ impl Base {
 
     /// Tries to fetch a reference to a component of the given type from the script of the node.
     #[inline]
-    pub fn try_get_script_component_mut<C>(&mut self, index: usize) -> Option<&mut C>
+    pub fn try_get_script_component_mut<C>(&mut self) -> Option<&mut C>
     where
         C: Any,
     {
-        if let Some(scripts) = &mut self.scripts {
-            if let Some(script) = scripts.get_mut(index) {
-                script.as_mut().and_then(|s| s.query_component_mut::<C>())
-            } else {
-                None
-            }
+        self.script
+            .as_mut()
+            .and_then(|s| s.query_component_mut::<C>())
+    }
+
+    /// Tries to fetch a reference to a component of the given type from the script of the node.
+    #[inline]
+    pub fn try_get_secondary_script_component_mut<C>(&mut self, index: usize) -> Option<&mut C>
+    where
+        C: Any,
+    {
+        if let Some(script) = self.secondary_scripts.get_mut(index) {
+            script.as_mut().and_then(|s| s.query_component_mut::<C>())
         } else {
             None
         }
@@ -913,13 +967,16 @@ impl Base {
     /// Tries to cast current script instance (if any) to given type and returns a mutable reference
     /// to it on successful cast.
     #[inline]
-    pub fn try_get_script_mut<T: ScriptTrait>(&mut self, index: usize) -> Option<&mut T> {
-        if let Some(scripts) = &mut self.scripts {
-            if let Some(script) = scripts.get_mut(index) {
-                script.as_mut().and_then(|s| s.cast_mut::<T>())
-            } else {
-                None
-            }
+    pub fn try_get_script_mut<T: ScriptTrait>(&mut self) -> Option<&mut T> {
+        self.script.as_mut().and_then(|s| s.cast_mut::<T>())
+    }
+
+    /// Tries to cast a secondary script instance (if any) to given type and returns a mutable reference
+    /// to it on successful cast.
+    #[inline]
+    pub fn try_get_secondary_script_mut<T: ScriptTrait>(&mut self, index: usize) -> Option<&mut T> {
+        if let Some(script) = self.secondary_scripts.get_mut(index) {
+            script.as_mut().and_then(|s| s.cast_mut::<T>())
         } else {
             None
         }
@@ -927,13 +984,15 @@ impl Base {
 
     /// Returns shared reference to current script instance.
     #[inline]
-    pub fn script(&self, index: usize) -> Option<&Script> {
-        if let Some(scripts) = &self.scripts {
-            if let Some(script) = scripts.get(index) {
-                script.as_ref()
-            } else {
-                None
-            }
+    pub fn script(&self) -> Option<&Script> {
+        self.script.as_ref()
+    }
+
+    /// Returns shared reference to current script instance.
+    #[inline]
+    pub fn secondary_script(&self, index: usize) -> Option<&Script> {
+        if let Some(script) = self.secondary_scripts.get(index) {
+            script.as_ref()
         } else {
             None
         }
@@ -947,13 +1006,21 @@ impl Base {
     /// This will prevent correct script de-initialization! Use `Self::set_script` if you need
     /// to replace the script.
     #[inline]
-    pub fn script_mut(&mut self, index: usize) -> Option<&mut Script> {
-        if let Some(scripts) = &mut self.scripts {
-            if let Some(scripts) = scripts.get_mut(index) {
-                scripts.as_mut()
-            } else {
-                None
-            }
+    pub fn script_mut(&mut self) -> Option<&mut Script> {
+        self.script.as_mut()
+    }
+
+    /// Returns mutable reference to a secondary script instance.
+    ///
+    /// # Important notes
+    ///
+    /// Do **not** replace script instance using mutable reference given to you by this method.
+    /// This will prevent correct script de-initialization! Use `Self::set_script` if you need
+    /// to replace the script.
+    #[inline]
+    pub fn secondary_script_mut(&mut self, index: usize) -> Option<&mut Script> {
+        if let Some(scripts) = self.secondary_scripts.get_mut(index) {
+            scripts.as_mut()
         } else {
             None
         }
@@ -961,13 +1028,15 @@ impl Base {
 
     /// Returns a copy of the current script.
     #[inline]
-    pub fn script_cloned(&self, index: usize) -> Option<Script> {
-        if let Some(scripts) = &self.scripts {
-            if let Some(script) = scripts.get(index) {
-                script.clone().0
-            } else {
-                None
-            }
+    pub fn script_cloned(&self) -> Option<Script> {
+        self.script.clone()
+    }
+
+    /// Returns a copy of a secondary script.
+    #[inline]
+    pub fn secondary_script_cloned(&self, index: usize) -> Option<Script> {
+        if let Some(script) = self.secondary_scripts.get(index) {
+            script.clone().0
         } else {
             None
         }
@@ -975,12 +1044,14 @@ impl Base {
 
     /// Internal. Do not use.
     #[inline]
-    pub fn script_inner(&mut self, index: usize) -> Option<&mut Option<Script>> {
-        if let Some(scripts) = &mut self.scripts {
-            scripts.get_mut(index).map(|i| &mut i.0)
-        } else {
-            None
-        }
+    pub fn script_inner(&mut self) -> &mut Option<Script> {
+        &mut self.script
+    }
+
+    /// Internal. Do not use.
+    #[inline]
+    pub fn secondary_script_inner(&mut self, index: usize) -> Option<&mut Option<Script>> {
+        self.secondary_scripts.get_mut(index).map(|i| &mut i.0)
     }
 
     /// Enables or disables scene node. Disabled scene nodes won't be updated (including scripts) or rendered.
@@ -1044,7 +1115,44 @@ impl Default for Base {
 }
 
 // Serializes Option<Script> using given serializer.
-fn visit_opt_script(
+fn visit_opt_script(name: &str, script: &mut Option<Script>, visitor: &mut Visitor) -> VisitResult {
+    let mut region = visitor.enter_region(name)?;
+
+    let mut script_type_uuid = script.as_ref().map(|s| s.id()).unwrap_or_default();
+    script_type_uuid.visit("TypeUuid", &mut region)?;
+
+    if region.is_reading() {
+        *script = if script_type_uuid.is_nil() {
+            None
+        } else {
+            let serialization_context = region
+                .blackboard
+                .get::<SerializationContext>()
+                .expect("Visitor blackboard must contain serialization context!");
+
+            Some(
+                serialization_context
+                    .script_constructors
+                    .try_create(&script_type_uuid)
+                    .ok_or_else(|| {
+                        VisitError::User(format!(
+                            "There is no corresponding script constructor for {} type!",
+                            script_type_uuid
+                        ))
+                    })?,
+            )
+        };
+    }
+
+    if let Some(script) = script {
+        script.visit("ScriptData", &mut region)?;
+    }
+
+    Ok(())
+}
+
+// Serializes Option<Script> using given serializer.
+fn visit_opt_script_with_index(
     name: &str,
     index: usize,
     script: &mut Option<Script>,
@@ -1127,6 +1235,14 @@ impl Visit for Base {
         // None of the reasons are fatal and we should still give an ability to load such node
         // to edit or remove it.
 
+        if let Err(e) = visit_opt_script("Script", &mut self.script, &mut region) {
+            // Do not spam with error messages if there is missing `Script` field. It is ok
+            // for old scenes not to have script at all.
+            if !matches!(e, VisitError::RegionDoesNotExist(_)) {
+                Log::err(format!("Unable to visit script. Reason: {:?}", e))
+            }
+        }
+
         if region.is_reading() {
             let mut vector_len = 0;
             let _ = vector_len.visit("ScriptBufferSize", &mut region);
@@ -1135,7 +1251,9 @@ impl Visit for Base {
 
             for index in 0..script_buffer.capacity() {
                 let mut script = None;
-                if let Err(e) = visit_opt_script("Script", index, &mut script, &mut region) {
+                if let Err(e) =
+                    visit_opt_script_with_index("Script", index, &mut script, &mut region)
+                {
                     // Do not spam with error messages if there is missing `Script` field. It is ok
                     // for old scenes not to have script at all.
                     if !matches!(e, VisitError::RegionDoesNotExist(_)) {
@@ -1146,13 +1264,13 @@ impl Visit for Base {
                 }
             }
 
-            self.scripts = Some(script_buffer);
-        } else if let Some(script_buffer) = &mut self.scripts {
-            let mut vector_len = script_buffer.len();
+            self.secondary_scripts = script_buffer;
+        } else {
+            let mut vector_len = self.secondary_scripts.len();
             let _ = vector_len.visit("ScriptBufferSize", &mut region);
 
-            for (index, script) in self.scripts.iter_mut().flatten().enumerate() {
-                if let Err(e) = visit_opt_script("Script", index, script, &mut region) {
+            for (index, script) in self.secondary_scripts.iter_mut().enumerate() {
+                if let Err(e) = visit_opt_script_with_index("Script", index, script, &mut region) {
                     // Do not spam with error messages if there is missing `Script` field. It is ok
                     // for old scenes not to have script at all.
                     if !matches!(e, VisitError::RegionDoesNotExist(_)) {
@@ -1180,7 +1298,8 @@ pub struct BaseBuilder {
     tag: String,
     frustum_culling: bool,
     cast_shadows: bool,
-    scripts: Option<Vec<ScriptWrapper>>,
+    script: Option<Script>,
+    secondary_scripts: Vec<ScriptWrapper>,
     instance_id: SceneNodeId,
     enabled: bool,
 }
@@ -1208,7 +1327,8 @@ impl BaseBuilder {
             tag: Default::default(),
             frustum_culling: true,
             cast_shadows: true,
-            scripts: Some(vec![]),
+            script: None,
+            secondary_scripts: vec![],
             instance_id: SceneNodeId(Uuid::new_v4()),
             enabled: true,
         }
@@ -1314,9 +1434,14 @@ impl BaseBuilder {
     /// Sets desired script of the node.
     #[inline]
     pub fn with_script(mut self, script: Script) -> Self {
-        if let Some(scripts) = &mut self.scripts {
-            scripts.push(ScriptWrapper(Some(script)));
-        }
+        self.script = Some(script);
+        self
+    }
+
+    /// Sets desired script of the node.
+    #[inline]
+    pub fn with_secondary_script(mut self, script: Script) -> Self {
+        self.secondary_scripts.push(ScriptWrapper(Some(script)));
         self
     }
 
@@ -1352,7 +1477,8 @@ impl BaseBuilder {
             transform_modified: Cell::new(false),
             frustum_culling: self.frustum_culling.into(),
             cast_shadows: self.cast_shadows.into(),
-            scripts: self.scripts,
+            script: self.script,
+            secondary_scripts: self.secondary_scripts,
             instance_id: SceneNodeId(Uuid::new_v4()),
             enabled: self.enabled.into(),
             global_enabled: Cell::new(true),

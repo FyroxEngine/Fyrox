@@ -545,41 +545,43 @@ impl Node {
     }
 
     /// Checks if all node's scrips were initialized
-    pub(crate) fn all_scripts_were_initialized(&self) -> bool {
-        if let Some(scripts) = &self.scripts {
-            if scripts.is_empty() {
-                return false;
-            }
-            let mut initialized = true;
-            for script in scripts.iter().map(|i| i.0.as_ref()).flatten() {
-                if !script.initialized {
-                    initialized = false;
-                    break;
-                }
-            }
-            initialized
-        } else {
-            false
+    pub(crate) fn all_secondary_scripts_were_initialized(&self) -> bool {
+        if self.secondary_scripts.is_empty() {
+            return false;
         }
+        let mut initialized = true;
+        for script in self
+            .secondary_scripts
+            .iter()
+            .map(|i| i.0.as_ref())
+            .flatten()
+        {
+            if !script.initialized {
+                initialized = false;
+                break;
+            }
+        }
+        initialized
     }
 
     /// Checks if all node's scrips were started
-    pub(crate) fn all_scripts_were_started(&self) -> bool {
-        if let Some(scripts) = &self.scripts {
-            if scripts.is_empty() {
-                return false;
-            }
-            let mut started = true;
-            for script in scripts.iter().map(|i| i.0.as_ref()).flatten() {
-                if !script.started {
-                    started = false;
-                    break;
-                }
-            }
-            started
-        } else {
-            false
+    pub(crate) fn all_secondary_scripts_were_started(&self) -> bool {
+        if self.secondary_scripts.is_empty() {
+            return false;
         }
+        let mut started = true;
+        for script in self
+            .secondary_scripts
+            .iter()
+            .map(|i| i.0.as_ref())
+            .flatten()
+        {
+            if !script.started {
+                started = false;
+                break;
+            }
+        }
+        started
     }
 
     define_is_as!(Mesh => fn is_mesh, fn as_mesh, fn as_mesh_mut);
@@ -817,7 +819,7 @@ mod test {
             pivot
                 .local_transform_mut()
                 .set_position(Vector3::new(1.0, 2.0, 3.0));
-            let my_script = pivot.try_get_script_mut::<MyScript>(0).unwrap();
+            let my_script = pivot.try_get_script_mut::<MyScript>().unwrap();
             my_script.some_collection.push(4);
             let mesh = derived.graph[mesh].as_mesh_mut();
             assert_eq!(
@@ -850,7 +852,7 @@ mod test {
                 .unwrap()
                 .0;
             let pivot = &derived_scene.graph[pivot];
-            let my_script = pivot.try_get_script::<MyScript>(0).unwrap();
+            let my_script = pivot.try_get_script::<MyScript>().unwrap();
             assert_eq!(
                 **pivot.local_transform().position(),
                 Vector3::new(1.0, 2.0, 3.0)
