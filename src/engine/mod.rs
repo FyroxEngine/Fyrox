@@ -1889,7 +1889,8 @@ impl Engine {
                     for index in 0..script_buffer_len {
                         let mut script = None;
                         let mut scene = None;
-                        if let Some(self_scene) = self.scenes.try_get_mut(node_task_handler.scene_handle)
+                        if let Some(self_scene) =
+                            self.scenes.try_get_mut(node_task_handler.scene_handle)
                         {
                             if let Some(node) =
                                 self_scene.graph.try_get_mut(node_task_handler.node_handle)

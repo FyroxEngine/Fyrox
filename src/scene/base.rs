@@ -293,6 +293,7 @@ impl Visit for SceneNodeId {
     }
 }
 
+/// A wrapper for scripts
 #[derive(Clone, Reflect, Debug, Default)]
 pub struct ScriptWrapper(pub Option<Script>);
 

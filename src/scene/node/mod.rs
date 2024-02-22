@@ -549,14 +549,13 @@ impl Node {
         if self.scripts.is_empty() {
             return false;
         }
-        let mut initialized = true;
-        for script in self.scripts.iter().map(|i| i.0.as_ref()).flatten() {
-            if !script.initialized {
-                initialized = false;
-                break;
+        self.scripts.iter().all(|script| {
+            if let Some(script) = &script.0 {
+                script.initialized
+            } else {
+                true
             }
-        }
-        initialized
+        })
     }
 
     /// Checks if all node's scripts were started
@@ -564,14 +563,13 @@ impl Node {
         if self.scripts.is_empty() {
             return false;
         }
-        let mut started = true;
-        for script in self.scripts.iter().map(|i| i.0.as_ref()).flatten() {
-            if !script.started {
-                started = false;
-                break;
+        self.scripts.iter().all(|script| {
+            if let Some(script) = &script.0 {
+                script.started
+            } else {
+                true
             }
-        }
-        started
+        })
     }
 
     define_is_as!(Mesh => fn is_mesh, fn as_mesh, fn as_mesh_mut);
