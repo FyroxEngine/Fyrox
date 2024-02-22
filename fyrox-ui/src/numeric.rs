@@ -8,15 +8,12 @@ use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::{
         color::Color,
-        combine_uuids,
         num_traits::{clamp, Bounded, NumAssign, NumCast, NumOps},
         pool::Handle,
         reflect::prelude::*,
         reflect::Reflect,
         type_traits::prelude::*,
-        uuid::{uuid, Uuid},
         visitor::prelude::*,
-        TypeUuidProvider,
     },
     decorator::DecoratorBuilder,
     define_constructor,
@@ -39,7 +36,7 @@ use std::{
 };
 
 /// Numeric type is a trait, that has all required traits of a number type. It is used as a useful abstraction over
-/// all machine numeric types.  
+/// all machine numeric types.
 pub trait NumericType:
     NumAssign
     + FromStr

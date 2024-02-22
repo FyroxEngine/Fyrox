@@ -5,15 +5,8 @@
 
 use crate::{
     core::{
-        algebra::Vector2,
-        combine_uuids,
-        math::Rect,
-        pool::Handle,
-        reflect::prelude::*,
-        type_traits::prelude::*,
-        uuid::{uuid, Uuid},
+        algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
         visitor::prelude::*,
-        TypeUuidProvider,
     },
     define_constructor,
     grid::{Column, GridBuilder, Row},

@@ -11,7 +11,6 @@ use crate::{
         type_traits::prelude::*,
         uuid::{uuid, Uuid},
         visitor::prelude::*,
-        TypeUuidProvider,
     },
     define_constructor,
     grid::{Column, GridBuilder, Row},

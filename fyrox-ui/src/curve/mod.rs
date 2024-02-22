@@ -7,7 +7,6 @@ use crate::{
         math::{cubicf, lerpf, wrap_angle, Rect},
         pool::Handle,
         type_traits::prelude::*,
-        uuid::Uuid,
     },
     core::{reflect::prelude::*, visitor::prelude::*},
     curve::key::{CurveKeyView, KeyContainer},
