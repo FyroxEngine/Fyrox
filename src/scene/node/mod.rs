@@ -544,18 +544,13 @@ impl Node {
         self.original_handle_in_resource = original_handle;
     }
 
-    /// Checks if all node's scrips were initialized
-    pub(crate) fn all_secondary_scripts_were_initialized(&self) -> bool {
-        if self.secondary_scripts.is_empty() {
+    /// Checks if all node's scripts were initialized
+    pub(crate) fn all_scripts_were_initialized(&self) -> bool {
+        if self.scripts.is_empty() {
             return false;
         }
         let mut initialized = true;
-        for script in self
-            .secondary_scripts
-            .iter()
-            .map(|i| i.0.as_ref())
-            .flatten()
-        {
+        for script in self.scripts.iter().map(|i| i.0.as_ref()).flatten() {
             if !script.initialized {
                 initialized = false;
                 break;
@@ -564,18 +559,13 @@ impl Node {
         initialized
     }
 
-    /// Checks if all node's scrips were started
-    pub(crate) fn all_secondary_scripts_were_started(&self) -> bool {
-        if self.secondary_scripts.is_empty() {
+    /// Checks if all node's scripts were started
+    pub(crate) fn all_scripts_were_started(&self) -> bool {
+        if self.scripts.is_empty() {
             return false;
         }
         let mut started = true;
-        for script in self
-            .secondary_scripts
-            .iter()
-            .map(|i| i.0.as_ref())
-            .flatten()
-        {
+        for script in self.scripts.iter().map(|i| i.0.as_ref()).flatten() {
             if !script.started {
                 started = false;
                 break;
