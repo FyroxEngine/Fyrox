@@ -20,16 +20,11 @@
 //! indirections that might cause cache invalidation. This is the so called cache
 //! friendliness.
 
-use crate::{
-    reflect::{prelude::*, ReflectArray},
-    visitor::prelude::*,
-    ComponentProvider,
-};
+use crate::{reflect::prelude::*, visitor::prelude::*, ComponentProvider};
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
     future::Future,
-    iter::FromIterator,
     marker::PhantomData,
     ops::{Index, IndexMut},
     sync::atomic::{self, AtomicIsize},
