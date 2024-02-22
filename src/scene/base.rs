@@ -1174,7 +1174,7 @@ impl BaseBuilder {
             tag: Default::default(),
             frustum_culling: true,
             cast_shadows: true,
-            scripts: vec![ScriptWrapper(None)],
+            scripts: vec![],
             instance_id: SceneNodeId(Uuid::new_v4()),
             enabled: true,
         }
@@ -1277,7 +1277,7 @@ impl BaseBuilder {
         self
     }
 
-    /// Sets desired script of the node.
+    /// Sets script of the node.
     #[inline]
     pub fn with_script(mut self, script: Script) -> Self {
         self.scripts.push(ScriptWrapper(Some(script)));

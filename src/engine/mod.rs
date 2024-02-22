@@ -2317,12 +2317,9 @@ mod test {
             ScriptTrait,
         },
     };
-    use std::any::Any;
     use std::sync::Arc;
 
     use crate::graph::BaseSceneGraph;
-    use crate::script::BaseScript;
-    use fyrox_core::Uuid;
     use fyrox_ui::UserInterface;
     use std::sync::mpsc::{self, Sender, TryRecvError};
 
