@@ -533,10 +533,10 @@ impl ScrollBarBuilder {
         let indicator = self.indicator.unwrap_or_else(|| {
             DecoratorBuilder::new(
                 BorderBuilder::new(
-                    WidgetBuilder::new()
-                        .with_margin(Thickness::uniform(1.0))
-                        .with_foreground(Brush::Solid(Color::TRANSPARENT)),
+                    WidgetBuilder::new().with_foreground(Brush::Solid(Color::TRANSPARENT)),
                 )
+                .with_corner_radius(8.0)
+                .with_pad_by_corner_radius(false)
                 .with_stroke_thickness(Thickness::uniform(1.0)),
             )
             .with_normal_brush(BRUSH_LIGHT)
