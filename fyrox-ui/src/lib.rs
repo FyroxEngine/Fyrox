@@ -315,7 +315,9 @@ pub const COLOR_LIGHT: Color = Color::opaque(70, 70, 70);
 pub const COLOR_LIGHTER: Color = Color::opaque(85, 85, 85);
 pub const COLOR_LIGHTEST: Color = Color::opaque(100, 100, 100);
 pub const COLOR_BRIGHT: Color = Color::opaque(130, 130, 130);
+pub const COLOR_BRIGHTEST: Color = Color::opaque(160, 160, 160);
 pub const COLOR_BRIGHT_BLUE: Color = Color::opaque(80, 118, 178);
+pub const COLOR_DIM_BLUE: Color = Color::opaque(66, 99, 149);
 pub const COLOR_TEXT: Color = Color::opaque(220, 220, 220);
 pub const COLOR_FOREGROUND: Color = Color::WHITE;
 
@@ -328,7 +330,9 @@ pub const BRUSH_LIGHT: Brush = Brush::Solid(COLOR_LIGHT);
 pub const BRUSH_LIGHTER: Brush = Brush::Solid(COLOR_LIGHTER);
 pub const BRUSH_LIGHTEST: Brush = Brush::Solid(COLOR_LIGHTEST);
 pub const BRUSH_BRIGHT: Brush = Brush::Solid(COLOR_BRIGHT);
+pub const BRUSH_BRIGHTEST: Brush = Brush::Solid(COLOR_BRIGHTEST);
 pub const BRUSH_BRIGHT_BLUE: Brush = Brush::Solid(COLOR_BRIGHT_BLUE);
+pub const BRUSH_DIM_BLUE: Brush = Brush::Solid(COLOR_DIM_BLUE);
 pub const BRUSH_TEXT: Brush = Brush::Solid(COLOR_TEXT);
 pub const BRUSH_FOREGROUND: Brush = Brush::Solid(COLOR_FOREGROUND);
 

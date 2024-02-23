@@ -46,6 +46,18 @@ pub enum Primitive {
         /// circle and vice versa.
         segments: usize,
     },
+    /// Solid circle primitive.
+    WireCircle {
+        /// Center of the circle in local coordinates.
+        center: Vector2<f32>,
+        /// Radius of the circle in absolute units.
+        radius: f32,
+        /// Thickness of the circle.
+        thickness: f32,
+        /// Amount of segments that is used to approximate the circle using triangles. The higher the value, the smoother the
+        /// circle and vice versa.
+        segments: usize,
+    },
     /// Wireframe rectangle primitive.
     Rectangle {
         /// Rectangle bounds in local coordinates.
@@ -107,7 +119,8 @@ impl Primitive {
                 }
                 (min, max)
             }
-            Primitive::Circle { radius, center, .. } => {
+            Primitive::Circle { radius, center, .. }
+            | Primitive::WireCircle { radius, center, .. } => {
                 let radius = Vector2::new(*radius, *radius);
                 (center - radius, center + radius)
             }
@@ -221,11 +234,22 @@ impl Control for VectorImage {
                     center,
                     radius,
                     segments,
-                } => drawing_context.push_circle(
+                } => drawing_context.push_circle_filled(
                     bounds.position + *center,
                     *radius,
                     *segments,
                     Color::WHITE,
+                ),
+                Primitive::WireCircle {
+                    center,
+                    radius,
+                    thickness,
+                    segments,
+                } => drawing_context.push_circle(
+                    bounds.position + *center,
+                    *radius,
+                    *segments,
+                    *thickness,
                 ),
                 Primitive::RectangleFilled { rect } => drawing_context.push_rect_filled(rect, None),
                 Primitive::Rectangle { rect, thickness } => {

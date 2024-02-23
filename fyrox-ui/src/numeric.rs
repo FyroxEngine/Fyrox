@@ -8,15 +8,12 @@ use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::{
         color::Color,
-        combine_uuids,
         num_traits::{clamp, Bounded, NumAssign, NumCast, NumOps},
         pool::Handle,
         reflect::prelude::*,
         reflect::Reflect,
         type_traits::prelude::*,
-        uuid::{uuid, Uuid},
         visitor::prelude::*,
-        TypeUuidProvider,
     },
     decorator::DecoratorBuilder,
     define_constructor,
@@ -39,7 +36,7 @@ use std::{
 };
 
 /// Numeric type is a trait, that has all required traits of a number type. It is used as a useful abstraction over
-/// all machine numeric types.  
+/// all machine numeric types.
 pub trait NumericType:
     NumAssign
     + FromStr
@@ -578,9 +575,13 @@ fn make_button(
             .on_row(row),
     )
     .with_back(
-        DecoratorBuilder::new(BorderBuilder::new(
-            WidgetBuilder::new().with_foreground(Brush::Solid(Color::opaque(90, 90, 90))),
-        ))
+        DecoratorBuilder::new(
+            BorderBuilder::new(
+                WidgetBuilder::new().with_foreground(Brush::Solid(Color::opaque(90, 90, 90))),
+            )
+            .with_corner_radius(2.0)
+            .with_pad_by_corner_radius(false),
+        )
         .with_normal_brush(Brush::Solid(Color::opaque(60, 60, 60)))
         .with_hover_brush(Brush::Solid(Color::opaque(80, 80, 80)))
         .with_pressed_brush(Brush::Solid(Color::opaque(80, 118, 178)))
@@ -667,6 +668,8 @@ impl<T: NumericType> NumericUpDownBuilder<T> {
                 .with_background(BRUSH_DARK)
                 .with_foreground(BRUSH_LIGHT),
         )
+        .with_corner_radius(4.0)
+        .with_pad_by_corner_radius(false)
         .with_stroke_thickness(Thickness::uniform(1.0))
         .build(ctx);
 

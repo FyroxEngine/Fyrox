@@ -29,31 +29,39 @@ pub fn make_dropdown_list_option_universal<T: Send + 'static>(
     height: f32,
     user_data: T,
 ) -> Handle<UiNode> {
-    DecoratorBuilder::new(BorderBuilder::new(
-        WidgetBuilder::new()
-            .with_height(height)
-            .with_user_data(Arc::new(Mutex::new(user_data)))
-            .with_child(
+    DecoratorBuilder::new(
+        BorderBuilder::new(
+            WidgetBuilder::new()
+                .with_height(height)
+                .with_user_data(Arc::new(Mutex::new(user_data)))
+                .with_child(
+                    TextBuilder::new(WidgetBuilder::new())
+                        .with_vertical_text_alignment(VerticalAlignment::Center)
+                        .with_horizontal_text_alignment(HorizontalAlignment::Center)
+                        .with_text(name)
+                        .build(ctx),
+                ),
+        )
+        .with_corner_radius(4.0)
+        .with_pad_by_corner_radius(false),
+    )
+    .build(ctx)
+}
+
+pub fn make_dropdown_list_option(ctx: &mut BuildContext, name: &str) -> Handle<UiNode> {
+    DecoratorBuilder::new(
+        BorderBuilder::new(
+            WidgetBuilder::new().with_child(
                 TextBuilder::new(WidgetBuilder::new())
                     .with_vertical_text_alignment(VerticalAlignment::Center)
                     .with_horizontal_text_alignment(HorizontalAlignment::Center)
                     .with_text(name)
                     .build(ctx),
             ),
-    ))
-    .build(ctx)
-}
-
-pub fn make_dropdown_list_option(ctx: &mut BuildContext, name: &str) -> Handle<UiNode> {
-    DecoratorBuilder::new(BorderBuilder::new(
-        WidgetBuilder::new().with_child(
-            TextBuilder::new(WidgetBuilder::new())
-                .with_vertical_text_alignment(VerticalAlignment::Center)
-                .with_horizontal_text_alignment(HorizontalAlignment::Center)
-                .with_text(name)
-                .build(ctx),
-        ),
-    ))
+        )
+        .with_corner_radius(4.0)
+        .with_pad_by_corner_radius(false),
+    )
     .build(ctx)
 }
 
@@ -62,15 +70,19 @@ pub fn make_dropdown_list_option_with_height(
     name: &str,
     height: f32,
 ) -> Handle<UiNode> {
-    DecoratorBuilder::new(BorderBuilder::new(
-        WidgetBuilder::new().with_height(height).with_child(
-            TextBuilder::new(WidgetBuilder::new())
-                .with_vertical_text_alignment(VerticalAlignment::Center)
-                .with_horizontal_text_alignment(HorizontalAlignment::Center)
-                .with_text(name)
-                .build(ctx),
-        ),
-    ))
+    DecoratorBuilder::new(
+        BorderBuilder::new(
+            WidgetBuilder::new().with_height(height).with_child(
+                TextBuilder::new(WidgetBuilder::new())
+                    .with_vertical_text_alignment(VerticalAlignment::Center)
+                    .with_horizontal_text_alignment(HorizontalAlignment::Center)
+                    .with_text(name)
+                    .build(ctx),
+            ),
+        )
+        .with_corner_radius(4.0)
+        .with_pad_by_corner_radius(false),
+    )
     .build(ctx)
 }
 

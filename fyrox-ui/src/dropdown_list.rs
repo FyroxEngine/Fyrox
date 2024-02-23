@@ -3,19 +3,19 @@
 
 use crate::{
     border::BorderBuilder,
-    core::{algebra::Vector2, pool::Handle},
-    core::{reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
+    core::{
+        algebra::Vector2, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
+        uuid_provider, variable::InheritableVariable, visitor::prelude::*,
+    },
     define_constructor,
     grid::{Column, GridBuilder, Row},
     list_view::{ListViewBuilder, ListViewMessage},
     message::{MessageDirection, UiMessage},
     popup::{Placement, PopupBuilder, PopupMessage},
-    utils::{make_arrow, ArrowDirection},
+    utils::{make_arrow_non_uniform_size, ArrowDirection},
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, Thickness, UiNode, UserInterface, BRUSH_DARKER, BRUSH_LIGHT,
 };
-use fyrox_core::uuid_provider;
-use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::BaseSceneGraph;
 use std::{
     ops::{Deref, DerefMut},
@@ -294,7 +294,7 @@ impl DropdownListBuilder {
             Handle::NONE
         };
 
-        let arrow = make_arrow(ctx, ArrowDirection::Bottom, 10.0);
+        let arrow = make_arrow_non_uniform_size(ctx, ArrowDirection::Bottom, 10.0, 5.0);
         ctx[arrow].set_margin(Thickness::left_right(2.0));
         ctx[arrow].set_column(1);
 
@@ -316,6 +316,8 @@ impl DropdownListBuilder {
                             .with_foreground(BRUSH_LIGHT)
                             .with_child(main_grid),
                     )
+                    .with_pad_by_corner_radius(false)
+                    .with_corner_radius(4.0)
                     .build(ctx),
                 )
                 .build(),

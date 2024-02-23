@@ -19,7 +19,7 @@ use crate::{
     utils::{make_arrow, ArrowDirection},
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, MouseButton, Thickness, UiNode, UserInterface, VerticalAlignment,
-    BRUSH_DARK, BRUSH_DARKEST,
+    BRUSH_DARK, BRUSH_DIM_BLUE,
 };
 use fyrox_core::uuid_provider;
 use fyrox_graph::{BaseSceneGraph, SceneGraph};
@@ -599,7 +599,7 @@ impl TreeBuilder {
                     .with_foreground(Brush::Solid(Color::TRANSPARENT))
                     .with_background(Brush::Solid(Color::TRANSPARENT)),
             ))
-            .with_selected_brush(BRUSH_DARKEST)
+            .with_selected_brush(BRUSH_DIM_BLUE)
             .with_hover_brush(BRUSH_DARK)
             .with_normal_brush(Brush::Solid(Color::TRANSPARENT))
             .with_pressed_brush(Brush::Solid(Color::TRANSPARENT))

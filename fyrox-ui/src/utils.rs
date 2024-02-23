@@ -16,43 +16,52 @@ pub enum ArrowDirection {
     Right,
 }
 
-pub fn make_arrow_primitives(orientation: ArrowDirection, size: f32) -> Vec<Primitive> {
+pub fn make_arrow_primitives_non_uniform_size(
+    orientation: ArrowDirection,
+    width: f32,
+    height: f32,
+) -> Vec<Primitive> {
     vec![match orientation {
         ArrowDirection::Top => Primitive::Triangle {
             points: [
-                Vector2::new(size * 0.5, 0.0),
-                Vector2::new(size, size),
-                Vector2::new(0.0, size),
+                Vector2::new(width * 0.5, 0.0),
+                Vector2::new(width, height),
+                Vector2::new(0.0, height),
             ],
         },
         ArrowDirection::Bottom => Primitive::Triangle {
             points: [
                 Vector2::new(0.0, 0.0),
-                Vector2::new(size, 0.0),
-                Vector2::new(size * 0.5, size),
+                Vector2::new(width, 0.0),
+                Vector2::new(width * 0.5, height),
             ],
         },
         ArrowDirection::Right => Primitive::Triangle {
             points: [
                 Vector2::new(0.0, 0.0),
-                Vector2::new(size, size * 0.5),
-                Vector2::new(0.0, size),
+                Vector2::new(width, height * 0.5),
+                Vector2::new(0.0, height),
             ],
         },
         ArrowDirection::Left => Primitive::Triangle {
             points: [
-                Vector2::new(0.0, size * 0.5),
-                Vector2::new(size, 0.0),
-                Vector2::new(size, size),
+                Vector2::new(0.0, height * 0.5),
+                Vector2::new(width, 0.0),
+                Vector2::new(width, height),
             ],
         },
     }]
 }
 
-pub fn make_arrow(
+pub fn make_arrow_primitives(orientation: ArrowDirection, size: f32) -> Vec<Primitive> {
+    make_arrow_primitives_non_uniform_size(orientation, size, size)
+}
+
+pub fn make_arrow_non_uniform_size(
     ctx: &mut BuildContext,
     orientation: ArrowDirection,
-    size: f32,
+    width: f32,
+    height: f32,
 ) -> Handle<UiNode> {
     VectorImageBuilder::new(
         WidgetBuilder::new()
@@ -60,18 +69,24 @@ pub fn make_arrow(
             .with_horizontal_alignment(HorizontalAlignment::Center)
             .with_vertical_alignment(VerticalAlignment::Center),
     )
-    .with_primitives(make_arrow_primitives(orientation, size))
+    .with_primitives(make_arrow_primitives_non_uniform_size(
+        orientation,
+        width,
+        height,
+    ))
     .build(ctx)
 }
 
-pub fn make_cross(ctx: &mut BuildContext, size: f32, thickness: f32) -> Handle<UiNode> {
-    VectorImageBuilder::new(
-        WidgetBuilder::new()
-            .with_horizontal_alignment(HorizontalAlignment::Center)
-            .with_vertical_alignment(VerticalAlignment::Center)
-            .with_foreground(BRUSH_BRIGHT),
-    )
-    .with_primitives(vec![
+pub fn make_arrow(
+    ctx: &mut BuildContext,
+    orientation: ArrowDirection,
+    size: f32,
+) -> Handle<UiNode> {
+    make_arrow_non_uniform_size(ctx, orientation, size, size)
+}
+
+pub fn make_cross_primitive(size: f32, thickness: f32) -> Vec<Primitive> {
+    vec![
         Primitive::Line {
             begin: Vector2::new(0.0, 0.0),
             end: Vector2::new(size, size),
@@ -82,7 +97,17 @@ pub fn make_cross(ctx: &mut BuildContext, size: f32, thickness: f32) -> Handle<U
             end: Vector2::new(0.0, size),
             thickness,
         },
-    ])
+    ]
+}
+
+pub fn make_cross(ctx: &mut BuildContext, size: f32, thickness: f32) -> Handle<UiNode> {
+    VectorImageBuilder::new(
+        WidgetBuilder::new()
+            .with_horizontal_alignment(HorizontalAlignment::Center)
+            .with_vertical_alignment(VerticalAlignment::Center)
+            .with_foreground(BRUSH_BRIGHT),
+    )
+    .with_primitives(make_cross_primitive(size, thickness))
     .build(ctx)
 }
 

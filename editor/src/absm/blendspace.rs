@@ -554,7 +554,7 @@ uuid_provider!(BlendSpaceFieldPoint = "22c215c1-ff23-4a64-9aa7-640b5014a78b");
 
 impl Control for BlendSpaceFieldPoint {
     fn draw(&self, drawing_context: &mut DrawingContext) {
-        drawing_context.push_circle(
+        drawing_context.push_circle_filled(
             Vector2::new(*self.width * 0.5, *self.height * 0.5),
             (*self.width + *self.height) * 0.25,
             16,

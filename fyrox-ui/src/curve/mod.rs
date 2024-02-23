@@ -7,7 +7,6 @@ use crate::{
         math::{cubicf, lerpf, wrap_angle, Rect},
         pool::Handle,
         type_traits::prelude::*,
-        uuid::Uuid,
     },
     core::{reflect::prelude::*, visitor::prelude::*},
     curve::key::{CurveKeyView, KeyContainer},
@@ -1160,7 +1159,7 @@ impl CurveEditor {
                             key.position,
                         );
                         ctx.push_line(origin, left_handle_pos, 1.0);
-                        ctx.push_circle(
+                        ctx.push_circle_filled(
                             left_handle_pos,
                             self.key_size * 0.5,
                             6,
@@ -1174,7 +1173,7 @@ impl CurveEditor {
                             key.position,
                         );
                         ctx.push_line(origin, right_handle_pos, 1.0);
-                        ctx.push_circle(
+                        ctx.push_circle_filled(
                             right_handle_pos,
                             self.key_size * 0.5,
                             6,

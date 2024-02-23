@@ -5,9 +5,7 @@
 
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
-    core::{
-        pool::Handle, reflect::prelude::*, type_traits::prelude::*, uuid::Uuid, visitor::prelude::*,
-    },
+    core::{pool::Handle, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
     define_constructor, define_widget_deref,
     grid::{Column, GridBuilder, Row},
     message::{MessageDirection, UiMessage},

@@ -172,6 +172,8 @@ pub fn make_interaction_mode_button(
     .with_back(
         DecoratorBuilder::new(
             BorderBuilder::new(WidgetBuilder::new().with_foreground(BRUSH_DARKER))
+                .with_pad_by_corner_radius(false)
+                .with_corner_radius(4.0)
                 .with_stroke_thickness(Thickness::uniform(1.0)),
         )
         .with_normal_brush(BRUSH_LIGHT)

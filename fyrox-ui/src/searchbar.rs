@@ -6,23 +6,24 @@
 
 use crate::{
     border::BorderBuilder,
+    brush::Brush,
     button::{ButtonBuilder, ButtonMessage},
     core::{
-        algebra::Vector2, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-        uuid_provider, visitor::prelude::*,
+        algebra::Vector2, color::Color, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
+        uuid_provider, variable::InheritableVariable, visitor::prelude::*,
     },
+    decorator::DecoratorBuilder,
     define_constructor, define_widget_deref,
     grid::{Column, GridBuilder, Row},
     message::{MessageDirection, UiMessage},
     text::TextMessage,
     text_box::{TextBoxBuilder, TextCommitMode},
-    utils::make_cross,
+    utils::make_cross_primitive,
     vector_image::{Primitive, VectorImageBuilder},
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment, BRUSH_DARKER,
-    BRUSH_LIGHT, BRUSH_LIGHTEST,
+    BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
+    VerticalAlignment, BRUSH_BRIGHTEST, BRUSH_DARKER, BRUSH_LIGHT, BRUSH_LIGHTEST,
 };
-use fyrox_core::variable::InheritableVariable;
 use std::ops::{Deref, DerefMut};
 
 /// A set of messages that can be used to get the state of a search bar.
@@ -152,16 +153,23 @@ impl SearchBarBuilder {
                             .with_child(
                                 VectorImageBuilder::new(
                                     WidgetBuilder::new()
+                                        .with_clip_to_bounds(false)
                                         .with_width(12.0)
                                         .with_height(12.0)
                                         .with_vertical_alignment(VerticalAlignment::Center)
                                         .with_foreground(BRUSH_LIGHTEST)
-                                        .with_margin(Thickness::left(1.0)),
+                                        .with_margin(Thickness {
+                                            left: 2.0,
+                                            top: 2.0,
+                                            right: 0.0,
+                                            bottom: 0.0,
+                                        }),
                                 )
                                 .with_primitives(vec![
-                                    Primitive::Circle {
+                                    Primitive::WireCircle {
                                         center: Vector2::new(4.0, 4.0),
                                         radius: 4.0,
+                                        thickness: 1.5,
                                         segments: 16,
                                     },
                                     Primitive::Line {
@@ -190,7 +198,31 @@ impl SearchBarBuilder {
                                         .with_height(18.0)
                                         .on_column(2),
                                 )
-                                .with_content(make_cross(ctx, 12.0, 2.0))
+                                .with_back(
+                                    DecoratorBuilder::new(
+                                        BorderBuilder::new(WidgetBuilder::new())
+                                            .with_pad_by_corner_radius(false)
+                                            .with_corner_radius(4.0),
+                                    )
+                                    .with_normal_brush(Brush::Solid(Color::TRANSPARENT))
+                                    .build(ctx),
+                                )
+                                .with_content(
+                                    VectorImageBuilder::new(
+                                        WidgetBuilder::new()
+                                            .with_margin(Thickness {
+                                                left: 2.0,
+                                                top: 2.0,
+                                                right: 0.0,
+                                                bottom: 0.0,
+                                            })
+                                            .with_horizontal_alignment(HorizontalAlignment::Center)
+                                            .with_vertical_alignment(VerticalAlignment::Center)
+                                            .with_foreground(BRUSH_BRIGHTEST),
+                                    )
+                                    .with_primitives(make_cross_primitive(8.0, 2.0))
+                                    .build(ctx),
+                                )
                                 .build(ctx);
                                 clear
                             }),
@@ -202,6 +234,8 @@ impl SearchBarBuilder {
                     .build(ctx),
                 ),
         )
+        .with_corner_radius(4.0)
+        .with_pad_by_corner_radius(false)
         .with_stroke_thickness(Thickness::uniform(1.0))
         .build(ctx);
 

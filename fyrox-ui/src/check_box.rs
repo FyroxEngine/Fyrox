@@ -332,6 +332,8 @@ impl CheckBoxBuilder {
                         .build(ctx),
                     ),
             )
+            .with_pad_by_corner_radius(false)
+            .with_corner_radius(3.0)
             .with_stroke_thickness(Thickness::uniform(0.0))
             .build(ctx)
         });
@@ -346,6 +348,8 @@ impl CheckBoxBuilder {
                     .with_background(Brush::Solid(Color::TRANSPARENT))
                     .with_foreground(Brush::Solid(Color::TRANSPARENT)),
             )
+            .with_pad_by_corner_radius(false)
+            .with_corner_radius(3.0)
             .with_stroke_thickness(Thickness::uniform(0.0))
             .build(ctx)
         });
@@ -358,6 +362,8 @@ impl CheckBoxBuilder {
                     .with_background(BRUSH_BRIGHT)
                     .with_foreground(Brush::Solid(Color::TRANSPARENT)),
             )
+            .with_pad_by_corner_radius(false)
+            .with_corner_radius(3.0)
             .build(ctx)
         });
         ctx[undefined_mark].set_visibility(self.checked.is_none());
@@ -373,6 +379,8 @@ impl CheckBoxBuilder {
                     .with_background(BRUSH_DARKEST)
                     .with_foreground(BRUSH_LIGHT),
             )
+            .with_pad_by_corner_radius(false)
+            .with_corner_radius(3.0)
             .with_stroke_thickness(Thickness::uniform(1.0))
             .build(ctx)
         });

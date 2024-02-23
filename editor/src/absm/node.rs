@@ -2,7 +2,6 @@ use crate::absm::{
     selectable::{Selectable, SelectableMessage},
     BORDER_COLOR, NORMAL_BACKGROUND, SELECTED_BACKGROUND,
 };
-use fyrox::graph::BaseSceneGraph;
 use fyrox::{
     core::{
         color::Color,
@@ -13,6 +12,7 @@ use fyrox::{
         visitor::prelude::*,
         TypeUuidProvider,
     },
+    graph::BaseSceneGraph,
     gui::{
         border::{BorderBuilder, BorderMessage},
         brush::Brush,
@@ -447,12 +447,17 @@ where
                                         TextBuilder::new(
                                             WidgetBuilder::new()
                                                 .with_vertical_alignment(VerticalAlignment::Center)
+                                                .with_horizontal_alignment(
+                                                    HorizontalAlignment::Center,
+                                                )
                                                 .with_margin(Thickness::uniform(2.0)),
                                         )
                                         .with_text(title)
                                         .build(ctx),
                                     ),
                             )
+                            .with_pad_by_corner_radius(false)
+                            .with_corner_radius(12.0)
                             .with_stroke_thickness(Thickness::zero())
                             .build(ctx)
                         })
@@ -471,6 +476,8 @@ where
                 .with_background(Brush::Solid(self.normal_color))
                 .with_child(grid2),
         )
+        .with_pad_by_corner_radius(false)
+        .with_corner_radius(12.0)
         .build(ctx);
 
         let node = AbsmNode {

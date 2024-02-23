@@ -1,6 +1,6 @@
 //! Inspector is a widget, that allows you to generate visual representation for internal fields an arbitrary
 //! structure or enumeration recursively. It's primary usage is provide unified and simple way of introspection.
-//! See [`Inspector`] docs for more info and usage examples.  
+//! See [`Inspector`] docs for more info and usage examples.
 
 use crate::{
     border::BorderBuilder,
@@ -9,7 +9,7 @@ use crate::{
         algebra::Vector2,
         pool::Handle,
         reflect::prelude::*,
-        reflect::{CastError, Reflect, ResolvePath},
+        reflect::{CastError, Reflect},
         type_traits::prelude::*,
         visitor::prelude::*,
     },

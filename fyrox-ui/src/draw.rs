@@ -263,7 +263,13 @@ pub trait Draw {
         self.push_triangle(index, index + 2, index + 3);
     }
 
-    fn push_circle(&mut self, origin: Vector2<f32>, radius: f32, segments: usize, color: Color) {
+    fn push_circle_filled(
+        &mut self,
+        origin: Vector2<f32>,
+        radius: f32,
+        segments: usize,
+        color: Color,
+    ) {
         if segments >= 3 {
             let center_index = self.last_vertex_index();
 
@@ -296,6 +302,35 @@ pub trait Draw {
                 );
             }
         }
+    }
+
+    fn push_circle(
+        &mut self,
+        center: Vector2<f32>,
+        radius: f32,
+        subdivisions: usize,
+        thickness: f32,
+    ) {
+        let start_vertex = self.last_vertex_index();
+        let d = std::f32::consts::TAU / subdivisions as f32;
+
+        let half_thickness = thickness * 0.5;
+
+        let mut angle = 0.0;
+        while angle < std::f32::consts::TAU {
+            let r = Vector2::new(angle.cos(), angle.sin());
+
+            let p0 = center + r.scale(radius - half_thickness);
+            self.push_vertex(p0, Default::default());
+
+            let p1 = center + r.scale(radius + half_thickness);
+            self.push_vertex(p1, Default::default());
+
+            angle += d;
+        }
+        let last_vertex_index = self.last_vertex_index();
+
+        self.connect_as_line(start_vertex, last_vertex_index, true)
     }
 
     fn connect_as_line(&mut self, from: u32, to: u32, closed: bool) {

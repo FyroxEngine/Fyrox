@@ -3,14 +3,12 @@
 use crate::{
     check_box::{CheckBoxBuilder, CheckBoxMessage},
     core::{
-        combine_uuids,
         num_traits::{NumCast, One, Zero},
         pool::Handle,
         reflect::prelude::*,
         type_traits::prelude::*,
-        uuid::{uuid, Uuid},
+        uuid::uuid,
         visitor::prelude::*,
-        TypeUuidProvider,
     },
     define_constructor,
     message::UiMessage,
