@@ -96,6 +96,7 @@ use std::{
     },
     time::Duration,
 };
+
 use winit::{
     dpi::{Position, Size},
     event_loop::EventLoopWindowTarget,
@@ -698,7 +699,7 @@ impl ScriptProcessor {
             let mut update_queue = VecDeque::new();
             let mut start_queue = VecDeque::new();
             for (handle, node) in scene.graph.pair_iter() {
-                if node.is_globally_enabled() {
+                if node.is_globally_enabled() && node.has_scripts_assigned() {
                     if node.all_scripts_were_initialized() {
                         if node.all_scripts_were_started() {
                             update_queue.push_back(handle);
@@ -753,7 +754,7 @@ impl ScriptProcessor {
                                 });
 
                                 let node = &context.scene.graph[handle];
-                                if node.all_scripts_were_initialized() {
+                                if node.has_scripts_assigned() {
                                     // `on_start` must be called even if the script was initialized.
                                     start_queue.push_back(handle);
                                 }
@@ -775,15 +776,17 @@ impl ScriptProcessor {
                         while let Some(handle) = start_queue.pop_front() {
                             context.handle = handle;
 
+                            let mut started_script = false;
                             process_node(&mut context, &mut |script, context| {
                                 if !script.started {
                                     script.on_start(context);
                                     script.started = true;
+
+                                    started_script = true;
                                 }
                             });
 
-                            let node = &context.scene.graph[handle];
-                            if node.all_scripts_were_started() {
+                            if started_script {
                                 update_queue.push_back(handle);
                             }
                         }
@@ -2462,20 +2465,15 @@ mod test {
                 0 => {
                     assert_eq!(rx.try_recv(), Ok(Event::Initialized(node_handle)));
                     assert_eq!(rx.try_recv(), Ok(Event::Initialized(handle_on_init)));
-
                     assert_eq!(rx.try_recv(), Ok(Event::Started(node_handle)));
                     assert_eq!(rx.try_recv(), Ok(Event::Started(handle_on_init)));
-
                     assert_eq!(rx.try_recv(), Ok(Event::Initialized(handle_on_start)));
                     assert_eq!(rx.try_recv(), Ok(Event::Started(handle_on_start)));
-
                     assert_eq!(rx.try_recv(), Ok(Event::Updated(node_handle)));
                     assert_eq!(rx.try_recv(), Ok(Event::Updated(handle_on_init)));
                     assert_eq!(rx.try_recv(), Ok(Event::Updated(handle_on_start)));
-
                     assert_eq!(rx.try_recv(), Ok(Event::Initialized(handle_on_update1)));
                     assert_eq!(rx.try_recv(), Ok(Event::Started(handle_on_update1)));
-
                     assert_eq!(rx.try_recv(), Ok(Event::Updated(handle_on_update1)));
                 }
                 1 => {

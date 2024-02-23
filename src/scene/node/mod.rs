@@ -546,9 +546,6 @@ impl Node {
 
     /// Checks if all node's scripts were initialized
     pub(crate) fn all_scripts_were_initialized(&self) -> bool {
-        if self.scripts.is_empty() {
-            return false;
-        }
         self.scripts.iter().all(|script| {
             if let Some(script) = &script.0 {
                 script.initialized
@@ -560,9 +557,6 @@ impl Node {
 
     /// Checks if all node's scripts were started
     pub(crate) fn all_scripts_were_started(&self) -> bool {
-        if self.scripts.is_empty() {
-            return false;
-        }
         self.scripts.iter().all(|script| {
             if let Some(script) = &script.0 {
                 script.started

@@ -701,6 +701,7 @@ impl Script {
 
 #[cfg(test)]
 mod test {
+    use crate::scene::base::ScriptWrapper;
     use crate::{
         core::{
             impl_component_provider, reflect::prelude::*, variable::try_inherit_properties,
@@ -710,7 +711,6 @@ mod test {
         script::{Script, ScriptTrait},
     };
     use fyrox_core::uuid_provider;
-    use crate::scene::base::ScriptWrapper;
 
     #[derive(Reflect, Visit, Debug, Clone, Default)]
     struct MyScript {
@@ -726,12 +726,14 @@ mod test {
     fn test_script_property_inheritance_on_nodes() {
         let mut child = Base::default();
 
+        child.scripts.push(ScriptWrapper(None));
         child.scripts[0] = ScriptWrapper(Some(Script::new(MyScript {
             field: InheritableVariable::new_non_modified(1.23),
         })));
 
         let mut parent = Base::default();
 
+        parent.scripts.push(ScriptWrapper(None));
         parent.scripts[0] = ScriptWrapper(Some(Script::new(MyScript {
             field: InheritableVariable::new_non_modified(3.21),
         })));
