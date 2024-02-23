@@ -438,7 +438,7 @@ impl Graph {
         self.link_nodes(child, parent);
     }
 
-    /// Searches for a **first** node with a secondary script of the given type `S` in the hierarchy starting from the
+    /// Searches for a **first** node with a script of the given type `S` in the hierarchy starting from the
     /// given `root_node`.
     #[inline]
     pub fn find_first_by_script<S>(&self, root_node: Handle<Node>) -> Option<(Handle<Node>, &Node)>
@@ -1379,11 +1379,7 @@ impl Graph {
     /// Tries to borrow a node using the given handle and fetch a reference to a component of the given type
     /// from the script of the node.
     #[inline]
-    pub fn try_get_secondary_script_component_of<C>(
-        &self,
-        node: Handle<Node>,
-        index: usize,
-    ) -> Option<&C>
+    pub fn try_get_script_component_of<C>(&self, node: Handle<Node>, index: usize) -> Option<&C>
     where
         C: Any + ScriptTrait,
     {

@@ -753,10 +753,11 @@ impl ScriptProcessor {
                                     }
                                 });
 
-                                let node = &context.scene.graph[handle];
-                                if node.has_scripts_assigned() {
-                                    // `on_start` must be called even if the script was initialized.
-                                    start_queue.push_back(handle);
+                                if let Some(node) = context.scene.graph.try_get(handle) {
+                                    if node.has_scripts_assigned() {
+                                        // `on_start` must be called even if the script was initialized.
+                                        start_queue.push_back(handle);
+                                    }
                                 }
                             }
                             NodeScriptMessage::DestroyScript { handle, script } => {

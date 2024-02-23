@@ -317,6 +317,12 @@ impl TypeUuidProvider for ScriptWrapper {
     }
 }
 
+impl Visit for ScriptWrapper {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visit_opt_script(name, &mut self.0, visitor)
+    }
+}
+
 /// Base scene graph node is a simplest possible node, it is used to build more complex ones using composition.
 /// It contains all fundamental properties for each scene graph nodes, like local and global transforms, name,
 /// lifetime, etc. Base node is a building block for all complex node hierarchies - it contains list of children
@@ -821,12 +827,8 @@ impl Base {
         }
     }
 
-    fn set_scripts_internal(&mut self, (index, script): (usize, Option<Script>)) -> Option<Script> {
-        if let Some(vec_script) = self.scripts.get_mut(index) {
-            std::mem::replace(vec_script, script)
-        } else {
-            None
-        }
+    fn set_scripts_internal(&mut self, scripts: Vec<ScriptWrapper>) -> Vec<ScriptWrapper> {
+        std::mem::replace(&mut self.scripts, scripts)
     }
 
     /// Checks if the node has a script of a particular type. Returns `false` if there is no script
@@ -993,12 +995,8 @@ impl Default for Base {
 }
 
 // Serializes Option<Script> using given serializer.
-fn visit_opt_script(
-    name: String,
-    script: &mut Option<Script>,
-    visitor: &mut Visitor,
-) -> VisitResult {
-    let mut region = visitor.enter_region(&name)?;
+fn visit_opt_script(name: &str, script: &mut Option<Script>, visitor: &mut Visitor) -> VisitResult {
+    let mut region = visitor.enter_region(name)?;
 
     let mut script_type_uuid = script.as_ref().map(|s| s.id()).unwrap_or_default();
     script_type_uuid.visit("TypeUuid", &mut region)?;
@@ -1074,59 +1072,14 @@ impl Visit for Base {
         // None of the reasons are fatal and we should still give an ability to load such node
         // to edit or remove it.
 
-        if region.is_reading() {
-            let mut buffer_size: usize = 1;
-            _ = buffer_size.visit("ScriptBufferSize", &mut region);
-            if buffer_size < 1 {
-                buffer_size = 1;
-            }
-
-            let mut script_buffer = Vec::with_capacity(buffer_size);
-
-            for index in 0..script_buffer.capacity() {
-                let mut script = None;
-                if let Err(e) = visit_opt_script(
-                    if index == 0 {
-                        "Script".to_owned()
-                    } else {
-                        format!("Script@{index}")
-                    },
-                    &mut script,
-                    &mut region,
-                ) {
-                    // Do not spam with error messages if there is missing `Script` field. It is ok
-                    // for old scenes not to have script at all.
-                    if !matches!(e, VisitError::RegionDoesNotExist(_)) {
-                        Log::err(format!("Unable to visit script. Reason: {:?}", e))
-                    }
-                } else {
-                    script_buffer.push(ScriptWrapper(script));
-                }
-            }
-
-            self.scripts = script_buffer;
-        } else {
-            let mut buffer_size = self.scripts.len();
-            let _ = buffer_size.visit("ScriptBufferSize", &mut region);
-
-            for (index, script) in self.scripts.iter_mut().enumerate() {
-                if let Err(e) = visit_opt_script(
-                    if index == 0 {
-                        "Script".to_owned()
-                    } else {
-                        format!("Script@{index}")
-                    },
-                    script,
-                    &mut region,
-                ) {
-                    // Do not spam with error messages if there is missing `Script` field. It is ok
-                    // for old scenes not to have script at all.
-                    if !matches!(e, VisitError::RegionDoesNotExist(_)) {
-                        Log::err(format!("Unable to visit script. Reason: {:?}", e))
-                    }
-                }
-            }
+        // This block is needed for backward compatibility
+        let mut old_script = None;
+        if region.is_reading() && visit_opt_script("Script", &mut old_script, &mut region).is_ok() {
+            self.scripts.push(ScriptWrapper(old_script));
+            return Ok(());
         }
+
+        let _ = self.scripts.visit("Scripts", &mut region);
 
         Ok(())
     }
