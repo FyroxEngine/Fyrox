@@ -18,7 +18,6 @@ use crate::{
 use fyrox::gui::font::FontResource;
 use fyrox::gui::UiNode;
 use fyrox::scene::base::ScriptWrapper;
-use fyrox::script::Script;
 use fyrox::{
     asset::{manager::ResourceManager, Resource},
     core::{
