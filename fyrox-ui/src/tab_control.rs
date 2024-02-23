@@ -8,7 +8,7 @@ use crate::{
     brush::Brush,
     button::{ButtonBuilder, ButtonMessage},
     core::{
-        color::Color, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
+        color::Color, pool::Handle, reflect::prelude::*, type_traits::prelude::*, uuid_provider,
         visitor::prelude::*,
     },
     decorator::{DecoratorBuilder, DecoratorMessage},
@@ -16,16 +16,17 @@ use crate::{
     grid::{Column, GridBuilder, Row},
     message::{MessageDirection, MouseButton, UiMessage},
     stack_panel::StackPanelBuilder,
-    utils::make_cross,
+    utils::make_cross_primitive,
+    vector_image::VectorImageBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, Orientation, UiNode, UserInterface, BRUSH_BRIGHT, BRUSH_LIGHT,
+    BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+    VerticalAlignment, BRUSH_BRIGHTEST, BRUSH_DARK, BRUSH_LIGHT, BRUSH_LIGHTEST,
 };
-use fyrox_core::uuid_provider;
-use std::sync::Arc;
 use std::{
     any::Any,
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
+    sync::Arc,
 };
 
 /// A set of messages for [`TabControl`] widget.
@@ -267,15 +268,11 @@ impl Control for TabControl {
                                         existing_tab_index == active_tab_index
                                     }),
                                 ));
-                                ui.send_message(DecoratorMessage::normal_brush(
+                                ui.send_message(DecoratorMessage::select(
                                     tab.decorator,
                                     MessageDirection::ToWidget,
-                                    active_tab.map_or(BRUSH_LIGHT, |active_tab_index| {
-                                        if existing_tab_index == active_tab_index {
-                                            self.active_tab_brush.clone()
-                                        } else {
-                                            BRUSH_LIGHT
-                                        }
+                                    active_tab.map_or(false, |active_tab_index| {
+                                        existing_tab_index == active_tab_index
                                     }),
                                 ))
                             }
@@ -308,7 +305,7 @@ impl Control for TabControl {
                         let header = Header::build(definition, None, &mut ui.build_ctx());
 
                         ui.send_message(WidgetMessage::link(
-                            header.container,
+                            header.button,
                             MessageDirection::ToWidget,
                             self.headers_container,
                         ));
@@ -325,7 +322,7 @@ impl Control for TabControl {
                             header_button: header.button,
                             content: definition.content,
                             close_button: header.close_button,
-                            header_container: header.container,
+                            header_container: header.button,
                             user_data: definition.user_data.clone(),
                             decorator: header.decorator,
                             header_content: header.content,
@@ -358,7 +355,6 @@ pub struct TabDefinition {
 }
 
 struct Header {
-    container: Handle<UiNode>,
     button: Handle<UiNode>,
     close_button: Handle<UiNode>,
     decorator: Handle<UiNode>,
@@ -371,44 +367,78 @@ impl Header {
         normal_brush: Option<&Brush>,
         ctx: &mut BuildContext,
     ) -> Self {
-        let button;
         let close_button;
         let decorator;
-        let grid = GridBuilder::new(
-            WidgetBuilder::new()
-                .with_child({
-                    button = ButtonBuilder::new(WidgetBuilder::new().on_row(0).on_column(0))
-                        .with_back({
-                            decorator =
-                                DecoratorBuilder::new(BorderBuilder::new(WidgetBuilder::new()))
-                                    .with_normal_brush(normal_brush.cloned().unwrap_or(BRUSH_LIGHT))
-                                    .build(ctx);
-                            decorator
-                        })
-                        .with_content(tab_definition.header)
-                        .build(ctx);
-                    button
-                })
-                .with_child({
-                    close_button = if tab_definition.can_be_closed {
-                        ButtonBuilder::new(
-                            WidgetBuilder::new().on_row(0).on_column(1).with_width(16.0),
-                        )
-                        .with_content(make_cross(ctx, 10.0, 2.0))
-                        .build(ctx)
-                    } else {
-                        Handle::NONE
-                    };
-                    close_button
-                }),
-        )
-        .add_row(Row::auto())
-        .add_column(Column::auto())
-        .add_column(Column::auto())
-        .build(ctx);
+
+        let button = ButtonBuilder::new(WidgetBuilder::new().on_row(0).on_column(0))
+            .with_back({
+                decorator = DecoratorBuilder::new(
+                    BorderBuilder::new(WidgetBuilder::new())
+                        .with_stroke_thickness(Thickness::uniform(0.0)),
+                )
+                .with_normal_brush(normal_brush.cloned().unwrap_or(BRUSH_DARK))
+                .with_selected_brush(BRUSH_LIGHTEST)
+                .with_pressed_brush(BRUSH_LIGHTEST)
+                .with_hover_brush(BRUSH_LIGHT)
+                .build(ctx);
+                decorator
+            })
+            .with_content(
+                GridBuilder::new(
+                    WidgetBuilder::new()
+                        .with_child(tab_definition.header)
+                        .with_child({
+                            close_button = if tab_definition.can_be_closed {
+                                ButtonBuilder::new(
+                                    WidgetBuilder::new()
+                                        .with_margin(Thickness::right(1.0))
+                                        .on_row(0)
+                                        .on_column(1)
+                                        .with_width(16.0)
+                                        .with_height(16.0),
+                                )
+                                .with_back(
+                                    DecoratorBuilder::new(
+                                        BorderBuilder::new(WidgetBuilder::new())
+                                            .with_corner_radius(5.0)
+                                            .with_pad_by_corner_radius(false)
+                                            .with_stroke_thickness(Thickness::uniform(0.0)),
+                                    )
+                                    .with_normal_brush(Brush::Solid(Color::TRANSPARENT))
+                                    .with_hover_brush(BRUSH_DARK)
+                                    .build(ctx),
+                                )
+                                .with_content(
+                                    VectorImageBuilder::new(
+                                        WidgetBuilder::new()
+                                            .with_margin(Thickness {
+                                                left: 2.0,
+                                                top: 2.0,
+                                                right: 0.0,
+                                                bottom: 0.0,
+                                            })
+                                            .with_horizontal_alignment(HorizontalAlignment::Center)
+                                            .with_vertical_alignment(VerticalAlignment::Center)
+                                            .with_foreground(BRUSH_BRIGHTEST),
+                                    )
+                                    .with_primitives(make_cross_primitive(8.0, 2.0))
+                                    .build(ctx),
+                                )
+                                .build(ctx)
+                            } else {
+                                Handle::NONE
+                            };
+                            close_button
+                        }),
+                )
+                .add_row(Row::auto())
+                .add_column(Column::stretch())
+                .add_column(Column::auto())
+                .build(ctx),
+            )
+            .build(ctx);
 
         Header {
-            container: grid,
             button,
             close_button,
             decorator,
@@ -423,7 +453,7 @@ impl TabControlBuilder {
         Self {
             widget_builder,
             tabs: Default::default(),
-            active_tab_brush: BRUSH_BRIGHT,
+            active_tab_brush: BRUSH_LIGHTEST,
         }
     }
 
@@ -462,7 +492,7 @@ impl TabControlBuilder {
 
         let headers_container = StackPanelBuilder::new(
             WidgetBuilder::new()
-                .with_children(tab_headers.iter().map(|h| h.container))
+                .with_children(tab_headers.iter().map(|h| h.button))
                 .on_row(0),
         )
         .with_orientation(Orientation::Horizontal)
@@ -493,7 +523,7 @@ impl TabControlBuilder {
                 .with_child(
                     BorderBuilder::new(
                         WidgetBuilder::new()
-                            .with_background(Brush::Solid(Color::from_rgba(0, 0, 0, 0)))
+                            .with_background(BRUSH_DARK)
                             .with_child(grid),
                     )
                     .build(ctx),
@@ -507,7 +537,7 @@ impl TabControlBuilder {
                     header_button: header.button,
                     content: tab.content,
                     close_button: header.close_button,
-                    header_container: header.container,
+                    header_container: header.button,
                     user_data: tab.user_data,
                     decorator: header.decorator,
                     header_content: header.content,
