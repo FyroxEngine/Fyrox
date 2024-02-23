@@ -64,14 +64,8 @@ pub fn make_arrow(
     .build(ctx)
 }
 
-pub fn make_cross(ctx: &mut BuildContext, size: f32, thickness: f32) -> Handle<UiNode> {
-    VectorImageBuilder::new(
-        WidgetBuilder::new()
-            .with_horizontal_alignment(HorizontalAlignment::Center)
-            .with_vertical_alignment(VerticalAlignment::Center)
-            .with_foreground(BRUSH_BRIGHT),
-    )
-    .with_primitives(vec![
+pub fn make_cross_primitive(size: f32, thickness: f32) -> Vec<Primitive> {
+    vec![
         Primitive::Line {
             begin: Vector2::new(0.0, 0.0),
             end: Vector2::new(size, size),
@@ -82,7 +76,17 @@ pub fn make_cross(ctx: &mut BuildContext, size: f32, thickness: f32) -> Handle<U
             end: Vector2::new(0.0, size),
             thickness,
         },
-    ])
+    ]
+}
+
+pub fn make_cross(ctx: &mut BuildContext, size: f32, thickness: f32) -> Handle<UiNode> {
+    VectorImageBuilder::new(
+        WidgetBuilder::new()
+            .with_horizontal_alignment(HorizontalAlignment::Center)
+            .with_vertical_alignment(VerticalAlignment::Center)
+            .with_foreground(BRUSH_BRIGHT),
+    )
+    .with_primitives(make_cross_primitive(size, thickness))
     .build(ctx)
 }
 
