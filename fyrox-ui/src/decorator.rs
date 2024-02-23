@@ -148,19 +148,16 @@ impl Control for Decorator {
                 &DecoratorMessage::Select(value) => {
                     if *self.is_selected != value {
                         self.is_selected.set_value_and_mark_modified(value);
-                        if *self.is_selected {
-                            ui.send_message(WidgetMessage::background(
-                                self.handle(),
-                                MessageDirection::ToWidget,
-                                (*self.selected_brush).clone(),
-                            ));
-                        } else {
-                            ui.send_message(WidgetMessage::background(
-                                self.handle(),
-                                MessageDirection::ToWidget,
-                                (*self.normal_brush).clone(),
-                            ));
-                        }
+
+                        ui.send_message(WidgetMessage::background(
+                            self.handle(),
+                            MessageDirection::ToWidget,
+                            if *self.is_selected {
+                                (*self.selected_brush).clone()
+                            } else {
+                                (*self.normal_brush).clone()
+                            },
+                        ));
                     }
                 }
                 DecoratorMessage::HoverBrush(brush) => {
@@ -205,25 +202,25 @@ impl Control for Decorator {
             {
                 match msg {
                     WidgetMessage::MouseLeave => {
-                        if *self.is_selected {
-                            ui.send_message(WidgetMessage::background(
-                                self.handle(),
-                                MessageDirection::ToWidget,
-                                (*self.selected_brush).clone(),
-                            ));
-                        } else {
-                            ui.send_message(WidgetMessage::background(
-                                self.handle(),
-                                MessageDirection::ToWidget,
-                                (*self.normal_brush).clone(),
-                            ));
-                        }
+                        ui.send_message(WidgetMessage::background(
+                            self.handle(),
+                            MessageDirection::ToWidget,
+                            if *self.is_selected {
+                                (*self.selected_brush).clone()
+                            } else {
+                                (*self.normal_brush).clone()
+                            },
+                        ));
                     }
                     WidgetMessage::MouseEnter => {
                         ui.send_message(WidgetMessage::background(
                             self.handle(),
                             MessageDirection::ToWidget,
-                            (*self.hover_brush).clone(),
+                            if *self.is_selected {
+                                (*self.selected_brush).clone()
+                            } else {
+                                (*self.hover_brush).clone()
+                            },
                         ));
                     }
                     WidgetMessage::MouseDown { .. } if *self.is_pressable => {
