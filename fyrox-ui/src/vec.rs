@@ -52,6 +52,8 @@ pub fn make_mark(ctx: &mut BuildContext, column: usize, color: Color) -> Handle<
             .with_foreground(Brush::Solid(Color::TRANSPARENT))
             .with_width(4.0),
     )
+    .with_corner_radius(2.0)
+    .with_pad_by_corner_radius(false)
     .build(ctx)
 }
 

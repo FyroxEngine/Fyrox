@@ -389,15 +389,19 @@ where
             names
                 .into_iter()
                 .map(|name| {
-                    DecoratorBuilder::new(BorderBuilder::new(
-                        WidgetBuilder::new().with_child(
-                            TextBuilder::new(WidgetBuilder::new())
-                                .with_vertical_text_alignment(VerticalAlignment::Center)
-                                .with_horizontal_text_alignment(HorizontalAlignment::Center)
-                                .with_text(name)
-                                .build(ctx.build_context),
-                        ),
-                    ))
+                    DecoratorBuilder::new(
+                        BorderBuilder::new(
+                            WidgetBuilder::new().with_child(
+                                TextBuilder::new(WidgetBuilder::new())
+                                    .with_vertical_text_alignment(VerticalAlignment::Center)
+                                    .with_horizontal_text_alignment(HorizontalAlignment::Center)
+                                    .with_text(name)
+                                    .build(ctx.build_context),
+                            ),
+                        )
+                        .with_corner_radius(4.0)
+                        .with_pad_by_corner_radius(false),
+                    )
                     .build(ctx.build_context)
                 })
                 .collect::<Vec<_>>(),

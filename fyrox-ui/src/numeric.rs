@@ -575,9 +575,13 @@ fn make_button(
             .on_row(row),
     )
     .with_back(
-        DecoratorBuilder::new(BorderBuilder::new(
-            WidgetBuilder::new().with_foreground(Brush::Solid(Color::opaque(90, 90, 90))),
-        ))
+        DecoratorBuilder::new(
+            BorderBuilder::new(
+                WidgetBuilder::new().with_foreground(Brush::Solid(Color::opaque(90, 90, 90))),
+            )
+            .with_corner_radius(2.0)
+            .with_pad_by_corner_radius(false),
+        )
         .with_normal_brush(Brush::Solid(Color::opaque(60, 60, 60)))
         .with_hover_brush(Brush::Solid(Color::opaque(80, 80, 80)))
         .with_pressed_brush(Brush::Solid(Color::opaque(80, 118, 178)))
@@ -664,6 +668,8 @@ impl<T: NumericType> NumericUpDownBuilder<T> {
                 .with_background(BRUSH_DARK)
                 .with_foreground(BRUSH_LIGHT),
         )
+        .with_corner_radius(4.0)
+        .with_pad_by_corner_radius(false)
         .with_stroke_thickness(Thickness::uniform(1.0))
         .build(ctx);
 

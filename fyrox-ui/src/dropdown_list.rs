@@ -316,6 +316,8 @@ impl DropdownListBuilder {
                             .with_foreground(BRUSH_LIGHT)
                             .with_child(main_grid),
                     )
+                    .with_pad_by_corner_radius(false)
+                    .with_corner_radius(4.0)
                     .build(ctx),
                 )
                 .build(),
