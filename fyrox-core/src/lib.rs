@@ -58,7 +58,6 @@ pub use notify;
 
 #[cfg(target_arch = "wasm32")]
 pub use js_sys;
-use std::iter::FromIterator;
 use std::marker::PhantomData;
 #[cfg(target_arch = "wasm32")]
 pub use wasm_bindgen;

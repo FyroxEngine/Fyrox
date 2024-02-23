@@ -421,10 +421,8 @@ fn copy_binaries_wasm(package_dir_path: &Path, destination_folder: &Path) -> Res
             {
                 return false;
             }
-        } else if path.is_dir() {
-            if path.file_name() == Some(OsStr::new("src")) {
-                return false;
-            }
+        } else if path.is_dir() && path.file_name() == Some(OsStr::new("target")) {
+            return false;
         }
 
         true
