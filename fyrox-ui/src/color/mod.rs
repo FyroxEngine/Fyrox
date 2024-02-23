@@ -578,7 +578,7 @@ impl Control for SaturationBrightnessField {
             bounds.x() + self.saturation / 100.0 * bounds.w(),
             bounds.y() + (100.0 - self.brightness) / 100.0 * bounds.h(),
         );
-        drawing_context.push_circle(
+        drawing_context.push_circle_filled(
             origin,
             3.0,
             10,
