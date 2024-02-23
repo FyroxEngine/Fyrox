@@ -17,7 +17,7 @@ use crate::{
     vector_image::{Primitive, VectorImageBuilder},
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, HorizontalAlignment, RestrictionEntry, Thickness, UiNode, UserInterface,
-    VerticalAlignment, BRUSH_BRIGHT, BRUSH_LIGHT, BRUSH_LIGHTEST,
+    VerticalAlignment, BRUSH_BRIGHT, BRUSH_DARKER, BRUSH_LIGHT, BRUSH_LIGHTEST,
 };
 use fyrox_core::uuid_provider;
 use fyrox_graph::BaseSceneGraph;
@@ -1108,15 +1108,13 @@ impl WindowBuilder {
         let maximize_button;
         let close_button;
 
-        let blue_tint = Brush::Solid(Color::opaque(60, 60, 64));
-
         let title;
         let title_grid;
         let header = BorderBuilder::new(
             WidgetBuilder::new()
                 .with_horizontal_alignment(HorizontalAlignment::Stretch)
                 .with_height(22.0)
-                .with_background(blue_tint.clone())
+                .with_background(BRUSH_DARKER)
                 .with_child({
                     title_grid = GridBuilder::new(
                         WidgetBuilder::new()
@@ -1186,17 +1184,19 @@ impl WindowBuilder {
                 .with_visibility(self.open)
                 .with_child(
                     BorderBuilder::new(
-                        WidgetBuilder::new().with_foreground(blue_tint).with_child(
-                            GridBuilder::new(
-                                WidgetBuilder::new()
-                                    .with_child(self.content)
-                                    .with_child(header),
-                            )
-                            .add_column(Column::stretch())
-                            .add_row(Row::auto())
-                            .add_row(Row::stretch())
-                            .build(ctx),
-                        ),
+                        WidgetBuilder::new()
+                            .with_foreground(BRUSH_DARKER)
+                            .with_child(
+                                GridBuilder::new(
+                                    WidgetBuilder::new()
+                                        .with_child(self.content)
+                                        .with_child(header),
+                                )
+                                .add_column(Column::stretch())
+                                .add_row(Row::auto())
+                                .add_row(Row::stretch())
+                                .build(ctx),
+                            ),
                     )
                     .with_stroke_thickness(Thickness::uniform(1.0))
                     .build(ctx),
