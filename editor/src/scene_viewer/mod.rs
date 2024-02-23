@@ -284,7 +284,7 @@ impl SceneViewer {
                         ),
                 )
                 .add_row(Row::strict(25.0))
-                .add_row(Row::strict(25.0))
+                .add_row(Row::strict(21.0))
                 .add_row(Row::stretch())
                 .add_column(Column::stretch())
                 .build(ctx),
