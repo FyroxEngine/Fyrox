@@ -205,22 +205,11 @@ impl CsmRenderer {
                     .unwrap_or_default();
 
             let center = frustum.center();
+            let observer_position = center + light_direction;
             let light_view_matrix = Matrix4::look_at_lh(
-                &Point3::from(center + light_direction),
+                &Point3::from(observer_position),
                 &Point3::from(center),
                 &light_up_vec,
-            );
-
-            let batches = RenderDataBatchStorage::from_graph(
-                graph,
-                ObserverInfo {
-                    observer_position: camera.global_position(),
-                    z_near,
-                    z_far,
-                    view_matrix: light_view_matrix,
-                    projection_matrix,
-                },
-                DIRECTIONAL_SHADOW_PASS_NAME.clone(),
             );
 
             let mut aabb = AxisAlignedBoundingBox::default();
@@ -259,6 +248,18 @@ impl CsmRenderer {
             let viewport = Rect::new(0, 0, self.size as i32, self.size as i32);
             let framebuffer = &mut self.cascades[i].frame_buffer;
             framebuffer.clear(state, viewport, None, Some(1.0), None);
+
+            let batches = RenderDataBatchStorage::from_graph(
+                graph,
+                ObserverInfo {
+                    observer_position,
+                    z_near,
+                    z_far,
+                    view_matrix: light_view_matrix,
+                    projection_matrix: cascade_projection_matrix,
+                },
+                DIRECTIONAL_SHADOW_PASS_NAME.clone(),
+            );
 
             for batch in batches.batches.iter() {
                 let mut material_state = batch.material.state();
