@@ -74,6 +74,7 @@ use std::{ffi::CString, num::NonZeroU32};
 use crate::engine::task::TaskPoolHandler;
 use crate::graph::SceneGraph;
 use crate::resource::texture;
+use crate::scene::base::ScriptWrapper;
 use crate::scene::navmesh;
 use crate::script::PluginsRefMut;
 use fyrox_core::task::TaskPool;
@@ -95,6 +96,7 @@ use std::{
     },
     time::Duration,
 };
+
 use winit::{
     dpi::{Position, Size},
     event_loop::EventLoopWindowTarget,
@@ -697,21 +699,19 @@ impl ScriptProcessor {
             let mut update_queue = VecDeque::new();
             let mut start_queue = VecDeque::new();
             for (handle, node) in scene.graph.pair_iter() {
-                if let Some(script) = node.script.as_ref() {
-                    if node.is_globally_enabled() {
-                        if script.initialized {
-                            if script.started {
-                                update_queue.push_back(handle);
-                            } else {
-                                start_queue.push_back(handle);
-                            }
+                if node.is_globally_enabled() && node.has_scripts_assigned() {
+                    if node.all_scripts_were_initialized() {
+                        if node.all_scripts_were_started() {
+                            update_queue.push_back(handle);
                         } else {
-                            scene
-                                .graph
-                                .script_message_sender
-                                .send(NodeScriptMessage::InitializeScript { handle })
-                                .unwrap();
+                            start_queue.push_back(handle);
                         }
+                    } else {
+                        scene
+                            .graph
+                            .script_message_sender
+                            .send(NodeScriptMessage::InitializeScript { handle })
+                            .unwrap();
                     }
                 }
             }
@@ -751,10 +751,14 @@ impl ScriptProcessor {
                                         script.on_init(context);
                                         script.initialized = true;
                                     }
-
-                                    // `on_start` must be called even if the script was initialized.
-                                    start_queue.push_back(handle);
                                 });
+
+                                if let Some(node) = context.scene.graph.try_get(handle) {
+                                    if node.has_scripts_assigned() {
+                                        // `on_start` must be called even if the script was initialized.
+                                        start_queue.push_back(handle);
+                                    }
+                                }
                             }
                             NodeScriptMessage::DestroyScript { handle, script } => {
                                 // Destruction is delayed to the end of the frame.
@@ -770,17 +774,22 @@ impl ScriptProcessor {
                         // Call `on_start` for every recently initialized node and go to next
                         // iteration of init loop. This is needed because `on_start` can spawn
                         // some other nodes that must be initialized before update.
-                        while let Some(node) = start_queue.pop_front() {
-                            context.handle = node;
+                        while let Some(handle) = start_queue.pop_front() {
+                            context.handle = handle;
 
+                            let mut started_script = false;
                             process_node(&mut context, &mut |script, context| {
                                 if !script.started {
                                     script.on_start(context);
                                     script.started = true;
 
-                                    update_queue.push_back(node);
+                                    started_script = true;
                                 }
                             });
+
+                            if started_script {
+                                update_queue.push_back(handle);
+                            }
                         }
                     }
 
@@ -872,19 +881,29 @@ impl ScriptProcessor {
 
                 // Destroy every script instance from nodes that were still alive.
                 for node_index in 0..context.scene.graph.capacity() {
-                    context.node_handle = context.scene.graph.handle_from_index(node_index);
+                    let handle_node = context.scene.graph.handle_from_index(node_index);
+                    context.node_handle = handle_node;
 
-                    if let Some(mut script) = context
-                        .scene
-                        .graph
-                        .try_get_mut(context.node_handle)
-                        .and_then(|node| node.script.take())
-                    {
-                        // A script could not be initialized in case if we added a scene, and then immediately
-                        // removed it. Calling `on_deinit` in this case would be a violation of API contract.
-                        if script.initialized {
-                            script.on_deinit(&mut context)
+                    let mut script_buffer_len = 0;
+                    if let Some(node) = context.scene.graph.try_get_mut(handle_node) {
+                        script_buffer_len = node.scripts.len()
+                    }
+
+                    for index in 0..script_buffer_len {
+                        let mut script = None;
+                        if let Some(node) = context.scene.graph.try_get_mut(handle_node) {
+                            script = node.scripts[index].take()
                         }
+
+                        if let Some(script) = &mut script {
+                            if script.initialized {
+                                script.on_deinit(&mut context)
+                            }
+                        }
+
+                        if let Some(node) = context.scene.graph.try_get_mut(handle_node) {
+                            node.scripts[index] = ScriptWrapper(script);
+                        };
                     }
                 }
             }
@@ -1013,33 +1032,24 @@ macro_rules! define_process_node {
         where
             T: FnMut(&mut Script, &mut $ctx_type),
         {
-            // Take a script from node. We're temporarily taking ownership over script
-            // instance.
-            let mut script = match context.scene.graph.try_get_mut(context.handle) {
-                Some(node) => {
-                    if !node.is_globally_enabled() {
-                        return;
-                    }
-
-                    if let Some(script) = node.script.take() {
-                        script
-                    } else {
-                        // No script.
-                        return;
-                    }
-                }
-                None => {
-                    // Invalid handle.
-                    return;
-                }
-            };
-
-            func(&mut script, context);
-
-            // Put the script back to the node. We must do a checked borrow, because it is possible
-            // that the node is already destroyed by script logic.
+            let mut script_buffer_len = 0;
             if let Some(node) = context.scene.graph.try_get_mut(context.handle) {
-                node.script = Some(script);
+                script_buffer_len = node.scripts.len()
+            }
+
+            for index in 0..script_buffer_len {
+                let mut script = None;
+                if let Some(node) = context.scene.graph.try_get_mut(context.handle) {
+                    script = node.scripts[index].take()
+                }
+
+                if let Some(script) = &mut script {
+                    func(script, context);
+                }
+
+                if let Some(node) = context.scene.graph.try_get_mut(context.handle) {
+                    node.scripts[index] = ScriptWrapper(script);
+                };
             }
         }
     };
@@ -1872,35 +1882,58 @@ impl Engine {
                     .iter_mut()
                     .find(|e| e.handle == node_task_handler.scene_handle)
                 {
+                    let mut script_buffer_len = 0;
                     if let Some(scene) = self.scenes.try_get_mut(node_task_handler.scene_handle) {
-                        if let Some(mut script) = scene
-                            .graph
-                            .try_get_mut(node_task_handler.node_handle)
-                            .and_then(|n| n.script.take())
-                        {
-                            (node_task_handler.closure)(
-                                result.payload,
-                                script.deref_mut(),
-                                &mut ScriptContext {
-                                    dt,
-                                    elapsed_time: self.elapsed_time,
-                                    plugins: PluginsRefMut(&mut self.plugins),
-                                    handle: node_task_handler.node_handle,
-                                    scene,
-                                    scene_handle: scripted_scene.handle,
-                                    resource_manager: &self.resource_manager,
-                                    message_sender: &scripted_scene.message_sender,
-                                    message_dispatcher: &mut scripted_scene.message_dispatcher,
-                                    task_pool: &mut self.task_pool,
-                                    graphics_context: &mut self.graphics_context,
-                                    user_interface: &mut self.user_interface,
-                                },
-                            );
+                        if let Some(node) = scene.graph.try_get_mut(node_task_handler.node_handle) {
+                            script_buffer_len = node.scripts.len()
+                        }
+                    }
 
+                    let mut payload = result.payload;
+                    for index in 0..script_buffer_len {
+                        let mut script = None;
+                        let mut scene = None;
+                        if let Some(self_scene) =
+                            self.scenes.try_get_mut(node_task_handler.scene_handle)
+                        {
+                            if let Some(node) =
+                                self_scene.graph.try_get_mut(node_task_handler.node_handle)
+                            {
+                                script = node.scripts[index].take()
+                            }
+
+                            scene = Some(self_scene);
+                        }
+
+                        if let Some(scene) = scene {
+                            if let Some(script) = &mut script {
+                                payload = (node_task_handler.closure)(
+                                    payload,
+                                    script.deref_mut(),
+                                    &mut ScriptContext {
+                                        dt,
+                                        elapsed_time: self.elapsed_time,
+                                        plugins: PluginsRefMut(&mut self.plugins),
+                                        handle: node_task_handler.node_handle,
+                                        scene,
+                                        scene_handle: scripted_scene.handle,
+                                        resource_manager: &self.resource_manager,
+                                        message_sender: &scripted_scene.message_sender,
+                                        message_dispatcher: &mut scripted_scene.message_dispatcher,
+                                        task_pool: &mut self.task_pool,
+                                        graphics_context: &mut self.graphics_context,
+                                        user_interface: &mut self.user_interface,
+                                    },
+                                );
+                            }
+                        }
+
+                        if let Some(scene) = self.scenes.try_get_mut(node_task_handler.scene_handle)
+                        {
                             if let Some(node) =
                                 scene.graph.try_get_mut(node_task_handler.node_handle)
                             {
-                                node.script = Some(script);
+                                node.scripts[index] = ScriptWrapper(script);
                             }
                         }
                     }
@@ -2433,20 +2466,15 @@ mod test {
                 0 => {
                     assert_eq!(rx.try_recv(), Ok(Event::Initialized(node_handle)));
                     assert_eq!(rx.try_recv(), Ok(Event::Initialized(handle_on_init)));
-
                     assert_eq!(rx.try_recv(), Ok(Event::Started(node_handle)));
                     assert_eq!(rx.try_recv(), Ok(Event::Started(handle_on_init)));
-
                     assert_eq!(rx.try_recv(), Ok(Event::Initialized(handle_on_start)));
                     assert_eq!(rx.try_recv(), Ok(Event::Started(handle_on_start)));
-
                     assert_eq!(rx.try_recv(), Ok(Event::Updated(node_handle)));
                     assert_eq!(rx.try_recv(), Ok(Event::Updated(handle_on_init)));
                     assert_eq!(rx.try_recv(), Ok(Event::Updated(handle_on_start)));
-
                     assert_eq!(rx.try_recv(), Ok(Event::Initialized(handle_on_update1)));
                     assert_eq!(rx.try_recv(), Ok(Event::Started(handle_on_update1)));
-
                     assert_eq!(rx.try_recv(), Ok(Event::Updated(handle_on_update1)));
                 }
                 1 => {

@@ -544,6 +544,28 @@ impl Node {
         self.original_handle_in_resource = original_handle;
     }
 
+    /// Checks if all node's scripts were initialized
+    pub(crate) fn all_scripts_were_initialized(&self) -> bool {
+        self.scripts.iter().all(|script| {
+            if let Some(script) = &script.0 {
+                script.initialized
+            } else {
+                true
+            }
+        })
+    }
+
+    /// Checks if all node's scripts were started
+    pub(crate) fn all_scripts_were_started(&self) -> bool {
+        self.scripts.iter().all(|script| {
+            if let Some(script) = &script.0 {
+                script.started
+            } else {
+                true
+            }
+        })
+    }
+
     define_is_as!(Mesh => fn is_mesh, fn as_mesh, fn as_mesh_mut);
     define_is_as!(Pivot => fn is_pivot, fn as_pivot, fn as_pivot_mut);
     define_is_as!(Camera  => fn is_camera, fn as_camera, fn as_camera_mut);
@@ -779,7 +801,7 @@ mod test {
             pivot
                 .local_transform_mut()
                 .set_position(Vector3::new(1.0, 2.0, 3.0));
-            let my_script = pivot.try_get_script_mut::<MyScript>().unwrap();
+            let my_script = pivot.try_get_script_mut::<MyScript>(0).unwrap();
             my_script.some_collection.push(4);
             let mesh = derived.graph[mesh].as_mesh_mut();
             assert_eq!(
@@ -812,7 +834,7 @@ mod test {
                 .unwrap()
                 .0;
             let pivot = &derived_scene.graph[pivot];
-            let my_script = pivot.try_get_script::<MyScript>().unwrap();
+            let my_script = pivot.try_get_script::<MyScript>(0).unwrap();
             assert_eq!(
                 **pivot.local_transform().position(),
                 Vector3::new(1.0, 2.0, 3.0)

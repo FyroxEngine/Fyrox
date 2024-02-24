@@ -23,6 +23,7 @@ use std::{
     any::{Any, TypeId},
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
+    str::FromStr,
     sync::mpsc::Sender,
 };
 
@@ -521,6 +522,12 @@ pub struct Script {
     pub(crate) started: bool,
 }
 
+impl TypeUuidProvider for Script {
+    fn type_uuid() -> Uuid {
+        Uuid::from_str("24ecd17d-9b46-4cc8-9d07-a1273e50a20e").unwrap()
+    }
+}
+
 impl Reflect for Script {
     fn source_path() -> &'static str {
         file!()
@@ -694,6 +701,7 @@ impl Script {
 
 #[cfg(test)]
 mod test {
+    use crate::scene::base::ScriptWrapper;
     use crate::{
         core::{
             impl_component_provider, reflect::prelude::*, variable::try_inherit_properties,
@@ -718,15 +726,17 @@ mod test {
     fn test_script_property_inheritance_on_nodes() {
         let mut child = Base::default();
 
-        child.script = Some(Script::new(MyScript {
+        child.scripts.push(ScriptWrapper(None));
+        child.scripts[0] = ScriptWrapper(Some(Script::new(MyScript {
             field: InheritableVariable::new_non_modified(1.23),
-        }));
+        })));
 
         let mut parent = Base::default();
 
-        parent.script = Some(Script::new(MyScript {
+        parent.scripts.push(ScriptWrapper(None));
+        parent.scripts[0] = ScriptWrapper(Some(Script::new(MyScript {
             field: InheritableVariable::new_non_modified(3.21),
-        }));
+        })));
 
         child.as_reflect_mut(&mut |child| {
             parent.as_reflect(&mut |parent| {
@@ -735,7 +745,7 @@ mod test {
         });
 
         assert_eq!(
-            *child.script().unwrap().cast::<MyScript>().unwrap().field,
+            *child.script(0).unwrap().cast::<MyScript>().unwrap().field,
             3.21
         );
     }

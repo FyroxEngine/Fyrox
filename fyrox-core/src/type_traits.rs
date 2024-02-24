@@ -62,6 +62,15 @@ impl<T: TypeUuidProvider> TypeUuidProvider for Option<T> {
     }
 }
 
+impl<T: TypeUuidProvider> TypeUuidProvider for Vec<T> {
+    fn type_uuid() -> Uuid {
+        combine_uuids(
+            uuid::uuid!("51bc577b-5a50-4a97-9b31-eda2f3d46c9c"),
+            T::type_uuid(),
+        )
+    }
+}
+
 #[inline]
 pub fn combine_uuids(a: Uuid, b: Uuid) -> Uuid {
     let mut combined_bytes = a.into_bytes();

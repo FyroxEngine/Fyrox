@@ -445,8 +445,13 @@ impl Graph {
     where
         S: ScriptTrait,
     {
-        self.find(root_node, &mut |n| {
-            n.script().and_then(|s| s.cast::<S>()).is_some()
+        self.find(root_node, &mut |node| {
+            for script in &node.scripts {
+                if script.as_ref().and_then(|s| s.cast::<S>()).is_some() {
+                    return true;
+                }
+            }
+            false
         })
     }
 
@@ -1351,45 +1356,75 @@ impl Graph {
         Vector3::new(m[0], m[5], m[10])
     }
 
-    /// Tries to borrow a node using the given handle, fetch its script and cast it to the specified type.
+    /// Tries to borrow a node using the given handle and
+    /// returns the index of a script of type T in script buffer,
+    /// that could be found to the specified type.
+    #[inline]
+    pub fn try_get_script_index_of<T>(&self, node: Handle<Node>) -> Option<usize>
+    where
+        T: ScriptTrait,
+    {
+        self.try_get(node).and_then(|node| {
+            (0..node.scripts.len()).find(|&index| node.try_get_script::<T>(index).is_some())
+        })
+    }
+
+    /// Tries to borrow a node using the given handle and
+    /// searches the script buffer for a script of type T and cast the first script,
+    /// that could be found to the specified type.
     #[inline]
     pub fn try_get_script_of<T>(&self, node: Handle<Node>) -> Option<&T>
     where
         T: ScriptTrait,
     {
-        self.try_get(node).and_then(|node| node.try_get_script())
+        let index = self.try_get_script_index_of::<T>(node);
+        if let Some(index) = index {
+            self.try_get(node)
+                .and_then(|node| node.try_get_script::<T>(index));
+        }
+        None
     }
 
-    /// Tries to borrow a node using the given handle, fetch its script and cast it to the specified type.
+    /// Tries to borrow a node using the given handle and
+    /// searches the script buffer for a script of type T and cast the first script,
+    /// that could be found to the specified type.
     #[inline]
     pub fn try_get_script_of_mut<T>(&mut self, node: Handle<Node>) -> Option<&mut T>
     where
         T: ScriptTrait,
     {
-        self.try_get_mut(node)
-            .and_then(|node| node.try_get_script_mut())
+        let index = self.try_get_script_index_of::<T>(node);
+        if let Some(index) = index {
+            self.try_get_mut(node)
+                .and_then(|node| node.try_get_script_mut::<T>(index));
+        }
+        None
     }
 
     /// Tries to borrow a node using the given handle and fetch a reference to a component of the given type
     /// from the script of the node.
     #[inline]
-    pub fn try_get_script_component_of<C>(&self, node: Handle<Node>) -> Option<&C>
+    pub fn try_get_script_component_of<C>(&self, node: Handle<Node>, index: usize) -> Option<&C>
     where
         C: Any,
     {
         self.try_get(node)
-            .and_then(|node| node.try_get_script_component())
+            .and_then(|node| node.try_get_script_component(index))
     }
 
     /// Tries to borrow a node using the given handle and fetch a reference to a component of the given type
     /// from the script of the node.
     #[inline]
-    pub fn try_get_script_component_of_mut<C>(&mut self, node: Handle<Node>) -> Option<&mut C>
+    pub fn try_get_script_component_of_mut<C>(
+        &mut self,
+        node: Handle<Node>,
+        index: usize,
+    ) -> Option<&mut C>
     where
         C: Any,
     {
         self.try_get_mut(node)
-            .and_then(|node| node.try_get_script_component_mut())
+            .and_then(|node| node.try_get_script_component_mut(index))
     }
 
     /// Returns a handle of the node that has the given id.
@@ -1534,7 +1569,7 @@ impl BaseSceneGraph for Graph {
     fn add_node(&mut self, mut node: Self::Node) -> Handle<Self::Node> {
         let children = node.children.clone();
         node.children.clear();
-        let has_script = node.script.is_some();
+        let has_script = node.has_scripts_assigned();
         let handle = self.pool.spawn(node);
 
         if self.root.is_none() {
