@@ -1360,7 +1360,7 @@ impl Graph {
     /// returns the index of a script of type T in script buffer,
     /// that could be found to the specified type.
     #[inline]
-    pub fn get_script_index_of_type<T>(&self, node: Handle<Node>) -> Option<usize>
+    pub fn try_get_script_index_of<T>(&self, node: Handle<Node>) -> Option<usize>
     where
         T: ScriptTrait,
     {
@@ -1377,7 +1377,7 @@ impl Graph {
     where
         T: ScriptTrait,
     {
-        let index = self.get_script_index_of_type::<T>(node);
+        let index = self.try_get_script_index_of::<T>(node);
         if let Some(index) = index {
             self.try_get(node)
                 .and_then(|node| node.try_get_script::<T>(index));
@@ -1393,7 +1393,7 @@ impl Graph {
     where
         T: ScriptTrait,
     {
-        let index = self.get_script_index_of_type::<T>(node);
+        let index = self.try_get_script_index_of::<T>(node);
         if let Some(index) = index {
             self.try_get_mut(node)
                 .and_then(|node| node.try_get_script_mut::<T>(index));
