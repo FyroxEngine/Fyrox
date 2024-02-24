@@ -1356,24 +1356,49 @@ impl Graph {
         Vector3::new(m[0], m[5], m[10])
     }
 
-    /// Tries to borrow a node using the given handle, fetch its script and cast it to the specified type.
+    /// Tries to borrow a node using the given handle and
+    /// returns the index of a script of type T in script buffer,
+    /// that could be found to the specified type.
     #[inline]
-    pub fn try_get_script_of<T>(&self, node: Handle<Node>, index: usize) -> Option<&T>
+    pub fn get_script_index_of_type<T>(&self, node: Handle<Node>) -> Option<usize>
     where
         T: ScriptTrait,
     {
-        self.try_get(node)
-            .and_then(|node| node.try_get_script(index))
+        self.try_get(node).and_then(|node| {
+            (0..node.scripts.len()).find(|&index| node.try_get_script::<T>(index).is_some())
+        })
     }
 
-    /// Tries to borrow a node using the given handle, fetch its script and cast it to the specified type.
+    /// Tries to borrow a node using the given handle and
+    /// searches the script buffer for a script of type T and cast the first script,
+    /// that could be found to the specified type.
     #[inline]
-    pub fn try_get_script_of_mut<T>(&mut self, node: Handle<Node>, index: usize) -> Option<&mut T>
+    pub fn try_get_script_of<T>(&self, node: Handle<Node>) -> Option<&T>
     where
         T: ScriptTrait,
     {
-        self.try_get_mut(node)
-            .and_then(|node| node.try_get_script_mut(index))
+        let index = self.get_script_index_of_type::<T>(node);
+        if let Some(index) = index {
+            self.try_get(node)
+                .and_then(|node| node.try_get_script::<T>(index));
+        }
+        None
+    }
+
+    /// Tries to borrow a node using the given handle and
+    /// searches the script buffer for a script of type T and cast the first script,
+    /// that could be found to the specified type.
+    #[inline]
+    pub fn try_get_script_of_mut<T>(&mut self, node: Handle<Node>) -> Option<&mut T>
+    where
+        T: ScriptTrait,
+    {
+        let index = self.get_script_index_of_type::<T>(node);
+        if let Some(index) = index {
+            self.try_get_mut(node)
+                .and_then(|node| node.try_get_script_mut::<T>(index));
+        }
+        None
     }
 
     /// Tries to borrow a node using the given handle and fetch a reference to a component of the given type
@@ -1381,10 +1406,10 @@ impl Graph {
     #[inline]
     pub fn try_get_script_component_of<C>(&self, node: Handle<Node>, index: usize) -> Option<&C>
     where
-        C: Any + ScriptTrait,
+        C: Any,
     {
         self.try_get(node)
-            .and_then(|node| node.try_get_script(index))
+            .and_then(|node| node.try_get_script_component(index))
     }
 
     /// Tries to borrow a node using the given handle and fetch a reference to a component of the given type
