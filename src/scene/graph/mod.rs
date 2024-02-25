@@ -1380,9 +1380,10 @@ impl Graph {
         let index = self.try_get_script_index_of::<T>(node);
         if let Some(index) = index {
             self.try_get(node)
-                .and_then(|node| node.try_get_script::<T>(index));
+                .and_then(|node| node.try_get_script::<T>(index))
+        } else {
+            None
         }
-        None
     }
 
     /// Tries to borrow a node using the given handle and
@@ -1396,9 +1397,10 @@ impl Graph {
         let index = self.try_get_script_index_of::<T>(node);
         if let Some(index) = index {
             self.try_get_mut(node)
-                .and_then(|node| node.try_get_script_mut::<T>(index));
+                .and_then(|node| node.try_get_script_mut::<T>(index))
+        } else {
+            None
         }
-        None
     }
 
     /// Tries to borrow a node using the given handle and fetch a reference to a component of the given type
