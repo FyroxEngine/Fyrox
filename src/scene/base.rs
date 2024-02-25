@@ -437,7 +437,6 @@ pub struct Base {
     //
     // WARNING: Setting a new script via reflection will break normal script destruction process!
     // Use it at your own risk only when you're completely sure what you are doing.
-    #[reflect(setter = "set_scripts_internal")]
     pub(crate) scripts: Vec<ScriptWrapper>,
 
     enabled: InheritableVariable<bool>,
@@ -758,8 +757,9 @@ impl Base {
         self.instance_id
     }
 
-    /// Removes a script from scene node by index
-    fn remove_script(&mut self, index: usize) {
+    // Tries to extract a script at the given index from its entry and sends it to the parent graph
+    // for destruction. The entry remains vacant.
+    fn dispose_script(&mut self, index: usize) -> bool {
         // Send script to the graph to destroy script instances correctly.
         if let Some(script) = self.scripts.get_mut(index) {
             if let Some(script) = script.take() {
@@ -776,47 +776,51 @@ impl Base {
                     ));
                 }
             }
+            true
+        } else {
+            false
         }
     }
 
-    /// Removes all assigned scripts from scene node
-    fn remove_all_scripts(&mut self) {
-        for script in self.scripts.iter_mut() {
-            // Send script to the graph to destroy script instances correctly.
-            if let Some(script) = script.take() {
-                if let Some(sender) = self.script_message_sender.as_ref() {
-                    Log::verify(sender.send(NodeScriptMessage::DestroyScript {
-                        script,
+    /// Removes a script with the given `index` from the scene node. The script will be destroyed
+    /// in either the current update tick (if it was removed from some other script) or in the next
+    /// update tick of the parent graph.
+    pub fn remove_script(&mut self, index: usize) {
+        if self.dispose_script(index) {
+            assert!(self.scripts.remove(index).is_none());
+        }
+    }
+
+    /// Removes all assigned scripts from the scene node. The scripts will be removed from
+    /// first-to-last order an their actual destruction will happen either on the current update tick
+    /// of the parent graph (if it was removed from some other script) or in the next update tick.
+    pub fn remove_all_scripts(&mut self) {
+        while !self.scripts.is_empty() {
+            self.remove_script(0);
+        }
+    }
+
+    /// Sets a new script for the scene node by index. Previous script will be removed (see
+    /// [`Self::remove_script`] docs for more info).
+    #[inline]
+    pub fn replace_script(&mut self, index: usize, script: Option<Script>) {
+        self.dispose_script(index);
+
+        if let Some(script_entry) = self.scripts.get_mut(index) {
+            script_entry.0 = script;
+            if let Some(sender) = self.script_message_sender.as_ref() {
+                if script_entry.0.is_some() {
+                    Log::verify(sender.send(NodeScriptMessage::InitializeScript {
                         handle: self.self_handle,
                     }));
-                } else {
-                    Log::warn(format!(
-                        "There is a script instance on a node {}, but no message sender. \
-                            The script won't be correctly destroyed!",
-                        self.name.as_str()
-                    ));
                 }
             }
         }
     }
 
-    /// Sets a new script for the scene node by index
-    #[inline]
-    pub fn set_script(&mut self, index: usize, script: Option<Script>) {
-        self.remove_script(index);
-        if index < self.scripts.len() {
-            self.scripts[index] = ScriptWrapper(script);
-        }
-        if let Some(sender) = self.script_message_sender.as_ref() {
-            if self.scripts[index].is_some() {
-                Log::verify(sender.send(NodeScriptMessage::InitializeScript {
-                    handle: self.self_handle,
-                }));
-            }
-        }
-    }
-
-    /// Adds a new script to the scene node.
+    /// Adds a new script to the scene node. The new script will be initialized either in the current
+    /// update tick (if the script was added in one of the [`ScriptTrait`] methods) or on the next
+    /// update tick.
     #[inline]
     pub fn add_script(&mut self, script: Script) {
         self.scripts.push(ScriptWrapper(Some(script)));
@@ -827,111 +831,136 @@ impl Base {
         }
     }
 
-    fn set_scripts_internal(&mut self, scripts: Vec<ScriptWrapper>) -> Vec<ScriptWrapper> {
-        std::mem::replace(&mut self.scripts, scripts)
-    }
-
-    /// Checks if the node has a script of a particular type. Returns `false` if there is no script
-    /// at all, or if the script is not of a given type.
+    /// Checks if the node has a script of a particular type. Returns `false` if there is no such
+    /// script.
     #[inline]
-    pub fn has_script<T: ScriptTrait>(&self, index: usize) -> bool {
-        self.try_get_script::<T>(index).is_some()
+    pub fn has_script<T>(&self) -> bool
+    where
+        T: ScriptTrait,
+    {
+        self.try_get_script::<T>().is_some()
     }
 
-    /// Checks if the node has any scripts assigned
+    /// Checks if the node has any scripts assigned.
     #[inline]
     pub fn has_scripts_assigned(&self) -> bool {
         self.scripts.iter().any(|script| script.is_some())
     }
 
-    /// Tries to cast current script instance (if any) to given type and returns a shared reference
-    /// to it on successful cast.
+    /// Tries to find a **first** script of the given type `T`, returns `None` if there's no such
+    /// script.
     #[inline]
-    pub fn try_get_script<T: ScriptTrait>(&self, index: usize) -> Option<&T> {
-        if let Some(script) = self.scripts.get(index) {
-            script.as_ref().and_then(|s| s.cast::<T>())
-        } else {
-            None
-        }
+    pub fn try_get_script<T>(&self) -> Option<&T>
+    where
+        T: ScriptTrait,
+    {
+        self.scripts
+            .iter()
+            .find_map(|s| s.as_ref().and_then(|s| s.cast::<T>()))
     }
 
-    /// Tries to fetch a reference to a component of the given type from the script of the node.
+    /// Returns an iterator that yields references to the scripts of the given type `T`.
     #[inline]
-    pub fn try_get_script_component<C>(&self, index: usize) -> Option<&C>
+    pub fn try_get_scripts<T>(&self) -> impl Iterator<Item = &T>
+    where
+        T: ScriptTrait,
+    {
+        self.scripts
+            .iter()
+            .filter_map(|s| s.0.as_ref().and_then(|s| s.cast::<T>()))
+    }
+
+    /// Tries to find a **first** script of the given type `T`, returns `None` if there's no such
+    /// script.
+    #[inline]
+    pub fn try_get_script_mut<T>(&mut self) -> Option<&mut T>
+    where
+        T: ScriptTrait,
+    {
+        self.scripts
+            .iter_mut()
+            .find_map(|s| s.as_mut().and_then(|s| s.cast_mut::<T>()))
+    }
+
+    /// Returns an iterator that yields references to the scripts of the given type `T`.
+    #[inline]
+    pub fn try_get_scripts_mut<T>(&mut self) -> impl Iterator<Item = &mut T>
+    where
+        T: ScriptTrait,
+    {
+        self.scripts
+            .iter_mut()
+            .filter_map(|s| s.0.as_mut().and_then(|s| s.cast_mut::<T>()))
+    }
+
+    /// Tries find a component of the given type `C` across **all** available scripts of the node.
+    /// If you want to search a component `C` in a particular script, then use [`Self::try_get_script`]
+    /// and then search for component in it.
+    #[inline]
+    pub fn try_get_script_component<C>(&self) -> Option<&C>
     where
         C: Any,
     {
-        if let Some(script) = self.scripts.get(index) {
-            script.as_ref().and_then(|s| s.query_component_ref::<C>())
-        } else {
-            None
-        }
+        self.scripts
+            .iter()
+            .find_map(|s| s.as_ref().and_then(|s| s.query_component_ref::<C>()))
     }
 
-    /// Tries to fetch a reference to a component of the given type from the script of the node.
+    /// Tries find a component of the given type `C` across **all** available scripts of the node.
+    /// If you want to search a component `C` in a particular script, then use [`Self::try_get_script`]
+    /// and then search for component in it.
     #[inline]
-    pub fn try_get_script_component_mut<C>(&mut self, index: usize) -> Option<&mut C>
+    pub fn try_get_script_component_mut<C>(&mut self) -> Option<&mut C>
     where
         C: Any,
     {
-        if let Some(script) = self.scripts.get_mut(index) {
-            script.as_mut().and_then(|s| s.query_component_mut::<C>())
-        } else {
-            None
-        }
+        self.scripts
+            .iter_mut()
+            .find_map(|s| s.as_mut().and_then(|s| s.query_component_mut::<C>()))
     }
 
-    /// Tries to cast a script instance (if any) to given type and returns a mutable reference
-    /// to it on successful cast.
+    /// Returns total count of scripts assigned to the node.
     #[inline]
-    pub fn try_get_script_mut<T: ScriptTrait>(&mut self, index: usize) -> Option<&mut T> {
-        if let Some(script) = self.scripts.get_mut(index) {
-            script.as_mut().and_then(|s| s.cast_mut::<T>())
-        } else {
-            None
-        }
+    pub fn script_count(&self) -> usize {
+        self.scripts.len()
     }
 
-    /// Returns shared reference to current script instance.
+    /// Returns a shared reference to a script instance with the given `index`. This method will
+    /// return [`None`] if the `index` is out of bounds or the script is temporarily not available.
+    /// This could happen if this method was called from some method of a [`ScriptTrait`]. It
+    /// happens because of borrowing rules - you cannot take another reference to a script that is
+    /// already mutably borrowed.
     #[inline]
     pub fn script(&self, index: usize) -> Option<&Script> {
-        if let Some(script) = self.scripts.get(index) {
-            script.as_ref()
-        } else {
-            None
-        }
+        self.scripts.get(index).and_then(|s| s.as_ref())
     }
 
-    /// Returns mutable reference to a script instance.
+    /// Returns an iterator that yields all assigned scripts.
+    #[inline]
+    pub fn scripts(&self) -> impl Iterator<Item = &Script> {
+        self.scripts.iter().filter_map(|s| s.as_ref())
+    }
+
+    /// Returns a mutable reference to a script instance with the given `index`. This method will
+    /// return [`None`] if the `index` is out of bounds or the script is temporarily not available.
+    /// This could happen if this method was called from some method of a [`ScriptTrait`]. It
+    /// happens because of borrowing rules - you cannot take another reference to a script that is
+    /// already mutably borrowed.
     ///
     /// # Important notes
     ///
     /// Do **not** replace script instance using mutable reference given to you by this method.
-    /// This will prevent correct script de-initialization! Use `Self::set_script` if you need
+    /// This will prevent correct script de-initialization! Use [`Self::replace_script`] if you need
     /// to replace the script.
     #[inline]
     pub fn script_mut(&mut self, index: usize) -> Option<&mut Script> {
-        if let Some(scripts) = self.scripts.get_mut(index) {
-            scripts.as_mut()
-        } else {
-            None
-        }
+        self.scripts.get_mut(index).and_then(|s| s.as_mut())
     }
 
-    /// Returns a copy of a script.
+    /// Returns an iterator that yields all assigned scripts.
     #[inline]
-    pub fn script_cloned(&self, index: usize) -> Option<Script> {
-        if let Some(script) = self.scripts.get(index) {
-            script.clone().0
-        } else {
-            None
-        }
-    }
-
-    /// Internal. Do not use.
-    #[inline]
-    pub fn script_inner(&mut self, index: usize) -> Option<&mut Option<Script>> {
-        self.scripts.get_mut(index).map(|i| &mut i.0)
+    pub fn scripts_mut(&mut self) -> impl Iterator<Item = &mut Script> {
+        self.scripts.iter_mut().filter_map(|s| s.as_mut())
     }
 
     /// Enables or disables scene node. Disabled scene nodes won't be updated (including scripts) or rendered.
@@ -1232,8 +1261,11 @@ impl BaseBuilder {
 
     /// Sets script of the node.
     #[inline]
-    pub fn with_script(mut self, script: Script) -> Self {
-        self.scripts.push(ScriptWrapper(Some(script)));
+    pub fn with_script<T>(mut self, script: T) -> Self
+    where
+        T: ScriptTrait,
+    {
+        self.scripts.push(ScriptWrapper(Some(Script::new(script))));
         self
     }
 

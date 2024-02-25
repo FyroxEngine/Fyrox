@@ -690,7 +690,7 @@ mod test {
             transform::TransformBuilder,
             Scene,
         },
-        script::{Script, ScriptTrait},
+        script::ScriptTrait,
     };
     use fyrox_graph::SceneGraph;
     use std::{fs, path::Path, sync::Arc};
@@ -718,10 +718,10 @@ mod test {
         PivotBuilder::new(
             BaseBuilder::new()
                 .with_name("Pivot")
-                .with_script(Script::new(MyScript {
+                .with_script(MyScript {
                     some_field: "Foobar".to_string().into(),
                     some_collection: vec![1, 2, 3].into(),
-                }))
+                })
                 .with_children(&[{
                     mesh = MeshBuilder::new(
                         BaseBuilder::new().with_name("Mesh").with_local_transform(
@@ -801,7 +801,7 @@ mod test {
             pivot
                 .local_transform_mut()
                 .set_position(Vector3::new(1.0, 2.0, 3.0));
-            let my_script = pivot.try_get_script_mut::<MyScript>(0).unwrap();
+            let my_script = pivot.try_get_script_mut::<MyScript>().unwrap();
             my_script.some_collection.push(4);
             let mesh = derived.graph[mesh].as_mesh_mut();
             assert_eq!(
@@ -834,7 +834,7 @@ mod test {
                 .unwrap()
                 .0;
             let pivot = &derived_scene.graph[pivot];
-            let my_script = pivot.try_get_script::<MyScript>(0).unwrap();
+            let my_script = pivot.try_get_script::<MyScript>().unwrap();
             assert_eq!(
                 **pivot.local_transform().position(),
                 Vector3::new(1.0, 2.0, 3.0)

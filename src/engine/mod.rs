@@ -2317,7 +2317,7 @@ mod test {
         engine::{task::TaskPoolHandler, GraphicsContext, ScriptProcessor},
         scene::{base::BaseBuilder, node::Node, pivot::PivotBuilder, Scene, SceneContainer},
         script::{
-            Script, ScriptContext, ScriptDeinitContext, ScriptMessageContext, ScriptMessagePayload,
+            ScriptContext, ScriptDeinitContext, ScriptMessageContext, ScriptMessagePayload,
             ScriptTrait,
         },
     };
@@ -2353,11 +2353,10 @@ mod test {
             self.sender.send(Event::Initialized(ctx.handle)).unwrap();
 
             // Spawn new entity with script.
-            let handle =
-                PivotBuilder::new(BaseBuilder::new().with_script(Script::new(MySubScript {
-                    sender: self.sender.clone(),
-                })))
-                .build(&mut ctx.scene.graph);
+            let handle = PivotBuilder::new(BaseBuilder::new().with_script(MySubScript {
+                sender: self.sender.clone(),
+            }))
+            .build(&mut ctx.scene.graph);
             assert_eq!(handle, Handle::new(2, 1));
         }
 
@@ -2365,11 +2364,10 @@ mod test {
             self.sender.send(Event::Started(ctx.handle)).unwrap();
 
             // Spawn new entity with script.
-            let handle =
-                PivotBuilder::new(BaseBuilder::new().with_script(Script::new(MySubScript {
-                    sender: self.sender.clone(),
-                })))
-                .build(&mut ctx.scene.graph);
+            let handle = PivotBuilder::new(BaseBuilder::new().with_script(MySubScript {
+                sender: self.sender.clone(),
+            }))
+            .build(&mut ctx.scene.graph);
             assert_eq!(handle, Handle::new(3, 1));
         }
 
@@ -2382,9 +2380,9 @@ mod test {
 
             if !self.spawned {
                 // Spawn new entity with script.
-                PivotBuilder::new(BaseBuilder::new().with_script(Script::new(MySubScript {
+                PivotBuilder::new(BaseBuilder::new().with_script(MySubScript {
                     sender: self.sender.clone(),
-                })))
+                }))
                 .build(&mut ctx.scene.graph);
 
                 self.spawned = true;
@@ -2427,12 +2425,11 @@ mod test {
 
         let (tx, rx) = mpsc::channel();
 
-        let node_handle =
-            PivotBuilder::new(BaseBuilder::new().with_script(Script::new(MyScript {
-                sender: tx,
-                spawned: false,
-            })))
-            .build(&mut scene.graph);
+        let node_handle = PivotBuilder::new(BaseBuilder::new().with_script(MyScript {
+            sender: tx,
+            spawned: false,
+        }))
+        .build(&mut scene.graph);
         assert_eq!(node_handle, Handle::new(1, 1));
 
         let mut scene_container = SceneContainer::new(Default::default());
@@ -2585,18 +2582,15 @@ mod test {
 
         let (tx, rx) = mpsc::channel();
 
-        PivotBuilder::new(
-            BaseBuilder::new().with_script(Script::new(ScriptSendingMessages { index: 0 })),
-        )
-        .build(&mut scene.graph);
+        PivotBuilder::new(BaseBuilder::new().with_script(ScriptSendingMessages { index: 0 }))
+            .build(&mut scene.graph);
 
-        let receiver_messages = PivotBuilder::new(BaseBuilder::new().with_script(Script::new(
-            ScriptListeningToMessages {
+        let receiver_messages =
+            PivotBuilder::new(BaseBuilder::new().with_script(ScriptListeningToMessages {
                 sender: tx,
                 index: 0,
-            },
-        )))
-        .build(&mut scene.graph);
+            }))
+            .build(&mut scene.graph);
 
         let mut scene_container = SceneContainer::new(Default::default());
 

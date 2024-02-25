@@ -29,12 +29,12 @@ use crate::{
         instant,
         log::{Log, MessageKind},
         math::{aabb::AxisAlignedBoundingBox, Matrix4Ext},
-        pool::{Handle, MultiBorrowContext, Pool, Ticket},
+        pool::{ErasedHandle, Handle, MultiBorrowContext, Pool, Ticket},
         reflect::prelude::*,
         sstorage::ImmutableString,
         visitor::{Visit, VisitResult, Visitor},
     },
-    graph::{NodeHandleMap, SceneGraph},
+    graph::{AbstractSceneGraph, AbstractSceneNode, BaseSceneGraph, NodeHandleMap, SceneGraph},
     material::{shader::SamplerFallback, MaterialResource, PropertyValue},
     resource::model::{Model, ModelResource, ModelResourceExtension},
     scene::{
@@ -60,8 +60,6 @@ use crate::{
     utils::lightmap::Lightmap,
 };
 use fxhash::{FxHashMap, FxHashSet};
-use fyrox_core::pool::ErasedHandle;
-use fyrox_graph::{AbstractSceneGraph, AbstractSceneNode, BaseSceneGraph};
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
@@ -1356,77 +1354,72 @@ impl Graph {
         Vector3::new(m[0], m[5], m[10])
     }
 
-    /// Tries to borrow a node using the given handle and
-    /// returns the index of a script of type T in script buffer,
-    /// that could be found to the specified type.
-    #[inline]
-    pub fn try_get_script_index_of<T>(&self, node: Handle<Node>) -> Option<usize>
-    where
-        T: ScriptTrait,
-    {
-        self.try_get(node).and_then(|node| {
-            (0..node.scripts.len()).find(|&index| node.try_get_script::<T>(index).is_some())
-        })
-    }
-
-    /// Tries to borrow a node using the given handle and
-    /// searches the script buffer for a script of type T and cast the first script,
-    /// that could be found to the specified type.
+    /// Tries to borrow a node using the given handle and searches the script buffer for a script
+    /// of type T and cast the first script, that could be found to the specified type.
     #[inline]
     pub fn try_get_script_of<T>(&self, node: Handle<Node>) -> Option<&T>
     where
         T: ScriptTrait,
     {
-        let index = self.try_get_script_index_of::<T>(node);
-        if let Some(index) = index {
-            self.try_get(node)
-                .and_then(|node| node.try_get_script::<T>(index))
-        } else {
-            None
-        }
+        self.try_get(node)
+            .and_then(|node| node.try_get_script::<T>())
     }
 
-    /// Tries to borrow a node using the given handle and
-    /// searches the script buffer for a script of type T and cast the first script,
-    /// that could be found to the specified type.
+    /// Tries to borrow a node and query all scripts of the given type `T`. This method returns
+    /// [`None`] if the given node handle is invalid, otherwise it returns an iterator over the
+    /// scripts of the type `T`.
+    #[inline]
+    pub fn try_get_scripts_of<T: ScriptTrait>(
+        &self,
+        node: Handle<Node>,
+    ) -> Option<impl Iterator<Item = &T>> {
+        self.try_get(node).map(|n| n.try_get_scripts())
+    }
+
+    /// Tries to borrow a node using the given handle and searches the script buffer for a script
+    /// of type T and cast the first script, that could be found to the specified type.
     #[inline]
     pub fn try_get_script_of_mut<T>(&mut self, node: Handle<Node>) -> Option<&mut T>
     where
         T: ScriptTrait,
     {
-        let index = self.try_get_script_index_of::<T>(node);
-        if let Some(index) = index {
-            self.try_get_mut(node)
-                .and_then(|node| node.try_get_script_mut::<T>(index))
-        } else {
-            None
-        }
+        self.try_get_mut(node)
+            .and_then(|node| node.try_get_script_mut::<T>())
     }
 
-    /// Tries to borrow a node using the given handle and fetch a reference to a component of the given type
-    /// from the script of the node.
+    /// Tries to borrow a node and query all scripts of the given type `T`. This method returns
+    /// [`None`] if the given node handle is invalid, otherwise it returns an iterator over the
+    /// scripts of the type `T`.
     #[inline]
-    pub fn try_get_script_component_of<C>(&self, node: Handle<Node>, index: usize) -> Option<&C>
+    pub fn try_get_scripts_of_mut<T: ScriptTrait>(
+        &mut self,
+        node: Handle<Node>,
+    ) -> Option<impl Iterator<Item = &mut T>> {
+        self.try_get_mut(node).map(|n| n.try_get_scripts_mut())
+    }
+
+    /// Tries to borrow a node and find a component of the given type `C` across **all** available
+    /// scripts of the node. If you want to search a component `C` in a particular script, then use
+    /// [`Self::try_get_script_of`] and then search for component in it.
+    #[inline]
+    pub fn try_get_script_component_of<C>(&self, node: Handle<Node>) -> Option<&C>
     where
         C: Any,
     {
         self.try_get(node)
-            .and_then(|node| node.try_get_script_component(index))
+            .and_then(|node| node.try_get_script_component())
     }
 
-    /// Tries to borrow a node using the given handle and fetch a reference to a component of the given type
-    /// from the script of the node.
+    /// Tries to borrow a node and find a component of the given type `C` across **all** available
+    /// scripts of the node. If you want to search a component `C` in a particular script, then use
+    /// [`Self::try_get_script_of_mut`] and then search for component in it.
     #[inline]
-    pub fn try_get_script_component_of_mut<C>(
-        &mut self,
-        node: Handle<Node>,
-        index: usize,
-    ) -> Option<&mut C>
+    pub fn try_get_script_component_of_mut<C>(&mut self, node: Handle<Node>) -> Option<&mut C>
     where
         C: Any,
     {
         self.try_get_mut(node)
-            .and_then(|node| node.try_get_script_component_mut(index))
+            .and_then(|node| node.try_get_script_component_mut())
     }
 
     /// Returns a handle of the node that has the given id.
@@ -1685,16 +1678,18 @@ impl SceneGraph for Graph {
 
 #[cfg(test)]
 mod test {
-    use crate::graph::SceneGraph;
     use crate::{
         asset::{io::FsResourceIo, manager::ResourceManager},
         core::{
             algebra::{Matrix4, Vector3},
             futures::executor::block_on,
             pool::Handle,
-            visitor::Visitor,
+            reflect::prelude::*,
+            type_traits::prelude::*,
+            visitor::prelude::*,
         },
         engine::{self, SerializationContext},
+        graph::{BaseSceneGraph, SceneGraph},
         resource::model::{Model, ModelResourceExtension},
         scene::{
             base::BaseBuilder,
@@ -1708,9 +1703,118 @@ mod test {
             transform::TransformBuilder,
             Scene, SceneLoader,
         },
+        script::ScriptTrait,
     };
-    use fyrox_graph::BaseSceneGraph;
     use std::{fs, path::Path, sync::Arc};
+
+    #[derive(Clone, Debug, PartialEq, Reflect, Visit, TypeUuidProvider, ComponentProvider)]
+    #[type_uuid(id = "722feb80-a10b-4ee0-8cef-5d1473df8457")]
+    struct MyScript {
+        foo: String,
+        bar: f32,
+    }
+
+    impl ScriptTrait for MyScript {}
+
+    #[derive(Clone, Debug, PartialEq, Reflect, Visit, TypeUuidProvider, ComponentProvider)]
+    #[type_uuid(id = "722feb80-a10b-4ee0-8cef-5d1473df8458")]
+    struct MyOtherScript {
+        baz: u32,
+        foobar: Vec<u32>,
+    }
+
+    impl ScriptTrait for MyOtherScript {}
+
+    #[test]
+    fn test_graph_scripts() {
+        let node = PivotBuilder::new(
+            BaseBuilder::new()
+                .with_script(MyScript {
+                    foo: "Stuff".to_string(),
+                    bar: 123.321,
+                })
+                .with_script(MyScript {
+                    foo: "OtherStuff".to_string(),
+                    bar: 321.123,
+                })
+                .with_script(MyOtherScript {
+                    baz: 321,
+                    foobar: vec![1, 2, 3],
+                }),
+        )
+        .build_node();
+
+        let mut graph = Graph::new();
+
+        let handle = graph.add_node(node);
+
+        assert_eq!(
+            graph.try_get_script_of::<MyScript>(handle),
+            Some(&MyScript {
+                foo: "Stuff".to_string(),
+                bar: 123.321,
+            })
+        );
+        assert_eq!(
+            graph.try_get_script_of_mut::<MyScript>(handle),
+            Some(&mut MyScript {
+                foo: "Stuff".to_string(),
+                bar: 123.321,
+            })
+        );
+
+        let mut immutable_iterator = graph
+            .try_get_scripts_of::<MyScript>(handle)
+            .expect("The handle expected to be valid!");
+        assert_eq!(
+            immutable_iterator.next(),
+            Some(&MyScript {
+                foo: "Stuff".to_string(),
+                bar: 123.321,
+            })
+        );
+        assert_eq!(
+            immutable_iterator.next(),
+            Some(&MyScript {
+                foo: "OtherStuff".to_string(),
+                bar: 321.123,
+            })
+        );
+        drop(immutable_iterator);
+
+        assert_eq!(
+            graph.try_get_script_of::<MyOtherScript>(handle),
+            Some(&MyOtherScript {
+                baz: 321,
+                foobar: vec![1, 2, 3],
+            })
+        );
+        assert_eq!(
+            graph.try_get_script_of_mut::<MyOtherScript>(handle),
+            Some(&mut MyOtherScript {
+                baz: 321,
+                foobar: vec![1, 2, 3],
+            })
+        );
+
+        let mut mutable_iterator = graph
+            .try_get_scripts_of_mut::<MyScript>(handle)
+            .expect("The handle expected to be valid!");
+        assert_eq!(
+            mutable_iterator.next(),
+            Some(&mut MyScript {
+                foo: "Stuff".to_string(),
+                bar: 123.321,
+            })
+        );
+        assert_eq!(
+            mutable_iterator.next(),
+            Some(&mut MyScript {
+                foo: "OtherStuff".to_string(),
+                bar: 321.123,
+            })
+        );
+    }
 
     #[test]
     fn graph_init_test() {
