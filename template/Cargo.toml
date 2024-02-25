@@ -17,6 +17,6 @@ rust-version = "1.72"
 clap = { version = "4", features = ["derive"] }
 uuid = { version = "1", features = ["v4"] }
 convert_case = "0.6.0"
-toml = "0.7.3"
-toml_edit = "0.19.8"
+toml = "0.8.10"
+toml_edit = "0.22.6"
 regex = "1.7.3"

@@ -21,12 +21,12 @@ fyrox-resource = { path = "../fyrox-resource", version = "0.11.0" }
 fyrox-graph = { path = "../fyrox-graph", version = "0.1.0" }
 fyrox-animation = { path = "../fyrox-animation", version = "0.1.0"}
 lazy_static = "1.4.0"
-copypasta = "0.8.1"
-fontdue = "0.7.2"
+copypasta = "0.10.1"
+fontdue = "0.8.0"
 notify = "6"
 fxhash = "0.2.1"
-strum = "0.25.0"
-strum_macros = "0.25.0"
+strum = "0.26.1"
+strum_macros = "0.26.1"
 serde = { version = "1", features = ["derive"] }
 
 [features]

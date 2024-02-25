@@ -18,21 +18,11 @@ use std::{
     cell::RefCell,
     ops::{Deref, DerefMut},
 };
-use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
+use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 /// Size mode defines how grid's dimension (see [`GridDimension`]) will behave on layout step.
 #[derive(
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Debug,
-    Reflect,
-    Visit,
-    Default,
-    AsRefStr,
-    EnumString,
-    EnumVariantNames,
+    Clone, Copy, PartialEq, Eq, Debug, Reflect, Visit, Default, AsRefStr, EnumString, VariantNames,
 )]
 pub enum SizeMode {
     /// Strict size of the dimension.

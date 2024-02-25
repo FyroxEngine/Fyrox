@@ -57,7 +57,7 @@ use std::{
     sync::Arc,
     time::Duration,
 };
-use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
+use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 /// Shape-dependent identifier.
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
@@ -101,17 +101,7 @@ impl From<rapier2d::geometry::FeatureId> for FeatureId {
 /// between two colliders. Each collider has its combination rule of type `CoefficientCombineRule`,
 /// the rule actually used is given by `max(first_combine_rule, second_combine_rule)`.
 #[derive(
-    Copy,
-    Clone,
-    Debug,
-    PartialEq,
-    Eq,
-    Visit,
-    Reflect,
-    EnumVariantNames,
-    EnumString,
-    AsRefStr,
-    Default,
+    Copy, Clone, Debug, PartialEq, Eq, Visit, Reflect, VariantNames, EnumString, AsRefStr, Default,
 )]
 #[repr(u32)]
 pub enum CoefficientCombineRule {

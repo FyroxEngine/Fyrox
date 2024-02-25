@@ -3,22 +3,12 @@
 
 use crate::core::{reflect::prelude::*, visitor::prelude::*};
 use fyrox_core::uuid_provider;
-use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
+use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 /// Horizontal alignment defines relative location and size of the widget to its parent widget along horizontal
 /// (X) axis.
 #[derive(
-    Copy,
-    Clone,
-    PartialEq,
-    Debug,
-    Eq,
-    Default,
-    Reflect,
-    Visit,
-    AsRefStr,
-    EnumString,
-    EnumVariantNames,
+    Copy, Clone, PartialEq, Debug, Eq, Default, Reflect, Visit, AsRefStr, EnumString, VariantNames,
 )]
 pub enum HorizontalAlignment {
     /// Tells the widget to take all available space along horizontal axis and stay at left side of the
@@ -41,17 +31,7 @@ uuid_provider!(HorizontalAlignment = "ef571515-ec16-47ad-bfe3-ddc259e2c7d3");
 /// Horizontal alignment defines relative location and size of the widget to its parent widget along vertical
 /// (Y) axis.
 #[derive(
-    Copy,
-    Clone,
-    PartialEq,
-    Debug,
-    Eq,
-    Default,
-    Reflect,
-    Visit,
-    AsRefStr,
-    EnumString,
-    EnumVariantNames,
+    Copy, Clone, PartialEq, Debug, Eq, Default, Reflect, Visit, AsRefStr, EnumString, VariantNames,
 )]
 pub enum VerticalAlignment {
     /// Tells the widget to take all available space along vertical axis and stay at top side of the

@@ -35,7 +35,7 @@ use std::{
     ops::{Deref, DerefMut},
     sync::Arc,
 };
-use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
+use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 /// A message that could be used to alternate text box widget's state or receive changes from it.
 ///
@@ -122,7 +122,7 @@ pub struct Position {
     Reflect,
     AsRefStr,
     EnumString,
-    EnumVariantNames,
+    VariantNames,
     TypeUuidProvider,
 )]
 #[repr(u32)]

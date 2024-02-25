@@ -102,7 +102,7 @@ use std::{
     rc::Rc,
     sync::mpsc::Receiver,
 };
-use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
+use strum_macros::{AsRefStr, EnumString, VariantNames};
 #[cfg(not(target_arch = "wasm32"))]
 use winit::window::Window;
 
@@ -219,7 +219,7 @@ impl std::ops::AddAssign<RenderPassStatistics> for Statistics {
     Reflect,
     AsRefStr,
     EnumString,
-    EnumVariantNames,
+    VariantNames,
 )]
 pub enum ShadowMapPrecision {
     /// Shadow map will use 2 times less memory by switching to 16bit pixel format,

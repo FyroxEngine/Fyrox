@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::fmt::{Display, Formatter};
 use std::rc::{Rc, Weak};
-use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
+use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 #[derive(Debug, Default, Copy, Clone)]
 pub struct PipelineStatistics {
@@ -56,7 +56,7 @@ impl Display for PipelineStatistics {
     Reflect,
     AsRefStr,
     EnumString,
-    EnumVariantNames,
+    VariantNames,
 )]
 #[repr(u32)]
 pub enum CompareFunc {
@@ -106,7 +106,7 @@ impl Default for CompareFunc {
     Reflect,
     AsRefStr,
     EnumString,
-    EnumVariantNames,
+    VariantNames,
 )]
 #[repr(u32)]
 pub enum BlendFactor {
@@ -388,7 +388,7 @@ impl Default for StencilFunc {
     Reflect,
     AsRefStr,
     EnumString,
-    EnumVariantNames,
+    VariantNames,
 )]
 #[repr(u32)]
 pub enum StencilAction {
@@ -463,7 +463,7 @@ impl Default for StencilOp {
     Reflect,
     AsRefStr,
     EnumString,
-    EnumVariantNames,
+    VariantNames,
 )]
 #[repr(u32)]
 pub enum PolygonFace {
@@ -491,7 +491,7 @@ impl Default for PolygonFace {
     Reflect,
     AsRefStr,
     EnumString,
-    EnumVariantNames,
+    VariantNames,
 )]
 #[repr(u32)]
 pub enum PolygonFillMode {
@@ -509,7 +509,7 @@ impl Default for PolygonFillMode {
 }
 
 impl PipelineState {
-    pub fn new(context: glow::Context, gl_kind: GlKind) -> SharedPipelineState {
+    pub fn new(mut context: glow::Context, gl_kind: GlKind) -> SharedPipelineState {
         unsafe {
             context.depth_func(CompareFunc::default() as u32);
 

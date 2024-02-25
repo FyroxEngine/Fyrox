@@ -29,13 +29,13 @@ use crate::{
 use fyrox_core::uuid_provider;
 use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};
-use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
+use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 /// Maximum amount of cascades.
 pub const CSM_NUM_CASCADES: usize = 3;
 
 /// Frustum split options defines how to split camera's frustum to generate cascades.
-#[derive(Reflect, Clone, Visit, Debug, PartialEq, AsRefStr, EnumString, EnumVariantNames)]
+#[derive(Reflect, Clone, Visit, Debug, PartialEq, AsRefStr, EnumString, VariantNames)]
 pub enum FrustumSplitOptions {
     /// Camera frustum will be split into a [`CSM_NUM_CASCADES`] splits where each sub-frustum
     /// will have fixed far plane location.

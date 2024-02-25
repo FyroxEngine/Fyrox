@@ -53,7 +53,7 @@ use std::{
     ops::{Deref, DerefMut, Shr},
     path::Path,
 };
-use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
+use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 pub mod loader;
 
@@ -381,16 +381,7 @@ impl Default for Texture {
 
 /// A filter for mip-map generation.
 #[derive(
-    Default,
-    Copy,
-    Clone,
-    Deserialize,
-    Serialize,
-    Debug,
-    Reflect,
-    AsRefStr,
-    EnumString,
-    EnumVariantNames,
+    Default, Copy, Clone, Deserialize, Serialize, Debug, Reflect, AsRefStr, EnumString, VariantNames,
 )]
 pub enum MipFilter {
     /// Simple nearest filter, it is the fastest filter available, but it produces noisy mip levels and
@@ -683,7 +674,7 @@ impl TextureResourceExtension for TextureResource {
     Deserialize,
     Serialize,
     Reflect,
-    EnumVariantNames,
+    VariantNames,
     EnumString,
     AsRefStr,
     Visit,
@@ -720,7 +711,7 @@ impl Default for TextureMagnificationFilter {
     Deserialize,
     Serialize,
     Reflect,
-    EnumVariantNames,
+    VariantNames,
     EnumString,
     AsRefStr,
     Visit,
@@ -791,7 +782,7 @@ impl Default for TextureMinificationFilter {
     Deserialize,
     Serialize,
     Reflect,
-    EnumVariantNames,
+    VariantNames,
     EnumString,
     AsRefStr,
     Visit,
@@ -1064,7 +1055,7 @@ fn ceil_div_4(x: u32) -> u32 {
     Eq,
     Debug,
     Reflect,
-    EnumVariantNames,
+    VariantNames,
     EnumString,
     AsRefStr,
 )]

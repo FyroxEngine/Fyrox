@@ -8,7 +8,7 @@ use crate::{
 use fyrox_core::uuid::{uuid, Uuid};
 use fyrox_core::{NameProvider, TypeUuidProvider};
 use std::any::{type_name, Any, TypeId};
-use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
+use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 macro_rules! define_two_args_node {
     ($(#[$meta:meta])* $name:ident) => {
@@ -293,7 +293,7 @@ impl<T: EntityId> Reflect for NotNode<T> {
 ///
 /// assert_eq!(transition_logic.calculate_value(&parameters, &AnimationContainer::default()), true);
 /// ```
-#[derive(Debug, Visit, Clone, Reflect, PartialEq, AsRefStr, EnumString, EnumVariantNames)]
+#[derive(Debug, Visit, Clone, Reflect, PartialEq, AsRefStr, EnumString, VariantNames)]
 pub enum LogicNode<T: EntityId> {
     /// Fetches a value of `Rule` parameter and returns its value. `false` if the parameter is not found.
     Parameter(String),

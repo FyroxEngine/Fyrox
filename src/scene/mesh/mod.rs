@@ -35,7 +35,7 @@ use std::{
     cell::Cell,
     ops::{Deref, DerefMut},
 };
-use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
+use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 pub mod buffer;
 pub mod surface;
@@ -55,7 +55,7 @@ pub mod vertex;
     Reflect,
     AsRefStr,
     EnumString,
-    EnumVariantNames,
+    VariantNames,
 )]
 #[repr(u32)]
 pub enum RenderPath {

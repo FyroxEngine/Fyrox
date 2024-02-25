@@ -7,7 +7,7 @@ use crate::{
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
 use std::ops::Range;
-use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
+use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 #[derive(Debug, Clone, Default)]
 pub struct TextGlyph {
@@ -67,7 +67,7 @@ impl TextLine {
     Reflect,
     AsRefStr,
     EnumString,
-    EnumVariantNames,
+    VariantNames,
 )]
 pub enum WrapMode {
     /// No wrapping needed.

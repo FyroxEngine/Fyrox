@@ -16,7 +16,7 @@ use crate::{
     spritesheet::signal::Signal,
 };
 use std::collections::vec_deque::VecDeque;
-use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
+use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 pub mod signal;
 
@@ -26,9 +26,7 @@ pub trait SpriteSheetTexture: Clone + Visit + Reflect + 'static {}
 impl<T: Clone + Visit + Reflect + 'static> SpriteSheetTexture for T {}
 
 /// Animation playback status.
-#[derive(
-    Visit, Reflect, Copy, Clone, Eq, PartialEq, Debug, AsRefStr, EnumString, EnumVariantNames,
-)]
+#[derive(Visit, Reflect, Copy, Clone, Eq, PartialEq, Debug, AsRefStr, EnumString, VariantNames)]
 pub enum Status {
     /// Animation is playing.
     Playing,

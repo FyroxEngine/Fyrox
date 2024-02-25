@@ -369,7 +369,7 @@ pub trait InspectorEnvironment: Any + Send + Sync {
 /// #     BuildContext, UiNode,
 /// # };
 /// # use std::sync::Arc;
-/// # use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
+/// # use strum_macros::{AsRefStr, EnumString, VariantNames};
 /// # use fyrox_core::uuid_provider;
 ///
 /// #[derive(Reflect, Debug, Clone)]
@@ -383,7 +383,7 @@ pub trait InspectorEnvironment: Any + Send + Sync {
 ///
 /// // Enumeration requires a bit more traits to be implemented. It must provide a way to turn
 /// // enum into a string.
-/// #[derive(Reflect, Debug, Clone, AsRefStr, EnumString, EnumVariantNames)]
+/// #[derive(Reflect, Debug, Clone, AsRefStr, EnumString, VariantNames)]
 /// enum MyEnum {
 ///     SomeVariant,
 ///     YetAnotherVariant { baz: f32 },

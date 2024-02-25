@@ -17,7 +17,7 @@ use fyrox_core::{
     uuid_provider,
     visitor::{Visit, VisitResult, Visitor},
 };
-use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
+use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 pub mod hrtf;
 
@@ -25,7 +25,7 @@ pub mod hrtf;
 // This "large size difference" is not a problem because renderer
 // can be only one at a time on context.
 #[allow(clippy::large_enum_variant)]
-#[derive(Debug, Clone, AsRefStr, EnumString, EnumVariantNames, Visit, Reflect)]
+#[derive(Debug, Clone, AsRefStr, EnumString, VariantNames, Visit, Reflect)]
 pub enum Renderer {
     /// Stateless default renderer.
     Default,

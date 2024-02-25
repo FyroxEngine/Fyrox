@@ -17,7 +17,7 @@ use std::{
     cell::Ref,
     ops::{Deref, DerefMut},
 };
-use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
+use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 #[doc(hidden)]
 #[derive(Default, Debug, Visit, Reflect, Clone, PartialEq)]
@@ -49,9 +49,7 @@ impl<T: EntityId> DerefMut for StateActionWrapper<T> {
 /// state and one-shot attack state. In this case, you need to use [`StateAction::RewindAnimation`]
 /// to tell the engine to automatically rewind the animation before using it. Otherwise, when the
 /// transition will happen, the animation could be ended already and you'll get "frozen" animation.
-#[derive(
-    Default, Debug, Visit, Reflect, Clone, PartialEq, EnumVariantNames, EnumString, AsRefStr,
-)]
+#[derive(Default, Debug, Visit, Reflect, Clone, PartialEq, VariantNames, EnumString, AsRefStr)]
 pub enum StateAction<T: EntityId> {
     /// No action.
     #[default]

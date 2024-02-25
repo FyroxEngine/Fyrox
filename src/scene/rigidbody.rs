@@ -38,11 +38,11 @@ use std::{
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
 };
-use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
+use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 /// A set of possible types of rigid body.
 #[derive(
-    Copy, Clone, Debug, Reflect, Visit, PartialEq, Eq, Hash, AsRefStr, EnumString, EnumVariantNames,
+    Copy, Clone, Debug, Reflect, Visit, PartialEq, Eq, Hash, AsRefStr, EnumString, VariantNames,
 )]
 #[repr(u32)]
 pub enum RigidBodyType {

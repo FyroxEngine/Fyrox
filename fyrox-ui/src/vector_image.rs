@@ -17,10 +17,10 @@ use crate::{
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
 use std::ops::{Deref, DerefMut};
-use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
+use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 /// Primitive is a simplest shape, that consists of one or multiple lines of the same thickness.
-#[derive(Clone, Debug, PartialEq, Visit, Reflect, AsRefStr, EnumString, EnumVariantNames)]
+#[derive(Clone, Debug, PartialEq, Visit, Reflect, AsRefStr, EnumString, VariantNames)]
 pub enum Primitive {
     /// Solid triangle primitive.
     Triangle {

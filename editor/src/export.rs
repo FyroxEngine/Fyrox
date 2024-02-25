@@ -49,7 +49,7 @@ use std::{
     time::Duration,
 };
 use strum::VariantNames;
-use strum_macros::EnumVariantNames;
+use strum_macros::VariantNames;
 
 #[derive(Reflect, Debug, Clone)]
 struct ExportOptions {
@@ -73,7 +73,7 @@ impl Default for ExportOptions {
     }
 }
 
-#[derive(Copy, Clone, EnumVariantNames, Default, Debug)]
+#[derive(Copy, Clone, VariantNames, Default, Debug)]
 enum TargetPlatform {
     #[default]
     PC,

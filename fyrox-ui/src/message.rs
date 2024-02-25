@@ -10,7 +10,7 @@ use crate::{
 use fyrox_core::uuid_provider;
 use serde::{Deserialize, Serialize};
 use std::{any::Any, cell::Cell, fmt::Debug};
-use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
+use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 /// Defines a new message constructor for a enum variant. It is widely used in this crate to create shortcuts to create
 /// messages. Why is it needed anyway? Just to reduce boilerplate code as much as possible.
@@ -594,7 +594,7 @@ impl KeyboardModifiers {
     Copy,
     AsRefStr,
     EnumString,
-    EnumVariantNames,
+    VariantNames,
     Serialize,
     Deserialize,
     Reflect,
@@ -1063,7 +1063,7 @@ pub enum KeyCode {
     Reflect,
     AsRefStr,
     EnumString,
-    EnumVariantNames,
+    VariantNames,
 )]
 pub enum CursorIcon {
     /// The platform-dependent default cursor. Often rendered as arrow.

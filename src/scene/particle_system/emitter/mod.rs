@@ -13,7 +13,7 @@ use crate::{
 };
 use fyrox_core::uuid_provider;
 use std::ops::{Deref, DerefMut};
-use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
+use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 pub mod base;
 pub mod cuboid;
@@ -27,7 +27,7 @@ pub trait Emit {
 }
 
 /// See module docs.
-#[derive(PartialEq, Debug, Reflect, AsRefStr, EnumString, EnumVariantNames)]
+#[derive(PartialEq, Debug, Reflect, AsRefStr, EnumString, VariantNames)]
 pub enum Emitter {
     /// See BoxEmitter docs.
     Cuboid(CuboidEmitter),

@@ -23,7 +23,7 @@ use fyrox_graph::BaseSceneGraph;
 use serde::{Deserialize, Serialize};
 use std::ops::{Deref, DerefMut};
 use std::{any::Any, cell::Cell, sync::mpsc::Sender};
-use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
+use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 /// Level of detail is a collection of objects for given normalized distance range.
 /// Objects will be rendered **only** if they're in specified range.
@@ -115,17 +115,7 @@ uuid_provider!(LodGroup = "8e7b18b1-c1e0-47d7-b952-4394c1d049e5");
 /// Mobility defines a group for scene node which has direct impact on performance
 /// and capabilities of nodes.
 #[derive(
-    Copy,
-    Clone,
-    PartialOrd,
-    PartialEq,
-    Ord,
-    Eq,
-    Debug,
-    Reflect,
-    AsRefStr,
-    EnumString,
-    EnumVariantNames,
+    Copy, Clone, PartialOrd, PartialEq, Ord, Eq, Debug, Reflect, AsRefStr, EnumString, VariantNames,
 )]
 #[repr(u32)]
 pub enum Mobility {
@@ -191,7 +181,7 @@ impl Visit for Mobility {
 }
 
 /// A property value.
-#[derive(Debug, Visit, Reflect, PartialEq, Clone, AsRefStr, EnumString, EnumVariantNames)]
+#[derive(Debug, Visit, Reflect, PartialEq, Clone, AsRefStr, EnumString, VariantNames)]
 pub enum PropertyValue {
     /// A node handle.
     ///

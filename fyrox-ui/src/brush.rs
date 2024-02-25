@@ -4,7 +4,7 @@
 
 use crate::core::{algebra::Vector2, color::Color, reflect::prelude::*, visitor::prelude::*};
 use fyrox_core::uuid_provider;
-use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
+use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 /// Gradient point defines a point on a surface with a color.
 #[derive(Clone, Debug, PartialEq, Reflect, Visit, Default)]
@@ -18,7 +18,7 @@ pub struct GradientPoint {
 uuid_provider!(GradientPoint = "e8503ec6-a1d0-4a9b-ab91-0d3f126254dd");
 
 /// Brush defines a way to fill an arbitrary surface.
-#[derive(Clone, Debug, PartialEq, Reflect, Visit, AsRefStr, EnumString, EnumVariantNames)]
+#[derive(Clone, Debug, PartialEq, Reflect, Visit, AsRefStr, EnumString, VariantNames)]
 pub enum Brush {
     /// A brush, that fills a surface with a solid color.
     Solid(Color),

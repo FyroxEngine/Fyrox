@@ -27,7 +27,7 @@ use std::{
     cell::{Cell, RefCell},
     ops::{Deref, DerefMut, Range},
 };
-use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
+use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 /// Ball joint locks any translational moves between two objects on the axis between objects, but
 /// allows rigid bodies to perform relative rotations. The real world example is a human shoulder,
@@ -86,7 +86,7 @@ impl Default for PrismaticJoint {
 }
 
 /// The exact kind of the joint.
-#[derive(Clone, Debug, PartialEq, Visit, Reflect, AsRefStr, EnumString, EnumVariantNames)]
+#[derive(Clone, Debug, PartialEq, Visit, Reflect, AsRefStr, EnumString, VariantNames)]
 pub enum JointParams {
     /// See [`BallJoint`] for more info.
     BallJoint(BallJoint),

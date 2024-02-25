@@ -32,7 +32,7 @@ use std::{
     cell::Cell,
     ops::{Add, BitAnd, BitOr, Deref, DerefMut, Mul, Not, Shl},
 };
-use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
+use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 /// Ball is an idea sphere shape defined by a single parameters - its radius.
 #[derive(Clone, Debug, PartialEq, Visit, Reflect)]
@@ -342,7 +342,7 @@ impl From<geometry::InteractionGroups> for InteractionGroups {
 }
 
 /// Possible collider shapes.
-#[derive(Clone, Debug, PartialEq, Visit, Reflect, AsRefStr, EnumString, EnumVariantNames)]
+#[derive(Clone, Debug, PartialEq, Visit, Reflect, AsRefStr, EnumString, VariantNames)]
 pub enum ColliderShape {
     /// See [`BallShape`] docs.
     Ball(BallShape),

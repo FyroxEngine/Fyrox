@@ -15,7 +15,7 @@ use crate::{
 use fyrox_animation::machine::Parameter;
 use fyrox_graph::{SceneGraph, SceneGraphNode};
 use std::ops::{Deref, DerefMut};
-use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
+use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 /// UI-specific root motion settings.
 pub type RootMotionSettings = crate::generic_animation::RootMotionSettings<Handle<UiNode>>;
@@ -221,7 +221,7 @@ impl AnimationBlendingStateMachineBuilder {
     TypeUuidProvider,
     AsRefStr,
     EnumString,
-    EnumVariantNames,
+    VariantNames,
 )]
 #[type_uuid(id = "291e8734-47df-408e-8b2c-57bfb941d8ec")]
 pub enum EventKind {

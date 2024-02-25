@@ -32,7 +32,7 @@ use std::{
     cell::Cell,
     ops::{Deref, DerefMut},
 };
-use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
+use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 /// Ball is an idea sphere shape defined by a single parameters - its radius.
 #[derive(Clone, Debug, Visit, PartialEq, Reflect)]
@@ -150,7 +150,7 @@ pub struct HeightfieldShape {
 }
 
 /// Possible collider shapes.
-#[derive(Clone, Debug, Visit, Reflect, AsRefStr, PartialEq, EnumString, EnumVariantNames)]
+#[derive(Clone, Debug, Visit, Reflect, AsRefStr, PartialEq, EnumString, VariantNames)]
 pub enum ColliderShape {
     /// See [`BallShape`] docs.
     Ball(BallShape),

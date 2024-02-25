@@ -1,6 +1,6 @@
 use fyrox::core::{reflect::prelude::*, uuid_provider};
 use serde::{Deserialize, Serialize};
-use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
+use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 #[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Reflect)]
 pub struct GeneralSettings {
@@ -42,7 +42,7 @@ fn default_script_editor() -> ScriptEditor {
     Reflect,
     AsRefStr,
     EnumString,
-    EnumVariantNames,
+    VariantNames,
 )]
 pub enum ScriptEditor {
     SystemDefault,

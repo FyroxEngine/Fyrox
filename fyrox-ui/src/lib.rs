@@ -288,7 +288,7 @@ use std::{
         Arc,
     },
 };
-use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
+use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 pub use alignment::*;
 pub use build::*;
@@ -431,7 +431,7 @@ impl RcUiNodeHandle {
     Deserialize,
     AsRefStr,
     EnumString,
-    EnumVariantNames,
+    VariantNames,
 )]
 pub enum Orientation {
     /// Vertical orientation. This is default value.

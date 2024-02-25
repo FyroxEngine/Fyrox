@@ -35,7 +35,7 @@ use std::{
     fmt::{Display, Formatter},
     ops::{Deref, DerefMut},
 };
-use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
+use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 /// Perspective projection make parallel lines to converge at some point. Objects will be smaller
 /// with increasing distance. This the projection type "used" by human eyes, photographic lens and
@@ -163,7 +163,7 @@ impl OrthographicProjection {
 /// objects will look smaller with increasing distance.
 /// 2) Orthographic projection most useful for 2D games, objects won't look smaller with increasing
 /// distance.
-#[derive(Reflect, Clone, Debug, PartialEq, Visit, AsRefStr, EnumString, EnumVariantNames)]
+#[derive(Reflect, Clone, Debug, PartialEq, Visit, AsRefStr, EnumString, VariantNames)]
 pub enum Projection {
     /// See [`PerspectiveProjection`] docs.
     Perspective(PerspectiveProjection),
@@ -250,7 +250,7 @@ impl Default for Projection {
 
 /// Exposure is a parameter that describes how many light should be collected for one
 /// frame. The higher the value, the more brighter the final frame will be and vice versa.
-#[derive(Visit, Copy, Clone, PartialEq, Debug, Reflect, AsRefStr, EnumString, EnumVariantNames)]
+#[derive(Visit, Copy, Clone, PartialEq, Debug, Reflect, AsRefStr, EnumString, VariantNames)]
 pub enum Exposure {
     /// Automatic exposure based on the frame luminance. High luminance values will result
     /// in lower exposure levels and vice versa. This is default option.

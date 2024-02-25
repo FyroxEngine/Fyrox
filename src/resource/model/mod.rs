@@ -53,7 +53,7 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
-use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
+use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 pub mod loader;
 
@@ -574,7 +574,7 @@ impl Default for Model {
     Reflect,
     AsRefStr,
     EnumString,
-    EnumVariantNames,
+    VariantNames,
 )]
 pub enum MaterialSearchOptions {
     /// Search in specified materials directory. It is suitable for cases when
