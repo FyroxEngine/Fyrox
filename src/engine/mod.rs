@@ -2349,24 +2349,28 @@ impl Drop for Engine {
 
 #[cfg(test)]
 mod test {
+    use crate::engine::{Engine, EngineInitParams};
     use crate::{
         asset::manager::ResourceManager,
         core::{
-            impl_component_provider, pool::Handle, reflect::prelude::*, task::TaskPool,
-            uuid_provider, visitor::prelude::*,
+            pool::Handle, reflect::prelude::*, task::TaskPool, type_traits::prelude::*,
+            visitor::prelude::*,
         },
         engine::{task::TaskPoolHandler, GraphicsContext, ScriptProcessor},
+        graph::BaseSceneGraph,
+        gui::UserInterface,
         scene::{base::BaseBuilder, node::Node, pivot::PivotBuilder, Scene, SceneContainer},
         script::{
             ScriptContext, ScriptDeinitContext, ScriptMessageContext, ScriptMessagePayload,
             ScriptTrait,
         },
     };
-    use std::sync::Arc;
-
-    use crate::graph::BaseSceneGraph;
-    use fyrox_ui::UserInterface;
-    use std::sync::mpsc::{self, Sender, TryRecvError};
+    use std::mem::{ManuallyDrop, MaybeUninit};
+    use std::sync::{
+        mpsc::{self, Sender, TryRecvError},
+        Arc,
+    };
+    use winit::event_loop::EventLoop;
 
     #[allow(clippy::enum_variant_names)]
     #[derive(PartialEq, Eq, Clone, Debug)]
@@ -2378,16 +2382,14 @@ mod test {
         EventReceived(Handle<Node>),
     }
 
-    #[derive(Debug, Clone, Reflect, Visit)]
+    #[derive(Debug, Clone, Reflect, Visit, TypeUuidProvider, ComponentProvider)]
+    #[type_uuid(id = "2569de84-d4b2-427d-969b-d5c7b31a0ba6")]
     struct MyScript {
         #[reflect(hidden)]
         #[visit(skip)]
         sender: Sender<Event>,
         spawned: bool,
     }
-
-    impl_component_provider!(MyScript);
-    uuid_provider!(MyScript = "2569de84-d4b2-427d-969b-d5c7b31a0ba6");
 
     impl ScriptTrait for MyScript {
         fn on_init(&mut self, ctx: &mut ScriptContext) {
@@ -2431,15 +2433,13 @@ mod test {
         }
     }
 
-    #[derive(Debug, Clone, Reflect, Visit)]
+    #[derive(Debug, Clone, Reflect, Visit, TypeUuidProvider, ComponentProvider)]
+    #[type_uuid(id = "1cebacd9-b500-4753-93be-39db344add21")]
     struct MySubScript {
         #[reflect(hidden)]
         #[visit(skip)]
         sender: Sender<Event>,
     }
-
-    impl_component_provider!(MySubScript);
-    uuid_provider!(MySubScript = "1cebacd9-b500-4753-93be-39db344add21");
 
     impl ScriptTrait for MySubScript {
         fn on_init(&mut self, ctx: &mut ScriptContext) {
@@ -2549,16 +2549,14 @@ mod test {
         Bar(String),
     }
 
-    #[derive(Debug, Clone, Reflect, Visit)]
+    #[derive(Debug, Clone, Reflect, Visit, TypeUuidProvider, ComponentProvider)]
+    #[type_uuid(id = "bf2976ad-f41d-4de6-9a32-b1a293956058")]
     struct ScriptListeningToMessages {
         index: u32,
         #[reflect(hidden)]
         #[visit(skip)]
         sender: Sender<Event>,
     }
-
-    impl_component_provider!(ScriptListeningToMessages);
-    uuid_provider!(ScriptListeningToMessages = "bf2976ad-f41d-4de6-9a32-b1a293956058");
 
     impl ScriptTrait for ScriptListeningToMessages {
         fn on_start(&mut self, ctx: &mut ScriptContext) {
@@ -2595,13 +2593,11 @@ mod test {
         }
     }
 
-    #[derive(Debug, Clone, Reflect, Visit)]
+    #[derive(Debug, Clone, Reflect, Visit, TypeUuidProvider, ComponentProvider)]
+    #[type_uuid(id = "6bcbf9b4-9546-42d3-965a-de055ab85475")]
     struct ScriptSendingMessages {
         index: u32,
     }
-
-    impl_component_provider!(ScriptSendingMessages);
-    uuid_provider!(ScriptSendingMessages = "6bcbf9b4-9546-42d3-965a-de055ab85475");
 
     impl ScriptTrait for ScriptSendingMessages {
         fn on_update(&mut self, ctx: &mut ScriptContext) {
@@ -2668,5 +2664,89 @@ mod test {
                 _ => (),
             }
         }
+    }
+
+    #[derive(Clone, Debug, PartialEq, Reflect, Visit, TypeUuidProvider, ComponentProvider)]
+    #[type_uuid(id = "7bcbf9b4-9546-42d3-965a-de055ab85475")]
+    pub struct ScriptSpawningAsyncTasks {
+        num: Option<u32>,
+    }
+
+    impl ScriptTrait for ScriptSpawningAsyncTasks {
+        fn on_start(&mut self, ctx: &mut ScriptContext) {
+            ctx.task_pool.spawn_script_task(
+                ctx.scene_handle,
+                ctx.handle,
+                ctx.script_index,
+                async move { 123u32 },
+                |result, script: &mut ScriptSpawningAsyncTasks, _ctx| {
+                    assert_eq!(result, 123u32);
+                    script.num = Some(result);
+                },
+            )
+        }
+    }
+
+    #[derive(Clone, Debug, PartialEq, Reflect, Visit, TypeUuidProvider, ComponentProvider)]
+    #[type_uuid(id = "8bcbf9b4-9546-42d3-965a-de055ab85475")]
+    pub struct ScriptWithoutAsyncTasks {}
+
+    impl ScriptTrait for ScriptWithoutAsyncTasks {}
+
+    #[test]
+    fn test_async_script_tasks() {
+        // This hack is needed, because tests run in random threads and EventLoop cannot be created
+        // from non-main thread. Since we don't create any windows and don't run an event loop, this
+        // should be safe.
+        #[allow(invalid_value)]
+        let event_loop =
+            unsafe { ManuallyDrop::new(MaybeUninit::<EventLoop<()>>::uninit().assume_init()) };
+
+        let task_pool = Arc::new(TaskPool::default());
+        let mut engine = Engine::new(EngineInitParams {
+            graphics_context_params: Default::default(),
+            serialization_context: Arc::new(Default::default()),
+            resource_manager: ResourceManager::new(task_pool.clone()),
+            task_pool,
+        })
+        .unwrap();
+        engine.enable_plugins(None, true, None);
+
+        let mut scene = Scene::new();
+
+        let handle = PivotBuilder::new(
+            BaseBuilder::new()
+                .with_script(ScriptSpawningAsyncTasks { num: None })
+                .with_script(ScriptWithoutAsyncTasks {}),
+        )
+        .build(&mut scene.graph);
+
+        let scene_handle = engine.scenes.add(scene);
+
+        engine.register_scripted_scene(scene_handle);
+
+        // Spin for some time.
+        let mut time = 0.0;
+        let dt = 1.0 / 60.0;
+        let mut lag = 0.0;
+        while time < 1.0 {
+            engine.update(dt, &event_loop, &mut lag, Default::default());
+            time += dt;
+        }
+
+        // Ensure that the tasks are finished and correctly handled.
+        let mut scripts = engine.scenes[scene_handle].graph[handle].scripts();
+        assert_eq!(
+            scripts
+                .next()
+                .and_then(|s| s.cast::<ScriptSpawningAsyncTasks>()),
+            Some(&ScriptSpawningAsyncTasks { num: Some(123) })
+        );
+        assert_eq!(
+            scripts
+                .next()
+                .and_then(|s| s.cast::<ScriptWithoutAsyncTasks>()),
+            Some(&ScriptWithoutAsyncTasks {})
+        );
     }
 }
