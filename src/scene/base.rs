@@ -254,6 +254,8 @@ pub enum NodeScriptMessage {
         script: Script,
         /// Node handle.
         handle: Handle<Node>,
+        /// Index of the script.
+        script_index: usize,
     },
 }
 
@@ -774,6 +776,7 @@ impl Base {
                     Log::verify(sender.send(NodeScriptMessage::DestroyScript {
                         script,
                         handle: self.self_handle,
+                        script_index: index,
                     }));
                 } else {
                     Log::warn(format!(
@@ -802,9 +805,11 @@ impl Base {
     /// first-to-last order an their actual destruction will happen either on the current update tick
     /// of the parent graph (if it was removed from some other script) or in the next update tick.
     pub fn remove_all_scripts(&mut self) {
-        while !self.scripts.is_empty() {
-            self.remove_script(0);
+        let script_count = self.scripts.len();
+        for i in 0..script_count {
+            self.dispose_script(i);
         }
+        self.scripts.clear();
     }
 
     /// Sets a new script for the scene node by index. Previous script will be removed (see

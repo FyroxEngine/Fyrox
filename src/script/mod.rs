@@ -32,7 +32,7 @@ pub mod constructor;
 
 pub(crate) trait UniversalScriptContext {
     fn node(&mut self) -> Option<&mut Node>;
-    fn destroy_script_deferred(&self, script: Script);
+    fn destroy_script_deferred(&self, script: Script, index: usize);
 }
 
 /// A script message's payload.
@@ -353,7 +353,7 @@ impl<'a, 'b, 'c> UniversalScriptContext for ScriptContext<'a, 'b, 'c> {
         self.scene.graph.try_get_mut(self.handle)
     }
 
-    fn destroy_script_deferred(&self, script: Script) {
+    fn destroy_script_deferred(&self, script: Script, index: usize) {
         Log::verify(
             self.scene
                 .graph
@@ -361,6 +361,7 @@ impl<'a, 'b, 'c> UniversalScriptContext for ScriptContext<'a, 'b, 'c> {
                 .send(NodeScriptMessage::DestroyScript {
                     script,
                     handle: self.handle,
+                    script_index: index,
                 }),
         )
     }
@@ -415,7 +416,7 @@ pub struct ScriptMessageContext<'a, 'b, 'c> {
     pub user_interface: &'a mut UserInterface,
 
     /// Index of the script.
-    pub index: usize,
+    pub script_index: usize,
 }
 
 impl<'a, 'b, 'c> UniversalScriptContext for ScriptMessageContext<'a, 'b, 'c> {
@@ -423,7 +424,7 @@ impl<'a, 'b, 'c> UniversalScriptContext for ScriptMessageContext<'a, 'b, 'c> {
         self.scene.graph.try_get_mut(self.handle)
     }
 
-    fn destroy_script_deferred(&self, script: Script) {
+    fn destroy_script_deferred(&self, script: Script, index: usize) {
         Log::verify(
             self.scene
                 .graph
@@ -431,6 +432,7 @@ impl<'a, 'b, 'c> UniversalScriptContext for ScriptMessageContext<'a, 'b, 'c> {
                 .send(NodeScriptMessage::DestroyScript {
                     script,
                     handle: self.handle,
+                    script_index: index,
                 }),
         )
     }
@@ -476,7 +478,7 @@ pub struct ScriptDeinitContext<'a, 'b, 'c> {
     pub user_interface: &'a mut UserInterface,
 
     /// Index of the script.
-    pub index: usize,
+    pub script_index: usize,
 }
 
 impl<'a, 'b, 'c> UniversalScriptContext for ScriptDeinitContext<'a, 'b, 'c> {
@@ -484,7 +486,7 @@ impl<'a, 'b, 'c> UniversalScriptContext for ScriptDeinitContext<'a, 'b, 'c> {
         self.scene.graph.try_get_mut(self.node_handle)
     }
 
-    fn destroy_script_deferred(&self, script: Script) {
+    fn destroy_script_deferred(&self, script: Script, index: usize) {
         Log::verify(
             self.scene
                 .graph
@@ -492,6 +494,7 @@ impl<'a, 'b, 'c> UniversalScriptContext for ScriptDeinitContext<'a, 'b, 'c> {
                 .send(NodeScriptMessage::DestroyScript {
                     script,
                     handle: self.node_handle,
+                    script_index: index,
                 }),
         )
     }

@@ -532,11 +532,11 @@ impl ScriptMessageDispatcher {
                                 task_pool,
                                 graphics_context,
                                 user_interface,
-                                index: 0,
+                                script_index: 0,
                             };
 
                             process_node_scripts(&mut context, &mut |s, ctx, index| {
-                                ctx.index = index;
+                                ctx.script_index = index;
                                 s.on_message(&mut *payload, ctx)
                             })
                         }
@@ -559,12 +559,12 @@ impl ScriptMessageDispatcher {
                                     task_pool,
                                     graphics_context,
                                     user_interface,
-                                    index: 0,
+                                    script_index: 0,
                                 };
 
                                 if receivers.contains(&node) {
                                     process_node_scripts(&mut context, &mut |s, ctx, index| {
-                                        ctx.index = index;
+                                        ctx.script_index = index;
                                         s.on_message(&mut *payload, ctx)
                                     });
                                 }
@@ -586,12 +586,12 @@ impl ScriptMessageDispatcher {
                                     task_pool,
                                     graphics_context,
                                     user_interface,
-                                    index: 0,
+                                    script_index: 0,
                                 };
 
                                 if receivers.contains(&node) {
                                     process_node_scripts(&mut context, &mut |s, ctx, index| {
-                                        ctx.index = index;
+                                        ctx.script_index = index;
                                         s.on_message(&mut *payload, ctx)
                                     });
                                 }
@@ -612,11 +612,11 @@ impl ScriptMessageDispatcher {
                                 task_pool,
                                 graphics_context,
                                 user_interface,
-                                index: 0,
+                                script_index: 0,
                             };
 
                             process_node_scripts(&mut context, &mut |s, ctx, index| {
-                                ctx.index = index;
+                                ctx.script_index = index;
                                 s.on_message(&mut *payload, ctx)
                             });
                         }
@@ -767,9 +767,13 @@ impl ScriptProcessor {
                                     }
                                 }
                             }
-                            NodeScriptMessage::DestroyScript { handle, script } => {
+                            NodeScriptMessage::DestroyScript {
+                                handle,
+                                script,
+                                script_index,
+                            } => {
                                 // Destruction is delayed to the end of the frame.
-                                destruction_queue.push_back((handle, script));
+                                destruction_queue.push_back((handle, script, script_index));
                             }
                         }
                     }
@@ -859,10 +863,11 @@ impl ScriptProcessor {
                 user_interface,
                 graphics_context,
                 task_pool,
-                index: 0,
+                script_index: 0,
             };
-            while let Some((handle, mut script)) = destruction_queue.pop_front() {
+            while let Some((handle, mut script, index)) = destruction_queue.pop_front() {
                 context.node_handle = handle;
+                context.script_index = index;
 
                 // Unregister self in message dispatcher.
                 scripted_scene.message_dispatcher.unsubscribe(handle);
@@ -887,7 +892,7 @@ impl ScriptProcessor {
                     task_pool,
                     graphics_context,
                     user_interface,
-                    index: 0,
+                    script_index: 0,
                 };
 
                 // Destroy every script instance from nodes that were still alive.
@@ -897,7 +902,7 @@ impl ScriptProcessor {
 
                     process_node_scripts(&mut context, &mut |script, context, index| {
                         if script.initialized {
-                            context.index = index;
+                            context.script_index = index;
                             script.on_deinit(context)
                         }
                     });
@@ -1068,7 +1073,7 @@ where
                     } else {
                         // If there's no entry, then the script was marked for removal and we must
                         // send it to destruction queue.
-                        context.destroy_script_deferred(script);
+                        context.destroy_script_deferred(script, index);
                     }
                 } else {
                     // Put the script back at its place.
@@ -1078,7 +1083,7 @@ where
             None => {
                 // If the node was deleted by the `func` call, we must send the script to destruction
                 // queue, not silently drop it.
-                context.destroy_script_deferred(script);
+                context.destroy_script_deferred(script, index);
             }
         }
 
@@ -1965,6 +1970,8 @@ impl Engine {
                                                         NodeScriptMessage::DestroyScript {
                                                             script,
                                                             handle: node_task_handler.node_handle,
+                                                            script_index: node_task_handler
+                                                                .script_index,
                                                         },
                                                     ),
                                                 );
@@ -2372,14 +2379,43 @@ mod test {
     };
     use winit::event_loop::EventLoop;
 
+    #[derive(PartialEq, Eq, Copy, Clone, Debug)]
+    struct Source {
+        node_handle: Handle<Node>,
+        script_index: usize,
+    }
+
+    impl Source {
+        fn from_ctx(ctx: &ScriptContext) -> Self {
+            Self {
+                node_handle: ctx.handle,
+                script_index: ctx.script_index,
+            }
+        }
+
+        fn from_deinit_ctx(ctx: &ScriptDeinitContext) -> Self {
+            Self {
+                node_handle: ctx.node_handle,
+                script_index: ctx.script_index,
+            }
+        }
+
+        fn from_msg_ctx(ctx: &ScriptMessageContext) -> Self {
+            Self {
+                node_handle: ctx.handle,
+                script_index: ctx.script_index,
+            }
+        }
+    }
+
     #[allow(clippy::enum_variant_names)]
     #[derive(PartialEq, Eq, Clone, Debug)]
     enum Event {
-        Initialized(Handle<Node>),
-        Started(Handle<Node>),
-        Updated(Handle<Node>),
-        Destroyed(Handle<Node>),
-        EventReceived(Handle<Node>),
+        Initialized(Source),
+        Started(Source),
+        Updated(Source),
+        Destroyed(Source),
+        EventReceived(Source),
     }
 
     #[derive(Debug, Clone, Reflect, Visit, TypeUuidProvider, ComponentProvider)]
@@ -2393,7 +2429,9 @@ mod test {
 
     impl ScriptTrait for MyScript {
         fn on_init(&mut self, ctx: &mut ScriptContext) {
-            self.sender.send(Event::Initialized(ctx.handle)).unwrap();
+            self.sender
+                .send(Event::Initialized(Source::from_ctx(ctx)))
+                .unwrap();
 
             // Spawn new entity with script.
             let handle = PivotBuilder::new(BaseBuilder::new().with_script(MySubScript {
@@ -2404,7 +2442,9 @@ mod test {
         }
 
         fn on_start(&mut self, ctx: &mut ScriptContext) {
-            self.sender.send(Event::Started(ctx.handle)).unwrap();
+            self.sender
+                .send(Event::Started(Source::from_ctx(ctx)))
+                .unwrap();
 
             // Spawn new entity with script.
             let handle = PivotBuilder::new(BaseBuilder::new().with_script(MySubScript {
@@ -2415,11 +2455,15 @@ mod test {
         }
 
         fn on_deinit(&mut self, ctx: &mut ScriptDeinitContext) {
-            self.sender.send(Event::Destroyed(ctx.node_handle)).unwrap();
+            self.sender
+                .send(Event::Destroyed(Source::from_deinit_ctx(ctx)))
+                .unwrap();
         }
 
         fn on_update(&mut self, ctx: &mut ScriptContext) {
-            self.sender.send(Event::Updated(ctx.handle)).unwrap();
+            self.sender
+                .send(Event::Updated(Source::from_ctx(ctx)))
+                .unwrap();
 
             if !self.spawned {
                 // Spawn new entity with script.
@@ -2443,19 +2487,27 @@ mod test {
 
     impl ScriptTrait for MySubScript {
         fn on_init(&mut self, ctx: &mut ScriptContext) {
-            self.sender.send(Event::Initialized(ctx.handle)).unwrap();
+            self.sender
+                .send(Event::Initialized(Source::from_ctx(ctx)))
+                .unwrap();
         }
 
         fn on_start(&mut self, ctx: &mut ScriptContext) {
-            self.sender.send(Event::Started(ctx.handle)).unwrap();
+            self.sender
+                .send(Event::Started(Source::from_ctx(ctx)))
+                .unwrap();
         }
 
         fn on_deinit(&mut self, ctx: &mut ScriptDeinitContext) {
-            self.sender.send(Event::Destroyed(ctx.node_handle)).unwrap();
+            self.sender
+                .send(Event::Destroyed(Source::from_deinit_ctx(ctx)))
+                .unwrap();
         }
 
         fn on_update(&mut self, ctx: &mut ScriptContext) {
-            self.sender.send(Event::Updated(ctx.handle)).unwrap();
+            self.sender
+                .send(Event::Updated(Source::from_ctx(ctx)))
+                .unwrap();
         }
     }
 
@@ -2466,12 +2518,25 @@ mod test {
 
         let (tx, rx) = mpsc::channel();
 
-        let node_handle = PivotBuilder::new(BaseBuilder::new().with_script(MyScript {
-            sender: tx,
-            spawned: false,
-        }))
+        let node_handle = PivotBuilder::new(
+            BaseBuilder::new()
+                .with_script(MyScript {
+                    sender: tx.clone(),
+                    spawned: false,
+                })
+                .with_script(MySubScript { sender: tx }),
+        )
         .build(&mut scene.graph);
         assert_eq!(node_handle, Handle::new(1, 1));
+
+        let node_handle_0 = Source {
+            node_handle,
+            script_index: 0,
+        };
+        let node_handle_1 = Source {
+            node_handle,
+            script_index: 1,
+        };
 
         let mut scene_container = SceneContainer::new(Default::default());
 
@@ -2481,9 +2546,18 @@ mod test {
 
         script_processor.register_scripted_scene(scene_handle, &resource_manager);
 
-        let handle_on_init = Handle::new(2, 1);
-        let handle_on_start = Handle::new(3, 1);
-        let handle_on_update1 = Handle::new(4, 1);
+        let handle_on_init = Source {
+            node_handle: Handle::new(2, 1),
+            script_index: 0,
+        };
+        let handle_on_start = Source {
+            node_handle: Handle::new(3, 1),
+            script_index: 0,
+        };
+        let handle_on_update1 = Source {
+            node_handle: Handle::new(4, 1),
+            script_index: 0,
+        };
         let mut task_pool = TaskPoolHandler::new(Arc::new(TaskPool::new()));
         let mut gc = GraphicsContext::Uninitialized(Default::default());
         let mut user_interface = UserInterface::default();
@@ -2502,13 +2576,16 @@ mod test {
 
             match iteration {
                 0 => {
-                    assert_eq!(rx.try_recv(), Ok(Event::Initialized(node_handle)));
+                    assert_eq!(rx.try_recv(), Ok(Event::Initialized(node_handle_0)));
+                    assert_eq!(rx.try_recv(), Ok(Event::Initialized(node_handle_1)));
                     assert_eq!(rx.try_recv(), Ok(Event::Initialized(handle_on_init)));
-                    assert_eq!(rx.try_recv(), Ok(Event::Started(node_handle)));
+                    assert_eq!(rx.try_recv(), Ok(Event::Started(node_handle_0)));
+                    assert_eq!(rx.try_recv(), Ok(Event::Started(node_handle_1)));
                     assert_eq!(rx.try_recv(), Ok(Event::Started(handle_on_init)));
                     assert_eq!(rx.try_recv(), Ok(Event::Initialized(handle_on_start)));
                     assert_eq!(rx.try_recv(), Ok(Event::Started(handle_on_start)));
-                    assert_eq!(rx.try_recv(), Ok(Event::Updated(node_handle)));
+                    assert_eq!(rx.try_recv(), Ok(Event::Updated(node_handle_0)));
+                    assert_eq!(rx.try_recv(), Ok(Event::Updated(node_handle_1)));
                     assert_eq!(rx.try_recv(), Ok(Event::Updated(handle_on_init)));
                     assert_eq!(rx.try_recv(), Ok(Event::Updated(handle_on_start)));
                     assert_eq!(rx.try_recv(), Ok(Event::Initialized(handle_on_update1)));
@@ -2516,7 +2593,8 @@ mod test {
                     assert_eq!(rx.try_recv(), Ok(Event::Updated(handle_on_update1)));
                 }
                 1 => {
-                    assert_eq!(rx.try_recv(), Ok(Event::Updated(node_handle)));
+                    assert_eq!(rx.try_recv(), Ok(Event::Updated(node_handle_0)));
+                    assert_eq!(rx.try_recv(), Ok(Event::Updated(node_handle_1)));
                     assert_eq!(rx.try_recv(), Ok(Event::Updated(handle_on_init)));
                     assert_eq!(rx.try_recv(), Ok(Event::Updated(handle_on_start)));
                     assert_eq!(rx.try_recv(), Ok(Event::Updated(handle_on_update1)));
@@ -2525,12 +2603,13 @@ mod test {
                     // Now destroy every node with script, next iteration should correctly destroy attached scripts.
                     let graph = &mut scene_container[scene_handle].graph;
                     graph.remove_node(node_handle);
-                    graph.remove_node(handle_on_init);
-                    graph.remove_node(handle_on_start);
-                    graph.remove_node(handle_on_update1);
+                    graph.remove_node(handle_on_init.node_handle);
+                    graph.remove_node(handle_on_start.node_handle);
+                    graph.remove_node(handle_on_update1.node_handle);
                 }
                 2 => {
-                    assert_eq!(rx.try_recv(), Ok(Event::Destroyed(node_handle)));
+                    assert_eq!(rx.try_recv(), Ok(Event::Destroyed(node_handle_0)));
+                    assert_eq!(rx.try_recv(), Ok(Event::Destroyed(node_handle_1)));
                     assert_eq!(rx.try_recv(), Ok(Event::Destroyed(handle_on_init)));
                     assert_eq!(rx.try_recv(), Ok(Event::Destroyed(handle_on_start)));
                     assert_eq!(rx.try_recv(), Ok(Event::Destroyed(handle_on_update1)));
@@ -2573,7 +2652,9 @@ mod test {
                 0 => {
                     if let MyMessage::Foo(num) = typed_message {
                         assert_eq!(*num, 123);
-                        self.sender.send(Event::EventReceived(ctx.handle)).unwrap();
+                        self.sender
+                            .send(Event::EventReceived(Source::from_msg_ctx(ctx)))
+                            .unwrap();
                     } else {
                         unreachable!()
                     }
@@ -2581,7 +2662,9 @@ mod test {
                 1 => {
                     if let MyMessage::Bar(string) = typed_message {
                         assert_eq!(string, "Foobar");
-                        self.sender.send(Event::EventReceived(ctx.handle)).unwrap();
+                        self.sender
+                            .send(Event::EventReceived(Source::from_msg_ctx(ctx)))
+                            .unwrap();
                     } else {
                         unreachable!()
                     }
@@ -2628,6 +2711,10 @@ mod test {
                 index: 0,
             }))
             .build(&mut scene.graph);
+        let receiver_messages_source = Source {
+            node_handle: receiver_messages,
+            script_index: 0,
+        };
 
         let mut scene_container = SceneContainer::new(Default::default());
 
@@ -2654,11 +2741,17 @@ mod test {
 
             match iteration {
                 0 => {
-                    assert_eq!(rx.try_recv(), Ok(Event::EventReceived(receiver_messages)));
+                    assert_eq!(
+                        rx.try_recv(),
+                        Ok(Event::EventReceived(receiver_messages_source))
+                    );
                     assert_eq!(rx.try_recv(), Err(TryRecvError::Empty));
                 }
                 1 => {
-                    assert_eq!(rx.try_recv(), Ok(Event::EventReceived(receiver_messages)));
+                    assert_eq!(
+                        rx.try_recv(),
+                        Ok(Event::EventReceived(receiver_messages_source))
+                    );
                     assert_eq!(rx.try_recv(), Err(TryRecvError::Empty));
                 }
                 _ => (),
@@ -2699,6 +2792,7 @@ mod test {
         // from non-main thread. Since we don't create any windows and don't run an event loop, this
         // should be safe.
         #[allow(invalid_value)]
+        #[allow(clippy::uninit_assumed_init)]
         let event_loop =
             unsafe { ManuallyDrop::new(MaybeUninit::<EventLoop<()>>::uninit().assume_init()) };
 
