@@ -11,16 +11,22 @@ use crate::{
     asset::{
         event::ResourceEvent,
         manager::{ResourceManager, ResourceWaitContext},
+        untyped::{ResourceKind, UntypedResource},
+        Resource,
     },
     core::{
         algebra::Vector2, futures::executor::block_on, instant, log::Log, pool::Handle,
-        reflect::Reflect, variable::try_inherit_properties, visitor::VisitError,
+        reflect::Reflect, task::TaskPool, variable::try_inherit_properties, visitor::VisitError,
     },
-    engine::error::EngineError,
+    engine::{error::EngineError, task::TaskPoolHandler},
     event::Event,
-    gui::UserInterface,
-    material,
+    graph::{BaseSceneGraph, NodeMapping, SceneGraph},
+    gui::{
+        font::loader::FontLoader, font::Font, font::BUILT_IN_FONT, loader::UserInterfaceLoader,
+        UiUpdateSwitches, UserInterface,
+    },
     material::{
+        self,
         loader::MaterialLoader,
         shader::{loader::ShaderLoader, Shader, ShaderResource, ShaderResourceExtension},
         Material,
@@ -30,12 +36,13 @@ use crate::{
     resource::{
         curve::{loader::CurveLoader, CurveResourceState},
         model::{loader::ModelLoader, Model, ModelResource},
-        texture::{loader::TextureLoader, Texture, TextureKind},
+        texture::{self, loader::TextureLoader, Texture, TextureKind},
     },
     scene::{
         base::NodeScriptMessage,
         camera::SkyBoxKind,
         graph::{GraphUpdateSwitches, NodePool},
+        navmesh,
         node::{constructor::NodeConstructorContainer, Node},
         sound::SoundEngine,
         Scene, SceneContainer, SceneLoader,
@@ -45,10 +52,10 @@ use crate::{
         ScriptDeinitContext, ScriptMessage, ScriptMessageContext, ScriptMessageKind,
         ScriptMessageSender,
     },
+    script::{PluginsRefMut, UniversalScriptContext},
     window::{Window, WindowBuilder},
 };
 use fxhash::{FxHashMap, FxHashSet};
-use fyrox_resource::untyped::{ResourceKind, UntypedResource};
 use fyrox_sound::{
     buffer::{loader::SoundBufferLoader, SoundBuffer},
     renderer::hrtf::{HrirSphereLoader, HrirSphereResourceData},
@@ -68,27 +75,13 @@ use glutin_winit::{DisplayBuilder, GlWindow};
 #[cfg(not(target_arch = "wasm32"))]
 use raw_window_handle::HasRawWindowHandle;
 
-#[cfg(not(target_arch = "wasm32"))]
-use std::{ffi::CString, num::NonZeroU32};
-
-use crate::engine::task::TaskPoolHandler;
-use crate::graph::SceneGraph;
-use crate::resource::texture;
-use crate::scene::base::ScriptWrapper;
-use crate::scene::navmesh;
-use crate::script::PluginsRefMut;
-use fyrox_core::task::TaskPool;
-use fyrox_graph::{BaseSceneGraph, NodeMapping};
-use fyrox_resource::Resource;
-use fyrox_ui::font::BUILT_IN_FONT;
-use fyrox_ui::loader::UserInterfaceLoader;
-use fyrox_ui::{font::loader::FontLoader, font::Font, UiUpdateSwitches};
-use std::ops::DerefMut;
 use std::{
     any::TypeId,
     collections::{HashSet, VecDeque},
+    ffi::CString,
     fmt::{Display, Formatter},
-    ops::Deref,
+    num::NonZeroU32,
+    ops::{Deref, DerefMut},
     path::{Path, PathBuf},
     sync::{
         mpsc::{channel, Receiver, Sender},
@@ -540,7 +533,7 @@ impl ScriptMessageDispatcher {
                                 user_interface,
                             };
 
-                            process_node_message(&mut context, &mut |s, ctx| {
+                            process_node_scripts(&mut context, &mut |s, ctx| {
                                 s.on_message(&mut *payload, ctx)
                             })
                         }
@@ -566,7 +559,7 @@ impl ScriptMessageDispatcher {
                                 };
 
                                 if receivers.contains(&node) {
-                                    process_node_message(&mut context, &mut |s, ctx| {
+                                    process_node_scripts(&mut context, &mut |s, ctx| {
                                         s.on_message(&mut *payload, ctx)
                                     });
                                 }
@@ -591,7 +584,7 @@ impl ScriptMessageDispatcher {
                                 };
 
                                 if receivers.contains(&node) {
-                                    process_node_message(&mut context, &mut |s, ctx| {
+                                    process_node_scripts(&mut context, &mut |s, ctx| {
                                         s.on_message(&mut *payload, ctx)
                                     });
                                 }
@@ -614,7 +607,7 @@ impl ScriptMessageDispatcher {
                                 user_interface,
                             };
 
-                            process_node_message(&mut context, &mut |s, ctx| {
+                            process_node_scripts(&mut context, &mut |s, ctx| {
                                 s.on_message(&mut *payload, ctx)
                             });
                         }
@@ -746,7 +739,7 @@ impl ScriptProcessor {
                             NodeScriptMessage::InitializeScript { handle } => {
                                 context.handle = handle;
 
-                                process_node(&mut context, &mut |script, context| {
+                                process_node_scripts(&mut context, &mut |script, context| {
                                     if !script.initialized {
                                         script.on_init(context);
                                         script.initialized = true;
@@ -778,7 +771,7 @@ impl ScriptProcessor {
                             context.handle = handle;
 
                             let mut started_script = false;
-                            process_node(&mut context, &mut |script, context| {
+                            process_node_scripts(&mut context, &mut |script, context| {
                                 if !script.started {
                                     script.on_start(context);
                                     script.started = true;
@@ -808,7 +801,7 @@ impl ScriptProcessor {
                     while let Some(handle) = update_queue.pop_front() {
                         context.handle = handle;
 
-                        process_node(&mut context, &mut |script, context| {
+                        process_node_scripts(&mut context, &mut |script, context| {
                             script.on_update(context);
                         });
                     }
@@ -884,27 +877,11 @@ impl ScriptProcessor {
                     let handle_node = context.scene.graph.handle_from_index(node_index);
                     context.node_handle = handle_node;
 
-                    let mut script_buffer_len = 0;
-                    if let Some(node) = context.scene.graph.try_get_mut(handle_node) {
-                        script_buffer_len = node.scripts.len()
-                    }
-
-                    for index in 0..script_buffer_len {
-                        let mut script = None;
-                        if let Some(node) = context.scene.graph.try_get_mut(handle_node) {
-                            script = node.scripts[index].take()
+                    process_node_scripts(&mut context, &mut |script, context| {
+                        if script.initialized {
+                            script.on_deinit(context)
                         }
-
-                        if let Some(script) = &mut script {
-                            if script.initialized {
-                                script.on_deinit(&mut context)
-                            }
-                        }
-
-                        if let Some(node) = context.scene.graph.try_get_mut(handle_node) {
-                            node.scripts[index] = ScriptWrapper(script);
-                        };
-                    }
+                    });
                 }
             }
         }
@@ -1026,37 +1003,70 @@ pub struct EngineInitParams {
     pub task_pool: Arc<TaskPool>,
 }
 
-macro_rules! define_process_node {
-    ($name:ident, $ctx_type:ty) => {
-        fn $name<T>(context: &mut $ctx_type, func: &mut T)
-        where
-            T: FnMut(&mut Script, &mut $ctx_type),
-        {
-            let mut script_buffer_len = 0;
-            if let Some(node) = context.scene.graph.try_get_mut(context.handle) {
-                script_buffer_len = node.scripts.len()
+fn process_node_scripts<T, C>(context: &mut C, func: &mut T)
+where
+    T: FnMut(&mut Script, &mut C),
+    C: UniversalScriptContext,
+{
+    let mut index = 0;
+    loop {
+        let Some(node) = context.node() else {
+            // A node was destroyed.
+            return;
+        };
+
+        let prev_script_count = node.scripts.len();
+
+        let Some(entry) = node.scripts.get_mut(index) else {
+            // All scripts were visited.
+            return;
+        };
+
+        entry.index = index;
+
+        let Some(mut script) = entry.take() else {
+            return;
+        };
+
+        func(&mut script, context);
+
+        match context.node() {
+            Some(node) => {
+                let script_count = node.scripts.len();
+
+                if script_count != prev_script_count {
+                    // If scripts array was modified, then we must find the respective entry by its
+                    // index. This is needed, because the actual entry position could be shifted
+                    // either to left or right.
+                    if let Some((actual_index, entry)) = node
+                        .scripts
+                        .iter_mut()
+                        .enumerate()
+                        .find(|(_, e)| e.index == index)
+                    {
+                        index = actual_index;
+                        entry.script = Some(script);
+                    } else {
+                        // If there's no entry, then the script was marked for removal and we must
+                        // send it to destruction queue.
+                        context.destroy_script_deferred(script);
+                    }
+                } else {
+                    // Put the script back at its place.
+                    node.scripts[index].script = Some(script);
+                }
             }
-
-            for index in 0..script_buffer_len {
-                let mut script = None;
-                if let Some(node) = context.scene.graph.try_get_mut(context.handle) {
-                    script = node.scripts[index].take()
-                }
-
-                if let Some(script) = &mut script {
-                    func(script, context);
-                }
-
-                if let Some(node) = context.scene.graph.try_get_mut(context.handle) {
-                    node.scripts[index] = ScriptWrapper(script);
-                };
+            None => {
+                // If the node was deleted by the `func` call, we must send the script to destruction
+                // queue, not silently drop it.
+                context.destroy_script_deferred(script);
             }
         }
-    };
-}
 
-define_process_node!(process_node, ScriptContext);
-define_process_node!(process_node_message, ScriptMessageContext);
+        // Advance to the next script.
+        index += 1;
+    }
+}
 
 pub(crate) fn process_scripts<T>(
     scene: &mut Scene,
@@ -1092,7 +1102,7 @@ pub(crate) fn process_scripts<T>(
     for node_index in 0..context.scene.graph.capacity() {
         context.handle = context.scene.graph.handle_from_index(node_index);
 
-        process_node(&mut context, &mut func);
+        process_node_scripts(&mut context, &mut func);
     }
 }
 
@@ -1933,7 +1943,7 @@ impl Engine {
                             if let Some(node) =
                                 scene.graph.try_get_mut(node_task_handler.node_handle)
                             {
-                                node.scripts[index] = ScriptWrapper(script);
+                                node.scripts[index].script = script;
                             }
                         }
                     }

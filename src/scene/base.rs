@@ -283,33 +283,50 @@ impl Visit for SceneNodeId {
     }
 }
 
-/// A wrapper for scripts
+/// A script container record.
 #[derive(Clone, Reflect, Debug, Default)]
-pub struct ScriptWrapper(pub Option<Script>);
+pub struct ScriptRecord {
+    // Script is wrapped into `Option` to be able to do take-return trick to bypass borrow checker
+    // issues.
+    pub(crate) script: Option<Script>,
+    // Location of the record in a parent container, it is used to find the record when the
+    // container layout has changed.
+    #[reflect(hidden)]
+    pub(crate) index: usize,
+}
 
-impl Deref for ScriptWrapper {
+impl ScriptRecord {
+    pub(crate) fn new(script: Script) -> Self {
+        Self {
+            script: Some(script),
+            index: 0,
+        }
+    }
+}
+
+impl Deref for ScriptRecord {
     type Target = Option<Script>;
 
     fn deref(&self) -> &Self::Target {
-        &self.0
+        &self.script
     }
 }
 
-impl DerefMut for ScriptWrapper {
+impl DerefMut for ScriptRecord {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
+        &mut self.script
     }
 }
 
-impl TypeUuidProvider for ScriptWrapper {
+impl TypeUuidProvider for ScriptRecord {
     fn type_uuid() -> Uuid {
         uuid::uuid!("51bc577b-5a50-4a97-9b31-eda2f3d46c9d")
     }
 }
 
-impl Visit for ScriptWrapper {
+impl Visit for ScriptRecord {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visit_opt_script(name, &mut self.0, visitor)
+        visit_opt_script(name, &mut self.script, visitor)
     }
 }
 
@@ -427,7 +444,7 @@ pub struct Base {
     //
     // WARNING: Setting a new script via reflection will break normal script destruction process!
     // Use it at your own risk only when you're completely sure what you are doing.
-    pub(crate) scripts: Vec<ScriptWrapper>,
+    pub(crate) scripts: Vec<ScriptRecord>,
 
     enabled: InheritableVariable<bool>,
 
@@ -796,10 +813,10 @@ impl Base {
     pub fn replace_script(&mut self, index: usize, script: Option<Script>) {
         self.dispose_script(index);
 
-        if let Some(script_entry) = self.scripts.get_mut(index) {
-            script_entry.0 = script;
+        if let Some(entry) = self.scripts.get_mut(index) {
+            entry.script = script;
             if let Some(sender) = self.script_message_sender.as_ref() {
-                if script_entry.0.is_some() {
+                if entry.script.is_some() {
                     Log::verify(sender.send(NodeScriptMessage::InitializeScript {
                         handle: self.self_handle,
                     }));
@@ -813,7 +830,7 @@ impl Base {
     /// update tick.
     #[inline]
     pub fn add_script(&mut self, script: Script) {
-        self.scripts.push(ScriptWrapper(Some(script)));
+        self.scripts.push(ScriptRecord::new(script));
         if let Some(sender) = self.script_message_sender.as_ref() {
             Log::verify(sender.send(NodeScriptMessage::InitializeScript {
                 handle: self.self_handle,
@@ -857,7 +874,7 @@ impl Base {
     {
         self.scripts
             .iter()
-            .filter_map(|s| s.0.as_ref().and_then(|s| s.cast::<T>()))
+            .filter_map(|e| e.script.as_ref().and_then(|s| s.cast::<T>()))
     }
 
     /// Tries to find a **first** script of the given type `T`, returns `None` if there's no such
@@ -880,7 +897,7 @@ impl Base {
     {
         self.scripts
             .iter_mut()
-            .filter_map(|s| s.0.as_mut().and_then(|s| s.cast_mut::<T>()))
+            .filter_map(|e| e.script.as_mut().and_then(|s| s.cast_mut::<T>()))
     }
 
     /// Tries find a component of the given type `C` across **all** available scripts of the node.
@@ -1094,7 +1111,9 @@ impl Visit for Base {
         // This block is needed for backward compatibility
         let mut old_script = None;
         if region.is_reading() && visit_opt_script("Script", &mut old_script, &mut region).is_ok() {
-            self.scripts.push(ScriptWrapper(old_script));
+            if let Some(old_script) = old_script {
+                self.scripts.push(ScriptRecord::new(old_script));
+            }
             return Ok(());
         }
 
@@ -1118,7 +1137,7 @@ pub struct BaseBuilder {
     tag: String,
     frustum_culling: bool,
     cast_shadows: bool,
-    scripts: Vec<ScriptWrapper>,
+    scripts: Vec<ScriptRecord>,
     instance_id: SceneNodeId,
     enabled: bool,
 }
@@ -1255,7 +1274,7 @@ impl BaseBuilder {
     where
         T: ScriptTrait,
     {
-        self.scripts.push(ScriptWrapper(Some(Script::new(script))));
+        self.scripts.push(ScriptRecord::new(Script::new(script)));
         self
     }
 

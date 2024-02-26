@@ -17,7 +17,7 @@ use crate::{
 };
 use fyrox::gui::font::FontResource;
 use fyrox::gui::UiNode;
-use fyrox::scene::base::ScriptWrapper;
+use fyrox::scene::base::ScriptRecord;
 use fyrox::{
     asset::{manager::ResourceManager, Resource},
     core::{
@@ -392,9 +392,9 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
     container.register_inheritable_enum::<sound::Renderer, _>();
     container.register_inheritable_enum::<RenderPath, _>();
 
-    container.insert(EnumPropertyEditorDefinition::<Vec<ScriptWrapper>>::new_optional());
-    container.insert(VecCollectionPropertyEditorDefinition::<ScriptWrapper>::new());
-    container.insert(InspectablePropertyEditorDefinition::<ScriptWrapper>::new());
+    container.insert(EnumPropertyEditorDefinition::<Vec<ScriptRecord>>::new_optional());
+    container.insert(VecCollectionPropertyEditorDefinition::<ScriptRecord>::new());
+    container.insert(InspectablePropertyEditorDefinition::<ScriptRecord>::new());
     container.insert(ScriptPropertyEditorDefinition {});
 
     container.insert(BitFieldPropertyEditorDefinition::<BitMask>::new());

@@ -2,6 +2,7 @@
 
 //! Script is used to add custom logic to scene nodes. See [ScriptTrait] for more info.
 
+use crate::scene::base::NodeScriptMessage;
 use crate::{
     asset::manager::ResourceManager,
     core::{
@@ -28,6 +29,11 @@ use std::{
 };
 
 pub mod constructor;
+
+pub(crate) trait UniversalScriptContext {
+    fn node(&mut self) -> Option<&mut Node>;
+    fn destroy_script_deferred(&self, script: Script);
+}
 
 /// A script message's payload.
 pub trait ScriptMessagePayload: Any + Send + Debug {
@@ -339,6 +345,24 @@ pub struct ScriptContext<'a, 'b, 'c> {
     pub user_interface: &'a mut UserInterface,
 }
 
+impl<'a, 'b, 'c> UniversalScriptContext for ScriptContext<'a, 'b, 'c> {
+    fn node(&mut self) -> Option<&mut Node> {
+        self.scene.graph.try_get_mut(self.handle)
+    }
+
+    fn destroy_script_deferred(&self, script: Script) {
+        Log::verify(
+            self.scene
+                .graph
+                .script_message_sender
+                .send(NodeScriptMessage::DestroyScript {
+                    script,
+                    handle: self.handle,
+                }),
+        )
+    }
+}
+
 /// A set of data, that provides contextual information for script methods.
 pub struct ScriptMessageContext<'a, 'b, 'c> {
     /// Amount of time that passed from last call. It has valid values only when called from `on_update`.
@@ -388,6 +412,24 @@ pub struct ScriptMessageContext<'a, 'b, 'c> {
     pub user_interface: &'a mut UserInterface,
 }
 
+impl<'a, 'b, 'c> UniversalScriptContext for ScriptMessageContext<'a, 'b, 'c> {
+    fn node(&mut self) -> Option<&mut Node> {
+        self.scene.graph.try_get_mut(self.handle)
+    }
+
+    fn destroy_script_deferred(&self, script: Script) {
+        Log::verify(
+            self.scene
+                .graph
+                .script_message_sender
+                .send(NodeScriptMessage::DestroyScript {
+                    script,
+                    handle: self.handle,
+                }),
+        )
+    }
+}
+
 /// A set of data that will be passed to a script instance just before its destruction.
 pub struct ScriptDeinitContext<'a, 'b, 'c> {
     /// Amount of time (in seconds) that passed from creation of the engine. Keep in mind, that
@@ -426,6 +468,24 @@ pub struct ScriptDeinitContext<'a, 'b, 'c> {
 
     /// A reference to the user interface.
     pub user_interface: &'a mut UserInterface,
+}
+
+impl<'a, 'b, 'c> UniversalScriptContext for ScriptDeinitContext<'a, 'b, 'c> {
+    fn node(&mut self) -> Option<&mut Node> {
+        self.scene.graph.try_get_mut(self.node_handle)
+    }
+
+    fn destroy_script_deferred(&self, script: Script) {
+        Log::verify(
+            self.scene
+                .graph
+                .script_message_sender
+                .send(NodeScriptMessage::DestroyScript {
+                    script,
+                    handle: self.node_handle,
+                }),
+        )
+    }
 }
 
 /// Script is a set predefined methods that are called on various stages by the engine. It is used to add
@@ -701,7 +761,7 @@ impl Script {
 
 #[cfg(test)]
 mod test {
-    use crate::scene::base::ScriptWrapper;
+    use crate::scene::base::ScriptRecord;
     use crate::{
         core::{
             impl_component_provider, reflect::prelude::*, variable::try_inherit_properties,
@@ -726,15 +786,13 @@ mod test {
     fn test_script_property_inheritance_on_nodes() {
         let mut child = Base::default();
 
-        child.scripts.push(ScriptWrapper(None));
-        child.scripts[0] = ScriptWrapper(Some(Script::new(MyScript {
+        child.scripts.push(ScriptRecord::new(Script::new(MyScript {
             field: InheritableVariable::new_non_modified(1.23),
         })));
 
         let mut parent = Base::default();
 
-        parent.scripts.push(ScriptWrapper(None));
-        parent.scripts[0] = ScriptWrapper(Some(Script::new(MyScript {
+        parent.scripts.push(ScriptRecord::new(Script::new(MyScript {
             field: InheritableVariable::new_non_modified(3.21),
         })));
 
