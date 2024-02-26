@@ -18,7 +18,7 @@ pub(crate) type NodeTaskHandlerClosure = Box<
         Box<dyn AsyncTaskResult>,
         &mut dyn ScriptTrait,
         &mut ScriptContext<'a, 'b, 'c>,
-    ) -> Box<dyn AsyncTaskResult>,
+    ),
 >;
 
 pub(crate) type PluginTaskHandler = Box<
@@ -32,6 +32,7 @@ pub(crate) type PluginTaskHandler = Box<
 pub(crate) struct NodeTaskHandler {
     pub(crate) scene_handle: Handle<Scene>,
     pub(crate) node_handle: Handle<Node>,
+    pub(crate) script_index: usize,
     pub(crate) closure: NodeTaskHandlerClosure,
 }
 
@@ -174,6 +175,7 @@ impl TaskPoolHandler {
     ///         ctx.task_pool.spawn_script_task(
     ///             ctx.scene_handle,
     ///             ctx.handle,
+    ///             ctx.script_index,
     ///             // Request loading of some heavy asset. It does not actually does the loading in the
     ///             // same routine, since asset loading itself is asynchronous, but we can't block the
     ///             // current thread on all support platforms to wait until the loading is done. So we
@@ -197,6 +199,7 @@ impl TaskPoolHandler {
         &mut self,
         scene_handle: Handle<Scene>,
         node_handle: Handle<Node>,
+        script_index: usize,
         future: F,
         on_complete: C,
     ) where
@@ -211,6 +214,7 @@ impl TaskPoolHandler {
             NodeTaskHandler {
                 scene_handle,
                 node_handle,
+                script_index,
                 closure: Box::new(move |result, script, context| {
                     let script = script
                         .as_any_ref_mut()
@@ -218,7 +222,6 @@ impl TaskPoolHandler {
                         .expect("Types must match");
                     let result = result.downcast::<T>().expect("Types must match");
                     on_complete(&result, script, context);
-                    result
                 }),
             },
         );

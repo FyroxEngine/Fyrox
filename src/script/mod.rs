@@ -343,6 +343,9 @@ pub struct ScriptContext<'a, 'b, 'c> {
 
     /// A reference to the user interface.
     pub user_interface: &'a mut UserInterface,
+
+    /// Index of the script.
+    pub script_index: usize,
 }
 
 impl<'a, 'b, 'c> UniversalScriptContext for ScriptContext<'a, 'b, 'c> {
@@ -410,6 +413,9 @@ pub struct ScriptMessageContext<'a, 'b, 'c> {
 
     /// A reference to the user interface.
     pub user_interface: &'a mut UserInterface,
+
+    /// Index of the script.
+    pub index: usize,
 }
 
 impl<'a, 'b, 'c> UniversalScriptContext for ScriptMessageContext<'a, 'b, 'c> {
@@ -468,6 +474,9 @@ pub struct ScriptDeinitContext<'a, 'b, 'c> {
 
     /// A reference to the user interface.
     pub user_interface: &'a mut UserInterface,
+
+    /// Index of the script.
+    pub index: usize,
 }
 
 impl<'a, 'b, 'c> UniversalScriptContext for ScriptDeinitContext<'a, 'b, 'c> {

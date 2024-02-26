@@ -531,9 +531,11 @@ impl ScriptMessageDispatcher {
                                 task_pool,
                                 graphics_context,
                                 user_interface,
+                                index: 0,
                             };
 
-                            process_node_scripts(&mut context, &mut |s, ctx| {
+                            process_node_scripts(&mut context, &mut |s, ctx, index| {
+                                ctx.index = index;
                                 s.on_message(&mut *payload, ctx)
                             })
                         }
@@ -556,10 +558,12 @@ impl ScriptMessageDispatcher {
                                     task_pool,
                                     graphics_context,
                                     user_interface,
+                                    index: 0,
                                 };
 
                                 if receivers.contains(&node) {
-                                    process_node_scripts(&mut context, &mut |s, ctx| {
+                                    process_node_scripts(&mut context, &mut |s, ctx, index| {
+                                        ctx.index = index;
                                         s.on_message(&mut *payload, ctx)
                                     });
                                 }
@@ -581,10 +585,12 @@ impl ScriptMessageDispatcher {
                                     task_pool,
                                     graphics_context,
                                     user_interface,
+                                    index: 0,
                                 };
 
                                 if receivers.contains(&node) {
-                                    process_node_scripts(&mut context, &mut |s, ctx| {
+                                    process_node_scripts(&mut context, &mut |s, ctx, index| {
+                                        ctx.index = index;
                                         s.on_message(&mut *payload, ctx)
                                     });
                                 }
@@ -605,9 +611,11 @@ impl ScriptMessageDispatcher {
                                 task_pool,
                                 graphics_context,
                                 user_interface,
+                                index: 0,
                             };
 
-                            process_node_scripts(&mut context, &mut |s, ctx| {
+                            process_node_scripts(&mut context, &mut |s, ctx, index| {
+                                ctx.index = index;
                                 s.on_message(&mut *payload, ctx)
                             });
                         }
@@ -729,6 +737,7 @@ impl ScriptProcessor {
                     task_pool,
                     graphics_context,
                     user_interface,
+                    script_index: 0,
                 };
 
                 'init_loop: for init_loop_iteration in 0..max_iterations {
@@ -739,12 +748,16 @@ impl ScriptProcessor {
                             NodeScriptMessage::InitializeScript { handle } => {
                                 context.handle = handle;
 
-                                process_node_scripts(&mut context, &mut |script, context| {
-                                    if !script.initialized {
-                                        script.on_init(context);
-                                        script.initialized = true;
-                                    }
-                                });
+                                process_node_scripts(
+                                    &mut context,
+                                    &mut |script, context, index| {
+                                        if !script.initialized {
+                                            context.script_index = index;
+                                            script.on_init(context);
+                                            script.initialized = true;
+                                        }
+                                    },
+                                );
 
                                 if let Some(node) = context.scene.graph.try_get(handle) {
                                     if node.has_scripts_assigned() {
@@ -771,8 +784,9 @@ impl ScriptProcessor {
                             context.handle = handle;
 
                             let mut started_script = false;
-                            process_node_scripts(&mut context, &mut |script, context| {
+                            process_node_scripts(&mut context, &mut |script, context, index| {
                                 if !script.started {
+                                    context.script_index = index;
                                     script.on_start(context);
                                     script.started = true;
 
@@ -801,7 +815,8 @@ impl ScriptProcessor {
                     while let Some(handle) = update_queue.pop_front() {
                         context.handle = handle;
 
-                        process_node_scripts(&mut context, &mut |script, context| {
+                        process_node_scripts(&mut context, &mut |script, context, index| {
+                            context.script_index = index;
                             script.on_update(context);
                         });
                     }
@@ -843,6 +858,7 @@ impl ScriptProcessor {
                 user_interface,
                 graphics_context,
                 task_pool,
+                index: 0,
             };
             while let Some((handle, mut script)) = destruction_queue.pop_front() {
                 context.node_handle = handle;
@@ -870,6 +886,7 @@ impl ScriptProcessor {
                     task_pool,
                     graphics_context,
                     user_interface,
+                    index: 0,
                 };
 
                 // Destroy every script instance from nodes that were still alive.
@@ -877,8 +894,9 @@ impl ScriptProcessor {
                     let handle_node = context.scene.graph.handle_from_index(node_index);
                     context.node_handle = handle_node;
 
-                    process_node_scripts(&mut context, &mut |script, context| {
+                    process_node_scripts(&mut context, &mut |script, context, index| {
                         if script.initialized {
+                            context.index = index;
                             script.on_deinit(context)
                         }
                     });
@@ -1005,7 +1023,7 @@ pub struct EngineInitParams {
 
 fn process_node_scripts<T, C>(context: &mut C, func: &mut T)
 where
-    T: FnMut(&mut Script, &mut C),
+    T: FnMut(&mut Script, &mut C, usize),
     C: UniversalScriptContext,
 {
     let mut index = 0;
@@ -1028,7 +1046,7 @@ where
             return;
         };
 
-        func(&mut script, context);
+        func(&mut script, context, index);
 
         match context.node() {
             Some(node) => {
@@ -1082,7 +1100,7 @@ pub(crate) fn process_scripts<T>(
     elapsed_time: f32,
     mut func: T,
 ) where
-    T: FnMut(&mut Script, &mut ScriptContext),
+    T: FnMut(&mut Script, &mut ScriptContext, usize),
 {
     let mut context = ScriptContext {
         dt,
@@ -1097,6 +1115,7 @@ pub(crate) fn process_scripts<T>(
         task_pool,
         graphics_context,
         user_interface,
+        script_index: 0,
     };
 
     for node_index in 0..context.scene.graph.capacity() {
@@ -1892,32 +1911,18 @@ impl Engine {
                     .iter_mut()
                     .find(|e| e.handle == node_task_handler.scene_handle)
                 {
-                    let mut script_buffer_len = 0;
+                    let payload = result.payload;
                     if let Some(scene) = self.scenes.try_get_mut(node_task_handler.scene_handle) {
                         if let Some(node) = scene.graph.try_get_mut(node_task_handler.node_handle) {
-                            script_buffer_len = node.scripts.len()
-                        }
-                    }
-
-                    let mut payload = result.payload;
-                    for index in 0..script_buffer_len {
-                        let mut script = None;
-                        let mut scene = None;
-                        if let Some(self_scene) =
-                            self.scenes.try_get_mut(node_task_handler.scene_handle)
-                        {
-                            if let Some(node) =
-                                self_scene.graph.try_get_mut(node_task_handler.node_handle)
+                            if let Some(mut script) = node
+                                .scripts
+                                .get_mut(node_task_handler.script_index)
+                                .and_then(|e| {
+                                    e.index = node_task_handler.script_index;
+                                    e.script.take()
+                                })
                             {
-                                script = node.scripts[index].take()
-                            }
-
-                            scene = Some(self_scene);
-                        }
-
-                        if let Some(scene) = scene {
-                            if let Some(script) = &mut script {
-                                payload = (node_task_handler.closure)(
+                                (node_task_handler.closure)(
                                     payload,
                                     script.deref_mut(),
                                     &mut ScriptContext {
@@ -1933,17 +1938,38 @@ impl Engine {
                                         task_pool: &mut self.task_pool,
                                         graphics_context: &mut self.graphics_context,
                                         user_interface: &mut self.user_interface,
+                                        script_index: node_task_handler.script_index,
                                     },
                                 );
-                            }
-                        }
 
-                        if let Some(scene) = self.scenes.try_get_mut(node_task_handler.scene_handle)
-                        {
-                            if let Some(node) =
-                                scene.graph.try_get_mut(node_task_handler.node_handle)
-                            {
-                                node.scripts[index].script = script;
+                                if let Some(node) =
+                                    scene.graph.try_get_mut(node_task_handler.node_handle)
+                                {
+                                    if let Some(entry) =
+                                        node.scripts.get_mut(node_task_handler.script_index)
+                                    {
+                                        if entry.index != node_task_handler.script_index {
+                                            if let Some(entry) = node
+                                                .scripts
+                                                .iter_mut()
+                                                .find(|e| e.index == node_task_handler.script_index)
+                                            {
+                                                entry.script = Some(script);
+                                            } else {
+                                                Log::verify(
+                                                    scene.graph.script_message_sender.send(
+                                                        NodeScriptMessage::DestroyScript {
+                                                            script,
+                                                            handle: node_task_handler.node_handle,
+                                                        },
+                                                    ),
+                                                );
+                                            }
+                                        } else {
+                                            entry.script = Some(script);
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -2156,8 +2182,9 @@ impl Engine {
                     &mut self.user_interface,
                     dt,
                     self.elapsed_time,
-                    |script, context| {
+                    |script, context, index| {
                         if script.initialized && script.started {
+                            context.script_index = index;
                             script.on_os_event(event, context);
                         }
                     },
