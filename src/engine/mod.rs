@@ -1796,38 +1796,41 @@ impl Engine {
         lag: &mut f32,
         switches: FxHashMap<Handle<Scene>, GraphUpdateSwitches>,
     ) {
-        if let GraphicsContext::Initialized(ctx) = &mut self.graphics_context {
+        self.resource_manager.state().update(dt);
+        self.handle_model_events();
+
+        let window_size = if let GraphicsContext::Initialized(ctx) = &mut self.graphics_context {
             let inner_size = ctx.window.inner_size();
             let window_size = Vector2::new(inner_size.width as f32, inner_size.height as f32);
-
-            self.resource_manager.state().update(dt);
             ctx.renderer.update_caches(dt);
-            self.handle_model_events();
+            window_size
+        } else {
+            Vector2::new(1.0, 1.0)
+        };
 
-            for (handle, scene) in self.scenes.pair_iter_mut().filter(|(_, s)| *s.enabled) {
-                let frame_size =
-                    scene
-                        .rendering_options
-                        .render_target
-                        .as_ref()
-                        .map_or(window_size, |rt| {
-                            if let TextureKind::Rectangle { width, height } = rt.data_ref().kind() {
-                                Vector2::new(width as f32, height as f32)
-                            } else {
-                                panic!("only rectangle textures can be used as render target!");
-                            }
-                        });
+        for (handle, scene) in self.scenes.pair_iter_mut().filter(|(_, s)| *s.enabled) {
+            let frame_size =
+                scene
+                    .rendering_options
+                    .render_target
+                    .as_ref()
+                    .map_or(window_size, |rt| {
+                        if let TextureKind::Rectangle { width, height } = rt.data_ref().kind() {
+                            Vector2::new(width as f32, height as f32)
+                        } else {
+                            panic!("only rectangle textures can be used as render target!");
+                        }
+                    });
 
-                scene.update(
-                    frame_size,
-                    dt,
-                    switches.get(&handle).cloned().unwrap_or_default(),
-                );
-            }
-
-            self.update_plugins(dt, window_target, lag);
-            self.handle_scripts(dt);
+            scene.update(
+                frame_size,
+                dt,
+                switches.get(&handle).cloned().unwrap_or_default(),
+            );
         }
+
+        self.update_plugins(dt, window_target, lag);
+        self.handle_scripts(dt);
     }
 
     /// Performs post update for the engine.
