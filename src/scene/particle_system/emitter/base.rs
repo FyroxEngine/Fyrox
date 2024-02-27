@@ -203,9 +203,8 @@ impl BaseEmitter {
             {
                 self.particles_to_spawn = max_particles.saturating_sub(alive_particles);
             }
-            if !self.resurrect_particles && self.spawned_particles > u64::from(max_particles) {
+            if !self.resurrect_particles && self.spawned_particles >= u64::from(max_particles) {
                 self.particles_to_spawn = 0;
-                return;
             }
         }
         self.spawned_particles += self.particles_to_spawn as u64;
