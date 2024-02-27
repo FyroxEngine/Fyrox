@@ -535,8 +535,7 @@ impl ScriptMessageDispatcher {
                                 script_index: 0,
                             };
 
-                            process_node_scripts(&mut context, &mut |s, ctx, index| {
-                                ctx.script_index = index;
+                            process_node_scripts(&mut context, &mut |s, ctx| {
                                 s.on_message(&mut *payload, ctx)
                             })
                         }
@@ -563,8 +562,7 @@ impl ScriptMessageDispatcher {
                                 };
 
                                 if receivers.contains(&node) {
-                                    process_node_scripts(&mut context, &mut |s, ctx, index| {
-                                        ctx.script_index = index;
+                                    process_node_scripts(&mut context, &mut |s, ctx| {
                                         s.on_message(&mut *payload, ctx)
                                     });
                                 }
@@ -590,8 +588,7 @@ impl ScriptMessageDispatcher {
                                 };
 
                                 if receivers.contains(&node) {
-                                    process_node_scripts(&mut context, &mut |s, ctx, index| {
-                                        ctx.script_index = index;
+                                    process_node_scripts(&mut context, &mut |s, ctx| {
                                         s.on_message(&mut *payload, ctx)
                                     });
                                 }
@@ -615,8 +612,7 @@ impl ScriptMessageDispatcher {
                                 script_index: 0,
                             };
 
-                            process_node_scripts(&mut context, &mut |s, ctx, index| {
-                                ctx.script_index = index;
+                            process_node_scripts(&mut context, &mut |s, ctx| {
                                 s.on_message(&mut *payload, ctx)
                             });
                         }
@@ -700,20 +696,30 @@ impl ScriptProcessor {
             // Fill in initial handles to nodes to initialize, start, update.
             let mut update_queue = VecDeque::new();
             let mut start_queue = VecDeque::new();
-            for (handle, node) in scene.graph.pair_iter() {
-                if node.is_globally_enabled() && node.has_scripts_assigned() {
-                    if node.all_scripts_were_initialized() {
-                        if node.all_scripts_were_started() {
-                            update_queue.push_back(handle);
-                        } else {
-                            start_queue.push_back(handle);
+            let script_message_sender = scene.graph.script_message_sender.clone();
+            for (handle, node) in scene.graph.pair_iter_mut() {
+                // Remove unused script entries.
+                node.scripts
+                    .retain(|e| e.script.is_some() && !e.should_be_deleted);
+
+                if node.is_globally_enabled() {
+                    for (i, entry) in node.scripts.iter().enumerate() {
+                        if let Some(script) = entry.script.as_ref() {
+                            if script.initialized {
+                                if script.started {
+                                    update_queue.push_back((handle, i));
+                                } else {
+                                    start_queue.push_back((handle, i));
+                                }
+                            } else {
+                                script_message_sender
+                                    .send(NodeScriptMessage::InitializeScript {
+                                        handle,
+                                        script_index: i,
+                                    })
+                                    .unwrap();
+                            }
                         }
-                    } else {
-                        scene
-                            .graph
-                            .script_message_sender
-                            .send(NodeScriptMessage::InitializeScript { handle })
-                            .unwrap();
                     }
                 }
             }
@@ -746,26 +752,26 @@ impl ScriptProcessor {
                     // and these will be correctly initialized on current frame.
                     while let Ok(event) = context.scene.graph.script_message_receiver.try_recv() {
                         match event {
-                            NodeScriptMessage::InitializeScript { handle } => {
+                            NodeScriptMessage::InitializeScript {
+                                handle,
+                                script_index,
+                            } => {
                                 context.handle = handle;
+                                context.script_index = script_index;
 
-                                process_node_scripts(
+                                process_node_script(
+                                    script_index,
                                     &mut context,
-                                    &mut |script, context, index| {
+                                    &mut |script, context| {
                                         if !script.initialized {
-                                            context.script_index = index;
                                             script.on_init(context);
                                             script.initialized = true;
                                         }
+
+                                        // `on_start` must be called even if the script was initialized.
+                                        start_queue.push_back((handle, script_index));
                                     },
                                 );
-
-                                if let Some(node) = context.scene.graph.try_get(handle) {
-                                    if node.has_scripts_assigned() {
-                                        // `on_start` must be called even if the script was initialized.
-                                        start_queue.push_back(handle);
-                                    }
-                                }
                             }
                             NodeScriptMessage::DestroyScript {
                                 handle,
@@ -785,23 +791,22 @@ impl ScriptProcessor {
                         // Call `on_start` for every recently initialized node and go to next
                         // iteration of init loop. This is needed because `on_start` can spawn
                         // some other nodes that must be initialized before update.
-                        while let Some(handle) = start_queue.pop_front() {
+                        while let Some((handle, script_index)) = start_queue.pop_front() {
                             context.handle = handle;
+                            context.script_index = script_index;
 
-                            let mut started_script = false;
-                            process_node_scripts(&mut context, &mut |script, context, index| {
-                                if !script.started {
-                                    context.script_index = index;
-                                    script.on_start(context);
-                                    script.started = true;
+                            process_node_script(
+                                script_index,
+                                &mut context,
+                                &mut |script, context| {
+                                    if script.initialized && !script.started {
+                                        script.on_start(context);
+                                        script.started = true;
 
-                                    started_script = true;
-                                }
-                            });
-
-                            if started_script {
-                                update_queue.push_back(handle);
-                            }
+                                        update_queue.push_back((handle, script_index));
+                                    }
+                                },
+                            );
                         }
                     }
 
@@ -817,11 +822,11 @@ impl ScriptProcessor {
                 if update_queue.is_empty() {
                     break 'update_loop;
                 } else {
-                    while let Some(handle) = update_queue.pop_front() {
+                    while let Some((handle, script_index)) = update_queue.pop_front() {
                         context.handle = handle;
+                        context.script_index = script_index;
 
-                        process_node_scripts(&mut context, &mut |script, context, index| {
-                            context.script_index = index;
+                        process_node_script(script_index, &mut context, &mut |script, context| {
                             script.on_update(context);
                         });
                     }
@@ -900,9 +905,8 @@ impl ScriptProcessor {
                     let handle_node = context.scene.graph.handle_from_index(node_index);
                     context.node_handle = handle_node;
 
-                    process_node_scripts(&mut context, &mut |script, context, index| {
+                    process_node_scripts(&mut context, &mut |script, context| {
                         if script.initialized {
-                            context.script_index = index;
                             script.on_deinit(context)
                         }
                     });
@@ -1027,64 +1031,62 @@ pub struct EngineInitParams {
     pub task_pool: Arc<TaskPool>,
 }
 
+fn process_node_script<T, C>(index: usize, context: &mut C, func: &mut T) -> bool
+where
+    T: FnMut(&mut Script, &mut C),
+    C: UniversalScriptContext,
+{
+    let Some(node) = context.node() else {
+        // A node was destroyed.
+        return false;
+    };
+
+    let Some(entry) = node.scripts.get_mut(index) else {
+        // All scripts were visited.
+        return false;
+    };
+
+    let Some(mut script) = entry.take() else {
+        return false;
+    };
+
+    func(&mut script, context);
+
+    match context.node() {
+        Some(node) => {
+            let entry = node
+                .scripts
+                .get_mut(index)
+                .expect("Scripts array cannot be modified!");
+
+            if entry.should_be_deleted {
+                context.destroy_script_deferred(script, index);
+            } else {
+                // Put the script back at its place.
+                entry.script = Some(script);
+            }
+        }
+        None => {
+            // If the node was deleted by the `func` call, we must send the script to destruction
+            // queue, not silently drop it.
+            context.destroy_script_deferred(script, index);
+        }
+    }
+
+    true
+}
+
 fn process_node_scripts<T, C>(context: &mut C, func: &mut T)
 where
-    T: FnMut(&mut Script, &mut C, usize),
+    T: FnMut(&mut Script, &mut C),
     C: UniversalScriptContext,
 {
     let mut index = 0;
     loop {
-        let Some(node) = context.node() else {
-            // A node was destroyed.
+        context.set_script_index(index);
+
+        if !process_node_script(index, context, func) {
             return;
-        };
-
-        let prev_script_count = node.scripts.len();
-
-        let Some(entry) = node.scripts.get_mut(index) else {
-            // All scripts were visited.
-            return;
-        };
-
-        entry.index = index;
-
-        let Some(mut script) = entry.take() else {
-            return;
-        };
-
-        func(&mut script, context, index);
-
-        match context.node() {
-            Some(node) => {
-                let script_count = node.scripts.len();
-
-                if script_count != prev_script_count {
-                    // If scripts array was modified, then we must find the respective entry by its
-                    // index. This is needed, because the actual entry position could be shifted
-                    // either to left or right.
-                    if let Some((actual_index, entry)) = node
-                        .scripts
-                        .iter_mut()
-                        .enumerate()
-                        .find(|(_, e)| e.index == index)
-                    {
-                        index = actual_index;
-                        entry.script = Some(script);
-                    } else {
-                        // If there's no entry, then the script was marked for removal and we must
-                        // send it to destruction queue.
-                        context.destroy_script_deferred(script, index);
-                    }
-                } else {
-                    // Put the script back at its place.
-                    node.scripts[index].script = Some(script);
-                }
-            }
-            None => {
-                // If the node was deleted by the `func` call, we must send the script to destruction
-                // queue, not silently drop it.
-                context.destroy_script_deferred(script, index);
-            }
         }
 
         // Advance to the next script.
@@ -1106,7 +1108,7 @@ pub(crate) fn process_scripts<T>(
     elapsed_time: f32,
     mut func: T,
 ) where
-    T: FnMut(&mut Script, &mut ScriptContext, usize),
+    T: FnMut(&mut Script, &mut ScriptContext),
 {
     let mut context = ScriptContext {
         dt,
@@ -1926,10 +1928,7 @@ impl Engine {
                             if let Some(mut script) = node
                                 .scripts
                                 .get_mut(node_task_handler.script_index)
-                                .and_then(|e| {
-                                    e.index = node_task_handler.script_index;
-                                    e.script.take()
-                                })
+                                .and_then(|e| e.script.take())
                             {
                                 (node_task_handler.closure)(
                                     payload,
@@ -1957,25 +1956,14 @@ impl Engine {
                                     if let Some(entry) =
                                         node.scripts.get_mut(node_task_handler.script_index)
                                     {
-                                        if entry.index != node_task_handler.script_index {
-                                            if let Some(entry) = node
-                                                .scripts
-                                                .iter_mut()
-                                                .find(|e| e.index == node_task_handler.script_index)
-                                            {
-                                                entry.script = Some(script);
-                                            } else {
-                                                Log::verify(
-                                                    scene.graph.script_message_sender.send(
-                                                        NodeScriptMessage::DestroyScript {
-                                                            script,
-                                                            handle: node_task_handler.node_handle,
-                                                            script_index: node_task_handler
-                                                                .script_index,
-                                                        },
-                                                    ),
-                                                );
-                                            }
+                                        if entry.should_be_deleted {
+                                            Log::verify(scene.graph.script_message_sender.send(
+                                                NodeScriptMessage::DestroyScript {
+                                                    script,
+                                                    handle: node_task_handler.node_handle,
+                                                    script_index: node_task_handler.script_index,
+                                                },
+                                            ));
                                         } else {
                                             entry.script = Some(script);
                                         }
@@ -2193,9 +2181,8 @@ impl Engine {
                     &mut self.user_interface,
                     dt,
                     self.elapsed_time,
-                    |script, context, index| {
+                    |script, context| {
                         if script.initialized && script.started {
-                            context.script_index = index;
                             script.on_os_event(event, context);
                         }
                     },
@@ -2842,5 +2829,233 @@ mod test {
                 .and_then(|s| s.cast::<ScriptWithoutAsyncTasks>()),
             Some(&ScriptWithoutAsyncTasks {})
         );
+    }
+
+    #[derive(Clone, Debug, Reflect, Visit, TypeUuidProvider, ComponentProvider)]
+    #[type_uuid(id = "9bcbf9b4-9546-42d3-965a-de055ab85475")]
+    pub struct ScriptThatDeletesItself {
+        #[reflect(hidden)]
+        #[visit(skip)]
+        sender: Sender<Event>,
+    }
+
+    impl ScriptTrait for ScriptThatDeletesItself {
+        fn on_init(&mut self, ctx: &mut ScriptContext) {
+            self.sender
+                .send(Event::Initialized(Source::from_ctx(ctx)))
+                .unwrap();
+        }
+
+        fn on_start(&mut self, ctx: &mut ScriptContext) {
+            self.sender
+                .send(Event::Started(Source::from_ctx(ctx)))
+                .unwrap();
+        }
+
+        fn on_deinit(&mut self, ctx: &mut ScriptDeinitContext) {
+            self.sender
+                .send(Event::Destroyed(Source::from_deinit_ctx(ctx)))
+                .unwrap();
+        }
+
+        fn on_update(&mut self, ctx: &mut ScriptContext) {
+            self.sender
+                .send(Event::Updated(Source::from_ctx(ctx)))
+                .unwrap();
+
+            let node = &mut ctx.scene.graph[ctx.handle];
+            node.remove_script(ctx.script_index);
+        }
+    }
+
+    #[derive(Clone, Debug, Reflect, Visit, TypeUuidProvider, ComponentProvider)]
+    #[type_uuid(id = "9bcbf9b4-9546-42d3-965a-de055ab85475")]
+    pub struct ScriptThatAddsScripts {
+        num: usize,
+        #[reflect(hidden)]
+        #[visit(skip)]
+        sender: Sender<Event>,
+    }
+
+    impl ScriptTrait for ScriptThatAddsScripts {
+        fn on_init(&mut self, ctx: &mut ScriptContext) {
+            self.sender
+                .send(Event::Initialized(Source::from_ctx(ctx)))
+                .unwrap();
+        }
+
+        fn on_start(&mut self, ctx: &mut ScriptContext) {
+            self.sender
+                .send(Event::Started(Source::from_ctx(ctx)))
+                .unwrap();
+
+            for i in 0..self.num {
+                ctx.scene.graph[ctx.handle].add_script(SimpleScript {
+                    stuff: i,
+                    sender: self.sender.clone(),
+                });
+            }
+        }
+
+        fn on_deinit(&mut self, ctx: &mut ScriptDeinitContext) {
+            self.sender
+                .send(Event::Destroyed(Source::from_deinit_ctx(ctx)))
+                .unwrap();
+        }
+
+        fn on_update(&mut self, ctx: &mut ScriptContext) {
+            self.sender
+                .send(Event::Updated(Source::from_ctx(ctx)))
+                .unwrap();
+        }
+    }
+
+    #[derive(Clone, Debug, Reflect, Visit, TypeUuidProvider, ComponentProvider)]
+    #[type_uuid(id = "9bcbf9b4-9546-42d3-965a-de055ab85475")]
+    pub struct SimpleScript {
+        stuff: usize,
+        #[reflect(hidden)]
+        #[visit(skip)]
+        sender: Sender<Event>,
+    }
+
+    impl ScriptTrait for SimpleScript {
+        fn on_init(&mut self, ctx: &mut ScriptContext) {
+            self.sender
+                .send(Event::Initialized(Source::from_ctx(ctx)))
+                .unwrap();
+        }
+
+        fn on_start(&mut self, ctx: &mut ScriptContext) {
+            self.sender
+                .send(Event::Started(Source::from_ctx(ctx)))
+                .unwrap();
+        }
+
+        fn on_deinit(&mut self, ctx: &mut ScriptDeinitContext) {
+            self.sender
+                .send(Event::Destroyed(Source::from_deinit_ctx(ctx)))
+                .unwrap();
+        }
+
+        fn on_update(&mut self, ctx: &mut ScriptContext) {
+            self.sender
+                .send(Event::Updated(Source::from_ctx(ctx)))
+                .unwrap();
+        }
+    }
+
+    #[test]
+    fn test_script_adding_removing() {
+        let resource_manager = ResourceManager::new(Arc::new(Default::default()));
+        let mut scene = Scene::new();
+
+        let (tx, rx) = mpsc::channel();
+
+        let node_handle = PivotBuilder::new(
+            BaseBuilder::new()
+                .with_script(ScriptThatDeletesItself { sender: tx.clone() })
+                .with_script(ScriptThatAddsScripts { num: 2, sender: tx }),
+        )
+        .build(&mut scene.graph);
+        assert_eq!(node_handle, Handle::new(1, 1));
+
+        let mut scene_container = SceneContainer::new(Default::default());
+
+        let scene_handle = scene_container.add(scene);
+
+        let mut script_processor = ScriptProcessor::default();
+
+        script_processor.register_scripted_scene(scene_handle, &resource_manager);
+
+        let mut task_pool = TaskPoolHandler::new(Arc::new(TaskPool::new()));
+        let mut gc = GraphicsContext::Uninitialized(Default::default());
+        let mut user_interface = UserInterface::default();
+
+        for iteration in 0..2 {
+            script_processor.handle_scripts(
+                &mut scene_container,
+                &mut Vec::new(),
+                &resource_manager,
+                &mut task_pool,
+                &mut gc,
+                &mut user_interface,
+                0.0,
+                0.0,
+            );
+
+            match iteration {
+                0 => {
+                    for i in 0..2 {
+                        assert_eq!(
+                            rx.try_recv(),
+                            Ok(Event::Initialized(Source {
+                                node_handle,
+                                script_index: i,
+                            }))
+                        );
+                    }
+                    for i in 0..2 {
+                        assert_eq!(
+                            rx.try_recv(),
+                            Ok(Event::Started(Source {
+                                node_handle,
+                                script_index: i,
+                            }))
+                        );
+                    }
+                    for i in 2..4 {
+                        assert_eq!(
+                            rx.try_recv(),
+                            Ok(Event::Initialized(Source {
+                                node_handle,
+                                script_index: i,
+                            }))
+                        );
+                    }
+                    for i in 2..4 {
+                        assert_eq!(
+                            rx.try_recv(),
+                            Ok(Event::Started(Source {
+                                node_handle,
+                                script_index: i,
+                            }))
+                        );
+                    }
+                    for i in 0..4 {
+                        assert_eq!(
+                            rx.try_recv(),
+                            Ok(Event::Updated(Source {
+                                node_handle,
+                                script_index: i,
+                            }))
+                        );
+                    }
+                    assert_eq!(
+                        rx.try_recv(),
+                        Ok(Event::Destroyed(Source {
+                            node_handle,
+                            script_index: 0,
+                        }))
+                    );
+
+                    assert_eq!(rx.try_recv(), Err(TryRecvError::Empty));
+                }
+                1 => {
+                    for i in 0..3 {
+                        assert_eq!(
+                            rx.try_recv(),
+                            Ok(Event::Updated(Source {
+                                node_handle,
+                                script_index: i,
+                            }))
+                        );
+                    }
+
+                    assert_eq!(rx.try_recv(), Err(TryRecvError::Empty));
+                }
+                _ => (),
+            }
+        }
     }
 }

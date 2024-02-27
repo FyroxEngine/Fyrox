@@ -544,28 +544,6 @@ impl Node {
         self.original_handle_in_resource = original_handle;
     }
 
-    /// Checks if all node's scripts were initialized
-    pub(crate) fn all_scripts_were_initialized(&self) -> bool {
-        self.scripts.iter().all(|entry| {
-            if let Some(script) = &entry.script {
-                script.initialized
-            } else {
-                true
-            }
-        })
-    }
-
-    /// Checks if all node's scripts were started
-    pub(crate) fn all_scripts_were_started(&self) -> bool {
-        self.scripts.iter().all(|entry| {
-            if let Some(script) = &entry.script {
-                script.started
-            } else {
-                true
-            }
-        })
-    }
-
     define_is_as!(Mesh => fn is_mesh, fn as_mesh, fn as_mesh_mut);
     define_is_as!(Pivot => fn is_pivot, fn as_pivot, fn as_pivot_mut);
     define_is_as!(Camera  => fn is_camera, fn as_camera, fn as_camera_mut);

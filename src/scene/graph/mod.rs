@@ -1564,7 +1564,7 @@ impl BaseSceneGraph for Graph {
     fn add_node(&mut self, mut node: Self::Node) -> Handle<Self::Node> {
         let children = node.children.clone();
         node.children.clear();
-        let has_script = node.has_scripts_assigned();
+        let script_count = node.scripts.len();
         let handle = self.pool.spawn(node);
 
         if self.root.is_none() {
@@ -1578,9 +1578,12 @@ impl BaseSceneGraph for Graph {
         }
 
         self.event_broadcaster.broadcast(GraphEvent::Added(handle));
-        if has_script {
+        for i in 0..script_count {
             self.script_message_sender
-                .send(NodeScriptMessage::InitializeScript { handle })
+                .send(NodeScriptMessage::InitializeScript {
+                    handle,
+                    script_index: i,
+                })
                 .unwrap();
         }
 

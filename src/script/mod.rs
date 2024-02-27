@@ -33,6 +33,7 @@ pub mod constructor;
 pub(crate) trait UniversalScriptContext {
     fn node(&mut self) -> Option<&mut Node>;
     fn destroy_script_deferred(&self, script: Script, index: usize);
+    fn set_script_index(&mut self, index: usize);
 }
 
 /// A script message's payload.
@@ -344,7 +345,7 @@ pub struct ScriptContext<'a, 'b, 'c> {
     /// A reference to the user interface.
     pub user_interface: &'a mut UserInterface,
 
-    /// Index of the script.
+    /// Index of the script. Never save this index, it is only valid while this context exists!
     pub script_index: usize,
 }
 
@@ -364,6 +365,10 @@ impl<'a, 'b, 'c> UniversalScriptContext for ScriptContext<'a, 'b, 'c> {
                     script_index: index,
                 }),
         )
+    }
+
+    fn set_script_index(&mut self, index: usize) {
+        self.script_index = index;
     }
 }
 
@@ -415,7 +420,7 @@ pub struct ScriptMessageContext<'a, 'b, 'c> {
     /// A reference to the user interface.
     pub user_interface: &'a mut UserInterface,
 
-    /// Index of the script.
+    /// Index of the script. Never save this index, it is only valid while this context exists!
     pub script_index: usize,
 }
 
@@ -435,6 +440,10 @@ impl<'a, 'b, 'c> UniversalScriptContext for ScriptMessageContext<'a, 'b, 'c> {
                     script_index: index,
                 }),
         )
+    }
+
+    fn set_script_index(&mut self, index: usize) {
+        self.script_index = index;
     }
 }
 
@@ -477,7 +486,7 @@ pub struct ScriptDeinitContext<'a, 'b, 'c> {
     /// A reference to the user interface.
     pub user_interface: &'a mut UserInterface,
 
-    /// Index of the script.
+    /// Index of the script. Never save this index, it is only valid while this context exists!
     pub script_index: usize,
 }
 
@@ -497,6 +506,10 @@ impl<'a, 'b, 'c> UniversalScriptContext for ScriptDeinitContext<'a, 'b, 'c> {
                     script_index: index,
                 }),
         )
+    }
+
+    fn set_script_index(&mut self, index: usize) {
+        self.script_index = index;
     }
 }
 

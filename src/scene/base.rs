@@ -246,6 +246,8 @@ pub enum NodeScriptMessage {
     InitializeScript {
         /// Node handle.
         handle: Handle<Node>,
+        /// Index of the script.
+        script_index: usize,
     },
     /// A node script must be destroyed. It can happen if the script was replaced with some other
     /// or a node was destroyed.
@@ -291,17 +293,14 @@ pub struct ScriptRecord {
     // Script is wrapped into `Option` to be able to do take-return trick to bypass borrow checker
     // issues.
     pub(crate) script: Option<Script>,
-    // Location of the record in a parent container, it is used to find the record when the
-    // container layout has changed.
-    #[reflect(hidden)]
-    pub(crate) index: usize,
+    pub(crate) should_be_deleted: bool,
 }
 
 impl ScriptRecord {
     pub(crate) fn new(script: Script) -> Self {
         Self {
             script: Some(script),
-            index: 0,
+            should_be_deleted: false,
         }
     }
 }
@@ -766,12 +765,17 @@ impl Base {
         self.instance_id
     }
 
-    // Tries to extract a script at the given index from its entry and sends it to the parent graph
-    // for destruction. The entry remains vacant.
-    fn dispose_script(&mut self, index: usize) -> bool {
+    /// Removes a script with the given `index` from the scene node. The script will be destroyed
+    /// in either the current update tick (if it was removed from some other script) or in the next
+    /// update tick of the parent graph.
+    pub fn remove_script(&mut self, index: usize) {
         // Send script to the graph to destroy script instances correctly.
-        if let Some(script) = self.scripts.get_mut(index) {
-            if let Some(script) = script.take() {
+        if let Some(entry) = self.scripts.get_mut(index) {
+            entry.should_be_deleted = true;
+
+            // We might be in a middle of a script method execution, where script is temporarily
+            // extracted from the array.
+            if let Some(script) = entry.take() {
                 if let Some(sender) = self.script_message_sender.as_ref() {
                     Log::verify(sender.send(NodeScriptMessage::DestroyScript {
                         script,
@@ -786,18 +790,6 @@ impl Base {
                     ));
                 }
             }
-            true
-        } else {
-            false
-        }
-    }
-
-    /// Removes a script with the given `index` from the scene node. The script will be destroyed
-    /// in either the current update tick (if it was removed from some other script) or in the next
-    /// update tick of the parent graph.
-    pub fn remove_script(&mut self, index: usize) {
-        if self.dispose_script(index) {
-            assert!(self.scripts.remove(index).is_none());
         }
     }
 
@@ -807,16 +799,15 @@ impl Base {
     pub fn remove_all_scripts(&mut self) {
         let script_count = self.scripts.len();
         for i in 0..script_count {
-            self.dispose_script(i);
+            self.remove_script(i);
         }
-        self.scripts.clear();
     }
 
     /// Sets a new script for the scene node by index. Previous script will be removed (see
     /// [`Self::remove_script`] docs for more info).
     #[inline]
     pub fn replace_script(&mut self, index: usize, script: Option<Script>) {
-        self.dispose_script(index);
+        self.remove_script(index);
 
         if let Some(entry) = self.scripts.get_mut(index) {
             entry.script = script;
@@ -824,6 +815,7 @@ impl Base {
                 if entry.script.is_some() {
                     Log::verify(sender.send(NodeScriptMessage::InitializeScript {
                         handle: self.self_handle,
+                        script_index: index,
                     }));
                 }
             }
@@ -834,11 +826,16 @@ impl Base {
     /// update tick (if the script was added in one of the [`ScriptTrait`] methods) or on the next
     /// update tick.
     #[inline]
-    pub fn add_script(&mut self, script: Script) {
-        self.scripts.push(ScriptRecord::new(script));
+    pub fn add_script<T>(&mut self, script: T)
+    where
+        T: ScriptTrait,
+    {
+        let script_index = self.scripts.len();
+        self.scripts.push(ScriptRecord::new(Script::new(script)));
         if let Some(sender) = self.script_message_sender.as_ref() {
             Log::verify(sender.send(NodeScriptMessage::InitializeScript {
                 handle: self.self_handle,
+                script_index,
             }));
         }
     }
