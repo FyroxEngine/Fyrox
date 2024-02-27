@@ -71,7 +71,7 @@
 
                void main()
                {
-                   color = vertexColor;
+                   color = S_SRGBToLinear(vertexColor);
                    texCoord = vertexTexCoord;
                    vec2 vertexOffset = rotateVec2(vertexTexCoord * 2.0 - 1.0, particleRotation);
                    vec4 worldPosition = fyrox_worldMatrix * vec4(vertexPosition, 1.0);
