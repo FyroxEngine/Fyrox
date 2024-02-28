@@ -7,13 +7,13 @@ use crate::{
         pool::Handle,
         sstorage::ImmutableString,
     },
-    graph::SceneGraph,
+    graph::{BaseSceneGraph, SceneGraph},
     material::MaterialResource,
     renderer::{cache::TimeToLive, framework::geometry_buffer::ElementRange},
     scene::{
         graph::Graph,
         mesh::{
-            buffer::{TriangleBuffer, VertexBuffer, VertexTrait},
+            buffer::{TriangleBuffer, VertexBuffer, VertexReadTrait, VertexTrait, VertexViewMut},
             surface::{SurfaceData, SurfaceSharedData},
             RenderPath,
         },
@@ -21,8 +21,6 @@ use crate::{
     },
 };
 use fxhash::{FxBuildHasher, FxHashMap, FxHasher};
-
-use fyrox_graph::BaseSceneGraph;
 use std::{
     any::TypeId,
     collections::hash_map::DefaultHasher,
@@ -314,6 +312,110 @@ impl RenderDataBatchStorage {
         data.geometry_buffer
             .modify()
             .push_triangles_iter(local_triangles.map(|t| t.add(last_vertex_index)));
+    }
+
+    /// Clones a mesh to the batch storage using the given set of vertices and triangles. The vertices
+    /// from the source vertex buffer will be transformed by the specified `func`. This method
+    /// automatically creates a render batch according to a hash of the following parameters:
+    ///
+    /// - Material
+    /// - Vertex Layout
+    /// - Render Path
+    /// - Skinning
+    /// - Decal Layer Index
+    ///
+    /// If one of these parameters is different, then a new batch will be created and used to store
+    /// the given vertices and indices. If an appropriate batch exists, the the method will store
+    /// the given vertices and the triangles in it.
+    ///
+    /// ## When to use
+    ///
+    /// This method is used to reduce amount of draw calls of underlying GAPI, by merging small
+    /// portions of data into one big block that shares drawing parameters and can be rendered in
+    /// a single draw call. The vertices in this case should be pre-processed by applying world
+    /// transform to them.
+    ///
+    /// Do not use this method if you have a mesh with lots of vertices and triangles, because
+    /// pre-processing them on CPU could take more time than rendering them directly on GPU one-by-one.
+    pub fn transfer_triangles<F>(
+        &mut self,
+        src_buffer: &VertexBuffer,
+        mut func: F,
+        local_triangles: &[TriangleDefinition],
+        material: &MaterialResource,
+        render_path: RenderPath,
+        decal_layer_index: u8,
+        sort_index: u64,
+        is_skinned: bool,
+        node_handle: Handle<Node>,
+    ) where
+        F: FnMut(VertexViewMut),
+    {
+        let mut hasher = FxHasher::default();
+        hasher.write_u64(material.key() as u64);
+        src_buffer.layout().hash(&mut hasher);
+        hasher.write_u8(if is_skinned { 1 } else { 0 });
+        hasher.write_u8(decal_layer_index);
+        hasher.write_u32(render_path as u32);
+        let key = hasher.finish();
+
+        let batch = if let Some(&batch_index) = self.batch_map.get(&key) {
+            self.batches.get_mut(batch_index).unwrap()
+        } else {
+            let default_capacity = 4096;
+
+            // Initialize empty vertex buffer with the same layout.
+            let vertex_buffer = src_buffer.clone_empty(default_capacity);
+
+            // Initialize empty triangle buffer.
+            let triangle_buffer = TriangleBuffer::new(Vec::with_capacity(default_capacity * 3));
+
+            // Create temporary surface data (valid for one frame).
+            let data =
+                SurfaceSharedData::new(SurfaceData::new(vertex_buffer, triangle_buffer, true));
+
+            self.batch_map.insert(key, self.batches.len());
+            let persistent_identifier = PersistentIdentifier::new_combined(&data, node_handle, 0);
+            self.batches.push(RenderDataBatch {
+                data,
+                sort_index,
+                instances: vec![
+                    // Each batch must have at least one instance to be rendered.
+                    SurfaceInstanceData {
+                        world_transform: Matrix4::identity(),
+                        bone_matrices: Default::default(),
+                        depth_offset: Default::default(),
+                        blend_shapes_weights: Default::default(),
+                        element_range: Default::default(),
+                        persistent_identifier,
+                        node_handle,
+                    },
+                ],
+                material: material.clone(),
+                is_skinned,
+                render_path,
+                decal_layer_index,
+                // Temporary buffer lives one frame.
+                time_to_live: TimeToLive(0.0),
+            });
+            self.batches.last_mut().unwrap()
+        };
+
+        let mut data = batch.data.lock();
+        let last_vertex_index = data.vertex_buffer.vertex_count();
+
+        // Append vertices.
+        let mut buf = data.vertex_buffer.modify();
+        for vertex in src_buffer.iter() {
+            buf.push_vertex_raw(&vertex.transform(&mut func))
+                .expect("Vertex size mismatch!");
+        }
+        drop(buf);
+
+        // Write triangle indices, but offset each by last vertex index to prevent overlapping.
+        data.geometry_buffer
+            .modify()
+            .push_triangles_iter(local_triangles.iter().map(|t| t.add(last_vertex_index)));
     }
 
     /// Adds a new surface instance to the storage. The method will automatically put the instance in the appropriate

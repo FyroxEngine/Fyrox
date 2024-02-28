@@ -3,16 +3,18 @@
 
 use crate::{
     core::{
-        algebra::{Matrix4, Point3, Vector3},
+        algebra::{Matrix4, Point3, Vector3, Vector4},
         color::Color,
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
         reflect::prelude::*,
         uuid::{uuid, Uuid},
+        uuid_provider,
         variable::InheritableVariable,
-        visitor::{Visit, VisitResult, Visitor},
+        visitor::prelude::*,
         TypeUuidProvider,
     },
+    graph::BaseSceneGraph,
     renderer::{
         self,
         batch::{PersistentIdentifier, RenderContext, SurfaceInstanceData},
@@ -23,14 +25,12 @@ use crate::{
         debug::{Line, SceneDrawingContext},
         graph::Graph,
         mesh::{
-            buffer::{VertexAttributeUsage, VertexReadTrait},
+            buffer::{VertexAttributeUsage, VertexReadTrait, VertexViewMut, VertexWriteTrait},
             surface::{BlendShape, Surface},
         },
         node::{Node, NodeTrait, UpdateContext},
     },
 };
-use fyrox_core::uuid_provider;
-use fyrox_graph::BaseSceneGraph;
 use std::{
     cell::Cell,
     ops::{Deref, DerefMut},
@@ -139,6 +139,14 @@ pub struct Mesh {
     decal_layer_index: InheritableVariable<u8>,
 
     #[visit(optional)]
+    #[reflect(
+        description = "Enable or disable dynamic batching. It could be useful to reduce amount \
+    of draw calls per frame if you have lots of meshes with small vertex count. Does not work with \
+    meshes, that have skin or blend shapes. Such meshes will be drawn in a separate draw call."
+    )]
+    use_dynamic_batching: InheritableVariable<bool>,
+
+    #[visit(optional)]
     blend_shapes: InheritableVariable<Vec<BlendShape>>,
 
     #[reflect(hidden)]
@@ -164,6 +172,7 @@ impl Default for Mesh {
             local_bounding_box_dirty: Cell::new(true),
             render_path: InheritableVariable::new_modified(RenderPath::Deferred),
             decal_layer_index: InheritableVariable::new_modified(0),
+            use_dynamic_batching: Default::default(),
             blend_shapes: Default::default(),
         }
     }
@@ -313,6 +322,19 @@ impl Mesh {
     pub fn decal_layer_index(&self) -> u8 {
         *self.decal_layer_index
     }
+
+    /// Enable or disable dynamic batching. It could be useful to reduce amount of draw calls per
+    /// frame if you have lots of meshes with small vertex count. Does not work with meshes, that
+    /// have skin or blend shapes. Such meshes will be drawn in a separate draw call.
+    pub fn set_dynamic_batching_enabled(&mut self, enabled: bool) {
+        self.use_dynamic_batching
+            .set_value_and_mark_modified(enabled);
+    }
+
+    /// Returns `true` if the dynamic batching is enabled, `false` otherwise.
+    pub fn is_dynamic_batching_enabled(&mut self) -> bool {
+        *self.use_dynamic_batching
+    }
 }
 
 impl NodeTrait for Mesh {
@@ -392,40 +414,87 @@ impl NodeTrait for Mesh {
                 self.global_transform()
             };
 
-            ctx.storage.push(
-                surface.data_ref(),
-                surface.material(),
-                self.render_path(),
-                self.decal_layer_index(),
-                surface.material().key() as u64,
-                SurfaceInstanceData {
-                    world_transform: world,
-                    bone_matrices: surface
-                        .bones
-                        .iter()
-                        .map(|bone_handle| {
-                            if let Some(bone_node) = ctx.graph.try_get(*bone_handle) {
-                                bone_node.global_transform() * bone_node.inv_bind_pose_transform()
-                            } else {
-                                Matrix4::identity()
-                            }
-                        })
-                        .collect::<Vec<_>>(),
-                    depth_offset: self.depth_offset_factor(),
-                    blend_shapes_weights: self
-                        .blend_shapes()
-                        .iter()
-                        .map(|bs| bs.weight / 100.0)
-                        .collect(),
-                    element_range: ElementRange::Full,
-                    persistent_identifier: PersistentIdentifier::new_combined(
-                        surface.data_ref(),
-                        self.self_handle,
-                        index,
-                    ),
-                    node_handle: self.self_handle,
-                },
-            );
+            let surface_data = surface.data_ref();
+            let surface_data_guard = surface_data.lock();
+
+            if *self.use_dynamic_batching
+                && self.blend_shapes().is_empty()
+                && surface.bones().is_empty()
+                && surface_data_guard.vertex_buffer.vertex_count() < 256
+            {
+                let vertex_transformer = |mut vertex: VertexViewMut| {
+                    if let Ok(position) =
+                        vertex.cast_attribute::<Vector3<f32>>(VertexAttributeUsage::Position)
+                    {
+                        *position = world.transform_point(&(*position).into()).coords;
+                    }
+                    if let Ok(normal) =
+                        vertex.cast_attribute::<Vector3<f32>>(VertexAttributeUsage::Normal)
+                    {
+                        *normal = world.transform_vector(normal);
+                    }
+                    if let Ok(tangent) =
+                        vertex.cast_attribute::<Vector4<f32>>(VertexAttributeUsage::Tangent)
+                    {
+                        let new_tangent = world.transform_vector(&tangent.xyz());
+                        *tangent = Vector4::new(
+                            new_tangent.x,
+                            new_tangent.y,
+                            new_tangent.z,
+                            // Keep handedness.
+                            tangent.w,
+                        );
+                    }
+                };
+
+                ctx.storage.transfer_triangles(
+                    &surface_data_guard.vertex_buffer,
+                    vertex_transformer,
+                    surface_data_guard.geometry_buffer.triangles_ref(),
+                    surface.material(),
+                    *self.render_path,
+                    self.decal_layer_index(),
+                    0,
+                    false,
+                    self.self_handle,
+                );
+            } else {
+                ctx.storage.push(
+                    surface_data,
+                    surface.material(),
+                    self.render_path(),
+                    self.decal_layer_index(),
+                    surface.material().key() as u64,
+                    SurfaceInstanceData {
+                        world_transform: world,
+                        bone_matrices: surface
+                            .bones
+                            .iter()
+                            .map(|bone_handle| {
+                                if let Some(bone_node) = ctx.graph.try_get(*bone_handle) {
+                                    bone_node.global_transform()
+                                        * bone_node.inv_bind_pose_transform()
+                                } else {
+                                    Matrix4::identity()
+                                }
+                            })
+                            .collect::<Vec<_>>(),
+                        depth_offset: self.depth_offset_factor(),
+                        blend_shapes_weights: self
+                            .blend_shapes()
+                            .iter()
+                            .map(|bs| bs.weight / 100.0)
+                            .collect(),
+                        element_range: ElementRange::Full,
+                        persistent_identifier: PersistentIdentifier::new_combined(
+                            surface_data,
+                            self.self_handle,
+                            index,
+                        ),
+                        node_handle: self.self_handle,
+                    },
+                );
+            }
         }
     }
 
@@ -490,6 +559,7 @@ pub struct MeshBuilder {
     render_path: RenderPath,
     decal_layer_index: u8,
     blend_shapes: Vec<BlendShape>,
+    use_dynamic_batching: bool,
 }
 
 impl MeshBuilder {
@@ -501,6 +571,7 @@ impl MeshBuilder {
             render_path: RenderPath::Deferred,
             decal_layer_index: 0,
             blend_shapes: Default::default(),
+            use_dynamic_batching: false,
         }
     }
 
@@ -530,6 +601,14 @@ impl MeshBuilder {
         self
     }
 
+    /// Enable or disable dynamic batching. It could be useful to reduce amount of draw calls per
+    /// frame if you have lots of meshes with small vertex count. Does not work with meshes, that
+    /// have skin or blend shapes. Such meshes will be drawn in a separate draw call.
+    pub fn with_use_dynamic_batching(mut self, use_dynamic_batching: bool) -> Self {
+        self.use_dynamic_batching = use_dynamic_batching;
+        self
+    }
+
     /// Creates new mesh.
     pub fn build_node(self) -> Node {
         Node::new(Mesh {
@@ -541,6 +620,7 @@ impl MeshBuilder {
             render_path: self.render_path.into(),
             decal_layer_index: self.decal_layer_index.into(),
             world_bounding_box: Default::default(),
+            use_dynamic_batching: self.use_dynamic_batching.into(),
         })
     }
 
