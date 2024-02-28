@@ -227,12 +227,13 @@ impl GameScene {
 
         if let Some(selection) = editor_selection.as_graph() {
             for &node in selection.nodes() {
-                let node = &scene.graph[node];
-                scene.drawing_context.draw_oob(
-                    &node.local_bounding_box(),
-                    node.global_transform(),
-                    Color::GREEN,
-                );
+                if let Some(node) = scene.graph.try_get(node) {
+                    scene.drawing_context.draw_oob(
+                        &node.local_bounding_box(),
+                        node.global_transform(),
+                        Color::GREEN,
+                    );
+                }
             }
         }
 
