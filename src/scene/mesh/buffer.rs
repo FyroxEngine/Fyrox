@@ -198,7 +198,7 @@ impl Visit for BytesStorage {
         }
 
         if visitor.is_reading() {
-            self.layout = Layout::array::<u8>(self.bytes.len()).unwrap();
+            self.layout = Layout::array::<u8>(self.bytes.capacity()).unwrap();
         }
         Ok(())
     }
@@ -230,7 +230,7 @@ impl BytesStorage {
             },
             // Preserve initial memory layout, to ensure that the memory block will be deallocated
             // with initial memory layout.
-            layout: Layout::array::<T>(data.len()).unwrap(),
+            layout: Layout::array::<T>(data.capacity()).unwrap(),
         }
     }
 
@@ -240,9 +240,10 @@ impl BytesStorage {
             let new_storage = Vec::with_capacity(self.bytes.len());
             let old_storage = std::mem::replace(&mut self.bytes, new_storage);
             self.bytes.extend_from_slice(old_storage.as_slice());
-            self.layout = Layout::array::<u8>(self.bytes.len()).unwrap();
+            self.layout = Layout::array::<u8>(self.bytes.capacity()).unwrap();
         }
         self.bytes.extend_from_slice(slice);
+        self.layout = Layout::array::<u8>(self.bytes.capacity()).unwrap();
     }
 
     fn drain<R>(&mut self, range: R) -> Drain<'_, u8>
