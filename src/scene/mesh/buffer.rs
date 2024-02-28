@@ -214,6 +214,13 @@ impl Default for BytesStorage {
 }
 
 impl BytesStorage {
+    fn with_capacity(capacity: usize) -> Self {
+        Self {
+            bytes: Vec::with_capacity(capacity),
+            layout: Layout::array::<u8>(capacity).unwrap(),
+        }
+    }
+
     fn new<T>(data: Vec<T>) -> Self {
         // Prevent destructor to be called on `data`, this is needed because we're taking its
         // data storage and treat it as a simple bytes block.
@@ -448,6 +455,21 @@ impl<'a> VertexBufferRefMut<'a> {
             Err(ValidationError::InvalidVertexSize {
                 expected: self.vertex_buffer.vertex_size,
                 actual: std::mem::size_of::<T>() as u8,
+            })
+        }
+    }
+
+    /// Tries to append a raw vertex data to the vertex buffer. This method will fail if the `data`
+    /// size does not match the vertex size of the buffer.
+    pub fn push_vertex_raw(&mut self, data: &[u8]) -> Result<(), ValidationError> {
+        if data.len() == self.vertex_buffer.vertex_size as usize {
+            self.vertex_buffer.data.extend_from_slice(data);
+            self.vertex_buffer.vertex_count += 1;
+            Ok(())
+        } else {
+            Err(ValidationError::InvalidVertexSize {
+                expected: self.vertex_buffer.vertex_size,
+                actual: data.len() as u8,
             })
         }
     }
@@ -812,6 +834,20 @@ impl VertexBuffer {
         })
     }
 
+    /// Creates a new empty vertex buffer with the same layout and vertex size, but with an empty
+    /// inner buffer of the specified capacity.  
+    pub fn clone_empty(&self, capacity: usize) -> Self {
+        Self {
+            dense_layout: self.dense_layout.clone(),
+            sparse_layout: self.sparse_layout,
+            vertex_size: self.vertex_size,
+            vertex_count: 0,
+            data: BytesStorage::with_capacity(capacity),
+            layout_hash: self.layout_hash,
+            modifications_counter: 0,
+        }
+    }
+
     /// Returns a reference to underlying data buffer slice.
     pub fn raw_data(&self) -> &[u8] {
         &self.data
@@ -977,6 +1013,51 @@ impl VertexBuffer {
                 + 1
         })
     }
+
+    /// Tries to find an attribute with the given `usage` and if it exists, returns its "view", that
+    /// allows you to fetch data like in ordinary array.
+    #[inline]
+    pub fn attribute_view<T>(&self, usage: VertexAttributeUsage) -> Option<AttributeViewRef<'_, T>>
+    where
+        T: Copy,
+    {
+        self.dense_layout
+            .iter()
+            .find(|attribute| {
+                attribute.usage == usage
+                    && attribute.size * attribute.data_type.size() == std::mem::size_of::<T>() as u8
+            })
+            .map(|attribute| AttributeViewRef {
+                ptr: unsafe { self.data.bytes.as_ptr().add(attribute.offset as usize) },
+                stride: self.vertex_size as usize,
+                count: self.vertex_count as usize,
+                phantom: Default::default(),
+                phantom_lifetime: Default::default(),
+            })
+    }
+
+    /// Tries to find an attribute with the given `usage` and if it exists, returns its "view", that
+    /// allows you to fetch data like in ordinary array.
+    #[inline]
+    pub fn attribute_view_mut<T: Copy>(
+        &mut self,
+        usage: VertexAttributeUsage,
+    ) -> Option<AttributeViewRef<'_, T>> {
+        if let Some(attribute) = self.dense_layout.iter().find(|attribute| {
+            attribute.usage == usage
+                && attribute.size * attribute.data_type.size() == std::mem::size_of::<T>() as u8
+        }) {
+            Some(AttributeViewRef {
+                ptr: unsafe { self.data.bytes.as_mut_ptr().add(attribute.offset as usize) },
+                stride: self.vertex_size as usize,
+                count: self.vertex_count as usize,
+                phantom: Default::default(),
+                phantom_lifetime: Default::default(),
+            })
+        } else {
+            None
+        }
+    }
 }
 
 struct VertexViewRefIterator<'a> {
@@ -1063,6 +1144,13 @@ impl<'a> PartialEq for VertexViewMut<'a> {
 pub enum VertexFetchError {
     /// Trying to read/write non-existent attribute.
     NoSuchAttribute(VertexAttributeUsage),
+    /// Size mistmatch.
+    SizeMismatch {
+        /// Expected size in bytes.
+        expected: u8,
+        /// Actual size in bytes.
+        actual: u8,
+    },
     /// IO error.
     Io(std::io::Error),
 }
@@ -1078,6 +1166,9 @@ impl Display for VertexFetchError {
             VertexFetchError::Io(v) => {
                 write!(f, "An i/o error has occurred {v:?}")
             }
+            VertexFetchError::SizeMismatch { expected, actual } => {
+                write!(f, "Size mismatch. Expected {expected}, got {actual}")
+            }
         }
     }
 }
@@ -1092,6 +1183,25 @@ impl From<std::io::Error> for VertexFetchError {
 pub trait VertexReadTrait {
     #[doc(hidden)]
     fn data_layout_ref(&self) -> (&[u8], &[Option<VertexAttribute>]);
+
+    /// Clones the vertex and applies the given transformer closure to it and returns a stack-allocated
+    /// data buffer representing the transformed vertex.
+    #[inline(always)]
+    fn transform<F>(&self, func: &mut F) -> ArrayVec<u8, 256>
+    where
+        F: FnMut(VertexViewMut),
+    {
+        let (data, layout) = self.data_layout_ref();
+        let mut transformed = ArrayVec::new();
+        transformed
+            .try_extend_from_slice(data)
+            .expect("Vertex size cannot be larger than 256 bytes!");
+        func(VertexViewMut {
+            vertex_data: &mut transformed,
+            sparse_layout: layout,
+        });
+        transformed
+    }
 
     /// Tries to read an attribute with given usage as a pair of two f32.
     #[inline(always)]
@@ -1162,6 +1272,31 @@ impl<'a> VertexReadTrait for VertexViewRef<'a> {
 pub trait VertexWriteTrait: VertexReadTrait {
     #[doc(hidden)]
     fn data_layout_mut(&mut self) -> (&mut [u8], &[Option<VertexAttribute>]);
+
+    /// Tries to find an attribute of the given type and returns a mutable reference of the specified
+    /// type. Type casting will fail if the size of the destination type `T` does not match the
+    /// actual attribute size.
+    #[inline(always)]
+    fn cast_attribute<T: Copy>(
+        &mut self,
+        usage: VertexAttributeUsage,
+    ) -> Result<&mut T, VertexFetchError> {
+        let (data, layout) = self.data_layout_mut();
+        if let Some(attribute) = layout.get(usage as usize).unwrap() {
+            let expected_size = (attribute.size * attribute.data_type.size()) as usize;
+            let actual_size = std::mem::size_of::<T>();
+            if expected_size == std::mem::size_of::<T>() {
+                Ok(unsafe { &mut *(data.as_mut_ptr().add(attribute.offset as usize) as *mut T) })
+            } else {
+                Err(VertexFetchError::SizeMismatch {
+                    expected: expected_size as u8,
+                    actual: actual_size as u8,
+                })
+            }
+        } else {
+            Err(VertexFetchError::NoSuchAttribute(usage))
+        }
+    }
 
     /// Tries to write an attribute with given usage as a pair of two f32.
     fn write_2_f32(
@@ -1414,6 +1549,46 @@ impl<'a> IndexMut<usize> for TriangleBufferRefMut<'a> {
     }
 }
 
+/// A typed attribute view for a specific vertex attribute in a vertex buffer.
+pub struct AttributeViewRef<'a, T> {
+    ptr: *const u8,
+    stride: usize,
+    count: usize,
+    phantom: PhantomData<T>,
+    phantom_lifetime: PhantomData<&'a T>,
+}
+
+impl<'a, T> AttributeViewRef<'a, T> {
+    /// Tries to fetch attribute data at the given index.
+    pub fn get(&'a self, i: usize) -> Option<&'a T> {
+        if i < self.count {
+            Some(unsafe { &*((self.ptr.add(i * self.stride)) as *const T) })
+        } else {
+            None
+        }
+    }
+}
+
+/// A typed attribute view for a specific vertex attribute in a vertex buffer.
+pub struct AttributeViewRefMut<'a, T> {
+    ptr: *mut u8,
+    stride: usize,
+    count: usize,
+    phantom: PhantomData<T>,
+    phantom_lifetime: PhantomData<&'a T>,
+}
+
+impl<'a, T> AttributeViewRefMut<'a, T> {
+    /// Tries to fetch attribute data at the given index.
+    pub fn get(&'a self, i: usize) -> Option<&'a mut T> {
+        if i < self.count {
+            Some(unsafe { &mut *((self.ptr.add(i * self.stride)) as *mut T) })
+        } else {
+            None
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::scene::mesh::buffer::VertexTrait;
@@ -1513,8 +1688,8 @@ mod test {
             bone_indices: Vector4::new(1, 2, 3, 4),
         },
         Vertex {
-            position: Vector3::new(1.0, 2.0, 3.0),
-            tex_coord: Vector2::new(0.0, 1.0),
+            position: Vector3::new(3.0, 2.0, 1.0),
+            tex_coord: Vector2::new(1.0, 0.0),
             second_tex_coord: Vector2::new(1.0, 0.0),
             normal: Vector3::new(0.0, 1.0, 0.0),
             tangent: Vector4::new(1.0, 0.0, 0.0, 1.0),
@@ -1522,8 +1697,8 @@ mod test {
             bone_indices: Vector4::new(1, 2, 3, 4),
         },
         Vertex {
-            position: Vector3::new(1.0, 2.0, 3.0),
-            tex_coord: Vector2::new(0.0, 1.0),
+            position: Vector3::new(1.0, 1.0, 1.0),
+            tex_coord: Vector2::new(1.0, 1.0),
             second_tex_coord: Vector2::new(1.0, 0.0),
             normal: Vector3::new(0.0, 1.0, 0.0),
             tangent: Vector4::new(1.0, 0.0, 0.0, 1.0),
@@ -1617,6 +1792,27 @@ mod test {
         buffer.modify().remove_last_vertex();
 
         assert_eq!(buffer.vertex_count(), 2);
+    }
+
+    #[test]
+    fn test_attribute_view() {
+        let buffer = create_test_buffer();
+
+        let position_view = buffer
+            .attribute_view::<Vector3<f32>>(VertexAttributeUsage::Position)
+            .unwrap();
+
+        assert_eq!(position_view.get(0), Some(&Vector3::new(1.0, 2.0, 3.0)));
+        assert_eq!(position_view.get(1), Some(&Vector3::new(3.0, 2.0, 1.0)));
+        assert_eq!(position_view.get(2), Some(&Vector3::new(1.0, 1.0, 1.0)));
+
+        let uv_view = buffer
+            .attribute_view::<Vector2<f32>>(VertexAttributeUsage::TexCoord0)
+            .unwrap();
+
+        assert_eq!(uv_view.get(0), Some(&Vector2::new(0.0, 1.0)));
+        assert_eq!(uv_view.get(1), Some(&Vector2::new(1.0, 0.0)));
+        assert_eq!(uv_view.get(2), Some(&Vector2::new(1.0, 1.0)));
     }
 
     #[test]
