@@ -373,7 +373,7 @@ mod test {
                 &Matrix4::identity(),
                 height_map_size,
                 physical_size,
-                &frustum,
+                Some(&frustum),
                 position.coords,
                 &levels,
                 &mut selection,
