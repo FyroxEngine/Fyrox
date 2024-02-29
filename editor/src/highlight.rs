@@ -193,13 +193,14 @@ impl SceneRenderPass for HighlightRenderPass {
 
             let mut render_bundle_storage = RenderDataBundleStorage::default();
 
+            let frustum = ctx.camera.frustum();
             let mut render_context = RenderContext {
                 observer_position: &ctx.camera.global_position(),
                 z_near: ctx.camera.projection().z_near(),
                 z_far: ctx.camera.projection().z_far(),
                 view_matrix: &ctx.camera.view_matrix(),
                 projection_matrix: &ctx.camera.projection_matrix(),
-                frustum: &ctx.camera.frustum(),
+                frustum: Some(&frustum),
                 storage: &mut render_bundle_storage,
                 graph: &ctx.scene.graph,
                 render_pass_name: &render_pass_name,

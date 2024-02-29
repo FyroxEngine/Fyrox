@@ -536,7 +536,9 @@ impl NodeTrait for Mesh {
     fn collect_render_data(&self, ctx: &mut RenderContext) -> RdcControlFlow {
         if !self.global_visibility()
             || !self.is_globally_enabled()
-            || !ctx.frustum.is_intersects_aabb(&self.world_bounding_box())
+            || !ctx
+                .frustum
+                .map_or(true, |f| f.is_intersects_aabb(&self.world_bounding_box()))
         {
             return RdcControlFlow::Continue;
         }
@@ -562,7 +564,7 @@ impl NodeTrait for Mesh {
                         z_far: ctx.z_far,
                         view_matrix: ctx.view_matrix,
                         projection_matrix: ctx.projection_matrix,
-                        frustum: ctx.frustum,
+                        frustum: None,
                         storage: &mut *container,
                         graph: ctx.graph,
                         render_pass_name: ctx.render_pass_name,

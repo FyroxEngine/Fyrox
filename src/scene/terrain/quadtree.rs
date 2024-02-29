@@ -186,7 +186,7 @@ impl QuadTreeNode {
         transform: &Matrix4<f32>,
         height_map_size: Vector2<u32>,
         physical_size: Vector2<f32>,
-        frustum: &Frustum,
+        frustum: Option<&Frustum>,
         camera_position: Vector3<f32>,
         level_ranges: &[f32],
         selection: &mut Vec<SelectedNode>,
@@ -195,7 +195,7 @@ impl QuadTreeNode {
 
         let current_level = self.level as usize;
 
-        if !frustum.is_intersects_aabb(&aabb)
+        if !frustum.map_or(true, |f| f.is_intersects_aabb(&aabb))
             || !aabb.is_intersects_sphere(camera_position, level_ranges[current_level])
         {
             return false;
@@ -298,7 +298,7 @@ impl QuadTree {
         transform: &Matrix4<f32>,
         height_map_size: Vector2<u32>,
         physical_size: Vector2<f32>,
-        frustum: &Frustum,
+        frustum: Option<&Frustum>,
         camera_position: Vector3<f32>,
         level_ranges: &[f32],
         selection: &mut Vec<SelectedNode>,

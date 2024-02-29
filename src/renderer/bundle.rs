@@ -61,7 +61,7 @@ pub struct RenderContext<'a> {
     pub projection_matrix: &'a Matrix4<f32>,
     /// Frustum of the observer, it is built using observer's view and projection matrix. Use the frustum to do
     /// frustum culling.
-    pub frustum: &'a Frustum,
+    pub frustum: Option<&'a Frustum>,
     /// Render data bundle storage. Your scene node must write at least one surface instance here for the node to
     /// be rendered.
     pub storage: &'a mut dyn RenderDataBundleStorageTrait,
@@ -250,7 +250,7 @@ impl RenderDataBundleStorage {
             z_far: observer_info.z_far,
             view_matrix: &observer_info.view_matrix,
             projection_matrix: &observer_info.projection_matrix,
-            frustum: &frustum,
+            frustum: Some(&frustum),
             storage: &mut storage,
             graph,
             render_pass_name: &render_pass_name,
