@@ -123,7 +123,7 @@ impl Default for VertexAttributeUsage {
 }
 
 /// Input vertex attribute descriptor used to construct layouts and feed vertex buffer.
-#[derive(Debug)]
+#[derive(Debug, Hash)]
 pub struct VertexAttributeDescriptor {
     /// Claimed usage of the attribute. It could be Position, Normal, etc.
     pub usage: VertexAttributeUsage,
@@ -182,8 +182,9 @@ pub struct VertexAttribute {
     pub normalized: bool,
 }
 
+/// Bytes storage of a vertex buffer.
 #[derive(Clone, Debug)]
-struct BytesStorage {
+pub struct BytesStorage {
     bytes: Vec<u8>,
     layout: Layout,
 }
@@ -214,14 +215,16 @@ impl Default for BytesStorage {
 }
 
 impl BytesStorage {
-    fn with_capacity(capacity: usize) -> Self {
+    /// Creates new empty bytes storage with the given capacity.
+    pub fn with_capacity(capacity: usize) -> Self {
         Self {
             bytes: Vec::with_capacity(capacity),
             layout: Layout::array::<u8>(capacity).unwrap(),
         }
     }
 
-    fn new<T>(data: Vec<T>) -> Self {
+    /// Creates new bytes storage from the given data buffer.
+    pub fn new<T>(data: Vec<T>) -> Self {
         // Prevent destructor to be called on `data`, this is needed because we're taking its
         // data storage and treat it as a simple bytes block.
         let mut data = std::mem::ManuallyDrop::new(data);
@@ -766,10 +769,15 @@ impl VertexBuffer {
     where
         T: VertexTrait,
     {
-        let bytes = BytesStorage::new(data);
+        Self::new_with_layout(T::layout(), vertex_count, BytesStorage::new(data))
+    }
 
-        let layout = T::layout();
-
+    /// Creates new vertex buffer from the given layout, vertex count and bytes storage.
+    pub fn new_with_layout(
+        layout: &[VertexAttributeDescriptor],
+        vertex_count: usize,
+        bytes: BytesStorage,
+    ) -> Result<Self, ValidationError> {
         // Validate for duplicates and invalid layout.
         for descriptor in layout {
             for other_descriptor in layout {
@@ -933,6 +941,20 @@ impl VertexBuffer {
     /// Returns vertex buffer layout.
     pub fn layout(&self) -> &[VertexAttribute] {
         &self.dense_layout
+    }
+
+    /// Returns vertex buffer layout.
+    pub fn layout_descriptor(&self) -> impl Iterator<Item = VertexAttributeDescriptor> + '_ {
+        self.dense_layout
+            .iter()
+            .map(|attrib| VertexAttributeDescriptor {
+                usage: attrib.usage,
+                data_type: attrib.data_type,
+                size: attrib.size,
+                divisor: attrib.divisor,
+                shader_location: attrib.shader_location,
+                normalized: attrib.normalized,
+            })
     }
 
     /// Tries to cast internal data buffer to a slice of given type. It may fail if
@@ -1519,6 +1541,16 @@ impl<'a> TriangleBufferRefMut<'a> {
         self.triangles.push(triangle)
     }
 
+    /// Adds triangles from the given iterator to the current buffer. Offsets each triangle by the
+    /// given `offset` value.
+    pub fn push_triangles_iter_with_offset(
+        &mut self,
+        offset: u32,
+        triangles: impl Iterator<Item = TriangleDefinition>,
+    ) {
+        self.triangles.extend(triangles.map(|t| t.add(offset)))
+    }
+
     /// Adds triangles from the given slice to the current buffer.
     pub fn push_triangles(&mut self, triangles: &[TriangleDefinition]) {
         self.triangles.extend_from_slice(triangles)
@@ -1527,6 +1559,13 @@ impl<'a> TriangleBufferRefMut<'a> {
     /// Adds triangles from the given iterator to the current buffer.
     pub fn push_triangles_iter(&mut self, triangles: impl Iterator<Item = TriangleDefinition>) {
         self.triangles.extend(triangles)
+    }
+
+    /// Adds triangles from the given slice to the current buffer. Offsets each triangle by the
+    /// given `offset` value.
+    pub fn push_triangles_with_offset(&mut self, offset: u32, triangles: &[TriangleDefinition]) {
+        self.triangles
+            .extend(triangles.iter().map(|t| t.add(offset)))
     }
 
     /// Clears the buffer.
