@@ -7,7 +7,7 @@ use crate::{
     },
     renderer::{
         apply_material,
-        batch::{ObserverInfo, RenderDataBatchStorage},
+        bundle::{ObserverInfo, RenderDataBundleStorage},
         cache::{shader::ShaderCache, texture::TextureCache},
         framework::{
             error::FrameworkError,
@@ -241,7 +241,7 @@ impl PointShadowMapRenderer {
             let camera_up = inv_view.up();
             let camera_side = inv_view.side();
 
-            let batches = RenderDataBatchStorage::from_graph(
+            let bundle_storage = RenderDataBundleStorage::from_graph(
                 graph,
                 ObserverInfo {
                     observer_position: light_pos,
@@ -253,16 +253,17 @@ impl PointShadowMapRenderer {
                 POINT_SHADOW_PASS_NAME.clone(),
             );
 
-            for batch in batches.batches.iter() {
-                let mut material_state = batch.material.state();
+            for bundle in bundle_storage.bundles.iter() {
+                let mut material_state = bundle.material.state();
                 let Some(material) = material_state.data() else {
                     continue;
                 };
-                let Some(geometry) = geom_cache.get(state, &batch.data, batch.time_to_live) else {
+                let Some(geometry) = geom_cache.get(state, &bundle.data, bundle.time_to_live)
+                else {
                     continue;
                 };
 
-                let blend_shapes_storage = batch
+                let blend_shapes_storage = bundle
                     .data
                     .lock()
                     .blend_shapes_container
@@ -276,7 +277,7 @@ impl PointShadowMapRenderer {
                     continue;
                 };
 
-                for instance in batch.instances.iter() {
+                for instance in bundle.instances.iter() {
                     statistics += framebuffer.draw(
                         geometry,
                         state,
@@ -295,7 +296,7 @@ impl PointShadowMapRenderer {
                                 wvp_matrix: &(light_view_projection_matrix
                                     * instance.world_transform),
                                 bone_matrices: &instance.bone_matrices,
-                                use_skeletal_animation: batch.is_skinned,
+                                use_skeletal_animation: bundle.is_skinned,
                                 camera_position: &Default::default(),
                                 camera_up_vector: &camera_up,
                                 camera_side_vector: &camera_side,

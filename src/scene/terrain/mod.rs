@@ -1,7 +1,8 @@
 //! Everything related to terrains. See [`Terrain`] docs for more info.
 
 use crate::material::MaterialResourceExtension;
-use crate::renderer::batch::PersistentIdentifier;
+use crate::renderer::bundle::PersistentIdentifier;
+use crate::scene::node::RdcControlFlow;
 use crate::{
     asset::Resource,
     core::{
@@ -20,7 +21,7 @@ use crate::{
     material::{Material, MaterialResource, PropertyValue},
     renderer::{
         self,
-        batch::{RenderContext, SurfaceInstanceData},
+        bundle::{RenderContext, SurfaceInstanceData},
         framework::geometry_buffer::ElementRange,
     },
     resource::texture::{
@@ -1448,16 +1449,16 @@ impl NodeTrait for Terrain {
         Self::type_uuid()
     }
 
-    fn collect_render_data(&self, ctx: &mut RenderContext) {
+    fn collect_render_data(&self, ctx: &mut RenderContext) -> RdcControlFlow {
         if !self.global_visibility()
             || !self.is_globally_enabled()
             || !ctx.frustum.is_intersects_aabb(&self.world_bounding_box())
         {
-            return;
+            return RdcControlFlow::Continue;
         }
 
         if renderer::is_shadow_pass(ctx.render_pass_name) && !self.cast_shadows() {
-            return;
+            return RdcControlFlow::Continue;
         }
 
         for (layer_index, layer) in self.layers().iter().enumerate() {
@@ -1588,6 +1589,8 @@ impl NodeTrait for Terrain {
                 }
             }
         }
+
+        RdcControlFlow::Continue
     }
 
     fn debug_draw(&self, ctx: &mut SceneDrawingContext) {

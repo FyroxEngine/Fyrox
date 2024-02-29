@@ -1,19 +1,23 @@
-//! The module responsible for batch generation for rendering optimizations.
+//! The module responsible for bundle generation for rendering optimizations.
 
+use crate::scene::node::RdcControlFlow;
 use crate::{
     core::{
         algebra::{Matrix4, Vector3},
-        math::{frustum::Frustum, TriangleDefinition},
+        math::frustum::Frustum,
         pool::Handle,
         sstorage::ImmutableString,
     },
-    graph::{BaseSceneGraph, SceneGraph},
+    graph::BaseSceneGraph,
     material::MaterialResource,
     renderer::{cache::TimeToLive, framework::geometry_buffer::ElementRange},
     scene::{
         graph::Graph,
         mesh::{
-            buffer::{TriangleBuffer, VertexBuffer, VertexReadTrait, VertexTrait, VertexViewMut},
+            buffer::{
+                BytesStorage, TriangleBuffer, TriangleBufferRefMut, VertexAttributeDescriptor,
+                VertexBuffer, VertexBufferRefMut,
+            },
             surface::{SurfaceData, SurfaceSharedData},
             RenderPath,
         },
@@ -22,7 +26,6 @@ use crate::{
 };
 use fxhash::{FxBuildHasher, FxHashMap, FxHasher};
 use std::{
-    any::TypeId,
     collections::hash_map::DefaultHasher,
     fmt::{Debug, Formatter},
     hash::{Hash, Hasher},
@@ -59,9 +62,9 @@ pub struct RenderContext<'a> {
     /// Frustum of the observer, it is built using observer's view and projection matrix. Use the frustum to do
     /// frustum culling.
     pub frustum: &'a Frustum,
-    /// Render data batch storage. Your scene node must write at least one surface instance here for the node to
+    /// Render data bundle storage. Your scene node must write at least one surface instance here for the node to
     /// be rendered.
-    pub storage: &'a mut RenderDataBatchStorage,
+    pub storage: &'a mut dyn RenderDataBundleStorageTrait,
     /// A reference to the graph that is being rendered. Allows you to get access to other scene nodes to do
     /// some useful job.
     pub graph: &'a Graph,
@@ -70,7 +73,7 @@ pub struct RenderContext<'a> {
 }
 
 /// Persistent identifier marks drawing data, telling the renderer that the data is the same, no matter from which
-/// render batch it came from. It is used by the renderer to create associated GPU resources.
+/// render bundle it came from. It is used by the renderer to create associated GPU resources.
 #[derive(Copy, Clone, Hash, Debug, PartialEq, Eq)]
 pub struct PersistentIdentifier(pub u64);
 
@@ -110,7 +113,7 @@ pub struct SurfaceInstanceData {
 }
 
 /// A set of surface instances that share the same vertex/index data and a material.
-pub struct RenderDataBatch {
+pub struct RenderDataBundle {
     /// A pointer to shared surface data.
     pub data: SurfaceSharedData,
     /// Amount of time (in seconds) for GPU geometry buffer (vertex + index buffers) generated for
@@ -120,37 +123,88 @@ pub struct RenderDataBatch {
     pub instances: Vec<SurfaceInstanceData>,
     /// A material that is shared across all instances.
     pub material: MaterialResource,
-    /// Whether the batch is using GPU skinning or not.
+    /// Whether the bundle is using GPU skinning or not.
     pub is_skinned: bool,
-    /// A render path of the batch.
+    /// A render path of the bundle.
     pub render_path: RenderPath,
-    /// A decal layer index of the batch.
+    /// A decal layer index of the bundle.
     pub decal_layer_index: u8,
     sort_index: u64,
 }
 
-impl Debug for RenderDataBatch {
+impl Debug for RenderDataBundle {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "Batch {}: {} instances",
+            "Bundle {}: {} instances",
             self.data.key(),
             self.instances.len()
         )
     }
 }
 
-/// Batch storage handles batch generation for a scene before rendering. It is used to optimize
-/// rendering by reducing amount of state changes of OpenGL context.
-#[derive(Default)]
-pub struct RenderDataBatchStorage {
-    batch_map: FxHashMap<u64, usize>,
-    /// A sorted list of batches.
-    pub batches: Vec<RenderDataBatch>,
+/// A trait for an entity that can collect render data.
+pub trait RenderDataBundleStorageTrait {
+    /// Adds a new mesh to the bundle storage using the given set of vertices and triangles. This
+    /// method automatically creates a render bundle according to a hash of the following parameters:
+    ///
+    /// - Material
+    /// - Vertex Type
+    /// - Render Path
+    /// - Skinning
+    /// - Decal Layer Index
+    ///
+    /// If one of these parameters is different, then a new bundle will be created and used to store
+    /// the given vertices and indices. If an appropriate bundle exists, the the method will store
+    /// the given vertices and the triangles in it.
+    ///
+    /// ## When to use
+    ///
+    /// This method is used to reduce amount of draw calls of underlying GAPI, by merging small
+    /// portions of data into one big block that shares drawing parameters and can be rendered in
+    /// a single draw call. The vertices in this case should be pre-processed by applying world
+    /// transform to them. This is so-called dynamic batching.
+    ///
+    /// Do not use this method if you have a mesh with lots of vertices and triangles, because
+    /// pre-processing them on CPU could take more time than rendering them directly on GPU one-by-one.
+    fn push_triangles(
+        &mut self,
+        layout: &[VertexAttributeDescriptor],
+        material: &MaterialResource,
+        render_path: RenderPath,
+        decal_layer_index: u8,
+        sort_index: u64,
+        is_skinned: bool,
+        node_handle: Handle<Node>,
+        func: &mut dyn FnMut(VertexBufferRefMut, TriangleBufferRefMut),
+    );
+
+    /// Adds a new surface instance to the storage. The method will automatically put the instance
+    /// in the appropriate bundle. Bundle selection is done using the material, surface data, render
+    /// path, decal layer index, skinning flag. If only one of these parameters is different, then
+    /// the surface instance will be put in a separate bundle.
+    fn push(
+        &mut self,
+        data: &SurfaceSharedData,
+        material: &MaterialResource,
+        render_path: RenderPath,
+        decal_layer_index: u8,
+        sort_index: u64,
+        instance_data: SurfaceInstanceData,
+    );
 }
 
-impl RenderDataBatchStorage {
-    /// Creates a new render batch storage from the given graph and observer info. It "asks" every node in the
+/// Bundle storage handles bundle generation for a scene before rendering. It is used to optimize
+/// rendering by reducing amount of state changes of OpenGL context.
+#[derive(Default)]
+pub struct RenderDataBundleStorage {
+    bundle_map: FxHashMap<u64, usize>,
+    /// A sorted list of bundles.
+    pub bundles: Vec<RenderDataBundle>,
+}
+
+impl RenderDataBundleStorage {
+    /// Creates a new render bundle storage from the given graph and observer info. It "asks" every node in the
     /// graph one-by-one to give render data which is then put in the storage, sorted and ready for rendering.
     /// Frustum culling is done on scene node side ([`crate::scene::node::NodeTrait::collect_render_data`]).
     pub fn from_graph(
@@ -161,8 +215,8 @@ impl RenderDataBatchStorage {
         // Aim for the worst-case scenario when every node has unique render data.
         let capacity = graph.node_count() as usize;
         let mut storage = Self {
-            batch_map: FxHashMap::with_capacity_and_hasher(capacity, FxBuildHasher::default()),
-            batches: Vec::with_capacity(capacity),
+            bundle_map: FxHashMap::with_capacity_and_hasher(capacity, FxBuildHasher::default()),
+            bundles: Vec::with_capacity(capacity),
         };
 
         let mut lod_filter = vec![true; graph.capacity() as usize];
@@ -202,9 +256,14 @@ impl RenderDataBatchStorage {
             render_pass_name: &render_pass_name,
         };
 
-        for (handle, node) in graph.pair_iter() {
+        let mut stack = Vec::with_capacity(capacity / 4);
+        stack.push(graph.root());
+        while let Some(handle) = stack.pop() {
             if lod_filter[handle.index() as usize] {
-                node.collect_render_data(&mut ctx);
+                let node = graph.node(handle);
+                if let RdcControlFlow::Continue = node.collect_render_data(&mut ctx) {
+                    stack.extend_from_slice(node.children());
+                }
             }
         }
 
@@ -213,8 +272,15 @@ impl RenderDataBatchStorage {
         storage
     }
 
-    /// Adds a new mesh to the batch storage using the given set of vertices and triangles. This
-    /// method automatically creates a render batch according to a hash of the following parameters:
+    /// Sorts the bundles by their respective sort index.
+    pub fn sort(&mut self) {
+        self.bundles.sort_unstable_by_key(|b| b.sort_index);
+    }
+}
+
+impl RenderDataBundleStorageTrait for RenderDataBundleStorage {
+    /// Adds a new mesh to the bundle storage using the given set of vertices and triangles. This
+    /// method automatically creates a render bundle according to a hash of the following parameters:
     ///
     /// - Material
     /// - Vertex Type
@@ -222,8 +288,8 @@ impl RenderDataBatchStorage {
     /// - Skinning
     /// - Decal Layer Index
     ///
-    /// If one of these parameters is different, then a new batch will be created and used to store
-    /// the given vertices and indices. If an appropriate batch exists, the the method will store
+    /// If one of these parameters is different, then a new bundle will be created and used to store
+    /// the given vertices and indices. If an appropriate bundle exists, the the method will store
     /// the given vertices and the triangles in it.
     ///
     /// ## When to use
@@ -235,35 +301,37 @@ impl RenderDataBatchStorage {
     ///
     /// Do not use this method if you have a mesh with lots of vertices and triangles, because
     /// pre-processing them on CPU could take more time than rendering them directly on GPU one-by-one.
-    pub fn push_triangles<T>(
+    fn push_triangles(
         &mut self,
-        vertices: impl Iterator<Item = T>,
-        local_triangles: impl Iterator<Item = TriangleDefinition>,
+        layout: &[VertexAttributeDescriptor],
         material: &MaterialResource,
         render_path: RenderPath,
         decal_layer_index: u8,
         sort_index: u64,
         is_skinned: bool,
         node_handle: Handle<Node>,
-    ) where
-        T: VertexTrait,
-    {
+        func: &mut dyn FnMut(VertexBufferRefMut, TriangleBufferRefMut),
+    ) {
         let mut hasher = FxHasher::default();
         hasher.write_u64(material.key() as u64);
-        TypeId::of::<T>().hash(&mut hasher);
+        layout.hash(&mut hasher);
         hasher.write_u8(if is_skinned { 1 } else { 0 });
         hasher.write_u8(decal_layer_index);
         hasher.write_u32(render_path as u32);
         let key = hasher.finish();
 
-        let batch = if let Some(&batch_index) = self.batch_map.get(&key) {
-            self.batches.get_mut(batch_index).unwrap()
+        let bundle = if let Some(&bundle_index) = self.bundle_map.get(&key) {
+            self.bundles.get_mut(bundle_index).unwrap()
         } else {
             let default_capacity = 4096;
 
             // Initialize empty vertex buffer.
-            let vertex_buffer =
-                VertexBuffer::new::<T>(0, Vec::with_capacity(default_capacity)).unwrap();
+            let vertex_buffer = VertexBuffer::new_with_layout(
+                layout,
+                0,
+                BytesStorage::with_capacity(default_capacity),
+            )
+            .unwrap();
 
             // Initialize empty triangle buffer.
             let triangle_buffer = TriangleBuffer::new(Vec::with_capacity(default_capacity * 3));
@@ -272,13 +340,13 @@ impl RenderDataBatchStorage {
             let data =
                 SurfaceSharedData::new(SurfaceData::new(vertex_buffer, triangle_buffer, true));
 
-            self.batch_map.insert(key, self.batches.len());
+            self.bundle_map.insert(key, self.bundles.len());
             let persistent_identifier = PersistentIdentifier::new_combined(&data, node_handle, 0);
-            self.batches.push(RenderDataBatch {
+            self.bundles.push(RenderDataBundle {
                 data,
                 sort_index,
                 instances: vec![
-                    // Each batch must have at least one instance to be rendered.
+                    // Each bundle must have at least one instance to be rendered.
                     SurfaceInstanceData {
                         world_transform: Matrix4::identity(),
                         bone_matrices: Default::default(),
@@ -296,132 +364,22 @@ impl RenderDataBatchStorage {
                 // Temporary buffer lives one frame.
                 time_to_live: TimeToLive(0.0),
             });
-            self.batches.last_mut().unwrap()
+            self.bundles.last_mut().unwrap()
         };
 
-        let mut data = batch.data.lock();
-        let last_vertex_index = data.vertex_buffer.vertex_count();
+        let mut data = bundle.data.lock();
+        let data = &mut *data;
 
-        // Append vertices.
-        data.vertex_buffer
-            .modify()
-            .push_vertices_iter(vertices)
-            .expect("Vertex types mismatch!");
+        let vertex_buffer = data.vertex_buffer.modify();
+        let triangle_buffer = data.geometry_buffer.modify();
 
-        // Write triangle indices, but offset each by last vertex index to prevent overlapping.
-        data.geometry_buffer
-            .modify()
-            .push_triangles_iter(local_triangles.map(|t| t.add(last_vertex_index)));
-    }
-
-    /// Clones a mesh to the batch storage using the given set of vertices and triangles. The vertices
-    /// from the source vertex buffer will be transformed by the specified `func`. This method
-    /// automatically creates a render batch according to a hash of the following parameters:
-    ///
-    /// - Material
-    /// - Vertex Layout
-    /// - Render Path
-    /// - Skinning
-    /// - Decal Layer Index
-    ///
-    /// If one of these parameters is different, then a new batch will be created and used to store
-    /// the given vertices and indices. If an appropriate batch exists, the the method will store
-    /// the given vertices and the triangles in it.
-    ///
-    /// ## When to use
-    ///
-    /// This method is used to reduce amount of draw calls of underlying GAPI, by merging small
-    /// portions of data into one big block that shares drawing parameters and can be rendered in
-    /// a single draw call. The vertices in this case should be pre-processed by applying world
-    /// transform to them.
-    ///
-    /// Do not use this method if you have a mesh with lots of vertices and triangles, because
-    /// pre-processing them on CPU could take more time than rendering them directly on GPU one-by-one.
-    pub fn transfer_triangles<F>(
-        &mut self,
-        src_buffer: &VertexBuffer,
-        mut func: F,
-        local_triangles: &[TriangleDefinition],
-        material: &MaterialResource,
-        render_path: RenderPath,
-        decal_layer_index: u8,
-        sort_index: u64,
-        is_skinned: bool,
-        node_handle: Handle<Node>,
-    ) where
-        F: FnMut(VertexViewMut),
-    {
-        let mut hasher = FxHasher::default();
-        hasher.write_u64(material.key() as u64);
-        src_buffer.layout().hash(&mut hasher);
-        hasher.write_u8(if is_skinned { 1 } else { 0 });
-        hasher.write_u8(decal_layer_index);
-        hasher.write_u32(render_path as u32);
-        let key = hasher.finish();
-
-        let batch = if let Some(&batch_index) = self.batch_map.get(&key) {
-            self.batches.get_mut(batch_index).unwrap()
-        } else {
-            let default_capacity = 4096;
-
-            // Initialize empty vertex buffer with the same layout.
-            let vertex_buffer = src_buffer.clone_empty(default_capacity);
-
-            // Initialize empty triangle buffer.
-            let triangle_buffer = TriangleBuffer::new(Vec::with_capacity(default_capacity * 3));
-
-            // Create temporary surface data (valid for one frame).
-            let data =
-                SurfaceSharedData::new(SurfaceData::new(vertex_buffer, triangle_buffer, true));
-
-            self.batch_map.insert(key, self.batches.len());
-            let persistent_identifier = PersistentIdentifier::new_combined(&data, node_handle, 0);
-            self.batches.push(RenderDataBatch {
-                data,
-                sort_index,
-                instances: vec![
-                    // Each batch must have at least one instance to be rendered.
-                    SurfaceInstanceData {
-                        world_transform: Matrix4::identity(),
-                        bone_matrices: Default::default(),
-                        depth_offset: Default::default(),
-                        blend_shapes_weights: Default::default(),
-                        element_range: Default::default(),
-                        persistent_identifier,
-                        node_handle,
-                    },
-                ],
-                material: material.clone(),
-                is_skinned,
-                render_path,
-                decal_layer_index,
-                // Temporary buffer lives one frame.
-                time_to_live: TimeToLive(0.0),
-            });
-            self.batches.last_mut().unwrap()
-        };
-
-        let mut data = batch.data.lock();
-        let last_vertex_index = data.vertex_buffer.vertex_count();
-
-        // Append vertices.
-        let mut buf = data.vertex_buffer.modify();
-        for vertex in src_buffer.iter() {
-            buf.push_vertex_raw(&vertex.transform(&mut func))
-                .expect("Vertex size mismatch!");
-        }
-        drop(buf);
-
-        // Write triangle indices, but offset each by last vertex index to prevent overlapping.
-        data.geometry_buffer
-            .modify()
-            .push_triangles_iter(local_triangles.iter().map(|t| t.add(last_vertex_index)));
+        func(vertex_buffer, triangle_buffer);
     }
 
     /// Adds a new surface instance to the storage. The method will automatically put the instance in the appropriate
-    /// batch. Batch selection is done using the material, surface data, render path, decal layer index, skinning flag.
-    /// If only one of these parameters is different, then the surface instance will be put in a separate batch.
-    pub fn push(
+    /// bundle. Bundle selection is done using the material, surface data, render path, decal layer index, skinning flag.
+    /// If only one of these parameters is different, then the surface instance will be put in a separate bundle.
+    fn push(
         &mut self,
         data: &SurfaceSharedData,
         material: &MaterialResource,
@@ -440,11 +398,11 @@ impl RenderDataBatchStorage {
         hasher.write_u32(render_path as u32);
         let key = hasher.finish();
 
-        let batch = if let Some(&batch_index) = self.batch_map.get(&key) {
-            self.batches.get_mut(batch_index).unwrap()
+        let bundle = if let Some(&bundle_index) = self.bundle_map.get(&key) {
+            self.bundles.get_mut(bundle_index).unwrap()
         } else {
-            self.batch_map.insert(key, self.batches.len());
-            self.batches.push(RenderDataBatch {
+            self.bundle_map.insert(key, self.bundles.len());
+            self.bundles.push(RenderDataBundle {
                 data: data.clone(),
                 sort_index,
                 instances: Default::default(),
@@ -454,14 +412,9 @@ impl RenderDataBatchStorage {
                 decal_layer_index,
                 time_to_live: Default::default(),
             });
-            self.batches.last_mut().unwrap()
+            self.bundles.last_mut().unwrap()
         };
 
-        batch.instances.push(instance_data)
-    }
-
-    /// Sorts the batches by their respective sort index.
-    pub fn sort(&mut self) {
-        self.batches.sort_unstable_by_key(|b| b.sort_index);
+        bundle.instances.push(instance_data)
     }
 }

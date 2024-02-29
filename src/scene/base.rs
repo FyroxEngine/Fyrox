@@ -9,20 +9,23 @@ use crate::{
         math::{aabb::AxisAlignedBoundingBox, Matrix4Ext},
         pool::{ErasedHandle, Handle},
         reflect::prelude::*,
-        uuid::Uuid,
+        type_traits::prelude::*,
         variable::InheritableVariable,
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
     engine::SerializationContext,
+    graph::BaseSceneGraph,
     resource::model::ModelResource,
     scene::{node::Node, transform::Transform},
     script::{Script, ScriptTrait},
 };
-use fyrox_core::{uuid, uuid_provider, TypeUuidProvider};
-use fyrox_graph::BaseSceneGraph;
 use serde::{Deserialize, Serialize};
-use std::ops::{Deref, DerefMut};
-use std::{any::Any, cell::Cell, sync::mpsc::Sender};
+use std::{
+    any::Any,
+    cell::Cell,
+    ops::{Deref, DerefMut},
+    sync::mpsc::Sender,
+};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 /// Level of detail is a collection of objects for given normalized distance range.
@@ -30,7 +33,8 @@ use strum_macros::{AsRefStr, EnumString, VariantNames};
 /// Normalized distance is a distance in (0; 1) range where 0 - closest to camera,
 /// 1 - farthest. Real distance can be obtained by multiplying normalized distance
 /// with z_far of current projection matrix.
-#[derive(Debug, Default, Clone, Visit, Reflect, PartialEq)]
+#[derive(Debug, Default, Clone, Visit, Reflect, PartialEq, TypeUuidProvider)]
+#[type_uuid(id = "576b31a2-2b39-4c79-95dd-26aeaf381d8b")]
 pub struct LevelOfDetail {
     #[reflect(
         description = "Beginning of the range in which the level will be visible. \
@@ -46,8 +50,6 @@ pub struct LevelOfDetail {
     /// LOD group.
     pub objects: Vec<Handle<Node>>,
 }
-
-uuid_provider!(LevelOfDetail = "576b31a2-2b39-4c79-95dd-26aeaf381d8b");
 
 impl LevelOfDetail {
     /// Creates new level of detail.
@@ -104,19 +106,32 @@ impl LevelOfDetail {
 /// Lod group must contain non-overlapping cascades, each cascade with its own set of objects
 /// that belongs to level of detail. Engine does not care if you create overlapping cascades,
 /// it is your responsibility to create non-overlapping cascades.
-#[derive(Debug, Default, Clone, Visit, Reflect, PartialEq)]
+#[derive(Debug, Default, Clone, Visit, Reflect, PartialEq, TypeUuidProvider)]
+#[type_uuid(id = "8e7b18b1-c1e0-47d7-b952-4394c1d049e5")]
 pub struct LodGroup {
     /// Set of cascades.
     pub levels: Vec<LevelOfDetail>,
 }
 
-uuid_provider!(LodGroup = "8e7b18b1-c1e0-47d7-b952-4394c1d049e5");
-
 /// Mobility defines a group for scene node which has direct impact on performance
 /// and capabilities of nodes.
 #[derive(
-    Copy, Clone, PartialOrd, PartialEq, Ord, Eq, Debug, Reflect, AsRefStr, EnumString, VariantNames,
+    Default,
+    Copy,
+    Clone,
+    PartialOrd,
+    PartialEq,
+    Ord,
+    Eq,
+    Debug,
+    Visit,
+    Reflect,
+    AsRefStr,
+    EnumString,
+    VariantNames,
+    TypeUuidProvider,
 )]
+#[type_uuid(id = "57c125ff-e408-4318-9874-f59485e95764")]
 #[repr(u32)]
 pub enum Mobility {
     /// Transform cannot be changed.
@@ -135,6 +150,7 @@ pub enum Mobility {
     ///
     /// Static lights will be baked in lightmap. They lit only static geometry!
     /// Specular lighting is not supported.
+    #[default]
     Static = 0,
 
     /// Transform cannot be changed, but other node-dependent properties are changeable.
@@ -162,26 +178,11 @@ pub enum Mobility {
     Dynamic = 2,
 }
 
-uuid_provider!(Mobility = "57c125ff-e408-4318-9874-f59485e95764");
-
-impl Visit for Mobility {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        let mut id = *self as u32;
-        id.visit(name, visitor)?;
-        if visitor.is_reading() {
-            *self = match id {
-                0 => Self::Static,
-                1 => Self::Stationary,
-                2 => Self::Dynamic,
-                _ => return Err(VisitError::User(format!("Invalid mobility id {}!", id))),
-            };
-        }
-        Ok(())
-    }
-}
-
 /// A property value.
-#[derive(Debug, Visit, Reflect, PartialEq, Clone, AsRefStr, EnumString, VariantNames)]
+#[derive(
+    Debug, Visit, Reflect, PartialEq, Clone, AsRefStr, EnumString, VariantNames, TypeUuidProvider,
+)]
+#[type_uuid(id = "cce94b60-a57e-48ba-b6f4-e5e84788f7f8")]
 pub enum PropertyValue {
     /// A node handle.
     ///
@@ -221,8 +222,6 @@ pub enum PropertyValue {
     F64(f64),
 }
 
-uuid_provider!(PropertyValue = "cce94b60-a57e-48ba-b6f4-e5e84788f7f8");
-
 impl Default for PropertyValue {
     fn default() -> Self {
         Self::I8(0)
@@ -230,15 +229,14 @@ impl Default for PropertyValue {
 }
 
 /// A custom property.
-#[derive(Debug, Visit, Reflect, Default, Clone, PartialEq)]
+#[derive(Debug, Visit, Reflect, Default, Clone, PartialEq, TypeUuidProvider)]
+#[type_uuid(id = "fc87fd21-a5e6-40d5-a79d-19f96b25d6c9")]
 pub struct Property {
     /// Name of the property.
     pub name: String,
     /// A value of the property.
     pub value: PropertyValue,
 }
-
-uuid_provider!(Property = "fc87fd21-a5e6-40d5-a79d-19f96b25d6c9");
 
 /// A script message from scene node. It is used for deferred initialization/deinitialization.
 pub enum NodeScriptMessage {
@@ -288,7 +286,8 @@ impl Visit for SceneNodeId {
 }
 
 /// A script container record.
-#[derive(Clone, Reflect, Debug, Default)]
+#[derive(Clone, Reflect, Debug, Default, TypeUuidProvider)]
+#[type_uuid(id = "51bc577b-5a50-4a97-9b31-eda2f3d46c9d")]
 pub struct ScriptRecord {
     // Script is wrapped into `Option` to be able to do take-return trick to bypass borrow checker
     // issues.
@@ -316,12 +315,6 @@ impl Deref for ScriptRecord {
 impl DerefMut for ScriptRecord {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.script
-    }
-}
-
-impl TypeUuidProvider for ScriptRecord {
-    fn type_uuid() -> Uuid {
-        uuid::uuid!("51bc577b-5a50-4a97-9b31-eda2f3d46c9d")
     }
 }
 
@@ -614,10 +607,7 @@ impl Base {
             .transform(&self.global_transform())
     }
 
-    /// Set new mobility for the node.
-    ///
-    /// TODO. Mobility still has no effect, it was designed to be used in combined
-    /// rendering (dynamic + static lights (lightmaps))
+    /// Set new mobility for the node. See [`Mobility`] docs for more info.
     #[inline]
     pub fn set_mobility(&mut self, mobility: Mobility) -> Mobility {
         self.mobility.set_value_and_mark_modified(mobility)
@@ -1162,7 +1152,7 @@ impl BaseBuilder {
             lifetime: None,
             depth_offset: 0.0,
             lod_group: None,
-            mobility: Mobility::Dynamic,
+            mobility: Default::default(),
             inv_bind_pose_transform: Matrix4::identity(),
             tag: Default::default(),
             frustum_culling: true,

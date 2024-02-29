@@ -19,7 +19,7 @@ use crate::{
     },
     renderer::{
         apply_material,
-        batch::RenderDataBatchStorage,
+        bundle::RenderDataBundleStorage,
         cache::shader::ShaderCache,
         framework::{
             error::FrameworkError,
@@ -64,7 +64,7 @@ pub(crate) struct GBufferRenderContext<'a, 'b> {
     pub state: &'a PipelineState,
     pub camera: &'b Camera,
     pub geom_cache: &'a mut GeometryCache,
-    pub batch_storage: &'a RenderDataBatchStorage,
+    pub bundle_storage: &'a RenderDataBundleStorage,
     pub texture_cache: &'a mut TextureCache,
     pub shader_cache: &'a mut ShaderCache,
     #[allow(dead_code)]
@@ -270,7 +270,7 @@ impl GBuffer {
             state,
             camera,
             geom_cache,
-            batch_storage,
+            bundle_storage,
             texture_cache,
             shader_cache,
             use_parallax_mapping,
@@ -299,22 +299,22 @@ impl GBuffer {
         let camera_up = inv_view.up();
         let camera_side = inv_view.side();
 
-        for batch in batch_storage
-            .batches
+        for bundle in bundle_storage
+            .bundles
             .iter()
             .filter(|b| b.render_path == RenderPath::Deferred)
         {
-            let mut material_state = batch.material.state();
+            let mut material_state = bundle.material.state();
 
             let Some(material) = material_state.data() else {
                 continue;
             };
 
-            let Some(geometry) = geom_cache.get(state, &batch.data, batch.time_to_live) else {
+            let Some(geometry) = geom_cache.get(state, &bundle.data, bundle.time_to_live) else {
                 continue;
             };
 
-            let blend_shapes_storage = batch
+            let blend_shapes_storage = bundle
                 .data
                 .lock()
                 .blend_shapes_container
@@ -328,7 +328,7 @@ impl GBuffer {
                 continue;
             };
 
-            for instance in batch.instances.iter() {
+            for instance in bundle.instances.iter() {
                 let apply_uniforms = |mut program_binding: GpuProgramBinding| {
                     let view_projection = if instance.depth_offset != 0.0 {
                         let mut projection = camera.projection_matrix();
@@ -347,7 +347,7 @@ impl GBuffer {
                         view_projection_matrix: &view_projection,
                         wvp_matrix: &(view_projection * instance.world_transform),
                         bone_matrices: &instance.bone_matrices,
-                        use_skeletal_animation: batch.is_skinned,
+                        use_skeletal_animation: bundle.is_skinned,
                         camera_position: &camera.global_position(),
                         camera_up_vector: &camera_up,
                         camera_side_vector: &camera_side,

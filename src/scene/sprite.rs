@@ -2,6 +2,7 @@
 //!
 //! For more info see [`Sprite`].
 
+use crate::scene::node::RdcControlFlow;
 use crate::{
     core::{
         algebra::{Vector2, Vector3},
@@ -16,7 +17,7 @@ use crate::{
     },
     material,
     material::{Material, MaterialResource},
-    renderer::{self, batch::RenderContext},
+    renderer::{self, bundle::RenderContext},
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
@@ -30,6 +31,7 @@ use crate::{
         node::{Node, NodeTrait},
     },
 };
+use fyrox_core::value_as_u8_slice;
 use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};
 
@@ -288,41 +290,43 @@ impl NodeTrait for Sprite {
         Self::type_uuid()
     }
 
-    fn collect_render_data(&self, ctx: &mut RenderContext) {
+    fn collect_render_data(&self, ctx: &mut RenderContext) -> RdcControlFlow {
         if !self.global_visibility()
             || !self.is_globally_enabled()
             || !ctx.frustum.is_intersects_aabb(&self.world_bounding_box())
         {
-            return;
+            return RdcControlFlow::Continue;
         }
 
         if renderer::is_shadow_pass(ctx.render_pass_name) || !self.cast_shadows() {
-            return;
+            return RdcControlFlow::Continue;
         }
 
         let position = self.global_position();
         let params = Vector2::new(*self.size, *self.rotation);
 
+        type Vertex = SpriteVertex;
+
         let vertices = [
-            SpriteVertex {
+            Vertex {
                 position,
                 tex_coord: self.uv_rect.right_top_corner(),
                 params,
                 color: *self.color,
             },
-            SpriteVertex {
+            Vertex {
                 position,
                 tex_coord: self.uv_rect.left_top_corner(),
                 params,
                 color: *self.color,
             },
-            SpriteVertex {
+            Vertex {
                 position,
                 tex_coord: self.uv_rect.left_bottom_corner(),
                 params,
                 color: *self.color,
             },
-            SpriteVertex {
+            Vertex {
                 position,
                 tex_coord: self.uv_rect.right_bottom_corner(),
                 params,
@@ -333,15 +337,28 @@ impl NodeTrait for Sprite {
         let triangles = [TriangleDefinition([0, 1, 2]), TriangleDefinition([2, 3, 0])];
 
         ctx.storage.push_triangles(
-            vertices.into_iter(),
-            triangles.into_iter(),
+            Vertex::layout(),
             &self.material,
             RenderPath::Forward,
             0,
             0,
             false,
             self.self_handle,
-        )
+            &mut move |mut vertex_buffer, mut triangle_buffer| {
+                let start_vertex_index = vertex_buffer.vertex_count();
+
+                for vertex in vertices.iter() {
+                    vertex_buffer
+                        .push_vertex_raw(value_as_u8_slice(vertex))
+                        .unwrap();
+                }
+
+                triangle_buffer
+                    .push_triangles_iter_with_offset(start_vertex_index, triangles.into_iter());
+            },
+        );
+
+        RdcControlFlow::Continue
     }
 }
 

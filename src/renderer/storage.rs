@@ -3,7 +3,7 @@
 use crate::{
     core::algebra::Matrix4,
     renderer::{
-        batch::PersistentIdentifier,
+        bundle::PersistentIdentifier,
         framework::{
             error::FrameworkError,
             gpu_texture::{

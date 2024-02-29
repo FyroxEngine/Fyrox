@@ -18,6 +18,7 @@ use crate::{
 use fyrox::gui::font::FontResource;
 use fyrox::gui::UiNode;
 use fyrox::scene::base::ScriptRecord;
+use fyrox::scene::mesh::BatchingMode;
 use fyrox::{
     asset::{manager::ResourceManager, Resource},
     core::{
@@ -457,6 +458,8 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
 
     container.register_inheritable_inspectable::<Limb>();
     container.insert(VecCollectionPropertyEditorDefinition::<Limb>::new());
+
+    container.register_inheritable_enum::<BatchingMode, _>();
 
     container
 }

@@ -1,6 +1,8 @@
 //! Contains all structures and methods to create and manage particle systems. See [`ParticleSystem`] docs for more
 //! info and usage examples.
 
+use crate::scene::mesh::buffer::VertexTrait;
+use crate::scene::node::RdcControlFlow;
 use crate::{
     core::{
         algebra::{Point3, Vector2, Vector3},
@@ -17,7 +19,7 @@ use crate::{
     },
     material::{self, Material, MaterialResource, PropertyValue},
     rand::{prelude::StdRng, Error, RngCore, SeedableRng},
-    renderer::{self, batch::RenderContext},
+    renderer::{self, bundle::RenderContext},
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
@@ -30,6 +32,7 @@ use crate::{
         },
     },
 };
+use fyrox_core::value_as_u8_slice;
 use fyrox_graph::BaseSceneGraph;
 use std::{
     cmp::Ordering,
@@ -461,16 +464,16 @@ impl NodeTrait for ParticleSystem {
         }
     }
 
-    fn collect_render_data(&self, ctx: &mut RenderContext) {
+    fn collect_render_data(&self, ctx: &mut RenderContext) -> RdcControlFlow {
         if !self.global_visibility()
             || !self.is_globally_enabled()
             || !ctx.frustum.is_intersects_aabb(&self.world_bounding_box())
         {
-            return;
+            return RdcControlFlow::Continue;
         }
 
         if renderer::is_shadow_pass(ctx.render_pass_name) && !self.cast_shadows() {
-            return;
+            return RdcControlFlow::Continue;
         }
 
         let mut sorted_particles = Vec::new();
@@ -502,64 +505,76 @@ impl NodeTrait for ParticleSystem {
 
         let global_transform = self.global_transform();
 
-        let vertices = sorted_particles.iter().flat_map(|particle_index| {
-            let particle = self.particles.get(*particle_index as usize).unwrap();
-
-            let position = global_transform
-                .transform_point(&Point3::from(particle.position))
-                .coords;
-
-            [
-                Vertex {
-                    position,
-                    tex_coord: Vector2::default(),
-                    size: particle.size,
-                    rotation: particle.rotation,
-                    color: particle.color,
-                },
-                Vertex {
-                    position,
-                    tex_coord: Vector2::new(1.0, 0.0),
-                    size: particle.size,
-                    rotation: particle.rotation,
-                    color: particle.color,
-                },
-                Vertex {
-                    position,
-                    tex_coord: Vector2::new(1.0, 1.0),
-                    size: particle.size,
-                    rotation: particle.rotation,
-                    color: particle.color,
-                },
-                Vertex {
-                    position,
-                    tex_coord: Vector2::new(0.0, 1.0),
-                    size: particle.size,
-                    rotation: particle.rotation,
-                    color: particle.color,
-                },
-            ]
-        });
-
-        let triangles = (0..sorted_particles.len()).flat_map(|i| {
-            let base_index = (i * 4) as u32;
-
-            [
-                TriangleDefinition([base_index, base_index + 1, base_index + 2]),
-                TriangleDefinition([base_index, base_index + 2, base_index + 3]),
-            ]
-        });
-
         ctx.storage.push_triangles(
-            vertices,
-            triangles,
+            Vertex::layout(),
             &self.material,
             RenderPath::Forward,
             0,
             0,
             false,
             self.self_handle,
-        )
+            &mut move |mut vertex_buffer, mut triangle_buffer| {
+                let vertices = sorted_particles.iter().flat_map(move |particle_index| {
+                    let particle = self.particles.get(*particle_index as usize).unwrap();
+
+                    let position = global_transform
+                        .transform_point(&Point3::from(particle.position))
+                        .coords;
+
+                    [
+                        Vertex {
+                            position,
+                            tex_coord: Vector2::default(),
+                            size: particle.size,
+                            rotation: particle.rotation,
+                            color: particle.color,
+                        },
+                        Vertex {
+                            position,
+                            tex_coord: Vector2::new(1.0, 0.0),
+                            size: particle.size,
+                            rotation: particle.rotation,
+                            color: particle.color,
+                        },
+                        Vertex {
+                            position,
+                            tex_coord: Vector2::new(1.0, 1.0),
+                            size: particle.size,
+                            rotation: particle.rotation,
+                            color: particle.color,
+                        },
+                        Vertex {
+                            position,
+                            tex_coord: Vector2::new(0.0, 1.0),
+                            size: particle.size,
+                            rotation: particle.rotation,
+                            color: particle.color,
+                        },
+                    ]
+                });
+
+                let triangles = (0..sorted_particles.len()).flat_map(|i| {
+                    let base_index = (i * 4) as u32;
+
+                    [
+                        TriangleDefinition([base_index, base_index + 1, base_index + 2]),
+                        TriangleDefinition([base_index, base_index + 2, base_index + 3]),
+                    ]
+                });
+
+                let start_vertex_index = vertex_buffer.vertex_count();
+
+                for vertex in vertices {
+                    vertex_buffer
+                        .push_vertex_raw(value_as_u8_slice(&vertex))
+                        .unwrap();
+                }
+
+                triangle_buffer.push_triangles_iter_with_offset(start_vertex_index, triangles)
+            },
+        );
+
+        RdcControlFlow::Continue
     }
 }
 

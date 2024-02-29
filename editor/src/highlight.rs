@@ -10,7 +10,7 @@ use fyrox::{
     fxhash::FxHashSet,
     renderer::{
         apply_material,
-        batch::{RenderContext, RenderDataBatchStorage},
+        bundle::{RenderContext, RenderDataBundleStorage},
         framework::{
             error::FrameworkError,
             framebuffer::{
@@ -191,7 +191,7 @@ impl SceneRenderPass for HighlightRenderPass {
         {
             let render_pass_name = ImmutableString::new("Forward");
 
-            let mut render_batch_storage = RenderDataBatchStorage::default();
+            let mut render_bundle_storage = RenderDataBundleStorage::default();
 
             let mut render_context = RenderContext {
                 observer_position: &ctx.camera.global_position(),
@@ -200,7 +200,7 @@ impl SceneRenderPass for HighlightRenderPass {
                 view_matrix: &ctx.camera.view_matrix(),
                 projection_matrix: &ctx.camera.projection_matrix(),
                 frustum: &ctx.camera.frustum(),
-                storage: &mut render_batch_storage,
+                storage: &mut render_bundle_storage,
                 graph: &ctx.scene.graph,
                 render_pass_name: &render_pass_name,
             };
@@ -215,7 +215,7 @@ impl SceneRenderPass for HighlightRenderPass {
                 }
             }
 
-            render_batch_storage.sort();
+            render_bundle_storage.sort();
 
             self.framebuffer.clear(
                 ctx.pipeline_state,
@@ -231,8 +231,8 @@ impl SceneRenderPass for HighlightRenderPass {
             let camera_up = inv_view.up();
             let camera_side = inv_view.side();
 
-            for batch in render_batch_storage.batches.iter() {
-                let mut material_state = batch.material.state();
+            for bundle in render_bundle_storage.bundles.iter() {
+                let mut material_state = bundle.material.state();
 
                 let Some(material) = material_state.data() else {
                     continue;
@@ -240,12 +240,12 @@ impl SceneRenderPass for HighlightRenderPass {
 
                 let Some(geometry) =
                     ctx.geometry_cache
-                        .get(ctx.pipeline_state, &batch.data, batch.time_to_live)
+                        .get(ctx.pipeline_state, &bundle.data, bundle.time_to_live)
                 else {
                     continue;
                 };
 
-                let blend_shapes_storage = batch
+                let blend_shapes_storage = bundle
                     .data
                     .lock()
                     .blend_shapes_container
@@ -260,7 +260,7 @@ impl SceneRenderPass for HighlightRenderPass {
                     continue;
                 };
 
-                for instance in batch.instances.iter() {
+                for instance in bundle.instances.iter() {
                     let view_projection = if instance.depth_offset != 0.0 {
                         let mut projection = ctx.camera.projection_matrix();
                         projection[14] -= instance.depth_offset;
@@ -285,7 +285,7 @@ impl SceneRenderPass for HighlightRenderPass {
                                 view_projection_matrix: &view_projection,
                                 wvp_matrix: &(view_projection * instance.world_transform),
                                 bone_matrices: &instance.bone_matrices,
-                                use_skeletal_animation: batch.is_skinned,
+                                use_skeletal_animation: bundle.is_skinned,
                                 camera_position: &ctx.camera.global_position(),
                                 camera_up_vector: &camera_up,
                                 camera_side_vector: &camera_side,

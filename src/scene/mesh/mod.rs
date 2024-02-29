@@ -5,19 +5,23 @@ use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector3, Vector4},
         color::Color,
+        log::Log,
         math::aabb::AxisAlignedBoundingBox,
+        parking_lot::Mutex,
         pool::Handle,
         reflect::prelude::*,
-        uuid::{uuid, Uuid},
-        uuid_provider,
+        type_traits::prelude::*,
         variable::InheritableVariable,
         visitor::prelude::*,
         TypeUuidProvider,
     },
-    graph::BaseSceneGraph,
+    graph::{BaseSceneGraph, SceneGraph},
+    material::MaterialResource,
     renderer::{
         self,
-        batch::{PersistentIdentifier, RenderContext, SurfaceInstanceData},
+        bundle::{
+            PersistentIdentifier, RenderContext, RenderDataBundleStorageTrait, SurfaceInstanceData,
+        },
         framework::geometry_buffer::ElementRange,
     },
     scene::{
@@ -25,14 +29,20 @@ use crate::{
         debug::{Line, SceneDrawingContext},
         graph::Graph,
         mesh::{
-            buffer::{VertexAttributeUsage, VertexReadTrait, VertexViewMut, VertexWriteTrait},
-            surface::{BlendShape, Surface},
+            buffer::{
+                TriangleBuffer, TriangleBufferRefMut, VertexAttributeDescriptor,
+                VertexAttributeUsage, VertexBufferRefMut, VertexReadTrait, VertexViewMut,
+                VertexWriteTrait,
+            },
+            surface::{BlendShape, Surface, SurfaceData, SurfaceSharedData},
         },
-        node::{Node, NodeTrait, UpdateContext},
+        node::{Node, NodeTrait, RdcControlFlow, UpdateContext},
     },
 };
+use fxhash::{FxHashMap, FxHasher};
 use std::{
     cell::Cell,
+    hash::{Hash, Hasher},
     ops::{Deref, DerefMut},
 };
 use strum_macros::{AsRefStr, EnumString, VariantNames};
@@ -43,6 +53,7 @@ pub mod vertex;
 
 /// Defines a path that should be used to render a mesh.
 #[derive(
+    Default,
     Copy,
     Clone,
     PartialOrd,
@@ -56,11 +67,14 @@ pub mod vertex;
     AsRefStr,
     EnumString,
     VariantNames,
+    TypeUuidProvider,
 )]
+#[type_uuid(id = "009bccb6-42e4-4dc6-bb26-6a8a70b3fab9")]
 #[repr(u32)]
 pub enum RenderPath {
     /// Deferred rendering has much better performance than Forward, but it does not support transparent
     /// objects and there is no way to change blending. Deferred rendering is default rendering path.
+    #[default]
     Deferred = 0,
 
     /// Forward rendering path supports translucency and custom blending. However current support
@@ -68,22 +82,138 @@ pub enum RenderPath {
     Forward = 1,
 }
 
-uuid_provider!(RenderPath = "009bccb6-42e4-4dc6-bb26-6a8a70b3fab9");
-
-impl Default for RenderPath {
-    fn default() -> Self {
-        Self::Deferred
+fn transform_vertex(mut vertex: VertexViewMut, world: &Matrix4<f32>) {
+    if let Ok(position) = vertex.cast_attribute::<Vector3<f32>>(VertexAttributeUsage::Position) {
+        *position = world.transform_point(&(*position).into()).coords;
+    }
+    if let Ok(normal) = vertex.cast_attribute::<Vector3<f32>>(VertexAttributeUsage::Normal) {
+        *normal = world.transform_vector(normal);
+    }
+    if let Ok(tangent) = vertex.cast_attribute::<Vector4<f32>>(VertexAttributeUsage::Tangent) {
+        let new_tangent = world.transform_vector(&tangent.xyz());
+        *tangent = Vector4::new(
+            new_tangent.x,
+            new_tangent.y,
+            new_tangent.z,
+            // Keep handedness.
+            tangent.w,
+        );
     }
 }
 
-impl RenderPath {
-    /// Creates render path instance from its id.
-    pub fn from_id(id: u32) -> Result<Self, String> {
-        match id {
-            0 => Ok(Self::Deferred),
-            1 => Ok(Self::Forward),
-            _ => Err(format!("Invalid render path id {}!", id)),
+/// Batching mode defines how the mesh data will be grouped before rendering.
+#[derive(
+    Default,
+    Copy,
+    Clone,
+    PartialOrd,
+    PartialEq,
+    Eq,
+    Ord,
+    Hash,
+    Debug,
+    Visit,
+    Reflect,
+    AsRefStr,
+    EnumString,
+    VariantNames,
+    TypeUuidProvider,
+)]
+#[type_uuid(id = "745e6f32-63f5-46fe-8edb-9708699ae328")]
+#[repr(u32)]
+pub enum BatchingMode {
+    /// No batching. The mesh will be drawn in a separate draw call.
+    #[default]
+    None,
+    /// Static batching. Render data of all **descendant** nodes will be baked into a static buffer
+    /// and it will be drawn. This mode "bakes" world transform of a node into vertices, thus making
+    /// them immovable.
+    Static,
+    /// Dynamic batching. Render data of the mesh will be merged with the same meshes dynamically on
+    /// each frame, thus allowing the meshes to be movable. This could be slow if used incorrectly!
+    Dynamic,
+}
+
+#[derive(Debug, Clone)]
+struct Batch {
+    data: SurfaceSharedData,
+    material: MaterialResource,
+}
+
+#[derive(Debug, Default, Clone)]
+struct BatchContainer {
+    batches: FxHashMap<u64, Batch>,
+}
+
+#[derive(Debug, Default)]
+struct BatchContainerWrapper(Mutex<BatchContainer>);
+
+impl Clone for BatchContainerWrapper {
+    fn clone(&self) -> Self {
+        Self(Mutex::new(self.0.lock().clone()))
+    }
+}
+
+impl RenderDataBundleStorageTrait for BatchContainer {
+    fn push_triangles(
+        &mut self,
+        _layout: &[VertexAttributeDescriptor],
+        _material: &MaterialResource,
+        _render_path: RenderPath,
+        _decal_layer_index: u8,
+        _sort_index: u64,
+        _is_skinned: bool,
+        _node_handle: Handle<Node>,
+        _func: &mut dyn FnMut(VertexBufferRefMut, TriangleBufferRefMut),
+    ) {
+        Log::err("Implement me!");
+    }
+
+    fn push(
+        &mut self,
+        data: &SurfaceSharedData,
+        material: &MaterialResource,
+        render_path: RenderPath,
+        decal_layer_index: u8,
+        _sort_index: u64,
+        instance_data: SurfaceInstanceData,
+    ) {
+        let src_data = data.lock();
+
+        let mut hasher = FxHasher::default();
+        src_data.vertex_buffer.layout().hash(&mut hasher);
+        hasher.write_u64(material.key() as u64);
+        hasher.write_u64(data.key());
+        hasher.write_u8(decal_layer_index);
+        hasher.write_u32(render_path as u32);
+        let batch_hash = hasher.finish();
+
+        let batch = self.batches.entry(batch_hash).or_insert_with(|| Batch {
+            data: SurfaceSharedData::new(SurfaceData::new(
+                src_data.vertex_buffer.clone_empty(4096),
+                TriangleBuffer::new(Vec::with_capacity(4096)),
+                false,
+            )),
+            material: material.clone(),
+        });
+
+        let mut batch_data_guard = batch.data.lock();
+        let batch_data = &mut *batch_data_guard;
+        let start_vertex_index = batch_data.vertex_buffer.vertex_count();
+        let mut batch_vertex_buffer = batch_data.vertex_buffer.modify();
+        for src_vertex in src_data.vertex_buffer.iter() {
+            batch_vertex_buffer
+                .push_vertex_raw(&src_vertex.transform(&mut |vertex| {
+                    transform_vertex(vertex, &instance_data.world_transform)
+                }))
+                .expect("Vertex size must match!");
         }
+
+        let mut batch_geometry_buffer = batch_data.geometry_buffer.modify();
+        batch_geometry_buffer.push_triangles_with_offset(
+            start_vertex_index,
+            src_data.geometry_buffer.triangles_ref(),
+        );
     }
 }
 
@@ -140,11 +270,12 @@ pub struct Mesh {
 
     #[visit(optional)]
     #[reflect(
+        setter = "set_batching_mode",
         description = "Enable or disable dynamic batching. It could be useful to reduce amount \
     of draw calls per frame if you have lots of meshes with small vertex count. Does not work with \
     meshes, that have skin or blend shapes. Such meshes will be drawn in a separate draw call."
     )]
-    use_dynamic_batching: InheritableVariable<bool>,
+    batching_mode: InheritableVariable<BatchingMode>,
 
     #[visit(optional)]
     blend_shapes: InheritableVariable<Vec<BlendShape>>,
@@ -160,6 +291,10 @@ pub struct Mesh {
     #[reflect(hidden)]
     #[visit(skip)]
     world_bounding_box: Cell<AxisAlignedBoundingBox>,
+
+    #[reflect(hidden)]
+    #[visit(skip)]
+    batch_container: BatchContainerWrapper,
 }
 
 impl Default for Mesh {
@@ -172,8 +307,9 @@ impl Default for Mesh {
             local_bounding_box_dirty: Cell::new(true),
             render_path: InheritableVariable::new_modified(RenderPath::Deferred),
             decal_layer_index: InheritableVariable::new_modified(0),
-            use_dynamic_batching: Default::default(),
+            batching_mode: Default::default(),
             blend_shapes: Default::default(),
+            batch_container: Default::default(),
         }
     }
 }
@@ -326,14 +462,18 @@ impl Mesh {
     /// Enable or disable dynamic batching. It could be useful to reduce amount of draw calls per
     /// frame if you have lots of meshes with small vertex count. Does not work with meshes, that
     /// have skin or blend shapes. Such meshes will be drawn in a separate draw call.
-    pub fn set_dynamic_batching_enabled(&mut self, enabled: bool) {
-        self.use_dynamic_batching
-            .set_value_and_mark_modified(enabled);
+    pub fn set_batching_mode(&mut self, mode: BatchingMode) -> BatchingMode {
+        if let BatchingMode::None | BatchingMode::Dynamic = mode {
+            // Destroy batched data.
+            std::mem::take(&mut self.batch_container);
+        }
+
+        self.batching_mode.set_value_and_mark_modified(mode)
     }
 
     /// Returns `true` if the dynamic batching is enabled, `false` otherwise.
-    pub fn is_dynamic_batching_enabled(&mut self) -> bool {
-        *self.use_dynamic_batching
+    pub fn batching_mode(&self) -> BatchingMode {
+        *self.batching_mode
     }
 }
 
@@ -393,101 +533,58 @@ impl NodeTrait for Mesh {
         }
     }
 
-    fn collect_render_data(&self, ctx: &mut RenderContext) {
+    fn collect_render_data(&self, ctx: &mut RenderContext) -> RdcControlFlow {
         if !self.global_visibility()
             || !self.is_globally_enabled()
             || !ctx.frustum.is_intersects_aabb(&self.world_bounding_box())
         {
-            return;
+            return RdcControlFlow::Continue;
         }
 
         if renderer::is_shadow_pass(ctx.render_pass_name) && !self.cast_shadows() {
-            return;
+            return RdcControlFlow::Continue;
         }
 
-        for (index, surface) in self.surfaces().iter().enumerate() {
-            let is_skinned = !surface.bones.is_empty();
+        if let BatchingMode::Static = *self.batching_mode {
+            let mut container = self.batch_container.0.lock();
 
-            let world = if is_skinned {
-                Matrix4::identity()
-            } else {
-                self.global_transform()
-            };
-
-            let surface_data = surface.data_ref();
-            let surface_data_guard = surface_data.lock();
-
-            if *self.use_dynamic_batching
-                && self.blend_shapes().is_empty()
-                && surface.bones().is_empty()
-                && surface_data_guard.vertex_buffer.vertex_count() < 256
-            {
-                let vertex_transformer = |mut vertex: VertexViewMut| {
-                    if let Ok(position) =
-                        vertex.cast_attribute::<Vector3<f32>>(VertexAttributeUsage::Position)
-                    {
-                        *position = world.transform_point(&(*position).into()).coords;
+            if container.batches.is_empty() {
+                for descendant_handle in ctx.graph.traverse_handle_iter(self.self_handle) {
+                    if descendant_handle == self.self_handle {
+                        continue;
                     }
-                    if let Ok(normal) =
-                        vertex.cast_attribute::<Vector3<f32>>(VertexAttributeUsage::Normal)
-                    {
-                        *normal = world.transform_vector(normal);
-                    }
-                    if let Ok(tangent) =
-                        vertex.cast_attribute::<Vector4<f32>>(VertexAttributeUsage::Tangent)
-                    {
-                        let new_tangent = world.transform_vector(&tangent.xyz());
-                        *tangent = Vector4::new(
-                            new_tangent.x,
-                            new_tangent.y,
-                            new_tangent.z,
-                            // Keep handedness.
-                            tangent.w,
-                        );
-                    }
-                };
 
-                ctx.storage.transfer_triangles(
-                    &surface_data_guard.vertex_buffer,
-                    vertex_transformer,
-                    surface_data_guard.geometry_buffer.triangles_ref(),
-                    surface.material(),
-                    *self.render_path,
-                    self.decal_layer_index(),
-                    0,
-                    false,
-                    self.self_handle,
-                );
-            } else {
+                    let descendant = &ctx.graph[descendant_handle];
+                    // TODO: Use control flow here?
+                    descendant.collect_render_data(&mut RenderContext {
+                        observer_position: ctx.observer_position,
+                        z_near: ctx.z_near,
+                        z_far: ctx.z_far,
+                        view_matrix: ctx.view_matrix,
+                        projection_matrix: ctx.projection_matrix,
+                        frustum: ctx.frustum,
+                        storage: &mut *container,
+                        graph: ctx.graph,
+                        render_pass_name: ctx.render_pass_name,
+                    });
+                }
+            }
+
+            for (index, batch) in container.batches.values().enumerate() {
                 ctx.storage.push(
-                    surface_data,
-                    surface.material(),
+                    &batch.data,
+                    &batch.material,
                     self.render_path(),
                     self.decal_layer_index(),
-                    surface.material().key() as u64,
+                    batch.material.key() as u64,
                     SurfaceInstanceData {
-                        world_transform: world,
-                        bone_matrices: surface
-                            .bones
-                            .iter()
-                            .map(|bone_handle| {
-                                if let Some(bone_node) = ctx.graph.try_get(*bone_handle) {
-                                    bone_node.global_transform()
-                                        * bone_node.inv_bind_pose_transform()
-                                } else {
-                                    Matrix4::identity()
-                                }
-                            })
-                            .collect::<Vec<_>>(),
+                        world_transform: Matrix4::identity(),
+                        bone_matrices: Default::default(),
                         depth_offset: self.depth_offset_factor(),
-                        blend_shapes_weights: self
-                            .blend_shapes()
-                            .iter()
-                            .map(|bs| bs.weight / 100.0)
-                            .collect(),
+                        blend_shapes_weights: Default::default(),
                         element_range: ElementRange::Full,
                         persistent_identifier: PersistentIdentifier::new_combined(
-                            surface_data,
+                            &batch.data,
                             self.self_handle,
                             index,
                         ),
@@ -495,6 +592,109 @@ impl NodeTrait for Mesh {
                     },
                 );
             }
+
+            RdcControlFlow::Break
+        } else {
+            for (index, surface) in self.surfaces().iter().enumerate() {
+                let is_skinned = !surface.bones.is_empty();
+
+                let world = if is_skinned {
+                    Matrix4::identity()
+                } else {
+                    self.global_transform()
+                };
+
+                let batching_mode = match *self.batching_mode {
+                    BatchingMode::None => BatchingMode::None,
+                    BatchingMode::Static => BatchingMode::Static,
+                    BatchingMode::Dynamic => {
+                        let surface_data_guard = surface.data_ref().lock();
+                        if self.blend_shapes().is_empty()
+                            && surface.bones().is_empty()
+                            && surface_data_guard.vertex_buffer.vertex_count() < 256
+                        {
+                            BatchingMode::Dynamic
+                        } else {
+                            BatchingMode::None
+                        }
+                    }
+                };
+
+                match batching_mode {
+                    BatchingMode::None => {
+                        ctx.storage.push(
+                            surface.data_ref(),
+                            surface.material(),
+                            self.render_path(),
+                            self.decal_layer_index(),
+                            surface.material().key() as u64,
+                            SurfaceInstanceData {
+                                world_transform: world,
+                                bone_matrices: surface
+                                    .bones
+                                    .iter()
+                                    .map(|bone_handle| {
+                                        if let Some(bone_node) = ctx.graph.try_get(*bone_handle) {
+                                            bone_node.global_transform()
+                                                * bone_node.inv_bind_pose_transform()
+                                        } else {
+                                            Matrix4::identity()
+                                        }
+                                    })
+                                    .collect::<Vec<_>>(),
+                                depth_offset: self.depth_offset_factor(),
+                                blend_shapes_weights: self
+                                    .blend_shapes()
+                                    .iter()
+                                    .map(|bs| bs.weight / 100.0)
+                                    .collect(),
+                                element_range: ElementRange::Full,
+                                persistent_identifier: PersistentIdentifier::new_combined(
+                                    surface.data_ref(),
+                                    self.self_handle,
+                                    index,
+                                ),
+                                node_handle: self.self_handle,
+                            },
+                        );
+                    }
+                    BatchingMode::Dynamic => {
+                        let surface_data_guard = surface.data_ref().lock();
+
+                        ctx.storage.push_triangles(
+                            &surface_data_guard
+                                .vertex_buffer
+                                .layout_descriptor()
+                                .collect::<Vec<_>>(),
+                            surface.material(),
+                            *self.render_path,
+                            self.decal_layer_index(),
+                            0,
+                            false,
+                            self.self_handle,
+                            &mut move |mut vertex_buffer, mut triangle_buffer| {
+                                let start_vertex_index = vertex_buffer.vertex_count();
+
+                                for vertex in surface_data_guard.vertex_buffer.iter() {
+                                    vertex_buffer
+                                        .push_vertex_raw(&vertex.transform(&mut |vertex| {
+                                            transform_vertex(vertex, &world)
+                                        }))
+                                        .unwrap();
+                                }
+
+                                triangle_buffer.push_triangles_with_offset(
+                                    start_vertex_index,
+                                    surface_data_guard.geometry_buffer.triangles_ref(),
+                                )
+                            },
+                        );
+                    }
+                    _ => (),
+                }
+            }
+
+            RdcControlFlow::Continue
         }
     }
 
@@ -559,7 +759,7 @@ pub struct MeshBuilder {
     render_path: RenderPath,
     decal_layer_index: u8,
     blend_shapes: Vec<BlendShape>,
-    use_dynamic_batching: bool,
+    batching_mode: BatchingMode,
 }
 
 impl MeshBuilder {
@@ -571,7 +771,7 @@ impl MeshBuilder {
             render_path: RenderPath::Deferred,
             decal_layer_index: 0,
             blend_shapes: Default::default(),
-            use_dynamic_batching: false,
+            batching_mode: BatchingMode::None,
         }
     }
 
@@ -601,11 +801,9 @@ impl MeshBuilder {
         self
     }
 
-    /// Enable or disable dynamic batching. It could be useful to reduce amount of draw calls per
-    /// frame if you have lots of meshes with small vertex count. Does not work with meshes, that
-    /// have skin or blend shapes. Such meshes will be drawn in a separate draw call.
-    pub fn with_use_dynamic_batching(mut self, use_dynamic_batching: bool) -> Self {
-        self.use_dynamic_batching = use_dynamic_batching;
+    /// Sets the desired batching mode. See [`BatchingMode`] docs for more info.
+    pub fn with_batching_mode(mut self, mode: BatchingMode) -> Self {
+        self.batching_mode = mode;
         self
     }
 
@@ -620,7 +818,8 @@ impl MeshBuilder {
             render_path: self.render_path.into(),
             decal_layer_index: self.decal_layer_index.into(),
             world_bounding_box: Default::default(),
-            use_dynamic_batching: self.use_dynamic_batching.into(),
+            batching_mode: self.batching_mode.into(),
+            batch_container: Default::default(),
         })
     }
 

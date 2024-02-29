@@ -18,7 +18,7 @@ use crate::{
         visitor::{Visit, VisitResult, Visitor},
     },
     graph::SceneGraphNode,
-    renderer::batch::RenderContext,
+    renderer::bundle::RenderContext,
     resource::model::ModelResource,
     scene::{
         self,
@@ -151,6 +151,15 @@ macro_rules! impl_query_component {
     };
 }
 
+/// An enumeration, that contains all possible render data collection strategies.
+#[derive(Copy, Clone, Hash, Eq, PartialEq)]
+pub enum RdcControlFlow {
+    /// Continue collecting render data of descendant nodes.
+    Continue,
+    /// Breaks further render data collection of descendant nodes.
+    Break,
+}
+
 /// A main trait for any scene graph node.
 pub trait NodeTrait: BaseNodeTrait + Reflect + Visit {
     /// Allows a node to provide access to inner components.
@@ -213,7 +222,12 @@ pub trait NodeTrait: BaseNodeTrait + Reflect + Visit {
     /// Allows the node to emit a set of render data. This is a high-level rendering method which can only
     /// do culling and provide render data. Render data is just a surface (vertex + index buffers) and a
     /// material.
-    fn collect_render_data(&self, #[allow(unused_variables)] ctx: &mut RenderContext) {}
+    fn collect_render_data(
+        &self,
+        #[allow(unused_variables)] ctx: &mut RenderContext,
+    ) -> RdcControlFlow {
+        RdcControlFlow::Continue
+    }
 
     /// Allows the node to draw simple shapes to visualize internal data structures for debugging purposes.
     fn debug_draw(&self, #[allow(unused_variables)] ctx: &mut SceneDrawingContext) {}

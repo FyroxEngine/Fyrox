@@ -13,7 +13,7 @@
 #[allow(unsafe_code)]
 pub mod framework;
 
-pub mod batch;
+pub mod bundle;
 pub mod cache;
 pub mod debug_renderer;
 pub mod storage;
@@ -54,8 +54,8 @@ use crate::{
         Material, PropertyValue,
     },
     renderer::{
-        batch::{ObserverInfo, PersistentIdentifier, RenderDataBatchStorage},
         bloom::BloomRenderer,
+        bundle::{ObserverInfo, PersistentIdentifier, RenderDataBundleStorage},
         cache::{geometry::GeometryCache, shader::ShaderCache, texture::TextureCache},
         debug_renderer::DebugRenderer,
         flat_shader::FlatShader,
@@ -810,7 +810,7 @@ pub struct SceneRenderPassContext<'a, 'b> {
     pub shader_cache: &'a mut ShaderCache,
 
     /// A storage that contains "pre-compiled" groups of render data (batches).
-    pub batch_storage: &'a RenderDataBatchStorage,
+    pub bundle_storage: &'a RenderDataBundleStorage,
 
     /// Current quality settings of the renderer.
     pub quality_settings: &'a QualitySettings,
@@ -1696,7 +1696,7 @@ impl Renderer {
             {
                 let viewport = camera.viewport_pixels(frame_size);
 
-                let batch_storage = RenderDataBatchStorage::from_graph(
+                let bundle_storage = RenderDataBundleStorage::from_graph(
                     graph,
                     ObserverInfo {
                         observer_position: camera.global_position(),
@@ -1717,7 +1717,7 @@ impl Renderer {
                     state,
                     camera,
                     geom_cache: &mut self.geometry_cache,
-                    batch_storage: &batch_storage,
+                    bundle_storage: &bundle_storage,
                     texture_cache: &mut self.texture_cache,
                     shader_cache: &mut self.shader_cache,
                     environment_dummy: self.environment_dummy.clone(),
@@ -1779,7 +1779,7 @@ impl Renderer {
                     geom_cache: &mut self.geometry_cache,
                     texture_cache: &mut self.texture_cache,
                     shader_cache: &mut self.shader_cache,
-                    batch_storage: &batch_storage,
+                    bundle_storage: &bundle_storage,
                     framebuffer: &mut scene_associated_data.hdr_scene_framebuffer,
                     viewport,
                     quality_settings: &self.quality_settings,
@@ -1802,7 +1802,7 @@ impl Renderer {
                                 geometry_cache: &mut self.geometry_cache,
                                 shader_cache: &mut self.shader_cache,
                                 quality_settings: &self.quality_settings,
-                                batch_storage: &batch_storage,
+                                bundle_storage: &bundle_storage,
                                 viewport,
                                 scene,
                                 camera,
@@ -1886,7 +1886,7 @@ impl Renderer {
                                 geometry_cache: &mut self.geometry_cache,
                                 shader_cache: &mut self.shader_cache,
                                 quality_settings: &self.quality_settings,
-                                batch_storage: &batch_storage,
+                                bundle_storage: &bundle_storage,
                                 viewport,
                                 scene,
                                 camera,

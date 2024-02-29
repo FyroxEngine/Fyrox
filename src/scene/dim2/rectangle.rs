@@ -3,6 +3,7 @@
 //!
 //! See [`Rectangle`] docs for more info.
 
+use crate::scene::node::RdcControlFlow;
 use crate::{
     core::{
         algebra::{Point3, Vector2, Vector3},
@@ -16,7 +17,7 @@ use crate::{
         TypeUuidProvider,
     },
     material::{self, Material, MaterialResource},
-    renderer::{self, batch::RenderContext},
+    renderer::{self, bundle::RenderContext},
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
@@ -27,6 +28,7 @@ use crate::{
         node::{Node, NodeTrait},
     },
 };
+use fyrox_core::value_as_u8_slice;
 use fyrox_graph::BaseSceneGraph;
 use std::{
     hash::{Hash, Hasher},
@@ -277,43 +279,45 @@ impl NodeTrait for Rectangle {
         Self::type_uuid()
     }
 
-    fn collect_render_data(&self, ctx: &mut RenderContext) {
+    fn collect_render_data(&self, ctx: &mut RenderContext) -> RdcControlFlow {
         if !self.global_visibility()
             || !self.is_globally_enabled()
             || !ctx.frustum.is_intersects_aabb(&self.world_bounding_box())
         {
-            return;
+            return RdcControlFlow::Continue;
         }
 
         if renderer::is_shadow_pass(ctx.render_pass_name) {
-            return;
+            return RdcControlFlow::Continue;
         }
 
         let global_transform = self.global_transform();
 
+        type Vertex = RectangleVertex;
+
         let vertices = [
-            RectangleVertex {
+            Vertex {
                 position: global_transform
                     .transform_point(&Point3::new(-0.5, 0.5, 0.0))
                     .coords,
                 tex_coord: self.uv_rect.right_top_corner(),
                 color: *self.color,
             },
-            RectangleVertex {
+            Vertex {
                 position: global_transform
                     .transform_point(&Point3::new(0.5, 0.5, 0.0))
                     .coords,
                 tex_coord: self.uv_rect.left_top_corner(),
                 color: *self.color,
             },
-            RectangleVertex {
+            Vertex {
                 position: global_transform
                     .transform_point(&Point3::new(0.5, -0.5, 0.0))
                     .coords,
                 tex_coord: self.uv_rect.left_bottom_corner(),
                 color: *self.color,
             },
-            RectangleVertex {
+            Vertex {
                 position: global_transform
                     .transform_point(&Point3::new(-0.5, -0.5, 0.0))
                     .coords,
@@ -325,15 +329,28 @@ impl NodeTrait for Rectangle {
         let triangles = [TriangleDefinition([0, 1, 2]), TriangleDefinition([2, 3, 0])];
 
         ctx.storage.push_triangles(
-            vertices.into_iter(),
-            triangles.into_iter(),
+            Vertex::layout(),
             &self.material,
             RenderPath::Forward,
             0,
             0,
             false,
             self.self_handle,
-        )
+            &mut move |mut vertex_buffer, mut triangle_buffer| {
+                let start_vertex_index = vertex_buffer.vertex_count();
+
+                for vertex in vertices.iter() {
+                    vertex_buffer
+                        .push_vertex_raw(value_as_u8_slice(vertex))
+                        .unwrap();
+                }
+
+                triangle_buffer
+                    .push_triangles_iter_with_offset(start_vertex_index, triangles.into_iter());
+            },
+        );
+
+        RdcControlFlow::Continue
     }
 }
 
