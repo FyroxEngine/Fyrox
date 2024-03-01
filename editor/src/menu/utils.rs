@@ -1,4 +1,5 @@
 use crate::menu::{create_menu_item, create_root_menu_item, Panels};
+use crate::stats::StatisticsWindow;
 use fyrox::{
     asset::core::pool::Handle,
     gui::{
@@ -16,6 +17,7 @@ pub struct UtilsMenu {
     absm_editor: Handle<UiNode>,
     animation_editor: Handle<UiNode>,
     ragdoll_wizard: Handle<UiNode>,
+    rendering_statistics: Handle<UiNode>,
 }
 
 impl UtilsMenu {
@@ -25,6 +27,7 @@ impl UtilsMenu {
         let absm_editor;
         let animation_editor;
         let ragdoll_wizard;
+        let rendering_statistics;
         let menu = create_root_menu_item(
             "Utils",
             vec![
@@ -48,6 +51,10 @@ impl UtilsMenu {
                     ragdoll_wizard = create_menu_item("Ragdoll Wizard", vec![], ctx);
                     ragdoll_wizard
                 },
+                {
+                    rendering_statistics = create_menu_item("Rendering Statistics", vec![], ctx);
+                    rendering_statistics
+                },
             ],
             ctx,
         );
@@ -59,10 +66,16 @@ impl UtilsMenu {
             absm_editor,
             animation_editor,
             ragdoll_wizard,
+            rendering_statistics,
         }
     }
 
-    pub fn handle_ui_message(&mut self, message: &UiMessage, panels: &Panels, ui: &UserInterface) {
+    pub fn handle_ui_message(
+        &mut self,
+        message: &UiMessage,
+        panels: &mut Panels,
+        ui: &mut UserInterface,
+    ) {
         if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
             if message.destination() == self.open_path_fixer {
                 ui.send_message(WindowMessage::open_modal(
@@ -78,6 +91,11 @@ impl UtilsMenu {
                 panels.animation_editor.open(ui);
             } else if message.destination() == self.ragdoll_wizard {
                 panels.ragdoll_wizard.open(ui);
+            } else if message.destination() == self.rendering_statistics {
+                *panels.statistics_window = Some(StatisticsWindow::new(
+                    &mut ui.build_ctx(),
+                    panels.scene_frame,
+                ))
             }
         }
     }

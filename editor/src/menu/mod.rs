@@ -1,5 +1,6 @@
 use crate::export::ExportWindow;
 use crate::scene::controller::SceneController;
+use crate::stats::StatisticsWindow;
 use crate::{
     animation::AnimationEditor,
     menu::{
@@ -48,6 +49,7 @@ pub struct Menu {
 }
 
 pub struct Panels<'b> {
+    pub scene_frame: Handle<UiNode>,
     pub light_panel: Handle<UiNode>,
     pub log_panel: Handle<UiNode>,
     pub navmesh_panel: Handle<UiNode>,
@@ -64,6 +66,7 @@ pub struct Panels<'b> {
     pub animation_editor: &'b AnimationEditor,
     pub ragdoll_wizard: &'b RagdollWizard,
     pub export_window: &'b mut Option<ExportWindow>,
+    pub statistics_window: &'b mut Option<StatisticsWindow>,
 }
 
 pub struct MenuContext<'a, 'b> {
@@ -190,7 +193,7 @@ impl Menu {
         }
 
         self.utils_menu
-            .handle_ui_message(message, &ctx.panels, &ctx.engine.user_interface);
+            .handle_ui_message(message, &mut ctx.panels, &mut ctx.engine.user_interface);
         self.file_menu.handle_ui_message(
             message,
             &self.message_sender,

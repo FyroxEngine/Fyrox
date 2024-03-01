@@ -36,6 +36,7 @@ pub mod preview;
 pub mod scene;
 pub mod scene_viewer;
 pub mod settings;
+pub mod stats;
 pub mod ui_scene;
 pub mod utils;
 pub mod world;
@@ -87,8 +88,6 @@ use crate::{
     utils::{doc::DocWindow, path_fixer::PathFixer, ragdoll::RagdollWizard},
     world::{graph::menu::SceneNodeContextMenu, graph::EditorSceneWrapper, WorldViewer},
 };
-use fyrox::dpi::LogicalSize;
-use fyrox::graph::BaseSceneGraph;
 use fyrox::{
     asset::{io::FsResourceIo, manager::ResourceManager, untyped::UntypedResource},
     core::{
@@ -104,11 +103,12 @@ use fyrox::{
         watcher::FileSystemWatcher,
         TypeUuidProvider,
     },
-    dpi::PhysicalPosition,
+    dpi::{LogicalSize, PhysicalPosition},
     engine::{Engine, EngineInitParams, GraphicsContextParams, SerializationContext},
     event::{Event, WindowEvent},
     event_loop::{EventLoop, EventLoopWindowTarget},
     fxhash::FxHashMap,
+    graph::BaseSceneGraph,
     gui::{
         brush::Brush,
         button::ButtonBuilder,
@@ -158,6 +158,7 @@ use std::{
 
 use crate::command::Command;
 use crate::export::ExportWindow;
+use crate::stats::{StatisticsWindow, StatisticsWindowAction};
 pub use message::Message;
 
 pub const FIXED_TIMESTEP: f32 = 1.0 / 60.0;
@@ -523,6 +524,7 @@ pub struct Editor {
     pub overlay_pass: Option<Rc<RefCell<OverlayRenderPass>>>,
     pub highlighter: Option<Rc<RefCell<HighlightRenderPass>>>,
     pub export_window: Option<ExportWindow>,
+    pub statistics_window: Option<StatisticsWindow>,
 }
 
 impl Editor {
@@ -854,6 +856,7 @@ impl Editor {
             overlay_pass: None,
             highlighter: None,
             export_window: None,
+            statistics_window: None,
         };
 
         if let Some(data) = startup_data {
@@ -1130,6 +1133,7 @@ impl Editor {
                 engine,
                 game_scene: current_scene_entry,
                 panels: Panels {
+                    scene_frame: self.scene_viewer.frame(),
                     inspector_window: self.inspector.window,
                     world_outliner_window: self.world_viewer.window,
                     asset_window: self.asset_browser.window,
@@ -1146,6 +1150,7 @@ impl Editor {
                     animation_editor: &self.animation_editor,
                     ragdoll_wizard: &self.ragdoll_wizard,
                     export_window: &mut self.export_window,
+                    statistics_window: &mut self.statistics_window,
                 },
                 settings: &mut self.settings,
             },
@@ -1173,6 +1178,13 @@ impl Editor {
         );
         if let Some(export_window) = self.export_window.as_mut() {
             export_window.handle_ui_message(message, &engine.user_interface, &self.message_sender);
+        }
+        if let Some(stats) = self.statistics_window.as_ref() {
+            if let StatisticsWindowAction::Remove =
+                stats.handle_ui_message(message, &engine.user_interface)
+            {
+                self.statistics_window.take();
+            }
         }
 
         let current_scene_entry = self.scenes.current_scene_entry_mut();
@@ -2120,6 +2132,9 @@ impl Editor {
         self.asset_browser.update(&mut self.engine);
         if let Some(export_window) = self.export_window.as_mut() {
             export_window.update(&mut self.engine.user_interface);
+        }
+        if let Some(stats) = self.statistics_window.as_ref() {
+            stats.update(&self.engine);
         }
 
         if let Some(entry) = self.scenes.current_scene_entry_ref() {
