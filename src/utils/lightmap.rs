@@ -3,9 +3,6 @@
 //! # Performance
 //!
 //! This is CPU lightmapper, its performance is linear with core count of your CPU.
-//!
-//! WARNING: There is still work-in-progress, so it is not advised to use lightmapper
-//! now!
 
 #![forbid(unsafe_code)]
 
