@@ -5,7 +5,6 @@ use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector3, Vector4},
         color::Color,
-        log::Log,
         math::aabb::AxisAlignedBoundingBox,
         parking_lot::Mutex,
         pool::Handle,
@@ -30,9 +29,9 @@ use crate::{
         graph::Graph,
         mesh::{
             buffer::{
-                TriangleBuffer, TriangleBufferRefMut, VertexAttributeDescriptor,
-                VertexAttributeUsage, VertexBufferRefMut, VertexReadTrait, VertexViewMut,
-                VertexWriteTrait,
+                BytesStorage, TriangleBuffer, TriangleBufferRefMut, VertexAttributeDescriptor,
+                VertexAttributeUsage, VertexBuffer, VertexBufferRefMut, VertexReadTrait,
+                VertexViewMut, VertexWriteTrait,
             },
             surface::{BlendShape, Surface, SurfaceData, SurfaceSharedData},
         },
@@ -145,6 +144,29 @@ struct BatchContainer {
     batches: FxHashMap<u64, Batch>,
 }
 
+impl BatchContainer {
+    fn fill(&mut self, from: Handle<Node>, ctx: &mut RenderContext) {
+        for descendant_handle in ctx.graph.traverse_handle_iter(from) {
+            if descendant_handle == from {
+                continue;
+            }
+
+            let descendant = &ctx.graph[descendant_handle];
+            descendant.collect_render_data(&mut RenderContext {
+                observer_position: ctx.observer_position,
+                z_near: ctx.z_near,
+                z_far: ctx.z_far,
+                view_matrix: ctx.view_matrix,
+                projection_matrix: ctx.projection_matrix,
+                frustum: None,
+                storage: self,
+                graph: ctx.graph,
+                render_pass_name: ctx.render_pass_name,
+            });
+        }
+    }
+}
+
 #[derive(Debug, Default)]
 struct BatchContainerWrapper(Mutex<BatchContainer>);
 
@@ -157,24 +179,45 @@ impl Clone for BatchContainerWrapper {
 impl RenderDataBundleStorageTrait for BatchContainer {
     fn push_triangles(
         &mut self,
-        _layout: &[VertexAttributeDescriptor],
-        _material: &MaterialResource,
+        layout: &[VertexAttributeDescriptor],
+        material: &MaterialResource,
         _render_path: RenderPath,
         _decal_layer_index: u8,
         _sort_index: u64,
         _is_skinned: bool,
         _node_handle: Handle<Node>,
-        _func: &mut dyn FnMut(VertexBufferRefMut, TriangleBufferRefMut),
+        func: &mut dyn FnMut(VertexBufferRefMut, TriangleBufferRefMut),
     ) {
-        Log::err("Implement me!");
+        let mut hasher = FxHasher::default();
+        layout.hash(&mut hasher);
+        hasher.write_u64(material.key() as u64);
+        let batch_hash = hasher.finish();
+
+        let batch = self.batches.entry(batch_hash).or_insert_with(|| Batch {
+            data: SurfaceSharedData::new(SurfaceData::new(
+                VertexBuffer::new_with_layout(layout, 0, BytesStorage::with_capacity(4096))
+                    .unwrap(),
+                TriangleBuffer::new(Vec::with_capacity(4096)),
+                false,
+            )),
+            material: material.clone(),
+        });
+
+        let mut batch_data_guard = batch.data.lock();
+        let batch_data = &mut *batch_data_guard;
+
+        func(
+            batch_data.vertex_buffer.modify(),
+            batch_data.geometry_buffer.modify(),
+        );
     }
 
     fn push(
         &mut self,
         data: &SurfaceSharedData,
         material: &MaterialResource,
-        render_path: RenderPath,
-        decal_layer_index: u8,
+        _render_path: RenderPath,
+        _decal_layer_index: u8,
         _sort_index: u64,
         instance_data: SurfaceInstanceData,
     ) {
@@ -183,9 +226,6 @@ impl RenderDataBundleStorageTrait for BatchContainer {
         let mut hasher = FxHasher::default();
         src_data.vertex_buffer.layout().hash(&mut hasher);
         hasher.write_u64(material.key() as u64);
-        hasher.write_u64(data.key());
-        hasher.write_u8(decal_layer_index);
-        hasher.write_u32(render_path as u32);
         let batch_hash = hasher.finish();
 
         let batch = self.batches.entry(batch_hash).or_insert_with(|| Batch {
@@ -551,25 +591,7 @@ impl NodeTrait for Mesh {
             let mut container = self.batch_container.0.lock();
 
             if container.batches.is_empty() {
-                for descendant_handle in ctx.graph.traverse_handle_iter(self.self_handle) {
-                    if descendant_handle == self.self_handle {
-                        continue;
-                    }
-
-                    let descendant = &ctx.graph[descendant_handle];
-                    // TODO: Use control flow here?
-                    descendant.collect_render_data(&mut RenderContext {
-                        observer_position: ctx.observer_position,
-                        z_near: ctx.z_near,
-                        z_far: ctx.z_far,
-                        view_matrix: ctx.view_matrix,
-                        projection_matrix: ctx.projection_matrix,
-                        frustum: None,
-                        storage: &mut *container,
-                        graph: ctx.graph,
-                        render_pass_name: ctx.render_pass_name,
-                    });
-                }
+                container.fill(self.self_handle, ctx);
             }
 
             for (index, batch) in container.batches.values().enumerate() {
