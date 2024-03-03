@@ -1054,7 +1054,6 @@ impl VertexBuffer {
                 stride: self.vertex_size as usize,
                 count: self.vertex_count as usize,
                 phantom: Default::default(),
-                phantom_lifetime: Default::default(),
             })
     }
 
@@ -1074,7 +1073,6 @@ impl VertexBuffer {
                 stride: self.vertex_size as usize,
                 count: self.vertex_count as usize,
                 phantom: Default::default(),
-                phantom_lifetime: Default::default(),
             })
         } else {
             None
@@ -1593,8 +1591,7 @@ pub struct AttributeViewRef<'a, T> {
     ptr: *const u8,
     stride: usize,
     count: usize,
-    phantom: PhantomData<T>,
-    phantom_lifetime: PhantomData<&'a T>,
+    phantom: PhantomData<&'a T>,
 }
 
 impl<'a, T> AttributeViewRef<'a, T> {
@@ -1613,8 +1610,7 @@ pub struct AttributeViewRefMut<'a, T> {
     ptr: *mut u8,
     stride: usize,
     count: usize,
-    phantom: PhantomData<T>,
-    phantom_lifetime: PhantomData<&'a T>,
+    phantom: PhantomData<&'a T>,
 }
 
 impl<'a, T> AttributeViewRefMut<'a, T> {

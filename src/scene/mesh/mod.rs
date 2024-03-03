@@ -517,6 +517,19 @@ impl Mesh {
     }
 }
 
+fn extend_aabb_from_vertex_buffer(
+    vertex_buffer: &VertexBuffer,
+    bounding_box: &mut AxisAlignedBoundingBox,
+) {
+    if let Some(position_attribute_view) =
+        vertex_buffer.attribute_view::<Vector3<f32>>(VertexAttributeUsage::Position)
+    {
+        for i in 0..vertex_buffer.vertex_count() as usize {
+            bounding_box.add_point(*position_attribute_view.get(i).unwrap());
+        }
+    }
+}
+
 impl NodeTrait for Mesh {
     crate::impl_query_component!();
 
@@ -525,14 +538,21 @@ impl NodeTrait for Mesh {
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         if self.local_bounding_box_dirty.get() {
             let mut bounding_box = AxisAlignedBoundingBox::default();
-            for surface in self.surfaces.iter() {
-                let data = surface.data();
-                let data = data.lock();
-                for view in data.vertex_buffer.iter() {
-                    bounding_box
-                        .add_point(view.read_3_f32(VertexAttributeUsage::Position).unwrap());
+
+            if let BatchingMode::Static = *self.batching_mode {
+                let container = self.batch_container.0.lock();
+                for batch in container.batches.values() {
+                    let data = batch.data.lock();
+                    extend_aabb_from_vertex_buffer(&data.vertex_buffer, &mut bounding_box);
+                }
+            } else {
+                for surface in self.surfaces.iter() {
+                    let data = surface.data();
+                    let data = data.lock();
+                    extend_aabb_from_vertex_buffer(&data.vertex_buffer, &mut bounding_box);
                 }
             }
+
             self.local_bounding_box.set(bounding_box);
             self.local_bounding_box_dirty.set(false);
         }
