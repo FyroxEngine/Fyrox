@@ -35,7 +35,7 @@ use crate::{
             },
             surface::{BlendShape, Surface, SurfaceData, SurfaceSharedData},
         },
-        node::{Node, NodeTrait, RdcControlFlow, UpdateContext},
+        node::{Node, NodeTrait, RdcControlFlow, SyncContext},
     },
 };
 use fxhash::{FxHashMap, FxHasher};
@@ -549,7 +549,7 @@ impl NodeTrait for Mesh {
         Self::type_uuid()
     }
 
-    fn update(&mut self, context: &mut UpdateContext) {
+    fn sync_transform(&self, _new_global_transform: &Matrix4<f32>, context: &mut SyncContext) {
         if self.surfaces.iter().any(|s| !s.bones.is_empty()) {
             let mut world_aabb = self
                 .local_bounding_box()
