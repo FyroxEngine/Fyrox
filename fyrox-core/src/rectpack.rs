@@ -1,11 +1,7 @@
 //! Rectangle packer is used to pack set of smaller rectangles into one big, it
 //! used in texture atlas packer.
 
-use crate::{
-    math::Rect,
-    num_traits::Zero,
-    pool::{Handle, Pool},
-};
+use crate::{math::Rect, num_traits::Zero};
 use nalgebra::Scalar;
 use num_traits::NumAssign;
 
@@ -16,8 +12,8 @@ where
     filled: bool,
     split: bool,
     bounds: Rect<T>,
-    left: Handle<RectPackNode<T>>,
-    right: Handle<RectPackNode<T>>,
+    left: usize,
+    right: usize,
 }
 
 impl<T> RectPackNode<T>
@@ -29,8 +25,8 @@ where
             bounds,
             filled: false,
             split: false,
-            left: Handle::NONE,
-            right: Handle::NONE,
+            left: usize::MAX,
+            right: usize::MAX,
         }
     }
 }
@@ -40,11 +36,11 @@ pub struct RectPacker<T>
 where
     T: NumAssign + Scalar + PartialOrd + Copy,
 {
-    nodes: Pool<RectPackNode<T>>,
-    root: Handle<RectPackNode<T>>,
+    nodes: Vec<RectPackNode<T>>,
+    root: usize,
     width: T,
     height: T,
-    unvisited: Vec<Handle<RectPackNode<T>>>,
+    unvisited: Vec<usize>,
 }
 
 impl<T> RectPacker<T>
@@ -60,16 +56,14 @@ where
     /// root out of area. You'll get side length of a square which can be used as width and height
     /// parameters.
     pub fn new(w: T, h: T) -> Self {
-        let mut nodes = Pool::new();
-        let root = nodes.spawn(RectPackNode::new(Rect::new(
-            Zero::zero(),
-            Zero::zero(),
-            w,
-            h,
-        )));
         Self {
-            nodes,
-            root,
+            nodes: vec![RectPackNode::new(Rect::new(
+                Zero::zero(),
+                Zero::zero(),
+                w,
+                h,
+            ))],
+            root: 0,
             width: w,
             height: h,
             unvisited: Default::default(),
@@ -81,12 +75,13 @@ where
     pub fn clear(&mut self) {
         self.nodes.clear();
         self.unvisited.clear();
-        self.root = self.nodes.spawn(RectPackNode::new(Rect::new(
+        self.nodes.push(RectPackNode::new(Rect::new(
             Zero::zero(),
             Zero::zero(),
             self.width,
             self.height,
         )));
+        self.root = 0;
     }
 
     /// Tries to find free place to put rectangle with given size. Returns None if there insufficient
@@ -96,8 +91,8 @@ where
             self.unvisited.push(self.root);
         }
 
-        while let Some(node_handle) = self.unvisited.pop() {
-            let node = self.nodes.borrow_mut(node_handle);
+        while let Some(node_index) = self.unvisited.pop() {
+            let node = &mut self.nodes[node_index];
             if node.split {
                 self.unvisited.push(node.right);
                 self.unvisited.push(node.left);
@@ -132,10 +127,12 @@ where
                     )
                 };
 
-                let left = self.nodes.spawn(RectPackNode::new(left_bounds));
-                let right = self.nodes.spawn(RectPackNode::new(right_bounds));
+                let left = self.nodes.len();
+                self.nodes.push(RectPackNode::new(left_bounds));
+                let right = self.nodes.len();
+                self.nodes.push(RectPackNode::new(right_bounds));
 
-                let node = self.nodes.borrow_mut(node_handle);
+                let node = &mut self.nodes[node_index];
                 node.left = left;
                 node.right = right;
 
@@ -149,7 +146,7 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::{math::Rect, pool::Handle};
+    use crate::math::Rect;
 
     use super::{RectPackNode, RectPacker};
 
@@ -161,8 +158,8 @@ mod test {
         assert!(!node.filled);
         assert!(!node.split);
         assert_eq!(node.bounds, rect);
-        assert_eq!(node.left, Handle::NONE);
-        assert_eq!(node.right, Handle::NONE);
+        assert_eq!(node.left, usize::MAX);
+        assert_eq!(node.right, usize::MAX);
     }
 
     #[test]
@@ -189,9 +186,9 @@ mod test {
 
         rp.find_free(1.0, 1.0);
         rp.find_free(9.0, 9.0);
-        assert_eq!(rp.nodes.alive_count(), 7);
+        assert_eq!(rp.nodes.len(), 7);
 
         rp.clear();
-        assert_eq!(rp.nodes.alive_count(), 1);
+        assert_eq!(rp.nodes.len(), 1);
     }
 }
