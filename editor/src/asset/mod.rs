@@ -997,6 +997,10 @@ impl AssetBrowser {
                 }
             }
         } else if dropped_path != Path::new("") {
+            if target_dir.starts_with(dropped_path) {
+                // Trying to drop a folder into it's own subfolder
+                return;
+            }
             // At this point we have a folder dropped on some other folder. In this case
             // we need to move all the assets from the dropped folder to a new subfolder (with the same
             // name as the dropped folder) of the other folder first. After that we can move the rest
