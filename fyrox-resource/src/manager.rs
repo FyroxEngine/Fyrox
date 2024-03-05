@@ -210,22 +210,27 @@ impl ResourceManager {
         F: FnMut(&mut dyn ResourceData, &Path) -> bool,
     {
         let mut state = self.state();
-        if state.find(path.as_ref()).is_some() {
-            Err(ResourceRegistrationError::AlreadyRegistered)
-        } else {
-            let mut header = resource.0.lock();
-            header.kind.make_external(path.as_ref().to_path_buf());
-            if let ResourceState::Ok(ref mut data) = header.state {
-                if !on_register(&mut **data, path.as_ref()) {
-                    Err(ResourceRegistrationError::UnableToRegister)
-                } else {
-                    drop(header);
-                    state.push(resource);
-                    Ok(())
-                }
-            } else {
-                Err(ResourceRegistrationError::InvalidState)
+        if let Some(resource) = state.find(path.as_ref()) {
+            let resource_state = resource.0.lock();
+            if let ResourceState::Ok(_) = resource_state.state {
+                return Err(ResourceRegistrationError::AlreadyRegistered);
             }
+        }
+
+        state.unregister(path.as_ref());
+
+        let mut header = resource.0.lock();
+        header.kind.make_external(path.as_ref().to_path_buf());
+        if let ResourceState::Ok(ref mut data) = header.state {
+            if !on_register(&mut **data, path.as_ref()) {
+                Err(ResourceRegistrationError::UnableToRegister)
+            } else {
+                drop(header);
+                state.push(resource);
+                Ok(())
+            }
+        } else {
+            Err(ResourceRegistrationError::InvalidState)
         }
     }
 
