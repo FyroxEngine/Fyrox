@@ -120,6 +120,8 @@ pub struct Lightmap {
 
     /// List of surface data patches. Each patch will be applied to corresponding
     /// surface data on resolve stage.
+    // We don't need to inspect patches, because they contain no useful data.
+    #[reflect(hidden)]
     pub patches: FxHashMap<u64, SurfaceDataPatch>,
 }
 
@@ -272,6 +274,8 @@ impl Deref for ProgressIndicator {
 pub enum LightmapGenerationError {
     /// Generation was cancelled by user.
     Cancelled,
+    /// An index of a vertex in a triangle is out of bounds.
+    InvalidIndex,
     /// Vertex buffer of a mesh lacks required data.
     InvalidData(VertexFetchError),
 }
@@ -281,6 +285,9 @@ impl Display for LightmapGenerationError {
         match self {
             LightmapGenerationError::Cancelled => {
                 write!(f, "Lightmap generation was cancelled by the user.")
+            }
+            LightmapGenerationError::InvalidIndex => {
+                write!(f, "An index of a vertex in a triangle is out of bounds.")
             }
             LightmapGenerationError::InvalidData(v) => {
                 write!(f, "Vertex buffer of a mesh lacks required data {v}.")
@@ -503,7 +510,8 @@ impl Lightmap {
                             .map(|v| v.read_3_f32(VertexAttributeUsage::Position).unwrap()),
                         data.geometry_buffer.iter().map(|t| t.0),
                         uv_spacing,
-                    )?;
+                    )
+                    .ok_or_else(|| LightmapGenerationError::InvalidIndex)?;
                     patch.data_id = data.content_hash();
 
                     apply_surface_data_patch(data, &patch);

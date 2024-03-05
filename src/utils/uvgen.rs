@@ -1,16 +1,13 @@
 //! UV Map generator. Used to generate second texture coordinates for lightmaps.
 //!
 //! Current implementation uses simple planar mapping.
-use crate::{
-    core::{
-        algebra::{Vector2, Vector3},
-        math::{self, PlaneClass},
-        rectpack::RectPacker,
-        reflect::prelude::*,
-        visitor::{prelude::*, BinaryBlob},
-    },
-    scene::mesh::buffer::VertexFetchError,
+use crate::core::{
+    algebra::{Vector2, Vector3},
+    math::{self, PlaneClass},
+    rectpack::RectPacker,
+    visitor::{prelude::*, BinaryBlob},
 };
+use std::cmp::Ordering;
 
 #[derive(Debug)]
 struct UvMesh {
@@ -114,7 +111,7 @@ fn make_seam(
 /// it just does not have secondary texture coordinates. So we have to patch data after
 /// loading somehow with required data, this is where `SurfaceDataPatch` comes into
 /// play.
-#[derive(Clone, Debug, Default, Reflect)]
+#[derive(Clone, Debug, Default)]
 pub struct SurfaceDataPatch {
     /// A surface data id. Usually it is just a hash of surface data.
     pub data_id: u64,
@@ -152,12 +149,12 @@ impl Visit for SurfaceDataPatch {
 
 /// Maps each triangle from surface to appropriate side of box. This is so called
 /// box mapping.
-fn generate_uv_box(vertices: &[Vector3<f32>], triangles: &[[u32; 3]]) -> UvBox {
+fn generate_uv_box(vertices: &[Vector3<f32>], triangles: &[[u32; 3]]) -> Option<UvBox> {
     let mut uv_box = UvBox::default();
     for (i, triangle) in triangles.iter().enumerate() {
-        let a = vertices.get(triangle[0] as usize).unwrap();
-        let b = vertices.get(triangle[1] as usize).unwrap();
-        let c = vertices.get(triangle[2] as usize).unwrap();
+        let a = vertices.get(triangle[0] as usize)?;
+        let b = vertices.get(triangle[1] as usize)?;
+        let c = vertices.get(triangle[2] as usize)?;
         let normal = (b - a).cross(&(c - a));
         let class = math::classify_plane(normal);
         match class {
@@ -190,7 +187,7 @@ fn generate_uv_box(vertices: &[Vector3<f32>], triangles: &[[u32; 3]]) -> UvBox {
             }
         }
     }
-    uv_box
+    Some(uv_box)
 }
 
 // Generates a set of UV meshes.
@@ -280,11 +277,11 @@ pub fn generate_uvs(
     vertices: impl Iterator<Item = Vector3<f32>>,
     triangles: impl Iterator<Item = [u32; 3]>,
     spacing: f32,
-) -> Result<SurfaceDataPatch, VertexFetchError> {
+) -> Option<SurfaceDataPatch> {
     let mut vertices = vertices.collect::<Vec<_>>();
     let mut triangles = triangles.collect::<Vec<_>>();
 
-    let uv_box = generate_uv_box(&vertices, &triangles);
+    let uv_box = generate_uv_box(&vertices, &triangles)?;
 
     let (mut meshes, mut patch) = generate_uv_meshes(&uv_box, 0, &mut vertices, &mut triangles);
 
@@ -292,7 +289,7 @@ pub fn generate_uvs(
     let area = meshes.iter().fold(0.0, |area, mesh| area + mesh.area());
     let square_side = area.sqrt() + spacing * meshes.len() as f32;
 
-    meshes.sort_unstable_by(|a, b| b.area().partial_cmp(&a.area()).unwrap());
+    meshes.sort_unstable_by(|a, b| b.area().partial_cmp(&a.area()).unwrap_or(Ordering::Equal));
 
     let mut rects = Vec::new();
 
@@ -336,10 +333,7 @@ pub fn generate_uvs(
                 .iter()
                 .zip(&uv_box.projections[triangle_index])
             {
-                let second_tex_coord = patch
-                    .second_tex_coords
-                    .get_mut(vertex_index as usize)
-                    .unwrap();
+                let second_tex_coord = patch.second_tex_coords.get_mut(vertex_index as usize)?;
 
                 *second_tex_coord = (projection - mesh.uv_min).scale(scale)
                     + Vector2::new(spacing, spacing)
@@ -350,5 +344,5 @@ pub fn generate_uvs(
 
     patch.triangles = triangles;
 
-    Ok(patch)
+    Some(patch)
 }
