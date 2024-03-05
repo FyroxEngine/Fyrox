@@ -24,8 +24,11 @@ use crate::{
     scene::{
         light::{directional::DirectionalLight, point::PointLight, spot::SpotLight},
         mesh::{
-            buffer::{VertexAttributeUsage, VertexFetchError, VertexReadTrait},
-            surface::SurfaceSharedData,
+            buffer::{
+                VertexAttributeDataType, VertexAttributeDescriptor, VertexAttributeUsage,
+                VertexFetchError, VertexReadTrait, VertexWriteTrait,
+            },
+            surface::{SurfaceData, SurfaceSharedData},
             Mesh,
         },
         node::Node,
@@ -44,6 +47,54 @@ use std::{
         Arc,
     },
 };
+
+/// Applies surface data patch to a surface data.
+pub fn apply_surface_data_patch(data: &mut SurfaceData, patch: &SurfaceDataPatch) {
+    if !data
+        .vertex_buffer
+        .has_attribute(VertexAttributeUsage::TexCoord1)
+    {
+        data.vertex_buffer
+            .modify()
+            .add_attribute(
+                VertexAttributeDescriptor {
+                    usage: VertexAttributeUsage::TexCoord1,
+                    data_type: VertexAttributeDataType::F32,
+                    size: 2,
+                    divisor: 0,
+                    shader_location: 6, // HACK: GBuffer renderer expects it to be at 6
+                    normalized: false,
+                },
+                Vector2::<f32>::default(),
+            )
+            .unwrap();
+    }
+
+    data.geometry_buffer.set_triangles(
+        patch
+            .triangles
+            .iter()
+            .map(|t| TriangleDefinition([t[0] as u32, t[1] as u32, t[2] as u32]))
+            .collect::<Vec<_>>(),
+    );
+
+    let mut vertex_buffer_mut = data.vertex_buffer.modify();
+    for &v in patch.additional_vertices.iter() {
+        vertex_buffer_mut.duplicate(v as usize);
+    }
+
+    assert_eq!(
+        vertex_buffer_mut.vertex_count() as usize,
+        patch.second_tex_coords.len()
+    );
+    for (mut view, &tex_coord) in vertex_buffer_mut
+        .iter_mut()
+        .zip(patch.second_tex_coords.iter())
+    {
+        view.write_2_f32(VertexAttributeUsage::TexCoord1, tex_coord)
+            .unwrap();
+    }
+}
 
 ///
 #[derive(Default, Clone, Debug, Visit, Reflect)]
@@ -444,7 +495,19 @@ impl Lightmap {
                     Err(LightmapGenerationError::Cancelled)
                 } else {
                     let mut data = data.lock();
-                    let patch = uvgen::generate_uvs(&mut data, uv_spacing)?;
+                    let data = &mut *data;
+
+                    let mut patch = uvgen::generate_uvs(
+                        data.vertex_buffer
+                            .iter()
+                            .map(|v| v.read_3_f32(VertexAttributeUsage::Position).unwrap()),
+                        data.geometry_buffer.iter().map(|t| t.0),
+                        uv_spacing,
+                    )?;
+                    patch.data_id = data.content_hash();
+
+                    apply_surface_data_patch(data, &patch);
+
                     progress_indicator.advance_progress();
                     Ok((patch.data_id, patch))
                 }

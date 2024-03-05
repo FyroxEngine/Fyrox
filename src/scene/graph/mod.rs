@@ -45,10 +45,6 @@ use crate::{
             event::{GraphEvent, GraphEventBroadcaster},
             physics::{PhysicsPerformanceStatistics, PhysicsWorld},
         },
-        mesh::buffer::{
-            VertexAttributeDataType, VertexAttributeDescriptor, VertexAttributeUsage,
-            VertexWriteTrait,
-        },
         mesh::Mesh,
         navmesh,
         node::{container::NodeContainer, Node, NodeTrait, SyncContext, UpdateContext},
@@ -57,7 +53,7 @@ use crate::{
         transform::TransformBuilder,
     },
     script::ScriptTrait,
-    utils::lightmap::Lightmap,
+    utils::lightmap::{self, Lightmap},
 };
 use fxhash::{FxHashMap, FxHashSet};
 use std::{
@@ -746,44 +742,7 @@ impl Graph {
                 let mut data = data.lock();
 
                 if let Some(patch) = lightmap.patches.get(&data.content_hash()) {
-                    if !data
-                        .vertex_buffer
-                        .has_attribute(VertexAttributeUsage::TexCoord1)
-                    {
-                        data.vertex_buffer
-                            .modify()
-                            .add_attribute(
-                                VertexAttributeDescriptor {
-                                    usage: VertexAttributeUsage::TexCoord1,
-                                    data_type: VertexAttributeDataType::F32,
-                                    size: 2,
-                                    divisor: 0,
-                                    shader_location: 6, // HACK: GBuffer renderer expects it to be at 6
-                                    normalized: false,
-                                },
-                                Vector2::<f32>::default(),
-                            )
-                            .unwrap();
-                    }
-
-                    data.geometry_buffer.set_triangles(patch.triangles.clone());
-
-                    let mut vertex_buffer_mut = data.vertex_buffer.modify();
-                    for &v in patch.additional_vertices.iter() {
-                        vertex_buffer_mut.duplicate(v as usize);
-                    }
-
-                    assert_eq!(
-                        vertex_buffer_mut.vertex_count() as usize,
-                        patch.second_tex_coords.len()
-                    );
-                    for (mut view, &tex_coord) in vertex_buffer_mut
-                        .iter_mut()
-                        .zip(patch.second_tex_coords.iter())
-                    {
-                        view.write_2_f32(VertexAttributeUsage::TexCoord1, tex_coord)
-                            .unwrap();
-                    }
+                    lightmap::apply_surface_data_patch(&mut data, patch);
                 } else {
                     Log::writeln(
                         MessageKind::Warning,

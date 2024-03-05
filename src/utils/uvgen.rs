@@ -3,29 +3,17 @@
 //! Current implementation uses simple planar mapping.
 use crate::{
     core::{
-        algebra::Vector2,
-        instant,
-        math::{self, PlaneClass, TriangleDefinition, Vector2Ext},
+        algebra::{Vector2, Vector3},
+        math::{self, PlaneClass},
         rectpack::RectPacker,
         reflect::prelude::*,
-        visitor::prelude::*,
+        visitor::{prelude::*, BinaryBlob},
     },
-    scene::mesh::{
-        buffer::{
-            TriangleBufferRefMut, VertexAttributeDataType, VertexAttributeDescriptor,
-            VertexAttributeUsage, VertexBufferRefMut, VertexFetchError, VertexReadTrait,
-            VertexWriteTrait,
-        },
-        surface::SurfaceData,
-        Mesh,
-    },
+    scene::mesh::buffer::VertexFetchError,
 };
-use fyrox_core::visitor::BinaryBlob;
-use rayon::prelude::*;
 
-/// A part of uv map.
 #[derive(Debug)]
-pub struct UvMesh {
+struct UvMesh {
     // Array of indices of triangles.
     triangles: Vec<usize>,
     uv_max: Vector2<f32>,
@@ -41,25 +29,25 @@ impl UvMesh {
         }
     }
 
-    /// Returns total width of the mesh.
-    pub fn width(&self) -> f32 {
+    // Returns total width of the mesh.
+    fn width(&self) -> f32 {
         self.uv_max.x - self.uv_min.x
     }
 
-    /// Returns total height of the mesh.
-    pub fn height(&self) -> f32 {
+    // Returns total height of the mesh.
+    fn height(&self) -> f32 {
         self.uv_max.y - self.uv_min.y
     }
 
-    /// Returns total area of the mesh.
-    pub fn area(&self) -> f32 {
+    // Returns total area of the mesh.
+    fn area(&self) -> f32 {
         self.width() * self.height()
     }
 }
 
 /// A set of faces with triangles belonging to faces.
 #[derive(Default, Debug)]
-pub struct UvBox {
+struct UvBox {
     px: Vec<usize>,
     nx: Vec<usize>,
     py: Vec<usize>,
@@ -70,22 +58,23 @@ pub struct UvBox {
 }
 
 fn face_vs_face(
-    vertex_buffer: &mut VertexBufferRefMut,
-    geometry_buffer_mut: &mut TriangleBufferRefMut,
+    vertices: &mut Vec<Vector3<f32>>,
+    triangles: &mut Vec<[u32; 3]>,
     face_triangles: &[usize],
     other_face_triangles: &[usize],
     patch: &mut SurfaceDataPatch,
 ) {
     for other_triangle_index in other_face_triangles.iter() {
-        let other_triangle = geometry_buffer_mut[*other_triangle_index];
+        let other_triangle = triangles[*other_triangle_index];
         for triangle_index in face_triangles.iter() {
-            'outer_loop: for vertex_index in geometry_buffer_mut[*triangle_index].indices_mut() {
-                for &other_vertex_index in other_triangle.indices() {
+            'outer_loop: for vertex_index in triangles[*triangle_index].iter_mut() {
+                for other_vertex_index in other_triangle {
                     if *vertex_index == other_vertex_index {
                         // We have adjacency, add new vertex and fix current index.
                         patch.additional_vertices.push(other_vertex_index);
-                        *vertex_index = vertex_buffer.vertex_count();
-                        vertex_buffer.duplicate(other_vertex_index as usize);
+                        *vertex_index = vertices.len() as u32;
+                        let vertex = vertices[other_vertex_index as usize];
+                        vertices.push(vertex);
                         continue 'outer_loop;
                     }
                 }
@@ -95,17 +84,21 @@ fn face_vs_face(
 }
 
 fn make_seam(
-    vertex_buffer: &mut VertexBufferRefMut,
-    geometry_buffer_mut: &mut TriangleBufferRefMut,
-    face_triangles: &[usize],
-    other_faces: &[&[usize]],
+    vertices: &mut Vec<Vector3<f32>>,
+    triangles: &mut Vec<[u32; 3]>,
+    current_face: usize,
+    faces: &[&[usize]],
     patch: &mut SurfaceDataPatch,
 ) {
-    for &other_face_triangles in other_faces.iter() {
+    for (face_index, &other_face_triangles) in faces.iter().enumerate() {
+        if face_index == current_face {
+            continue;
+        }
+
         face_vs_face(
-            vertex_buffer,
-            geometry_buffer_mut,
-            face_triangles,
+            vertices,
+            triangles,
+            &faces[current_face],
             other_face_triangles,
             patch,
         );
@@ -127,7 +120,7 @@ pub struct SurfaceDataPatch {
     pub data_id: u64,
     /// New topology for surface data. Old topology must be replaced with new,
     /// because UV generator splits vertices at uv map.
-    pub triangles: Vec<TriangleDefinition>,
+    pub triangles: Vec<[u32; 3]>,
     /// List of second texture coordinates used for light maps.
     pub second_tex_coords: Vec<Vector2<f32>>,
     /// List of indices of vertices that must be cloned and pushed into vertices
@@ -159,27 +152,12 @@ impl Visit for SurfaceDataPatch {
 
 /// Maps each triangle from surface to appropriate side of box. This is so called
 /// box mapping.
-fn generate_uv_box(data: &SurfaceData) -> UvBox {
+fn generate_uv_box(vertices: &[Vector3<f32>], triangles: &[[u32; 3]]) -> UvBox {
     let mut uv_box = UvBox::default();
-    for (i, triangle) in data.geometry_buffer.iter().enumerate() {
-        let a = data
-            .vertex_buffer
-            .get(triangle[0] as usize)
-            .unwrap()
-            .read_3_f32(VertexAttributeUsage::Position)
-            .unwrap();
-        let b = data
-            .vertex_buffer
-            .get(triangle[1] as usize)
-            .unwrap()
-            .read_3_f32(VertexAttributeUsage::Position)
-            .unwrap();
-        let c = data
-            .vertex_buffer
-            .get(triangle[2] as usize)
-            .unwrap()
-            .read_3_f32(VertexAttributeUsage::Position)
-            .unwrap();
+    for (i, triangle) in triangles.iter().enumerate() {
+        let a = vertices.get(triangle[0] as usize).unwrap();
+        let b = vertices.get(triangle[1] as usize).unwrap();
+        let c = vertices.get(triangle[2] as usize).unwrap();
         let normal = (b - a).cross(&(c - a));
         let class = math::classify_plane(normal);
         match class {
@@ -215,88 +193,39 @@ fn generate_uv_box(data: &SurfaceData) -> UvBox {
     uv_box
 }
 
-/// Generates a set of UV meshes.
-pub fn generate_uv_meshes(
+// Generates a set of UV meshes.
+fn generate_uv_meshes(
     uv_box: &UvBox,
     data_id: u64,
-    vertex_buffer_mut: &mut VertexBufferRefMut,
-    geometry_buffer_mut: &mut TriangleBufferRefMut,
+    vertices: &mut Vec<Vector3<f32>>,
+    triangles: &mut Vec<[u32; 3]>,
 ) -> (Vec<UvMesh>, SurfaceDataPatch) {
     let mut mesh_patch = SurfaceDataPatch {
         data_id,
         ..Default::default()
     };
 
-    if !vertex_buffer_mut.has_attribute(VertexAttributeUsage::TexCoord1) {
-        vertex_buffer_mut
-            .add_attribute(
-                VertexAttributeDescriptor {
-                    usage: VertexAttributeUsage::TexCoord1,
-                    data_type: VertexAttributeDataType::F32,
-                    size: 2,
-                    divisor: 0,
-                    shader_location: 6, // HACK: GBuffer renderer expects it to be at 6
-                    normalized: false,
-                },
-                Vector2::<f32>::default(),
-            )
-            .unwrap();
-    }
-
     // Step 1. Split vertices at boundary between each face. This step multiplies the
     // number of vertices at boundary so we'll get separate texture coordinates at
     // seams.
-    make_seam(
-        vertex_buffer_mut,
-        geometry_buffer_mut,
-        &uv_box.px,
-        &[&uv_box.nx, &uv_box.py, &uv_box.ny, &uv_box.pz, &uv_box.nz],
-        &mut mesh_patch,
-    );
-    make_seam(
-        vertex_buffer_mut,
-        geometry_buffer_mut,
-        &uv_box.nx,
-        &[&uv_box.px, &uv_box.py, &uv_box.ny, &uv_box.pz, &uv_box.nz],
-        &mut mesh_patch,
-    );
-
-    make_seam(
-        vertex_buffer_mut,
-        geometry_buffer_mut,
-        &uv_box.py,
-        &[&uv_box.px, &uv_box.nx, &uv_box.ny, &uv_box.pz, &uv_box.nz],
-        &mut mesh_patch,
-    );
-    make_seam(
-        vertex_buffer_mut,
-        geometry_buffer_mut,
-        &uv_box.ny,
-        &[&uv_box.py, &uv_box.nx, &uv_box.px, &uv_box.pz, &uv_box.nz],
-        &mut mesh_patch,
-    );
-
-    make_seam(
-        vertex_buffer_mut,
-        geometry_buffer_mut,
-        &uv_box.pz,
-        &[&uv_box.nz, &uv_box.px, &uv_box.nx, &uv_box.py, &uv_box.ny],
-        &mut mesh_patch,
-    );
-    make_seam(
-        vertex_buffer_mut,
-        geometry_buffer_mut,
-        &uv_box.nz,
-        &[&uv_box.pz, &uv_box.px, &uv_box.nx, &uv_box.py, &uv_box.ny],
-        &mut mesh_patch,
-    );
+    for face_index in 0..6 {
+        make_seam(
+            vertices,
+            triangles,
+            face_index,
+            &[
+                &uv_box.px, &uv_box.nx, &uv_box.py, &uv_box.ny, &uv_box.pz, &uv_box.nz,
+            ],
+            &mut mesh_patch,
+        );
+    }
 
     // Step 2. Find separate "meshes" on uv map. After box mapping we will most likely
     // end up with set of faces, some of them may form meshes and each such mesh must
     // be moved with all faces it has.
     let mut meshes = Vec::new();
-    let mut removed_triangles = vec![false; geometry_buffer_mut.len()];
-    for triangle_index in 0..geometry_buffer_mut.len() {
+    let mut removed_triangles = vec![false; triangles.len()];
+    for triangle_index in 0..triangles.len() {
         if !removed_triangles[triangle_index] {
             // Start off random triangle and continue gather adjacent triangles one by one.
             let mut mesh = UvMesh::new(triangle_index);
@@ -305,13 +234,12 @@ pub fn generate_uv_meshes(
             let mut last_triangle = 1;
             let mut i = 0;
             while i < last_triangle {
-                let triangle = &geometry_buffer_mut[mesh.triangles[i]];
+                let triangle = &triangles[mesh.triangles[i]];
                 // Push all adjacent triangles into mesh. This is brute force implementation.
-                for (other_triangle_index, other_triangle) in geometry_buffer_mut.iter().enumerate()
-                {
+                for (other_triangle_index, other_triangle) in triangles.iter().enumerate() {
                     if !removed_triangles[other_triangle_index] {
-                        'vertex_loop: for &vertex_index in triangle.indices() {
-                            for &other_vertex_index in other_triangle.indices() {
+                        'vertex_loop: for &vertex_index in triangle {
+                            for &other_vertex_index in other_triangle {
                                 if vertex_index == other_vertex_index {
                                     mesh.triangles.push(other_triangle_index);
                                     removed_triangles[other_triangle_index] = true;
@@ -332,14 +260,8 @@ pub fn generate_uv_meshes(
             // Calculate bounds.
             for &triangle_index in mesh.triangles.iter() {
                 let [a, b, c] = uv_box.projections[triangle_index];
-                mesh.uv_min = a
-                    .per_component_min(&b)
-                    .per_component_min(&c)
-                    .per_component_min(&mesh.uv_min);
-                mesh.uv_max = a
-                    .per_component_max(&b)
-                    .per_component_max(&c)
-                    .per_component_max(&mesh.uv_max);
+                mesh.uv_min = a.inf(&b).inf(&c).inf(&mesh.uv_min);
+                mesh.uv_max = a.sup(&b).sup(&c).sup(&mesh.uv_max);
             }
             meshes.push(mesh);
         }
@@ -355,21 +277,16 @@ pub fn generate_uv_meshes(
 /// This method utilizes lots of "brute force" algorithms, so it is not fast as it
 /// could be in ideal case. It also allocates some memory for internal needs.
 pub fn generate_uvs(
-    data: &mut SurfaceData,
+    vertices: impl Iterator<Item = Vector3<f32>>,
+    triangles: impl Iterator<Item = [u32; 3]>,
     spacing: f32,
 ) -> Result<SurfaceDataPatch, VertexFetchError> {
-    let uv_box = generate_uv_box(data);
+    let mut vertices = vertices.collect::<Vec<_>>();
+    let mut triangles = triangles.collect::<Vec<_>>();
 
-    let data_id = data.content_hash();
-    let mut vertex_buffer_mut = data.vertex_buffer.modify();
-    let mut geometry_buffer_mut = data.geometry_buffer.modify();
-    let (mut meshes, mut patch) = generate_uv_meshes(
-        &uv_box,
-        data_id,
-        &mut vertex_buffer_mut,
-        &mut geometry_buffer_mut,
-    );
-    drop(geometry_buffer_mut);
+    let uv_box = generate_uv_box(&vertices, &triangles);
+
+    let (mut meshes, mut patch) = generate_uv_meshes(&uv_box, 0, &mut vertices, &mut triangles);
 
     // Step 4. Arrange and scale all meshes on uv map so it fits into [0;1] range.
     let area = meshes.iter().fold(0.0, |area, mesh| area + mesh.area());
@@ -410,54 +327,28 @@ pub fn generate_uvs(
         }
     }
 
+    patch.second_tex_coords = vec![Vector2::default(); vertices.len()];
     for (i, rect) in rects.into_iter().enumerate() {
         let mesh = &meshes[i];
 
         for &triangle_index in mesh.triangles.iter() {
-            for (&vertex_index, &projection) in data.geometry_buffer[triangle_index]
-                .indices()
+            for (&vertex_index, &projection) in triangles[triangle_index]
                 .iter()
                 .zip(&uv_box.projections[triangle_index])
             {
-                vertex_buffer_mut
+                let second_tex_coord = patch
+                    .second_tex_coords
                     .get_mut(vertex_index as usize)
-                    .unwrap()
-                    .write_2_f32(
-                        VertexAttributeUsage::TexCoord1,
-                        (projection - mesh.uv_min).scale(scale)
-                            + Vector2::new(spacing, spacing)
-                            + rect.position,
-                    )?;
+                    .unwrap();
+
+                *second_tex_coord = (projection - mesh.uv_min).scale(scale)
+                    + Vector2::new(spacing, spacing)
+                    + rect.position;
             }
         }
     }
 
-    patch.triangles = data.geometry_buffer.triangles_ref().to_vec();
-
-    for view in vertex_buffer_mut.iter() {
-        patch
-            .second_tex_coords
-            .push(view.read_2_f32(VertexAttributeUsage::TexCoord1)?);
-    }
+    patch.triangles = triangles;
 
     Ok(patch)
-}
-
-/// Generates UVs for a specified mesh.
-pub fn generate_uvs_mesh(
-    mesh: &Mesh,
-    spacing: f32,
-) -> Result<Vec<SurfaceDataPatch>, VertexFetchError> {
-    let last = instant::Instant::now();
-
-    let data_set = mesh.surfaces().iter().map(|s| s.data()).collect::<Vec<_>>();
-
-    let patches = data_set
-        .into_par_iter()
-        .map(|data| generate_uvs(&mut data.lock(), spacing))
-        .collect::<Result<Vec<SurfaceDataPatch>, VertexFetchError>>()?;
-
-    println!("Generate UVs: {:?}", instant::Instant::now() - last);
-
-    Ok(patches)
 }
