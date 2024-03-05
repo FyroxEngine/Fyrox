@@ -16,7 +16,7 @@ use crate::{
         pool::Handle,
         reflect::prelude::*,
         sstorage::ImmutableString,
-        visitor::prelude::*,
+        visitor::{prelude::*, BinaryBlob},
     },
     graph::SceneGraph,
     material::PropertyValue,
@@ -74,7 +74,7 @@ pub fn apply_surface_data_patch(data: &mut SurfaceData, patch: &SurfaceDataPatch
         patch
             .triangles
             .iter()
-            .map(|t| TriangleDefinition([t[0] as u32, t[1] as u32, t[2] as u32]))
+            .map(|t| TriangleDefinition(*t))
             .collect::<Vec<_>>(),
     );
 
@@ -111,6 +111,32 @@ pub struct LightmapEntry {
     pub lights: Vec<Handle<Node>>,
 }
 
+#[doc(hidden)]
+#[derive(Default, Debug, Clone)]
+pub struct SurfaceDataPatchWrapper(pub SurfaceDataPatch);
+
+impl Visit for SurfaceDataPatchWrapper {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        let mut region = visitor.enter_region(name)?;
+
+        self.0.data_id.visit("DataId", &mut region)?;
+        BinaryBlob {
+            vec: &mut self.0.triangles,
+        }
+        .visit("Triangles", &mut region)?;
+        BinaryBlob {
+            vec: &mut self.0.second_tex_coords,
+        }
+        .visit("SecondTexCoords", &mut region)?;
+        BinaryBlob {
+            vec: &mut self.0.additional_vertices,
+        }
+        .visit("AdditionalVertices", &mut region)?;
+
+        Ok(())
+    }
+}
+
 /// Lightmap is a texture with precomputed lighting.
 #[derive(Default, Clone, Debug, Visit, Reflect)]
 pub struct Lightmap {
@@ -122,7 +148,7 @@ pub struct Lightmap {
     /// surface data on resolve stage.
     // We don't need to inspect patches, because they contain no useful data.
     #[reflect(hidden)]
-    pub patches: FxHashMap<u64, SurfaceDataPatch>,
+    pub patches: FxHashMap<u64, SurfaceDataPatchWrapper>,
 }
 
 struct WorldVertex {
@@ -517,7 +543,7 @@ impl Lightmap {
                     apply_surface_data_patch(data, &patch);
 
                     progress_indicator.advance_progress();
-                    Ok((patch.data_id, patch))
+                    Ok((patch.data_id, SurfaceDataPatchWrapper(patch)))
                 }
             })
             .collect::<Result<FxHashMap<_, _>, LightmapGenerationError>>()?;

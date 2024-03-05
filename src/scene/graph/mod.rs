@@ -742,7 +742,7 @@ impl Graph {
                 let mut data = data.lock();
 
                 if let Some(patch) = lightmap.patches.get(&data.content_hash()) {
-                    lightmap::apply_surface_data_patch(&mut data, patch);
+                    lightmap::apply_surface_data_patch(&mut data, &patch.0);
                 } else {
                     Log::writeln(
                         MessageKind::Warning,
