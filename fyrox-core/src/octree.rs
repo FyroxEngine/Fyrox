@@ -1,8 +1,5 @@
 use crate::algebra::Vector3;
-use crate::{
-    math::{aabb::AxisAlignedBoundingBox, ray::Ray},
-    pool::{Handle, Pool},
-};
+use crate::math::{aabb::AxisAlignedBoundingBox, ray::Ray};
 use arrayvec::ArrayVec;
 
 #[derive(Clone, Debug)]
@@ -13,14 +10,14 @@ pub enum OctreeNode {
     },
     Branch {
         bounds: AxisAlignedBoundingBox,
-        leaves: [Handle<OctreeNode>; 8],
+        leaves: [usize; 8],
     },
 }
 
 #[derive(Default, Clone, Debug)]
 pub struct Octree {
-    nodes: Pool<OctreeNode>,
-    root: Handle<OctreeNode>,
+    nodes: Vec<OctreeNode>,
+    root: usize,
 }
 
 impl Octree {
@@ -44,7 +41,7 @@ impl Octree {
             indices.push(i as u32);
         }
 
-        let mut nodes = Pool::new();
+        let mut nodes = Vec::new();
         let root = build_recursive(&mut nodes, triangles, bounds, indices, split_threshold);
 
         Self { nodes, root }
@@ -57,12 +54,12 @@ impl Octree {
 
     fn sphere_recursive_query(
         &self,
-        node: Handle<OctreeNode>,
+        node: usize,
         position: Vector3<f32>,
         radius: f32,
         buffer: &mut Vec<u32>,
     ) {
-        match self.nodes.borrow(node) {
+        match &self.nodes[node] {
             OctreeNode::Leaf { indices, bounds } => {
                 if bounds.is_intersects_sphere(position, radius) {
                     buffer.extend_from_slice(indices)
@@ -85,11 +82,11 @@ impl Octree {
 
     fn aabb_recursive_query(
         &self,
-        node: Handle<OctreeNode>,
+        node: usize,
         aabb: &AxisAlignedBoundingBox,
         buffer: &mut Vec<u32>,
     ) {
-        match self.nodes.borrow(node) {
+        match &self.nodes[node] {
             OctreeNode::Leaf { indices, bounds } => {
                 if bounds.is_intersects_aabb(aabb) {
                     buffer.extend_from_slice(indices)
@@ -110,8 +107,8 @@ impl Octree {
         self.ray_recursive_query(self.root, ray, buffer);
     }
 
-    fn ray_recursive_query(&self, node: Handle<OctreeNode>, ray: &Ray, buffer: &mut Vec<u32>) {
-        match self.nodes.borrow(node) {
+    fn ray_recursive_query(&self, node: usize, ray: &Ray, buffer: &mut Vec<u32>) {
+        match &self.nodes[node] {
             OctreeNode::Leaf { indices, bounds } => {
                 if ray.box_intersection(&bounds.min, &bounds.max).is_some() {
                     buffer.extend_from_slice(indices)
@@ -127,30 +124,26 @@ impl Octree {
         }
     }
 
-    pub fn node(&self, handle: Handle<OctreeNode>) -> &OctreeNode {
+    pub fn node(&self, handle: usize) -> &OctreeNode {
         &self.nodes[handle]
     }
 
-    pub fn nodes(&self) -> &Pool<OctreeNode> {
+    pub fn nodes(&self) -> &Vec<OctreeNode> {
         &self.nodes
     }
 
-    pub fn ray_query_static<const CAP: usize>(
-        &self,
-        ray: &Ray,
-        buffer: &mut ArrayVec<Handle<OctreeNode>, CAP>,
-    ) {
+    pub fn ray_query_static<const CAP: usize>(&self, ray: &Ray, buffer: &mut ArrayVec<usize, CAP>) {
         buffer.clear();
         self.ray_recursive_query_static(self.root, ray, buffer);
     }
 
     fn ray_recursive_query_static<const CAP: usize>(
         &self,
-        node: Handle<OctreeNode>,
+        node: usize,
         ray: &Ray,
-        buffer: &mut ArrayVec<Handle<OctreeNode>, CAP>,
+        buffer: &mut ArrayVec<usize, CAP>,
     ) {
-        match self.nodes.borrow(node) {
+        match &self.nodes[node] {
             OctreeNode::Leaf { bounds, .. } => {
                 if ray.box_intersection(&bounds.min, &bounds.max).is_some() {
                     buffer.push(node);
@@ -173,15 +166,11 @@ impl Octree {
         self.point_recursive_query(self.root, point, &mut callback);
     }
 
-    fn point_recursive_query<C>(
-        &self,
-        node: Handle<OctreeNode>,
-        point: Vector3<f32>,
-        callback: &mut C,
-    ) where
+    fn point_recursive_query<C>(&self, node: usize, point: Vector3<f32>, callback: &mut C)
+    where
         C: FnMut(&[u32]),
     {
-        match self.nodes.borrow(node) {
+        match &self.nodes[node] {
             OctreeNode::Leaf { indices, bounds } => {
                 if bounds.is_contains_point(point) {
                     (callback)(indices)
@@ -199,16 +188,18 @@ impl Octree {
 }
 
 fn build_recursive(
-    nodes: &mut Pool<OctreeNode>,
+    nodes: &mut Vec<OctreeNode>,
     triangles: &[[Vector3<f32>; 3]],
     bounds: AxisAlignedBoundingBox,
     indices: Vec<u32>,
     split_threshold: usize,
-) -> Handle<OctreeNode> {
+) -> usize {
     if indices.len() <= split_threshold {
-        nodes.spawn(OctreeNode::Leaf { bounds, indices })
+        let index = nodes.len();
+        nodes.push(OctreeNode::Leaf { bounds, indices });
+        index
     } else {
-        let mut leaves = [Handle::NONE; 8];
+        let mut leaves = [0; 8];
         let leaf_bounds = bounds.split();
 
         for i in 0..8 {
@@ -234,7 +225,9 @@ fn build_recursive(
             );
         }
 
-        nodes.spawn(OctreeNode::Branch { leaves, bounds })
+        let index = nodes.len();
+        nodes.push(OctreeNode::Branch { leaves, bounds });
+        index
     }
 }
 
@@ -281,15 +274,15 @@ mod test {
     fn octree_new() {
         let tree = Octree::new(&get_six_triangles(), 5);
 
-        assert_eq!(tree.root, Handle::new(72, 1));
-        assert_eq!(tree.nodes().total_count(), 73);
+        assert_eq!(tree.root, 72);
+        assert_eq!(tree.nodes().len(), 73);
     }
 
     #[test]
     fn default_for_octree() {
         let tree = Octree::default();
-        assert_eq!(tree.root, Handle::new(0, 0));
-        assert_eq!(tree.nodes.total_count(), 0);
+        assert_eq!(tree.root, 0);
+        assert_eq!(tree.nodes.len(), 0);
     }
 
     #[test]
@@ -363,26 +356,12 @@ mod test {
     fn octree_ray_query_static() {
         const CAP: usize = 10;
         let tree = Octree::new(&get_six_triangles(), 5);
-        let mut buffer = ArrayVec::<Handle<OctreeNode>, CAP>::new();
+        let mut buffer = ArrayVec::<usize, CAP>::new();
         tree.ray_query_static::<CAP>(
             &Ray::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 1.0, 0.0)),
             &mut buffer,
         );
 
-        assert_eq!(
-            buffer.as_slice(),
-            [
-                Handle::new(2, 1),
-                Handle::new(3, 1),
-                Handle::new(11, 1),
-                Handle::new(15, 1),
-                Handle::new(16, 1),
-                Handle::new(18, 1),
-                Handle::new(19, 1),
-                Handle::new(27, 1),
-                Handle::new(31, 1),
-                Handle::new(32, 1),
-            ]
-        );
+        assert_eq!(buffer.as_slice(), [2, 3, 11, 15, 16, 18, 19, 27, 31, 32,]);
     }
 }

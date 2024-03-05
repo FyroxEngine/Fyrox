@@ -11,7 +11,6 @@ use crate::{
         arrayvec::ArrayVec,
         math::{self, plane::Plane, ray::Ray, PositionProvider, TriangleDefinition, Vector3Ext},
         octree::{Octree, OctreeNode},
-        pool::Handle,
         reflect::prelude::*,
         visitor::{Visit, VisitResult, Visitor},
     },
@@ -572,7 +571,7 @@ impl Navmesh {
 
     /// Tries to pick a triangle by given ray. Returns closest result.
     pub fn ray_cast(&self, ray: Ray) -> Option<(Vector3<f32>, usize)> {
-        let mut buffer = ArrayVec::<Handle<OctreeNode>, 128>::new();
+        let mut buffer = ArrayVec::<usize, 128>::new();
 
         self.octree.ray_query_static(&ray, &mut buffer);
 

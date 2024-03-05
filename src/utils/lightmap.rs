@@ -932,7 +932,7 @@ fn generate_lightmap(
                     };
                     // Shadows
                     if attenuation >= 0.01 {
-                        let mut query_buffer = ArrayVec::<Handle<OctreeNode>, 64>::new();
+                        let mut query_buffer = ArrayVec::<usize, 64>::new();
                         let shadow_bias = 0.01;
                         let ray = Ray::from_two_points(light_position, world_position);
                         'outer_loop: for other_instance in other_instances {
