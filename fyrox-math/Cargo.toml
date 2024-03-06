@@ -19,4 +19,4 @@ rectutils = "0.1.0"
 nalgebra = "0.32.3"
 arrayvec = "0.7.4"
 num-traits = "0.2.18"
-uuid = "1.7.0"
+uuid = { version = "1", features = ["v4"] }
