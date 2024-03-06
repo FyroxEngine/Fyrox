@@ -1,5 +1,5 @@
 use crate::{
-    core::{algebra::Vector2, curve::Curve},
+    core::{algebra::Vector2, math::curve::Curve},
     curve::{CurveEditorBuilder, CurveEditorMessage},
     inspector::{
         editors::{

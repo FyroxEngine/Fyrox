@@ -4,7 +4,7 @@
 use crate::{
     core::{
         algebra::{Vector2, Vector3, Vector4},
-        curve::Curve,
+        math::curve::Curve,
         math::{quat_from_euler, RotationOrder},
         reflect::prelude::*,
         visitor::prelude::*,

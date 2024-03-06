@@ -34,6 +34,7 @@
       <sourceFolder url="file://$MODULE_DIR$/fyrox-animation/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/fyrox-prefab/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/fyrox-graph/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/fyrox-math/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
       <excludeFolder url="file://$MODULE_DIR$/examples/wasm/target" />
     </content>

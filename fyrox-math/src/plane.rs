@@ -1,9 +1,6 @@
-use crate::{
-    algebra::Vector3,
-    visitor::{Visit, VisitResult, Visitor},
-};
+use nalgebra::Vector3;
 
-#[derive(Copy, Clone, Debug, PartialEq, Visit)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Plane {
     pub normal: Vector3<f32>,
     pub d: f32,
@@ -87,9 +84,8 @@ impl Plane {
 
 #[cfg(test)]
 mod test {
+    use crate::plane::Plane;
     use nalgebra::Vector3;
-
-    use crate::math::plane::Plane;
 
     #[test]
     fn plane_sanity_tests() {

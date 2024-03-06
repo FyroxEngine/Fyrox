@@ -10,7 +10,7 @@ use crate::{
         algebra::{UnitQuaternion, Vector2, Vector3, Vector4},
         color::Color,
         color_gradient::ColorGradient,
-        curve::Curve,
+        math::curve::Curve,
         math::{Rect, SmoothAngle},
         parking_lot::{RwLock, RwLockReadGuard},
         pool::Handle,

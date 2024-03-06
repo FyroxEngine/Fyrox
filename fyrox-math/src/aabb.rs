@@ -1,10 +1,7 @@
-use crate::{
-    algebra::{Matrix4, Vector3},
-    math::Matrix4Ext,
-    visitor::{Visit, VisitResult, Visitor},
-};
+use crate::Matrix4Ext;
+use nalgebra::{Matrix4, Vector3};
 
-#[derive(Copy, Clone, Debug, Visit)]
+#[derive(Copy, Clone, Debug)]
 pub struct AxisAlignedBoundingBox {
     pub min: Vector3<f32>,
     pub max: Vector3<f32>,
@@ -305,8 +302,8 @@ impl AxisAlignedBoundingBox {
 
 #[cfg(test)]
 mod test {
-    use crate::algebra::{Matrix4, Vector3};
-    use crate::math::aabb::AxisAlignedBoundingBox;
+    use crate::aabb::AxisAlignedBoundingBox;
+    use nalgebra::{Matrix4, Vector3};
 
     #[test]
     fn test_aabb_transform() {

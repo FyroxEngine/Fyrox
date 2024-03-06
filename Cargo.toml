@@ -28,7 +28,7 @@ members = [
     "editor-standalone",
 	"template",
     "fyrox-graph"
-]
+, "fyrox-math"]
 
 [profile.dev]
 opt-level = 0

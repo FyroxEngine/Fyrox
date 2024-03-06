@@ -6,8 +6,8 @@ use crate::{
 };
 use fyrox::{
     core::{
-        curve::Curve,
         log::Log,
+        math::curve::Curve,
         pool::{ErasedHandle, Handle, Ticket},
         uuid::Uuid,
         variable::InheritableVariable,

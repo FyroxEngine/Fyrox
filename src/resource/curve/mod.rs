@@ -3,8 +3,8 @@
 use crate::{
     asset::{io::ResourceIo, Resource, ResourceData, CURVE_RESOURCE_UUID},
     core::{
-        curve::Curve, io::FileLoadError, reflect::prelude::*, uuid::Uuid, visitor::prelude::*,
-        TypeUuidProvider,
+        io::FileLoadError, math::curve::Curve, reflect::prelude::*, uuid::Uuid,
+        visitor::prelude::*, TypeUuidProvider,
     },
 };
 use std::error::Error;

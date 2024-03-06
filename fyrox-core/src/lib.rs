@@ -31,13 +31,11 @@ use std::{
 
 pub mod color;
 pub mod color_gradient;
-pub mod curve;
 pub mod io;
 pub mod log;
 pub mod math;
 pub mod net;
 pub mod numeric_range;
-pub mod octree;
 pub mod pool;
 pub mod profiler;
 pub mod quadtree;

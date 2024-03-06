@@ -11,7 +11,7 @@ use crate::{
     Resource, ResourceData, ResourceLoadError, TypedResourceData, CURVE_RESOURCE_UUID,
     MODEL_RESOURCE_UUID, SHADER_RESOURCE_UUID, SOUND_BUFFER_RESOURCE_UUID, TEXTURE_RESOURCE_UUID,
 };
-use fyrox_core::curve::Curve;
+use fyrox_core::math::curve::Curve;
 use fyrox_core::visitor::RegionGuard;
 use std::ffi::OsStr;
 use std::fmt::Display;

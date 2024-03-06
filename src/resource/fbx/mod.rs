@@ -15,9 +15,9 @@ use crate::{
     asset::manager::ResourceManager,
     core::{
         algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3, Vector4},
-        curve::{CurveKey, CurveKeyKind},
         instant::Instant,
         log::{Log, MessageKind},
+        math::curve::{CurveKey, CurveKeyKind},
         math::{self, triangulator::triangulate, RotationOrder},
         pool::Handle,
         sstorage::ImmutableString,

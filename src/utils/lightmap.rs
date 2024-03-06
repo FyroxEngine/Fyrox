@@ -12,7 +12,6 @@ use crate::{
         algebra::{Matrix3, Matrix4, Point3, Vector2, Vector3, Vector4},
         arrayvec::ArrayVec,
         math::{self, ray::Ray, Matrix4Ext, Rect, TriangleDefinition, Vector2Ext},
-        octree::{Octree, OctreeNode},
         pool::Handle,
         reflect::prelude::*,
         sstorage::ImmutableString,
@@ -37,6 +36,7 @@ use crate::{
     utils::{uvgen, uvgen::SurfaceDataPatch},
 };
 use fxhash::FxHashMap;
+use fyrox_core::math::octree::{Octree, OctreeNode};
 use rayon::prelude::*;
 use std::{
     fmt::{Display, Formatter},

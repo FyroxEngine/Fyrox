@@ -10,7 +10,6 @@ use crate::{
         algebra::{Point3, Vector3},
         arrayvec::ArrayVec,
         math::{self, plane::Plane, ray::Ray, PositionProvider, TriangleDefinition, Vector3Ext},
-        octree::{Octree, OctreeNode},
         reflect::prelude::*,
         visitor::{Visit, VisitResult, Visitor},
     },
@@ -24,6 +23,7 @@ use crate::{
     },
 };
 use fxhash::{FxBuildHasher, FxHashMap};
+use fyrox_core::math::octree::{Octree, OctreeNode};
 use std::ops::{Deref, DerefMut};
 
 #[derive(Clone, Debug, Default, Visit)]

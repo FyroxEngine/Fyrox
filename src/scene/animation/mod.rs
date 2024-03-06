@@ -174,7 +174,7 @@ impl BoundValueCollectionExt for BoundValueCollection {
 /// ```rust
 /// use fyrox::{
 ///     core::{
-///         curve::{Curve, CurveKey, CurveKeyKind},
+///         math::curve::{Curve, CurveKey, CurveKeyKind},
 ///         pool::Handle,
 ///     },
 ///     scene::{animation::prelude::*, base::BaseBuilder, graph::Graph, node::Node},

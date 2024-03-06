@@ -121,7 +121,7 @@ pub mod value;
 ///     value::ValueBinding,
 ///     Animation,
 ///     core::{
-///         curve::{Curve, CurveKey, CurveKeyKind},
+///         math::curve::{Curve, CurveKey, CurveKeyKind},
 ///         pool::Handle,
 ///     },
 /// };

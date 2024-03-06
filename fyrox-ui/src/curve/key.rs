@@ -1,6 +1,6 @@
 use crate::core::{
     algebra::Vector2,
-    curve::{Curve, CurveKey, CurveKeyKind},
+    math::curve::{Curve, CurveKey, CurveKeyKind},
     reflect::prelude::*,
     uuid::Uuid,
     visitor::prelude::*,

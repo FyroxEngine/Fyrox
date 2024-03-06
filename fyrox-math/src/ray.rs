@@ -1,9 +1,9 @@
 // Clippy complains about normal mathematical symbols like A, B, C for quadratic equation.
 #![allow(clippy::many_single_char_names)]
 
-use crate::algebra::{Matrix4, Point3, Vector3};
-use crate::math::aabb::AxisAlignedBoundingBox;
-use crate::math::{is_point_inside_triangle, plane::Plane, solve_quadratic};
+use crate::aabb::AxisAlignedBoundingBox;
+use crate::{is_point_inside_triangle, plane::Plane, solve_quadratic};
+use nalgebra::{Matrix4, Point3, Vector3};
 
 #[derive(Copy, Clone, Debug)]
 pub struct Ray {
@@ -439,10 +439,12 @@ impl Ray {
 mod test {
     use nalgebra::Matrix4;
 
-    use crate::math::aabb::AxisAlignedBoundingBox;
-    use crate::math::plane::Plane;
-    use crate::math::ray::{CylinderKind, Ray};
-    use crate::math::Vector3;
+    use crate::{
+        aabb::AxisAlignedBoundingBox,
+        plane::Plane,
+        ray::{CylinderKind, Ray},
+        Vector3,
+    };
 
     use super::IntersectionResult;
 

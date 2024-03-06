@@ -1,15 +1,12 @@
-use crate::{
-    algebra::{Matrix4, Vector3},
-    math::{aabb::AxisAlignedBoundingBox, plane::Plane},
-    visitor::{Visit, VisitResult, Visitor},
-};
+use crate::{aabb::AxisAlignedBoundingBox, plane::Plane};
 use nalgebra::Point3;
+use nalgebra::{Matrix4, Vector3};
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Frustum {
     /// 0 - left, 1 - right, 2 - top, 3 - bottom, 4 - far, 5 - near
-    planes: [Plane; 6],
-    corners: [Vector3<f32>; 8],
+    pub planes: [Plane; 6],
+    pub corners: [Vector3<f32>; 8],
 }
 
 impl Default for Frustum {
@@ -330,28 +327,11 @@ impl Frustum {
     }
 }
 
-impl Visit for Frustum {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        let mut region = visitor.enter_region(name)?;
-
-        self.planes[0].visit("Left", &mut region)?;
-        self.planes[1].visit("Right", &mut region)?;
-        self.planes[2].visit("Top", &mut region)?;
-        self.planes[3].visit("Bottom", &mut region)?;
-        self.planes[4].visit("Far", &mut region)?;
-        self.planes[5].visit("Near", &mut region)?;
-
-        Ok(())
-    }
-}
-
 #[cfg(test)]
 mod test {
+    use crate::aabb::AxisAlignedBoundingBox;
+    use crate::{frustum::Frustum, plane::Plane};
     use nalgebra::{Matrix4, Vector3};
-
-    use crate::math::aabb::AxisAlignedBoundingBox;
-    use crate::math::{frustum::Frustum, plane::Plane};
-    use crate::visitor::{Visit, Visitor};
 
     #[test]
     fn test_default_for_frustum() {
@@ -549,19 +529,5 @@ mod test {
         assert!(f.is_intersects_sphere(Vector3::new(0.0, 0.0, 0.0), 1.0));
         assert!(f.is_intersects_sphere(Vector3::new(0.0, 0.0, 0.0), 2.0));
         assert!(!f.is_intersects_sphere(Vector3::new(10.0, 10.0, 10.0), 1.0));
-    }
-
-    #[test]
-    fn test_visit_for_frustum() {
-        let mut f = Frustum::from_view_projection_matrix(Matrix4::new(
-            1.0, 0.0, 0.0, 0.0, //
-            0.0, 1.0, 0.0, 0.0, //
-            0.0, 0.0, 1.0, 0.0, //
-            0.0, 0.0, 0.0, 1.0,
-        ))
-        .unwrap();
-        let mut visitor = Visitor::default();
-
-        assert!(f.visit("name", &mut visitor).is_ok());
     }
 }

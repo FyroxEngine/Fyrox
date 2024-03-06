@@ -46,6 +46,12 @@ pub fn impl_reflect(input: TokenStream) -> TokenStream {
     TokenStream::from(reflect_impl)
 }
 
+#[proc_macro]
+pub fn impl_visit(input: TokenStream) -> TokenStream {
+    let ast = parse_macro_input!(input as DeriveInput);
+    TokenStream::from(visit::impl_visit(ast))
+}
+
 /// Implements `TypeUuidProvider` trait
 ///
 /// User has to import `TypeUuidProvider` trait to use this macro.

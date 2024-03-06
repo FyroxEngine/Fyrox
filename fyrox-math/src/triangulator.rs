@@ -1,4 +1,3 @@
-use crate::math;
 use nalgebra::{Vector2, Vector3};
 use std::fmt;
 
@@ -74,7 +73,7 @@ fn is_ear(poly: &Polygon, prev: &Vertex, ear: &Vertex, next: &Vertex) -> bool {
         if i != prev.index
             && i != ear.index
             && i != next.index
-            && math::is_point_inside_2d_triangle(
+            && crate::is_point_inside_2d_triangle(
                 vertex.position,
                 prev.position,
                 ear.position,
@@ -126,14 +125,14 @@ pub fn triangulate(vertices: &[Vector3<f32>], out_triangles: &mut Vec<[usize; 3]
     } else {
         // Ear-clipping for arbitrary polygon (requires one additional memory allocation, so
         // relatively slow)
-        if let Ok(normal) = math::get_polygon_normal(vertices) {
-            let plane_class = math::classify_plane(normal);
+        if let Ok(normal) = crate::get_polygon_normal(vertices) {
+            let plane_class = crate::classify_plane(normal);
             let mut polygon = Polygon {
                 vertices: vertices
                     .iter()
                     .enumerate()
                     .map(|(i, point)| Vertex {
-                        position: math::vec3_to_vec2_by_plane(plane_class, normal, *point),
+                        position: crate::vec3_to_vec2_by_plane(plane_class, normal, *point),
                         index: i,
                         prev: if i == 0 { vertices.len() - 1 } else { i - 1 },
                         next: if i == vertices.len() - 1 { 0 } else { i + 1 },
@@ -172,8 +171,8 @@ pub fn triangulate(vertices: &[Vector3<f32>], out_triangles: &mut Vec<[usize; 3]
 mod test {
     use nalgebra::Vector2;
 
-    use crate::algebra::{Point3, Unit, UnitQuaternion, Vector3};
-    use crate::math::triangulator::triangulate;
+    use crate::triangulator::triangulate;
+    use nalgebra::{Point3, Unit, UnitQuaternion, Vector3};
 
     use super::{Polygon, Vertex};
 

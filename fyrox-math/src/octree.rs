@@ -1,6 +1,6 @@
-use crate::algebra::Vector3;
-use crate::math::{aabb::AxisAlignedBoundingBox, ray::Ray};
+use crate::{aabb::AxisAlignedBoundingBox, ray::Ray};
 use arrayvec::ArrayVec;
+use nalgebra::Vector3;
 
 #[derive(Clone, Debug)]
 pub enum OctreeNode {

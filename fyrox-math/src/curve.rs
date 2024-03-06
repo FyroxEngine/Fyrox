@@ -1,8 +1,4 @@
-use crate::{
-    math::{cubicf, inf_sup_cubicf, lerpf, Rect},
-    reflect::prelude::*,
-    visitor::prelude::*,
-};
+use crate::{cubicf, inf_sup_cubicf, lerpf, Rect};
 use std::cmp::Ordering;
 use uuid::Uuid;
 
@@ -14,7 +10,7 @@ fn stepf(p0: f32, p1: f32, t: f32) -> f32 {
     }
 }
 
-#[derive(Visit, Default, Clone, Debug, PartialEq, Reflect)]
+#[derive(Default, Clone, Debug, PartialEq)]
 pub enum CurveKeyKind {
     #[default]
     Constant,
@@ -37,10 +33,10 @@ impl CurveKeyKind {
     }
 }
 
-#[derive(Visit, Clone, Default, Debug, PartialEq)]
+#[derive(Clone, Default, Debug, PartialEq)]
 pub struct CurveKey {
     pub id: Uuid,
-    location: f32,
+    pub location: f32,
     pub value: f32,
     pub kind: CurveKeyKind,
 }
@@ -111,16 +107,11 @@ impl CurveKey {
     }
 }
 
-#[derive(Visit, Reflect, Clone, Debug, PartialEq)]
-#[reflect(hide_all)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Curve {
-    #[visit(optional)] // Backward compatibility
-    id: Uuid,
-
-    #[visit(optional)] // Backward compatibility
-    name: String,
-
-    keys: Vec<CurveKey>,
+    pub id: Uuid,
+    pub name: String,
+    pub keys: Vec<CurveKey>,
 }
 
 impl Default for Curve {

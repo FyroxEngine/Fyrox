@@ -4,8 +4,8 @@
 use fyrox::{
     core::{
         algebra::{UnitQuaternion, UnitVector3, Vector3},
-        curve::{Curve, CurveKey, CurveKeyKind},
         impl_component_provider,
+        math::curve::{Curve, CurveKey, CurveKeyKind},
         math::Vector3Ext,
         reflect::prelude::*,
         uuid_provider,

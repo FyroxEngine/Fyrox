@@ -3,7 +3,7 @@ use crate::{
     core::{
         algebra::{Matrix3, Point2, SimdPartialOrd, Vector2, Vector3},
         color::Color,
-        curve::{Curve, CurveKeyKind},
+        math::curve::{Curve, CurveKeyKind},
         math::{cubicf, lerpf, wrap_angle, Rect},
         pool::Handle,
         type_traits::prelude::*,
