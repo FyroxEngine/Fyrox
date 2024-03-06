@@ -330,12 +330,20 @@ impl NodeTrait for Rectangle {
 
         let triangles = [TriangleDefinition([0, 1, 2]), TriangleDefinition([2, 3, 0])];
 
+        // Make sure rectangles will be sorted back-to-front to prevent blending issues.
+        let granularity = 1000.0;
+        let sort_index = u64::MAX
+            - (self
+                .global_position()
+                .metric_distance(ctx.observer_position)
+                * granularity) as u64;
+
         ctx.storage.push_triangles(
             Vertex::layout(),
             &self.material,
             RenderPath::Forward,
             0,
-            0,
+            sort_index,
             false,
             self.self_handle,
             &mut move |mut vertex_buffer, mut triangle_buffer| {
