@@ -1402,15 +1402,20 @@ impl SkyBox {
             }
         }
 
-        self.cubemap = Some(
-            TextureResource::from_bytes(
-                TextureKind::Cube { width, height },
-                pixel_kind,
-                data,
-                ResourceKind::Embedded,
-            )
-            .ok_or(SkyBoxError::UnableToBuildCubeMap)?,
-        );
+        let cubemap = TextureResource::from_bytes(
+            TextureKind::Cube { width, height },
+            pixel_kind,
+            data,
+            ResourceKind::Embedded,
+        )
+        .ok_or(SkyBoxError::UnableToBuildCubeMap)?;
+
+        let mut cubemap_ref = cubemap.data_ref();
+        cubemap_ref.set_s_wrap_mode(TextureWrapMode::ClampToEdge);
+        cubemap_ref.set_t_wrap_mode(TextureWrapMode::ClampToEdge);
+        drop(cubemap_ref);
+
+        self.cubemap = Some(cubemap);
 
         Ok(())
     }
