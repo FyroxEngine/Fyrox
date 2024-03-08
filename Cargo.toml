@@ -67,7 +67,7 @@ half = "2.2.1"
 fast_image_resize = "3.0.4"
 base64 = "0.21.0"
 uvgen = "0.1.0"
-lightmap = { git = "https://github.com/mrDIMAS/lightmap" }
+lightmap = "0.1.1"
 
 [features]
 enable_profiler = ["fyrox-core/enable_profiler"]
