@@ -72,6 +72,21 @@ pub struct RenderContext<'a> {
     pub render_pass_name: &'a ImmutableString,
 }
 
+impl<'a> RenderContext<'a> {
+    /// Calculates sorting index using of the given point by transforming it in the view space and
+    /// using Z coordinate. This index could be used for back-to-front sorting to prevent blending
+    /// issues.
+    pub fn calculate_sorting_index(&self, global_position: Vector3<f32>) -> u64 {
+        let granularity = 1000.0;
+        u64::MAX
+            - (self
+                .view_matrix
+                .transform_point(&(global_position.into()))
+                .z
+                * granularity) as u64
+    }
+}
+
 /// Persistent identifier marks drawing data, telling the renderer that the data is the same, no matter from which
 /// render bundle it came from. It is used by the renderer to create associated GPU resources.
 #[derive(Copy, Clone, Hash, Debug, PartialEq, Eq)]

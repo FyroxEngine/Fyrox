@@ -506,13 +506,14 @@ impl NodeTrait for ParticleSystem {
         });
 
         let global_transform = self.global_transform();
+        let sort_index = ctx.calculate_sorting_index(self.global_position());
 
         ctx.storage.push_triangles(
             Vertex::layout(),
             &self.material,
             RenderPath::Forward,
             0,
-            0,
+            sort_index,
             false,
             self.self_handle,
             &mut move |mut vertex_buffer, mut triangle_buffer| {

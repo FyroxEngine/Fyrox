@@ -338,12 +338,14 @@ impl NodeTrait for Sprite {
 
         let triangles = [TriangleDefinition([0, 1, 2]), TriangleDefinition([2, 3, 0])];
 
+        let sort_index = ctx.calculate_sorting_index(self.global_position());
+
         ctx.storage.push_triangles(
             Vertex::layout(),
             &self.material,
             RenderPath::Forward,
             0,
-            0,
+            sort_index,
             false,
             self.self_handle,
             &mut move |mut vertex_buffer, mut triangle_buffer| {
