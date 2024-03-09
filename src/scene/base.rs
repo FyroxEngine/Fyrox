@@ -292,6 +292,7 @@ pub struct ScriptRecord {
     // Script is wrapped into `Option` to be able to do take-return trick to bypass borrow checker
     // issues.
     pub(crate) script: Option<Script>,
+    #[reflect(hidden)]
     pub(crate) should_be_deleted: bool,
 }
 
