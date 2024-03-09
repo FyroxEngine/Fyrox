@@ -1041,6 +1041,10 @@ where
         return false;
     };
 
+    if !node.is_globally_enabled() {
+        return false;
+    }
+
     let Some(entry) = node.scripts.get_mut(index) else {
         // All scripts were visited.
         return false;
