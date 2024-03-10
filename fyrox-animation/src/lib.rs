@@ -44,7 +44,7 @@ pub mod value;
 /// consists of multiple tracks, where each track is bound to a property of an entity. A track can animate
 /// any numeric properties, starting from numbers (including `bool`) end ending by 2/3/4 dimensional vectors.
 /// Each component (number, x/y/z/w vector components) is stored in a _parametric curve_ (see
-/// [`crate::core::curve::Curve`] docs for more info). Every parametric curve contains zero or more _key frames_.
+/// [`crate::core::math::curve::Curve`] docs for more info). Every parametric curve contains zero or more _key frames_.
 /// Graphically this could be represented like so:
 ///
 /// ```text

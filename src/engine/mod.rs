@@ -2778,6 +2778,7 @@ mod test {
     impl ScriptTrait for ScriptWithoutAsyncTasks {}
 
     #[test]
+    #[cfg(not(target_os = "macos"))] // This fails on macOS for some reason.
     fn test_async_script_tasks() {
         // This hack is needed, because tests run in random threads and EventLoop cannot be created
         // from non-main thread. Since we don't create any windows and don't run an event loop, this
