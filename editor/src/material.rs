@@ -6,18 +6,18 @@ use crate::{
     scene::commands::material::{SetMaterialPropertyValueCommand, SetMaterialShaderCommand},
     send_sync_message, Engine, Message,
 };
-use fyrox::asset::manager::ResourceManager;
-use fyrox::core::parking_lot::Mutex;
-use fyrox::graph::BaseSceneGraph;
 use fyrox::{
+    asset::manager::ResourceManager,
     core::{
         algebra::{Matrix4, Vector2, Vector3, Vector4},
         futures::executor::block_on,
         make_relative_path,
+        parking_lot::Mutex,
         pool::Handle,
         sstorage::ImmutableString,
         BiDirHashMap,
     },
+    graph::BaseSceneGraph,
     gui::{
         border::BorderBuilder,
         check_box::{CheckBoxBuilder, CheckBoxMessage},
@@ -50,26 +50,36 @@ use fyrox::{
         },
     },
 };
-use std::path::Path;
-use std::sync::Arc;
+use std::{path::Path, sync::Arc};
 
 struct TextureContextMenu {
     popup: RcUiNodeHandle,
     show_in_asset_browser: Handle<UiNode>,
+    unassign: Handle<UiNode>,
     target: Handle<UiNode>,
 }
 
 impl TextureContextMenu {
     fn new(ctx: &mut BuildContext) -> Self {
         let show_in_asset_browser;
+        let unassign;
         let popup = PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
             .with_content(
-                StackPanelBuilder::new(WidgetBuilder::new().with_child({
-                    show_in_asset_browser = MenuItemBuilder::new(WidgetBuilder::new())
-                        .with_content(MenuItemContent::text("Show In Asset Browser"))
-                        .build(ctx);
-                    show_in_asset_browser
-                }))
+                StackPanelBuilder::new(
+                    WidgetBuilder::new()
+                        .with_child({
+                            show_in_asset_browser = MenuItemBuilder::new(WidgetBuilder::new())
+                                .with_content(MenuItemContent::text("Show In Asset Browser"))
+                                .build(ctx);
+                            show_in_asset_browser
+                        })
+                        .with_child({
+                            unassign = MenuItemBuilder::new(WidgetBuilder::new())
+                                .with_content(MenuItemContent::text("Unassign"))
+                                .build(ctx);
+                            unassign
+                        }),
+                )
                 .build(ctx),
             )
             .build(ctx);
@@ -78,6 +88,7 @@ impl TextureContextMenu {
         Self {
             popup,
             show_in_asset_browser,
+            unassign,
             target: Default::default(),
         }
     }
@@ -441,6 +452,7 @@ impl MaterialEditor {
                             .build(ctx),
                         PropertyValue::Sampler { value, .. } => ImageBuilder::new(
                             WidgetBuilder::new()
+                                .with_user_data(Arc::new(Mutex::new(name.clone())))
                                 .with_allow_drop(true)
                                 .with_context_menu(self.texture_context_menu.popup.clone()),
                         )
@@ -636,6 +648,23 @@ impl MaterialEditor {
 
                     if let Some(path) = path {
                         sender.send(Message::ShowInAssetBrowser(path));
+                    }
+                } else if message.destination() == self.texture_context_menu.unassign
+                    && self.texture_context_menu.target.is_some()
+                {
+                    if let Some(property_name) = engine
+                        .user_interface
+                        .node(self.texture_context_menu.target)
+                        .user_data_cloned::<ImmutableString>()
+                    {
+                        sender.do_command(SetMaterialPropertyValueCommand::new(
+                            material.clone(),
+                            property_name.clone(),
+                            PropertyValue::Sampler {
+                                value: None,
+                                fallback: Default::default(),
+                            },
+                        ));
                     }
                 }
             }
