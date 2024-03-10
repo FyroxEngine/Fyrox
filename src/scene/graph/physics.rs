@@ -35,6 +35,7 @@ use crate::{
 };
 use fyrox_core::algebra::Translation;
 use fyrox_core::uuid_provider;
+use rapier2d::na::UnitVector3;
 use rapier3d::{
     dynamics::{
         CCDSolver, GenericJoint, GenericJointBuilder, ImpulseJointHandle, ImpulseJointSet,
@@ -45,7 +46,7 @@ use rapier3d::{
         BroadPhase, Collider, ColliderBuilder, ColliderHandle, ColliderSet, Cuboid,
         InteractionGroups, NarrowPhase, Ray, SharedShape,
     },
-    pipeline::{DebugRenderPipeline, EventHandler, PhysicsPipeline, QueryFilter, QueryPipeline},
+    pipeline::{DebugRenderPipeline, EventHandler, PhysicsPipeline, QueryPipeline},
     prelude::JointAxis,
 };
 use std::num::NonZeroUsize;
@@ -58,6 +59,11 @@ use std::{
     time::Duration,
 };
 use strum_macros::{AsRefStr, EnumString, VariantNames};
+
+use crate::scene::graph::Graph;
+use crate::scene::rigidbody;
+use fyrox_graph::{BaseSceneGraph, SceneGraphNode};
+pub use rapier3d::geometry::shape::*;
 
 /// Shape-dependent identifier.
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
@@ -963,6 +969,48 @@ fn u32_to_group(v: u32) -> rapier3d::geometry::Group {
     rapier3d::geometry::Group::from_bits(v).unwrap_or_else(rapier3d::geometry::Group::all)
 }
 
+/// A filter tha describes what collider should be included or excluded from a scene query.
+#[derive(Copy, Clone, Default)]
+#[allow(clippy::type_complexity)]
+pub struct QueryFilter<'a> {
+    /// Flags indicating what particular type of colliders should be excluded from the scene query.
+    pub flags: collider::QueryFilterFlags,
+    /// If set, only colliders with collision groups compatible with this one will
+    /// be included in the scene query.
+    pub groups: Option<collider::InteractionGroups>,
+    /// If set, this collider will be excluded from the scene query.
+    pub exclude_collider: Option<Handle<Node>>,
+    /// If set, any collider attached to this rigid-body will be excluded from the scene query.
+    pub exclude_rigid_body: Option<Handle<Node>>,
+    /// If set, any collider for which this closure returns false will be excluded from the scene query.
+    pub predicate: Option<&'a dyn Fn(Handle<Node>, &collider::Collider) -> bool>,
+}
+
+/// The result of a time-of-impact (TOI) computation.
+#[derive(Copy, Clone, Debug)]
+pub struct TOI {
+    /// The time at which the objects touch.
+    pub toi: f32,
+    /// The local-space closest point on the first shape at the time of impact.
+    ///
+    /// Undefined if `status` is `Penetrating`.
+    pub witness1: Point3<f32>,
+    /// The local-space closest point on the second shape at the time of impact.
+    ///
+    /// Undefined if `status` is `Penetrating`.
+    pub witness2: Point3<f32>,
+    /// The local-space outward normal on the first shape at the time of impact.
+    ///
+    /// Undefined if `status` is `Penetrating`.
+    pub normal1: UnitVector3<f32>,
+    /// The local-space outward normal on the second shape at the time of impact.
+    ///
+    /// Undefined if `status` is `Penetrating`.
+    pub normal2: UnitVector3<f32>,
+    /// The way the time-of-impact computation algorithm terminated.
+    pub status: collider::TOIStatus,
+}
+
 impl PhysicsWorld {
     /// Creates a new instance of the physics world.
     pub(super) fn new() -> Self {
@@ -1132,7 +1180,7 @@ impl PhysicsWorld {
             &ray,
             opts.max_len,
             true,
-            QueryFilter::new().groups(InteractionGroups::new(
+            rapier3d::pipeline::QueryFilter::new().groups(InteractionGroups::new(
                 u32_to_group(opts.groups.memberships.0),
                 u32_to_group(opts.groups.filter.0),
             )),
@@ -1164,6 +1212,93 @@ impl PhysicsWorld {
             self.performance_statistics.total_ray_cast_time.get()
                 + (instant::Instant::now() - time),
         );
+    }
+
+    /// Casts a shape at a constant linear velocity and retrieve the first collider it hits.
+    ///
+    /// This is similar to ray-casting except that we are casting a whole shape instead of just a
+    /// point (the ray origin). In the resulting `TOI`, witness and normal 1 refer to the world
+    /// collider, and are in world space.
+    ///
+    /// # Parameters
+    ///
+    /// * `graph` - a reference to the scene graph.
+    /// * `shape` - The shape to cast.
+    /// * `shape_pos` - The initial position of the shape to cast.
+    /// * `shape_vel` - The constant velocity of the shape to cast (i.e. the cast direction).
+    /// * `max_toi` - The maximum time-of-impact that can be reported by this cast. This effectively
+    ///   limits the distance traveled by the shape to `shapeVel.norm() * maxToi`.
+    /// * `stop_at_penetration` - If set to `false`, the linear shape-cast won’t immediately stop if
+    ///   the shape is penetrating another shape at its starting point **and** its trajectory is such
+    ///   that it’s on a path to exist that penetration state.
+    /// * `filter`: set of rules used to determine which collider is taken into account by this scene
+    ///   query.
+    pub fn cast_shape(
+        &self,
+        graph: &Graph,
+        shape: &dyn Shape,
+        shape_pos: &Isometry3<f32>,
+        shape_vel: &Vector3<f32>,
+        max_toi: f32,
+        stop_at_penetration: bool,
+        filter: QueryFilter,
+    ) -> Option<(Handle<Node>, TOI)> {
+        let predicate = |handle: ColliderHandle, _: &Collider| -> bool {
+            if let Some(pred) = filter.predicate {
+                let h = Handle::decode_from_u128(self.colliders.get(handle).unwrap().user_data);
+                pred(
+                    h,
+                    graph.node(h).component_ref::<collider::Collider>().unwrap(),
+                )
+            } else {
+                true
+            }
+        };
+
+        let filter = rapier3d::pipeline::QueryFilter {
+            flags: rapier3d::pipeline::QueryFilterFlags::from_bits(filter.flags.bits()).unwrap(),
+            groups: filter.groups.map(|g| {
+                InteractionGroups::new(u32_to_group(g.memberships.0), u32_to_group(g.filter.0))
+            }),
+            exclude_collider: filter
+                .exclude_collider
+                .and_then(|h| graph.try_get(h))
+                .and_then(|n| n.component_ref::<collider::Collider>())
+                .map(|c| c.native.get()),
+            exclude_rigid_body: filter
+                .exclude_collider
+                .and_then(|h| graph.try_get(h))
+                .and_then(|n| n.component_ref::<rigidbody::RigidBody>())
+                .map(|c| c.native.get()),
+            predicate: Some(&predicate),
+        };
+
+        let query = self.query.borrow_mut();
+
+        query
+            .cast_shape(
+                &self.bodies,
+                &self.colliders,
+                shape_pos,
+                shape_vel,
+                shape,
+                max_toi,
+                stop_at_penetration,
+                filter,
+            )
+            .map(|(handle, toi)| {
+                (
+                    Handle::decode_from_u128(self.colliders.get(handle).unwrap().user_data),
+                    TOI {
+                        toi: toi.toi,
+                        witness1: toi.witness1,
+                        witness2: toi.witness2,
+                        normal1: toi.normal1,
+                        normal2: toi.normal2,
+                        status: toi.status.into(),
+                    },
+                )
+            })
     }
 
     pub(crate) fn set_rigid_body_position(

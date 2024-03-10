@@ -604,7 +604,7 @@ impl Lightmap {
             .iter_mut()
             .filter_map(|i| i.data.take())
             .collect::<Vec<_>>();
-        let light_definitions = lights.values().map(|d| d).cloned().collect::<Vec<_>>();
+        let light_definitions = lights.values().cloned().collect::<Vec<_>>();
         for (mesh, instance) in meshes.iter().zip(instances.iter()) {
             if cancellation_token.is_cancelled() {
                 return Err(LightmapGenerationError::Cancelled);

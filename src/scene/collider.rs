@@ -341,6 +341,73 @@ impl From<geometry::InteractionGroups> for InteractionGroups {
     }
 }
 
+bitflags::bitflags! {
+    #[derive(Default, Copy, Clone)]
+    /// Flags for excluding whole sets of colliders from a scene query.
+    pub struct QueryFilterFlags: u32 {
+        /// Exclude from the query any collider attached to a fixed rigid-body and colliders with no rigid-body attached.
+        const EXCLUDE_FIXED = 1 << 1;
+        /// Exclude from the query any collider attached to a kinematic rigid-body.
+        const EXCLUDE_KINEMATIC = 1 << 2;
+        /// Exclude from the query any collider attached to a dynamic rigid-body.
+        const EXCLUDE_DYNAMIC = 1 << 3;
+        /// Exclude from the query any collider that is a sensor.
+        const EXCLUDE_SENSORS = 1 << 4;
+        /// Exclude from the query any collider that is not a sensor.
+        const EXCLUDE_SOLIDS = 1 << 5;
+        /// Excludes all colliders not attached to a dynamic rigid-body.
+        const ONLY_DYNAMIC = Self::EXCLUDE_FIXED.bits() | Self::EXCLUDE_KINEMATIC.bits();
+        /// Excludes all colliders not attached to a kinematic rigid-body.
+        const ONLY_KINEMATIC = Self::EXCLUDE_DYNAMIC.bits() | Self::EXCLUDE_FIXED.bits();
+        /// Exclude all colliders attached to a non-fixed rigid-body
+        /// (this will not exclude colliders not attached to any rigid-body).
+        const ONLY_FIXED = Self::EXCLUDE_DYNAMIC.bits() | Self::EXCLUDE_KINEMATIC.bits();
+    }
+}
+
+/// The status of the time-of-impact computation algorithm.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum TOIStatus {
+    /// The TOI algorithm ran out of iterations before achieving convergence.
+    ///
+    /// The content of the `TOI` will still be a conservative approximation of the actual result so
+    /// it is often fine to interpret this case as a success.
+    OutOfIterations,
+    /// The TOI algorithm converged successfully.
+    Converged,
+    /// Something went wrong during the TOI computation, likely due to numerical instabilities.
+    ///
+    /// The content of the `TOI` will still be a conservative approximation of the actual result so
+    /// it is often fine to interpret this case as a success.
+    Failed,
+    /// The two shape already overlap at the time 0.
+    ///
+    /// The witness points and normals provided by the `TOI` will have undefined values.
+    Penetrating,
+}
+
+impl From<rapier3d::parry::query::TOIStatus> for TOIStatus {
+    fn from(value: rapier3d::parry::query::TOIStatus) -> Self {
+        match value {
+            rapier3d::parry::query::TOIStatus::OutOfIterations => Self::OutOfIterations,
+            rapier3d::parry::query::TOIStatus::Converged => Self::Converged,
+            rapier3d::parry::query::TOIStatus::Failed => Self::Failed,
+            rapier3d::parry::query::TOIStatus::Penetrating => Self::Penetrating,
+        }
+    }
+}
+
+impl From<rapier2d::parry::query::TOIStatus> for TOIStatus {
+    fn from(value: rapier2d::parry::query::TOIStatus) -> Self {
+        match value {
+            rapier2d::parry::query::TOIStatus::OutOfIterations => Self::OutOfIterations,
+            rapier2d::parry::query::TOIStatus::Converged => Self::Converged,
+            rapier2d::parry::query::TOIStatus::Failed => Self::Failed,
+            rapier2d::parry::query::TOIStatus::Penetrating => Self::Penetrating,
+        }
+    }
+}
+
 /// Possible collider shapes.
 #[derive(Clone, Debug, PartialEq, Visit, Reflect, AsRefStr, EnumString, VariantNames)]
 pub enum ColliderShape {
