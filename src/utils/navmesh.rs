@@ -863,6 +863,9 @@ impl NavmeshAgent {
                 if self.interpolator >= 1.0 {
                     self.current += 1;
                     self.interpolator = 0.0;
+                } else if self.interpolator < 0.0 {
+                    self.current = self.current.saturating_sub(1);
+                    self.interpolator = 1.0;
                 }
             }
         }
