@@ -2347,7 +2347,7 @@ impl Drop for Engine {
 
 #[cfg(test)]
 mod test {
-    use crate::engine::{Engine, EngineInitParams};
+
     use crate::{
         asset::manager::ResourceManager,
         core::{
@@ -2363,12 +2363,10 @@ mod test {
             ScriptTrait,
         },
     };
-    use std::mem::{ManuallyDrop, MaybeUninit};
     use std::sync::{
         mpsc::{self, Sender, TryRecvError},
         Arc,
     };
-    use winit::event_loop::EventLoop;
 
     #[derive(PartialEq, Eq, Copy, Clone, Debug)]
     struct Source {
@@ -2780,6 +2778,9 @@ mod test {
     #[test]
     #[cfg(not(target_os = "macos"))] // This fails on macOS for some reason.
     fn test_async_script_tasks() {
+        use crate::engine::{Engine, EngineInitParams};
+        use std::mem::{ManuallyDrop, MaybeUninit};
+        use winit::event_loop::EventLoop;
         // This hack is needed, because tests run in random threads and EventLoop cannot be created
         // from non-main thread. Since we don't create any windows and don't run an event loop, this
         // should be safe.
