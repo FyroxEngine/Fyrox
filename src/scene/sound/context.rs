@@ -20,7 +20,6 @@ use std::{sync::MutexGuard, time::Duration};
 /// Sound context.
 #[derive(Debug, Visit)]
 pub struct SoundContext {
-    #[visit(optional)]
     pub(crate) native: fyrox_sound::context::SoundContext,
 }
 

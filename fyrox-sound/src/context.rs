@@ -377,10 +377,10 @@ impl Visit for State {
 
         self.listener.visit("Listener", &mut region)?;
         if !self.serialization_options.skip_sources {
-            self.sources.visit("Sources", &mut region)?;
+            let _ = self.sources.visit("Sources", &mut region);
         }
         if !self.serialization_options.skip_bus_graph {
-            self.bus_graph.visit("BusGraph", &mut region)?;
+            let _ = self.bus_graph.visit("BusGraph", &mut region);
         }
         self.renderer.visit("Renderer", &mut region)?;
         self.paused.visit("Paused", &mut region)?;
