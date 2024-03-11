@@ -635,7 +635,6 @@ impl Toolbar {
                                             "Animation Playback Speed",
                                         )),
                                 )
-                                .with_min_value(0.0)
                                 .with_value(1.0)
                                 .build(ctx);
                                 speed
