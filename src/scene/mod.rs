@@ -441,6 +441,21 @@ impl Scene {
         )
     }
 
+    /// Creates deep copy of a scene. Same as [`Self::clone`], but does 1:1 cloning.
+    pub fn clone_one_to_one<F, Pre, Post>(&self) -> (Self, NodeHandleMap<Node>)
+    where
+        F: FnMut(Handle<Node>, &Node) -> bool,
+        Pre: FnMut(Handle<Node>, &mut Node),
+        Post: FnMut(Handle<Node>, Handle<Node>, &mut Node),
+    {
+        self.clone(
+            self.graph.get_root(),
+            &mut |_, _| true,
+            &mut |_, _| {},
+            &mut |_, _, _| {},
+        )
+    }
+
     fn visit(&mut self, region_name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut region = visitor.enter_region(region_name)?;
 
