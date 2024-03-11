@@ -466,26 +466,27 @@ impl AudioPanel {
                     ),
                 ),
             );
-            let audio_bus_ref = context_state
+            if let Some(audio_bus_ref) = context_state
                 .bus_graph_ref()
                 .try_get_bus_ref(audio_bus_view_ref.bus)
-                .unwrap();
-            send_sync_message(
-                ui,
-                AudioBusViewMessage::effect_names(
-                    *audio_bus_view,
-                    MessageDirection::ToWidget,
-                    audio_bus_effect_names(audio_bus_ref),
-                ),
-            );
-            send_sync_message(
-                ui,
-                AudioBusViewMessage::name(
-                    *audio_bus_view,
-                    MessageDirection::ToWidget,
-                    audio_bus_ref.name().to_owned(),
-                ),
-            );
+            {
+                send_sync_message(
+                    ui,
+                    AudioBusViewMessage::effect_names(
+                        *audio_bus_view,
+                        MessageDirection::ToWidget,
+                        audio_bus_effect_names(audio_bus_ref),
+                    ),
+                );
+                send_sync_message(
+                    ui,
+                    AudioBusViewMessage::name(
+                        *audio_bus_view,
+                        MessageDirection::ToWidget,
+                        audio_bus_ref.name().to_owned(),
+                    ),
+                );
+            }
         }
 
         send_sync_message(
