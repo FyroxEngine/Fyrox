@@ -1,6 +1,7 @@
 //! Animation player is a node that contains multiple animations. It updates and plays all the animations.
 //! See [`AnimationPlayer`] docs for more info.
 
+use crate::MessageDirection;
 use crate::{
     core::{
         log::{Log, MessageKind},
@@ -10,7 +11,7 @@ use crate::{
         variable::InheritableVariable,
         visitor::prelude::*,
     },
-    define_widget_deref,
+    define_constructor, define_widget_deref,
     generic_animation::value::{BoundValueCollection, TrackValue, ValueBinding},
     message::UiMessage,
     widget::{Widget, WidgetBuilder},
@@ -18,6 +19,28 @@ use crate::{
 };
 use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum AnimationPlayerMessage {
+    EnableAnimation { animation: String, enabled: bool },
+    RewindAnimation { animation: String },
+    TimePosition { animation: String, time: f32 },
+}
+
+impl AnimationPlayerMessage {
+    define_constructor!(
+        /// Creates a new [Self::EnableAnimation] message.
+        AnimationPlayerMessage:EnableAnimation => fn enable_animation(animation: String, enabled: bool), layout: false
+    );
+    define_constructor!(
+        /// Creates a new [Self::RewindAnimation] message.
+        AnimationPlayerMessage:RewindAnimation => fn rewind_animation(animation: String), layout: false
+    );
+    define_constructor!(
+        /// Creates a new [Self::TimePosition] message.
+        AnimationPlayerMessage:TimePosition => fn time_position(animation: String, time: f32), layout: false
+    );
+}
 
 /// UI-specific animation.
 pub type Animation = crate::generic_animation::Animation<Handle<UiNode>>;
@@ -166,6 +189,10 @@ impl AnimationPlayer {
     pub fn set_animations(&mut self, animations: AnimationContainer) {
         self.animations.set_value_and_mark_modified(animations);
     }
+
+    fn find_animation(&mut self, name: &str) -> Option<&mut Animation> {
+        self.animations.find_by_name_mut(name).map(|(_, a)| a)
+    }
 }
 
 impl TypeUuidProvider for AnimationPlayer {
@@ -178,7 +205,27 @@ define_widget_deref!(AnimationPlayer);
 
 impl Control for AnimationPlayer {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
-        self.widget.handle_routed_message(ui, message)
+        self.widget.handle_routed_message(ui, message);
+
+        if let Some(msg) = message.data::<AnimationPlayerMessage>() {
+            match msg {
+                AnimationPlayerMessage::EnableAnimation { animation, enabled } => {
+                    if let Some(animation) = self.find_animation(animation) {
+                        animation.set_enabled(*enabled);
+                    }
+                }
+                AnimationPlayerMessage::RewindAnimation { animation } => {
+                    if let Some(animation) = self.find_animation(animation) {
+                        animation.rewind();
+                    }
+                }
+                AnimationPlayerMessage::TimePosition { animation, time } => {
+                    if let Some(animation) = self.find_animation(animation) {
+                        animation.set_time_position(*time);
+                    }
+                }
+            }
+        }
     }
 
     fn update(&mut self, dt: f32, ui: &mut UserInterface) {
