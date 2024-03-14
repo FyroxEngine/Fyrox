@@ -11,7 +11,7 @@ use std::{
     path::Path,
     process::{exit, Command},
 };
-use toml_edit::{table, value, Document};
+use toml_edit::{table, value, DocumentMut};
 use uuid::Uuid;
 
 #[derive(Parser, Debug)]
@@ -721,7 +721,7 @@ fn main() {
                 if file.read_to_string(&mut toml).is_ok() {
                     drop(file);
 
-                    if let Ok(mut document) = toml.parse::<Document>() {
+                    if let Ok(mut document) = toml.parse::<DocumentMut>() {
                         if let Some(workspace) =
                             document.get_mut("workspace").and_then(|i| i.as_table_mut())
                         {
