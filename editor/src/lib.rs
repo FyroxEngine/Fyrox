@@ -2658,6 +2658,11 @@ impl Editor {
                     }
                 }
                 Event::LoopExiting => {
+                    let ids = self.scenes.entries.iter().map(|e| e.id).collect::<Vec<_>>();
+                    for id in ids {
+                        self.close_scene(id);
+                    }
+
                     self.settings.force_save();
 
                     for_each_plugin!(self.plugins => on_exit(&mut self));
