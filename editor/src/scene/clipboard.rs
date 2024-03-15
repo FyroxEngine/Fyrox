@@ -1,8 +1,8 @@
-use crate::{scene::GraphSelection, Engine};
-use fyrox::{
+use crate::fyrox::{
     core::pool::Handle,
     scene::{graph::Graph, node::Node, Scene},
 };
+use crate::{scene::GraphSelection, Engine};
 use std::collections::HashMap;
 
 pub struct Clipboard {

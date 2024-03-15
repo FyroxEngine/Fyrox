@@ -1,4 +1,13 @@
 use crate::command::CommandStack;
+use crate::fyrox::{
+    core::{algebra::Vector2, math::Rect, pool::Handle, uuid::Uuid, TypeUuidProvider},
+    engine::Engine,
+    gui::{
+        message::{KeyCode, MouseButton},
+        UiNode, UserInterface,
+    },
+    scene::Scene,
+};
 use crate::{
     highlight::HighlightRenderPass,
     interaction::{
@@ -15,15 +24,6 @@ use crate::{
         interaction::move_mode::MoveWidgetsInteractionMode, interaction::UiSelectInteractionMode,
         UiScene,
     },
-};
-use fyrox::{
-    core::{algebra::Vector2, math::Rect, pool::Handle, uuid::Uuid, TypeUuidProvider},
-    engine::Engine,
-    gui::{
-        message::{KeyCode, MouseButton},
-        UiNode, UserInterface,
-    },
-    scene::Scene,
 };
 use std::{cell::RefCell, path::PathBuf, rc::Rc};
 

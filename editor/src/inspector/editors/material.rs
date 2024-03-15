@@ -1,9 +1,5 @@
-use crate::{
-    asset::item::AssetItem, inspector::EditorEnvironment, message::MessageSender, Message,
-    MessageDirection,
-};
-use fyrox::graph::BaseSceneGraph;
-use fyrox::{
+use crate::fyrox::graph::BaseSceneGraph;
+use crate::fyrox::{
     asset::{core::pool::Handle, manager::ResourceManager, state::ResourceState},
     core::{
         color::Color, futures::executor::block_on, make_relative_path, parking_lot::Mutex,
@@ -29,6 +25,10 @@ use fyrox::{
         BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
     material::{Material, MaterialResource, MaterialResourceExtension},
+};
+use crate::{
+    asset::item::AssetItem, inspector::EditorEnvironment, message::MessageSender, Message,
+    MessageDirection,
 };
 use std::{
     any::TypeId,

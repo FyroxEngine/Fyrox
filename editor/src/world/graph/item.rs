@@ -1,8 +1,7 @@
-use crate::{load_image, message::MessageSender, utils::make_node_name, Message};
-use fyrox::core::color::Color;
-use fyrox::graph::BaseSceneGraph;
-use fyrox::gui::draw::{CommandTexture, Draw};
-use fyrox::{
+use crate::fyrox::core::color::Color;
+use crate::fyrox::graph::BaseSceneGraph;
+use crate::fyrox::gui::draw::{CommandTexture, Draw};
+use crate::fyrox::{
     asset::untyped::UntypedResource,
     core::{
         algebra::Vector2, pool::ErasedHandle, pool::Handle, reflect::prelude::*,
@@ -22,6 +21,7 @@ use fyrox::{
         BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
 };
+use crate::{load_image, message::MessageSender, utils::make_node_name, Message};
 use std::{
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},

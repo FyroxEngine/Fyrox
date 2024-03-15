@@ -1,12 +1,4 @@
-use crate::{
-    asset::item::AssetItem,
-    inspector::editors::resource::{ResourceFieldBuilder, ResourceFieldMessage},
-    message::MessageSender,
-    preview::PreviewPanel,
-    scene::commands::material::{SetMaterialPropertyValueCommand, SetMaterialShaderCommand},
-    send_sync_message, Engine, Message,
-};
-use fyrox::{
+use crate::fyrox::{
     asset::manager::ResourceManager,
     core::{
         algebra::{Matrix4, Vector2, Vector3, Vector4},
@@ -49,6 +41,14 @@ use fyrox::{
             MeshBuilder,
         },
     },
+};
+use crate::{
+    asset::item::AssetItem,
+    inspector::editors::resource::{ResourceFieldBuilder, ResourceFieldMessage},
+    message::MessageSender,
+    preview::PreviewPanel,
+    scene::commands::material::{SetMaterialPropertyValueCommand, SetMaterialShaderCommand},
+    send_sync_message, Engine, Message,
 };
 use std::{path::Path, sync::Arc};
 

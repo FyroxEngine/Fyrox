@@ -1,6 +1,5 @@
 use crate::command::{Command, CommandTrait};
-use crate::{scene::Selection, BuildProfile, SaveSceneConfirmationDialogAction};
-use fyrox::{
+use crate::fyrox::{
     core::{
         log::Log,
         pool::{ErasedHandle, Handle},
@@ -10,6 +9,7 @@ use fyrox::{
     material::MaterialResource,
     scene::{camera::Projection, node::Node},
 };
+use crate::{scene::Selection, BuildProfile, SaveSceneConfirmationDialogAction};
 use std::{path::PathBuf, sync::mpsc::Sender};
 
 #[derive(Debug)]

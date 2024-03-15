@@ -1,8 +1,8 @@
-use crate::scene::SelectionContainer;
-use fyrox::{
+use crate::fyrox::{
     core::pool::Handle,
     generic_animation::machine::{PoseNode, State, Transition},
 };
+use crate::scene::SelectionContainer;
 use std::fmt::{Debug, Formatter};
 
 #[derive(Eq)]

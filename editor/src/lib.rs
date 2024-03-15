@@ -41,54 +41,13 @@ pub mod ui_scene;
 pub mod utils;
 pub mod world;
 
-use crate::{
-    absm::AbsmEditor,
-    animation::AnimationEditor,
-    asset::{item::AssetItem, AssetBrowser},
-    audio::{preview::AudioPreviewPanel, AudioPanel},
-    build::BuildWindow,
-    camera::panel::CameraPreviewControlPanel,
-    command::{panel::CommandStackViewer, CommandTrait},
-    configurator::Configurator,
-    curve_editor::CurveEditorWindow,
-    highlight::HighlightRenderPass,
-    inspector::Inspector,
-    interaction::{
-        move_mode::MoveInteractionMode,
-        navmesh::{EditNavmeshMode, NavmeshPanel},
-        rotate_mode::RotateInteractionMode,
-        scale_mode::ScaleInteractionMode,
-        select_mode::SelectInteractionMode,
-        terrain::TerrainInteractionMode,
-    },
-    light::LightPanel,
-    log::LogPanel,
-    material::MaterialEditor,
-    menu::{Menu, MenuContext, Panels},
-    message::MessageSender,
-    overlay::OverlayRenderPass,
-    particle::ParticleSystemPreviewControlPanel,
-    physics::ColliderControlPanel,
-    plugin::EditorPlugin,
-    scene::{
-        commands::{
-            make_delete_selection_command, ChangeSelectionCommand, GameSceneContext, PasteCommand,
-        },
-        container::{EditorSceneEntry, SceneContainer},
-        dialog::NodeRemovalDialog,
-        settings::SceneSettingsWindow,
-        GameScene, Selection,
-    },
-    scene_viewer::SceneViewer,
-    settings::Settings,
-    ui_scene::{
-        commands::graph::PasteWidgetCommand, menu::WidgetContextMenu,
-        utils::UiSceneWorldViewerDataProvider, UiScene,
-    },
-    utils::{doc::DocWindow, path_fixer::PathFixer, ragdoll::RagdollWizard},
-    world::{graph::menu::SceneNodeContextMenu, graph::EditorSceneWrapper, WorldViewer},
-};
-use fyrox::{
+#[cfg(dylib_engine)]
+pub use fyrox_dylib as fyrox;
+
+#[cfg(not(dylib_engine))]
+pub use fyrox;
+
+use crate::fyrox::{
     asset::{io::FsResourceIo, manager::ResourceManager, untyped::UntypedResource},
     core::{
         algebra::{Matrix3, Vector2},
@@ -141,6 +100,53 @@ use fyrox::{
     scene::{graph::GraphUpdateSwitches, mesh::Mesh, Scene, SceneLoader},
     utils::{translate_cursor_icon, translate_event},
     window::{Icon, WindowAttributes},
+};
+use crate::{
+    absm::AbsmEditor,
+    animation::AnimationEditor,
+    asset::{item::AssetItem, AssetBrowser},
+    audio::{preview::AudioPreviewPanel, AudioPanel},
+    build::BuildWindow,
+    camera::panel::CameraPreviewControlPanel,
+    command::{panel::CommandStackViewer, CommandTrait},
+    configurator::Configurator,
+    curve_editor::CurveEditorWindow,
+    highlight::HighlightRenderPass,
+    inspector::Inspector,
+    interaction::{
+        move_mode::MoveInteractionMode,
+        navmesh::{EditNavmeshMode, NavmeshPanel},
+        rotate_mode::RotateInteractionMode,
+        scale_mode::ScaleInteractionMode,
+        select_mode::SelectInteractionMode,
+        terrain::TerrainInteractionMode,
+    },
+    light::LightPanel,
+    log::LogPanel,
+    material::MaterialEditor,
+    menu::{Menu, MenuContext, Panels},
+    message::MessageSender,
+    overlay::OverlayRenderPass,
+    particle::ParticleSystemPreviewControlPanel,
+    physics::ColliderControlPanel,
+    plugin::EditorPlugin,
+    scene::{
+        commands::{
+            make_delete_selection_command, ChangeSelectionCommand, GameSceneContext, PasteCommand,
+        },
+        container::{EditorSceneEntry, SceneContainer},
+        dialog::NodeRemovalDialog,
+        settings::SceneSettingsWindow,
+        GameScene, Selection,
+    },
+    scene_viewer::SceneViewer,
+    settings::Settings,
+    ui_scene::{
+        commands::graph::PasteWidgetCommand, menu::WidgetContextMenu,
+        utils::UiSceneWorldViewerDataProvider, UiScene,
+    },
+    utils::{doc::DocWindow, path_fixer::PathFixer, ragdoll::RagdollWizard},
+    world::{graph::menu::SceneNodeContextMenu, graph::EditorSceneWrapper, WorldViewer},
 };
 use std::{
     cell::RefCell,

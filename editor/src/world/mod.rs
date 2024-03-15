@@ -1,15 +1,5 @@
-use crate::{
-    asset::item::AssetItem,
-    gui::make_image_button_with_tooltip,
-    load_image,
-    message::MessageSender,
-    send_sync_message,
-    utils::window_content,
-    world::graph::item::{DropAnchor, SceneItem, SceneItemBuilder, SceneItemMessage},
-    Mode, Settings,
-};
-use fyrox::graph::BaseSceneGraph;
-use fyrox::{
+use crate::fyrox::graph::BaseSceneGraph;
+use crate::fyrox::{
     asset::untyped::UntypedResource,
     core::{
         color::Color,
@@ -39,6 +29,16 @@ use fyrox::{
         BuildContext, Orientation, RcUiNodeHandle, Thickness, UiNode, UserInterface,
         VerticalAlignment, BRUSH_BRIGHT_BLUE, BRUSH_PRIMARY,
     },
+};
+use crate::{
+    asset::item::AssetItem,
+    gui::make_image_button_with_tooltip,
+    load_image,
+    message::MessageSender,
+    send_sync_message,
+    utils::window_content,
+    world::graph::item::{DropAnchor, SceneItem, SceneItemBuilder, SceneItemMessage},
+    Mode, Settings,
 };
 use rust_fuzzy_search::fuzzy_compare;
 use std::{

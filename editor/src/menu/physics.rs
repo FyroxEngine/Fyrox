@@ -1,5 +1,4 @@
-use crate::menu::create_menu_item;
-use fyrox::{
+use crate::fyrox::{
     core::pool::Handle,
     gui::{menu::MenuItemMessage, message::UiMessage, BuildContext, UiNode},
     scene::{
@@ -7,6 +6,7 @@ use fyrox::{
         rigidbody::RigidBodyBuilder,
     },
 };
+use crate::menu::create_menu_item;
 
 pub struct PhysicsMenu {
     pub menu: Handle<UiNode>,

@@ -1,12 +1,6 @@
 use crate::command::{Command, CommandGroup, SetPropertyCommand};
-use crate::scene::commands::GameSceneContext;
-use crate::{
-    message::MessageSender,
-    scene::{GameScene, Selection},
-    Message,
-};
-use fyrox::graph::{BaseSceneGraph, SceneGraph};
-use fyrox::{
+use crate::fyrox::graph::{BaseSceneGraph, SceneGraph};
+use crate::fyrox::{
     core::{algebra::Vector3, pool::Handle, reflect::Reflect},
     engine::Engine,
     gui::{
@@ -22,6 +16,12 @@ use fyrox::{
         collider::{Collider, ColliderShape},
         node::Node,
     },
+};
+use crate::scene::commands::GameSceneContext;
+use crate::{
+    message::MessageSender,
+    scene::{GameScene, Selection},
+    Message,
 };
 
 pub struct ColliderControlPanel {

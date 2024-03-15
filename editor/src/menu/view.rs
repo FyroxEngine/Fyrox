@@ -1,10 +1,5 @@
-use crate::{
-    menu::{create_menu_item, create_root_menu_item, Panels},
-    message::MessageSender,
-    Message,
-};
-use fyrox::graph::BaseSceneGraph;
-use fyrox::{
+use crate::fyrox::graph::BaseSceneGraph;
+use crate::fyrox::{
     core::pool::Handle,
     gui::{
         menu::MenuItemMessage,
@@ -12,6 +7,11 @@ use fyrox::{
         window::WindowMessage,
         BuildContext, UiNode, UserInterface,
     },
+};
+use crate::{
+    menu::{create_menu_item, create_root_menu_item, Panels},
+    message::MessageSender,
+    Message,
 };
 
 pub struct ViewMenu {

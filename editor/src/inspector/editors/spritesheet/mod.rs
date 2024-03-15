@@ -1,5 +1,4 @@
-use crate::inspector::editors::spritesheet::window::SpriteSheetFramesEditorWindow;
-use fyrox::{
+use crate::fyrox::{
     core::{
         pool::Handle, reflect::prelude::*, type_traits::prelude::*, uuid_provider,
         visitor::prelude::*,
@@ -23,6 +22,7 @@ use fyrox::{
     },
     scene::animation::spritesheet::prelude::*,
 };
+use crate::inspector::editors::spritesheet::window::SpriteSheetFramesEditorWindow;
 use std::{
     any::TypeId,
     ops::{Deref, DerefMut},

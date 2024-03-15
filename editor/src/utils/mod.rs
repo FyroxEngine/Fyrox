@@ -1,5 +1,5 @@
-use fyrox::graph::BaseSceneGraph;
-use fyrox::{
+use crate::fyrox::graph::BaseSceneGraph;
+use crate::fyrox::{
     core::{algebra::Vector2, pool::ErasedHandle, pool::Handle, visitor::Visitor},
     gui::{
         file_browser::{FileBrowserMode, FileSelectorBuilder, Filter},

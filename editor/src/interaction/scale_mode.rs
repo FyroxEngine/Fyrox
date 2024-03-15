@@ -1,4 +1,13 @@
 use crate::command::{Command, CommandGroup};
+use crate::fyrox::{
+    core::{
+        algebra::{Vector2, Vector3},
+        pool::Handle,
+        uuid::{uuid, Uuid},
+        TypeUuidProvider,
+    },
+    gui::{BuildContext, UiNode},
+};
 use crate::scene::SelectionContainer;
 use crate::{
     camera::PickingOptions,
@@ -15,15 +24,6 @@ use crate::{
     settings::Settings,
     world::graph::selection::GraphSelection,
     Engine,
-};
-use fyrox::{
-    core::{
-        algebra::{Vector2, Vector3},
-        pool::Handle,
-        uuid::{uuid, Uuid},
-        TypeUuidProvider,
-    },
-    gui::{BuildContext, UiNode},
 };
 
 pub struct ScaleInteractionMode {

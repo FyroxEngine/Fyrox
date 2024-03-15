@@ -1,6 +1,5 @@
-use crate::menu::create_menu_item;
-use fyrox::graph::BaseSceneGraph;
-use fyrox::{
+use crate::fyrox::graph::BaseSceneGraph;
+use crate::fyrox::{
     core::{
         algebra::{Matrix3, Point2, Vector2},
         math::{round_to_step, Rect},
@@ -25,6 +24,7 @@ use fyrox::{
         BRUSH_LIGHTER, BRUSH_LIGHTEST,
     },
 };
+use crate::menu::create_menu_item;
 use std::{
     cell::{Cell, RefCell},
     fmt::{Debug, Formatter},

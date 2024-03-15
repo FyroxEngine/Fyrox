@@ -1,4 +1,4 @@
-use fyrox::{
+use crate::fyrox::{
     core::pool::Handle,
     gui::{
         formatted_text::WrapMode,

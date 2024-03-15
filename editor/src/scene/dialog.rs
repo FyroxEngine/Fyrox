@@ -1,14 +1,5 @@
-use crate::scene::Selection;
-use crate::{
-    message::MessageSender,
-    scene::{
-        commands::{make_delete_selection_command, selection_to_delete},
-        GameScene,
-    },
-    Message,
-};
-use fyrox::graph::SceneGraph;
-use fyrox::{
+use crate::fyrox::graph::SceneGraph;
+use crate::fyrox::{
     core::pool::Handle,
     engine::Engine,
     gui::{
@@ -24,6 +15,15 @@ use fyrox::{
         window::{WindowBuilder, WindowMessage},
         BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode,
     },
+};
+use crate::scene::Selection;
+use crate::{
+    message::MessageSender,
+    scene::{
+        commands::{make_delete_selection_command, selection_to_delete},
+        GameScene,
+    },
+    Message,
 };
 
 pub struct NodeRemovalDialog {

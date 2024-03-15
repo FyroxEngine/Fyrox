@@ -1,7 +1,6 @@
-use crate::{load_image, Engine};
-use fyrox::graph::BaseSceneGraph;
-use fyrox::scene::SceneRenderingOptions;
-use fyrox::{
+use crate::fyrox::graph::BaseSceneGraph;
+use crate::fyrox::scene::SceneRenderingOptions;
+use crate::fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
         color::Color,
@@ -34,6 +33,7 @@ use fyrox::{
         Scene,
     },
 };
+use crate::{load_image, Engine};
 use std::path::Path;
 
 #[derive(Eq, PartialEq, Copy, Clone)]

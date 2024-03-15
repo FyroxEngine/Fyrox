@@ -1,12 +1,4 @@
-use crate::{
-    command::{Command, CommandGroup},
-    interaction::{make_interaction_mode_button, InteractionMode},
-    message::MessageSender,
-    scene::{commands::ChangeSelectionCommand, controller::SceneController, Selection},
-    settings::Settings,
-    ui_scene::{commands::widget::MoveWidgetCommand, UiScene},
-};
-use fyrox::{
+use crate::fyrox::{
     core::{
         algebra::Point2, algebra::Vector2, pool::Handle, uuid::Uuid, uuid_provider,
         TypeUuidProvider,
@@ -14,6 +6,14 @@ use fyrox::{
     engine::Engine,
     graph::BaseSceneGraph,
     gui::{BuildContext, UiNode},
+};
+use crate::{
+    command::{Command, CommandGroup},
+    interaction::{make_interaction_mode_button, InteractionMode},
+    message::MessageSender,
+    scene::{commands::ChangeSelectionCommand, controller::SceneController, Selection},
+    settings::Settings,
+    ui_scene::{commands::widget::MoveWidgetCommand, UiScene},
 };
 
 struct Entry {

@@ -1,6 +1,6 @@
 //! A mixin that provides selection functionality for a widget.
 
-use fyrox::{
+use crate::fyrox::{
     core::pool::Handle,
     core::{reflect::prelude::*, visitor::prelude::*},
     gui::message::{MessageDirection, MouseButton, UiMessage},

@@ -1,25 +1,4 @@
-use crate::{
-    animation::{
-        command::{
-            AddAnimationCommand, RemoveAnimationCommand, ReplaceAnimationCommand,
-            SetAnimationEnabledCommand, SetAnimationLoopingCommand, SetAnimationNameCommand,
-            SetAnimationRootMotionSettingsCommand, SetAnimationSpeedCommand,
-            SetAnimationTimeSliceCommand,
-        },
-        selection::AnimationSelection,
-    },
-    command::{Command, CommandGroup},
-    gui::make_dropdown_list_option_universal,
-    load_image,
-    message::MessageSender,
-    scene::{
-        commands::ChangeSelectionCommand,
-        selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
-        Selection,
-    },
-    send_sync_message,
-};
-use fyrox::{
+use crate::fyrox::{
     asset::manager::ResourceManager,
     core::{
         algebra::Vector2, futures::executor::block_on, log::Log, math::Rect, pool::ErasedHandle,
@@ -49,6 +28,27 @@ use fyrox::{
         VerticalAlignment, BRUSH_BRIGHT, BRUSH_LIGHT,
     },
     resource::model::AnimationSource,
+};
+use crate::{
+    animation::{
+        command::{
+            AddAnimationCommand, RemoveAnimationCommand, ReplaceAnimationCommand,
+            SetAnimationEnabledCommand, SetAnimationLoopingCommand, SetAnimationNameCommand,
+            SetAnimationRootMotionSettingsCommand, SetAnimationSpeedCommand,
+            SetAnimationTimeSliceCommand,
+        },
+        selection::AnimationSelection,
+    },
+    command::{Command, CommandGroup},
+    gui::make_dropdown_list_option_universal,
+    load_image,
+    message::MessageSender,
+    scene::{
+        commands::ChangeSelectionCommand,
+        selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
+        Selection,
+    },
+    send_sync_message,
 };
 use std::path::Path;
 

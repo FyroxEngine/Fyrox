@@ -1,5 +1,4 @@
-use crate::scene::GameScene;
-use fyrox::{
+use crate::fyrox::{
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector2, Vector3},
         color::Color,
@@ -24,6 +23,7 @@ use fyrox::{
         Scene,
     },
 };
+use crate::scene::GameScene;
 
 pub struct CameraRotation {
     pub yaw: f32,

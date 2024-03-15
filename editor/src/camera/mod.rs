@@ -1,11 +1,5 @@
-use crate::settings::{
-    camera::CameraSettings,
-    keys::KeyBindings,
-    scene::{SceneCameraSettings, SceneSettings},
-    Settings,
-};
-use fyrox::graph::{BaseSceneGraph, SceneGraph};
-use fyrox::{
+use crate::fyrox::graph::{BaseSceneGraph, SceneGraph};
+use crate::fyrox::{
     core::{
         algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3},
         math::{
@@ -30,6 +24,12 @@ use fyrox::{
         transform::TransformBuilder,
         Scene,
     },
+};
+use crate::settings::{
+    camera::CameraSettings,
+    keys::KeyBindings,
+    scene::{SceneCameraSettings, SceneSettings},
+    Settings,
 };
 use std::path::Path;
 use std::{

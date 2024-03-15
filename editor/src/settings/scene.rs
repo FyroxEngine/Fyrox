@@ -1,5 +1,5 @@
-use fyrox::core::algebra::Vector3;
-use fyrox::core::pool::ErasedHandle;
+use crate::fyrox::core::algebra::Vector3;
+use crate::fyrox::core::pool::ErasedHandle;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 

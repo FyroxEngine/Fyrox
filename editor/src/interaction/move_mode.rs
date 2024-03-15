@@ -1,4 +1,22 @@
 use crate::command::{Command, CommandGroup};
+use crate::fyrox::core::uuid::{uuid, Uuid};
+use crate::fyrox::core::TypeUuidProvider;
+use crate::fyrox::graph::SceneGraph;
+use crate::fyrox::gui::{BuildContext, UiNode};
+use crate::fyrox::{
+    core::{
+        algebra::{Matrix4, Point3, Vector2, Vector3},
+        math::plane::Plane,
+        pool::Handle,
+    },
+    fxhash::FxHashSet,
+    scene::{
+        camera::{Camera, Projection},
+        graph::Graph,
+        node::Node,
+        Scene,
+    },
+};
 use crate::interaction::make_interaction_mode_button;
 use crate::message::MessageSender;
 use crate::scene::controller::SceneController;
@@ -15,24 +33,6 @@ use crate::{
     settings::Settings,
     world::graph::selection::GraphSelection,
     Engine, Message,
-};
-use fyrox::core::uuid::{uuid, Uuid};
-use fyrox::core::TypeUuidProvider;
-use fyrox::graph::SceneGraph;
-use fyrox::gui::{BuildContext, UiNode};
-use fyrox::{
-    core::{
-        algebra::{Matrix4, Point3, Vector2, Vector3},
-        math::plane::Plane,
-        pool::Handle,
-    },
-    fxhash::FxHashSet,
-    scene::{
-        camera::{Camera, Projection},
-        graph::Graph,
-        node::Node,
-        Scene,
-    },
 };
 
 struct Entry {

@@ -1,4 +1,4 @@
-use fyrox::core::{reflect::prelude::*, uuid_provider};
+use crate::fyrox::core::{reflect::prelude::*, uuid_provider};
 use serde::{Deserialize, Serialize};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 

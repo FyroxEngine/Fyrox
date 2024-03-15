@@ -1,8 +1,7 @@
 //! Animation selector for `Handle<Animation>` fields.
 
-use crate::{gui::make_dropdown_list_option_universal, inspector::EditorEnvironment, Message};
-use fyrox::generic_animation::EntityId;
-use fyrox::{
+use crate::fyrox::generic_animation::EntityId;
+use crate::fyrox::{
     core::pool::Handle,
     gui::{
         button::{ButtonBuilder, ButtonMessage},
@@ -19,6 +18,7 @@ use fyrox::{
         widget::WidgetBuilder,
     },
 };
+use crate::{gui::make_dropdown_list_option_universal, inspector::EditorEnvironment, Message};
 use std::{
     any::TypeId,
     fmt::{Debug, Formatter},

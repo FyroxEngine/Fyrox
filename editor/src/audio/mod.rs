@@ -1,24 +1,8 @@
 use crate::command::CommandGroup;
-use crate::scene::commands::sound_context::SetHrtfRendererHrirSphereResource;
-use crate::scene::SelectionContainer;
-use crate::{
-    audio::bus::{AudioBusView, AudioBusViewBuilder, AudioBusViewMessage},
-    gui::make_dropdown_list_option,
-    inspector::editors::resource::{ResourceFieldBuilder, ResourceFieldMessage},
-    message::MessageSender,
-    scene::commands::{
-        effect::{AddAudioBusCommand, LinkAudioBuses, RemoveAudioBusCommand},
-        sound_context::{SetDistanceModelCommand, SetRendererCommand},
-    },
-    send_sync_message,
-    utils::window_content,
-    ChangeSelectionCommand, Command, GameScene, GridBuilder, MessageDirection, Mode, Selection,
-    UserInterface,
-};
-use fyrox::asset::manager::ResourceManager;
-use fyrox::core::parking_lot::Mutex;
-use fyrox::graph::BaseSceneGraph;
-use fyrox::{
+use crate::fyrox::asset::manager::ResourceManager;
+use crate::fyrox::core::parking_lot::Mutex;
+use crate::fyrox::graph::BaseSceneGraph;
+use crate::fyrox::{
     core::{futures::executor::block_on, pool::Handle},
     engine::Engine,
     gui::{
@@ -35,6 +19,22 @@ use fyrox::{
         Orientation, Thickness, UiNode, VerticalAlignment,
     },
     scene::sound::{AudioBus, AudioBusGraph, DistanceModel, HrirSphereResourceData, Renderer},
+};
+use crate::scene::commands::sound_context::SetHrtfRendererHrirSphereResource;
+use crate::scene::SelectionContainer;
+use crate::{
+    audio::bus::{AudioBusView, AudioBusViewBuilder, AudioBusViewMessage},
+    gui::make_dropdown_list_option,
+    inspector::editors::resource::{ResourceFieldBuilder, ResourceFieldMessage},
+    message::MessageSender,
+    scene::commands::{
+        effect::{AddAudioBusCommand, LinkAudioBuses, RemoveAudioBusCommand},
+        sound_context::{SetDistanceModelCommand, SetRendererCommand},
+    },
+    send_sync_message,
+    utils::window_content,
+    ChangeSelectionCommand, Command, GameScene, GridBuilder, MessageDirection, Mode, Selection,
+    UserInterface,
 };
 use std::cmp::Ordering;
 use std::path::Path;

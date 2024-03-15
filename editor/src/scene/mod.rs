@@ -1,38 +1,7 @@
 use crate::animation::command::fetch_animations_container;
-use crate::{
-    absm::{
-        command::fetch_machine,
-        selection::{AbsmSelection, SelectedEntity},
-    },
-    animation::{self, selection::AnimationSelection},
-    asset::item::AssetItem,
-    audio::AudioBusSelection,
-    camera::{CameraController, PickingOptions},
-    command::{make_command, Command, CommandGroup, CommandStack},
-    highlight::HighlightRenderPass,
-    inspector::{
-        editors::handle::HandlePropertyEditorMessage,
-        handlers::node::SceneNodePropertyChangedHandler,
-    },
-    interaction::navmesh::selection::NavmeshSelection,
-    message::MessageSender,
-    scene::{
-        clipboard::Clipboard,
-        commands::{
-            graph::AddModelCommand, mesh::SetMeshTextureCommand, ChangeSelectionCommand,
-            GameSceneContext,
-        },
-        controller::SceneController,
-        selector::HierarchyNode,
-    },
-    settings::keys::KeyBindings,
-    ui_scene::selection::UiSelection,
-    world::graph::selection::GraphSelection,
-    Message, Settings,
-};
-use fyrox::graph::BaseSceneGraph;
-use fyrox::scene::sound::AudioBus;
-use fyrox::{
+use crate::fyrox::graph::BaseSceneGraph;
+use crate::fyrox::scene::sound::AudioBus;
+use crate::fyrox::{
     core::{
         algebra::{Vector2, Vector3},
         color::Color,
@@ -70,6 +39,37 @@ use fyrox::{
         terrain::Terrain,
         Scene, SceneContainer,
     },
+};
+use crate::{
+    absm::{
+        command::fetch_machine,
+        selection::{AbsmSelection, SelectedEntity},
+    },
+    animation::{self, selection::AnimationSelection},
+    asset::item::AssetItem,
+    audio::AudioBusSelection,
+    camera::{CameraController, PickingOptions},
+    command::{make_command, Command, CommandGroup, CommandStack},
+    highlight::HighlightRenderPass,
+    inspector::{
+        editors::handle::HandlePropertyEditorMessage,
+        handlers::node::SceneNodePropertyChangedHandler,
+    },
+    interaction::navmesh::selection::NavmeshSelection,
+    message::MessageSender,
+    scene::{
+        clipboard::Clipboard,
+        commands::{
+            graph::AddModelCommand, mesh::SetMeshTextureCommand, ChangeSelectionCommand,
+            GameSceneContext,
+        },
+        controller::SceneController,
+        selector::HierarchyNode,
+    },
+    settings::keys::KeyBindings,
+    ui_scene::selection::UiSelection,
+    world::graph::selection::GraphSelection,
+    Message, Settings,
 };
 use std::cell::RefCell;
 use std::fmt::Debug;

@@ -1,8 +1,8 @@
-use crate::menu::{create_menu_item, create_root_menu_item};
-use fyrox::{
+use crate::fyrox::{
     core::{log::Log, pool::Handle},
     gui::{menu::MenuItemMessage, message::UiMessage, BuildContext, UiNode},
 };
+use crate::menu::{create_menu_item, create_root_menu_item};
 
 pub struct HelpMenu {
     pub menu: Handle<UiNode>,

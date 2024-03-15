@@ -1,10 +1,6 @@
-use crate::{
-    scene::{GameScene, Selection},
-    send_sync_message, Message, FIXED_TIMESTEP,
-};
-use fyrox::graph::SceneGraph;
-use fyrox::gui::HorizontalAlignment;
-use fyrox::{
+use crate::fyrox::graph::SceneGraph;
+use crate::fyrox::gui::HorizontalAlignment;
+use crate::fyrox::{
     core::pool::Handle,
     engine::Engine,
     gui::{
@@ -19,6 +15,10 @@ use fyrox::{
         BuildContext, Thickness, UiNode, VerticalAlignment,
     },
     scene::{node::Node, particle_system::ParticleSystem},
+};
+use crate::{
+    scene::{GameScene, Selection},
+    send_sync_message, Message, FIXED_TIMESTEP,
 };
 
 pub struct ParticleSystemPreviewControlPanel {

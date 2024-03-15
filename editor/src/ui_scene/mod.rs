@@ -5,28 +5,7 @@ pub mod menu;
 pub mod selection;
 pub mod utils;
 
-use crate::{
-    absm::{command::fetch_machine, selection::SelectedEntity},
-    animation::{self, command::fetch_animations_container},
-    asset::item::AssetItem,
-    command::{make_command, Command, CommandGroup, CommandStack},
-    inspector::editors::handle::HandlePropertyEditorMessage,
-    message::MessageSender,
-    scene::{
-        commands::ChangeSelectionCommand, controller::SceneController, selector::HierarchyNode,
-        Selection,
-    },
-    settings::{keys::KeyBindings, Settings},
-    ui_scene::{
-        clipboard::Clipboard,
-        commands::{
-            graph::AddUiPrefabCommand, widget::RevertWidgetPropertyCommand, UiSceneContext,
-        },
-        selection::UiSelection,
-    },
-    Message,
-};
-use fyrox::{
+use crate::fyrox::{
     core::{
         algebra::{Vector2, Vector3},
         color::Color,
@@ -53,6 +32,27 @@ use fyrox::{
     renderer::framework::gpu_texture::PixelKind,
     resource::texture::{TextureKind, TextureResource, TextureResourceExtension},
     scene::SceneContainer,
+};
+use crate::{
+    absm::{command::fetch_machine, selection::SelectedEntity},
+    animation::{self, command::fetch_animations_container},
+    asset::item::AssetItem,
+    command::{make_command, Command, CommandGroup, CommandStack},
+    inspector::editors::handle::HandlePropertyEditorMessage,
+    message::MessageSender,
+    scene::{
+        commands::ChangeSelectionCommand, controller::SceneController, selector::HierarchyNode,
+        Selection,
+    },
+    settings::{keys::KeyBindings, Settings},
+    ui_scene::{
+        clipboard::Clipboard,
+        commands::{
+            graph::AddUiPrefabCommand, widget::RevertWidgetPropertyCommand, UiSceneContext,
+        },
+        selection::UiSelection,
+    },
+    Message,
 };
 use std::{any::Any, fs::File, io::Write, path::Path};
 

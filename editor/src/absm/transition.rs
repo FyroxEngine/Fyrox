@@ -1,12 +1,5 @@
-use crate::{
-    absm::{
-        segment::Segment,
-        selectable::{Selectable, SelectableMessage},
-    },
-    utils::fetch_node_center,
-};
-use fyrox::core::pool::ErasedHandle;
-use fyrox::{
+use crate::fyrox::core::pool::ErasedHandle;
+use crate::fyrox::{
     core::{
         algebra::Vector2,
         color::{Color, Hsv},
@@ -25,6 +18,13 @@ use fyrox::{
         widget::{Widget, WidgetBuilder, WidgetMessage},
         BuildContext, Control, UiNode, UserInterface,
     },
+};
+use crate::{
+    absm::{
+        segment::Segment,
+        selectable::{Selectable, SelectableMessage},
+    },
+    utils::fetch_node_center,
 };
 use std::ops::{Deref, DerefMut};
 

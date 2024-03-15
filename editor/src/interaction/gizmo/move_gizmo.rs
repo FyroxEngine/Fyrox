@@ -1,11 +1,5 @@
-use crate::{
-    interaction::plane::PlaneKind,
-    make_color_material,
-    scene::{GameScene, Selection},
-    set_mesh_diffuse_color, Engine,
-};
-use fyrox::graph::BaseSceneGraph;
-use fyrox::{
+use crate::fyrox::graph::BaseSceneGraph;
+use crate::fyrox::{
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector2, Vector3},
         color::Color,
@@ -24,6 +18,12 @@ use fyrox::{
         transform::{Transform, TransformBuilder},
         Scene,
     },
+};
+use crate::{
+    interaction::plane::PlaneKind,
+    make_color_material,
+    scene::{GameScene, Selection},
+    set_mesh_diffuse_color, Engine,
 };
 
 pub struct MoveGizmo {

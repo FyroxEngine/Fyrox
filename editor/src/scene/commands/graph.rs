@@ -1,10 +1,6 @@
 use crate::command::CommandContext;
-use crate::{
-    command::CommandTrait, scene::commands::GameSceneContext, scene::Selection,
-    world::graph::selection::GraphSelection, Message,
-};
-use fyrox::graph::{BaseSceneGraph, LinkScheme, SceneGraphNode};
-use fyrox::{
+use crate::fyrox::graph::{BaseSceneGraph, LinkScheme, SceneGraphNode};
+use crate::fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector3},
         pool::{Handle, Ticket},
@@ -14,6 +10,10 @@ use fyrox::{
         graph::{Graph, SubGraph},
         node::Node,
     },
+};
+use crate::{
+    command::CommandTrait, scene::commands::GameSceneContext, scene::Selection,
+    world::graph::selection::GraphSelection, Message,
 };
 
 #[derive(Debug)]

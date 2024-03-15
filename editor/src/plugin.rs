@@ -1,5 +1,5 @@
+use crate::fyrox::gui::message::UiMessage;
 use crate::{Editor, Message};
-use fyrox::gui::message::UiMessage;
 
 /// Editor plugin allows you to extend editor functionality with custom tools. It provides a standard way of interaction
 /// between your plugin and built-in editor's functionality.

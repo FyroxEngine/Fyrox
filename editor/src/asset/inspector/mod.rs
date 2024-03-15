@@ -1,9 +1,6 @@
-use crate::{
-    inspector::editors::make_property_editors_container, message::MessageSender, MSG_SYNC_FLAG,
-};
-use fyrox::core::reflect::Reflect;
-use fyrox::graph::BaseSceneGraph;
-use fyrox::{
+use crate::fyrox::core::reflect::Reflect;
+use crate::fyrox::graph::BaseSceneGraph;
+use crate::fyrox::{
     asset::{manager::ResourceManager, options::BaseImportOptions},
     core::{append_extension, futures::executor::block_on, log::Log, pool::Handle},
     engine::Engine,
@@ -19,6 +16,9 @@ use fyrox::{
         widget::WidgetBuilder,
         BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
     },
+};
+use crate::{
+    inspector::editors::make_property_editors_container, message::MessageSender, MSG_SYNC_FLAG,
 };
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};

@@ -1,10 +1,9 @@
 //! Special utility that allows you to fix paths to resources. It is very useful if you've
 //! moved a resource in a file system, but a scene has old path.
 
-use crate::{make_scene_file_filter, Message};
-use fyrox::asset::untyped::ResourceKind;
-use fyrox::graph::{BaseSceneGraph, SceneGraph};
-use fyrox::{
+use crate::fyrox::asset::untyped::ResourceKind;
+use crate::fyrox::graph::{BaseSceneGraph, SceneGraph};
+use crate::fyrox::{
     asset::{manager::ResourceManager, untyped::UntypedResource},
     core::{
         color::Color, futures::executor::block_on, pool::Handle, replace_slashes, visitor::Visitor,
@@ -29,6 +28,7 @@ use fyrox::{
     },
     scene::{Scene, SceneLoader},
 };
+use crate::{make_scene_file_filter, Message};
 use std::{
     path::{Path, PathBuf},
     sync::Arc,

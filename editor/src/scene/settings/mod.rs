@@ -1,8 +1,4 @@
-use crate::{
-    inspector::editors::make_property_editors_container, message::MessageSender, GameScene,
-    Message, MessageDirection, MSG_SYNC_FLAG,
-};
-use fyrox::{
+use crate::fyrox::{
     core::{color::Color, pool::Handle},
     engine::Engine,
     gui::{
@@ -29,10 +25,14 @@ use fyrox::{
     },
     utils::lightmap::Lightmap,
 };
+use crate::{
+    inspector::editors::make_property_editors_container, message::MessageSender, GameScene,
+    Message, MessageDirection, MSG_SYNC_FLAG,
+};
 
 use crate::command::make_command;
+use crate::fyrox::core::reflect::Reflect;
 use crate::scene::commands::GameSceneContext;
-use fyrox::core::reflect::Reflect;
 use std::sync::Arc;
 
 pub struct SceneSettingsWindow {

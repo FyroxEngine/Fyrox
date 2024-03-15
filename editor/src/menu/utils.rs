@@ -1,6 +1,4 @@
-use crate::menu::{create_menu_item, create_root_menu_item, Panels};
-use crate::stats::StatisticsWindow;
-use fyrox::{
+use crate::fyrox::{
     asset::core::pool::Handle,
     gui::{
         menu::MenuItemMessage,
@@ -9,6 +7,8 @@ use fyrox::{
         BuildContext, UiNode, UserInterface,
     },
 };
+use crate::menu::{create_menu_item, create_root_menu_item, Panels};
+use crate::stats::StatisticsWindow;
 
 pub struct UtilsMenu {
     pub menu: Handle<UiNode>,

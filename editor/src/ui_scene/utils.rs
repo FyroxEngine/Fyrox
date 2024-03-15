@@ -1,16 +1,5 @@
-use crate::{
-    command::{Command, CommandGroup},
-    load_image,
-    message::MessageSender,
-    scene::{commands::ChangeSelectionCommand, Selection},
-    ui_scene::{
-        commands::graph::{AddUiPrefabCommand, LinkWidgetsCommand, SetWidgetChildPosition},
-        selection::UiSelection,
-    },
-    world::{graph::item::DropAnchor, WorldViewerDataProvider},
-};
-use fyrox::graph::SceneGraphNode;
-use fyrox::{
+use crate::fyrox::graph::SceneGraphNode;
+use crate::fyrox::{
     asset::{manager::ResourceManager, untyped::UntypedResource},
     core::{
         futures::executor::block_on, make_pretty_type_name, make_relative_path, pool::ErasedHandle,
@@ -21,6 +10,17 @@ use fyrox::{
         button::Button, canvas::Canvas, grid::Grid, screen::Screen, text::Text, UiNode,
         UserInterface, UserInterfaceResourceExtension,
     },
+};
+use crate::{
+    command::{Command, CommandGroup},
+    load_image,
+    message::MessageSender,
+    scene::{commands::ChangeSelectionCommand, Selection},
+    ui_scene::{
+        commands::graph::{AddUiPrefabCommand, LinkWidgetsCommand, SetWidgetChildPosition},
+        selection::UiSelection,
+    },
+    world::{graph::item::DropAnchor, WorldViewerDataProvider},
 };
 use std::{borrow::Cow, path::Path, path::PathBuf};
 

@@ -1,9 +1,4 @@
-use crate::{message::MessageSender, Message};
-use cargo_metadata::{
-    camino::{Utf8Path, Utf8PathBuf},
-    Metadata,
-};
-use fyrox::{
+use crate::fyrox::{
     core::{
         color::Color,
         log::{Log, LogMessage, MessageKind},
@@ -33,6 +28,11 @@ use fyrox::{
         BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
         VerticalAlignment, BRUSH_DARKER, BRUSH_LIGHT,
     },
+};
+use crate::{message::MessageSender, Message};
+use cargo_metadata::{
+    camino::{Utf8Path, Utf8PathBuf},
+    Metadata,
 };
 use std::{
     ffi::OsStr,

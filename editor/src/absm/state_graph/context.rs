@@ -1,3 +1,16 @@
+use crate::fyrox::{
+    core::pool::Handle,
+    generic_animation::machine::{Machine, State, Transition},
+    graph::BaseSceneGraph,
+    gui::{
+        menu::MenuItemMessage,
+        message::{MessageDirection, UiMessage},
+        popup::{Placement, PopupBuilder, PopupMessage},
+        stack_panel::StackPanelBuilder,
+        widget::WidgetBuilder,
+        BuildContext, RcUiNodeHandle, UiNode, UserInterface,
+    },
+};
 use crate::{
     absm::{
         canvas::{AbsmCanvas, AbsmCanvasMessage, Mode},
@@ -13,19 +26,6 @@ use crate::{
     menu::create_menu_item,
     message::MessageSender,
     scene::{commands::ChangeSelectionCommand, Selection},
-};
-use fyrox::{
-    core::pool::Handle,
-    generic_animation::machine::{Machine, State, Transition},
-    graph::BaseSceneGraph,
-    gui::{
-        menu::MenuItemMessage,
-        message::{MessageDirection, UiMessage},
-        popup::{Placement, PopupBuilder, PopupMessage},
-        stack_panel::StackPanelBuilder,
-        widget::WidgetBuilder,
-        BuildContext, RcUiNodeHandle, UiNode, UserInterface,
-    },
 };
 use std::fmt::Debug;
 

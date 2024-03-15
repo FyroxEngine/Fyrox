@@ -1,7 +1,6 @@
-use crate::utils::make_node_name;
-use fyrox::graph::BaseSceneGraph;
-use fyrox::graph::{SceneGraph, SceneGraphNode};
-use fyrox::{
+use crate::fyrox::graph::BaseSceneGraph;
+use crate::fyrox::graph::{SceneGraph, SceneGraphNode};
+use crate::fyrox::{
     core::{
         algebra::Vector2, parking_lot::Mutex, pool::ErasedHandle, pool::Handle,
         reflect::prelude::*, type_traits::prelude::*, uuid_provider, visitor::prelude::*,
@@ -24,6 +23,7 @@ use fyrox::{
         BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
     },
 };
+use crate::utils::make_node_name;
 use std::{
     ops::{Deref, DerefMut},
     sync::mpsc::Sender,

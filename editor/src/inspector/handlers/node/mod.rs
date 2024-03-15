@@ -1,14 +1,14 @@
 use crate::command::make_command;
+use crate::fyrox::core::reflect::Reflect;
+use crate::fyrox::{
+    core::pool::Handle,
+    gui::inspector::{CollectionChanged, FieldKind, PropertyChanged},
+    scene::{node::Node, terrain::Terrain},
+};
 use crate::scene::commands::{GameSceneContext, RevertSceneNodePropertyCommand};
 use crate::{
     scene::commands::terrain::{AddTerrainLayerCommand, DeleteTerrainLayerCommand},
     Command,
-};
-use fyrox::core::reflect::Reflect;
-use fyrox::{
-    core::pool::Handle,
-    gui::inspector::{CollectionChanged, FieldKind, PropertyChanged},
-    scene::{node::Node, terrain::Terrain},
 };
 use std::any::TypeId;
 

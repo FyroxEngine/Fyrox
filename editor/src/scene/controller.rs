@@ -1,10 +1,5 @@
 use crate::command::{Command, CommandStack};
-use crate::{
-    scene::Selection,
-    settings::{keys::KeyBindings, Settings},
-    Message,
-};
-use fyrox::{
+use crate::fyrox::{
     core::{algebra::Vector2, math::Rect, pool::Handle, reflect::Reflect},
     engine::Engine,
     gui::{
@@ -14,6 +9,11 @@ use fyrox::{
     },
     resource::texture::TextureResource,
     scene::SceneContainer,
+};
+use crate::{
+    scene::Selection,
+    settings::{keys::KeyBindings, Settings},
+    Message,
 };
 use std::{any::Any, path::Path};
 

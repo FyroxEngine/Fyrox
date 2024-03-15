@@ -1,8 +1,8 @@
-use crate::scene::SelectionContainer;
-use fyrox::{
+use crate::fyrox::{
     core::{pool::Handle, uuid::Uuid},
     generic_animation::Animation,
 };
+use crate::scene::SelectionContainer;
 use std::fmt::{Debug, Formatter};
 
 #[derive(Debug, PartialEq, Eq, Clone)]

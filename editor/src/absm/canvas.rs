@@ -1,15 +1,4 @@
-use crate::{
-    absm::{
-        connection::{self, Connection},
-        node::AbsmBaseNode,
-        segment::SegmentMessage,
-        selectable::{Selectable, SelectableMessage},
-        socket::{Socket, SocketDirection, SocketMessage},
-        transition::{self, TransitionView},
-    },
-    utils::fetch_node_screen_center_ui,
-};
-use fyrox::{
+use crate::fyrox::{
     core::{
         algebra::{Matrix3, Point2, Vector2},
         color::Color,
@@ -29,6 +18,17 @@ use fyrox::{
         widget::{Widget, WidgetBuilder, WidgetMessage},
         BuildContext, Control, UiNode, UserInterface,
     },
+};
+use crate::{
+    absm::{
+        connection::{self, Connection},
+        node::AbsmBaseNode,
+        segment::SegmentMessage,
+        selectable::{Selectable, SelectableMessage},
+        socket::{Socket, SocketDirection, SocketMessage},
+        transition::{self, TransitionView},
+    },
+    utils::fetch_node_screen_center_ui,
 };
 use std::{
     cell::Cell,

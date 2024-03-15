@@ -1,3 +1,16 @@
+use crate::fyrox::graph::{PrefabData, SceneGraph, SceneGraphNode};
+use crate::fyrox::{
+    core::pool::{ErasedHandle, Handle},
+    generic_animation::machine::{Machine, MachineLayer, State, Transition},
+    graph::BaseSceneGraph,
+    gui::{
+        border::BorderBuilder,
+        message::{MessageDirection, UiMessage},
+        widget::{WidgetBuilder, WidgetMessage},
+        window::{WindowBuilder, WindowTitle},
+        BuildContext, Thickness, UiNode, UserInterface,
+    },
+};
 use crate::{
     absm::{
         canvas::{AbsmCanvas, AbsmCanvasBuilder, AbsmCanvasMessage},
@@ -13,19 +26,6 @@ use crate::{
     message::MessageSender,
     scene::{commands::ChangeSelectionCommand, Selection},
     send_sync_message,
-};
-use fyrox::graph::{PrefabData, SceneGraph, SceneGraphNode};
-use fyrox::{
-    core::pool::{ErasedHandle, Handle},
-    generic_animation::machine::{Machine, MachineLayer, State, Transition},
-    graph::BaseSceneGraph,
-    gui::{
-        border::BorderBuilder,
-        message::{MessageDirection, UiMessage},
-        widget::{WidgetBuilder, WidgetMessage},
-        window::{WindowBuilder, WindowTitle},
-        BuildContext, Thickness, UiNode, UserInterface,
-    },
 };
 use std::cmp::Ordering;
 

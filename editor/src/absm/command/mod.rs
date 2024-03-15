@@ -1,12 +1,7 @@
-use crate::{
-    command::{CommandContext, CommandTrait},
-    scene::commands::GameSceneContext,
-    ui_scene::commands::UiSceneContext,
-};
-use fyrox::core::pool::ErasedHandle;
-use fyrox::core::variable::InheritableVariable;
-use fyrox::graph::{BaseSceneGraph, SceneGraphNode};
-use fyrox::{
+use crate::fyrox::core::pool::ErasedHandle;
+use crate::fyrox::core::variable::InheritableVariable;
+use crate::fyrox::graph::{BaseSceneGraph, SceneGraphNode};
+use crate::fyrox::{
     core::{
         algebra::Vector2,
         pool::{Handle, Ticket},
@@ -14,6 +9,11 @@ use fyrox::{
     generic_animation::machine::{
         layer::MachineLayer, mask::LayerMask, Machine, PoseNode, State, Transition,
     },
+};
+use crate::{
+    command::{CommandContext, CommandTrait},
+    scene::commands::GameSceneContext,
+    ui_scene::commands::UiSceneContext,
 };
 use std::fmt::Debug;
 

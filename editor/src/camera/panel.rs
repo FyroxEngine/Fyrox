@@ -1,10 +1,6 @@
-use crate::{
-    scene::{GameScene, Selection},
-    send_sync_message, Message,
-};
-use fyrox::graph::SceneGraph;
-use fyrox::gui::{HorizontalAlignment, Thickness};
-use fyrox::{
+use crate::fyrox::graph::SceneGraph;
+use crate::fyrox::gui::{HorizontalAlignment, Thickness};
+use crate::fyrox::{
     core::pool::Handle,
     engine::Engine,
     gui::{
@@ -17,6 +13,10 @@ use fyrox::{
         BuildContext, Orientation, UiNode, VerticalAlignment,
     },
     scene::{camera::Camera, node::Node},
+};
+use crate::{
+    scene::{GameScene, Selection},
+    send_sync_message, Message,
 };
 
 pub struct CameraPreviewControlPanel {

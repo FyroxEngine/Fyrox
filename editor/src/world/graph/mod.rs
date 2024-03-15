@@ -1,4 +1,17 @@
 use crate::command::{Command, CommandGroup};
+use crate::fyrox::graph::{BaseSceneGraph, SceneGraphNode};
+use crate::fyrox::{
+    asset::{manager::ResourceManager, untyped::UntypedResource},
+    core::{
+        algebra::Vector3,
+        futures::executor::block_on,
+        make_relative_path,
+        pool::{ErasedHandle, Handle},
+    },
+    graph::SceneGraph,
+    resource::model::{Model, ModelResourceExtension},
+    scene::{node::Node, Scene},
+};
 use crate::scene::commands::graph::SetGraphNodeChildPosition;
 use crate::{
     load_image,
@@ -14,19 +27,6 @@ use crate::{
         graph::{item::DropAnchor, selection::GraphSelection},
         WorldViewerDataProvider,
     },
-};
-use fyrox::graph::{BaseSceneGraph, SceneGraphNode};
-use fyrox::{
-    asset::{manager::ResourceManager, untyped::UntypedResource},
-    core::{
-        algebra::Vector3,
-        futures::executor::block_on,
-        make_relative_path,
-        pool::{ErasedHandle, Handle},
-    },
-    graph::SceneGraph,
-    resource::model::{Model, ModelResourceExtension},
-    scene::{node::Node, Scene},
 };
 use std::{borrow::Cow, path::Path, path::PathBuf};
 

@@ -1,25 +1,8 @@
-use crate::{
-    inspector::editors::{
-        animation::{
-            AnimationContainerPropertyEditorDefinition, AnimationPropertyEditorDefinition,
-            MachinePropertyEditorDefinition,
-        },
-        font::FontPropertyEditorDefinition,
-        handle::{EntityKind, NodeHandlePropertyEditorDefinition},
-        material::MaterialPropertyEditorDefinition,
-        resource::ResourceFieldPropertyEditorDefinition,
-        script::ScriptPropertyEditorDefinition,
-        spritesheet::SpriteSheetFramesContainerEditorDefinition,
-        surface::SurfaceDataPropertyEditorDefinition,
-        texture::TexturePropertyEditorDefinition,
-    },
-    message::MessageSender,
-};
-use fyrox::gui::font::FontResource;
-use fyrox::gui::UiNode;
-use fyrox::scene::base::ScriptRecord;
-use fyrox::scene::mesh::BatchingMode;
-use fyrox::{
+use crate::fyrox::gui::font::FontResource;
+use crate::fyrox::gui::UiNode;
+use crate::fyrox::scene::base::ScriptRecord;
+use crate::fyrox::scene::mesh::BatchingMode;
+use crate::fyrox::{
     asset::{manager::ResourceManager, Resource},
     core::{
         futures::executor::block_on,
@@ -93,6 +76,23 @@ use fyrox::{
         transform::Transform,
     },
 };
+use crate::{
+    inspector::editors::{
+        animation::{
+            AnimationContainerPropertyEditorDefinition, AnimationPropertyEditorDefinition,
+            MachinePropertyEditorDefinition,
+        },
+        font::FontPropertyEditorDefinition,
+        handle::{EntityKind, NodeHandlePropertyEditorDefinition},
+        material::MaterialPropertyEditorDefinition,
+        resource::ResourceFieldPropertyEditorDefinition,
+        script::ScriptPropertyEditorDefinition,
+        spritesheet::SpriteSheetFramesContainerEditorDefinition,
+        surface::SurfaceDataPropertyEditorDefinition,
+        texture::TexturePropertyEditorDefinition,
+    },
+    message::MessageSender,
+};
 use std::{path::Path, sync::Arc};
 
 pub mod animation;
@@ -128,7 +128,7 @@ fn register_absm_property_editors<T>(container: &PropertyEditorDefinitionContain
 where
     T: 'static,
 {
-    use fyrox::generic_animation::machine::{
+    use crate::fyrox::generic_animation::machine::{
         node::{
             blendspace::{BlendSpace, BlendSpacePoint},
             BasePoseNode,
@@ -245,7 +245,7 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
     container.insert(InheritablePropertyEditorDefinition::<Option<LodGroup>>::new());
 
     {
-        use fyrox::scene::animation::spritesheet::prelude::*;
+        use crate::fyrox::scene::animation::spritesheet::prelude::*;
         container.register_inheritable_enum::<Status, _>();
         container.register_inheritable_inspectable::<LodGroup>();
         container.register_inheritable_inspectable::<SpriteSheetAnimation>();

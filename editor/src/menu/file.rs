@@ -1,13 +1,5 @@
 use crate::export::ExportWindow;
-use crate::{
-    make_save_file_selector, make_scene_file_filter,
-    menu::{create_menu_item, create_menu_item_shortcut, create_root_menu_item},
-    message::MessageSender,
-    scene::container::EditorSceneEntry,
-    settings::{recent::RecentFiles, Settings, SettingsWindow},
-    Engine, Message, Mode, Panels, SaveSceneConfirmationDialogAction,
-};
-use fyrox::{
+use crate::fyrox::{
     core::pool::Handle,
     gui::{
         file_browser::{FileSelectorBuilder, FileSelectorMessage},
@@ -18,6 +10,14 @@ use fyrox::{
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, UiNode, UserInterface,
     },
+};
+use crate::{
+    make_save_file_selector, make_scene_file_filter,
+    menu::{create_menu_item, create_menu_item_shortcut, create_root_menu_item},
+    message::MessageSender,
+    scene::container::EditorSceneEntry,
+    settings::{recent::RecentFiles, Settings, SettingsWindow},
+    Engine, Message, Mode, Panels, SaveSceneConfirmationDialogAction,
 };
 use std::path::PathBuf;
 

@@ -1,25 +1,4 @@
-use crate::{
-    inspector::editors::make_property_editors_container,
-    message::MessageSender,
-    settings::{
-        camera::CameraSettings,
-        debugging::DebuggingSettings,
-        general::{GeneralSettings, ScriptEditor},
-        graphics::GraphicsSettings,
-        keys::KeyBindings,
-        keys::TerrainKeyBindings,
-        model::ModelSettings,
-        move_mode::MoveInteractionModeSettings,
-        navmesh::NavmeshSettings,
-        recent::RecentFiles,
-        rotate_mode::RotateInteractionModeSettings,
-        scene::SceneSettings,
-        selection::SelectionSettings,
-        windows::WindowsSettings,
-    },
-    Engine, MSG_SYNC_FLAG,
-};
-use fyrox::{
+use crate::fyrox::{
     core::{log::Log, pool::Handle, reflect::prelude::*, scope_profile},
     gui::{
         button::{ButtonBuilder, ButtonMessage},
@@ -40,6 +19,27 @@ use fyrox::{
         HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
     },
     renderer::{CsmSettings, QualitySettings, ShadowMapPrecision},
+};
+use crate::{
+    inspector::editors::make_property_editors_container,
+    message::MessageSender,
+    settings::{
+        camera::CameraSettings,
+        debugging::DebuggingSettings,
+        general::{GeneralSettings, ScriptEditor},
+        graphics::GraphicsSettings,
+        keys::KeyBindings,
+        keys::TerrainKeyBindings,
+        model::ModelSettings,
+        move_mode::MoveInteractionModeSettings,
+        navmesh::NavmeshSettings,
+        recent::RecentFiles,
+        rotate_mode::RotateInteractionModeSettings,
+        scene::SceneSettings,
+        selection::SelectionSettings,
+        windows::WindowsSettings,
+    },
+    Engine, MSG_SYNC_FLAG,
 };
 use ron::ser::PrettyConfig;
 use serde::{Deserialize, Serialize};

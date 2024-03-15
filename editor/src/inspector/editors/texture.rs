@@ -1,6 +1,5 @@
-use crate::{asset::item::AssetItem, inspector::EditorEnvironment};
-use fyrox::graph::BaseSceneGraph;
-use fyrox::{
+use crate::fyrox::graph::BaseSceneGraph;
+use crate::fyrox::{
     asset::manager::ResourceManager,
     asset::untyped::UntypedResource,
     core::{
@@ -23,6 +22,7 @@ use fyrox::{
     },
     resource::texture::{Texture, TextureResource},
 };
+use crate::{asset::item::AssetItem, inspector::EditorEnvironment};
 use std::{
     any::TypeId,
     fmt::{Debug, Formatter},

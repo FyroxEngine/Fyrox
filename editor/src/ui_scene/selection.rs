@@ -1,12 +1,12 @@
+use crate::fyrox::{
+    core::pool::Handle,
+    graph::BaseSceneGraph,
+    gui::{UiNode, UserInterface},
+};
 use crate::{
     command::{Command, CommandGroup},
     scene::{commands::ChangeSelectionCommand, SelectionContainer},
     ui_scene::commands::graph::DeleteWidgetsSubGraphCommand,
-};
-use fyrox::{
-    core::pool::Handle,
-    graph::BaseSceneGraph,
-    gui::{UiNode, UserInterface},
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]

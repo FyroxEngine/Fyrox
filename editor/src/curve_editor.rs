@@ -1,10 +1,4 @@
-use crate::{
-    command::{Command, CommandContext, CommandStack, CommandTrait},
-    send_sync_message,
-    utils::create_file_selector,
-    MessageBoxButtons, MessageBoxMessage, MSG_SYNC_FLAG,
-};
-use fyrox::{
+use crate::fyrox::{
     asset::{untyped::ResourceKind, Resource},
     core::{
         color::Color, futures::executor::block_on, math::curve::Curve, pool::Handle,
@@ -27,6 +21,12 @@ use fyrox::{
         BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
     },
     resource::curve::{CurveResource, CurveResourceState},
+};
+use crate::{
+    command::{Command, CommandContext, CommandStack, CommandTrait},
+    send_sync_message,
+    utils::create_file_selector,
+    MessageBoxButtons, MessageBoxMessage, MSG_SYNC_FLAG,
 };
 use std::{fmt::Debug, path::PathBuf};
 

@@ -1,5 +1,4 @@
-use crate::gui::AssetItemMessage;
-use fyrox::{
+use crate::fyrox::{
     asset::untyped::UntypedResource,
     core::{
         algebra::Vector2, color::Color, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
@@ -19,6 +18,7 @@ use fyrox::{
         UserInterface, BRUSH_DARKER, BRUSH_DARKEST,
     },
 };
+use crate::gui::AssetItemMessage;
 use std::{
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},

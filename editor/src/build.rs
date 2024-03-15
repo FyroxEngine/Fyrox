@@ -1,5 +1,4 @@
-use crate::{message::MessageSender, Message};
-use fyrox::{
+use crate::fyrox::{
     core::{parking_lot::Mutex, pool::Handle},
     gui::{
         border::BorderBuilder,
@@ -15,6 +14,7 @@ use fyrox::{
         BRUSH_DARKEST,
     },
 };
+use crate::{message::MessageSender, Message};
 use std::{
     io::{BufRead, BufReader},
     process::ChildStderr,

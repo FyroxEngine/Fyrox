@@ -1,4 +1,28 @@
 use crate::command::{Command, CommandGroup};
+use crate::fyrox::graph::SceneGraph;
+use crate::fyrox::{
+    core::{
+        algebra::{Vector2, Vector3},
+        color::Color,
+        math::{ray::CylinderKind, TriangleEdge},
+        pool::Handle,
+        scope_profile,
+        uuid::{uuid, Uuid},
+        TypeUuidProvider,
+    },
+    engine::Engine,
+    gui::{
+        button::{ButtonBuilder, ButtonMessage},
+        grid::{Column, GridBuilder, Row},
+        message::{KeyCode, MessageDirection, UiMessage},
+        stack_panel::StackPanelBuilder,
+        widget::{WidgetBuilder, WidgetMessage},
+        window::{WindowBuilder, WindowMessage, WindowTitle},
+        BuildContext, Orientation, Thickness, UiNode, UserInterface,
+    },
+    gui::{HorizontalAlignment, VerticalAlignment},
+    scene::{camera::Camera, navmesh::NavigationalMesh},
+};
 use crate::scene::SelectionContainer;
 use crate::{
     camera::PickingOptions,
@@ -25,30 +49,6 @@ use crate::{
     settings::Settings,
     utils::window_content,
     Mode,
-};
-use fyrox::graph::SceneGraph;
-use fyrox::{
-    core::{
-        algebra::{Vector2, Vector3},
-        color::Color,
-        math::{ray::CylinderKind, TriangleEdge},
-        pool::Handle,
-        scope_profile,
-        uuid::{uuid, Uuid},
-        TypeUuidProvider,
-    },
-    engine::Engine,
-    gui::{
-        button::{ButtonBuilder, ButtonMessage},
-        grid::{Column, GridBuilder, Row},
-        message::{KeyCode, MessageDirection, UiMessage},
-        stack_panel::StackPanelBuilder,
-        widget::{WidgetBuilder, WidgetMessage},
-        window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, Orientation, Thickness, UiNode, UserInterface,
-    },
-    gui::{HorizontalAlignment, VerticalAlignment},
-    scene::{camera::Camera, navmesh::NavigationalMesh},
 };
 use std::collections::HashMap;
 

@@ -1,8 +1,4 @@
-use crate::{
-    gui::make_image_button_with_tooltip, load_image, message::MessageSender, send_sync_message,
-    utils::window_content, Message, Mode,
-};
-use fyrox::{
+use crate::fyrox::{
     core::{color::Color, pool::Handle, scope_profile},
     gui::{
         brush::Brush,
@@ -17,6 +13,10 @@ use fyrox::{
         window::{WindowBuilder, WindowTitle},
         BuildContext, Orientation, Thickness, UiNode, UserInterface,
     },
+};
+use crate::{
+    gui::make_image_button_with_tooltip, load_image, message::MessageSender, send_sync_message,
+    utils::window_content, Message, Mode,
 };
 
 pub struct CommandStackViewer {

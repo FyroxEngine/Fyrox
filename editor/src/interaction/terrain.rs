@@ -1,22 +1,8 @@
-use crate::interaction::make_interaction_mode_button;
-use crate::scene::controller::SceneController;
-use crate::scene::SelectionContainer;
-use crate::{
-    interaction::InteractionMode,
-    make_color_material,
-    message::MessageSender,
-    scene::{
-        commands::terrain::{ModifyTerrainHeightCommand, ModifyTerrainLayerMaskCommand},
-        GameScene, Selection,
-    },
-    settings::Settings,
-    MSG_SYNC_FLAG,
-};
-use fyrox::core::uuid::{uuid, Uuid};
-use fyrox::core::TypeUuidProvider;
-use fyrox::graph::BaseSceneGraph;
-use fyrox::gui::{HorizontalAlignment, Thickness, VerticalAlignment};
-use fyrox::{
+use crate::fyrox::core::uuid::{uuid, Uuid};
+use crate::fyrox::core::TypeUuidProvider;
+use crate::fyrox::graph::BaseSceneGraph;
+use crate::fyrox::gui::{HorizontalAlignment, Thickness, VerticalAlignment};
+use crate::fyrox::{
     core::{
         algebra::{Matrix4, Vector2, Vector3},
         arrayvec::ArrayVec,
@@ -50,6 +36,20 @@ use fyrox::{
         node::Node,
         terrain::{Brush, BrushMode, BrushShape, Terrain, TerrainRayCastResult},
     },
+};
+use crate::interaction::make_interaction_mode_button;
+use crate::scene::controller::SceneController;
+use crate::scene::SelectionContainer;
+use crate::{
+    interaction::InteractionMode,
+    make_color_material,
+    message::MessageSender,
+    scene::{
+        commands::terrain::{ModifyTerrainHeightCommand, ModifyTerrainLayerMaskCommand},
+        GameScene, Selection,
+    },
+    settings::Settings,
+    MSG_SYNC_FLAG,
 };
 use std::sync::Arc;
 

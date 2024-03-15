@@ -1,8 +1,4 @@
-use crate::{
-    inspector::editors::make_property_editors_container, message::MessageSender, scene::GameScene,
-    Engine, MSG_SYNC_FLAG,
-};
-use fyrox::{
+use crate::fyrox::{
     core::{log::Log, pool::Handle, reflect::prelude::*, scope_profile},
     gui::{
         button::{ButtonBuilder, ButtonMessage},
@@ -21,6 +17,10 @@ use fyrox::{
     utils::lightmap::{
         CancellationToken, Lightmap, LightmapGenerationError, LightmapInputData, ProgressIndicator,
     },
+};
+use crate::{
+    inspector::editors::make_property_editors_container, message::MessageSender, scene::GameScene,
+    Engine, MSG_SYNC_FLAG,
 };
 use std::{
     path::PathBuf,

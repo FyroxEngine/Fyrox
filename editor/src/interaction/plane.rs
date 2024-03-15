@@ -1,4 +1,4 @@
-use fyrox::core::{algebra::Vector3, math::plane::Plane, num_traits::Zero};
+use crate::fyrox::core::{algebra::Vector3, math::plane::Plane, num_traits::Zero};
 use strum_macros::EnumIter;
 
 #[derive(Copy, Clone, Debug, EnumIter)]

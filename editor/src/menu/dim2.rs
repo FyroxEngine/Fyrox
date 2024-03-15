@@ -1,9 +1,9 @@
-use crate::menu::create_menu_item;
-use fyrox::{
+use crate::fyrox::{
     core::pool::Handle,
     gui::{menu::MenuItemMessage, message::UiMessage, BuildContext, UiNode},
     scene::{base::BaseBuilder, dim2::rectangle::RectangleBuilder, node::Node},
 };
+use crate::menu::create_menu_item;
 
 pub struct Dim2Menu {
     pub menu: Handle<UiNode>,

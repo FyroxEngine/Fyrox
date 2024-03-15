@@ -1,16 +1,16 @@
 //! Ui graph manipulation commands.
 
 use crate::command::{CommandContext, CommandTrait};
+use crate::fyrox::graph::{BaseSceneGraph, LinkScheme, SceneGraphNode};
+use crate::fyrox::{
+    core::pool::Handle,
+    gui::{SubGraph, UiNode, UserInterface},
+};
 use crate::ui_scene::clipboard::DeepCloneResult;
 use crate::{
     scene::Selection,
     ui_scene::{commands::UiSceneContext, UiSelection},
     Message,
-};
-use fyrox::graph::{BaseSceneGraph, LinkScheme, SceneGraphNode};
-use fyrox::{
-    core::pool::Handle,
-    gui::{SubGraph, UiNode, UserInterface},
 };
 
 #[derive(Debug)]

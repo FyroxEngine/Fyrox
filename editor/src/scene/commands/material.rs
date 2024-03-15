@@ -1,9 +1,9 @@
-use crate::{command::CommandTrait, scene::commands::GameSceneContext};
-use fyrox::{
+use crate::fyrox::{
     asset::ResourceData,
     core::{log::Log, sstorage::ImmutableString},
     material::{shader::ShaderResource, Material, MaterialResource, PropertyValue},
 };
+use crate::{command::CommandTrait, scene::commands::GameSceneContext};
 
 #[derive(Debug)]
 pub struct SetMaterialPropertyValueCommand {

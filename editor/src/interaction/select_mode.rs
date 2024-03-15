@@ -1,3 +1,12 @@
+use crate::fyrox::core::uuid::{uuid, Uuid};
+use crate::fyrox::core::TypeUuidProvider;
+use crate::fyrox::graph::BaseSceneGraph;
+use crate::fyrox::gui::BuildContext;
+use crate::fyrox::{
+    core::{algebra::Vector2, pool::Handle},
+    gui::{message::MessageDirection, widget::WidgetMessage, UiNode},
+    scene::node::Node,
+};
 use crate::interaction::make_interaction_mode_button;
 use crate::scene::controller::SceneController;
 use crate::{
@@ -7,15 +16,6 @@ use crate::{
     settings::Settings,
     world::graph::selection::GraphSelection,
     Engine,
-};
-use fyrox::core::uuid::{uuid, Uuid};
-use fyrox::core::TypeUuidProvider;
-use fyrox::graph::BaseSceneGraph;
-use fyrox::gui::BuildContext;
-use fyrox::{
-    core::{algebra::Vector2, pool::Handle},
-    gui::{message::MessageDirection, widget::WidgetMessage, UiNode},
-    scene::node::Node,
 };
 
 pub struct SelectInteractionMode {

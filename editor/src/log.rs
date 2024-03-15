@@ -1,9 +1,5 @@
-use crate::{
-    gui::{make_dropdown_list_option, make_image_button_with_tooltip},
-    load_image, Brush, Color, DropdownListBuilder, Engine,
-};
-use fyrox::graph::BaseSceneGraph;
-use fyrox::{
+use crate::fyrox::graph::BaseSceneGraph;
+use crate::fyrox::{
     core::{
         log::{LogMessage, MessageKind},
         pool::Handle,
@@ -27,6 +23,10 @@ use fyrox::{
         window::{WindowBuilder, WindowTitle},
         BuildContext, HorizontalAlignment, Orientation, RcUiNodeHandle, Thickness, UiNode,
     },
+};
+use crate::{
+    gui::{make_dropdown_list_option, make_image_button_with_tooltip},
+    load_image, Brush, Color, DropdownListBuilder, Engine,
 };
 use std::sync::mpsc::Receiver;
 

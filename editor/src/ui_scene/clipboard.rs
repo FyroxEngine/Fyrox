@@ -1,7 +1,7 @@
+use crate::fyrox::core::pool::Handle;
+use crate::fyrox::graph::BaseSceneGraph;
+use crate::fyrox::gui::{UiNode, UserInterface};
 use crate::ui_scene::selection::UiSelection;
-use fyrox::core::pool::Handle;
-use fyrox::graph::BaseSceneGraph;
-use fyrox::gui::{UiNode, UserInterface};
 use std::collections::HashMap;
 
 pub struct Clipboard {

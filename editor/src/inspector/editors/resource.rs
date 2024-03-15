@@ -1,9 +1,5 @@
-use crate::{
-    asset::item::AssetItem, inspector::EditorEnvironment, load_image, message::MessageSender,
-    Message,
-};
-use fyrox::graph::BaseSceneGraph;
-use fyrox::{
+use crate::fyrox::graph::BaseSceneGraph;
+use crate::fyrox::{
     asset::{manager::ResourceManager, state::LoadError, Resource, TypedResourceData},
     core::{
         color::Color,
@@ -35,6 +31,10 @@ use fyrox::{
         widget::{Widget, WidgetBuilder, WidgetMessage},
         BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
+};
+use crate::{
+    asset::item::AssetItem, inspector::EditorEnvironment, load_image, message::MessageSender,
+    Message,
 };
 use std::{
     any::TypeId,

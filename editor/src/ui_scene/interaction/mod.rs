@@ -1,13 +1,5 @@
-use crate::scene::commands::ChangeSelectionCommand;
-use crate::{
-    interaction::{make_interaction_mode_button, InteractionMode},
-    message::MessageSender,
-    scene::{controller::SceneController, Selection},
-    settings::Settings,
-    ui_scene::{UiScene, UiSelection},
-};
-use fyrox::graph::BaseSceneGraph;
-use fyrox::{
+use crate::fyrox::graph::BaseSceneGraph;
+use crate::fyrox::{
     core::{
         algebra::Vector2,
         pool::Handle,
@@ -16,6 +8,14 @@ use fyrox::{
     },
     engine::Engine,
     gui::{message::MessageDirection, widget::WidgetMessage, BuildContext, UiNode},
+};
+use crate::scene::commands::ChangeSelectionCommand;
+use crate::{
+    interaction::{make_interaction_mode_button, InteractionMode},
+    message::MessageSender,
+    scene::{controller::SceneController, Selection},
+    settings::Settings,
+    ui_scene::{UiScene, UiSelection},
 };
 
 pub mod move_mode;

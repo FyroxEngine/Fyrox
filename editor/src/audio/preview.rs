@@ -1,10 +1,6 @@
-use crate::{
-    scene::{GameScene, Selection},
-    send_sync_message, Message,
-};
-use fyrox::graph::SceneGraph;
-use fyrox::gui::HorizontalAlignment;
-use fyrox::{
+use crate::fyrox::graph::SceneGraph;
+use crate::fyrox::gui::HorizontalAlignment;
+use crate::fyrox::{
     core::pool::Handle,
     engine::Engine,
     gui::{
@@ -22,6 +18,10 @@ use fyrox::{
         node::Node,
         sound::{Sound, Status},
     },
+};
+use crate::{
+    scene::{GameScene, Selection},
+    send_sync_message, Message,
 };
 
 pub struct AudioPreviewPanel {

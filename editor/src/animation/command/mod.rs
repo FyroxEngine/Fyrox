@@ -1,10 +1,4 @@
-use crate::{
-    animation::selection::AnimationSelection,
-    command::{CommandContext, CommandTrait},
-    scene::{commands::GameSceneContext, Selection},
-    ui_scene::commands::UiSceneContext,
-};
-use fyrox::{
+use crate::fyrox::{
     core::{
         log::Log,
         math::curve::Curve,
@@ -17,6 +11,12 @@ use fyrox::{
         RootMotionSettings,
     },
     graph::{BaseSceneGraph, SceneGraphNode},
+};
+use crate::{
+    animation::selection::AnimationSelection,
+    command::{CommandContext, CommandTrait},
+    scene::{commands::GameSceneContext, Selection},
+    ui_scene::commands::UiSceneContext,
 };
 use std::{
     fmt::Debug,

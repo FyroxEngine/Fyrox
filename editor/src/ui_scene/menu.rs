@@ -1,3 +1,15 @@
+use crate::fyrox::graph::{BaseSceneGraph, SceneGraphNode};
+use crate::fyrox::{
+    core::pool::Handle,
+    gui::{
+        menu::MenuItemMessage,
+        message::UiMessage,
+        popup::{Placement, PopupBuilder, PopupMessage},
+        stack_panel::StackPanelBuilder,
+        widget::{WidgetBuilder, WidgetMessage},
+        BuildContext, RcUiNodeHandle, UiNode,
+    },
+};
 use crate::{
     menu::{create_menu_item, create_menu_item_shortcut, ui::UiMenu},
     message::MessageSender,
@@ -9,18 +21,6 @@ use crate::{
     utils,
     world::WorldViewerItemContextMenu,
     Engine, Message, MessageDirection,
-};
-use fyrox::graph::{BaseSceneGraph, SceneGraphNode};
-use fyrox::{
-    core::pool::Handle,
-    gui::{
-        menu::MenuItemMessage,
-        message::UiMessage,
-        popup::{Placement, PopupBuilder, PopupMessage},
-        stack_panel::StackPanelBuilder,
-        widget::{WidgetBuilder, WidgetMessage},
-        BuildContext, RcUiNodeHandle, UiNode,
-    },
 };
 use std::path::PathBuf;
 

@@ -1,4 +1,4 @@
-use fyrox::core::reflect::prelude::*;
+use crate::fyrox::core::reflect::prelude::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Reflect)]

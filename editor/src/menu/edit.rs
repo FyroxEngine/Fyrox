@@ -1,11 +1,4 @@
-use crate::scene::controller::SceneController;
-use crate::{
-    menu::{create_menu_item_shortcut, create_root_menu_item},
-    message::MessageSender,
-    scene::{commands::PasteCommand, GameScene, Selection},
-    Engine, Message, Mode,
-};
-use fyrox::{
+use crate::fyrox::{
     core::pool::Handle,
     gui::{
         menu::MenuItemMessage,
@@ -13,6 +6,13 @@ use fyrox::{
         widget::WidgetMessage,
         BuildContext, UiNode, UserInterface,
     },
+};
+use crate::scene::controller::SceneController;
+use crate::{
+    menu::{create_menu_item_shortcut, create_root_menu_item},
+    message::MessageSender,
+    scene::{commands::PasteCommand, GameScene, Selection},
+    Engine, Message, Mode,
 };
 
 pub struct EditMenu {

@@ -1,10 +1,10 @@
 use crate::command::{CommandContext, CommandTrait};
-use crate::ui_scene::commands::UiSceneContext;
-use fyrox::{
+use crate::fyrox::{
     core::{algebra::Vector2, log::Log, pool::Handle, reflect::Reflect},
     graph::SceneGraphNode,
     gui::{UiNode, UserInterface},
 };
+use crate::ui_scene::commands::UiSceneContext;
 
 #[derive(Debug)]
 pub struct MoveWidgetCommand {

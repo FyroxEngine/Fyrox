@@ -1,9 +1,5 @@
-use crate::{
-    make_color_material, scene::GameScene, set_mesh_diffuse_color,
-    world::graph::selection::GraphSelection, Engine,
-};
-use fyrox::graph::BaseSceneGraph;
-use fyrox::{
+use crate::fyrox::graph::BaseSceneGraph;
+use crate::fyrox::{
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector2, Vector3},
         color::Color,
@@ -20,6 +16,10 @@ use fyrox::{
         node::Node,
         transform::TransformBuilder,
     },
+};
+use crate::{
+    make_color_material, scene::GameScene, set_mesh_diffuse_color,
+    world::graph::selection::GraphSelection, Engine,
 };
 
 pub enum ScaleGizmoMode {

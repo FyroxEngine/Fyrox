@@ -1,8 +1,5 @@
-use crate::scene::controller::SceneController;
-use crate::scene::Selection;
-use crate::{load_image, settings::Settings, Engine};
-use fyrox::fxhash::FxHashMap;
-use fyrox::{
+use crate::fyrox::fxhash::FxHashMap;
+use crate::fyrox::{
     core::{
         algebra::{Vector2, Vector3},
         color::Color,
@@ -24,6 +21,9 @@ use fyrox::{
     },
     scene::{camera::Projection, graph::Graph, node::Node},
 };
+use crate::scene::controller::SceneController;
+use crate::scene::Selection;
+use crate::{load_image, settings::Settings, Engine};
 use std::any::Any;
 
 pub mod gizmo;

@@ -1,16 +1,5 @@
-use crate::{
-    asset::{
-        dependency::DependencyViewer, inspector::AssetInspector, item::AssetItemBuilder,
-        preview::AssetPreviewGeneratorsCollection,
-    },
-    gui::{make_dropdown_list_option, AssetItemMessage},
-    message::MessageSender,
-    preview::PreviewPanel,
-    utils::window_content,
-    AssetItem, Message, Mode,
-};
-use fyrox::graph::BaseSceneGraph;
-use fyrox::{
+use crate::fyrox::graph::BaseSceneGraph;
+use crate::fyrox::{
     asset::{
         manager::ResourceManager,
         state::ResourceState,
@@ -48,6 +37,17 @@ use fyrox::{
     resource::{model::Model, texture::Texture},
     scene::sound::SoundBuffer,
     walkdir,
+};
+use crate::{
+    asset::{
+        dependency::DependencyViewer, inspector::AssetInspector, item::AssetItemBuilder,
+        preview::AssetPreviewGeneratorsCollection,
+    },
+    gui::{make_dropdown_list_option, AssetItemMessage},
+    message::MessageSender,
+    preview::PreviewPanel,
+    utils::window_content,
+    AssetItem, Message, Mode,
 };
 use std::{
     ffi::OsStr,

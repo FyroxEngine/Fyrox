@@ -2,7 +2,7 @@ use crate::absm::{
     selectable::{Selectable, SelectableMessage},
     BORDER_COLOR, NORMAL_BACKGROUND, SELECTED_BACKGROUND,
 };
-use fyrox::{
+use crate::fyrox::{
     core::{
         color::Color,
         pool::Handle,

@@ -1,16 +1,6 @@
 use crate::command::{Command, CommandGroup};
-use crate::{
-    inspector::editors::make_property_editors_container,
-    message::MessageSender,
-    scene::{
-        commands::{graph::AddModelCommand, ChangeSelectionCommand},
-        GameScene, Selection,
-    },
-    world::graph::selection::GraphSelection,
-    MSG_SYNC_FLAG,
-};
-use fyrox::graph::{BaseSceneGraph, SceneGraph};
-use fyrox::{
+use crate::fyrox::graph::{BaseSceneGraph, SceneGraph};
+use crate::fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector3},
         log::Log,
@@ -40,6 +30,16 @@ use fyrox::{
         rigidbody::{RigidBodyBuilder, RigidBodyType},
         transform::TransformBuilder,
     },
+};
+use crate::{
+    inspector::editors::make_property_editors_container,
+    message::MessageSender,
+    scene::{
+        commands::{graph::AddModelCommand, ChangeSelectionCommand},
+        GameScene, Selection,
+    },
+    world::graph::selection::GraphSelection,
+    MSG_SYNC_FLAG,
 };
 use std::ops::Range;
 use std::sync::Arc;

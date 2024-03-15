@@ -1,16 +1,4 @@
-use crate::{
-    absm::animation_container_ref,
-    gui::make_image_button_with_tooltip,
-    inspector::editors::make_property_editors_container,
-    load_image,
-    message::MessageSender,
-    scene::{controller::SceneController, GameScene, Selection},
-    send_sync_message,
-    ui_scene::UiScene,
-    utils::window_content,
-    Brush, Engine, Message, Mode, WidgetMessage, WrapMode, MSG_SYNC_FLAG,
-};
-use fyrox::{
+use crate::fyrox::{
     asset::manager::ResourceManager,
     core::{
         color::Color,
@@ -35,6 +23,18 @@ use fyrox::{
         window::{WindowBuilder, WindowTitle},
         BuildContext, Thickness, UiNode, UserInterface,
     },
+};
+use crate::{
+    absm::animation_container_ref,
+    gui::make_image_button_with_tooltip,
+    inspector::editors::make_property_editors_container,
+    load_image,
+    message::MessageSender,
+    scene::{controller::SceneController, GameScene, Selection},
+    send_sync_message,
+    ui_scene::UiScene,
+    utils::window_content,
+    Brush, Engine, Message, Mode, WidgetMessage, WrapMode, MSG_SYNC_FLAG,
 };
 use std::{any::Any, sync::Arc};
 

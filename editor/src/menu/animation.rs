@@ -1,5 +1,4 @@
-use crate::menu::create_menu_item;
-use fyrox::{
+use crate::fyrox::{
     core::pool::Handle,
     gui::{menu::MenuItemMessage, message::UiMessage, BuildContext, UiNode},
     scene::{
@@ -8,6 +7,7 @@ use fyrox::{
         node::Node,
     },
 };
+use crate::menu::create_menu_item;
 
 pub struct AnimationMenu {
     pub menu: Handle<UiNode>,

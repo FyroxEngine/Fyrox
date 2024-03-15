@@ -1,9 +1,4 @@
-use crate::{
-    absm::command::fetch_machine, command::make_command,
-    inspector::editors::make_property_editors_container, message::MessageSender, Message,
-    MessageDirection, MSG_SYNC_FLAG,
-};
-use fyrox::{
+use crate::fyrox::{
     core::{log::Log, pool::Handle},
     generic_animation::machine::parameter::{Parameter, ParameterContainer, ParameterDefinition},
     graph::{BaseSceneGraph, PrefabData, SceneGraph, SceneGraphNode},
@@ -23,6 +18,11 @@ use fyrox::{
         window::{WindowBuilder, WindowTitle},
         BuildContext, UiNode, UserInterface,
     },
+};
+use crate::{
+    absm::command::fetch_machine, command::make_command,
+    inspector::editors::make_property_editors_container, message::MessageSender, Message,
+    MessageDirection, MSG_SYNC_FLAG,
 };
 use std::sync::Arc;
 

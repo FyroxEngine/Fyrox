@@ -1,11 +1,5 @@
-use crate::{
-    menu::create_menu_item,
-    message::MessageSender,
-    scene::Selection,
-    ui_scene::{commands::graph::AddWidgetCommand, UiScene},
-};
-use fyrox::gui::selector::SelectorBuilder;
-use fyrox::{
+use crate::fyrox::gui::selector::SelectorBuilder;
+use crate::fyrox::{
     core::pool::Handle,
     fxhash::FxHashMap,
     gui::{
@@ -46,6 +40,12 @@ use fyrox::{
         wrap_panel::WrapPanelBuilder,
         BuildContext, UiNode,
     },
+};
+use crate::{
+    menu::create_menu_item,
+    message::MessageSender,
+    scene::Selection,
+    ui_scene::{commands::graph::AddWidgetCommand, UiScene},
 };
 
 pub struct UiMenu {

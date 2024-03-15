@@ -1,5 +1,4 @@
-use crate::load_image;
-use fyrox::{
+use crate::fyrox::{
     asset::{manager::ResourceManager, untyped::UntypedResource},
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector3},
@@ -28,6 +27,7 @@ use fyrox::{
         Scene,
     },
 };
+use crate::load_image;
 
 #[derive(Default)]
 pub struct AssetPreviewGeneratorsCollection {

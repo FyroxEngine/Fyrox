@@ -1,13 +1,13 @@
 use crate::command::CommandContext;
-use crate::{
-    absm::command::fetch_machine, command::CommandTrait, define_push_element_to_collection_command,
-    define_set_collection_element_command,
-};
-use fyrox::{
+use crate::fyrox::{
     core::{algebra::Vector2, pool::Handle},
     generic_animation::machine::{
         node::blendspace::BlendSpacePoint, BlendPose, IndexedBlendInput, PoseNode,
     },
+};
+use crate::{
+    absm::command::fetch_machine, command::CommandTrait, define_push_element_to_collection_command,
+    define_set_collection_element_command,
 };
 use std::fmt::Debug;
 

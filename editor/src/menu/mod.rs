@@ -1,4 +1,13 @@
 use crate::export::ExportWindow;
+use crate::fyrox::{
+    core::{algebra::Vector2, pool::Handle, scope_profile},
+    gui::{
+        menu::{MenuBuilder, MenuItemBuilder, MenuItemContent},
+        message::{MessageDirection, UiMessage},
+        widget::{WidgetBuilder, WidgetMessage},
+        BuildContext, Thickness, UiNode, UserInterface,
+    },
+};
 use crate::scene::controller::SceneController;
 use crate::stats::StatisticsWindow;
 use crate::{
@@ -13,15 +22,6 @@ use crate::{
     settings::Settings,
     utils::ragdoll::RagdollWizard,
     AbsmEditor, CurveEditorWindow, Engine, Mode, SceneSettingsWindow,
-};
-use fyrox::{
-    core::{algebra::Vector2, pool::Handle, scope_profile},
-    gui::{
-        menu::{MenuBuilder, MenuItemBuilder, MenuItemContent},
-        message::{MessageDirection, UiMessage},
-        widget::{WidgetBuilder, WidgetMessage},
-        BuildContext, Thickness, UiNode, UserInterface,
-    },
 };
 use std::path::PathBuf;
 

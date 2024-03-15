@@ -1,11 +1,4 @@
-use crate::{
-    gui::make_dropdown_list_option,
-    inspector::EditorEnvironment,
-    send_sync_message,
-    settings::{general::ScriptEditor, SettingsData},
-    DropdownListBuilder, MSG_SYNC_FLAG,
-};
-use fyrox::{
+use crate::fyrox::{
     core::{
         log::Log, parking_lot::Mutex, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
         uuid::Uuid, uuid_provider, visitor::prelude::*,
@@ -34,6 +27,13 @@ use fyrox::{
         BuildContext, Control, UiNode, UserInterface,
     },
     script::Script,
+};
+use crate::{
+    gui::make_dropdown_list_option,
+    inspector::EditorEnvironment,
+    send_sync_message,
+    settings::{general::ScriptEditor, SettingsData},
+    DropdownListBuilder, MSG_SYNC_FLAG,
 };
 use std::{
     any::TypeId,

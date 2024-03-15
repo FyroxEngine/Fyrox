@@ -2,7 +2,7 @@
 //! It is made as a separate widget to be able to draw it on top of curve editor,
 //! dope sheet and time ruler.
 
-use fyrox::{
+use crate::fyrox::{
     core::{
         algebra::{Matrix3, Point2, Vector2},
         pool::Handle,

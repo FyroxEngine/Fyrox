@@ -1,11 +1,6 @@
 use crate::command::CommandContext;
-use crate::{
-    command::CommandTrait,
-    interaction::navmesh::selection::{NavmeshEntity, NavmeshSelection},
-    scene::{commands::GameSceneContext, Selection},
-};
-use fyrox::core::parking_lot::RwLockWriteGuard;
-use fyrox::{
+use crate::fyrox::core::parking_lot::RwLockWriteGuard;
+use crate::fyrox::{
     core::{
         algebra::Vector3,
         math::{TriangleDefinition, TriangleEdge},
@@ -13,6 +8,11 @@ use fyrox::{
     },
     scene::node::Node,
     utils::navmesh::Navmesh,
+};
+use crate::{
+    command::CommandTrait,
+    interaction::navmesh::selection::{NavmeshEntity, NavmeshSelection},
+    scene::{commands::GameSceneContext, Selection},
 };
 
 #[derive(Debug)]

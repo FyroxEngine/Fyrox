@@ -1,8 +1,8 @@
-use crate::scene::SelectionContainer;
-use fyrox::{
+use crate::fyrox::{
     core::{math::TriangleEdge, pool::Handle},
     scene::node::Node,
 };
+use crate::scene::SelectionContainer;
 use std::{
     cell::{Cell, Ref, RefCell},
     collections::BTreeSet,

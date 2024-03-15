@@ -1,12 +1,5 @@
-use crate::{
-    load_image,
-    message::MessageSender,
-    scene::selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
-    world::graph::item::SceneItem,
-    Message, UiMessage, UiNode, UserInterface, VerticalAlignment,
-};
-use fyrox::graph::BaseSceneGraph;
-use fyrox::{
+use crate::fyrox::graph::BaseSceneGraph;
+use crate::fyrox::{
     core::{
         color::Color, pool::ErasedHandle, pool::Handle, reflect::prelude::*,
         type_traits::prelude::*, uuid_provider, visitor::prelude::*,
@@ -33,6 +26,13 @@ use fyrox::{
         BuildContext, Control, Thickness,
     },
     scene::node::Node,
+};
+use crate::{
+    load_image,
+    message::MessageSender,
+    scene::selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
+    world::graph::item::SceneItem,
+    Message, UiMessage, UiNode, UserInterface, VerticalAlignment,
 };
 use std::{
     any::TypeId,

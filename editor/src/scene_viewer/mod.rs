@@ -1,16 +1,5 @@
-use crate::{
-    gui::{make_dropdown_list_option, make_dropdown_list_option_with_height},
-    load_image,
-    message::MessageSender,
-    scene::container::EditorSceneEntry,
-    scene_viewer::gizmo::{SceneGizmo, SceneGizmoAction},
-    send_sync_message,
-    utils::enable_widget,
-    BuildProfile, DropdownListBuilder, GameScene, Message, Mode, SaveSceneConfirmationDialogAction,
-    SceneContainer, Settings,
-};
-use fyrox::graph::BaseSceneGraph;
-use fyrox::{
+use crate::fyrox::graph::BaseSceneGraph;
+use crate::fyrox::{
     core::{color::Color, math::Rect, pool::Handle, uuid::Uuid},
     engine::Engine,
     fxhash::FxHashMap,
@@ -39,6 +28,17 @@ use fyrox::{
     },
     resource::texture::TextureResource,
     scene::camera::Projection,
+};
+use crate::{
+    gui::{make_dropdown_list_option, make_dropdown_list_option_with_height},
+    load_image,
+    message::MessageSender,
+    scene::container::EditorSceneEntry,
+    scene_viewer::gizmo::{SceneGizmo, SceneGizmoAction},
+    send_sync_message,
+    utils::enable_widget,
+    BuildProfile, DropdownListBuilder, GameScene, Message, Mode, SaveSceneConfirmationDialogAction,
+    SceneContainer, Settings,
 };
 use std::cmp::Ordering;
 

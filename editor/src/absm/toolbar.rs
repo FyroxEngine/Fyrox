@@ -1,22 +1,4 @@
-use crate::{
-    absm::{
-        animation_container_ref,
-        command::{AddLayerCommand, RemoveLayerCommand, SetLayerMaskCommand, SetLayerNameCommand},
-        fetch_selection, machine_container_ref,
-        selection::AbsmSelection,
-    },
-    command::{Command, CommandGroup},
-    gui::make_dropdown_list_option,
-    load_image,
-    message::MessageSender,
-    scene::{
-        commands::ChangeSelectionCommand,
-        selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
-        Selection,
-    },
-    send_sync_message,
-};
-use fyrox::{
+use crate::fyrox::{
     core::{pool::ErasedHandle, pool::Handle},
     fxhash::FxHashSet,
     generic_animation::machine::{mask::LayerMask, Machine, MachineLayer},
@@ -36,6 +18,24 @@ use fyrox::{
         BuildContext, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
         BRUSH_BRIGHT,
     },
+};
+use crate::{
+    absm::{
+        animation_container_ref,
+        command::{AddLayerCommand, RemoveLayerCommand, SetLayerMaskCommand, SetLayerNameCommand},
+        fetch_selection, machine_container_ref,
+        selection::AbsmSelection,
+    },
+    command::{Command, CommandGroup},
+    gui::make_dropdown_list_option,
+    load_image,
+    message::MessageSender,
+    scene::{
+        commands::ChangeSelectionCommand,
+        selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
+        Selection,
+    },
+    send_sync_message,
 };
 
 pub struct Toolbar {

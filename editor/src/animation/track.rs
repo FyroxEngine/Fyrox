@@ -2,33 +2,10 @@
 
 use crate::animation::animation_container_ref;
 use crate::command::{Command, CommandGroup};
-use crate::{
-    animation::{
-        command::{
-            AddTrackCommand, RemoveTrackCommand, SetTrackBindingCommand, SetTrackEnabledCommand,
-            SetTrackTargetCommand,
-        },
-        selection::{AnimationSelection, SelectedEntity},
-    },
-    gui::make_image_button_with_tooltip,
-    load_image,
-    menu::create_menu_item,
-    message::MessageSender,
-    scene::{
-        commands::ChangeSelectionCommand,
-        property::{
-            object_to_property_tree, PropertyDescriptorData, PropertySelectorMessage,
-            PropertySelectorWindowBuilder,
-        },
-        selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
-        Selection,
-    },
-    send_sync_message, utils,
-};
-use fyrox::core::pool::ErasedHandle;
-use fyrox::graph::BaseSceneGraph;
-use fyrox::graph::{SceneGraph, SceneGraphNode};
-use fyrox::{
+use crate::fyrox::core::pool::ErasedHandle;
+use crate::fyrox::graph::BaseSceneGraph;
+use crate::fyrox::graph::{SceneGraph, SceneGraphNode};
+use crate::fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3, Vector4},
         color::Color,
@@ -72,6 +49,29 @@ use fyrox::{
         VerticalAlignment, BRUSH_BRIGHT, BRUSH_TEXT,
     },
     resource::texture::TextureBytes,
+};
+use crate::{
+    animation::{
+        command::{
+            AddTrackCommand, RemoveTrackCommand, SetTrackBindingCommand, SetTrackEnabledCommand,
+            SetTrackTargetCommand,
+        },
+        selection::{AnimationSelection, SelectedEntity},
+    },
+    gui::make_image_button_with_tooltip,
+    load_image,
+    menu::create_menu_item,
+    message::MessageSender,
+    scene::{
+        commands::ChangeSelectionCommand,
+        property::{
+            object_to_property_tree, PropertyDescriptorData, PropertySelectorMessage,
+            PropertySelectorWindowBuilder,
+        },
+        selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
+        Selection,
+    },
+    send_sync_message, utils,
 };
 use std::{
     any::TypeId,

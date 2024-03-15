@@ -1,4 +1,22 @@
 use crate::command::{Command, CommandGroup};
+use crate::fyrox::generic_animation::machine::Machine;
+use crate::fyrox::generic_animation::AnimationContainer;
+use crate::fyrox::graph::{PrefabData, SceneGraphNode};
+use crate::fyrox::{
+    core::pool::{ErasedHandle, Handle},
+    generic_animation::{
+        machine::{MachineLayer, PoseNode, State},
+        Animation,
+    },
+    graph::{BaseSceneGraph, SceneGraph},
+    gui::{
+        border::BorderBuilder,
+        message::{MessageDirection, UiMessage},
+        widget::{WidgetBuilder, WidgetMessage},
+        window::{WindowBuilder, WindowMessage, WindowTitle},
+        BuildContext, Thickness, UiNode, UserInterface,
+    },
+};
 use crate::message::MessageSender;
 use crate::{
     absm::{
@@ -20,24 +38,6 @@ use crate::{
     },
     scene::{commands::ChangeSelectionCommand, Selection},
     send_sync_message,
-};
-use fyrox::generic_animation::machine::Machine;
-use fyrox::generic_animation::AnimationContainer;
-use fyrox::graph::{PrefabData, SceneGraphNode};
-use fyrox::{
-    core::pool::{ErasedHandle, Handle},
-    generic_animation::{
-        machine::{MachineLayer, PoseNode, State},
-        Animation,
-    },
-    graph::{BaseSceneGraph, SceneGraph},
-    gui::{
-        border::BorderBuilder,
-        message::{MessageDirection, UiMessage},
-        widget::{WidgetBuilder, WidgetMessage},
-        window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, Thickness, UiNode, UserInterface,
-    },
 };
 use std::cmp::Ordering;
 

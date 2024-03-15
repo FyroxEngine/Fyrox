@@ -1,19 +1,4 @@
-use crate::{
-    absm::{
-        blendspace::BlendSpaceEditor,
-        command::blend::{AddBlendSpacePointCommand, AddInputCommand, AddPoseSourceCommand},
-        node::{AbsmNode, AbsmNodeMessage},
-        parameter::ParameterPanel,
-        selection::AbsmSelection,
-        state_graph::StateGraphViewer,
-        state_viewer::StateViewer,
-        toolbar::{Toolbar, ToolbarAction},
-    },
-    message::MessageSender,
-    scene::Selection,
-    Message,
-};
-use fyrox::{
+use crate::fyrox::{
     core::{color::Color, pool::ErasedHandle, pool::Handle, variable::InheritableVariable},
     fxhash::FxHashSet,
     generic_animation::{
@@ -33,6 +18,21 @@ use fyrox::{
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, UiNode, UserInterface,
     },
+};
+use crate::{
+    absm::{
+        blendspace::BlendSpaceEditor,
+        command::blend::{AddBlendSpacePointCommand, AddInputCommand, AddPoseSourceCommand},
+        node::{AbsmNode, AbsmNodeMessage},
+        parameter::ParameterPanel,
+        selection::AbsmSelection,
+        state_graph::StateGraphViewer,
+        state_viewer::StateViewer,
+        toolbar::{Toolbar, ToolbarAction},
+    },
+    message::MessageSender,
+    scene::Selection,
+    Message,
 };
 use std::{any::Any, fmt::Debug};
 

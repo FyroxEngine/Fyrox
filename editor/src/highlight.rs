@@ -1,5 +1,5 @@
-use fyrox::graph::{BaseSceneGraph, SceneGraph};
-use fyrox::{
+use crate::fyrox::graph::{BaseSceneGraph, SceneGraph};
+use crate::fyrox::{
     core::{
         algebra::{Matrix4, Vector3},
         color::Color,

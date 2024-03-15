@@ -1,23 +1,7 @@
-use crate::{
-    animation::{
-        command::{
-            AddAnimationSignal, MoveAnimationSignal, RemoveAnimationSignal,
-            ReplaceTrackCurveCommand,
-        },
-        ruler::{RulerBuilder, RulerMessage, SignalView},
-        selection::{AnimationSelection, SelectedEntity},
-        thumb::{ThumbBuilder, ThumbMessage},
-        toolbar::{Toolbar, ToolbarAction},
-        track::TrackList,
-    },
-    message::MessageSender,
-    scene::{commands::ChangeSelectionCommand, Selection},
-    send_sync_message, Message,
-};
-use fyrox::core::log::Log;
-use fyrox::graph::PrefabData;
-use fyrox::resource::model::AnimationSource;
-use fyrox::{
+use crate::fyrox::core::log::Log;
+use crate::fyrox::graph::PrefabData;
+use crate::fyrox::resource::model::AnimationSource;
+use crate::fyrox::{
     asset::manager::ResourceManager,
     core::{
         algebra::Vector2, math::Rect, pool::ErasedHandle, pool::Handle, uuid::Uuid,
@@ -36,6 +20,22 @@ use fyrox::{
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, UiNode, UserInterface, BRUSH_DARK, BRUSH_PRIMARY,
     },
+};
+use crate::{
+    animation::{
+        command::{
+            AddAnimationSignal, MoveAnimationSignal, RemoveAnimationSignal,
+            ReplaceTrackCurveCommand,
+        },
+        ruler::{RulerBuilder, RulerMessage, SignalView},
+        selection::{AnimationSelection, SelectedEntity},
+        thumb::{ThumbBuilder, ThumbMessage},
+        toolbar::{Toolbar, ToolbarAction},
+        track::TrackList,
+    },
+    message::MessageSender,
+    scene::{commands::ChangeSelectionCommand, Selection},
+    send_sync_message, Message,
 };
 use std::any::{Any, TypeId};
 

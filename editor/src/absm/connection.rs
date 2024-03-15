@@ -1,5 +1,4 @@
-use crate::{absm::segment::Segment, utils::fetch_node_screen_center};
-use fyrox::{
+use crate::fyrox::{
     core::{
         algebra::Vector2, color::Color, math::Rect, pool::Handle, reflect::prelude::*,
         type_traits::prelude::*, uuid_provider, visitor::prelude::*,
@@ -13,6 +12,7 @@ use fyrox::{
         BuildContext, Control, UiNode, UserInterface,
     },
 };
+use crate::{absm::segment::Segment, utils::fetch_node_screen_center};
 use std::ops::{Deref, DerefMut};
 
 const PICKED_BRUSH: Brush = Brush::Solid(Color::opaque(100, 100, 100));

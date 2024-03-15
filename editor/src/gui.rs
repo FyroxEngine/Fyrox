@@ -1,6 +1,6 @@
-use fyrox::asset::untyped::UntypedResource;
-use fyrox::core::parking_lot::Mutex;
-use fyrox::{
+use crate::fyrox::asset::untyped::UntypedResource;
+use crate::fyrox::core::parking_lot::Mutex;
+use crate::fyrox::{
     core::{color::Color, pool::Handle},
     gui::{
         border::BorderBuilder,

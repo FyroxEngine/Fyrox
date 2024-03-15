@@ -1,6 +1,5 @@
-use crate::inspector::editors::spritesheet::SpriteSheetFramesPropertyEditorMessage;
-use fyrox::graph::BaseSceneGraph;
-use fyrox::{
+use crate::fyrox::graph::BaseSceneGraph;
+use crate::fyrox::{
     core::{
         algebra::Vector2, color::Color, parking_lot::Mutex, pool::Handle, reflect::prelude::*,
         type_traits::prelude::*, uuid_provider, visitor::prelude::*,
@@ -25,6 +24,7 @@ use fyrox::{
     },
     scene::animation::spritesheet::prelude::*,
 };
+use crate::inspector::editors::spritesheet::SpriteSheetFramesPropertyEditorMessage;
 use std::{
     ops::{Deref, DerefMut},
     sync::{mpsc::Sender, Arc},

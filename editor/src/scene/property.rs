@@ -1,5 +1,5 @@
-use fyrox::graph::BaseSceneGraph;
-use fyrox::{
+use crate::fyrox::graph::BaseSceneGraph;
+use crate::fyrox::{
     core::{
         algebra::Vector2, make_pretty_type_name, parking_lot::Mutex, pool::Handle,
         reflect::prelude::*, sstorage::ImmutableString, type_traits::prelude::*, uuid_provider,

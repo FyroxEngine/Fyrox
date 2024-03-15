@@ -1,15 +1,4 @@
-use crate::{
-    create_terrain_layer_material,
-    menu::{
-        animation::AnimationMenu, create_menu_item, create_root_menu_item, dim2::Dim2Menu,
-        physics::PhysicsMenu, physics2d::Physics2dMenu, ui::UiMenu,
-    },
-    message::MessageSender,
-    scene::{commands::graph::AddNodeCommand, controller::SceneController, Selection},
-    ui_scene::UiScene,
-    Mode,
-};
-use fyrox::{
+use crate::fyrox::{
     asset::untyped::ResourceKind,
     core::{
         algebra::{Matrix4, Vector3},
@@ -46,6 +35,17 @@ use fyrox::{
         terrain::{Layer, TerrainBuilder},
     },
     utils::navmesh::Navmesh,
+};
+use crate::{
+    create_terrain_layer_material,
+    menu::{
+        animation::AnimationMenu, create_menu_item, create_root_menu_item, dim2::Dim2Menu,
+        physics::PhysicsMenu, physics2d::Physics2dMenu, ui::UiMenu,
+    },
+    message::MessageSender,
+    scene::{commands::graph::AddNodeCommand, controller::SceneController, Selection},
+    ui_scene::UiScene,
+    Mode,
 };
 
 pub struct CreateEntityRootMenu {

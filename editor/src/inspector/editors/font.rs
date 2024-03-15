@@ -1,6 +1,5 @@
-use crate::{asset::item::AssetItem, inspector::EditorEnvironment};
-use fyrox::graph::BaseSceneGraph;
-use fyrox::{
+use crate::fyrox::graph::BaseSceneGraph;
+use crate::fyrox::{
     asset::{manager::ResourceManager, untyped::ResourceKind},
     core::{
         algebra::Vector2, color::Color, make_relative_path, pool::Handle, reflect::prelude::*,
@@ -25,6 +24,7 @@ use fyrox::{
         BuildContext, Control, UiNode, UserInterface,
     },
 };
+use crate::{asset::item::AssetItem, inspector::EditorEnvironment};
 use std::{
     any::TypeId,
     fmt::{Debug, Formatter},

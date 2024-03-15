@@ -1,4 +1,4 @@
-use fyrox::core::{algebra::Vector3, reflect::prelude::*};
+use crate::fyrox::core::{algebra::Vector3, reflect::prelude::*};
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Reflect)]

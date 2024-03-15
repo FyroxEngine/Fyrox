@@ -1,4 +1,19 @@
 use crate::command::{Command, CommandGroup};
+use crate::fyrox::graph::BaseSceneGraph;
+use crate::fyrox::{
+    asset::untyped::UntypedResource,
+    core::{algebra::Vector2, pool::Handle, reflect::Reflect, scope_profile},
+    gui::{
+        file_browser::FileSelectorMessage,
+        menu::{MenuItemBuilder, MenuItemContent, MenuItemMessage},
+        message::UiMessage,
+        popup::{Placement, PopupBuilder, PopupMessage},
+        stack_panel::StackPanelBuilder,
+        widget::{WidgetBuilder, WidgetMessage},
+        window::WindowMessage,
+        BuildContext, RcUiNodeHandle, UiNode,
+    },
+};
 use crate::{
     make_save_file_selector,
     menu::{create::CreateEntityMenu, create_menu_item, create_menu_item_shortcut},
@@ -15,21 +30,6 @@ use crate::{
     utils,
     world::WorldViewerItemContextMenu,
     Engine, Message, MessageDirection, PasteCommand,
-};
-use fyrox::graph::BaseSceneGraph;
-use fyrox::{
-    asset::untyped::UntypedResource,
-    core::{algebra::Vector2, pool::Handle, reflect::Reflect, scope_profile},
-    gui::{
-        file_browser::FileSelectorMessage,
-        menu::{MenuItemBuilder, MenuItemContent, MenuItemMessage},
-        message::UiMessage,
-        popup::{Placement, PopupBuilder, PopupMessage},
-        stack_panel::StackPanelBuilder,
-        widget::{WidgetBuilder, WidgetMessage},
-        window::WindowMessage,
-        BuildContext, RcUiNodeHandle, UiNode,
-    },
 };
 use std::{any::TypeId, path::PathBuf};
 

@@ -1,8 +1,8 @@
-use fyrox::renderer::framework::geometry_buffer::ElementRange;
-use fyrox::resource::texture::{
+use crate::fyrox::renderer::framework::geometry_buffer::ElementRange;
+use crate::fyrox::resource::texture::{
     TextureImportOptions, TextureMinificationFilter, TextureResourceExtension,
 };
-use fyrox::{
+use crate::fyrox::{
     core::{algebra::Matrix4, math::Matrix4Ext, sstorage::ImmutableString},
     renderer::{
         framework::{

@@ -1,16 +1,4 @@
-use crate::{
-    absm::{
-        command::blend::{
-            AddBlendSpacePointCommand, RemoveBlendSpacePointCommand,
-            SetBlendSpacePointPositionCommand,
-        },
-        selection::{AbsmSelection, SelectedEntity},
-    },
-    menu::create_menu_item,
-    message::MessageSender,
-    send_sync_message,
-};
-use fyrox::{
+use crate::fyrox::{
     core::{
         algebra::Vector2,
         color::Color,
@@ -41,6 +29,18 @@ use fyrox::{
         BuildContext, Control, HorizontalAlignment, RcUiNodeHandle, Thickness, UiNode,
         UserInterface, VerticalAlignment, BRUSH_DARK, BRUSH_LIGHT, BRUSH_LIGHTEST,
     },
+};
+use crate::{
+    absm::{
+        command::blend::{
+            AddBlendSpacePointCommand, RemoveBlendSpacePointCommand,
+            SetBlendSpacePointPositionCommand,
+        },
+        selection::{AbsmSelection, SelectedEntity},
+    },
+    menu::create_menu_item,
+    message::MessageSender,
+    send_sync_message,
 };
 use std::{
     cell::Cell,

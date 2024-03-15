@@ -1,11 +1,11 @@
 use crate::command::CommandContext;
-use crate::{command::CommandTrait, scene::commands::GameSceneContext};
-use fyrox::{
+use crate::fyrox::{
     core::{pool::Handle, sstorage::ImmutableString},
     material::{shader::SamplerFallback, PropertyValue},
     resource::texture::TextureResource,
     scene::{mesh::Mesh, node::Node},
 };
+use crate::{command::CommandTrait, scene::commands::GameSceneContext};
 
 #[derive(Debug)]
 enum TextureSet {

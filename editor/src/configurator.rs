@@ -1,7 +1,5 @@
-use crate::message::MessageSender;
-use crate::{Engine, Message};
-use fyrox::gui::text::TextMessage;
-use fyrox::{
+use crate::fyrox::gui::text::TextMessage;
+use crate::fyrox::{
     core::{
         algebra::Vector2,
         pool::Handle,
@@ -25,6 +23,8 @@ use fyrox::{
         BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, VerticalAlignment,
     },
 };
+use crate::message::MessageSender;
+use crate::{Engine, Message};
 use std::{
     env,
     path::{Path, PathBuf},
