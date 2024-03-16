@@ -13,12 +13,11 @@ readme = "README.md"
 include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md", "/resources/**/*"]
 
 [dependencies]
-fyrox = { version = "0.33.0", path = "..", optional = true }
-fyrox-dylib = { version = "0.1.0", path = "../fyrox-dylib", optional = true }
+fyrox = { version = "0.33.1", path = "../fyrox", default-features = false }
 lazy_static = "1.4.0"
 ron = "0.8.0"
 serde = "^1.0.0"
-toml = "0.8.10"
+toml = { version = "0.8.10", default-features = false, features = ["parse"] }
 strum = "0.26.1"
 strum_macros = "0.26.1"
 open = "5"
@@ -27,6 +26,5 @@ cargo_metadata = "0.18.1"
 serde_json = "1.0.113"
 
 [features]
-default = ["fyrox"]
-dylib_engine = ["fyrox-dylib"]
-enable_profiler = ["fyrox/enable_profiler"]
+default = ["fyrox/default"]
+dylib_engine = ["fyrox/dylib"]

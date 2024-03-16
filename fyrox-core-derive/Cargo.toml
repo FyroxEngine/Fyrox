@@ -8,7 +8,6 @@ description = "Proc-macro for the Visit trait"
 repository = "https://github.com/FyroxEngine/Fyrox"
 include = ["/src/**/*", "/Cargo.toml", "/README.md"]
 readme = "README.md"
-resolver = "2"
 rust-version = "1.72"
 
 [lib]

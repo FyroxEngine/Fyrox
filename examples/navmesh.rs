@@ -1,4 +1,5 @@
-use fyrox::{
+use fyrox_graph::SceneGraph;
+use fyrox_impl::{
     asset::manager::ResourceManager,
     core::{
         algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3},
@@ -30,7 +31,6 @@ use fyrox::{
     },
     utils::navmesh::NavmeshAgent,
 };
-use fyrox_graph::SceneGraph;
 use winit::keyboard::PhysicalKey;
 
 struct GameScene {

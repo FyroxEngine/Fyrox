@@ -1545,7 +1545,7 @@ This section will help you to migrate to new physics.
 Rigid body and colliders now can be created like so:
 
 ```rust
-use fyrox::{
+use fyrox_impl::{
     core::{algebra::Vector3, pool::Handle},
     scene::{
         base::BaseBuilder,

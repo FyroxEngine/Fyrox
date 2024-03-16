@@ -37,6 +37,9 @@
       <sourceFolder url="file://$MODULE_DIR$/fyrox-math/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/editor-dylib/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/fyrox-dylib/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/fyrox-bridge/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/fyrox-impl/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/fyrox/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
       <excludeFolder url="file://$MODULE_DIR$/examples/wasm/target" />
     </content>

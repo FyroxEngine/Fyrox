@@ -1,0 +1,12 @@
+[package]
+name = "fyrox"
+version = "0.33.1"
+edition = "2021"
+
+[features]
+default = ["fyrox-impl"]
+dylib = ["fyrox-dylib"]
+
+[dependencies]
+fyrox-impl = { version = "0.33.1", path = "../fyrox-impl", optional = true }
+fyrox-dylib = { version = "0.1.0", path = "../fyrox-dylib", optional = true }

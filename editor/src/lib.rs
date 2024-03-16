@@ -41,10 +41,6 @@ pub mod ui_scene;
 pub mod utils;
 pub mod world;
 
-#[cfg(dylib_engine)]
-pub use fyrox_dylib as fyrox;
-
-#[cfg(not(dylib_engine))]
 pub use fyrox;
 
 use crate::fyrox::{

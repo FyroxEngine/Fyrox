@@ -1,0 +1,55 @@
+__ROOT__[Fields=0, Children=1]: 
+	Tree[Fields=0, Children=2]: 
+		Nodes[Fields=0, Children=2]: 
+			Records[Fields=1, Children=6]: Length<u32 = 6>, 
+				Item0[Fields=0, Children=1]: 
+					ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
+						Payload[Fields=1, Children=1]: IsSome<u8 = 1>, 
+							Data[Fields=1, Children=1]: Id<u32 = 1>, 
+								0[Fields=0, Children=1]: 
+									Child[Fields=2, Children=0]: Index<u32 = 5>, Generation<u32 = 1>, 
+				Item1[Fields=0, Children=1]: 
+					ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
+						Payload[Fields=1, Children=1]: IsSome<u8 = 1>, 
+							Data[Fields=1, Children=1]: Id<u32 = 3>, 
+								0[Fields=0, Children=1]: 
+									Behavior[Fields=1, Children=1]: IsSome<u8 = 1>, 
+										Data[Fields=1, Children=0]: Id<u32 = 1>, 
+				Item2[Fields=0, Children=1]: 
+					ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
+						Payload[Fields=1, Children=1]: IsSome<u8 = 1>, 
+							Data[Fields=1, Children=1]: Id<u32 = 3>, 
+								0[Fields=0, Children=1]: 
+									Behavior[Fields=1, Children=1]: IsSome<u8 = 1>, 
+										Data[Fields=1, Children=0]: Id<u32 = 2>, 
+				Item3[Fields=0, Children=1]: 
+					ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
+						Payload[Fields=1, Children=1]: IsSome<u8 = 1>, 
+							Data[Fields=1, Children=1]: Id<u32 = 3>, 
+								0[Fields=0, Children=1]: 
+									Behavior[Fields=1, Children=1]: IsSome<u8 = 1>, 
+										Data[Fields=1, Children=0]: Id<u32 = 3>, 
+				Item4[Fields=0, Children=1]: 
+					ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
+						Payload[Fields=1, Children=1]: IsSome<u8 = 1>, 
+							Data[Fields=1, Children=1]: Id<u32 = 3>, 
+								0[Fields=0, Children=1]: 
+									Behavior[Fields=1, Children=1]: IsSome<u8 = 1>, 
+										Data[Fields=1, Children=0]: Id<u32 = 4>, 
+				Item5[Fields=0, Children=1]: 
+					ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
+						Payload[Fields=1, Children=1]: IsSome<u8 = 1>, 
+							Data[Fields=1, Children=1]: Id<u32 = 2>, 
+								0[Fields=0, Children=2]: 
+									Children[Fields=1, Children=4]: Length<u32 = 4>, 
+										Item0[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=0]: Index<u32 = 1>, Generation<u32 = 1>, 
+										Item1[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=0]: Index<u32 = 2>, Generation<u32 = 1>, 
+										Item2[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=0]: Index<u32 = 3>, Generation<u32 = 1>, 
+										Item3[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=0]: Index<u32 = 4>, Generation<u32 = 1>, 
+									Kind[Fields=1, Children=0]: Id<u32 = 0>, 
+			FreeStack[Fields=1, Children=0]: Length<u32 = 0>, 
+		Root[Fields=2, Children=0]: Index<u32 = 0>, Generation<u32 = 1>, 

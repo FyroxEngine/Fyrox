@@ -21,4 +21,4 @@
 //! ```
 
 // Just re-export everything.
-pub use fyrox::*;
+pub use fyrox_impl::*;

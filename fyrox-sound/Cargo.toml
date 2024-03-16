@@ -12,7 +12,6 @@ homepage = "https://fyrox.rs"
 documentation = "https://docs.rs/fyrox-sound"
 repository = "https://github.com/FyroxEngine/Fyrox"
 readme = "README.md"
-resolver = "2"
 rust-version = "1.72"
 
 [dependencies]
