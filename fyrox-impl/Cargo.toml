@@ -45,6 +45,8 @@ fast_image_resize = "3.0.4"
 base64 = "0.21.0"
 uvgen = "0.1.0"
 lightmap = "0.1.1"
+libloading = "0.8.1"
+
 # This dependency isn't actually used by the engine, but it is needed to prevent cargo from rebuilding
 # the engine lib on different packages.
 hashbrown = { version = "0.14.3", features = ["raw"] }

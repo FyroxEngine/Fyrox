@@ -2,6 +2,8 @@
 
 #![warn(missing_docs)]
 
+pub mod dynamic;
+
 use crate::engine::task::TaskPoolHandler;
 use crate::{
     asset::manager::ResourceManager,
