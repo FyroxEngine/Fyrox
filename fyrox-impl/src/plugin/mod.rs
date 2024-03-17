@@ -4,45 +4,19 @@
 
 pub mod dynamic;
 
-use crate::engine::task::TaskPoolHandler;
 use crate::{
     asset::manager::ResourceManager,
-    core::pool::Handle,
+    core::{pool::Handle, visitor::VisitError},
     engine::{
-        AsyncSceneLoader, GraphicsContext, PerformanceStatistics, ScriptProcessor,
-        SerializationContext,
+        task::TaskPoolHandler, AsyncSceneLoader, GraphicsContext, PerformanceStatistics,
+        ScriptProcessor, SerializationContext,
     },
     event::Event,
     gui::{message::UiMessage, UserInterface},
     scene::{Scene, SceneContainer},
 };
-use fyrox_core::visitor::VisitError;
 use std::{any::Any, path::Path, sync::Arc};
 use winit::event_loop::EventLoopWindowTarget;
-
-/// Plugin constructor is a first step of 2-stage plugin initialization. It is responsible for plugin script
-/// registration and for creating actual plugin instance.
-///
-/// # Details
-///
-/// Why there is a need in 2-state initialization? The editor requires it, it is interested only in plugin
-/// scripts so editor does not create any plugin instances, it just uses [Self::register] to obtain information
-/// about scripts.  
-pub trait PluginConstructor {
-    /// The method is called when the plugin constructor was just registered in the engine. The main use of the
-    /// method is to register scripts and custom scene graph nodes in [`SerializationContext`].
-    fn register(&self, #[allow(unused_variables)] context: PluginRegistrationContext) {}
-
-    /// The method is called when the engine creates plugin instances. It allows to create initialized plugin
-    /// instance.
-    ///
-    /// ## Arguments
-    ///
-    /// `scene_path` argument tells you that there's already a scene specified. It is used primarily
-    /// by the editor, to run your game with a scene you have current opened in the editor. Typical
-    /// usage would be: `scene_path.unwrap_or("a/path/to/my/default/scene.rgs")`
-    fn create_instance(&self, scene_path: Option<&str>, context: PluginContext) -> Box<dyn Plugin>;
-}
 
 /// Contains plugin environment for the registration stage.
 pub struct PluginRegistrationContext<'a> {
@@ -191,6 +165,18 @@ impl dyn Plugin {
 /// }
 /// ```
 pub trait Plugin: BasePlugin {
+    /// The method is called when the plugin constructor was just registered in the engine. The main
+    /// use of this method is to register scripts and custom scene graph nodes in [`SerializationContext`].
+    fn register(&self, #[allow(unused_variables)] context: PluginRegistrationContext) {}
+
+    /// This method is used to initialize your plugin.
+    fn init(
+        &mut self,
+        #[allow(unused_variables)] scene_path: Option<&str>,
+        #[allow(unused_variables)] context: PluginContext,
+    ) {
+    }
+
     /// The method is called before plugin will be disabled. It should be used for clean up, or some
     /// additional actions.
     fn on_deinit(&mut self, #[allow(unused_variables)] context: PluginContext) {}

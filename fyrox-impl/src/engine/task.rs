@@ -76,20 +76,8 @@ impl TaskPoolHandler {
     /// ## Example
     ///
     /// ```rust ,no_run
-    /// # use fyrox_impl::plugin::{Plugin, PluginConstructor, PluginContext};
+    /// # use fyrox_impl::plugin::{Plugin, PluginContext};
     /// # use std::{fs::File, io::Read};
-    /// #
-    /// struct MyGameConstructor;
-    ///
-    /// impl PluginConstructor for MyGameConstructor {
-    ///     fn create_instance(
-    ///         &self,
-    ///         _scene_path: Option<&str>,
-    ///         context: PluginContext,
-    ///     ) -> Box<dyn Plugin> {
-    ///         Box::new(MyGame::new(context))
-    ///     }
-    /// }
     ///
     /// struct MyGame {
     ///     data: Option<Vec<u8>>,

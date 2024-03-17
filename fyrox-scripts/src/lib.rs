@@ -11,24 +11,17 @@ pub mod camera;
 /// ```rust
 /// # use fyrox::{
 /// #     core::pool::Handle,
-/// #     plugin::{Plugin, PluginConstructor, PluginContext, PluginRegistrationContext},
+/// #     plugin::{Plugin, PluginContext, PluginRegistrationContext},
 /// #     scene::Scene,
 /// # };
 /// #
-/// # struct GameConstructor;
+/// # struct Game;
 /// #
-/// # impl PluginConstructor for GameConstructor {
+/// # impl Plugin for Game {
 ///   // This is PluginConstructor::register method of your GameConstructor.
 ///   fn register(&self, context: PluginRegistrationContext) {
 ///       fyrox_scripts::register(&context.serialization_context.script_constructors)
 ///   }
-/// #   fn create_instance(
-/// #       &self,
-/// #       _scene_path: Option<&str>,
-/// #       _context: PluginContext,
-/// #   ) -> Box<dyn Plugin> {
-/// #       unimplemented!()
-/// #   }
 /// # }
 /// ```
 pub fn register(container: &ScriptConstructorContainer) {

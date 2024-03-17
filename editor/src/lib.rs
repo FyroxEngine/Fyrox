@@ -88,7 +88,6 @@ use crate::fyrox::{
         shader::{ShaderResource, ShaderResourceExtension},
         Material, MaterialResource, PropertyValue,
     },
-    plugin::PluginConstructor,
     resource::texture::{
         CompressionOptions, TextureImportOptions, TextureKind, TextureMinificationFilter,
         TextureResource, TextureResourceExtension,
@@ -144,6 +143,7 @@ use crate::{
     utils::{doc::DocWindow, path_fixer::PathFixer, ragdoll::RagdollWizard},
     world::{graph::menu::SceneNodeContextMenu, graph::EditorSceneWrapper, WorldViewer},
 };
+use fyrox::plugin::Plugin;
 use std::{
     cell::RefCell,
     io::{BufRead, BufReader},
@@ -2456,9 +2456,9 @@ impl Editor {
 
     pub fn add_game_plugin<P>(&mut self, plugin: P)
     where
-        P: PluginConstructor + 'static,
+        P: Plugin + 'static,
     {
-        self.engine.add_plugin_constructor(plugin)
+        self.engine.add_plugin(plugin)
     }
 
     pub fn add_editor_plugin<P>(&mut self, plugin: P)

@@ -31,7 +31,7 @@ use crate::{
         shader::{loader::ShaderLoader, Shader, ShaderResource, ShaderResourceExtension},
         Material,
     },
-    plugin::{Plugin, PluginConstructor, PluginContext, PluginRegistrationContext},
+    plugin::{Plugin, PluginContext, PluginRegistrationContext},
     renderer::{framework::error::FrameworkError, framework::state::GlKind, Renderer},
     resource::{
         curve::{loader::CurveLoader, CurveResourceState},
@@ -218,22 +218,10 @@ struct SceneLoadingOptions {
 /// ```rust
 /// use fyrox_impl::{
 ///     core::{color::Color, log::Log, pool::Handle},
-///     plugin::{Plugin, PluginConstructor, PluginContext},
+///     plugin::{Plugin, PluginContext},
 ///     scene::Scene,
 /// };
 /// use std::path::Path;
-///
-/// struct GameConstructor;
-///
-/// impl PluginConstructor for GameConstructor {
-///     fn create_instance(
-///         &self,
-///         scene_path: Option<&str>,
-///         context: PluginContext,
-///     ) -> Box<dyn Plugin> {
-///         Box::new(MyGame::new(scene_path, context))
-///     }
-/// }
 ///
 /// struct MyGame {
 ///     scene: Handle<Scene>,
@@ -432,9 +420,6 @@ pub struct Engine {
 
     #[allow(dead_code)] // Keep engine instance alive.
     sound_engine: SoundEngine,
-
-    // A set of plugin constructors.
-    plugin_constructors: Vec<Box<dyn PluginConstructor>>,
 
     // A set of plugins used by the engine.
     plugins: Vec<Box<dyn Plugin>>,
@@ -1288,7 +1273,6 @@ impl Engine {
             serialization_context,
             script_processor: Default::default(),
             plugins_enabled: false,
-            plugin_constructors: Default::default(),
             elapsed_time: 0.0,
             task_pool: TaskPoolHandler::new(task_pool),
         })
@@ -2266,8 +2250,8 @@ impl Engine {
 
             if self.plugins_enabled {
                 // Create and initialize instances.
-                for constructor in self.plugin_constructors.iter() {
-                    self.plugins.push(constructor.create_instance(
+                for plugin in self.plugins.iter_mut() {
+                    plugin.init(
                         scene_path,
                         PluginContext {
                             scenes: &mut self.scenes,
@@ -2284,7 +2268,7 @@ impl Engine {
                             window_target,
                             task_pool: &mut self.task_pool,
                         },
-                    ));
+                    );
                 }
             } else {
                 self.handle_scripts(0.0);
@@ -2312,16 +2296,16 @@ impl Engine {
     }
 
     /// Adds new plugin plugin constructor.
-    pub fn add_plugin_constructor<P>(&mut self, constructor: P)
+    pub fn add_plugin<P>(&mut self, plugin: P)
     where
-        P: PluginConstructor + 'static,
+        P: Plugin + 'static,
     {
-        constructor.register(PluginRegistrationContext {
+        plugin.register(PluginRegistrationContext {
             serialization_context: &self.serialization_context,
             resource_manager: &self.resource_manager,
         });
 
-        self.plugin_constructors.push(Box::new(constructor));
+        self.plugins.push(Box::new(plugin));
     }
 }
 

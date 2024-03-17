@@ -1,5 +1,6 @@
 //! Executor is a small wrapper that manages plugins and scripts for your game.
 
+use crate::plugin::Plugin;
 use crate::{
     asset::manager::ResourceManager,
     core::{
@@ -11,7 +12,6 @@ use crate::{
     },
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget},
-    plugin::PluginConstructor,
     utils::translate_event,
     window::WindowAttributes,
 };
@@ -124,12 +124,12 @@ impl Executor {
         self.desired_update_rate
     }
 
-    /// Adds new plugin constructor to the executor, the plugin will be enabled only on [`Executor::run`].
-    pub fn add_plugin_constructor<P>(&mut self, plugin: P)
+    /// Adds new plugin to the executor, the plugin will be enabled only on [`Executor::run`].
+    pub fn add_plugin<P>(&mut self, plugin: P)
     where
-        P: PluginConstructor + 'static,
+        P: Plugin + 'static,
     {
-        self.engine.add_plugin_constructor(plugin)
+        self.engine.add_plugin(plugin)
     }
 
     /// Runs the executor - starts your game.
