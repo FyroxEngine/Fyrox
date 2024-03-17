@@ -78,6 +78,7 @@ use raw_window_handle::HasRawWindowHandle;
 #[cfg(not(target_arch = "wasm32"))]
 use std::{ffi::CString, num::NonZeroU32};
 
+use std::ffi::OsStr;
 use std::{
     any::TypeId,
     collections::{HashSet, VecDeque},
@@ -91,6 +92,7 @@ use std::{
     time::Duration,
 };
 
+use crate::plugin::dynamic::DynamicPlugin;
 use crate::plugin::PluginContainer;
 use winit::{
     dpi::{Position, Size},
@@ -2296,7 +2298,7 @@ impl Engine {
         }
     }
 
-    /// Adds new plugin plugin constructor.
+    /// Adds a new static plugin.
     pub fn add_plugin<P>(&mut self, plugin: P)
     where
         P: Plugin + 'static,
@@ -2307,6 +2309,26 @@ impl Engine {
         });
 
         self.plugins.push(PluginContainer::Static(Box::new(plugin)));
+    }
+
+    /// Tries to add a new dynamic plugin. This method attempts to load a dynamic library by the
+    /// given path and searches for `fyrox_plugin` function. This function is called to create a
+    /// plugin instance. This method will fail if there's no dynamic library at the given path or
+    /// the `fyrox_plugin` function is not found.
+    pub fn add_dynamic_plugin<P>(&mut self, path: P) -> Result<(), String>
+    where
+        P: AsRef<OsStr> + 'static,
+    {
+        let plugin = PluginContainer::Dynamic(DynamicPlugin::load(path)?);
+
+        plugin.register(PluginRegistrationContext {
+            serialization_context: &self.serialization_context,
+            resource_manager: &self.resource_manager,
+        });
+
+        self.plugins.push(plugin);
+
+        Ok(())
     }
 }
 
