@@ -91,6 +91,7 @@ use std::{
     time::Duration,
 };
 
+use crate::plugin::PluginContainer;
 use winit::{
     dpi::{Position, Size},
     event_loop::EventLoopWindowTarget,
@@ -422,7 +423,7 @@ pub struct Engine {
     sound_engine: SoundEngine,
 
     // A set of plugins used by the engine.
-    plugins: Vec<Box<dyn Plugin>>,
+    plugins: Vec<PluginContainer>,
 
     plugins_enabled: bool,
 
@@ -480,7 +481,7 @@ impl ScriptMessageDispatcher {
         &self,
         scene: &mut Scene,
         scene_handle: Handle<Scene>,
-        plugins: &mut [Box<dyn Plugin>],
+        plugins: &mut [PluginContainer],
         resource_manager: &ResourceManager,
         dt: f32,
         elapsed_time: f32,
@@ -652,7 +653,7 @@ impl ScriptProcessor {
     fn handle_scripts(
         &mut self,
         scenes: &mut SceneContainer,
-        plugins: &mut [Box<dyn Plugin>],
+        plugins: &mut [PluginContainer],
         resource_manager: &ResourceManager,
         task_pool: &mut TaskPoolHandler,
         graphics_context: &mut GraphicsContext,
@@ -1086,7 +1087,7 @@ where
 pub(crate) fn process_scripts<T>(
     scene: &mut Scene,
     scene_handle: Handle<Scene>,
-    plugins: &mut [Box<dyn Plugin>],
+    plugins: &mut [PluginContainer],
     resource_manager: &ResourceManager,
     message_sender: &ScriptMessageSender,
     message_dispatcher: &mut ScriptMessageDispatcher,
@@ -2305,7 +2306,7 @@ impl Engine {
             resource_manager: &self.resource_manager,
         });
 
-        self.plugins.push(Box::new(plugin));
+        self.plugins.push(PluginContainer::Static(Box::new(plugin)));
     }
 }
 

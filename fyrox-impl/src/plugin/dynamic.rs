@@ -7,8 +7,7 @@ use std::ffi::OsStr;
 /// it is strongly advised not to use it in production builds, because it is slower than statically
 /// linked plugins and it could be unsafe if different compiler versions are used.
 pub struct DynamicPlugin {
-    /// Loaded plugin.
-    pub plugin: Box<dyn Plugin>,
+    pub(super) plugin: Box<dyn Plugin>,
     // Keep the library loaded.
     // Must be last!
     #[allow(dead_code)]

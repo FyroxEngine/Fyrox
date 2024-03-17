@@ -2,6 +2,7 @@
 
 //! Script is used to add custom logic to scene nodes. See [ScriptTrait] for more info.
 
+use crate::plugin::PluginContainer;
 use crate::scene::base::NodeScriptMessage;
 use crate::{
     asset::manager::ResourceManager,
@@ -239,10 +240,10 @@ where
 
 /// A simple wrapper for a reference to plugins container. It has some useful methods to fetch
 /// a plugin of certain type. See [`PluginsRefMut::of_type_ref`] and [`PluginsRefMut::of_type_mut`].
-pub struct PluginsRefMut<'a>(pub &'a mut [Box<dyn Plugin>]);
+pub struct PluginsRefMut<'a>(pub &'a mut [PluginContainer]);
 
 impl<'a> Deref for PluginsRefMut<'a> {
-    type Target = [Box<dyn Plugin>];
+    type Target = [PluginContainer];
 
     fn deref(&self) -> &Self::Target {
         self.0

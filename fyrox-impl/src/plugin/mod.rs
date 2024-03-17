@@ -13,10 +13,44 @@ use crate::{
     },
     event::Event,
     gui::{message::UiMessage, UserInterface},
+    plugin::dynamic::DynamicPlugin,
     scene::{Scene, SceneContainer},
 };
-use std::{any::Any, path::Path, sync::Arc};
+use std::{
+    any::Any,
+    ops::{Deref, DerefMut},
+    path::Path,
+    sync::Arc,
+};
 use winit::event_loop::EventLoopWindowTarget;
+
+/// A wrapper for various plugin types.
+pub enum PluginContainer {
+    /// Statically linked plugin.
+    Static(Box<dyn Plugin>),
+    /// Dynamically linked plugin.
+    Dynamic(DynamicPlugin),
+}
+
+impl Deref for PluginContainer {
+    type Target = dyn Plugin;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            PluginContainer::Static(plugin) => &**plugin,
+            PluginContainer::Dynamic(dynamic) => &*dynamic.plugin,
+        }
+    }
+}
+
+impl DerefMut for PluginContainer {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        match self {
+            PluginContainer::Static(plugin) => &mut **plugin,
+            PluginContainer::Dynamic(dynamic) => &mut *dynamic.plugin,
+        }
+    }
+}
 
 /// Contains plugin environment for the registration stage.
 pub struct PluginRegistrationContext<'a> {

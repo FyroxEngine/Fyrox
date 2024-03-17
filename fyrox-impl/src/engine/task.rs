@@ -1,5 +1,6 @@
 //! Asynchronous task handler. See [`TaskPoolHandler`] for more info and usage examples.
 
+use crate::plugin::PluginContainer;
 use crate::{
     core::{
         pool::Handle,
@@ -24,7 +25,7 @@ pub(crate) type NodeTaskHandlerClosure = Box<
 pub(crate) type PluginTaskHandler = Box<
     dyn for<'a, 'b> Fn(
         Box<dyn AsyncTaskResult>,
-        &'a mut [Box<dyn Plugin>],
+        &'a mut [PluginContainer],
         &mut PluginContext<'a, 'b>,
     ),
 >;
