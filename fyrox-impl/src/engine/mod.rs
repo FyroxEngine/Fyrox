@@ -2348,7 +2348,12 @@ impl Engine {
     /// ## Important notes
     ///
     /// This method is highly dangerous and wasn't properly tested, use at your own risk!
-    pub async fn reload_dynamic_plugins(&mut self) -> Result<(), String> {
+    pub async fn reload_dynamic_plugins(
+        &mut self,
+        dt: f32,
+        window_target: &EventLoopWindowTarget<()>,
+        lag: &mut f32,
+    ) -> Result<(), String> {
         // Search for scenes, that has scripts provided by a dynamic plugin.
         // TODO: Add scene nodes here too; plugins can provide custom scene node types.
         let mut scenes = FxHashSet::default();
@@ -2486,6 +2491,25 @@ impl Engine {
             let scene = loader.finish(&self.resource_manager).await;
 
             self.scenes.put_back(ticket, scene);
+        }
+
+        // Call `on_loaded` for plugins, so they could restore some runtime non-serializable state.
+        for plugin in self.plugins.iter_mut() {
+            plugin.on_loaded(PluginContext {
+                scenes: &mut self.scenes,
+                resource_manager: &self.resource_manager,
+                user_interface: &mut self.user_interface,
+                graphics_context: &mut self.graphics_context,
+                dt,
+                lag,
+                serialization_context: &self.serialization_context,
+                performance_statistics: &Default::default(),
+                elapsed_time: self.elapsed_time,
+                script_processor: &self.script_processor,
+                async_scene_loader: &mut self.async_scene_loader,
+                window_target: Some(window_target),
+                task_pool: &mut self.task_pool,
+            })
         }
 
         Ok(())

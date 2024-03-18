@@ -212,6 +212,12 @@ pub trait Plugin: BasePlugin + Visit {
     ) {
     }
 
+    /// This method is called when your plugin was re-loaded from a dynamic library. It could be used
+    /// to restore some runtime state, that cannot be serialized. This method is called **only for
+    /// dynamic plugins!** It is guaranteed to be called after all plugins were constructed, so the
+    /// cross-plugins interactions are possible.
+    fn on_loaded(&mut self, #[allow(unused_variables)] context: PluginContext) {}
+
     /// The method is called before plugin will be disabled. It should be used for clean up, or some
     /// additional actions.
     fn on_deinit(&mut self, #[allow(unused_variables)] context: PluginContext) {}
