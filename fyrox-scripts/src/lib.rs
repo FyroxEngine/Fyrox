@@ -10,11 +10,12 @@ pub mod camera;
 ///
 /// ```rust
 /// # use fyrox::{
-/// #     core::pool::Handle,
+/// #     core::pool::Handle, core::visitor::prelude::*,
 /// #     plugin::{Plugin, PluginContext, PluginRegistrationContext},
 /// #     scene::Scene,
 /// # };
 /// #
+/// # #[derive(Visit)]
 /// # struct Game;
 /// #
 /// # impl Plugin for Game {

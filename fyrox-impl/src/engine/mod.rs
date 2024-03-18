@@ -222,12 +222,13 @@ struct SceneLoadingOptions {
 ///
 /// ```rust
 /// use fyrox_impl::{
-///     core::{color::Color, log::Log, pool::Handle},
+///     core::{color::Color, visitor::prelude::*, log::Log, pool::Handle},
 ///     plugin::{Plugin, PluginContext},
 ///     scene::Scene,
 /// };
 /// use std::path::Path;
 ///
+/// #[derive(Visit)]
 /// struct MyGame {
 ///     scene: Handle<Scene>,
 /// }
@@ -2418,27 +2419,48 @@ impl Engine {
         // Unload the plugins.
         enum TemporaryStorage {
             StaticPlugin(Box<dyn Plugin>),
-            DynamicPlugin(PathBuf),
+            DynamicPlugin { path: PathBuf, binary_blob: Vec<u8> },
         }
-        let plugins = self
-            .plugins
-            .drain(..)
-            .map(|p| match p {
-                PluginContainer::Static(plugin) => TemporaryStorage::StaticPlugin(plugin),
-                PluginContainer::Dynamic(dynamic) => {
+        let mut plugins = Vec::new();
+        for container in self.plugins.drain(..) {
+            match container {
+                PluginContainer::Static(plugin) => {
+                    plugins.push(TemporaryStorage::StaticPlugin(plugin))
+                }
+                PluginContainer::Dynamic(mut dynamic) => {
+                    let mut visitor = Visitor::new();
+                    dynamic
+                        .plugin_mut()
+                        .visit("Plugin", &mut visitor)
+                        .map_err(|e| e.to_string())?;
+                    let mut binary_blob = Cursor::new(Vec::<u8>::new());
+                    visitor
+                        .save_binary_to_memory(&mut binary_blob)
+                        .map_err(|e| e.to_string())?;
+
                     // Store the path of the dynamic plugin. The plugin itself will be dropped and
                     // thus unloaded.
-                    TemporaryStorage::DynamicPlugin(dynamic.path().to_path_buf())
+                    plugins.push(TemporaryStorage::DynamicPlugin {
+                        path: dynamic.path().to_path_buf(),
+                        binary_blob: binary_blob.into_inner(),
+                    })
                 }
-            })
-            .collect::<Vec<_>>();
+            }
+        }
         for plugin in plugins {
             match plugin {
                 TemporaryStorage::StaticPlugin(plugin) => {
                     self.plugins.push(PluginContainer::Static(plugin))
                 }
-                TemporaryStorage::DynamicPlugin(path) => {
-                    let dynamic = DynamicPlugin::load(path)?;
+                TemporaryStorage::DynamicPlugin { path, binary_blob } => {
+                    let mut dynamic = DynamicPlugin::load(path)?;
+
+                    let mut visitor =
+                        Visitor::load_from_memory(&binary_blob).map_err(|e| e.to_string())?;
+                    dynamic
+                        .plugin_mut()
+                        .visit("Plugin", &mut visitor)
+                        .map_err(|e| e.to_string())?;
 
                     // Re-register the plugin. This is needed, because it might contain new script
                     // types (or removed ones too).

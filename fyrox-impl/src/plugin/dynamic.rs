@@ -50,4 +50,9 @@ impl DynamicPlugin {
     pub fn plugin(&self) -> &dyn Plugin {
         &*self.plugin
     }
+
+    /// Return a reference to the plugin interface of the dynamic plugin.
+    pub(crate) fn plugin_mut(&mut self) -> &mut dyn Plugin {
+        &mut *self.plugin
+    }
 }

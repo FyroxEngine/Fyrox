@@ -16,6 +16,7 @@ use crate::{
     plugin::dynamic::DynamicPlugin,
     scene::{Scene, SceneContainer},
 };
+use fyrox_core::visitor::Visit;
 use std::{
     any::Any,
     ops::{Deref, DerefMut},
@@ -172,14 +173,14 @@ impl dyn Plugin {
 ///
 /// ```rust
 /// # use fyrox_impl::{
-/// #     core::{pool::Handle},
+/// #     core::{pool::Handle}, core::visitor::prelude::*,
 /// #     plugin::{Plugin, PluginContext, PluginRegistrationContext},
 /// #     scene::Scene,
 /// #     event::Event
 /// # };
 /// # use std::str::FromStr;
 ///
-/// #[derive(Default)]
+/// #[derive(Default, Visit)]
 /// struct MyPlugin {}
 ///
 /// impl Plugin for MyPlugin {
@@ -198,7 +199,7 @@ impl dyn Plugin {
 ///     }
 /// }
 /// ```
-pub trait Plugin: BasePlugin {
+pub trait Plugin: BasePlugin + Visit {
     /// The method is called when the plugin constructor was just registered in the engine. The main
     /// use of this method is to register scripts and custom scene graph nodes in [`SerializationContext`].
     fn register(&self, #[allow(unused_variables)] context: PluginRegistrationContext) {}
