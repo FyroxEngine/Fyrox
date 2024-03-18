@@ -45,4 +45,9 @@ impl DynamicPlugin {
     pub fn path(&self) -> &Path {
         &self.path
     }
+
+    /// Return a reference to the plugin interface of the dynamic plugin.
+    pub fn plugin(&self) -> &dyn Plugin {
+        &*self.plugin
+    }
 }
