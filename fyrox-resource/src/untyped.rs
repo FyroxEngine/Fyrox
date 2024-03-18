@@ -12,6 +12,7 @@ use crate::{
     MODEL_RESOURCE_UUID, SHADER_RESOURCE_UUID, SOUND_BUFFER_RESOURCE_UUID, TEXTURE_RESOURCE_UUID,
 };
 use fyrox_core::math::curve::Curve;
+use fyrox_core::uuid;
 use fyrox_core::visitor::RegionGuard;
 use std::ffi::OsStr;
 use std::fmt::Display;
@@ -243,7 +244,8 @@ impl Visit for ResourceHeader {
 /// that the resource is in default state. This is a trade-off to prevent wrapping internals into
 /// `Option`, that in some cases could lead to convoluted code with lots of `unwrap`s and state
 /// assumptions.
-#[derive(Clone, Reflect)]
+#[derive(Clone, Reflect, TypeUuidProvider)]
+#[type_uuid(id = "21613484-7145-4d1c-87d8-62fa767560ab")]
 pub struct UntypedResource(pub Arc<Mutex<ResourceHeader>>);
 
 impl Visit for UntypedResource {

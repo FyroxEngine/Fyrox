@@ -93,6 +93,7 @@ use crate::{
     },
     message::MessageSender,
 };
+use fyrox::asset::untyped::UntypedResource;
 use std::{path::Path, sync::Arc};
 
 pub mod animation;
@@ -198,7 +199,9 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
     container.insert(FontPropertyEditorDefinition);
     container.insert(InheritablePropertyEditorDefinition::<FontResource>::new());
     container.insert(InheritablePropertyEditorDefinition::<Option<TextureResource>>::new());
+    container.insert(InheritablePropertyEditorDefinition::<Option<UntypedResource>>::new());
     container.register_inheritable_vec_collection::<Option<TextureResource>>();
+    container.register_inheritable_vec_collection::<Option<UntypedResource>>();
 
     container.insert(MaterialPropertyEditorDefinition {
         sender: Mutex::new(sender.clone()),
