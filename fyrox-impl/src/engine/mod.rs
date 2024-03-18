@@ -2347,7 +2347,7 @@ impl Engine {
     /// ## Important notes
     ///
     /// This method is highly dangerous and wasn't properly tested, use at your own risk!
-    pub async fn reload_dynamic_plugins(&mut self) {
+    pub async fn reload_dynamic_plugins(&mut self) -> Result<(), String> {
         // Search for scenes, that has scripts provided by a dynamic plugin.
         // TODO: Add scene nodes here too; plugins can provide custom scene node types.
         let mut scenes = FxHashSet::default();
@@ -2405,9 +2405,13 @@ impl Engine {
         for &scene_handle in scenes.iter() {
             let (ticket, mut scene) = self.scenes.take_reserve(scene_handle);
             let mut visitor = Visitor::new();
-            scene.save("Scene", &mut visitor).unwrap();
+            scene
+                .save("Scene", &mut visitor)
+                .map_err(|e| e.to_string())?;
             let mut binary_blob = Cursor::new(Vec::<u8>::new());
-            visitor.save_binary_to_memory(&mut binary_blob).unwrap();
+            visitor
+                .save_binary_to_memory(&mut binary_blob)
+                .map_err(|e| e.to_string())?;
             serialized_scenes.insert(scene_handle, (ticket, binary_blob.into_inner()));
         }
 
@@ -2434,7 +2438,7 @@ impl Engine {
                     self.plugins.push(PluginContainer::Static(plugin))
                 }
                 TemporaryStorage::DynamicPlugin(path) => {
-                    let dynamic = DynamicPlugin::load(path).unwrap();
+                    let dynamic = DynamicPlugin::load(path)?;
 
                     // Re-register the plugin. This is needed, because it might contain new script
                     // types (or removed ones too).
@@ -2447,7 +2451,7 @@ impl Engine {
 
         // Deserialize the scenes.
         for (_, (ticket, binary_blob)) in serialized_scenes {
-            let mut visitor = Visitor::load_from_memory(&binary_blob).unwrap();
+            let mut visitor = Visitor::load_from_memory(&binary_blob).map_err(|e| e.to_string())?;
             let loader = SceneLoader::load(
                 "Scene",
                 self.serialization_context.clone(),
@@ -2455,12 +2459,14 @@ impl Engine {
                 &mut visitor,
                 None,
             )
-            .unwrap();
+            .map_err(|e| e.to_string())?;
 
             let scene = loader.finish(&self.resource_manager).await;
 
             self.scenes.put_back(ticket, scene);
         }
+
+        Ok(())
     }
 }
 
