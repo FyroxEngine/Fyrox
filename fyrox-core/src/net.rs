@@ -17,6 +17,10 @@ impl NetListener {
         Ok(Self { listener })
     }
 
+    pub fn local_address(&self) -> io::Result<SocketAddr> {
+        self.listener.local_addr()
+    }
+
     pub fn accept_connections(&self) -> Vec<NetStream> {
         let mut streams = Vec::new();
         while let Ok(result) = self.listener.accept() {
