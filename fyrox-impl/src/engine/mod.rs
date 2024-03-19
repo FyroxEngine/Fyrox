@@ -78,8 +78,9 @@ use raw_window_handle::HasRawWindowHandle;
 #[cfg(not(target_arch = "wasm32"))]
 use std::{ffi::CString, num::NonZeroU32};
 
-use std::ffi::OsStr;
 use std::io::Cursor;
+use std::sync::atomic;
+use std::sync::atomic::AtomicBool;
 use std::{
     any::TypeId,
     collections::{HashSet, VecDeque},
@@ -94,7 +95,9 @@ use std::{
 };
 
 use crate::plugin::dynamic::DynamicPlugin;
-use crate::plugin::PluginContainer;
+use crate::plugin::{DynamicPluginState, PluginContainer};
+use fyrox_core::notify;
+use fyrox_core::notify::{EventKind, RecursiveMode, Watcher};
 use fyrox_core::visitor::Visitor;
 use winit::{
     dpi::{Position, Size},
@@ -1602,6 +1605,15 @@ impl Engine {
         self.handle_async_scene_loading(dt, lag, window_target);
         self.pre_update(dt, window_target, lag, switches);
         self.post_update(dt, &Default::default());
+
+        #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
+        {
+            if let Err(message) = block_on(self.reload_dynamic_plugins(dt, window_target, lag)) {
+                Log::err(format!(
+                    "Unable to reload dynamic plugins. Reason: {message}"
+                ))
+            }
+        }
     }
 
     fn handle_async_scene_loading(
@@ -2301,16 +2313,23 @@ impl Engine {
         }
     }
 
-    fn register_plugin(&self, plugin: &dyn Plugin) {
-        *self
-            .serialization_context
+    fn register_plugin_internal(
+        serialization_context: &Arc<SerializationContext>,
+        resource_manager: &ResourceManager,
+        plugin: &dyn Plugin,
+    ) {
+        *serialization_context
             .script_constructors
             .context_type_id
             .lock() = plugin.type_id();
         plugin.register(PluginRegistrationContext {
-            serialization_context: &self.serialization_context,
-            resource_manager: &self.resource_manager,
+            serialization_context,
+            resource_manager,
         });
+    }
+
+    fn register_plugin(&self, plugin: &dyn Plugin) {
+        Self::register_plugin_internal(&self.serialization_context, &self.resource_manager, plugin)
     }
 
     /// Adds a new static plugin.
@@ -2327,14 +2346,81 @@ impl Engine {
     /// given path and searches for `fyrox_plugin` function. This function is called to create a
     /// plugin instance. This method will fail if there's no dynamic library at the given path or
     /// the `fyrox_plugin` function is not found.
-    pub fn add_dynamic_plugin<P>(&mut self, path: P) -> Result<(), String>
+    ///
+    /// # Hot reloading
+    ///
+    /// This method can enable hot reloading for the plugin, by setting `reload_when_changed` parameter
+    /// to `true`. When enabled, the engine will clone the library to implementation-defined path
+    /// and load it. It will setup file system watcher to receive changes from the OS and reload
+    /// the plugin.
+    pub fn add_dynamic_plugin<P>(
+        &mut self,
+        path: P,
+        reload_when_changed: bool,
+        use_relative_paths: bool,
+    ) -> Result<(), String>
     where
-        P: AsRef<OsStr> + 'static,
+        P: AsRef<Path> + 'static,
     {
-        let dynamic = DynamicPlugin::load(path)?;
-        self.register_plugin(dynamic.plugin());
-        let plugin = PluginContainer::Dynamic(dynamic);
+        let source_lib_path = if use_relative_paths {
+            let exe_folder = std::env::current_exe()
+                .map_err(|e| e.to_string())?
+                .parent()
+                .map(|p| p.to_path_buf())
+                .unwrap_or_default();
 
+            exe_folder.join(path.as_ref())
+        } else {
+            path.as_ref().to_path_buf()
+        };
+
+        let plugin = if reload_when_changed {
+            let lib_path = source_lib_path.with_extension("module");
+            std::fs::copy(&source_lib_path, &lib_path).map_err(|e| e.to_string())?;
+
+            let need_reload = Arc::new(AtomicBool::new(false));
+            let need_reload_clone = need_reload.clone();
+            let lib_path_clone = lib_path.clone();
+
+            let mut watcher =
+                notify::recommended_watcher(move |event: notify::Result<notify::Event>| {
+                    if let Ok(event) = event {
+                        if let EventKind::Modify(_) | EventKind::Create(_) = event.kind {
+                            need_reload_clone.store(true, atomic::Ordering::Relaxed);
+
+                            Log::warn(format!(
+                                "Plugin {} was changed. Performing hot reloading...",
+                                lib_path_clone.display()
+                            ))
+                        }
+                    }
+                })
+                .map_err(|e| e.to_string())?;
+
+            watcher
+                .watch(&source_lib_path, RecursiveMode::NonRecursive)
+                .map_err(|e| e.to_string())?;
+
+            PluginContainer::Dynamic {
+                plugin: DynamicPluginState::Loaded(DynamicPlugin::load(lib_path.as_os_str())?),
+                lib_path,
+                source_lib_path,
+                watcher: Some(watcher),
+                need_reload,
+            }
+        } else {
+            PluginContainer::Dynamic {
+                plugin: DynamicPluginState::Loaded(DynamicPlugin::load(
+                    source_lib_path.as_os_str(),
+                )?),
+                lib_path: source_lib_path.clone(),
+                source_lib_path,
+                watcher: None,
+                need_reload: Default::default(),
+            }
+        };
+
+        self.register_plugin(plugin.deref());
         self.plugins.push(plugin);
 
         Ok(())
@@ -2354,27 +2440,36 @@ impl Engine {
         window_target: &EventLoopWindowTarget<()>,
         lag: &mut f32,
     ) -> Result<(), String> {
+        // TODO: This method is a mess, refactor this.
+
         // Search for scenes, that has scripts provided by a dynamic plugin.
         // TODO: Add scene nodes here too; plugins can provide custom scene node types.
         let mut scenes = FxHashSet::default();
         for plugin in self.plugins.iter() {
-            if let PluginContainer::Dynamic(dynamic) = plugin {
-                let plugin_type_id = dynamic.plugin().type_id();
+            if let PluginContainer::Dynamic {
+                plugin: DynamicPluginState::Loaded(dynamic),
+                need_reload,
+                ..
+            } = plugin
+            {
+                if need_reload.load(atomic::Ordering::Relaxed) {
+                    let plugin_type_id = dynamic.plugin().type_id();
 
-                for (handle, scene) in self.scenes.pair_iter() {
-                    'node_loop: for node in scene.graph.linear_iter() {
-                        for script in node.scripts() {
-                            let script_id = script.deref().id();
+                    for (handle, scene) in self.scenes.pair_iter() {
+                        'node_loop: for node in scene.graph.linear_iter() {
+                            for script in node.scripts() {
+                                let script_id = script.deref().id();
 
-                            if let Some(constructor) = self
-                                .serialization_context
-                                .script_constructors
-                                .map()
-                                .get(&script_id)
-                            {
-                                if constructor.source_type_id == plugin_type_id {
-                                    scenes.insert(handle);
-                                    break 'node_loop;
+                                if let Some(constructor) = self
+                                    .serialization_context
+                                    .script_constructors
+                                    .map()
+                                    .get(&script_id)
+                                {
+                                    if constructor.source_type_id == plugin_type_id {
+                                        scenes.insert(handle);
+                                        break 'node_loop;
+                                    }
                                 }
                             }
                         }
@@ -2386,14 +2481,21 @@ impl Engine {
         // Search for script constructors, that belongs to dynamic plugins.
         let mut constructors = FxHashSet::default();
         for plugin in self.plugins.iter() {
-            if let PluginContainer::Dynamic(dynamic) = plugin {
-                let plugin_type_id = dynamic.plugin().type_id();
+            if let PluginContainer::Dynamic {
+                plugin: DynamicPluginState::Loaded(dynamic),
+                need_reload,
+                ..
+            } = plugin
+            {
+                if need_reload.load(atomic::Ordering::Relaxed) {
+                    let plugin_type_id = dynamic.plugin().type_id();
 
-                for (type_uuid, constructor) in
-                    self.serialization_context.script_constructors.map().iter()
-                {
-                    if constructor.source_type_id == plugin_type_id {
-                        constructors.insert(*type_uuid);
+                    for (type_uuid, constructor) in
+                        self.serialization_context.script_constructors.map().iter()
+                    {
+                        if constructor.source_type_id == plugin_type_id {
+                            constructors.insert(*type_uuid);
+                        }
                     }
                 }
             }
@@ -2421,57 +2523,70 @@ impl Engine {
             serialized_scenes.insert(scene_handle, (ticket, binary_blob.into_inner()));
         }
 
-        // Unload the plugins.
-        enum TemporaryStorage {
-            StaticPlugin(Box<dyn Plugin>),
-            DynamicPlugin { path: PathBuf, binary_blob: Vec<u8> },
-        }
-        let mut plugins = Vec::new();
-        for container in self.plugins.drain(..) {
-            match container {
-                PluginContainer::Static(plugin) => {
-                    plugins.push(TemporaryStorage::StaticPlugin(plugin))
-                }
-                PluginContainer::Dynamic(mut dynamic) => {
-                    let mut visitor = Visitor::new();
-                    dynamic
-                        .plugin_mut()
-                        .visit("Plugin", &mut visitor)
-                        .map_err(|e| e.to_string())?;
-                    let mut binary_blob = Cursor::new(Vec::<u8>::new());
-                    visitor
-                        .save_binary_to_memory(&mut binary_blob)
-                        .map_err(|e| e.to_string())?;
+        // Unload all dynamic plugins.
+        for container in self.plugins.iter_mut() {
+            if let PluginContainer::Dynamic {
+                plugin,
+                need_reload,
+                source_lib_path,
+                lib_path,
+                ..
+            } = container
+            {
+                if need_reload.load(atomic::Ordering::Relaxed) {
+                    if let DynamicPluginState::Loaded(dynamic) = plugin {
+                        let mut visitor = Visitor::new();
+                        dynamic
+                            .plugin_mut()
+                            .visit("Plugin", &mut visitor)
+                            .map_err(|e| e.to_string())?;
+                        let mut binary_blob = Cursor::new(Vec::<u8>::new());
+                        visitor
+                            .save_binary_to_memory(&mut binary_blob)
+                            .map_err(|e| e.to_string())?;
 
-                    // Store the path of the dynamic plugin. The plugin itself will be dropped and
-                    // thus unloaded.
-                    plugins.push(TemporaryStorage::DynamicPlugin {
-                        path: dynamic.path().to_path_buf(),
-                        binary_blob: binary_blob.into_inner(),
-                    })
+                        *plugin = DynamicPluginState::Unloaded {
+                            binary_blob: binary_blob.into_inner(),
+                        };
+
+                        // Replace the module.
+                        std::fs::copy(&source_lib_path, &lib_path).map_err(|e| e.to_string())?;
+                    }
                 }
             }
         }
-        for plugin in plugins {
-            match plugin {
-                TemporaryStorage::StaticPlugin(plugin) => {
-                    self.plugins.push(PluginContainer::Static(plugin))
-                }
-                TemporaryStorage::DynamicPlugin { path, binary_blob } => {
-                    let mut dynamic = DynamicPlugin::load(path)?;
+
+        let mut reloaded_indices = Vec::new();
+        for (plugin_index, container) in self.plugins.iter_mut().enumerate() {
+            if let PluginContainer::Dynamic {
+                plugin,
+                lib_path,
+                need_reload,
+                ..
+            } = container
+            {
+                if let DynamicPluginState::Unloaded { binary_blob } = plugin {
+                    let mut dynamic = DynamicPlugin::load(lib_path)?;
 
                     let mut visitor =
-                        Visitor::load_from_memory(&binary_blob).map_err(|e| e.to_string())?;
+                        Visitor::load_from_memory(binary_blob).map_err(|e| e.to_string())?;
                     dynamic
                         .plugin_mut()
                         .visit("Plugin", &mut visitor)
                         .map_err(|e| e.to_string())?;
 
+                    *plugin = DynamicPluginState::Loaded(dynamic);
+
                     // Re-register the plugin. This is needed, because it might contain new script
                     // types (or removed ones too).
-                    self.register_plugin(dynamic.plugin());
+                    Self::register_plugin_internal(
+                        &self.serialization_context,
+                        &self.resource_manager,
+                        plugin.as_loaded_ref().plugin(),
+                    );
 
-                    self.plugins.push(PluginContainer::Dynamic(dynamic))
+                    need_reload.store(false, atomic::Ordering::Relaxed);
+                    reloaded_indices.push(plugin_index);
                 }
             }
         }
@@ -2494,7 +2609,8 @@ impl Engine {
         }
 
         // Call `on_loaded` for plugins, so they could restore some runtime non-serializable state.
-        for plugin in self.plugins.iter_mut() {
+        for plugin_index in reloaded_indices {
+            let plugin = &mut self.plugins[plugin_index];
             plugin.on_loaded(PluginContext {
                 scenes: &mut self.scenes,
                 resource_manager: &self.resource_manager,

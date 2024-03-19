@@ -6,7 +6,7 @@ pub mod dynamic;
 
 use crate::{
     asset::manager::ResourceManager,
-    core::{pool::Handle, visitor::VisitError},
+    core::{notify::RecommendedWatcher, pool::Handle, visitor::Visit, visitor::VisitError},
     engine::{
         task::TaskPoolHandler, AsyncSceneLoader, GraphicsContext, PerformanceStatistics,
         ScriptProcessor, SerializationContext,
@@ -16,21 +16,71 @@ use crate::{
     plugin::dynamic::DynamicPlugin,
     scene::{Scene, SceneContainer},
 };
-use fyrox_core::visitor::Visit;
 use std::{
     any::Any,
     ops::{Deref, DerefMut},
-    path::Path,
-    sync::Arc,
+    path::{Path, PathBuf},
+    sync::{atomic::AtomicBool, Arc},
 };
 use winit::event_loop::EventLoopWindowTarget;
 
+/// Actual state of a dynamic plugin.
+pub enum DynamicPluginState {
+    /// Unloaded plugin.
+    Unloaded {
+        /// Serialized content of the plugin.
+        binary_blob: Vec<u8>,
+    },
+    /// Loaded plugin.
+    Loaded(DynamicPlugin),
+}
+
+impl DynamicPluginState {
+    /// Tries to interpret the state as [`Self::Loaded`], panics if the plugin is unloaded.
+    pub fn as_loaded_ref(&self) -> &DynamicPlugin {
+        match self {
+            DynamicPluginState::Unloaded { .. } => {
+                panic!("Cannot obtain a reference to the plugin, because it is unloaded!")
+            }
+            DynamicPluginState::Loaded(dynamic) => dynamic,
+        }
+    }
+
+    /// Tries to interpret the state as [`Self::Loaded`], panics if the plugin is unloaded.
+    pub fn as_loaded_mut(&mut self) -> &mut DynamicPlugin {
+        match self {
+            DynamicPluginState::Unloaded { .. } => {
+                panic!("Cannot obtain a reference to the plugin, because it is unloaded!")
+            }
+            DynamicPluginState::Loaded(dynamic) => dynamic,
+        }
+    }
+}
+
 /// A wrapper for various plugin types.
 pub enum PluginContainer {
-    /// Statically linked plugin.
+    /// Statically linked plugin. Such plugins are meant to be used in final builds, to maximize
+    /// performance of the game.
     Static(Box<dyn Plugin>),
-    /// Dynamically linked plugin.
-    Dynamic(DynamicPlugin),
+    /// Dynamically linked plugin. Such plugins are meant to be used in development mode for rapid
+    /// prototyping.
+    Dynamic {
+        /// Dynamic plugin state.
+        plugin: DynamicPluginState,
+        /// Target path of the library of the plugin.
+        lib_path: PathBuf,
+        /// Path to the source file, that is emitted by the compiler. If hot reloading is enabled,
+        /// this library will be cloned to `lib_path` and loaded. This is needed, because usually
+        /// OS locks the library and it is not possible to overwrite it while it is loaded in a process.  
+        source_lib_path: PathBuf,
+        /// Optional file system watcher, that is configured to watch the source library and re-load
+        /// the plugin if the source library has changed. If the watcher is `None`, then hot reloading
+        /// is disabled.
+        watcher: Option<RecommendedWatcher>,
+        /// A flag, that tells the engine that the plugin needs to be reloaded. Usually the engine
+        /// will do that at the end of the update tick.
+        need_reload: Arc<AtomicBool>,
+    },
 }
 
 impl Deref for PluginContainer {
@@ -39,7 +89,7 @@ impl Deref for PluginContainer {
     fn deref(&self) -> &Self::Target {
         match self {
             PluginContainer::Static(plugin) => &**plugin,
-            PluginContainer::Dynamic(dynamic) => &*dynamic.plugin,
+            PluginContainer::Dynamic { plugin, .. } => &*plugin.as_loaded_ref().plugin,
         }
     }
 }
@@ -48,7 +98,7 @@ impl DerefMut for PluginContainer {
     fn deref_mut(&mut self) -> &mut Self::Target {
         match self {
             PluginContainer::Static(plugin) => &mut **plugin,
-            PluginContainer::Dynamic(dynamic) => &mut *dynamic.plugin,
+            PluginContainer::Dynamic { plugin, .. } => &mut *plugin.as_loaded_mut().plugin,
         }
     }
 }
