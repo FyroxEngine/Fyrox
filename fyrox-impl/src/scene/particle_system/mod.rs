@@ -399,7 +399,7 @@ impl ParticleSystem {
                         .get_value_mut_and_mark_modified()
                         .get_mut(particle.emitter_index as usize)
                     {
-                        emitter.alive_particles -= 1;
+                        emitter.alive_particles = emitter.alive_particles.saturating_sub(1);
                     }
                     particle.alive = false;
                     particle.lifetime = particle.initial_lifetime;
