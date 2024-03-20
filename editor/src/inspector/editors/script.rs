@@ -1,7 +1,7 @@
 use crate::fyrox::{
     core::{
         log::Log, parking_lot::Mutex, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-        uuid::Uuid, uuid_provider, visitor::prelude::*,
+        uuid_provider, visitor::prelude::*,
     },
     engine::SerializationContext,
     graph::BaseSceneGraph,

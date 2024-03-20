@@ -2,7 +2,7 @@ use crate::fyrox::{
     asset::{untyped::ResourceKind, Resource},
     core::{
         color::Color, futures::executor::block_on, math::curve::Curve, pool::Handle,
-        type_traits::prelude::*, visitor::prelude::*, visitor::Visitor,
+        type_traits::prelude::*, visitor::prelude::*,
     },
     engine::Engine,
     gui::{

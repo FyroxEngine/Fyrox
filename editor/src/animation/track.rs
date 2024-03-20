@@ -14,7 +14,6 @@ use crate::fyrox::{
         pool::Handle,
         reflect::{prelude::*, Reflect, ResolvePath},
         type_traits::prelude::*,
-        uuid::Uuid,
         uuid_provider,
         variable::InheritableVariable,
         visitor::prelude::*,

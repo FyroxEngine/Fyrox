@@ -6,7 +6,6 @@ use crate::fyrox::{
         pool::Handle,
         reflect::prelude::*,
         type_traits::prelude::*,
-        uuid::Uuid,
         uuid_provider,
         visitor::prelude::*,
     },

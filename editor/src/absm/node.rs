@@ -4,13 +4,8 @@ use crate::absm::{
 };
 use crate::fyrox::{
     core::{
-        color::Color,
-        pool::Handle,
-        reflect::prelude::*,
-        type_traits::prelude::*,
-        uuid::{uuid, Uuid},
+        color::Color, pool::Handle, reflect::prelude::*, type_traits::prelude::*, uuid::uuid,
         visitor::prelude::*,
-        TypeUuidProvider,
     },
     graph::BaseSceneGraph,
     gui::{

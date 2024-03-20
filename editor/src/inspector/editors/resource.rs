@@ -2,15 +2,8 @@ use crate::fyrox::graph::BaseSceneGraph;
 use crate::fyrox::{
     asset::{manager::ResourceManager, state::LoadError, Resource, TypedResourceData},
     core::{
-        color::Color,
-        make_relative_path,
-        parking_lot::Mutex,
-        pool::Handle,
-        reflect::prelude::*,
-        type_traits::prelude::*,
-        uuid::{uuid, Uuid},
-        visitor::prelude::*,
-        TypeUuidProvider,
+        color::Color, make_relative_path, parking_lot::Mutex, pool::Handle, reflect::prelude::*,
+        type_traits::prelude::*, uuid::uuid, visitor::prelude::*,
     },
     gui::{
         brush::Brush,
