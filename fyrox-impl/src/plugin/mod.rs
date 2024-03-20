@@ -66,7 +66,7 @@ pub enum PluginContainer {
     /// prototyping.
     Dynamic {
         /// Dynamic plugin state.
-        plugin: DynamicPluginState,
+        state: DynamicPluginState,
         /// Target path of the library of the plugin.
         lib_path: PathBuf,
         /// Path to the source file, that is emitted by the compiler. If hot reloading is enabled,
@@ -89,7 +89,7 @@ impl Deref for PluginContainer {
     fn deref(&self) -> &Self::Target {
         match self {
             PluginContainer::Static(plugin) => &**plugin,
-            PluginContainer::Dynamic { plugin, .. } => &*plugin.as_loaded_ref().plugin,
+            PluginContainer::Dynamic { state: plugin, .. } => &*plugin.as_loaded_ref().plugin,
         }
     }
 }
@@ -98,7 +98,7 @@ impl DerefMut for PluginContainer {
     fn deref_mut(&mut self) -> &mut Self::Target {
         match self {
             PluginContainer::Static(plugin) => &mut **plugin,
-            PluginContainer::Dynamic { plugin, .. } => &mut *plugin.as_loaded_mut().plugin,
+            PluginContainer::Dynamic { state: plugin, .. } => &mut *plugin.as_loaded_mut().plugin,
         }
     }
 }

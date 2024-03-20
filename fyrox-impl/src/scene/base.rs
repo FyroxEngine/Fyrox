@@ -1024,7 +1024,11 @@ impl Default for Base {
 }
 
 // Serializes Option<Script> using given serializer.
-fn visit_opt_script(name: &str, script: &mut Option<Script>, visitor: &mut Visitor) -> VisitResult {
+pub(crate) fn visit_opt_script(
+    name: &str,
+    script: &mut Option<Script>,
+    visitor: &mut Visitor,
+) -> VisitResult {
     let mut region = visitor.enter_region(name)?;
 
     let mut script_type_uuid = script.as_ref().map(|s| s.id()).unwrap_or_default();
