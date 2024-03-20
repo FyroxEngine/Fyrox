@@ -2524,7 +2524,7 @@ impl Engine {
         }
 
         // Unload all dynamic plugins.
-        for container in self.plugins.iter_mut() {
+        for (plugin_index, container) in self.plugins.iter_mut().enumerate() {
             if let PluginContainer::Dynamic {
                 plugin,
                 need_reload,
@@ -2545,12 +2545,24 @@ impl Engine {
                             .save_binary_to_memory(&mut binary_blob)
                             .map_err(|e| e.to_string())?;
 
+                        Log::info(format!(
+                            "Plugin {plugin_index} was serialized successfully!"
+                        ));
+
                         *plugin = DynamicPluginState::Unloaded {
                             binary_blob: binary_blob.into_inner(),
                         };
 
+                        Log::info(format!("Plugin {plugin_index} was unloaded successfully!"));
+
                         // Replace the module.
                         std::fs::copy(&source_lib_path, &lib_path).map_err(|e| e.to_string())?;
+
+                        Log::info(format!(
+                            "{plugin_index} plugin's module {} was successfully cloned to {}.",
+                            source_lib_path.display(),
+                            lib_path.display()
+                        ));
                     }
                 }
             }
@@ -2587,12 +2599,14 @@ impl Engine {
 
                     need_reload.store(false, atomic::Ordering::Relaxed);
                     reloaded_indices.push(plugin_index);
+
+                    Log::info(format!("Plugin {plugin_index} was reloaded successfully!"));
                 }
             }
         }
 
         // Deserialize the scenes.
-        for (_, (ticket, binary_blob)) in serialized_scenes {
+        for (handle, (ticket, binary_blob)) in serialized_scenes {
             let mut visitor = Visitor::load_from_memory(&binary_blob).map_err(|e| e.to_string())?;
             let loader = SceneLoader::load(
                 "Scene",
@@ -2606,6 +2620,8 @@ impl Engine {
             let scene = loader.finish(&self.resource_manager).await;
 
             self.scenes.put_back(ticket, scene);
+
+            Log::info(format!("Scene {handle} was reloaded successfully!"));
         }
 
         // Call `on_loaded` for plugins, so they could restore some runtime non-serializable state.
