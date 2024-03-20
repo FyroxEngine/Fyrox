@@ -11,17 +11,20 @@ pub struct DynamicPlugin {
     // Keep the library loaded.
     // Must be last!
     #[allow(dead_code)]
+    #[cfg(any(unix, windows))]
     lib: libloading::Library,
 }
 
+#[cfg(any(unix, windows))]
 type PluginEntryPoint = fn() -> Box<dyn Plugin>;
 
 impl DynamicPlugin {
     /// Tries to load a plugin from a dynamic library (*.dll on Windows, *.so on Unix).
-    pub fn load<P>(path: P) -> Result<Self, String>
+    pub fn load<P>(#[allow(unused_variables)] path: P) -> Result<Self, String>
     where
         P: AsRef<OsStr>,
     {
+        #[cfg(any(unix, windows))]
         unsafe {
             let lib = libloading::Library::new(path).map_err(|e| e.to_string())?;
 
@@ -33,6 +36,11 @@ impl DynamicPlugin {
                 plugin: entry(),
                 lib,
             })
+        }
+
+        #[cfg(not(any(unix, windows)))]
+        {
+            panic!("Unsupported platform!")
         }
     }
 
