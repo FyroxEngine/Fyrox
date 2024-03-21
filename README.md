@@ -40,7 +40,7 @@ be on-hold for unknown period of time ([details are here](https://github.com/Fyr
 
 ## Contributing
 
-Contributions are very welcome! Feel free to open Issues and Pull Requests. Check the [good first issue](https://github.com/FyroxEngine/Fyrox/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) label to 
+Contributions are very welcome! See the [contributions guidelines](CONTRIBUTING.md) for more info. Check the [good first issue](https://github.com/FyroxEngine/Fyrox/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) label to 
 see where you can help.
 
 ## Sponsors
