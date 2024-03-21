@@ -82,6 +82,7 @@ impl SceneViewer {
                 .with_vertical_alignment(VerticalAlignment::Top)
                 .with_horizontal_alignment(HorizontalAlignment::Left),
         )
+        .with_orientation(Orientation::Horizontal)
         .build(ctx);
 
         let global_position_display;
@@ -123,6 +124,7 @@ impl SceneViewer {
 
         let top_ribbon = GridBuilder::new(
             WidgetBuilder::new()
+                .with_child(interaction_mode_panel)
                 .with_child({
                     StackPanelBuilder::new(
                         WidgetBuilder::new()
@@ -203,6 +205,7 @@ impl SceneViewer {
         )
         .add_column(Column::stretch())
         .add_column(Column::auto())
+        .add_column(Column::auto())
         .add_row(Row::stretch())
         .build(ctx);
 
@@ -251,7 +254,6 @@ impl SceneViewer {
                                         frame = ImageBuilder::new(
                                             WidgetBuilder::new()
                                                 .with_child(no_scene_reminder)
-                                                .with_child(interaction_mode_panel)
                                                 .with_child(scene_gizmo_image)
                                                 .with_allow_drop(true),
                                         )
