@@ -88,6 +88,7 @@ impl SceneViewer {
         let global_position_display;
         let contextual_actions = StackPanelBuilder::new(
             WidgetBuilder::new()
+                .with_height(25.0)
                 .on_column(1)
                 .with_horizontal_alignment(HorizontalAlignment::Right)
                 .with_child({
@@ -128,6 +129,7 @@ impl SceneViewer {
                 .with_child({
                     StackPanelBuilder::new(
                         WidgetBuilder::new()
+                            .with_height(25.0)
                             .with_horizontal_alignment(HorizontalAlignment::Right)
                             .with_child({
                                 build_profile = DropdownListBuilder::new(
@@ -285,7 +287,7 @@ impl SceneViewer {
                             .build(ctx),
                         ),
                 )
-                .add_row(Row::strict(25.0))
+                .add_row(Row::strict(30.0))
                 .add_row(Row::strict(21.0))
                 .add_row(Row::stretch())
                 .add_column(Column::stretch())
