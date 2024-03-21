@@ -2616,6 +2616,19 @@ impl Engine {
                 .remove(*type_uuid);
         }
 
+        // Search for node constructors, that belongs to dynamic plugins and remove them.
+        let mut constructors = FxHashSet::default();
+        for (type_uuid, constructor) in self.serialization_context.node_constructors.map().iter() {
+            if constructor.source_type_id == plugin_type_id {
+                constructors.insert(*type_uuid);
+            }
+        }
+        for type_uuid in constructors.iter() {
+            self.serialization_context
+                .node_constructors
+                .remove(*type_uuid);
+        }
+
         // Unload the plugin.
         if let DynamicPluginState::Loaded(dynamic) = state {
             let mut visitor = Visitor::new();
