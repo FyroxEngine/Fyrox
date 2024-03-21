@@ -1,7 +1,11 @@
 //! A special container that is able to create nodes by their type UUID.
 
 use crate::{
-    core::{parking_lot::Mutex, uuid::Uuid, TypeUuidProvider},
+    core::{
+        parking_lot::{Mutex, MutexGuard},
+        uuid::Uuid,
+        TypeUuidProvider,
+    },
     scene::{
         self,
         animation::{absm::AnimationBlendingStateMachine, AnimationPlayer},
@@ -21,14 +25,31 @@ use crate::{
     },
 };
 use fxhash::FxHashMap;
+use std::any::{Any, TypeId};
 
-/// A simple type alias for boxed node constructor.
-pub type NodeConstructor = Box<dyn FnMut() -> Node + Send>;
+/// Node constructor.
+pub struct NodeConstructor {
+    /// A simple type alias for boxed node constructor.
+    closure: Box<dyn FnMut() -> Node + Send>,
+
+    /// A type of the source of the script constructor.
+    pub source_type_id: TypeId,
+}
 
 /// A special container that is able to create nodes by their type UUID.
-#[derive(Default)]
+
 pub struct NodeConstructorContainer {
+    pub(crate) context_type_id: Mutex<TypeId>,
     map: Mutex<FxHashMap<Uuid, NodeConstructor>>,
+}
+
+impl Default for NodeConstructorContainer {
+    fn default() -> Self {
+        Self {
+            context_type_id: Mutex::new(().type_id()),
+            map: Default::default(),
+        }
+    }
 }
 
 impl NodeConstructorContainer {
@@ -69,10 +90,13 @@ impl NodeConstructorContainer {
     where
         T: TypeUuidProvider + NodeTrait + Default,
     {
-        let previous = self
-            .map
-            .lock()
-            .insert(T::type_uuid(), Box::new(|| Node::new(T::default())));
+        let previous = self.map.lock().insert(
+            T::type_uuid(),
+            NodeConstructor {
+                closure: Box::new(|| Node::new(T::default())),
+                source_type_id: *self.context_type_id.lock(),
+            },
+        );
 
         assert!(previous.is_none());
     }
@@ -90,7 +114,7 @@ impl NodeConstructorContainer {
     /// Makes an attempt to create a node using provided type UUID. It may fail if there is no
     /// node constructor for specified type UUID.
     pub fn try_create(&self, type_uuid: &Uuid) -> Option<Node> {
-        self.map.lock().get_mut(type_uuid).map(|c| (c)())
+        self.map.lock().get_mut(type_uuid).map(|c| (c.closure)())
     }
 
     /// Returns total amount of constructors.
@@ -101,5 +125,10 @@ impl NodeConstructorContainer {
     /// Returns true if the container is empty.
     pub fn is_empty(&self) -> bool {
         self.len() == 0
+    }
+
+    /// Returns the inner map of the node constructors.
+    pub fn map(&self) -> MutexGuard<'_, FxHashMap<Uuid, NodeConstructor>> {
+        self.map.lock()
     }
 }

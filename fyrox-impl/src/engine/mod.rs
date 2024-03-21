@@ -97,9 +97,11 @@ use std::{
 use crate::plugin::dynamic::DynamicPlugin;
 use crate::plugin::{DynamicPluginState, PluginContainer};
 use crate::scene::base::visit_opt_script;
+use crate::scene::node::container::NodeContainer;
 use fyrox_core::notify;
 use fyrox_core::notify::{EventKind, RecursiveMode, Watcher};
-use fyrox_core::visitor::Visitor;
+use fyrox_core::pool::{PayloadContainer, Ticket};
+use fyrox_core::visitor::{Visit, Visitor};
 use winit::{
     dpi::{Position, Size},
     event_loop::EventLoopWindowTarget,
@@ -2323,6 +2325,10 @@ impl Engine {
             .script_constructors
             .context_type_id
             .lock() = plugin.type_id();
+        *serialization_context
+            .node_constructors
+            .context_type_id
+            .lock() = plugin.type_id();
         plugin.register(PluginRegistrationContext {
             serialization_context,
             resource_manager,
@@ -2447,6 +2453,35 @@ impl Engine {
         false
     }
 
+    fn is_node_belongs_to_plugin(
+        serialization_context: &SerializationContext,
+        node: &Node,
+        plugin: &dyn Plugin,
+    ) -> bool {
+        let plugin_type_id = plugin.type_id();
+        let node_id = (*node).id();
+
+        if let Some(constructor) = serialization_context.node_constructors.map().get(&node_id) {
+            if constructor.source_type_id == plugin_type_id {
+                return true;
+            }
+        }
+        false
+    }
+
+    fn read_binary_blob(
+        binary_blob: &[u8],
+        serialization_context: &Arc<SerializationContext>,
+        resource_manager: &ResourceManager,
+    ) -> Result<Visitor, VisitError> {
+        let mut visitor = Visitor::load_from_memory(binary_blob)?;
+        visitor.blackboard.register(serialization_context.clone());
+        visitor
+            .blackboard
+            .register(Arc::new(resource_manager.clone()));
+        Ok(visitor)
+    }
+
     /// Tries to reload a specified plugin. This method tries to perform least invasive reloading, by
     /// only detaching parts from the scenes and engine internals, that belongs to reloadable plugin.
     pub fn reload_plugin(
@@ -2456,14 +2491,14 @@ impl Engine {
         window_target: &EventLoopWindowTarget<()>,
         lag: &mut f32,
     ) -> Result<(), String> {
-        let plugin = &mut self.plugins[plugin_index];
+        let plugin_container = &mut self.plugins[plugin_index];
         let PluginContainer::Dynamic {
             state,
             source_lib_path,
             lib_path,
             need_reload,
             ..
-        } = plugin
+        } = plugin_container
         else {
             return Err(format!(
                 "Plugin {plugin_index} is static and cannot be reloaded!",
@@ -2484,6 +2519,7 @@ impl Engine {
 
         struct NodeState {
             node: Handle<Node>,
+            ticket: Option<Ticket<Node>>,
             binary_blob: Vec<u8>,
             scripts: Vec<ScriptState>,
         }
@@ -2500,33 +2536,58 @@ impl Engine {
                 nodes: Default::default(),
             };
 
-            for (handle, node) in scene.graph.pair_iter_mut() {
+            for index in 0..scene.graph.capacity() {
+                let handle = scene.graph.handle_from_index(index);
+                let Some(node) = scene.graph.try_get_mut(handle) else {
+                    continue;
+                };
+
                 let mut node_state = NodeState {
                     node: handle,
+                    ticket: None,
                     binary_blob: Default::default(),
                     scripts: Default::default(),
                 };
 
-                for (script_index, record) in node.scripts.iter_mut().enumerate() {
-                    if let Some(script) = record.script.as_ref() {
-                        if Self::is_script_belongs_to_plugin(
-                            &self.serialization_context,
-                            script,
-                            state.as_loaded_ref().plugin(),
-                        ) {
-                            // Take the script out of the node and serialize it. The script will be
-                            // dropped and destroyed.
-                            let mut script = record.script.take();
-                            let mut visitor = Visitor::new();
-                            visit_opt_script("Script", &mut script, &mut visitor)
-                                .map_err(|e| e.to_string())?;
-                            let binary_blob =
-                                visitor.save_binary_to_vec().map_err(|e| e.to_string())?;
+                if Self::is_node_belongs_to_plugin(
+                    &self.serialization_context,
+                    node,
+                    state.as_loaded_ref().plugin(),
+                ) {
+                    // The entire node belongs to plugin, serialize it entirely.
+                    // Take the node out of the graph first.
+                    let (ticket, node) = scene.graph.take_reserve(handle);
+                    let mut container = NodeContainer::new(node);
+                    let mut visitor = Visitor::new();
+                    container
+                        .visit("Node", &mut visitor)
+                        .map_err(|e| e.to_string())?;
+                    node_state.binary_blob =
+                        visitor.save_binary_to_vec().map_err(|e| e.to_string())?;
+                    node_state.ticket = Some(ticket);
+                } else {
+                    // The node does not belong to the plugin, try to check its scripts.
+                    for (script_index, record) in node.scripts.iter_mut().enumerate() {
+                        if let Some(script) = record.script.as_ref() {
+                            if Self::is_script_belongs_to_plugin(
+                                &self.serialization_context,
+                                script,
+                                state.as_loaded_ref().plugin(),
+                            ) {
+                                // Take the script out of the node and serialize it. The script will be
+                                // dropped and destroyed.
+                                let mut script = record.script.take();
+                                let mut visitor = Visitor::new();
+                                visit_opt_script("Script", &mut script, &mut visitor)
+                                    .map_err(|e| e.to_string())?;
+                                let binary_blob =
+                                    visitor.save_binary_to_vec().map_err(|e| e.to_string())?;
 
-                            node_state.scripts.push(ScriptState {
-                                index: script_index,
-                                binary_blob,
-                            })
+                                node_state.scripts.push(ScriptState {
+                                    index: script_index,
+                                    binary_blob,
+                                })
+                            }
                         }
                     }
                 }
@@ -2621,21 +2682,31 @@ impl Engine {
                 if node_state.binary_blob.is_empty() {
                     // Only scripts needs to be reloaded.
                     for script in node_state.scripts {
-                        let mut visitor = Visitor::load_from_memory(&script.binary_blob)
-                            .map_err(|e| e.to_string())?;
-                        visitor
-                            .blackboard
-                            .register(self.serialization_context.clone());
-                        visitor
-                            .blackboard
-                            .register(Arc::new(self.resource_manager.clone()));
+                        let mut visitor = Self::read_binary_blob(
+                            &script.binary_blob,
+                            &self.serialization_context,
+                            &self.resource_manager,
+                        )
+                        .map_err(|e| e.to_string())?;
                         let mut opt_script: Option<Script> = None;
                         visit_opt_script("Script", &mut opt_script, &mut visitor)
                             .map_err(|e| e.to_string())?;
                         node.scripts[script.index].script = opt_script;
                     }
                 } else {
-                    // TODO: The entire node needs to be reloaded.
+                    let mut visitor = Self::read_binary_blob(
+                        &node_state.binary_blob,
+                        &self.serialization_context,
+                        &self.resource_manager,
+                    )
+                    .map_err(|e| e.to_string())?;
+                    let mut container = NodeContainer::default();
+                    container
+                        .visit("Node", &mut visitor)
+                        .map_err(|e| e.to_string())?;
+                    if let Some(new_node) = container.take() {
+                        *node = new_node;
+                    }
                 }
             }
         }
