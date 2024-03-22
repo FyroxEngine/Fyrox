@@ -2781,6 +2781,11 @@ fn update(editor: &mut Editor, window_target: &EventLoopWindowTarget<()>) {
         editor
             .engine
             .post_update(FIXED_TIMESTEP, &Default::default());
+        editor.engine.handle_plugins_hot_reloading(
+            FIXED_TIMESTEP,
+            window_target,
+            &mut editor.game_loop_data.lag,
+        );
 
         editor.post_update();
 

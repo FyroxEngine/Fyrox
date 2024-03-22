@@ -1608,8 +1608,23 @@ impl Engine {
         self.handle_async_scene_loading(dt, lag, window_target);
         self.pre_update(dt, window_target, lag, switches);
         self.post_update(dt, &Default::default());
+        self.handle_plugins_hot_reloading(dt, window_target, lag);
+    }
 
-        #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
+    /// Tries to hot-reload dynamic plugins marked for reloading.
+    ///
+    /// ## Platform-specific
+    ///
+    /// - Windows, Unix-like systems (Linux, macOS, FreeBSD, etc) - fully supported.
+    /// - WebAssembly - not supported
+    /// - Android - not supported
+    pub fn handle_plugins_hot_reloading(
+        &mut self,
+        #[allow(unused_variables)] dt: f32,
+        #[allow(unused_variables)] window_target: &EventLoopWindowTarget<()>,
+        #[allow(unused_variables)] lag: &mut f32,
+    ) {
+        #[cfg(any(unix, windows))]
         {
             if let Err(message) = self.reload_dynamic_plugins(dt, window_target, lag) {
                 Log::err(format!(
@@ -2408,10 +2423,15 @@ impl Engine {
                 .watch(&source_lib_path, RecursiveMode::NonRecursive)
                 .map_err(|e| e.to_string())?;
 
+            Log::info(format!(
+                "Watching for changes in plugin {:?}...",
+                source_lib_path
+            ));
+
             PluginContainer::Dynamic {
                 state: DynamicPluginState::Loaded(DynamicPlugin::load(lib_path.as_os_str())?),
                 lib_path,
-                source_lib_path,
+                source_lib_path: source_lib_path.clone(),
                 watcher: Some(watcher),
                 need_reload,
             }
@@ -2421,7 +2441,7 @@ impl Engine {
                     source_lib_path.as_os_str(),
                 )?),
                 lib_path: source_lib_path.clone(),
-                source_lib_path,
+                source_lib_path: source_lib_path.clone(),
                 watcher: None,
                 need_reload: Default::default(),
             }
@@ -2429,6 +2449,11 @@ impl Engine {
 
         self.register_plugin(plugin.deref());
         self.plugins.push(plugin);
+
+        Log::info(format!(
+            "Plugin {:?} was loaded successfully",
+            source_lib_path
+        ));
 
         Ok(&**self.plugins.last().unwrap())
     }
