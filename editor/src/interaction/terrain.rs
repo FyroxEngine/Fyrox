@@ -537,7 +537,7 @@ fn make_brush_shape_enum_property_editor_definition() -> EnumPropertyEditorDefin
 
 impl BrushPanel {
     fn new(ctx: &mut BuildContext, brush: &Brush) -> Self {
-        let property_editors = PropertyEditorDefinitionContainer::new();
+        let property_editors = PropertyEditorDefinitionContainer::with_default_editors();
         property_editors.insert(make_brush_mode_enum_property_editor_definition());
         property_editors.insert(make_brush_shape_enum_property_editor_definition());
 

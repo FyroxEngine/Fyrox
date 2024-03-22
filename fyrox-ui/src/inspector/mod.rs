@@ -400,7 +400,7 @@ pub trait InspectorEnvironment: Any + Send + Sync {
 ///     };
 ///
 ///     // Create a new property editors definition container.
-///     let definition_container = PropertyEditorDefinitionContainer::new();
+///     let definition_container = PropertyEditorDefinitionContainer::with_default_editors();
 ///
 ///     // Add property editors for our structure and enumeration, so the inspector could use these
 ///     // property editors to generate visual representation for them.
@@ -515,7 +515,9 @@ impl Default for InspectorContext {
             stack_panel: Default::default(),
             menu: Default::default(),
             entries: Default::default(),
-            property_definitions: Arc::new(PropertyEditorDefinitionContainer::new()),
+            property_definitions: Arc::new(
+                PropertyEditorDefinitionContainer::with_default_editors(),
+            ),
             environment: None,
             sync_flag: 0,
         }

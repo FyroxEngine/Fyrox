@@ -583,7 +583,7 @@ impl ExportWindow {
                         let context = InspectorContext::from_object(
                             &export_options,
                             ctx,
-                            Arc::new(PropertyEditorDefinitionContainer::new()),
+                            Arc::new(PropertyEditorDefinitionContainer::with_default_editors()),
                             None,
                             1,
                             0,

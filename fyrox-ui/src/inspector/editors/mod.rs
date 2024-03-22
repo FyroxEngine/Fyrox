@@ -223,7 +223,11 @@ macro_rules! reg_inspectables {
 }
 
 impl PropertyEditorDefinitionContainer {
-    pub fn new() -> Self {
+    pub fn empty() -> Self {
+        Self::default()
+    }
+
+    pub fn with_default_editors() -> Self {
         let container = Self::default();
 
         // bool + InheritableVariable<bool>
@@ -485,6 +489,21 @@ impl PropertyEditorDefinitionContainer {
         );
 
         container
+    }
+
+    pub fn insert_raw(
+        &self,
+        definition: Arc<dyn PropertyEditorDefinition>,
+    ) -> Option<Arc<dyn PropertyEditorDefinition>> {
+        self.definitions
+            .write()
+            .insert(definition.value_type_id(), definition)
+    }
+
+    pub fn merge(&self, other: Self) {
+        for (_, definition) in other.definitions.into_inner() {
+            self.insert_raw(definition);
+        }
     }
 
     pub fn insert<T>(&self, definition: T) -> Option<Arc<dyn PropertyEditorDefinition>>

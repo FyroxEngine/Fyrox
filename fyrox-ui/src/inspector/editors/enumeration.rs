@@ -266,7 +266,7 @@ impl EnumPropertyEditorBuilder {
     ) -> Handle<UiNode> {
         let definition_container = self
             .definition_container
-            .unwrap_or_else(|| Arc::new(PropertyEditorDefinitionContainer::new()));
+            .unwrap_or_else(|| Arc::new(PropertyEditorDefinitionContainer::with_default_editors()));
 
         let context = InspectorContext::from_object(
             value,

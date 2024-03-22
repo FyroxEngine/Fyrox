@@ -2458,7 +2458,39 @@ impl Editor {
     where
         P: Plugin + 'static,
     {
+        self.inspector
+            .property_editors
+            .merge(plugin.register_property_editors());
         self.engine.add_plugin(plugin)
+    }
+
+    /// Tries to add a new dynamic plugin. This method attempts to load a dynamic library by the
+    /// given path and searches for `fyrox_plugin` function. This function is called to create a
+    /// plugin instance. This method will fail if there's no dynamic library at the given path or
+    /// the `fyrox_plugin` function is not found.
+    ///
+    /// # Hot reloading
+    ///
+    /// This method can enable hot reloading for the plugin, by setting `reload_when_changed` parameter
+    /// to `true`. When enabled, the engine will clone the library to implementation-defined path
+    /// and load it. It will setup file system watcher to receive changes from the OS and reload
+    /// the plugin.
+    pub fn add_dynamic_plugin<P>(
+        &mut self,
+        path: P,
+        reload_when_changed: bool,
+        use_relative_paths: bool,
+    ) -> Result<(), String>
+    where
+        P: AsRef<Path> + 'static,
+    {
+        let plugin =
+            self.engine
+                .add_dynamic_plugin(path, reload_when_changed, use_relative_paths)?;
+        self.inspector
+            .property_editors
+            .merge(plugin.register_property_editors());
+        Ok(())
     }
 
     pub fn add_editor_plugin<P>(&mut self, plugin: P)

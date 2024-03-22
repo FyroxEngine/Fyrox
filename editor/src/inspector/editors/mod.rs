@@ -192,7 +192,7 @@ where
 }
 
 pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorDefinitionContainer {
-    let container = PropertyEditorDefinitionContainer::new();
+    let container = PropertyEditorDefinitionContainer::with_default_editors();
 
     container.insert(TexturePropertyEditorDefinition { untyped: false });
     container.insert(TexturePropertyEditorDefinition { untyped: true });

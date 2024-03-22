@@ -2365,7 +2365,7 @@ impl Engine {
         path: P,
         reload_when_changed: bool,
         use_relative_paths: bool,
-    ) -> Result<(), String>
+    ) -> Result<&dyn Plugin, String>
     where
         P: AsRef<Path> + 'static,
     {
@@ -2430,7 +2430,7 @@ impl Engine {
         self.register_plugin(plugin.deref());
         self.plugins.push(plugin);
 
-        Ok(())
+        Ok(&**self.plugins.last().unwrap())
     }
 
     fn is_script_belongs_to_plugin(

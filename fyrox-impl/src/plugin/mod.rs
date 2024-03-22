@@ -16,6 +16,7 @@ use crate::{
     plugin::dynamic::DynamicPlugin,
     scene::{Scene, SceneContainer},
 };
+use fyrox_ui::inspector::editors::PropertyEditorDefinitionContainer;
 use std::{
     any::Any,
     ops::{Deref, DerefMut},
@@ -253,6 +254,12 @@ pub trait Plugin: BasePlugin + Visit {
     /// The method is called when the plugin constructor was just registered in the engine. The main
     /// use of this method is to register scripts and custom scene graph nodes in [`SerializationContext`].
     fn register(&self, #[allow(unused_variables)] context: PluginRegistrationContext) {}
+
+    /// This method is used to register property editors for your game types; to make them editable
+    /// in the editor.
+    fn register_property_editors(&self) -> PropertyEditorDefinitionContainer {
+        PropertyEditorDefinitionContainer::empty()
+    }
 
     /// This method is used to initialize your plugin.
     fn init(
