@@ -144,16 +144,19 @@ where
             let name = format!("{}[{index}]", property_info.name);
             let display_name = format!("{}[{index}]", property_info.display_name);
 
-            let editor = definition.create_instance(PropertyEditorBuildContext {
-                build_context: ctx,
-                property_info: &make_proxy::<T>(property_info, item, &name, &display_name)?,
-                environment: environment.clone(),
-                definition_container: definition_container.clone(),
-                sync_flag,
-                layer_index: layer_index + 1,
-                generate_property_string_values,
-                filter: filter.clone(),
-            })?;
+            let editor =
+                definition
+                    .property_editor
+                    .create_instance(PropertyEditorBuildContext {
+                        build_context: ctx,
+                        property_info: &make_proxy::<T>(property_info, item, &name, &display_name)?,
+                        environment: environment.clone(),
+                        definition_container: definition_container.clone(),
+                        sync_flag,
+                        layer_index: layer_index + 1,
+                        generate_property_string_values,
+                        filter: filter.clone(),
+                    })?;
 
             if let PropertyEditorInstance::Simple { editor } = editor {
                 ctx[editor].set_margin(make_property_margin(layer_index + 1));
@@ -371,17 +374,26 @@ where
                 let name = format!("{}[{index}]", property_info.name);
                 let display_name = format!("{}[{index}]", property_info.display_name);
 
-                if let Some(message) = definition.create_message(PropertyEditorMessageContext {
-                    property_info: &make_proxy::<T>(property_info, obj, &name, &display_name)?,
-                    environment: environment.clone(),
-                    definition_container: definition_container.clone(),
-                    sync_flag,
-                    instance: item.editor_instance.editor(),
-                    layer_index: layer_index + 1,
-                    ui,
-                    generate_property_string_values,
-                    filter: filter.clone(),
-                })? {
+                if let Some(message) =
+                    definition
+                        .property_editor
+                        .create_message(PropertyEditorMessageContext {
+                            property_info: &make_proxy::<T>(
+                                property_info,
+                                obj,
+                                &name,
+                                &display_name,
+                            )?,
+                            environment: environment.clone(),
+                            definition_container: definition_container.clone(),
+                            sync_flag,
+                            instance: item.editor_instance.editor(),
+                            layer_index: layer_index + 1,
+                            ui,
+                            generate_property_string_values,
+                            filter: filter.clone(),
+                        })?
+                {
                     ui.send_message(message.with_flags(ctx.sync_flag))
                 }
             }
@@ -404,6 +416,7 @@ where
                         value: FieldKind::Collection(Box::new(CollectionChanged::ItemChanged {
                             index: *index,
                             property: definition
+                                .property_editor
                                 .translate_message(PropertyEditorTranslationContext {
                                     environment: ctx.environment.clone(),
                                     name: "",

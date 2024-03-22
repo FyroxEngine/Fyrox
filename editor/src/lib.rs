@@ -2458,6 +2458,7 @@ impl Editor {
     where
         P: Plugin + 'static,
     {
+        *self.inspector.property_editors.context_type_id.lock() = plugin.type_id();
         self.inspector
             .property_editors
             .merge(plugin.register_property_editors());
@@ -2487,6 +2488,7 @@ impl Editor {
         let plugin =
             self.engine
                 .add_dynamic_plugin(path, reload_when_changed, use_relative_paths)?;
+        *self.inspector.property_editors.context_type_id.lock() = plugin.type_id();
         self.inspector
             .property_editors
             .merge(plugin.register_property_editors());
@@ -2785,6 +2787,27 @@ fn update(editor: &mut Editor, window_target: &EventLoopWindowTarget<()>) {
             FIXED_TIMESTEP,
             window_target,
             &mut editor.game_loop_data.lag,
+            |plugin| {
+                let mut definitions = editor.inspector.property_editors.definitions_mut();
+
+                let mut to_be_removed = Vec::new();
+                for (type_id, entry) in &mut *definitions {
+                    if entry.source_type_id == plugin.type_id() {
+                        to_be_removed.push(*type_id);
+                    }
+                }
+
+                for type_id in to_be_removed {
+                    definitions.remove(&type_id);
+                }
+            },
+            |plugin| {
+                *editor.inspector.property_editors.context_type_id.lock() = plugin.type_id();
+                editor
+                    .inspector
+                    .property_editors
+                    .merge(plugin.register_property_editors());
+            },
         );
 
         editor.post_update();

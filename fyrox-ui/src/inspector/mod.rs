@@ -18,8 +18,8 @@ use crate::{
     formatted_text::WrapMode,
     grid::{Column, GridBuilder, Row},
     inspector::editors::{
-        PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorDefinitionContainer,
-        PropertyEditorInstance, PropertyEditorMessageContext, PropertyEditorTranslationContext,
+        PropertyEditorBuildContext, PropertyEditorDefinitionContainer, PropertyEditorInstance,
+        PropertyEditorMessageContext, PropertyEditorTranslationContext,
     },
     menu::{MenuItemBuilder, MenuItemContent, MenuItemMessage},
     message::{MessageDirection, UiMessage},
@@ -467,7 +467,8 @@ impl From<CastError> for InspectorError {
 pub struct ContextEntry {
     pub property_name: String,
     pub property_owner_type_id: TypeId,
-    pub property_editor_definition: Arc<dyn PropertyEditorDefinition>,
+    pub property_value_type_id: TypeId,
+    pub property_editor_definition_container: Arc<PropertyEditorDefinitionContainer>,
     pub property_editor: Handle<UiNode>,
     pub property_debug_output: String,
     pub property_container: Handle<UiNode>,
@@ -476,11 +477,12 @@ pub struct ContextEntry {
 impl PartialEq for ContextEntry {
     fn eq(&self, other: &Self) -> bool {
         // Cast fat pointers to thin first.
-        let ptr_a = &*self.property_editor_definition as *const _ as *const ();
-        let ptr_b = &*other.property_editor_definition as *const _ as *const ();
+        let ptr_a = &*self.property_editor_definition_container as *const _ as *const ();
+        let ptr_b = &*other.property_editor_definition_container as *const _ as *const ();
 
         self.property_editor == other.property_editor
             && self.property_name == other.property_name
+            && self.property_value_type_id ==other.property_value_type_id
             // Compare thin pointers.
             && std::ptr::eq(ptr_a, ptr_b)
     }
@@ -699,16 +701,18 @@ impl InspectorContext {
                     .definitions()
                     .get(&info.value.type_id())
                 {
-                    let editor = match definition.create_instance(PropertyEditorBuildContext {
-                        build_context: ctx,
-                        property_info: info,
-                        environment: environment.clone(),
-                        definition_container: definition_container.clone(),
-                        sync_flag,
-                        layer_index,
-                        generate_property_string_values,
-                        filter: filter.clone(),
-                    }) {
+                    let editor = match definition.property_editor.create_instance(
+                        PropertyEditorBuildContext {
+                            build_context: ctx,
+                            property_info: info,
+                            environment: environment.clone(),
+                            definition_container: definition_container.clone(),
+                            sync_flag,
+                            layer_index,
+                            generate_property_string_values,
+                            filter: filter.clone(),
+                        },
+                    ) {
                         Ok(instance) => {
                             let (container, editor) = match instance {
                                 PropertyEditorInstance::Simple { editor } => (
@@ -727,7 +731,8 @@ impl InspectorContext {
 
                             entries.push(ContextEntry {
                                 property_editor: editor,
-                                property_editor_definition: definition.clone(),
+                                property_value_type_id: definition.property_editor.value_type_id(),
+                                property_editor_definition_container: definition_container.clone(),
                                 property_name: info.name.to_string(),
                                 property_owner_type_id: info.owner_type_id,
                                 property_debug_output: field_text.clone(),
@@ -844,7 +849,7 @@ impl InspectorContext {
                             filter: filter.clone(),
                         };
 
-                        match constructor.create_message(ctx) {
+                        match constructor.property_editor.create_message(ctx) {
                             Ok(message) => {
                                 if let Some(mut message) = message {
                                     message.flags = self.sync_flag;
@@ -911,15 +916,21 @@ impl Control for Inspector {
             let env = self.context.environment.clone();
             for entry in self.context.entries.iter() {
                 if message.destination() == entry.property_editor {
-                    if let Some(args) = entry.property_editor_definition.translate_message(
-                        PropertyEditorTranslationContext {
-                            environment: env.clone(),
-                            name: &entry.property_name,
-                            owner_type_id: entry.property_owner_type_id,
-                            message,
-                            definition_container: self.context.property_definitions.clone(),
-                        },
-                    ) {
+                    if let Some(args) = entry
+                        .property_editor_definition_container
+                        .definitions()
+                        .get(&entry.property_value_type_id)
+                        .and_then(|e| {
+                            e.property_editor
+                                .translate_message(PropertyEditorTranslationContext {
+                                    environment: env.clone(),
+                                    name: &entry.property_name,
+                                    owner_type_id: entry.property_owner_type_id,
+                                    message,
+                                    definition_container: self.context.property_definitions.clone(),
+                                })
+                        })
+                    {
                         ui.send_message(InspectorMessage::property_changed(
                             self.handle,
                             MessageDirection::FromWidget,

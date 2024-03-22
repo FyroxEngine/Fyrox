@@ -12,7 +12,7 @@ use crate::{
         color_gradient::ColorGradient,
         math::curve::Curve,
         math::{Rect, SmoothAngle},
-        parking_lot::{RwLock, RwLockReadGuard},
+        parking_lot::{Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard},
         pool::Handle,
         reflect::{FieldInfo, FieldValue, Reflect},
         uuid::Uuid,
@@ -80,8 +80,16 @@ use crate::{
 };
 use fxhash::FxHashMap;
 use fyrox_animation::machine::Parameter;
-use std::path::PathBuf;
-use std::{any::TypeId, cell::RefCell, fmt::Debug, ops::Range, str::FromStr, sync::Arc};
+use std::fmt::Formatter;
+use std::{
+    any::{Any, TypeId},
+    cell::RefCell,
+    fmt::Debug,
+    ops::Range,
+    path::PathBuf,
+    str::FromStr,
+    sync::Arc,
+};
 use strum::VariantNames;
 
 pub mod array;
@@ -185,15 +193,27 @@ pub trait PropertyEditorDefinition: Debug + Send + Sync {
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged>;
 }
 
-#[derive(Default)]
-pub struct PropertyEditorDefinitionContainer {
-    definitions: RwLock<FxHashMap<TypeId, Arc<dyn PropertyEditorDefinition>>>,
+pub struct PropertyEditorDefinitionContainerEntry {
+    pub source_type_id: TypeId,
+    pub property_editor: Box<dyn PropertyEditorDefinition>,
 }
 
-impl Clone for PropertyEditorDefinitionContainer {
-    fn clone(&self) -> Self {
+pub struct PropertyEditorDefinitionContainer {
+    pub context_type_id: Mutex<TypeId>,
+    definitions: RwLock<FxHashMap<TypeId, PropertyEditorDefinitionContainerEntry>>,
+}
+
+impl Debug for PropertyEditorDefinitionContainer {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "PropertyEditorDefinitionContainer")
+    }
+}
+
+impl Default for PropertyEditorDefinitionContainer {
+    fn default() -> Self {
         Self {
-            definitions: RwLock::new(self.definitions.read().clone()),
+            context_type_id: Mutex::new(().type_id()),
+            definitions: Default::default(),
         }
     }
 }
@@ -493,26 +513,34 @@ impl PropertyEditorDefinitionContainer {
 
     pub fn insert_raw(
         &self,
-        definition: Arc<dyn PropertyEditorDefinition>,
-    ) -> Option<Arc<dyn PropertyEditorDefinition>> {
-        self.definitions
-            .write()
-            .insert(definition.value_type_id(), definition)
+        definition: Box<dyn PropertyEditorDefinition>,
+    ) -> Option<PropertyEditorDefinitionContainerEntry> {
+        self.definitions.write().insert(
+            definition.value_type_id(),
+            PropertyEditorDefinitionContainerEntry {
+                source_type_id: *self.context_type_id.lock(),
+                property_editor: definition,
+            },
+        )
     }
 
     pub fn merge(&self, other: Self) {
         for (_, definition) in other.definitions.into_inner() {
-            self.insert_raw(definition);
+            self.insert_raw(definition.property_editor);
         }
     }
 
-    pub fn insert<T>(&self, definition: T) -> Option<Arc<dyn PropertyEditorDefinition>>
+    pub fn insert<T>(&self, definition: T) -> Option<PropertyEditorDefinitionContainerEntry>
     where
         T: PropertyEditorDefinition + 'static,
     {
-        self.definitions
-            .write()
-            .insert(definition.value_type_id(), Arc::new(definition))
+        self.definitions.write().insert(
+            definition.value_type_id(),
+            PropertyEditorDefinitionContainerEntry {
+                source_type_id: *self.context_type_id.lock(),
+                property_editor: Box::new(definition),
+            },
+        )
     }
 
     pub fn register_inheritable_vec_collection<T>(&self)
@@ -565,7 +593,13 @@ impl PropertyEditorDefinitionContainer {
 
     pub fn definitions(
         &self,
-    ) -> RwLockReadGuard<FxHashMap<TypeId, Arc<dyn PropertyEditorDefinition>>> {
+    ) -> RwLockReadGuard<FxHashMap<TypeId, PropertyEditorDefinitionContainerEntry>> {
         self.definitions.read()
+    }
+
+    pub fn definitions_mut(
+        &self,
+    ) -> RwLockWriteGuard<FxHashMap<TypeId, PropertyEditorDefinitionContainerEntry>> {
+        self.definitions.write()
     }
 }

@@ -228,16 +228,19 @@ where
             .definitions()
             .get(&TypeId::of::<T>())
         {
-            let instance = definition.create_instance(PropertyEditorBuildContext {
-                build_context: ctx.build_context,
-                property_info: &make_proxy::<T>(ctx.property_info)?,
-                environment: ctx.environment.clone(),
-                definition_container: ctx.definition_container.clone(),
-                sync_flag: ctx.sync_flag,
-                layer_index: ctx.layer_index,
-                generate_property_string_values: ctx.generate_property_string_values,
-                filter: ctx.filter,
-            })?;
+            let instance =
+                definition
+                    .property_editor
+                    .create_instance(PropertyEditorBuildContext {
+                        build_context: ctx.build_context,
+                        property_info: &make_proxy::<T>(ctx.property_info)?,
+                        environment: ctx.environment.clone(),
+                        definition_container: ctx.definition_container.clone(),
+                        sync_flag: ctx.sync_flag,
+                        layer_index: ctx.layer_index,
+                        generate_property_string_values: ctx.generate_property_string_values,
+                        filter: ctx.filter,
+                    })?;
 
             let wrapper = InheritablePropertyEditorBuilder::new(WidgetBuilder::new())
                 .with_container(match instance {
@@ -293,17 +296,19 @@ where
                         .is_modified(),
                 ));
 
-            return definition.create_message(PropertyEditorMessageContext {
-                property_info: &make_proxy::<T>(ctx.property_info)?,
-                environment: ctx.environment.clone(),
-                definition_container: ctx.definition_container.clone(),
-                sync_flag: ctx.sync_flag,
-                instance: instance.inner_editor,
-                layer_index: ctx.layer_index,
-                ui: ctx.ui,
-                generate_property_string_values: ctx.generate_property_string_values,
-                filter: ctx.filter,
-            });
+            return definition
+                .property_editor
+                .create_message(PropertyEditorMessageContext {
+                    property_info: &make_proxy::<T>(ctx.property_info)?,
+                    environment: ctx.environment.clone(),
+                    definition_container: ctx.definition_container.clone(),
+                    sync_flag: ctx.sync_flag,
+                    instance: instance.inner_editor,
+                    layer_index: ctx.layer_index,
+                    ui: ctx.ui,
+                    generate_property_string_values: ctx.generate_property_string_values,
+                    filter: ctx.filter,
+                });
         }
 
         Err(InspectorError::Custom("No editor!".to_string()))
@@ -324,13 +329,15 @@ where
             .definitions()
             .get(&TypeId::of::<T>())
         {
-            return definition.translate_message(PropertyEditorTranslationContext {
-                environment: ctx.environment.clone(),
-                name: ctx.name,
-                owner_type_id: ctx.owner_type_id,
-                message: ctx.message,
-                definition_container: ctx.definition_container.clone(),
-            });
+            return definition.property_editor.translate_message(
+                PropertyEditorTranslationContext {
+                    environment: ctx.environment.clone(),
+                    name: ctx.name,
+                    owner_type_id: ctx.owner_type_id,
+                    message: ctx.message,
+                    definition_container: ctx.definition_container.clone(),
+                },
+            );
         }
 
         None

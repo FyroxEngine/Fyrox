@@ -88,16 +88,18 @@ where
             .get(&TypeId::of::<T>())
         {
             let value = ctx.property_info.cast_value::<RefCell<T>>()?.borrow();
-            definition.create_instance(PropertyEditorBuildContext {
-                build_context: ctx.build_context,
-                property_info: &make_proxy::<T>(&value, ctx.property_info)?,
-                environment: ctx.environment.clone(),
-                definition_container: ctx.definition_container.clone(),
-                sync_flag: ctx.sync_flag,
-                layer_index: ctx.layer_index,
-                generate_property_string_values: ctx.generate_property_string_values,
-                filter: ctx.filter,
-            })
+            definition
+                .property_editor
+                .create_instance(PropertyEditorBuildContext {
+                    build_context: ctx.build_context,
+                    property_info: &make_proxy::<T>(&value, ctx.property_info)?,
+                    environment: ctx.environment.clone(),
+                    definition_container: ctx.definition_container.clone(),
+                    sync_flag: ctx.sync_flag,
+                    layer_index: ctx.layer_index,
+                    generate_property_string_values: ctx.generate_property_string_values,
+                    filter: ctx.filter,
+                })
         } else {
             Err(InspectorError::Custom("No editor!".to_string()))
         }
@@ -113,17 +115,19 @@ where
             .get(&TypeId::of::<T>())
         {
             let value = ctx.property_info.cast_value::<RefCell<T>>()?.borrow();
-            return definition.create_message(PropertyEditorMessageContext {
-                property_info: &make_proxy::<T>(&value, ctx.property_info)?,
-                environment: ctx.environment.clone(),
-                definition_container: ctx.definition_container.clone(),
-                sync_flag: ctx.sync_flag,
-                instance: ctx.instance,
-                layer_index: ctx.layer_index,
-                ui: ctx.ui,
-                generate_property_string_values: ctx.generate_property_string_values,
-                filter: ctx.filter,
-            });
+            return definition
+                .property_editor
+                .create_message(PropertyEditorMessageContext {
+                    property_info: &make_proxy::<T>(&value, ctx.property_info)?,
+                    environment: ctx.environment.clone(),
+                    definition_container: ctx.definition_container.clone(),
+                    sync_flag: ctx.sync_flag,
+                    instance: ctx.instance,
+                    layer_index: ctx.layer_index,
+                    ui: ctx.ui,
+                    generate_property_string_values: ctx.generate_property_string_values,
+                    filter: ctx.filter,
+                });
         }
 
         Err(InspectorError::Custom("No editor!".to_string()))
@@ -136,13 +140,15 @@ where
             .definitions()
             .get(&TypeId::of::<T>())
         {
-            return definition.translate_message(PropertyEditorTranslationContext {
-                environment: ctx.environment.clone(),
-                name: ctx.name,
-                owner_type_id: ctx.owner_type_id,
-                message: ctx.message,
-                definition_container: ctx.definition_container.clone(),
-            });
+            return definition.property_editor.translate_message(
+                PropertyEditorTranslationContext {
+                    environment: ctx.environment.clone(),
+                    name: ctx.name,
+                    owner_type_id: ctx.owner_type_id,
+                    message: ctx.message,
+                    definition_container: ctx.definition_container.clone(),
+                },
+            );
         }
 
         None
