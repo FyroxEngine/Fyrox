@@ -1693,7 +1693,7 @@ impl Editor {
             current_scene_entry.controller.clear_command_stack(
                 &mut current_scene_entry.command_stack,
                 &mut current_scene_entry.selection,
-                engine,
+                &mut engine.scenes,
             );
             true
         } else {
@@ -2783,11 +2783,29 @@ fn update(editor: &mut Editor, window_target: &EventLoopWindowTarget<()>) {
         editor
             .engine
             .post_update(FIXED_TIMESTEP, &Default::default());
-        editor.engine.handle_plugins_hot_reloading(
-            FIXED_TIMESTEP,
-            window_target,
-            &mut editor.game_loop_data.lag,
-            |plugin| {
+
+        let before_reload =
+            |plugin: &dyn Plugin,
+             affected_scenes: Vec<Handle<Scene>>,
+             scenes: &mut fyrox::scene::SceneContainer| {
+                // Clear command stacks for affected scenes. This is mandatory step, because command stack
+                // could contain objects from plugins and any attempt to use them after the plugin is
+                // unloaded will cause crash.
+                for i in 0..editor.scenes.entries.len() {
+                    let entry = &mut editor.scenes.entries[i];
+                    if let Some(game_scene) = entry.controller.downcast_ref::<GameScene>() {
+                        if affected_scenes.contains(&game_scene.scene) {
+                            entry.controller.clear_command_stack(
+                                &mut entry.command_stack,
+                                &mut entry.selection,
+                                scenes,
+                            );
+                        }
+                    }
+                }
+                editor.message_sender.send(Message::ForceSync);
+
+                // Remove property editors that were created from the plugin.
                 let mut definitions = editor.inspector.property_editors.definitions_mut();
 
                 let mut to_be_removed = Vec::new();
@@ -2800,14 +2818,22 @@ fn update(editor: &mut Editor, window_target: &EventLoopWindowTarget<()>) {
                 for type_id in to_be_removed {
                     definitions.remove(&type_id);
                 }
-            },
-            |plugin| {
-                *editor.inspector.property_editors.context_type_id.lock() = plugin.type_id();
-                editor
-                    .inspector
-                    .property_editors
-                    .merge(plugin.register_property_editors());
-            },
+            };
+
+        let on_plugin_reloaded = |plugin: &dyn Plugin| {
+            *editor.inspector.property_editors.context_type_id.lock() = plugin.type_id();
+            editor
+                .inspector
+                .property_editors
+                .merge(plugin.register_property_editors());
+        };
+
+        editor.engine.handle_plugins_hot_reloading(
+            FIXED_TIMESTEP,
+            window_target,
+            &mut editor.game_loop_data.lag,
+            before_reload,
+            on_plugin_reloaded,
         );
 
         editor.post_update();

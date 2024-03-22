@@ -1608,7 +1608,7 @@ impl Engine {
         self.handle_async_scene_loading(dt, lag, window_target);
         self.pre_update(dt, window_target, lag, switches);
         self.post_update(dt, &Default::default());
-        self.handle_plugins_hot_reloading(dt, window_target, lag, |_| {}, |_| {});
+        self.handle_plugins_hot_reloading(dt, window_target, lag, |_, _, _| {}, |_| {});
     }
 
     /// Tries to hot-reload dynamic plugins marked for reloading.
@@ -1626,8 +1626,8 @@ impl Engine {
         #[allow(unused_variables)] before_reload: B,
         #[allow(unused_variables)] on_reloaded: F,
     ) where
+        B: FnMut(&dyn Plugin, Vec<Handle<Scene>>, &mut SceneContainer),
         F: FnMut(&dyn Plugin),
-        B: FnMut(&dyn Plugin),
     {
         #[cfg(any(unix, windows))]
         {
@@ -2525,7 +2525,7 @@ impl Engine {
         before_reload: &mut F,
     ) -> Result<(), String>
     where
-        F: FnMut(&dyn Plugin),
+        F: FnMut(&dyn Plugin, Vec<Handle<Scene>>, &mut SceneContainer),
     {
         let plugin_container = &mut self.plugins[plugin_index];
         let PluginContainer::Dynamic {
@@ -2665,7 +2665,11 @@ impl Engine {
                 .remove(*type_uuid);
         }
 
-        before_reload(state.as_loaded_ref().plugin());
+        before_reload(
+            state.as_loaded_ref().plugin(),
+            scenes_state.iter().map(|s| s.scene).collect::<Vec<_>>(),
+            &mut self.scenes,
+        );
 
         // Unload the plugin.
         if let DynamicPluginState::Loaded(dynamic) = state {
@@ -2802,8 +2806,8 @@ impl Engine {
         mut on_reloaded: F,
     ) -> Result<(), String>
     where
+        B: FnMut(&dyn Plugin, Vec<Handle<Scene>>, &mut SceneContainer),
         F: FnMut(&dyn Plugin),
-        B: FnMut(&dyn Plugin),
     {
         for plugin_index in 0..self.plugins.len() {
             if let PluginContainer::Dynamic {

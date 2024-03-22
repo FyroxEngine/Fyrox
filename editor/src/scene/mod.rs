@@ -71,9 +71,12 @@ use crate::{
     world::graph::selection::GraphSelection,
     Message, Settings,
 };
+use fyrox::asset::manager::ResourceManager;
+use fyrox::engine::SerializationContext;
 use std::cell::RefCell;
 use std::fmt::Debug;
 use std::rc::Rc;
+use std::sync::Arc;
 use std::{any::Any, fs::File, io::Write, path::Path};
 
 pub mod clipboard;
@@ -106,6 +109,8 @@ pub struct GameScene {
     pub camera_state: Vec<(Handle<Node>, bool)>,
     pub node_property_changed_handler: SceneNodePropertyChangedHandler,
     pub highlighter: Option<Rc<RefCell<HighlightRenderPass>>>,
+    pub resource_manager: ResourceManager,
+    pub serialization_context: Arc<SerializationContext>,
 }
 
 impl GameScene {
@@ -159,6 +164,8 @@ impl GameScene {
             camera_state: Default::default(),
             node_property_changed_handler: SceneNodePropertyChangedHandler,
             highlighter,
+            resource_manager: engine.resource_manager.clone(),
+            serialization_context: engine.serialization_context.clone(),
         }
     }
 
@@ -743,16 +750,16 @@ impl SceneController for GameScene {
         &mut self,
         command_stack: &mut CommandStack,
         selection: &mut Selection,
-        engine: &mut Engine,
+        scenes: &mut SceneContainer,
     ) {
         GameSceneContext::exec(
             selection,
-            &mut engine.scenes[self.scene],
+            &mut scenes[self.scene],
             &mut self.scene_content_root,
             &mut self.clipboard,
             self.sender.clone(),
-            engine.resource_manager.clone(),
-            engine.serialization_context.clone(),
+            self.resource_manager.clone(),
+            self.serialization_context.clone(),
             |ctx| command_stack.clear(ctx),
         );
     }

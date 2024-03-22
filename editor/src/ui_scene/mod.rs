@@ -328,7 +328,7 @@ impl SceneController for UiScene {
         &mut self,
         command_stack: &mut CommandStack,
         selection: &mut Selection,
-        _engine: &mut Engine,
+        _scenes: &mut SceneContainer,
     ) {
         UiSceneContext::exec(
             &mut self.ui,

@@ -115,7 +115,7 @@ pub trait SceneController: 'static {
         &mut self,
         command_stack: &mut CommandStack,
         selection: &mut Selection,
-        engine: &mut Engine,
+        scenes: &mut SceneContainer,
     );
 
     fn on_before_render(&mut self, editor_selection: &Selection, engine: &mut Engine);
