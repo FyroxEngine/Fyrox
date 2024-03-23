@@ -1608,7 +1608,7 @@ impl Engine {
         self.handle_async_scene_loading(dt, lag, window_target);
         self.pre_update(dt, window_target, lag, switches);
         self.post_update(dt, &Default::default());
-        self.handle_plugins_hot_reloading(dt, window_target, lag, |_, _, _| {}, |_| {});
+        self.handle_plugins_hot_reloading(dt, window_target, lag, |_| {});
     }
 
     /// Tries to hot-reload dynamic plugins marked for reloading.
@@ -1618,22 +1618,18 @@ impl Engine {
     /// - Windows, Unix-like systems (Linux, macOS, FreeBSD, etc) - fully supported.
     /// - WebAssembly - not supported
     /// - Android - not supported
-    pub fn handle_plugins_hot_reloading<F, B>(
+    pub fn handle_plugins_hot_reloading<F>(
         &mut self,
         #[allow(unused_variables)] dt: f32,
         #[allow(unused_variables)] window_target: &EventLoopWindowTarget<()>,
         #[allow(unused_variables)] lag: &mut f32,
-        #[allow(unused_variables)] before_reload: B,
         #[allow(unused_variables)] on_reloaded: F,
     ) where
-        B: FnMut(&dyn Plugin, Vec<Handle<Scene>>, &mut SceneContainer),
         F: FnMut(&dyn Plugin),
     {
         #[cfg(any(unix, windows))]
         {
-            if let Err(message) =
-                self.reload_dynamic_plugins(dt, window_target, lag, before_reload, on_reloaded)
-            {
+            if let Err(message) = self.reload_dynamic_plugins(dt, window_target, lag, on_reloaded) {
                 Log::err(format!(
                     "Unable to reload dynamic plugins. Reason: {message}"
                 ))
@@ -2516,17 +2512,13 @@ impl Engine {
 
     /// Tries to reload a specified plugin. This method tries to perform least invasive reloading, by
     /// only detaching parts from the scenes and engine internals, that belongs to reloadable plugin.
-    pub fn reload_plugin<F>(
+    pub fn reload_plugin(
         &mut self,
         plugin_index: usize,
         dt: f32,
         window_target: &EventLoopWindowTarget<()>,
         lag: &mut f32,
-        before_reload: &mut F,
-    ) -> Result<(), String>
-    where
-        F: FnMut(&dyn Plugin, Vec<Handle<Scene>>, &mut SceneContainer),
-    {
+    ) -> Result<(), String> {
         let plugin_container = &mut self.plugins[plugin_index];
         let PluginContainer::Dynamic {
             state,
@@ -2665,12 +2657,6 @@ impl Engine {
                 .remove(*type_uuid);
         }
 
-        before_reload(
-            state.as_loaded_ref().plugin(),
-            scenes_state.iter().map(|s| s.scene).collect::<Vec<_>>(),
-            &mut self.scenes,
-        );
-
         // Unload the plugin.
         if let DynamicPluginState::Loaded(dynamic) = state {
             let mut visitor = Visitor::new();
@@ -2793,20 +2779,28 @@ impl Engine {
             task_pool: &mut self.task_pool,
         });
 
+        Log::info(format!(
+            "Plugin {} was successfully reloaded!",
+            plugin_index
+        ));
+
         Ok(())
     }
 
+    /// Returns a reference to the plugins.
+    pub fn plugins(&self) -> &[PluginContainer] {
+        &self.plugins
+    }
+
     /// Tries to reload all dynamic plugins registered in the engine, that needs to be reloaded.
-    pub fn reload_dynamic_plugins<F, B>(
+    pub fn reload_dynamic_plugins<F>(
         &mut self,
         dt: f32,
         window_target: &EventLoopWindowTarget<()>,
         lag: &mut f32,
-        mut before_reload: B,
         mut on_reloaded: F,
     ) -> Result<(), String>
     where
-        B: FnMut(&dyn Plugin, Vec<Handle<Scene>>, &mut SceneContainer),
         F: FnMut(&dyn Plugin),
     {
         for plugin_index in 0..self.plugins.len() {
@@ -2815,7 +2809,7 @@ impl Engine {
             } = self.plugins[plugin_index]
             {
                 if need_reload.load(atomic::Ordering::Relaxed) {
-                    self.reload_plugin(plugin_index, dt, window_target, lag, &mut before_reload)?;
+                    self.reload_plugin(plugin_index, dt, window_target, lag)?;
 
                     on_reloaded(self.plugins[plugin_index].deref_mut());
                 }

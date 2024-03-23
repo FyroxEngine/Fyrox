@@ -143,7 +143,7 @@ use crate::{
     utils::{doc::DocWindow, path_fixer::PathFixer, ragdoll::RagdollWizard},
     world::{graph::menu::SceneNodeContextMenu, graph::EditorSceneWrapper, WorldViewer},
 };
-use fyrox::plugin::Plugin;
+use fyrox::plugin::{Plugin, PluginContainer};
 use std::{
     cell::RefCell,
     io::{BufRead, BufReader},
@@ -2778,63 +2778,78 @@ fn update(editor: &mut Editor, window_target: &EventLoopWindowTarget<()>) {
             switches,
         );
 
+        let mut need_reload_plugins = false;
+        for plugin_index in 0..editor.engine.plugins().len() {
+            let plugin = &editor.engine.plugins()[plugin_index];
+
+            if let PluginContainer::Dynamic {
+                need_reload, state, ..
+            } = plugin
+            {
+                let plugin_type_id = state.as_loaded_ref().plugin().type_id();
+
+                if need_reload.load(Ordering::SeqCst) {
+                    // Clear command stacks for scenes. This is mandatory step, because command stack
+                    // could contain objects from plugins and any attempt to use them after the plugin is
+                    // unloaded will cause crash.
+                    for i in 0..editor.scenes.entries.len() {
+                        let entry = &mut editor.scenes.entries[i];
+                        entry.controller.clear_command_stack(
+                            &mut entry.command_stack,
+                            &mut entry.selection,
+                            &mut editor.engine.scenes,
+                        );
+                        entry.selection = Default::default();
+
+                        Log::warn(format!("Command stack flushed for scene {}", i));
+                    }
+
+                    editor.message_sender.send(Message::SelectionChanged {
+                        old_selection: Default::default(),
+                    });
+                    editor.message_sender.send(Message::ForceSync);
+
+                    // Remove property editors that were created from the plugin.
+                    let mut definitions = editor.inspector.property_editors.definitions_mut();
+
+                    let mut to_be_removed = Vec::new();
+                    for (type_id, entry) in &mut *definitions {
+                        if entry.source_type_id == plugin_type_id {
+                            to_be_removed.push(*type_id);
+                        }
+                    }
+
+                    for type_id in to_be_removed {
+                        definitions.remove(&type_id);
+                    }
+
+                    need_reload_plugins = true;
+                }
+            }
+        }
+
         editor.update(FIXED_TIMESTEP);
 
         editor
             .engine
             .post_update(FIXED_TIMESTEP, &Default::default());
 
-        let before_reload =
-            |plugin: &dyn Plugin,
-             affected_scenes: Vec<Handle<Scene>>,
-             scenes: &mut fyrox::scene::SceneContainer| {
-                // Clear command stacks for affected scenes. This is mandatory step, because command stack
-                // could contain objects from plugins and any attempt to use them after the plugin is
-                // unloaded will cause crash.
-                for i in 0..editor.scenes.entries.len() {
-                    let entry = &mut editor.scenes.entries[i];
-                    if let Some(game_scene) = entry.controller.downcast_ref::<GameScene>() {
-                        if affected_scenes.contains(&game_scene.scene) {
-                            entry.controller.clear_command_stack(
-                                &mut entry.command_stack,
-                                &mut entry.selection,
-                                scenes,
-                            );
-                        }
-                    }
-                }
-                editor.message_sender.send(Message::ForceSync);
-
-                // Remove property editors that were created from the plugin.
-                let mut definitions = editor.inspector.property_editors.definitions_mut();
-
-                let mut to_be_removed = Vec::new();
-                for (type_id, entry) in &mut *definitions {
-                    if entry.source_type_id == plugin.type_id() {
-                        to_be_removed.push(*type_id);
-                    }
-                }
-
-                for type_id in to_be_removed {
-                    definitions.remove(&type_id);
-                }
+        if need_reload_plugins {
+            let on_plugin_reloaded = |plugin: &dyn Plugin| {
+                *editor.inspector.property_editors.context_type_id.lock() = plugin.type_id();
+                editor
+                    .inspector
+                    .property_editors
+                    .merge(plugin.register_property_editors());
             };
 
-        let on_plugin_reloaded = |plugin: &dyn Plugin| {
-            *editor.inspector.property_editors.context_type_id.lock() = plugin.type_id();
-            editor
-                .inspector
-                .property_editors
-                .merge(plugin.register_property_editors());
-        };
-
-        editor.engine.handle_plugins_hot_reloading(
-            FIXED_TIMESTEP,
-            window_target,
-            &mut editor.game_loop_data.lag,
-            before_reload,
-            on_plugin_reloaded,
-        );
+            editor.engine.handle_plugins_hot_reloading(
+                FIXED_TIMESTEP,
+                window_target,
+                &mut editor.game_loop_data.lag,
+                on_plugin_reloaded,
+            );
+        }
 
         editor.post_update();
 
