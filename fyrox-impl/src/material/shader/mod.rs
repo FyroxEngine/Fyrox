@@ -522,7 +522,7 @@ impl Shader {
     }
 
     /// Creates a shader from string.
-    pub fn from_str(str: &str) -> Result<Self, ShaderError> {
+    pub fn from_string(str: &str) -> Result<Self, ShaderError> {
         Ok(Self {
             definition: ShaderDefinition::from_str(str)?,
             cache_index: Default::default(),
@@ -624,7 +624,7 @@ pub trait ShaderResourceExtension: Sized {
 
 impl ShaderResourceExtension for ShaderResource {
     fn from_str(str: &str, kind: ResourceKind) -> Result<Self, ShaderError> {
-        Ok(Resource::new_ok(kind, Shader::from_str(str)?))
+        Ok(Resource::new_ok(kind, Shader::from_string(str)?))
     }
 
     fn standard() -> Self {
@@ -666,42 +666,42 @@ impl ShaderResourceExtension for ShaderResource {
 lazy_static! {
     static ref STANDARD: ShaderResource = ShaderResource::new_ok(
         STANDARD_SHADER_NAME.into(),
-        Shader::from_str(STANDARD_SHADER_SRC).unwrap(),
+        Shader::from_string(STANDARD_SHADER_SRC).unwrap(),
     );
 }
 
 lazy_static! {
     static ref STANDARD_2D: ShaderResource = ShaderResource::new_ok(
         STANDARD_2D_SHADER_NAME.into(),
-        Shader::from_str(STANDARD_2D_SHADER_SRC).unwrap(),
+        Shader::from_string(STANDARD_2D_SHADER_SRC).unwrap(),
     );
 }
 
 lazy_static! {
     static ref STANDARD_PARTICLE_SYSTEM: ShaderResource = ShaderResource::new_ok(
         STANDARD_PARTICLE_SYSTEM_SHADER_NAME.into(),
-        Shader::from_str(STANDARD_PARTICLE_SYSTEM_SHADER_SRC).unwrap(),
+        Shader::from_string(STANDARD_PARTICLE_SYSTEM_SHADER_SRC).unwrap(),
     );
 }
 
 lazy_static! {
     static ref STANDARD_SPRITE: ShaderResource = ShaderResource::new_ok(
         STANDARD_SPRITE_SHADER_NAME.into(),
-        Shader::from_str(STANDARD_SPRITE_SHADER_SRC).unwrap(),
+        Shader::from_string(STANDARD_SPRITE_SHADER_SRC).unwrap(),
     );
 }
 
 lazy_static! {
     static ref STANDARD_TERRAIN: ShaderResource = ShaderResource::new_ok(
         STANDARD_TERRAIN_SHADER_NAME.into(),
-        Shader::from_str(STANDARD_TERRAIN_SHADER_SRC).unwrap(),
+        Shader::from_string(STANDARD_TERRAIN_SHADER_SRC).unwrap(),
     );
 }
 
 lazy_static! {
     static ref STANDARD_TWOSIDES: ShaderResource = ShaderResource::new_ok(
         STANDARD_TWOSIDES_SHADER_NAME.into(),
-        Shader::from_str(STANDARD_TWOSIDES_SHADER_SRC).unwrap(),
+        Shader::from_string(STANDARD_TWOSIDES_SHADER_SRC).unwrap(),
     );
 }
 

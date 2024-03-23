@@ -46,7 +46,7 @@ jobs:
       - name: Set env variables (Windows)
         if: ${{ matrix.os == 'windows-latest' }}
         run: |
-          setx RUSTFLAGS "-C prefer-dynamic=yes"
+          $Env:RUSTFLAGS = '-C prefer-dynamic=yes'
           cargo build --verbose --workspace --all-targets --all-features --profile github-ci
           cargo test --verbose --workspace --all-features --profile github-ci
 
