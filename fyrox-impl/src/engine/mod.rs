@@ -2409,12 +2409,12 @@ impl Engine {
                 let mut src_lib_file = File::open(&source_lib_path).map_err(|e| e.to_string())?;
                 let mut src_lib_file_content = Vec::new();
                 src_lib_file
-                    .read(&mut src_lib_file_content)
+                    .read_to_end(&mut src_lib_file_content)
                     .map_err(|e| e.to_string())?;
                 let mut lib_file = File::open(&lib_path).map_err(|e| e.to_string())?;
                 let mut lib_file_content = Vec::new();
                 lib_file
-                    .read(&mut lib_file_content)
+                    .read_to_end(&mut lib_file_content)
                     .map_err(|e| e.to_string())?;
                 if src_lib_file_content != lib_file_content {
                     return Err(format!(
