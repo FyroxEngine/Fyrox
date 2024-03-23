@@ -1304,7 +1304,7 @@ impl Selection {
     }
 
     pub fn is_empty(&self) -> bool {
-        self.0.as_ref().map_or(false, |s| s.is_empty())
+        self.len() == 0
     }
 
     pub fn len(&self) -> usize {
