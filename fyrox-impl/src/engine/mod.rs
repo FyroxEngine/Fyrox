@@ -78,7 +78,8 @@ use raw_window_handle::HasRawWindowHandle;
 #[cfg(not(target_arch = "wasm32"))]
 use std::{ffi::CString, num::NonZeroU32};
 
-use std::io::Cursor;
+use std::fs::File;
+use std::io::{Cursor, Read};
 use std::sync::atomic;
 use std::sync::atomic::AtomicBool;
 use std::{
@@ -2401,7 +2402,29 @@ impl Engine {
 
         let plugin = if reload_when_changed {
             let lib_path = source_lib_path.with_extension("module");
-            std::fs::copy(&source_lib_path, &lib_path).map_err(|e| e.to_string())?;
+            if let Err(err) = std::fs::copy(&source_lib_path, &lib_path) {
+                // The library could already be copied and loaded, thus cannot be replaced. For
+                // example - by the running editor, that also uses hot reloading. Check for matching
+                // content, and if does not match, pass the error further.
+                let mut src_lib_file = File::open(&source_lib_path).map_err(|e| e.to_string())?;
+                let mut src_lib_file_content = Vec::new();
+                src_lib_file
+                    .read(&mut src_lib_file_content)
+                    .map_err(|e| e.to_string())?;
+                let mut lib_file = File::open(&lib_path).map_err(|e| e.to_string())?;
+                let mut lib_file_content = Vec::new();
+                lib_file
+                    .read(&mut lib_file_content)
+                    .map_err(|e| e.to_string())?;
+                if src_lib_file_content != lib_file_content {
+                    return Err(format!(
+                        "Unable to clone the library {} to {}. Reason: {:?}",
+                        source_lib_path.display(),
+                        lib_path.display(),
+                        err
+                    ));
+                }
+            }
 
             let need_reload = Arc::new(AtomicBool::new(false));
             let need_reload_clone = need_reload.clone();
