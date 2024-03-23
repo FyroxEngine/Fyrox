@@ -41,26 +41,21 @@ jobs:
           sudo apt-get update # Run update first or install might start failing eventually.
           sudo apt-get install --no-install-recommends -y libasound2-dev libudev-dev pkg-config xorg-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev
 
+      - run: rustc --version && cargo --version
+
       - name: Set env variables (Windows)
         if: ${{ matrix.os == 'windows-latest' }}
         run: |
           setx RUSTFLAGS "-C prefer-dynamic=yes"
+          cargo build --verbose --workspace --all-targets --all-features --profile github-ci
+          cargo test --verbose --workspace --all-features --profile github-ci
 
       - name: Set env variables (Unix)
         if: ${{ matrix.os != 'windows-latest' }}
         run: |
           export RUSTFLAGS="-C prefer-dynamic=yes"
-
-      - run: rustc --version && cargo --version
-      - name: Build
-        # Use build instead of check since it needs to be built for tests anyway
-        run: cargo build --verbose --workspace --all-targets --all-features --profile github-ci
-      - name: Test
-        # Currently --all-targets *disables* running doc-tests
-        # and none of the other targets such as examples *currently* have tests
-        # so we don't use it. It should be added later when the issue is fixed:
-        # https://github.com/rust-lang/cargo/issues/6669
-        run: cargo test --verbose --workspace --all-features --profile github-ci
+          cargo build --verbose --workspace --all-targets --all-features --profile github-ci
+          cargo test --verbose --workspace --all-features --profile github-ci
 
   wasm:
     name: Wasm CI
