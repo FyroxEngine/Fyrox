@@ -70,8 +70,9 @@ jobs:
 
       - run: rustc --version && cargo --version
       - name: Build
+        # Build only fyrox package here, because there's fyrox-dylib package which cannot be compiled on wasm.
         run: |
-          cargo build --verbose --target=wasm32-unknown-unknown --all-targets --all-features
+          cargo build --verbose --target=wasm32-unknown-unknown --package fyrox
 
   format:
     name: Rustfmt CI

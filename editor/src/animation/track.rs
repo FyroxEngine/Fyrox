@@ -12,7 +12,7 @@ use crate::fyrox::{
         log::Log,
         parking_lot::Mutex,
         pool::Handle,
-        reflect::{prelude::*, Reflect, ResolvePath},
+        reflect::{prelude::*, Reflect},
         type_traits::prelude::*,
         uuid_provider,
         variable::InheritableVariable,
