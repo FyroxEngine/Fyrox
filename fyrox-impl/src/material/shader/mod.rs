@@ -509,7 +509,8 @@ impl ShaderDefinition {
 }
 
 impl Shader {
-    pub(crate) async fn from_file<P: AsRef<Path>>(
+    /// Creates a shader from file.
+    pub async fn from_file<P: AsRef<Path>>(
         path: P,
         io: &dyn ResourceIo,
     ) -> Result<Self, ShaderError> {
@@ -520,7 +521,8 @@ impl Shader {
         })
     }
 
-    pub(crate) fn from_str(str: &str) -> Result<Self, ShaderError> {
+    /// Creates a shader from string.
+    pub fn from_str(str: &str) -> Result<Self, ShaderError> {
         Ok(Self {
             definition: ShaderDefinition::from_str(str)?,
             cache_index: Default::default(),
