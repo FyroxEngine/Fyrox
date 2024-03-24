@@ -37,7 +37,7 @@ use crate::{
     scene_viewer::gizmo::{SceneGizmo, SceneGizmoAction},
     send_sync_message,
     utils::enable_widget,
-    BuildProfile, DropdownListBuilder, GameScene, Message, Mode, SaveSceneConfirmationDialogAction,
+    DropdownListBuilder, GameScene, Message, Mode, SaveSceneConfirmationDialogAction,
     SceneContainer, Settings,
 };
 use std::cmp::Ordering;
@@ -64,7 +64,7 @@ pub struct SceneViewer {
 }
 
 impl SceneViewer {
-    pub fn new(engine: &mut Engine, sender: MessageSender) -> Self {
+    pub fn new(engine: &mut Engine, sender: MessageSender, settings: &Settings) -> Self {
         let scene_gizmo = SceneGizmo::new(engine);
 
         let ctx = &mut engine.user_interface.build_ctx();
@@ -136,17 +136,21 @@ impl SceneViewer {
                                     WidgetBuilder::new()
                                         .with_tooltip(make_simple_tooltip(
                                             ctx,
-                                            "Build Configuration\nDefines cargo build \
-                                            profile - debug or release.",
+                                            "Current Build Profile\nYou can configure \
+                                            build profiles in editor settings.",
                                         ))
                                         .with_margin(Thickness::uniform(1.0))
                                         .with_width(90.0),
                                 )
-                                .with_items(vec![
-                                    make_dropdown_list_option(ctx, "Debug"),
-                                    make_dropdown_list_option(ctx, "Release"),
-                                ])
-                                .with_selected(0)
+                                .with_items(
+                                    settings
+                                        .build
+                                        .profiles
+                                        .iter()
+                                        .map(|p| make_dropdown_list_option(ctx, &p.name))
+                                        .collect::<Vec<_>>(),
+                                )
+                                .with_selected(settings.build.selected_profile)
                                 .build(ctx);
                                 build_profile
                             })
@@ -383,7 +387,7 @@ impl SceneViewer {
         message: &mut UiMessage,
         engine: &mut Engine,
         scenes: &mut SceneContainer,
-        settings: &Settings,
+        settings: &mut Settings,
         mode: &Mode,
     ) {
         let ui = &engine.user_interface;
@@ -423,13 +427,7 @@ impl SceneViewer {
                         ))
                     }
                 } else if message.destination() == self.build_profile {
-                    if *index == 0 {
-                        self.sender
-                            .send(Message::SetBuildProfile(BuildProfile::Debug));
-                    } else {
-                        self.sender
-                            .send(Message::SetBuildProfile(BuildProfile::Release));
-                    }
+                    settings.build.selected_profile = *index;
                 }
             }
         } else if let Some(msg) = message.data::<TabControlMessage>() {

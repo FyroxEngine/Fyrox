@@ -230,12 +230,6 @@ pub fn create_terrain_layer_material() -> MaterialResource {
     MaterialResource::new_ok(Default::default(), material)
 }
 
-#[derive(Debug)]
-pub enum BuildProfile {
-    Debug,
-    Release,
-}
-
 pub fn make_scene_file_filter() -> Filter {
     Filter::new(|p: &Path| {
         p.is_dir()
@@ -504,7 +498,6 @@ pub struct Editor {
     pub absm_editor: AbsmEditor,
     pub mode: Mode,
     pub build_window: BuildWindow,
-    pub build_profile: BuildProfile,
     pub scene_settings: SceneSettingsWindow,
     pub animation_editor: AnimationEditor,
     pub particle_system_control_panel: ParticleSystemPreviewControlPanel,
@@ -597,7 +590,7 @@ impl Editor {
             &mut engine.user_interface.build_ctx(),
         );
 
-        let scene_viewer = SceneViewer::new(&mut engine, message_sender.clone());
+        let scene_viewer = SceneViewer::new(&mut engine, message_sender.clone(), &settings);
         let asset_browser = AssetBrowser::new(&mut engine);
         let menu = Menu::new(&mut engine, message_sender.clone(), &settings);
         let light_panel = LightPanel::new(&mut engine, message_sender.clone());
@@ -836,7 +829,6 @@ impl Editor {
             },
             absm_editor,
             build_window,
-            build_profile: BuildProfile::Debug,
             scene_settings,
             particle_system_control_panel,
             camera_control_panel,
@@ -1175,7 +1167,7 @@ impl Editor {
             message,
             engine,
             &mut self.scenes,
-            &self.settings,
+            &mut self.settings,
             &self.mode,
         );
         if let Some(export_window) = self.export_window.as_mut() {
@@ -1396,89 +1388,102 @@ impl Editor {
     }
 
     fn set_play_mode(&mut self) {
-        if let Some(entry) = self.scenes.current_scene_entry_ref() {
-            if let Some(path) = entry.path.as_ref().cloned() {
-                self.save_scene(entry.id, path.clone());
-
-                let mut process = std::process::Command::new("cargo");
-
-                process
-                    .stdout(Stdio::piped())
-                    .arg("run")
-                    .arg("--package")
-                    .arg("executor");
-
-                if let BuildProfile::Release = self.build_profile {
-                    process.arg("--release");
-                };
-
-                process.arg("--").arg("--override-scene").arg(path);
-
-                match process.spawn() {
-                    Ok(mut process) => {
-                        let active = Arc::new(AtomicBool::new(true));
-
-                        // Capture output from child process.
-                        let mut stdout = process.stdout.take().unwrap();
-                        let reader_active = active.clone();
-                        std::thread::spawn(move || {
-                            while reader_active.load(Ordering::SeqCst) {
-                                for line in BufReader::new(&mut stdout).lines().take(10).flatten() {
-                                    Log::info(line);
-                                }
-                            }
-                        });
-
-                        self.mode = Mode::Play { active, process };
-
-                        self.on_mode_changed();
-                    }
-                    Err(e) => Log::err(format!("Failed to enter play mode: {:?}", e)),
-                }
-            } else {
-                Log::err("Save you scene first!");
-            }
-        } else {
+        let Some(entry) = self.scenes.current_scene_entry_ref() else {
             Log::err("Cannot enter build mode when there is no scene!");
+            return;
+        };
+
+        let Some(path) = entry.path.as_ref().cloned() else {
+            Log::err("Save you scene first!");
+            return;
+        };
+
+        self.save_scene(entry.id, path.clone());
+
+        let Some(build_profile) = self
+            .settings
+            .build
+            .profiles
+            .get(self.settings.build.selected_profile)
+        else {
+            Log::err("Selected build profile index is invalid.");
+            return;
+        };
+
+        let mut process = std::process::Command::new(&build_profile.command);
+
+        process
+            .stdout(Stdio::piped())
+            .arg(&build_profile.run_sub_command)
+            .args(build_profile.args.iter());
+
+        process.arg("--").arg("--override-scene").arg(path);
+
+        match process.spawn() {
+            Ok(mut process) => {
+                let active = Arc::new(AtomicBool::new(true));
+
+                // Capture output from child process.
+                let mut stdout = process.stdout.take().unwrap();
+                let reader_active = active.clone();
+                std::thread::spawn(move || {
+                    while reader_active.load(Ordering::SeqCst) {
+                        for line in BufReader::new(&mut stdout).lines().take(10).flatten() {
+                            Log::info(line);
+                        }
+                    }
+                });
+
+                self.mode = Mode::Play { active, process };
+
+                self.on_mode_changed();
+            }
+            Err(e) => Log::err(format!("Failed to enter play mode: {:?}", e)),
         }
     }
 
     fn set_build_mode(&mut self) {
-        if let Mode::Edit = self.mode {
-            if let Some(entry) = self.scenes.current_scene_entry_ref() {
-                if entry.path.is_some() {
-                    let mut process = std::process::Command::new("cargo");
-                    process
-                        .stderr(Stdio::piped())
-                        .arg("build")
-                        .arg("--package")
-                        .arg("executor");
-
-                    if let BuildProfile::Release = self.build_profile {
-                        process.arg("--release");
-                    }
-
-                    match process.spawn() {
-                        Ok(mut process) => {
-                            self.build_window.listen(
-                                process.stderr.take().unwrap(),
-                                &self.engine.user_interface,
-                            );
-
-                            self.mode = Mode::Build { process };
-
-                            self.on_mode_changed();
-                        }
-                        Err(e) => Log::err(format!("Failed to enter build mode: {:?}", e)),
-                    }
-                } else {
-                    Log::err("Save you scene first!");
-                }
-            } else {
-                Log::err("Cannot enter build mode when there is no scene!");
-            }
-        } else {
+        if !matches!(self.mode, Mode::Edit) {
             Log::err("Cannot enter build mode when from non-Edit mode!");
+            return;
+        }
+
+        let Some(entry) = self.scenes.current_scene_entry_ref() else {
+            Log::err("Cannot enter build mode when there is no scene!");
+            return;
+        };
+
+        if entry.path.is_none() {
+            Log::err("Save you scene first!");
+            return;
+        }
+
+        let Some(build_profile) = self
+            .settings
+            .build
+            .profiles
+            .get(self.settings.build.selected_profile)
+        else {
+            Log::err("Selected build profile index is invalid.");
+            return;
+        };
+
+        let mut process = std::process::Command::new(&build_profile.command);
+        process
+            .stderr(Stdio::piped())
+            .arg(&build_profile.build_sub_command)
+            .args(build_profile.args.iter());
+
+        match process.spawn() {
+            Ok(mut process) => {
+                self.build_window
+                    .listen(process.stderr.take().unwrap(), &self.engine.user_interface);
+
+                self.mode = Mode::Build { process };
+
+                self.on_mode_changed();
+            }
+            Err(e) => Log::err(format!("Failed to enter build mode: {:?}", e)),
         }
     }
 
@@ -2349,9 +2354,6 @@ impl Editor {
                             &self.scenes,
                             action,
                         );
-                    }
-                    Message::SetBuildProfile(profile) => {
-                        self.build_profile = profile;
                     }
                     Message::ForceSync => {
                         needs_sync = true;

@@ -1,35 +1,37 @@
-use crate::fyrox::{
-    core::{log::Log, pool::Handle, reflect::prelude::*, scope_profile},
-    gui::{
-        button::{ButtonBuilder, ButtonMessage},
-        grid::{Column, GridBuilder, Row},
-        inspector::{
-            editors::{
-                enumeration::EnumPropertyEditorDefinition,
-                inspectable::InspectablePropertyEditorDefinition,
-                key::HotKeyPropertyEditorDefinition, PropertyEditorDefinitionContainer,
-            },
-            InspectorBuilder, InspectorContext, InspectorMessage, PropertyAction, PropertyChanged,
-        },
-        message::{MessageDirection, UiMessage},
-        scroll_viewer::ScrollViewerBuilder,
-        stack_panel::StackPanelBuilder,
-        widget::WidgetBuilder,
-        window::{WindowBuilder, WindowMessage, WindowTitle},
-        HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
-    },
-    renderer::{CsmSettings, QualitySettings, ShadowMapPrecision},
-};
+use crate::settings::build::{BuildProfile, EnvironmentVariable};
 use crate::{
+    fyrox::{
+        core::{log::Log, pool::Handle, reflect::prelude::*, scope_profile},
+        gui::{
+            button::{ButtonBuilder, ButtonMessage},
+            grid::{Column, GridBuilder, Row},
+            inspector::{
+                editors::{
+                    enumeration::EnumPropertyEditorDefinition,
+                    inspectable::InspectablePropertyEditorDefinition,
+                    key::HotKeyPropertyEditorDefinition, PropertyEditorDefinitionContainer,
+                },
+                InspectorBuilder, InspectorContext, InspectorMessage, PropertyAction,
+                PropertyChanged,
+            },
+            message::{MessageDirection, UiMessage},
+            scroll_viewer::ScrollViewerBuilder,
+            stack_panel::StackPanelBuilder,
+            widget::WidgetBuilder,
+            window::{WindowBuilder, WindowMessage, WindowTitle},
+            HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+        },
+        renderer::{CsmSettings, QualitySettings, ShadowMapPrecision},
+    },
     inspector::editors::make_property_editors_container,
     message::MessageSender,
     settings::{
+        build::BuildSettings,
         camera::CameraSettings,
         debugging::DebuggingSettings,
         general::{GeneralSettings, ScriptEditor},
         graphics::GraphicsSettings,
-        keys::KeyBindings,
-        keys::TerrainKeyBindings,
+        keys::{KeyBindings, TerrainKeyBindings},
         model::ModelSettings,
         move_mode::MoveInteractionModeSettings,
         navmesh::NavmeshSettings,
@@ -41,17 +43,19 @@ use crate::{
     },
     Engine, MSG_SYNC_FLAG,
 };
+use fyrox::gui::inspector::editors::collection::VecCollectionPropertyEditorDefinition;
 use ron::ser::PrettyConfig;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use std::{
     collections::HashMap,
     fs::File,
     io::Write,
     ops::{Deref, DerefMut},
     path::PathBuf,
+    sync::Arc,
 };
 
+pub mod build;
 pub mod camera;
 pub mod debugging;
 pub mod general;
@@ -77,6 +81,8 @@ pub struct SettingsWindow {
 pub struct SettingsData {
     pub selection: SelectionSettings,
     pub graphics: GraphicsSettings,
+    #[serde(default)]
+    pub build: BuildSettings,
     #[serde(default)]
     pub general: GeneralSettings,
     pub debugging: DebuggingSettings,
@@ -208,6 +214,11 @@ impl SettingsData {
         container.insert(InspectablePropertyEditorDefinition::<NavmeshSettings>::new());
         container.insert(InspectablePropertyEditorDefinition::<KeyBindings>::new());
         container.insert(InspectablePropertyEditorDefinition::<TerrainKeyBindings>::new());
+        container.insert(InspectablePropertyEditorDefinition::<BuildSettings>::new());
+        container.insert(VecCollectionPropertyEditorDefinition::<EnvironmentVariable>::new());
+        container.insert(InspectablePropertyEditorDefinition::<EnvironmentVariable>::new());
+        container.insert(VecCollectionPropertyEditorDefinition::<BuildProfile>::new());
+        container.insert(InspectablePropertyEditorDefinition::<BuildProfile>::new());
         container.insert(HotKeyPropertyEditorDefinition);
 
         Arc::new(container)

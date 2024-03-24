@@ -9,7 +9,7 @@ use crate::fyrox::{
     material::MaterialResource,
     scene::{camera::Projection, node::Node},
 };
-use crate::{scene::Selection, BuildProfile, SaveSceneConfirmationDialogAction};
+use crate::{scene::Selection, SaveSceneConfirmationDialogAction};
 use std::{path::PathBuf, sync::mpsc::Sender};
 
 #[derive(Debug)]
@@ -62,7 +62,6 @@ pub enum Message {
         id: Uuid,
         action: SaveSceneConfirmationDialogAction,
     },
-    SetBuildProfile(BuildProfile),
     SaveSelectionAsPrefab(PathBuf),
     SyncNodeHandleName {
         view: Handle<UiNode>,
