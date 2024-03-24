@@ -144,7 +144,12 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-fyrox = {{workspace = true}}"#,
+fyrox = {{workspace = true}}
+
+[features]
+default = ["fyrox/default"]
+dylib-engine = ["fyrox/dylib"]
+"#,
         ),
     );
 
@@ -153,43 +158,33 @@ fyrox = {{workspace = true}}"#,
         base_path.join("game/src/lib.rs"),
         r#"//! Game project.
 use fyrox::{
-    core::pool::Handle,
+    core::pool::Handle, core::visitor::prelude::*,
     event::Event,
     gui::message::UiMessage,
-    plugin::{Plugin, PluginConstructor, PluginContext, PluginRegistrationContext},
+    plugin::{Plugin, PluginContext, PluginRegistrationContext},
     scene::Scene,
 };
 use std::path::Path;
 
-pub struct GameConstructor;
+// Re-export the engine.
+pub use fyrox;
 
-impl PluginConstructor for GameConstructor {
-    fn register(&self, _context: PluginRegistrationContext) {
-        // Register your scripts here.
-    }
-
-    fn create_instance(&self, scene_path: Option<&str>, context: PluginContext) -> Box<dyn Plugin> {
-        Box::new(Game::new(scene_path, context))
-    }
-}
-
+#[derive(Default, Visit)]
 pub struct Game {
     scene: Handle<Scene>,
 }
 
-impl Game {
-    pub fn new(scene_path: Option<&str>, context: PluginContext) -> Self {
+impl Plugin for Game {
+    fn register(&self, _context: PluginRegistrationContext) {
+        // Register your scripts here.
+    }
+    
+    fn init(&mut self, scene_path: Option<&str>, context: PluginContext) {
         context
             .async_scene_loader
             .request(scene_path.unwrap_or("data/scene.rgs"));
-
-        Self {
-            scene: Handle::NONE,
-        }
     }
-}
 
-impl Plugin for Game {
     fn on_deinit(&mut self, _context: PluginContext) {
         // Do a cleanup here.
     }
@@ -252,7 +247,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-fyrox = {{workspace = true}}
+fyrox = {{ workspace = true }}
 {name} = {{ path = "../game" }}"#,
         ),
     );
@@ -263,14 +258,13 @@ fyrox = {{workspace = true}}
         format!(
             r#"//! Executor with your game connected to it as a plugin.
 use fyrox::engine::executor::Executor;
-use {}::GameConstructor;
+use {name}::Game;
 
 fn main() {{
     let mut executor = Executor::new();
-    executor.add_plugin_constructor(GameConstructor);
+    executor.add_plugin(Game::default());
     executor.run()
 }}"#,
-            name
         ),
     );
 }
@@ -307,7 +301,7 @@ fyrox = {{workspace = true}}
         format!(
             r#"//! Executor with your game connected to it as a plugin.
 use fyrox::engine::executor::Executor;
-use {}::GameConstructor;
+use {name}::Game;
 use fyrox::core::wasm_bindgen::{{self, prelude::*}};
 
 #[wasm_bindgen]
@@ -347,10 +341,9 @@ pub fn set_panic_hook() {{
 pub fn main() {{
     set_panic_hook();
     let mut executor = Executor::new();
-    executor.add_plugin_constructor(GameConstructor);
+    executor.add_plugin(Game::default());
     executor.run()
 }}"#,
-            name
         ),
     );
 
@@ -398,9 +391,14 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-fyrox = {{workspace = true}}
-fyroxed_base = {{workspace = true}}
-{name} = {{ path = "../game" }}"#,
+fyrox = {{ workspace = true }}
+fyroxed_base = {{ workspace = true }}
+{name} = {{ path = "../game", optional = true }}
+
+[features]
+default = ["{name}", "fyroxed_base/default"]
+dylib = ["fyroxed_base/dylib_engine"]
+"#,
         ),
     );
 
@@ -410,7 +408,7 @@ fyroxed_base = {{workspace = true}}
             r#"//! Editor with your game connected to it as a plugin.
 use fyrox::event_loop::EventLoop;
 use fyroxed_base::{{Editor, StartupData}};
-use {}::GameConstructor;
+use {name}::Game;
 
 fn main() {{
     let event_loop = EventLoop::new().unwrap();
@@ -421,11 +419,58 @@ fn main() {{
             scenes: vec!["data/scene.rgs".into()],
         }}),
     );
-    editor.add_game_plugin(GameConstructor);
+    editor.add_game_plugin(Game::default());
     editor.run(event_loop)
 }}
 "#,
-            name
+        ),
+    );
+}
+
+fn init_game_dylib(base_path: &Path, name: &str) {
+    let dylib_name = name.to_string() + "_dylib";
+
+    Command::new("cargo")
+        .args(["init", "--lib", "--vcs", "none"])
+        .arg(base_path.join("game-dylib"))
+        .output()
+        .unwrap();
+
+    // Write Cargo.toml
+    write_file(
+        base_path.join("game-dylib/Cargo.toml"),
+        format!(
+            r#"
+[package]
+name = "{dylib_name}"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+{name} = {{ path = "../game", default-features = false }}
+
+[features]
+default = ["{name}/default"]
+dylib-engine = ["{name}/dylib-engine"]
+"#,
+        ),
+    );
+
+    // Write lib.rs
+    write_file(
+        base_path.join("game-dylib/src/lib.rs"),
+        format!(
+            r#"//! Wrapper for hot-reloadable plugin.
+use {name}::{{fyrox::plugin::Plugin, Game}};
+
+#[no_mangle]
+pub fn fyrox_plugin() -> Box<dyn Plugin> {{
+    Box::new(Game::new())
+}}
+"#,
         ),
     );
 }
@@ -470,7 +515,7 @@ use fyrox::{{
     core::io, engine::executor::Executor, event_loop::EventLoopBuilder,
     platform::android::EventLoopBuilderExtAndroid,
 }};
-use {}::GameConstructor;
+use {name}::Game;
 
 #[no_mangle]
 fn android_main(app: fyrox::platform::android::activity::AndroidApp) {{
@@ -479,10 +524,9 @@ fn android_main(app: fyrox::platform::android::activity::AndroidApp) {{
         .expect("ANDROID_APP cannot be set twice.");
     let event_loop = EventLoopBuilder::new().with_android_app(app).build();
     let mut executor = Executor::from_params(event_loop, Default::default());
-    executor.add_plugin_constructor(GameConstructor);
+    executor.add_plugin(Game::default());
     executor.run()
 }}"#,
-            name
         ),
     );
 
@@ -510,7 +554,7 @@ fn init_workspace(base_path: &Path, vcs: &str) {
         format!(
             r#"
 [workspace]
-members = ["editor", "executor", "executor-wasm", "executor-android", "game"]
+members = ["editor", "executor", "executor-wasm", "executor-android", "game", "game-dylib"]
 resolver = "2"
 
 [workspace.dependencies.fyrox]
@@ -658,6 +702,7 @@ fn main() {
             init_workspace(base_path, &vcs);
             init_data(base_path, &style);
             init_game(base_path, name);
+            init_game_dylib(base_path, name);
             init_editor(base_path, name);
             init_executor(base_path, name);
             init_wasm_executor(base_path, name);
