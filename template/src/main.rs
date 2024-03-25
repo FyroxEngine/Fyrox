@@ -248,7 +248,13 @@ edition = "2021"
 
 [dependencies]
 fyrox = {{ workspace = true }}
-{name} = {{ path = "../game" }}"#,
+{name} = {{ path = "../game", optional = true }}
+{name}_dylib = {{ path = "../game-dylib", optional = true }}
+
+[features]
+default = ["{name}"]
+dylib = ["{name}_dylib"]
+"#,
         ),
     );
 
@@ -258,11 +264,29 @@ fyrox = {{ workspace = true }}
         format!(
             r#"//! Executor with your game connected to it as a plugin.
 use fyrox::engine::executor::Executor;
-use {name}::Game;
 
 fn main() {{
     let mut executor = Executor::new();
-    executor.add_plugin(Game::default());
+   
+    // Dynamic linking with hot reloading.
+    #[cfg(feature = "dylib")]
+    {{
+        #[cfg(target_os = "windows")]
+        let file_name = "{name}_dylib.dll";
+        #[cfg(target_os = "linux")]
+        let file_name = "lib{name}_dylib.so";
+        #[cfg(target_os = "macos")]
+        let file_name = "lib{name}_dylib.dylib";
+        executor.add_dynamic_plugin(file_name, true, true).unwrap();
+    }}
+
+    // Static linking.
+    #[cfg(not(feature = "dylib"))]
+    {{
+        use {name}::Game;
+        executor.add_plugin(Game::new());
+    }}  
+   
     executor.run()
 }}"#,
         ),
@@ -406,20 +430,36 @@ dylib = ["fyroxed_base/dylib_engine"]
         base_path.join("editor/src/main.rs"),
         format!(
             r#"//! Editor with your game connected to it as a plugin.
-use fyrox::event_loop::EventLoop;
-use fyroxed_base::{{Editor, StartupData}};
-use {name}::Game;
+use fyroxed_base::{{fyrox::event_loop::EventLoop, Editor, StartupData}};
 
 fn main() {{
     let event_loop = EventLoop::new().unwrap();
     let mut editor = Editor::new(
-        &event_loop,
         Some(StartupData {{
             working_directory: Default::default(),
             scenes: vec!["data/scene.rgs".into()],
         }}),
     );
-    editor.add_game_plugin(Game::default());
+    
+     // Dynamic linking with hot reloading.
+    #[cfg(feature = "dylib")]
+    {{
+        #[cfg(target_os = "windows")]
+        let file_name = "{name}_dylib.dll";
+        #[cfg(target_os = "linux")]
+        let file_name = "lib{name}_dylib.so";
+        #[cfg(target_os = "macos")]
+        let file_name = "lib{name}_dylib.dylib";
+        editor.add_dynamic_plugin(file_name, true, true).unwrap();
+    }}
+
+    // Static linking.
+    #[cfg(not(feature = "dylib"))]
+    {{
+        use {name}::Game;
+        editor.add_game_plugin(Game::new());
+    }}
+    
     editor.run(event_loop)
 }}
 "#,
@@ -468,7 +508,7 @@ use {name}::{{fyrox::plugin::Plugin, Game}};
 
 #[no_mangle]
 pub fn fyrox_plugin() -> Box<dyn Plugin> {{
-    Box::new(Game::new())
+    Box::new(Game::default())
 }}
 "#,
         ),
