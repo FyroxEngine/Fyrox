@@ -2428,7 +2428,7 @@ impl Engine {
 
             let need_reload = Arc::new(AtomicBool::new(false));
             let need_reload_clone = need_reload.clone();
-            let lib_path_clone = lib_path.clone();
+            let source_lib_path_clone = source_lib_path.clone();
 
             let mut watcher =
                 notify::recommended_watcher(move |event: notify::Result<notify::Event>| {
@@ -2438,7 +2438,7 @@ impl Engine {
 
                             Log::warn(format!(
                                 "Plugin {} was changed. Performing hot reloading...",
-                                lib_path_clone.display()
+                                source_lib_path_clone.display()
                             ))
                         }
                     }
