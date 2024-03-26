@@ -468,8 +468,6 @@ fn main() {{
 }
 
 fn init_game_dylib(base_path: &Path, name: &str) {
-    let dylib_name = name.to_string() + "_dylib";
-
     Command::new("cargo")
         .args(["init", "--lib", "--vcs", "none"])
         .arg(base_path.join("game-dylib"))
@@ -482,7 +480,7 @@ fn init_game_dylib(base_path: &Path, name: &str) {
         format!(
             r#"
 [package]
-name = "{dylib_name}"
+name = "game_dylib"
 version = "0.1.0"
 edition = "2021"
 
