@@ -1413,6 +1413,11 @@ impl Editor {
             return;
         };
 
+        Log::info(format!(
+            "Trying to run the game using command: {}",
+            build_profile.run_command
+        ));
+
         let mut process = std::process::Command::new(&build_profile.run_command.command);
 
         process
@@ -2092,11 +2097,7 @@ impl Editor {
         processed
     }
 
-    fn update(&mut self, dt: f32) {
-        scope_profile!();
-
-        for_each_plugin!(self.plugins => on_update(self));
-
+    fn handle_modes(&mut self) {
         match self.mode {
             Mode::Play {
                 ref mut process,
@@ -2123,6 +2124,8 @@ impl Editor {
             } => {
                 if process.is_none() {
                     if let Some(command) = queue.pop_front() {
+                        Log::info(format!("Trying to run build command: {}", command));
+
                         let mut new_process = std::process::Command::new(&command.command);
                         new_process
                             .stderr(Stdio::piped())
@@ -2145,6 +2148,11 @@ impl Editor {
                             }
                             Err(e) => Log::err(format!("Failed to enter build mode: {:?}", e)),
                         }
+                    } else {
+                        Log::warn("Empty build command queue!");
+                        self.mode = Mode::Edit;
+                        self.on_mode_changed();
+                        return;
                     }
                 }
 
@@ -2178,6 +2186,14 @@ impl Editor {
             }
             _ => {}
         }
+    }
+
+    fn update(&mut self, dt: f32) {
+        scope_profile!();
+
+        for_each_plugin!(self.plugins => on_update(self));
+
+        self.handle_modes();
 
         self.log.update(&mut self.engine);
         self.material_editor.update(&mut self.engine);

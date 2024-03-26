@@ -1,6 +1,7 @@
 use crate::fyrox::core::reflect::prelude::*;
 use fyrox::core::type_traits::prelude::*;
 use serde::{Deserialize, Serialize};
+use std::fmt::{Display, Formatter};
 
 #[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Default, Reflect, TypeUuidProvider)]
 #[type_uuid(id = "55e7651e-8840-4c81-aa93-3f01348855e6")]
@@ -17,16 +18,31 @@ pub struct BuildCommand {
     pub environment_variables: Vec<EnvironmentVariable>,
 }
 
+impl Display for BuildCommand {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        for var in self.environment_variables.iter() {
+            write!(f, "{}=\"{}\" ", var.name, var.value)?;
+        }
+
+        write!(f, "{}", self.command)?;
+
+        for arg in self.args.iter() {
+            write!(f, " {}", arg)?;
+        }
+
+        Ok(())
+    }
+}
+
 #[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Default, Reflect, TypeUuidProvider)]
 #[type_uuid(id = "1a9443df-bf75-42fb-93d3-860a0249168a")]
 pub struct BuildProfile {
     pub name: String,
     #[reflect(description = "A set of commands that will be used to build your game.")]
     pub build_commands: Vec<BuildCommand>,
-    #[reflect(
-        description = "A set of commands that will be used to run your game. This set of \
-    commands will be executed right after build commands (if the build was successful)"
-    )]
+    #[reflect(description = "A set of commands that will be used to run your game. \
+        This set of commands will be executed right after build commands (if the \
+        build was successful)")]
     pub run_command: BuildCommand,
 }
 
@@ -74,6 +90,7 @@ impl Default for BuildSettings {
         };
 
         let mut release = debug.clone();
+        release.name = "Release".to_string();
         release.add_arg("--release");
 
         let debug_hot_reloading = BuildProfile {
@@ -101,7 +118,10 @@ impl Default for BuildSettings {
                     args: vec![
                         "build".to_string(),
                         "--package".to_string(),
-                        "executor".to_string(),
+                        "executor".to_string(),  
+                        "--no-default-features".to_string(),
+                        "--features".to_string(),
+                        "dylib".to_string(),
                     ],
                     environment_variables: vec![EnvironmentVariable {
                         name: "RUSTFLAGS".to_string(),
@@ -116,7 +136,10 @@ impl Default for BuildSettings {
                     args: vec![
                         "run".to_string(),
                         "--package".to_string(),
-                        "executor".to_string(),
+                        "executor".to_string(), 
+                        "--no-default-features".to_string(),
+                        "--features".to_string(),
+                        "dylib".to_string(), 
                     ],
                     environment_variables: vec![EnvironmentVariable {
                         name: "RUSTFLAGS".to_string(),
@@ -127,6 +150,7 @@ impl Default for BuildSettings {
         };
 
         let mut release_hot_reloading = release.clone();
+        release_hot_reloading.name = "Release (HR)".to_string();
         release_hot_reloading.add_arg("--release");
 
         Self {
