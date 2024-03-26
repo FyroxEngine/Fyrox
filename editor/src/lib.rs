@@ -144,6 +144,7 @@ use crate::{
     world::{graph::menu::SceneNodeContextMenu, graph::EditorSceneWrapper, WorldViewer},
 };
 use fyrox::plugin::{Plugin, PluginContainer};
+use std::collections::VecDeque;
 use std::{
     cell::RefCell,
     io::{BufRead, BufReader},
@@ -160,6 +161,7 @@ use std::{
 
 use crate::command::Command;
 use crate::export::ExportWindow;
+use crate::settings::build::BuildCommand;
 use crate::stats::{StatisticsWindow, StatisticsWindowAction};
 pub use message::Message;
 
@@ -257,7 +259,8 @@ pub fn make_save_file_selector(
 pub enum Mode {
     Edit,
     Build {
-        process: std::process::Child,
+        queue: VecDeque<BuildCommand>,
+        process: Option<std::process::Child>,
     },
     Play {
         process: std::process::Child,
@@ -1410,12 +1413,18 @@ impl Editor {
             return;
         };
 
-        let mut process = std::process::Command::new(&build_profile.command);
+        let mut process = std::process::Command::new(&build_profile.run_command.command);
 
         process
             .stdout(Stdio::piped())
-            .arg(&build_profile.run_sub_command)
-            .args(build_profile.args.iter());
+            .args(build_profile.run_command.args.iter())
+            .envs(
+                build_profile
+                    .run_command
+                    .environment_variables
+                    .iter()
+                    .map(|v| (&v.name, &v.value)),
+            );
 
         process.arg("--").arg("--override-scene").arg(path);
 
@@ -1468,32 +1477,33 @@ impl Editor {
             return;
         };
 
-        let mut process = std::process::Command::new(&build_profile.command);
-        process
-            .stderr(Stdio::piped())
-            .arg(&build_profile.build_sub_command)
-            .args(build_profile.args.iter());
+        let queue = build_profile
+            .build_commands
+            .iter()
+            .cloned()
+            .collect::<VecDeque<_>>();
 
-        match process.spawn() {
-            Ok(mut process) => {
-                self.build_window
-                    .listen(process.stderr.take().unwrap(), &self.engine.user_interface);
+        self.mode = Mode::Build {
+            queue,
+            process: None,
+        };
 
-                self.mode = Mode::Build { process };
-
-                self.on_mode_changed();
-            }
-            Err(e) => Log::err(format!("Failed to enter build mode: {:?}", e)),
-        }
+        self.on_mode_changed();
     }
 
     fn set_editor_mode(&mut self) {
-        if let Mode::Play { mut process, .. } | Mode::Build { mut process } =
-            std::mem::replace(&mut self.mode, Mode::Edit)
-        {
-            Log::verify(process.kill());
-
-            self.on_mode_changed();
+        match std::mem::replace(&mut self.mode, Mode::Edit) {
+            Mode::Play { mut process, .. } => {
+                Log::verify(process.kill());
+                self.on_mode_changed();
+            }
+            Mode::Build { process, .. } => {
+                if let Some(mut process) = process {
+                    Log::verify(process.kill());
+                }
+                self.on_mode_changed();
+            }
+            _ => {}
         }
     }
 
@@ -2107,28 +2117,63 @@ impl Editor {
                     Err(err) => Log::err(format!("Failed to wait for game process: {:?}", err)),
                 }
             }
-            Mode::Build { ref mut process } => {
-                self.build_window.update(&self.engine.user_interface);
+            Mode::Build {
+                ref mut process,
+                ref mut queue,
+            } => {
+                if process.is_none() {
+                    if let Some(command) = queue.pop_front() {
+                        let mut new_process = std::process::Command::new(&command.command);
+                        new_process
+                            .stderr(Stdio::piped())
+                            .args(command.args.iter())
+                            .envs(
+                                command
+                                    .environment_variables
+                                    .iter()
+                                    .map(|v| (&v.name, &v.value)),
+                            );
 
-                match process.try_wait() {
-                    Ok(status) => {
-                        if let Some(status) = status {
-                            self.build_window.reset(&self.engine.user_interface);
+                        match new_process.spawn() {
+                            Ok(mut new_process) => {
+                                self.build_window.listen(
+                                    new_process.stderr.take().unwrap(),
+                                    &self.engine.user_interface,
+                                );
 
-                            // https://doc.rust-lang.org/cargo/commands/cargo-build.html#exit-status
-                            let err_code = 101;
-                            let code = status.code().unwrap_or(err_code);
-                            if code == err_code {
-                                Log::err("Failed to build the game!");
-                                self.mode = Mode::Edit;
-                                self.on_mode_changed();
-                            } else {
-                                self.set_play_mode();
-                                self.build_window.close(&self.engine.user_interface);
+                                *process = Some(new_process);
                             }
+                            Err(e) => Log::err(format!("Failed to enter build mode: {:?}", e)),
                         }
                     }
-                    Err(err) => Log::err(format!("Failed to wait for game process: {:?}", err)),
+                }
+
+                if let Some(process_ref) = process {
+                    self.build_window.update(&self.engine.user_interface);
+
+                    match process_ref.try_wait() {
+                        Ok(status) => {
+                            if let Some(status) = status {
+                                // https://doc.rust-lang.org/cargo/commands/cargo-build.html#exit-status
+                                let err_code = 101;
+                                let code = status.code().unwrap_or(err_code);
+                                if code == err_code {
+                                    Log::err("Failed to build the game!");
+                                    self.mode = Mode::Edit;
+                                    self.on_mode_changed();
+                                } else if queue.is_empty() {
+                                    self.set_play_mode();
+                                    self.build_window.reset(&self.engine.user_interface);
+                                    self.build_window.close(&self.engine.user_interface);
+                                } else {
+                                    self.build_window.reset(&self.engine.user_interface);
+                                    // Continue on next command.
+                                    *process = None;
+                                }
+                            }
+                        }
+                        Err(err) => Log::err(format!("Failed to wait for game process: {:?}", err)),
+                    }
                 }
             }
             _ => {}
@@ -2597,8 +2642,14 @@ impl Editor {
                         // Kill any active child process on exit.
                         match self.mode {
                             Mode::Edit => {}
-                            Mode::Build { ref mut process }
-                            | Mode::Play {
+                            Mode::Build {
+                                ref mut process, ..
+                            } => {
+                                if let Some(process) = process {
+                                    let _ = process.kill();
+                                }
+                            }
+                            Mode::Play {
                                 ref mut process, ..
                             } => {
                                 let _ = process.kill();

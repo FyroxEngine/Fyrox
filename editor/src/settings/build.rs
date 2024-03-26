@@ -10,14 +10,36 @@ pub struct EnvironmentVariable {
 }
 
 #[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Default, Reflect, TypeUuidProvider)]
+#[type_uuid(id = "67b93136-17fe-4776-b5f0-f4a9ef3d8972")]
+pub struct BuildCommand {
+    pub command: String,
+    pub args: Vec<String>,
+    pub environment_variables: Vec<EnvironmentVariable>,
+}
+
+#[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Default, Reflect, TypeUuidProvider)]
 #[type_uuid(id = "1a9443df-bf75-42fb-93d3-860a0249168a")]
 pub struct BuildProfile {
     pub name: String,
-    pub command: String,
-    pub run_sub_command: String,
-    pub build_sub_command: String,
-    pub args: Vec<String>,
-    pub environment_variables: Vec<EnvironmentVariable>,
+    #[reflect(description = "A set of commands that will be used to build your game.")]
+    pub build_commands: Vec<BuildCommand>,
+    #[reflect(
+        description = "A set of commands that will be used to run your game. This set of \
+    commands will be executed right after build commands (if the build was successful)"
+    )]
+    pub run_command: BuildCommand,
+}
+
+impl BuildProfile {
+    fn add_arg(&mut self, arg: &str) {
+        for command in self
+            .build_commands
+            .iter_mut()
+            .chain([&mut self.run_command])
+        {
+            command.args.push(arg.to_string());
+        }
+    }
 }
 
 #[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Reflect)]
@@ -29,49 +51,57 @@ pub struct BuildSettings {
 
 impl Default for BuildSettings {
     fn default() -> Self {
-        Self {
-            selected_profile: 0,
-            profiles: vec![
-                BuildProfile {
-                    name: "Debug".to_string(),
+        let debug = BuildProfile {
+            name: "Debug".to_string(),
+            build_commands: vec![BuildCommand {
+                command: "cargo".to_string(),
+                args: vec![
+                    "build".to_string(),
+                    "--package".to_string(),
+                    "executor".to_string(),
+                ],
+                environment_variables: vec![],
+            }],
+            run_command: BuildCommand {
+                command: "cargo".to_string(),
+                args: vec![
+                    "run".to_string(),
+                    "--package".to_string(),
+                    "executor".to_string(),
+                ],
+                environment_variables: vec![],
+            },
+        };
+
+        let mut release = debug.clone();
+        release.add_arg("--release");
+
+        let debug_hot_reloading = BuildProfile {
+            name: "Debug (HR)".to_string(),
+            build_commands: vec![
+                // Build the game plugin DLL first.
+                BuildCommand {
                     command: "cargo".to_string(),
-                    run_sub_command: "run".to_string(),
-                    build_sub_command: "build".to_string(),
-                    args: vec!["--package".to_string(), "executor".to_string()],
-                    environment_variables: vec![],
-                },
-                BuildProfile {
-                    name: "Debug (HR)".to_string(),
-                    command: "cargo".to_string(),
-                    run_sub_command: "run".to_string(),
-                    build_sub_command: "build".to_string(),
-                    args: vec!["--package".to_string(), "executor".to_string()],
+                    args: vec![
+                        "build".to_string(),
+                        "--package".to_string(),
+                        "game_dylib".to_string(),
+                        "--no-default-features".to_string(),
+                        "--features".to_string(),
+                        "dylib-engine".to_string(),
+                    ],
                     environment_variables: vec![EnvironmentVariable {
                         name: "RUSTFLAGS".to_string(),
                         value: "-C prefer-dynamic=yes".to_string(),
                     }],
                 },
-                BuildProfile {
-                    name: "Release".to_string(),
+                // Build the executor.
+                BuildCommand {
                     command: "cargo".to_string(),
-                    run_sub_command: "run".to_string(),
-                    build_sub_command: "build".to_string(),
                     args: vec![
+                        "build".to_string(),
                         "--package".to_string(),
                         "executor".to_string(),
-                        "--release".to_string(),
-                    ],
-                    environment_variables: vec![],
-                },
-                BuildProfile {
-                    name: "Release (HR)".to_string(),
-                    command: "cargo".to_string(),
-                    run_sub_command: "run".to_string(),
-                    build_sub_command: "build".to_string(),
-                    args: vec![
-                        "--package".to_string(),
-                        "executor".to_string(),
-                        "--release".to_string(),
                     ],
                     environment_variables: vec![EnvironmentVariable {
                         name: "RUSTFLAGS".to_string(),
@@ -79,6 +109,29 @@ impl Default for BuildSettings {
                     }],
                 },
             ],
+            run_command:
+                // Run only executor, it will load the game plugin DLL.
+                BuildCommand {
+                    command: "cargo".to_string(),
+                    args: vec![
+                        "run".to_string(),
+                        "--package".to_string(),
+                        "executor".to_string(),
+                    ],
+                    environment_variables: vec![EnvironmentVariable {
+                        name: "RUSTFLAGS".to_string(),
+                        value: "-C prefer-dynamic=yes".to_string(),
+                    }],
+                },
+
+        };
+
+        let mut release_hot_reloading = release.clone();
+        release_hot_reloading.add_arg("--release");
+
+        Self {
+            selected_profile: 0,
+            profiles: vec![debug, debug_hot_reloading, release, release_hot_reloading],
         }
     }
 }

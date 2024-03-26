@@ -1,4 +1,4 @@
-use crate::settings::build::{BuildProfile, EnvironmentVariable};
+use crate::settings::build::{BuildCommand, BuildProfile, EnvironmentVariable};
 use crate::{
     fyrox::{
         core::{log::Log, pool::Handle, reflect::prelude::*, scope_profile},
@@ -219,6 +219,8 @@ impl SettingsData {
         container.insert(InspectablePropertyEditorDefinition::<EnvironmentVariable>::new());
         container.insert(VecCollectionPropertyEditorDefinition::<BuildProfile>::new());
         container.insert(InspectablePropertyEditorDefinition::<BuildProfile>::new());
+        container.insert(VecCollectionPropertyEditorDefinition::<BuildCommand>::new());
+        container.insert(InspectablePropertyEditorDefinition::<BuildCommand>::new());
         container.insert(HotKeyPropertyEditorDefinition);
 
         Arc::new(container)
