@@ -249,11 +249,11 @@ edition = "2021"
 [dependencies]
 fyrox = {{ workspace = true }}
 {name} = {{ path = "../game", optional = true }}
-{name}_dylib = {{ path = "../game-dylib", optional = true }}
+game_dylib = {{ path = "../game-dylib", optional = true }}
 
 [features]
 default = ["{name}"]
-dylib = ["{name}_dylib"]
+dylib = ["game_dylib"]
 "#,
         ),
     );
@@ -272,11 +272,11 @@ fn main() {{
     #[cfg(feature = "dylib")]
     {{
         #[cfg(target_os = "windows")]
-        let file_name = "{name}_dylib.dll";
+        let file_name = "game_dylib.dll";
         #[cfg(target_os = "linux")]
-        let file_name = "lib{name}_dylib.so";
+        let file_name = "libgame_dylib.so";
         #[cfg(target_os = "macos")]
-        let file_name = "lib{name}_dylib.dylib";
+        let file_name = "libgame_dylib.dylib";
         executor.add_dynamic_plugin(file_name, true, true).unwrap();
     }}
 
@@ -445,11 +445,11 @@ fn main() {{
     #[cfg(feature = "dylib")]
     {{
         #[cfg(target_os = "windows")]
-        let file_name = "{name}_dylib.dll";
+        let file_name = "game_dylib.dll";
         #[cfg(target_os = "linux")]
-        let file_name = "lib{name}_dylib.so";
+        let file_name = "libgame_dylib.so";
         #[cfg(target_os = "macos")]
-        let file_name = "lib{name}_dylib.dylib";
+        let file_name = "libgame_dylib.dylib";
         editor.add_dynamic_plugin(file_name, true, true).unwrap();
     }}
 
