@@ -690,6 +690,12 @@ impl From<VisitError> for ModelLoadError {
 }
 
 impl Model {
+    /// Creates a new Model instance using the given node mapping and the given scene. It could be
+    /// used to create your own Model resources.
+    pub fn new(mapping: NodeMapping, scene: Scene) -> Self {
+        Self { mapping, scene }
+    }
+
     pub(crate) async fn load<P: AsRef<Path>>(
         path: P,
         io: &dyn ResourceIo,
