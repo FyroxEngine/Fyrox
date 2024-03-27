@@ -284,7 +284,7 @@ fn main() {{
     #[cfg(not(feature = "dylib"))]
     {{
         use {name}::Game;
-        executor.add_plugin(Game::new());
+        executor.add_plugin(Game::default());
     }}  
    
     executor.run()
@@ -457,7 +457,7 @@ fn main() {{
     #[cfg(not(feature = "dylib"))]
     {{
         use {name}::Game;
-        editor.add_game_plugin(Game::new());
+        editor.add_game_plugin(Game::default());
     }}
     
     editor.run(event_loop)
