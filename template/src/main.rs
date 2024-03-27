@@ -597,8 +597,10 @@ resolver = "2"
 
 [workspace.dependencies.fyrox]
 version = "{CURRENT_ENGINE_VERSION}"
+default-features = false
 [workspace.dependencies.fyroxed_base]
 version = "{CURRENT_EDITOR_VERSION}"
+default-features = false
 
 # Optimize the engine in debug builds, but leave project's code non-optimized.
 # By using this technique, you can still debug you code, but engine will be fully
