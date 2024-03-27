@@ -1214,6 +1214,38 @@ pub(crate) fn initialize_resource_manager_loaders(
     });
 }
 
+fn try_copy_library(source_lib_path: &Path, lib_path: &Path) -> Result<(), String> {
+    if let Err(err) = std::fs::copy(source_lib_path, lib_path) {
+        // The library could already be copied and loaded, thus cannot be replaced. For
+        // example - by the running editor, that also uses hot reloading. Check for matching
+        // content, and if does not match, pass the error further.
+        let mut src_lib_file = File::open(source_lib_path).map_err(|e| e.to_string())?;
+        let mut src_lib_file_content = Vec::new();
+        src_lib_file
+            .read_to_end(&mut src_lib_file_content)
+            .map_err(|e| e.to_string())?;
+        let mut lib_file = File::open(lib_path).map_err(|e| e.to_string())?;
+        let mut lib_file_content = Vec::new();
+        lib_file
+            .read_to_end(&mut lib_file_content)
+            .map_err(|e| e.to_string())?;
+        if src_lib_file_content != lib_file_content {
+            return Err(format!(
+                "Unable to clone the library {} to {}. It is required, because source \
+                        library has {} size, but loaded has {} size and the content does not match. \
+                        Exact reason: {:?}",
+                source_lib_path.display(),
+                lib_path.display(),
+                src_lib_file_content.len(),
+                lib_file_content.len(),
+                err
+            ));
+        }
+    }
+
+    Ok(())
+}
+
 impl Engine {
     /// Creates new instance of engine from given initialization parameters. Automatically creates all sub-systems
     /// (sound, ui, resource manager, etc.) **except** graphics context. Graphics context should be created manually
@@ -2401,30 +2433,18 @@ impl Engine {
         };
 
         let plugin = if reload_when_changed {
-            let lib_path = source_lib_path.with_extension("module");
-            if let Err(err) = std::fs::copy(&source_lib_path, &lib_path) {
-                // The library could already be copied and loaded, thus cannot be replaced. For
-                // example - by the running editor, that also uses hot reloading. Check for matching
-                // content, and if does not match, pass the error further.
-                let mut src_lib_file = File::open(&source_lib_path).map_err(|e| e.to_string())?;
-                let mut src_lib_file_content = Vec::new();
-                src_lib_file
-                    .read_to_end(&mut src_lib_file_content)
-                    .map_err(|e| e.to_string())?;
-                let mut lib_file = File::open(&lib_path).map_err(|e| e.to_string())?;
-                let mut lib_file_content = Vec::new();
-                lib_file
-                    .read_to_end(&mut lib_file_content)
-                    .map_err(|e| e.to_string())?;
-                if src_lib_file_content != lib_file_content {
-                    return Err(format!(
-                        "Unable to clone the library {} to {}. Reason: {:?}",
-                        source_lib_path.display(),
-                        lib_path.display(),
-                        err
-                    ));
-                }
-            }
+            // Make sure each process will its own copy of the module. This is needed to prevent
+            // issues when there are two or more running processes and a library of the plugin
+            // changes. If the library is present in one instance in both (or more) processes, then
+            // it is impossible to replace it on disk. To prevent this, we need to add a suffix with
+            // executable name.
+            let mut suffix = std::env::current_exe()
+                .ok()
+                .and_then(|p| p.file_stem().map(|s| s.to_owned()))
+                .unwrap_or_default();
+            suffix.push(".module");
+            let lib_path = source_lib_path.with_extension(suffix);
+            try_copy_library(&source_lib_path, &lib_path)?;
 
             let need_reload = Arc::new(AtomicBool::new(false));
             let need_reload_clone = need_reload.clone();
@@ -2703,7 +2723,7 @@ impl Engine {
             Log::info(format!("Plugin {plugin_index} was unloaded successfully!"));
 
             // Replace the module.
-            std::fs::copy(&source_lib_path, &lib_path).map_err(|e| e.to_string())?;
+            try_copy_library(source_lib_path, lib_path)?;
 
             Log::info(format!(
                 "{plugin_index} plugin's module {} was successfully cloned to {}.",
