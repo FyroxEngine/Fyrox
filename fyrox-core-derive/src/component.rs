@@ -26,6 +26,7 @@ pub struct FieldArgs {
 
 #[derive(FromVariant)]
 #[darling(attributes(component))]
+#[allow(dead_code)] // TODO: Add support for enum variants.
 pub struct VariantArgs {
     pub ident: Ident,
     pub fields: ast::Fields<FieldArgs>,
