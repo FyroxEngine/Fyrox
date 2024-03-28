@@ -147,4 +147,5 @@ jobs:
           cd ../
           fyrox-template init --name test_project --style=3d
           cd test_project
+          fyrox-template upgrade --version=latest --local
           cargo build --package editor

@@ -50,6 +50,10 @@ enum Commands {
     Upgrade {
         #[clap(short, long)]
         version: String,
+        /// If set, specifies path to the engine to `../Fyrox/*` folder. Could be useful for development
+        /// purposes. This option works only if `version` is set to `latest`.
+        #[clap(long, default_value = "false")]
+        local: bool,
     },
 }
 
@@ -772,7 +776,7 @@ fn main() {
         Commands::Script { name } => {
             init_script(&name);
         }
-        Commands::Upgrade { version } => {
+        Commands::Upgrade { version, local } => {
             let semver_regex = Regex::new(include_str!("regex")).unwrap();
 
             if version != "latest" && version != "nightly" && !semver_regex.is_match(&version) {
@@ -822,11 +826,28 @@ fn main() {
                                 .and_then(|i| i.as_table_mut())
                             {
                                 if version == "latest" {
-                                    dependencies["fyrox"] = value(CURRENT_ENGINE_VERSION);
-                                    dependencies["fyroxed_base"] = value(CURRENT_EDITOR_VERSION);
-                                    if dependencies.contains_key("fyrox_scripts") {
-                                        dependencies["fyrox_scripts"] =
-                                            value(CURRENT_SCRIPTS_VERSION);
+                                    if local {
+                                        let mut engine_table = table();
+                                        engine_table["path"] = value("../Fyrox/fyrox");
+                                        dependencies["fyrox"] = engine_table;
+
+                                        let mut editor_table = table();
+                                        editor_table["path"] = value("../Fyrox/editor");
+                                        dependencies["fyroxed_base"] = editor_table;
+
+                                        if dependencies.contains_key("fyrox_scripts") {
+                                            let mut scripts_table = table();
+                                            scripts_table["path"] = value("../Fyrox/fyrox-scripts");
+                                            dependencies["fyrox_scripts"] = scripts_table;
+                                        }
+                                    } else {
+                                        dependencies["fyrox"] = value(CURRENT_ENGINE_VERSION);
+                                        dependencies["fyroxed_base"] =
+                                            value(CURRENT_EDITOR_VERSION);
+                                        if dependencies.contains_key("fyrox_scripts") {
+                                            dependencies["fyrox_scripts"] =
+                                                value(CURRENT_SCRIPTS_VERSION);
+                                        }
                                     }
                                 } else if version == "nightly" {
                                     let mut table = table();
