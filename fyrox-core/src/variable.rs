@@ -2,7 +2,10 @@
 //!
 //! For more info see [`InheritableVariable`]
 
-use crate::{reflect::prelude::*, visitor::prelude::*};
+use crate::{
+    reflect::prelude::*,
+    visitor::{prelude::*, VisitorFlags},
+};
 use bitflags::bitflags;
 use std::{
     any::{Any, TypeId},
@@ -278,7 +281,9 @@ where
                     // region at all.
                     self.flags.get_mut().remove(VariableFlags::MODIFIED);
                 }
-            } else if self.flags.get().contains(VariableFlags::MODIFIED) {
+            } else if self.flags.get().contains(VariableFlags::MODIFIED)
+                || visitor.flags.contains(VisitorFlags::SERIALIZE_EVERYTHING)
+            {
                 let mut region = visitor.enter_region(name)?;
                 self.value.visit("Value", &mut region)?;
                 self.flags.get_mut().0.visit("Flags", &mut region)?;

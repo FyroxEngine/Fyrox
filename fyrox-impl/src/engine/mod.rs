@@ -102,7 +102,7 @@ use crate::scene::node::container::NodeContainer;
 use fyrox_core::notify;
 use fyrox_core::notify::{EventKind, RecursiveMode, Watcher};
 use fyrox_core::pool::{PayloadContainer, Ticket};
-use fyrox_core::visitor::{Visit, Visitor};
+use fyrox_core::visitor::{Visit, Visitor, VisitorFlags};
 use winit::{
     dpi::{Position, Size},
     event_loop::EventLoopWindowTarget,
@@ -2540,7 +2540,13 @@ impl Engine {
         false
     }
 
-    fn read_binary_blob(
+    fn make_writing_visitor() -> Visitor {
+        let mut visitor = Visitor::new();
+        visitor.flags = VisitorFlags::SERIALIZE_EVERYTHING;
+        visitor
+    }
+
+    fn make_reading_visitor(
         binary_blob: &[u8],
         serialization_context: &Arc<SerializationContext>,
         resource_manager: &ResourceManager,
@@ -2629,7 +2635,7 @@ impl Engine {
                     // Take the node out of the graph first.
                     let (ticket, node) = scene.graph.take_reserve(handle);
                     let mut container = NodeContainer::new(node);
-                    let mut visitor = Visitor::new();
+                    let mut visitor = Self::make_writing_visitor();
                     container
                         .visit("Node", &mut visitor)
                         .map_err(|e| e.to_string())?;
@@ -2648,7 +2654,7 @@ impl Engine {
                                 // Take the script out of the node and serialize it. The script will be
                                 // dropped and destroyed.
                                 let mut script = record.script.take();
-                                let mut visitor = Visitor::new();
+                                let mut visitor = Self::make_writing_visitor();
                                 visit_opt_script("Script", &mut script, &mut visitor)
                                     .map_err(|e| e.to_string())?;
                                 let binary_blob =
@@ -2702,7 +2708,7 @@ impl Engine {
 
         // Unload the plugin.
         if let DynamicPluginState::Loaded(dynamic) = state {
-            let mut visitor = Visitor::new();
+            let mut visitor = Self::make_writing_visitor();
             dynamic
                 .plugin_mut()
                 .visit("Plugin", &mut visitor)
@@ -2735,7 +2741,12 @@ impl Engine {
         if let DynamicPluginState::Unloaded { binary_blob } = state {
             let mut dynamic = DynamicPlugin::load(lib_path)?;
 
-            let mut visitor = Visitor::load_from_memory(binary_blob).map_err(|e| e.to_string())?;
+            let mut visitor = Self::make_reading_visitor(
+                binary_blob,
+                &self.serialization_context,
+                &self.resource_manager,
+            )
+            .map_err(|e| e.to_string())?;
             dynamic
                 .plugin_mut()
                 .visit("Plugin", &mut visitor)
@@ -2766,7 +2777,7 @@ impl Engine {
                 if node_state.binary_blob.is_empty() {
                     // Only scripts needs to be reloaded.
                     for script in node_state.scripts {
-                        let mut visitor = Self::read_binary_blob(
+                        let mut visitor = Self::make_reading_visitor(
                             &script.binary_blob,
                             &self.serialization_context,
                             &self.resource_manager,
@@ -2783,7 +2794,7 @@ impl Engine {
                         ));
                     }
                 } else {
-                    let mut visitor = Self::read_binary_blob(
+                    let mut visitor = Self::make_reading_visitor(
                         &node_state.binary_blob,
                         &self.serialization_context,
                         &self.resource_manager,

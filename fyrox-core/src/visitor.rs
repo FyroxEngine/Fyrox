@@ -26,6 +26,7 @@ use crate::{
 };
 
 use base64::Engine;
+use bitflags::bitflags;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use fxhash::FxHashMap;
 use std::any::TypeId;
@@ -1131,6 +1132,13 @@ impl Blackboard {
     }
 }
 
+bitflags! {
+    pub struct VisitorFlags: u32 {
+        const NONE = 0;
+        const SERIALIZE_EVERYTHING = 1 << 1;
+    }
+}
+
 pub struct Visitor {
     nodes: Pool<VisitorNode>,
     rc_map: FxHashMap<u64, Rc<dyn Any>>,
@@ -1139,6 +1147,7 @@ pub struct Visitor {
     current_node: Handle<VisitorNode>,
     root: Handle<VisitorNode>,
     pub blackboard: Blackboard,
+    pub flags: VisitorFlags,
 }
 
 pub trait Visit {
@@ -1165,6 +1174,7 @@ impl Visitor {
             current_node: root,
             root,
             blackboard: Blackboard::new(),
+            flags: VisitorFlags::NONE,
         }
     }
 
@@ -1352,6 +1362,7 @@ impl Visitor {
             current_node: Handle::NONE,
             root: Handle::NONE,
             blackboard: Blackboard::new(),
+            flags: VisitorFlags::NONE,
         };
         visitor.root = visitor.load_node_binary(&mut reader)?;
         visitor.current_node = visitor.root;
