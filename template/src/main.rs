@@ -602,6 +602,14 @@ default-features = false
 version = "{CURRENT_EDITOR_VERSION}"
 default-features = false
 
+# Separate build profiles for hot reloading. These profiles ensures that build artifacts for
+# hot reloading will be placed into their own folders and does not interfere with standard (static)
+# linking.
+[profile.dev-hot-reload]
+inherits = "dev"
+[profile.release-hot-reload]
+inherits = "release"
+
 # Optimize the engine in debug builds, but leave project's code non-optimized.
 # By using this technique, you can still debug you code, but engine will be fully
 # optimized and debug builds won't be terribly slow. With this option, you can

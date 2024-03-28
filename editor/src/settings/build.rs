@@ -105,7 +105,9 @@ impl Default for BuildSettings {
                         "game_dylib".to_string(),
                         "--no-default-features".to_string(),
                         "--features".to_string(),
-                        "dylib-engine".to_string(),
+                        "dylib-engine".to_string(),                  
+                        "--profile".to_string(),
+                        "dev-hot-reload".to_string(),
                     ],
                     environment_variables: vec![EnvironmentVariable {
                         name: "RUSTFLAGS".to_string(),
@@ -121,7 +123,9 @@ impl Default for BuildSettings {
                         "executor".to_string(),  
                         "--no-default-features".to_string(),
                         "--features".to_string(),
-                        "dylib".to_string(),
+                        "dylib".to_string(),                        
+                        "--profile".to_string(),
+                        "dev-hot-reload".to_string(),
                     ],
                     environment_variables: vec![EnvironmentVariable {
                         name: "RUSTFLAGS".to_string(),
@@ -139,7 +143,9 @@ impl Default for BuildSettings {
                         "executor".to_string(), 
                         "--no-default-features".to_string(),
                         "--features".to_string(),
-                        "dylib".to_string(), 
+                        "dylib".to_string(),
+                        "--profile".to_string(),
+                        "dev-hot-reload".to_string(),
                     ],
                     environment_variables: vec![EnvironmentVariable {
                         name: "RUSTFLAGS".to_string(),
