@@ -249,11 +249,10 @@ edition = "2021"
 [dependencies]
 fyrox = {{ workspace = true }}
 {name} = {{ path = "../game", optional = true }}
-game_dylib = {{ path = "../game-dylib", optional = true }}
 
 [features]
 default = ["{name}"]
-dylib = ["game_dylib"]
+dylib = []
 "#,
         ),
     );
