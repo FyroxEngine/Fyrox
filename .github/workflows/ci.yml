@@ -141,6 +141,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: |
           cargo install fyrox-template --path=template --force
+          cd ../
           mkdir test_project
           cd test_project
           fyrox-template init --name test_project --style=3d
