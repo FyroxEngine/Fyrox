@@ -131,3 +131,17 @@ jobs:
         run: cargo doc --all-features
         env:
           RUSTDOCFLAGS: --deny warnings
+
+  template:
+    name: Project Template
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: |
+          cargo install fyrox-template --path=template --force
+          mkdir test_project
+          cd test_project
+          fyrox-template init --name test_project --style=3d
+          cargo build --package editor
