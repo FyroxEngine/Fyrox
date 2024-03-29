@@ -43,17 +43,10 @@ jobs:
 
       - run: rustc --version && cargo --version
 
-      - name: Set env variables (Windows)
-        if: ${{ matrix.os == 'windows-latest' }}
+      - name: Build and test
+        env:
+          RUSTFLAGS: -C prefer-dynamic=yes
         run: |
-          $Env:RUSTFLAGS = '-C prefer-dynamic=yes'
-          cargo build --verbose --workspace --all-targets --all-features --profile github-ci
-          cargo test --verbose --workspace --all-features --profile github-ci
-
-      - name: Set env variables (Unix)
-        if: ${{ matrix.os != 'windows-latest' }}
-        run: |
-          export RUSTFLAGS="-C prefer-dynamic=yes"
           cargo build --verbose --workspace --all-targets --all-features --profile github-ci
           cargo test --verbose --workspace --all-features --profile github-ci
 
@@ -143,6 +136,9 @@ jobs:
         run: |
           cargo install fyrox-template --path=template --force
       - name: Generate and run project
+        env:
+          # Suppress warnings, because project template contains a lot of unused method arguments.
+          RUSTFLAGS: -Awarnings
         run: |
           cd ../
           fyrox-template init --name test_project --style=3d

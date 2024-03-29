@@ -23,6 +23,7 @@ pub struct FbxMeshGeometry {
     pub uvs: Option<FbxLayerElement<Vector2<f32>>>,
     pub materials: Option<FbxLayerElement<i32>>,
     pub tangents: Option<FbxLayerElement<Vector3<f32>>>,
+    #[allow(dead_code)] // TODO: Use binormals.
     pub binormals: Option<FbxLayerElement<Vector3<f32>>>,
 
     pub deformers: Vec<Handle<FbxComponent>>,
