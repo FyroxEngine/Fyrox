@@ -30,6 +30,7 @@ use crate::{
     utils::raw_mesh::{RawMesh, RawMeshBuilder},
 };
 use fxhash::{FxHashMap, FxHasher};
+use fyrox_core::log::Log;
 use fyrox_core::uuid_provider;
 use fyrox_resource::untyped::ResourceKind;
 use half::f16;
@@ -282,6 +283,15 @@ impl SurfaceData {
             let v1 = view1.read_3_f32(VertexAttributeUsage::Position)?;
             let v2 = view2.read_3_f32(VertexAttributeUsage::Position)?;
             let v3 = view3.read_3_f32(VertexAttributeUsage::Position)?;
+
+            // Check for degenerated triangles
+            if v1 == v2 || v1 == v3 || v2 == v3 {
+                Log::warn(format!(
+                    "Degenerated triangle found when calculating tangents. Lighting may be \
+                    incorrect! Triangle indices: {:?}. Triangle vertices: {v1} {v2} {v3}",
+                    triangle,
+                ));
+            }
 
             let w1 = view1.read_3_f32(VertexAttributeUsage::TexCoord0)?;
             let w2 = view2.read_3_f32(VertexAttributeUsage::TexCoord0)?;
