@@ -2770,6 +2770,7 @@ impl Engine {
         // Deserialize scene content.
         for scene_state in scenes_state {
             let scene = &mut self.scenes[scene_state.scene];
+            let script_message_sender = scene.graph.script_message_sender.clone();
 
             for node_state in scene_state.nodes {
                 let node = &mut scene.graph[node_state.node];
@@ -2804,7 +2805,8 @@ impl Engine {
                     container
                         .visit("Node", &mut visitor)
                         .map_err(|e| e.to_string())?;
-                    if let Some(new_node) = container.take() {
+                    if let Some(mut new_node) = container.take() {
+                        new_node.script_message_sender = Some(script_message_sender.clone());
                         *node = new_node;
 
                         Log::info(format!(
