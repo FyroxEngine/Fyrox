@@ -1056,6 +1056,16 @@ where
         }
     }
 
+    /// Returns a reference to the first element in the pool (if any).
+    pub fn first_ref(&self) -> Option<&T> {
+        self.iter().next()
+    }
+
+    /// Returns a reference to the first element in the pool (if any).
+    pub fn first_mut(&mut self) -> Option<&mut T> {
+        self.iter_mut().next()
+    }
+
     /// Checks if given handle "points" to some object.
     ///
     /// # Example
