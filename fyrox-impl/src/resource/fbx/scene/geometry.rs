@@ -228,6 +228,7 @@ pub struct FbxShapeGeometry {
     // The rest is optional.
     pub normals: Option<Vec<Vector3<f32>>>,
     pub tangents: Option<Vec<Vector3<f32>>>,
+    #[allow(dead_code)] // TODO: Use binormals.
     pub binormals: Option<Vec<Vector3<f32>>>,
 }
 
