@@ -234,7 +234,9 @@ impl Executor {
                     }
 
                     if let Some(os_event) = translate_event(&event) {
-                        engine.user_interface.process_os_event(&os_event);
+                        for ui in engine.user_interfaces.iter_mut() {
+                            ui.process_os_event(&os_event);
+                        }
                     }
                 }
                 _ => (),

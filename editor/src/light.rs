@@ -200,7 +200,7 @@ impl LightPanel {
 
         let generate;
         let inspector;
-        let ctx = &mut engine.user_interface.build_ctx();
+        let ctx = &mut engine.user_interfaces.first_mut().build_ctx();
         let window = WindowBuilder::new(
             WidgetBuilder::new()
                 .with_name("LightPanel")
@@ -285,11 +285,11 @@ impl LightPanel {
                 let cancellation_token = CancellationToken::new();
 
                 let progress_window = ProgressWindow::new(
-                    &mut engine.user_interface.build_ctx(),
+                    &mut engine.user_interfaces.first_mut().build_ctx(),
                     progress_indicator.clone(),
                     cancellation_token.clone(),
                 );
-                progress_window.open(&engine.user_interface);
+                progress_window.open(engine.user_interfaces.first());
                 self.progress_window = Some(progress_window);
 
                 if let Ok(input_data) = LightmapInputData::from_scene(
@@ -359,7 +359,7 @@ impl LightPanel {
 
     pub fn update(&mut self, game_scene: &GameScene, engine: &mut Engine) {
         if let Some(progress_window) = self.progress_window.as_ref() {
-            progress_window.show_progress(&engine.user_interface);
+            progress_window.show_progress(engine.user_interfaces.first());
         }
 
         if let Ok(result) = self.receiver.try_recv() {
@@ -376,7 +376,7 @@ impl LightPanel {
             }
 
             if let Some(progress_window) = self.progress_window.take() {
-                progress_window.close(&engine.user_interface);
+                progress_window.close(engine.user_interfaces.first());
             }
         }
     }

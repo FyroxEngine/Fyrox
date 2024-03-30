@@ -274,7 +274,7 @@ use fyrox_resource::{
 };
 use serde::{Deserialize, Serialize};
 use std::any::TypeId;
-use std::ops::Deref;
+use std::ops::{Deref, Index, IndexMut};
 use std::{
     any::Any,
     cell::{Ref, RefCell, RefMut},
@@ -760,6 +760,139 @@ impl Clone for UserInterface {
 impl Default for UserInterface {
     fn default() -> Self {
         Self::new(Vector2::new(100.0, 100.0))
+    }
+}
+
+#[derive(Default)]
+pub struct UiContainer {
+    pool: Pool<UserInterface>,
+}
+
+impl UiContainer {
+    /// Creates a new user interface container.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Creates a new user interface container with the given user interface.
+    pub fn new_with_ui(ui: UserInterface) -> Self {
+        let mut pool = Pool::new();
+        let _ = pool.spawn(ui);
+        Self { pool }
+    }
+
+    /// Returns a reference to the first user interface in the container. Panics, if the container
+    /// is empty.
+    pub fn first(&self) -> &UserInterface {
+        self.pool
+            .first_ref()
+            .expect("The container must have at least one user interface.")
+    }
+
+    /// Returns a reference to the first user interface in the container. Panics, if the container
+    /// is empty.
+    pub fn first_mut(&mut self) -> &mut UserInterface {
+        self.pool
+            .first_mut()
+            .expect("The container must have at least one user interface.")
+    }
+
+    /// Return true if given handle is valid and "points" to "alive" user interface.
+    pub fn is_valid_handle(&self, handle: Handle<UserInterface>) -> bool {
+        self.pool.is_valid_handle(handle)
+    }
+
+    /// Returns pair iterator which yields (handle, user_interface_ref) pairs.
+    pub fn pair_iter(&self) -> impl Iterator<Item = (Handle<UserInterface>, &UserInterface)> {
+        self.pool.pair_iter()
+    }
+
+    /// Returns pair iterator which yields (handle, user_interface_ref) pairs.
+    pub fn pair_iter_mut(
+        &mut self,
+    ) -> impl Iterator<Item = (Handle<UserInterface>, &mut UserInterface)> {
+        self.pool.pair_iter_mut()
+    }
+
+    /// Tries to borrow a user interface using its handle.
+    pub fn try_get(&self, handle: Handle<UserInterface>) -> Option<&UserInterface> {
+        self.pool.try_borrow(handle)
+    }
+
+    /// Tries to borrow a user interface using its handle.
+    pub fn try_get_mut(&mut self, handle: Handle<UserInterface>) -> Option<&mut UserInterface> {
+        self.pool.try_borrow_mut(handle)
+    }
+
+    /// Creates new iterator over user interfaces in container.
+    #[inline]
+    pub fn iter(&self) -> impl Iterator<Item = &UserInterface> {
+        self.pool.iter()
+    }
+
+    /// Creates new mutable iterator over user interfaces in container.
+    #[inline]
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut UserInterface> {
+        self.pool.iter_mut()
+    }
+
+    /// Adds a new user interface into container.
+    #[inline]
+    pub fn add(&mut self, scene: UserInterface) -> Handle<UserInterface> {
+        self.pool.spawn(scene)
+    }
+
+    /// Removes all user interfaces from container.
+    #[inline]
+    pub fn clear(&mut self) {
+        self.pool.clear()
+    }
+
+    /// Removes the given user interface from container. The user interface will be destroyed
+    /// immediately.
+    #[inline]
+    pub fn remove(&mut self, handle: Handle<UserInterface>) {
+        self.pool.free(handle);
+    }
+
+    /// Takes a user interface from the container and transfers ownership to caller. You must either
+    /// put the user interface back using ticket or call `forget_ticket` to make memory used by the
+    /// user interface vacant again.
+    pub fn take_reserve(
+        &mut self,
+        handle: Handle<UserInterface>,
+    ) -> (Ticket<UserInterface>, UserInterface) {
+        self.pool.take_reserve(handle)
+    }
+
+    /// Puts a user interface back to the container using its ticket.
+    pub fn put_back(
+        &mut self,
+        ticket: Ticket<UserInterface>,
+        scene: UserInterface,
+    ) -> Handle<UserInterface> {
+        self.pool.put_back(ticket, scene)
+    }
+
+    /// Forgets ticket of a user interface, making place at which ticket points, vacant again.
+    pub fn forget_ticket(&mut self, ticket: Ticket<UserInterface>) {
+        self.pool.forget_ticket(ticket)
+    }
+}
+
+impl Index<Handle<UserInterface>> for UiContainer {
+    type Output = UserInterface;
+
+    #[inline]
+    fn index(&self, index: Handle<UserInterface>) -> &Self::Output {
+        &self.pool[index]
+    }
+}
+
+impl IndexMut<Handle<UserInterface>> for UiContainer {
+    #[inline]
+    fn index_mut(&mut self, index: Handle<UserInterface>) -> &mut Self::Output {
+        &mut self.pool[index]
     }
 }
 

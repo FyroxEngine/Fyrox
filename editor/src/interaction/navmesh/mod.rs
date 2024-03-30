@@ -150,7 +150,8 @@ impl NavmeshPanel {
 
         if navmesh_selected {
             engine
-                .user_interface
+                .user_interfaces
+                .first()
                 .send_message(WindowMessage::open_and_align(
                     self.window,
                     MessageDirection::ToWidget,
@@ -161,10 +162,13 @@ impl NavmeshPanel {
                     false,
                 ));
         } else {
-            engine.user_interface.send_message(WindowMessage::close(
-                self.window,
-                MessageDirection::ToWidget,
-            ));
+            engine
+                .user_interfaces
+                .first()
+                .send_message(WindowMessage::close(
+                    self.window,
+                    MessageDirection::ToWidget,
+                ));
         }
     }
 
@@ -276,7 +280,12 @@ impl InteractionMode for EditNavmeshMode {
                 .try_get_of_type::<NavigationalMesh>(selection.navmesh_node())
                 .map(|n| n.navmesh_ref())
             {
-                let mut new_selection = if engine.user_interface.keyboard_modifiers().shift {
+                let mut new_selection = if engine
+                    .user_interfaces
+                    .first_mut()
+                    .keyboard_modifiers()
+                    .shift
+                {
                     selection
                 } else {
                     NavmeshSelection::empty(selection.navmesh_node())
@@ -446,7 +455,11 @@ impl InteractionMode for EditNavmeshMode {
                 // holding Shift key. This is the main navmesh construction mode.
                 if selection.entities().len() == 1 {
                     if let NavmeshEntity::Edge(edge) = selection.entities().first().unwrap() {
-                        if engine.user_interface.keyboard_modifiers().shift
+                        if engine
+                            .user_interfaces
+                            .first_mut()
+                            .keyboard_modifiers()
+                            .shift
                             && !self.drag_context.as_ref().unwrap().is_edge_duplication()
                         {
                             let new_begin = navmesh.vertices()[edge.a as usize];
@@ -622,7 +635,13 @@ impl InteractionMode for EditNavmeshMode {
 
                     true
                 }
-                KeyCode::KeyA if engine.user_interface.keyboard_modifiers().control => {
+                KeyCode::KeyA
+                    if engine
+                        .user_interfaces
+                        .first_mut()
+                        .keyboard_modifiers()
+                        .control =>
+                {
                     if let Some(navmesh) = scene
                         .graph
                         .try_get_of_type::<NavigationalMesh>(selection.navmesh_node())

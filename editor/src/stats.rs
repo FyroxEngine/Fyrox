@@ -76,11 +76,14 @@ impl StatisticsWindow {
     pub fn update(&self, engine: &Engine) {
         if let GraphicsContext::Initialized(ref graphics_context) = engine.graphics_context {
             let statistics = graphics_context.renderer.get_statistics().to_string();
-            engine.user_interface.send_message(TextMessage::text(
-                self.text,
-                MessageDirection::ToWidget,
-                statistics,
-            ));
+            engine
+                .user_interfaces
+                .first()
+                .send_message(TextMessage::text(
+                    self.text,
+                    MessageDirection::ToWidget,
+                    statistics,
+                ));
         }
     }
 }

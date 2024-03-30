@@ -61,7 +61,7 @@ impl InteractionMode for UiSelectInteractionMode {
         _settings: &Settings,
     ) {
         self.click_pos = mouse_pos;
-        let ui = &mut engine.user_interface;
+        let ui = &mut engine.user_interfaces.first_mut();
         ui.send_message(WidgetMessage::visibility(
             self.selection_frame,
             MessageDirection::ToWidget,
@@ -97,9 +97,14 @@ impl InteractionMode for UiSelectInteractionMode {
             return;
         };
 
-        let preview_screen_bounds = engine.user_interface.node(self.preview).screen_bounds();
+        let preview_screen_bounds = engine
+            .user_interfaces
+            .first_mut()
+            .node(self.preview)
+            .screen_bounds();
         let frame_screen_bounds = engine
-            .user_interface
+            .user_interfaces
+            .first_mut()
             .node(self.selection_frame)
             .screen_bounds();
         let relative_bounds = frame_screen_bounds.translate(-preview_screen_bounds.position);
@@ -128,7 +133,8 @@ impl InteractionMode for UiSelectInteractionMode {
                 .do_command(ChangeSelectionCommand::new(new_selection));
         }
         engine
-            .user_interface
+            .user_interfaces
+            .first_mut()
             .send_message(WidgetMessage::visibility(
                 self.selection_frame,
                 MessageDirection::ToWidget,
@@ -146,7 +152,7 @@ impl InteractionMode for UiSelectInteractionMode {
         _frame_size: Vector2<f32>,
         _settings: &Settings,
     ) {
-        let ui = &mut engine.user_interface;
+        let ui = &mut engine.user_interfaces.first_mut();
         let width = mouse_position.x - self.click_pos.x;
         let height = mouse_position.y - self.click_pos.y;
 

@@ -12,11 +12,12 @@ use crate::{
         ScriptProcessor, SerializationContext,
     },
     event::Event,
-    gui::{message::UiMessage, UserInterface},
+    gui::message::UiMessage,
     plugin::dynamic::DynamicPlugin,
     scene::{Scene, SceneContainer},
 };
 use fyrox_ui::inspector::editors::PropertyEditorDefinitionContainer;
+use fyrox_ui::UiContainer;
 use std::{
     any::Any,
     ops::{Deref, DerefMut},
@@ -123,8 +124,10 @@ pub struct PluginContext<'a, 'b> {
     /// them. See [`ResourceManager`] docs for more info.
     pub resource_manager: &'a ResourceManager,
 
-    /// A reference to user interface instance.
-    pub user_interface: &'a mut UserInterface,
+    /// A reference to user interface container of the engine. The engine guarantees that there's
+    /// at least one user interface exists. Use `context.user_interfaces.first()/first_mut()` to
+    /// get a reference to it.
+    pub user_interfaces: &'a mut UiContainer,
 
     /// A reference to the graphics_context, it contains a reference to the window and the current renderer.
     /// It could be [`GraphicsContext::Uninitialized`] if your application is suspended (possible only on

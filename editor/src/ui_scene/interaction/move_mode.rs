@@ -123,7 +123,11 @@ impl InteractionMode for MoveWidgetsInteractionMode {
             if picked.is_some() {
                 let mut new_selection = if let (Some(current), true) = (
                     editor_selection.as_ui(),
-                    engine.user_interface.keyboard_modifiers().control,
+                    engine
+                        .user_interfaces
+                        .first_mut()
+                        .keyboard_modifiers()
+                        .control,
                 ) {
                     current.clone()
                 } else {

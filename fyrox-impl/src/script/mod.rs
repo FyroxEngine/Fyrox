@@ -20,7 +20,7 @@ use crate::{
     plugin::Plugin,
     scene::{node::Node, Scene},
 };
-use fyrox_ui::UserInterface;
+use fyrox_ui::UiContainer;
 use std::{
     any::{Any, TypeId},
     fmt::{Debug, Formatter},
@@ -343,8 +343,10 @@ pub struct ScriptContext<'a, 'b, 'c> {
     /// Current graphics context of the engine. See [`GraphicsContext`] docs for more info.
     pub graphics_context: &'a mut GraphicsContext,
 
-    /// A reference to the user interface.
-    pub user_interface: &'a mut UserInterface,
+    /// A reference to user interface container of the engine. The engine guarantees that there's
+    /// at least one user interface exists. Use `context.user_interfaces.first()/first_mut()` to
+    /// get a reference to it.
+    pub user_interfaces: &'a mut UiContainer,
 
     /// Index of the script. Never save this index, it is only valid while this context exists!
     pub script_index: usize,
@@ -418,8 +420,10 @@ pub struct ScriptMessageContext<'a, 'b, 'c> {
     /// Current graphics context of the engine. See [`GraphicsContext`] docs for more info.
     pub graphics_context: &'a mut GraphicsContext,
 
-    /// A reference to the user interface.
-    pub user_interface: &'a mut UserInterface,
+    /// A reference to user interface container of the engine. The engine guarantees that there's
+    /// at least one user interface exists. Use `context.user_interfaces.first()/first_mut()` to
+    /// get a reference to it.
+    pub user_interfaces: &'a mut UiContainer,
 
     /// Index of the script. Never save this index, it is only valid while this context exists!
     pub script_index: usize,
@@ -484,8 +488,10 @@ pub struct ScriptDeinitContext<'a, 'b, 'c> {
     /// Current graphics context of the engine. See [`GraphicsContext`] docs for more info.
     pub graphics_context: &'a mut GraphicsContext,
 
-    /// A reference to the user interface.
-    pub user_interface: &'a mut UserInterface,
+    /// A reference to user interface container of the engine. The engine guarantees that there's
+    /// at least one user interface exists. Use `context.user_interfaces.first()/first_mut()` to
+    /// get a reference to it.
+    pub user_interfaces: &'a mut UiContainer,
 
     /// Index of the script. Never save this index, it is only valid while this context exists!
     pub script_index: usize,

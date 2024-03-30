@@ -83,7 +83,7 @@ impl SceneSettingsWindow {
     }
 
     pub fn sync_to_model(&self, game_scene: &GameScene, engine: &mut Engine) {
-        let ui = &mut engine.user_interface;
+        let ui = &mut engine.user_interfaces.first_mut();
         let scene = &engine.scenes[game_scene.scene];
 
         let context = InspectorContext::from_object(

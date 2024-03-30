@@ -95,7 +95,7 @@ fn open_in_explorer<P: AsRef<Path>>(path: P) {
 }
 
 fn put_path_to_clipboard(engine: &mut Engine, path: &OsStr) {
-    if let Some(mut clipboard) = engine.user_interface.clipboard_mut() {
+    if let Some(mut clipboard) = engine.user_interfaces.first_mut().clipboard_mut() {
         Log::verify(clipboard.set_contents(path.to_string_lossy().to_string()));
     }
 }
@@ -178,7 +178,8 @@ impl ContextMenu {
             }
         } else if let Some(MenuItemMessage::Click) = message.data() {
             if let Some(item) = engine
-                .user_interface
+                .user_interfaces
+                .first_mut()
                 .try_get(self.placement_target)
                 .and_then(|n| n.cast::<AssetItem>())
             {
@@ -347,11 +348,14 @@ impl ResourceCreator {
                 && message.direction() == MessageDirection::FromWidget
             {
                 self.selected = Some(*index);
-                engine.user_interface.send_message(WidgetMessage::enabled(
-                    self.ok,
-                    MessageDirection::ToWidget,
-                    true,
-                ));
+                engine
+                    .user_interfaces
+                    .first_mut()
+                    .send_message(WidgetMessage::enabled(
+                        self.ok,
+                        MessageDirection::ToWidget,
+                        true,
+                    ));
 
                 // Propose extension for the resource.
                 let resource_manager_state = engine.resource_manager.state();
@@ -368,11 +372,14 @@ impl ResourceCreator {
                             let mut path = PathBuf::from(&self.name_str);
                             path.set_extension(first);
 
-                            engine.user_interface.send_message(TextMessage::text(
-                                self.name,
-                                MessageDirection::ToWidget,
-                                path.to_string_lossy().to_string(),
-                            ));
+                            engine
+                                .user_interfaces
+                                .first_mut()
+                                .send_message(TextMessage::text(
+                                    self.name,
+                                    MessageDirection::ToWidget,
+                                    path.to_string_lossy().to_string(),
+                                ));
                         }
                     }
                 }
@@ -414,10 +421,13 @@ impl ResourceCreator {
             }
 
             if message.destination() == self.ok || message.destination() == self.cancel {
-                engine.user_interface.send_message(WindowMessage::close(
-                    self.window,
-                    MessageDirection::ToWidget,
-                ));
+                engine
+                    .user_interfaces
+                    .first_mut()
+                    .send_message(WindowMessage::close(
+                        self.window,
+                        MessageDirection::ToWidget,
+                    ));
             }
         } else if let Some(TextMessage::Text(text)) = message.data() {
             if message.destination() == self.name
@@ -460,7 +470,7 @@ fn is_supported_resource(ext: &OsStr, resource_manager: &ResourceManager) -> boo
 impl AssetBrowser {
     pub fn new(engine: &mut Engine) -> Self {
         let preview = PreviewPanel::new(engine, 250, 250);
-        let ctx = &mut engine.user_interface.build_ctx();
+        let ctx = &mut engine.user_interfaces.first_mut().build_ctx();
 
         let inspector = AssetInspector::new(ctx, 1, 0);
 
@@ -614,21 +624,27 @@ impl AssetBrowser {
     pub fn set_working_directory(&mut self, engine: &mut Engine, dir: &Path) {
         assert!(dir.is_dir());
 
-        engine.user_interface.send_message(FileBrowserMessage::root(
-            self.folder_browser,
-            MessageDirection::ToWidget,
-            Some(dir.to_owned()),
-        ));
+        engine
+            .user_interfaces
+            .first_mut()
+            .send_message(FileBrowserMessage::root(
+                self.folder_browser,
+                MessageDirection::ToWidget,
+                Some(dir.to_owned()),
+            ));
 
-        engine.user_interface.send_message(FileBrowserMessage::path(
-            self.folder_browser,
-            MessageDirection::ToWidget,
-            "./".into(),
-        ));
+        engine
+            .user_interfaces
+            .first_mut()
+            .send_message(FileBrowserMessage::path(
+                self.folder_browser,
+                MessageDirection::ToWidget,
+                "./".into(),
+            ));
 
         self.set_path(
             Path::new("./"),
-            &mut engine.user_interface,
+            engine.user_interfaces.first_mut(),
             &engine.resource_manager,
         );
     }
@@ -762,7 +778,7 @@ impl AssetBrowser {
         self.context_menu
             .handle_ui_message(message, &sender, engine);
         self.dependency_viewer
-            .handle_ui_message(message, &mut engine.user_interface);
+            .handle_ui_message(message, engine.user_interfaces.first_mut());
         if let Some(resource_creator) = self.resource_creator.as_mut() {
             let asset_added = resource_creator.handle_ui_message(
                 message,
@@ -771,11 +787,11 @@ impl AssetBrowser {
                 &self.selected_path,
             );
             if asset_added {
-                self.refresh(&mut engine.user_interface, &engine.resource_manager);
+                self.refresh(engine.user_interfaces.first_mut(), &engine.resource_manager);
             }
         }
 
-        let ui = &mut engine.user_interface;
+        let ui = &mut engine.user_interfaces.first_mut();
 
         if let Some(AssetItemMessage::Select(true)) = message.data::<AssetItemMessage>() {
             // Deselect other items.
@@ -884,7 +900,8 @@ impl AssetBrowser {
         } else if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination() == self.context_menu.dependencies {
                 if let Some(item) = engine
-                    .user_interface
+                    .user_interfaces
+                    .first_mut()
                     .try_get(self.context_menu.placement_target)
                     .and_then(|n| n.cast::<AssetItem>())
                 {
@@ -892,17 +909,20 @@ impl AssetBrowser {
                         block_on(engine.resource_manager.request_untyped(&item.path))
                     {
                         self.dependency_viewer
-                            .open(&resource, &mut engine.user_interface);
+                            .open(&resource, engine.user_interfaces.first_mut());
                     }
                 }
             }
         } else if let Some(WindowMessage::Close) = message.data() {
             if let Some(resource_creator) = self.resource_creator.as_ref() {
                 if message.destination() == resource_creator.window {
-                    engine.user_interface.send_message(WidgetMessage::remove(
-                        resource_creator.window,
-                        MessageDirection::ToWidget,
-                    ));
+                    engine
+                        .user_interfaces
+                        .first_mut()
+                        .send_message(WidgetMessage::remove(
+                            resource_creator.window,
+                            MessageDirection::ToWidget,
+                        ));
 
                     self.resource_creator = None;
                 }
@@ -910,11 +930,11 @@ impl AssetBrowser {
         } else if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.add_resource {
                 let resource_creator = ResourceCreator::new(
-                    &mut engine.user_interface.build_ctx(),
+                    &mut engine.user_interfaces.first_mut().build_ctx(),
                     &engine.resource_manager,
                 );
 
-                resource_creator.open(&engine.user_interface);
+                resource_creator.open(engine.user_interfaces.first());
 
                 self.resource_creator = Some(resource_creator);
             }

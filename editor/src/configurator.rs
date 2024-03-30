@@ -245,11 +245,14 @@ impl Configurator {
 
     fn validate(&mut self, engine: &mut Engine) {
         let is_valid_scene_path = self.work_dir.exists();
-        engine.user_interface.send_message(WidgetMessage::enabled(
-            self.ok,
-            MessageDirection::ToWidget,
-            is_valid_scene_path,
-        ));
+        engine
+            .user_interfaces
+            .first_mut()
+            .send_message(WidgetMessage::enabled(
+                self.ok,
+                MessageDirection::ToWidget,
+                is_valid_scene_path,
+            ));
     }
 
     pub fn handle_ui_message(&mut self, message: &UiMessage, engine: &mut Engine) {
@@ -271,11 +274,14 @@ impl Configurator {
                 let entry = &self.history[index];
                 self.work_dir = entry.work_dir.clone();
 
-                engine.user_interface.send_message(TextMessage::text(
-                    self.tb_work_dir,
-                    MessageDirection::ToWidget,
-                    self.work_dir.to_string_lossy().to_string(),
-                ));
+                engine
+                    .user_interfaces
+                    .first_mut()
+                    .send_message(TextMessage::text(
+                        self.tb_work_dir,
+                        MessageDirection::ToWidget,
+                        self.work_dir.to_string_lossy().to_string(),
+                    ));
 
                 self.validate(engine);
             }
@@ -285,11 +291,14 @@ impl Configurator {
             if message.destination() == self.work_dir_browser {
                 if let Ok(work_dir) = path.clone().canonicalize() {
                     self.work_dir = work_dir;
-                    engine.user_interface.send_message(TextMessage::text(
-                        self.tb_work_dir,
-                        MessageDirection::ToWidget,
-                        self.work_dir.to_string_lossy().to_string(),
-                    ));
+                    engine
+                        .user_interfaces
+                        .first_mut()
+                        .send_message(TextMessage::text(
+                            self.tb_work_dir,
+                            MessageDirection::ToWidget,
+                            self.work_dir.to_string_lossy().to_string(),
+                        ));
 
                     self.validate(engine);
                 }
@@ -307,12 +316,13 @@ impl Configurator {
                     self.history.push(new_entry);
 
                     let widget = make_history_entry_widget(
-                        &mut engine.user_interface.build_ctx(),
+                        &mut engine.user_interfaces.first_mut().build_ctx(),
                         self.history.last().unwrap(),
                     );
 
                     engine
-                        .user_interface
+                        .user_interfaces
+                        .first_mut()
                         .send_message(ListViewMessage::add_item(
                             self.lv_history,
                             MessageDirection::ToWidget,
@@ -320,13 +330,17 @@ impl Configurator {
                         ));
                 }
 
-                engine.user_interface.send_message(WindowMessage::close(
-                    self.window,
-                    MessageDirection::ToWidget,
-                ));
+                engine
+                    .user_interfaces
+                    .first_mut()
+                    .send_message(WindowMessage::close(
+                        self.window,
+                        MessageDirection::ToWidget,
+                    ));
             } else if message.destination() == self.select_work_dir {
                 engine
-                    .user_interface
+                    .user_interfaces
+                    .first_mut()
                     .send_message(WindowMessage::open_modal(
                         self.work_dir_browser,
                         MessageDirection::ToWidget,

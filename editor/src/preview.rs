@@ -169,7 +169,7 @@ impl PreviewPanel {
 
         let scene = engine.scenes.add(scene);
 
-        let ctx = &mut engine.user_interface.build_ctx();
+        let ctx = &mut engine.user_interfaces.first_mut().build_ctx();
         let frame;
         let fit;
         let tools_panel;
@@ -301,7 +301,7 @@ impl PreviewPanel {
                     }
                     WidgetMessage::MouseDown { button, pos } => {
                         self.prev_mouse_pos = pos;
-                        engine.user_interface.capture_mouse(self.frame);
+                        engine.user_interfaces.first_mut().capture_mouse(self.frame);
                         if button == MouseButton::Left {
                             self.mode = Mode::Rotate;
                         } else if button == MouseButton::Middle {
@@ -313,7 +313,7 @@ impl PreviewPanel {
                             && self.mode != Mode::None
                             && !message.handled()
                         {
-                            engine.user_interface.release_mouse_capture();
+                            engine.user_interfaces.first_mut().release_mouse_capture();
                             self.mode = Mode::None;
                         }
                     }
@@ -380,17 +380,25 @@ impl PreviewPanel {
         } else {
             unreachable!();
         };
-        if let Some(frame) = engine.user_interface.node(self.frame).cast::<Image>() {
+        if let Some(frame) = engine
+            .user_interfaces
+            .first_mut()
+            .node(self.frame)
+            .cast::<Image>()
+        {
             let frame_size = frame.actual_local_size();
             if rt_width != frame_size.x as u32 || rt_height != frame_size.y as u32 {
                 let rt =
                     TextureResource::new_render_target(frame_size.x as u32, frame_size.y as u32);
                 scene.rendering_options.render_target = Some(rt.clone());
-                engine.user_interface.send_message(ImageMessage::texture(
-                    self.frame,
-                    MessageDirection::ToWidget,
-                    Some(rt.into()),
-                ));
+                engine
+                    .user_interfaces
+                    .first_mut()
+                    .send_message(ImageMessage::texture(
+                        self.frame,
+                        MessageDirection::ToWidget,
+                        Some(rt.into()),
+                    ));
             }
         }
     }

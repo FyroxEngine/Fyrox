@@ -1581,10 +1581,10 @@ impl Renderer {
         self.geometry_cache.update(dt);
     }
 
-    fn render_frame(
+    fn render_frame<'a>(
         &mut self,
         scenes: &SceneContainer,
-        drawing_context: &DrawingContext,
+        drawing_contexts: impl Iterator<Item = &'a DrawingContext>,
     ) -> Result<(), FrameworkError> {
         scope_profile!();
 
@@ -1925,30 +1925,32 @@ impl Renderer {
             .set_polygon_fill_mode(PolygonFace::FrontAndBack, PolygonFillMode::Fill);
 
         // Render UI on top of everything without gamma correction.
-        self.statistics += self.ui_renderer.render(UiRenderContext {
-            state: &mut self.state,
-            viewport: window_viewport,
-            frame_buffer: &mut self.backbuffer,
-            frame_width: backbuffer_width,
-            frame_height: backbuffer_height,
-            drawing_context,
-            white_dummy: self.white_dummy.clone(),
-            texture_cache: &mut self.texture_cache,
-        })?;
+        for drawing_context in drawing_contexts {
+            self.statistics += self.ui_renderer.render(UiRenderContext {
+                state: &mut self.state,
+                viewport: window_viewport,
+                frame_buffer: &mut self.backbuffer,
+                frame_width: backbuffer_width,
+                frame_height: backbuffer_height,
+                drawing_context,
+                white_dummy: self.white_dummy.clone(),
+                texture_cache: &mut self.texture_cache,
+            })?;
+        }
 
         Ok(())
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) fn render_and_swap_buffers(
+    pub(crate) fn render_and_swap_buffers<'a>(
         &mut self,
         scenes: &SceneContainer,
-        drawing_context: &DrawingContext,
+        drawing_contexts: impl Iterator<Item = &'a DrawingContext>,
         surface: &Surface<WindowSurface>,
         context: &PossiblyCurrentContext,
         window: &Window,
     ) -> Result<(), FrameworkError> {
-        self.render_frame(scenes, drawing_context)?;
+        self.render_frame(scenes, drawing_contexts)?;
         self.statistics.end_frame();
         window.pre_present_notify();
         surface.swap_buffers(context)?;
@@ -1958,12 +1960,12 @@ impl Renderer {
     }
 
     #[cfg(target_arch = "wasm32")]
-    pub(crate) fn render_and_swap_buffers(
+    pub(crate) fn render_and_swap_buffers<'a>(
         &mut self,
         scenes: &SceneContainer,
-        drawing_context: &DrawingContext,
+        drawing_contexts: impl Iterator<Item = &'a DrawingContext>,
     ) -> Result<(), FrameworkError> {
-        self.render_frame(scenes, drawing_context)?;
+        self.render_frame(scenes, drawing_contexts)?;
         self.statistics.end_frame();
         self.statistics.finalize();
         self.statistics.pipeline = self.state.pipeline_statistics();

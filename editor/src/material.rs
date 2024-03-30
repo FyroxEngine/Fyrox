@@ -257,7 +257,7 @@ impl MaterialEditor {
             .build(graph);
         preview.set_model(sphere, engine);
 
-        let ctx = &mut engine.user_interface.build_ctx();
+        let ctx = &mut engine.user_interfaces.first_mut().build_ctx();
 
         let panel;
         let properties_panel;
@@ -349,7 +349,7 @@ impl MaterialEditor {
                 .set_material(material);
         }
 
-        self.sync_to_model(&mut engine.user_interface);
+        self.sync_to_model(engine.user_interfaces.first_mut());
     }
 
     pub fn sync_to_model(&mut self, ui: &mut UserInterface) {
@@ -638,7 +638,8 @@ impl MaterialEditor {
                     && self.texture_context_menu.target.is_some()
                 {
                     let path = (*engine
-                        .user_interface
+                        .user_interfaces
+                        .first_mut()
                         .node(self.texture_context_menu.target)
                         .cast::<Image>()
                         .unwrap()
@@ -653,7 +654,8 @@ impl MaterialEditor {
                     && self.texture_context_menu.target.is_some()
                 {
                     if let Some(property_name) = engine
-                        .user_interface
+                        .user_interfaces
+                        .first_mut()
                         .node(self.texture_context_menu.target)
                         .user_data_cloned::<ImmutableString>()
                     {
@@ -722,18 +724,24 @@ impl MaterialEditor {
                         None
                     }
                 } else if let Some(WidgetMessage::Drop(handle)) = message.data::<WidgetMessage>() {
-                    if let Some(asset_item) =
-                        engine.user_interface.node(*handle).cast::<AssetItem>()
+                    if let Some(asset_item) = engine
+                        .user_interfaces
+                        .first_mut()
+                        .node(*handle)
+                        .cast::<AssetItem>()
                     {
                         if let Ok(relative_path) = make_relative_path(&asset_item.path) {
                             let texture =
                                 Some(engine.resource_manager.request::<Texture>(relative_path));
 
-                            engine.user_interface.send_message(ImageMessage::texture(
-                                message.destination(),
-                                MessageDirection::ToWidget,
-                                texture.clone().map(Into::into),
-                            ));
+                            engine
+                                .user_interfaces
+                                .first_mut()
+                                .send_message(ImageMessage::texture(
+                                    message.destination(),
+                                    MessageDirection::ToWidget,
+                                    texture.clone().map(Into::into),
+                                ));
 
                             Some(PropertyValue::Sampler {
                                 value: texture,

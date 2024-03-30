@@ -105,7 +105,8 @@ impl ColliderControlPanel {
 
             if collider_selected {
                 engine
-                    .user_interface
+                    .user_interfaces
+                    .first()
                     .send_message(WindowMessage::open_and_align(
                         self.window,
                         MessageDirection::ToWidget,
@@ -116,10 +117,13 @@ impl ColliderControlPanel {
                         false,
                     ));
             } else {
-                engine.user_interface.send_message(WindowMessage::close(
-                    self.window,
-                    MessageDirection::ToWidget,
-                ));
+                engine
+                    .user_interfaces
+                    .first()
+                    .send_message(WindowMessage::close(
+                        self.window,
+                        MessageDirection::ToWidget,
+                    ));
             }
         }
     }

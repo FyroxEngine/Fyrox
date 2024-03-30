@@ -240,7 +240,7 @@ impl SettingsWindow {
         let ok;
         let default;
 
-        let ctx = &mut engine.user_interface.build_ctx();
+        let ctx = &mut engine.user_interfaces.first_mut().build_ctx();
 
         let inspector = InspectorBuilder::new(WidgetBuilder::new()).build(ctx);
 
@@ -343,14 +343,17 @@ impl SettingsWindow {
 
         if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
             if message.destination() == self.ok {
-                engine.user_interface.send_message(WindowMessage::close(
-                    self.window,
-                    MessageDirection::ToWidget,
-                ));
+                engine
+                    .user_interfaces
+                    .first_mut()
+                    .send_message(WindowMessage::close(
+                        self.window,
+                        MessageDirection::ToWidget,
+                    ));
             } else if message.destination() == self.default {
                 **settings = Default::default();
 
-                self.sync_to_model(&mut engine.user_interface, settings, sender);
+                self.sync_to_model(engine.user_interfaces.first_mut(), settings, sender);
             }
         } else if let Some(InspectorMessage::PropertyChanged(property_changed)) = message.data() {
             if message.destination() == self.inspector {

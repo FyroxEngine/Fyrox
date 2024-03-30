@@ -103,6 +103,7 @@ use fyrox_core::notify;
 use fyrox_core::notify::{EventKind, RecursiveMode, Watcher};
 use fyrox_core::pool::{PayloadContainer, Ticket};
 use fyrox_core::visitor::{Visit, Visitor, VisitorFlags};
+use fyrox_ui::UiContainer;
 use winit::{
     dpi::{Position, Size},
     event_loop::EventLoopWindowTarget,
@@ -409,14 +410,14 @@ pub struct Engine {
     /// Graphics context of the engine. See [`GraphicsContext`] docs for more info.
     pub graphics_context: GraphicsContext,
 
-    /// User interface allows you to build interface of any kind.
-    pub user_interface: UserInterface,
-
     /// Current resource manager. Resource manager can be cloned (it does clone only ref) to be able to
     /// use resource manager from any thread, this is useful to load resources from multiple
     /// threads to decrease loading times of your game by utilizing all available power of
     /// your CPU.
     pub resource_manager: ResourceManager,
+
+    /// All available user interfaces in the engine.
+    pub user_interfaces: UiContainer,
 
     /// All available scenes in the engine.
     pub scenes: SceneContainer,
@@ -498,7 +499,7 @@ impl ScriptMessageDispatcher {
         dt: f32,
         elapsed_time: f32,
         message_sender: &ScriptMessageSender,
-        user_interface: &mut UserInterface,
+        user_interfaces: &mut UiContainer,
         graphics_context: &mut GraphicsContext,
         task_pool: &mut TaskPoolHandler,
     ) {
@@ -529,7 +530,7 @@ impl ScriptMessageDispatcher {
                                 message_sender,
                                 task_pool,
                                 graphics_context,
-                                user_interface,
+                                user_interfaces,
                                 script_index: 0,
                             };
 
@@ -555,7 +556,7 @@ impl ScriptMessageDispatcher {
                                     message_sender,
                                     task_pool,
                                     graphics_context,
-                                    user_interface,
+                                    user_interfaces,
                                     script_index: 0,
                                 };
 
@@ -581,7 +582,7 @@ impl ScriptMessageDispatcher {
                                     message_sender,
                                     task_pool,
                                     graphics_context,
-                                    user_interface,
+                                    user_interfaces,
                                     script_index: 0,
                                 };
 
@@ -606,7 +607,7 @@ impl ScriptMessageDispatcher {
                                 message_sender,
                                 task_pool,
                                 graphics_context,
-                                user_interface,
+                                user_interfaces,
                                 script_index: 0,
                             };
 
@@ -669,7 +670,7 @@ impl ScriptProcessor {
         resource_manager: &ResourceManager,
         task_pool: &mut TaskPoolHandler,
         graphics_context: &mut GraphicsContext,
-        user_interface: &mut UserInterface,
+        user_interfaces: &mut UiContainer,
         dt: f32,
         elapsed_time: f32,
     ) {
@@ -741,7 +742,7 @@ impl ScriptProcessor {
                     message_dispatcher: &mut scripted_scene.message_dispatcher,
                     task_pool,
                     graphics_context,
-                    user_interface,
+                    user_interfaces,
                     script_index: 0,
                 };
 
@@ -840,7 +841,7 @@ impl ScriptProcessor {
                         dt,
                         elapsed_time,
                         &scripted_scene.message_sender,
-                        user_interface,
+                        user_interfaces,
                         graphics_context,
                         task_pool,
                     );
@@ -863,7 +864,7 @@ impl ScriptProcessor {
                 scene_handle: scripted_scene.handle,
                 node_handle: Default::default(),
                 message_sender: &scripted_scene.message_sender,
-                user_interface,
+                user_interfaces,
                 graphics_context,
                 task_pool,
                 script_index: 0,
@@ -894,7 +895,7 @@ impl ScriptProcessor {
                     message_sender: &scripted_scene.message_sender,
                     task_pool,
                     graphics_context,
-                    user_interface,
+                    user_interfaces,
                     script_index: 0,
                 };
 
@@ -1105,7 +1106,7 @@ pub(crate) fn process_scripts<T>(
     message_dispatcher: &mut ScriptMessageDispatcher,
     task_pool: &mut TaskPoolHandler,
     graphics_context: &mut GraphicsContext,
-    user_interface: &mut UserInterface,
+    user_interfaces: &mut UiContainer,
     dt: f32,
     elapsed_time: f32,
     mut func: T,
@@ -1124,7 +1125,7 @@ pub(crate) fn process_scripts<T>(
         message_dispatcher,
         task_pool,
         graphics_context,
-        user_interface,
+        user_interfaces,
         script_index: 0,
     };
 
@@ -1302,6 +1303,9 @@ impl Engine {
 
         let sound_engine = SoundEngine::without_device();
 
+        let user_interfaces =
+            UiContainer::new_with_ui(UserInterface::new(Vector2::new(100.0, 100.0)));
+
         Ok(Self {
             graphics_context: GraphicsContext::Uninitialized(graphics_context_params),
             model_events_receiver: tx,
@@ -1312,7 +1316,7 @@ impl Engine {
             resource_manager,
             scenes: SceneContainer::new(sound_engine.clone()),
             sound_engine,
-            user_interface: UserInterface::new(Vector2::new(100.0, 100.0)),
+            user_interfaces,
             performance_statistics: Default::default(),
             plugins: Default::default(),
             serialization_context,
@@ -1508,10 +1512,12 @@ impl Engine {
                 )
             };
 
-            self.user_interface.set_screen_size(Vector2::new(
-                window.inner_size().width as f32,
-                window.inner_size().height as f32,
-            ));
+            for ui in self.user_interfaces.iter_mut() {
+                ui.set_screen_size(Vector2::new(
+                    window.inner_size().width as f32,
+                    window.inner_size().height as f32,
+                ));
+            }
 
             #[cfg(not(target_arch = "wasm32"))]
             gl_surface.resize(
@@ -1692,7 +1698,7 @@ impl Engine {
                             graphics_context: &mut self.graphics_context,
                             dt,
                             lag,
-                            user_interface: &mut self.user_interface,
+                            user_interfaces: &mut self.user_interfaces,
                             serialization_context: &self.serialization_context,
                             performance_statistics: &self.performance_statistics,
                             elapsed_time: self.elapsed_time,
@@ -1724,7 +1730,7 @@ impl Engine {
                     graphics_context: &mut self.graphics_context,
                     dt,
                     lag,
-                    user_interface: &mut self.user_interface,
+                    user_interfaces: &mut self.user_interfaces,
                     serialization_context: &self.serialization_context,
                     performance_statistics: &self.performance_statistics,
                     elapsed_time: self.elapsed_time,
@@ -1910,8 +1916,9 @@ impl Engine {
             let window_size = Vector2::new(inner_size.width as f32, inner_size.height as f32);
 
             let time = instant::Instant::now();
-            self.user_interface
-                .update(window_size, dt, ui_update_switches);
+            for ui in self.user_interfaces.iter_mut() {
+                ui.update(window_size, dt, ui_update_switches);
+            }
             self.performance_statistics.ui_time = instant::Instant::now() - time;
             self.elapsed_time += dt;
         }
@@ -1937,7 +1944,7 @@ impl Engine {
             &self.resource_manager,
             &mut self.task_pool,
             &mut self.graphics_context,
-            &mut self.user_interface,
+            &mut self.user_interfaces,
             dt,
             self.elapsed_time,
         );
@@ -1963,7 +1970,7 @@ impl Engine {
                         graphics_context: &mut self.graphics_context,
                         dt,
                         lag,
-                        user_interface: &mut self.user_interface,
+                        user_interfaces: &mut self.user_interfaces,
                         serialization_context: &self.serialization_context,
                         performance_statistics: &self.performance_statistics,
                         elapsed_time: self.elapsed_time,
@@ -2005,7 +2012,7 @@ impl Engine {
                                         message_dispatcher: &mut scripted_scene.message_dispatcher,
                                         task_pool: &mut self.task_pool,
                                         graphics_context: &mut self.graphics_context,
-                                        user_interface: &mut self.user_interface,
+                                        user_interfaces: &mut self.user_interfaces,
                                         script_index: node_task_handler.script_index,
                                     },
                                 );
@@ -2056,7 +2063,7 @@ impl Engine {
                 graphics_context: &mut self.graphics_context,
                 dt,
                 lag,
-                user_interface: &mut self.user_interface,
+                user_interfaces: &mut self.user_interfaces,
                 serialization_context: &self.serialization_context,
                 performance_statistics: &self.performance_statistics,
                 elapsed_time: self.elapsed_time,
@@ -2070,25 +2077,37 @@ impl Engine {
                 plugin.update(&mut context);
             }
 
-            while let Some(message) = self.user_interface.poll_message() {
-                let mut context = PluginContext {
-                    scenes: &mut self.scenes,
-                    resource_manager: &self.resource_manager,
-                    graphics_context: &mut self.graphics_context,
-                    dt,
-                    lag,
-                    user_interface: &mut self.user_interface,
-                    serialization_context: &self.serialization_context,
-                    performance_statistics: &self.performance_statistics,
-                    elapsed_time: self.elapsed_time,
-                    script_processor: &self.script_processor,
-                    async_scene_loader: &mut self.async_scene_loader,
-                    window_target: Some(window_target),
-                    task_pool: &mut self.task_pool,
-                };
+            let mut uis = self
+                .user_interfaces
+                .pair_iter()
+                .map(|(h, _)| h)
+                .collect::<VecDeque<_>>();
 
-                for plugin in self.plugins.iter_mut() {
-                    plugin.on_ui_message(&mut context, &message);
+            while let Some(ui) = uis.pop_front() {
+                while let Some(message) = self
+                    .user_interfaces
+                    .try_get_mut(ui)
+                    .and_then(|ui| ui.poll_message())
+                {
+                    let mut context = PluginContext {
+                        scenes: &mut self.scenes,
+                        resource_manager: &self.resource_manager,
+                        graphics_context: &mut self.graphics_context,
+                        dt,
+                        lag,
+                        user_interfaces: &mut self.user_interfaces,
+                        serialization_context: &self.serialization_context,
+                        performance_statistics: &self.performance_statistics,
+                        elapsed_time: self.elapsed_time,
+                        script_processor: &self.script_processor,
+                        async_scene_loader: &mut self.async_scene_loader,
+                        window_target: Some(window_target),
+                        task_pool: &mut self.task_pool,
+                    };
+
+                    for plugin in self.plugins.iter_mut() {
+                        plugin.on_ui_message(&mut context, &message);
+                    }
                 }
             }
         }
@@ -2113,7 +2132,7 @@ impl Engine {
                         graphics_context: &mut self.graphics_context,
                         dt,
                         lag,
-                        user_interface: &mut self.user_interface,
+                        user_interfaces: &mut self.user_interfaces,
                         serialization_context: &self.serialization_context,
                         performance_statistics: &self.performance_statistics,
                         elapsed_time: self.elapsed_time,
@@ -2141,7 +2160,7 @@ impl Engine {
                     graphics_context: &mut self.graphics_context,
                     dt,
                     lag,
-                    user_interface: &mut self.user_interface,
+                    user_interfaces: &mut self.user_interfaces,
                     serialization_context: &self.serialization_context,
                     performance_statistics: &self.performance_statistics,
                     elapsed_time: self.elapsed_time,
@@ -2168,7 +2187,7 @@ impl Engine {
                     graphics_context: &mut self.graphics_context,
                     dt,
                     lag,
-                    user_interface: &mut self.user_interface,
+                    user_interfaces: &mut self.user_interfaces,
                     serialization_context: &self.serialization_context,
                     performance_statistics: &self.performance_statistics,
                     elapsed_time: self.elapsed_time,
@@ -2195,7 +2214,7 @@ impl Engine {
                     graphics_context: &mut self.graphics_context,
                     dt,
                     lag,
-                    user_interface: &mut self.user_interface,
+                    user_interfaces: &mut self.user_interfaces,
                     serialization_context: &self.serialization_context,
                     performance_statistics: &self.performance_statistics,
                     elapsed_time: self.elapsed_time,
@@ -2238,7 +2257,7 @@ impl Engine {
                     &mut scripted_scene.message_dispatcher,
                     &mut self.task_pool,
                     &mut self.graphics_context,
-                    &mut self.user_interface,
+                    &mut self.user_interfaces,
                     dt,
                     self.elapsed_time,
                     |script, context| {
@@ -2285,14 +2304,18 @@ impl Engine {
     /// see anything.
     #[inline]
     pub fn render(&mut self) -> Result<(), FrameworkError> {
-        self.user_interface.draw();
+        for ui in self.user_interfaces.iter_mut() {
+            ui.draw();
+        }
 
         if let GraphicsContext::Initialized(ref mut ctx) = self.graphics_context {
             #[cfg(not(target_arch = "wasm32"))]
             {
                 ctx.renderer.render_and_swap_buffers(
                     &self.scenes,
-                    self.user_interface.get_drawing_context(),
+                    self.user_interfaces
+                        .iter()
+                        .map(|ui| ui.get_drawing_context()),
                     &ctx.gl_surface,
                     &ctx.gl_context,
                     &ctx.window,
@@ -2331,7 +2354,7 @@ impl Engine {
                             graphics_context: &mut self.graphics_context,
                             dt: 0.0,
                             lag: &mut 0.0,
-                            user_interface: &mut self.user_interface,
+                            user_interfaces: &mut self.user_interfaces,
                             serialization_context: &self.serialization_context,
                             performance_statistics: &self.performance_statistics,
                             elapsed_time: self.elapsed_time,
@@ -2353,7 +2376,7 @@ impl Engine {
                         graphics_context: &mut self.graphics_context,
                         dt: 0.0,
                         lag: &mut 0.0,
-                        user_interface: &mut self.user_interface,
+                        user_interfaces: &mut self.user_interfaces,
                         serialization_context: &self.serialization_context,
                         performance_statistics: &self.performance_statistics,
                         elapsed_time: self.elapsed_time,
@@ -2822,7 +2845,7 @@ impl Engine {
         state.as_loaded_mut().plugin_mut().on_loaded(PluginContext {
             scenes: &mut self.scenes,
             resource_manager: &self.resource_manager,
-            user_interface: &mut self.user_interface,
+            user_interfaces: &mut self.user_interfaces,
             graphics_context: &mut self.graphics_context,
             dt,
             lag,
@@ -2907,13 +2930,13 @@ mod test {
         },
         engine::{task::TaskPoolHandler, GraphicsContext, ScriptProcessor},
         graph::BaseSceneGraph,
-        gui::UserInterface,
         scene::{base::BaseBuilder, node::Node, pivot::PivotBuilder, Scene, SceneContainer},
         script::{
             ScriptContext, ScriptDeinitContext, ScriptMessageContext, ScriptMessagePayload,
             ScriptTrait,
         },
     };
+    use fyrox_ui::UiContainer;
     use std::sync::{
         mpsc::{self, Sender, TryRecvError},
         Arc,
@@ -3100,7 +3123,7 @@ mod test {
         };
         let mut task_pool = TaskPoolHandler::new(Arc::new(TaskPool::new()));
         let mut gc = GraphicsContext::Uninitialized(Default::default());
-        let mut user_interface = UserInterface::default();
+        let mut user_interfaces = UiContainer::default();
 
         for iteration in 0..3 {
             script_processor.handle_scripts(
@@ -3109,7 +3132,7 @@ mod test {
                 &resource_manager,
                 &mut task_pool,
                 &mut gc,
-                &mut user_interface,
+                &mut user_interfaces,
                 0.0,
                 0.0,
             );
@@ -3263,7 +3286,7 @@ mod test {
         let mut script_processor = ScriptProcessor::default();
         let mut task_pool = TaskPoolHandler::new(Arc::new(TaskPool::new()));
         let mut gc = GraphicsContext::Uninitialized(Default::default());
-        let mut user_interface = UserInterface::default();
+        let mut user_interfaces = UiContainer::default();
 
         script_processor.register_scripted_scene(scene_handle, &resource_manager);
 
@@ -3274,7 +3297,7 @@ mod test {
                 &resource_manager,
                 &mut task_pool,
                 &mut gc,
-                &mut user_interface,
+                &mut user_interfaces,
                 0.0,
                 0.0,
             );
@@ -3527,7 +3550,7 @@ mod test {
 
         let mut task_pool = TaskPoolHandler::new(Arc::new(TaskPool::new()));
         let mut gc = GraphicsContext::Uninitialized(Default::default());
-        let mut user_interface = UserInterface::default();
+        let mut user_interfaces = UiContainer::default();
 
         for iteration in 0..2 {
             script_processor.handle_scripts(
@@ -3536,7 +3559,7 @@ mod test {
                 &resource_manager,
                 &mut task_pool,
                 &mut gc,
-                &mut user_interface,
+                &mut user_interfaces,
                 0.0,
                 0.0,
             );

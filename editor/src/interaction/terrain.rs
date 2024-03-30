@@ -77,7 +77,8 @@ impl TerrainInteractionMode {
             mode: BrushMode::ModifyHeightMap { amount: 1.0 },
         };
 
-        let brush_panel = BrushPanel::new(&mut engine.user_interface.build_ctx(), &brush);
+        let brush_panel =
+            BrushPanel::new(&mut engine.user_interfaces.first_mut().build_ctx(), &brush);
 
         Self {
             brush_panel,
@@ -284,17 +285,32 @@ impl InteractionMode for TerrainInteractionMode {
                             let mut brush_copy = self.brush.clone();
                             match &mut brush_copy.mode {
                                 BrushMode::ModifyHeightMap { amount } => {
-                                    if engine.user_interface.keyboard_modifiers().shift {
+                                    if engine
+                                        .user_interfaces
+                                        .first_mut()
+                                        .keyboard_modifiers()
+                                        .shift
+                                    {
                                         *amount *= -1.0;
                                     }
                                 }
                                 BrushMode::DrawOnMask { alpha, .. } => {
-                                    if engine.user_interface.keyboard_modifiers().shift {
+                                    if engine
+                                        .user_interfaces
+                                        .first_mut()
+                                        .keyboard_modifiers()
+                                        .shift
+                                    {
                                         *alpha = -1.0;
                                     }
                                 }
                                 BrushMode::FlattenHeightMap { height } => {
-                                    if engine.user_interface.keyboard_modifiers().shift {
+                                    if engine
+                                        .user_interfaces
+                                        .first_mut()
+                                        .keyboard_modifiers()
+                                        .shift
+                                    {
                                         *height *= -1.0;
                                     }
                                 }
@@ -332,10 +348,11 @@ impl InteractionMode for TerrainInteractionMode {
             .set_visible(&mut engine.scenes[game_scene.scene].graph, true);
 
         self.brush_panel
-            .sync_to_model(&mut engine.user_interface, &self.brush);
+            .sync_to_model(engine.user_interfaces.first_mut(), &self.brush);
 
         engine
-            .user_interface
+            .user_interfaces
+            .first_mut()
             .send_message(WindowMessage::open_and_align(
                 self.brush_panel.window,
                 MessageDirection::ToWidget,
@@ -355,10 +372,13 @@ impl InteractionMode for TerrainInteractionMode {
         self.brush_gizmo
             .set_visible(&mut engine.scenes[game_scene.scene].graph, false);
 
-        engine.user_interface.send_message(WindowMessage::close(
-            self.brush_panel.window,
-            MessageDirection::ToWidget,
-        ));
+        engine
+            .user_interfaces
+            .first_mut()
+            .send_message(WindowMessage::close(
+                self.brush_panel.window,
+                MessageDirection::ToWidget,
+            ));
     }
 
     fn handle_ui_message(
@@ -376,10 +396,13 @@ impl InteractionMode for TerrainInteractionMode {
     }
 
     fn on_drop(&mut self, engine: &mut Engine) {
-        engine.user_interface.send_message(WidgetMessage::remove(
-            self.brush_panel.window,
-            MessageDirection::ToWidget,
-        ));
+        engine
+            .user_interfaces
+            .first_mut()
+            .send_message(WidgetMessage::remove(
+                self.brush_panel.window,
+                MessageDirection::ToWidget,
+            ));
     }
 
     fn on_hot_key(
@@ -462,7 +485,7 @@ impl InteractionMode for TerrainInteractionMode {
 
         if processed {
             self.brush_panel
-                .sync_to_model(&mut engine.user_interface, &self.brush);
+                .sync_to_model(engine.user_interfaces.first_mut(), &self.brush);
         }
 
         processed

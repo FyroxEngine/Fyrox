@@ -154,7 +154,11 @@ impl InteractionMode for RotateInteractionMode {
                 .map(|result| {
                     if let (Some(selection), true) = (
                         editor_selection.as_graph(),
-                        engine.user_interface.keyboard_modifiers().control,
+                        engine
+                            .user_interfaces
+                            .first_mut()
+                            .keyboard_modifiers()
+                            .control,
                     ) {
                         let mut selection = selection.clone();
                         selection.insert_or_exclude(result.node);

@@ -125,7 +125,7 @@ impl NodeRemovalDialog {
     }
 
     pub fn open(&mut self, editor_selection: &Selection, game_scene: &GameScene, engine: &Engine) {
-        let ui = &engine.user_interface;
+        let ui = &engine.user_interfaces.first();
         let graph = &engine.scenes[game_scene.scene].graph;
 
         ui.send_message(WindowMessage::open_modal(
@@ -170,7 +170,7 @@ impl NodeRemovalDialog {
         engine: &Engine,
         sender: &MessageSender,
     ) {
-        let ui = &engine.user_interface;
+        let ui = &engine.user_interfaces.first();
         if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.ok {
                 ui.send_message(WindowMessage::close(

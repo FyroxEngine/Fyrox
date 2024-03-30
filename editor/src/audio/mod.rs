@@ -94,7 +94,7 @@ fn audio_bus_effect_names(audio_bus: &AudioBus) -> Vec<String> {
 
 impl AudioPanel {
     pub fn new(engine: &mut Engine, sender: MessageSender) -> Self {
-        let ctx = &mut engine.user_interface.build_ctx();
+        let ctx = &mut engine.user_interfaces.first_mut().build_ctx();
 
         let add_bus;
         let remove_bus;
@@ -275,7 +275,7 @@ impl AudioPanel {
             if message.destination() == self.audio_buses
                 && message.direction() == MessageDirection::FromWidget
             {
-                let ui = &engine.user_interface;
+                let ui = &engine.user_interfaces.first();
 
                 let effect = item_bus(
                     ui.node(self.audio_buses)
@@ -294,7 +294,8 @@ impl AudioPanel {
         } else if let Some(AudioBusViewMessage::ChangeParent(new_parent)) = message.data() {
             if message.direction() == MessageDirection::FromWidget {
                 let audio_bus_view_ref = engine
-                    .user_interface
+                    .user_interfaces
+                    .first()
                     .node(message.destination())
                     .query_component::<AudioBusView>()
                     .unwrap();
@@ -346,7 +347,7 @@ impl AudioPanel {
         engine: &mut Engine,
     ) {
         let context_state = engine.scenes[game_scene.scene].graph.sound_context.state();
-        let ui = &mut engine.user_interface;
+        let ui = &mut engine.user_interfaces.first_mut();
 
         let items = ui
             .node(self.audio_buses)

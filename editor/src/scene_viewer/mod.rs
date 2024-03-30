@@ -67,7 +67,7 @@ impl SceneViewer {
     pub fn new(engine: &mut Engine, sender: MessageSender, settings: &Settings) -> Self {
         let scene_gizmo = SceneGizmo::new(engine);
 
-        let ctx = &mut engine.user_interface.build_ctx();
+        let ctx = &mut engine.user_interfaces.first_mut().build_ctx();
 
         let frame;
         let selection_frame;
@@ -339,17 +339,21 @@ impl SceneViewer {
             if let Some(&active_button) = self.interaction_modes.get(mode) {
                 for &mode_button in self.interaction_modes.values() {
                     let decorator = *engine
-                        .user_interface
+                        .user_interfaces
+                        .first_mut()
                         .node(mode_button)
                         .query_component::<Button>()
                         .unwrap()
                         .decorator;
 
-                    engine.user_interface.send_message(DecoratorMessage::select(
-                        decorator,
-                        MessageDirection::ToWidget,
-                        mode_button == active_button,
-                    ));
+                    engine
+                        .user_interfaces
+                        .first_mut()
+                        .send_message(DecoratorMessage::select(
+                            decorator,
+                            MessageDirection::ToWidget,
+                            mode_button == active_button,
+                        ));
                 }
             }
         }
@@ -390,7 +394,7 @@ impl SceneViewer {
         settings: &mut Settings,
         mode: &Mode,
     ) {
-        let ui = &engine.user_interface;
+        let ui = &engine.user_interfaces.first();
 
         if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
             for (mode_id, mode_button) in self.interaction_modes.iter() {
@@ -460,15 +464,18 @@ impl SceneViewer {
         if let Some(entry) = scenes.current_scene_entry_mut() {
             if let (Some(msg), Mode::Edit) = (message.data::<WidgetMessage>(), mode) {
                 if message.destination() == self.frame() {
-                    let screen_bounds = self.frame_bounds(&engine.user_interface);
+                    let screen_bounds = self.frame_bounds(engine.user_interfaces.first());
                     match *msg {
                         WidgetMessage::MouseDown { button, pos, .. } => {
-                            engine.user_interface.capture_mouse(self.frame());
+                            engine
+                                .user_interfaces
+                                .first_mut()
+                                .capture_mouse(self.frame());
 
                             entry.on_mouse_down(button, pos, screen_bounds, engine, settings)
                         }
                         WidgetMessage::MouseUp { button, pos, .. } => {
-                            engine.user_interface.release_mouse_capture();
+                            engine.user_interfaces.first_mut().release_mouse_capture();
 
                             entry.on_mouse_up(button, pos, screen_bounds, engine, settings)
                         }
@@ -506,7 +513,8 @@ impl SceneViewer {
                                 if button == MouseButton::Left {
                                     let rel_pos = pos
                                         - engine
-                                            .user_interface
+                                            .user_interfaces
+                                            .first()
                                             .node(self.scene_gizmo_image)
                                             .screen_position();
                                     if let Some(action) = self.scene_gizmo.on_click(rel_pos, engine)
@@ -549,7 +557,8 @@ impl SceneViewer {
                             WidgetMessage::MouseMove { pos, .. } => {
                                 let rel_pos = pos
                                     - engine
-                                        .user_interface
+                                        .user_interfaces
+                                        .first()
                                         .node(self.scene_gizmo_image)
                                         .screen_position();
                                 self.scene_gizmo.on_mouse_move(rel_pos, engine);
@@ -575,7 +584,8 @@ impl SceneViewer {
         }
 
         let tabs = engine
-            .user_interface
+            .user_interfaces
+            .first_mut()
             .node(self.tab_control)
             .query_component::<TabControl>()
             .expect("Must be TabControl!")
@@ -594,10 +604,10 @@ impl SceneViewer {
                                 bottom: 2.0,
                             }))
                             .with_text(entry.name())
-                            .build(&mut engine.user_interface.build_ctx());
+                            .build(&mut engine.user_interfaces.first_mut().build_ctx());
 
                         send_sync_message(
-                            &engine.user_interface,
+                            engine.user_interfaces.first(),
                             TabControlMessage::add_tab(
                                 self.tab_control,
                                 MessageDirection::ToWidget,
@@ -621,7 +631,7 @@ impl SceneViewer {
                     let tab_scene = fetch_tab_id(tab);
                     if scenes.iter().all(|s| tab_scene != s.id) {
                         send_sync_message(
-                            &engine.user_interface,
+                            engine.user_interfaces.first(),
                             TabControlMessage::remove_tab(
                                 self.tab_control,
                                 MessageDirection::ToWidget,
@@ -635,20 +645,23 @@ impl SceneViewer {
 
         for tab in tabs.iter() {
             if let Some(scene) = scenes.entry_by_scene_id(fetch_tab_id(tab)) {
-                engine.user_interface.send_message(TextMessage::text(
-                    tab.header_content,
-                    MessageDirection::ToWidget,
-                    format!(
-                        "{}{}",
-                        scene.name(),
-                        if scene.need_save() { "*" } else { "" }
-                    ),
-                ));
+                engine
+                    .user_interfaces
+                    .first_mut()
+                    .send_message(TextMessage::text(
+                        tab.header_content,
+                        MessageDirection::ToWidget,
+                        format!(
+                            "{}{}",
+                            scene.name(),
+                            if scene.need_save() { "*" } else { "" }
+                        ),
+                    ));
             }
         }
 
         send_sync_message(
-            &engine.user_interface,
+            engine.user_interfaces.first(),
             TabControlMessage::active_tab(
                 self.tab_control,
                 MessageDirection::ToWidget,
@@ -659,7 +672,7 @@ impl SceneViewer {
         // Then sync to the current scene.
         if let Some(entry) = scenes.current_scene_entry_ref() {
             self.set_title(
-                &engine.user_interface,
+                engine.user_interfaces.first(),
                 format!(
                     "Scene Preview - {}",
                     entry
@@ -672,12 +685,12 @@ impl SceneViewer {
             );
 
             self.set_render_target(
-                &engine.user_interface,
+                engine.user_interfaces.first(),
                 entry.controller.render_target(engine),
             );
 
             send_sync_message(
-                &engine.user_interface,
+                engine.user_interfaces.first(),
                 WidgetMessage::visibility(
                     self.scene_gizmo_image,
                     MessageDirection::ToWidget,
@@ -691,17 +704,20 @@ impl SceneViewer {
             ) {
                 let scene = &engine.scenes[game_scene.scene];
                 if let Some((_, position)) = selection.global_rotation_position(&scene.graph) {
-                    engine.user_interface.send_message(Vec3EditorMessage::value(
-                        self.global_position_display,
-                        MessageDirection::ToWidget,
-                        position,
-                    ));
+                    engine
+                        .user_interfaces
+                        .first_mut()
+                        .send_message(Vec3EditorMessage::value(
+                            self.global_position_display,
+                            MessageDirection::ToWidget,
+                            position,
+                        ));
                 }
             }
         }
 
         send_sync_message(
-            &engine.user_interface,
+            engine.user_interfaces.first(),
             WidgetMessage::visibility(
                 self.no_scene_reminder,
                 MessageDirection::ToWidget,

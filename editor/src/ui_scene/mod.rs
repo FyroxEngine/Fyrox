@@ -165,7 +165,12 @@ impl SceneController for UiScene {
     ) {
         match self.preview_instance.as_ref() {
             None => {
-                if let Some(item) = engine.user_interface.node(handle).cast::<AssetItem>() {
+                if let Some(item) = engine
+                    .user_interfaces
+                    .first_mut()
+                    .node(handle)
+                    .cast::<AssetItem>()
+                {
                     // Make sure all resources loaded with relative paths only.
                     // This will make scenes portable.
                     if let Ok(relative_path) = make_relative_path(&item.path) {
@@ -189,7 +194,7 @@ impl SceneController for UiScene {
                 }
             }
             Some(preview) => {
-                let cursor_pos = engine.user_interface.cursor_position();
+                let cursor_pos = engine.user_interfaces.first_mut().cursor_position();
                 let rel_pos = cursor_pos - screen_bounds.position;
 
                 let root = self.ui.node_mut(preview.instance);
@@ -443,7 +448,8 @@ impl SceneController for UiScene {
             }
             Message::SyncNodeHandleName { view, handle } => {
                 engine
-                    .user_interface
+                    .user_interfaces
+                    .first_mut()
                     .send_message(HandlePropertyEditorMessage::name(
                         *view,
                         MessageDirection::ToWidget,
@@ -453,13 +459,13 @@ impl SceneController for UiScene {
                     ));
             }
             Message::ProvideSceneHierarchy { view } => {
-                engine
-                    .user_interface
-                    .send_message(HandlePropertyEditorMessage::hierarchy(
+                engine.user_interfaces.first_mut().send_message(
+                    HandlePropertyEditorMessage::hierarchy(
                         *view,
                         MessageDirection::ToWidget,
                         HierarchyNode::from_ui_node(self.ui.root(), Handle::NONE, &self.ui),
-                    ));
+                    ),
+                );
             }
             _ => {}
         }

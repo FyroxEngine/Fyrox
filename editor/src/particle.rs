@@ -221,7 +221,8 @@ impl ParticleSystemPreviewControlPanel {
                     .any(|n| scene.graph.try_get_of_type::<ParticleSystem>(*n).is_some());
                 if any_particle_system_selected {
                     engine
-                        .user_interface
+                        .user_interfaces
+                        .first_mut()
                         .send_message(WindowMessage::open_and_align(
                             self.window,
                             MessageDirection::ToWidget,
@@ -232,10 +233,13 @@ impl ParticleSystemPreviewControlPanel {
                             false,
                         ));
                 } else {
-                    engine.user_interface.send_message(WindowMessage::close(
-                        self.window,
-                        MessageDirection::ToWidget,
-                    ));
+                    engine
+                        .user_interfaces
+                        .first_mut()
+                        .send_message(WindowMessage::close(
+                            self.window,
+                            MessageDirection::ToWidget,
+                        ));
                 }
             }
         }
@@ -280,7 +284,7 @@ impl ParticleSystemPreviewControlPanel {
         }
 
         send_sync_message(
-            &engine.user_interface,
+            engine.user_interfaces.first(),
             CheckBoxMessage::checked(self.preview, MessageDirection::ToWidget, Some(false)),
         );
     }

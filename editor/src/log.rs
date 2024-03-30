@@ -67,12 +67,14 @@ impl ContextMenu {
         } else if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination() == self.copy {
                 if let Some(field) = engine
-                    .user_interface
+                    .user_interfaces
+                    .first_mut()
                     .try_get(self.placement_target)
                     .and_then(|n| n.query_component::<Text>())
                 {
                     let text = field.text();
-                    if let Some(mut clipboard) = engine.user_interface.clipboard_mut() {
+                    if let Some(mut clipboard) = engine.user_interfaces.first_mut().clipboard_mut()
+                    {
                         let _ = clipboard.set_contents(text);
                     }
                 }
@@ -182,11 +184,14 @@ impl LogPanel {
 
         if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
             if message.destination() == self.clear {
-                engine.user_interface.send_message(ListViewMessage::items(
-                    self.messages,
-                    MessageDirection::ToWidget,
-                    vec![],
-                ));
+                engine
+                    .user_interfaces
+                    .first_mut()
+                    .send_message(ListViewMessage::items(
+                        self.messages,
+                        MessageDirection::ToWidget,
+                        vec![],
+                    ));
             }
         } else if let Some(DropdownListMessage::SelectionChanged(Some(idx))) =
             message.data::<DropdownListMessage>()
@@ -208,7 +213,8 @@ impl LogPanel {
 
     pub fn update(&mut self, engine: &mut Engine) {
         let mut count = engine
-            .user_interface
+            .user_interfaces
+            .first_mut()
             .node(self.messages)
             .cast::<ListView>()
             .map(|v| v.items().len())
@@ -223,7 +229,7 @@ impl LogPanel {
 
             let text = format!("[{:.2}s] {}", msg.time.as_secs_f32(), msg.content);
 
-            let ctx = &mut engine.user_interface.build_ctx();
+            let ctx = &mut engine.user_interfaces.first_mut().build_ctx();
             let item = BorderBuilder::new(
                 WidgetBuilder::new()
                     .with_background(Brush::Solid(if count % 2 == 0 {
@@ -250,7 +256,8 @@ impl LogPanel {
             .build(ctx);
 
             engine
-                .user_interface
+                .user_interfaces
+                .first_mut()
                 .send_message(ListViewMessage::add_item(
                     self.messages,
                     MessageDirection::ToWidget,
@@ -264,7 +271,8 @@ impl LogPanel {
 
         if item_to_bring_into_view.is_some() {
             engine
-                .user_interface
+                .user_interfaces
+                .first_mut()
                 .send_message(ListViewMessage::bring_item_into_view(
                     self.messages,
                     MessageDirection::ToWidget,

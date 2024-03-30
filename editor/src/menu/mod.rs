@@ -113,7 +113,7 @@ pub fn create_menu_item_shortcut(
 impl Menu {
     pub fn new(engine: &mut Engine, message_sender: MessageSender, settings: &Settings) -> Self {
         let file_menu = FileMenu::new(engine, settings);
-        let ctx = &mut engine.user_interface.build_ctx();
+        let ctx = &mut engine.user_interfaces.first_mut().build_ctx();
         let create_entity_menu = CreateEntityRootMenu::new(ctx);
         let edit_menu = EditMenu::new(ctx);
         let view_menu = ViewMenu::new(ctx);
@@ -192,8 +192,11 @@ impl Menu {
             );
         }
 
-        self.utils_menu
-            .handle_ui_message(message, &mut ctx.panels, &mut ctx.engine.user_interface);
+        self.utils_menu.handle_ui_message(
+            message,
+            &mut ctx.panels,
+            ctx.engine.user_interfaces.first_mut(),
+        );
         self.file_menu.handle_ui_message(
             message,
             &self.message_sender,
@@ -204,7 +207,7 @@ impl Menu {
         );
         self.view_menu.handle_ui_message(
             message,
-            &ctx.engine.user_interface,
+            ctx.engine.user_interfaces.first(),
             &ctx.panels,
             &self.message_sender,
         );

@@ -167,11 +167,14 @@ impl WidgetContextMenu {
                     self.placement_target = *target;
 
                     // Check if there's something to paste and deactivate "Paste" if nothing.
-                    engine.user_interface.send_message(WidgetMessage::enabled(
-                        self.paste,
-                        MessageDirection::ToWidget,
-                        !ui_scene.clipboard.is_empty(),
-                    ));
+                    engine
+                        .user_interfaces
+                        .first_mut()
+                        .send_message(WidgetMessage::enabled(
+                            self.paste,
+                            MessageDirection::ToWidget,
+                            !ui_scene.clipboard.is_empty(),
+                        ));
                 }
             }
         }

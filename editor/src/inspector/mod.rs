@@ -283,7 +283,7 @@ impl Inspector {
         if self.needs_sync {
             if editor_selection.is_single_selection() {
                 controller.first_selected_entity(editor_selection, &engine.scenes, &mut |entity| {
-                    self.sync_to(entity, &mut engine.user_interface);
+                    self.sync_to(entity, engine.user_interfaces.first_mut());
                 });
             }
         } else {
@@ -346,7 +346,8 @@ impl Inspector {
     ) {
         if let Message::SelectionChanged { .. } = message {
             engine
-                .user_interface
+                .user_interfaces
+                .first_mut()
                 .send_message(WidgetMessage::visibility(
                     self.warning_text,
                     MessageDirection::ToWidget,
@@ -359,7 +360,7 @@ impl Inspector {
                 controller.first_selected_entity(editor_selection, &engine.scenes, &mut |entity| {
                     self.change_context(
                         entity,
-                        &mut engine.user_interface,
+                        engine.user_interfaces.first_mut(),
                         engine.resource_manager.clone(),
                         engine.serialization_context.clone(),
                         &available_animations,
@@ -367,7 +368,7 @@ impl Inspector {
                     )
                 });
             } else {
-                self.clear(&engine.user_interface);
+                self.clear(engine.user_interfaces.first());
             }
         }
     }

@@ -86,7 +86,8 @@ impl CameraPreviewControlPanel {
                     .any(|n| scene.graph.try_get_of_type::<Camera>(*n).is_some());
                 if any_camera {
                     engine
-                        .user_interface
+                        .user_interfaces
+                        .first_mut()
                         .send_message(WindowMessage::open_and_align(
                             self.window,
                             MessageDirection::ToWidget,
@@ -97,10 +98,13 @@ impl CameraPreviewControlPanel {
                             false,
                         ));
                 } else {
-                    engine.user_interface.send_message(WindowMessage::close(
-                        self.window,
-                        MessageDirection::ToWidget,
-                    ));
+                    engine
+                        .user_interfaces
+                        .first_mut()
+                        .send_message(WindowMessage::close(
+                            self.window,
+                            MessageDirection::ToWidget,
+                        ));
                 }
             }
         }
@@ -145,7 +149,7 @@ impl CameraPreviewControlPanel {
         game_scene.preview_camera = Handle::NONE;
 
         send_sync_message(
-            &engine.user_interface,
+            engine.user_interfaces.first(),
             CheckBoxMessage::checked(self.preview, MessageDirection::ToWidget, Some(false)),
         );
     }

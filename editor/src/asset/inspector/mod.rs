@@ -145,7 +145,8 @@ impl AssetInspector {
 
                             context.import_options.as_reflect(&mut |reflect| {
                                 let inspector_context = engine
-                                    .user_interface
+                                    .user_interfaces
+                                    .first_mut()
                                     .node(self.inspector)
                                     .cast::<Inspector>()
                                     .expect("Must be inspector")
@@ -154,7 +155,7 @@ impl AssetInspector {
                                 inspector_context
                                     .sync(
                                         reflect,
-                                        &mut engine.user_interface,
+                                        engine.user_interfaces.first_mut(),
                                         0,
                                         true,
                                         Default::default(),

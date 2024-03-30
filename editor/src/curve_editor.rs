@@ -402,7 +402,7 @@ impl CurveEditorWindow {
     }
 
     pub fn handle_ui_message(&mut self, message: &UiMessage, engine: &mut Engine) {
-        let ui = &engine.user_interface;
+        let ui = &engine.user_interfaces.first_mut();
 
         if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.cancel {

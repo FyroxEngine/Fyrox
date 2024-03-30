@@ -491,7 +491,7 @@ impl SceneController for GameScene {
     ) {
         self.camera_controller.on_mouse_button_down(
             button,
-            engine.user_interface.keyboard_modifiers(),
+            engine.user_interfaces.first_mut().keyboard_modifiers(),
             &mut engine.scenes[self.scene].graph,
         );
     }
@@ -521,7 +521,12 @@ impl SceneController for GameScene {
     ) {
         match self.preview_instance.as_ref() {
             None => {
-                if let Some(item) = engine.user_interface.node(handle).cast::<AssetItem>() {
+                if let Some(item) = engine
+                    .user_interfaces
+                    .first_mut()
+                    .node(handle)
+                    .cast::<AssetItem>()
+                {
                     // Make sure all resources loaded with relative paths only.
                     // This will make scenes portable.
                     if let Ok(relative_path) = make_relative_path(&item.path) {
@@ -554,7 +559,7 @@ impl SceneController for GameScene {
             }
             Some(preview) => {
                 let frame_size = screen_bounds.size;
-                let cursor_pos = engine.user_interface.cursor_position();
+                let cursor_pos = engine.user_interfaces.first_mut().cursor_position();
                 let rel_pos = cursor_pos - screen_bounds.position;
                 let graph = &mut engine.scenes[self.scene].graph;
 
@@ -615,7 +620,12 @@ impl SceneController for GameScene {
 
         let frame_size = screen_bounds.size;
 
-        if let Some(item) = engine.user_interface.node(handle).cast::<AssetItem>() {
+        if let Some(item) = engine
+            .user_interfaces
+            .first_mut()
+            .node(handle)
+            .cast::<AssetItem>()
+        {
             // Make sure all resources loaded with relative paths only.
             // This will make scenes portable.
             if let Ok(relative_path) = make_relative_path(&item.path) {
@@ -640,7 +650,7 @@ impl SceneController for GameScene {
                     .try_request::<Texture>(relative_path)
                     .and_then(|t| block_on(t).ok())
                 {
-                    let cursor_pos = engine.user_interface.cursor_position();
+                    let cursor_pos = engine.user_interfaces.first_mut().cursor_position();
                     let rel_pos = cursor_pos - screen_bounds.position;
                     let graph = &engine.scenes[self.scene].graph;
                     if let Some(result) = self.camera_controller.pick(PickingOptions {
@@ -916,7 +926,8 @@ impl SceneController for GameScene {
             Message::SyncNodeHandleName { view, handle } => {
                 let scene = &engine.scenes[self.scene];
                 engine
-                    .user_interface
+                    .user_interfaces
+                    .first_mut()
                     .send_message(HandlePropertyEditorMessage::name(
                         *view,
                         MessageDirection::ToWidget,
@@ -929,9 +940,8 @@ impl SceneController for GameScene {
             }
             Message::ProvideSceneHierarchy { view } => {
                 let scene = &engine.scenes[self.scene];
-                engine
-                    .user_interface
-                    .send_message(HandlePropertyEditorMessage::hierarchy(
+                engine.user_interfaces.first_mut().send_message(
+                    HandlePropertyEditorMessage::hierarchy(
                         *view,
                         MessageDirection::ToWidget,
                         HierarchyNode::from_scene_node(
@@ -939,7 +949,8 @@ impl SceneController for GameScene {
                             Handle::NONE,
                             &scene.graph,
                         ),
-                    ));
+                    ),
+                );
                 false
             }
             _ => false,

@@ -581,7 +581,7 @@ impl Editor {
         let message_sender = MessageSender(message_sender);
 
         {
-            let mut font_state = engine.user_interface.default_font.state();
+            let mut font_state = engine.user_interfaces.first_mut().default_font.state();
             let font_state_data = font_state.data().unwrap();
             *font_state_data =
                 Font::from_memory(include_bytes!("../resources/arial.ttf").as_slice(), 1024)
@@ -590,7 +590,7 @@ impl Editor {
 
         let configurator = Configurator::new(
             message_sender.clone(),
-            &mut engine.user_interface.build_ctx(),
+            &mut engine.user_interfaces.first_mut().build_ctx(),
         );
 
         let scene_viewer = SceneViewer::new(&mut engine, message_sender.clone(), &settings);
@@ -599,7 +599,7 @@ impl Editor {
         let light_panel = LightPanel::new(&mut engine, message_sender.clone());
         let audio_panel = AudioPanel::new(&mut engine, message_sender.clone());
 
-        let ctx = &mut engine.user_interface.build_ctx();
+        let ctx = &mut engine.user_interfaces.first_mut().build_ctx();
         let navmesh_panel = NavmeshPanel::new(scene_viewer.frame(), ctx, message_sender.clone());
         let scene_node_context_menu = Rc::new(RefCell::new(SceneNodeContextMenu::new(ctx)));
         let widget_context_menu = Rc::new(RefCell::new(WidgetContextMenu::new(ctx)));
@@ -790,7 +790,8 @@ impl Editor {
 
         if let Some(layout) = settings.windows.layout.as_ref() {
             engine
-                .user_interface
+                .user_interfaces
+                .first_mut()
                 .send_message(DockingManagerMessage::layout(
                     docking_manager,
                     MessageDirection::ToWidget,
@@ -874,7 +875,8 @@ impl Editor {
             // Open configurator as usual.
             editor
                 .engine
-                .user_interface
+                .user_interfaces
+                .first()
                 .send_message(WindowMessage::open_modal(
                     editor.configurator.window,
                     MessageDirection::ToWidget,
@@ -904,7 +906,7 @@ impl Editor {
 
         self.menu
             .file_menu
-            .update_recent_files_list(&mut self.engine.user_interface, &self.settings);
+            .update_recent_files_list(self.engine.user_interfaces.first_mut(), &self.settings);
 
         match self
             .engine
@@ -932,16 +934,17 @@ impl Editor {
         if let Some(path) = entry.path.as_ref() {
             if !self.settings.recent.scenes.contains(path) {
                 self.settings.recent.scenes.push(path.clone());
-                self.menu
-                    .file_menu
-                    .update_recent_files_list(&mut self.engine.user_interface, &self.settings);
+                self.menu.file_menu.update_recent_files_list(
+                    self.engine.user_interfaces.first_mut(),
+                    &self.settings,
+                );
             }
         }
 
         self.scenes.add_and_select(entry);
 
         self.scene_viewer
-            .reset_camera_projection(&self.engine.user_interface);
+            .reset_camera_projection(self.engine.user_interfaces.first());
         self.engine
             .graphics_context
             .as_initialized_mut()
@@ -958,7 +961,7 @@ impl Editor {
             return;
         }
 
-        let modifiers = self.engine.user_interface.keyboard_modifiers();
+        let modifiers = self.engine.user_interfaces.first_mut().keyboard_modifiers();
         let sender = self.message_sender.clone();
         let engine = &mut self.engine;
 
@@ -1153,8 +1156,11 @@ impl Editor {
             },
         );
 
-        self.build_window
-            .handle_ui_message(message, &self.message_sender, &engine.user_interface);
+        self.build_window.handle_ui_message(
+            message,
+            &self.message_sender,
+            engine.user_interfaces.first(),
+        );
         self.log.handle_ui_message(message, engine);
         self.asset_browser
             .handle_ui_message(message, engine, self.message_sender.clone());
@@ -1162,7 +1168,7 @@ impl Editor {
         self.curve_editor.handle_ui_message(message, engine);
         self.path_fixer.handle_ui_message(
             message,
-            &mut engine.user_interface,
+            engine.user_interfaces.first_mut(),
             engine.serialization_context.clone(),
             engine.resource_manager.clone(),
         );
@@ -1174,11 +1180,15 @@ impl Editor {
             &self.mode,
         );
         if let Some(export_window) = self.export_window.as_mut() {
-            export_window.handle_ui_message(message, &engine.user_interface, &self.message_sender);
+            export_window.handle_ui_message(
+                message,
+                engine.user_interfaces.first(),
+                &self.message_sender,
+            );
         }
         if let Some(stats) = self.statistics_window.as_ref() {
             if let StatisticsWindowAction::Remove =
-                stats.handle_ui_message(message, &engine.user_interface)
+                stats.handle_ui_message(message, engine.user_interfaces.first())
             {
                 self.statistics_window.take();
             }
@@ -1202,7 +1212,7 @@ impl Editor {
                     &current_scene_entry.selection,
                     graph,
                     game_scene.scene_content_root,
-                    &mut engine.user_interface,
+                    engine.user_interfaces.first_mut(),
                     &engine.resource_manager,
                     &self.message_sender,
                     game_scene.graph_switches.node_overrides.as_mut().unwrap(),
@@ -1212,12 +1222,12 @@ impl Editor {
                     &self.message_sender,
                     &current_scene_entry.selection,
                     graph,
-                    &mut engine.user_interface,
+                    engine.user_interfaces.first_mut(),
                     game_scene.graph_switches.node_overrides.as_mut().unwrap(),
                 );
                 self.ragdoll_wizard.handle_ui_message(
                     message,
-                    &mut engine.user_interface,
+                    engine.user_interfaces.first_mut(),
                     graph,
                     game_scene,
                     &self.message_sender,
@@ -1300,7 +1310,7 @@ impl Editor {
                         resource_manager: &engine.resource_manager,
                         instantiation_scale: self.settings.model.instantiation_scale,
                     },
-                    &engine.user_interface,
+                    engine.user_interfaces.first(),
                     &mut self.settings,
                 );
 
@@ -1314,7 +1324,7 @@ impl Editor {
                     &current_scene_entry.selection,
                     &mut ui_scene.ui,
                     ui_root,
-                    &mut engine.user_interface,
+                    engine.user_interfaces.first_mut(),
                     &engine.resource_manager,
                     &self.message_sender,
                     ui_scene.ui_update_switches.node_overrides.as_mut().unwrap(),
@@ -1324,7 +1334,7 @@ impl Editor {
                     &self.message_sender,
                     &current_scene_entry.selection,
                     &mut ui_scene.ui,
-                    &mut engine.user_interface,
+                    engine.user_interfaces.first_mut(),
                     ui_scene.ui_update_switches.node_overrides.as_mut().unwrap(),
                 );
                 self.world_viewer.handle_ui_message(
@@ -1336,7 +1346,7 @@ impl Editor {
                         sender: &self.message_sender,
                         resource_manager: &engine.resource_manager,
                     },
-                    &engine.user_interface,
+                    engine.user_interfaces.first(),
                     &mut self.settings,
                 );
 
@@ -1516,7 +1526,7 @@ impl Editor {
         for_each_plugin!(self.plugins => on_mode_changed(self));
 
         let engine = &mut self.engine;
-        let ui = &engine.user_interface;
+        let ui = engine.user_interfaces.first();
         self.scene_viewer.on_mode_changed(ui, &self.mode);
         self.world_viewer.on_mode_changed(ui, &self.mode);
         self.asset_browser.on_mode_changed(ui, &self.mode);
@@ -1536,12 +1546,12 @@ impl Editor {
 
         self.menu.sync_to_model(
             self.scenes.current_scene_controller_ref().is_some(),
-            &mut engine.user_interface,
+            engine.user_interfaces.first_mut(),
         );
 
         self.scene_viewer.sync_to_model(&self.scenes, engine);
         if let Some(exporter) = self.export_window.as_ref() {
-            exporter.sync_to_model(&mut engine.user_interface);
+            exporter.sync_to_model(engine.user_interfaces.first_mut());
         }
 
         if let Some(current_scene_entry) = self.scenes.current_scene_entry_mut() {
@@ -1552,7 +1562,7 @@ impl Editor {
                     &mut current_scene_entry.selection,
                     engine,
                 ),
-                &mut engine.user_interface,
+                engine.user_interfaces.first_mut(),
             );
             self.inspector.sync_to_model(
                 &current_scene_entry.selection,
@@ -1563,13 +1573,13 @@ impl Editor {
             if let Some(game_scene) = current_scene_entry.controller.downcast_mut::<GameScene>() {
                 self.animation_editor.sync_to_model(
                     &current_scene_entry.selection,
-                    &mut engine.user_interface,
+                    engine.user_interfaces.first_mut(),
                     &engine.scenes[game_scene.scene].graph,
                 );
                 self.absm_editor.sync_to_model(
                     &current_scene_entry.selection,
                     &engine.scenes[game_scene.scene].graph,
-                    &mut engine.user_interface,
+                    engine.user_interfaces.first_mut(),
                 );
                 self.scene_settings.sync_to_model(game_scene, engine);
                 let sender = &self.message_sender;
@@ -1583,11 +1593,11 @@ impl Editor {
                         resource_manager: &engine.resource_manager,
                         instantiation_scale: self.settings.model.instantiation_scale,
                     },
-                    &mut engine.user_interface,
+                    engine.user_interfaces.first_mut(),
                     &self.settings,
                 );
                 self.material_editor
-                    .sync_to_model(&mut engine.user_interface);
+                    .sync_to_model(engine.user_interfaces.first_mut());
                 self.audio_panel
                     .sync_to_model(&current_scene_entry.selection, game_scene, engine);
                 self.navmesh_panel.sync_to_model(
@@ -1599,13 +1609,13 @@ impl Editor {
             {
                 self.animation_editor.sync_to_model(
                     &current_scene_entry.selection,
-                    &mut engine.user_interface,
+                    engine.user_interfaces.first_mut(),
                     &ui_scene.ui,
                 );
                 self.absm_editor.sync_to_model(
                     &current_scene_entry.selection,
                     &ui_scene.ui,
-                    &mut engine.user_interface,
+                    engine.user_interfaces.first_mut(),
                 );
                 self.world_viewer.sync_to_model(
                     &UiSceneWorldViewerDataProvider {
@@ -1615,13 +1625,13 @@ impl Editor {
                         sender: &self.message_sender,
                         resource_manager: &engine.resource_manager,
                     },
-                    &mut engine.user_interface,
+                    engine.user_interfaces.first_mut(),
                     &self.settings,
                 );
             }
         } else {
-            self.inspector.clear(&engine.user_interface);
-            self.world_viewer.clear(&engine.user_interface);
+            self.inspector.clear(engine.user_interfaces.first());
+            self.world_viewer.clear(engine.user_interfaces.first());
         }
     }
 
@@ -1638,7 +1648,7 @@ impl Editor {
                         resource_manager: &self.engine.resource_manager,
                         instantiation_scale: self.settings.model.instantiation_scale,
                     },
-                    &mut self.engine.user_interface,
+                    self.engine.user_interfaces.first_mut(),
                     &self.settings,
                 );
             } else if let Some(ui_scene) = entry.controller.downcast_mut::<UiScene>() {
@@ -1650,7 +1660,7 @@ impl Editor {
                         sender: &self.message_sender,
                         resource_manager: &self.engine.resource_manager,
                     },
-                    &mut self.engine.user_interface,
+                    self.engine.user_interfaces.first_mut(),
                     &self.settings,
                 );
             }
@@ -1733,25 +1743,25 @@ impl Editor {
                     .leave_preview_mode(game_scene, engine);
                 self.animation_editor.try_leave_preview_mode(
                     &mut engine.scenes[game_scene.scene].graph,
-                    &engine.user_interface,
+                    engine.user_interfaces.first(),
                     game_scene.graph_switches.node_overrides.as_mut().unwrap(),
                 );
                 self.absm_editor.try_leave_preview_mode(
                     &entry.selection,
                     &mut engine.scenes[game_scene.scene].graph,
-                    &mut engine.user_interface,
+                    engine.user_interfaces.first_mut(),
                     game_scene.graph_switches.node_overrides.as_mut().unwrap(),
                 );
             } else if let Some(ui_scene) = entry.controller.downcast_mut::<UiScene>() {
                 self.animation_editor.try_leave_preview_mode(
                     &mut ui_scene.ui,
-                    &self.engine.user_interface,
+                    self.engine.user_interfaces.first(),
                     ui_scene.ui_update_switches.node_overrides.as_mut().unwrap(),
                 );
                 self.absm_editor.try_leave_preview_mode(
                     &entry.selection,
                     &mut ui_scene.ui,
-                    &mut self.engine.user_interface,
+                    self.engine.user_interfaces.first_mut(),
                     ui_scene.ui_update_switches.node_overrides.as_mut().unwrap(),
                 );
             }
@@ -1803,13 +1813,13 @@ impl Editor {
                 self.settings.recent.scenes.push(path.clone());
                 self.menu
                     .file_menu
-                    .update_recent_files_list(&mut engine.user_interface, &self.settings);
+                    .update_recent_files_list(engine.user_interfaces.first_mut(), &self.settings);
             }
 
             match entry.save(path.clone(), &self.settings, engine) {
                 Ok(message) => {
                     self.scene_viewer.set_title(
-                        &engine.user_interface,
+                        engine.user_interfaces.first(),
                         format!("Scene Preview - {}", path.display()),
                     );
                     Log::info(message);
@@ -1818,12 +1828,15 @@ impl Editor {
                 }
                 Err(message) => {
                     Log::err(message.clone());
-                    engine.user_interface.send_message(MessageBoxMessage::open(
-                        self.validation_message_box,
-                        MessageDirection::ToWidget,
-                        None,
-                        Some(message),
-                    ));
+                    engine
+                        .user_interfaces
+                        .first_mut()
+                        .send_message(MessageBoxMessage::open(
+                            self.validation_message_box,
+                            MessageDirection::ToWidget,
+                            None,
+                            Some(message),
+                        ));
                 }
             }
         }
@@ -1903,16 +1916,19 @@ impl Editor {
         if force {
             self.exit = true;
         } else if let Some(first_unsaved) = self.scenes.first_unsaved_scene() {
-            engine.user_interface.send_message(MessageBoxMessage::open(
-                self.exit_message_box,
-                MessageDirection::ToWidget,
-                None,
-                Some(format!(
-                    "There are unsaved changes in the {} scene. \
+            engine
+                .user_interfaces
+                .first_mut()
+                .send_message(MessageBoxMessage::open(
+                    self.exit_message_box,
+                    MessageDirection::ToWidget,
+                    None,
+                    Some(format!(
+                        "There are unsaved changes in the {} scene. \
                     Do you wish to save them before exit?",
-                    first_unsaved.name()
-                )),
-            ));
+                        first_unsaved.name()
+                    )),
+                ));
         } else {
             self.exit = true;
         }
@@ -1930,10 +1946,10 @@ impl Editor {
             // Preview frame has scene frame texture assigned, it must be cleared explicitly,
             // otherwise it will show last rendered frame in preview which is not what we want.
             self.scene_viewer
-                .set_render_target(&engine.user_interface, None);
+                .set_render_target(engine.user_interfaces.first(), None);
             // Set default title scene
             self.scene_viewer
-                .set_title(&engine.user_interface, "Scene Preview".to_string());
+                .set_title(engine.user_interfaces.first(), "Scene Preview".to_string());
 
             entry.before_drop(engine);
 
@@ -1951,7 +1967,7 @@ impl Editor {
     }
 
     fn on_scene_changed(&mut self) {
-        let ui = &self.engine.user_interface;
+        let ui = &self.engine.user_interfaces.first();
         if let Some(entry) = self.scenes.current_scene_entry_ref() {
             if entry.controller.downcast_ref::<GameScene>().is_some() {
                 self.world_viewer.item_context_menu = Some(self.scene_node_context_menu.clone());
@@ -1961,8 +1977,7 @@ impl Editor {
                 self.world_viewer.item_context_menu = None;
             }
 
-            self.menu
-                .on_scene_changed(&*entry.controller, &self.engine.user_interface);
+            self.menu.on_scene_changed(&*entry.controller, ui);
         }
 
         self.world_viewer.clear(ui);
@@ -1975,7 +1990,7 @@ impl Editor {
 
         self.scene_viewer.on_current_scene_changed(
             self.scenes.current_scene_entry_mut(),
-            &mut self.engine.user_interface,
+            self.engine.user_interfaces.first_mut(),
         );
         self.sync_to_model();
         self.poll_ui_messages();
@@ -2058,7 +2073,7 @@ impl Editor {
             .set_working_directory(engine, &working_directory);
 
         self.world_viewer
-            .on_configure(&engine.user_interface, &self.settings);
+            .on_configure(engine.user_interfaces.first(), &self.settings);
 
         Log::info(format!(
             "New working directory was successfully set: {:?}",
@@ -2071,11 +2086,14 @@ impl Editor {
 
         self.material_editor.set_material(Some(material), engine);
 
-        engine.user_interface.send_message(WindowMessage::open(
-            self.material_editor.window,
-            MessageDirection::ToWidget,
-            true,
-        ));
+        engine
+            .user_interfaces
+            .first_mut()
+            .send_message(WindowMessage::open(
+                self.material_editor.window,
+                MessageDirection::ToWidget,
+                true,
+            ));
     }
 
     fn poll_ui_messages(&mut self) -> usize {
@@ -2083,7 +2101,7 @@ impl Editor {
 
         let mut processed = 0;
 
-        while let Some(mut ui_message) = self.engine.user_interface.poll_message() {
+        while let Some(mut ui_message) = self.engine.user_interfaces.first_mut().poll_message() {
             self.handle_ui_message(&mut ui_message);
             processed += 1;
         }
@@ -2141,7 +2159,7 @@ impl Editor {
                             Ok(mut new_process) => {
                                 self.build_window.listen(
                                     new_process.stderr.take().unwrap(),
-                                    &self.engine.user_interface,
+                                    self.engine.user_interfaces.first(),
                                 );
 
                                 *process = Some(new_process);
@@ -2157,7 +2175,8 @@ impl Editor {
                 }
 
                 if let Some(process_ref) = process {
-                    self.build_window.update(&self.engine.user_interface);
+                    self.build_window
+                        .update(self.engine.user_interfaces.first());
 
                     match process_ref.try_wait() {
                         Ok(status) => {
@@ -2171,10 +2190,10 @@ impl Editor {
                                     self.on_mode_changed();
                                 } else if queue.is_empty() {
                                     self.set_play_mode();
-                                    self.build_window.reset(&self.engine.user_interface);
-                                    self.build_window.close(&self.engine.user_interface);
+                                    self.build_window.reset(self.engine.user_interfaces.first());
+                                    self.build_window.close(self.engine.user_interfaces.first());
                                 } else {
-                                    self.build_window.reset(&self.engine.user_interface);
+                                    self.build_window.reset(self.engine.user_interfaces.first());
                                     // Continue on next command.
                                     *process = None;
                                 }
@@ -2199,7 +2218,7 @@ impl Editor {
         self.material_editor.update(&mut self.engine);
         self.asset_browser.update(&mut self.engine);
         if let Some(export_window) = self.export_window.as_mut() {
-            export_window.update(&mut self.engine.user_interface);
+            export_window.update(self.engine.user_interfaces.first_mut());
         }
         if let Some(stats) = self.statistics_window.as_ref() {
             stats.update(&self.engine);
@@ -2210,7 +2229,7 @@ impl Editor {
                 self.light_panel.update(game_scene, &mut self.engine);
                 self.animation_editor.update(
                     &entry.selection,
-                    &self.engine.user_interface,
+                    self.engine.user_interfaces.first(),
                     &self.engine.scenes[game_scene.scene].graph,
                 );
                 self.audio_preview_panel
@@ -2219,7 +2238,7 @@ impl Editor {
             } else if let Some(ui_scene) = entry.controller.downcast_ref::<UiScene>() {
                 self.animation_editor.update(
                     &entry.selection,
-                    &self.engine.user_interface,
+                    self.engine.user_interfaces.first(),
                     &ui_scene.ui,
                 );
             }
@@ -2243,7 +2262,7 @@ impl Editor {
 
                 editor_messages_processed_count += 1;
                 self.path_fixer
-                    .handle_message(&message, &self.engine.user_interface);
+                    .handle_message(&message, self.engine.user_interfaces.first());
 
                 self.save_scene_dialog
                     .handle_message(&message, &self.message_sender);
@@ -2285,28 +2304,28 @@ impl Editor {
                         self.animation_editor.handle_message(
                             &message,
                             &mut self.engine.scenes[game_scene.scene].graph,
-                            &self.engine.user_interface,
+                            self.engine.user_interfaces.first(),
                             game_scene.graph_switches.node_overrides.as_mut().unwrap(),
                         );
                         self.absm_editor.handle_message(
                             &message,
                             &entry.selection,
                             &mut self.engine.scenes[game_scene.scene].graph,
-                            &mut self.engine.user_interface,
+                            self.engine.user_interfaces.first_mut(),
                             game_scene.graph_switches.node_overrides.as_mut().unwrap(),
                         );
                     } else if let Some(ui_scene) = entry.controller.downcast_mut::<UiScene>() {
                         self.animation_editor.handle_message(
                             &message,
                             &mut ui_scene.ui,
-                            &self.engine.user_interface,
+                            self.engine.user_interfaces.first(),
                             ui_scene.ui_update_switches.node_overrides.as_mut().unwrap(),
                         );
                         self.absm_editor.handle_message(
                             &message,
                             &entry.selection,
                             &mut ui_scene.ui,
-                            &mut self.engine.user_interface,
+                            self.engine.user_interfaces.first_mut(),
                             ui_scene.ui_update_switches.node_overrides.as_mut().unwrap(),
                         );
                     }
@@ -2367,7 +2386,7 @@ impl Editor {
                     }
                     Message::OpenSettings => {
                         self.menu.file_menu.settings.open(
-                            &mut self.engine.user_interface,
+                            self.engine.user_interfaces.first_mut(),
                             &self.settings,
                             &self.message_sender,
                         );
@@ -2387,11 +2406,11 @@ impl Editor {
                     }
                     Message::ShowInAssetBrowser(path) => {
                         self.asset_browser
-                            .locate_path(&self.engine.user_interface, path);
+                            .locate_path(self.engine.user_interfaces.first(), path);
                     }
                     Message::LocateObject { handle } => self
                         .world_viewer
-                        .try_locate_object(handle, &self.engine.user_interface),
+                        .try_locate_object(handle, self.engine.user_interfaces.first()),
                     Message::SwitchMode => match self.mode {
                         Mode::Edit => self.set_build_mode(),
                         _ => self.set_editor_mode(),
@@ -2400,17 +2419,17 @@ impl Editor {
                     Message::SwitchToEditMode => self.set_editor_mode(),
                     Message::OpenLoadSceneDialog => {
                         self.menu
-                            .open_load_file_selector(&mut self.engine.user_interface);
+                            .open_load_file_selector(self.engine.user_interfaces.first_mut());
                     }
                     Message::OpenSaveSceneDialog { default_file_name } => {
                         self.menu.open_save_file_selector(
-                            &mut self.engine.user_interface,
+                            self.engine.user_interfaces.first_mut(),
                             default_file_name,
                         );
                     }
                     Message::OpenSaveSceneConfirmationDialog { id, action } => {
                         self.save_scene_dialog.open(
-                            &self.engine.user_interface,
+                            self.engine.user_interfaces.first(),
                             id,
                             &self.scenes,
                             action,
@@ -2420,11 +2439,15 @@ impl Editor {
                         needs_sync = true;
                     }
                     Message::OpenAnimationEditor => {
-                        self.animation_editor.open(&self.engine.user_interface);
+                        self.animation_editor
+                            .open(self.engine.user_interfaces.first());
                     }
-                    Message::OpenAbsmEditor => self.absm_editor.open(&self.engine.user_interface),
+                    Message::OpenAbsmEditor => {
+                        self.absm_editor.open(self.engine.user_interfaces.first())
+                    }
                     Message::ShowDocumentation(doc) => {
-                        self.doc_window.open(doc, &self.engine.user_interface);
+                        self.doc_window
+                            .open(doc, self.engine.user_interfaces.first());
                     }
                     Message::SaveLayout => {
                         self.save_layout();
@@ -2454,7 +2477,9 @@ impl Editor {
         if let Some(entry) = self.scenes.current_scene_entry_mut() {
             let controller = &mut entry.controller;
 
-            let screen_bounds = self.scene_viewer.frame_bounds(&self.engine.user_interface);
+            let screen_bounds = self
+                .scene_viewer
+                .frame_bounds(self.engine.user_interfaces.first());
             if let Some(new_render_target) = controller.update(
                 &entry.selection,
                 &mut self.engine,
@@ -2463,21 +2488,23 @@ impl Editor {
                 &mut self.settings,
                 screen_bounds,
             ) {
-                self.scene_viewer
-                    .set_render_target(&self.engine.user_interface, Some(new_render_target));
+                self.scene_viewer.set_render_target(
+                    self.engine.user_interfaces.first(),
+                    Some(new_render_target),
+                );
             }
 
             if let Some(game_scene) = controller.downcast_ref::<GameScene>() {
                 self.absm_editor.update(
                     &entry.selection,
                     &mut self.engine.scenes[game_scene.scene].graph,
-                    &mut self.engine.user_interface,
+                    self.engine.user_interfaces.first_mut(),
                 );
             } else if let Some(ui_scene) = controller.downcast_mut::<UiScene>() {
                 self.absm_editor.update(
                     &entry.selection,
                     &mut ui_scene.ui,
-                    &mut self.engine.user_interface,
+                    self.engine.user_interfaces.first_mut(),
                 );
             }
 
@@ -2495,20 +2522,20 @@ impl Editor {
     }
 
     fn save_layout(&mut self) {
-        let layout = self
-            .engine
-            .user_interface
+        let ui = self.engine.user_interfaces.first();
+        let layout = ui
             .node(self.docking_manager)
             .query_component::<DockingManager>()
             .unwrap()
-            .layout(&self.engine.user_interface);
+            .layout(ui);
         self.settings.windows.layout = Some(layout);
     }
 
     fn load_layout(&mut self) {
         if let Some(layout) = self.settings.windows.layout.as_ref() {
             self.engine
-                .user_interface
+                .user_interfaces
+                .first_mut()
                 .send_message(DockingManagerMessage::layout(
                     self.docking_manager,
                     MessageDirection::ToWidget,
@@ -2569,7 +2596,7 @@ impl Editor {
         !self.update_loop_state.is_suspended()
             && (self.focused || !self.settings.general.suspend_unfocused_editor)
             // Keep the editor active if user holds any mouse button.
-            || self.engine.user_interface.captured_node().is_some()
+            || self.engine.user_interfaces.first().captured_node().is_some()
     }
 
     fn on_resumed(&mut self, evt: &EventLoopWindowTarget<()>) {
@@ -2601,7 +2628,7 @@ impl Editor {
         ));
 
         set_ui_scaling(
-            &engine.user_interface,
+            engine.user_interfaces.first(),
             graphics_context.window.scale_factor() as f32,
         );
 
@@ -2699,20 +2726,20 @@ impl Editor {
                                     .window
                                     .scale_factor(),
                             );
-                            self.engine
-                                .user_interface
-                                .send_message(WidgetMessage::width(
+                            self.engine.user_interfaces.first_mut().send_message(
+                                WidgetMessage::width(
                                     self.root_grid,
                                     MessageDirection::ToWidget,
                                     logical_size.width,
-                                ));
-                            self.engine
-                                .user_interface
-                                .send_message(WidgetMessage::height(
+                                ),
+                            );
+                            self.engine.user_interfaces.first_mut().send_message(
+                                WidgetMessage::height(
                                     self.root_grid,
                                     MessageDirection::ToWidget,
                                     logical_size.height,
-                                ));
+                                ),
+                            );
 
                             if size.width > 0 && size.height > 0 {
                                 self.settings.windows.window_size.x = size.width as f32;
@@ -2731,7 +2758,10 @@ impl Editor {
                             }
                         }
                         WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
-                            set_ui_scaling(&self.engine.user_interface, *scale_factor as f32);
+                            set_ui_scaling(
+                                self.engine.user_interfaces.first(),
+                                *scale_factor as f32,
+                            );
                         }
                         WindowEvent::RedrawRequested => {
                             if self.is_active() {
@@ -2759,7 +2789,10 @@ impl Editor {
                     }
 
                     if let Some(os_event) = translate_event(event) {
-                        self.engine.user_interface.process_os_event(&os_event);
+                        self.engine
+                            .user_interfaces
+                            .first_mut()
+                            .process_os_event(&os_event);
                     }
                 }
                 Event::LoopExiting => {
@@ -2928,7 +2961,9 @@ fn update(editor: &mut Editor, window_target: &EventLoopWindowTarget<()>) {
     }
 
     let window = &editor.engine.graphics_context.as_initialized_ref().window;
-    window.set_cursor_icon(translate_cursor_icon(editor.engine.user_interface.cursor()));
+    window.set_cursor_icon(translate_cursor_icon(
+        editor.engine.user_interfaces.first_mut().cursor(),
+    ));
     window.request_redraw();
 
     if !editor.is_in_preview_mode() {

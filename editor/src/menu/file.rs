@@ -68,7 +68,7 @@ impl FileMenu {
         let recent_files_container;
         let export_project;
 
-        let ctx = &mut engine.user_interface.build_ctx();
+        let ctx = &mut engine.user_interfaces.first_mut().build_ctx();
 
         let configure_message = MessageBoxBuilder::new(
             WindowBuilder::new(WidgetBuilder::new().with_width(250.0).with_height(150.0))
@@ -225,10 +225,13 @@ impl FileMenu {
                         path: path.to_owned(),
                     });
                 }
-                engine.user_interface.send_message(WidgetMessage::remove(
-                    self.save_file_selector,
-                    MessageDirection::ToWidget,
-                ));
+                engine
+                    .user_interfaces
+                    .first_mut()
+                    .send_message(WidgetMessage::remove(
+                        self.save_file_selector,
+                        MessageDirection::ToWidget,
+                    ));
                 self.save_file_selector = Handle::NONE;
             } else if message.destination() == self.load_file_selector {
                 sender.send(Message::LoadScene(path.to_owned()));
@@ -244,7 +247,7 @@ impl FileMenu {
                     } else {
                         // If scene wasn't saved yet - open Save As window.
                         self.open_save_file_selector(
-                            &mut engine.user_interface,
+                            engine.user_interfaces.first_mut(),
                             entry.default_file_name(),
                         );
                     }
@@ -252,12 +255,12 @@ impl FileMenu {
             } else if message.destination() == self.save_as {
                 if let Some(entry) = entry {
                     self.open_save_file_selector(
-                        &mut engine.user_interface,
+                        engine.user_interfaces.first_mut(),
                         entry.default_file_name(),
                     );
                 }
             } else if message.destination() == self.load {
-                self.open_load_file_selector(&mut engine.user_interface);
+                self.open_load_file_selector(engine.user_interfaces.first_mut());
             } else if message.destination() == self.close_scene {
                 if let Some(entry) = entry.as_ref() {
                     if entry.need_save() {
@@ -278,29 +281,34 @@ impl FileMenu {
             } else if message.destination() == self.configure {
                 if entry.is_none() {
                     engine
-                        .user_interface
+                        .user_interfaces
+                        .first_mut()
                         .send_message(WindowMessage::open_modal(
                             panels.configurator_window,
                             MessageDirection::ToWidget,
                             true,
                         ));
                 } else {
-                    engine.user_interface.send_message(MessageBoxMessage::open(
-                        self.configure_message,
-                        MessageDirection::ToWidget,
-                        None,
-                        None,
-                    ));
+                    engine
+                        .user_interfaces
+                        .first_mut()
+                        .send_message(MessageBoxMessage::open(
+                            self.configure_message,
+                            MessageDirection::ToWidget,
+                            None,
+                            None,
+                        ));
                 }
             } else if message.destination() == self.export_project {
-                let export_window = ExportWindow::new(&mut engine.user_interface.build_ctx());
-                export_window.open(&engine.user_interface);
+                let export_window =
+                    ExportWindow::new(&mut engine.user_interfaces.first_mut().build_ctx());
+                export_window.open(engine.user_interfaces.first());
                 *panels.export_window = Some(export_window);
             } else if message.destination() == self.open_settings {
                 self.settings
-                    .open(&mut engine.user_interface, settings, sender);
+                    .open(engine.user_interfaces.first_mut(), settings, sender);
             } else if message.destination() == self.open_scene_settings {
-                panels.scene_settings.open(&engine.user_interface);
+                panels.scene_settings.open(engine.user_interfaces.first());
             } else if let Some(recent_file) = self
                 .recent_files
                 .iter()

@@ -228,14 +228,16 @@ impl SceneNodeContextMenu {
                     }
                 } else if message.destination() == self.save_as_prefab {
                     engine
-                        .user_interface
+                        .user_interfaces
+                        .first_mut()
                         .send_message(WindowMessage::open_modal(
                             self.save_as_prefab_dialog,
                             MessageDirection::ToWidget,
                             true,
                         ));
                     engine
-                        .user_interface
+                        .user_interfaces
+                        .first_mut()
                         .send_message(FileSelectorMessage::root(
                             self.save_as_prefab_dialog,
                             MessageDirection::ToWidget,
@@ -290,18 +292,28 @@ impl SceneNodeContextMenu {
                     self.placement_target = *target;
 
                     // Check if there's something to paste and deactivate "Paste" if nothing.
-                    engine.user_interface.send_message(WidgetMessage::enabled(
-                        self.paste,
-                        MessageDirection::ToWidget,
-                        !game_scene.clipboard.is_empty(),
-                    ));
+                    engine
+                        .user_interfaces
+                        .first_mut()
+                        .send_message(WidgetMessage::enabled(
+                            self.paste,
+                            MessageDirection::ToWidget,
+                            !game_scene.clipboard.is_empty(),
+                        ));
 
-                    engine.user_interface.send_message(WidgetMessage::enabled(
-                        self.open_asset,
-                        MessageDirection::ToWidget,
-                        resource_path_of_first_selected_node(editor_selection, game_scene, engine)
+                    engine
+                        .user_interfaces
+                        .first()
+                        .send_message(WidgetMessage::enabled(
+                            self.open_asset,
+                            MessageDirection::ToWidget,
+                            resource_path_of_first_selected_node(
+                                editor_selection,
+                                game_scene,
+                                engine,
+                            )
                             .map_or(false, |p| utils::is_native_scene(&p)),
-                    ));
+                        ));
                 }
             } else if let Some(FileSelectorMessage::Commit(path)) = message.data() {
                 if message.destination() == self.save_as_prefab_dialog {
