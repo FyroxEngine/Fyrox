@@ -132,6 +132,9 @@ jobs:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+      - uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: 10406996
       - name: Install Tools
         run: |
           cargo install fyrox-template --path=template --force
@@ -148,7 +151,7 @@ jobs:
           fyrox-template init --name test_project --style=3d
           cd test_project
           fyrox-template upgrade --version=latest --local
-          cargo build --package editor          
-          cargo-apk apk build --package executor-android --target armv7-linux-androideabi          
+          cargo-apk apk build --package executor-android --target armv7-linux-androideabi
+          cargo build --package editor       
           cd executor-wasm
           wasm-pack build --target=web
