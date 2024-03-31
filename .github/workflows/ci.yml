@@ -139,6 +139,9 @@ jobs:
       - uses: android-actions/setup-android@v3
         with:
           cmdline-tools-version: 10406996
+      - uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r21e
       - name: Install Tools
         run: |
           cargo install fyrox-template --path=template --force
