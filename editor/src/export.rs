@@ -221,7 +221,7 @@ fn is_wasm_pack_installed() -> bool {
 }
 
 fn cargo_install(crate_name: &str) -> Result<(), String> {
-    Log::info("Trying to install wasm-pack...");
+    Log::info(format!("Trying to install {crate_name}..."));
 
     let mut process = std::process::Command::new("cargo");
     match process
@@ -338,8 +338,10 @@ fn build_package(
             let mut process = std::process::Command::new("cargo-apk");
             process
                 .stderr(Stdio::piped())
+                .arg("apk")
                 .arg("build")
-                .arg(package_dir_path)
+                .arg("--package")
+                .arg(package_name)
                 .arg("--target")
                 .arg(build_target);
             process
@@ -846,16 +848,23 @@ impl ExportWindow {
                 }
 
                 // TODO: move this to settings.
-                let items = match self.export_options.target_platform {
-                    TargetPlatform::PC => vec!["default"],
-                    TargetPlatform::WebAssembly => vec!["wasm32-unknown-unknown"],
+                let build_targets = match self.export_options.target_platform {
+                    TargetPlatform::PC => vec!["default".to_string()],
+                    TargetPlatform::WebAssembly => vec!["wasm32-unknown-unknown".to_string()],
                     TargetPlatform::Android => {
-                        vec!["armv7-linux-androideabi", "aarch64-linux-android"]
+                        vec![
+                            "armv7-linux-androideabi".to_string(),
+                            "aarch64-linux-android".to_string(),
+                        ]
                     }
                 };
 
-                let ui_items = items
-                    .into_iter()
+                self.export_options.build_targets = build_targets;
+
+                let ui_items = self
+                    .export_options
+                    .build_targets
+                    .iter()
                     .map(|name| make_dropdown_list_option(&mut ui.build_ctx(), name))
                     .collect::<Vec<_>>();
 
