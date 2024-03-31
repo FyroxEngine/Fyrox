@@ -537,6 +537,11 @@ edition = "2021"
 assets = "../data"
 strip = "strip"
 
+[package.metadata.android.sdk]
+min_sdk_version = 26
+target_sdk_version = 30
+max_sdk_version = 29
+
 [lib]
 crate-type = ["cdylib"]
 
