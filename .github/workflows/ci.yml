@@ -132,10 +132,14 @@ jobs:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - name: Install fyrox-template
+      - name: Install Tools
         run: |
           cargo install fyrox-template --path=template --force
-      - name: Generate and run project
+          cargo install cargo-apk
+          cargo install wasm-pack
+          rustup target add armv7-linux-androideabi
+          rustup target add wasm32-unknown-unknown
+      - name: Generate and Build Projects
         env:
           # Suppress warnings, because project template contains a lot of unused method arguments.
           RUSTFLAGS: -Awarnings
@@ -144,21 +148,7 @@ jobs:
           fyrox-template init --name test_project --style=3d
           cd test_project
           fyrox-template upgrade --version=latest --local
-          cargo build --package editor
-      - name: Build Android
-        env:
-          # Suppress warnings, because project template contains a lot of unused method arguments.
-          RUSTFLAGS: -Awarnings
-        run: |
-          rustup target add armv7-linux-androideabi
-          cargo install cargo-apk
-          cargo-apk apk build --package executor-android --target armv7-linux-androideabi
-      - name: Build WASM
-        env:
-          # Suppress warnings, because project template contains a lot of unused method arguments.
-          RUSTFLAGS: -Awarnings
-        run: |
-          rustup target add wasm32-unknown-unknown
-          cargo install wasm-pack
+          cargo build --package editor          
+          cargo-apk apk build --package executor-android --target armv7-linux-androideabi          
           cd executor-wasm
           wasm-pack build --target=web
