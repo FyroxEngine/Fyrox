@@ -1182,7 +1182,7 @@ impl Editor {
         if let Some(export_window) = self.export_window.as_mut() {
             export_window.handle_ui_message(
                 message,
-                engine.user_interfaces.first(),
+                engine.user_interfaces.first_mut(),
                 &self.message_sender,
             );
         }

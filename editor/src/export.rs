@@ -1,35 +1,40 @@
-use crate::fyrox::{
-    core::{
-        color::Color,
-        log::{Log, LogMessage, MessageKind},
-        pool::Handle,
-        reflect::prelude::*,
-    },
-    graph::BaseSceneGraph,
-    gui::{
-        border::BorderBuilder,
-        brush::Brush,
-        button::{ButtonBuilder, ButtonMessage},
-        decorator::DecoratorBuilder,
-        formatted_text::WrapMode,
-        grid::{Column, GridBuilder, Row},
-        inspector::{
-            editors::PropertyEditorDefinitionContainer, Inspector, InspectorBuilder,
-            InspectorContext, InspectorMessage, PropertyAction,
+use crate::{
+    fyrox::{
+        core::{
+            color::Color,
+            log::{Log, LogMessage, MessageKind},
+            pool::Handle,
+            reflect::prelude::*,
         },
-        list_view::{ListViewBuilder, ListViewMessage},
-        message::{MessageDirection, UiMessage},
-        scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
-        stack_panel::StackPanelBuilder,
-        text::TextBuilder,
-        widget::{WidgetBuilder, WidgetMessage},
-        window::{WindowBuilder, WindowMessage, WindowTitle},
-        wrap_panel::WrapPanelBuilder,
-        BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
-        VerticalAlignment, BRUSH_DARKER, BRUSH_LIGHT,
+        graph::BaseSceneGraph,
+        gui::{
+            border::BorderBuilder,
+            brush::Brush,
+            button::{ButtonBuilder, ButtonMessage},
+            decorator::DecoratorBuilder,
+            dropdown_list::{DropdownListBuilder, DropdownListMessage},
+            formatted_text::WrapMode,
+            grid::{Column, GridBuilder, Row},
+            inspector::{
+                editors::PropertyEditorDefinitionContainer, Inspector, InspectorBuilder,
+                InspectorContext, InspectorMessage, PropertyAction,
+            },
+            list_view::{ListViewBuilder, ListViewMessage},
+            message::{MessageDirection, UiMessage},
+            scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
+            stack_panel::StackPanelBuilder,
+            text::TextBuilder,
+            widget::{WidgetBuilder, WidgetMessage},
+            window::{WindowBuilder, WindowMessage, WindowTitle},
+            wrap_panel::WrapPanelBuilder,
+            BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+            VerticalAlignment, BRUSH_DARKER, BRUSH_LIGHT,
+        },
     },
+    gui::make_dropdown_list_option,
+    message::MessageSender,
+    Message,
 };
-use crate::{message::MessageSender, Message};
 use cargo_metadata::{
     camino::{Utf8Path, Utf8PathBuf},
     Metadata,
@@ -59,6 +64,10 @@ struct ExportOptions {
     include_used_assets: bool,
     assets_folders: Vec<PathBuf>,
     ignored_extensions: Vec<String>,
+    #[reflect(hidden)]
+    build_targets: Vec<String>,
+    #[reflect(hidden)]
+    selected_build_target: usize,
 }
 
 impl Default for ExportOptions {
@@ -69,6 +78,8 @@ impl Default for ExportOptions {
             assets_folders: vec!["./data/".into()],
             include_used_assets: false,
             ignored_extensions: vec!["log".to_string()],
+            build_targets: vec!["default".to_string()],
+            selected_build_target: 0,
         }
     }
 }
@@ -107,6 +118,7 @@ pub struct ExportWindow {
     target_platform_list: Handle<UiNode>,
     export_options: ExportOptions,
     inspector: Handle<UiNode>,
+    build_targets_selector: Handle<UiNode>,
 }
 
 fn copy_dir<F>(src: impl AsRef<Path>, dst: impl AsRef<Path>, filter: &F) -> io::Result<()>
@@ -267,7 +279,10 @@ fn install_build_target(target: &str) -> Result<(), String> {
     }
 }
 
-fn configure_build_environment(target_platform: TargetPlatform) -> Result<(), String> {
+fn configure_build_environment(
+    target_platform: TargetPlatform,
+    build_target: &str,
+) -> Result<(), String> {
     match target_platform {
         TargetPlatform::PC => {
             // Assume that rustup have installed the correct toolchain.
@@ -279,23 +294,24 @@ fn configure_build_environment(target_platform: TargetPlatform) -> Result<(), St
                 Ok(())
             } else {
                 cargo_install("wasm-pack")?;
-                install_build_target("wasm32-unknown-unknown")
+                install_build_target(build_target)
             }
         }
         TargetPlatform::Android => {
             cargo_install("cargo-apk")?;
-            install_build_target("armv7-linux-androideabi")
+            install_build_target(build_target)
         }
     }
 }
 
 fn build_package(
     package_name: &str,
+    build_target: &str,
     package_dir_path: &Utf8Path,
     target_platform: TargetPlatform,
     cancel_flag: Arc<AtomicBool>,
 ) -> Result<(), String> {
-    configure_build_environment(target_platform)?;
+    configure_build_environment(target_platform, build_target)?;
 
     let mut process = match target_platform {
         TargetPlatform::PC => {
@@ -318,7 +334,16 @@ fn build_package(
                 .arg("web");
             process
         }
-        TargetPlatform::Android => return Err("Unimplemented!".to_string()),
+        TargetPlatform::Android => {
+            let mut process = std::process::Command::new("cargo-apk");
+            process
+                .stderr(Stdio::piped())
+                .arg("build")
+                .arg(package_dir_path)
+                .arg("--target")
+                .arg(build_target);
+            process
+        }
     };
 
     let mut handle = match process.spawn() {
@@ -453,6 +478,7 @@ fn export(export_options: ExportOptions, cancel_flag: Arc<AtomicBool>) -> Result
 
     build_package(
         package_name,
+        &export_options.build_targets[export_options.selected_build_target],
         package_dir_path,
         export_options.target_platform,
         cancel_flag,
@@ -518,6 +544,7 @@ impl ExportWindow {
         let log;
         let log_scroll_viewer;
         let target_platform_list;
+        let export_options = ExportOptions::default();
 
         let platform_section = StackPanelBuilder::new(
             WidgetBuilder::new()
@@ -568,11 +595,40 @@ impl ExportWindow {
         )
         .build(ctx);
 
-        let export_options = ExportOptions::default();
+        let build_targets_selector;
+        let grid = GridBuilder::new(
+            WidgetBuilder::new()
+                .on_row(2)
+                .with_child(
+                    TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(2.0)))
+                        .with_vertical_text_alignment(VerticalAlignment::Center)
+                        .with_text("Build Target")
+                        .build(ctx),
+                )
+                .with_child({
+                    build_targets_selector =
+                        DropdownListBuilder::new(WidgetBuilder::new().on_column(1))
+                            .with_items(
+                                export_options
+                                    .build_targets
+                                    .iter()
+                                    .map(|opt| make_dropdown_list_option(ctx, opt))
+                                    .collect::<Vec<_>>(),
+                            )
+                            .with_selected(0)
+                            .build(ctx);
+                    build_targets_selector
+                }),
+        )
+        .add_column(Column::auto())
+        .add_column(Column::stretch())
+        .add_row(Row::strict(22.0))
+        .build(ctx);
+
         let inspector;
         let export_options_section = BorderBuilder::new(
             WidgetBuilder::new()
-                .on_row(2)
+                .on_row(3)
                 .with_margin(Thickness::uniform(2.0))
                 .with_background(BRUSH_LIGHT)
                 .with_child(
@@ -603,7 +659,7 @@ impl ExportWindow {
 
         let log_section = GridBuilder::new(
             WidgetBuilder::new()
-                .on_row(3)
+                .on_row(4)
                 .with_child(make_title_text("Export Log", 0, ctx))
                 .with_child(
                     BorderBuilder::new(
@@ -633,7 +689,7 @@ impl ExportWindow {
 
         let buttons_section = StackPanelBuilder::new(
             WidgetBuilder::new()
-                .on_row(4)
+                .on_row(5)
                 .with_horizontal_alignment(HorizontalAlignment::Right)
                 .with_child({
                     export = ButtonBuilder::new(
@@ -675,10 +731,12 @@ impl ExportWindow {
                             .build(ctx),
                         )
                         .with_child(platform_section)
+                        .with_child(grid)
                         .with_child(export_options_section)
                         .with_child(log_section)
                         .with_child(buttons_section),
                 )
+                .add_row(Row::auto())
                 .add_row(Row::auto())
                 .add_row(Row::auto())
                 .add_row(Row::strict(200.0))
@@ -702,6 +760,7 @@ impl ExportWindow {
             target_platform_list,
             export_options,
             inspector,
+            build_targets_selector,
         }
     }
 
@@ -735,7 +794,7 @@ impl ExportWindow {
     pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,
-        ui: &UserInterface,
+        ui: &mut UserInterface,
         sender: &MessageSender,
     ) {
         if let Some(ButtonMessage::Click) = message.data() {
@@ -776,13 +835,35 @@ impl ExportWindow {
                 self.close_and_destroy(ui);
             }
         } else if let Some(ListViewMessage::SelectionChanged(Some(index))) = message.data() {
-            if message.destination() == self.target_platform_list {
+            if message.destination() == self.target_platform_list
+                && message.direction() == MessageDirection::FromWidget
+            {
                 match *index {
                     0 => self.export_options.target_platform = TargetPlatform::PC,
                     1 => self.export_options.target_platform = TargetPlatform::WebAssembly,
                     2 => self.export_options.target_platform = TargetPlatform::Android,
                     _ => Log::err("Unhandled platform index!"),
                 }
+
+                // TODO: move this to settings.
+                let items = match self.export_options.target_platform {
+                    TargetPlatform::PC => vec!["default"],
+                    TargetPlatform::WebAssembly => vec!["wasm32-unknown-unknown"],
+                    TargetPlatform::Android => {
+                        vec!["armv7-linux-androideabi", "aarch64-linux-android"]
+                    }
+                };
+
+                let ui_items = items
+                    .into_iter()
+                    .map(|name| make_dropdown_list_option(&mut ui.build_ctx(), name))
+                    .collect::<Vec<_>>();
+
+                ui.send_message(DropdownListMessage::items(
+                    self.build_targets_selector,
+                    MessageDirection::ToWidget,
+                    ui_items,
+                ));
             }
         } else if let Some(InspectorMessage::PropertyChanged(args)) = message.data() {
             if message.destination() == self.inspector
@@ -796,6 +877,12 @@ impl ExportWindow {
                     },
                 );
                 sender.send(Message::ForceSync);
+            }
+        } else if let Some(DropdownListMessage::SelectionChanged(Some(index))) = message.data() {
+            if message.destination() == self.build_targets_selector
+                && message.direction() == MessageDirection::FromWidget
+            {
+                self.export_options.selected_build_target = *index;
             }
         }
     }
