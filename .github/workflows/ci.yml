@@ -145,3 +145,20 @@ jobs:
           cd test_project
           fyrox-template upgrade --version=latest --local
           cargo build --package editor
+      - name: Build Android
+        env:
+          # Suppress warnings, because project template contains a lot of unused method arguments.
+          RUSTFLAGS: -Awarnings
+        run: |
+          rustup target add armv7-linux-androideabi
+          cargo install cargo-apk
+          cargo-apk apk build --package executor-android --target armv7-linux-androideabi
+      - name: Build WASM
+        env:
+          # Suppress warnings, because project template contains a lot of unused method arguments.
+          RUSTFLAGS: -Awarnings
+        run: |
+          rustup target add wasm32-unknown-unknown
+          cargo install wasm-pack
+          cd executor-wasm
+          wasm-pack build --target=web
