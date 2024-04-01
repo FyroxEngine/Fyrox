@@ -84,7 +84,7 @@ impl Default for ExportOptions {
     }
 }
 
-#[derive(Copy, Clone, VariantNames, Default, Debug)]
+#[derive(Copy, Clone, VariantNames, Default, Debug, Eq, PartialEq)]
 enum TargetPlatform {
     #[default]
     PC,
@@ -343,7 +343,8 @@ fn build_package(
                 .arg("--package")
                 .arg(package_name)
                 .arg("--target")
-                .arg(build_target);
+                .arg(build_target)
+                .arg("--release");
             process
         }
     };
@@ -399,6 +400,53 @@ fn copy_binaries_pc(
 ) -> Result<(), String> {
     let mut binary_paths = vec![];
     for entry in fs::read_dir(metadata.target_directory.join("release"))
+        .unwrap()
+        .flatten()
+    {
+        if let Ok(file_metadata) = entry.metadata() {
+            if !file_metadata.file_type().is_file() {
+                continue;
+            }
+        }
+
+        if let Some(stem) = entry.path().file_stem() {
+            if stem == OsStr::new(package_name) {
+                binary_paths.push(entry.path());
+            }
+        }
+    }
+    for path in binary_paths {
+        if let Some(file_name) = path.file_name() {
+            match fs::copy(&path, &destination_folder.join(file_name)) {
+                Ok(_) => {
+                    Log::info(format!(
+                        "{} was successfully copied to the {} folder.",
+                        path.display(),
+                        destination_folder.display()
+                    ));
+                }
+                Err(err) => {
+                    Log::warn(format!(
+                        "Failed to copy {} file to the {} folder. Reason: {:?}",
+                        path.display(),
+                        destination_folder.display(),
+                        err
+                    ));
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn copy_binaries_android(
+    metadata: &Metadata,
+    package_name: &str,
+    destination_folder: &Path,
+) -> Result<(), String> {
+    let mut binary_paths = vec![];
+    for entry in fs::read_dir(metadata.target_directory.join("release/apk"))
         .unwrap()
         .flatten()
     {
@@ -499,24 +547,29 @@ fn export(export_options: ExportOptions, cancel_flag: Arc<AtomicBool>) -> Result
                 &export_options.destination_folder,
             )?;
         }
-        _ => {}
+        TargetPlatform::Android => {
+            Log::info("Trying to copy the apk...");
+            copy_binaries_android(&metadata, package_name, &export_options.destination_folder)?;
+        }
     }
 
-    Log::info("Trying to copy the assets...");
+    // Copy assets on every platform, except Android. On Android the assets are packed into apk anyway.
+    if export_options.target_platform != TargetPlatform::Android {
+        Log::info("Trying to copy the assets...");
 
-    // Copy assets.
-    for folder in export_options.assets_folders {
-        Log::info(format!(
-            "Trying to copy assets from {} to {}...",
-            folder.display(),
-            export_options.destination_folder.display()
-        ));
+        for folder in export_options.assets_folders {
+            Log::info(format!(
+                "Trying to copy assets from {} to {}...",
+                folder.display(),
+                export_options.destination_folder.display()
+            ));
 
-        Log::verify(copy_dir(
-            &folder,
-            export_options.destination_folder.join(&folder),
-            &|_| true,
-        ));
+            Log::verify(copy_dir(
+                &folder,
+                export_options.destination_folder.join(&folder),
+                &|_| true,
+            ));
+        }
     }
 
     Ok(())
