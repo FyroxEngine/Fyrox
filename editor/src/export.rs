@@ -35,10 +35,7 @@ use crate::{
     message::MessageSender,
     Message,
 };
-use cargo_metadata::{
-    camino::{Utf8Path, Utf8PathBuf},
-    Metadata,
-};
+use cargo_metadata::{camino::Utf8Path, Metadata};
 use std::{
     ffi::OsStr,
     fmt::{Display, Formatter},
@@ -147,16 +144,6 @@ where
         }
     }
     Ok(())
-}
-
-fn package_manifest_path(name: &str, metadata: &Metadata) -> Option<Utf8PathBuf> {
-    for package in metadata.packages.iter() {
-        if package.name == name {
-            return Some(package.manifest_path.clone());
-        }
-    }
-
-    None
 }
 
 fn read_metadata() -> Result<Metadata, String> {
@@ -517,14 +504,93 @@ fn export(export_options: ExportOptions, cancel_flag: Arc<AtomicBool>) -> Result
         TargetPlatform::Android => "executor-android",
     };
 
-    let Some(manifest_path) = package_manifest_path(package_name, &metadata) else {
+    let Some(package) = metadata.packages.iter().find(|p| p.name == package_name) else {
         return Err(format!(
             "The project does not have `{}` package.",
             package_name
         ));
     };
 
-    let package_dir_path = manifest_path.as_path().parent().unwrap();
+    let package_dir_path = package.manifest_path.as_path().parent().unwrap();
+
+    let mut temp_folders = Vec::new();
+
+    // Copy assets
+    match export_options.target_platform {
+        TargetPlatform::PC | TargetPlatform::WebAssembly => {
+            Log::info("Trying to copy the assets...");
+
+            for folder in export_options.assets_folders {
+                Log::info(format!(
+                    "Trying to copy assets from {} to {}...",
+                    folder.display(),
+                    export_options.destination_folder.display()
+                ));
+
+                Log::verify(copy_dir(
+                    &folder,
+                    export_options.destination_folder.join(&folder),
+                    &|_| true,
+                ));
+            }
+        }
+        TargetPlatform::Android => {
+            // Asset management on Android is quite annoying, because all other target platforms
+            // uses the workspace manifest path as a root directory and all paths in code/assets
+            // stored relatively to it. On Android, however, all your assets must be in unified
+            // assets storage. This means that, if we simply specify assets folder to be `../data`
+            // (relative to `executor-android`), it will put all the assets in the storage, but
+            // their path will become relative to the storage. For example, in your code you can
+            // reference an asset like this: `data/my/textures/foo.jpg` and when build script for
+            // Android will clone the assets from `data` folder, your asset will have this
+            // actual path `my/textures/foo.jpg`. In other words, `data` is stripped from the path.
+            //
+            // To solve this, we just copy the entire assets folder to a temporary folder set in
+            // the manifest of `executor-android` and then cargo-apk will pack these assets and the
+            // paths to assets will become valid.
+            //
+            // It could very well possible, that I'm missing something and this could be fixed in
+            // a much easier way.
+            if let Some(assets) = package
+                .metadata
+                .get("android")
+                .and_then(|v| v.get("assets"))
+                .and_then(|v| v.as_str())
+            {
+                let temp_assets_storage = package_dir_path.join(assets).as_std_path().to_path_buf();
+
+                Log::info(format!(
+                    "Trying to copy the assets to a temporary storage {}...",
+                    temp_assets_storage.display()
+                ));
+
+                if !temp_assets_storage.exists() {
+                    Log::verify(std::fs::create_dir_all(&temp_assets_storage));
+                }
+
+                temp_folders.push(temp_assets_storage.clone());
+
+                for folder in export_options.assets_folders {
+                    Log::info(format!(
+                        "Trying to copy assets from {} to {}...",
+                        folder.display(),
+                        temp_assets_storage.display()
+                    ));
+
+                    Log::verify(copy_dir(
+                        &folder,
+                        temp_assets_storage.join(&folder),
+                        &|_| true,
+                    ));
+                }
+            } else {
+                return Err(format!(
+                    "Android executor must specify assets folder in \
+                    [package.metadata.android] section",
+                ));
+            }
+        }
+    }
 
     build_package(
         package_name,
@@ -553,23 +619,9 @@ fn export(export_options: ExportOptions, cancel_flag: Arc<AtomicBool>) -> Result
         }
     }
 
-    // Copy assets on every platform, except Android. On Android the assets are packed into apk anyway.
-    if export_options.target_platform != TargetPlatform::Android {
-        Log::info("Trying to copy the assets...");
-
-        for folder in export_options.assets_folders {
-            Log::info(format!(
-                "Trying to copy assets from {} to {}...",
-                folder.display(),
-                export_options.destination_folder.display()
-            ));
-
-            Log::verify(copy_dir(
-                &folder,
-                export_options.destination_folder.join(&folder),
-                &|_| true,
-            ));
-        }
+    // Remove all temp folders.
+    for temp_folder in temp_folders {
+        Log::verify(std::fs::remove_dir_all(temp_folder));
     }
 
     Ok(())

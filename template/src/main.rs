@@ -534,7 +534,9 @@ version = "0.1.0"
 edition = "2021"
 
 [package.metadata.android]
-assets = "../data"
+# This folder is used as a temporary storage for assets. Project exporter will clone everything 
+# from data folder to this folder and cargo-apk will create the apk with these assets.
+assets = "assets"
 strip = "strip"
 
 [package.metadata.android.sdk]
