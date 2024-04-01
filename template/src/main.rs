@@ -542,6 +542,10 @@ min_sdk_version = 26
 target_sdk_version = 30
 max_sdk_version = 29
 
+[package.metadata.android.signing.release]
+path = "release.keystore"
+keystore_password = "fyrox-template"
+
 [lib]
 crate-type = ["cdylib"]
 
@@ -579,6 +583,10 @@ fn android_main(app: fyrox::platform::android::activity::AndroidApp) {{
     write_file_binary(
         base_path.join("executor-android/README.md"),
         include_bytes!("android/README.md"),
+    );
+    write_file_binary(
+        base_path.join("executor-android/release.keystore"),
+        include_bytes!("android/release.keystore"),
     );
 }
 
