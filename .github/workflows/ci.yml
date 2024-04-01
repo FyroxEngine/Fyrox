@@ -130,9 +130,6 @@ jobs:
         run: |
           cargo install fyrox-template --path=template --force
       - name: Generate and Build Projects
-        env:
-          # Suppress warnings, because project template contains a lot of unused method arguments.
-          RUSTFLAGS: -Awarnings
         run: |
           cd ../
           fyrox-template init --name test_project --style=3d
@@ -164,9 +161,6 @@ jobs:
           cargo install cargo-apk
           rustup target add armv7-linux-androideabi
       - name: Generate and Build Projects
-        env:
-          # Suppress warnings, because project template contains a lot of unused method arguments.
-          RUSTFLAGS: -Awarnings
         run: |
           cd ../
           fyrox-template init --name test_project --style=3d
@@ -187,9 +181,6 @@ jobs:
           cargo install wasm-pack
           rustup target add wasm32-unknown-unknown
       - name: Generate and Build Projects
-        env:
-          # Suppress warnings, because project template contains a lot of unused method arguments.
-          RUSTFLAGS: -Awarnings
         run: |
           cd ../
           fyrox-template init --name test_project --style=3d
