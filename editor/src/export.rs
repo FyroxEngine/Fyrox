@@ -584,10 +584,9 @@ fn export(export_options: ExportOptions, cancel_flag: Arc<AtomicBool>) -> Result
                     ));
                 }
             } else {
-                return Err(format!(
-                    "Android executor must specify assets folder in \
-                    [package.metadata.android] section",
-                ));
+                return Err("Android executor must specify assets folder in \
+                    [package.metadata.android] section"
+                    .to_string());
             }
         }
     }
