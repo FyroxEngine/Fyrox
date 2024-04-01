@@ -509,7 +509,10 @@ impl Default for PolygonFillMode {
 }
 
 impl PipelineState {
-    pub fn new(mut context: glow::Context, gl_kind: GlKind) -> SharedPipelineState {
+    pub fn new(
+        #[allow(unused_mut)] mut context: glow::Context,
+        gl_kind: GlKind,
+    ) -> SharedPipelineState {
         unsafe {
             context.depth_func(CompareFunc::default() as u32);
 
