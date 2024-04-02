@@ -65,6 +65,8 @@ struct ExportOptions {
     build_targets: Vec<String>,
     #[reflect(hidden)]
     selected_build_target: usize,
+    run_after_build: bool,
+    open_destination_folder: bool,
 }
 
 impl Default for ExportOptions {
@@ -77,6 +79,8 @@ impl Default for ExportOptions {
             ignored_extensions: vec!["log".to_string()],
             build_targets: vec!["default".to_string()],
             selected_build_target: 0,
+            run_after_build: false,
+            open_destination_folder: true,
         }
     }
 }
@@ -277,12 +281,10 @@ fn configure_build_environment(
         }
         TargetPlatform::WebAssembly => {
             // Check if the user have `wasm-pack` installed.
-            if is_wasm_pack_installed() {
-                Ok(())
-            } else {
+            if !is_wasm_pack_installed() {
                 cargo_install("wasm-pack")?;
-                install_build_target(build_target)
             }
+            install_build_target(build_target)
         }
         TargetPlatform::Android => {
             cargo_install("cargo-apk")?;
@@ -623,8 +625,39 @@ fn export(export_options: ExportOptions, cancel_flag: Arc<AtomicBool>) -> Result
         Log::verify(std::fs::remove_dir_all(temp_folder));
     }
 
-    if let Ok(canonical_path) = export_options.destination_folder.canonicalize() {
-        Log::verify(open::that(canonical_path));
+    if let Ok(destination_folder) = export_options.destination_folder.canonicalize() {
+        if export_options.run_after_build {
+            match export_options.target_platform {
+                TargetPlatform::PC => {
+                    let mut path = destination_folder.join(package_name);
+                    #[cfg(windows)]
+                    {
+                        path.set_extension("exe");
+                    }
+                    Log::verify(open::that_detached(path))
+                }
+                TargetPlatform::WebAssembly => {
+                    Log::verify(cargo_install("basic-http-server"));
+
+                    Log::verify(
+                        std::process::Command::new("basic-http-server")
+                            .arg("--addr")
+                            .arg("127.0.0.1:4000")
+                            .current_dir(&destination_folder)
+                            .spawn(),
+                    );
+
+                    Log::verify(open::that_detached("http://127.0.0.1:4000"));
+                }
+                TargetPlatform::Android => {
+                    Log::err("Unimplemented yet!");
+                }
+            }
+        }
+
+        if export_options.open_destination_folder {
+            Log::verify(open::that_detached(destination_folder));
+        }
     }
 
     Ok(())
