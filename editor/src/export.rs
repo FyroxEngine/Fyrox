@@ -623,6 +623,10 @@ fn export(export_options: ExportOptions, cancel_flag: Arc<AtomicBool>) -> Result
         Log::verify(std::fs::remove_dir_all(temp_folder));
     }
 
+    if let Ok(canonical_path) = export_options.destination_folder.canonicalize() {
+        Log::verify(open::that(canonical_path));
+    }
+
     Ok(())
 }
 
