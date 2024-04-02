@@ -650,7 +650,30 @@ fn export(export_options: ExportOptions, cancel_flag: Arc<AtomicBool>) -> Result
                     Log::verify(open::that_detached("http://127.0.0.1:4000"));
                 }
                 TargetPlatform::Android => {
-                    Log::err("Unimplemented yet!");
+                    if let Ok(adb) = std::process::Command::new("adb")
+                        .current_dir(&destination_folder)
+                        .arg("install")
+                        .arg(format!("{package_name}.apk"))
+                        .spawn()
+                    {
+                        match adb.wait_with_output() {
+                            Ok(_) => {
+                                let compatible_package_name = package_name.replace('-', "_");
+                                Log::verify(
+                                    std::process::Command::new("adb")
+                                        .arg("shell")
+                                        .arg("am")
+                                        .arg("start")
+                                        .arg("-n")
+                                        .arg(format!(
+                                            "rust.{compatible_package_name}/android.app.NativeActivity"
+                                        ))
+                                        .spawn(),
+                                );
+                            }
+                            Err(err) => Log::err(format!("ADB error: {:?}", err)),
+                        }
+                    }
                 }
             }
         }
