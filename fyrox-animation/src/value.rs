@@ -2,7 +2,7 @@
 //! for more info.
 
 use crate::core::{
-    algebra::{UnitQuaternion, Vector2, Vector3, Vector4},
+    algebra::{Unit, UnitQuaternion, Vector2, Vector3, Vector4},
     math::lerpf,
     num_traits::AsPrimitive,
     reflect::prelude::*,
@@ -148,7 +148,7 @@ impl TrackValue {
             (Self::Vector2(a), Self::Vector2(b)) => *a = a.lerp(b, weight),
             (Self::Vector3(a), Self::Vector3(b)) => *a = a.lerp(b, weight),
             (Self::Vector4(a), Self::Vector4(b)) => *a = a.lerp(b, weight),
-            (Self::UnitQuaternion(a), Self::UnitQuaternion(b)) => *a = a.nlerp(b, weight),
+            (Self::UnitQuaternion(a), Self::UnitQuaternion(b)) => *a = nlerp(*a, &b, weight),
             _ => (),
         }
     }
@@ -356,4 +356,13 @@ impl BoundValueCollection {
             }
         }
     }
+}
+
+/// Interpolates from `a` to `b` using nlerp, including an additional check to ensure
+/// that the a.dot(b) is positive to prevent the interpolation from going around the long way.
+pub fn nlerp(mut a: UnitQuaternion<f32>, b: &UnitQuaternion<f32>, w: f32) -> UnitQuaternion<f32> {
+    if a.dot(b) < 0.0 {
+        a = Unit::new_unchecked(-a.as_ref());
+    }
+    a.nlerp(b, w)
 }

@@ -698,7 +698,7 @@ mod test {
 
         pathfinder.remove_vertex(0);
 
-        assert_eq!(pathfinder.vertex(0).unwrap().neighbours, vec![]);
+        assert_eq!(pathfinder.vertex(0).unwrap().neighbours, Vec::<u32>::new());
         assert_eq!(pathfinder.vertex(1), None);
         assert_eq!(pathfinder.vertex(2), None);
     }
@@ -721,7 +721,7 @@ mod test {
 
         pathfinder.insert_vertex(0, GraphVertex::new(Vector3::new(1.0, 1.0, 1.0)));
 
-        assert_eq!(pathfinder.vertex(0).unwrap().neighbours, vec![]);
+        assert_eq!(pathfinder.vertex(0).unwrap().neighbours, Vec::<u32>::new());
         assert_eq!(pathfinder.vertex(1).unwrap().neighbours, vec![2, 3]);
         assert_eq!(pathfinder.vertex(2).unwrap().neighbours, vec![1, 3]);
         assert_eq!(pathfinder.vertex(3).unwrap().neighbours, vec![2, 1]);

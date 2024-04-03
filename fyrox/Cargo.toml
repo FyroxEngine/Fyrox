@@ -6,6 +6,9 @@ edition = "2021"
 [features]
 default = ["fyrox-impl"]
 dylib = ["fyrox-dylib"]
+gltf = ["fyrox-impl/gltf", "fyrox-dylib/gltf"]
+mesh_analysis = ["fyrox-impl/mesh_analysis", "fyrox-dylib/mesh_analysis"]
+gltf_blend_shapes = ["fyrox-impl/gltf_blend_shapes", "fyrox-dylib/gltf_blend_shapes"]
 
 [dependencies]
 fyrox-impl = { version = "0.33.1", path = "../fyrox-impl", optional = true }
