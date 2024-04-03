@@ -6,6 +6,7 @@ use regex::Regex;
 use std::{
     collections::HashMap,
     fmt::Display,
+    fs,
     fs::{create_dir_all, read_dir, remove_dir_all, File},
     io::{Read, Write},
     path::Path,
@@ -590,6 +591,7 @@ fn android_main(app: fyrox::platform::android::activity::AndroidApp) {{
         base_path.join("executor-android/release.keystore"),
         include_bytes!("android/release.keystore"),
     );
+    fs::create_dir_all("android/assets").unwrap();
 }
 
 fn init_workspace(base_path: &Path, vcs: &str) {
