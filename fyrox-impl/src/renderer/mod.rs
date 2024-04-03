@@ -30,6 +30,7 @@ mod light_volume;
 mod shadow;
 mod skybox_shader;
 mod ssao;
+mod stats;
 
 use crate::renderer::cache::texture::TextureRenderData;
 
@@ -71,12 +72,12 @@ use crate::{
                 Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
                 PixelKind, WrapMode,
             },
-            state::{GlKind, PipelineState, PipelineStatistics, PolygonFace, PolygonFillMode},
+            state::{GlKind, PipelineState, PolygonFace, PolygonFillMode},
         },
         fxaa::FxaaRenderer,
         gbuffer::{GBuffer, GBufferRenderContext},
         hdr::HighDynamicRangeRenderer,
-        light::{DeferredLightRenderer, DeferredRendererContext, LightingStatistics},
+        light::{DeferredLightRenderer, DeferredRendererContext},
         storage::MatrixStorageCache,
         ui_renderer::{UiRenderContext, UiRenderer},
     },
@@ -95,16 +96,12 @@ use glutin::{
 };
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
-use std::{
-    cell::RefCell,
-    collections::hash_map::Entry,
-    fmt::{Display, Formatter},
-    rc::Rc,
-    sync::mpsc::Receiver,
-};
+use std::{cell::RefCell, collections::hash_map::Entry, rc::Rc, sync::mpsc::Receiver};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 #[cfg(not(target_arch = "wasm32"))]
 use winit::window::Window;
+
+pub use stats::*;
 
 lazy_static! {
     static ref GBUFFER_PASS_NAME: ImmutableString = ImmutableString::new("GBuffer");
@@ -119,89 +116,6 @@ pub fn is_shadow_pass(render_pass_name: &str) -> bool {
     render_pass_name == &**DIRECTIONAL_SHADOW_PASS_NAME
         || render_pass_name == &**SPOT_SHADOW_PASS_NAME
         || render_pass_name == &**POINT_SHADOW_PASS_NAME
-}
-
-/// Renderer statistics for one frame, also includes current frames per second
-/// amount.
-#[derive(Debug, Copy, Clone)]
-pub struct Statistics {
-    /// Shows how many pipeline state changes was made per frame.
-    pub pipeline: PipelineStatistics,
-    /// Shows how many lights and shadow maps were rendered.
-    pub lighting: LightingStatistics,
-    /// Shows how many draw calls was made and how many triangles were rendered.
-    pub geometry: RenderPassStatistics,
-    /// Real time consumed to render frame. Time given in **seconds**.
-    pub pure_frame_time: f32,
-    /// Total time renderer took to process single frame, usually includes
-    /// time renderer spend to wait to buffers swap (can include vsync).
-    /// Time given in **seconds**.
-    pub capped_frame_time: f32,
-    /// Total amount of frames been rendered in one second.
-    pub frames_per_second: usize,
-    frame_counter: usize,
-    frame_start_time: instant::Instant,
-    last_fps_commit_time: instant::Instant,
-}
-
-impl Display for Statistics {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "FPS: {}\n\
-            Pure Frame Time: {:.2} ms\n\
-            Capped Frame Time: {:.2} ms\n\
-            {}\n\
-            {}\n\
-            {}\n",
-            self.frames_per_second,
-            self.pure_frame_time * 1000.0,
-            self.capped_frame_time * 1000.0,
-            self.geometry,
-            self.lighting,
-            self.pipeline
-        )
-    }
-}
-
-/// GPU statistics for single frame.
-#[derive(Debug, Copy, Clone, Default)]
-pub struct RenderPassStatistics {
-    /// Amount of draw calls per frame - lower the better.
-    pub draw_calls: usize,
-    /// Amount of triangles per frame.
-    pub triangles_rendered: usize,
-}
-
-impl Display for RenderPassStatistics {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Draw Calls: {}\n\
-            Triangles Rendered: {}",
-            self.draw_calls, self.triangles_rendered
-        )
-    }
-}
-
-impl std::ops::AddAssign for RenderPassStatistics {
-    fn add_assign(&mut self, rhs: Self) {
-        self.draw_calls += rhs.draw_calls;
-        self.triangles_rendered += rhs.triangles_rendered;
-    }
-}
-
-impl std::ops::AddAssign<DrawCallStatistics> for RenderPassStatistics {
-    fn add_assign(&mut self, rhs: DrawCallStatistics) {
-        self.draw_calls += 1;
-        self.triangles_rendered += rhs.triangles;
-    }
-}
-
-impl std::ops::AddAssign<RenderPassStatistics> for Statistics {
-    fn add_assign(&mut self, rhs: RenderPassStatistics) {
-        self.geometry += rhs;
-    }
 }
 
 /// Shadow map precision allows you to select compromise between quality and performance.
@@ -545,6 +459,9 @@ pub struct AssociatedSceneData {
     /// Bloom contains only overly bright pixels that creates light
     /// bleeding effect (glow effect).
     pub bloom_renderer: BloomRenderer,
+
+    /// Rendering statistics for a scene.
+    pub statistics: SceneStatistics,
 }
 
 impl AssociatedSceneData {
@@ -642,6 +559,7 @@ impl AssociatedSceneData {
             hdr_scene_framebuffer,
             ldr_scene_framebuffer,
             ldr_temp_framebuffer,
+            statistics: Default::default(),
         })
     }
 
@@ -1673,6 +1591,9 @@ impl Renderer {
                     AssociatedSceneData::new(state, width, height).unwrap()
                 });
 
+            let pipeline_stats = state.pipeline_statistics();
+            scene_associated_data.statistics = Default::default();
+
             // If we specified a texture to draw to, we have to register it in texture cache
             // so it can be used in later on as texture. This is useful in case if you need
             // to draw something on offscreen and then draw it on some mesh.
@@ -1713,22 +1634,23 @@ impl Renderer {
                     scene.rendering_options.polygon_rasterization_mode,
                 );
 
-                self.statistics += scene_associated_data.gbuffer.fill(GBufferRenderContext {
-                    state,
-                    camera,
-                    geom_cache: &mut self.geometry_cache,
-                    bundle_storage: &bundle_storage,
-                    texture_cache: &mut self.texture_cache,
-                    shader_cache: &mut self.shader_cache,
-                    environment_dummy: self.environment_dummy.clone(),
-                    use_parallax_mapping: self.quality_settings.use_parallax_mapping,
-                    normal_dummy: self.normal_dummy.clone(),
-                    white_dummy: self.white_dummy.clone(),
-                    black_dummy: self.black_dummy.clone(),
-                    volume_dummy: self.volume_dummy.clone(),
-                    graph,
-                    matrix_storage: &mut self.matrix_storage,
-                })?;
+                scene_associated_data.statistics +=
+                    scene_associated_data.gbuffer.fill(GBufferRenderContext {
+                        state,
+                        camera,
+                        geom_cache: &mut self.geometry_cache,
+                        bundle_storage: &bundle_storage,
+                        texture_cache: &mut self.texture_cache,
+                        shader_cache: &mut self.shader_cache,
+                        environment_dummy: self.environment_dummy.clone(),
+                        use_parallax_mapping: self.quality_settings.use_parallax_mapping,
+                        normal_dummy: self.normal_dummy.clone(),
+                        white_dummy: self.white_dummy.clone(),
+                        black_dummy: self.black_dummy.clone(),
+                        volume_dummy: self.volume_dummy.clone(),
+                        graph,
+                        matrix_storage: &mut self.matrix_storage,
+                    })?;
 
                 state.set_polygon_fill_mode(PolygonFace::FrontAndBack, PolygonFillMode::Fill);
 
@@ -1767,33 +1689,34 @@ impl Renderer {
                             matrix_storage: &mut self.matrix_storage,
                         })?;
 
-                self.statistics.lighting += light_stats;
-                self.statistics.geometry += pass_stats;
+                scene_associated_data.statistics += light_stats;
+                scene_associated_data.statistics += pass_stats;
 
                 let depth = scene_associated_data.gbuffer.depth();
 
-                self.statistics += self.forward_renderer.render(ForwardRenderContext {
-                    state,
-                    graph,
-                    camera,
-                    geom_cache: &mut self.geometry_cache,
-                    texture_cache: &mut self.texture_cache,
-                    shader_cache: &mut self.shader_cache,
-                    bundle_storage: &bundle_storage,
-                    framebuffer: &mut scene_associated_data.hdr_scene_framebuffer,
-                    viewport,
-                    quality_settings: &self.quality_settings,
-                    white_dummy: self.white_dummy.clone(),
-                    normal_dummy: self.normal_dummy.clone(),
-                    black_dummy: self.black_dummy.clone(),
-                    volume_dummy: self.volume_dummy.clone(),
-                    scene_depth: depth,
-                    matrix_storage: &mut self.matrix_storage,
-                    ambient_light: scene.rendering_options.ambient_lighting_color,
-                })?;
+                scene_associated_data.statistics +=
+                    self.forward_renderer.render(ForwardRenderContext {
+                        state,
+                        graph,
+                        camera,
+                        geom_cache: &mut self.geometry_cache,
+                        texture_cache: &mut self.texture_cache,
+                        shader_cache: &mut self.shader_cache,
+                        bundle_storage: &bundle_storage,
+                        framebuffer: &mut scene_associated_data.hdr_scene_framebuffer,
+                        viewport,
+                        quality_settings: &self.quality_settings,
+                        white_dummy: self.white_dummy.clone(),
+                        normal_dummy: self.normal_dummy.clone(),
+                        black_dummy: self.black_dummy.clone(),
+                        volume_dummy: self.volume_dummy.clone(),
+                        scene_depth: depth,
+                        matrix_storage: &mut self.matrix_storage,
+                        ambient_light: scene.rendering_options.ambient_lighting_color,
+                    })?;
 
                 for render_pass in self.scene_render_passes.iter() {
-                    self.statistics +=
+                    scene_associated_data.statistics +=
                         render_pass
                             .borrow_mut()
                             .on_hdr_render(SceneRenderPassContext {
@@ -1825,14 +1748,14 @@ impl Renderer {
                 let quad = &self.quad;
 
                 // Prepare glow map.
-                self.statistics.geometry += scene_associated_data.bloom_renderer.render(
+                scene_associated_data.statistics += scene_associated_data.bloom_renderer.render(
                     state,
                     quad,
                     scene_associated_data.hdr_scene_frame_texture(),
                 )?;
 
                 // Convert high dynamic range frame to low dynamic range (sRGB) with tone mapping and gamma correction.
-                self.statistics.geometry += scene_associated_data.hdr_renderer.render(
+                scene_associated_data.statistics += scene_associated_data.hdr_renderer.render(
                     state,
                     scene_associated_data.hdr_scene_frame_texture(),
                     scene_associated_data.bloom_renderer.result(),
@@ -1848,7 +1771,7 @@ impl Renderer {
 
                 // Apply FXAA if needed.
                 if self.quality_settings.fxaa {
-                    self.statistics.geometry += self.fxaa_renderer.render(
+                    scene_associated_data.statistics += self.fxaa_renderer.render(
                         state,
                         viewport,
                         scene_associated_data.ldr_scene_frame_texture(),
@@ -1857,7 +1780,7 @@ impl Renderer {
 
                     let quad = &self.quad;
                     let temp_frame_texture = scene_associated_data.ldr_temp_frame_texture();
-                    self.statistics.geometry += blit_pixels(
+                    scene_associated_data.statistics += blit_pixels(
                         state,
                         &mut scene_associated_data.ldr_scene_framebuffer,
                         temp_frame_texture,
@@ -1868,7 +1791,7 @@ impl Renderer {
                 }
 
                 // Render debug geometry in the LDR frame buffer.
-                self.statistics += self.debug_renderer.render(
+                scene_associated_data.statistics += self.debug_renderer.render(
                     state,
                     viewport,
                     &mut scene_associated_data.ldr_scene_framebuffer,
@@ -1877,7 +1800,7 @@ impl Renderer {
                 )?;
 
                 for render_pass in self.scene_render_passes.iter() {
-                    self.statistics +=
+                    scene_associated_data.statistics +=
                         render_pass
                             .borrow_mut()
                             .on_ldr_render(SceneRenderPassContext {
@@ -1910,7 +1833,7 @@ impl Renderer {
             // Optionally render everything into back buffer.
             if scene.rendering_options.render_target.is_none() {
                 let quad = &self.quad;
-                self.statistics.geometry += blit_pixels(
+                scene_associated_data.statistics += blit_pixels(
                     state,
                     &mut self.backbuffer,
                     scene_associated_data.ldr_scene_frame_texture(),
@@ -1919,6 +1842,10 @@ impl Renderer {
                     quad,
                 )?;
             }
+
+            self.statistics += scene_associated_data.statistics;
+            scene_associated_data.statistics.pipeline =
+                state.pipeline_statistics() - pipeline_stats;
         }
 
         self.pipeline_state()

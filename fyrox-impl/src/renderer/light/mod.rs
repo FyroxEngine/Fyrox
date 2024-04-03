@@ -1,3 +1,4 @@
+use crate::renderer::LightingStatistics;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
@@ -46,59 +47,12 @@ use crate::{
         Scene,
     },
 };
-use std::{
-    cell::RefCell,
-    fmt::{Display, Formatter},
-    ops::AddAssign,
-    rc::Rc,
-};
+use std::{cell::RefCell, rc::Rc};
 
 pub mod ambient;
 pub mod directional;
 pub mod point;
 pub mod spot;
-
-#[derive(Debug, Copy, Clone, Default)]
-pub struct LightingStatistics {
-    pub point_lights_rendered: usize,
-    pub point_shadow_maps_rendered: usize,
-    pub csm_rendered: usize,
-    pub spot_lights_rendered: usize,
-    pub spot_shadow_maps_rendered: usize,
-    pub directional_lights_rendered: usize,
-}
-
-impl AddAssign for LightingStatistics {
-    fn add_assign(&mut self, rhs: Self) {
-        self.point_lights_rendered += rhs.point_lights_rendered;
-        self.point_shadow_maps_rendered += rhs.point_shadow_maps_rendered;
-        self.spot_lights_rendered += rhs.spot_lights_rendered;
-        self.spot_shadow_maps_rendered += rhs.spot_shadow_maps_rendered;
-        self.directional_lights_rendered += rhs.directional_lights_rendered;
-        self.csm_rendered += rhs.csm_rendered;
-    }
-}
-
-impl Display for LightingStatistics {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Lighting Statistics:\n\
-            \tPoint Lights: {}\n\
-            \tSpot Lights: {}\n\
-            \tDirectional Lights: {}\n\
-            \tPoint Shadow Maps: {}\n\
-            \tSpot Shadow Maps: {}\n\
-            \tSpot Shadow Maps: {}\n",
-            self.point_lights_rendered,
-            self.spot_lights_rendered,
-            self.directional_lights_rendered,
-            self.point_shadow_maps_rendered,
-            self.spot_shadow_maps_rendered,
-            self.csm_rendered
-        )
-    }
-}
 
 pub struct DeferredLightRenderer {
     pub ssao_renderer: ScreenSpaceAmbientOcclusionRenderer,
