@@ -1,7 +1,5 @@
-#![allow(unused)]
 use crate::asset::core::math::TriangleDefinition;
 use crate::core::algebra::{Vector2, Vector3, Vector4};
-use crate::core::log::Log;
 use crate::core::math::Vector3Ext;
 use crate::fxhash::FxHashMap;
 use crate::scene::mesh;
@@ -12,18 +10,11 @@ use crate::scene::mesh::buffer::{
 use crate::scene::mesh::surface::{InputBlendShapeData, SurfaceData};
 use crate::scene::mesh::vertex::{AnimatedVertex, SimpleVertex, StaticVertex};
 use gltf::buffer::Buffer;
-use gltf::mesh::util::ReadColors;
-use gltf::mesh::util::ReadIndices;
 use gltf::mesh::util::ReadJoints;
-use gltf::mesh::util::ReadTexCoords;
 use gltf::mesh::Mode;
-use gltf::mesh::Reader as GltfReader;
 use gltf::mesh::Semantic;
-use gltf::Accessor;
 use gltf::Primitive;
 use half::f16;
-
-use super::iter::*;
 
 use std::convert::TryFrom;
 use std::num::TryFromIntError;
@@ -204,15 +195,12 @@ pub fn build_surface_data(
     let vs: VertexBuffer = build_vertex_data(primitive, buffers)?;
     let tris: TriangleBuffer = build_triangle_data(primitive, vs.vertex_count(), buffers)?;
     #[cfg(feature = "mesh_analysis")]
-    update_statistics(&vs, &tris, stats);
-    #[cfg(feature = "gltf_blend_shapes")]
-    let morphs = build_morph_data(primitive, morph_info, buffers)?;
-    #[cfg(not(feature = "blend_shapes"))]
-    let morphs: Vec<InputBlendShapeData> = Vec::new();
+    update_statistics(&vs, &tris, stats)?;
+    let morphs: Vec<InputBlendShapeData> = build_morph_data(primitive, morph_info, buffers)?;
     let mut surf = if !morphs.is_empty() {
         let shapes = mesh::surface::BlendShapesContainer::from_lists(&vs, morphs.as_slice());
         let mut surf = SurfaceData::new(vs, tris, false);
-        surf.blend_shapes_container.insert(shapes);
+        surf.blend_shapes_container = Some(shapes);
         surf
     } else {
         SurfaceData::new(vs, tris, false)
@@ -221,10 +209,10 @@ pub fn build_surface_data(
     let has_norm = primitive.get(&Semantic::Normals).is_some();
     let has_tang = primitive.get(&Semantic::Tangents).is_some();
     if has_tex && !has_norm {
-        surf.calculate_normals();
-        surf.calculate_tangents();
+        surf.calculate_normals()?;
+        surf.calculate_tangents()?;
     } else if has_tex && has_norm && !has_tang {
-        surf.calculate_tangents();
+        surf.calculate_tangents()?;
     }
     Ok(Some(surf))
 }
@@ -236,7 +224,6 @@ fn update_statistics(
     stats: &mut GeometryStatistics,
 ) -> Result<()> {
     for tri in tris.iter() {
-        let indices = tri.0;
         if tri[0] == tri[1] || tri[1] == tri[2] || tri[0] == tri[2] {
             stats.repeated_index_count += 1;
         }
@@ -257,8 +244,18 @@ fn edge_length_squared(a: u32, b: u32, vs: &VertexBuffer) -> Result<f32> {
     Ok(a.sqr_distance(&b))
 }
 
-#[cfg(feature = "gltf_blend_shapes")]
 fn build_morph_data(
+    primitive: &Primitive,
+    morph_info: &BlendShapeInfoContainer,
+    buffers: &[Vec<u8>],
+) -> Result<Vec<InputBlendShapeData>> {
+    #[cfg(feature = "gltf_blend_shapes")]
+    return inner_build_morph_data(primitive, morph_info, buffers);
+    #[cfg(not(feature = "gltf_blend_shapes"))]
+    return Ok(Vec::new());
+}
+#[cfg(feature = "gltf_blend_shapes")]
+fn inner_build_morph_data(
     primitive: &Primitive,
     morph_info: &BlendShapeInfoContainer,
     buffers: &[Vec<u8>],
@@ -440,7 +437,7 @@ impl GltfVertexConvert for StaticVertex {
         F: Clone + Fn(Buffer<'a>) -> Option<&'s [u8]>,
     {
         let reader = primitive.reader(get_buffer_data);
-        let mut pos_iter = reader
+        let pos_iter = reader
             .read_positions()
             .ok_or(SurfaceDataError::MissingPosition)?;
         let mut norm_iter = reader
@@ -482,7 +479,7 @@ impl GltfVertexConvert for AnimatedVertex {
         F: Clone + Fn(Buffer<'a>) -> Option<&'s [u8]>,
     {
         let reader = primitive.reader(get_buffer_data);
-        let mut pos_iter = reader
+        let pos_iter = reader
             .read_positions()
             .ok_or(SurfaceDataError::MissingPosition)?;
         let mut norm_iter = reader

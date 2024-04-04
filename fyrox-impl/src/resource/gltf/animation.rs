@@ -1,5 +1,3 @@
-#![allow(unused)]
-
 use crate::core::algebra::{Quaternion, Unit, UnitQuaternion, Vector3};
 use crate::core::log::Log;
 use crate::core::math::curve::{Curve, CurveKey, CurveKeyKind};
@@ -12,7 +10,6 @@ use crate::scene::animation::Animation;
 use crate::scene::graph::Graph;
 use crate::scene::mesh::Mesh;
 use crate::scene::node::Node;
-use fyrox_animation::value::TrackValue;
 use fyrox_graph::BaseSceneGraph;
 use gltf::animation::util::ReadOutputs;
 use gltf::animation::Channel;
@@ -62,7 +59,7 @@ impl ImportedBinding {
             ImportedBinding::Position => TrackValueKind::Vector3,
             ImportedBinding::Rotation => TrackValueKind::UnitQuaternion,
             ImportedBinding::Scale => TrackValueKind::Vector3,
-            ImportedBinding::Weight(i) => TrackValueKind::Real,
+            ImportedBinding::Weight(_) => TrackValueKind::Real,
         }
     }
     fn value_binding(&self) -> ValueBinding {
@@ -139,7 +136,6 @@ impl ImportedTrack {
     }
     fn simplify_curves(&mut self) {
         for curve in self.curves.iter_mut() {
-            let before = curve.len();
             *curve = simplify(
                 curve.as_slice(),
                 self.target.binding.epsilon(),
@@ -242,17 +238,13 @@ fn target_is_fixed_in_all(
 }
 
 fn remove_fixed_targets(anims: &mut [ImportedAnimation], graph: &Graph) {
-    let mut count = 0;
-    let before = all_targets(anims).count();
     for target in all_targets(anims) {
         if target_is_fixed_in_all(target, anims, graph) {
             for anim in anims.iter_mut() {
-                count += 1;
                 anim.remove_target(target);
             }
         }
     }
-    let after = all_targets(anims).count();
 }
 
 /// Extract a list of Animations from the give glTF document, if that document contains any.
@@ -363,46 +355,9 @@ fn import_transform_channel<'a, 's, F>(
 where
     F: Clone + Fn(Buffer<'a>) -> Option<&'s [u8]>,
 {
-    let binding = match channel.target().property() {
-        Property::Translation => ImportedBinding::Position,
-        Property::Rotation => ImportedBinding::Rotation,
-        Property::Scale => ImportedBinding::Scale,
-        Property::MorphTargetWeights => return Err(()),
-    };
-
     let track: ImportedTrack = import_sampler(&channel, handle, get_buffer_data)?;
     result.push(track);
     Ok(())
-}
-
-fn debug_print_quaternions<'a, 's, F>(channel: &'a Channel, get_buffer_data: F)
-where
-    F: Clone + Fn(Buffer<'a>) -> Option<&'s [u8]>,
-{
-    let inputs = channel
-        .reader(get_buffer_data.clone())
-        .read_inputs()
-        .ok_or(())
-        .unwrap();
-    let outputs = channel.reader(get_buffer_data).read_outputs().unwrap();
-    let out_iter = match outputs {
-        ReadOutputs::Translations(_) => return panic!(),
-        ReadOutputs::Scales(_) => return panic!(),
-        ReadOutputs::Rotations(iter) => iter.into_f32(),
-        ReadOutputs::MorphTargetWeights(_) => panic!(),
-    };
-    for (time, q) in inputs.zip(out_iter.clone()) {
-        let euler = array_to_euler(q);
-        let generated_quat =
-            crate::core::math::quat_from_euler(euler, crate::core::math::RotationOrder::XYZ);
-        println!(
-            "{:10.1} {:5.2?} {:5.2?} {:5.2?}",
-            time,
-            q,
-            euler.as_slice(),
-            generated_quat.coords.as_slice(),
-        );
-    }
 }
 
 fn import_weight_channel<'a, 's, F>(
@@ -416,10 +371,6 @@ where
 {
     let target_count = count_morph_targets(&channel.target().node());
     for i in 0..target_count {
-        let prop = ValueBinding::Property {
-            name: format!("blend_shapes[{}].weight", i),
-            value_type: ValueType::F32,
-        };
         let target = ImportedTarget {
             handle: target,
             binding: ImportedBinding::Weight(i),
