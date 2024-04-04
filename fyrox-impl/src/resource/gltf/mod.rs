@@ -295,7 +295,6 @@ async fn load(
     resource_manager: ResourceManager,
     options: ModelImportOptions,
 ) -> Result<Model> {
-    Log::info(format!("glTF load starting: {:?}", path));
     let mut scene = Scene::new();
     let context = ImportContext {
         io,
@@ -311,7 +310,6 @@ async fn load(
     scene.graph[root].set_name(root_name.clone());
     import_from_path(&mut scene.graph, &context).await?;
     node_names::resolve_name_conflicts(context.model_path.as_path(), &mut scene.graph);
-    Log::info(format!("glTF load complete: {:?}", path));
     Ok(Model::new(NodeMapping::UseNames, scene))
 }
 
@@ -325,29 +323,22 @@ async fn import_from_slice(slice: &[u8], graph: &mut Graph, context: &ImportCont
     let doc = gltf.document;
     let data = gltf.blob;
     let mut imports: ImportResults = ImportResults::default();
-    let _ = imports
-        .buffers
-        .insert(import_buffers(&doc, data, context).await?);
+    imports.buffers = Some(import_buffers(&doc, data, context).await?);
     let buffers: &[Vec<u8>] = imports.buffers.as_ref().unwrap().as_slice();
     let images: Vec<SourceImage> = import_images(&doc, buffers)?;
-    let _ = imports
-        .textures
-        .insert(import_textures(&doc, images.as_slice(), context.as_texture_context()).await?);
+    imports.textures =
+        Some(import_textures(&doc, images.as_slice(), context.as_texture_context()).await?);
     let textures = imports.textures.as_ref().unwrap().as_slice();
-    let _ = imports
-        .materials
-        .insert(import_materials(&doc, textures, &context.resource_manager).await?);
+    imports.materials = Some(import_materials(&doc, textures, &context.resource_manager).await?);
     let materials = imports.materials.as_ref().unwrap().as_slice();
-    let _ = imports.skins.insert(import_skins(&doc, &imports)?);
-    let _ = imports.meshes.insert(import_meshes(
+    imports.skins = Some(import_skins(&doc, &imports)?);
+    imports.meshes = Some(import_meshes(
         &doc,
         &context.model_path,
         materials,
         buffers,
     )?);
-    let _ = imports
-        .families
-        .insert(import_nodes(&doc, graph, &imports)?);
+    imports.families = Some(import_nodes(&doc, graph, &imports)?);
     link_child_nodes(&doc, graph, &imports)?;
     let node_handles: Vec<Handle<Node>> = imports
         .families
@@ -430,11 +421,6 @@ fn import_meshes(
                 path.to_string_lossy(),
                 stats.repeated_index_count
             ));
-        } else {
-            Log::info(format!(
-                "{}: Model has no repeated vertices.",
-                path.to_string_lossy()
-            ));
         }
         let min_length = stats.min_edge_length();
         if min_length == 0.0 {
@@ -442,7 +428,7 @@ fn import_meshes(
                 "{}: Mesh has a triangle with a zero-length edge!",
                 path.to_string_lossy()
             ));
-        } else if min_length < f32::EPSILON {
+        } else if min_length <= f32::EPSILON {
             Log::err(format!(
                 "{}: Mesh has a triangle with edge length: {}",
                 path.to_string_lossy(),
@@ -596,7 +582,7 @@ fn build_node_family(
             // Our first bone. Set the inv_bind_pose of the main node.
             // We only create children if we later find an inv_bind_pose that does not match this.
             let new_node = import_node(node, pair.bone.inv_bind_pose, imports)?;
-            let _ = new_handle.insert(graph.add_node(new_node));
+            new_handle = Some(graph.add_node(new_node));
             // Record that we have seen this inv_bind_pose.
             bones.push(pair);
         } else if let Some(p) = bones.iter().find(|p| p.bone == pair.bone) {
