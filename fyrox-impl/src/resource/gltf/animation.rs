@@ -1,20 +1,259 @@
+#![allow(unused)]
+
 use crate::core::algebra::{Quaternion, Unit, UnitQuaternion, Vector3};
 use crate::core::log::Log;
 use crate::core::math::curve::{Curve, CurveKey, CurveKeyKind};
 use crate::core::pool::Handle;
+use crate::fxhash::FxHashSet;
 use crate::generic_animation::container::{TrackDataContainer, TrackValueKind};
 use crate::generic_animation::track::Track;
 use crate::generic_animation::value::{ValueBinding, ValueType};
 use crate::scene::animation::Animation;
+use crate::scene::graph::Graph;
+use crate::scene::mesh::Mesh;
 use crate::scene::node::Node;
+use fyrox_animation::value::TrackValue;
+use fyrox_graph::BaseSceneGraph;
 use gltf::animation::util::ReadOutputs;
 use gltf::animation::Channel;
 use gltf::animation::{Interpolation, Property};
 use gltf::Buffer;
 
+use super::iter::*;
+use super::simplify::*;
+
 type Result<T> = std::result::Result<T, ()>;
 
-use super::iter::*;
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum ImportedBinding {
+    Position,
+    Rotation,
+    Scale,
+    Weight(usize),
+}
+
+impl ImportedBinding {
+    fn epsilon(&self) -> f32 {
+        match self {
+            ImportedBinding::Position => 0.001,
+            ImportedBinding::Rotation => std::f32::consts::PI / 180.0,
+            ImportedBinding::Scale => 0.1,
+            ImportedBinding::Weight(_) => 0.001,
+        }
+    }
+    fn max_step(&self) -> f32 {
+        match self {
+            ImportedBinding::Position => f32::INFINITY,
+            ImportedBinding::Rotation => std::f32::consts::PI / 4.0,
+            ImportedBinding::Scale => f32::INFINITY,
+            ImportedBinding::Weight(_) => f32::INFINITY,
+        }
+    }
+    fn morph_index(&self) -> Result<usize> {
+        match self {
+            ImportedBinding::Position => Err(()),
+            ImportedBinding::Rotation => Err(()),
+            ImportedBinding::Scale => Err(()),
+            ImportedBinding::Weight(i) => Ok(*i),
+        }
+    }
+    fn kind(&self) -> TrackValueKind {
+        match self {
+            ImportedBinding::Position => TrackValueKind::Vector3,
+            ImportedBinding::Rotation => TrackValueKind::UnitQuaternion,
+            ImportedBinding::Scale => TrackValueKind::Vector3,
+            ImportedBinding::Weight(i) => TrackValueKind::Real,
+        }
+    }
+    fn value_binding(&self) -> ValueBinding {
+        match self {
+            ImportedBinding::Position => ValueBinding::Position,
+            ImportedBinding::Rotation => ValueBinding::Rotation,
+            ImportedBinding::Scale => ValueBinding::Scale,
+            ImportedBinding::Weight(i) => ValueBinding::Property {
+                name: format!("blend_shapes[{}].weight", i),
+                value_type: ValueType::F32,
+            },
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub struct ImportedTarget {
+    pub handle: Handle<Node>,
+    pub binding: ImportedBinding,
+}
+
+impl ImportedTarget {
+    fn morph_index(&self) -> Result<usize> {
+        self.binding.morph_index()
+    }
+    fn kind(&self) -> TrackValueKind {
+        self.binding.kind()
+    }
+    fn value_binding(&self) -> ValueBinding {
+        self.binding.value_binding()
+    }
+    fn value_in_graph(&self, graph: &Graph) -> Option<Box<[f32]>> {
+        let node: &Node = if let Some(n) = graph.try_get(self.handle) {
+            n
+        } else {
+            return None;
+        };
+        match self.binding {
+            ImportedBinding::Position => {
+                Some(node.local_transform.position().data.as_slice().into())
+            }
+            ImportedBinding::Rotation => Some(
+                quaternion_to_euler(node.local_transform.rotation().get_value_ref().clone())
+                    .data
+                    .as_slice()
+                    .into(),
+            ),
+            ImportedBinding::Scale => Some(node.local_transform.scale().data.as_slice().into()),
+            ImportedBinding::Weight(index) => match node.cast::<Mesh>() {
+                Some(mesh) => mesh.blend_shapes().get(index).map(|s| [s.weight].into()),
+                None => None,
+            },
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ImportedTrack {
+    pub target: ImportedTarget,
+    pub curves: Box<[Vec<CurveKey>]>,
+}
+
+impl ImportedTrack {
+    fn new(target: ImportedTarget) -> Self {
+        Self {
+            target,
+            curves: match target.binding {
+                ImportedBinding::Position => <[Vec<CurveKey>; 3]>::default().into(),
+                ImportedBinding::Rotation => <[Vec<CurveKey>; 3]>::default().into(),
+                ImportedBinding::Scale => <[Vec<CurveKey>; 3]>::default().into(),
+                ImportedBinding::Weight(_) => <[Vec<CurveKey>; 1]>::default().into(),
+            },
+        }
+    }
+    fn simplify_curves(&mut self) {
+        for curve in self.curves.iter_mut() {
+            let before = curve.len();
+            *curve = simplify(
+                curve.as_slice(),
+                self.target.binding.epsilon(),
+                self.target.binding.max_step(),
+            );
+        }
+    }
+    fn fixed_value(&self) -> Option<Box<[f32]>> {
+        let mut result: Box<[f32]> = if let ImportedBinding::Weight(_) = self.target.binding {
+            <[f32; 1]>::default().into()
+        } else {
+            <[f32; 3]>::default().into()
+        };
+        for (i, curve) in self.curves.iter().enumerate() {
+            if curve.len() != 1 {
+                return None;
+            }
+            result[i] = curve[0].value;
+        }
+        Some(result)
+    }
+    fn is_fixed_to_graph(&self, graph: &Graph) -> bool {
+        if let (Some(x), Some(y)) = (self.target.value_in_graph(graph), self.fixed_value()) {
+            for (x0, y0) in x.iter().zip(y.iter()) {
+                if f32::abs(x0 - y0) > self.target.binding.epsilon() {
+                    return false;
+                }
+            }
+            true
+        } else {
+            false
+        }
+    }
+    fn to_track(self) -> Track<Handle<Node>> {
+        let mut data = TrackDataContainer::new(self.target.kind());
+        for (i, curve) in self.curves.into_vec().into_iter().enumerate() {
+            data.curves_mut()[i] = Curve::from(curve);
+        }
+        let mut track = Track::new(data, self.target.value_binding());
+        track.set_target(self.target.handle);
+        track.set_enabled(true);
+        track
+    }
+}
+
+struct ImportedAnimation {
+    pub name: Box<str>,
+    pub start: f32,
+    pub end: f32,
+    pub tracks: Vec<ImportedTrack>,
+}
+
+impl ImportedAnimation {
+    fn targets<'a>(&'a self) -> impl Iterator<Item = ImportedTarget> + 'a {
+        self.tracks.iter().map(|t| t.target)
+    }
+    fn get(&self, target: ImportedTarget) -> Option<&ImportedTrack> {
+        self.tracks.iter().find(|t| t.target == target)
+    }
+    fn remove_target(&mut self, target: ImportedTarget) {
+        self.tracks.retain(|t| t.target != target);
+    }
+    fn simplify_curves(&mut self) {
+        for t in self.tracks.iter_mut() {
+            t.simplify_curves();
+        }
+    }
+    fn to_animation(self) -> Animation {
+        let mut result = Animation::default();
+        result.set_name(self.name);
+        result.set_time_slice(self.start..self.end);
+        for t in self.tracks {
+            result.add_track(t.to_track());
+        }
+        result
+    }
+}
+
+fn all_targets(source: &[ImportedAnimation]) -> impl Iterator<Item = ImportedTarget> {
+    let mut set: FxHashSet<ImportedTarget> = FxHashSet::default();
+    for anim in source {
+        set.extend(anim.targets());
+    }
+    set.into_iter()
+}
+
+fn target_is_fixed_in_all(
+    target: ImportedTarget,
+    anims: &[ImportedAnimation],
+    graph: &Graph,
+) -> bool {
+    for anim in anims {
+        if let Some(track) = anim.get(target) {
+            if !track.is_fixed_to_graph(graph) {
+                return false;
+            }
+        }
+    }
+    true
+}
+
+fn remove_fixed_targets(anims: &mut [ImportedAnimation], graph: &Graph) {
+    let mut count = 0;
+    let before = all_targets(anims).count();
+    for target in all_targets(anims) {
+        if target_is_fixed_in_all(target, anims, graph) {
+            for anim in anims.iter_mut() {
+                count += 1;
+                anim.remove_target(target);
+            }
+        }
+    }
+    let after = all_targets(anims).count();
+}
 
 /// Extract a list of Animations from the give glTF document, if that document contains any.
 /// The resulting list of animations is not guaranteed to be the same length as the list of animations
@@ -33,18 +272,25 @@ use super::iter::*;
 pub fn import_animations(
     doc: &gltf::Document,
     node_handles: &[Handle<Node>],
+    graph: &Graph,
     buffers: &[Vec<u8>],
 ) -> Vec<Animation> {
-    let mut result: Vec<Animation> = Vec::with_capacity(doc.animations().len());
+    let mut imports: Vec<ImportedAnimation> = Vec::with_capacity(doc.animations().len());
     for animation in doc.animations() {
-        if let Ok(animation) = import_animation(&animation, node_handles, buffers) {
-            result.push(animation);
+        if let Ok(mut import) = import_animation(&animation, node_handles, buffers) {
+            import.simplify_curves();
+            imports.push(import);
         } else {
             Log::err(format!(
                 "Failed to import animation: {}",
                 animation.name().unwrap_or("[Unnamed]")
             ));
         }
+    }
+    remove_fixed_targets(imports.as_mut_slice(), graph);
+    let mut result: Vec<Animation> = Vec::with_capacity(imports.len());
+    for import in imports {
+        result.push(import.to_animation());
     }
     result
 }
@@ -53,94 +299,116 @@ fn import_animation(
     animation: &gltf::Animation,
     node_handles: &[Handle<Node>],
     buffers: &[Vec<u8>],
-) -> Result<Animation> {
-    let mut result = Animation::default();
+) -> Result<ImportedAnimation> {
     let name = animation
         .name()
-        .map(str::to_owned)
+        .map(Box::<str>::from)
         .unwrap_or(default_animation_name(animation));
-    //Log::info(format!("ANIMATION: {}", name));
-    result.set_name(name);
-    import_channels(animation, &mut result, node_handles, buffers)?;
-    Ok(result)
+    let end = animation
+        .channels()
+        .map(|c| get_channel_end(&c))
+        .max_by(f32::total_cmp)
+        .unwrap_or(0.0);
+    Ok(ImportedAnimation {
+        name,
+        start: 0.0,
+        end,
+        tracks: import_channels(animation, node_handles, buffers)?,
+    })
 }
 
-fn default_animation_name(animation: &gltf::Animation) -> String {
-    format!("Animation {}", animation.index())
+fn get_channel_end(channel: &Channel) -> f32 {
+    get_accessor_max(channel.sampler().input()).unwrap_or(0.0)
 }
 
+fn get_accessor_max(accessor: gltf::Accessor) -> Option<f32> {
+    let max = accessor.max()?;
+    let vec: &Vec<gltf::json::Value> = max.as_array()?;
+    Some(vec.get(0)?.as_f64()? as f32)
+}
+
+fn default_animation_name(animation: &gltf::Animation) -> Box<str> {
+    format!("Animation {}", animation.index()).into()
+}
+
+/// Build the given `build_animation` based on the given `source_animation`.
 fn import_channels(
     source_animation: &gltf::Animation,
-    build_animation: &mut Animation,
     node_handles: &[Handle<Node>],
     buffers: &[Vec<u8>],
-) -> Result<()> {
-    let mut end_time: f32 = 0.0;
+) -> Result<Vec<ImportedTrack>> {
+    let mut result: Vec<ImportedTrack> = Vec::with_capacity(source_animation.channels().count());
     for channel in source_animation.channels() {
-        let channel_end = find_end_time_for_channel(&channel, |buf: Buffer| {
-            buffers.get(buf.index()).map(Vec::as_slice)
-        })?;
-        if end_time < channel_end {
-            end_time = channel_end;
-        }
         let target_index = channel.target().node().index();
-        let target: Handle<Node> = node_handles.get(target_index).ok_or(())?.clone();
+        let handle = node_handles.get(target_index).ok_or(())?.clone();
         if let Property::MorphTargetWeights = channel.target().property() {
-            import_weight_channel(&channel, target, build_animation, |buf: Buffer| {
+            import_weight_channel(&channel, handle, &mut result, |buf: Buffer| {
                 buffers.get(buf.index()).map(Vec::as_slice)
-            })?;
+            })?
         } else {
-            import_transform_channel(&channel, target, build_animation, |buf: Buffer| {
+            import_transform_channel(&channel, handle, &mut result, |buf: Buffer| {
                 buffers.get(buf.index()).map(Vec::as_slice)
-            })?;
-        }
+            })?
+        };
     }
-    build_animation.set_time_slice(0.0..end_time);
-    build_animation.set_enabled(true);
-    Ok(())
+    Ok(result)
 }
 
 fn import_transform_channel<'a, 's, F>(
     channel: &'a Channel,
-    target: Handle<Node>,
-    build_animation: &mut Animation,
+    handle: Handle<Node>,
+    result: &mut Vec<ImportedTrack>,
     get_buffer_data: F,
 ) -> Result<()>
 where
     F: Clone + Fn(Buffer<'a>) -> Option<&'s [u8]>,
 {
-    let prop = match channel.target().property() {
-        Property::Translation => ValueBinding::Position,
-        Property::Rotation => ValueBinding::Rotation,
-        Property::Scale => ValueBinding::Scale,
+    let binding = match channel.target().property() {
+        Property::Translation => ImportedBinding::Position,
+        Property::Rotation => ImportedBinding::Rotation,
+        Property::Scale => ImportedBinding::Scale,
         Property::MorphTargetWeights => return Err(()),
     };
-    let sampler = import_sampler(&channel, get_buffer_data)?;
-    let mut track = Track::new(sampler, prop);
-    track.set_target(target);
 
-    //print_track(&track);
-
-    build_animation.add_track(track);
+    let track: ImportedTrack = import_sampler(&channel, handle, get_buffer_data)?;
+    result.push(track);
     Ok(())
 }
 
-#[allow(dead_code)]
-fn print_track(track: &Track<Handle<Node>>) {
-    let data = track.data_container();
-    println!("Track: {:?}", data.value_kind());
-    for (i, curve) in data.curves_ref().iter().enumerate() {
-        println!("Curve: {}", i);
-        for key in curve.keys() {
-            println!("{:4.2}: {}: {:?}", key.location(), key.value, key.kind);
-        }
+fn debug_print_quaternions<'a, 's, F>(channel: &'a Channel, get_buffer_data: F)
+where
+    F: Clone + Fn(Buffer<'a>) -> Option<&'s [u8]>,
+{
+    let inputs = channel
+        .reader(get_buffer_data.clone())
+        .read_inputs()
+        .ok_or(())
+        .unwrap();
+    let outputs = channel.reader(get_buffer_data).read_outputs().unwrap();
+    let out_iter = match outputs {
+        ReadOutputs::Translations(_) => return panic!(),
+        ReadOutputs::Scales(_) => return panic!(),
+        ReadOutputs::Rotations(iter) => iter.into_f32(),
+        ReadOutputs::MorphTargetWeights(_) => panic!(),
+    };
+    for (time, q) in inputs.zip(out_iter.clone()) {
+        let euler = array_to_euler(q);
+        let generated_quat =
+            crate::core::math::quat_from_euler(euler, crate::core::math::RotationOrder::XYZ);
+        println!(
+            "{:10.1} {:5.2?} {:5.2?} {:5.2?}",
+            time,
+            q,
+            euler.as_slice(),
+            generated_quat.coords.as_slice(),
+        );
     }
 }
 
 fn import_weight_channel<'a, 's, F>(
     channel: &'a Channel,
     target: Handle<Node>,
-    build_animation: &mut Animation,
+    result: &mut Vec<ImportedTrack>,
     get_buffer_data: F,
 ) -> Result<()>
 where
@@ -152,28 +420,30 @@ where
             name: format!("blend_shapes[{}].weight", i),
             value_type: ValueType::F32,
         };
-        let sampler = match channel.sampler().interpolation() {
+        let target = ImportedTarget {
+            handle: target,
+            binding: ImportedBinding::Weight(i),
+        };
+        let track = match channel.sampler().interpolation() {
             Interpolation::Linear => import_simple_morph_sampler(
                 channel,
-                i,
+                target,
                 target_count,
                 CurveKeyKind::Linear,
                 get_buffer_data.clone(),
             )?,
             Interpolation::Step => import_simple_morph_sampler(
                 channel,
-                i,
+                target,
                 target_count,
                 CurveKeyKind::Constant,
                 get_buffer_data.clone(),
             )?,
             Interpolation::CubicSpline => {
-                import_cubic_morph_sampler(channel, i, target_count, get_buffer_data.clone())?
+                import_cubic_morph_sampler(channel, target, target_count, get_buffer_data.clone())?
             }
         };
-        let mut track = Track::new(sampler, prop);
-        track.set_target(target);
-        build_animation.add_track(track);
+        result.push(track);
     }
     Ok(())
 }
@@ -233,46 +503,55 @@ fn quaternion_subtract(a: [f32; 4], b: [f32; 4]) -> [f32; 4] {
     r
 }
 
-fn find_end_time_for_channel<'a, 's, F>(channel: &'a Channel, get_buffer_data: F) -> Result<f32>
-where
-    F: Clone + Fn(Buffer<'a>) -> Option<&'s [u8]>,
-{
-    let inputs = channel.reader(get_buffer_data).read_inputs().ok_or(())?;
-    Ok(inputs.last().unwrap_or(0.0f32))
-}
-
-fn import_sampler<'a, 's, F>(channel: &'a Channel, get_buffer_data: F) -> Result<TrackDataContainer>
+fn import_sampler<'a, 's, F>(
+    channel: &'a Channel,
+    target_handle: Handle<Node>,
+    get_buffer_data: F,
+) -> Result<ImportedTrack>
 where
     F: Clone + Fn(Buffer<'a>) -> Option<&'s [u8]>,
 {
     if let Property::Rotation = channel.target().property() {
+        let target = ImportedTarget {
+            handle: target_handle,
+            binding: ImportedBinding::Rotation,
+        };
         match channel.sampler().interpolation() {
             Interpolation::Linear => {
-                import_simple_rotation(channel, CurveKeyKind::Linear, get_buffer_data)
+                import_simple_rotation(channel, target, CurveKeyKind::Linear, get_buffer_data)
             }
             Interpolation::Step => {
-                import_simple_rotation(channel, CurveKeyKind::Constant, get_buffer_data)
+                import_simple_rotation(channel, target, CurveKeyKind::Constant, get_buffer_data)
             }
-            Interpolation::CubicSpline => import_cubic_rotation(channel, get_buffer_data),
+            Interpolation::CubicSpline => import_cubic_rotation(channel, target, get_buffer_data),
         }
     } else {
+        let target = ImportedTarget {
+            handle: target_handle,
+            binding: match channel.target().property() {
+                Property::Translation => ImportedBinding::Position,
+                Property::Scale => ImportedBinding::Scale,
+                _ => return Err(()),
+            },
+        };
         match channel.sampler().interpolation() {
             Interpolation::Linear => {
-                import_simple_sampler(channel, CurveKeyKind::Linear, get_buffer_data)
+                import_simple_sampler(channel, target, CurveKeyKind::Linear, get_buffer_data)
             }
             Interpolation::Step => {
-                import_simple_sampler(channel, CurveKeyKind::Constant, get_buffer_data)
+                import_simple_sampler(channel, target, CurveKeyKind::Constant, get_buffer_data)
             }
-            Interpolation::CubicSpline => import_cubic_sampler(channel, get_buffer_data),
+            Interpolation::CubicSpline => import_cubic_sampler(channel, target, get_buffer_data),
         }
     }
 }
 
 fn import_simple_sampler<'a, 's, F>(
     channel: &'a gltf::animation::Channel,
+    target: ImportedTarget,
     kind: CurveKeyKind,
     get_buffer_data: F,
-) -> Result<TrackDataContainer>
+) -> Result<ImportedTrack>
 where
     F: Clone + Fn(Buffer<'a>) -> Option<&'s [u8]>,
 {
@@ -287,26 +566,25 @@ where
         ReadOutputs::Rotations(_) => return Err(()),
         ReadOutputs::MorphTargetWeights(_) => return Err(()),
     };
-    let mut frames_container = TrackDataContainer::new(TrackValueKind::Vector3);
+    let mut track = ImportedTrack::new(target);
     for i in 0..3 {
-        let curve_keys: Curve = inputs
+        let curve_keys: Vec<CurveKey> = inputs
             .clone()
             .zip(out_iter.clone())
             .map(|(time, o)| CurveKey::new(time, o[i], kind.clone()))
-            .collect::<Vec<_>>()
-            .into();
-        frames_container.curves_mut()[i] = curve_keys;
+            .collect::<Vec<_>>();
+        track.curves[i] = curve_keys;
     }
-    Ok(frames_container)
+    Ok(track)
 }
 
 fn import_simple_morph_sampler<'a, 's, F>(
     channel: &'a gltf::animation::Channel,
-    morph_index: usize,
+    target: ImportedTarget,
     morph_count: usize,
     kind: CurveKeyKind,
     get_buffer_data: F,
-) -> Result<TrackDataContainer>
+) -> Result<ImportedTrack>
 where
     F: Clone + Fn(Buffer<'a>) -> Option<&'s [u8]>,
 {
@@ -319,21 +597,20 @@ where
         ReadOutputs::MorphTargetWeights(weights) => weights.into_f32(),
         _ => return Err(()),
     };
-    let out_iter = select_iterator(out_iter, morph_index, morph_count);
-    let mut frames_container = TrackDataContainer::new(TrackValueKind::Real);
-    let curve_keys: Curve = inputs
+    let out_iter = select_iterator(out_iter, target.morph_index()?, morph_count);
+    let mut track = ImportedTrack::new(target);
+    track.curves[0] = inputs
         .zip(out_iter)
         .map(|(time, o)| CurveKey::new(time, o * 100.0, kind.clone()))
-        .collect::<Vec<_>>()
-        .into();
-    frames_container.curves_mut()[0] = curve_keys;
-    Ok(frames_container)
+        .collect();
+    Ok(track)
 }
 
 fn import_cubic_sampler<'a, 's, F>(
     channel: &'a gltf::animation::Channel,
+    target: ImportedTarget,
     get_buffer_data: F,
-) -> Result<TrackDataContainer>
+) -> Result<ImportedTrack>
 where
     F: Clone + Fn(Buffer<'a>) -> Option<&'s [u8]>,
 {
@@ -348,9 +625,9 @@ where
         ReadOutputs::Rotations(_) => return Err(()),
         ReadOutputs::MorphTargetWeights(_) => return Err(()),
     };
-    let mut frames_container = TrackDataContainer::new(TrackValueKind::Vector3);
+    let mut track: ImportedTrack = ImportedTrack::new(target);
     for i in 0..3 {
-        let curve_keys: Curve = iter_cubic_data(inputs.clone(), out_iter.clone())
+        let curve_keys: Vec<CurveKey> = iter_cubic_data(inputs.clone(), out_iter.clone())
             .map(|(time, o)| {
                 CurveKey::new(
                     time,
@@ -361,19 +638,18 @@ where
                     },
                 )
             })
-            .collect::<Vec<_>>()
-            .into();
-        frames_container.curves_mut()[i] = curve_keys;
+            .collect::<Vec<_>>();
+        track.curves[i] = curve_keys;
     }
-    Ok(frames_container)
+    Ok(track)
 }
 
 fn import_cubic_morph_sampler<'a, 's, F>(
     channel: &'a gltf::animation::Channel,
-    morph_index: usize,
+    target: ImportedTarget,
     morph_count: usize,
     get_buffer_data: F,
-) -> Result<TrackDataContainer>
+) -> Result<ImportedTrack>
 where
     F: Clone + Fn(Buffer<'a>) -> Option<&'s [u8]>,
 {
@@ -386,10 +662,10 @@ where
         ReadOutputs::MorphTargetWeights(weights) => weights.into_f32(),
         _ => return Err(()),
     };
-    let out_iter = select_iterator(out_iter, morph_index, morph_count);
+    let out_iter = select_iterator(out_iter, target.morph_index()?, morph_count);
     let iter = iter_cubic_data(inputs, out_iter);
-    let mut frames_container = TrackDataContainer::new(TrackValueKind::Real);
-    let curve_keys: Curve = iter
+    let mut track = ImportedTrack::new(target);
+    let curve_keys: Vec<CurveKey> = iter
         .map(|(time, o)| {
             CurveKey::new(
                 time,
@@ -400,17 +676,17 @@ where
                 },
             )
         })
-        .collect::<Vec<_>>()
-        .into();
-    frames_container.curves_mut()[0] = curve_keys;
-    Ok(frames_container)
+        .collect();
+    track.curves[0] = curve_keys;
+    Ok(track)
 }
 
 fn import_simple_rotation<'a, 's, F>(
     channel: &'a gltf::animation::Channel,
+    target: ImportedTarget,
     kind: CurveKeyKind,
     get_buffer_data: F,
-) -> Result<TrackDataContainer>
+) -> Result<ImportedTrack>
 where
     F: Clone + Fn(Buffer<'a>) -> Option<&'s [u8]>,
 {
@@ -425,23 +701,23 @@ where
         ReadOutputs::Rotations(iter) => iter.into_f32(),
         ReadOutputs::MorphTargetWeights(_) => return Err(()),
     };
-    let mut frames_container = TrackDataContainer::new(TrackValueKind::UnitQuaternion);
+    let mut track = ImportedTrack::new(target);
     for i in 0..3 {
-        let curve_keys: Curve = inputs
+        let curve_keys: Vec<CurveKey> = inputs
             .clone()
             .zip(out_iter.clone())
             .map(|(time, o)| CurveKey::new(time, array_to_euler(o)[i], kind.clone()))
-            .collect::<Vec<_>>()
-            .into();
-        frames_container.curves_mut()[i] = curve_keys;
+            .collect::<Vec<_>>();
+        track.curves[i] = curve_keys;
     }
-    Ok(frames_container)
+    Ok(track)
 }
 
 fn import_cubic_rotation<'a, 's, F>(
     channel: &'a gltf::animation::Channel,
+    target: ImportedTarget,
     get_buffer_data: F,
-) -> Result<TrackDataContainer>
+) -> Result<ImportedTrack>
 where
     F: Clone + Fn(Buffer<'a>) -> Option<&'s [u8]>,
 {
@@ -456,9 +732,9 @@ where
         ReadOutputs::Rotations(iter) => iter.into_f32(),
         ReadOutputs::MorphTargetWeights(_) => return Err(()),
     };
-    let mut frames_container = TrackDataContainer::new(TrackValueKind::UnitQuaternion);
+    let mut track = ImportedTrack::new(target);
     for i in 0..3 {
-        let curve_keys: Curve = iter_cubic_data(inputs.clone(), out_iter.clone())
+        let curve_keys: Vec<CurveKey> = iter_cubic_data(inputs.clone(), out_iter.clone())
             .map(|(time, o)| {
                 let (in_tang, out_tang) = quaternion_to_euler_tangents(o[0], o[1], o[2]);
                 let value = array_to_euler(o[1]);
@@ -471,9 +747,17 @@ where
                     },
                 )
             })
-            .collect::<Vec<_>>()
-            .into();
-        frames_container.curves_mut()[i] = curve_keys;
+            .collect::<Vec<_>>();
+        track.curves[i] = curve_keys;
     }
-    Ok(frames_container)
+    Ok(track)
+}
+
+impl CurvePoint for CurveKey {
+    fn x(&self) -> f32 {
+        self.location
+    }
+    fn y(&self) -> f32 {
+        self.value
+    }
 }

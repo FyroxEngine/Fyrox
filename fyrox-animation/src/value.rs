@@ -362,7 +362,12 @@ impl BoundValueCollection {
 /// that the a.dot(b) is positive to prevent the interpolation from going around the long way.
 pub fn nlerp(mut a: UnitQuaternion<f32>, b: &UnitQuaternion<f32>, w: f32) -> UnitQuaternion<f32> {
     if a.dot(b) < 0.0 {
-        a = Unit::new_unchecked(-a.as_ref());
+        a = negate_unit_quaternion(&a)
     }
     a.nlerp(b, w)
+}
+
+/// Negate the given quaternion by negating each of its components.
+pub fn negate_unit_quaternion(a: &UnitQuaternion<f32>) -> UnitQuaternion<f32> {
+    Unit::new_unchecked(-a.as_ref())
 }

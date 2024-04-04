@@ -1,5 +1,6 @@
-///! [GltfLoader] enables the importing of *.gltf and *.glb files in the glTF format.
-///! This requires the "gltf" feature.
+//! [GltfLoader] enables the importing of *.gltf and *.glb files in the glTF format.
+//! This requires the "gltf" feature.
+use gltf::json;
 use gltf::Document;
 use gltf::Gltf;
 use std::path::{Path, PathBuf};
@@ -34,6 +35,7 @@ mod animation;
 mod iter;
 mod material;
 mod node_names;
+mod simplify;
 mod surface;
 mod uri;
 
@@ -45,6 +47,7 @@ pub use uri::{parse_uri, Scheme, Uri};
 
 type Result<T> = std::result::Result<T, GltfLoadError>;
 
+#[cfg(feature = "gltf_blend_shapes")]
 const TARGET_NAMES_KEY: &str = "targetNames";
 
 #[derive(Debug)]
@@ -60,13 +63,11 @@ enum GltfLoadError {
     Load(LoadError),
     Material(GltfMaterialError),
     Surface(SurfaceDataError),
-    #[cfg(feature = "gltf_blend_shapes")]
-    JSON(serde_json::Error),
+    JSON(json::Error),
 }
 
-#[cfg(feature = "gltf_blend_shapes")]
-impl From<serde_json::Error> for GltfLoadError {
-    fn from(error: serde_json::Error) -> Self {
+impl From<json::Error> for GltfLoadError {
+    fn from(error: json::Error) -> Self {
         GltfLoadError::JSON(error)
     }
 }
@@ -355,7 +356,7 @@ async fn import_from_slice(slice: &[u8], graph: &mut Graph, context: &ImportCont
         .iter()
         .map(|f| f.main_node)
         .collect();
-    let animations = import_animations(&doc, &node_handles, buffers);
+    let animations = import_animations(&doc, &node_handles, graph, buffers);
     if !animations.is_empty() {
         let mut anim_con = AnimationContainer::new();
         for animation in animations {
@@ -488,12 +489,12 @@ fn import_morph_info(mesh: &gltf::Mesh) -> Result<BlendShapeInfoContainer> {
     let weights: Vec<f32> = weights.iter().map(|w| w * 100.0).collect();
     let extras = mesh.extras();
     let names = if let Some(extras) = extras {
-        let extras: serde_json::Value = serde_json::from_str(extras.get())?;
+        let extras: json::Value = json::deserialize::from_str(extras.get())?;
         match extras {
-            serde_json::Value::Object(map) => {
+            json::Value::Object(map) => {
                 if let Some(names) = map.get(TARGET_NAMES_KEY) {
                     match names {
-                        serde_json::Value::Array(names) => {
+                        json::Value::Array(names) => {
                             values_to_strings(names.as_slice()).unwrap_or(Vec::default())
                         }
                         _ => Vec::default(),
@@ -517,10 +518,10 @@ fn import_morph_info(mesh: &gltf::Mesh) -> Result<BlendShapeInfoContainer> {
 }
 
 #[cfg(feature = "gltf_blend_shapes")]
-fn values_to_strings(values: &[serde_json::Value]) -> Option<Vec<String>> {
+fn values_to_strings(values: &[json::Value]) -> Option<Vec<String>> {
     let mut result: Vec<String> = Vec::with_capacity(values.len());
     for v in values {
-        if let serde_json::Value::String(str) = v {
+        if let json::Value::String(str) = v {
             result.push(str.clone());
         } else {
             return None;
