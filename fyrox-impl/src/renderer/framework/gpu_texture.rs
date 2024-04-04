@@ -6,7 +6,6 @@ use crate::{
         TextureWrapMode,
     },
 };
-use fyrox_core::value_as_u8_slice;
 use glow::{HasContext, PixelPackData, COMPRESSED_RED_RGTC1, COMPRESSED_RG_RGTC2};
 use std::marker::PhantomData;
 use std::rc::Weak;
