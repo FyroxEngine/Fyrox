@@ -28,7 +28,7 @@ use fyrox_core::uuid::uuid;
 
 pub use pose::{AnimationPose, NodePose};
 pub use signal::{AnimationEvent, AnimationSignal};
-use value::{TrackValue, ValueBinding};
+use value::{nlerp, TrackValue, ValueBinding};
 
 pub mod container;
 pub mod machine;
@@ -243,7 +243,7 @@ impl RootMotion {
     /// Blend this motion with some other using `weight` as a proportion.
     pub fn blend_with(&mut self, other: &RootMotion, weight: f32) {
         self.delta_position = self.delta_position.lerp(&other.delta_position, weight);
-        self.delta_rotation = self.delta_rotation.nlerp(&other.delta_rotation, weight);
+        self.delta_rotation = nlerp(self.delta_rotation, &other.delta_rotation, weight);
     }
 }
 
