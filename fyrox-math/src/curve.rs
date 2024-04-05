@@ -53,6 +53,65 @@ impl CurveKey {
     }
 }
 
+fn short_path_angles(mut start: f32, mut end: f32) -> (f32, f32) {
+    if (end - start).abs() > std::f32::consts::PI {
+        if end > start {
+            start += std::f32::consts::TAU;
+        } else {
+            end += std::f32::consts::TAU;
+        }
+    }
+    (start, end)
+}
+
+fn interpolate(
+    left_value: f32,
+    left_kind: &CurveKeyKind,
+    right_value: f32,
+    right_kind: &CurveKeyKind,
+    t: f32,
+) -> f32 {
+    match (left_kind, right_kind) {
+        // Constant-to-any
+        (CurveKeyKind::Constant, CurveKeyKind::Constant)
+        | (CurveKeyKind::Constant, CurveKeyKind::Linear)
+        | (CurveKeyKind::Constant, CurveKeyKind::Cubic { .. }) => stepf(left_value, right_value, t),
+
+        // Linear-to-any
+        (CurveKeyKind::Linear, CurveKeyKind::Constant)
+        | (CurveKeyKind::Linear, CurveKeyKind::Linear)
+        | (CurveKeyKind::Linear, CurveKeyKind::Cubic { .. }) => lerpf(left_value, right_value, t),
+
+        // Cubic-to-constant or cubic-to-linear
+        (
+            CurveKeyKind::Cubic {
+                right_tangent: left_tangent,
+                ..
+            },
+            CurveKeyKind::Constant,
+        )
+        | (
+            CurveKeyKind::Cubic {
+                right_tangent: left_tangent,
+                ..
+            },
+            CurveKeyKind::Linear,
+        ) => cubicf(left_value, right_value, t, *left_tangent, 0.0),
+
+        // Cubic-to-cubic
+        (
+            CurveKeyKind::Cubic {
+                right_tangent: left_tangent,
+                ..
+            },
+            CurveKeyKind::Cubic {
+                left_tangent: right_tangent,
+                ..
+            },
+        ) => cubicf(left_value, right_value, t, *left_tangent, *right_tangent),
+    }
+}
+
 impl CurveKey {
     #[inline]
     pub fn location(&self) -> f32 {
@@ -61,49 +120,13 @@ impl CurveKey {
 
     #[inline]
     pub fn interpolate(&self, other: &Self, t: f32) -> f32 {
-        match (&self.kind, &other.kind) {
-            // Constant-to-any
-            (CurveKeyKind::Constant, CurveKeyKind::Constant)
-            | (CurveKeyKind::Constant, CurveKeyKind::Linear)
-            | (CurveKeyKind::Constant, CurveKeyKind::Cubic { .. }) => {
-                stepf(self.value, other.value, t)
-            }
+        interpolate(self.value, &self.kind, other.value, &other.kind, t)
+    }
 
-            // Linear-to-any
-            (CurveKeyKind::Linear, CurveKeyKind::Constant)
-            | (CurveKeyKind::Linear, CurveKeyKind::Linear)
-            | (CurveKeyKind::Linear, CurveKeyKind::Cubic { .. }) => {
-                lerpf(self.value, other.value, t)
-            }
-
-            // Cubic-to-constant or cubic-to-linear
-            (
-                CurveKeyKind::Cubic {
-                    right_tangent: left_tangent,
-                    ..
-                },
-                CurveKeyKind::Constant,
-            )
-            | (
-                CurveKeyKind::Cubic {
-                    right_tangent: left_tangent,
-                    ..
-                },
-                CurveKeyKind::Linear,
-            ) => cubicf(self.value, other.value, t, *left_tangent, 0.0),
-
-            // Cubic-to-cubic
-            (
-                CurveKeyKind::Cubic {
-                    right_tangent: left_tangent,
-                    ..
-                },
-                CurveKeyKind::Cubic {
-                    left_tangent: right_tangent,
-                    ..
-                },
-            ) => cubicf(self.value, other.value, t, *left_tangent, *right_tangent),
-        }
+    #[inline]
+    pub fn interpolate_angles(&self, other: &Self, t: f32) -> f32 {
+        let (left_value, right_value) = short_path_angles(self.value, other.value);
+        interpolate(left_value, &self.kind, right_value, &other.kind, t)
     }
 }
 
@@ -208,7 +231,10 @@ impl Curve {
     }
 
     #[inline]
-    pub fn value_at(&self, location: f32) -> f32 {
+    fn fetch_at<I>(&self, location: f32, interpolator: I) -> f32
+    where
+        I: FnOnce(&CurveKey, &CurveKey, f32) -> f32,
+    {
         if let (Some(first), Some(last)) = (self.keys.first(), self.keys.last()) {
             if location <= first.location {
                 first.value
@@ -219,14 +245,22 @@ impl Curve {
                 let pos = self.keys.partition_point(|k| k.location < location);
                 let left = self.keys.get(pos.saturating_sub(1)).unwrap();
                 let right = self.keys.get(pos).unwrap();
-                left.interpolate(
-                    right,
-                    (location - left.location) / (right.location - left.location),
-                )
+                let t = (location - left.location) / (right.location - left.location);
+                interpolator(left, right, t)
             }
         } else {
             0.0
         }
+    }
+
+    #[inline]
+    pub fn value_at(&self, location: f32) -> f32 {
+        self.fetch_at(location, |a, b, t| a.interpolate(b, t))
+    }
+
+    #[inline]
+    pub fn angle_at(&self, location: f32) -> f32 {
+        self.fetch_at(location, |a, b, t| a.interpolate_angles(b, t))
     }
 
     pub fn bounds(&self) -> Rect<f32> {
