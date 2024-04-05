@@ -6,5 +6,10 @@ edition = "2021"
 [lib]
 crate-type = ["dylib"]
 
+[features]
+gltf = ["fyrox-impl/gltf"]
+mesh_analysis = ["fyrox-impl/mesh_analysis"]
+gltf_blend_shapes = ["fyrox-impl/gltf_blend_shapes"]
+
 [dependencies]
 fyrox-impl = { path = "../fyrox-impl", version = "0.33.1" }
