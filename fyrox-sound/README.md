@@ -24,6 +24,7 @@ Examples can be found in `./examples`. Make sure you run examples with `--releas
 - Linux (alsa)
 - macOS (CoreAudio)
 - WebAssembly (WebAudio)
+- Android (AAudio, API Level 26+)
 
 ## HRTF
 
