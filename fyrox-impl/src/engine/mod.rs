@@ -1514,13 +1514,16 @@ impl Engine {
                 struct ContextAttributes {
                     alpha: bool,
                     premultipliedAlpha: bool,
+                    powerPreference: String,
                 }
 
-                // Prevent blending with the background of the canvas. Otherwise the background
-                // will "leak" and interfere with the pixels produced by the engine.
                 let context_attributes = ContextAttributes {
+                    // Prevent blending with the background of the canvas. Otherwise the background
+                    // will "leak" and interfere with the pixels produced by the engine.
                     alpha: false,
                     premultipliedAlpha: false,
+                    // Try to use high performance GPU.
+                    powerPreference: "high-performance".to_string(),
                 };
 
                 let webgl2_context = canvas
