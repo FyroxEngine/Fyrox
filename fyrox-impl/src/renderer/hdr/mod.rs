@@ -193,7 +193,7 @@ impl HighDynamicRangeRenderer {
             LuminanceCalculationMethod::Histogram => {
                 let luminance_range = 0.00778f32..8.0f32;
                 let log2_luminance_range = luminance_range.start.log2()..luminance_range.end.log2();
-                let lum_range = (luminance_range.end - luminance_range.start).log2();
+                let log2_lum_range = luminance_range.end.log2() - luminance_range.start.log2();
 
                 // TODO: Cloning memory from GPU to CPU is slow, but since the engine is limited
                 // by macOS's OpenGL 4.1 support and lack of compute shaders we'll build histogram
@@ -210,7 +210,7 @@ impl HighDynamicRangeRenderer {
                 // Build histogram.
                 let mut bins = [0usize; 64];
                 for &luminance in pixels {
-                    let k = (luminance.log2() - log2_luminance_range.start) / lum_range;
+                    let k = (luminance.log2() - log2_luminance_range.start) / log2_lum_range;
                     let index =
                         ((bins.len() as f32 * k) as usize).clamp(0, bins.len().saturating_sub(1));
                     bins[index] += 1;
@@ -221,15 +221,15 @@ impl HighDynamicRangeRenderer {
                 let mut counter = 0;
                 for (bin_index, count) in bins.iter().cloned().enumerate() {
                     let avg_luminance = log2_luminance_range.start
-                        + (bin_index + 1) as f32 / bins.len() as f32 * lum_range;
+                        + (bin_index + 1) as f32 / bins.len() as f32 * log2_lum_range;
                     total_luminance += avg_luminance * (count as f32);
                     counter += count;
                 }
 
-                let weighted_lum = total_luminance.exp2() / counter as f32;
+                let weighted_lum = (total_luminance / counter as f32).exp2();
                 let avg_lum = luminance_range.start
-                    + (weighted_lum / bins.len() as f32).exp2()
-                        * (luminance_range.end - luminance_range.start);
+                    + weighted_lum * (luminance_range.end - luminance_range.start);
+
 
                 self.downscale_chain
                     .last()
