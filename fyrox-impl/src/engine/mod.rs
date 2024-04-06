@@ -1470,6 +1470,7 @@ impl Engine {
                     dpi::{LogicalSize, PhysicalSize},
                     platform::web::WindowExtWebSys,
                 };
+                use serde::{Deserialize, Serialize};
 
                 let inner_size = window_builder.window_attributes().inner_size;
                 let window = window_builder.build(window_target).unwrap();
@@ -1508,8 +1509,25 @@ impl Engine {
                 body.append_child(&canvas)
                     .expect("Append canvas to HTML body");
 
+                #[derive(Serialize, Deserialize)]
+                #[allow(non_snake_case)]
+                struct ContextAttributes {
+                    alpha: bool,
+                    premultipliedAlpha: bool,
+                }
+
+                // Prevent blending with the background of the canvas. Otherwise the background
+                // will "leak" and interfere with the pixels produced by the engine.
+                let context_attributes = ContextAttributes {
+                    alpha: false,
+                    premultipliedAlpha: false,
+                };
+
                 let webgl2_context = canvas
-                    .get_context("webgl2")
+                    .get_context_with_context_options(
+                        "webgl2",
+                        &serde_wasm_bindgen::to_value(&context_attributes).unwrap(),
+                    )
                     .unwrap()
                     .unwrap()
                     .dyn_into::<crate::core::web_sys::WebGl2RenderingContext>()
