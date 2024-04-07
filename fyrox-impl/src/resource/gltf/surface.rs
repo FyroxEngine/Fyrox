@@ -16,7 +16,6 @@ use gltf::mesh::Semantic;
 use gltf::Primitive;
 use half::f16;
 
-use std::convert::TryFrom;
 use std::num::TryFromIntError;
 
 /// This type represents any error that may occur while importing mesh data from glTF.
