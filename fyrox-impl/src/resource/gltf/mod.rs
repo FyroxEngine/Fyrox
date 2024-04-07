@@ -51,6 +51,7 @@ type Result<T> = std::result::Result<T, GltfLoadError>;
 const TARGET_NAMES_KEY: &str = "targetNames";
 
 #[derive(Debug)]
+#[allow(dead_code)]
 enum GltfLoadError {
     InvalidIndex,
     InvalidPath,
