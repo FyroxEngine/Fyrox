@@ -323,8 +323,10 @@ async fn import_from_slice(slice: &[u8], graph: &mut Graph, context: &ImportCont
     let gltf: Gltf = Gltf::from_slice(slice)?;
     let doc = gltf.document;
     let data = gltf.blob;
-    let mut imports: ImportResults = ImportResults::default();
-    imports.buffers = Some(import_buffers(&doc, data, context).await?);
+    let mut imports: ImportResults = ImportResults {
+        buffers: Some(import_buffers(&doc, data, context).await?),
+        ..Default::default()
+    };
     let buffers: &[Vec<u8>] = imports.buffers.as_ref().unwrap().as_slice();
     let images: Vec<SourceImage> = import_images(&doc, buffers)?;
     imports.textures =
@@ -466,7 +468,7 @@ fn import_mesh(
     }
     Ok(MeshData {
         surfaces: surfs,
-        blend_shapes: blend_shapes.unwrap_or(Vec::new()),
+        blend_shapes: blend_shapes.unwrap_or_default(),
     })
 }
 
@@ -482,7 +484,7 @@ fn import_morph_info(mesh: &gltf::Mesh) -> Result<BlendShapeInfoContainer> {
                 if let Some(names) = map.get(TARGET_NAMES_KEY) {
                     match names {
                         json::Value::Array(names) => {
-                            values_to_strings(names.as_slice()).unwrap_or(Vec::default())
+                            values_to_strings(names.as_slice()).unwrap_or_default()
                         }
                         _ => Vec::default(),
                     }

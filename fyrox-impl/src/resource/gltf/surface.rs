@@ -105,9 +105,9 @@ impl BlendShapeInfoContainer {
             name: self
                 .names
                 .get(index)
-                .map(String::clone)
+                .cloned()
                 .unwrap_or_else(|| index.to_string()),
-            default_weight: self.weights.get(index).map(f32::clone).unwrap_or(0.0),
+            default_weight: self.weights.get(index).cloned().unwrap_or(0.0),
         }
     }
 }
@@ -153,10 +153,9 @@ impl IndexData {
     }
     fn get(&self, source_index: u32) -> Result<u32> {
         match self {
-            IndexData::Buffer(data) => Ok(data
+            IndexData::Buffer(data) => Ok(*data
                 .get(usize::try_from(source_index)?)
-                .ok_or(SurfaceDataError::InvalidIndex)?
-                .clone()),
+                .ok_or(SurfaceDataError::InvalidIndex)?),
             IndexData::Direct(size) if source_index < *size => Ok(source_index),
             _ => Err(SurfaceDataError::InvalidIndex),
         }
