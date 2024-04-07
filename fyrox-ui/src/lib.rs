@@ -253,6 +253,7 @@ use crate::{
         pool::{Handle, Pool},
         reflect::prelude::*,
         scope_profile,
+        uuid::uuid,
         visitor::prelude::*,
     },
     core::{parking_lot::Mutex, pool::Ticket, uuid::Uuid, uuid_provider, TypeUuidProvider},
@@ -337,7 +338,7 @@ pub const BRUSH_TEXT: Brush = Brush::Solid(COLOR_TEXT);
 pub const BRUSH_FOREGROUND: Brush = Brush::Solid(COLOR_FOREGROUND);
 
 #[derive(Default, Reflect, Debug)]
-struct RcUiNodeHandleInner {
+pub(crate) struct RcUiNodeHandleInner {
     handle: Handle<UiNode>,
     #[reflect(hidden)]
     sender: Option<Sender<UiMessage>>,
@@ -363,30 +364,37 @@ impl Visit for RcUiNodeHandleInner {
 
 impl Drop for RcUiNodeHandleInner {
     fn drop(&mut self) {
-        let _ = self
-            .sender
-            .as_ref()
-            .expect("Sender must be set!")
-            .send(WidgetMessage::remove(
+        if let Some(sender) = self.sender.as_ref() {
+            let _ = sender.send(WidgetMessage::remove(
                 self.handle,
                 MessageDirection::ToWidget,
             ));
+        } else {
+            Log::warn(format!(
+                "There's no message sender for shared handle {}. The object \
+            won't be destroyed.",
+                self.handle
+            ))
+        }
     }
 }
 
 /// Reference counted handle to a widget. It is used to automatically destroy the widget it points
 /// to when the reference counter reaches zero. It's main usage in the library is to store handles
 /// to context menus, that could be shared across multiple widgets.
-#[derive(Clone, Default, Visit, Reflect)]
+#[derive(Clone, Default, Visit, Reflect, TypeUuidProvider)]
+#[type_uuid(id = "9111a53b-05dc-4c75-aab1-71d5b1c93311")]
 pub struct RcUiNodeHandle(Arc<Mutex<RcUiNodeHandleInner>>);
 
 impl Debug for RcUiNodeHandle {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let handle = self.0.lock().handle;
+
         writeln!(
             f,
             "RcUiNodeHandle - {}:{} with {} uses",
-            self.0.lock().handle.index(),
-            self.0.lock().handle.generation(),
+            handle.index(),
+            handle.generation(),
             Arc::strong_count(&self.0)
         )
     }
