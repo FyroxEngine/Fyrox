@@ -148,7 +148,7 @@ impl TrackValue {
             (Self::Vector2(a), Self::Vector2(b)) => *a = a.lerp(b, weight),
             (Self::Vector3(a), Self::Vector3(b)) => *a = a.lerp(b, weight),
             (Self::Vector4(a), Self::Vector4(b)) => *a = a.lerp(b, weight),
-            (Self::UnitQuaternion(a), Self::UnitQuaternion(b)) => *a = nlerp(*a, &b, weight),
+            (Self::UnitQuaternion(a), Self::UnitQuaternion(b)) => *a = nlerp(*a, b, weight),
             _ => (),
         }
     }

@@ -9,12 +9,12 @@ pub struct Uri<'a> {
     /// The recognized scheme type, if any.
     pub scheme: Scheme,
     /// The text that was used to identify the scheme, preceeding the first ':', if any.
-    /// For example, if the URI were "https://www.somewebsite.org/books/RestInPractice.pdf"
+    /// For example, if the URI were <https://www.somewebsite.org/books/RestInPractice.pdf>
     /// then  `scheme_name` would be the "https" from the beginning.
     pub scheme_name: Option<&'a str>,
     /// Everything that follows the initial ':', or the whole original str if there is no ':'.
-    /// If the URI were "https://www.somewebsite.org/books/RestInPractice.pdf"
-    /// then `after_scheme` would be "www.somewebsite.org/books/RestInPractice.pdf".
+    /// If the URI were <https://www.somewebsite.org/books/RestInPractice.pdf>
+    /// then `after_scheme` would be <www.somewebsite.org/books/RestInPractice.pdf>.
     pub after_scheme: &'a str,
     /// If the scheme is "data" then `data_type` is the slice between the first ':' and the first ','.
     /// For example, if the URI were ""data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAF", then

@@ -6,7 +6,7 @@ use crate::{
         TextureWrapMode,
     },
 };
-use glow::{HasContext, COMPRESSED_RED_RGTC1, COMPRESSED_RG_RGTC2};
+use glow::{HasContext, PixelPackData, COMPRESSED_RED_RGTC1, COMPRESSED_RG_RGTC2};
 use std::marker::PhantomData;
 use std::rc::Weak;
 
@@ -145,6 +145,13 @@ pub enum PixelElementKind {
     UnsignedInteger,
 }
 
+pub struct PixelDescriptor {
+    data_type: u32,
+    format: u32,
+    internal_format: u32,
+    swizzle_mask: Option<[i32; 4]>,
+}
+
 impl PixelKind {
     pub fn unpack_alignment(self) -> Option<i32> {
         match self {
@@ -257,6 +264,112 @@ impl PixelKind {
             | Self::LA16
             | Self::L16 => PixelElementKind::NormalizedUnsignedInteger,
             Self::R8UI => PixelElementKind::UnsignedInteger,
+        }
+    }
+
+    pub fn pixel_descriptor(self) -> PixelDescriptor {
+        let (data_type, format, internal_format, swizzle_mask) = match self {
+            PixelKind::R32F => (glow::FLOAT, glow::RED, glow::R32F, None),
+            PixelKind::R16F => (glow::FLOAT, glow::RED, glow::R16F, None),
+            PixelKind::D32F => (
+                glow::FLOAT,
+                glow::DEPTH_COMPONENT,
+                glow::DEPTH_COMPONENT32F,
+                None,
+            ),
+            PixelKind::D16 => (
+                glow::UNSIGNED_SHORT,
+                glow::DEPTH_COMPONENT,
+                glow::DEPTH_COMPONENT16,
+                None,
+            ),
+            PixelKind::D24S8 => (
+                glow::UNSIGNED_INT_24_8,
+                glow::DEPTH_STENCIL,
+                glow::DEPTH24_STENCIL8,
+                None,
+            ),
+            PixelKind::RGBA8 => (glow::UNSIGNED_BYTE, glow::RGBA, glow::RGBA8, None),
+            PixelKind::SRGBA8 => (glow::UNSIGNED_BYTE, glow::RGBA, glow::SRGB8_ALPHA8, None),
+            PixelKind::RGB8 => (glow::UNSIGNED_BYTE, glow::RGB, glow::RGB8, None),
+            PixelKind::SRGB8 => (glow::UNSIGNED_BYTE, glow::RGB, glow::SRGB8, None),
+            PixelKind::RG8 => (glow::UNSIGNED_BYTE, glow::RG, glow::RG8, None),
+            PixelKind::R8 => (glow::UNSIGNED_BYTE, glow::RED, glow::R8, None),
+            PixelKind::R8UI => (glow::UNSIGNED_BYTE, glow::RED_INTEGER, glow::R8UI, None),
+            PixelKind::BGRA8 => (glow::UNSIGNED_BYTE, glow::BGRA, glow::RGBA8, None),
+            PixelKind::BGR8 => (glow::UNSIGNED_BYTE, glow::BGR, glow::RGB8, None),
+            PixelKind::RG16 => (glow::UNSIGNED_SHORT, glow::RG, glow::RG16, None),
+            PixelKind::R16 => (glow::UNSIGNED_SHORT, glow::RED, glow::R16, None),
+            PixelKind::RGB16 => (glow::UNSIGNED_SHORT, glow::RGB, glow::RGB16, None),
+            PixelKind::RGBA16 => (glow::UNSIGNED_SHORT, glow::RGBA, glow::RGBA16, None),
+            PixelKind::RGB10A2 => (
+                glow::UNSIGNED_INT_2_10_10_10_REV,
+                glow::RGBA,
+                glow::RGB10_A2,
+                None,
+            ),
+            PixelKind::DXT1RGB => (0, 0, GL_COMPRESSED_RGB_S3TC_DXT1_EXT, None),
+            PixelKind::DXT1RGBA => (0, 0, GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, None),
+            PixelKind::DXT3RGBA => (0, 0, GL_COMPRESSED_RGBA_S3TC_DXT3_EXT, None),
+            PixelKind::DXT5RGBA => (0, 0, GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, None),
+            PixelKind::R8RGTC => (0, 0, COMPRESSED_RED_RGTC1, None),
+            PixelKind::RG8RGTC => (0, 0, COMPRESSED_RG_RGTC2, None),
+            PixelKind::RGB32F => (glow::FLOAT, glow::RGB, glow::RGB32F, None),
+            PixelKind::RGBA32F => (glow::FLOAT, glow::RGBA, glow::RGBA32F, None),
+            PixelKind::RGBA16F => (glow::HALF_FLOAT, glow::RGBA, glow::RGBA16F, None),
+            PixelKind::RGB16F => (glow::HALF_FLOAT, glow::RGB, glow::RGB16F, None),
+            PixelKind::R11G11B10F => (glow::FLOAT, glow::RGB, glow::R11F_G11F_B10F, None),
+            PixelKind::L8 => (
+                glow::UNSIGNED_BYTE,
+                glow::RED,
+                glow::R8,
+                Some([
+                    glow::RED as i32,
+                    glow::RED as i32,
+                    glow::RED as i32,
+                    glow::ONE as i32,
+                ]),
+            ),
+            PixelKind::LA8 => (
+                glow::UNSIGNED_BYTE,
+                glow::RG,
+                glow::RG8,
+                Some([
+                    glow::RED as i32,
+                    glow::RED as i32,
+                    glow::RED as i32,
+                    glow::GREEN as i32,
+                ]),
+            ),
+            PixelKind::LA16 => (
+                glow::UNSIGNED_SHORT,
+                glow::RG,
+                glow::RG16,
+                Some([
+                    glow::RED as i32,
+                    glow::RED as i32,
+                    glow::RED as i32,
+                    glow::GREEN as i32,
+                ]),
+            ),
+            PixelKind::L16 => (
+                glow::UNSIGNED_SHORT,
+                glow::RED,
+                glow::R16,
+                Some([
+                    glow::RED as i32,
+                    glow::RED as i32,
+                    glow::RED as i32,
+                    glow::ONE as i32,
+                ]),
+            ),
+        };
+
+        PixelDescriptor {
+            data_type,
+            format,
+            internal_format,
+            swizzle_mask,
         }
     }
 }
@@ -673,102 +786,12 @@ impl<'a> TextureBinding<'a> {
                 .gl
                 .tex_parameter_i32(target, glow::TEXTURE_MAX_LEVEL, mip_count as i32 - 1);
 
-            let (type_, format, internal_format, swizzle_mask) = match pixel_kind {
-                PixelKind::R32F => (glow::FLOAT, glow::RED, glow::R32F, None),
-                PixelKind::R16F => (glow::FLOAT, glow::RED, glow::R16F, None),
-                PixelKind::D32F => (
-                    glow::FLOAT,
-                    glow::DEPTH_COMPONENT,
-                    glow::DEPTH_COMPONENT32F,
-                    None,
-                ),
-                PixelKind::D16 => (
-                    glow::UNSIGNED_SHORT,
-                    glow::DEPTH_COMPONENT,
-                    glow::DEPTH_COMPONENT16,
-                    None,
-                ),
-                PixelKind::D24S8 => (
-                    glow::UNSIGNED_INT_24_8,
-                    glow::DEPTH_STENCIL,
-                    glow::DEPTH24_STENCIL8,
-                    None,
-                ),
-                PixelKind::RGBA8 => (glow::UNSIGNED_BYTE, glow::RGBA, glow::RGBA8, None),
-                PixelKind::SRGBA8 => (glow::UNSIGNED_BYTE, glow::RGBA, glow::SRGB8_ALPHA8, None),
-                PixelKind::RGB8 => (glow::UNSIGNED_BYTE, glow::RGB, glow::RGB8, None),
-                PixelKind::SRGB8 => (glow::UNSIGNED_BYTE, glow::RGB, glow::SRGB8, None),
-                PixelKind::RG8 => (glow::UNSIGNED_BYTE, glow::RG, glow::RG8, None),
-                PixelKind::R8 => (glow::UNSIGNED_BYTE, glow::RED, glow::R8, None),
-                PixelKind::R8UI => (glow::UNSIGNED_BYTE, glow::RED_INTEGER, glow::R8UI, None),
-                PixelKind::BGRA8 => (glow::UNSIGNED_BYTE, glow::BGRA, glow::RGBA8, None),
-                PixelKind::BGR8 => (glow::UNSIGNED_BYTE, glow::BGR, glow::RGB8, None),
-                PixelKind::RG16 => (glow::UNSIGNED_SHORT, glow::RG, glow::RG16, None),
-                PixelKind::R16 => (glow::UNSIGNED_SHORT, glow::RED, glow::R16, None),
-                PixelKind::RGB16 => (glow::UNSIGNED_SHORT, glow::RGB, glow::RGB16, None),
-                PixelKind::RGBA16 => (glow::UNSIGNED_SHORT, glow::RGBA, glow::RGBA16, None),
-                PixelKind::RGB10A2 => (
-                    glow::UNSIGNED_INT_2_10_10_10_REV,
-                    glow::RGBA,
-                    glow::RGB10_A2,
-                    None,
-                ),
-                PixelKind::DXT1RGB => (0, 0, GL_COMPRESSED_RGB_S3TC_DXT1_EXT, None),
-                PixelKind::DXT1RGBA => (0, 0, GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, None),
-                PixelKind::DXT3RGBA => (0, 0, GL_COMPRESSED_RGBA_S3TC_DXT3_EXT, None),
-                PixelKind::DXT5RGBA => (0, 0, GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, None),
-                PixelKind::R8RGTC => (0, 0, COMPRESSED_RED_RGTC1, None),
-                PixelKind::RG8RGTC => (0, 0, COMPRESSED_RG_RGTC2, None),
-                PixelKind::RGB32F => (glow::FLOAT, glow::RGB, glow::RGB32F, None),
-                PixelKind::RGBA32F => (glow::FLOAT, glow::RGBA, glow::RGBA32F, None),
-                PixelKind::RGBA16F => (glow::HALF_FLOAT, glow::RGBA, glow::RGBA16F, None),
-                PixelKind::RGB16F => (glow::HALF_FLOAT, glow::RGB, glow::RGB16F, None),
-                PixelKind::R11G11B10F => (glow::FLOAT, glow::RGB, glow::R11F_G11F_B10F, None),
-                PixelKind::L8 => (
-                    glow::UNSIGNED_BYTE,
-                    glow::RED,
-                    glow::R8,
-                    Some([
-                        glow::RED as i32,
-                        glow::RED as i32,
-                        glow::RED as i32,
-                        glow::ONE as i32,
-                    ]),
-                ),
-                PixelKind::LA8 => (
-                    glow::UNSIGNED_BYTE,
-                    glow::RG,
-                    glow::RG8,
-                    Some([
-                        glow::RED as i32,
-                        glow::RED as i32,
-                        glow::RED as i32,
-                        glow::GREEN as i32,
-                    ]),
-                ),
-                PixelKind::LA16 => (
-                    glow::UNSIGNED_SHORT,
-                    glow::RG,
-                    glow::RG16,
-                    Some([
-                        glow::RED as i32,
-                        glow::RED as i32,
-                        glow::RED as i32,
-                        glow::GREEN as i32,
-                    ]),
-                ),
-                PixelKind::L16 => (
-                    glow::UNSIGNED_SHORT,
-                    glow::RED,
-                    glow::R16,
-                    Some([
-                        glow::RED as i32,
-                        glow::RED as i32,
-                        glow::RED as i32,
-                        glow::ONE as i32,
-                    ]),
-                ),
-            };
+            let PixelDescriptor {
+                data_type,
+                format,
+                internal_format,
+                swizzle_mask,
+            } = pixel_kind.pixel_descriptor();
 
             let is_compressed = pixel_kind.is_compressed();
 
@@ -821,7 +844,7 @@ impl<'a> TextureBinding<'a> {
                                     length as i32,
                                     0,
                                     format,
-                                    type_,
+                                    data_type,
                                     pixels,
                                 );
                             }
@@ -862,7 +885,7 @@ impl<'a> TextureBinding<'a> {
                                     height as i32,
                                     0,
                                     format,
-                                    type_,
+                                    data_type,
                                     pixels,
                                 );
                             }
@@ -905,7 +928,7 @@ impl<'a> TextureBinding<'a> {
                                         height as i32,
                                         0,
                                         format,
-                                        type_,
+                                        data_type,
                                         face_pixels,
                                     );
                                 }
@@ -954,7 +977,7 @@ impl<'a> TextureBinding<'a> {
                                     depth as i32,
                                     0,
                                     format,
-                                    type_,
+                                    data_type,
                                     pixels,
                                 );
                             }
@@ -970,6 +993,28 @@ impl<'a> TextureBinding<'a> {
         }
 
         Ok(self)
+    }
+
+    pub fn read_pixels(&self, state: &PipelineState) -> Vec<u8> {
+        unsafe {
+            if let GpuTextureKind::Rectangle { width, height } = self.texture.kind {
+                let pixel_info = self.texture.pixel_kind.pixel_descriptor();
+                let mut buffer =
+                    vec![0; image_2d_size_bytes(self.texture.pixel_kind, width, height)];
+                state.gl.read_pixels(
+                    0,
+                    0,
+                    width as i32,
+                    height as i32,
+                    pixel_info.format,
+                    pixel_info.data_type,
+                    PixelPackData::Slice(buffer.as_mut_slice()),
+                );
+                buffer
+            } else {
+                Default::default()
+            }
+        }
     }
 }
 

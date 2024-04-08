@@ -26,12 +26,19 @@ use crate::{
     },
     scene::camera::{ColorGradingLut, Exposure},
 };
+use fyrox_core::{transmute_slice, value_as_u8_slice};
 use std::{cell::RefCell, rc::Rc};
 
 mod adaptation;
 mod downscale;
 mod luminance;
 mod map;
+
+#[allow(dead_code)] // TODO
+pub enum LuminanceCalculationMethod {
+    Histogram,
+    DownSampling,
+}
 
 pub struct LumBuffer {
     framebuffer: FrameBuffer,
@@ -98,6 +105,7 @@ pub struct HighDynamicRangeRenderer {
     downscale_shader: DownscaleShader,
     map_shader: MapShader,
     stub_lut: Rc<RefCell<GpuTexture>>,
+    lum_calculation_method: LuminanceCalculationMethod,
 }
 
 impl HighDynamicRangeRenderer {
@@ -130,6 +138,7 @@ impl HighDynamicRangeRenderer {
                 1,
                 Some(&[0, 0, 0]),
             )?)),
+            lum_calculation_method: LuminanceCalculationMethod::DownSampling,
         })
     }
 
@@ -179,36 +188,98 @@ impl HighDynamicRangeRenderer {
         quad: &GeometryBuffer,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();
-        let shader = &self.downscale_shader;
-        let mut prev_luminance = self.frame_luminance.texture();
-        for lum_buffer in self.downscale_chain.iter_mut() {
-            let inv_size = 1.0 / lum_buffer.size as f32;
-            let matrix = lum_buffer.matrix();
-            stats += lum_buffer.framebuffer.draw(
-                quad,
-                state,
-                Rect::new(0, 0, lum_buffer.size as i32, lum_buffer.size as i32),
-                &shader.program,
-                &DrawParameters {
-                    cull_face: None,
-                    color_write: Default::default(),
-                    depth_write: false,
-                    stencil_test: None,
-                    depth_test: false,
-                    blend: None,
-                    stencil_op: Default::default(),
-                },
-                ElementRange::Full,
-                |mut program_binding| {
-                    program_binding
-                        .set_matrix4(&shader.wvp_matrix, &matrix)
-                        .set_vector2(&shader.inv_size, &Vector2::new(inv_size, inv_size))
-                        .set_texture(&shader.lum_sampler, &prev_luminance);
-                },
-            )?;
 
-            prev_luminance = lum_buffer.texture();
+        match self.lum_calculation_method {
+            LuminanceCalculationMethod::Histogram => {
+                let luminance_range = 0.00778f32..8.0f32;
+                let log2_luminance_range = luminance_range.start.log2()..luminance_range.end.log2();
+                let log2_lum_range = luminance_range.end.log2() - luminance_range.start.log2();
+
+                // TODO: Cloning memory from GPU to CPU is slow, but since the engine is limited
+                // by macOS's OpenGL 4.1 support and lack of compute shaders we'll build histogram
+                // manually on CPU anyway. Replace this with compute shaders whenever possible.
+                let data = self
+                    .frame_luminance
+                    .texture()
+                    .borrow_mut()
+                    .bind_mut(state, 0)
+                    .read_pixels(state);
+
+                let pixels = transmute_slice::<u8, f32>(&data);
+
+                // Build histogram.
+                let mut bins = [0usize; 64];
+                for &luminance in pixels {
+                    let k = (luminance.log2() - log2_luminance_range.start) / log2_lum_range;
+                    let index =
+                        ((bins.len() as f32 * k) as usize).clamp(0, bins.len().saturating_sub(1));
+                    bins[index] += 1;
+                }
+
+                // Compute mean value.
+                let mut total_luminance = 0.0;
+                let mut counter = 0;
+                for (bin_index, count) in bins.iter().cloned().enumerate() {
+                    let avg_luminance = log2_luminance_range.start
+                        + (bin_index + 1) as f32 / bins.len() as f32 * log2_lum_range;
+                    total_luminance += avg_luminance * (count as f32);
+                    counter += count;
+                }
+
+                let weighted_lum = (total_luminance / counter as f32).exp2();
+                let avg_lum = luminance_range.start
+                    + weighted_lum * (luminance_range.end - luminance_range.start);
+
+                self.downscale_chain
+                    .last()
+                    .unwrap()
+                    .texture()
+                    .borrow_mut()
+                    .bind_mut(state, 0)
+                    .set_data(
+                        GpuTextureKind::Rectangle {
+                            width: 1,
+                            height: 1,
+                        },
+                        PixelKind::R32F,
+                        1,
+                        Some(value_as_u8_slice(&avg_lum)),
+                    )?;
+            }
+            LuminanceCalculationMethod::DownSampling => {
+                let shader = &self.downscale_shader;
+                let mut prev_luminance = self.frame_luminance.texture();
+                for lum_buffer in self.downscale_chain.iter_mut() {
+                    let inv_size = 1.0 / lum_buffer.size as f32;
+                    let matrix = lum_buffer.matrix();
+                    stats += lum_buffer.framebuffer.draw(
+                        quad,
+                        state,
+                        Rect::new(0, 0, lum_buffer.size as i32, lum_buffer.size as i32),
+                        &shader.program,
+                        &DrawParameters {
+                            cull_face: None,
+                            color_write: Default::default(),
+                            depth_write: false,
+                            stencil_test: None,
+                            depth_test: false,
+                            blend: None,
+                            stencil_op: Default::default(),
+                        },
+                        ElementRange::Full,
+                        |mut program_binding| {
+                            program_binding
+                                .set_matrix4(&shader.wvp_matrix, &matrix)
+                                .set_vector2(&shader.inv_size, &Vector2::new(inv_size, inv_size))
+                                .set_texture(&shader.lum_sampler, &prev_luminance);
+                        },
+                    )?;
+
+                    prev_luminance = lum_buffer.texture();
+                }
+            }
         }
+
         Ok(stats)
     }
 

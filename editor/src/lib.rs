@@ -2220,12 +2220,13 @@ impl Editor {
         if let Some(export_window) = self.export_window.as_mut() {
             export_window.update(self.engine.user_interfaces.first_mut());
         }
-        if let Some(stats) = self.statistics_window.as_ref() {
-            stats.update(&self.engine);
-        }
 
         if let Some(entry) = self.scenes.current_scene_entry_ref() {
             if let Some(game_scene) = entry.controller.downcast_ref::<GameScene>() {
+                if let Some(stats) = self.statistics_window.as_ref() {
+                    stats.update(game_scene.scene, &self.engine);
+                }
+
                 self.light_panel.update(game_scene, &mut self.engine);
                 self.animation_editor.update(
                     &entry.selection,

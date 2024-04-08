@@ -53,7 +53,11 @@
 //!
 //! ## Supported OS
 //!
-//! Currently only Windows and Linux are supported.
+//! - Windows (DirectSound)
+//! - Linux (alsa)
+//! - macOS (CoreAudio)
+//! - WebAssembly (WebAudio)
+//! - Android (AAudio, API Level 26+)
 //!
 //! ## HRTF
 //!

@@ -75,8 +75,8 @@ use crate::{
     widget::Widget,
     window::Window,
     wrap_panel::WrapPanel,
-    BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
-    VerticalAlignment,
+    BuildContext, HorizontalAlignment, Orientation, RcUiNodeHandle, RcUiNodeHandleInner, Thickness,
+    UiNode, UserInterface, VerticalAlignment,
 };
 use fxhash::FxHashMap;
 use fyrox_animation::machine::Parameter;
@@ -397,6 +397,13 @@ impl PropertyEditorDefinitionContainer {
         container.insert(InheritablePropertyEditorDefinition::<Option<SelectionRange>>::new());
 
         container.register_inheritable_inspectable::<Position>();
+
+        container.insert(EnumPropertyEditorDefinition::<RcUiNodeHandle>::new_optional());
+        container.insert(InspectablePropertyEditorDefinition::<RcUiNodeHandle>::new());
+        container.insert(InspectablePropertyEditorDefinition::<RcUiNodeHandleInner>::new());
+        container.insert(InspectablePropertyEditorDefinition::<
+            Arc<Mutex<RcUiNodeHandleInner>>,
+        >::new());
 
         reg_inspectables!(
             container,

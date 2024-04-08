@@ -10,6 +10,7 @@ use crate::fyrox::{
         BuildContext, HorizontalAlignment, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
 };
+use fyrox::scene::Scene;
 
 pub struct StatisticsWindow {
     pub window: Handle<UiNode>,
@@ -73,17 +74,19 @@ impl StatisticsWindow {
         StatisticsWindowAction::None
     }
 
-    pub fn update(&self, engine: &Engine) {
+    pub fn update(&self, current_scene: Handle<Scene>, engine: &Engine) {
         if let GraphicsContext::Initialized(ref graphics_context) = engine.graphics_context {
-            let statistics = graphics_context.renderer.get_statistics().to_string();
-            engine
-                .user_interfaces
-                .first()
-                .send_message(TextMessage::text(
-                    self.text,
-                    MessageDirection::ToWidget,
-                    statistics,
-                ));
+            if let Some(stats) = graphics_context.renderer.scene_data_map.get(&current_scene) {
+                let statistics = stats.statistics.to_string();
+                engine
+                    .user_interfaces
+                    .first()
+                    .send_message(TextMessage::text(
+                        self.text,
+                        MessageDirection::ToWidget,
+                        statistics,
+                    ));
+            }
         }
     }
 }

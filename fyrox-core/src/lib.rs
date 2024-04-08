@@ -304,6 +304,17 @@ pub fn array_as_u8_slice<T: Sized>(v: &[T]) -> &'_ [u8] {
     unsafe { std::slice::from_raw_parts(v.as_ptr() as *const u8, std::mem::size_of_val(v)) }
 }
 
+/// "Transmutes" array of any sized type to a slice of some other type.
+pub fn transmute_slice<T: Sized, U: Sized>(v: &[T]) -> &'_ [U] {
+    // SAFETY: It is safe to reinterpret data to read it.
+    unsafe {
+        std::slice::from_raw_parts(
+            v.as_ptr() as *const U,
+            std::mem::size_of_val(v) / std::mem::size_of::<U>(),
+        )
+    }
+}
+
 /// "Transmutes" value of any sized type to a slice of bytes.
 pub fn value_as_u8_slice<T: Sized>(v: &T) -> &'_ [u8] {
     // SAFETY: It is safe to reinterpret data to read it.

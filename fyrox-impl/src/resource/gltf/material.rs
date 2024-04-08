@@ -62,6 +62,7 @@ fn convert_wrap(mode: GltfWrapMode) -> FyroxWrapMode {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub enum GltfMaterialError {
     ShaderLoadFailed,
     InvalidIndex,
@@ -318,7 +319,7 @@ where
     Ok(result)
 }
 
-fn import_image_from_uri<'a>(uri: &'a str) -> Result<SourceImage<'a>> {
+fn import_image_from_uri(uri: &str) -> Result<SourceImage> {
     let parsed_uri = uri::parse_uri(uri);
     match parsed_uri.scheme {
         uri::Scheme::Data if parsed_uri.data.is_some() => Ok(SourceImage::Embedded(decode_base64(

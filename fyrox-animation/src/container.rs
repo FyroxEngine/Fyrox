@@ -147,9 +147,9 @@ impl TrackDataContainer {
             ))),
             TrackValueKind::UnitQuaternion => {
                 // Convert Euler angles to quaternion
-                let x = self.curves.first()?.value_at(time);
-                let y = self.curves.get(1)?.value_at(time);
-                let z = self.curves.get(2)?.value_at(time);
+                let x = self.curves.first()?.angle_at(time);
+                let y = self.curves.get(1)?.angle_at(time);
+                let z = self.curves.get(2)?.angle_at(time);
 
                 Some(TrackValue::UnitQuaternion(quat_from_euler(
                     Vector3::new(x, y, z),

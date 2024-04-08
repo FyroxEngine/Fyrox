@@ -629,6 +629,7 @@ fn export(export_options: ExportOptions, cancel_flag: Arc<AtomicBool>) -> Result
         if export_options.run_after_build {
             match export_options.target_platform {
                 TargetPlatform::PC => {
+                    #[allow(unused_mut)]
                     let mut path = destination_folder.join(package_name);
                     #[cfg(windows)]
                     {

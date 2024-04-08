@@ -149,10 +149,15 @@ impl Control for HandlePropertyEditor {
                                 format!("{} ({})", value, self.value),
                             ));
 
+                            let color = if self.value.is_none() {
+                                Color::ORANGE
+                            } else {
+                                fyrox::gui::COLOR_FOREGROUND
+                            };
                             ui.send_message(WidgetMessage::foreground(
                                 self.text,
                                 MessageDirection::ToWidget,
-                                Brush::Solid(fyrox::gui::COLOR_FOREGROUND),
+                                Brush::Solid(color),
                             ));
                         } else {
                             ui.send_message(TextMessage::text(

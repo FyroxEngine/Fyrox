@@ -590,6 +590,7 @@ fn android_main(app: fyrox::platform::android::activity::AndroidApp) {{
         base_path.join("executor-android/release.keystore"),
         include_bytes!("android/release.keystore"),
     );
+    create_dir_all(base_path.join("executor-android/assets")).unwrap();
 }
 
 fn init_workspace(base_path: &Path, vcs: &str) {

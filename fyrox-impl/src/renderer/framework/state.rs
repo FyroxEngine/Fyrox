@@ -1,3 +1,4 @@
+use crate::renderer::PipelineStatistics;
 use crate::{
     core::{color::Color, math::Rect, reflect::prelude::*, visitor::prelude::*},
     renderer::framework::framebuffer::{CullFace, DrawParameters},
@@ -6,40 +7,8 @@ use fyrox_core::uuid_provider;
 use glow::{Framebuffer, HasContext};
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
-use std::fmt::{Display, Formatter};
 use std::rc::{Rc, Weak};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
-
-#[derive(Debug, Default, Copy, Clone)]
-pub struct PipelineStatistics {
-    pub texture_binding_changes: usize,
-    pub vbo_binding_changes: usize,
-    pub vao_binding_changes: usize,
-    pub blend_state_changes: usize,
-    pub framebuffer_binding_changes: usize,
-    pub program_binding_changes: usize,
-}
-
-impl Display for PipelineStatistics {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Pipeline state changes:\n\
-            \tTextures: {},\n\
-            \tVBO: {},\n\
-            \tVAO: {},\n\
-            \tFBO: {},\n\
-            \tShaders: {},\n\
-            \tBlend: {}",
-            self.texture_binding_changes,
-            self.vbo_binding_changes,
-            self.vao_binding_changes,
-            self.framebuffer_binding_changes,
-            self.program_binding_changes,
-            self.blend_state_changes
-        )
-    }
-}
 
 #[derive(
     Copy,

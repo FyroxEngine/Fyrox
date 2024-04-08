@@ -66,7 +66,7 @@ fn build_node_sets_from_graph(graph: &Graph) -> Vec<Vec<Handle<Node>>> {
     name_map.into_values().collect()
 }
 
-fn build_node_sets_from_list(nodes: &Vec<NodeName>) -> Vec<Vec<&NodeName>> {
+fn build_node_sets_from_list(nodes: &[NodeName]) -> Vec<Vec<&NodeName>> {
     let mut name_map: FxHashMap<&str, Vec<&NodeName>> = FxHashMap::default();
     let names: Vec<_> = nodes.iter().map(|n| n.name.borrow()).collect();
     for (node, name) in nodes.iter().zip(names.iter()) {
@@ -89,14 +89,14 @@ fn resolve_conflict(handles: Vec<Handle<Node>>, graph: &mut Graph) {
         }
     }
     // Build lists of nodes which still have duplicate names
-    let node_sets = build_node_sets_from_list(&mut node_names);
+    let node_sets = build_node_sets_from_list(&node_names);
     // Add ancestor names if that will eliminate duplicates.
     for set in node_sets {
         if set.len() > 1 {
             if let Some(names) = find_distinct_ancestor_names(set.as_slice(), graph) {
                 for (node, name) in set.iter().zip(names.iter()) {
                     node.name.borrow_mut().push('+');
-                    node.name.borrow_mut().push_str(*name);
+                    node.name.borrow_mut().push_str(name);
                 }
             }
         }
@@ -148,11 +148,7 @@ fn get_ancestor_names<'a>(
     Some(result)
 }
 
-fn get_ancestor_name<'a>(
-    mut handle: Handle<Node>,
-    depth: usize,
-    graph: &'a Graph,
-) -> Option<&'a str> {
+fn get_ancestor_name(mut handle: Handle<Node>, depth: usize, graph: &Graph) -> Option<&str> {
     for _ in 0..depth {
         if let Some(n) = graph.try_get(handle) {
             handle = n.parent();
@@ -176,14 +172,10 @@ fn contains_duplicate_name(names: &[&str]) -> bool {
 
 fn count_ancestor_depth(mut handle: Handle<Node>, list: &[Handle<Node>], graph: &Graph) -> usize {
     let mut count: usize = 0;
-    loop {
-        if let Some(node) = graph.try_get(handle) {
-            handle = node.parent();
-            if list.iter().any(|h| *h == handle) {
-                count += 1;
-            } else {
-                break;
-            }
+    while let Some(node) = graph.try_get(handle) {
+        handle = node.parent();
+        if list.iter().any(|h| *h == handle) {
+            count += 1;
         } else {
             break;
         }
