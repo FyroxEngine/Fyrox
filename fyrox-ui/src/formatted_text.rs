@@ -1,13 +1,26 @@
 use crate::{
     brush::Brush,
     core::{algebra::Vector2, color::Color, math::Rect, reflect::prelude::*, visitor::prelude::*},
-    font::FontResource,
+    font::{Font, FontGlyph, FontResource},
     HorizontalAlignment, VerticalAlignment,
 };
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
 use std::ops::Range;
 use strum_macros::{AsRefStr, EnumString, VariantNames};
+
+mod textwrapper;
+use textwrapper::*;
+
+/// Defines a position in the text. It is just a coordinates of a character in text.
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Default, Visit, Reflect)]
+pub struct Position {
+    /// Line index.
+    pub line: usize,
+
+    /// Offset from the beginning of the line.
+    pub offset: usize,
+}
 
 #[derive(Debug, Clone, Default)]
 pub struct TextGlyph {
@@ -51,6 +64,10 @@ impl TextLine {
     pub fn is_empty(&self) -> bool {
         self.end == self.begin
     }
+
+    pub fn y_distance(&self, y: f32) -> f32 {
+        (self.y_offset + self.height / 2.0 - y).abs()
+    }
 }
 
 /// Wrapping mode for formatted text.
@@ -83,6 +100,83 @@ pub enum WrapMode {
 
 uuid_provider!(WrapMode = "f1290ceb-3fee-461f-a1e9-f9450bd06805");
 
+struct GlyphMetrics<'a> {
+    font: &'a mut Font,
+    size: f32,
+}
+
+impl<'a> GlyphMetrics<'a> {
+    fn ascender(&self) -> f32 {
+        self.font.ascender(self.size)
+    }
+    fn descender(&self) -> f32 {
+        self.font.descender(self.size)
+    }
+    fn newline_advance(&self) -> f32 {
+        self.size / 2.0
+    }
+    fn advance(&mut self, c: char) -> f32 {
+        match c {
+            '\n' => self.newline_advance(),
+            _ => self.font.glyph_advance(c, self.size),
+        }
+    }
+    fn glyph(&mut self, c: char) -> Option<&FontGlyph> {
+        self.font.glyph(c, self.size)
+    }
+}
+
+fn build_glyph(metrics: &mut GlyphMetrics, x: f32, y: f32, character: char) -> (TextGlyph, f32) {
+    let ascender = metrics.ascender();
+    let font_size = metrics.size;
+    match metrics.glyph(character) {
+        Some(glyph) => {
+            // Insert glyph
+            let rect = Rect::new(
+                x + glyph.left.floor(),
+                y + ascender.floor() - glyph.top.floor() - glyph.bitmap_height as f32,
+                glyph.bitmap_width as f32,
+                glyph.bitmap_height as f32,
+            );
+            let text_glyph = TextGlyph {
+                bounds: rect,
+                tex_coords: glyph.tex_coords,
+                atlas_page_index: glyph.page_index,
+            };
+            (text_glyph, glyph.advance)
+        }
+        None => {
+            // Insert invalid symbol
+            let rect = Rect::new(x, y + ascender, font_size, font_size);
+            let text_glyph = TextGlyph {
+                bounds: rect,
+                tex_coords: [Vector2::default(); 4],
+                atlas_page_index: 0,
+            };
+            (text_glyph, rect.w())
+        }
+    }
+}
+
+struct WrapSink<'a> {
+    lines: &'a mut Vec<TextLine>,
+    max_width: f32,
+}
+
+impl<'a> LineSink for WrapSink<'a> {
+    fn push_line(&mut self, range: Range<usize>, width: f32) {
+        let mut line = TextLine::new();
+        line.begin = range.start;
+        line.end = range.end;
+        line.width = width;
+        self.lines.push(line);
+    }
+
+    fn max_width(&self) -> f32 {
+        self.max_width
+    }
+}
+
 #[derive(Default, Clone, Debug, Visit, Reflect)]
 pub struct FormattedText {
     font: InheritableVariable<FontResource>,
@@ -113,13 +207,224 @@ pub struct FormattedText {
     pub shadow_offset: InheritableVariable<Vector2<f32>>,
 }
 
-#[derive(Copy, Clone, Debug)]
-struct Word {
-    width: f32,
-    length: usize,
-}
-
 impl FormattedText {
+    pub fn debug_state(&self) {
+        for line in self.lines.iter() {
+            print!("{}..{} ", line.begin, line.end);
+        }
+        println!("");
+    }
+    pub fn nearest_valid_position(&self, start: Position) -> Position {
+        if self.lines.is_empty() {
+            return Position::default();
+        }
+        let mut pos = start;
+        pos.line = usize::min(pos.line, self.lines.len() - 1);
+        pos.offset = usize::min(pos.offset, self.lines[pos.line].len());
+        pos
+    }
+    pub fn get_relative_position_x(&self, start: Position, offset: isize) -> Position {
+        if self.lines.is_empty() {
+            return Position::default();
+        }
+        let mut pos = self.nearest_valid_position(start);
+        let distance = offset.abs();
+        for _ in 0..distance {
+            if offset < 0 {
+                if pos.offset > 0 {
+                    pos.offset -= 1
+                } else if pos.line > 0 {
+                    pos.line -= 1;
+                    pos.offset = self.lines[pos.line].len().saturating_sub(1);
+                } else {
+                    pos.offset = 0;
+                    break;
+                }
+            } else {
+                let line = &self.lines[pos.line];
+                if pos.offset + 1 < line.len() {
+                    pos.offset += 1;
+                } else if pos.line + 1 < self.lines.len() {
+                    pos.line += 1;
+                    pos.offset = 0;
+                } else {
+                    pos.offset = line.len();
+                    break;
+                }
+            }
+        }
+        pos
+    }
+
+    pub fn get_relative_position_y(&self, start: Position, offset: isize) -> Position {
+        let mut pos = self.nearest_valid_position(start);
+        pos.line = pos.line.saturating_add_signed(offset);
+        self.nearest_valid_position(pos)
+    }
+
+    pub fn get_line_range(&self, line: usize) -> Range<Position> {
+        let length = self.lines.get(line).map(TextLine::len).unwrap_or(0);
+        Range {
+            start: Position { line, offset: 0 },
+            end: Position {
+                line,
+                offset: length,
+            },
+        }
+    }
+
+    pub fn iter_line_ranges_within<'a>(
+        &self,
+        range: Range<Position>,
+    ) -> impl Iterator<Item = Range<Position>> + '_ {
+        (range.start.line..=range.end.line).map(move |i| {
+            let r = self.get_line_range(i);
+            Range {
+                start: Position::max(range.start, r.start),
+                end: Position::min(range.end, r.end),
+            }
+        })
+    }
+
+    pub fn end_position(&self) -> Position {
+        match self.lines.iter().enumerate().last() {
+            Some((i, line)) => Position {
+                line: i,
+                offset: line.len(),
+            },
+            None => Position::default(),
+        }
+    }
+
+    fn position_to_char_index_internal(&self, position: Position, clamp: bool) -> Option<usize> {
+        self.lines.get(position.line).map(|line| {
+            line.begin
+                + position.offset.min(if clamp {
+                    line.len().saturating_sub(1)
+                } else {
+                    line.len()
+                })
+        })
+    }
+    pub fn position_range_to_char_index_range(&self, range: Range<Position>) -> Range<usize> {
+        let start = self
+            .position_to_char_index_unclamped(range.start)
+            .unwrap_or(0);
+        let end = self
+            .position_to_char_index_unclamped(range.end)
+            .unwrap_or(self.text.len());
+        start..end
+    }
+    /// Maps input [`Position`] to a linear position in character array.
+    /// The index returned is the index of the character after the position, which may be
+    /// out-of-bounds if thee position is at the end of the text.
+    /// You should check the index before trying to use it to fetch data from inner array of characters.
+    pub fn position_to_char_index_unclamped(&self, position: Position) -> Option<usize> {
+        self.position_to_char_index_internal(position, false)
+    }
+
+    /// Maps input [`Position`] to a linear position in character array.
+    /// The index returned is usually the index of the character after the position,
+    /// but if the position is at the end of a line then return the index of the character _before_ the position.
+    /// In other words, the last two positions of each line are mapped to the same character index.
+    /// Output index will always be valid for fetching, if the method returned `Some(index)`.
+    /// The index however cannot be used for text insertion, because it cannot point to a "place after last char".
+    pub fn position_to_char_index_clamped(&self, position: Position) -> Option<usize> {
+        self.position_to_char_index_internal(position, true)
+    }
+
+    /// Maps linear character index (as in string) to its actual location in the text.
+    pub fn char_index_to_position(&self, i: usize) -> Option<Position> {
+        self.lines
+            .iter()
+            .enumerate()
+            .find_map(|(line_index, line)| {
+                if (line.begin..line.end).contains(&i) {
+                    Some(Position {
+                        line: line_index,
+                        offset: i - line.begin,
+                    })
+                } else {
+                    None
+                }
+            })
+            .or(Some(self.end_position()))
+    }
+
+    pub fn position_to_local(&self, position: Position) -> Vector2<f32> {
+        let mut state = self.font.state();
+        let Some(font) = state.data() else {
+            return Default::default();
+        };
+        let mut metrics = GlyphMetrics {
+            font,
+            size: *self.font_size,
+        };
+        let mut caret_pos = Vector2::default();
+        let position = self.nearest_valid_position(position);
+
+        let line = self.lines[position.line];
+        let raw_text = self.get_raw_text();
+        caret_pos += Vector2::new(line.x_offset, line.y_offset);
+        for (offset, char_index) in (line.begin..line.end).enumerate() {
+            if offset >= position.offset {
+                break;
+            }
+            if let Some(advance) = raw_text.get(char_index).map(|c| metrics.advance(*c)) {
+                caret_pos.x += advance;
+            } else {
+                caret_pos.x += metrics.size;
+            }
+        }
+        caret_pos
+    }
+
+    pub fn local_to_position(&self, point: Vector2<f32>) -> Position {
+        let font = self.get_font();
+        let mut state = font.state();
+        let Some(font) = state.data() else {
+            return Position::default();
+        };
+        let mut metrics = GlyphMetrics {
+            font,
+            size: self.font_size(),
+        };
+        let y = point.y;
+
+        let Some(line_index) = self
+            .lines
+            .iter()
+            .enumerate()
+            .map(|(i, a)| (i, a.y_distance(y)))
+            .min_by(|a, b| f32::total_cmp(&a.1, &b.1))
+            .map(|(i, _)| i)
+        else {
+            return Position::default();
+        };
+        let line = self.lines[line_index];
+        let x = point.x - line.x_offset;
+        let mut glyph_x: f32 = 0.0;
+        let mut min_dist: f32 = x.abs();
+        let mut min_index: usize = 0;
+        let raw_text = self.get_raw_text();
+        for (offset, char_index) in (line.begin..line.end).enumerate() {
+            if let Some(advance) = raw_text.get(char_index).map(|c| metrics.advance(*c)) {
+                glyph_x += advance;
+            } else {
+                glyph_x += self.font_size();
+            }
+            let dist = (x - glyph_x).abs();
+            if dist < min_dist {
+                min_dist = dist;
+                min_index = offset + 1;
+            }
+        }
+        Position {
+            line: line_index,
+            offset: min_index,
+        }
+    }
+
     pub fn get_glyphs(&self) -> &[TextGlyph] {
         &self.glyphs
     }
@@ -191,13 +496,21 @@ impl FormattedText {
         self.text.iter().collect()
     }
 
+    pub fn text_range(&self, range: Range<usize>) -> String {
+        self.text[range].iter().collect()
+    }
+
     pub fn get_range_width<T: IntoIterator<Item = usize>>(&self, range: T) -> f32 {
         let mut width = 0.0;
         if let Some(font) = self.font.state().data() {
+            let mut metrics = GlyphMetrics {
+                font,
+                size: self.font_size(),
+            };
             for index in range {
                 // We can't trust the range values, check to prevent panic.
                 if let Some(glyph) = self.text.get(index) {
-                    width += font.glyph_advance(*glyph, *self.font_size);
+                    width += metrics.advance(*glyph);
                 }
             }
         }
@@ -272,125 +585,38 @@ impl FormattedText {
         let Some(font) = font_state.data() else {
             return Default::default();
         };
-
-        let masked_text;
-        let text = if let Some(mask_char) = *self.mask_char {
-            masked_text = (0..self.text.len()).map(|_| mask_char).collect();
-            &masked_text
-        } else {
-            &*self.text
+        let mut metrics = GlyphMetrics {
+            font,
+            size: self.font_size(),
         };
+        let line_height: f32 = metrics.ascender();
 
-        // Split on lines.
-        let mut total_height = 0.0;
-        let mut current_line = TextLine::new();
-        let mut word: Option<Word> = None;
         self.lines.clear();
-        for (i, &character) in text.iter().enumerate() {
-            let advance = match font.glyph(character, *self.font_size) {
-                Some(glyph) => glyph.advance,
-                None => *self.font_size,
-            };
-            let is_new_line = character == '\n' || character == '\r';
-            let new_width = current_line.width + advance;
-            let is_white_space = character.is_whitespace();
-            let word_ended = word.is_some() && is_white_space || i == self.text.len() - 1;
-
-            if *self.wrap == WrapMode::Word && !is_white_space {
-                match word.as_mut() {
-                    Some(word) => {
-                        word.width += advance;
-                        word.length += 1;
-                    }
-                    None => {
-                        word = Some(Word {
-                            width: advance,
-                            length: 1,
-                        });
-                    }
-                };
+        let sink = WrapSink {
+            lines: &mut self.lines,
+            max_width: self.constraint.x,
+        };
+        if let Some(mask) = *self.mask_char {
+            let advance = metrics.advance(mask);
+            match *self.wrap {
+                WrapMode::NoWrap => wrap_mask(NoWrap::new(sink), self.text.len(), mask, advance),
+                WrapMode::Letter => wrap_mask(
+                    LetterWrap::new(sink),
+                    self.text.len(),
+                    mask,
+                    *self.font_size,
+                ),
+                WrapMode::Word => wrap_mask(WordWrap::new(sink), self.text.len(), mask, advance),
             }
-
-            if is_new_line {
-                if let Some(word) = word.take() {
-                    current_line.width += word.width;
-                    current_line.end += word.length;
-                }
-                self.lines.push(current_line);
-                current_line.begin = if is_new_line { i + 1 } else { i };
-                current_line.end = current_line.begin;
-                current_line.width = advance;
-                total_height += font.ascender(*self.font_size);
-            } else {
-                match *self.wrap {
-                    WrapMode::NoWrap => {
-                        current_line.width = new_width;
-                        current_line.end += 1;
-                    }
-                    WrapMode::Letter => {
-                        if new_width > self.constraint.x {
-                            self.lines.push(current_line);
-                            current_line.begin = if is_new_line { i + 1 } else { i };
-                            current_line.end = current_line.begin + 1;
-                            current_line.width = advance;
-                            total_height += font.ascender(*self.font_size);
-                        } else {
-                            current_line.width = new_width;
-                            current_line.end += 1;
-                        }
-                    }
-                    WrapMode::Word => {
-                        if word_ended {
-                            if let Some(word) = word.take() {
-                                if word.width > self.constraint.x {
-                                    // The word is longer than available constraints.
-                                    // Push the word as a whole.
-                                    current_line.width += word.width;
-                                    current_line.end += word.length;
-                                    self.lines.push(current_line);
-                                    current_line.begin = current_line.end;
-                                    current_line.width = 0.0;
-                                    total_height += font.ascender(*self.font_size);
-                                } else if current_line.width + word.width > self.constraint.x {
-                                    // The word will exceed horizontal constraint, we have to
-                                    // commit current line and move the word in the next line.
-                                    self.lines.push(current_line);
-                                    current_line.begin = i - word.length;
-                                    current_line.end = i;
-                                    current_line.width = word.width;
-                                    total_height += font.ascender(*self.font_size);
-                                } else {
-                                    // The word does not exceed horizontal constraint, append it
-                                    // to the line.
-                                    current_line.width += word.width;
-                                    current_line.end += word.length;
-                                }
-                            }
-                        }
-
-                        // White-space characters are not part of word so pass them through.
-                        if is_white_space {
-                            current_line.end += 1;
-                            current_line.width += advance;
-                        }
-                    }
-                }
+        } else {
+            match *self.wrap {
+                WrapMode::NoWrap => wrap(NoWrap::new(sink), &mut metrics, self.text.as_slice()),
+                WrapMode::Letter => wrap(LetterWrap::new(sink), &mut metrics, self.text.as_slice()),
+                WrapMode::Word => wrap(WordWrap::new(sink), &mut metrics, self.text.as_slice()),
             }
         }
-        // Commit rest of text.
-        if current_line.begin != current_line.end {
-            for &character in text.iter().skip(current_line.end) {
-                let advance = match font.glyph(character, *self.font_size) {
-                    Some(glyph) => glyph.advance,
-                    None => *self.font_size,
-                };
-                current_line.width += advance;
-            }
-            current_line.end = self.text.len();
-            self.lines.push(current_line);
-            total_height += font.ascender(*self.font_size);
-        }
 
+        let total_height = line_height * self.lines.len() as f32;
         // Align lines according to desired alignment.
         for line in self.lines.iter_mut() {
             match *self.horizontal_alignment {
@@ -435,67 +661,59 @@ impl FormattedText {
             VerticalAlignment::Stretch => 0.0,
         };
 
-        let cursor_x_start = if self.constraint.x.is_infinite() {
-            0.0
-        } else {
-            self.constraint.x
-        };
-
-        let mut cursor = Vector2::new(cursor_x_start, cursor_y_start);
+        let mut y: f32 = cursor_y_start;
         for line in self.lines.iter_mut() {
-            cursor.x = line.x_offset;
-
-            let ascender = font.ascender(*self.font_size);
-            for &character in text.iter().take(line.end).skip(line.begin) {
-                match font.glyph(character, *self.font_size) {
-                    Some(glyph) => {
-                        // Insert glyph
-                        let rect = Rect::new(
-                            cursor.x + glyph.left.floor(),
-                            cursor.y + ascender.floor()
-                                - glyph.top.floor()
-                                - glyph.bitmap_height as f32,
-                            glyph.bitmap_width as f32,
-                            glyph.bitmap_height as f32,
-                        );
-                        let text_glyph = TextGlyph {
-                            bounds: rect,
-                            tex_coords: glyph.tex_coords,
-                            atlas_page_index: glyph.page_index,
-                        };
-                        self.glyphs.push(text_glyph);
-
-                        cursor.x += glyph.advance;
-                    }
-                    None => {
-                        // Insert invalid symbol
-                        let rect = Rect::new(
-                            cursor.x,
-                            cursor.y + font.ascender(*self.font_size),
-                            *self.font_size,
-                            *self.font_size,
-                        );
-                        self.glyphs.push(TextGlyph {
-                            bounds: rect,
-                            tex_coords: [Vector2::default(); 4],
-                            atlas_page_index: 0,
-                        });
-                        cursor.x += rect.w();
+            let mut x = line.x_offset;
+            if let Some(mask) = *self.mask_char {
+                for c in std::iter::repeat::<char>(mask).take(line.len()) {
+                    let (glyph, advance) = build_glyph(&mut metrics, x, y, c);
+                    self.glyphs.push(glyph);
+                    x += advance;
+                }
+            } else {
+                for c in self.text.iter().take(line.end).skip(line.begin).cloned() {
+                    match c {
+                        '\n' => {
+                            x += metrics.newline_advance();
+                        }
+                        _ => {
+                            let (glyph, advance) = build_glyph(&mut metrics, x, y, c);
+                            self.glyphs.push(glyph);
+                            x += advance;
+                        }
                     }
                 }
             }
-            line.height = font.ascender(*self.font_size);
-            line.y_offset = cursor.y;
-            cursor.y += font.ascender(*self.font_size);
+            line.height = line_height;
+            line.y_offset = y;
+            y += line_height;
         }
 
+        let size_x = self
+            .lines
+            .iter()
+            .map(|line| line.width)
+            .max_by(f32::total_cmp)
+            .unwrap_or_default();
         // Minus here is because descender has negative value.
-        let mut full_size = Vector2::new(0.0, total_height - font.descender(*self.font_size));
-        for line in self.lines.iter() {
-            full_size.x = line.width.max(full_size.x);
-        }
-        full_size
+        let size_y = total_height - metrics.descender();
+        Vector2::new(size_x, size_y)
     }
+}
+
+fn wrap<W: TextWrapper>(mut wrapper: W, metrics: &mut GlyphMetrics, text: &[char]) {
+    for &character in text.iter() {
+        let advance = metrics.advance(character);
+        wrapper.push(character, advance);
+    }
+    wrapper.finish();
+}
+
+fn wrap_mask<W: TextWrapper>(mut wrapper: W, length: usize, mask_char: char, advance: f32) {
+    for _ in 0..length {
+        wrapper.push(mask_char, advance);
+    }
+    wrapper.finish();
 }
 
 pub struct FormattedTextBuilder {

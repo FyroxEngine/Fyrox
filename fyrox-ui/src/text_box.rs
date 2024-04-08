@@ -30,7 +30,6 @@ use crate::{
 use copypasta::ClipboardProvider;
 use std::{
     cell::RefCell,
-    cmp::Ordering,
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
     sync::Arc,
@@ -97,15 +96,7 @@ pub enum VerticalDirection {
     Up,
 }
 
-/// Defines a position in the text. It is just a coordinates of a character in text.
-#[derive(Copy, Clone, PartialEq, Eq, Debug, Default, Visit, Reflect)]
-pub struct Position {
-    /// Line index.
-    pub line: usize,
-
-    /// Offset from the beginning of the line.
-    pub offset: usize,
-}
+pub use crate::formatted_text::Position;
 
 /// Defines the way, how the text box widget will commit the text that was typed in
 #[derive(
@@ -159,24 +150,39 @@ impl SelectionRange {
     /// selects a range right-to-left.
     #[must_use = "method creates new value which must be used"]
     pub fn normalized(&self) -> SelectionRange {
-        match self.begin.line.cmp(&self.end.line) {
-            Ordering::Less => *self,
-            Ordering::Equal => {
-                if self.begin.offset > self.end.offset {
-                    SelectionRange {
-                        begin: self.end,
-                        end: self.begin,
-                    }
-                } else {
-                    *self
-                }
-            }
-            Ordering::Greater => SelectionRange {
-                begin: self.end,
-                end: self.begin,
-            },
+        SelectionRange {
+            begin: self.left(),
+            end: self.right(),
         }
     }
+    /// Creates a Range iterator of the positions in this range from left to right, excluding the rightmost position.
+    pub fn range(&self) -> std::ops::Range<Position> {
+        std::ops::Range {
+            start: self.left(),
+            end: self.right(),
+        }
+    }
+    /// The leftmost position.
+    pub fn left(&self) -> Position {
+        Position::min(self.begin, self.end)
+    }
+    /// The rightmost position.
+    pub fn right(&self) -> Position {
+        Position::max(self.begin, self.end)
+    }
+}
+
+fn filter_paste_str_multiline(str: &str) -> String {
+    let mut str = str.replace("\r\n", "\n");
+    str.retain(|c| c == '\n' || !c.is_control());
+    str
+}
+
+fn filter_paste_str_single_line(str: &str) -> String {
+    str.chars()
+        .map(|c| if c == '\n' { ' ' } else { c })
+        .filter(|c| c.is_control())
+        .collect()
 }
 
 /// Defines a function, that could be used to filter out desired characters. It must return `true` for characters, that pass
@@ -440,8 +446,10 @@ impl TextBox {
         self.blink_timer.set_value_and_mark_modified(0.0);
     }
 
-    fn move_caret_x(&mut self, mut offset: usize, direction: HorizontalDirection, select: bool) {
-        if select {
+    fn move_caret(&mut self, position: Position, select: bool) {
+        let text = self.formatted_text.borrow();
+        let lines = text.get_lines();
+        if select && !lines.is_empty() {
             if self.selection_range.is_none() {
                 self.selection_range
                     .set_value_and_mark_modified(Some(SelectionRange {
@@ -452,11 +460,6 @@ impl TextBox {
         } else {
             self.selection_range.set_value_and_mark_modified(None);
         }
-
-        self.reset_blink();
-
-        let text = self.formatted_text.borrow();
-        let lines = text.get_lines();
 
         if lines.is_empty() {
             drop(text);
@@ -464,34 +467,8 @@ impl TextBox {
             return;
         }
 
-        while offset > 0 {
-            match direction {
-                HorizontalDirection::Left => {
-                    if self.caret_position.offset > 0 {
-                        self.caret_position.offset -= 1
-                    } else if self.caret_position.line > 0 {
-                        self.caret_position.line -= 1;
-                        self.caret_position.offset = lines[self.caret_position.line].len();
-                    } else {
-                        self.caret_position.offset = 0;
-                        break;
-                    }
-                }
-                HorizontalDirection::Right => {
-                    let line = lines.get(self.caret_position.line).unwrap();
-                    if self.caret_position.offset < line.len() {
-                        self.caret_position.offset += 1;
-                    } else if self.caret_position.line < lines.len() - 1 {
-                        self.caret_position.line += 1;
-                        self.caret_position.offset = 0;
-                    } else {
-                        self.caret_position.offset = line.len();
-                        break;
-                    }
-                }
-            }
-            offset -= 1;
-        }
+        drop(text);
+        self.set_caret_position(position);
 
         if let Some(selection_range) = self.selection_range.as_mut() {
             if select {
@@ -499,120 +476,55 @@ impl TextBox {
             }
         }
 
-        drop(text);
-
         self.ensure_caret_visible();
     }
 
-    fn move_caret_y(&mut self, offset: usize, direction: VerticalDirection, select: bool) {
-        if select {
-            if self.selection_range.is_none() {
-                self.selection_range
-                    .set_value_and_mark_modified(Some(SelectionRange {
-                        begin: *self.caret_position,
-                        end: *self.caret_position,
-                    }));
-            }
-        } else {
-            self.selection_range.set_value_and_mark_modified(None);
-        }
-
-        let text = self.formatted_text.borrow();
-        let lines = text.get_lines();
-
-        if lines.is_empty() {
-            return;
-        }
-
-        let line_count = lines.len();
-
-        match direction {
-            VerticalDirection::Down => {
-                if self.caret_position.line + offset >= line_count {
-                    self.caret_position.line = line_count - 1;
-                } else {
-                    self.caret_position.line += offset;
-                }
-            }
-            VerticalDirection::Up => {
-                if self.caret_position.line > offset {
-                    self.caret_position.line -= offset;
-                } else {
-                    self.caret_position.line = 0;
-                }
-            }
-        }
-
-        if let Some(selection_range) = self.selection_range.as_mut() {
-            if select {
-                selection_range.end = *self.caret_position;
-            }
-        }
-
-        drop(text);
-
-        self.ensure_caret_visible();
+    fn move_caret_x(&mut self, offset: isize, select: bool) {
+        let pos = self
+            .formatted_text
+            .borrow()
+            .get_relative_position_x(*self.caret_position, offset);
+        self.move_caret(pos, select);
     }
 
-    fn position_to_char_index_internal(&self, position: Position, clamp: bool) -> Option<usize> {
+    fn move_caret_y(&mut self, offset: isize, select: bool) {
+        let pos = self
+            .formatted_text
+            .borrow()
+            .get_relative_position_y(*self.caret_position, offset);
+        self.move_caret(pos, select);
+    }
+
+    /// Maps input [`Position`] to a linear position in character array.
+    /// The index returned is the index of the character after the position, which may be
+    /// out-of-bounds if thee position is at the end of the text.
+    /// You should check the index before trying to use it to fetch data from inner array of characters.
+    pub fn position_to_char_index_unclamped(&self, position: Position) -> Option<usize> {
         self.formatted_text
             .borrow()
-            .get_lines()
-            .get(position.line)
-            .map(|line| {
-                line.begin
-                    + position.offset.min(if clamp {
-                        line.len().saturating_sub(1)
-                    } else {
-                        line.len()
-                    })
-            })
+            .position_to_char_index_unclamped(position)
     }
 
-    /// Maps input [`Position`] to a linear position in character array. Output index can be equal
-    /// to length of text, this means that position is at the end of the text. You should check
-    /// the index before trying to use it to fetch data from inner array of characters.
-    pub fn position_to_char_index_unclamped(&self, position: Position) -> Option<usize> {
-        self.position_to_char_index_internal(position, false)
-    }
-
-    /// Maps input [`Position`] to a linear position in character array. Output index will always
-    /// be valid for fetching, if the method returned `Some(index)`. The index however cannot be
-    /// used for text insertion, because it cannot point to a "place after last char".
+    /// Maps input [`Position`] to a linear position in character array.
+    /// The index returned is usually the index of the character after the position,
+    /// but if the position is at the end of a line then return the index of the character _before_ the position.
+    /// In other words, the last two positions of each line are mapped to the same character index.
+    /// Output index will always be valid for fetching, if the method returned `Some(index)`.
+    /// The index however cannot be used for text insertion, because it cannot point to a "place after last char".
     pub fn position_to_char_index_clamped(&self, position: Position) -> Option<usize> {
-        self.position_to_char_index_internal(position, true)
+        self.formatted_text
+            .borrow()
+            .position_to_char_index_clamped(position)
     }
 
     /// Maps linear character index (as in string) to its actual location in the text.
     pub fn char_index_to_position(&self, i: usize) -> Option<Position> {
-        self.formatted_text
-            .borrow()
-            .get_lines()
-            .iter()
-            .enumerate()
-            .find_map(|(line_index, line)| {
-                if (line.begin..=line.end).contains(&i) {
-                    Some(Position {
-                        line: line_index,
-                        offset: i - line.begin,
-                    })
-                } else {
-                    None
-                }
-            })
+        self.formatted_text.borrow().char_index_to_position(i)
     }
 
     /// Returns end position of the text.
     pub fn end_position(&self) -> Position {
-        let formatted_text = self.formatted_text.borrow();
-        let lines = formatted_text.get_lines();
-        lines
-            .last()
-            .map(|line| Position {
-                line: lines.len() - 1,
-                offset: line.len(),
-            })
-            .unwrap_or_default()
+        self.formatted_text.borrow().end_position()
     }
 
     /// Returns a position of a next word after the caret in the text.
@@ -652,6 +564,7 @@ impl TextBox {
 
     /// Inserts given character at current caret position.
     fn insert_char(&mut self, c: char, ui: &UserInterface) {
+        self.remove_before_insert();
         let position = self
             .position_to_char_index_unclamped(*self.caret_position)
             .unwrap_or_default();
@@ -673,11 +586,20 @@ impl TextBox {
     }
 
     fn insert_str(&mut self, str: &str, ui: &UserInterface) {
+        if str.is_empty() {
+            return;
+        }
+        let str: String = if *self.multiline {
+            filter_paste_str_multiline(str)
+        } else {
+            filter_paste_str_single_line(str)
+        };
+        self.remove_before_insert();
         let position = self
             .position_to_char_index_unclamped(*self.caret_position)
             .unwrap_or_default();
         let mut text = self.formatted_text.borrow_mut();
-        text.insert_str(str, position);
+        text.insert_str(&str, position);
         text.build();
         drop(text);
         self.set_caret_position(
@@ -693,6 +615,22 @@ impl TextBox {
         }
     }
 
+    fn remove_before_insert(&mut self) {
+        let Some(selection) = *self.selection_range else {
+            return;
+        };
+        let range = self
+            .formatted_text
+            .borrow()
+            .position_range_to_char_index_range(selection.range());
+        if range.is_empty() {
+            return;
+        }
+        self.formatted_text.borrow_mut().remove_range(range);
+        self.selection_range.set_value_and_mark_modified(None);
+        self.set_caret_position(selection.left());
+    }
+
     /// Returns current text length in characters.
     pub fn get_text_len(&self) -> usize {
         self.formatted_text.borrow_mut().get_raw_text().len()
@@ -700,32 +638,9 @@ impl TextBox {
 
     /// Returns current position the caret in the local coordinates.
     pub fn caret_local_position(&self) -> Vector2<f32> {
-        let formatted_text = self.formatted_text.borrow_mut();
-
-        let font = formatted_text.get_font();
-        let mut caret_pos = Vector2::default();
-
-        if let Some(font) = font.state().data() {
-            if let Some(line) = formatted_text.get_lines().get(self.caret_position.line) {
-                let raw_text = formatted_text.get_raw_text();
-                caret_pos += Vector2::new(line.x_offset, line.y_offset);
-                for (offset, char_index) in (line.begin..line.end).enumerate() {
-                    if offset >= self.caret_position.offset {
-                        break;
-                    }
-                    if let Some(glyph) = raw_text
-                        .get(char_index)
-                        .and_then(|c| font.glyph(*c, formatted_text.font_size()))
-                    {
-                        caret_pos.x += glyph.advance;
-                    } else {
-                        caret_pos.x += formatted_text.font_size();
-                    }
-                }
-            }
-        }
-
-        caret_pos
+        self.formatted_text
+            .borrow_mut()
+            .position_to_local(*self.caret_position)
     }
 
     fn point_to_view_pos(&self, position: Vector2<f32>) -> Vector2<f32> {
@@ -769,59 +684,66 @@ impl TextBox {
     }
 
     fn remove_char(&mut self, direction: HorizontalDirection, ui: &UserInterface) {
-        if let Some(position) = self.position_to_char_index_unclamped(*self.caret_position) {
-            let text_len = self.get_text_len();
-            if text_len != 0 {
-                let position = match direction {
-                    HorizontalDirection::Left => {
-                        if position == 0 {
-                            return;
-                        }
-                        position - 1
-                    }
-                    HorizontalDirection::Right => {
-                        if position >= text_len {
-                            return;
-                        }
-                        position
-                    }
-                };
+        if let Some(selection) = *self.selection_range {
+            self.remove_range(ui, selection);
+            return;
+        }
+        let Some(position) = self.position_to_char_index_unclamped(*self.caret_position) else {
+            return;
+        };
 
-                let mut text = self.formatted_text.borrow_mut();
-                text.remove_at(position);
-                text.build();
-                drop(text);
-
-                if *self.commit_mode == TextCommitMode::Immediate {
-                    ui.send_message(TextMessage::text(
-                        self.handle(),
-                        MessageDirection::FromWidget,
-                        self.formatted_text.borrow().text(),
-                    ));
+        let text_len = self.get_text_len();
+        if text_len != 0 {
+            let position = match direction {
+                HorizontalDirection::Left => {
+                    if position == 0 {
+                        return;
+                    }
+                    position - 1
                 }
+                HorizontalDirection::Right => {
+                    if position >= text_len {
+                        return;
+                    }
+                    position
+                }
+            };
 
-                self.set_caret_position(self.char_index_to_position(position).unwrap_or_default());
+            let mut text = self.formatted_text.borrow_mut();
+            text.remove_at(position);
+            text.build();
+            drop(text);
+
+            if *self.commit_mode == TextCommitMode::Immediate {
+                ui.send_message(TextMessage::text(
+                    self.handle(),
+                    MessageDirection::FromWidget,
+                    self.formatted_text.borrow().text(),
+                ));
             }
+
+            self.set_caret_position(self.char_index_to_position(position).unwrap_or_default());
         }
     }
 
     fn remove_range(&mut self, ui: &UserInterface, selection: SelectionRange) {
-        let selection = selection.normalized();
-        if let Some(begin) = self.position_to_char_index_unclamped(selection.begin) {
-            if let Some(end) = self.position_to_char_index_unclamped(selection.end) {
-                self.formatted_text.borrow_mut().remove_range(begin..end);
-                self.formatted_text.borrow_mut().build();
-
-                if *self.commit_mode == TextCommitMode::Immediate {
-                    ui.send_message(TextMessage::text(
-                        self.handle(),
-                        MessageDirection::FromWidget,
-                        self.formatted_text.borrow().text(),
-                    ));
-                }
-
-                self.set_caret_position(selection.begin);
-            }
+        let range = self
+            .formatted_text
+            .borrow()
+            .position_range_to_char_index_range(selection.range());
+        if range.is_empty() {
+            return;
+        }
+        self.formatted_text.borrow_mut().remove_range(range);
+        self.formatted_text.borrow_mut().build();
+        self.set_caret_position(selection.left());
+        self.selection_range.set_value_and_mark_modified(None);
+        if *self.commit_mode == TextCommitMode::Immediate {
+            ui.send_message(TextMessage::text(
+                self.handle(),
+                MessageDirection::FromWidget,
+                self.formatted_text.borrow().text(),
+            ));
         }
     }
 
@@ -835,7 +757,11 @@ impl TextBox {
     }
 
     fn set_caret_position(&mut self, position: Position) {
-        self.caret_position.set_value_and_mark_modified(position);
+        self.caret_position.set_value_and_mark_modified(
+            self.formatted_text
+                .borrow()
+                .nearest_valid_position(position),
+        );
         self.ensure_caret_visible();
         self.reset_blink();
     }
@@ -846,8 +772,7 @@ impl TextBox {
         // as usual, without a need for special math.
         let point_to_check = self
             .visual_transform
-            .try_inverse()
-            .unwrap_or_default()
+            .try_inverse()?
             .transform_point(&Point2::from(screen_point))
             .coords;
 
@@ -855,78 +780,11 @@ impl TextBox {
             return None;
         }
 
-        let formatted_text = self.formatted_text.borrow_mut();
-        let font = formatted_text.get_font();
-        if let Some(font) = font.state().data() {
-            for (line_index, line) in formatted_text.get_lines().iter().enumerate() {
-                let line_screen_bounds = Rect::new(
-                    line.x_offset - self.view_position.x,
-                    line.y_offset - self.view_position.y,
-                    line.width,
-                    font.ascender(formatted_text.font_size()),
-                );
-                if line_screen_bounds.contains(point_to_check) {
-                    let mut x = line_screen_bounds.x();
-                    // Check each character in line.
-                    for (offset, index) in (line.begin..line.end).enumerate() {
-                        let character = formatted_text.get_raw_text()[index];
-                        let (width, height, advance) = if let Some(glyph) =
-                            font.glyph(character, formatted_text.font_size())
-                        {
-                            (
-                                glyph.bitmap_width as f32,
-                                glyph.bitmap_height as f32,
-                                glyph.advance,
-                            )
-                        } else {
-                            // Stub
-                            let h = formatted_text.font_size();
-                            (h, h, h)
-                        };
-                        let char_screen_bounds =
-                            Rect::new(x, line_screen_bounds.y(), width, height);
-                        if char_screen_bounds.contains(point_to_check) {
-                            let char_bounds_center_x =
-                                char_screen_bounds.x() + char_screen_bounds.w() * 0.5;
-
-                            return Some(Position {
-                                line: line_index,
-                                offset: if point_to_check.x <= char_bounds_center_x {
-                                    offset
-                                } else {
-                                    (offset + 1).min(line.len())
-                                },
-                            });
-                        }
-                        x += advance;
-                    }
-                }
-            }
-
-            // Additionally check each line again, but now check if the cursor is either at left or right side of the cursor.
-            // This allows us to set caret at lines by clicking at either ends of it.
-            for (line_index, line) in formatted_text.get_lines().iter().enumerate() {
-                let line_x_begin = line.x_offset - self.view_position.x;
-                let line_x_end = line_x_begin + line.width;
-                let line_y_begin = line.y_offset - self.view_position.y;
-                let line_y_end = line_y_begin + font.ascender(formatted_text.font_size());
-                if (line_y_begin..line_y_end).contains(&point_to_check.y) {
-                    if point_to_check.x < line_x_begin {
-                        return Some(Position {
-                            line: line_index,
-                            offset: 0,
-                        });
-                    } else if point_to_check.x > line_x_end {
-                        return Some(Position {
-                            line: line_index,
-                            offset: line.len(),
-                        });
-                    }
-                }
-            }
-        }
-
-        None
+        Some(
+            self.formatted_text
+                .borrow_mut()
+                .local_to_position(point_to_check),
+        )
     }
 
     /// Returns current text of text box.
@@ -1141,105 +999,48 @@ impl Control for TextBox {
                             && *self.editable =>
                     {
                         for symbol in text.chars() {
-                            let insert = if let Some(filter) = self.filter.as_ref() {
-                                let filter = &mut *filter.lock();
-                                filter(symbol)
-                            } else {
-                                true
-                            };
+                            let insert = !symbol.is_control()
+                                && if let Some(filter) = self.filter.as_ref() {
+                                    let filter = &mut *filter.lock();
+                                    filter(symbol)
+                                } else {
+                                    true
+                                };
                             if insert {
-                                if let Some(range) = *self.selection_range {
-                                    self.remove_range(ui, range);
-                                    self.selection_range.set_value_and_mark_modified(None);
-                                }
-                                if !symbol.is_control() {
-                                    self.insert_char(symbol, ui);
-                                }
+                                self.insert_char(symbol, ui);
                             }
                         }
                     }
                     WidgetMessage::KeyDown(code) => {
                         match code {
                             KeyCode::ArrowUp => {
-                                self.move_caret_y(
-                                    1,
-                                    VerticalDirection::Up,
-                                    ui.keyboard_modifiers().shift,
-                                );
+                                self.move_caret_y(-1, ui.keyboard_modifiers().shift);
                             }
                             KeyCode::ArrowDown => {
-                                self.move_caret_y(
-                                    1,
-                                    VerticalDirection::Down,
-                                    ui.keyboard_modifiers().shift,
-                                );
+                                self.move_caret_y(1, ui.keyboard_modifiers().shift);
                             }
                             KeyCode::ArrowRight => {
                                 if ui.keyboard_modifiers.control {
-                                    let prev_position = *self.caret_position;
-                                    let next_word_position =
-                                        self.find_next_word(*self.caret_position);
-                                    self.set_caret_position(next_word_position);
-                                    self.reset_blink();
-                                    if ui.keyboard_modifiers.shift {
-                                        if let Some(selection_range) = self.selection_range.as_mut()
-                                        {
-                                            selection_range.end = next_word_position;
-                                        } else {
-                                            self.selection_range.set_value_and_mark_modified(Some(
-                                                SelectionRange {
-                                                    begin: prev_position,
-                                                    end: next_word_position,
-                                                },
-                                            ));
-                                        }
-                                    } else {
-                                        self.selection_range.set_value_and_mark_modified(None);
-                                    }
-                                } else {
-                                    self.move_caret_x(
-                                        1,
-                                        HorizontalDirection::Right,
+                                    self.move_caret(
+                                        self.find_next_word(*self.caret_position),
                                         ui.keyboard_modifiers().shift,
                                     );
+                                } else {
+                                    self.move_caret_x(1, ui.keyboard_modifiers().shift);
                                 }
                             }
                             KeyCode::ArrowLeft => {
                                 if ui.keyboard_modifiers.control {
-                                    let prev_position = *self.caret_position;
-                                    let prev_word_position =
-                                        self.find_prev_word(*self.caret_position);
-                                    self.set_caret_position(prev_word_position);
-                                    if ui.keyboard_modifiers.shift {
-                                        if let Some(selection_range) = self.selection_range.as_mut()
-                                        {
-                                            selection_range.end = prev_word_position;
-                                        } else {
-                                            self.selection_range.set_value_and_mark_modified(Some(
-                                                SelectionRange {
-                                                    begin: prev_position,
-                                                    end: prev_word_position,
-                                                },
-                                            ));
-                                        }
-                                    } else {
-                                        self.selection_range.set_value_and_mark_modified(None);
-                                    }
-                                } else {
-                                    self.move_caret_x(
-                                        1,
-                                        HorizontalDirection::Left,
+                                    self.move_caret(
+                                        self.find_prev_word(*self.caret_position),
                                         ui.keyboard_modifiers().shift,
                                     );
+                                } else {
+                                    self.move_caret_x(-1, ui.keyboard_modifiers().shift);
                                 }
                             }
                             KeyCode::Delete if !message.handled() && *self.editable => {
-                                if let Some(range) = *self.selection_range {
-                                    self.remove_range(ui, range);
-                                    self.selection_range.set_value_and_mark_modified(None);
-                                } else {
-                                    self.remove_char(HorizontalDirection::Right, ui);
-                                }
+                                self.remove_char(HorizontalDirection::Right, ui);
                             }
                             KeyCode::NumpadEnter | KeyCode::Enter if *self.editable => {
                                 if *self.multiline {
@@ -1254,89 +1055,39 @@ impl Control for TextBox {
                                 }
                             }
                             KeyCode::Backspace if *self.editable => {
-                                if let Some(range) = *self.selection_range {
-                                    self.remove_range(ui, range);
-                                    self.selection_range.set_value_and_mark_modified(None);
-                                } else {
-                                    self.remove_char(HorizontalDirection::Left, ui);
-                                }
+                                self.remove_char(HorizontalDirection::Left, ui);
                             }
                             KeyCode::End => {
-                                let text = self.formatted_text.borrow();
-                                if let Some(line) = text.get_lines().get(self.caret_position.line) {
-                                    if ui.keyboard_modifiers().control {
-                                        let new_position = Position {
-                                            line: text.get_lines().len() - 1,
-                                            offset: line.end - line.begin,
-                                        };
-                                        drop(text);
-                                        self.set_caret_position(new_position);
-                                        self.selection_range.set_value_and_mark_modified(None);
-                                    } else if ui.keyboard_modifiers().shift {
-                                        let prev_position = *self.caret_position;
-                                        let new_position = Position {
-                                            line: self.caret_position.line,
-                                            offset: line.end - line.begin,
-                                        };
-                                        drop(text);
-                                        self.set_caret_position(new_position);
-                                        self.selection_range.set_value_and_mark_modified(Some(
-                                            SelectionRange {
-                                                begin: prev_position,
-                                                end: Position {
-                                                    line: self.caret_position.line,
-                                                    offset: self.caret_position.offset,
-                                                },
-                                            },
-                                        ));
-                                    } else {
-                                        let new_position = Position {
-                                            line: self.caret_position.line,
-                                            offset: line.end - line.begin,
-                                        };
-                                        drop(text);
-                                        self.set_caret_position(new_position);
-                                        self.selection_range.set_value_and_mark_modified(None);
-                                    }
-                                }
+                                let select = ui.keyboard_modifiers().shift;
+                                let position = if ui.keyboard_modifiers().control {
+                                    self.end_position()
+                                } else {
+                                    self.formatted_text
+                                        .borrow()
+                                        .get_line_range(self.caret_position.line)
+                                        .end
+                                };
+                                self.move_caret(position, select);
                             }
                             KeyCode::Home => {
-                                if ui.keyboard_modifiers().control {
-                                    self.set_caret_position(Position { line: 0, offset: 0 });
-                                    self.selection_range.set_value_and_mark_modified(None);
-                                } else if ui.keyboard_modifiers().shift {
-                                    let prev_position = *self.caret_position;
-                                    self.set_caret_position(Position {
-                                        line: self.caret_position.line,
-                                        offset: 0,
-                                    });
-                                    self.selection_range.set_value_and_mark_modified(Some(
-                                        SelectionRange {
-                                            begin: *self.caret_position,
-                                            end: Position {
-                                                line: prev_position.line,
-                                                offset: prev_position.offset,
-                                            },
-                                        },
-                                    ));
+                                let select = ui.keyboard_modifiers().shift;
+                                let position = if ui.keyboard_modifiers().control {
+                                    Position::default()
                                 } else {
-                                    self.set_caret_position(Position {
-                                        line: self.caret_position.line,
-                                        offset: 0,
-                                    });
-                                    self.selection_range.set_value_and_mark_modified(None);
-                                }
+                                    self.formatted_text
+                                        .borrow()
+                                        .get_line_range(self.caret_position.line)
+                                        .start
+                                };
+                                self.move_caret(position, select);
                             }
                             KeyCode::KeyA if ui.keyboard_modifiers().control => {
-                                let text = self.formatted_text.borrow();
-                                if let Some(last_line) = &text.get_lines().last() {
+                                let end = self.end_position();
+                                if end != Position::default() {
                                     self.selection_range.set_value_and_mark_modified(Some(
                                         SelectionRange {
-                                            begin: Position { line: 0, offset: 0 },
-                                            end: Position {
-                                                line: text.get_lines().len() - 1,
-                                                offset: last_line.end - last_line.begin,
-                                            },
+                                            begin: Position::default(),
+                                            end: self.end_position(),
                                         },
                                     ));
                                 }
@@ -1344,21 +1095,16 @@ impl Control for TextBox {
                             KeyCode::KeyC if ui.keyboard_modifiers().control => {
                                 if let Some(mut clipboard) = ui.clipboard_mut() {
                                     if let Some(selection_range) = self.selection_range.as_ref() {
-                                        if let (Some(begin), Some(end)) = (
-                                            self.position_to_char_index_unclamped(
-                                                selection_range.begin,
-                                            ),
-                                            self.position_to_char_index_unclamped(
-                                                selection_range.end,
-                                            ),
-                                        ) {
-                                            let _ = clipboard.set_contents(String::from(
-                                                &self.text()[if begin < end {
-                                                    begin..end
-                                                } else {
-                                                    end..begin
-                                                }],
-                                            ));
+                                        let range = self
+                                            .formatted_text
+                                            .borrow()
+                                            .position_range_to_char_index_range(
+                                                selection_range.range(),
+                                            );
+                                        if !range.is_empty() {
+                                            let _ = clipboard.set_contents(
+                                                self.formatted_text.borrow().text_range(range),
+                                            );
                                         }
                                     }
                                 }
@@ -1366,11 +1112,6 @@ impl Control for TextBox {
                             KeyCode::KeyV if ui.keyboard_modifiers().control => {
                                 if let Some(mut clipboard) = ui.clipboard_mut() {
                                     if let Ok(content) = clipboard.get_contents() {
-                                        if let Some(selection_range) = *self.selection_range {
-                                            self.remove_range(ui, selection_range);
-                                            self.selection_range.set_value_and_mark_modified(None);
-                                        }
-
                                         self.insert_str(&content, ui);
                                     }
                                 }
