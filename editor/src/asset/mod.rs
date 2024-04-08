@@ -1,54 +1,57 @@
-use crate::fyrox::graph::BaseSceneGraph;
-use crate::fyrox::{
-    asset::{
-        manager::ResourceManager,
-        state::ResourceState,
-        untyped::{ResourceHeader, ResourceKind, UntypedResource},
-    },
-    core::{
-        color::Color, futures::executor::block_on, log::Log, make_relative_path,
-        parking_lot::lock_api::Mutex, pool::Handle, scope_profile, TypeUuidProvider,
-    },
-    engine::Engine,
-    gui::{
-        border::BorderBuilder,
-        brush::Brush,
-        button::{ButtonBuilder, ButtonMessage},
-        copypasta::ClipboardProvider,
-        file_browser::{FileBrowserBuilder, FileBrowserMessage, Filter},
-        grid::{Column, GridBuilder, Row},
-        list_view::{ListViewBuilder, ListViewMessage},
-        menu::{MenuItemBuilder, MenuItemContent, MenuItemMessage},
-        message::{MessageDirection, UiMessage},
-        popup::{Placement, PopupBuilder, PopupMessage},
-        scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
-        searchbar::{SearchBarBuilder, SearchBarMessage},
-        stack_panel::StackPanelBuilder,
-        text::TextMessage,
-        text_box::TextBoxBuilder,
-        utils::make_simple_tooltip,
-        widget::{WidgetBuilder, WidgetMessage},
-        window::{WindowBuilder, WindowMessage, WindowTitle},
-        wrap_panel::WrapPanelBuilder,
-        BuildContext, HorizontalAlignment, Orientation, RcUiNodeHandle, Thickness, UiNode,
-        UserInterface, VerticalAlignment, BRUSH_DARK,
-    },
-    material::Material,
-    resource::{model::Model, texture::Texture},
-    scene::sound::SoundBuffer,
-    walkdir,
-};
 use crate::{
     asset::{
-        dependency::DependencyViewer, inspector::AssetInspector, item::AssetItemBuilder,
+        dependency::DependencyViewer,
+        inspector::AssetInspector,
+        item::{AssetItem, AssetItemBuilder, AssetItemMessage},
         preview::AssetPreviewGeneratorsCollection,
     },
-    gui::{make_dropdown_list_option, AssetItemMessage},
+    fyrox::{
+        asset::{
+            manager::ResourceManager,
+            state::ResourceState,
+            untyped::{ResourceHeader, ResourceKind, UntypedResource},
+        },
+        core::{
+            color::Color, futures::executor::block_on, log::Log, make_relative_path,
+            parking_lot::lock_api::Mutex, pool::Handle, scope_profile, TypeUuidProvider,
+        },
+        engine::Engine,
+        graph::BaseSceneGraph,
+        gui::{
+            border::BorderBuilder,
+            brush::Brush,
+            button::{ButtonBuilder, ButtonMessage},
+            copypasta::ClipboardProvider,
+            file_browser::{FileBrowserBuilder, FileBrowserMessage, Filter},
+            grid::{Column, GridBuilder, Row},
+            list_view::{ListViewBuilder, ListViewMessage},
+            menu::{MenuItemBuilder, MenuItemContent, MenuItemMessage},
+            message::{MessageDirection, UiMessage},
+            popup::{Placement, PopupBuilder, PopupMessage},
+            scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
+            searchbar::{SearchBarBuilder, SearchBarMessage},
+            stack_panel::StackPanelBuilder,
+            text::TextMessage,
+            text_box::TextBoxBuilder,
+            utils::make_simple_tooltip,
+            widget::{WidgetBuilder, WidgetMessage},
+            window::{WindowBuilder, WindowMessage, WindowTitle},
+            wrap_panel::WrapPanelBuilder,
+            BuildContext, HorizontalAlignment, Orientation, RcUiNodeHandle, Thickness, UiNode,
+            UserInterface, VerticalAlignment, BRUSH_DARK,
+        },
+        material::Material,
+        resource::{model::Model, texture::Texture},
+        scene::sound::SoundBuffer,
+        walkdir,
+    },
+    gui::make_dropdown_list_option,
     message::MessageSender,
     preview::PreviewPanel,
     utils::window_content,
-    AssetItem, Message, Mode,
+    Message, Mode,
 };
+use fyrox::core::parking_lot::RwLock;
 use std::{
     ffi::OsStr,
     path::{Path, PathBuf},
@@ -456,7 +459,7 @@ pub struct AssetBrowser {
     selected_path: PathBuf,
     dependency_viewer: DependencyViewer,
     resource_creator: Option<ResourceCreator>,
-    pub preview_generators: AssetPreviewGeneratorsCollection,
+    pub preview_generators: Arc<RwLock<AssetPreviewGeneratorsCollection>>,
 }
 
 fn is_supported_resource(ext: &OsStr, resource_manager: &ResourceManager) -> bool {
@@ -613,7 +616,7 @@ impl AssetBrowser {
             selected_path: Default::default(),
             add_resource,
             resource_creator: None,
-            preview_generators: AssetPreviewGeneratorsCollection::new(),
+            preview_generators: Arc::new(RwLock::new(AssetPreviewGeneratorsCollection::new())),
         }
     }
 
@@ -649,35 +652,40 @@ impl AssetBrowser {
         );
     }
 
-    fn find_icon_for_asset(
-        &self,
-        resource_manager: &ResourceManager,
-        resource_path: &Path,
-    ) -> Option<UntypedResource> {
-        if let Ok(resource) = block_on(resource_manager.request_untyped(resource_path)) {
-            return self
-                .preview_generators
-                .map
-                .get(&resource.type_uuid())
-                .and_then(|gen| gen.icon(&resource, resource_manager));
-        }
-        None
-    }
-
     fn add_asset(
         &mut self,
         path: &Path,
         ui: &mut UserInterface,
         resource_manager: &ResourceManager,
     ) -> Handle<UiNode> {
-        let icon = self.find_icon_for_asset(resource_manager, path);
-
         let asset_item = AssetItemBuilder::new(
             WidgetBuilder::new().with_context_menu(self.context_menu.menu.clone()),
         )
         .with_path(path)
-        .with_icon(icon)
         .build(&mut ui.build_ctx());
+
+        // Spawn async task, that will load the respective resource and generate preview for it in
+        // a separate thread. This prevents blocking the main thread and thus keeps the editor
+        // responsive.
+        let rm = resource_manager.clone();
+        let resource_path = path.to_path_buf();
+        let sender = ui.sender();
+        let preview_generators = self.preview_generators.clone();
+        let task_pool = resource_manager.task_pool();
+        task_pool.spawn_task(async move {
+            if let Ok(resource) = rm.request_untyped(resource_path).await {
+                let icon = preview_generators
+                    .read()
+                    .map
+                    .get(&resource.type_uuid())
+                    .and_then(|gen| gen.icon(&resource, &rm));
+                Log::verify(sender.send(AssetItemMessage::icon(
+                    asset_item,
+                    MessageDirection::ToWidget,
+                    icon,
+                )));
+            }
+        });
 
         self.items.push(asset_item);
 
@@ -818,8 +826,9 @@ impl AssetBrowser {
             );
 
             if let Ok(resource) = block_on(engine.resource_manager.request_untyped(asset_path)) {
+                let mut preview_generators = self.preview_generators.write();
                 if let Some(preview_generator) =
-                    self.preview_generators.map.get_mut(&resource.type_uuid())
+                    preview_generators.map.get_mut(&resource.type_uuid())
                 {
                     let preview_scene = &mut engine.scenes[self.preview.scene()];
                     let preview = preview_generator.generate(

@@ -99,7 +99,7 @@ use crate::fyrox::{
 use crate::{
     absm::AbsmEditor,
     animation::AnimationEditor,
-    asset::{item::AssetItem, AssetBrowser},
+    asset::AssetBrowser,
     audio::{preview::AudioPreviewPanel, AudioPanel},
     build::BuildWindow,
     camera::panel::CameraPreviewControlPanel,
