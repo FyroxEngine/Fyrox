@@ -879,26 +879,44 @@ impl AssetBrowser {
                 } else {
                     self.clear_assets(ui);
                     let search_text = search_text.to_lowercase();
-                    for dir in fyrox::walkdir::WalkDir::new(".").into_iter().flatten() {
-                        if let Some(extension) = dir.path().extension() {
-                            if is_supported_resource(extension, &engine.resource_manager) {
-                                let file_stem = dir
-                                    .path()
-                                    .file_stem()
-                                    .map(|s| s.to_string_lossy().to_lowercase())
-                                    .unwrap_or_default();
-                                if file_stem.contains(&search_text)
-                                    || rust_fuzzy_search::fuzzy_compare(
-                                        &search_text,
-                                        file_stem.as_str(),
-                                    ) >= 0.33
-                                {
-                                    if let Ok(relative_path) = make_relative_path(dir.path()) {
-                                        self.add_asset(
-                                            &relative_path,
-                                            ui,
-                                            &engine.resource_manager,
-                                        );
+
+                    // TODO. This should be extracted from the project manifest.
+                    let target_dir_path = Path::new("target").canonicalize();
+
+                    for dir in std::fs::read_dir(".").into_iter().flatten().flatten() {
+                        let path = dir.path();
+
+                        // Ignore content of the `/target` folder, it contains build artifacts and
+                        // they're useless anyway.
+                        if let Ok(target_dir_path) = target_dir_path.as_ref() {
+                            if let Ok(canonical_path) = path.canonicalize() {
+                                if &canonical_path == target_dir_path {
+                                    continue;
+                                }
+                            }
+                        }
+
+                        for dir in fyrox::walkdir::WalkDir::new(path).into_iter().flatten() {
+                            if let Some(extension) = dir.path().extension() {
+                                if is_supported_resource(extension, &engine.resource_manager) {
+                                    let file_stem = dir
+                                        .path()
+                                        .file_stem()
+                                        .map(|s| s.to_string_lossy().to_lowercase())
+                                        .unwrap_or_default();
+                                    if file_stem.contains(&search_text)
+                                        || rust_fuzzy_search::fuzzy_compare(
+                                            &search_text,
+                                            file_stem.as_str(),
+                                        ) >= 0.33
+                                    {
+                                        if let Ok(relative_path) = make_relative_path(dir.path()) {
+                                            self.add_asset(
+                                                &relative_path,
+                                                ui,
+                                                &engine.resource_manager,
+                                            );
+                                        }
                                     }
                                 }
                             }
