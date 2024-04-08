@@ -21,7 +21,7 @@ pub fn find_important_points<P: CurvePoint + Debug>(
     epsilon: f32,
     max_step: f32,
 ) -> Vec<usize> {
-    if points.len() < 1 {
+    if points.is_empty() {
         return Vec::new();
     }
     let mut keep_flags: Vec<bool> = Vec::new();
@@ -39,10 +39,8 @@ pub fn find_important_points<P: CurvePoint + Debug>(
             result.push(i)
         }
     }
-    if result.len() == 2 {
-        if f32::abs(points[result[0]].y() - points[result[1]].y()) < epsilon {
-            result.pop();
-        }
+    if result.len() == 2 && f32::abs(points[result[0]].y() - points[result[1]].y()) < epsilon {
+        result.pop();
     }
     result
 }
@@ -79,6 +77,7 @@ fn find_step<P: CurvePoint>(
     points.len() - 1
 }
 
+#[allow(clippy::needless_range_loop)]
 fn find_points_in_span<P: CurvePoint + Debug>(
     points: &[P],
     keep_flags: &mut [bool],
@@ -105,7 +104,6 @@ fn find_points_in_span<P: CurvePoint + Debug>(
     }
     if far_point_index == 0 || far_point_dist < epsilon {
         return;
-    } else {
     }
     keep_flags[far_point_index] = true;
     find_points_in_span(points, keep_flags, start, far_point_index, epsilon);

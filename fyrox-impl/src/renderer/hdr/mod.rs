@@ -230,7 +230,6 @@ impl HighDynamicRangeRenderer {
                 let avg_lum = luminance_range.start
                     + weighted_lum * (luminance_range.end - luminance_range.start);
 
-
                 self.downscale_chain
                     .last()
                     .unwrap()

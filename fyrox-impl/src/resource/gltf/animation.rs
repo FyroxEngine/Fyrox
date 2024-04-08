@@ -92,17 +92,13 @@ impl ImportedTarget {
         self.binding.value_binding()
     }
     fn value_in_graph(&self, graph: &Graph) -> Option<Box<[f32]>> {
-        let node: &Node = if let Some(n) = graph.try_get(self.handle) {
-            n
-        } else {
-            return None;
-        };
+        let node: &Node = graph.try_get(self.handle)?;
         match self.binding {
             ImportedBinding::Position => {
                 Some(node.local_transform.position().data.as_slice().into())
             }
             ImportedBinding::Rotation => Some(
-                quaternion_to_euler(node.local_transform.rotation().get_value_ref().clone())
+                quaternion_to_euler(*node.local_transform.rotation().get_value_ref())
                     .data
                     .as_slice()
                     .into(),
@@ -169,7 +165,7 @@ impl ImportedTrack {
             false
         }
     }
-    fn to_track(self) -> Track<Handle<Node>> {
+    fn into_track(self) -> Track<Handle<Node>> {
         let mut data = TrackDataContainer::new(self.target.kind());
         for (i, curve) in self.curves.into_vec().into_iter().enumerate() {
             data.curves_mut()[i] = Curve::from(curve);
@@ -189,7 +185,7 @@ struct ImportedAnimation {
 }
 
 impl ImportedAnimation {
-    fn targets<'a>(&'a self) -> impl Iterator<Item = ImportedTarget> + 'a {
+    fn targets(&self) -> impl Iterator<Item = ImportedTarget> + '_ {
         self.tracks.iter().map(|t| t.target)
     }
     fn get(&self, target: ImportedTarget) -> Option<&ImportedTrack> {
@@ -203,12 +199,12 @@ impl ImportedAnimation {
             t.simplify_curves();
         }
     }
-    fn to_animation(self) -> Animation {
+    fn into_animation(self) -> Animation {
         let mut result = Animation::default();
         result.set_name(self.name);
         result.set_time_slice(self.start..self.end);
         for t in self.tracks {
-            result.add_track(t.to_track());
+            result.add_track(t.into_track());
         }
         result
     }
@@ -282,7 +278,7 @@ pub fn import_animations(
     remove_fixed_targets(imports.as_mut_slice(), graph);
     let mut result: Vec<Animation> = Vec::with_capacity(imports.len());
     for import in imports {
-        result.push(import.to_animation());
+        result.push(import.into_animation());
     }
     result
 }
@@ -316,7 +312,7 @@ fn get_channel_end(channel: &Channel) -> f32 {
 fn get_accessor_max(accessor: gltf::Accessor) -> Option<f32> {
     let max = accessor.max()?;
     let vec: &Vec<gltf::json::Value> = max.as_array()?;
-    Some(vec.get(0)?.as_f64()? as f32)
+    Some(vec.first()?.as_f64()? as f32)
 }
 
 fn default_animation_name(animation: &gltf::Animation) -> Box<str> {
@@ -332,7 +328,7 @@ fn import_channels(
     let mut result: Vec<ImportedTrack> = Vec::with_capacity(source_animation.channels().count());
     for channel in source_animation.channels() {
         let target_index = channel.target().node().index();
-        let handle = node_handles.get(target_index).ok_or(())?.clone();
+        let handle = *node_handles.get(target_index).ok_or(())?;
         if let Property::MorphTargetWeights = channel.target().property() {
             import_weight_channel(&channel, handle, &mut result, |buf: Buffer| {
                 buffers.get(buf.index()).map(Vec::as_slice)
@@ -355,7 +351,7 @@ fn import_transform_channel<'a, 's, F>(
 where
     F: Clone + Fn(Buffer<'a>) -> Option<&'s [u8]>,
 {
-    let track: ImportedTrack = import_sampler(&channel, handle, get_buffer_data)?;
+    let track: ImportedTrack = import_sampler(channel, handle, get_buffer_data)?;
     result.push(track);
     Ok(())
 }
@@ -434,8 +430,8 @@ fn quaternion_to_euler_tangents(
     let v: UnitQuaternion<f32> = Unit::new_normalize(value.into());
     let b: UnitQuaternion<f32> = Unit::new_normalize(quaternion_add(value, out_tangent).into());
     (
-        quaternion_to_euler(a.rotation_to(&v).into()),
-        quaternion_to_euler(v.rotation_to(&b).into()),
+        quaternion_to_euler(a.rotation_to(&v)),
+        quaternion_to_euler(v.rotation_to(&b)),
     )
 }
 
