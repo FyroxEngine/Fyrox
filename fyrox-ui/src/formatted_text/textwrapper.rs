@@ -1,4 +1,3 @@
-#![allow(unused)]
 use std::ops::Range;
 
 pub trait TextWrapper {
