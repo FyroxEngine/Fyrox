@@ -173,17 +173,37 @@ impl Control for ScrollViewer {
             let available_size_for_content = ui.node(self.scroll_panel).desired_size();
 
             let x_max = (content_size.x - available_size_for_content.x).max(0.0);
+            let x_size_ratio = if content_size.x > f32::EPSILON {
+                (available_size_for_content.x / content_size.x).min(1.0)
+            } else {
+                1.0
+            };
             ui.send_message(ScrollBarMessage::max_value(
                 self.h_scroll_bar,
                 MessageDirection::ToWidget,
                 x_max,
             ));
+            ui.send_message(ScrollBarMessage::size_ratio(
+                self.h_scroll_bar,
+                MessageDirection::ToWidget,
+                x_size_ratio,
+            ));
 
             let y_max = (content_size.y - available_size_for_content.y).max(0.0);
+            let y_size_ratio = if content_size.y > f32::EPSILON {
+                (available_size_for_content.y / content_size.y).min(1.0)
+            } else {
+                1.0
+            };
             ui.send_message(ScrollBarMessage::max_value(
                 self.v_scroll_bar,
                 MessageDirection::ToWidget,
                 y_max,
+            ));
+            ui.send_message(ScrollBarMessage::size_ratio(
+                self.v_scroll_bar,
+                MessageDirection::ToWidget,
+                y_size_ratio,
             ));
         }
 

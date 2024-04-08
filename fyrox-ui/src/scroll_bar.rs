@@ -39,6 +39,9 @@ pub enum ScrollBarMessage {
     /// Used to indicate that the max value of the scroll bar has changed ([`MessageDirection::FromWidget`]) or to set a
     /// new max value (with [`MessageDirection::ToWidget`].
     MaxValue(f32),
+    /// Used to set the size of the indicator(thumb) adaptively, according to the relative sizes of the container and the
+    /// content in it (with [`MessageDirection::ToWidget`].
+    SizeRatio(f32),
 }
 
 impl ScrollBarMessage {
@@ -53,6 +56,10 @@ impl ScrollBarMessage {
     define_constructor!(
         /// Creates [`ScrollBarMessage::MinValue`] message.
         ScrollBarMessage:MinValue => fn min_value(f32), layout: false
+    );
+    define_constructor!(
+        /// Creates [`ScrollBarMessage::SizeRatio`] message.
+        ScrollBarMessage:SizeRatio => fn size_ratio(f32), layout: false
     );
 }
 
@@ -320,6 +327,39 @@ impl Control for ScrollBar {
                             );
                             response.set_handled(message.handled());
                             ui.send_message(response);
+                        }
+                    }
+                    ScrollBarMessage::SizeRatio(size_ratio) => {
+                        let field_size = ui.node(*self.indicator_canvas).actual_global_size();
+                        let indicator_size = ui.node(*self.indicator).actual_global_size();
+
+                        match *self.orientation {
+                            Orientation::Horizontal => {
+                                // minimum size of the indicator will be 15 irrespective of size ratio
+                                let new_size = (size_ratio * field_size.x).max(15.0);
+                                let old_size = indicator_size.x;
+
+                                if new_size != old_size {
+                                    ui.send_message(WidgetMessage::width(
+                                        *self.indicator,
+                                        MessageDirection::ToWidget,
+                                        new_size,
+                                    ));
+                                }
+                            }
+                            Orientation::Vertical => {
+                                // minimum size of the indicator will be 15 irrespective of size ratio
+                                let new_size = (size_ratio * field_size.y).max(15.0);
+                                let old_size = indicator_size.y;
+
+                                if new_size != old_size {
+                                    ui.send_message(WidgetMessage::height(
+                                        *self.indicator,
+                                        MessageDirection::ToWidget,
+                                        new_size,
+                                    ));
+                                }
+                            }
                         }
                     }
                 }
