@@ -58,7 +58,7 @@ impl AssetPreviewGeneratorsCollection {
     }
 }
 
-pub trait AssetPreview: 'static {
+pub trait AssetPreview: Send + Sync + 'static {
     fn generate(
         &mut self,
         resource: &UntypedResource,
