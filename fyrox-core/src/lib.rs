@@ -338,6 +338,22 @@ pub fn hash_as_bytes<T: Sized, H: Hasher>(value: &T, hasher: &mut H) {
     hasher.write(value_as_u8_slice(value))
 }
 
+/// Compares two strings using case-insensitive comparison. This function does not allocate any
+/// any memory and significantly faster than `a.to_lowercase() == b.to_lowercase()`.
+pub fn cmp_strings_case_insensitive(a: impl AsRef<str>, b: impl AsRef<str>) -> bool {
+    let a_ref = a.as_ref();
+    let b_ref = b.as_ref();
+
+    if a_ref.len() != b_ref.len() {
+        return false;
+    }
+
+    a_ref
+        .chars()
+        .zip(b_ref.chars())
+        .all(|(ca, cb)| ca.to_lowercase().eq(cb.to_lowercase()))
+}
+
 pub fn make_pretty_type_name(type_name: &str) -> &str {
     let mut colon_position = None;
     let mut byte_pos = 0;
@@ -438,7 +454,8 @@ mod test {
     use uuid::uuid;
 
     use crate::{
-        append_extension, combine_uuids, hash_combine, make_relative_path,
+        append_extension, cmp_strings_case_insensitive, combine_uuids, hash_combine,
+        make_relative_path,
         visitor::{Visit, Visitor},
         BiDirHashMap,
     };
@@ -603,5 +620,12 @@ mod test {
     fn test_make_relative_path() {
         assert!(make_relative_path(Path::new("foo.txt")).is_err());
         assert!(make_relative_path(Path::new("Cargo.toml")).is_ok());
+    }
+
+    #[test]
+    fn tests_case_insensitive_str_comparison() {
+        assert!(cmp_strings_case_insensitive("FooBar", "FOOBaR"));
+        assert!(!cmp_strings_case_insensitive("FooBaz", "FOOBaR"));
+        assert!(cmp_strings_case_insensitive("foobar", "foobar"));
     }
 }
