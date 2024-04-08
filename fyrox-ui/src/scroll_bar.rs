@@ -587,10 +587,10 @@ impl ScrollBarBuilder {
 
         match orientation {
             Orientation::Vertical => {
-                ctx[indicator].set_min_size(Vector2::new(0.0, 30.0));
+                ctx[indicator].set_min_size(Vector2::new(0.0, 15.0));
             }
             Orientation::Horizontal => {
-                ctx[indicator].set_min_size(Vector2::new(30.0, 0.0));
+                ctx[indicator].set_min_size(Vector2::new(15.0, 0.0));
             }
         }
 
