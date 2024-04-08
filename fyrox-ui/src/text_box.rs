@@ -162,6 +162,10 @@ impl SelectionRange {
             end: self.right(),
         }
     }
+    /// `true` if the given position is inside this range, including the beginning and end.
+    pub fn contains(&self, position: Position) -> bool {
+        (self.begin..=self.end).contains(&position)
+    }
     /// The leftmost position.
     pub fn left(&self) -> Position {
         Position::min(self.begin, self.end)
@@ -170,19 +174,6 @@ impl SelectionRange {
     pub fn right(&self) -> Position {
         Position::max(self.begin, self.end)
     }
-}
-
-fn filter_paste_str_multiline(str: &str) -> String {
-    let mut str = str.replace("\r\n", "\n");
-    str.retain(|c| c == '\n' || !c.is_control());
-    str
-}
-
-fn filter_paste_str_single_line(str: &str) -> String {
-    str.chars()
-        .map(|c| if c == '\n' { ' ' } else { c })
-        .filter(|c| c.is_control())
-        .collect()
 }
 
 /// Defines a function, that could be used to filter out desired characters. It must return `true` for characters, that pass
@@ -410,6 +401,8 @@ pub struct TextBox {
     pub selection_range: InheritableVariable<Option<SelectionRange>>,
     /// `true` if the text box is in selection mode.
     pub selecting: bool,
+    /// Stores the location of the caret before it was moved by mouse click.
+    pub before_click_position: Position,
     /// `true` if the text box is focused.
     pub has_focus: bool,
     /// Current caret brush of the text box.
@@ -441,6 +434,29 @@ impl Debug for TextBox {
 crate::define_widget_deref!(TextBox);
 
 impl TextBox {
+    fn filter_paste_str_multiline(&self, str: &str) -> String {
+        let mut str = str.replace("\r\n", "\n");
+        str.retain(|c| c == '\n' || !c.is_control());
+        if let Some(filter) = self.filter.as_ref() {
+            let filter = &mut *filter.lock();
+            str.retain(filter);
+        }
+        str
+    }
+
+    fn filter_paste_str_single_line(&self, str: &str) -> String {
+        let mut str: String = str
+            .chars()
+            .map(|c| if c == '\n' { ' ' } else { c })
+            .filter(|c| c.is_control())
+            .collect();
+        if let Some(filter) = self.filter.as_ref() {
+            let filter = &mut *filter.lock();
+            str.retain(filter);
+        }
+        str
+    }
+
     fn reset_blink(&mut self) {
         self.caret_visible.set_value_and_mark_modified(true);
         self.blink_timer.set_value_and_mark_modified(0.0);
@@ -468,14 +484,25 @@ impl TextBox {
         }
 
         drop(text);
-        self.set_caret_position(position);
 
         if let Some(selection_range) = self.selection_range.as_mut() {
             if select {
-                selection_range.end = *self.caret_position;
+                if *self.caret_position != selection_range.end {
+                    if !selection_range.contains(position) {
+                        if position < selection_range.left() {
+                            selection_range.begin = selection_range.right();
+                        } else {
+                            selection_range.begin = selection_range.left();
+                        }
+                        selection_range.end = position;
+                    }
+                } else {
+                    selection_range.end = position;
+                }
             }
         }
 
+        self.set_caret_position(position);
         self.ensure_caret_visible();
     }
 
@@ -590,9 +617,9 @@ impl TextBox {
             return;
         }
         let str: String = if *self.multiline {
-            filter_paste_str_multiline(str)
+            self.filter_paste_str_multiline(str)
         } else {
-            filter_paste_str_single_line(str)
+            self.filter_paste_str_single_line(str)
         };
         self.remove_before_insert();
         let position = self
@@ -776,10 +803,6 @@ impl TextBox {
             .transform_point(&Point2::from(screen_point))
             .coords;
 
-        if !self.bounding_rect().contains(point_to_check) {
-            return None;
-        }
-
         Some(
             self.formatted_text
                 .borrow_mut()
@@ -849,7 +872,6 @@ impl TextBox {
                         begin: left,
                         end: right,
                     }));
-                self.set_caret_position(right);
             }
         }
     }
@@ -1013,13 +1035,13 @@ impl Control for TextBox {
                     }
                     WidgetMessage::KeyDown(code) => {
                         match code {
-                            KeyCode::ArrowUp => {
+                            KeyCode::ArrowUp if !self.selecting => {
                                 self.move_caret_y(-1, ui.keyboard_modifiers().shift);
                             }
-                            KeyCode::ArrowDown => {
+                            KeyCode::ArrowDown if !self.selecting => {
                                 self.move_caret_y(1, ui.keyboard_modifiers().shift);
                             }
-                            KeyCode::ArrowRight => {
+                            KeyCode::ArrowRight if !self.selecting => {
                                 if ui.keyboard_modifiers.control {
                                     self.move_caret(
                                         self.find_next_word(*self.caret_position),
@@ -1029,7 +1051,7 @@ impl Control for TextBox {
                                     self.move_caret_x(1, ui.keyboard_modifiers().shift);
                                 }
                             }
-                            KeyCode::ArrowLeft => {
+                            KeyCode::ArrowLeft if !self.selecting => {
                                 if ui.keyboard_modifiers.control {
                                     self.move_caret(
                                         self.find_prev_word(*self.caret_position),
@@ -1039,7 +1061,9 @@ impl Control for TextBox {
                                     self.move_caret_x(-1, ui.keyboard_modifiers().shift);
                                 }
                             }
-                            KeyCode::Delete if !message.handled() && *self.editable => {
+                            KeyCode::Delete
+                                if !message.handled() && *self.editable && !self.selecting =>
+                            {
                                 self.remove_char(HorizontalDirection::Right, ui);
                             }
                             KeyCode::NumpadEnter | KeyCode::Enter if *self.editable => {
@@ -1054,10 +1078,10 @@ impl Control for TextBox {
                                     self.has_focus = false;
                                 }
                             }
-                            KeyCode::Backspace if *self.editable => {
+                            KeyCode::Backspace if *self.editable && !self.selecting => {
                                 self.remove_char(HorizontalDirection::Left, ui);
                             }
-                            KeyCode::End => {
+                            KeyCode::End if !self.selecting => {
                                 let select = ui.keyboard_modifiers().shift;
                                 let position = if ui.keyboard_modifiers().control {
                                     self.end_position()
@@ -1069,7 +1093,7 @@ impl Control for TextBox {
                                 };
                                 self.move_caret(position, select);
                             }
-                            KeyCode::Home => {
+                            KeyCode::Home if !self.selecting => {
                                 let select = ui.keyboard_modifiers().shift;
                                 let position = if ui.keyboard_modifiers().control {
                                     Position::default()
@@ -1116,6 +1140,24 @@ impl Control for TextBox {
                                     }
                                 }
                             }
+                            KeyCode::KeyX if ui.keyboard_modifiers().control => {
+                                if let Some(mut clipboard) = ui.clipboard_mut() {
+                                    if let Some(selection_range) = self.selection_range.as_ref() {
+                                        let range = self
+                                            .formatted_text
+                                            .borrow()
+                                            .position_range_to_char_index_range(
+                                                selection_range.range(),
+                                            );
+                                        if !range.is_empty() {
+                                            let _ = clipboard.set_contents(
+                                                self.formatted_text.borrow().text_range(range),
+                                            );
+                                            self.remove_char(HorizontalDirection::Left, ui);
+                                        }
+                                    }
+                                }
+                            }
                             _ => (),
                         }
 
@@ -1148,12 +1190,16 @@ impl Control for TextBox {
                     }
                     WidgetMessage::MouseDown { pos, button } => {
                         if *button == MouseButton::Left {
-                            self.selection_range.set_value_and_mark_modified(None);
+                            let select = ui.keyboard_modifiers().shift;
+                            if !select {
+                                self.selection_range.set_value_and_mark_modified(None);
+                            }
                             self.selecting = true;
                             self.has_focus = true;
+                            self.before_click_position = *self.caret_position;
 
                             if let Some(position) = self.screen_pos_to_text_pos(*pos) {
-                                self.set_caret_position(position);
+                                self.move_caret(position, select);
                             }
 
                             ui.capture_mouse(self.handle());
@@ -1163,29 +1209,20 @@ impl Control for TextBox {
                         button: MouseButton::Left,
                     } => {
                         if let Some(position) = self.screen_pos_to_text_pos(ui.cursor_position) {
-                            self.select_word(position);
+                            if position == self.before_click_position {
+                                self.select_word(position);
+                            }
                         }
                     }
                     WidgetMessage::MouseMove { pos, .. } => {
                         if self.selecting {
                             if let Some(position) = self.screen_pos_to_text_pos(*pos) {
-                                if let Some(ref mut selection_range) = *self.selection_range {
-                                    selection_range.end = position;
-                                    self.set_caret_position(position);
-                                } else if position != *self.caret_position {
-                                    self.selection_range.set_value_and_mark_modified(Some(
-                                        SelectionRange {
-                                            begin: *self.caret_position,
-                                            end: position,
-                                        },
-                                    ));
-                                }
+                                self.move_caret(position, true);
                             }
                         }
                     }
                     WidgetMessage::MouseUp { .. } => {
                         self.selecting = false;
-
                         ui.release_mouse_capture();
                     }
                     _ => {}
@@ -1537,6 +1574,7 @@ impl TextBoxBuilder {
             ),
             selection_range: None.into(),
             selecting: false,
+            before_click_position: Position::default(),
             selection_brush: self.selection_brush.into(),
             caret_brush: self.caret_brush.into(),
             has_focus: false,

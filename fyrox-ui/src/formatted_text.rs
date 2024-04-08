@@ -208,12 +208,6 @@ pub struct FormattedText {
 }
 
 impl FormattedText {
-    pub fn debug_state(&self) {
-        for line in self.lines.iter() {
-            print!("{}..{} ", line.begin, line.end);
-        }
-        println!("");
-    }
     pub fn nearest_valid_position(&self, start: Position) -> Position {
         if self.lines.is_empty() {
             return Position::default();
@@ -273,7 +267,7 @@ impl FormattedText {
         }
     }
 
-    pub fn iter_line_ranges_within<'a>(
+    pub fn iter_line_ranges_within(
         &self,
         range: Range<Position>,
     ) -> impl Iterator<Item = Range<Position>> + '_ {
