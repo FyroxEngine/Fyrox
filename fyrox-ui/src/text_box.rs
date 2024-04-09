@@ -402,6 +402,7 @@ pub struct TextBox {
     /// `true` if the text box is in selection mode.
     pub selecting: bool,
     /// Stores the location of the caret before it was moved by mouse click.
+    #[visit(skip)]
     pub before_click_position: Position,
     /// `true` if the text box is focused.
     pub has_focus: bool,
