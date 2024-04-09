@@ -3,6 +3,7 @@
 
 #![warn(missing_docs)]
 
+use crate::message::KeyCode;
 use crate::{
     border::BorderBuilder,
     core::{
@@ -380,6 +381,10 @@ impl Control for Popup {
                                 MessageDirection::ToWidget,
                                 ui.screen_to_root_canvas_space(position),
                             ));
+                            ui.send_message(WidgetMessage::focus(
+                                self.handle,
+                                MessageDirection::ToWidget,
+                            ));
                             if *self.smart_placement {
                                 ui.send_message(PopupMessage::adjust_position(
                                     self.handle,
@@ -397,6 +402,14 @@ impl Control for Popup {
                                 false,
                             ));
                             ui.remove_picking_restriction(self.handle());
+
+                            if let Some(top) = ui.top_picking_restriction() {
+                                ui.send_message(WidgetMessage::focus(
+                                    top.handle,
+                                    MessageDirection::ToWidget,
+                                ));
+                            }
+
                             if ui.captured_node() == self.handle() {
                                 ui.release_mouse_capture();
                             }
@@ -434,6 +447,11 @@ impl Control for Popup {
                         }
                     }
                 }
+            }
+        } else if let Some(WidgetMessage::KeyDown(key)) = message.data() {
+            if !message.handled() && *key == KeyCode::Escape {
+                ui.send_message(PopupMessage::close(self.handle, MessageDirection::ToWidget));
+                message.set_handled(true);
             }
         }
     }
