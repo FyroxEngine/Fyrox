@@ -55,27 +55,32 @@ impl ColliderControlPanel {
         operation performed in world-space coordinates.";
 
         let fit;
-        let window = WindowBuilder::new(WidgetBuilder::new().with_width(250.0).with_height(50.0))
-            .with_title(WindowTitle::text("Collider Control Panel"))
-            .with_content(
-                StackPanelBuilder::new(
-                    WidgetBuilder::new()
-                        .with_horizontal_alignment(HorizontalAlignment::Right)
-                        .with_child({
-                            fit = ButtonBuilder::new(
-                                WidgetBuilder::new()
-                                    .with_width(80.0)
-                                    .with_height(24.0)
-                                    .with_tooltip(make_simple_tooltip(ctx, tooltip)),
-                            )
-                            .with_text("Try Fit")
-                            .build(ctx);
-                            fit
-                        }),
-                )
-                .build(ctx),
+        let window = WindowBuilder::new(
+            WidgetBuilder::new()
+                .with_width(250.0)
+                .with_height(50.0)
+                .with_name("ColliderControlPanel"),
+        )
+        .with_title(WindowTitle::text("Collider Control Panel"))
+        .with_content(
+            StackPanelBuilder::new(
+                WidgetBuilder::new()
+                    .with_horizontal_alignment(HorizontalAlignment::Right)
+                    .with_child({
+                        fit = ButtonBuilder::new(
+                            WidgetBuilder::new()
+                                .with_width(80.0)
+                                .with_height(24.0)
+                                .with_tooltip(make_simple_tooltip(ctx, tooltip)),
+                        )
+                        .with_text("Try Fit")
+                        .build(ctx);
+                        fit
+                    }),
             )
-            .build(ctx);
+            .build(ctx),
+        )
+        .build(ctx);
 
         Self {
             window,
