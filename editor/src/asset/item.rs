@@ -11,6 +11,7 @@ use crate::fyrox::{
         formatted_text::WrapMode,
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
+        image::ImageMessage,
         message::{MessageDirection, UiMessage},
         text::TextBuilder,
         widget::{Widget, WidgetBuilder, WidgetMessage},
@@ -18,11 +19,22 @@ use crate::fyrox::{
         UserInterface, BRUSH_DARKER, BRUSH_DARKEST,
     },
 };
-use crate::gui::AssetItemMessage;
+use fyrox::gui::define_constructor;
 use std::{
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
 };
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AssetItemMessage {
+    Select(bool),
+    Icon(Option<UntypedResource>),
+}
+
+impl AssetItemMessage {
+    define_constructor!(AssetItemMessage:Select => fn select(bool), layout: false);
+    define_constructor!(AssetItemMessage:Icon => fn icon(Option<UntypedResource>), layout: false);
+}
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Visit, Reflect, ComponentProvider)]
@@ -80,27 +92,36 @@ impl Control for AssetItem {
                     true,
                 ));
             }
-        } else if let Some(AssetItemMessage::Select(select)) = message.data::<AssetItemMessage>() {
-            if self.selected != *select && message.destination() == self.handle() {
-                self.selected = *select;
-                ui.send_message(WidgetMessage::foreground(
-                    self.handle(),
+        } else if let Some(msg) = message.data::<AssetItemMessage>() {
+            match msg {
+                AssetItemMessage::Select(select) => {
+                    if self.selected != *select && message.destination() == self.handle() {
+                        self.selected = *select;
+                        ui.send_message(WidgetMessage::foreground(
+                            self.handle(),
+                            MessageDirection::ToWidget,
+                            if *select {
+                                Brush::Solid(Color::opaque(200, 220, 240))
+                            } else {
+                                Brush::Solid(Color::TRANSPARENT)
+                            },
+                        ));
+                        ui.send_message(WidgetMessage::background(
+                            self.handle(),
+                            MessageDirection::ToWidget,
+                            if *select {
+                                Brush::Solid(Color::opaque(100, 100, 100))
+                            } else {
+                                Brush::Solid(Color::TRANSPARENT)
+                            },
+                        ));
+                    }
+                }
+                AssetItemMessage::Icon(icon) => ui.send_message(ImageMessage::texture(
+                    self.preview,
                     MessageDirection::ToWidget,
-                    if *select {
-                        Brush::Solid(Color::opaque(200, 220, 240))
-                    } else {
-                        Brush::Solid(Color::TRANSPARENT)
-                    },
-                ));
-                ui.send_message(WidgetMessage::background(
-                    self.handle(),
-                    MessageDirection::ToWidget,
-                    if *select {
-                        Brush::Solid(Color::opaque(100, 100, 100))
-                    } else {
-                        Brush::Solid(Color::TRANSPARENT)
-                    },
-                ));
+                    icon.clone(),
+                )),
             }
         }
     }

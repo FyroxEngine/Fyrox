@@ -1,27 +1,13 @@
-use crate::fyrox::asset::untyped::UntypedResource;
-use crate::fyrox::core::parking_lot::Mutex;
 use crate::fyrox::{
-    core::{color::Color, pool::Handle},
+    asset::untyped::UntypedResource,
+    core::{color::Color, parking_lot::Mutex, pool::Handle},
     gui::{
-        border::BorderBuilder,
-        brush::Brush,
-        button::ButtonBuilder,
-        decorator::DecoratorBuilder,
-        define_constructor,
-        image::ImageBuilder,
-        message::{MessageDirection, UiMessage},
-        text::TextBuilder,
-        utils::make_simple_tooltip,
-        widget::WidgetBuilder,
+        border::BorderBuilder, brush::Brush, button::ButtonBuilder, decorator::DecoratorBuilder,
+        image::ImageBuilder, text::TextBuilder, utils::make_simple_tooltip, widget::WidgetBuilder,
         BuildContext, HorizontalAlignment, Thickness, UiNode, VerticalAlignment,
     },
 };
 use std::sync::Arc;
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum AssetItemMessage {
-    Select(bool),
-}
 
 pub fn make_dropdown_list_option_universal<T: Send + 'static>(
     ctx: &mut BuildContext,
@@ -84,10 +70,6 @@ pub fn make_dropdown_list_option_with_height(
         .with_pad_by_corner_radius(false),
     )
     .build(ctx)
-}
-
-impl AssetItemMessage {
-    define_constructor!(AssetItemMessage:Select => fn select(bool), layout: false);
 }
 
 pub fn make_image_button_with_tooltip(

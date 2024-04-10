@@ -52,10 +52,9 @@ pub trait ResourceLoader: ResourceLoaderTypeTrait {
 
     /// Checks if the given extension is supported by this loader. Comparison is case-insensitive.
     fn supports_extension(&self, ext: &str) -> bool {
-        let lower_case_ext = ext.to_lowercase();
         self.extensions()
             .iter()
-            .any(|e| e.to_lowercase() == lower_case_ext)
+            .any(|e| fyrox_core::cmp_strings_case_insensitive(e, ext))
     }
 
     /// Must return a type uuid of the resource data type.

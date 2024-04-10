@@ -57,6 +57,16 @@ impl Default for TrackValueKind {
     }
 }
 
+/// Interpolation mode for track data.
+#[derive(Visit, Reflect, Debug, Clone, Default, PartialEq)]
+pub enum InterpolationMode {
+    /// Default interpolation mode.
+    #[default]
+    Default,
+    /// This mode forces the engine to use short-path angle interpolation.
+    ShortPath,
+}
+
 /// Container for a track data. Strictly speaking, it is just a set of parametric curves which can be
 /// fetched at a given time position simultaneously, producing a value of desired type. Which type of
 /// value is produced is defined by [`TrackValueKind`] enumeration. Usually a container contains up to
@@ -68,6 +78,9 @@ impl Default for TrackValueKind {
 pub struct TrackDataContainer {
     curves: Vec<Curve>,
     kind: TrackValueKind,
+    /// Interpolation mode.
+    #[visit(optional)] // Backward compatibility.
+    pub mode: InterpolationMode,
 }
 
 impl TrackDataContainer {
@@ -84,6 +97,7 @@ impl TrackDataContainer {
             curves: (0..kind.components_count())
                 .map(|_| Curve::default())
                 .collect(),
+            mode: Default::default(),
         }
     }
 
@@ -147,9 +161,18 @@ impl TrackDataContainer {
             ))),
             TrackValueKind::UnitQuaternion => {
                 // Convert Euler angles to quaternion
-                let x = self.curves.first()?.angle_at(time);
-                let y = self.curves.get(1)?.angle_at(time);
-                let z = self.curves.get(2)?.angle_at(time);
+                let (x, y, z) = match self.mode {
+                    InterpolationMode::Default => (
+                        self.curves.first()?.value_at(time),
+                        self.curves.get(1)?.value_at(time),
+                        self.curves.get(2)?.value_at(time),
+                    ),
+                    InterpolationMode::ShortPath => (
+                        self.curves.first()?.angle_at(time),
+                        self.curves.get(1)?.angle_at(time),
+                        self.curves.get(2)?.angle_at(time),
+                    ),
+                };
 
                 Some(TrackValue::UnitQuaternion(quat_from_euler(
                     Vector3::new(x, y, z),

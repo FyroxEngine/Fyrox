@@ -123,6 +123,12 @@ impl ResourceManager {
         state.resource_io.clone()
     }
 
+    /// Returns the task pool used by this resource manager.
+    pub fn task_pool(&self) -> Arc<TaskPool> {
+        let state = self.state();
+        state.task_pool()
+    }
+
     /// Requests a resource of the given type located at the given path. This method is non-blocking, instead
     /// it immediately returns the typed resource wrapper. Loading of the resource is managed automatically in
     /// a separate thread (or thread pool) on PC, and JS micro-task (the same thread) on WebAssembly.
@@ -360,6 +366,11 @@ impl ResourceManagerState {
             // Use the file system resource io by default
             resource_io: Arc::new(FsResourceIo),
         }
+    }
+
+    /// Returns the task pool used by this resource manager.
+    pub fn task_pool(&self) -> Arc<TaskPool> {
+        self.task_pool.clone()
     }
 
     /// Set the IO source that the resource manager should use when
