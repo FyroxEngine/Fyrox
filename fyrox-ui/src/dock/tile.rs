@@ -63,6 +63,35 @@ impl TileContent {
     }
 }
 
+fn send_visibility(ui: &UserInterface, destination: Handle<UiNode>, visible: bool) {
+    ui.send_message(WidgetMessage::visibility(
+        destination,
+        MessageDirection::ToWidget,
+        visible,
+    ));
+}
+
+fn send_size(ui: &UserInterface, destination: Handle<UiNode>, width: f32, height: f32) {
+    ui.send_message(WidgetMessage::width(
+        destination,
+        MessageDirection::ToWidget,
+        width,
+    ));
+    ui.send_message(WidgetMessage::height(
+        destination,
+        MessageDirection::ToWidget,
+        height,
+    ));
+}
+
+fn send_background(ui: &UserInterface, destination: Handle<UiNode>, color: Color) {
+    ui.send_message(WidgetMessage::background(
+        destination,
+        MessageDirection::ToWidget,
+        Brush::Solid(color),
+    ));
+}
+
 #[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider)]
 pub struct Tile {
     pub widget: Widget,
@@ -145,7 +174,7 @@ impl Control for Tile {
                             0.0,
                             final_size.y * splitter + splitter_size.y * 0.5,
                             final_size.x,
-                            final_size.y * (1.0 - splitter) - splitter_size.y,
+                            final_size.y * (1.0 - splitter) - splitter_size.y * 0.5,
                         )
                     } else if self.splitter == child_handle {
                         Rect::new(
@@ -196,16 +225,7 @@ impl Control for Tile {
             // library is that tile has to explicitly set width of child windows, otherwise
             // layout will be weird - window will most likely will stay at its previous size.
             if child_handle != self.splitter {
-                ui.send_message(WidgetMessage::width(
-                    child_handle,
-                    MessageDirection::ToWidget,
-                    bounds.w(),
-                ));
-                ui.send_message(WidgetMessage::height(
-                    child_handle,
-                    MessageDirection::ToWidget,
-                    bounds.h(),
-                ));
+                send_size(ui, child_handle, bounds.w(), bounds.h());
             }
         }
 
@@ -223,11 +243,7 @@ impl Control for Tile {
 
                         match content {
                             TileContent::Empty => {
-                                ui.send_message(WidgetMessage::visibility(
-                                    self.splitter,
-                                    MessageDirection::ToWidget,
-                                    false,
-                                ));
+                                send_visibility(ui, self.splitter, false);
                             }
                             &TileContent::Window(window) => {
                                 ui.send_message(WidgetMessage::link(
@@ -236,11 +252,7 @@ impl Control for Tile {
                                     self.handle(),
                                 ));
 
-                                ui.send_message(WidgetMessage::visibility(
-                                    self.splitter,
-                                    MessageDirection::ToWidget,
-                                    false,
-                                ));
+                                send_visibility(ui, self.splitter, false);
 
                                 ui.send_message(WindowMessage::can_resize(
                                     window,
@@ -258,35 +270,32 @@ impl Control for Tile {
                                     ));
                                 }
 
-                                ui.send_message(WidgetMessage::visibility(
-                                    self.splitter,
-                                    MessageDirection::ToWidget,
-                                    true,
-                                ));
-
+                                send_visibility(ui, self.splitter, true);
                                 match content {
                                     TileContent::HorizontalTiles { .. } => {
-                                        ui.send_message(WidgetMessage::width(
+                                        send_size(
+                                            ui,
                                             self.splitter,
-                                            MessageDirection::ToWidget,
                                             DEFAULT_SPLITTER_SIZE,
-                                        ));
-                                        ui.send_message(WidgetMessage::height(
+                                            f32::INFINITY,
+                                        );
+                                        ui.send_message(WidgetMessage::cursor(
                                             self.splitter,
                                             MessageDirection::ToWidget,
-                                            f32::INFINITY,
+                                            Some(CursorIcon::WResize),
                                         ));
                                     }
                                     TileContent::VerticalTiles { .. } => {
-                                        ui.send_message(WidgetMessage::width(
+                                        send_size(
+                                            ui,
                                             self.splitter,
-                                            MessageDirection::ToWidget,
                                             f32::INFINITY,
-                                        ));
-                                        ui.send_message(WidgetMessage::height(
+                                            DEFAULT_SPLITTER_SIZE,
+                                        );
+                                        ui.send_message(WidgetMessage::cursor(
                                             self.splitter,
                                             MessageDirection::ToWidget,
-                                            DEFAULT_SPLITTER_SIZE,
+                                            Some(CursorIcon::NResize),
                                         ));
                                     }
                                     _ => (),
@@ -373,11 +382,7 @@ impl Control for Tile {
                                                     TileContent::Window(sub_tile_wnd),
                                                 ));
                                                 // Splitter must be hidden.
-                                                ui.send_message(WidgetMessage::visibility(
-                                                    self.splitter,
-                                                    MessageDirection::ToWidget,
-                                                    false,
-                                                ));
+                                                send_visibility(ui, self.splitter, false);
                                             }
                                             // In case if we have a split tile (vertically or horizontally) left in current tile
                                             // (which is split too) we must set content of current tile to content of sub tile.
@@ -592,11 +597,7 @@ impl Control for Tile {
                             if let TileContent::Empty | TileContent::Window(_) = self.content {
                                 // Show anchors.
                                 for &anchor in &self.anchors() {
-                                    ui.send_message(WidgetMessage::visibility(
-                                        anchor,
-                                        MessageDirection::ToWidget,
-                                        true,
-                                    ));
+                                    send_visibility(ui, anchor, true);
                                 }
                             }
 
@@ -605,48 +606,24 @@ impl Control for Tile {
                                 // When window is being dragged, we should check which tile can accept it.
                                 let pos = ui.cursor_position;
                                 for &anchor in &self.anchors() {
-                                    ui.send_message(WidgetMessage::background(
-                                        anchor,
-                                        MessageDirection::ToWidget,
-                                        Brush::Solid(DEFAULT_ANCHOR_COLOR),
-                                    ))
+                                    send_background(ui, anchor, DEFAULT_ANCHOR_COLOR);
                                 }
                                 if ui.node(self.left_anchor).screen_bounds().contains(pos) {
-                                    ui.send_message(WidgetMessage::background(
-                                        self.left_anchor,
-                                        MessageDirection::ToWidget,
-                                        Brush::Solid(Color::WHITE),
-                                    ));
+                                    send_background(ui, self.left_anchor, Color::WHITE);
                                     self.drop_anchor.set(self.left_anchor);
                                 } else if ui.node(self.right_anchor).screen_bounds().contains(pos) {
-                                    ui.send_message(WidgetMessage::background(
-                                        self.right_anchor,
-                                        MessageDirection::ToWidget,
-                                        Brush::Solid(Color::WHITE),
-                                    ));
+                                    send_background(ui, self.right_anchor, Color::WHITE);
                                     self.drop_anchor.set(self.right_anchor);
                                 } else if ui.node(self.top_anchor).screen_bounds().contains(pos) {
-                                    ui.send_message(WidgetMessage::background(
-                                        self.top_anchor,
-                                        MessageDirection::ToWidget,
-                                        Brush::Solid(Color::WHITE),
-                                    ));
+                                    send_background(ui, self.top_anchor, Color::WHITE);
                                     self.drop_anchor.set(self.top_anchor);
                                 } else if ui.node(self.bottom_anchor).screen_bounds().contains(pos)
                                 {
-                                    ui.send_message(WidgetMessage::background(
-                                        self.bottom_anchor,
-                                        MessageDirection::ToWidget,
-                                        Brush::Solid(Color::WHITE),
-                                    ));
+                                    send_background(ui, self.bottom_anchor, Color::WHITE);
                                     self.drop_anchor.set(self.bottom_anchor);
                                 } else if ui.node(self.center_anchor).screen_bounds().contains(pos)
                                 {
-                                    ui.send_message(WidgetMessage::background(
-                                        self.center_anchor,
-                                        MessageDirection::ToWidget,
-                                        Brush::Solid(Color::WHITE),
-                                    ));
+                                    send_background(ui, self.center_anchor, Color::WHITE);
                                     self.drop_anchor.set(self.center_anchor);
                                 } else {
                                     self.drop_anchor.set(Handle::NONE);
@@ -656,11 +633,7 @@ impl Control for Tile {
                         WindowMessage::MoveEnd => {
                             // Hide anchors.
                             for &anchor in &self.anchors() {
-                                ui.send_message(WidgetMessage::visibility(
-                                    anchor,
-                                    MessageDirection::ToWidget,
-                                    false,
-                                ));
+                                send_visibility(ui, anchor, false);
                             }
 
                             // Drop if has any drop anchor.
