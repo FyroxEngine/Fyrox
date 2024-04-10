@@ -397,7 +397,7 @@ impl Control for Window {
 
         if let Some(msg) = message.data::<WidgetMessage>() {
             // Grip interaction have higher priority than other actions.
-            if self.can_resize {
+            if self.can_resize && !self.is_dragging {
                 match msg {
                     &WidgetMessage::MouseDown { pos, .. } => {
                         ui.send_message(WidgetMessage::topmost(
@@ -434,7 +434,7 @@ impl Control for Window {
                         for grip in self.grips.borrow().iter() {
                             let offset = self.screen_position();
                             let screen_bounds = grip.bounds.translate(offset);
-                            if screen_bounds.contains(pos) {
+                            if grip.is_dragging || screen_bounds.contains(pos) {
                                 new_cursor = Some(grip.cursor);
                             }
 
@@ -486,6 +486,9 @@ impl Control for Window {
                     }
                     _ => {}
                 }
+            } else {
+                // The window cannot be resized, so leave the cursor unset.
+                self.set_cursor(None);
             }
 
             if (message.destination() == self.header

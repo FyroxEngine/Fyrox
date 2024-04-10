@@ -14,7 +14,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-#[derive(Reflect, Debug, Copy, Clone, Ord, PartialOrd, PartialEq, Eq)]
+#[derive(Reflect, Copy, Clone, Ord, PartialOrd, PartialEq, Eq)]
 #[repr(transparent)]
 pub struct VariableFlags(u8);
 
@@ -26,6 +26,26 @@ bitflags! {
         const MODIFIED = 0b0000_0001;
         /// A variable must be synced with respective variable from data model.
         const NEED_SYNC = 0b0000_0010;
+    }
+}
+
+impl Debug for VariableFlags {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if *self == VariableFlags::NONE {
+            write!(f, "NONE")
+        } else {
+            for (i, flag) in self.iter().enumerate() {
+                if i != 0 {
+                    write!(f, "|")?
+                }
+                match flag {
+                    VariableFlags::MODIFIED => write!(f, "MOD")?,
+                    VariableFlags::NEED_SYNC => write!(f, "SYNC")?,
+                    _ => write!(f, "{:?}", flag)?,
+                }
+            }
+            Ok(())
+        }
     }
 }
 
@@ -59,10 +79,15 @@ pub enum InheritError {
 ///
 /// Access via Deref provides access to inner variable. **DerefMut marks variable as modified** and returns a
 /// mutable reference to inner variable.
-#[derive(Debug)]
 pub struct InheritableVariable<T> {
     value: T,
     flags: Cell<VariableFlags>,
+}
+
+impl<T: Debug> Debug for InheritableVariable<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?} (flags:{:?})", self.value, self.flags.get())
+    }
 }
 
 impl<T: Clone> Clone for InheritableVariable<T> {
