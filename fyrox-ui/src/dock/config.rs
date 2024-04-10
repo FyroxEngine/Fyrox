@@ -1,5 +1,5 @@
 use crate::{
-    core::{algebra::Vector2, pool::Handle, visitor::prelude::*},
+    core::{algebra::Vector2, log::Log, pool::Handle, visitor::prelude::*},
     dock::{Tile, TileBuilder, TileContent},
     message::MessageDirection,
     widget::WidgetBuilder,
@@ -96,6 +96,14 @@ impl TileDescriptor {
             .with_content(match &self.content {
                 TileContentDescriptor::Empty => TileContent::Empty,
                 TileContentDescriptor::Window(window_name) => {
+                    if window_name.is_empty() {
+                        Log::warn(
+                            "Window name is empty, wrong widget will be used as a \
+                        tile content. Assign a unique name to the window used in a docking \
+                        manager!",
+                        );
+                    }
+
                     let mut window_handle =
                         ui.find_handle(ui.root(), &mut |n| n.name() == window_name);
 

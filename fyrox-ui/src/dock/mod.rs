@@ -5,8 +5,17 @@
 //! Docking manager can hold any types of UI elements, but dragging works only
 //! for windows.
 
-use crate::core::{reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*};
-use fyrox_core::uuid_provider;
+use crate::{
+    core::{
+        log::Log, pool::Handle, reflect::prelude::*, type_traits::prelude::*, uuid_provider,
+        visitor::prelude::*,
+    },
+    define_constructor,
+    dock::config::{DockingManagerLayoutDescriptor, FloatingWindowDescriptor, TileDescriptor},
+    message::{MessageDirection, UiMessage},
+    widget::{Widget, WidgetBuilder, WidgetMessage},
+    BuildContext, Control, UiNode, UserInterface,
+};
 use fyrox_graph::{BaseSceneGraph, SceneGraph};
 use std::{
     cell::RefCell,
@@ -15,15 +24,6 @@ use std::{
 
 pub mod config;
 mod tile;
-
-use crate::{
-    core::pool::Handle,
-    define_constructor,
-    dock::config::{DockingManagerLayoutDescriptor, FloatingWindowDescriptor, TileDescriptor},
-    message::{MessageDirection, UiMessage},
-    widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, UiNode, UserInterface,
-};
 
 pub use tile::*;
 
@@ -101,6 +101,14 @@ impl Control for DockingManager {
                     // Restore floating windows.
                     self.floating_windows.borrow_mut().clear();
                     for floating_window_desc in layout_descriptor.floating_windows.iter() {
+                        if floating_window_desc.name.is_empty() {
+                            Log::warn(
+                                "Floating window name is empty, wrong widget will be used as a \
+                        floating window. Assign a unique name to the floating window used in a docking \
+                        manager!",
+                            );
+                        }
+
                         let floating_window =
                             ui.find_handle(ui.root(), &mut |n| n.name == floating_window_desc.name);
                         if floating_window.is_some() {
