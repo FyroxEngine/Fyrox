@@ -931,7 +931,7 @@ impl TreeRoot {
                     }
                 }
                 Direction::Down => {
-                    if let Some(first_item) = item.items.first() {
+                    if let (Some(first_item), true) = (item.items.first(), item.is_expanded) {
                         self.select(ui, *first_item);
                     } else if let Some(next) =
                         parent.items.get(selected_item_position.saturating_add(1))
@@ -943,15 +943,17 @@ impl TreeRoot {
                         while let Some((ancestor_handle, ancestor)) =
                             ui.find_component_up::<Tree>(current_ancestor_parent)
                         {
-                            if let Some(current_ancestor_position) =
-                                ancestor.items.iter().position(|c| *c == current_ancestor)
-                            {
-                                if let Some(next) = ancestor
-                                    .items
-                                    .get(current_ancestor_position.saturating_add(1))
+                            if ancestor.is_expanded {
+                                if let Some(current_ancestor_position) =
+                                    ancestor.items.iter().position(|c| *c == current_ancestor)
                                 {
-                                    self.select(ui, *next);
-                                    break;
+                                    if let Some(next) = ancestor
+                                        .items
+                                        .get(current_ancestor_position.saturating_add(1))
+                                    {
+                                        self.select(ui, *next);
+                                        break;
+                                    }
                                 }
                             }
 
