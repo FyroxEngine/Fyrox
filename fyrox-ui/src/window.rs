@@ -1,6 +1,7 @@
 //! The Window widget provides a standard window that can contain another widget. See [`Window`] docs
 //! for more info and usage examples.
 
+use crate::message::KeyCode;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -288,6 +289,10 @@ pub struct Window {
     /// Bounds of the window before maximization, it is used to return the window to previous
     /// size when it is either "unmaximized" or dragged.
     pub prev_bounds: Option<Rect<f32>>,
+    /// If `true`, then the window can be closed using `Esc` key. Default is `true`. Works only if
+    /// `can_close` is also `true`.
+    #[visit(optional)] // Backward compatibility
+    pub close_by_esc: bool,
 }
 
 const GRIP_SIZE: f32 = 6.0;
@@ -529,10 +534,25 @@ impl Control for Window {
                     _ => (),
                 }
             }
-            if let WidgetMessage::Unlink = msg {
-                if message.destination() == self.handle() {
-                    self.initial_position = self.screen_position();
+            match msg {
+                WidgetMessage::Unlink => {
+                    if message.destination() == self.handle() {
+                        self.initial_position = self.screen_position();
+                    }
                 }
+                WidgetMessage::KeyDown(key_code)
+                    if self.close_by_esc
+                        && self.can_close
+                        && *key_code == KeyCode::Escape
+                        && !message.handled() =>
+                {
+                    ui.send_message(WindowMessage::close(
+                        self.handle,
+                        MessageDirection::ToWidget,
+                    ));
+                    message.set_handled(true);
+                }
+                _ => {}
             }
         } else if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
             if message.destination() == self.minimize_button {
@@ -574,6 +594,10 @@ impl Control for Window {
                                     MessageDirection::ToWidget,
                                 ));
                             }
+                            ui.send_message(WidgetMessage::focus(
+                                self.handle,
+                                MessageDirection::ToWidget,
+                            ));
                         }
                     }
                     &WindowMessage::OpenAt { position } => {
@@ -591,6 +615,10 @@ impl Control for Window {
                                 self.handle(),
                                 MessageDirection::ToWidget,
                                 position,
+                            ));
+                            ui.send_message(WidgetMessage::focus(
+                                self.handle,
+                                MessageDirection::ToWidget,
                             ));
                         }
                     }
@@ -625,6 +653,10 @@ impl Control for Window {
                                     stop: true,
                                 });
                             }
+                            ui.send_message(WidgetMessage::focus(
+                                self.handle,
+                                MessageDirection::ToWidget,
+                            ));
                         }
                     }
                     &WindowMessage::OpenModal { center } => {
@@ -648,6 +680,10 @@ impl Control for Window {
                                 handle: self.handle(),
                                 stop: true,
                             });
+                            ui.send_message(WidgetMessage::focus(
+                                self.handle,
+                                MessageDirection::ToWidget,
+                            ));
                         }
                     }
                     WindowMessage::Close => {
@@ -881,6 +917,9 @@ pub struct WindowBuilder {
     pub can_resize: bool,
     /// Optional size of the border around the screen in which the window will be forced to stay.
     pub safe_border_size: Option<Vector2<f32>>,
+    /// If `true`, then the window can be closed using `Esc` key. Default is `true`. Works only if
+    /// `can_close` is also `true`.
+    pub close_by_esc: bool,
 }
 
 /// Window title can be either text or node.
@@ -1032,6 +1071,7 @@ impl WindowBuilder {
             modal: false,
             can_resize: true,
             safe_border_size: Some(Vector2::new(25.0, 20.0)),
+            close_by_esc: true,
         }
     }
 
@@ -1104,6 +1144,13 @@ impl WindowBuilder {
     /// Sets a desired safe border size.
     pub fn with_safe_border_size(mut self, size: Option<Vector2<f32>>) -> Self {
         self.safe_border_size = size.map(|s| Vector2::new(s.x.abs(), s.y.abs()));
+        self
+    }
+
+    /// Defines, whether the window can be closed using `Esc` key or not. Works only if `can_close`
+    /// is also `true`.
+    pub fn with_close_by_esc(mut self, close: bool) -> Self {
+        self.close_by_esc = close;
         self
     }
 
@@ -1241,6 +1288,7 @@ impl WindowBuilder {
             title,
             title_grid,
             prev_bounds: None,
+            close_by_esc: self.close_by_esc,
         }
     }
 
