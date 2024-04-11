@@ -3,6 +3,7 @@
 
 #![warn(missing_docs)]
 
+use crate::message::KeyCode;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -22,7 +23,8 @@ use crate::{
     BRUSH_DARK, BRUSH_DIM_BLUE,
 };
 use fyrox_core::uuid_provider;
-use fyrox_graph::{BaseSceneGraph, SceneGraph};
+use fyrox_graph::{BaseSceneGraph, SceneGraph, SceneGraphNode};
+use std::collections::VecDeque;
 use std::ops::{Deref, DerefMut};
 
 /// Opaque selection state of a tree.
@@ -804,8 +806,54 @@ impl Control for TreeRoot {
                     }
                 }
             }
+        } else if let Some(WidgetMessage::KeyDown(key_code)) = message.data() {
+            if !message.handled() {
+                message.set_handled(true);
+                match *key_code {
+                    KeyCode::ArrowRight => {
+                        self.move_selection(ui, Direction::Down, true);
+                    }
+                    KeyCode::ArrowLeft => {
+                        if let Some(selection) = self.selected.first() {
+                            if let Some(item) = ui
+                                .try_get(*selection)
+                                .and_then(|n| n.component_ref::<Tree>())
+                            {
+                                if item.is_expanded {
+                                    ui.send_message(TreeMessage::expand(
+                                        *selection,
+                                        MessageDirection::ToWidget,
+                                        false,
+                                        TreeExpansionStrategy::Direct,
+                                    ));
+                                } else if let Some((parent_handle, _)) =
+                                    ui.find_component_up::<Tree>(item.parent())
+                                {
+                                    ui.send_message(TreeRootMessage::select(
+                                        self.handle,
+                                        MessageDirection::ToWidget,
+                                        vec![parent_handle],
+                                    ));
+                                }
+                            }
+                        }
+                    }
+                    KeyCode::ArrowUp => {
+                        self.move_selection(ui, Direction::Up, false);
+                    }
+                    KeyCode::ArrowDown => {
+                        self.move_selection(ui, Direction::Down, false);
+                    }
+                    _ => (),
+                }
+            }
         }
     }
+}
+
+enum Direction {
+    Up,
+    Down,
 }
 
 impl TreeRoot {
@@ -817,6 +865,104 @@ impl TreeRoot {
                 expand,
                 TreeExpansionStrategy::RecursiveDescendants,
             ));
+        }
+    }
+
+    fn select(&self, ui: &UserInterface, item: Handle<UiNode>) {
+        ui.send_message(TreeRootMessage::select(
+            self.handle,
+            MessageDirection::ToWidget,
+            vec![item],
+        ));
+    }
+
+    fn move_selection(&self, ui: &UserInterface, direction: Direction, expand: bool) {
+        if let Some(selected_item) = self.selected.first() {
+            let Some(item) = ui
+                .try_get(*selected_item)
+                .and_then(|n| n.component_ref::<Tree>())
+            else {
+                return;
+            };
+
+            if !item.is_expanded && expand {
+                ui.send_message(TreeMessage::expand(
+                    *selected_item,
+                    MessageDirection::ToWidget,
+                    true,
+                    TreeExpansionStrategy::Direct,
+                ));
+                return;
+            }
+
+            let Some((parent_handle, parent)) = ui.find_component_up::<Tree>(item.parent()) else {
+                return;
+            };
+
+            let Some(selected_item_position) =
+                parent.items.iter().position(|c| *c == *selected_item)
+            else {
+                return;
+            };
+
+            match direction {
+                Direction::Up => {
+                    if let Some(prev) = selected_item_position
+                        .checked_sub(1)
+                        .and_then(|prev| parent.items.get(prev))
+                    {
+                        let mut last_descendant_item = None;
+                        let mut queue = VecDeque::new();
+                        queue.push_back(*prev);
+                        while let Some(item) = queue.pop_front() {
+                            if let Some(item_ref) = ui.node(item).component_ref::<Tree>() {
+                                if item_ref.is_expanded {
+                                    queue.extend(item_ref.items.iter());
+                                }
+                                last_descendant_item = Some(item);
+                            }
+                        }
+
+                        if let Some(last_descendant_item) = last_descendant_item {
+                            self.select(ui, last_descendant_item);
+                        }
+                    } else {
+                        self.select(ui, parent_handle);
+                    }
+                }
+                Direction::Down => {
+                    if let Some(first_item) = item.items.first() {
+                        self.select(ui, *first_item);
+                    } else if let Some(next) =
+                        parent.items.get(selected_item_position.saturating_add(1))
+                    {
+                        self.select(ui, *next);
+                    } else {
+                        let mut current_ancestor = parent_handle;
+                        let mut current_ancestor_parent = parent.parent();
+                        while let Some((ancestor_handle, ancestor)) =
+                            ui.find_component_up::<Tree>(current_ancestor_parent)
+                        {
+                            if let Some(current_ancestor_position) =
+                                ancestor.items.iter().position(|c| *c == current_ancestor)
+                            {
+                                if let Some(next) = ancestor
+                                    .items
+                                    .get(current_ancestor_position.saturating_add(1))
+                                {
+                                    self.select(ui, *next);
+                                    break;
+                                }
+                            }
+
+                            current_ancestor_parent = ancestor.parent();
+                            current_ancestor = ancestor_handle;
+                        }
+                    }
+                }
+            }
+        } else if let Some(first_item) = self.items.first() {
+            self.select(ui, *first_item);
         }
     }
 }
