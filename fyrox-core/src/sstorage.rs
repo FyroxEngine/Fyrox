@@ -5,9 +5,11 @@
 
 use crate::{
     parking_lot::Mutex,
+    uuid_provider,
     visitor::{Visit, VisitResult, Visitor},
 };
 use fxhash::{FxHashMap, FxHasher};
+pub use fyrox_core_derive::TypeUuidProvider;
 use std::{
     fmt::{Debug, Display, Formatter},
     hash::{Hash, Hasher},
@@ -34,6 +36,8 @@ struct State {
 /// Most common use case for immutable strings is hash map keys in performance-critical places.
 #[derive(Clone)]
 pub struct ImmutableString(Arc<State>);
+
+uuid_provider!(ImmutableString = "452caac1-19f7-43d6-9e33-92c2c9163332");
 
 impl Display for ImmutableString {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -65,6 +69,12 @@ impl Visit for ImmutableString {
 impl Default for ImmutableString {
     fn default() -> Self {
         Self::new("")
+    }
+}
+
+impl AsRef<str> for ImmutableString {
+    fn as_ref(&self) -> &str {
+        self.deref()
     }
 }
 
