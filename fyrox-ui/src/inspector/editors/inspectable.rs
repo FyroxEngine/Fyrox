@@ -1,3 +1,5 @@
+//! A general-purpose property editor definition that creates
+//! a nested inspector within an [Expander](crate::expander::Expander) widget.
 use crate::{
     core::reflect::prelude::*,
     inspector::{
@@ -19,6 +21,11 @@ use std::{
     fmt::{Debug, Formatter},
 };
 
+/// A general-purpose property editor definition that creates
+/// a nested inspector within an [Expander](crate::expander::Expander) widget to allow the user
+/// to edited properties of type T.
+/// The expander is labeled with [FieldInfo::display_name].
+/// The layer_index for the inner inspector is increased by 1.
 pub struct InspectablePropertyEditorDefinition<T>
 where
     T: Reflect + 'static,
@@ -90,6 +97,9 @@ where
         Ok(PropertyEditorInstance::Custom { container, editor })
     }
 
+    /// Instead of creating a message to update its widget,
+    /// call [InspectorContext::sync] to directly send whatever messages are necessary
+    /// and return None.
     fn create_message(
         &self,
         ctx: PropertyEditorMessageContext,

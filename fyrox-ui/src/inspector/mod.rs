@@ -43,6 +43,8 @@ use std::{
 
 pub mod editors;
 
+/// Messages representing a change in a collection:
+/// either adding an item, removing an item, or updating an existing item.
 #[derive(Debug, Clone, PartialEq)]
 pub enum CollectionChanged {
     /// An item should be added in the collection.
@@ -53,6 +55,7 @@ pub enum CollectionChanged {
     ItemChanged {
         /// Index of an item in the collection.
         index: usize,
+        /// The change to the item.
         property: FieldKind,
     },
 }
@@ -63,16 +66,24 @@ impl CollectionChanged {
     define_constructor!(CollectionChanged:ItemChanged => fn item_changed(index: usize, property: FieldKind), layout: false);
 }
 
+/// Changes that can happen to inheritable variables.
 #[derive(Debug, Clone)]
 pub enum InheritableAction {
+    /// Revert the variable to the value that it originally inherited.
     Revert,
 }
 
+/// An enum of the ways in which a property might be changed by an editor.
 #[derive(Debug, Clone)]
 pub enum FieldKind {
+    /// A collection has been changed in the given way.
     Collection(Box<CollectionChanged>),
+    /// A property of a nested object has been changed in the given way.
     Inspectable(Box<PropertyChanged>),
+    /// A new value is being assigned to the property.
     Object(ObjectValue),
+    /// The state of an inheritable property is changing, such as being reverted
+    /// to match the value in the original.
     Inheritable(InheritableAction),
 }
 
@@ -195,6 +206,7 @@ impl PropertyAction {
     }
 }
 
+/// Trait of values that can be edited by an Inspector through reflection.
 pub trait Value: Reflect + Debug + Send {
     fn clone_box(&self) -> Box<dyn Value>;
 
@@ -214,6 +226,8 @@ where
     }
 }
 
+/// An untyped value that is created by an editor and sent in a message
+/// to inform the inspected object that one of its properties should change.
 #[derive(Debug)]
 pub struct ObjectValue {
     pub value: Box<dyn Value>,
@@ -281,10 +295,14 @@ impl FieldKind {
     }
 }
 
+/// The details of a change to some field of some object due to being edited in an inspector.
 #[derive(Debug, Clone, PartialEq)]
 pub struct PropertyChanged {
+    /// The name of the edited property.
     pub name: String,
+    /// The type of the object that owns the property.
     pub owner_type_id: TypeId,
+    /// The details of the change.
     pub value: FieldKind,
 }
 
@@ -332,9 +350,13 @@ impl PropertyChanged {
     }
 }
 
+/// Messages to and from the inspector to keep the inspector and the inspected object in sync.
 #[derive(Debug, Clone, PartialEq)]
 pub enum InspectorMessage {
+    /// Message sent to the inspector to replace the context of the inspector so it can inspect a new object.
     Context(InspectorContext),
+    /// Message sent from the inspector to notify the world that the object has been edited according to the
+    /// given PropertyChanged struct.
     PropertyChanged(PropertyChanged),
 }
 
@@ -343,6 +365,13 @@ impl InspectorMessage {
     define_constructor!(InspectorMessage:PropertyChanged => fn property_changed(PropertyChanged), layout: false);
 }
 
+/// This trait allows dynamically typed context information to be
+/// passed to an [Inspector] widget.
+/// Since an Inspector might be used in applications other than Fyroxed,
+/// Inspector does not assume that InspectorEnvironment must always be
+/// [fyroxed_base::inspector::EditorEnvironment](https://docs.rs/fyroxed_base/latest/fyroxed_base/inspector/struct.EditorEnvironment.html).
+/// Instead, when a property editor needs to talk to the application using the Inspector,
+/// it can attempt to cast InspectorEnvironment to whatever type it might be.
 pub trait InspectorEnvironment: Any + Send + Sync {
     fn as_any(&self) -> &dyn Any;
 }
@@ -441,7 +470,9 @@ impl Inspector {
     }
 }
 
+/// The width of editor name labels to ensure inspectors have a uniform appearance.
 pub const NAME_COLUMN_WIDTH: f32 = 150.0;
+/// Default margines for editor containers.
 pub const HEADER_MARGIN: Thickness = Thickness {
     left: 2.0,
     top: 1.0,
@@ -449,11 +480,17 @@ pub const HEADER_MARGIN: Thickness = Thickness {
     bottom: 1.0,
 };
 
+/// An error that may be produced by an Inspector.
 #[derive(Debug)]
 pub enum InspectorError {
+    /// An error occurred due to reflection when some value did not have its expected type.
     CastError(CastError),
     OutOfSync,
+    /// An error message produced by some editor with specialized details unique to that editor.
+    /// For example, an array editor might complain if there is no editor definition for the type
+    /// of its elements.
     Custom(String),
+    /// As an inspector contains multiple editors, it can potentially produce multiple errors.
     Group(Vec<InspectorError>),
 }
 
@@ -463,14 +500,25 @@ impl From<CastError> for InspectorError {
     }
 }
 
+/// Stores the association between a field in an object and an editor widget in an [Inspector].
 #[derive(Clone, Debug)]
 pub struct ContextEntry {
+    /// The name of the field being edited, as found in [FieldInfo::name].
     pub property_name: String,
+    /// The type of the objects whose fields are being inspected, as found in [FieldInfo::owner_type_id].
     pub property_owner_type_id: TypeId,
+    /// The type of the property being edited, as found in [PropertyEditorDefinition::value_type_id](editors::PropertyEditorDefinition::value_type_id).
     pub property_value_type_id: TypeId,
+    /// The list of property editor definitions being used by the inspector.
     pub property_editor_definition_container: Arc<PropertyEditorDefinitionContainer>,
+    /// The handle of the widget that is editing the property.
     pub property_editor: Handle<UiNode>,
+    /// The result of `format!("{:?}", field)`, if generated. Otherwise, this string is empty.
+    /// Generating these strings is controlled by the `generate_property_string_values` parameter in [InspectorContext::from_object].
     pub property_debug_output: String,
+    /// The widget that contains the editor widget. It provides a label to identify which property is being edited.
+    /// Storing the handle here allows us to which editor the user is indicating if the mouse is over the area
+    /// surrounding the editor instead of the editor itself.
     pub property_container: Handle<UiNode>,
 }
 
@@ -488,20 +536,42 @@ impl PartialEq for ContextEntry {
     }
 }
 
+/// The handles of a context menu when right-clicking on an [Inspector].
 #[derive(Default, Clone)]
 pub struct Menu {
+    /// The handle of the "Copy Value as String" menu item.
     pub copy_value_as_string: Handle<UiNode>,
+    /// The reference-counted handle of the menu as a whole.
     pub menu: Option<RcUiNodeHandle>,
     pub target: Cell<Handle<UiNode>>,
 }
 
+/// The widget handle and associated information that represents what an [Inspector] is currently displaying.
 #[derive(Clone)]
 pub struct InspectorContext {
+    /// The handle of a UI node containing property editor widgets.
+    /// This would usually be a vertical Stack widget, but any widget will sever the same purpose
+    /// so long as it produces messages that are recognized by the
+    /// [PropertyEditorDefinitions](crate::inspector::editors::PropertyEditorDefinition)
+    /// contained in [InspectorContext::property_definitions].
+    ///
+    /// To ensure this, the widget should be composed of widgets produced by
+    /// [PropertyEditorDefinition::create_instance](crate::inspector::editors::PropertyEditorDefinition::create_instance).
     pub stack_panel: Handle<UiNode>,
+    /// The context menu that opens when right-clicking on the inspector.
     pub menu: Menu,
+    /// List of the editors in this inspector, in order, with each entry giving the editor widget handle, the name of the field being edited,
+    /// and so on.
     pub entries: Vec<ContextEntry>,
+    /// List if property definitions that are by [sync](InspectorContext::sync) to update the widgets of [stack_panel](InspectorContext::stack_panel),
+    /// with the current values of properties that may have changed.
     pub property_definitions: Arc<PropertyEditorDefinitionContainer>,
+    /// Untyped information from the application that is using the inspector. This can be used by editors that may be
+    /// supplied by that application, if those editors know the actual type of this value to be able to successfully cast it.
     pub environment: Option<Arc<dyn InspectorEnvironment>>,
+    /// The value given to [UiMessage::flags] when [sync](InspectorContext::sync) is generating update messages for
+    /// editor widgets. This identifies sync messages and prevents the Inspector from trying to translate them,
+    /// and thereby it prevents sync messages from potentially creating an infinite message loop.
     pub sync_flag: u64,
 }
 
@@ -532,6 +602,11 @@ impl Debug for InspectorContext {
     }
 }
 
+/// Convert a layer_index into a margin thickness.
+/// An editor's layer_index indicates how deeply nested it is within other editors.
+/// For example, an array editor will contain nested editors for each element of the array,
+/// and those nested editors will have the array editors index_layer + 1.
+/// Deeper layer_index values correspond to a thicker left margin.
 pub fn make_property_margin(layer_index: usize) -> Thickness {
     let mut margin = HEADER_MARGIN;
     margin.left += 10.0 + layer_index as f32 * 10.0;
@@ -587,6 +662,13 @@ fn make_expander_check_box(
     .build(ctx)
 }
 
+/// Build an [Expander](crate::expander::Expander) widget to contain an editor.
+/// * layer_index: How deeply nested is the editor? This controls the width of the left margine.
+/// * property_name: The name to use as the label for the expander.
+/// * description: The tooltip for the editor.
+/// * header: See [Expander](crate::expander::Expander) docs for an explanation of expander headers.
+/// * content: The editor widget to be shown or hidden.
+/// * ctx: The [BuildContext] to make it possible to create the widget.
 pub fn make_expander_container(
     layer_index: usize,
     property_name: &str,
@@ -641,6 +723,8 @@ fn make_simple_property_container(
         .build(ctx)
 }
 
+/// Filter function for determining which fields of an object should be included in an Inspector.
+/// Return true to include a field. If None, then all fields are included.
 #[derive(Default, Clone)]
 pub struct PropertyFilter(pub Option<Arc<dyn Fn(&dyn Reflect) -> bool + Send + Sync>>);
 
@@ -661,6 +745,22 @@ impl PropertyFilter {
 }
 
 impl InspectorContext {
+    /// Build the widgets for an Inspector to represent the given object by accessing
+    /// the object's fields through reflection.
+    /// * object: The object to inspect.
+    /// * ctx: The general context for widget creation.
+    /// * definition_container: The list of property editor definitions that will create the editors
+    /// based on the type of each field.
+    /// * environment: Untyped optional generic information about the application using the inspector,
+    /// which may be useful to some editors. Often this will be Fyroxed's EditorEnvironment.
+    /// * sync_flag: Flag bits to identify messages that are sent by the `sync` method to
+    /// update an editor with the current value of the property that it is editing.
+    /// This becomes the value of [UiMessage::flags].
+    /// * layer_index: Inspectors can be nested within the editors of other inspectors.
+    /// The layer_index is the count of how deeply nested this inspector will be.
+    /// * generate_property_string_values: Should we use `format!("{:?}", field)` to construct string representations
+    /// for each property?
+    /// * filter: A filter function that controls whether each field will be included in the inspector.
     pub fn from_object(
         object: &dyn Reflect,
         ctx: &mut BuildContext,
@@ -815,6 +915,17 @@ impl InspectorContext {
         }
     }
 
+    /// Update the widgest to reflect the value of the given object.
+    /// We will iterate through the fields and find the appropriate [PropertyEditorDefinition](editors::PropertyEditorDefinition)
+    /// for each field. We call [create_message](editors::PropertyEditorDefinition::create_message) to get each property editor
+    /// definition to generate the appropriate message to get the editor widget to update itself, and we set the [flags](UiMessage::flags)
+    /// of each message to [InspectorContext::sync_flag] before sending the message.
+    /// * object: The object to take the property values from.
+    /// * ui: The UserInterface to include in the [PropertyEditorMessageContext].
+    /// * layer_index: The depth of the nesting of this inspector.
+    /// * generator_property_string_values: if any editors within this inspector contain inner inspectors, should those inspectors
+    /// generate strings for their properties?
+    /// * filter: filter function for the fields of `object` and for any inspectors within the editors of this inspector.
     pub fn sync(
         &self,
         object: &dyn Reflect,
@@ -870,14 +981,18 @@ impl InspectorContext {
         }
     }
 
+    /// Iterates through every property.
     pub fn property_editors(&self) -> impl Iterator<Item = &ContextEntry> + '_ {
         self.entries.iter()
     }
 
+    /// Return the entry for the property with the given name.
     pub fn find_property_editor(&self, name: &str) -> Option<&ContextEntry> {
         self.entries.iter().find(|e| e.property_name == name)
     }
 
+    /// Shortcut for getting the editor widget from the property with the given name.
+    /// Returns `Handle::NONE` if there is no property with that name.
     pub fn find_property_editor_widget(&self, name: &str) -> Handle<UiNode> {
         self.find_property_editor(name)
             .map(|e| e.property_editor)
@@ -970,6 +1085,7 @@ impl Control for Inspector {
     }
 }
 
+/// Build an Inspector from a [WidgetBuilder] and an [InspectorContext].
 pub struct InspectorBuilder {
     widget_builder: WidgetBuilder,
     context: InspectorContext,
@@ -983,11 +1099,14 @@ impl InspectorBuilder {
         }
     }
 
+    /// Sets the context for the created [Inspector].
     pub fn with_context(mut self, context: InspectorContext) -> Self {
         self.context = context;
         self
     }
 
+    /// If given an inspector context, sets the context for the created inspector.
+    /// If given None, does nothing.
     pub fn with_opt_context(mut self, context: Option<InspectorContext>) -> Self {
         if let Some(context) = context {
             self.context = context;

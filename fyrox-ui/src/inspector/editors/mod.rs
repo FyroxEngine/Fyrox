@@ -1,3 +1,6 @@
+//! A collection of [PropertyEditorDefinition] objects for a wide variety of types,
+//! including standard Rust types and Fyrox core types.
+
 use crate::inspector::editors::path::PathPropertyEditorDefinition;
 use crate::{
     absm::{EventAction, EventKind},
@@ -32,6 +35,7 @@ use crate::{
             color::{ColorGradientPropertyEditorDefinition, ColorPropertyEditorDefinition},
             curve::CurvePropertyEditorDefinition,
             enumeration::{EnumPropertyEditorDefinition, InspectableEnum},
+            immutable_string::ImmutableStringPropertyEditorDefinition,
             inherit::InheritablePropertyEditorDefinition,
             inspectable::InspectablePropertyEditorDefinition,
             key::KeyBindingPropertyEditorDefinition,
@@ -80,6 +84,7 @@ use crate::{
 };
 use fxhash::FxHashMap;
 use fyrox_animation::machine::Parameter;
+use fyrox_core::sstorage::ImmutableString;
 use std::fmt::Formatter;
 use std::{
     any::{Any, TypeId},
@@ -99,6 +104,7 @@ pub mod collection;
 pub mod color;
 pub mod curve;
 pub mod enumeration;
+pub mod immutable_string;
 pub mod inherit;
 pub mod inspectable;
 pub mod key;
@@ -113,45 +119,123 @@ pub mod utf32;
 pub mod uuid;
 pub mod vec;
 
+/// This structure is passed to [PropertyEditorDefinition::create_instance] in order to allow it to
+/// build a widget to allow a property to be edited.
 pub struct PropertyEditorBuildContext<'a, 'b, 'c, 'd> {
+    /// General context for widget building to be used for creating the editor.
     pub build_context: &'a mut BuildContext<'c>,
+    /// The FieldInfo of the property to edit, extracted from the object we are inspecting by reflection.
     pub property_info: &'b FieldInfo<'b, 'd>,
+    /// Untyped reference to the environment that the Inspector is being used in.
+    /// This will often be
+    /// [fyroxed_base::inspector::EditorEnvironment](https://docs.rs/fyroxed_base/latest/fyroxed_base/inspector/struct.EditorEnvironment.html)
+    /// when the Inspector is being used in Fyroxed, but Inspector widgets can be used in other applications,
+    /// and we can access those applications by casting the environment to the appropriate type.
     pub environment: Option<Arc<dyn InspectorEnvironment>>,
+    /// The list of the Inspectors property editors.
+    /// This allows one property editor to make use of other property editors.
     pub definition_container: Arc<PropertyEditorDefinitionContainer>,
+    /// Controls the flags that are included with messages through the [UiMessage::flags] property.
+    /// This is used to distinguish sync messages from other messages and is handled automatically by
+    /// [InspectorContext](crate::inspector::InspectorContext).
     pub sync_flag: u64,
+    /// Editors can be nested within other editors, such as when an array
+    /// editor contains editors for each element of the array.
+    /// The layer_index indicates how deeply nested the editor widget we
+    /// are creating will be.
     pub layer_index: usize,
+    /// When true, this indicates that an Inspector should generate strings from `format!("{:?}", field)`, for each field.
+    /// Having this in the property editor build context indicates how any Inspectors that are created as part of the new
+    /// editor should behave.
     pub generate_property_string_values: bool,
+    /// Determines how properties should be filtered in any Inspectors created within the editor that is being built.
     pub filter: PropertyFilter,
 }
 
+/// This structure is passed to [PropertyEditorDefinition::create_message] in order to generate a message that will
+/// update the editor widget to the property's current value.
 pub struct PropertyEditorMessageContext<'a, 'b, 'c> {
+    /// Controls the flags that are included with messages through the [UiMessage::flags] property.
+    /// This is used to distinguish sync messages from other messages and is handled automatically by
+    /// [InspectorContext](crate::inspector::InspectorContext).
+    /// There is no need to put this flag into the message return by the create_message method.
     pub sync_flag: u64,
+    /// The handle of widget that the message will be sent to. It should be an editor created by
+    /// [PropertyEditorDefinition::create_instance].
     pub instance: Handle<UiNode>,
+    /// The UserInterface is provided to make it possible for `create_message` to send whatever messages
+    /// are needed directly instead of returning a message. In this case, the sent messages should have their
+    /// [UiMessage::flags] set to `sync_flag`.
     pub ui: &'b mut UserInterface,
+    /// The FieldInfo of the property to edit, extracted from the object we are inspecting by reflection.
     pub property_info: &'a FieldInfo<'a, 'c>,
+    /// The list of the Inspectors property editors.
+    /// This allows one property editor to make use of other property editors.
     pub definition_container: Arc<PropertyEditorDefinitionContainer>,
+    /// Editors can be nested within other editors, such as when an array
+    /// editor contains editors for each element of the array.
+    /// The layer_index indicates the nesting level of the widget that will receive the created message.
     pub layer_index: usize,
+    /// Optional untyped information about the broader application in which
+    /// this proprety is being translated. This allows the created message to
+    /// adapt to the situation if we can successfully cast the given
+    /// [InspectorEnvironment] into a specific type.
     pub environment: Option<Arc<dyn InspectorEnvironment>>,
+    /// When true, this indicates that an Inspector should generate strings from `format!("{:?}", field)`, for each field.
+    /// Having this in the property editor build context indicates how any Inspectors that are update due to the created message
+    /// should behave.
     pub generate_property_string_values: bool,
+    /// Determines how properties should be filtered in any Inspectors that are updated by the created message.
     pub filter: PropertyFilter,
 }
 
+/// The details relevant to translating a message from an editor widget into
+/// a [PropertyChanged] message that an [Inspector](crate::inspector::Inspector) widget
+/// can use to update the inspected property based on the messages from the editor.
 pub struct PropertyEditorTranslationContext<'b, 'c> {
+    /// Optional untyped information about the broader application in which
+    /// this proprety is being translated. This allows the translation to
+    /// adapt to the situation if we can successfully cast the given
+    /// [InspectorEnvironment] into a specific type.
+    ///
+    /// When the environment is not None, it is often an
+    /// [fyroxed_base::inspector::EditorEnvironment](https://docs.rs/fyroxed_base/latest/fyroxed_base/inspector/struct.EditorEnvironment.html)
+    /// which may be accessed using EditorEnvironment::try_get_from.
+    /// For example, the EditorEnvironment can be used by
+    /// [fyroxed_base::inspector::editors::script::ScriptPropertyEditor](https://docs.rs/fyroxed_base/latest/fyroxed_base/inspector/editors/script/struct.ScriptPropertyEditor.html)
+    /// to translate the UUID of a script into an actual
+    /// [fyrox::script::Script](https://docs.rs/fyrox/latest/fyrox/script/struct.Script.html)
+    /// when it receives a
+    /// [ScriptPropertyEditorMessage::Value](https://docs.rs/fyroxed_base/latest/fyroxed_base/inspector/editors/script/enum.ScriptPropertyEditorMessage.html#variant.Value).
     pub environment: Option<Arc<dyn InspectorEnvironment>>,
+    /// The name of the property being edited.
+    /// This comes from [ContextEntry::property_name](crate::inspector::ContextEntry).
     pub name: &'b str,
+    /// The type of the object whose property is being edited.
+    /// This comes from [ContextEntry::property_owner_type_id](crate::inspector::ContextEntry).
     pub owner_type_id: TypeId,
+    /// The original message that may be translated, if it represents a change in the property.
     pub message: &'c UiMessage,
+    /// The list of the Inspectors property editors.
+    /// This allows one property editor to make use of other property editors.
     pub definition_container: Arc<PropertyEditorDefinitionContainer>,
 }
 
+/// A widget handle that is to act as an editor in an [Insector](crate::inspector::Inspector), with or without
+/// a custom container widget to show the name of the property that is being edited.
 #[derive(Clone, Debug, PartialEq, Visit, Reflect)]
 pub enum PropertyEditorInstance {
+    /// A property editor that is to be given a default container, which is just a label to the left
+    /// of the editor to show the name of the property being edited.
     Simple {
         /// A property editor. Could be any widget that capable of editing a property
         /// value.
         editor: Handle<UiNode>,
     },
+    /// A property editor that comes with its own custom container.
     Custom {
+        /// A widget that contains the editor.
+        /// It should include a label to identify the property being edited.
         container: Handle<UiNode>,
 
         /// A property editor. Could be any widget that capable of editing a property
@@ -177,28 +261,67 @@ impl PropertyEditorInstance {
     }
 }
 
+/// The trait for all property editor definitions which are capable of providing
+/// and editor widget to an [Inspector](crate::inspector::Inspector) and helping
+/// the inspector handle the necessary messages to and from that widget.
 pub trait PropertyEditorDefinition: Debug + Send + Sync {
+    /// The type of property that the editor will edit.
     fn value_type_id(&self) -> TypeId;
 
+    /// Build a widget that an [Inspector](crate::inspector::Inspector) can use to edit this property.
+    /// The returned value is either a simple property editor instance which contains just a
+    /// UiNode handle, or else it is a custom editor instance that contains both
+    /// the handle of the editor and the handle of the container.
     fn create_instance(
         &self,
         ctx: PropertyEditorBuildContext,
     ) -> Result<PropertyEditorInstance, InspectorError>;
 
+    /// Create a message that will tell the editor widget to update itself with the current value
+    /// of the property. This is called by [InspectorContext::sync](crate::inspector::InspectorContext::sync).
+    ///
+    /// Despite the name, this method is also permitted to send messages directly to the widget instead
+    /// of returning anything. If messages are sent directly, they should have their [UiMessage::flags] set
+    /// to [PropertyEditorMessageContext::sync_flag], as this is required to identify the message a sync message
+    /// and prevent potential infinite message loops.
+    ///
+    /// If a message is returned, the caller is responsible for setting `flags` and sending the message.
     fn create_message(
         &self,
         ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError>;
 
+    /// Translate messages from the editor widget created by [PropertyEditorDefinition::create_message] into
+    /// [PropertyChanged] messages that the [Inspector](crate::inspector::Inspector) widget can use to apply updates.
+    /// The given [PropertyEditorTranslationContext] contains all the relevant details of the message to be
+    /// translated.
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged>;
 }
 
+/// One entry from the list of editor definitions in a [PropertyEditorDefinitionContainer].
 pub struct PropertyEditorDefinitionContainerEntry {
+    /// A type representing the source of `property_editor`.
+    /// This value is set equal to [PropertyEditorDefinitionContainer::context_type_id] when
+    /// this entry is created by inserting `property_editor`.
+    /// The value of this type can be used to indicate whether this property editor definition
+    /// comes from a plugin.
     pub source_type_id: TypeId,
+    /// The PropertyEditorDefinition to be used by some inspector to create
+    /// and control its child widgets.
     pub property_editor: Box<dyn PropertyEditorDefinition>,
 }
 
+/// This is a list of [PropertyEditorDefinition] which is indexed by the type that each
+/// editor edits, as specified by [PropertyEditorDefinition::value_type_id].
+/// It also records where each entry in the list came from so that it can know whether
+/// a property editor is built-in to the Fyroxed or whether it was added by a plugin.
+/// This allows entries to be removed when a plugin is unloaded.
 pub struct PropertyEditorDefinitionContainer {
+    /// A type representing the source of PropertyEditorDefinitions that are added in the future.
+    /// For each added PropertyEditorDefinition entry, [PropertyEditorDefinitionContainerEntry::source_type_id]
+    /// is set equal to this TypeId. By default this begins as `().type_id()`, and then it can be modified
+    /// with a plugin is loaded to cause all definitions added after that point to be marked as being from
+    /// that plugin.
     pub context_type_id: Mutex<TypeId>,
     definitions: RwLock<FxHashMap<TypeId, PropertyEditorDefinitionContainerEntry>>,
 }
@@ -247,6 +370,7 @@ impl PropertyEditorDefinitionContainer {
         Self::default()
     }
 
+    /// A container with property editors for Fyrox core types and Rust standard types.
     pub fn with_default_editors() -> Self {
         let container = Self::default();
 
@@ -258,6 +382,11 @@ impl PropertyEditorDefinitionContainer {
         container.insert(StringPropertyEditorDefinition);
         container.insert(InheritablePropertyEditorDefinition::<String>::new());
         container.insert(VecCollectionPropertyEditorDefinition::<String>::new());
+
+        // ImmutableString
+        container.insert(ImmutableStringPropertyEditorDefinition);
+        container.insert(InheritablePropertyEditorDefinition::<ImmutableString>::new());
+        container.insert(VecCollectionPropertyEditorDefinition::<ImmutableString>::new());
 
         // NumericType + InheritableVariable<NumericType>
         reg_property_editor! { container, NumericPropertyEditorDefinition: default, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize }
@@ -518,6 +647,9 @@ impl PropertyEditorDefinitionContainer {
         container
     }
 
+    /// Add an already boxed dynamic PropertyEditorDefinition to the list.
+    /// If this container already had a PropertyEditorDefinition for the same type,
+    /// the old property editor is removed and returned.
     pub fn insert_raw(
         &self,
         definition: Box<dyn PropertyEditorDefinition>,
@@ -531,12 +663,18 @@ impl PropertyEditorDefinitionContainer {
         )
     }
 
+    /// Consume a given collection of property editors and add each entry into this collection.
+    /// *Every* entry from the given collection is marked as having the current source type;
+    /// whatever sources they may have had in their original container is forgotten.
     pub fn merge(&self, other: Self) {
         for (_, definition) in other.definitions.into_inner() {
             self.insert_raw(definition.property_editor);
         }
     }
 
+    /// Move a PropertyEditorDefinition into the list, where it will automatically be boxed.
+    /// If this container already had a PropertyEditorDefinition for the same type,
+    /// the old property editor is removed and returned.
     pub fn insert<T>(&self, definition: T) -> Option<PropertyEditorDefinitionContainerEntry>
     where
         T: PropertyEditorDefinition + 'static,
@@ -550,6 +688,8 @@ impl PropertyEditorDefinitionContainer {
         )
     }
 
+    /// Inserts the default property editor for `Vec<T>` and `InheritableVariable<Vec<T>>`.
+    /// Panic if these types already have editor definitions.
     pub fn register_inheritable_vec_collection<T>(&self)
     where
         T: CollectionItem + FieldValue,
@@ -562,6 +702,14 @@ impl PropertyEditorDefinitionContainer {
             .is_none());
     }
 
+    /// Insert a [InspectablePropertyEditorDefinition] for the given type.
+    /// This is a creates a generic property editor that is just a nested
+    /// inspector for the properties of the value, with an [Expander]
+    /// to allow the inner inspector to be hidden.
+    ///
+    /// A property editor definition for `InheritableVariable<T>` is also inserted.
+    ///
+    /// Panic if these types already have editor definitions.
     pub fn register_inheritable_inspectable<T>(&self)
     where
         T: Reflect + FieldValue,
@@ -574,6 +722,10 @@ impl PropertyEditorDefinitionContainer {
             .is_none());
     }
 
+    /// Insert property editor definitions to allow enum T to be edited
+    /// using a dropdown list, as well as `InheritableVariable<T>`.
+    ///
+    /// Panic if these types already have editor definitions.
     pub fn register_inheritable_enum<T, E: Debug>(&self)
     where
         T: InspectableEnum + FieldValue + VariantNames + AsRef<str> + FromStr<Err = E> + Debug,
@@ -586,6 +738,10 @@ impl PropertyEditorDefinitionContainer {
             .is_none());
     }
 
+    /// Insert property editor definitions to allow `Option<T>` to be edited
+    /// as well as `InheritableVariable<T>`.
+    ///
+    /// Panic if these types already have editor definitions.
     pub fn register_inheritable_option<T>(&self)
     where
         T: InspectableEnum + FieldValue + Default,
@@ -598,12 +754,14 @@ impl PropertyEditorDefinitionContainer {
             .is_none());
     }
 
+    /// Direct read-only access to all the editor definitions.
     pub fn definitions(
         &self,
     ) -> RwLockReadGuard<FxHashMap<TypeId, PropertyEditorDefinitionContainerEntry>> {
         self.definitions.read()
     }
 
+    /// Direct and unrestricted access to all the editor definitions.
     pub fn definitions_mut(
         &self,
     ) -> RwLockWriteGuard<FxHashMap<TypeId, PropertyEditorDefinitionContainerEntry>> {
