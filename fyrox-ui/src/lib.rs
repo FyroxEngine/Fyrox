@@ -1070,30 +1070,6 @@ impl UserInterface {
         ui
     }
 
-    pub fn node_position_to_string(&self, mut handle: Handle<UiNode>) -> String {
-        let mut result: String = String::new();
-        loop {
-            if handle.is_none() {
-                result.push_str("NONE");
-                return result;
-            } else if !self.is_valid_handle(handle) {
-                result.push_str("Invalid Handle");
-                return result;
-            }
-            let node: &UiNode = &self.nodes[handle];
-            result.push_str(
-                format!(
-                    "{} #{} ({} children) <--",
-                    node.type_name(),
-                    handle.index(),
-                    node.children().len()
-                )
-                .as_str(),
-            );
-            handle = node.parent();
-        }
-    }
-
     pub fn keyboard_modifiers(&self) -> KeyboardModifiers {
         self.keyboard_modifiers
     }
