@@ -86,7 +86,13 @@ impl Control for InheritablePropertyEditor {
         }
 
         // Re-cast messages from inner editor as message from this editor.
-        if message.destination() == self.inner_editor {
+        // If anything is listening to messages from this editor, let them hear the messages from the inner
+        // editor as if they were coming from this editor, but *do not* re-cast messages to the inner editor
+        // to this editor. Particularly, when the inner editor is made invisible, that does not mean that
+        // this editor should be invisible.
+        if message.destination() == self.inner_editor
+            && message.direction == MessageDirection::FromWidget
+        {
             let mut clone = message.clone();
             clone.destination = self.handle;
             ui.send_message(clone);
