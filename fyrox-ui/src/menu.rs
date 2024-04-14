@@ -276,11 +276,19 @@ pub enum MenuItemPlacement {
     Right,
 }
 
+#[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Hash, Visit, Reflect, Default, Debug)]
+enum NavigationDirection {
+    #[default]
+    Horizontal,
+    Vertical,
+}
+
 #[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider)]
 #[doc(hidden)]
 pub struct ItemsContainer {
     #[doc(hidden)]
     pub items: InheritableVariable<Vec<Handle<UiNode>>>,
+    navigation_direction: NavigationDirection,
 }
 
 impl Deref for ItemsContainer {
@@ -705,6 +713,7 @@ impl MenuBuilder {
             active: false,
             items: ItemsContainer {
                 items: self.items.into(),
+                navigation_direction: NavigationDirection::Horizontal,
             },
         };
 
@@ -942,6 +951,7 @@ impl<'a, 'b> MenuItemBuilder<'a, 'b> {
             items_panel: items_panel.into(),
             items_container: ItemsContainer {
                 items: self.items.into(),
+                navigation_direction: NavigationDirection::Vertical,
             },
             placement: MenuItemPlacement::Right.into(),
             panel: panel.into(),
@@ -1055,63 +1065,74 @@ fn keyboard_navigation(
         return;
     };
 
-    match key_code {
-        KeyCode::ArrowLeft => {
-            ui.send_message(MenuItemMessage::close(
-                parent_menu_item_handle,
+    let (close_key, enter_key, next_key, prev_key) = match items_container.navigation_direction {
+        NavigationDirection::Horizontal => (
+            KeyCode::ArrowUp,
+            KeyCode::ArrowDown,
+            KeyCode::ArrowRight,
+            KeyCode::ArrowLeft,
+        ),
+        NavigationDirection::Vertical => (
+            KeyCode::ArrowLeft,
+            KeyCode::ArrowRight,
+            KeyCode::ArrowDown,
+            KeyCode::ArrowUp,
+        ),
+    };
+
+    if key_code == close_key {
+        ui.send_message(MenuItemMessage::close(
+            parent_menu_item_handle,
+            MessageDirection::ToWidget,
+            false,
+        ));
+    } else if key_code == enter_key {
+        if let Some(selected_item_index) = items_container.selected_item_index(ui) {
+            let selected_item = items_container.items[selected_item_index];
+
+            ui.send_message(MenuItemMessage::open(
+                selected_item,
                 MessageDirection::ToWidget,
-                false,
             ));
-        }
-        KeyCode::ArrowRight => {
-            if let Some(selected_item_index) = items_container.selected_item_index(ui) {
-                let selected_item = items_container.items[selected_item_index];
 
-                ui.send_message(MenuItemMessage::open(
-                    selected_item,
-                    MessageDirection::ToWidget,
-                ));
-
-                if let Some(selected_item_ref) = ui.try_get_of_type::<MenuItem>(selected_item) {
-                    if let Some(first_item) = selected_item_ref.items_container.first() {
-                        ui.send_message(MenuItemMessage::select(
-                            *first_item,
-                            MessageDirection::ToWidget,
-                            true,
-                        ));
-                    }
-                }
-            }
-        }
-        KeyCode::ArrowUp | KeyCode::ArrowDown => {
-            if let Some(selected_item_index) = items_container.selected_item_index(ui) {
-                let new_selection_index = match key_code {
-                    KeyCode::ArrowUp => selected_item_index.saturating_sub(1),
-                    KeyCode::ArrowDown => selected_item_index.saturating_add(1),
-                    _ => unreachable!(),
-                };
-
-                if let Some(new_selection) = items_container.items.get(new_selection_index) {
+            if let Some(selected_item_ref) = ui.try_get_of_type::<MenuItem>(selected_item) {
+                if let Some(first_item) = selected_item_ref.items_container.first() {
                     ui.send_message(MenuItemMessage::select(
-                        items_container.items[selected_item_index],
-                        MessageDirection::ToWidget,
-                        false,
-                    ));
-                    ui.send_message(MenuItemMessage::select(
-                        *new_selection,
+                        *first_item,
                         MessageDirection::ToWidget,
                         true,
                     ));
                 }
-            } else if let Some(first_item) = items_container.items.first() {
+            }
+        }
+    } else if key_code == next_key || key_code == prev_key {
+        if let Some(selected_item_index) = items_container.selected_item_index(ui) {
+            let new_selection_index = if key_code == next_key {
+                selected_item_index.saturating_add(1)
+            } else if key_code == prev_key {
+                selected_item_index.saturating_sub(1)
+            } else {
+                unreachable!()
+            };
+
+            if let Some(new_selection) = items_container.items.get(new_selection_index) {
                 ui.send_message(MenuItemMessage::select(
-                    *first_item,
+                    items_container.items[selected_item_index],
+                    MessageDirection::ToWidget,
+                    false,
+                ));
+                ui.send_message(MenuItemMessage::select(
+                    *new_selection,
                     MessageDirection::ToWidget,
                     true,
                 ));
             }
+        } else if let Some(first_item) = items_container.items.first() {
+            ui.send_message(MenuItemMessage::select(
+                *first_item,
+                MessageDirection::ToWidget,
+                true,
+            ));
         }
-
-        _ => (),
     }
 }
