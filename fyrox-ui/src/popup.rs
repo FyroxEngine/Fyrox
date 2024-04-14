@@ -98,6 +98,12 @@ pub enum Placement {
     },
 }
 
+impl Default for Placement {
+    fn default() -> Self {
+        Self::LeftTop(Default::default())
+    }
+}
+
 impl Placement {
     /// Returns a handle of the node to which this placement corresponds to.
     pub fn target(&self) -> Handle<UiNode> {
@@ -265,7 +271,7 @@ impl Placement {
 ///
 /// Popup widget can automatically adjust its position to always remain on screen, which is useful for tooltips, dropdown lists,
 /// etc. To enable this option, use [`PopupBuilder::with_smart_placement`] with `true` as the first argument.
-#[derive(Clone, Visit, Debug, Reflect, ComponentProvider)]
+#[derive(Default, Clone, Visit, Debug, Reflect, ComponentProvider)]
 pub struct Popup {
     /// Base widget of the popup.
     pub widget: Widget,
