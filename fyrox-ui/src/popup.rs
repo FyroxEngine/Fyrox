@@ -282,6 +282,8 @@ pub struct Popup {
     /// Smart placement prevents the popup from going outside of the screen bounds. It is usually used for tooltips,
     /// dropdown lists, etc. to prevent the content from being outside of the screen.
     pub smart_placement: InheritableVariable<bool>,
+    /// Message forwarding destination
+    pub owner: Handle<UiNode>,
 }
 
 crate::define_widget_deref!(Popup);
@@ -341,6 +343,7 @@ uuid_provider!(Popup = "1c641540-59eb-4ccd-a090-2173dab02245");
 
 impl Control for Popup {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
+        ui.forward_message(self.owner);
         self.widget.handle_routed_message(ui, message);
 
         if let Some(msg) = message.data::<PopupMessage>() {
@@ -488,6 +491,7 @@ pub struct PopupBuilder {
     stays_open: bool,
     content: Handle<UiNode>,
     smart_placement: bool,
+    owner: Handle<UiNode>,
 }
 
 impl PopupBuilder {
@@ -499,6 +503,7 @@ impl PopupBuilder {
             stays_open: false,
             content: Default::default(),
             smart_placement: true,
+            owner: Handle::NONE,
         }
     }
 
@@ -523,6 +528,12 @@ impl PopupBuilder {
     /// Sets the content of the popup.
     pub fn with_content(mut self, content: Handle<UiNode>) -> Self {
         self.content = content;
+        self
+    }
+
+    /// Set the destination for message forwarding.
+    pub fn with_owner(mut self, owner: Handle<UiNode>) -> Self {
+        self.owner = owner;
         self
     }
 
@@ -551,6 +562,7 @@ impl PopupBuilder {
             content: self.content.into(),
             smart_placement: self.smart_placement.into(),
             body: body.into(),
+            owner: self.owner,
         }
     }
 

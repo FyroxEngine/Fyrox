@@ -666,6 +666,7 @@ pub struct UserInterface {
     picking_stack: Vec<RestrictionEntry>,
     #[reflect(hidden)]
     bubble_queue: VecDeque<Handle<UiNode>>,
+    message_forward_destination: Handle<UiNode>,
     drag_context: DragContext,
     mouse_state: MouseState,
     keyboard_modifiers: KeyboardModifiers,
@@ -748,6 +749,7 @@ impl Clone for UserInterface {
             stack: self.stack.clone(),
             picking_stack: self.picking_stack.clone(),
             bubble_queue: self.bubble_queue.clone(),
+            message_forward_destination: Handle::NONE,
             drag_context: self.drag_context.clone(),
             mouse_state: self.mouse_state,
             keyboard_modifiers: self.keyboard_modifiers,
@@ -1046,6 +1048,7 @@ impl UserInterface {
             stack: Default::default(),
             picking_stack: Default::default(),
             bubble_queue: Default::default(),
+            message_forward_destination: Handle::NONE,
             drag_context: Default::default(),
             mouse_state: Default::default(),
             keyboard_modifiers: Default::default(),
@@ -1065,6 +1068,30 @@ impl UserInterface {
         }));
         ui.keyboard_focus_node = ui.root_canvas;
         ui
+    }
+
+    pub fn node_position_to_string(&self, mut handle: Handle<UiNode>) -> String {
+        let mut result: String = String::new();
+        loop {
+            if handle.is_none() {
+                result.push_str("NONE");
+                return result;
+            } else if !self.is_valid_handle(handle) {
+                result.push_str("Invalid Handle");
+                return result;
+            }
+            let node: &UiNode = &self.nodes[handle];
+            result.push_str(
+                format!(
+                    "{} #{} ({} children) <--",
+                    node.type_name(),
+                    handle.index(),
+                    node.children().len()
+                )
+                .as_str(),
+            );
+            handle = node.parent();
+        }
     }
 
     pub fn keyboard_modifiers(&self) -> KeyboardModifiers {
@@ -1673,6 +1700,12 @@ impl UserInterface {
         self.sender.send(message).unwrap()
     }
 
+    /// Redirect a currently bubbling message to an alternative node.
+    /// This does nothing except when called from [Control::handle_routed_message].
+    pub fn forward_message(&mut self, forward_destination: Handle<UiNode>) {
+        self.message_forward_destination = forward_destination;
+    }
+
     // Puts node at the end of children list of a parent node.
     //
     // # Notes
@@ -1698,24 +1731,36 @@ impl UserInterface {
         }
     }
 
+    // Gather chain of nodes from destination to root.
+    fn build_bubble_queue(&mut self, destination: Handle<UiNode>) {
+        self.bubble_queue.clear();
+        let mut current = destination;
+        while current.is_some() && self.nodes.is_valid_handle(current) {
+            self.bubble_queue.push_back(current);
+            current = self.nodes[current].parent();
+        }
+    }
+
     fn bubble_message(&mut self, message: &mut UiMessage) {
         scope_profile!();
 
         // Dispatch event using bubble strategy. Bubble routing means that message will go
         // from specified destination up on tree to tree root.
         // Gather chain of nodes from source to root.
-        self.bubble_queue.clear();
-        self.bubble_queue.push_back(message.destination());
-        let mut parent = self.nodes[message.destination()].parent();
-        while parent.is_some() && self.nodes.is_valid_handle(parent) {
-            self.bubble_queue.push_back(parent);
-            parent = self.nodes[parent].parent();
-        }
+        self.build_bubble_queue(message.destination());
+
+        // Clear forward destination
+        self.message_forward_destination = Handle::NONE;
 
         while let Some(handle) = self.bubble_queue.pop_front() {
             let (ticket, mut node) = self.nodes.take_reserve(handle);
             node.handle_routed_message(self, message);
             self.nodes.put_back(ticket, node);
+
+            if self.message_forward_destination.is_some() {
+                self.build_bubble_queue(self.message_forward_destination);
+                self.message_forward_destination = Handle::NONE;
+            }
         }
     }
 
@@ -1743,6 +1788,8 @@ impl UserInterface {
                 }
 
                 self.bubble_message(&mut message);
+
+                let already_handled: bool = message.handled();
 
                 if let Some(msg) = message.data::<WidgetMessage>() {
                     match msg {
@@ -1967,7 +2014,8 @@ impl UserInterface {
                             }
                         }
                         WidgetMessage::MouseDown { button, .. } => {
-                            if *button == MouseButton::Right {
+                            // Open any available context menus on right-click, so long as the right click did not do something else.
+                            if !already_handled && *button == MouseButton::Right {
                                 if let Some(picked) = self.nodes.try_borrow(self.picked_node) {
                                     // Get the context menu from the current node or a parent node
                                     let (context_menu, target) = if picked.context_menu().is_some()
