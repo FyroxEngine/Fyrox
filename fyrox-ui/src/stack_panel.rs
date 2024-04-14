@@ -249,14 +249,22 @@ impl StackPanelBuilder {
         self
     }
 
+    /// Finishes stack panel building.
+    pub fn build_stack_panel(self) -> StackPanel {
+        StackPanel {
+            widget: self.widget_builder.build(),
+            orientation: self.orientation.unwrap_or(Orientation::Vertical).into(),
+        }
+    }
+
+    /// Finishes stack panel building and wraps the result in a UI node.
+    pub fn build_node(self) -> UiNode {
+        UiNode::new(self.build_stack_panel())
+    }
+
     /// Finishes stack panel building and adds the new stack panel widget instance to the user interface and
     /// returns its handle.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
-        let stack_panel = StackPanel {
-            widget: self.widget_builder.build(),
-            orientation: self.orientation.unwrap_or(Orientation::Vertical).into(),
-        };
-
-        ctx.add_node(UiNode::new(stack_panel))
+        ctx.add_node(self.build_node())
     }
 }

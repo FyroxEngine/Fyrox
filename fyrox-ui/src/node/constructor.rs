@@ -21,11 +21,12 @@ use crate::{
     inspector::Inspector,
     key::{HotKeyEditor, KeyBindingEditor},
     list_view::{ListView, ListViewItem},
-    menu::{Menu, MenuItem},
+    menu::{Menu, MenuItem, MenuItemsPanel},
     messagebox::MessageBox,
     nine_patch::NinePatch,
     numeric::NumericUpDown,
     path::PathEditor,
+    popup::Popup,
     progress_bar::ProgressBar,
     range::RangeEditor,
     rect::RectEditor,
@@ -94,6 +95,7 @@ impl WidgetConstructorContainer {
         container.add::<ListView>();
         container.add::<Menu>();
         container.add::<MenuItem>();
+        container.add::<MenuItemsPanel>();
         container.add::<MessageBox>();
         container.add::<NinePatch>();
 
@@ -164,6 +166,8 @@ impl WidgetConstructorContainer {
         container.add::<FileSelectorField>();
 
         container.add::<Inspector>();
+
+        container.add::<Popup>();
 
         container.add::<VecEditor<u8, 2>>();
         container.add::<VecEditor<i8, 2>>();
