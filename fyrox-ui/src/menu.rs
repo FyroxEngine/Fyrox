@@ -317,6 +317,26 @@ impl ItemsContainer {
 
         None
     }
+
+    fn next_item_to_select_in_dir(&self, ui: &UserInterface, dir: isize) -> Option<Handle<UiNode>> {
+        self.selected_item_index(ui)
+            .map(|i| i as isize)
+            .and_then(|mut index| {
+                // Do a full circle search.
+                let count = self.items.len() as isize;
+                for _ in 0..count {
+                    index = (index + dir) % count;
+                    let handle = self.items.get(index as usize).cloned();
+                    if let Some(item) = handle.and_then(|h| ui.try_get_of_type::<MenuItem>(h)) {
+                        if item.enabled() {
+                            return handle;
+                        }
+                    }
+                }
+
+                None
+            })
+    }
 }
 
 /// Menu item is a widget with arbitrary content, that has a "floating" panel (popup) for sub-items if the menu item. This was menu items can form
@@ -1107,22 +1127,22 @@ fn keyboard_navigation(
         }
     } else if key_code == next_key || key_code == prev_key {
         if let Some(selected_item_index) = items_container.selected_item_index(ui) {
-            let new_selection_index = if key_code == next_key {
-                selected_item_index.saturating_add(1)
+            let dir = if key_code == next_key {
+                1
             } else if key_code == prev_key {
-                selected_item_index.saturating_sub(1)
+                -1
             } else {
                 unreachable!()
             };
 
-            if let Some(new_selection) = items_container.items.get(new_selection_index) {
+            if let Some(new_selection) = items_container.next_item_to_select_in_dir(ui, dir) {
                 ui.send_message(MenuItemMessage::select(
                     items_container.items[selected_item_index],
                     MessageDirection::ToWidget,
                     false,
                 ));
                 ui.send_message(MenuItemMessage::select(
-                    *new_selection,
+                    new_selection,
                     MessageDirection::ToWidget,
                     true,
                 ));
