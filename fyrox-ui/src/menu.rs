@@ -209,8 +209,16 @@ impl Control for Menu {
                 }
             }
         } else if let Some(WidgetMessage::KeyDown(key_code)) = message.data() {
-            if !message.handled() && keyboard_navigation(ui, *key_code, self, self.handle) {
-                message.set_handled(true);
+            if !message.handled() {
+                if keyboard_navigation(ui, *key_code, self, self.handle) {
+                    message.set_handled(true);
+                } else if *key_code == KeyCode::Escape {
+                    ui.send_message(MenuMessage::deactivate(
+                        self.handle,
+                        MessageDirection::ToWidget,
+                    ));
+                    message.set_handled(true);
+                }
             }
         }
     }
