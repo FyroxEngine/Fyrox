@@ -209,9 +209,8 @@ impl Control for Menu {
                 }
             }
         } else if let Some(WidgetMessage::KeyDown(key_code)) = message.data() {
-            if !message.handled() {
+            if !message.handled() && keyboard_navigation(ui, *key_code, self, self.handle) {
                 message.set_handled(true);
-                keyboard_navigation(ui, *key_code, self, self.handle);
             }
         }
     }
@@ -1045,14 +1044,15 @@ impl Control for MenuItemsPanel {
 
         if let Some(WidgetMessage::KeyDown(key_code)) = message.data() {
             if !message.handled() {
-                message.set_handled(true);
                 if let Some(parent_menu_item) = ui.try_get(self.parent_menu_item) {
-                    keyboard_navigation(
+                    if keyboard_navigation(
                         ui,
                         *key_code,
                         parent_menu_item.deref(),
                         self.parent_menu_item,
-                    );
+                    ) {
+                        message.set_handled(true);
+                    }
                 }
             }
         }
@@ -1077,12 +1077,12 @@ fn keyboard_navigation(
     key_code: KeyCode,
     parent_menu_item: &dyn Control,
     parent_menu_item_handle: Handle<UiNode>,
-) {
+) -> bool {
     let Some(items_container) = parent_menu_item
         .query_component_ref(TypeId::of::<ItemsContainer>())
         .and_then(|c| c.downcast_ref::<ItemsContainer>())
     else {
-        return;
+        return false;
     };
 
     let (close_key, enter_key, next_key, prev_key) = match items_container.navigation_direction {
@@ -1106,6 +1106,7 @@ fn keyboard_navigation(
             MessageDirection::ToWidget,
             false,
         ));
+        return true;
     } else if key_code == enter_key {
         if let Some(selected_item_index) = items_container.selected_item_index(ui) {
             let selected_item = items_container.items[selected_item_index];
@@ -1125,6 +1126,7 @@ fn keyboard_navigation(
                 }
             }
         }
+        return true;
     } else if key_code == next_key || key_code == prev_key {
         if let Some(selected_item_index) = items_container.selected_item_index(ui) {
             let dir = if key_code == next_key {
@@ -1146,6 +1148,8 @@ fn keyboard_navigation(
                     MessageDirection::ToWidget,
                     true,
                 ));
+
+                return true;
             }
         } else if let Some(first_item) = items_container.items.first() {
             ui.send_message(MenuItemMessage::select(
@@ -1153,6 +1157,10 @@ fn keyboard_navigation(
                 MessageDirection::ToWidget,
                 true,
             ));
+
+            return true;
         }
     }
+
+    false
 }
