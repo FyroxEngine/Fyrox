@@ -324,7 +324,11 @@ impl ItemsContainer {
                 // Do a full circle search.
                 let count = self.items.len() as isize;
                 for _ in 0..count {
-                    index = (index + dir) % count;
+                    index += dir;
+                    if index < 0 {
+                        index += count;
+                    }
+                    index %= count;
                     let handle = self.items.get(index as usize).cloned();
                     if let Some(item) = handle.and_then(|h| ui.try_get_of_type::<MenuItem>(h)) {
                         if item.enabled() {
