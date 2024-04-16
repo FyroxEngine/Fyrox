@@ -777,6 +777,13 @@ pub struct Widget {
     /// A flag, that defines whether the widget will receive any OS events or not. Basically, it defines whether [crate::Control::handle_os_event]
     /// is called or not.
     pub handle_os_events: bool,
+    /// Defines the order in which this widget will get keyboard focus when Tab key is pressed.
+    /// If set to [`None`], Tab key won't do anything on such widget. Default is [`None`].
+    #[visit(optional)]
+    pub tab_index: InheritableVariable<Option<usize>>,
+    /// A flag, that defines whether the Tab key navigation is enabled or disabled for this widget.
+    #[visit(optional)]
+    pub tab_stop: InheritableVariable<bool>,
     /// A flag, that defines whether the widget will be update or not. Basically, it defines whether [crate::Control::update]
     /// is called or not.
     #[visit(optional)]
@@ -1758,6 +1765,11 @@ pub struct WidgetBuilder {
     pub clip_to_bounds: bool,
     /// Unique id of the widget.
     pub id: Uuid,
+    /// Defines the order in which this widget will get keyboard focus when Tab key is pressed.
+    /// If set to [`None`], Tab key won't do anything on such widget. Default is [`None`].
+    pub tab_index: Option<usize>,
+    /// A flag, that defines whether the Tab key navigation is enabled or disabled for this widget.
+    pub tab_stop: bool,
 }
 
 impl Default for WidgetBuilder {
@@ -1804,6 +1816,8 @@ impl WidgetBuilder {
             render_transform: Matrix3::identity(),
             clip_to_bounds: true,
             id: Uuid::new_v4(),
+            tab_index: None,
+            tab_stop: false,
         }
     }
 
@@ -2042,6 +2056,18 @@ impl WidgetBuilder {
         self
     }
 
+    /// Sets the desired tab index.
+    pub fn with_tab_index(mut self, tab_index: Option<usize>) -> Self {
+        self.tab_index = tab_index;
+        self
+    }
+
+    /// Sets a flag, that defines whether the Tab key navigation is enabled or disabled for this widget.
+    pub fn with_tab_stop(mut self, tab_stop: bool) -> Self {
+        self.tab_stop = tab_stop;
+        self
+    }
+
     /// Finishes building of the base widget.
     pub fn build(self) -> Widget {
         Widget {
@@ -2097,6 +2123,8 @@ impl WidgetBuilder {
             context_menu: self.context_menu,
             preview_messages: self.preview_messages,
             handle_os_events: self.handle_os_events,
+            tab_index: self.tab_index.into(),
+            tab_stop: self.tab_stop.into(),
             need_update: self.need_update,
             ignore_layout_rounding: false,
             layout_events_sender: None,

@@ -213,6 +213,7 @@ pub mod loader;
 pub mod menu;
 pub mod message;
 pub mod messagebox;
+pub mod navigation;
 pub mod nine_patch;
 mod node;
 pub mod numeric;
