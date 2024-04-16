@@ -33,6 +33,7 @@ use crate::{
     message::MessageSender,
     scene::{commands::ChangeSelectionCommand, Selection},
 };
+use fyrox::gui::menu::ContextMenuBuilder;
 
 pub struct CanvasContextMenu {
     create_play_animation: Handle<UiNode>,
@@ -50,32 +51,35 @@ impl CanvasContextMenu {
         let create_blend_animations;
         let create_blend_by_index;
         let create_blend_space;
-        let menu = PopupBuilder::new(
-            WidgetBuilder::new()
-                .with_enabled(false) // Disabled by default.
-                .with_visibility(false),
-        )
-        .with_content(
-            StackPanelBuilder::new(
+        let menu = ContextMenuBuilder::new(
+            PopupBuilder::new(
                 WidgetBuilder::new()
-                    .with_child({
-                        create_play_animation = create_menu_item("Play Animation", vec![], ctx);
-                        create_play_animation
-                    })
-                    .with_child({
-                        create_blend_animations = create_menu_item("Blend Animations", vec![], ctx);
-                        create_blend_animations
-                    })
-                    .with_child({
-                        create_blend_by_index = create_menu_item("Blend By Index", vec![], ctx);
-                        create_blend_by_index
-                    })
-                    .with_child({
-                        create_blend_space = create_menu_item("Blend Space", vec![], ctx);
-                        create_blend_space
-                    }),
+                    .with_enabled(false) // Disabled by default.
+                    .with_visibility(false),
             )
-            .build(ctx),
+            .with_content(
+                StackPanelBuilder::new(
+                    WidgetBuilder::new()
+                        .with_child({
+                            create_play_animation = create_menu_item("Play Animation", vec![], ctx);
+                            create_play_animation
+                        })
+                        .with_child({
+                            create_blend_animations =
+                                create_menu_item("Blend Animations", vec![], ctx);
+                            create_blend_animations
+                        })
+                        .with_child({
+                            create_blend_by_index = create_menu_item("Blend By Index", vec![], ctx);
+                            create_blend_by_index
+                        })
+                        .with_child({
+                            create_blend_space = create_menu_item("Blend Space", vec![], ctx);
+                            create_blend_space
+                        }),
+                )
+                .build(ctx),
+            ),
         )
         .build(ctx);
         let menu = RcUiNodeHandle::new(menu, ctx.sender());
@@ -187,8 +191,8 @@ impl NodeContextMenu {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let remove;
         let set_as_root;
-        let menu = PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
-            .with_content(
+        let menu = ContextMenuBuilder::new(
+            PopupBuilder::new(WidgetBuilder::new().with_visibility(false)).with_content(
                 StackPanelBuilder::new(
                     WidgetBuilder::new()
                         .with_child({
@@ -201,8 +205,9 @@ impl NodeContextMenu {
                         }),
                 )
                 .build(ctx),
-            )
-            .build(ctx);
+            ),
+        )
+        .build(ctx);
         let menu = RcUiNodeHandle::new(menu, ctx.sender());
 
         Self {
@@ -279,15 +284,16 @@ pub struct ConnectionContextMenu {
 impl ConnectionContextMenu {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let remove;
-        let menu = PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
-            .with_content(
+        let menu = ContextMenuBuilder::new(
+            PopupBuilder::new(WidgetBuilder::new().with_visibility(false)).with_content(
                 StackPanelBuilder::new(WidgetBuilder::new().with_child({
                     remove = create_menu_item("Remove Connection", vec![], ctx);
                     remove
                 }))
                 .build(ctx),
-            )
-            .build(ctx);
+            ),
+        )
+        .build(ctx);
         let menu = RcUiNodeHandle::new(menu, ctx.sender());
 
         Self {

@@ -21,7 +21,7 @@ use crate::{
     inspector::Inspector,
     key::{HotKeyEditor, KeyBindingEditor},
     list_view::{ListView, ListViewItem},
-    menu::{Menu, MenuItem, MenuItemsPanel},
+    menu::{ContextMenu, Menu, MenuItem},
     messagebox::MessageBox,
     nine_patch::NinePatch,
     numeric::NumericUpDown,
@@ -95,7 +95,7 @@ impl WidgetConstructorContainer {
         container.add::<ListView>();
         container.add::<Menu>();
         container.add::<MenuItem>();
-        container.add::<MenuItemsPanel>();
+        container.add::<ContextMenu>();
         container.add::<MessageBox>();
         container.add::<NinePatch>();
 

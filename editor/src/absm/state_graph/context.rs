@@ -27,6 +27,7 @@ use crate::{
     message::MessageSender,
     scene::{commands::ChangeSelectionCommand, Selection},
 };
+use fyrox::gui::menu::ContextMenuBuilder;
 use std::fmt::Debug;
 
 use super::fetch_state_node_model_handle;
@@ -43,8 +44,8 @@ impl CanvasContextMenu {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let create_state;
         let connect_all_nodes;
-        let menu = PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
-            .with_content(
+        let menu = ContextMenuBuilder::new(
+            PopupBuilder::new(WidgetBuilder::new().with_visibility(false)).with_content(
                 StackPanelBuilder::new(WidgetBuilder::new().with_children([
                     {
                         create_state = create_menu_item("Create State", vec![], ctx);
@@ -56,8 +57,9 @@ impl CanvasContextMenu {
                     },
                 ]))
                 .build(ctx),
-            )
-            .build(ctx);
+            ),
+        )
+        .build(ctx);
         let menu = RcUiNodeHandle::new(menu, ctx.sender());
 
         Self {
@@ -145,8 +147,8 @@ impl NodeContextMenu {
         let set_as_entry_state;
         let enter_state;
         let connect_to_all_nodes;
-        let menu = PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
-            .with_content(
+        let menu = ContextMenuBuilder::new(
+            PopupBuilder::new(WidgetBuilder::new().with_visibility(false)).with_content(
                 StackPanelBuilder::new(
                     WidgetBuilder::new()
                         .with_child({
@@ -176,8 +178,9 @@ impl NodeContextMenu {
                         }),
                 )
                 .build(ctx),
-            )
-            .build(ctx);
+            ),
+        )
+        .build(ctx);
         let menu = RcUiNodeHandle::new(menu, ctx.sender());
 
         Self {
@@ -319,15 +322,16 @@ pub struct TransitionContextMenu {
 impl TransitionContextMenu {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let remove;
-        let menu = PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
-            .with_content(
+        let menu = ContextMenuBuilder::new(
+            PopupBuilder::new(WidgetBuilder::new().with_visibility(false)).with_content(
                 StackPanelBuilder::new(WidgetBuilder::new().with_child({
                     remove = create_menu_item("Remove Transition", vec![], ctx);
                     remove
                 }))
                 .build(ctx),
-            )
-            .build(ctx);
+            ),
+        )
+        .build(ctx);
         let menu = RcUiNodeHandle::new(menu, ctx.sender());
 
         Self {

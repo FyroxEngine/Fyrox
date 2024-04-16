@@ -28,6 +28,7 @@ use crate::{
     gui::{make_dropdown_list_option, make_image_button_with_tooltip},
     load_image, Brush, Color, DropdownListBuilder, Engine,
 };
+use fyrox::gui::menu::ContextMenuBuilder;
 use std::sync::mpsc::Receiver;
 
 struct ContextMenu {
@@ -39,8 +40,8 @@ struct ContextMenu {
 impl ContextMenu {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let copy;
-        let menu = PopupBuilder::new(WidgetBuilder::new())
-            .with_content(
+        let menu = ContextMenuBuilder::new(
+            PopupBuilder::new(WidgetBuilder::new()).with_content(
                 StackPanelBuilder::new(WidgetBuilder::new().with_child({
                     copy = MenuItemBuilder::new(WidgetBuilder::new())
                         .with_content(MenuItemContent::text("Copy"))
@@ -48,8 +49,9 @@ impl ContextMenu {
                     copy
                 }))
                 .build(ctx),
-            )
-            .build(ctx);
+            ),
+        )
+        .build(ctx);
         let menu = RcUiNodeHandle::new(menu, ctx.sender());
 
         Self {

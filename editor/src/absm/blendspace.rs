@@ -42,6 +42,7 @@ use crate::{
     message::MessageSender,
     send_sync_message,
 };
+use fyrox::gui::menu::ContextMenuBuilder;
 use std::{
     cell::Cell,
     fmt::{Debug, Formatter},
@@ -486,8 +487,8 @@ impl BlendSpaceFieldBuilder {
     fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let add_point;
         let remove_point;
-        let menu = PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
-            .with_content(
+        let menu = ContextMenuBuilder::new(
+            PopupBuilder::new(WidgetBuilder::new().with_visibility(false)).with_content(
                 StackPanelBuilder::new(
                     WidgetBuilder::new()
                         .with_child({
@@ -500,8 +501,9 @@ impl BlendSpaceFieldBuilder {
                         }),
                 )
                 .build(ctx),
-            )
-            .build(ctx);
+            ),
+        )
+        .build(ctx);
         let menu = RcUiNodeHandle::new(menu, ctx.sender());
 
         let field = BlendSpaceField {

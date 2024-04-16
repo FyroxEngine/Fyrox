@@ -52,6 +52,7 @@ use crate::{
     Message, Mode,
 };
 use fyrox::core::parking_lot::RwLock;
+use fyrox::gui::menu::ContextMenuBuilder;
 use std::{
     ffi::OsStr,
     path::{Path, PathBuf},
@@ -111,8 +112,8 @@ impl ContextMenu {
         let copy_path;
         let copy_file_name;
         let dependencies;
-        let menu = PopupBuilder::new(WidgetBuilder::new())
-            .with_content(
+        let menu = ContextMenuBuilder::new(
+            PopupBuilder::new(WidgetBuilder::new()).with_content(
                 StackPanelBuilder::new(
                     WidgetBuilder::new()
                         .with_child({
@@ -153,8 +154,9 @@ impl ContextMenu {
                         }),
                 )
                 .build(ctx),
-            )
-            .build(ctx);
+            ),
+        )
+        .build(ctx);
         let menu = RcUiNodeHandle::new(menu, ctx.sender());
 
         Self {
