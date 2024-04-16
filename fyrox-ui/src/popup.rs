@@ -35,6 +35,10 @@ pub enum PopupMessage {
     /// Used to adjust position of a popup widget, so it will be on screen. Use [`PopupMessage::adjust_position`] to create
     /// the message.
     AdjustPosition,
+    /// Used to set the owner of a Popup. The owner will receive Event messages.
+    Owner(Handle<UiNode>),
+    /// Sent by the Popup to its owner when handling messages from the Popup's children.
+    RelayedMessage(UiMessage),
 }
 
 impl PopupMessage {
@@ -57,6 +61,14 @@ impl PopupMessage {
     define_constructor!(
         /// Creates [`PopupMessage::AdjustPosition`] message.
         PopupMessage:AdjustPosition => fn adjust_position(), layout: true
+    );
+    define_constructor!(
+        /// Creates [`PopupMessage::Owner`] message.
+        PopupMessage:Owner => fn owner(Handle<UiNode>), layout: false
+    );
+    define_constructor!(
+        /// Creates [`PopupMessage::RelayedMessage`] message.
+        PopupMessage:RelayedMessage => fn relayed_message(UiMessage), layout: false
     );
 }
 
@@ -288,6 +300,8 @@ pub struct Popup {
     /// Smart placement prevents the popup from going outside of the screen bounds. It is usually used for tooltips,
     /// dropdown lists, etc. to prevent the content from being outside of the screen.
     pub smart_placement: InheritableVariable<bool>,
+    /// The destination for Event messages that relay messages from the children of this popup.
+    pub owner: Handle<UiNode>,
 }
 
 crate::define_widget_deref!(Popup);
@@ -452,6 +466,10 @@ impl Control for Popup {
                             ));
                         }
                     }
+                    PopupMessage::Owner(owner) => {
+                        self.owner = *owner;
+                    }
+                    PopupMessage::RelayedMessage(_) => (),
                 }
             }
         } else if let Some(WidgetMessage::KeyDown(key)) = message.data() {
@@ -459,6 +477,13 @@ impl Control for Popup {
                 ui.send_message(PopupMessage::close(self.handle, MessageDirection::ToWidget));
                 message.set_handled(true);
             }
+        }
+        if ui.is_valid_handle(self.owner) && !message.handled() {
+            ui.send_message(PopupMessage::relayed_message(
+                self.owner,
+                MessageDirection::ToWidget,
+                message.clone(),
+            ));
         }
     }
 
@@ -557,6 +582,7 @@ impl PopupBuilder {
             content: self.content.into(),
             smart_placement: self.smart_placement.into(),
             body: body.into(),
+            owner: Handle::NONE,
         }
     }
 

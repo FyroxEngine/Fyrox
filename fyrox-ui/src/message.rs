@@ -251,7 +251,6 @@ where
 /// ```
 ///
 ///
-#[derive(Debug)]
 pub struct UiMessage {
     /// Useful flag to check if a message was already handled. It could be used to mark messages as "handled" to prevent
     /// any further responses to them. It is especially useful in bubble message routing, when a message is passed through
@@ -281,6 +280,30 @@ pub struct UiMessage {
 
     /// A custom user flags. Use it if `handled` flag is not enough.
     pub flags: u64,
+}
+
+impl Debug for UiMessage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "UiMessage({}:({})",
+            match self.direction {
+                MessageDirection::ToWidget => "To",
+                MessageDirection::FromWidget => "From",
+            },
+            self.destination
+        )?;
+        if self.handled.get() {
+            write!(f, ",handled")?;
+        }
+        if self.perform_layout.get() {
+            write!(f, ",layout")?;
+        }
+        if self.flags != 0 {
+            write!(f, ",flags:{}", self.flags)?;
+        }
+        write!(f, "):{:?}", self.data)
+    }
 }
 
 impl Clone for UiMessage {
