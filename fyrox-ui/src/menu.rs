@@ -413,14 +413,17 @@ fn is_any_menu_item_contains_point(ui: &UserInterface, pt: Vector2<f32>) -> bool
 fn close_menu_chain(from: Handle<UiNode>, ui: &UserInterface) {
     let mut handle = from;
     while handle.is_some() {
-        let popup_handle = ui.find_handle_up(handle, &mut |n| n.has_component::<MenuItemsPanel>());
+        let popup_handle = ui.find_handle_up(handle, &mut |n| n.has_component::<Popup>());
+
+        if popup_handle.is_none() {
+            break;
+        }
+        ui.send_message(PopupMessage::close(
+            popup_handle,
+            MessageDirection::ToWidget,
+        ));
 
         if let Some(panel) = ui.node(popup_handle).query_component::<MenuItemsPanel>() {
-            ui.send_message(PopupMessage::close(
-                popup_handle,
-                MessageDirection::ToWidget,
-            ));
-
             // Continue search from parent menu item of popup.
             handle = panel.parent_menu_item;
         } else {
@@ -465,6 +468,7 @@ impl Control for MenuItem {
                 WidgetMessage::MouseUp { .. } => {
                     if !message.handled() {
                         if self.items_container.is_empty() || *self.clickable_when_not_empty {
+                            println!("Sending click from #{}", self.handle.index());
                             ui.send_message(MenuItemMessage::click(
                                 self.handle(),
                                 MessageDirection::ToWidget,

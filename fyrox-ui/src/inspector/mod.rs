@@ -8,8 +8,7 @@ use crate::{
     core::{
         algebra::Vector2,
         pool::Handle,
-        reflect::prelude::*,
-        reflect::{CastError, Reflect},
+        reflect::{prelude::*, CastError, Reflect},
         type_traits::prelude::*,
         visitor::prelude::*,
     },
@@ -23,7 +22,7 @@ use crate::{
     },
     menu::{MenuItemBuilder, MenuItemContent, MenuItemMessage},
     message::{MessageDirection, UiMessage},
-    popup::PopupBuilder,
+    popup::{PopupBuilder, PopupMessage},
     stack_panel::StackPanelBuilder,
     text::TextBuilder,
     utils::{make_arrow, make_simple_tooltip, ArrowDirection},
@@ -36,7 +35,6 @@ use fyrox_graph::BaseSceneGraph;
 use std::sync::Arc;
 use std::{
     any::{Any, TypeId},
-    cell::Cell,
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
 };
@@ -543,7 +541,6 @@ pub struct Menu {
     pub copy_value_as_string: Handle<UiNode>,
     /// The reference-counted handle of the menu as a whole.
     pub menu: Option<RcUiNodeHandle>,
-    pub target: Cell<Handle<UiNode>>,
 }
 
 /// The widget handle and associated information that represents what an [Inspector] is currently displaying.
@@ -906,7 +903,6 @@ impl InspectorContext {
             menu: Menu {
                 copy_value_as_string,
                 menu: Some(menu),
-                target: Default::default(),
             },
             entries,
             property_definitions: definition_container,
@@ -1025,6 +1021,31 @@ impl Control for Inspector {
             }
         }
 
+        if let Some(PopupMessage::Event(popup_message)) = message.data() {
+            if popup_message.destination() == self.context.menu.copy_value_as_string {
+                if let Some(MenuItemMessage::Click) = popup_message.data() {
+                    // The child that was originally clicked to open the menu was automatically set to be
+                    // the owner of the popup, and so event messages have it as the destination.
+                    let mut parent_handle = message.destination();
+
+                    // Crawl up from the destination to find the actual editor and do the copy.
+                    while let Some(parent) = ui.try_get(parent_handle) {
+                        for entry in self.context.entries.iter() {
+                            if entry.property_container == parent_handle {
+                                let _ = ui
+                                    .clipboard_mut()
+                                    .unwrap()
+                                    .set_contents(entry.property_debug_output.clone());
+                                break;
+                            }
+                        }
+
+                        parent_handle = parent.parent;
+                    }
+                }
+            }
+        }
+
         // Check each message from descendant widget and try to translate it to
         // PropertyChanged message.
         if message.flags != self.context.sync_flag {
@@ -1051,33 +1072,6 @@ impl Control for Inspector {
                             MessageDirection::FromWidget,
                             args,
                         ));
-                    }
-                }
-            }
-        }
-    }
-
-    fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
-        if message.destination() == self.context.menu.copy_value_as_string {
-            if let Some(MenuItemMessage::Click) = message.data() {
-                if let Some(menu_handle) = self.context.menu.menu.as_ref().map(|h| h.handle()) {
-                    let position = ui.node(menu_handle).screen_position();
-
-                    let mut parent_handle =
-                        ui.hit_test_unrestricted(position - Vector2::new(1.0, 1.0));
-
-                    while let Some(parent) = ui.try_get(parent_handle) {
-                        for entry in self.context.entries.iter() {
-                            if entry.property_container == parent_handle {
-                                let _ = ui
-                                    .clipboard_mut()
-                                    .unwrap()
-                                    .set_contents(entry.property_debug_output.clone());
-                                break;
-                            }
-                        }
-
-                        parent_handle = parent.parent;
                     }
                 }
             }
@@ -1119,7 +1113,6 @@ impl InspectorBuilder {
             widget: self
                 .widget_builder
                 .with_child(self.context.stack_panel)
-                .with_preview_messages(true)
                 .build(),
             context: self.context,
         };
