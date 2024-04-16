@@ -1,3 +1,4 @@
+use crate::menu::ContextMenuBuilder;
 use crate::{
     brush::Brush,
     core::{
@@ -1310,8 +1311,8 @@ impl CurveEditorBuilder {
         let key_properties;
         let key_value;
         let key_location;
-        let context_menu = PopupBuilder::new(WidgetBuilder::new())
-            .with_content(
+        let context_menu = ContextMenuBuilder::new(
+            PopupBuilder::new(WidgetBuilder::new()).with_content(
                 StackPanelBuilder::new(
                     WidgetBuilder::new()
                         .with_child({
@@ -1414,8 +1415,9 @@ impl CurveEditorBuilder {
                         }),
                 )
                 .build(ctx),
-            )
-            .build(ctx);
+            ),
+        )
+        .build(ctx);
         let context_menu = RcUiNodeHandle::new(context_menu, ctx.sender());
 
         if self.widget_builder.foreground.is_none() {

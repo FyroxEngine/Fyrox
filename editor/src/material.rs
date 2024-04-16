@@ -50,6 +50,7 @@ use crate::{
     scene::commands::material::{SetMaterialPropertyValueCommand, SetMaterialShaderCommand},
     send_sync_message, Engine, Message,
 };
+use fyrox::gui::menu::ContextMenuBuilder;
 use std::{path::Path, sync::Arc};
 
 struct TextureContextMenu {
@@ -63,8 +64,8 @@ impl TextureContextMenu {
     fn new(ctx: &mut BuildContext) -> Self {
         let show_in_asset_browser;
         let unassign;
-        let popup = PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
-            .with_content(
+        let popup = ContextMenuBuilder::new(
+            PopupBuilder::new(WidgetBuilder::new().with_visibility(false)).with_content(
                 StackPanelBuilder::new(
                     WidgetBuilder::new()
                         .with_child({
@@ -81,8 +82,9 @@ impl TextureContextMenu {
                         }),
                 )
                 .build(ctx),
-            )
-            .build(ctx);
+            ),
+        )
+        .build(ctx);
         let popup = RcUiNodeHandle::new(popup, ctx.sender());
 
         Self {

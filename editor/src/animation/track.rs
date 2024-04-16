@@ -72,6 +72,7 @@ use crate::{
     },
     send_sync_message, utils,
 };
+use fyrox::gui::menu::ContextMenuBuilder;
 use std::{
     any::TypeId,
     cmp::Ordering,
@@ -105,8 +106,8 @@ impl TrackContextMenu {
         let set_target;
         let rebind;
         let duplicate;
-        let menu = PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
-            .with_content(
+        let menu = ContextMenuBuilder::new(
+            PopupBuilder::new(WidgetBuilder::new().with_visibility(false)).with_content(
                 StackPanelBuilder::new(
                     WidgetBuilder::new()
                         .with_child({
@@ -127,8 +128,9 @@ impl TrackContextMenu {
                         }),
                 )
                 .build(ctx),
-            )
-            .build(ctx);
+            ),
+        )
+        .build(ctx);
         let menu = RcUiNodeHandle::new(menu, ctx.sender());
 
         Self {

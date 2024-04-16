@@ -2,6 +2,7 @@
 //! structure or enumeration recursively. It's primary usage is provide unified and simple way of introspection.
 //! See [`Inspector`] docs for more info and usage examples.
 
+use crate::menu::ContextMenuBuilder;
 use crate::{
     border::BorderBuilder,
     check_box::CheckBoxBuilder,
@@ -881,8 +882,8 @@ impl InspectorContext {
         });
 
         let copy_value_as_string;
-        let menu = PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
-            .with_content(
+        let menu = ContextMenuBuilder::new(
+            PopupBuilder::new(WidgetBuilder::new().with_visibility(false)).with_content(
                 StackPanelBuilder::new(WidgetBuilder::new().with_child({
                     copy_value_as_string = MenuItemBuilder::new(WidgetBuilder::new())
                         .with_content(MenuItemContent::text("Copy Value as String"))
@@ -890,8 +891,9 @@ impl InspectorContext {
                     copy_value_as_string
                 }))
                 .build(ctx),
-            )
-            .build(ctx);
+            ),
+        )
+        .build(ctx);
         let menu = RcUiNodeHandle::new(menu, ctx.sender());
 
         let stack_panel = StackPanelBuilder::new(

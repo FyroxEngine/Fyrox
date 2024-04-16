@@ -375,6 +375,13 @@ pub struct MenuItem {
 
 crate::define_widget_deref!(MenuItem);
 
+impl MenuItem {
+    fn is_opened(&self, ui: &UserInterface) -> bool {
+        ui.try_get_of_type::<ContextMenu>(*self.items_panel)
+            .map_or(false, |items_panel| *items_panel.popup.is_open)
+    }
+}
+
 // MenuItem uses popup to show its content, popup can be top-most only if it is
 // direct child of root canvas of UI. This fact adds some complications to search
 // of parent menu - we can't just traverse the tree because popup is not a child
@@ -383,7 +390,7 @@ crate::define_widget_deref!(MenuItem);
 fn find_menu(from: Handle<UiNode>, ui: &UserInterface) -> Handle<UiNode> {
     let mut handle = from;
     while handle.is_some() {
-        if let Some((_, panel)) = ui.find_component_up::<MenuItemsPanel>(handle) {
+        if let Some((_, panel)) = ui.find_component_up::<ContextMenu>(handle) {
             // Continue search from parent menu item of popup.
             handle = panel.parent_menu_item;
         } else {
@@ -413,9 +420,9 @@ fn is_any_menu_item_contains_point(ui: &UserInterface, pt: Vector2<f32>) -> bool
 fn close_menu_chain(from: Handle<UiNode>, ui: &UserInterface) {
     let mut handle = from;
     while handle.is_some() {
-        let popup_handle = ui.find_handle_up(handle, &mut |n| n.has_component::<MenuItemsPanel>());
+        let popup_handle = ui.find_handle_up(handle, &mut |n| n.has_component::<ContextMenu>());
 
-        if let Some(panel) = ui.node(popup_handle).query_component::<MenuItemsPanel>() {
+        if let Some(panel) = ui.try_get_of_type::<ContextMenu>(popup_handle) {
             ui.send_message(PopupMessage::close(
                 popup_handle,
                 MessageDirection::ToWidget,
@@ -506,6 +513,15 @@ impl Control for MenuItem {
                         ));
                     }
                 }
+                WidgetMessage::MouseLeave => {
+                    if !self.is_opened(ui) {
+                        ui.send_message(MenuItemMessage::select(
+                            self.handle,
+                            MessageDirection::ToWidget,
+                            false,
+                        ));
+                    }
+                }
                 WidgetMessage::KeyDown(key_code) => {
                     if !message.handled() && *self.is_selected && *key_code == KeyCode::Enter {
                         ui.send_message(MenuItemMessage::click(
@@ -527,16 +543,19 @@ impl Control for MenuItem {
                     MenuItemMessage::Select(selected) => {
                         if *self.is_selected != *selected {
                             self.is_selected.set_value_and_mark_modified(*selected);
+
                             ui.send_message(DecoratorMessage::select(
                                 *self.decorator,
                                 MessageDirection::ToWidget,
                                 *selected,
                             ));
 
-                            ui.send_message(WidgetMessage::focus(
-                                self.handle,
-                                MessageDirection::ToWidget,
-                            ));
+                            if *selected {
+                                ui.send_message(WidgetMessage::focus(
+                                    self.handle,
+                                    MessageDirection::ToWidget,
+                                ));
+                            }
                         }
                     }
                     MenuItemMessage::Open => {
@@ -571,11 +590,21 @@ impl Control for MenuItem {
                             *self.items_panel,
                             MessageDirection::ToWidget,
                         ));
+
                         if *deselect && *self.is_selected {
-                            ui.send_message(DecoratorMessage::select(
-                                *self.decorator,
+                            ui.send_message(MenuItemMessage::select(
+                                self.handle,
                                 MessageDirection::ToWidget,
                                 false,
+                            ));
+                        }
+
+                        // Recursively deselect everything in the sub-items container.
+                        for &item in &*self.items_container.items {
+                            ui.send_message(MenuItemMessage::close(
+                                item,
+                                MessageDirection::ToWidget,
+                                true,
                             ));
                         }
                     }
@@ -638,7 +667,7 @@ impl Control for MenuItem {
                         break;
                     } else {
                         let node = ui.node(handle);
-                        if let Some(panel) = node.component_ref::<MenuItemsPanel>() {
+                        if let Some(panel) = node.component_ref::<ContextMenu>() {
                             // Once we found popup in chain, we must extract handle
                             // of parent menu item to continue search.
                             handle = panel.parent_menu_item;
@@ -668,10 +697,7 @@ impl Control for MenuItem {
         // Allow closing "orphaned" menus by clicking outside of them.
         if let OsEvent::MouseInput { state, .. } = event {
             if *state == ButtonState::Pressed {
-                if let Some(panel) = ui
-                    .node(*self.items_panel)
-                    .query_component::<MenuItemsPanel>()
-                {
+                if let Some(panel) = ui.node(*self.items_panel).query_component::<ContextMenu>() {
                     if *panel.popup.is_open {
                         // Ensure that cursor is outside of any menus.
                         if !is_any_menu_item_contains_point(ui, ui.cursor_position())
@@ -956,21 +982,19 @@ impl<'a, 'b> MenuItemBuilder<'a, 'b> {
         }
 
         let panel;
-        let popup = PopupBuilder::new(WidgetBuilder::new().with_min_size(Vector2::new(10.0, 10.0)))
-            .with_content({
-                panel = StackPanelBuilder::new(
-                    WidgetBuilder::new().with_children(self.items.iter().cloned()),
-                )
-                .build(ctx);
-                panel
-            })
-            // We'll manually control if popup is either open or closed.
-            .stays_open(true)
-            .build_popup(ctx);
-        let items_panel = ctx.add_node(UiNode::new(MenuItemsPanel {
-            popup,
-            parent_menu_item: Default::default(),
-        }));
+        let items_panel = ContextMenuBuilder::new(
+            PopupBuilder::new(WidgetBuilder::new().with_min_size(Vector2::new(10.0, 10.0)))
+                .with_content({
+                    panel = StackPanelBuilder::new(
+                        WidgetBuilder::new().with_children(self.items.iter().cloned()),
+                    )
+                    .build(ctx);
+                    panel
+                })
+                // We'll manually control if popup is either open or closed.
+                .stays_open(true),
+        )
+        .build(ctx);
 
         let menu = MenuItem {
             widget: self
@@ -994,7 +1018,7 @@ impl<'a, 'b> MenuItemBuilder<'a, 'b> {
         let handle = ctx.add_node(UiNode::new(menu));
 
         // "Link" popup with its parent menu item.
-        if let Some(popup) = ctx[items_panel].cast_mut::<MenuItemsPanel>() {
+        if let Some(popup) = ctx[items_panel].cast_mut::<ContextMenu>() {
             popup.parent_menu_item = handle;
         }
 
@@ -1006,13 +1030,15 @@ impl<'a, 'b> MenuItemBuilder<'a, 'b> {
 /// an ability for keyboard navigation.
 #[derive(Default, Clone, Debug, Visit, Reflect, TypeUuidProvider, ComponentProvider)]
 #[type_uuid(id = "ad8e9e76-c213-4232-9bab-80ebcabd69fa")]
-pub struct MenuItemsPanel {
+pub struct ContextMenu {
+    /// Inner popup widget of the context menu.
     #[component(include)]
-    popup: Popup,
-    parent_menu_item: Handle<UiNode>,
+    pub popup: Popup,
+    /// Parent menu item of the context menu. Allows you to build chained context menus.
+    pub parent_menu_item: Handle<UiNode>,
 }
 
-impl Deref for MenuItemsPanel {
+impl Deref for ContextMenu {
     type Target = Widget;
 
     fn deref(&self) -> &Self::Target {
@@ -1020,13 +1046,13 @@ impl Deref for MenuItemsPanel {
     }
 }
 
-impl DerefMut for MenuItemsPanel {
+impl DerefMut for ContextMenu {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.popup.widget
     }
 }
 
-impl Control for MenuItemsPanel {
+impl Control for ContextMenu {
     fn on_remove(&self, sender: &Sender<UiMessage>) {
         self.popup.on_remove(sender)
     }
@@ -1081,6 +1107,42 @@ impl Control for MenuItemsPanel {
         event: &OsEvent,
     ) {
         self.popup.handle_os_event(self_handle, ui, event)
+    }
+}
+
+/// Creates [`ContextMenu`] widgets.
+pub struct ContextMenuBuilder {
+    popup_builder: PopupBuilder,
+    parent_menu_item: Handle<UiNode>,
+}
+
+impl ContextMenuBuilder {
+    /// Creates new builder instance using an instance of the [`PopupBuilder`].
+    pub fn new(popup_builder: PopupBuilder) -> Self {
+        Self {
+            popup_builder,
+            parent_menu_item: Default::default(),
+        }
+    }
+
+    /// Sets the desired parent menu item.
+    pub fn with_parent_menu_item(mut self, parent_menu_item: Handle<UiNode>) -> Self {
+        self.parent_menu_item = parent_menu_item;
+        self
+    }
+
+    /// Finishes context menu building.
+    pub fn build_context_menu(self, ctx: &mut BuildContext) -> ContextMenu {
+        ContextMenu {
+            popup: self.popup_builder.build_popup(ctx),
+            parent_menu_item: self.parent_menu_item,
+        }
+    }
+
+    /// Finishes context menu building and adds it to the user interface.
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+        let context_menu = self.build_context_menu(ctx);
+        ctx.add_node(UiNode::new(context_menu))
     }
 }
 

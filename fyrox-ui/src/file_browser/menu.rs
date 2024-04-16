@@ -6,10 +6,10 @@ use crate::{
     },
     draw::DrawingContext,
     grid::{Column, GridBuilder, Row},
-    menu::{MenuItemBuilder, MenuItemContent, MenuItemMessage},
+    menu::{ContextMenu, ContextMenuBuilder, MenuItemBuilder, MenuItemContent, MenuItemMessage},
     message::{MessageDirection, OsEvent, UiMessage},
     messagebox::{MessageBoxBuilder, MessageBoxButtons, MessageBoxMessage, MessageBoxResult},
-    popup::{Placement, Popup, PopupBuilder, PopupMessage},
+    popup::{Placement, PopupBuilder, PopupMessage},
     stack_panel::StackPanelBuilder,
     text::{TextBuilder, TextMessage},
     text_box::TextBoxBuilder,
@@ -38,7 +38,7 @@ pub struct FolderNameDialog {
 #[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
 pub struct ItemContextMenu {
     #[component(include)]
-    pub popup: Popup,
+    pub base_menu: ContextMenu,
     pub delete: Handle<UiNode>,
     pub make_folder: Handle<UiNode>,
     pub delete_message_box: Cell<Handle<UiNode>>,
@@ -49,13 +49,13 @@ impl Deref for ItemContextMenu {
     type Target = Widget;
 
     fn deref(&self) -> &Self::Target {
-        &self.popup.widget
+        &self.base_menu.popup.widget
     }
 }
 
 impl DerefMut for ItemContextMenu {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.popup.widget
+        &mut self.base_menu.popup.widget
     }
 }
 
@@ -63,27 +63,27 @@ uuid_provider!(ItemContextMenu = "6a9d597f-6a9f-4bad-b569-4cff1a6deff7");
 
 impl Control for ItemContextMenu {
     fn on_remove(&self, sender: &Sender<UiMessage>) {
-        self.popup.on_remove(sender)
+        self.base_menu.on_remove(sender)
     }
 
     fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
-        self.popup.measure_override(ui, available_size)
+        self.base_menu.measure_override(ui, available_size)
     }
 
     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
-        self.popup.arrange_override(ui, final_size)
+        self.base_menu.arrange_override(ui, final_size)
     }
 
     fn draw(&self, drawing_context: &mut DrawingContext) {
-        self.popup.draw(drawing_context)
+        self.base_menu.draw(drawing_context)
     }
 
     fn update(&mut self, dt: f32, ui: &mut UserInterface) {
-        self.popup.update(dt, ui)
+        self.base_menu.update(dt, ui)
     }
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
-        self.popup.handle_routed_message(ui, message);
+        self.base_menu.handle_routed_message(ui, message);
 
         if let Some(PopupMessage::Placement(Placement::Cursor(_))) = message.data() {
             if message.destination() == self.handle {
@@ -210,7 +210,7 @@ impl Control for ItemContextMenu {
     }
 
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
-        self.popup.preview_message(ui, message);
+        self.base_menu.preview_message(ui, message);
 
         if let Some(MessageBoxMessage::Close(result)) = message.data() {
             if message.destination() == self.delete_message_box.get() {
@@ -286,7 +286,7 @@ impl Control for ItemContextMenu {
         ui: &mut UserInterface,
         event: &OsEvent,
     ) {
-        self.popup.handle_os_event(self_handle, ui, event)
+        self.base_menu.handle_os_event(self_handle, ui, event)
     }
 }
 
@@ -294,38 +294,40 @@ impl ItemContextMenu {
     pub fn build(ctx: &mut BuildContext) -> Handle<UiNode> {
         let delete;
         let make_folder;
-        let popup = PopupBuilder::new(
-            WidgetBuilder::new()
-                .with_preview_messages(true)
-                .with_visibility(false),
-        )
-        .with_content(
-            StackPanelBuilder::new(
+        let base_menu = ContextMenuBuilder::new(
+            PopupBuilder::new(
                 WidgetBuilder::new()
-                    .with_width(120.0)
-                    .with_child({
-                        delete = MenuItemBuilder::new(
-                            WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),
-                        )
-                        .with_content(MenuItemContent::text("Delete"))
-                        .build(ctx);
-                        delete
-                    })
-                    .with_child({
-                        make_folder = MenuItemBuilder::new(
-                            WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),
-                        )
-                        .with_content(MenuItemContent::text("Make Folder"))
-                        .build(ctx);
-                        make_folder
-                    }),
+                    .with_preview_messages(true)
+                    .with_visibility(false),
             )
-            .build(ctx),
+            .with_content(
+                StackPanelBuilder::new(
+                    WidgetBuilder::new()
+                        .with_width(120.0)
+                        .with_child({
+                            delete = MenuItemBuilder::new(
+                                WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),
+                            )
+                            .with_content(MenuItemContent::text("Delete"))
+                            .build(ctx);
+                            delete
+                        })
+                        .with_child({
+                            make_folder = MenuItemBuilder::new(
+                                WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),
+                            )
+                            .with_content(MenuItemContent::text("Make Folder"))
+                            .build(ctx);
+                            make_folder
+                        }),
+                )
+                .build(ctx),
+            ),
         )
-        .build_popup(ctx);
+        .build_context_menu(ctx);
 
         let menu = Self {
-            popup,
+            base_menu,
             delete,
             make_folder,
             delete_message_box: Default::default(),
@@ -336,7 +338,7 @@ impl ItemContextMenu {
     }
 
     fn item_path(&self, ui: &UserInterface) -> Option<PathBuf> {
-        ui.try_get(self.popup.placement.target())
+        ui.try_get(self.base_menu.popup.placement.target())
             .and_then(|n| n.user_data_cloned::<PathBuf>())
     }
 }
