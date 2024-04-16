@@ -468,7 +468,6 @@ impl Control for MenuItem {
                 WidgetMessage::MouseUp { .. } => {
                     if !message.handled() {
                         if self.items_container.is_empty() || *self.clickable_when_not_empty {
-                            println!("Sending click from #{}", self.handle.index());
                             ui.send_message(MenuItemMessage::click(
                                 self.handle(),
                                 MessageDirection::ToWidget,

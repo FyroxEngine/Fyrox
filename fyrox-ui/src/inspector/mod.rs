@@ -1021,7 +1021,7 @@ impl Control for Inspector {
             }
         }
 
-        if let Some(PopupMessage::Event(popup_message)) = message.data() {
+        if let Some(PopupMessage::RelayedMessage(popup_message)) = message.data() {
             if popup_message.destination() == self.context.menu.copy_value_as_string {
                 if let Some(MenuItemMessage::Click) = popup_message.data() {
                     // The child that was originally clicked to open the menu was automatically set to be

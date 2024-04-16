@@ -38,7 +38,7 @@ pub enum PopupMessage {
     /// Used to set the owner of a Popup. The owner will receive Event messages.
     Owner(Handle<UiNode>),
     /// Sent by the Popup to its owner when handling messages from the Popup's children.
-    Event(UiMessage),
+    RelayedMessage(UiMessage),
 }
 
 impl PopupMessage {
@@ -67,8 +67,8 @@ impl PopupMessage {
         PopupMessage:Owner => fn owner(Handle<UiNode>), layout: false
     );
     define_constructor!(
-        /// Creates [`PopupMessage::Event`] message.
-        PopupMessage:Event => fn event(UiMessage), layout: false
+        /// Creates [`PopupMessage::RelayedMessage`] message.
+        PopupMessage:RelayedMessage => fn relayed_message(UiMessage), layout: false
     );
 }
 
@@ -469,7 +469,7 @@ impl Control for Popup {
                     PopupMessage::Owner(owner) => {
                         self.owner = *owner;
                     }
-                    PopupMessage::Event(_) => (),
+                    PopupMessage::RelayedMessage(_) => (),
                 }
             }
         } else if let Some(WidgetMessage::KeyDown(key)) = message.data() {
@@ -477,12 +477,9 @@ impl Control for Popup {
                 ui.send_message(PopupMessage::close(self.handle, MessageDirection::ToWidget));
                 message.set_handled(true);
             }
-        } else if self.owner.is_some()
-            && ui.is_valid_handle(self.owner)
-            && !message.handled()
-            && message.destination() != self.handle
-        {
-            ui.send_message(PopupMessage::event(
+        }
+        if ui.is_valid_handle(self.owner) && !message.handled() {
+            ui.send_message(PopupMessage::relayed_message(
                 self.owner,
                 MessageDirection::ToWidget,
                 message.clone(),
