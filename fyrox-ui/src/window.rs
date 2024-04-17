@@ -1,26 +1,25 @@
 //! The Window widget provides a standard window that can contain another widget. See [`Window`] docs
 //! for more info and usage examples.
 
-use crate::message::KeyCode;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
     button::{ButtonBuilder, ButtonMessage},
     core::{
         algebra::Vector2, color::Color, math::Rect, pool::Handle, reflect::prelude::*,
-        type_traits::prelude::*, visitor::prelude::*,
+        type_traits::prelude::*, uuid_provider, visitor::prelude::*,
     },
     decorator::DecoratorBuilder,
     define_constructor,
     grid::{Column, GridBuilder, Row},
-    message::{CursorIcon, MessageDirection, UiMessage},
+    message::{CursorIcon, KeyCode, MessageDirection, UiMessage},
+    navigation::NavigationLayerBuilder,
     text::{Text, TextBuilder, TextMessage},
     vector_image::{Primitive, VectorImageBuilder},
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, HorizontalAlignment, RestrictionEntry, Thickness, UiNode, UserInterface,
     VerticalAlignment, BRUSH_BRIGHT, BRUSH_DARKER, BRUSH_LIGHT, BRUSH_LIGHTEST,
 };
-use fyrox_core::uuid_provider;
 use fyrox_graph::BaseSceneGraph;
 use std::{
     cell::RefCell,
@@ -1229,9 +1228,6 @@ impl WindowBuilder {
         .with_stroke_thickness(Thickness::uniform(0.0))
         .build(ctx);
 
-        if self.content.is_some() {
-            ctx[self.content].set_row(1);
-        }
         Window {
             widget: self
                 .widget_builder
@@ -1243,7 +1239,14 @@ impl WindowBuilder {
                             .with_child(
                                 GridBuilder::new(
                                     WidgetBuilder::new()
-                                        .with_child(self.content)
+                                        .with_child(
+                                            NavigationLayerBuilder::new(
+                                                WidgetBuilder::new()
+                                                    .on_row(1)
+                                                    .with_child(self.content),
+                                            )
+                                            .build(ctx),
+                                        )
                                         .with_child(header),
                                 )
                                 .add_column(Column::stretch())
