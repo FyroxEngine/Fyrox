@@ -9,17 +9,16 @@ use crate::{
     brush::Brush,
     core::{
         algebra::Vector2, color::Color, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-        visitor::prelude::*,
+        variable::InheritableVariable, visitor::prelude::*,
     },
     define_constructor,
     grid::{Column, GridBuilder, Row},
-    message::{MessageDirection, UiMessage},
+    message::{KeyCode, MessageDirection, UiMessage},
     vector_image::{Primitive, VectorImageBuilder},
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, HorizontalAlignment, MouseButton, Thickness, UiNode, UserInterface,
     VerticalAlignment, BRUSH_BRIGHT, BRUSH_BRIGHT_BLUE, BRUSH_DARKEST, BRUSH_LIGHT, BRUSH_TEXT,
 };
-use fyrox_core::variable::InheritableVariable;
 use std::ops::{Deref, DerefMut};
 
 /// A set of possible check box messages.
@@ -181,6 +180,16 @@ impl Control for CheckBox {
                                 Some(true),
                             ));
                         }
+                    }
+                }
+                WidgetMessage::KeyDown(key_code) => {
+                    if !message.handled() && *key_code == KeyCode::Space {
+                        ui.send_message(CheckBoxMessage::checked(
+                            self.handle,
+                            MessageDirection::ToWidget,
+                            self.checked.map(|checked| !checked),
+                        ));
+                        message.set_handled(true);
                     }
                 }
                 _ => (),
