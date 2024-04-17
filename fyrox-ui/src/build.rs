@@ -139,4 +139,9 @@ impl<'a> BuildContext<'a> {
     pub fn remove_picking_restriction(&mut self, node: Handle<UiNode>) {
         self.ui.remove_picking_restriction(node)
     }
+
+    /// Returns an immutable reference to the user interface.
+    pub fn inner(&self) -> &UserInterface {
+        self.ui
+    }
 }

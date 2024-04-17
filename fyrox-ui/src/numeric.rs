@@ -568,7 +568,7 @@ fn make_button(
     row: usize,
     editable: bool,
 ) -> Handle<UiNode> {
-    ButtonBuilder::new(
+    let handle = ButtonBuilder::new(
         WidgetBuilder::new()
             .with_enabled(editable)
             .with_margin(Thickness::right(1.0))
@@ -588,7 +588,12 @@ fn make_button(
         .build(ctx),
     )
     .with_content(make_arrow(ctx, arrow, 6.0))
-    .build(ctx)
+    .build(ctx);
+
+    // Disable unwanted potential tab navigation for the buttons.
+    ctx[handle].accepts_input = false;
+
+    handle
 }
 
 impl<T: NumericType> NumericUpDownBuilder<T> {

@@ -32,7 +32,7 @@ use crate::{
 };
 use copypasta::ClipboardProvider;
 use fyrox_core::uuid_provider;
-use fyrox_graph::BaseSceneGraph;
+use fyrox_graph::{BaseSceneGraph, SceneGraph};
 use std::sync::Arc;
 use std::{
     any::{Any, TypeId},
@@ -629,7 +629,7 @@ fn make_expander_check_box(
         format!("{}\n\n{}", property_name, property_description)
     };
 
-    CheckBoxBuilder::new(
+    let handle = CheckBoxBuilder::new(
         WidgetBuilder::new()
             .with_vertical_alignment(VerticalAlignment::Center)
             .with_margin(make_expander_margin(layer_index)),
@@ -657,7 +657,12 @@ fn make_expander_check_box(
     .checked(Some(true))
     .with_check_mark(make_arrow(ctx, ArrowDirection::Bottom, 8.0))
     .with_uncheck_mark(make_arrow(ctx, ArrowDirection::Right, 8.0))
-    .build(ctx)
+    .build(ctx);
+
+    // Explicitly state that this expander should **not** be included in the tab navigation.
+    ctx[handle].accepts_input = false;
+
+    handle
 }
 
 /// Build an [Expander](crate::expander::Expander) widget to contain an editor.
@@ -899,6 +904,25 @@ impl InspectorContext {
                 .with_children(editors),
         )
         .build(ctx);
+
+        // Assign tab indices for every widget that can accept user input.
+        if layer_index == 0 {
+            let mut counter = 0;
+            let mut widgets_list = Vec::new();
+            for descendant in ctx.inner().traverse_handle_iter(stack_panel) {
+                let descendant_ref = &ctx[descendant];
+                if descendant_ref.accepts_input {
+                    widgets_list.push((descendant, counter));
+                    counter += 1;
+                }
+            }
+
+            for (descendant, tab_index) in widgets_list {
+                ctx[descendant]
+                    .tab_index
+                    .set_value_and_mark_modified(Some(counter - tab_index));
+            }
+        }
 
         Self {
             stack_panel,
