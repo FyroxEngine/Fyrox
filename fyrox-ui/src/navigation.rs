@@ -62,6 +62,7 @@ pub struct NavigationLayer {
 
 crate::define_widget_deref!(NavigationLayer);
 
+#[derive(Debug)]
 struct OrderedHandle {
     tab_index: usize,
     handle: Handle<UiNode>,
@@ -72,50 +73,47 @@ impl Control for NavigationLayer {
         self.widget.handle_routed_message(ui, message);
 
         if let Some(WidgetMessage::KeyDown(key_code)) = message.data() {
-            if !message.handled() {
-                if let KeyCode::Tab = *key_code {
-                    // Collect all descendant widgets, that supports Tab navigation.
-                    let mut tab_list = Vec::new();
-                    let mut focused_index = 0;
-                    for &child in self.children() {
-                        for descendant in ui.traverse_handle_iter(child) {
-                            let descendant_ref = ui.node(descendant);
+            if let KeyCode::Tab = *key_code {
+                // Collect all descendant widgets, that supports Tab navigation.
+                let mut tab_list = Vec::new();
+                for &child in self.children() {
+                    for descendant in ui.traverse_handle_iter(child) {
+                        let descendant_ref = ui.node(descendant);
 
-                            if !*descendant_ref.tab_stop {
-                                if let Some(tab_index) = *descendant_ref.tab_index {
-                                    if ui.keyboard_focus_node == descendant {
-                                        focused_index = tab_list.len();
-                                    }
-
-                                    tab_list.push(OrderedHandle {
-                                        tab_index,
-                                        handle: descendant,
-                                    });
-                                }
+                        if !*descendant_ref.tab_stop {
+                            if let Some(tab_index) = *descendant_ref.tab_index {
+                                tab_list.push(OrderedHandle {
+                                    tab_index,
+                                    handle: descendant,
+                                });
                             }
                         }
                     }
-                    tab_list.sort_by_key(|entry| entry.tab_index);
+                }
 
-                    let next_focused_node_index = if ui.keyboard_modifiers.shift {
-                        let count = tab_list.len() as isize;
-                        let mut prev = (focused_index as isize).saturating_sub(1);
-                        if prev < 0 {
-                            prev += count;
-                        }
-                        (prev % count) as usize
-                    } else {
-                        focused_index.saturating_add(1) % tab_list.len()
-                    };
+                tab_list.sort_by_key(|entry| entry.tab_index);
 
-                    if let Some(entry) = tab_list.get(next_focused_node_index) {
-                        ui.send_message(WidgetMessage::focus(
-                            entry.handle,
-                            MessageDirection::ToWidget,
-                        ));
+                let focused_index = tab_list
+                    .iter()
+                    .position(|entry| entry.handle == ui.keyboard_focus_node)
+                    .unwrap_or_default();
 
-                        message.set_handled(true);
+                let next_focused_node_index = if ui.keyboard_modifiers.shift {
+                    let count = tab_list.len() as isize;
+                    let mut prev = (focused_index as isize).saturating_sub(1);
+                    if prev < 0 {
+                        prev += count;
                     }
+                    (prev % count) as usize
+                } else {
+                    focused_index.saturating_add(1) % tab_list.len()
+                };
+
+                if let Some(entry) = tab_list.get(next_focused_node_index) {
+                    ui.send_message(WidgetMessage::focus(
+                        entry.handle,
+                        MessageDirection::ToWidget,
+                    ));
                 }
             }
         }
