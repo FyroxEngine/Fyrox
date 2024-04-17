@@ -1554,7 +1554,11 @@ impl TextBoxBuilder {
         }
 
         let text_box = TextBox {
-            widget: self.widget_builder.with_need_update(true).build(),
+            widget: self
+                .widget_builder
+                .with_accepts_input(true)
+                .with_need_update(true)
+                .build(),
             caret_position: Position::default().into(),
             caret_visible: false.into(),
             blink_timer: 0.0.into(),

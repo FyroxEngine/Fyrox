@@ -418,7 +418,11 @@ impl CheckBoxBuilder {
         .build(ctx);
 
         let cb = CheckBox {
-            widget: self.widget_builder.with_child(grid).build(),
+            widget: self
+                .widget_builder
+                .with_accepts_input(true)
+                .with_child(grid)
+                .build(),
             checked: self.checked.into(),
             check_mark: check_mark.into(),
             uncheck_mark: uncheck_mark.into(),

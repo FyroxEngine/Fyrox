@@ -352,6 +352,7 @@ impl ButtonBuilder {
         UiNode::new(Button {
             widget: self
                 .widget_builder
+                .with_accepts_input(true)
                 .with_need_update(true)
                 .with_child(back)
                 .build(),

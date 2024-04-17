@@ -791,6 +791,12 @@ pub struct Widget {
     /// Enables (`false`) or disables (`true`) layout rounding.
     #[visit(optional)]
     pub ignore_layout_rounding: bool,
+    /// A flag, that indicates that the widget accepts user input. It could be used to determine, if
+    /// a user can interact with the widget using keyboard. It is also used for automatic assignment
+    /// of the tab index. Keep in mind, that this flag is only a marker and does not do anything else
+    /// on its own. Default value is `false`.
+    #[visit(optional)]
+    pub accepts_input: bool,
     /// Internal sender for layout events.
     #[reflect(hidden)]
     #[visit(skip)]
@@ -1770,6 +1776,8 @@ pub struct WidgetBuilder {
     pub tab_index: Option<usize>,
     /// A flag, that defines whether the Tab key navigation is enabled or disabled for this widget.
     pub tab_stop: bool,
+    /// A flag, that indicates that the widget accepts user input.
+    pub accepts_input: bool,
 }
 
 impl Default for WidgetBuilder {
@@ -1818,6 +1826,7 @@ impl WidgetBuilder {
             id: Uuid::new_v4(),
             tab_index: None,
             tab_stop: false,
+            accepts_input: false,
         }
     }
 
@@ -2068,6 +2077,12 @@ impl WidgetBuilder {
         self
     }
 
+    /// Sets a flag, that indicates that the widget accepts user input.
+    pub fn with_accepts_input(mut self, accepts_input: bool) -> Self {
+        self.accepts_input = accepts_input;
+        self
+    }
+
     /// Finishes building of the base widget.
     pub fn build(self) -> Widget {
         Widget {
@@ -2127,6 +2142,7 @@ impl WidgetBuilder {
             tab_stop: self.tab_stop.into(),
             need_update: self.need_update,
             ignore_layout_rounding: false,
+            accepts_input: self.accepts_input,
             layout_events_sender: None,
             layout_transform: self.layout_transform,
             render_transform: self.render_transform,
