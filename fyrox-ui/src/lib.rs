@@ -1342,6 +1342,19 @@ impl UserInterface {
             }
         }
 
+        if let Some(keyboard_focus_node) = self.nodes.try_borrow(self.keyboard_focus_node) {
+            if keyboard_focus_node.accepts_input {
+                let bounds = keyboard_focus_node.screen_bounds().inflate(1.0, 1.0);
+                self.drawing_context.push_rounded_rect(&bounds, 1.0, 2.0, 6);
+                self.drawing_context.commit(
+                    bounds,
+                    Brush::Solid(COLOR_BRIGHT_BLUE),
+                    CommandTexture::None,
+                    None,
+                );
+            }
+        }
+
         &self.drawing_context
     }
 
