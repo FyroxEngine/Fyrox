@@ -72,49 +72,47 @@ impl Control for NavigationLayer {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if let Some(WidgetMessage::KeyDown(key_code)) = message.data() {
-            if let KeyCode::Tab = *key_code {
-                // Collect all descendant widgets, that supports Tab navigation.
-                let mut tab_list = Vec::new();
-                for &child in self.children() {
-                    for descendant in ui.traverse_handle_iter(child) {
-                        let descendant_ref = ui.node(descendant);
+        if let Some(WidgetMessage::KeyDown(KeyCode::Tab)) = message.data() {
+            // Collect all descendant widgets, that supports Tab navigation.
+            let mut tab_list = Vec::new();
+            for &child in self.children() {
+                for descendant in ui.traverse_handle_iter(child) {
+                    let descendant_ref = ui.node(descendant);
 
-                        if !*descendant_ref.tab_stop {
-                            if let Some(tab_index) = *descendant_ref.tab_index {
-                                tab_list.push(OrderedHandle {
-                                    tab_index,
-                                    handle: descendant,
-                                });
-                            }
+                    if !*descendant_ref.tab_stop {
+                        if let Some(tab_index) = *descendant_ref.tab_index {
+                            tab_list.push(OrderedHandle {
+                                tab_index,
+                                handle: descendant,
+                            });
                         }
                     }
                 }
+            }
 
-                tab_list.sort_by_key(|entry| entry.tab_index);
+            tab_list.sort_by_key(|entry| entry.tab_index);
 
-                let focused_index = tab_list
-                    .iter()
-                    .position(|entry| entry.handle == ui.keyboard_focus_node)
-                    .unwrap_or_default();
+            let focused_index = tab_list
+                .iter()
+                .position(|entry| entry.handle == ui.keyboard_focus_node)
+                .unwrap_or_default();
 
-                let next_focused_node_index = if ui.keyboard_modifiers.shift {
-                    let count = tab_list.len() as isize;
-                    let mut prev = (focused_index as isize).saturating_sub(1);
-                    if prev < 0 {
-                        prev += count;
-                    }
-                    (prev % count) as usize
-                } else {
-                    focused_index.saturating_add(1) % tab_list.len()
-                };
-
-                if let Some(entry) = tab_list.get(next_focused_node_index) {
-                    ui.send_message(WidgetMessage::focus(
-                        entry.handle,
-                        MessageDirection::ToWidget,
-                    ));
+            let next_focused_node_index = if ui.keyboard_modifiers.shift {
+                let count = tab_list.len() as isize;
+                let mut prev = (focused_index as isize).saturating_sub(1);
+                if prev < 0 {
+                    prev += count;
                 }
+                (prev % count) as usize
+            } else {
+                focused_index.saturating_add(1) % tab_list.len()
+            };
+
+            if let Some(entry) = tab_list.get(next_focused_node_index) {
+                ui.send_message(WidgetMessage::focus(
+                    entry.handle,
+                    MessageDirection::ToWidget,
+                ));
             }
         }
     }
