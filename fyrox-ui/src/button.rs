@@ -4,17 +4,19 @@
 
 use crate::{
     border::BorderBuilder,
-    core::{pool::Handle, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
+    core::{
+        pool::Handle, reflect::prelude::*, type_traits::prelude::*, variable::InheritableVariable,
+        visitor::prelude::*,
+    },
     decorator::DecoratorBuilder,
     define_constructor,
     font::FontResource,
-    message::{MessageDirection, UiMessage},
+    message::{KeyCode, MessageDirection, UiMessage},
     text::TextBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
     VerticalAlignment, BRUSH_DARKER, BRUSH_LIGHT, BRUSH_LIGHTER, BRUSH_LIGHTEST,
 };
-use fyrox_core::variable::InheritableVariable;
 use std::{
     cell::RefCell,
     ops::{Deref, DerefMut},
@@ -153,6 +155,17 @@ impl Control for Button {
                         ui.release_mouse_capture();
                         message.set_handled(true);
                         self.repeat_timer.replace(None);
+                    }
+                    WidgetMessage::KeyDown(key_code) => {
+                        if !message.handled()
+                            && (*key_code == KeyCode::Enter || *key_code == KeyCode::Space)
+                        {
+                            ui.send_message(ButtonMessage::click(
+                                self.handle,
+                                MessageDirection::FromWidget,
+                            ));
+                            message.set_handled(true);
+                        }
                     }
                     _ => (),
                 }
