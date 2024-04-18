@@ -10,7 +10,7 @@ use crate::{
     define_constructor,
     grid::{Column, GridBuilder, Row},
     list_view::{ListViewBuilder, ListViewMessage},
-    message::{MessageDirection, UiMessage},
+    message::{KeyCode, MessageDirection, UiMessage},
     popup::{Placement, PopupBuilder, PopupMessage},
     utils::{make_arrow_non_uniform_size, ArrowDirection},
     widget::{Widget, WidgetBuilder, WidgetMessage},
@@ -70,14 +70,34 @@ impl Control for DropdownList {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if let Some(WidgetMessage::MouseDown { .. }) = message.data::<WidgetMessage>() {
-            if message.destination() == self.handle()
-                || self.widget.has_descendant(message.destination(), ui)
-            {
-                ui.send_message(DropdownListMessage::open(
-                    self.handle,
-                    MessageDirection::ToWidget,
-                ));
+        if let Some(msg) = message.data::<WidgetMessage>() {
+            match msg {
+                WidgetMessage::MouseDown { .. } => {
+                    if message.destination() == self.handle()
+                        || self.widget.has_descendant(message.destination(), ui)
+                    {
+                        ui.send_message(DropdownListMessage::open(
+                            self.handle,
+                            MessageDirection::ToWidget,
+                        ));
+                    }
+                }
+                WidgetMessage::KeyDown(key_code) => {
+                    if !message.handled() {
+                        if *key_code == KeyCode::ArrowDown {
+                            ui.send_message(DropdownListMessage::open(
+                                self.handle,
+                                MessageDirection::ToWidget,
+                            ));
+                        } else if *key_code == KeyCode::ArrowUp {
+                            ui.send_message(DropdownListMessage::close(
+                                self.handle,
+                                MessageDirection::ToWidget,
+                            ));
+                        }
+                    }
+                }
+                _ => (),
             }
         } else if let Some(msg) = message.data::<DropdownListMessage>() {
             if message.destination() == self.handle()
@@ -175,9 +195,14 @@ impl Control for DropdownList {
                         ));
                     }
                     PopupMessage::Close => {
-                        ui.send_message(DropdownListMessage::open(
+                        ui.send_message(DropdownListMessage::close(
                             self.handle,
                             MessageDirection::FromWidget,
+                        ));
+
+                        ui.send_message(WidgetMessage::focus(
+                            self.handle,
+                            MessageDirection::ToWidget,
                         ));
                     }
                     _ => (),
@@ -308,6 +333,7 @@ impl DropdownListBuilder {
         let dropdown_list = UiNode::new(DropdownList {
             widget: self
                 .widget_builder
+                .with_accepts_input(true)
                 .with_preview_messages(true)
                 .with_child(
                     BorderBuilder::new(
