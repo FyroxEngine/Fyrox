@@ -139,7 +139,9 @@ impl<T: InspectableEnum> Control for EnumPropertyEditor<T> {
         if let Some(EnumPropertyEditorMessage::Variant(variant)) =
             message.data::<EnumPropertyEditorMessage>()
         {
-            if message.destination() == self.handle {
+            if message.destination() == self.handle
+                && message.direction() == MessageDirection::ToWidget
+            {
                 let variant = (self.definition.variant_generator)(*variant);
 
                 let ctx = InspectorContext::from_object(
@@ -158,6 +160,8 @@ impl<T: InspectableEnum> Control for EnumPropertyEditor<T> {
                     MessageDirection::ToWidget,
                     ctx,
                 ));
+
+                ui.send_message(message.reverse());
             }
         } else if let Some(InspectorMessage::PropertyChanged(property_changed)) =
             message.data::<InspectorMessage>()
