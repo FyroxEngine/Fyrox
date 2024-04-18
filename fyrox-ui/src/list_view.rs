@@ -7,20 +7,18 @@ use crate::{
     border::BorderBuilder,
     brush::Brush,
     core::{
-        color::Color, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-        visitor::prelude::*,
+        color::Color, pool::Handle, reflect::prelude::*, type_traits::prelude::*, uuid_provider,
+        variable::InheritableVariable, visitor::prelude::*,
     },
     decorator::{Decorator, DecoratorMessage},
     define_constructor,
     draw::{CommandTexture, Draw, DrawingContext},
-    message::{MessageDirection, UiMessage},
+    message::{KeyCode, MessageDirection, UiMessage},
     scroll_viewer::{ScrollViewer, ScrollViewerBuilder, ScrollViewerMessage},
     stack_panel::StackPanelBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, Thickness, UiNode, UserInterface, BRUSH_DARK, BRUSH_LIGHT,
 };
-use fyrox_core::uuid_provider;
-use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};
 
@@ -426,6 +424,51 @@ impl Control for ListView {
                     }
                 }
             }
+        } else if let Some(WidgetMessage::KeyDown(key_code)) = message.data() {
+            if !message.handled() {
+                let new_selection = if *key_code == KeyCode::ArrowDown {
+                    match self.selected_index {
+                        Some(i) => Some(i.saturating_add(1) % self.items.len()),
+                        None => {
+                            if self.items.is_empty() {
+                                None
+                            } else {
+                                Some(0)
+                            }
+                        }
+                    }
+                } else if *key_code == KeyCode::ArrowUp {
+                    match self.selected_index {
+                        Some(i) => {
+                            let mut index = (i as isize).saturating_sub(1);
+                            let count = self.items.len() as isize;
+                            if index < 0 {
+                                index += count;
+                            }
+                            Some((index % count) as usize)
+                        }
+                        None => {
+                            if self.items.is_empty() {
+                                None
+                            } else {
+                                Some(0)
+                            }
+                        }
+                    }
+                } else {
+                    None
+                };
+
+                if let Some(new_selection) = new_selection {
+                    ui.send_message(ListViewMessage::selection(
+                        self.handle,
+                        MessageDirection::ToWidget,
+                        Some(new_selection),
+                    ));
+
+                    message.set_handled(true);
+                }
+            }
         }
     }
 }
@@ -501,7 +544,11 @@ impl ListViewBuilder {
         ctx.link(scroll_viewer, back);
 
         let list_box = ListView {
-            widget: self.widget_builder.with_child(back).build(),
+            widget: self
+                .widget_builder
+                .with_accepts_input(true)
+                .with_child(back)
+                .build(),
             selected_index: None,
             item_containers: item_containers.into(),
             items: self.items.into(),

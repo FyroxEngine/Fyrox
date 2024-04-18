@@ -95,6 +95,7 @@ impl Control for DropdownList {
                                 MessageDirection::ToWidget,
                             ));
                         }
+                        message.set_handled(true);
                     }
                 }
                 _ => (),
