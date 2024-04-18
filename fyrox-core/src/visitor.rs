@@ -48,6 +48,11 @@ use std::{
 };
 use uuid::Uuid;
 
+/// The internal data format of [Visitor]. Fields are limited to being one of these types.
+/// This means that all [Visit] values must be built from some assortment
+/// of these types.
+/// Fields can be accessed from a visitor using [Visit::visit] on a variable with the
+/// same type as the field.
 pub enum FieldKind {
     Bool(bool),
     U8(u8),
@@ -62,13 +67,20 @@ pub enum FieldKind {
     F64(f64),
     UnitQuaternion(UnitQuaternion<f32>),
     Matrix4(Matrix4<f32>),
+    /// A representation of some `Vec<T>` where `T` must be [Copy].
+    /// It is mostly used to store the bytes of string types.
     BinaryBlob(Vec<u8>),
     Matrix3(Matrix3<f32>),
     Uuid(Uuid),
     UnitComplex(UnitComplex<f32>),
+    /// A representation for arrays of [Pod] types as a `Vec<u8>`.
     PodArray {
+        /// A code to identify the Pod type of the elements of the array.
+        /// Taken from [Pod::type_id].
         type_id: u8,
+        /// The number of bytes in each array element.
         element_size: u32,
+        /// The bytes that store the data, with unspecified endianness.
         bytes: Vec<u8>,
     },
     Matrix2(Matrix2<f32>),
@@ -114,7 +126,13 @@ pub enum FieldKind {
     Vector4I64(Vector4<i64>),
 }
 
+/// Trait for datatypes that can be converted directly into bytes.
+/// This is required for the type to be used in the Vec of a [PodVecView].
 pub trait Pod: Copy {
+    /// A number which distinguishes each Pod type. Two distinct Pod types must not share the same `type_id` byte.
+    /// The `type_id` is stored with the data when a [PodVecView] is visited and used to confirm that the stored
+    /// data matches the expected type when reading. Otherwise garbage data could be read by interpreting an
+    /// array of i8 as an array of f32 or any other mismatched combination.
     fn type_id() -> u8;
 }
 
@@ -178,6 +196,9 @@ impl Pod for f64 {
     }
 }
 
+/// A [Visit] type for storing a whole Vec of [Pod] values as a single field within a Visitor.
+/// The Vec is reinterpreted as a Vec of bytes, with no consideration given for whether the bytes
+/// are in big-endian or little-endian order by using [std::ptr::copy_nonoverlapping].
 pub struct PodVecView<'a, T: Pod> {
     type_id: u8,
     vec: &'a mut Vec<T>,
@@ -431,6 +452,10 @@ macro_rules! impl_field_data {
 
 /// Proxy struct for plain data, we can't use `Vec<u8>` directly,
 /// because it will serialize each byte as separate node.
+/// BinaryBlob stores data very much like [PodVecView] except that BinaryBlob
+/// has less type safety. In practice it is used with T = u8 for Strings and Paths,
+/// but it accepts any type T that is Copy, and it lacks the type_id system that
+/// PodVecView has for checking that the data it is reading comes from the expected type.
 pub struct BinaryBlob<'a, T>
 where
     T: Copy,
@@ -543,29 +568,63 @@ where
     }
 }
 
+/// Values within a visitor are constructed from Fields.
+/// Each Field has a name and a value. The name is used as a key to access the value
+/// within the visitor using the [Visit::visit] method, so each field within a value
+/// must have a unique name.
 pub struct Field {
+    /// The key string that allows access to the field.
     name: String,
+    /// The data stored in the visitor for this field.
     kind: FieldKind,
 }
 
+/// Errors that may occur while reading or writing [Visitor].
 #[derive(Debug)]
 pub enum VisitError {
+    /// An [std::io::Error] occured while reading or writing a file with Visitor data.
     Io(std::io::Error),
+    /// When a field is encoded as bytes, the field data is prefixed by an identifying byte
+    /// to allow the bytes to be decoded. This error happens when an identifying byte is
+    /// expected during decoding, but an unknown value is found in that byte.
     UnknownFieldType(u8),
+    /// Attempting to visit a field on a read-mode Visitor when no field in the visitor data
+    /// has the given name.
     FieldDoesNotExist(String),
+    /// Attempting to visit a field on a write-mode Visitor when a field already has the
+    /// given name.
     FieldAlreadyExists(String),
+    /// Attempting to enter a region on a write-mode Visitor when a region already has the
+    /// given name.
     RegionAlreadyExists(String),
     InvalidCurrentNode,
+    /// Attempting to visit a field using a read-mode Visitor when when that field was originally
+    /// written using a value of a different type.
     FieldTypeDoesNotMatch,
+    /// Attempting to enter a region on a read-mode Visitor when no region in the visitor's data
+    /// has the given name.
     RegionDoesNotExist(String),
+    /// The Visitor tried to leave is current node, but somehow it had no current node. This should never happen.
     NoActiveNode,
+    /// The [Visitor::MAGIC] bytes were missing from the beginning of encoded Visitor data.
     NotSupportedFormat,
+    /// Some sequence of bytes was not in UTF8 format.
     InvalidName,
+    /// Visitor data can be self-referential, such as when the data contains multiple [Rc] references
+    /// to a single shared value. This causes the visitor to store the data once and then later references
+    /// to the same value point back to its first occurrence. This error occurs if one of these references
+    /// points to a value of the wrong type.
     TypeMismatch,
+    /// Attempting to visit a mutably borrowed RefCell.
     RefCellAlreadyMutableBorrowed,
+    /// A plain-text error message that could indicate almost anything.
     User(String),
+    /// [Rc] and [Arc] values store an "Id" value in the Visitor data which is based in their internal pointer.
+    /// This error indicates that while reading this data, one of those Id values was discovered by be 0.
     UnexpectedRcNullIndex,
+    /// A poison error occurred while trying to visit a mutex.
     PoisonedMutex,
+    /// A FileLoadError was encountered while trying to decode Visitor data from a file.
     FileLoadError(FileLoadError),
 }
 
@@ -637,6 +696,8 @@ impl From<FileLoadError> for VisitError {
     }
 }
 
+/// The result of a [Visit::visit] or of a Visitor encoding operation
+/// such as [Visitor::save_binary]. It has no value unless an error occurred.
 pub type VisitResult = Result<(), VisitError>;
 
 trait VisitableElementaryField {
@@ -1047,6 +1108,9 @@ impl Field {
     }
 }
 
+/// A node is a collection of [Fields](Field) that exists within a tree of nodes
+/// that allows a [Visitor] to store its data.
+/// Each node has a name, and may have a parent node and child nodes.
 pub struct VisitorNode {
     name: String,
     fields: Vec<Field>,
@@ -1076,6 +1140,8 @@ impl Default for VisitorNode {
     }
 }
 
+/// A RegionGuard is a [Visitor] that automatically leaves the current region
+/// when it is dropped.
 #[must_use = "the guard must be used"]
 pub struct RegionGuard<'a>(&'a mut Visitor);
 
@@ -1101,6 +1167,8 @@ impl<'a> Drop for RegionGuard<'a> {
     }
 }
 
+/// A Blackboard is a mapping from TypeId to value that allows a [Visitor] to store
+/// a particular value for each registered type.
 #[derive(Default)]
 pub struct Blackboard {
     items: FxHashMap<TypeId, Arc<dyn Any>>,
@@ -1133,12 +1201,31 @@ impl Blackboard {
 }
 
 bitflags! {
+    /// Flags that can be used to influence the behaviour of [Visit::visit] methods.
     pub struct VisitorFlags: u32 {
+        /// No flags set, do nothing special.
         const NONE = 0;
+        /// Tell [crate::variable::InheritableVariable::visit] to assume that it's
+        /// [VariableFlags::MODIFIED](create::variable::VariableFlags::MODIFIED) is set,
+        /// and therefore write its data. Otherwise, InheritableVariable has the special
+        /// property of *not writing itself* when the `MODIFIED` flag is not set.
         const SERIALIZE_EVERYTHING = 1 << 1;
     }
 }
 
+/// A collection of nodes that stores data that can be read or write values of types with the [Visit] trait.
+///
+/// Instead of calling methods of the visitor in order to read or write the visitor's data, reading
+/// and writing happens in the [Visit::visit] method of a variable that will either store the read value
+/// or holds the value to be written.
+///
+/// For example, `x.visit("MyValue", &mut visitor)` will do one of:
+///
+/// 1. Take the value of `x` and store it in `visitor` under the name "MyValue", if `visitor.is_reading()` is false.
+/// 2. Read a value named "MyValue" from `visitor` and store it in `x`, if `visitor.is_reading()` is true.
+///
+/// Whether the value of `x` gets written into `visitor` or overwitten with a value from `visitor` is determined
+/// by whether [Visitor::is_reading()] returns true or false.
 pub struct Visitor {
     nodes: Pool<VisitorNode>,
     rc_map: FxHashMap<u64, Rc<dyn Any>>,
@@ -1146,11 +1233,53 @@ pub struct Visitor {
     reading: bool,
     current_node: Handle<VisitorNode>,
     root: Handle<VisitorNode>,
+    /// A place to store whatever objects may be needed to assist with reading and writing values.
     pub blackboard: Blackboard,
+    /// Flags that can activate special behaviour in some Visit values, such as
+    /// [crate::variable::InheritableVariable].
     pub flags: VisitorFlags,
 }
 
+/// Trait of types that can be read from a [Visitor] or written to a Visitor.
 pub trait Visit {
+    /// Read or write this value, depending on whether [Visitor::is_reading()] is true or false.
+    ///
+    /// # In Write Mode
+    ///
+    /// The given name is a key to identify where this value will be stored in the visitor.
+    /// Whether this name indicates a field or a region is determined by the value being visited.
+    /// No two regions can exist with the same name as children of a single node,
+    /// and no two fields can exist with the same name within a single node,
+    /// but a region may share the same name as a field. If a name clash occurs, then an error
+    /// is returned. Otherwise the value is written into the Visitor data at the given name.
+    ///
+    /// # In Read Mode
+    ///
+    /// The given name is a key to identify where this value should be found the visitor.
+    /// Whether the name indicates a field or a region is determined by the the value being visited.
+    /// If the field or region is not found with the given name
+    /// then an error is returned. Otherwise the value being visited will be mutated
+    /// to match the data in the visitor.
+    ///
+    /// # Buiding a Complex Value out of Multiple Fields
+    ///
+    /// If representing this value requires more than one field,
+    /// [Visitor::enter_region] can be used to create a new node within the
+    /// visitor with the given name, and the fields of this value can then read from
+    /// or write to that node using the returned Visitor without risk of name
+    /// clashes.
+    ///
+    /// See the documentation for [the Visit derive macro](fyrox_core_derive::Visit) for examples of how to
+    /// implement Visit for some simple types.
+    ///
+    /// # Abnormal Implementations
+    ///
+    /// Types with special needs may choose to read and write in unusual ways. In addition to choosing
+    /// whether they will store their data in a region or a field, a value might choose to do neither.
+    /// A value may also choose to attempt to read its data in multiple ways so as to remain
+    /// backwards-compatible with older versions where the format of data storage may be different.
+    ///
+    /// See [crate::variable::InheritableVariable::visit] for an example of an abnormal implementation of Visit.
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult;
 }
 
@@ -1161,8 +1290,17 @@ impl Default for Visitor {
 }
 
 impl Visitor {
+    /// Sequence of bytes that is automatically written at the start when a visitor
+    /// is encoded into bytes. It is written by [Visitor::save_binary], [Visitor::save_binary_to_memory],
+    /// and [Visitor::save_binary_to_vec].
+    ///
+    /// [Visitor::load_binary] will return an error if this sequence of bytes is not present at the beginning
+    /// of the file, and [Visitor::load_from_memory] will return an error of these bytes are not at the beginning
+    /// of the given slice.
     pub const MAGIC: &'static str = "RG3D";
 
+    /// Creates a Visitor containing only a single node called "`__ROOT__`" which will be the
+    /// current region of the visitor.
     pub fn new() -> Self {
         let mut nodes = Pool::new();
         let root = nodes.spawn(VisitorNode::new("__ROOT__", Handle::NONE));
@@ -1186,6 +1324,13 @@ impl Visitor {
             .find(|field| field.name == name)
     }
 
+    /// True if this Visitor is changing the values that it visits.
+    /// In other words `x.visit("MyValue", &mut visitor)` will result in `x` being mutated to match
+    /// whatever value is stored in `visitor`.
+    ///
+    /// False if this visitor is copying and storing the values that it visits.
+    /// In other words `x.visit("MyValue", &mut visitor)` will result in `x` being unchanged,
+    /// but `visitor` will be mutated to store the value of `x` under the name "MyValue".
     pub fn is_reading(&self) -> bool {
         self.reading
     }
@@ -1194,6 +1339,13 @@ impl Visitor {
         self.nodes.borrow_mut(self.current_node)
     }
 
+    /// If [Visitor::is_reading], find a node with the given name that is a child
+    /// of the current node, and return a Visitor for the found node. Return an error
+    /// if no node with that name exists.
+    ///
+    /// If not reading, create a node with the given name as a chld of the current
+    /// node, and return a visitor for the new node. Return an error if a node with
+    /// that name already exists.
     pub fn enter_region(&mut self, name: &str) -> Result<RegionGuard, VisitError> {
         let node = self.nodes.borrow(self.current_node);
         if self.reading {
@@ -1231,6 +1383,9 @@ impl Visitor {
         }
     }
 
+    /// The name of the current region.
+    /// This should never be None if the Visitor is operating normally,
+    /// because there should be no way to leave the initial `__ROOT__` region.
     pub fn current_region(&self) -> Option<&str> {
         self.nodes
             .try_borrow(self.current_node)
@@ -1273,12 +1428,17 @@ impl Visitor {
         }
     }
 
+    /// Create a String containing all the data of this Visitor.
+    /// The String is formatted to be human-readable with each node on its own line
+    /// and tabs to indent child nodes.
     pub fn save_text(&self) -> String {
         let mut out_string = String::new();
         self.print_node(self.root, 0, &mut out_string);
         out_string
     }
 
+    /// Write the data of this Visitor to the given writer.
+    /// Begin by writing [Visitor::MAGIC].
     pub fn save_binary_to_memory<W: Write>(&self, mut writer: W) -> VisitResult {
         writer.write_all(Self::MAGIC.as_bytes())?;
         let mut stack = vec![self.root];
@@ -1299,12 +1459,19 @@ impl Visitor {
         Ok(())
     }
 
+    /// Encode the data of this visitor into bytes and push the bytes
+    /// into the given `Vec<u8>`.
+    /// Begin by writing [Visitor::MAGIC].
     pub fn save_binary_to_vec(&self) -> Result<Vec<u8>, VisitError> {
         let mut writer = Cursor::new(Vec::new());
         self.save_binary_to_memory(&mut writer)?;
         Ok(writer.into_inner())
     }
 
+    /// Create a file at the given path and write the data of this visitor
+    /// into that file in a non-human-readable binary format so that the data
+    /// can be reconstructed using [Visitor::load_binary].
+    /// Begin by writing [Visitor::MAGIC].
     pub fn save_binary<P: AsRef<Path>>(&self, path: P) -> VisitResult {
         let writer = BufWriter::new(File::create(path)?);
         self.save_binary_to_memory(writer)
@@ -1343,10 +1510,17 @@ impl Visitor {
         Ok(handle)
     }
 
+    /// Create a visitor by reading data from the file at the given path,
+    /// assuming that the file was created using [Visitor::save_binary].
+    /// Return a [VisitError::NotSupportedFormat] if [Visitor::MAGIC] is not the first bytes read from the file.
     pub async fn load_binary<P: AsRef<Path>>(path: P) -> Result<Self, VisitError> {
         Self::load_from_memory(&io::load_file(path).await?)
     }
 
+    /// Create a visitor by decoding data from the given byte slice,
+    /// assuming that the bytes are in the format that would be produced
+    /// by [Visitor::save_binary_to_vec].
+    /// Return a [VisitError::NotSupportedFormat] if [Visitor::MAGIC] is not the first bytes read from the slice.
     pub fn load_from_memory(data: &[u8]) -> Result<Self, VisitError> {
         let mut reader = Cursor::new(data);
         let mut magic: [u8; 4] = Default::default();
