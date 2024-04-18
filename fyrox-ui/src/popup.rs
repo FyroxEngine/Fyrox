@@ -402,7 +402,11 @@ impl Control for Popup {
                                 ui.screen_to_root_canvas_space(position),
                             ));
                             ui.send_message(WidgetMessage::focus(
-                                self.handle,
+                                if self.content.is_some() {
+                                    *self.content
+                                } else {
+                                    self.handle
+                                },
                                 MessageDirection::ToWidget,
                             ));
                             if *self.smart_placement {
