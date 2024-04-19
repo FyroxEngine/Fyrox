@@ -4,8 +4,12 @@
 #![warn(missing_docs)]
 
 use crate::{
-    core::{pool::Handle, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
+    core::{
+        pool::Handle, reflect::prelude::*, type_traits::prelude::*, variable::InheritableVariable,
+        visitor::prelude::*,
+    },
     message::{KeyCode, MessageDirection, UiMessage},
+    scroll_viewer::{ScrollViewer, ScrollViewerMessage},
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, UiNode, UserInterface,
 };
@@ -58,6 +62,10 @@ use std::ops::{Deref, DerefMut};
 pub struct NavigationLayer {
     /// Base widget of the navigation layer.
     pub widget: Widget,
+    /// A flag, that defines whether the navigation layer should search for a [`crate::scroll_viewer::ScrollViewer`]
+    /// parent widget and send [`crate::scroll_viewer::ScrollViewerMessage::BringIntoView`] message
+    /// to a newly focused widget.
+    pub bring_into_view: InheritableVariable<bool>,
 }
 
 crate::define_widget_deref!(NavigationLayer);
@@ -113,6 +121,19 @@ impl Control for NavigationLayer {
                     entry.handle,
                     MessageDirection::ToWidget,
                 ));
+
+                if *self.bring_into_view {
+                    // Find a parent scroll viewer.
+                    if let Some((scroll_viewer, _)) =
+                        ui.find_component_up::<ScrollViewer>(entry.handle)
+                    {
+                        ui.send_message(ScrollViewerMessage::bring_into_view(
+                            scroll_viewer,
+                            MessageDirection::ToWidget,
+                            entry.handle,
+                        ));
+                    }
+                }
             }
         }
     }
@@ -121,12 +142,16 @@ impl Control for NavigationLayer {
 /// Navigation layer builder creates new [`NavigationLayer`] widget instances and adds them to the user interface.
 pub struct NavigationLayerBuilder {
     widget_builder: WidgetBuilder,
+    bring_into_view: bool,
 }
 
 impl NavigationLayerBuilder {
     /// Creates new builder instance.
     pub fn new(widget_builder: WidgetBuilder) -> Self {
-        Self { widget_builder }
+        Self {
+            widget_builder,
+            bring_into_view: true,
+        }
     }
 
     /// Finishes navigation layer widget building and adds the instance to the user interface and
@@ -134,6 +159,7 @@ impl NavigationLayerBuilder {
     pub fn build(self, ui: &mut BuildContext) -> Handle<UiNode> {
         let navigation_layer = NavigationLayer {
             widget: self.widget_builder.build(),
+            bring_into_view: self.bring_into_view.into(),
         };
         ui.add_node(UiNode::new(navigation_layer))
     }
