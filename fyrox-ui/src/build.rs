@@ -144,4 +144,9 @@ impl<'a> BuildContext<'a> {
     pub fn inner(&self) -> &UserInterface {
         self.ui
     }
+
+    /// Returns a mutable reference to the user interface.
+    pub fn inner_mut(&mut self) -> &mut UserInterface {
+        self.ui
+    }
 }
