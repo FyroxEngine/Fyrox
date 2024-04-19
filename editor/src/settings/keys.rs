@@ -50,10 +50,16 @@ pub struct KeyBindings {
     pub focus: HotKey,
     #[serde(default = "default_terrain_key_bindings")]
     pub terrain_key_bindings: TerrainKeyBindings,
+    #[serde(default = "default_run_hotkey")]
+    pub run_game: HotKey,
 }
 
 fn default_focus_hotkey() -> HotKey {
     HotKey::from_key_code(KeyCode::KeyF)
+}
+
+fn default_run_hotkey() -> HotKey {
+    HotKey::from_key_code(KeyCode::F5)
 }
 
 fn default_terrain_key_bindings() -> TerrainKeyBindings {
@@ -99,6 +105,7 @@ impl Default for KeyBindings {
             remove_selection: HotKey::from_key_code(KeyCode::Delete),
             focus: default_focus_hotkey(),
             terrain_key_bindings: default_terrain_key_bindings(),
+            run_game: default_run_hotkey(),
         }
     }
 }
