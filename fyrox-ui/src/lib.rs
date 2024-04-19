@@ -1981,7 +1981,7 @@ impl UserInterface {
                             }
                         }
                         WidgetMessage::MouseDown { button, .. } => {
-                            if !message.handled() && *button == MouseButton::Right {
+                            if *button == MouseButton::Right {
                                 if let Some(picked) = self.nodes.try_borrow(self.picked_node) {
                                     // Get the context menu from the current node or a parent node
                                     let (context_menu, target) = if picked.context_menu().is_some()
@@ -2012,7 +2012,6 @@ impl UserInterface {
                                         ));
                                         // Send Event messages to the widget that was clicked on,
                                         // not to the widget that has the context menu.
-                                        // The Inspector widget needs to know which widget was clicked on.
                                         self.send_message(PopupMessage::owner(
                                             context_menu.handle(),
                                             MessageDirection::ToWidget,
