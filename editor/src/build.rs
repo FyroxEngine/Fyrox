@@ -134,6 +134,7 @@ impl BuildWindow {
             self.window,
             MessageDirection::ToWidget,
             true,
+            true,
         ));
     }
 

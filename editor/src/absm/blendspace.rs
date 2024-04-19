@@ -792,6 +792,7 @@ impl BlendSpaceEditor {
             self.window,
             MessageDirection::ToWidget,
             true,
+            true,
         ));
     }
 

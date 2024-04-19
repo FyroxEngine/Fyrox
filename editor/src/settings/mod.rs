@@ -309,6 +309,7 @@ impl SettingsWindow {
             self.window,
             MessageDirection::ToWidget,
             true,
+            true,
         ));
 
         self.sync_to_model(ui, settings, sender);

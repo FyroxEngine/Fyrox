@@ -936,6 +936,7 @@ impl ExportWindow {
             self.window,
             MessageDirection::ToWidget,
             true,
+            true,
         ));
     }
 

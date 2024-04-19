@@ -82,6 +82,7 @@ impl UtilsMenu {
                     panels.path_fixer,
                     MessageDirection::ToWidget,
                     true,
+                    true,
                 ));
             } else if message.destination() == self.open_curve_editor {
                 panels.curve_editor.open(ui);

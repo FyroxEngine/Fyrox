@@ -881,6 +881,7 @@ impl Editor {
                     editor.configurator.window,
                     MessageDirection::ToWidget,
                     true,
+                    true,
                 ));
         }
 
@@ -2094,6 +2095,7 @@ impl Editor {
             .send_message(WindowMessage::open(
                 self.material_editor.window,
                 MessageDirection::ToWidget,
+                true,
                 true,
             ));
     }

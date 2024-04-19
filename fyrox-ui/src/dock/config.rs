@@ -122,6 +122,7 @@ impl TileDescriptor {
                             window_handle,
                             MessageDirection::ToWidget,
                             false,
+                            true,
                         ));
 
                         TileContent::Window(window_handle)

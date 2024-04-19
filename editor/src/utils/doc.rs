@@ -55,6 +55,7 @@ impl DocWindow {
             self.window,
             MessageDirection::ToWidget,
             true,
+            true,
         ));
     }
 }

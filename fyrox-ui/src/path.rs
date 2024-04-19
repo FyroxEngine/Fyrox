@@ -104,6 +104,7 @@ impl Control for PathEditor {
                     *self.selector,
                     MessageDirection::ToWidget,
                     true,
+                    true,
                 ));
             }
         } else if let Some(PathEditorMessage::Path(path)) = message.data() {

@@ -50,6 +50,7 @@ impl StatisticsWindow {
                 VerticalAlignment::Top,
                 Thickness::uniform(2.0),
                 false,
+                false,
             ))
             .unwrap();
 

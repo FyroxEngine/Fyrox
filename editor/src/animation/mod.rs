@@ -232,6 +232,7 @@ impl AnimationEditor {
             self.window,
             MessageDirection::ToWidget,
             true,
+            true,
         ));
     }
 

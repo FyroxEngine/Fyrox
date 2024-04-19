@@ -172,6 +172,7 @@ impl ProgressWindow {
             self.window,
             MessageDirection::ToWidget,
             true,
+            true,
         ));
     }
 

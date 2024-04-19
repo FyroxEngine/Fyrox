@@ -431,6 +431,7 @@ impl AbsmEditor {
             self.window,
             MessageDirection::ToWidget,
             true,
+            true,
         ));
     }
 

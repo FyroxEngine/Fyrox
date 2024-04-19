@@ -182,6 +182,7 @@ impl FileMenu {
             self.load_file_selector,
             MessageDirection::ToWidget,
             true,
+            true,
         ));
         ui.send_message(FileSelectorMessage::root(
             self.load_file_selector,
@@ -196,6 +197,7 @@ impl FileMenu {
         ui.send_message(WindowMessage::open_modal(
             self.save_file_selector,
             MessageDirection::ToWidget,
+            true,
             true,
         ));
         ui.send_message(FileSelectorMessage::path(
@@ -286,6 +288,7 @@ impl FileMenu {
                         .send_message(WindowMessage::open_modal(
                             panels.configurator_window,
                             MessageDirection::ToWidget,
+                            true,
                             true,
                         ));
                 } else {

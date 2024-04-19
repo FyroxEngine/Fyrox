@@ -295,6 +295,7 @@ impl CurveEditorWindow {
             self.window,
             MessageDirection::ToWidget,
             true,
+            true,
         ));
     }
 
@@ -398,6 +399,7 @@ impl CurveEditorWindow {
             self.save_file_selector,
             MessageDirection::ToWidget,
             true,
+            true,
         ));
     }
 
@@ -469,6 +471,7 @@ impl CurveEditorWindow {
                 ui.send_message(WindowMessage::open_modal(
                     self.load_file_selector,
                     MessageDirection::ToWidget,
+                    true,
                     true,
                 ));
             } else if message.destination() == self.menu.file.new {

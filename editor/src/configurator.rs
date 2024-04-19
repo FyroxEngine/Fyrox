@@ -349,6 +349,7 @@ impl Configurator {
                         self.work_dir_browser,
                         MessageDirection::ToWidget,
                         true,
+                        true,
                     ));
             }
         }

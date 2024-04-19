@@ -335,6 +335,7 @@ impl ResourceCreator {
             self.window,
             MessageDirection::ToWidget,
             true,
+            true,
         ));
     }
 

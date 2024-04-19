@@ -236,6 +236,7 @@ impl SceneNodeContextMenu {
                             self.save_as_prefab_dialog,
                             MessageDirection::ToWidget,
                             true,
+                            true,
                         ));
                     engine
                         .user_interfaces

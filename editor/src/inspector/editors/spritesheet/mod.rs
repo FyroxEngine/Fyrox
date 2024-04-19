@@ -69,6 +69,7 @@ impl Control for SpriteSheetFramesPropertyEditor {
                     window,
                     MessageDirection::ToWidget,
                     true,
+                    true,
                 ));
             }
         } else if let Some(SpriteSheetFramesPropertyEditorMessage::Value(value)) = message.data() {

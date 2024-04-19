@@ -774,6 +774,7 @@ impl TrackList {
                     self.node_selector,
                     MessageDirection::ToWidget,
                     true,
+                    true,
                 ));
 
                 if message.destination() == self.add_track {
@@ -1022,6 +1023,7 @@ impl TrackList {
                     self.context_menu.target_node_selector,
                     MessageDirection::ToWidget,
                     true,
+                    true,
                 ));
             } else if message.destination() == self.context_menu.rebind {
                 if let Some(animation) = selected_animation {
@@ -1129,6 +1131,7 @@ impl TrackList {
         ui.send_message(WindowMessage::open_modal(
             property_selector,
             MessageDirection::ToWidget,
+            true,
             true,
         ));
 

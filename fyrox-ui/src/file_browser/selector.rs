@@ -332,6 +332,7 @@ impl Control for FileSelectorField {
                     file_selector,
                     MessageDirection::ToWidget,
                     true,
+                    true,
                 ));
             }
         } else if let Some(FileSelectorFieldMessage::Path(new_path)) = message.data() {

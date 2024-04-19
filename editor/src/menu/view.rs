@@ -33,7 +33,7 @@ fn switch_window_state(window: Handle<UiNode>, ui: &UserInterface, center: bool)
     ui.send_message(if current_state {
         WindowMessage::close(window, MessageDirection::ToWidget)
     } else {
-        WindowMessage::open(window, MessageDirection::ToWidget, center)
+        WindowMessage::open(window, MessageDirection::ToWidget, center, true)
     })
 }
 

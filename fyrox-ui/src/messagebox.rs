@@ -255,6 +255,7 @@ impl Control for MessageBox {
                         self.handle(),
                         MessageDirection::ToWidget,
                         true,
+                        true,
                     ));
                 }
                 MessageBoxMessage::Close(_) => {

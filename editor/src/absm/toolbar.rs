@@ -273,6 +273,7 @@ impl Toolbar {
                         self.node_selector,
                         MessageDirection::ToWidget,
                         true,
+                        true,
                     ));
 
                     if let Some(layer_index) = selection.layer {

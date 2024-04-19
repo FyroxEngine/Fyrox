@@ -352,6 +352,7 @@ impl PathFixer {
                     self.scene_selector,
                     MessageDirection::ToWidget,
                     true,
+                    true,
                 ));
             } else if message.destination() == self.cancel {
                 ui.send_message(WindowMessage::close(
@@ -423,6 +424,7 @@ impl PathFixer {
                         ui.send_message(WindowMessage::open_modal(
                             self.new_path_selector,
                             MessageDirection::ToWidget,
+                            true,
                             true,
                         ));
                     }

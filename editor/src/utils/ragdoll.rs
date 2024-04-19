@@ -1106,6 +1106,7 @@ impl RagdollWizard {
             self.window,
             MessageDirection::ToWidget,
             true,
+            true,
         ));
     }
 
