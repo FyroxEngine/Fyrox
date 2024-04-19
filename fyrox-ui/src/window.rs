@@ -594,7 +594,7 @@ impl Control for Window {
                                 ));
                             }
                             ui.send_message(WidgetMessage::focus(
-                                self.handle,
+                                self.content_to_focus(),
                                 MessageDirection::ToWidget,
                             ));
                         }
@@ -616,7 +616,7 @@ impl Control for Window {
                                 position,
                             ));
                             ui.send_message(WidgetMessage::focus(
-                                self.handle,
+                                self.content_to_focus(),
                                 MessageDirection::ToWidget,
                             ));
                         }
@@ -653,7 +653,7 @@ impl Control for Window {
                                 });
                             }
                             ui.send_message(WidgetMessage::focus(
-                                self.handle,
+                                self.content_to_focus(),
                                 MessageDirection::ToWidget,
                             ));
                         }
@@ -680,7 +680,7 @@ impl Control for Window {
                                 stop: true,
                             });
                             ui.send_message(WidgetMessage::focus(
-                                self.handle,
+                                self.content_to_focus(),
                                 MessageDirection::ToWidget,
                             ));
                         }
@@ -884,6 +884,14 @@ impl Window {
             }
         }
         false
+    }
+
+    fn content_to_focus(&self) -> Handle<UiNode> {
+        if self.content.is_some() {
+            self.content
+        } else {
+            self.handle
+        }
     }
 }
 
