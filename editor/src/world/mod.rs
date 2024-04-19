@@ -206,6 +206,7 @@ impl WorldViewer {
         let track_selection;
         let search_bar = SearchBarBuilder::new(
             WidgetBuilder::new()
+                .with_tab_index(Some(4))
                 .on_row(1)
                 .with_margin(Thickness::uniform(1.0)),
         )
@@ -231,6 +232,7 @@ impl WorldViewer {
                                                 "../../resources/collapse.png"
                                             )),
                                             "Collapse Everything",
+                                            Some(0),
                                         );
                                         collapse_all
                                     })
@@ -243,6 +245,7 @@ impl WorldViewer {
                                                 "../../resources/expand.png"
                                             )),
                                             "Expand Everything",
+                                            Some(1),
                                         );
                                         expand_all
                                     })
@@ -255,12 +258,14 @@ impl WorldViewer {
                                                 "../../resources/locate.png"
                                             )),
                                             "Locate Selection",
+                                            Some(2),
                                         );
                                         locate_selection
                                     })
                                     .with_child({
                                         track_selection = CheckBoxBuilder::new(
                                             WidgetBuilder::new()
+                                                .with_tab_index(Some(3))
                                                 .with_vertical_alignment(VerticalAlignment::Center)
                                                 .with_margin(Thickness::uniform(1.0)),
                                         )
@@ -284,8 +289,10 @@ impl WorldViewer {
                         .with_child({
                             scroll_view = ScrollViewerBuilder::new(WidgetBuilder::new().on_row(2))
                                 .with_content({
-                                    tree_root =
-                                        TreeRootBuilder::new(WidgetBuilder::new()).build(ctx);
+                                    tree_root = TreeRootBuilder::new(
+                                        WidgetBuilder::new().with_tab_index(Some(5)),
+                                    )
+                                    .build(ctx);
                                     tree_root
                                 })
                                 .build(ctx);

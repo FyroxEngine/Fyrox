@@ -119,12 +119,14 @@ impl LogPanel {
                                             24.0,
                                             load_image(include_bytes!("../resources/clear.png")),
                                             "Clear the log.",
+                                            Some(0),
                                         );
                                         clear
                                     })
                                     .with_child({
                                         severity_list = DropdownListBuilder::new(
                                             WidgetBuilder::new()
+                                                .with_tab_index(Some(1))
                                                 .with_width(120.0)
                                                 .with_margin(Thickness::uniform(1.0)),
                                         )

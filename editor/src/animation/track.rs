@@ -660,6 +660,7 @@ impl TrackList {
                                     )),
                                     "Add Property Track.\n\
                                     Create generic property binding to a numeric property.",
+                                    Some(0),
                                 );
                                 add_track
                             })
@@ -675,6 +676,7 @@ impl TrackList {
                                     Creates a binding to a local position of a node. \
                                     Such binding is much more performant than generic \
                                     property binding",
+                                    Some(1),
                                 );
                                 add_position_track
                             })
@@ -688,6 +690,7 @@ impl TrackList {
                                     Creates a binding to a local scale of a node. \
                                     Such binding is much more performant than generic \
                                     property binding",
+                                    Some(2),
                                 );
                                 add_scale_track
                             })
@@ -703,6 +706,7 @@ impl TrackList {
                                     Creates a binding to a local rotation of a node. \
                                     Such binding is much more performant than generic \
                                     property binding",
+                                    Some(3),
                                 );
                                 add_rotation_track
                             }),

@@ -22,6 +22,7 @@ use crate::{
     world::WorldViewerItemContextMenu,
     Engine, Message, MessageDirection,
 };
+use fyrox::gui::menu::ContextMenuBuilder;
 use std::path::PathBuf;
 
 pub struct WidgetContextMenu {
@@ -65,8 +66,8 @@ impl WidgetContextMenu {
 
         let widgets_menu = UiMenu::new(UiMenu::default_entries(), "Create Child Widget", ctx);
 
-        let menu = PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
-            .with_content(
+        let menu = ContextMenuBuilder::new(
+            PopupBuilder::new(WidgetBuilder::new().with_visibility(false)).with_content(
                 StackPanelBuilder::new(
                     WidgetBuilder::new()
                         .with_child({
@@ -94,8 +95,9 @@ impl WidgetContextMenu {
                         .with_child(widgets_menu.menu),
                 )
                 .build(ctx),
-            )
-            .build(ctx);
+            ),
+        )
+        .build(ctx);
         let menu = RcUiNodeHandle::new(menu, ctx.sender());
 
         Self {
