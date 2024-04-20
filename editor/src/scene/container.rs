@@ -105,7 +105,7 @@ impl EditorSceneEntry {
             id: Uuid::new_v4(),
             path,
             selection: Default::default(),
-            command_stack: CommandStack::new(false),
+            command_stack: CommandStack::new(false, settings.general.max_history_entries),
         };
 
         entry.set_interaction_mode(engine, Some(MoveInteractionMode::type_uuid()));
@@ -119,6 +119,7 @@ impl EditorSceneEntry {
         message_sender: MessageSender,
         scene_viewer: &SceneViewer,
         engine: &mut Engine,
+        settings: &Settings,
     ) -> Self {
         let mut interaction_modes = InteractionModeContainer::default();
         interaction_modes.add(UiSelectInteractionMode::new(
@@ -139,7 +140,7 @@ impl EditorSceneEntry {
             id: Uuid::new_v4(),
             path,
             selection: Default::default(),
-            command_stack: CommandStack::new(false),
+            command_stack: CommandStack::new(false, settings.general.max_history_entries),
         };
 
         entry.set_interaction_mode(engine, Some(UiSelectInteractionMode::type_uuid()));

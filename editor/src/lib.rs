@@ -1898,6 +1898,7 @@ impl Editor {
                             self.message_sender.clone(),
                             &self.scene_viewer,
                             &mut self.engine,
+                            &self.settings,
                         );
                         self.add_scene(entry);
                     }
@@ -2035,6 +2036,7 @@ impl Editor {
             self.message_sender.clone(),
             &self.scene_viewer,
             &mut self.engine,
+            &self.settings,
         );
         self.add_scene(entry);
     }

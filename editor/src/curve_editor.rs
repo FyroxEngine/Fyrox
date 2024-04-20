@@ -266,7 +266,7 @@ impl CurveEditorWindow {
             ok,
             cancel,
             curve_resource: None,
-            command_stack: CommandStack::new(false),
+            command_stack: CommandStack::new(false, 2048),
             menu: Menu {
                 file: FileMenu { new, save, load },
                 edit: EditMenu { undo, redo },
