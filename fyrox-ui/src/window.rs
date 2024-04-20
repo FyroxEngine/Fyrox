@@ -556,6 +556,7 @@ impl Control for Window {
                 }
                 WidgetMessage::KeyDown(key_code)
                     if self.close_by_esc
+                        && !self.is_docked(ui)
                         && self.can_close
                         && *key_code == KeyCode::Escape
                         && !message.handled() =>
@@ -925,6 +926,10 @@ impl Window {
         } else {
             self.handle
         }
+    }
+
+    fn is_docked(&self, ui: &UserInterface) -> bool {
+        self.parent() != ui.root_canvas
     }
 }
 
