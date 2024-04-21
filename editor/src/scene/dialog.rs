@@ -132,6 +132,7 @@ impl NodeRemovalDialog {
             self.window,
             MessageDirection::ToWidget,
             true,
+            true,
         ));
 
         let mut text = String::new();

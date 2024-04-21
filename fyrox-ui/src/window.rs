@@ -34,10 +34,18 @@ pub enum WindowMessage {
     Open {
         /// A flag that defines whether the window should be centered or not.
         center: bool,
+        /// A flag that defines whether the content of the window should be focused when the window
+        /// is opening.
+        focus_content: bool,
     },
 
     /// Opens a window at the given local coordinates.
-    OpenAt { position: Vector2<f32> },
+    OpenAt {
+        position: Vector2<f32>,
+        /// A flag that defines whether the content of the window should be focused when the window
+        /// is opening.
+        focus_content: bool,
+    },
 
     /// Opens a window (optionally modal) and aligns it relative the to the given node.
     OpenAndAlign {
@@ -51,6 +59,9 @@ pub enum WindowMessage {
         margin: Thickness,
         /// Should the window be opened in modal mode or not.
         modal: bool,
+        /// A flag that defines whether the content of the window should be focused when the window
+        /// is opening.
+        focus_content: bool,
     },
 
     /// Opens window in modal mode. Modal mode does **not** blocks current thread, instead
@@ -59,6 +70,9 @@ pub enum WindowMessage {
     OpenModal {
         /// A flag that defines whether the window should be centered or not.
         center: bool,
+        /// A flag that defines whether the content of the window should be focused when the window
+        /// is opening.
+        focus_content: bool,
     },
 
     /// Closes a window.
@@ -101,11 +115,11 @@ pub enum WindowMessage {
 impl WindowMessage {
     define_constructor!(
         /// Creates [`WindowMessage::Open`] message.
-        WindowMessage:Open => fn open(center: bool), layout: false
+        WindowMessage:Open => fn open(center: bool, focus_content: bool), layout: false
     );
     define_constructor!(
         /// Creates [`WindowMessage::OpenAt`] message.
-        WindowMessage:OpenAt => fn open_at(position: Vector2<f32>), layout: false
+        WindowMessage:OpenAt => fn open_at(position: Vector2<f32>, focus_content: bool), layout: false
     );
     define_constructor!(
         /// Creates [`WindowMessage::OpenAndAlign`] message.
@@ -114,12 +128,13 @@ impl WindowMessage {
             horizontal_alignment: HorizontalAlignment,
             vertical_alignment: VerticalAlignment,
             margin: Thickness,
-            modal: bool
+            modal: bool,
+            focus_content: bool
         ), layout: false
     );
     define_constructor!(
         /// Creates [`WindowMessage::OpenModal`] message.
-        WindowMessage:OpenModal => fn open_modal(center: bool), layout: false
+        WindowMessage:OpenModal => fn open_modal(center: bool, focus_content: bool), layout: false
     );
     define_constructor!(
         /// Creates [`WindowMessage::Close`] message.
@@ -541,6 +556,7 @@ impl Control for Window {
                 }
                 WidgetMessage::KeyDown(key_code)
                     if self.close_by_esc
+                        && !self.is_docked(ui)
                         && self.can_close
                         && *key_code == KeyCode::Escape
                         && !message.handled() =>
@@ -576,7 +592,10 @@ impl Control for Window {
                 && message.direction() == MessageDirection::ToWidget
             {
                 match msg {
-                    &WindowMessage::Open { center } => {
+                    &WindowMessage::Open {
+                        center,
+                        focus_content,
+                    } => {
                         if !self.visibility() {
                             ui.send_message(WidgetMessage::visibility(
                                 self.handle(),
@@ -593,13 +612,18 @@ impl Control for Window {
                                     MessageDirection::ToWidget,
                                 ));
                             }
-                            ui.send_message(WidgetMessage::focus(
-                                self.handle,
-                                MessageDirection::ToWidget,
-                            ));
+                            if focus_content {
+                                ui.send_message(WidgetMessage::focus(
+                                    self.content_to_focus(),
+                                    MessageDirection::ToWidget,
+                                ));
+                            }
                         }
                     }
-                    &WindowMessage::OpenAt { position } => {
+                    &WindowMessage::OpenAt {
+                        position,
+                        focus_content,
+                    } => {
                         if !self.visibility() {
                             ui.send_message(WidgetMessage::visibility(
                                 self.handle(),
@@ -615,10 +639,12 @@ impl Control for Window {
                                 MessageDirection::ToWidget,
                                 position,
                             ));
-                            ui.send_message(WidgetMessage::focus(
-                                self.handle,
-                                MessageDirection::ToWidget,
-                            ));
+                            if focus_content {
+                                ui.send_message(WidgetMessage::focus(
+                                    self.content_to_focus(),
+                                    MessageDirection::ToWidget,
+                                ));
+                            }
                         }
                     }
                     &WindowMessage::OpenAndAlign {
@@ -627,6 +653,7 @@ impl Control for Window {
                         vertical_alignment,
                         margin,
                         modal,
+                        focus_content,
                     } => {
                         if !self.visibility() {
                             ui.send_message(WidgetMessage::visibility(
@@ -652,13 +679,18 @@ impl Control for Window {
                                     stop: true,
                                 });
                             }
-                            ui.send_message(WidgetMessage::focus(
-                                self.handle,
-                                MessageDirection::ToWidget,
-                            ));
+                            if focus_content {
+                                ui.send_message(WidgetMessage::focus(
+                                    self.content_to_focus(),
+                                    MessageDirection::ToWidget,
+                                ));
+                            }
                         }
                     }
-                    &WindowMessage::OpenModal { center } => {
+                    &WindowMessage::OpenModal {
+                        center,
+                        focus_content,
+                    } => {
                         if !self.visibility() {
                             ui.send_message(WidgetMessage::visibility(
                                 self.handle(),
@@ -679,10 +711,12 @@ impl Control for Window {
                                 handle: self.handle(),
                                 stop: true,
                             });
-                            ui.send_message(WidgetMessage::focus(
-                                self.handle,
-                                MessageDirection::ToWidget,
-                            ));
+                            if focus_content {
+                                ui.send_message(WidgetMessage::focus(
+                                    self.content_to_focus(),
+                                    MessageDirection::ToWidget,
+                                ));
+                            }
                         }
                     }
                     WindowMessage::Close => {
@@ -884,6 +918,18 @@ impl Window {
             }
         }
         false
+    }
+
+    fn content_to_focus(&self) -> Handle<UiNode> {
+        if self.content.is_some() {
+            self.content
+        } else {
+            self.handle
+        }
+    }
+
+    fn is_docked(&self, ui: &UserInterface) -> bool {
+        self.parent() != ui.root_canvas
     }
 }
 

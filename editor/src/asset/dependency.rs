@@ -137,6 +137,7 @@ impl DependencyViewer {
             self.window,
             MessageDirection::ToWidget,
             true,
+            true,
         ));
         self.resource_graph = Some(resource_graph);
     }

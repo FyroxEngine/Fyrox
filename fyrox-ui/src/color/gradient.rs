@@ -1,3 +1,4 @@
+use crate::menu::ContextMenuBuilder;
 use crate::{
     brush::Brush,
     color::{ColorFieldBuilder, ColorFieldMessage},
@@ -356,8 +357,8 @@ impl ColorGradientEditorBuilder {
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let add_point;
-        let context_menu = PopupBuilder::new(WidgetBuilder::new())
-            .with_content(
+        let context_menu = ContextMenuBuilder::new(
+            PopupBuilder::new(WidgetBuilder::new()).with_content(
                 StackPanelBuilder::new(WidgetBuilder::new().with_child({
                     add_point = MenuItemBuilder::new(WidgetBuilder::new())
                         .with_content(MenuItemContent::text("Add Point"))
@@ -365,14 +366,15 @@ impl ColorGradientEditorBuilder {
                     add_point
                 }))
                 .build(ctx),
-            )
-            .build(ctx);
+            ),
+        )
+        .build(ctx);
         let context_menu = RcUiNodeHandle::new(context_menu, ctx.sender());
 
         let selector_field;
         let remove_point;
-        let point_context_menu = PopupBuilder::new(WidgetBuilder::new().with_width(200.0))
-            .with_content(
+        let point_context_menu = ContextMenuBuilder::new(
+            PopupBuilder::new(WidgetBuilder::new().with_width(200.0)).with_content(
                 StackPanelBuilder::new(
                     WidgetBuilder::new()
                         .with_child({
@@ -389,8 +391,9 @@ impl ColorGradientEditorBuilder {
                         }),
                 )
                 .build(ctx),
-            )
-            .build(ctx);
+            ),
+        )
+        .build(ctx);
         let point_context_menu = RcUiNodeHandle::new(point_context_menu, ctx.sender());
 
         let points_canvas = ColorPointsCanvasBuilder::new(

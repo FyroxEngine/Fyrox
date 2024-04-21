@@ -18,6 +18,13 @@ pub struct GeneralSettings {
 
     #[serde(default = "default_script_editor")]
     pub script_editor: ScriptEditor,
+
+    #[serde(default = "default_max_history_entries")]
+    #[reflect(
+        description = "Maximum capacity of actions history stack stored by the editor. Default is \
+    512. Large numbers will increase maximum amount of memory needed for the editor."
+    )]
+    pub max_history_entries: usize,
 }
 
 fn default_suspension_state() -> bool {
@@ -26,6 +33,10 @@ fn default_suspension_state() -> bool {
 
 fn default_script_editor() -> ScriptEditor {
     ScriptEditor::SystemDefault
+}
+
+fn default_max_history_entries() -> usize {
+    512
 }
 
 #[derive(
@@ -59,6 +70,7 @@ impl Default for GeneralSettings {
             show_node_removal_dialog: true,
             suspend_unfocused_editor: default_suspension_state(),
             script_editor: default_script_editor(),
+            max_history_entries: default_max_history_entries(),
         }
     }
 }

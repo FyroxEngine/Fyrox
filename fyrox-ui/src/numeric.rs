@@ -455,6 +455,21 @@ impl<T: NumericType> Control for NumericUpDown<T> {
                         }
                     }
                 }
+                WidgetMessage::KeyDown(key_code) => match *key_code {
+                    KeyCode::ArrowUp => {
+                        ui.send_message(ButtonMessage::click(
+                            *self.increase,
+                            MessageDirection::FromWidget,
+                        ));
+                    }
+                    KeyCode::ArrowDown => {
+                        ui.send_message(ButtonMessage::click(
+                            *self.decrease,
+                            MessageDirection::FromWidget,
+                        ));
+                    }
+                    _ => (),
+                },
                 _ => {}
             }
         } else if let Some(msg) = message.data::<NumericUpDownMessage<T>>() {

@@ -49,6 +49,7 @@ impl CommandStackViewer {
                                             20.0,
                                             load_image(include_bytes!("../../resources/undo.png")),
                                             "Undo The Command",
+                                            Some(0),
                                         );
                                         undo
                                     })
@@ -59,6 +60,7 @@ impl CommandStackViewer {
                                             20.0,
                                             load_image(include_bytes!("../../resources/redo.png")),
                                             "Redo The Command",
+                                            Some(1),
                                         );
                                         redo
                                     })
@@ -69,6 +71,7 @@ impl CommandStackViewer {
                                             20.0,
                                             load_image(include_bytes!("../../resources/clear.png")),
                                             "Clear Command Stack\nChanges history will be erased.",
+                                            Some(2),
                                         );
                                         clear
                                     }),

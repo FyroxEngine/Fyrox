@@ -231,6 +231,7 @@ impl ParticleSystemPreviewControlPanel {
                             VerticalAlignment::Top,
                             Thickness::top_right(5.0),
                             false,
+                            false,
                         ));
                 } else {
                     engine

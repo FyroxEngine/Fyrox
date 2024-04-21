@@ -78,9 +78,11 @@ pub fn make_image_button_with_tooltip(
     height: f32,
     image: Option<UntypedResource>,
     tooltip: &str,
+    tab_index: Option<usize>,
 ) -> Handle<UiNode> {
     ButtonBuilder::new(
         WidgetBuilder::new()
+            .with_tab_index(tab_index)
             .with_tooltip(make_simple_tooltip(ctx, tooltip))
             .with_margin(Thickness::uniform(1.0)),
     )

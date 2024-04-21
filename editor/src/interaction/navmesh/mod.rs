@@ -160,6 +160,7 @@ impl NavmeshPanel {
                     VerticalAlignment::Top,
                     Thickness::uniform(1.0),
                     false,
+                    false,
                 ));
         } else {
             engine

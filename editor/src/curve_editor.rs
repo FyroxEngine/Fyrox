@@ -266,7 +266,7 @@ impl CurveEditorWindow {
             ok,
             cancel,
             curve_resource: None,
-            command_stack: CommandStack::new(false),
+            command_stack: CommandStack::new(false, 2048),
             menu: Menu {
                 file: FileMenu { new, save, load },
                 edit: EditMenu { undo, redo },
@@ -294,6 +294,7 @@ impl CurveEditorWindow {
         ui.send_message(WindowMessage::open_modal(
             self.window,
             MessageDirection::ToWidget,
+            true,
             true,
         ));
     }
@@ -398,6 +399,7 @@ impl CurveEditorWindow {
             self.save_file_selector,
             MessageDirection::ToWidget,
             true,
+            true,
         ));
     }
 
@@ -469,6 +471,7 @@ impl CurveEditorWindow {
                 ui.send_message(WindowMessage::open_modal(
                     self.load_file_selector,
                     MessageDirection::ToWidget,
+                    true,
                     true,
                 ));
             } else if message.destination() == self.menu.file.new {

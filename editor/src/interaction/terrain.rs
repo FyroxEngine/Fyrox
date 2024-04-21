@@ -361,6 +361,7 @@ impl InteractionMode for TerrainInteractionMode {
                 VerticalAlignment::Top,
                 Thickness::top_right(5.0),
                 false,
+                false,
             ));
     }
 

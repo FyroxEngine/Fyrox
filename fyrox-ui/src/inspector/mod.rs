@@ -2,7 +2,6 @@
 //! structure or enumeration recursively. It's primary usage is provide unified and simple way of introspection.
 //! See [`Inspector`] docs for more info and usage examples.
 
-use crate::menu::ContextMenuBuilder;
 use crate::{
     border::BorderBuilder,
     check_box::CheckBoxBuilder,
@@ -11,6 +10,7 @@ use crate::{
         pool::Handle,
         reflect::{prelude::*, CastError, Reflect},
         type_traits::prelude::*,
+        uuid_provider,
         visitor::prelude::*,
     },
     define_constructor,
@@ -21,7 +21,7 @@ use crate::{
         PropertyEditorBuildContext, PropertyEditorDefinitionContainer, PropertyEditorInstance,
         PropertyEditorMessageContext, PropertyEditorTranslationContext,
     },
-    menu::{MenuItemBuilder, MenuItemContent, MenuItemMessage},
+    menu::{ContextMenuBuilder, MenuItemBuilder, MenuItemContent, MenuItemMessage},
     message::{MessageDirection, UiMessage},
     popup::{PopupBuilder, PopupMessage},
     stack_panel::StackPanelBuilder,
@@ -31,13 +31,12 @@ use crate::{
     BuildContext, Control, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use copypasta::ClipboardProvider;
-use fyrox_core::uuid_provider;
 use fyrox_graph::{BaseSceneGraph, SceneGraph};
-use std::sync::Arc;
 use std::{
     any::{Any, TypeId},
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
+    sync::Arc,
 };
 
 pub mod editors;
@@ -747,6 +746,24 @@ impl PropertyFilter {
     }
 }
 
+fn assign_tab_indices(container: Handle<UiNode>, ui: &mut UserInterface) {
+    let mut counter = 0;
+    let mut widgets_list = Vec::new();
+    for descendant in ui.traverse_handle_iter(container) {
+        let descendant_ref = ui.node(descendant);
+        if descendant_ref.accepts_input {
+            widgets_list.push((descendant, counter));
+            counter += 1;
+        }
+    }
+
+    for (descendant, tab_index) in widgets_list {
+        ui.node_mut(descendant)
+            .tab_index
+            .set_value_and_mark_modified(Some(counter - tab_index));
+    }
+}
+
 impl InspectorContext {
     /// Build the widgets for an Inspector to represent the given object by accessing
     /// the object's fields through reflection.
@@ -907,21 +924,7 @@ impl InspectorContext {
 
         // Assign tab indices for every widget that can accept user input.
         if layer_index == 0 {
-            let mut counter = 0;
-            let mut widgets_list = Vec::new();
-            for descendant in ctx.inner().traverse_handle_iter(stack_panel) {
-                let descendant_ref = &ctx[descendant];
-                if descendant_ref.accepts_input {
-                    widgets_list.push((descendant, counter));
-                    counter += 1;
-                }
-            }
-
-            for (descendant, tab_index) in widgets_list {
-                ctx[descendant]
-                    .tab_index
-                    .set_value_and_mark_modified(Some(counter - tab_index));
-            }
+            assign_tab_indices(stack_panel, ctx.inner_mut());
         }
 
         Self {
@@ -995,6 +998,10 @@ impl InspectorContext {
                 }
             }
         });
+
+        if layer_index == 0 {
+            assign_tab_indices(self.stack_panel, ui);
+        }
 
         if sync_errors.is_empty() {
             Ok(())

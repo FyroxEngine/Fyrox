@@ -161,6 +161,7 @@ impl Configurator {
                                 .with_child({
                                     select_work_dir = ButtonBuilder::new(
                                         WidgetBuilder::new()
+                                            .with_tab_index(Some(0))
                                             .on_row(0)
                                             .on_column(2)
                                             .with_margin(Thickness::uniform(1.0)),
@@ -187,14 +188,16 @@ impl Configurator {
                         .build(ctx),
                     )
                     .with_child({
-                        lv_history = ListViewBuilder::new(WidgetBuilder::new().on_row(3))
-                            .with_items(
-                                history
-                                    .iter()
-                                    .map(|entry| make_history_entry_widget(ctx, entry))
-                                    .collect(),
-                            )
-                            .build(ctx);
+                        lv_history = ListViewBuilder::new(
+                            WidgetBuilder::new().with_tab_index(Some(1)).on_row(3),
+                        )
+                        .with_items(
+                            history
+                                .iter()
+                                .map(|entry| make_history_entry_widget(ctx, entry))
+                                .collect(),
+                        )
+                        .build(ctx);
                         lv_history
                     })
                     .with_child(
@@ -206,6 +209,7 @@ impl Configurator {
                                 .with_child({
                                     ok = ButtonBuilder::new(
                                         WidgetBuilder::new()
+                                            .with_tab_index(Some(2))
                                             .with_enabled(true) // Enabled by default.
                                             .with_width(80.0)
                                             .with_height(25.0)
@@ -344,6 +348,7 @@ impl Configurator {
                     .send_message(WindowMessage::open_modal(
                         self.work_dir_browser,
                         MessageDirection::ToWidget,
+                        true,
                         true,
                     ));
             }

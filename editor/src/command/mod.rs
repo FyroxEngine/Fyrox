@@ -8,7 +8,7 @@ use crate::fyrox::{
 use std::{
     any::{type_name, TypeId},
     fmt::{Debug, Formatter},
-    ops::{Deref, DerefMut},
+    ops::{Deref, DerefMut, RangeBounds},
 };
 
 pub mod panel;
@@ -158,14 +158,16 @@ impl CommandTrait for CommandGroup {
 pub struct CommandStack {
     pub commands: Vec<Command>,
     pub top: Option<usize>,
+    max_capacity: usize,
     debug: bool,
 }
 
 impl CommandStack {
-    pub fn new(debug: bool) -> Self {
+    pub fn new(debug: bool, max_capacity: usize) -> Self {
         Self {
             commands: Default::default(),
             top: None,
+            max_capacity,
             debug,
         }
     }
@@ -179,14 +181,35 @@ impl CommandStack {
                 None => self.top = Some(0),
                 Some(top) => *top += 1,
             }
-            // Drop everything after top.
-            let top = self.top.unwrap_or(0);
-            if top < self.commands.len() {
-                for mut dropped_command in self.commands.drain(top..) {
-                    if self.debug {
+
+            fn drain<R: RangeBounds<usize>>(
+                commands: &mut Vec<Command>,
+                range: R,
+                context: &mut dyn CommandContext,
+                debug: bool,
+            ) {
+                for mut dropped_command in commands.drain(range) {
+                    if debug {
                         println!("Finalizing command {:?}", dropped_command);
                     }
                     dropped_command.finalize(context);
+                }
+            }
+
+            // Drop everything after top.
+            let top = self.top.unwrap_or(0);
+            if top < self.commands.len() {
+                drain(&mut self.commands, top.., context, self.debug);
+            }
+
+            // Drop everything after limit.
+            if self.commands.len() >= self.max_capacity {
+                let range = 0..(self.commands.len() - self.max_capacity);
+                drain(&mut self.commands, range, context, self.debug);
+                if let Some(top) = self.top.as_mut() {
+                    if *top > self.commands.len() {
+                        *top = self.commands.len();
+                    }
                 }
             }
         }

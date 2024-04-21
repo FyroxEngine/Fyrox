@@ -196,6 +196,7 @@ impl Control for ItemContextMenu {
                     dialog,
                     MessageDirection::ToWidget,
                     true,
+                    true,
                 ));
 
                 self.folder_name_dialog = RefCell::new(Some(FolderNameDialog {

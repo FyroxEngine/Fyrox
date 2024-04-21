@@ -881,6 +881,7 @@ impl Editor {
                     editor.configurator.window,
                     MessageDirection::ToWidget,
                     true,
+                    true,
                 ));
         }
 
@@ -1012,6 +1013,8 @@ impl Editor {
                     ));
                 } else if hot_key == key_bindings.load_scene {
                     sender.send(Message::OpenLoadSceneDialog);
+                } else if hot_key == key_bindings.run_game {
+                    sender.send(Message::SwitchToBuildMode);
                 } else if hot_key == key_bindings.save_scene {
                     if let Some(entry) = self.scenes.current_scene_entry_ref() {
                         if let Some(path) = entry.path.as_ref() {
@@ -1895,6 +1898,7 @@ impl Editor {
                             self.message_sender.clone(),
                             &self.scene_viewer,
                             &mut self.engine,
+                            &self.settings,
                         );
                         self.add_scene(entry);
                     }
@@ -2032,6 +2036,7 @@ impl Editor {
             self.message_sender.clone(),
             &self.scene_viewer,
             &mut self.engine,
+            &self.settings,
         );
         self.add_scene(entry);
     }
@@ -2092,6 +2097,7 @@ impl Editor {
             .send_message(WindowMessage::open(
                 self.material_editor.window,
                 MessageDirection::ToWidget,
+                true,
                 true,
             ));
     }

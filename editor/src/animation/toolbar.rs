@@ -275,6 +275,7 @@ impl RootMotionDropdownArea {
                         self.node_selector,
                         MessageDirection::ToWidget,
                         true,
+                        true,
                     ));
                 }
             }
@@ -1016,6 +1017,7 @@ impl Toolbar {
                     self.node_selector,
                     MessageDirection::ToWidget,
                     true,
+                    true,
                 ));
 
                 if message.destination() == self.reimport {
@@ -1034,6 +1036,7 @@ impl Toolbar {
                     ui.send_message(WindowMessage::open_modal(
                         self.import_file_selector,
                         MessageDirection::ToWidget,
+                        true,
                         true,
                     ));
                     ui.send_message(FileSelectorMessage::root(

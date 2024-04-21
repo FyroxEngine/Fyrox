@@ -31,6 +31,7 @@ use crate::{
     world::WorldViewerItemContextMenu,
     Engine, Message, MessageDirection, PasteCommand,
 };
+use fyrox::gui::menu::ContextMenuBuilder;
 use std::{any::TypeId, path::PathBuf};
 
 pub struct SceneNodeContextMenu {
@@ -83,8 +84,8 @@ impl SceneNodeContextMenu {
         let (create_entity_menu, create_entity_menu_root_items) = CreateEntityMenu::new(ctx);
         let (replace_with_menu, replace_with_menu_root_items) = CreateEntityMenu::new(ctx);
 
-        let menu = PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
-            .with_content(
+        let menu = ContextMenuBuilder::new(
+            PopupBuilder::new(WidgetBuilder::new().with_visibility(false)).with_content(
                 StackPanelBuilder::new(
                     WidgetBuilder::new()
                         .with_child({
@@ -136,8 +137,9 @@ impl SceneNodeContextMenu {
                         }),
                 )
                 .build(ctx),
-            )
-            .build(ctx);
+            ),
+        )
+        .build(ctx);
         let menu = RcUiNodeHandle::new(menu, ctx.sender());
 
         // TODO: Not sure if this is the right place for this dialog.
@@ -233,6 +235,7 @@ impl SceneNodeContextMenu {
                         .send_message(WindowMessage::open_modal(
                             self.save_as_prefab_dialog,
                             MessageDirection::ToWidget,
+                            true,
                             true,
                         ));
                     engine

@@ -1343,7 +1343,7 @@ impl UserInterface {
         }
 
         if let Some(keyboard_focus_node) = self.nodes.try_borrow(self.keyboard_focus_node) {
-            if keyboard_focus_node.accepts_input {
+            if keyboard_focus_node.global_visibility && keyboard_focus_node.accepts_input {
                 let bounds = keyboard_focus_node.screen_bounds().inflate(1.0, 1.0);
                 self.drawing_context.push_rounded_rect(&bounds, 1.0, 2.0, 6);
                 self.drawing_context.commit(
@@ -1981,7 +1981,7 @@ impl UserInterface {
                             }
                         }
                         WidgetMessage::MouseDown { button, .. } => {
-                            if !message.handled() && *button == MouseButton::Right {
+                            if *button == MouseButton::Right {
                                 if let Some(picked) = self.nodes.try_borrow(self.picked_node) {
                                     // Get the context menu from the current node or a parent node
                                     let (context_menu, target) = if picked.context_menu().is_some()
@@ -2012,7 +2012,6 @@ impl UserInterface {
                                         ));
                                         // Send Event messages to the widget that was clicked on,
                                         // not to the widget that has the context menu.
-                                        // The Inspector widget needs to know which widget was clicked on.
                                         self.send_message(PopupMessage::owner(
                                             context_menu.handle(),
                                             MessageDirection::ToWidget,

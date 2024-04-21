@@ -808,10 +808,10 @@ impl Control for TreeRoot {
             }
         } else if let Some(WidgetMessage::KeyDown(key_code)) = message.data() {
             if !message.handled() {
-                message.set_handled(true);
                 match *key_code {
                     KeyCode::ArrowRight => {
                         self.move_selection(ui, Direction::Down, true);
+                        message.set_handled(true);
                     }
                     KeyCode::ArrowLeft => {
                         if let Some(selection) = self.selected.first() {
@@ -826,6 +826,7 @@ impl Control for TreeRoot {
                                         false,
                                         TreeExpansionStrategy::Direct,
                                     ));
+                                    message.set_handled(true);
                                 } else if let Some((parent_handle, _)) =
                                     ui.find_component_up::<Tree>(item.parent())
                                 {
@@ -834,15 +835,18 @@ impl Control for TreeRoot {
                                         MessageDirection::ToWidget,
                                         vec![parent_handle],
                                     ));
+                                    message.set_handled(true);
                                 }
                             }
                         }
                     }
                     KeyCode::ArrowUp => {
                         self.move_selection(ui, Direction::Up, false);
+                        message.set_handled(true);
                     }
                     KeyCode::ArrowDown => {
                         self.move_selection(ui, Direction::Down, false);
+                        message.set_handled(true);
                     }
                     _ => (),
                 }

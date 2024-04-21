@@ -219,6 +219,7 @@ impl FileSelectorBuilder {
                                     .with_child({
                                         ok = ButtonBuilder::new(
                                             WidgetBuilder::new()
+                                                .with_tab_index(Some(1))
                                                 .with_margin(Thickness::uniform(1.0))
                                                 .with_width(100.0)
                                                 .with_height(30.0),
@@ -233,6 +234,7 @@ impl FileSelectorBuilder {
                                     .with_child({
                                         cancel = ButtonBuilder::new(
                                             WidgetBuilder::new()
+                                                .with_tab_index(Some(2))
                                                 .with_margin(Thickness::uniform(1.0))
                                                 .with_width(100.0)
                                                 .with_height(30.0),
@@ -246,12 +248,14 @@ impl FileSelectorBuilder {
                             .build(ctx),
                         )
                         .with_child({
-                            browser = FileBrowserBuilder::new(WidgetBuilder::new().on_column(0))
-                                .with_mode(self.mode)
-                                .with_opt_filter(self.filter)
-                                .with_path(self.path)
-                                .with_opt_root(self.root)
-                                .build(ctx);
+                            browser = FileBrowserBuilder::new(
+                                WidgetBuilder::new().on_column(0).with_tab_index(Some(0)),
+                            )
+                            .with_mode(self.mode)
+                            .with_opt_filter(self.filter)
+                            .with_path(self.path)
+                            .with_opt_root(self.root)
+                            .build(ctx);
                             browser
                         }),
                 )
@@ -327,6 +331,7 @@ impl Control for FileSelectorField {
                 ui.send_message(WindowMessage::open_modal(
                     file_selector,
                     MessageDirection::ToWidget,
+                    true,
                     true,
                 ));
             }

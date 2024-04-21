@@ -223,6 +223,7 @@ impl Control for HandlePropertyEditor {
                     node_selector,
                     MessageDirection::ToWidget,
                     true,
+                    true,
                 ));
 
                 self.sender

@@ -79,6 +79,7 @@ impl SceneSettingsWindow {
             self.window,
             MessageDirection::ToWidget,
             true,
+            true,
         ));
     }
 
