@@ -140,7 +140,11 @@ impl SearchBarBuilder {
     }
 
     /// Finishes search bar building and adds the new instance to the user interface.
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(mut self, ctx: &mut BuildContext) -> Handle<UiNode> {
+        // Focusing the search bar itself is useless, so we're taking the tab index from the inner
+        // widget builder and transfer it to the inner text box.
+        let tab_index = self.widget_builder.tab_index.take();
+
         let text_box;
         let clear;
         let content = BorderBuilder::new(
@@ -183,6 +187,7 @@ impl SearchBarBuilder {
                             .with_child({
                                 text_box = TextBoxBuilder::new(
                                     WidgetBuilder::new()
+                                        .with_tab_index(tab_index)
                                         .on_column(1)
                                         .with_margin(Thickness::uniform(1.0)),
                                 )
