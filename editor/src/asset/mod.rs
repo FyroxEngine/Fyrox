@@ -264,17 +264,22 @@ impl ResourceCreator {
                     WidgetBuilder::new()
                         .with_child({
                             name = TextBoxBuilder::new(
-                                WidgetBuilder::new().on_row(0).with_height(22.0),
+                                WidgetBuilder::new()
+                                    .with_tab_index(Some(0))
+                                    .on_row(0)
+                                    .with_height(22.0)
+                                    .with_margin(Thickness::uniform(1.0)),
                             )
                             .with_text(&name_str)
                             .build(ctx);
                             name
                         })
                         .with_child({
-                            resource_constructors_list =
-                                ListViewBuilder::new(WidgetBuilder::new().on_row(1))
-                                    .with_items(items)
-                                    .build(ctx);
+                            resource_constructors_list = ListViewBuilder::new(
+                                WidgetBuilder::new().with_tab_index(Some(1)).on_row(1),
+                            )
+                            .with_items(items)
+                            .build(ctx);
                             resource_constructors_list
                         })
                         .with_child(
@@ -285,6 +290,7 @@ impl ResourceCreator {
                                     .with_child({
                                         ok = ButtonBuilder::new(
                                             WidgetBuilder::new()
+                                                .with_tab_index(Some(2))
                                                 .with_enabled(false)
                                                 .with_width(100.0)
                                                 .with_height(22.0),
@@ -296,6 +302,7 @@ impl ResourceCreator {
                                     .with_child({
                                         cancel = ButtonBuilder::new(
                                             WidgetBuilder::new()
+                                                .with_tab_index(Some(3))
                                                 .with_width(100.0)
                                                 .with_height(22.0),
                                         )
