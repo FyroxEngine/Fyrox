@@ -233,7 +233,7 @@ struct ResourceCreator {
     cancel: Handle<UiNode>,
     name: Handle<UiNode>,
     selected: Option<usize>,
-    resource_uuids: Vec<Uuid>,
+    supported_resource_data_uuids: Vec<Uuid>,
     name_str: String,
 }
 
@@ -242,11 +242,11 @@ impl ResourceCreator {
         let rm_state = resource_manager.state();
         let mut constructors = rm_state.constructors_container.map.lock();
         let mut items = Vec::new();
-        let mut resource_uuids = Vec::new();
+        let mut supported_resource_data_uuids = Vec::new();
         for (uuid, constructor) in constructors.iter_mut() {
             let instance = (constructor.callback)();
             if instance.can_be_saved() {
-                resource_uuids.push(*uuid);
+                supported_resource_data_uuids.push(*uuid);
                 items.push(make_dropdown_list_option(ctx, &constructor.type_name))
             }
         }
@@ -331,7 +331,7 @@ impl ResourceCreator {
             name,
             selected: None,
             name_str,
-            resource_uuids,
+            supported_resource_data_uuids,
         }
     }
 
@@ -370,8 +370,9 @@ impl ResourceCreator {
 
                 // Propose extension for the resource.
                 let resource_manager_state = engine.resource_manager.state();
-                if let Some(data_type_uuid) =
-                    self.resource_uuids.get(self.selected.unwrap_or_default())
+                if let Some(data_type_uuid) = self
+                    .supported_resource_data_uuids
+                    .get(self.selected.unwrap_or_default())
                 {
                     if let Some(loader) = resource_manager_state
                         .loaders
@@ -382,13 +383,15 @@ impl ResourceCreator {
                             let mut path = PathBuf::from(&self.name_str);
                             path.set_extension(first);
 
+                            self.name_str = path.to_string_lossy().to_string();
+
                             engine
                                 .user_interfaces
                                 .first_mut()
                                 .send_message(TextMessage::text(
                                     self.name,
                                     MessageDirection::ToWidget,
-                                    path.to_string_lossy().to_string(),
+                                    self.name_str.clone(),
                                 ));
                         }
                     }
@@ -398,9 +401,11 @@ impl ResourceCreator {
             if message.destination() == self.ok {
                 let resource_manager_state = engine.resource_manager.state();
                 let mut constructors = resource_manager_state.constructors_container.map.lock();
-                if let Some(mut instance) = constructors
-                    .values_mut()
-                    .nth(self.selected.unwrap_or_default())
+
+                if let Some(mut instance) = self
+                    .supported_resource_data_uuids
+                    .get(self.selected.unwrap_or_default())
+                    .and_then(|uuid| constructors.get_mut(uuid))
                     .map(|c| c.create_instance())
                 {
                     let path = base_path.join(&self.name_str);
