@@ -98,40 +98,42 @@ impl Control for NavigationLayer {
                 }
             }
 
-            tab_list.sort_by_key(|entry| entry.tab_index);
+            if !tab_list.is_empty() {
+                tab_list.sort_by_key(|entry| entry.tab_index);
 
-            let focused_index = tab_list
-                .iter()
-                .position(|entry| entry.handle == ui.keyboard_focus_node)
-                .unwrap_or_default();
+                let focused_index = tab_list
+                    .iter()
+                    .position(|entry| entry.handle == ui.keyboard_focus_node)
+                    .unwrap_or_default();
 
-            let next_focused_node_index = if ui.keyboard_modifiers.shift {
-                let count = tab_list.len() as isize;
-                let mut prev = (focused_index as isize).saturating_sub(1);
-                if prev < 0 {
-                    prev += count;
-                }
-                (prev % count) as usize
-            } else {
-                focused_index.saturating_add(1) % tab_list.len()
-            };
+                let next_focused_node_index = if ui.keyboard_modifiers.shift {
+                    let count = tab_list.len() as isize;
+                    let mut prev = (focused_index as isize).saturating_sub(1);
+                    if prev < 0 {
+                        prev += count;
+                    }
+                    (prev % count) as usize
+                } else {
+                    focused_index.saturating_add(1) % tab_list.len()
+                };
 
-            if let Some(entry) = tab_list.get(next_focused_node_index) {
-                ui.send_message(WidgetMessage::focus(
-                    entry.handle,
-                    MessageDirection::ToWidget,
-                ));
+                if let Some(entry) = tab_list.get(next_focused_node_index) {
+                    ui.send_message(WidgetMessage::focus(
+                        entry.handle,
+                        MessageDirection::ToWidget,
+                    ));
 
-                if *self.bring_into_view {
-                    // Find a parent scroll viewer.
-                    if let Some((scroll_viewer, _)) =
-                        ui.find_component_up::<ScrollViewer>(entry.handle)
-                    {
-                        ui.send_message(ScrollViewerMessage::bring_into_view(
-                            scroll_viewer,
-                            MessageDirection::ToWidget,
-                            entry.handle,
-                        ));
+                    if *self.bring_into_view {
+                        // Find a parent scroll viewer.
+                        if let Some((scroll_viewer, _)) =
+                            ui.find_component_up::<ScrollViewer>(entry.handle)
+                        {
+                            ui.send_message(ScrollViewerMessage::bring_into_view(
+                                scroll_viewer,
+                                MessageDirection::ToWidget,
+                                entry.handle,
+                            ));
+                        }
                     }
                 }
             }
