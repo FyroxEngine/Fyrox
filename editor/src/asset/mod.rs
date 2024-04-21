@@ -52,6 +52,7 @@ use crate::{
     utils::window_content,
     Message, Mode,
 };
+use fyrox::core::Uuid;
 use std::{
     ffi::OsStr,
     path::{Path, PathBuf},
@@ -232,26 +233,23 @@ struct ResourceCreator {
     cancel: Handle<UiNode>,
     name: Handle<UiNode>,
     selected: Option<usize>,
+    resource_uuids: Vec<Uuid>,
     name_str: String,
 }
 
 impl ResourceCreator {
     pub fn new(ctx: &mut BuildContext, resource_manager: &ResourceManager) -> Self {
-        let items = resource_manager
-            .state()
-            .constructors_container
-            .map
-            .lock()
-            .values_mut()
-            .filter_map(|constructor| {
-                let instance = (constructor.callback)();
-                if instance.can_be_saved() {
-                    Some(make_dropdown_list_option(ctx, &constructor.type_name))
-                } else {
-                    None
-                }
-            })
-            .collect();
+        let rm_state = resource_manager.state();
+        let mut constructors = rm_state.constructors_container.map.lock();
+        let mut items = Vec::new();
+        let mut resource_uuids = Vec::new();
+        for (uuid, constructor) in constructors.iter_mut() {
+            let instance = (constructor.callback)();
+            if instance.can_be_saved() {
+                resource_uuids.push(*uuid);
+                items.push(make_dropdown_list_option(ctx, &constructor.type_name))
+            }
+        }
 
         let name_str = String::from("unnamed_resource");
         let name;
@@ -326,6 +324,7 @@ impl ResourceCreator {
             name,
             selected: None,
             name_str,
+            resource_uuids,
         }
     }
 
@@ -364,9 +363,8 @@ impl ResourceCreator {
 
                 // Propose extension for the resource.
                 let resource_manager_state = engine.resource_manager.state();
-                let constructors = resource_manager_state.constructors_container.map.lock();
                 if let Some(data_type_uuid) =
-                    constructors.keys().nth(self.selected.unwrap_or_default())
+                    self.resource_uuids.get(self.selected.unwrap_or_default())
                 {
                     if let Some(loader) = resource_manager_state
                         .loaders
