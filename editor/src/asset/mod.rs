@@ -13,7 +13,8 @@ use crate::{
         },
         core::{
             color::Color, futures::executor::block_on, log::Log, make_relative_path,
-            parking_lot::lock_api::Mutex, pool::Handle, scope_profile, TypeUuidProvider,
+            parking_lot::lock_api::Mutex, parking_lot::RwLock, pool::Handle, scope_profile,
+            TypeUuidProvider,
         },
         engine::Engine,
         graph::BaseSceneGraph,
@@ -25,7 +26,7 @@ use crate::{
             file_browser::{FileBrowserBuilder, FileBrowserMessage, Filter},
             grid::{Column, GridBuilder, Row},
             list_view::{ListViewBuilder, ListViewMessage},
-            menu::{MenuItemBuilder, MenuItemContent, MenuItemMessage},
+            menu::{ContextMenuBuilder, MenuItemBuilder, MenuItemContent, MenuItemMessage},
             message::{MessageDirection, UiMessage},
             popup::{Placement, PopupBuilder, PopupMessage},
             scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
@@ -51,8 +52,6 @@ use crate::{
     utils::window_content,
     Message, Mode,
 };
-use fyrox::core::parking_lot::RwLock;
-use fyrox::gui::menu::ContextMenuBuilder;
 use std::{
     ffi::OsStr,
     path::{Path, PathBuf},
@@ -497,7 +496,9 @@ impl AssetBrowser {
                                     .with_background(BRUSH_DARK)
                                     .with_child({
                                         folder_browser = FileBrowserBuilder::new(
-                                            WidgetBuilder::new().on_column(0),
+                                            WidgetBuilder::new()
+                                                .on_column(0)
+                                                .with_tab_index(Some(0)),
                                         )
                                         .with_show_path(false)
                                         .with_filter(Filter::new(|p: &Path| p.is_dir()))
@@ -517,6 +518,7 @@ impl AssetBrowser {
                                                 .with_child({
                                                     add_resource = ButtonBuilder::new(
                                                         WidgetBuilder::new()
+                                                            .with_tab_index(Some(1))
                                                             .with_height(20.0)
                                                             .with_width(20.0)
                                                             .with_margin(Thickness::uniform(1.0))
@@ -532,6 +534,7 @@ impl AssetBrowser {
                                                 .with_child({
                                                     search_bar = SearchBarBuilder::new(
                                                         WidgetBuilder::new()
+                                                            .with_tab_index(Some(2))
                                                             .on_column(1)
                                                             .with_height(22.0)
                                                             .with_margin(Thickness::uniform(1.0)),

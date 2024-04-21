@@ -1,44 +1,44 @@
-use crate::command::CommandGroup;
-use crate::fyrox::asset::manager::ResourceManager;
-use crate::fyrox::core::parking_lot::Mutex;
-use crate::fyrox::graph::BaseSceneGraph;
-use crate::fyrox::{
-    core::{futures::executor::block_on, pool::Handle},
-    engine::Engine,
-    gui::{
-        button::{ButtonBuilder, ButtonMessage},
-        dropdown_list::{DropdownListBuilder, DropdownListMessage},
-        grid::{Column, Row},
-        list_view::{ListView, ListViewBuilder, ListViewMessage},
-        message::UiMessage,
-        stack_panel::StackPanelBuilder,
-        text::TextBuilder,
-        utils::make_simple_tooltip,
-        widget::{WidgetBuilder, WidgetMessage},
-        window::{WindowBuilder, WindowTitle},
-        Orientation, Thickness, UiNode, VerticalAlignment,
-    },
-    scene::sound::{AudioBus, AudioBusGraph, DistanceModel, HrirSphereResourceData, Renderer},
-};
-use crate::scene::commands::sound_context::SetHrtfRendererHrirSphereResource;
-use crate::scene::SelectionContainer;
 use crate::{
     audio::bus::{AudioBusView, AudioBusViewBuilder, AudioBusViewMessage},
+    command::CommandGroup,
+    fyrox::{
+        asset::manager::ResourceManager,
+        core::{futures::executor::block_on, parking_lot::Mutex, pool::Handle},
+        engine::Engine,
+        graph::BaseSceneGraph,
+        gui::{
+            button::{ButtonBuilder, ButtonMessage},
+            dropdown_list::{DropdownListBuilder, DropdownListMessage},
+            grid::{Column, Row},
+            list_view::{ListView, ListViewBuilder, ListViewMessage},
+            message::UiMessage,
+            stack_panel::StackPanelBuilder,
+            text::TextBuilder,
+            utils::make_simple_tooltip,
+            widget::{WidgetBuilder, WidgetMessage},
+            window::{WindowBuilder, WindowTitle},
+            Orientation, Thickness, UiNode, VerticalAlignment,
+        },
+        scene::sound::{AudioBus, AudioBusGraph, DistanceModel, HrirSphereResourceData, Renderer},
+    },
     gui::make_dropdown_list_option,
     inspector::editors::resource::{ResourceFieldBuilder, ResourceFieldMessage},
     message::MessageSender,
-    scene::commands::{
-        effect::{AddAudioBusCommand, LinkAudioBuses, RemoveAudioBusCommand},
-        sound_context::{SetDistanceModelCommand, SetRendererCommand},
+    scene::{
+        commands::{
+            effect::{AddAudioBusCommand, LinkAudioBuses, RemoveAudioBusCommand},
+            sound_context::{
+                SetDistanceModelCommand, SetHrtfRendererHrirSphereResource, SetRendererCommand,
+            },
+        },
+        SelectionContainer,
     },
     send_sync_message,
     utils::window_content,
     ChangeSelectionCommand, Command, GameScene, GridBuilder, MessageDirection, Mode, Selection,
     UserInterface,
 };
-use std::cmp::Ordering;
-use std::path::Path;
-use std::sync::Arc;
+use std::{cmp::Ordering, path::Path, sync::Arc};
 use strum::VariantNames;
 
 mod bus;
@@ -122,6 +122,7 @@ impl AudioPanel {
                                     .with_child({
                                         distance_model = DropdownListBuilder::new(
                                             WidgetBuilder::new()
+                                                .with_tab_index(Some(0))
                                                 .with_margin(Thickness::uniform(1.0))
                                                 .with_width(130.0)
                                                 .with_tooltip(make_simple_tooltip(
@@ -152,6 +153,7 @@ impl AudioPanel {
                                     .with_child({
                                         renderer = DropdownListBuilder::new(
                                             WidgetBuilder::new()
+                                                .with_tab_index(Some(1))
                                                 .with_margin(Thickness::uniform(1.0))
                                                 .with_width(100.0)
                                                 .with_tooltip(make_simple_tooltip(ctx, "Renderer")),
@@ -169,7 +171,7 @@ impl AudioPanel {
                                         hrir_resource = ResourceFieldBuilder::<
                                             HrirSphereResourceData,
                                         >::new(
-                                            WidgetBuilder::new(),
+                                            WidgetBuilder::new().with_tab_index(Some(2)),
                                             Arc::new(Mutex::new(
                                                 |resource_manager: &ResourceManager, path: &Path| {
                                                     resource_manager
@@ -187,13 +189,15 @@ impl AudioPanel {
                             .build(ctx),
                         )
                         .with_child({
-                            buses = ListViewBuilder::new(WidgetBuilder::new().on_row(1))
-                                .with_items_panel(
-                                    StackPanelBuilder::new(WidgetBuilder::new())
-                                        .with_orientation(Orientation::Horizontal)
-                                        .build(ctx),
-                                )
-                                .build(ctx);
+                            buses = ListViewBuilder::new(
+                                WidgetBuilder::new().on_row(1).with_tab_index(Some(3)),
+                            )
+                            .with_items_panel(
+                                StackPanelBuilder::new(WidgetBuilder::new())
+                                    .with_orientation(Orientation::Horizontal)
+                                    .build(ctx),
+                            )
+                            .build(ctx);
                             buses
                         })
                         .with_child(
@@ -203,6 +207,7 @@ impl AudioPanel {
                                     .with_child({
                                         add_bus = ButtonBuilder::new(
                                             WidgetBuilder::new()
+                                                .with_tab_index(Some(4))
                                                 .with_width(100.0)
                                                 .with_margin(Thickness::uniform(1.0)),
                                         )
@@ -213,6 +218,7 @@ impl AudioPanel {
                                     .with_child({
                                         remove_bus = ButtonBuilder::new(
                                             WidgetBuilder::new()
+                                                .with_tab_index(Some(5))
                                                 .with_width(100.0)
                                                 .with_enabled(false)
                                                 .with_margin(Thickness::uniform(1.0)),
