@@ -1169,8 +1169,17 @@ impl Control for TextBox {
                     WidgetMessage::Focus => {
                         if message.direction() == MessageDirection::FromWidget {
                             self.reset_blink();
-                            self.selection_range.set_value_and_mark_modified(None);
                             self.has_focus = true;
+                            let end = self.end_position();
+                            if end != Position::default() {
+                                self.set_caret_position(end);
+                                self.selection_range.set_value_and_mark_modified(Some(
+                                    SelectionRange {
+                                        begin: Position::default(),
+                                        end,
+                                    },
+                                ));
+                            }
                         }
                     }
                     WidgetMessage::Unfocus => {
