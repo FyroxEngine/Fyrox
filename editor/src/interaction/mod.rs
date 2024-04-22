@@ -1,29 +1,31 @@
-use crate::fyrox::fxhash::FxHashMap;
-use crate::fyrox::{
-    core::{
-        algebra::{Vector2, Vector3},
-        color::Color,
-        pool::Handle,
-        uuid::Uuid,
+use crate::{
+    fyrox::{
+        core::{
+            algebra::{Vector2, Vector3},
+            color::Color,
+            pool::Handle,
+            uuid::Uuid,
+        },
+        gui::{
+            border::BorderBuilder,
+            brush::Brush,
+            button::ButtonBuilder,
+            decorator::DecoratorBuilder,
+            image::ImageBuilder,
+            key::HotKey,
+            message::{KeyCode, UiMessage},
+            utils::make_simple_tooltip,
+            widget::WidgetBuilder,
+            BuildContext, Thickness, UiNode, BRUSH_BRIGHT_BLUE, BRUSH_DARKER, BRUSH_LIGHT,
+            BRUSH_LIGHTER, BRUSH_LIGHTEST,
+        },
+        scene::{camera::Projection, graph::Graph, node::Node},
     },
-    gui::{
-        border::BorderBuilder,
-        brush::Brush,
-        button::ButtonBuilder,
-        decorator::DecoratorBuilder,
-        image::ImageBuilder,
-        key::HotKey,
-        message::{KeyCode, UiMessage},
-        utils::make_simple_tooltip,
-        widget::WidgetBuilder,
-        BuildContext, Thickness, UiNode, BRUSH_BRIGHT_BLUE, BRUSH_DARKER, BRUSH_LIGHT,
-        BRUSH_LIGHTER, BRUSH_LIGHTEST,
-    },
-    scene::{camera::Projection, graph::Graph, node::Node},
+    load_image,
+    scene::{controller::SceneController, Selection},
+    settings::Settings,
+    Engine,
 };
-use crate::scene::controller::SceneController;
-use crate::scene::Selection;
-use crate::{load_image, settings::Settings, Engine};
 use std::any::Any;
 
 pub mod gizmo;
@@ -221,11 +223,37 @@ fn distance_scale_factor(fov: f32) -> f32 {
 
 #[derive(Default)]
 pub struct InteractionModeContainer {
-    pub map: FxHashMap<Uuid, Box<dyn InteractionMode>>,
+    // It is better to use Vec instead of HashMap here, because it keeps the order iteration of the
+    // modes the same as the order in which the modes were added to the container. Performance here
+    // is not an issue, because there are tiny amount of modes anyway (currently - max 5) and linear
+    // search is faster in such conditions.
+    container: Vec<Box<dyn InteractionMode>>,
 }
 
 impl InteractionModeContainer {
     pub fn add<T: InteractionMode>(&mut self, mode: T) {
-        self.map.insert(mode.uuid(), Box::new(mode));
+        self.container.push(Box::new(mode));
+    }
+
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut dyn InteractionMode> + '_ {
+        self.container.iter_mut().map(|mode| &mut **mode)
+    }
+
+    pub fn get(&self, id: &Uuid) -> Option<&dyn InteractionMode> {
+        self.container
+            .iter()
+            .find(|mode| mode.uuid() == *id)
+            .map(|mode| &**mode)
+    }
+
+    pub fn get_mut(&mut self, id: &Uuid) -> Option<&mut dyn InteractionMode> {
+        self.container
+            .iter_mut()
+            .find(|mode| mode.uuid() == *id)
+            .map(|mode| &mut **mode)
+    }
+
+    pub fn drain(&mut self) -> impl Iterator<Item = Box<dyn InteractionMode>> + '_ {
+        self.container.drain(..)
     }
 }

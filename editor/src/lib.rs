@@ -977,7 +977,6 @@ impl Editor {
                 if let Some(current_interaction_mode) = scene.current_interaction_mode {
                     processed |= scene
                         .interaction_modes
-                        .map
                         .get_mut(&current_interaction_mode)
                         .unwrap()
                         .on_hot_key(&hot_key, &mut *scene.controller, engine, &self.settings);
@@ -1283,7 +1282,6 @@ impl Editor {
                 if let Some(current_im) = current_scene_entry.current_interaction_mode {
                     current_scene_entry
                         .interaction_modes
-                        .map
                         .get_mut(&current_im)
                         .unwrap()
                         .handle_ui_message(
@@ -2516,7 +2514,7 @@ impl Editor {
             }
 
             if let Some(mode) = entry.current_interaction_mode {
-                entry.interaction_modes.map.get_mut(&mode).unwrap().update(
+                entry.interaction_modes.get_mut(&mode).unwrap().update(
                     &entry.selection,
                     &mut **controller,
                     &mut self.engine,
