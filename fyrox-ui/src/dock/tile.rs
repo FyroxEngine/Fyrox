@@ -220,13 +220,6 @@ impl Control for Tile {
             };
 
             ui.arrange_node(child_handle, &bounds);
-
-            // Main difference between tile arrangement and other arrangement methods in
-            // library is that tile has to explicitly set width of child windows, otherwise
-            // layout will be weird - window will most likely will stay at its previous size.
-            if child_handle != self.splitter {
-                send_size(ui, child_handle, bounds.w(), bounds.h());
-            }
         }
 
         final_size
@@ -259,6 +252,10 @@ impl Control for Tile {
                                     MessageDirection::ToWidget,
                                     false,
                                 ));
+
+                                // Make the window size undefined, so it will be stretched to the tile
+                                // size correctly.
+                                send_size(ui, window, f32::NAN, f32::NAN);
                             }
                             TileContent::VerticalTiles { tiles, .. }
                             | TileContent::HorizontalTiles { tiles, .. } => {
@@ -474,6 +471,13 @@ impl Control for Tile {
                                     MessageDirection::ToWidget,
                                     true,
                                 ));
+
+                                send_size(
+                                    ui,
+                                    message.destination(),
+                                    self.actual_local_size().x,
+                                    self.actual_local_size().y,
+                                );
 
                                 if let Some((_, docking_manager)) =
                                     ui.find_component_up::<DockingManager>(self.parent())
@@ -876,6 +880,11 @@ impl TileBuilder {
                 // Every docked window must be non-resizable (it means that it cannot be resized by user
                 // and it still can be resized by a proper message).
                 window.can_resize = false;
+
+                // Make the window size undefined, so it will be stretched to the tile
+                // size correctly.
+                window.width.set_value_and_mark_modified(f32::NAN);
+                window.height.set_value_and_mark_modified(f32::NAN);
             }
         }
 
