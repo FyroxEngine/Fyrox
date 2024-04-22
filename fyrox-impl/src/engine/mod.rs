@@ -3422,7 +3422,7 @@ mod test {
         let mut time = 0.0;
         let dt = 1.0 / 60.0;
         let mut lag = 0.0;
-        while time < 3.0 {
+        while time <= 10.0 {
             engine.update(dt, &event_loop, &mut lag, Default::default());
             time += dt;
         }
