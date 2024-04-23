@@ -161,6 +161,64 @@ crate::define_widget_deref!(ScrollPanel);
 
 uuid_provider!(ScrollPanel = "1ab4936d-58c8-4cf7-b33c-4b56092f4826");
 
+impl ScrollPanel {
+    fn children_size(&self, ui: &UserInterface) -> Vector2<f32> {
+        let mut children_size = Vector2::<f32>::default();
+        for child_handle in self.widget.children() {
+            let desired_size = ui.node(*child_handle).desired_size();
+            children_size.x = children_size.x.max(desired_size.x);
+            children_size.y = children_size.y.max(desired_size.y);
+        }
+        children_size
+    }
+    fn bring_into_view(&self, ui: &UserInterface, handle: Handle<UiNode>) {
+        let Some(node_to_focus_ref) = ui.try_get(handle) else {
+            return;
+        };
+        let mut parent = handle;
+        let mut relative_position = Vector2::default();
+        while parent.is_some() && parent != self.handle {
+            let node = ui.node(parent);
+            relative_position += node.actual_local_position();
+            parent = node.parent();
+        }
+        // This check is needed because it possible that given handle is not in
+        // sub-tree of current scroll panel.
+        if parent != self.handle {
+            return;
+        }
+        let size = node_to_focus_ref.actual_local_size();
+        let children_size = self.children_size(ui);
+        let view_size = self.actual_local_size();
+        // Check if requested item already in "view box", this will prevent weird "jumping" effect
+        // when bring into view was requested on already visible element.
+        if self.vertical_scroll_allowed
+            && (relative_position.y < 0.0 || relative_position.y + size.y > view_size.y)
+        {
+            relative_position.y += self.scroll.y;
+            let scroll_max = (children_size.y - view_size.y).max(0.0);
+            relative_position.y = relative_position.y.clamp(0.0, scroll_max);
+            ui.send_message(ScrollPanelMessage::vertical_scroll(
+                self.handle,
+                MessageDirection::ToWidget,
+                relative_position.y,
+            ));
+        }
+        if self.horizontal_scroll_allowed
+            && (relative_position.x < 0.0 || relative_position.x + size.x > view_size.x)
+        {
+            relative_position.x += self.scroll.x;
+            let scroll_max = (children_size.x - view_size.x).max(0.0);
+            relative_position.x = relative_position.x.clamp(0.0, scroll_max);
+            ui.send_message(ScrollPanelMessage::horizontal_scroll(
+                self.handle,
+                MessageDirection::ToWidget,
+                relative_position.x,
+            ));
+        }
+    }
+}
+
 impl Control for ScrollPanel {
     fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         scope_profile!();
@@ -199,12 +257,7 @@ impl Control for ScrollPanel {
     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
         scope_profile!();
 
-        let mut children_size = Vector2::<f32>::default();
-        for child_handle in self.widget.children() {
-            let desired_size = ui.node(*child_handle).desired_size();
-            children_size.x = children_size.x.max(desired_size.x);
-            children_size.y = children_size.y.max(desired_size.y);
-        }
+        let children_size = self.children_size(ui);
 
         let child_rect = Rect::new(
             -self.scroll.x,
@@ -254,58 +307,10 @@ impl Control for ScrollPanel {
                         self.invalidate_arrange();
                     }
                     ScrollPanelMessage::BringIntoView(handle) => {
-                        if let Some(node_to_focus_ref) = ui.try_get(handle) {
-                            let size = node_to_focus_ref.actual_local_size();
-                            let mut parent = handle;
-                            let mut relative_position = Vector2::default();
-                            while parent.is_some() && parent != self.handle {
-                                let node = ui.node(parent);
-                                relative_position += node.actual_local_position();
-                                parent = node.parent();
-                            }
-                            // Check if requested item already in "view box", this will prevent weird "jumping" effect
-                            // when bring into view was requested on already visible element.
-                            if relative_position.x < 0.0
-                                || relative_position.y < 0.0
-                                || relative_position.x > self.actual_local_size().x
-                                || relative_position.y > self.actual_local_size().y
-                                || (relative_position.x + size.x) > self.actual_local_size().x
-                                || (relative_position.y + size.y) > self.actual_local_size().y
-                            {
-                                relative_position += self.scroll;
-                                // This check is needed because it possible that given handle is not in
-                                // sub-tree of current scroll panel.
-                                if parent == self.handle {
-                                    if self.vertical_scroll_allowed {
-                                        ui.send_message(ScrollPanelMessage::vertical_scroll(
-                                            self.handle,
-                                            MessageDirection::ToWidget,
-                                            relative_position.y,
-                                        ));
-                                    }
-                                    if self.horizontal_scroll_allowed {
-                                        ui.send_message(ScrollPanelMessage::horizontal_scroll(
-                                            self.handle,
-                                            MessageDirection::ToWidget,
-                                            relative_position.x,
-                                        ));
-                                    }
-                                }
-                            }
-                        }
+                        self.bring_into_view(ui, handle);
                     }
                     ScrollPanelMessage::ScrollToEnd => {
-                        let mut max_size = Vector2::default();
-                        for child_handle in self.widget.children() {
-                            let child = ui.nodes.borrow(*child_handle);
-                            let child_desired_size = child.desired_size();
-                            if child_desired_size.x > max_size.x {
-                                max_size.x = child_desired_size.x;
-                            }
-                            if child_desired_size.y > max_size.y {
-                                max_size.y = child_desired_size.y;
-                            }
-                        }
+                        let max_size = self.children_size(ui);
                         if self.vertical_scroll_allowed {
                             ui.send_message(ScrollPanelMessage::vertical_scroll(
                                 self.handle,
