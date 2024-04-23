@@ -66,7 +66,7 @@ fn guess_uuid(region: &mut RegionGuard) -> Uuid {
     Default::default()
 }
 
-#[derive(Default, Reflect, Debug, Visit, Clone, PartialEq, Hash)]
+#[derive(Default, Reflect, Debug, Visit, Clone, PartialEq, Eq, Hash)]
 pub enum ResourceKind {
     #[default]
     Embedded,

@@ -1317,8 +1317,8 @@ impl Renderer {
     }
 
     /// Returns a reference to current pipeline state.
-    pub fn pipeline_state(&mut self) -> &PipelineState {
-        &mut self.state
+    pub fn pipeline_state(&self) -> &PipelineState {
+        &self.state
     }
 
     /// Sets new frame size. You should call the same method on [`crate::engine::Engine`]
