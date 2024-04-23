@@ -25,6 +25,15 @@ pub struct GeneralSettings {
     512. Large numbers will increase maximum amount of memory needed for the editor."
     )]
     pub max_history_entries: usize,
+
+    #[reflect(
+        description = "Enables or disables preview generation for assets in the asset browser. \
+    This feature could be disabled, if you're getting performance issues when there's a lot of assets \
+    in a folder. Due to technical difficulties, preview generation will be done on main thread, which \
+    could cause lag spikes."
+    )]
+    #[serde(default = "default_generate_previews")]
+    pub generate_previews: bool,
 }
 
 fn default_suspension_state() -> bool {
@@ -37,6 +46,10 @@ fn default_script_editor() -> ScriptEditor {
 
 fn default_max_history_entries() -> usize {
     512
+}
+
+fn default_generate_previews() -> bool {
+    true
 }
 
 #[derive(
@@ -71,6 +84,7 @@ impl Default for GeneralSettings {
             suspend_unfocused_editor: default_suspension_state(),
             script_editor: default_script_editor(),
             max_history_entries: default_max_history_entries(),
+            generate_previews: default_generate_previews(),
         }
     }
 }

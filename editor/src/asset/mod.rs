@@ -694,7 +694,7 @@ impl AssetBrowser {
                     .read()
                     .map
                     .get(&resource.type_uuid())
-                    .and_then(|gen| gen.icon(&resource, &rm));
+                    .and_then(|gen| gen.simple_icon(&resource, &rm));
                 Log::verify(sender.send(AssetItemMessage::icon(
                     asset_item,
                     MessageDirection::ToWidget,
@@ -847,7 +847,7 @@ impl AssetBrowser {
                     preview_generators.map.get_mut(&resource.type_uuid())
                 {
                     let preview_scene = &mut engine.scenes[self.preview.scene()];
-                    let preview = preview_generator.generate(
+                    let preview = preview_generator.generate_scene(
                         &resource,
                         &engine.resource_manager,
                         preview_scene,

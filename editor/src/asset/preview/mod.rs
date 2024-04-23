@@ -1,33 +1,41 @@
-use crate::fyrox::{
-    asset::{manager::ResourceManager, untyped::UntypedResource},
-    core::{
-        algebra::{Matrix4, UnitQuaternion, Vector3},
-        log::Log,
-        pool::Handle,
-        sstorage::ImmutableString,
-        uuid::Uuid,
-        TypeUuidProvider,
-    },
-    fxhash::FxHashMap,
-    gui::{font::Font, UserInterface},
-    material::{shader::Shader, Material, MaterialResource, PropertyValue},
-    resource::{
-        curve::CurveResourceState,
-        model::{Model, ModelResourceExtension},
-        texture::Texture,
-    },
-    scene::{
-        base::BaseBuilder,
-        mesh::{
-            surface::{SurfaceBuilder, SurfaceData, SurfaceSharedData},
-            MeshBuilder, RenderPath,
+pub mod cache;
+
+use crate::{
+    fyrox::{
+        asset::{manager::ResourceManager, untyped::ResourceKind, untyped::UntypedResource},
+        core::{
+            algebra::{Matrix4, UnitQuaternion, Vector3},
+            log::Log,
+            pool::Handle,
+            sstorage::ImmutableString,
+            uuid::Uuid,
+            TypeUuidProvider,
         },
-        node::Node,
-        sound::{HrirSphereResourceData, SoundBuffer, SoundBuilder, Status},
-        Scene,
+        engine::{Engine, GraphicsContext},
+        fxhash::FxHashMap,
+        gui::{font::Font, UserInterface},
+        material::{shader::Shader, Material, MaterialResource, PropertyValue},
+        renderer::framework::gpu_texture::GpuTextureKind,
+        resource::{
+            curve::CurveResourceState,
+            model::{Model, ModelResourceExtension},
+            texture::{
+                Texture, TextureKind, TexturePixelKind, TextureResource, TextureResourceExtension,
+            },
+        },
+        scene::{
+            base::BaseBuilder,
+            mesh::{
+                surface::{SurfaceBuilder, SurfaceData, SurfaceSharedData},
+                MeshBuilder, RenderPath,
+            },
+            node::Node,
+            sound::{HrirSphereResourceData, SoundBuffer, SoundBuilder, Status},
+            Scene,
+        },
     },
+    load_image,
 };
-use crate::load_image;
 
 #[derive(Default)]
 pub struct AssetPreviewGeneratorsCollection {
@@ -59,14 +67,26 @@ impl AssetPreviewGeneratorsCollection {
 }
 
 pub trait AssetPreview: Send + Sync + 'static {
-    fn generate(
+    /// Generates a scene, that will be used in the asset browser. Not all assets could provide
+    /// sensible scene for themselves, in this case this method should return [`Handle::NONE`].
+    fn generate_scene(
         &mut self,
         resource: &UntypedResource,
         resource_manager: &ResourceManager,
         scene: &mut Scene,
     ) -> Handle<Node>;
 
-    fn icon(
+    /// Generates a preview image for an asset. For example, in case of prefabs, it will be the
+    /// entire prefab content rendered to an image. In case of sounds it will be its waveform, and
+    /// so on.  
+    fn generate_preview(
+        &mut self,
+        resource: &UntypedResource,
+        engine: &mut Engine,
+    ) -> Option<TextureResource>;
+
+    /// Returns simplified icon for assets, usually it is just a picture.
+    fn simple_icon(
         &self,
         resource: &UntypedResource,
         resource_manager: &ResourceManager,
@@ -76,7 +96,7 @@ pub trait AssetPreview: Send + Sync + 'static {
 pub struct TexturePreview;
 
 impl AssetPreview for TexturePreview {
-    fn generate(
+    fn generate_scene(
         &mut self,
         resource: &UntypedResource,
         _resource_manager: &ResourceManager,
@@ -120,7 +140,15 @@ impl AssetPreview for TexturePreview {
         }
     }
 
-    fn icon(
+    fn generate_preview(
+        &mut self,
+        resource: &UntypedResource,
+        _engine: &mut Engine,
+    ) -> Option<TextureResource> {
+        resource.try_cast::<Texture>()
+    }
+
+    fn simple_icon(
         &self,
         resource: &UntypedResource,
         _resource_manager: &ResourceManager,
@@ -132,7 +160,7 @@ impl AssetPreview for TexturePreview {
 pub struct SoundPreview;
 
 impl AssetPreview for SoundPreview {
-    fn generate(
+    fn generate_scene(
         &mut self,
         resource: &UntypedResource,
         _resource_manager: &ResourceManager,
@@ -148,19 +176,28 @@ impl AssetPreview for SoundPreview {
         }
     }
 
-    fn icon(
+    fn generate_preview(
+        &mut self,
+        _resource: &UntypedResource,
+        _engine: &mut Engine,
+    ) -> Option<TextureResource> {
+        // TODO: Generate waveform image.
+        None
+    }
+
+    fn simple_icon(
         &self,
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
     ) -> Option<UntypedResource> {
-        load_image(include_bytes!("../../resources/sound.png"))
+        load_image(include_bytes!("../../../resources/sound.png"))
     }
 }
 
 pub struct ModelPreview;
 
 impl AssetPreview for ModelPreview {
-    fn generate(
+    fn generate_scene(
         &mut self,
         resource: &UntypedResource,
         _resource_manager: &ResourceManager,
@@ -173,19 +210,78 @@ impl AssetPreview for ModelPreview {
         }
     }
 
-    fn icon(
+    fn generate_preview(
+        &mut self,
+        resource: &UntypedResource,
+        engine: &mut Engine,
+    ) -> Option<TextureResource> {
+        let GraphicsContext::Initialized(ref mut graphics_context) = engine.graphics_context else {
+            Log::warn("Cannot render an asset preview when the renderer is not initialized!");
+            return None;
+        };
+
+        let model = resource.try_cast::<Model>()?;
+
+        let mut scene = Scene::new();
+        model.instantiate(&mut scene);
+
+        let temp_handle = Handle::new(u32::MAX, u32::MAX);
+        if let Some(ldr_texture) = graphics_context
+            .renderer
+            .render_scene(temp_handle, &scene, 0.0)
+            .ok()
+            .and_then(|data| {
+                data.ldr_scene_framebuffer
+                    .color_attachments()
+                    .first()
+                    .map(|a| a.texture.clone())
+            })
+        {
+            let mut ldr_texture = ldr_texture.borrow_mut();
+            let (width, height) = match ldr_texture.kind() {
+                GpuTextureKind::Rectangle { width, height } => (width, height),
+                _ => unreachable!(),
+            };
+
+            let pipeline_state = graphics_context.renderer.pipeline_state();
+            let pixels = ldr_texture
+                .bind_mut(pipeline_state, 0)
+                .read_pixels(pipeline_state);
+
+            // TODO: This is a hack, refactor `render_scene` method to accept render data from
+            // outside, instead of messing around with these temporary handles.
+            graphics_context
+                .renderer
+                .scene_data_map
+                .remove(&temp_handle);
+
+            TextureResource::from_bytes(
+                TextureKind::Rectangle {
+                    width: width as u32,
+                    height: height as u32,
+                },
+                TexturePixelKind::RGBA8,
+                pixels,
+                ResourceKind::Embedded,
+            )
+        } else {
+            None
+        }
+    }
+
+    fn simple_icon(
         &self,
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
     ) -> Option<UntypedResource> {
-        load_image(include_bytes!("../../resources/model.png"))
+        load_image(include_bytes!("../../../resources/model.png"))
     }
 }
 
 pub struct ShaderPreview;
 
 impl AssetPreview for ShaderPreview {
-    fn generate(
+    fn generate_scene(
         &mut self,
         resource: &UntypedResource,
         resource_manager: &ResourceManager,
@@ -209,19 +305,28 @@ impl AssetPreview for ShaderPreview {
         }
     }
 
-    fn icon(
+    fn generate_preview(
+        &mut self,
+        _resource: &UntypedResource,
+        _engine: &mut Engine,
+    ) -> Option<TextureResource> {
+        // Shaders do not have any sensible preview, the simple icon will be used instead.
+        None
+    }
+
+    fn simple_icon(
         &self,
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
     ) -> Option<UntypedResource> {
-        load_image(include_bytes!("../../resources/shader.png"))
+        load_image(include_bytes!("../../../resources/shader.png"))
     }
 }
 
 pub struct MaterialPreview;
 
 impl AssetPreview for MaterialPreview {
-    fn generate(
+    fn generate_scene(
         &mut self,
         resource: &UntypedResource,
         _resource_manager: &ResourceManager,
@@ -240,19 +345,28 @@ impl AssetPreview for MaterialPreview {
         }
     }
 
-    fn icon(
+    fn generate_preview(
+        &mut self,
+        _resource: &UntypedResource,
+        _engine: &mut Engine,
+    ) -> Option<TextureResource> {
+        // TODO
+        None
+    }
+
+    fn simple_icon(
         &self,
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
     ) -> Option<UntypedResource> {
-        load_image(include_bytes!("../../resources/material.png"))
+        load_image(include_bytes!("../../../resources/material.png"))
     }
 }
 
 pub struct HrirPreview;
 
 impl AssetPreview for HrirPreview {
-    fn generate(
+    fn generate_scene(
         &mut self,
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
@@ -261,19 +375,29 @@ impl AssetPreview for HrirPreview {
         Handle::NONE
     }
 
-    fn icon(
+    fn generate_preview(
+        &mut self,
+        _resource: &UntypedResource,
+        _engine: &mut Engine,
+    ) -> Option<TextureResource> {
+        // Head-related impulse response do not have any sensible preview, the simple icon will be
+        // used instead.
+        None
+    }
+
+    fn simple_icon(
         &self,
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
     ) -> Option<UntypedResource> {
-        load_image(include_bytes!("../../resources/hrir.png"))
+        load_image(include_bytes!("../../../resources/hrir.png"))
     }
 }
 
 pub struct CurvePreview;
 
 impl AssetPreview for CurvePreview {
-    fn generate(
+    fn generate_scene(
         &mut self,
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
@@ -282,19 +406,28 @@ impl AssetPreview for CurvePreview {
         Handle::NONE
     }
 
-    fn icon(
+    fn generate_preview(
+        &mut self,
+        _resource: &UntypedResource,
+        _engine: &mut Engine,
+    ) -> Option<TextureResource> {
+        // TODO: Implement.
+        None
+    }
+
+    fn simple_icon(
         &self,
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
     ) -> Option<UntypedResource> {
-        load_image(include_bytes!("../../resources/curve.png"))
+        load_image(include_bytes!("../../../resources/curve.png"))
     }
 }
 
 pub struct FontPreview;
 
 impl AssetPreview for FontPreview {
-    fn generate(
+    fn generate_scene(
         &mut self,
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
@@ -303,19 +436,28 @@ impl AssetPreview for FontPreview {
         Handle::NONE
     }
 
-    fn icon(
+    fn generate_preview(
+        &mut self,
+        _resource: &UntypedResource,
+        _engine: &mut Engine,
+    ) -> Option<TextureResource> {
+        // TODO: Implement.
+        None
+    }
+
+    fn simple_icon(
         &self,
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
     ) -> Option<UntypedResource> {
-        load_image(include_bytes!("../../resources/font.png"))
+        load_image(include_bytes!("../../../resources/font.png"))
     }
 }
 
 pub struct UserInterfacePreview;
 
 impl AssetPreview for UserInterfacePreview {
-    fn generate(
+    fn generate_scene(
         &mut self,
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
@@ -324,11 +466,20 @@ impl AssetPreview for UserInterfacePreview {
         Handle::NONE
     }
 
-    fn icon(
+    fn generate_preview(
+        &mut self,
+        _resource: &UntypedResource,
+        _engine: &mut Engine,
+    ) -> Option<TextureResource> {
+        // TODO: Implement.
+        None
+    }
+
+    fn simple_icon(
         &self,
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
     ) -> Option<UntypedResource> {
-        load_image(include_bytes!("../../resources/ui.png"))
+        load_image(include_bytes!("../../../resources/ui.png"))
     }
 }
