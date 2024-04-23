@@ -36,6 +36,8 @@ use crate::{
     },
     load_image,
 };
+use fyrox::graph::BaseSceneGraph;
+use fyrox::scene::camera::{CameraBuilder, FitParameters, Projection};
 
 #[derive(Default)]
 pub struct AssetPreviewGeneratorsCollection {
@@ -223,7 +225,32 @@ impl AssetPreview for ModelPreview {
         let model = resource.try_cast::<Model>()?;
 
         let mut scene = Scene::new();
+
         model.instantiate(&mut scene);
+
+        let camera = CameraBuilder::new(BaseBuilder::new()).build(&mut scene.graph);
+
+        let scene_aabb = scene
+            .graph
+            .aabb_of_descendants(scene.graph.root(), |_, _| true)
+            .unwrap_or_default();
+        let camera = scene.graph[camera].as_camera_mut();
+        // TODO: Calculate aspect ratio.
+        let aspect_ratio = 1.0;
+        match camera.fit(&scene_aabb, aspect_ratio) {
+            FitParameters::Perspective { position, .. } => {
+                camera.local_transform_mut().set_position(position);
+            }
+            FitParameters::Orthographic {
+                position,
+                vertical_size,
+            } => {
+                if let Projection::Orthographic(ortho) = camera.projection_mut() {
+                    ortho.vertical_size = vertical_size;
+                }
+                camera.local_transform_mut().set_position(position);
+            }
+        }
 
         let temp_handle = Handle::new(u32::MAX, u32::MAX);
         if let Some(ldr_texture) = graphics_context

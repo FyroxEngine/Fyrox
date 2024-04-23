@@ -1,3 +1,4 @@
+use crate::asset::preview::cache::{AssetPreviewCache, IconRequest};
 use crate::{
     asset::{
         dependency::DependencyViewer,
@@ -13,8 +14,7 @@ use crate::{
         },
         core::{
             color::Color, futures::executor::block_on, log::Log, make_relative_path,
-            parking_lot::lock_api::Mutex, parking_lot::RwLock, pool::Handle, scope_profile,
-            TypeUuidProvider,
+            parking_lot::lock_api::Mutex, pool::Handle, scope_profile, TypeUuidProvider,
         },
         engine::Engine,
         graph::BaseSceneGraph,
@@ -53,6 +53,8 @@ use crate::{
     Message, Mode,
 };
 use fyrox::core::Uuid;
+use std::sync::mpsc;
+use std::sync::mpsc::Sender;
 use std::{
     ffi::OsStr,
     path::{Path, PathBuf},
@@ -471,7 +473,9 @@ pub struct AssetBrowser {
     selected_path: PathBuf,
     dependency_viewer: DependencyViewer,
     resource_creator: Option<ResourceCreator>,
-    pub preview_generators: Arc<RwLock<AssetPreviewGeneratorsCollection>>,
+    preview_cache: AssetPreviewCache,
+    preview_sender: Sender<IconRequest>,
+    pub preview_generators: AssetPreviewGeneratorsCollection,
 }
 
 fn is_supported_resource(ext: &OsStr, resource_manager: &ResourceManager) -> bool {
@@ -617,6 +621,8 @@ impl AssetBrowser {
 
         let dependency_viewer = DependencyViewer::new(ctx);
 
+        let (preview_sender, preview_receiver) = mpsc::channel();
+
         Self {
             dependency_viewer,
             window,
@@ -632,7 +638,9 @@ impl AssetBrowser {
             selected_path: Default::default(),
             add_resource,
             resource_creator: None,
-            preview_generators: Arc::new(RwLock::new(AssetPreviewGeneratorsCollection::new())),
+            preview_cache: AssetPreviewCache::new(preview_receiver, 4),
+            preview_sender,
+            preview_generators: AssetPreviewGeneratorsCollection::new(),
         }
     }
 
@@ -685,21 +693,14 @@ impl AssetBrowser {
         // responsive.
         let rm = resource_manager.clone();
         let resource_path = path.to_path_buf();
-        let sender = ui.sender();
-        let preview_generators = self.preview_generators.clone();
+        let preview_sender = self.preview_sender.clone();
         let task_pool = resource_manager.task_pool();
         task_pool.spawn_task(async move {
             if let Ok(resource) = rm.request_untyped(resource_path).await {
-                let icon = preview_generators
-                    .read()
-                    .map
-                    .get(&resource.type_uuid())
-                    .and_then(|gen| gen.simple_icon(&resource, &rm));
-                Log::verify(sender.send(AssetItemMessage::icon(
+                Log::verify(preview_sender.send(IconRequest {
+                    resource,
                     asset_item,
-                    MessageDirection::ToWidget,
-                    icon,
-                )));
+                }));
             }
         });
 
@@ -842,9 +843,8 @@ impl AssetBrowser {
             );
 
             if let Ok(resource) = block_on(engine.resource_manager.request_untyped(asset_path)) {
-                let mut preview_generators = self.preview_generators.write();
                 if let Some(preview_generator) =
-                    preview_generators.map.get_mut(&resource.type_uuid())
+                    self.preview_generators.map.get_mut(&resource.type_uuid())
                 {
                     let preview_scene = &mut engine.scenes[self.preview.scene()];
                     let preview = preview_generator.generate_scene(
@@ -995,6 +995,8 @@ impl AssetBrowser {
     }
 
     pub fn update(&mut self, engine: &mut Engine) {
+        self.preview_cache
+            .update(&mut self.preview_generators, engine);
         self.preview.update(engine)
     }
 
