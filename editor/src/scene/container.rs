@@ -153,7 +153,6 @@ impl EditorSceneEntry {
             // Deactivate current first.
             if let Some(current_mode) = self.current_interaction_mode {
                 self.interaction_modes
-                    .map
                     .get_mut(&current_mode)
                     .unwrap()
                     .deactivate(&*self.controller, engine);
@@ -164,7 +163,6 @@ impl EditorSceneEntry {
             // Activate new.
             if let Some(current_mode) = self.current_interaction_mode {
                 self.interaction_modes
-                    .map
                     .get_mut(&current_mode)
                     .unwrap()
                     .activate(&*self.controller, engine);
@@ -181,7 +179,7 @@ impl EditorSceneEntry {
     }
 
     pub fn before_drop(&mut self, engine: &mut Engine) {
-        for (_, mut interaction_mode) in self.interaction_modes.map.drain() {
+        for mut interaction_mode in self.interaction_modes.drain() {
             interaction_mode.on_drop(engine);
         }
     }
@@ -217,7 +215,7 @@ impl EditorSceneEntry {
 
         if let Some(interaction_mode) = self
             .current_interaction_mode
-            .and_then(|id| self.interaction_modes.map.get_mut(&id))
+            .and_then(|id| self.interaction_modes.get_mut(&id))
         {
             if interaction_mode.on_key_up(key, &mut *self.controller, engine) {
                 return true;
@@ -240,7 +238,7 @@ impl EditorSceneEntry {
 
         if let Some(interaction_mode) = self
             .current_interaction_mode
-            .and_then(|id| self.interaction_modes.map.get_mut(&id))
+            .and_then(|id| self.interaction_modes.get_mut(&id))
         {
             if interaction_mode.on_key_down(key, &self.selection, &mut *self.controller, engine) {
                 return true;
@@ -263,7 +261,7 @@ impl EditorSceneEntry {
 
         if let Some(interaction_mode) = self
             .current_interaction_mode
-            .and_then(|id| self.interaction_modes.map.get_mut(&id))
+            .and_then(|id| self.interaction_modes.get_mut(&id))
         {
             interaction_mode.on_mouse_move(
                 mouse_offset,
@@ -293,7 +291,7 @@ impl EditorSceneEntry {
         if button == MouseButton::Left {
             if let Some(interaction_mode) = self
                 .current_interaction_mode
-                .and_then(|id| self.interaction_modes.map.get_mut(&id))
+                .and_then(|id| self.interaction_modes.get_mut(&id))
             {
                 let rel_pos = pos - screen_bounds.position;
                 interaction_mode.on_left_mouse_button_up(
@@ -322,7 +320,7 @@ impl EditorSceneEntry {
         if button == MouseButton::Left {
             if let Some(interaction_mode) = self
                 .current_interaction_mode
-                .and_then(|id| self.interaction_modes.map.get_mut(&id))
+                .and_then(|id| self.interaction_modes.get_mut(&id))
             {
                 let rel_pos = pos - screen_bounds.position;
 

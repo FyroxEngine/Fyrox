@@ -371,17 +371,17 @@ impl SceneViewer {
 
         // Create new buttons for each mode.
         if let Some(scene_entry) = new_scene {
-            for (id, mode) in scene_entry.interaction_modes.map.iter_mut() {
+            for mode in scene_entry.interaction_modes.iter_mut() {
                 let button = mode.make_button(
                     &mut ui.build_ctx(),
-                    scene_entry.current_interaction_mode.unwrap_or_default() == *id,
+                    scene_entry.current_interaction_mode.unwrap_or_default() == mode.uuid(),
                 );
                 ui.send_message(WidgetMessage::link(
                     button,
                     MessageDirection::ToWidget,
                     self.interaction_mode_panel,
                 ));
-                self.interaction_modes.insert(*id, button);
+                self.interaction_modes.insert(mode.uuid(), button);
             }
         }
     }
