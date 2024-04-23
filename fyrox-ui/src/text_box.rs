@@ -133,6 +133,14 @@ pub enum TextCommitMode {
     /// In case of multiline text box hitting Enter key won't commit the text!
     #[default]
     LostFocusPlusEnter = 2,
+
+    /// Text box will send Text message when it loses focus or if Enter key was pressed, but **only** if the content
+    /// of the text box changed since the last time it gained focus or the text was committed.
+    ///
+    /// # Notes
+    ///
+    /// In case of multiline text box hitting Enter key won't commit the text!
+    Changed = 3,
 }
 
 /// Defines a set of two positions in the text, that forms a specific range.
@@ -424,6 +432,10 @@ pub struct TextBox {
     pub view_position: InheritableVariable<Vector2<f32>>,
     /// A list of custom characters that will be treated as whitespace.
     pub skip_chars: InheritableVariable<Vec<char>>,
+    /// Stored copy of most recent commit, when `commit_mode` is [TextCommitMode::Changed].
+    #[visit(skip)]
+    #[reflect(hidden)]
+    pub recent: Vec<char>,
 }
 
 impl Debug for TextBox {
@@ -435,6 +447,19 @@ impl Debug for TextBox {
 crate::define_widget_deref!(TextBox);
 
 impl TextBox {
+    fn commit_if_changed(&mut self, ui: &mut UserInterface) {
+        let formatted_text = self.formatted_text.borrow();
+        let raw = formatted_text.get_raw_text();
+        if self.recent != raw {
+            self.recent.clear();
+            self.recent.extend(raw);
+            ui.send_message(TextMessage::text(
+                self.handle,
+                MessageDirection::FromWidget,
+                formatted_text.text(),
+            ));
+        }
+    }
     fn filter_paste_str_multiline(&self, str: &str) -> String {
         let mut str = str.replace("\r\n", "\n");
         str.retain(|c| c == '\n' || !c.is_control());
@@ -1076,8 +1101,11 @@ impl Control for TextBox {
                                         MessageDirection::FromWidget,
                                         self.text(),
                                     ));
-                                    self.has_focus = false;
+                                } else if *self.commit_mode == TextCommitMode::Changed {
+                                    self.commit_if_changed(ui);
                                 }
+                                // Don't set has_focus = false when enter is pressed.
+                                // That messes up keyboard navigation.
                             }
                             KeyCode::Backspace if *self.editable && !self.selecting => {
                                 self.remove_char(HorizontalDirection::Left, ui);
@@ -1180,6 +1208,11 @@ impl Control for TextBox {
                                     },
                                 ));
                             }
+                            if *self.commit_mode == TextCommitMode::Changed {
+                                self.recent.clear();
+                                self.recent
+                                    .extend_from_slice(self.formatted_text.borrow().get_raw_text());
+                            }
                         }
                     }
                     WidgetMessage::Unfocus => {
@@ -1187,15 +1220,24 @@ impl Control for TextBox {
                             self.selection_range.set_value_and_mark_modified(None);
                             self.has_focus = false;
 
-                            if *self.commit_mode == TextCommitMode::LostFocus
-                                || *self.commit_mode == TextCommitMode::LostFocusPlusEnter
-                            {
-                                ui.send_message(TextMessage::text(
-                                    self.handle,
-                                    MessageDirection::FromWidget,
-                                    self.text(),
-                                ));
+                            match *self.commit_mode {
+                                TextCommitMode::LostFocus | TextCommitMode::LostFocusPlusEnter => {
+                                    ui.send_message(TextMessage::text(
+                                        self.handle,
+                                        MessageDirection::FromWidget,
+                                        self.text(),
+                                    ));
+                                }
+                                TextCommitMode::Changed => {
+                                    self.commit_if_changed(ui);
+                                }
+                                _ => (),
                             }
+                            // There is no reason to keep the stored recent value in memory
+                            // while this TextBox does not have focus. Maybe this should be stored globally in UserInterface,
+                            // since we only ever need one.
+                            self.recent.clear();
+                            self.recent.shrink_to(0);
                         }
                     }
                     WidgetMessage::MouseDown { pos, button } => {
@@ -1598,6 +1640,7 @@ impl TextBoxBuilder {
             editable: self.editable.into(),
             view_position: Default::default(),
             skip_chars: self.skip_chars.into(),
+            recent: Default::default(),
         };
 
         ctx.add_node(UiNode::new(text_box))
