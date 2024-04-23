@@ -1499,6 +1499,331 @@ impl Renderer {
         self.geometry_cache.update(dt);
     }
 
+    /// Unconditionally renders a scene and returns a reference to a [`AssociatedSceneData`] instance
+    /// that contains rendered data (including intermediate data, such as G-Buffer content, etc.).
+    pub fn render_scene(
+        &mut self,
+        scene_handle: Handle<Scene>,
+        scene: &Scene,
+        dt: f32,
+    ) -> Result<&AssociatedSceneData, FrameworkError> {
+        let graph = &scene.graph;
+
+        let backbuffer_width = self.frame_size.0 as f32;
+        let backbuffer_height = self.frame_size.1 as f32;
+
+        let window_viewport = Rect::new(0, 0, self.frame_size.0 as i32, self.frame_size.1 as i32);
+
+        let frame_size = scene
+            .rendering_options
+            .render_target
+            .as_ref()
+            .map_or_else(
+                // Use either backbuffer size
+                || Vector2::new(backbuffer_width, backbuffer_height),
+                // Or framebuffer size
+                |rt| {
+                    if let TextureKind::Rectangle { width, height } = rt.data_ref().kind() {
+                        Vector2::new(width as f32, height as f32)
+                    } else {
+                        panic!("only rectangle textures can be used as render target!")
+                    }
+                },
+            )
+            // Clamp to [1.0; infinity] range.
+            .sup(&Vector2::new(1.0, 1.0));
+
+        let state = &mut self.state;
+
+        let scene_associated_data = self
+            .scene_data_map
+            .entry(scene_handle)
+            .and_modify(|data| {
+                if data.gbuffer.width != frame_size.x as i32
+                    || data.gbuffer.height != frame_size.y as i32
+                {
+                    let width = frame_size.x as usize;
+                    let height = frame_size.y as usize;
+
+                    Log::info(format!(
+                        "Associated scene rendering data was re-created for scene {}, because render frame size was changed. Old is {}x{}, new {}x{}!",
+                        scene_handle,
+                        data.gbuffer.width,data.gbuffer.height,width,height
+                    ));
+
+                    *data = AssociatedSceneData::new(state, width, height).unwrap();
+                }
+            })
+            .or_insert_with(|| {
+                let width = frame_size.x as usize;
+                let height = frame_size.y as usize;
+
+                Log::info(format!(
+                    "A new associated scene rendering data was created for scene {}!",
+                    scene_handle
+                ));
+
+                AssociatedSceneData::new(state, width, height).unwrap()
+            });
+
+        let pipeline_stats = state.pipeline_statistics();
+        scene_associated_data.statistics = Default::default();
+
+        // If we specified a texture to draw to, we have to register it in texture cache
+        // so it can be used in later on as texture. This is useful in case if you need
+        // to draw something on offscreen and then draw it on some mesh.
+        // TODO: However it can be dangerous to use frame texture as it may be bound to
+        //  pipeline.
+        if let Some(rt) = scene.rendering_options.render_target.clone() {
+            self.texture_cache.map.spawn(
+                TextureRenderData {
+                    gpu_texture: scene_associated_data.ldr_scene_frame_texture(),
+                    data_hash: 0,
+                },
+                rt.data_ref().cache_index.clone(),
+                TimeToLive(f32::INFINITY),
+            );
+        }
+
+        for camera in graph
+            .linear_iter()
+            .filter(|&node| node.is_globally_enabled())
+            .filter_map(|node| node.cast::<Camera>().filter(|c| c.is_enabled()))
+        {
+            let viewport = camera.viewport_pixels(frame_size);
+
+            let bundle_storage = RenderDataBundleStorage::from_graph(
+                graph,
+                ObserverInfo {
+                    observer_position: camera.global_position(),
+                    z_near: camera.projection().z_near(),
+                    z_far: camera.projection().z_far(),
+                    view_matrix: camera.view_matrix(),
+                    projection_matrix: camera.projection_matrix(),
+                },
+                GBUFFER_PASS_NAME.clone(),
+            );
+
+            state.set_polygon_fill_mode(
+                PolygonFace::FrontAndBack,
+                scene.rendering_options.polygon_rasterization_mode,
+            );
+
+            scene_associated_data.statistics +=
+                scene_associated_data.gbuffer.fill(GBufferRenderContext {
+                    state,
+                    camera,
+                    geom_cache: &mut self.geometry_cache,
+                    bundle_storage: &bundle_storage,
+                    texture_cache: &mut self.texture_cache,
+                    shader_cache: &mut self.shader_cache,
+                    environment_dummy: self.environment_dummy.clone(),
+                    use_parallax_mapping: self.quality_settings.use_parallax_mapping,
+                    normal_dummy: self.normal_dummy.clone(),
+                    white_dummy: self.white_dummy.clone(),
+                    black_dummy: self.black_dummy.clone(),
+                    volume_dummy: self.volume_dummy.clone(),
+                    graph,
+                    matrix_storage: &mut self.matrix_storage,
+                })?;
+
+            state.set_polygon_fill_mode(PolygonFace::FrontAndBack, PolygonFillMode::Fill);
+
+            scene_associated_data.copy_depth_stencil_to_scene_framebuffer(state);
+
+            scene_associated_data.hdr_scene_framebuffer.clear(
+                state,
+                viewport,
+                Some(
+                    scene
+                        .rendering_options
+                        .clear_color
+                        .unwrap_or(self.backbuffer_clear_color),
+                ),
+                None, // Keep depth, we've just copied valid data in it.
+                Some(0),
+            );
+
+            let (pass_stats, light_stats) =
+                self.deferred_light_renderer
+                    .render(DeferredRendererContext {
+                        state,
+                        scene,
+                        camera,
+                        gbuffer: &mut scene_associated_data.gbuffer,
+                        white_dummy: self.white_dummy.clone(),
+                        ambient_color: scene.rendering_options.ambient_lighting_color,
+                        settings: &self.quality_settings,
+                        textures: &mut self.texture_cache,
+                        geometry_cache: &mut self.geometry_cache,
+                        frame_buffer: &mut scene_associated_data.hdr_scene_framebuffer,
+                        shader_cache: &mut self.shader_cache,
+                        normal_dummy: self.normal_dummy.clone(),
+                        black_dummy: self.black_dummy.clone(),
+                        volume_dummy: self.volume_dummy.clone(),
+                        matrix_storage: &mut self.matrix_storage,
+                    })?;
+
+            scene_associated_data.statistics += light_stats;
+            scene_associated_data.statistics += pass_stats;
+
+            let depth = scene_associated_data.gbuffer.depth();
+
+            scene_associated_data.statistics +=
+                self.forward_renderer.render(ForwardRenderContext {
+                    state,
+                    graph,
+                    camera,
+                    geom_cache: &mut self.geometry_cache,
+                    texture_cache: &mut self.texture_cache,
+                    shader_cache: &mut self.shader_cache,
+                    bundle_storage: &bundle_storage,
+                    framebuffer: &mut scene_associated_data.hdr_scene_framebuffer,
+                    viewport,
+                    quality_settings: &self.quality_settings,
+                    white_dummy: self.white_dummy.clone(),
+                    normal_dummy: self.normal_dummy.clone(),
+                    black_dummy: self.black_dummy.clone(),
+                    volume_dummy: self.volume_dummy.clone(),
+                    scene_depth: depth,
+                    matrix_storage: &mut self.matrix_storage,
+                    ambient_light: scene.rendering_options.ambient_lighting_color,
+                })?;
+
+            for render_pass in self.scene_render_passes.iter() {
+                scene_associated_data.statistics +=
+                    render_pass
+                        .borrow_mut()
+                        .on_hdr_render(SceneRenderPassContext {
+                            pipeline_state: state,
+                            texture_cache: &mut self.texture_cache,
+                            geometry_cache: &mut self.geometry_cache,
+                            shader_cache: &mut self.shader_cache,
+                            quality_settings: &self.quality_settings,
+                            bundle_storage: &bundle_storage,
+                            viewport,
+                            scene,
+                            camera,
+                            scene_handle,
+                            white_dummy: self.white_dummy.clone(),
+                            normal_dummy: self.normal_dummy.clone(),
+                            metallic_dummy: self.metallic_dummy.clone(),
+                            environment_dummy: self.environment_dummy.clone(),
+                            black_dummy: self.black_dummy.clone(),
+                            volume_dummy: self.volume_dummy.clone(),
+                            depth_texture: scene_associated_data.gbuffer.depth(),
+                            normal_texture: scene_associated_data.gbuffer.normal_texture(),
+                            ambient_texture: scene_associated_data.gbuffer.ambient_texture(),
+                            framebuffer: &mut scene_associated_data.hdr_scene_framebuffer,
+                            ui_renderer: &mut self.ui_renderer,
+                            matrix_storage: &mut self.matrix_storage,
+                        })?;
+            }
+
+            let quad = &self.quad;
+
+            // Prepare glow map.
+            scene_associated_data.statistics += scene_associated_data.bloom_renderer.render(
+                state,
+                quad,
+                scene_associated_data.hdr_scene_frame_texture(),
+            )?;
+
+            // Convert high dynamic range frame to low dynamic range (sRGB) with tone mapping and gamma correction.
+            scene_associated_data.statistics += scene_associated_data.hdr_renderer.render(
+                state,
+                scene_associated_data.hdr_scene_frame_texture(),
+                scene_associated_data.bloom_renderer.result(),
+                &mut scene_associated_data.ldr_scene_framebuffer,
+                viewport,
+                quad,
+                dt,
+                camera.exposure(),
+                camera.color_grading_lut_ref(),
+                camera.color_grading_enabled(),
+                &mut self.texture_cache,
+            )?;
+
+            // Apply FXAA if needed.
+            if self.quality_settings.fxaa {
+                scene_associated_data.statistics += self.fxaa_renderer.render(
+                    state,
+                    viewport,
+                    scene_associated_data.ldr_scene_frame_texture(),
+                    &mut scene_associated_data.ldr_temp_framebuffer,
+                )?;
+
+                let quad = &self.quad;
+                let temp_frame_texture = scene_associated_data.ldr_temp_frame_texture();
+                scene_associated_data.statistics += blit_pixels(
+                    state,
+                    &mut scene_associated_data.ldr_scene_framebuffer,
+                    temp_frame_texture,
+                    &self.flat_shader,
+                    viewport,
+                    quad,
+                )?;
+            }
+
+            // Render debug geometry in the LDR frame buffer.
+            scene_associated_data.statistics += self.debug_renderer.render(
+                state,
+                viewport,
+                &mut scene_associated_data.ldr_scene_framebuffer,
+                &scene.drawing_context,
+                camera,
+            )?;
+
+            for render_pass in self.scene_render_passes.iter() {
+                scene_associated_data.statistics +=
+                    render_pass
+                        .borrow_mut()
+                        .on_ldr_render(SceneRenderPassContext {
+                            pipeline_state: state,
+                            texture_cache: &mut self.texture_cache,
+                            geometry_cache: &mut self.geometry_cache,
+                            shader_cache: &mut self.shader_cache,
+                            quality_settings: &self.quality_settings,
+                            bundle_storage: &bundle_storage,
+                            viewport,
+                            scene,
+                            camera,
+                            scene_handle,
+                            white_dummy: self.white_dummy.clone(),
+                            normal_dummy: self.normal_dummy.clone(),
+                            metallic_dummy: self.metallic_dummy.clone(),
+                            environment_dummy: self.environment_dummy.clone(),
+                            black_dummy: self.black_dummy.clone(),
+                            volume_dummy: self.volume_dummy.clone(),
+                            depth_texture: scene_associated_data.gbuffer.depth(),
+                            normal_texture: scene_associated_data.gbuffer.normal_texture(),
+                            ambient_texture: scene_associated_data.gbuffer.ambient_texture(),
+                            framebuffer: &mut scene_associated_data.ldr_scene_framebuffer,
+                            ui_renderer: &mut self.ui_renderer,
+                            matrix_storage: &mut self.matrix_storage,
+                        })?;
+            }
+        }
+
+        // Optionally render everything into back buffer.
+        if scene.rendering_options.render_target.is_none() {
+            let quad = &self.quad;
+            scene_associated_data.statistics += blit_pixels(
+                state,
+                &mut self.backbuffer,
+                scene_associated_data.ldr_scene_frame_texture(),
+                &self.flat_shader,
+                window_viewport,
+                quad,
+            )?;
+        }
+
+        self.statistics += scene_associated_data.statistics;
+        scene_associated_data.statistics.pipeline = state.pipeline_statistics() - pipeline_stats;
+
+        Ok(scene_associated_data)
+    }
+
     fn render_frame<'a>(
         &mut self,
         scenes: &SceneContainer,
@@ -1537,315 +1862,7 @@ impl Renderer {
         let backbuffer_height = self.frame_size.1 as f32;
 
         for (scene_handle, scene) in scenes.pair_iter().filter(|(_, s)| *s.enabled) {
-            let graph = &scene.graph;
-
-            let frame_size = scene
-                .rendering_options
-                .render_target
-                .as_ref()
-                .map_or_else(
-                    // Use either backbuffer size
-                    || Vector2::new(backbuffer_width, backbuffer_height),
-                    // Or framebuffer size
-                    |rt| {
-                        if let TextureKind::Rectangle { width, height } = rt.data_ref().kind() {
-                            Vector2::new(width as f32, height as f32)
-                        } else {
-                            panic!("only rectangle textures can be used as render target!")
-                        }
-                    },
-                )
-                // Clamp to [1.0; infinity] range.
-                .sup(&Vector2::new(1.0, 1.0));
-
-            let state = &mut self.state;
-
-            let scene_associated_data = self
-                .scene_data_map
-                .entry(scene_handle)
-                .and_modify(|data| {
-                    if data.gbuffer.width != frame_size.x as i32
-                        || data.gbuffer.height != frame_size.y as i32
-                    {
-                        let width = frame_size.x as usize;
-                        let height = frame_size.y as usize;
-
-                        Log::info(format!(
-                            "Associated scene rendering data was re-created for scene {}, because render frame size was changed. Old is {}x{}, new {}x{}!",
-                            scene_handle,
-                            data.gbuffer.width,data.gbuffer.height,width,height
-                        ));
-
-                        *data = AssociatedSceneData::new(state, width, height).unwrap();
-                    }
-                })
-                .or_insert_with(|| {
-                    let width = frame_size.x as usize;
-                    let height = frame_size.y as usize;
-
-                    Log::info(format!(
-                        "A new associated scene rendering data was created for scene {}!",
-                        scene_handle
-                    ));
-
-                    AssociatedSceneData::new(state, width, height).unwrap()
-                });
-
-            let pipeline_stats = state.pipeline_statistics();
-            scene_associated_data.statistics = Default::default();
-
-            // If we specified a texture to draw to, we have to register it in texture cache
-            // so it can be used in later on as texture. This is useful in case if you need
-            // to draw something on offscreen and then draw it on some mesh.
-            // TODO: However it can be dangerous to use frame texture as it may be bound to
-            //  pipeline.
-            if let Some(rt) = scene.rendering_options.render_target.clone() {
-                self.texture_cache.map.spawn(
-                    TextureRenderData {
-                        gpu_texture: scene_associated_data.ldr_scene_frame_texture(),
-                        data_hash: 0,
-                    },
-                    rt.data_ref().cache_index.clone(),
-                    TimeToLive(f32::INFINITY),
-                );
-            }
-
-            for camera in graph
-                .linear_iter()
-                .filter(|&node| node.is_globally_enabled())
-                .filter_map(|node| node.cast::<Camera>().filter(|c| c.is_enabled()))
-            {
-                let viewport = camera.viewport_pixels(frame_size);
-
-                let bundle_storage = RenderDataBundleStorage::from_graph(
-                    graph,
-                    ObserverInfo {
-                        observer_position: camera.global_position(),
-                        z_near: camera.projection().z_near(),
-                        z_far: camera.projection().z_far(),
-                        view_matrix: camera.view_matrix(),
-                        projection_matrix: camera.projection_matrix(),
-                    },
-                    GBUFFER_PASS_NAME.clone(),
-                );
-
-                state.set_polygon_fill_mode(
-                    PolygonFace::FrontAndBack,
-                    scene.rendering_options.polygon_rasterization_mode,
-                );
-
-                scene_associated_data.statistics +=
-                    scene_associated_data.gbuffer.fill(GBufferRenderContext {
-                        state,
-                        camera,
-                        geom_cache: &mut self.geometry_cache,
-                        bundle_storage: &bundle_storage,
-                        texture_cache: &mut self.texture_cache,
-                        shader_cache: &mut self.shader_cache,
-                        environment_dummy: self.environment_dummy.clone(),
-                        use_parallax_mapping: self.quality_settings.use_parallax_mapping,
-                        normal_dummy: self.normal_dummy.clone(),
-                        white_dummy: self.white_dummy.clone(),
-                        black_dummy: self.black_dummy.clone(),
-                        volume_dummy: self.volume_dummy.clone(),
-                        graph,
-                        matrix_storage: &mut self.matrix_storage,
-                    })?;
-
-                state.set_polygon_fill_mode(PolygonFace::FrontAndBack, PolygonFillMode::Fill);
-
-                scene_associated_data.copy_depth_stencil_to_scene_framebuffer(state);
-
-                scene_associated_data.hdr_scene_framebuffer.clear(
-                    state,
-                    viewport,
-                    Some(
-                        scene
-                            .rendering_options
-                            .clear_color
-                            .unwrap_or(self.backbuffer_clear_color),
-                    ),
-                    None, // Keep depth, we've just copied valid data in it.
-                    Some(0),
-                );
-
-                let (pass_stats, light_stats) =
-                    self.deferred_light_renderer
-                        .render(DeferredRendererContext {
-                            state,
-                            scene,
-                            camera,
-                            gbuffer: &mut scene_associated_data.gbuffer,
-                            white_dummy: self.white_dummy.clone(),
-                            ambient_color: scene.rendering_options.ambient_lighting_color,
-                            settings: &self.quality_settings,
-                            textures: &mut self.texture_cache,
-                            geometry_cache: &mut self.geometry_cache,
-                            frame_buffer: &mut scene_associated_data.hdr_scene_framebuffer,
-                            shader_cache: &mut self.shader_cache,
-                            normal_dummy: self.normal_dummy.clone(),
-                            black_dummy: self.black_dummy.clone(),
-                            volume_dummy: self.volume_dummy.clone(),
-                            matrix_storage: &mut self.matrix_storage,
-                        })?;
-
-                scene_associated_data.statistics += light_stats;
-                scene_associated_data.statistics += pass_stats;
-
-                let depth = scene_associated_data.gbuffer.depth();
-
-                scene_associated_data.statistics +=
-                    self.forward_renderer.render(ForwardRenderContext {
-                        state,
-                        graph,
-                        camera,
-                        geom_cache: &mut self.geometry_cache,
-                        texture_cache: &mut self.texture_cache,
-                        shader_cache: &mut self.shader_cache,
-                        bundle_storage: &bundle_storage,
-                        framebuffer: &mut scene_associated_data.hdr_scene_framebuffer,
-                        viewport,
-                        quality_settings: &self.quality_settings,
-                        white_dummy: self.white_dummy.clone(),
-                        normal_dummy: self.normal_dummy.clone(),
-                        black_dummy: self.black_dummy.clone(),
-                        volume_dummy: self.volume_dummy.clone(),
-                        scene_depth: depth,
-                        matrix_storage: &mut self.matrix_storage,
-                        ambient_light: scene.rendering_options.ambient_lighting_color,
-                    })?;
-
-                for render_pass in self.scene_render_passes.iter() {
-                    scene_associated_data.statistics +=
-                        render_pass
-                            .borrow_mut()
-                            .on_hdr_render(SceneRenderPassContext {
-                                pipeline_state: state,
-                                texture_cache: &mut self.texture_cache,
-                                geometry_cache: &mut self.geometry_cache,
-                                shader_cache: &mut self.shader_cache,
-                                quality_settings: &self.quality_settings,
-                                bundle_storage: &bundle_storage,
-                                viewport,
-                                scene,
-                                camera,
-                                scene_handle,
-                                white_dummy: self.white_dummy.clone(),
-                                normal_dummy: self.normal_dummy.clone(),
-                                metallic_dummy: self.metallic_dummy.clone(),
-                                environment_dummy: self.environment_dummy.clone(),
-                                black_dummy: self.black_dummy.clone(),
-                                volume_dummy: self.volume_dummy.clone(),
-                                depth_texture: scene_associated_data.gbuffer.depth(),
-                                normal_texture: scene_associated_data.gbuffer.normal_texture(),
-                                ambient_texture: scene_associated_data.gbuffer.ambient_texture(),
-                                framebuffer: &mut scene_associated_data.hdr_scene_framebuffer,
-                                ui_renderer: &mut self.ui_renderer,
-                                matrix_storage: &mut self.matrix_storage,
-                            })?;
-                }
-
-                let quad = &self.quad;
-
-                // Prepare glow map.
-                scene_associated_data.statistics += scene_associated_data.bloom_renderer.render(
-                    state,
-                    quad,
-                    scene_associated_data.hdr_scene_frame_texture(),
-                )?;
-
-                // Convert high dynamic range frame to low dynamic range (sRGB) with tone mapping and gamma correction.
-                scene_associated_data.statistics += scene_associated_data.hdr_renderer.render(
-                    state,
-                    scene_associated_data.hdr_scene_frame_texture(),
-                    scene_associated_data.bloom_renderer.result(),
-                    &mut scene_associated_data.ldr_scene_framebuffer,
-                    viewport,
-                    quad,
-                    dt,
-                    camera.exposure(),
-                    camera.color_grading_lut_ref(),
-                    camera.color_grading_enabled(),
-                    &mut self.texture_cache,
-                )?;
-
-                // Apply FXAA if needed.
-                if self.quality_settings.fxaa {
-                    scene_associated_data.statistics += self.fxaa_renderer.render(
-                        state,
-                        viewport,
-                        scene_associated_data.ldr_scene_frame_texture(),
-                        &mut scene_associated_data.ldr_temp_framebuffer,
-                    )?;
-
-                    let quad = &self.quad;
-                    let temp_frame_texture = scene_associated_data.ldr_temp_frame_texture();
-                    scene_associated_data.statistics += blit_pixels(
-                        state,
-                        &mut scene_associated_data.ldr_scene_framebuffer,
-                        temp_frame_texture,
-                        &self.flat_shader,
-                        viewport,
-                        quad,
-                    )?;
-                }
-
-                // Render debug geometry in the LDR frame buffer.
-                scene_associated_data.statistics += self.debug_renderer.render(
-                    state,
-                    viewport,
-                    &mut scene_associated_data.ldr_scene_framebuffer,
-                    &scene.drawing_context,
-                    camera,
-                )?;
-
-                for render_pass in self.scene_render_passes.iter() {
-                    scene_associated_data.statistics +=
-                        render_pass
-                            .borrow_mut()
-                            .on_ldr_render(SceneRenderPassContext {
-                                pipeline_state: state,
-                                texture_cache: &mut self.texture_cache,
-                                geometry_cache: &mut self.geometry_cache,
-                                shader_cache: &mut self.shader_cache,
-                                quality_settings: &self.quality_settings,
-                                bundle_storage: &bundle_storage,
-                                viewport,
-                                scene,
-                                camera,
-                                scene_handle,
-                                white_dummy: self.white_dummy.clone(),
-                                normal_dummy: self.normal_dummy.clone(),
-                                metallic_dummy: self.metallic_dummy.clone(),
-                                environment_dummy: self.environment_dummy.clone(),
-                                black_dummy: self.black_dummy.clone(),
-                                volume_dummy: self.volume_dummy.clone(),
-                                depth_texture: scene_associated_data.gbuffer.depth(),
-                                normal_texture: scene_associated_data.gbuffer.normal_texture(),
-                                ambient_texture: scene_associated_data.gbuffer.ambient_texture(),
-                                framebuffer: &mut scene_associated_data.ldr_scene_framebuffer,
-                                ui_renderer: &mut self.ui_renderer,
-                                matrix_storage: &mut self.matrix_storage,
-                            })?;
-                }
-            }
-
-            // Optionally render everything into back buffer.
-            if scene.rendering_options.render_target.is_none() {
-                let quad = &self.quad;
-                scene_associated_data.statistics += blit_pixels(
-                    state,
-                    &mut self.backbuffer,
-                    scene_associated_data.ldr_scene_frame_texture(),
-                    &self.flat_shader,
-                    window_viewport,
-                    quad,
-                )?;
-            }
-
-            self.statistics += scene_associated_data.statistics;
-            scene_associated_data.statistics.pipeline =
-                state.pipeline_statistics() - pipeline_stats;
+            self.render_scene(scene_handle, scene, dt)?;
         }
 
         self.pipeline_state()
