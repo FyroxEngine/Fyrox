@@ -13,7 +13,7 @@ use crate::{
     },
     message::{MessageDirection, UiMessage},
     text::TextMessage,
-    text_box::TextBoxBuilder,
+    text_box::{TextBoxBuilder, TextCommitMode},
     widget::WidgetBuilder,
     Thickness, VerticalAlignment,
 };
@@ -40,6 +40,7 @@ impl PropertyEditorDefinition for ImmutableStringPropertyEditorDefinition {
                     .with_margin(Thickness::uniform(1.0)),
             )
             .with_wrap(WrapMode::Word)
+            .with_text_commit_mode(TextCommitMode::Changed)
             .with_text(value)
             .with_vertical_text_alignment(VerticalAlignment::Center)
             .build(ctx.build_context),

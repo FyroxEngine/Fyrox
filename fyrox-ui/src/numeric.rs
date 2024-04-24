@@ -10,8 +10,7 @@ use crate::{
         color::Color,
         num_traits::{clamp, Bounded, NumAssign, NumCast, NumOps},
         pool::Handle,
-        reflect::prelude::*,
-        reflect::Reflect,
+        reflect::{prelude::*, Reflect},
         type_traits::prelude::*,
         visitor::prelude::*,
     },
@@ -20,7 +19,7 @@ use crate::{
     grid::{Column, GridBuilder, Row},
     message::{KeyCode, MessageDirection, MouseButton, UiMessage},
     text::TextMessage,
-    text_box::{TextBox, TextBoxBuilder},
+    text_box::{TextBox, TextBoxBuilder, TextCommitMode},
     utils::{make_arrow, ArrowDirection},
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
@@ -252,6 +251,12 @@ pub struct NumericUpDown<T: NumericType> {
     pub decrease: InheritableVariable<Handle<UiNode>>,
     /// Current value of the widget.
     pub value: InheritableVariable<T>,
+    /// Value of the widget with formatting applied.
+    /// This value comes from parsing the result of format! so it has limited precision
+    /// and is used to determine if the value has been changed by text editing.
+    #[visit(skip)]
+    #[reflect(hidden)]
+    formatted_value: T,
     /// Step value of the widget.
     pub step: InheritableVariable<T>,
     /// Min value of the widget.
@@ -287,12 +292,16 @@ impl<T: NumericType> NumericUpDown<T> {
         clamp(value, *self.min_value, *self.max_value)
     }
 
-    fn sync_text_field(&self, ui: &UserInterface) {
-        ui.send_message(TextMessage::text(
+    fn sync_text_field(&mut self, ui: &UserInterface) {
+        let text = format!("{:.1$}", *self.value, *self.precision);
+        self.formatted_value = text.parse::<T>().unwrap_or(*self.value);
+        let msg = TextMessage::text(
             *self.field,
             MessageDirection::ToWidget,
             format!("{:.1$}", *self.value, *self.precision),
-        ));
+        );
+        msg.set_handled(true);
+        ui.send_message(msg);
     }
 
     fn sync_value_to_bounds_if_needed(&self, ui: &UserInterface) {
@@ -306,16 +315,25 @@ impl<T: NumericType> NumericUpDown<T> {
         }
     }
 
-    fn try_parse_value(&mut self, ui: &mut UserInterface) {
+    fn try_parse_value(&mut self, ui: &UserInterface) {
         // Parse input only when focus is lost from text field.
         if let Some(field) = ui.node(*self.field).cast::<TextBox>() {
             if let Ok(value) = field.text().parse::<T>() {
-                let value = self.clamp_value(value);
-                ui.send_message(NumericUpDownMessage::value(
-                    self.handle(),
-                    MessageDirection::ToWidget,
-                    value,
-                ));
+                // If the value we got from the text box has changed since the last time
+                // we parsed it, then the value has been edited through the text box,
+                // and the change was meaningful enough to change the result of parsing.
+                if value != self.formatted_value {
+                    self.formatted_value = value;
+                    let value = self.clamp_value(value);
+                    ui.send_message(NumericUpDownMessage::value(
+                        self.handle(),
+                        MessageDirection::ToWidget,
+                        value,
+                    ));
+                }
+            } else {
+                // Inform the user that parsing failed by re-establishing a valid value.
+                self.sync_text_field(ui);
             }
         }
     }
@@ -388,21 +406,14 @@ impl<T: NumericType> Control for NumericUpDown<T> {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if let Some(msg) = message.data::<WidgetMessage>() {
-            if message.destination() == *self.field {
-                match msg {
-                    WidgetMessage::Unfocus => {
-                        self.try_parse_value(ui);
-                    }
-                    WidgetMessage::KeyDown(KeyCode::Enter) => {
-                        self.try_parse_value(ui);
-
-                        message.set_handled(true);
-                    }
-                    _ => {}
-                }
+        if let Some(TextMessage::Text(_)) = message.data() {
+            if message.destination() == *self.field
+                && message.direction == MessageDirection::FromWidget
+                && !message.handled()
+            {
+                self.try_parse_value(ui);
             }
-
+        } else if let Some(msg) = message.data::<WidgetMessage>() {
             match msg {
                 WidgetMessage::MouseDown { button, pos, .. } => {
                     // We can activate dragging either by clicking on increase or decrease buttons.
@@ -693,6 +704,8 @@ impl<T: NumericType> NumericUpDownBuilder<T> {
         .with_stroke_thickness(Thickness::uniform(1.0))
         .build(ctx);
 
+        let text = format!("{:.1$}", self.value, self.precision);
+        let formatted_value = text.parse::<T>().unwrap_or(self.value);
         let grid = GridBuilder::new(
             WidgetBuilder::new()
                 .with_child({
@@ -704,7 +717,8 @@ impl<T: NumericType> NumericUpDownBuilder<T> {
                     )
                     .with_vertical_text_alignment(VerticalAlignment::Center)
                     .with_horizontal_text_alignment(HorizontalAlignment::Left)
-                    .with_text(format!("{:.1$}", self.value, self.precision))
+                    .with_text_commit_mode(TextCommitMode::Changed)
+                    .with_text(text)
                     .with_editable(self.editable)
                     .build(ctx);
                     field
@@ -742,6 +756,7 @@ impl<T: NumericType> NumericUpDownBuilder<T> {
             decrease: decrease.into(),
             field: field.into(),
             value: self.value.into(),
+            formatted_value,
             step: self.step.into(),
             min_value: self.min_value.into(),
             max_value: self.max_value.into(),
