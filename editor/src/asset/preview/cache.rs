@@ -1,11 +1,16 @@
 use crate::{
-    asset::{item::AssetItemMessage, preview::AssetPreviewGeneratorsCollection},
+    asset::{
+        item::AssetItemMessage, preview::AssetPreviewGeneratorsCollection,
+        preview::AssetPreviewTexture,
+    },
     fyrox::{
         asset::untyped::{ResourceKind, UntypedResource},
+        core::pool::Handle,
         engine::Engine,
         fxhash::FxHashMap,
+        gui::{message::MessageDirection, UiNode},
+        resource::texture::Texture,
     },
-    fyrox::{core::pool::Handle, gui::message::MessageDirection, gui::UiNode},
 };
 use std::sync::mpsc::Receiver;
 
@@ -16,7 +21,7 @@ pub struct IconRequest {
 
 pub struct AssetPreviewCache {
     receiver: Receiver<IconRequest>,
-    container: FxHashMap<ResourceKind, UntypedResource>,
+    container: FxHashMap<ResourceKind, AssetPreviewTexture>,
     throughput: usize,
 }
 
@@ -45,13 +50,17 @@ impl AssetPreviewCache {
                 Some(cached_preview.clone())
             } else if let Some(generator) = generators.map.get_mut(&resource.type_uuid()) {
                 if let Some(preview) = generator.generate_preview(&resource, engine) {
-                    self.container.insert(resource_kind, preview.clone().into());
-                    Some(preview.into())
+                    self.container.insert(resource_kind, preview.clone());
+                    Some(preview)
                 } else if let Some(icon) =
                     generator.simple_icon(&resource, &engine.resource_manager)
                 {
-                    self.container.insert(resource_kind, icon.clone());
-                    Some(icon)
+                    let preview = AssetPreviewTexture {
+                        texture: icon.try_cast::<Texture>().unwrap(),
+                        flip_y: false,
+                    };
+                    self.container.insert(resource_kind, preview.clone());
+                    Some(preview)
                 } else {
                     None
                 }
@@ -60,14 +69,14 @@ impl AssetPreviewCache {
             };
 
             if let Some(preview) = preview {
-                engine
-                    .user_interfaces
-                    .first()
-                    .send_message(AssetItemMessage::icon(
-                        asset_item,
-                        MessageDirection::ToWidget,
-                        Some(preview),
-                    ));
+                let ui = engine.user_interfaces.first();
+
+                ui.send_message(AssetItemMessage::icon(
+                    asset_item,
+                    MessageDirection::ToWidget,
+                    Some(preview.texture.into()),
+                    preview.flip_y,
+                ));
             }
         }
     }

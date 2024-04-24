@@ -28,12 +28,15 @@ use std::{
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AssetItemMessage {
     Select(bool),
-    Icon(Option<UntypedResource>),
+    Icon {
+        texture: Option<UntypedResource>,
+        flip_y: bool,
+    },
 }
 
 impl AssetItemMessage {
     define_constructor!(AssetItemMessage:Select => fn select(bool), layout: false);
-    define_constructor!(AssetItemMessage:Icon => fn icon(Option<UntypedResource>), layout: false);
+    define_constructor!(AssetItemMessage:Icon => fn icon(texture: Option<UntypedResource>, flip_y: bool), layout: false);
 }
 
 #[allow(dead_code)]
@@ -117,11 +120,18 @@ impl Control for AssetItem {
                         ));
                     }
                 }
-                AssetItemMessage::Icon(icon) => ui.send_message(ImageMessage::texture(
-                    self.preview,
-                    MessageDirection::ToWidget,
-                    icon.clone(),
-                )),
+                AssetItemMessage::Icon { texture, flip_y } => {
+                    ui.send_message(ImageMessage::texture(
+                        self.preview,
+                        MessageDirection::ToWidget,
+                        texture.clone(),
+                    ));
+                    ui.send_message(ImageMessage::flip(
+                        self.preview,
+                        MessageDirection::ToWidget,
+                        *flip_y,
+                    ))
+                }
             }
         }
     }

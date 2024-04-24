@@ -4,7 +4,7 @@ use crate::{
     fyrox::{
         asset::{manager::ResourceManager, untyped::ResourceKind, untyped::UntypedResource},
         core::{
-            algebra::{Matrix4, UnitQuaternion, Vector3},
+            algebra::{Matrix4, UnitQuaternion, Vector2, Vector3},
             log::Log,
             pool::Handle,
             sstorage::ImmutableString,
@@ -41,7 +41,7 @@ use fyrox::scene::camera::{CameraBuilder, FitParameters, Projection};
 
 #[derive(Default)]
 pub struct AssetPreviewGeneratorsCollection {
-    pub map: FxHashMap<Uuid, Box<dyn AssetPreview>>,
+    pub map: FxHashMap<Uuid, Box<dyn AssetPreviewGenerator>>,
 }
 
 impl AssetPreviewGeneratorsCollection {
@@ -59,16 +59,22 @@ impl AssetPreviewGeneratorsCollection {
         this
     }
 
-    pub fn add<T: AssetPreview>(
+    pub fn add<T: AssetPreviewGenerator>(
         &mut self,
         resource_type_uuid: Uuid,
         generator: T,
-    ) -> Option<Box<dyn AssetPreview>> {
+    ) -> Option<Box<dyn AssetPreviewGenerator>> {
         self.map.insert(resource_type_uuid, Box::new(generator))
     }
 }
 
-pub trait AssetPreview: Send + Sync + 'static {
+#[derive(Clone)]
+pub struct AssetPreviewTexture {
+    pub texture: TextureResource,
+    pub flip_y: bool,
+}
+
+pub trait AssetPreviewGenerator: Send + Sync + 'static {
     /// Generates a scene, that will be used in the asset browser. Not all assets could provide
     /// sensible scene for themselves, in this case this method should return [`Handle::NONE`].
     fn generate_scene(
@@ -85,7 +91,7 @@ pub trait AssetPreview: Send + Sync + 'static {
         &mut self,
         resource: &UntypedResource,
         engine: &mut Engine,
-    ) -> Option<TextureResource>;
+    ) -> Option<AssetPreviewTexture>;
 
     /// Returns simplified icon for assets, usually it is just a picture.
     fn simple_icon(
@@ -97,7 +103,7 @@ pub trait AssetPreview: Send + Sync + 'static {
 
 pub struct TexturePreview;
 
-impl AssetPreview for TexturePreview {
+impl AssetPreviewGenerator for TexturePreview {
     fn generate_scene(
         &mut self,
         resource: &UntypedResource,
@@ -146,8 +152,13 @@ impl AssetPreview for TexturePreview {
         &mut self,
         resource: &UntypedResource,
         _engine: &mut Engine,
-    ) -> Option<TextureResource> {
-        resource.try_cast::<Texture>()
+    ) -> Option<AssetPreviewTexture> {
+        resource
+            .try_cast::<Texture>()
+            .map(|texture| AssetPreviewTexture {
+                texture,
+                flip_y: false,
+            })
     }
 
     fn simple_icon(
@@ -161,7 +172,7 @@ impl AssetPreview for TexturePreview {
 
 pub struct SoundPreview;
 
-impl AssetPreview for SoundPreview {
+impl AssetPreviewGenerator for SoundPreview {
     fn generate_scene(
         &mut self,
         resource: &UntypedResource,
@@ -182,7 +193,7 @@ impl AssetPreview for SoundPreview {
         &mut self,
         _resource: &UntypedResource,
         _engine: &mut Engine,
-    ) -> Option<TextureResource> {
+    ) -> Option<AssetPreviewTexture> {
         // TODO: Generate waveform image.
         None
     }
@@ -198,7 +209,7 @@ impl AssetPreview for SoundPreview {
 
 pub struct ModelPreview;
 
-impl AssetPreview for ModelPreview {
+impl AssetPreviewGenerator for ModelPreview {
     fn generate_scene(
         &mut self,
         resource: &UntypedResource,
@@ -216,7 +227,7 @@ impl AssetPreview for ModelPreview {
         &mut self,
         resource: &UntypedResource,
         engine: &mut Engine,
-    ) -> Option<TextureResource> {
+    ) -> Option<AssetPreviewTexture> {
         let GraphicsContext::Initialized(ref mut graphics_context) = engine.graphics_context else {
             Log::warn("Cannot render an asset preview when the renderer is not initialized!");
             return None;
@@ -225,17 +236,23 @@ impl AssetPreview for ModelPreview {
         let model = resource.try_cast::<Model>()?;
 
         let mut scene = Scene::new();
+        let rt_size = Vector2::new(128.0, 128.0);
+        scene.rendering_options.render_target = Some(TextureResource::new_render_target(
+            rt_size.x as u32,
+            rt_size.y as u32,
+        ));
 
         model.instantiate(&mut scene);
 
         let camera = CameraBuilder::new(BaseBuilder::new()).build(&mut scene.graph);
+
+        scene.update(rt_size, 0.016, Default::default());
 
         let scene_aabb = scene
             .graph
             .aabb_of_descendants(scene.graph.root(), |_, _| true)
             .unwrap_or_default();
         let camera = scene.graph[camera].as_camera_mut();
-        // TODO: Calculate aspect ratio.
         let aspect_ratio = 1.0;
         match camera.fit(&scene_aabb, aspect_ratio) {
             FitParameters::Perspective { position, .. } => {
@@ -251,6 +268,8 @@ impl AssetPreview for ModelPreview {
                 camera.local_transform_mut().set_position(position);
             }
         }
+
+        scene.update(rt_size, 0.016, Default::default());
 
         let temp_handle = Handle::new(u32::MAX, u32::MAX);
         if let Some(ldr_texture) = graphics_context
@@ -291,6 +310,11 @@ impl AssetPreview for ModelPreview {
                 pixels,
                 ResourceKind::Embedded,
             )
+            .map(|texture| AssetPreviewTexture {
+                texture,
+                // OpenGL was designed by mathematicians.
+                flip_y: true,
+            })
         } else {
             None
         }
@@ -307,7 +331,7 @@ impl AssetPreview for ModelPreview {
 
 pub struct ShaderPreview;
 
-impl AssetPreview for ShaderPreview {
+impl AssetPreviewGenerator for ShaderPreview {
     fn generate_scene(
         &mut self,
         resource: &UntypedResource,
@@ -336,7 +360,7 @@ impl AssetPreview for ShaderPreview {
         &mut self,
         _resource: &UntypedResource,
         _engine: &mut Engine,
-    ) -> Option<TextureResource> {
+    ) -> Option<AssetPreviewTexture> {
         // Shaders do not have any sensible preview, the simple icon will be used instead.
         None
     }
@@ -352,7 +376,7 @@ impl AssetPreview for ShaderPreview {
 
 pub struct MaterialPreview;
 
-impl AssetPreview for MaterialPreview {
+impl AssetPreviewGenerator for MaterialPreview {
     fn generate_scene(
         &mut self,
         resource: &UntypedResource,
@@ -376,7 +400,7 @@ impl AssetPreview for MaterialPreview {
         &mut self,
         _resource: &UntypedResource,
         _engine: &mut Engine,
-    ) -> Option<TextureResource> {
+    ) -> Option<AssetPreviewTexture> {
         // TODO
         None
     }
@@ -392,7 +416,7 @@ impl AssetPreview for MaterialPreview {
 
 pub struct HrirPreview;
 
-impl AssetPreview for HrirPreview {
+impl AssetPreviewGenerator for HrirPreview {
     fn generate_scene(
         &mut self,
         _resource: &UntypedResource,
@@ -406,7 +430,7 @@ impl AssetPreview for HrirPreview {
         &mut self,
         _resource: &UntypedResource,
         _engine: &mut Engine,
-    ) -> Option<TextureResource> {
+    ) -> Option<AssetPreviewTexture> {
         // Head-related impulse response do not have any sensible preview, the simple icon will be
         // used instead.
         None
@@ -423,7 +447,7 @@ impl AssetPreview for HrirPreview {
 
 pub struct CurvePreview;
 
-impl AssetPreview for CurvePreview {
+impl AssetPreviewGenerator for CurvePreview {
     fn generate_scene(
         &mut self,
         _resource: &UntypedResource,
@@ -437,7 +461,7 @@ impl AssetPreview for CurvePreview {
         &mut self,
         _resource: &UntypedResource,
         _engine: &mut Engine,
-    ) -> Option<TextureResource> {
+    ) -> Option<AssetPreviewTexture> {
         // TODO: Implement.
         None
     }
@@ -453,7 +477,7 @@ impl AssetPreview for CurvePreview {
 
 pub struct FontPreview;
 
-impl AssetPreview for FontPreview {
+impl AssetPreviewGenerator for FontPreview {
     fn generate_scene(
         &mut self,
         _resource: &UntypedResource,
@@ -467,7 +491,7 @@ impl AssetPreview for FontPreview {
         &mut self,
         _resource: &UntypedResource,
         _engine: &mut Engine,
-    ) -> Option<TextureResource> {
+    ) -> Option<AssetPreviewTexture> {
         // TODO: Implement.
         None
     }
@@ -483,7 +507,7 @@ impl AssetPreview for FontPreview {
 
 pub struct UserInterfacePreview;
 
-impl AssetPreview for UserInterfacePreview {
+impl AssetPreviewGenerator for UserInterfacePreview {
     fn generate_scene(
         &mut self,
         _resource: &UntypedResource,
@@ -497,7 +521,7 @@ impl AssetPreview for UserInterfacePreview {
         &mut self,
         _resource: &UntypedResource,
         _engine: &mut Engine,
-    ) -> Option<TextureResource> {
+    ) -> Option<AssetPreviewTexture> {
         // TODO: Implement.
         None
     }
