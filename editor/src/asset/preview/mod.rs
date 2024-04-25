@@ -227,7 +227,9 @@ impl AssetPreviewGenerator for SoundPreview {
                 let step = sample_count / width as usize;
                 for (step_num, sample_num) in (0..sample_count).step_by(step).enumerate() {
                     let current_amplitude = samples[sample_num] / amplitude_range;
-                    let next_amplitude = samples[sample_num + 1] / amplitude_range;
+                    let next_amplitude = samples
+                        [(sample_num + step).min(sample_count.saturating_sub(1))]
+                        / amplitude_range;
                     let current_x = step_num as f32;
                     let next_x = (step_num + 1) as f32;
                     let current_y = half_height + current_amplitude * half_height;
