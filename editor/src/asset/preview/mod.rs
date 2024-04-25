@@ -13,6 +13,7 @@ use crate::{
         },
         engine::{Engine, GraphicsContext},
         fxhash::FxHashMap,
+        graph::BaseSceneGraph,
         gui::{font::Font, UserInterface},
         material::{shader::Shader, Material, MaterialResource, PropertyValue},
         renderer::framework::gpu_texture::GpuTextureKind,
@@ -25,6 +26,8 @@ use crate::{
         },
         scene::{
             base::BaseBuilder,
+            camera::{CameraBuilder, FitParameters, Projection},
+            light::{directional::DirectionalLightBuilder, BaseLightBuilder},
             mesh::{
                 surface::{SurfaceBuilder, SurfaceData, SurfaceSharedData},
                 MeshBuilder, RenderPath,
@@ -36,10 +39,7 @@ use crate::{
     },
     load_image,
 };
-use fyrox::graph::BaseSceneGraph;
-use fyrox::scene::camera::{CameraBuilder, FitParameters, Projection};
-use fyrox::scene::light::directional::DirectionalLightBuilder;
-use fyrox::scene::light::BaseLightBuilder;
+use image::{ColorType, GenericImage, Rgba};
 
 #[derive(Default)]
 pub struct AssetPreviewGeneratorsCollection {
@@ -193,10 +193,69 @@ impl AssetPreviewGenerator for SoundPreview {
 
     fn generate_preview(
         &mut self,
-        _resource: &UntypedResource,
+        resource: &UntypedResource,
         _engine: &mut Engine,
     ) -> Option<AssetPreviewTexture> {
-        // TODO: Generate waveform image.
+        if let Some(buffer) = resource.try_cast::<SoundBuffer>() {
+            if let Some(data) = buffer.state().data() {
+                let height = 60.0;
+                let half_height = height / 2.0;
+                let width = 60.0;
+                let mut image =
+                    image::DynamicImage::new(width as u32, height as u32, ColorType::Rgba8);
+
+                for i in 0..(width as u32) {
+                    for j in 0..(height as u32) {
+                        image.put_pixel(j, i, Rgba::from([100, 100, 100, 255]));
+                    }
+                }
+
+                let samples = data.samples();
+                let mut min = f32::MAX;
+                let mut max = -f32::MAX;
+                for sample in samples.iter() {
+                    if *sample < min {
+                        min = *sample;
+                    }
+                    if *sample > max {
+                        max = *sample;
+                    }
+                }
+                let amplitude_range = (max.abs() + min.abs()) / 4.0;
+
+                let sample_count = samples.len();
+                let step = sample_count / width as usize;
+                for (step_num, sample_num) in (0..sample_count).step_by(step).enumerate() {
+                    let current_amplitude = samples[sample_num] / amplitude_range;
+                    let next_amplitude = samples[sample_num + 1] / amplitude_range;
+                    let current_x = step_num as f32;
+                    let next_x = (step_num + 1) as f32;
+                    let current_y = half_height + current_amplitude * half_height;
+                    let next_y = half_height + next_amplitude * half_height;
+                    imageproc::drawing::draw_antialiased_line_segment_mut(
+                        &mut image,
+                        (current_x as i32, current_y as i32),
+                        (next_x as i32, next_y as i32),
+                        Rgba::from([255, 127, 39, 255]),
+                        imageproc::pixelops::interpolate,
+                    );
+                }
+
+                return TextureResource::from_bytes(
+                    TextureKind::Rectangle {
+                        width: width as u32,
+                        height: height as u32,
+                    },
+                    TexturePixelKind::RGBA8,
+                    image.as_bytes().to_vec(),
+                    ResourceKind::Embedded,
+                )
+                .map(|texture| AssetPreviewTexture {
+                    texture,
+                    flip_y: false,
+                });
+            }
+        }
         None
     }
 
