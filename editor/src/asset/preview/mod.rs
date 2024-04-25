@@ -38,6 +38,8 @@ use crate::{
 };
 use fyrox::graph::BaseSceneGraph;
 use fyrox::scene::camera::{CameraBuilder, FitParameters, Projection};
+use fyrox::scene::light::directional::DirectionalLightBuilder;
+use fyrox::scene::light::BaseLightBuilder;
 
 #[derive(Default)]
 pub struct AssetPreviewGeneratorsCollection {
@@ -207,6 +209,97 @@ impl AssetPreviewGenerator for SoundPreview {
     }
 }
 
+fn render_scene_to_texture(
+    engine: &mut Engine,
+    scene: &mut Scene,
+    rt_size: Vector2<f32>,
+) -> Option<AssetPreviewTexture> {
+    let GraphicsContext::Initialized(ref mut graphics_context) = engine.graphics_context else {
+        Log::warn("Cannot render an asset preview when the renderer is not initialized!");
+        return None;
+    };
+
+    scene.rendering_options.render_target = Some(TextureResource::new_render_target(
+        rt_size.x as u32,
+        rt_size.y as u32,
+    ));
+
+    let camera = CameraBuilder::new(BaseBuilder::new()).build(&mut scene.graph);
+
+    scene.update(rt_size, 0.016, Default::default());
+
+    let scene_aabb = scene
+        .graph
+        .aabb_of_descendants(scene.graph.root(), |_, _| true)
+        .unwrap_or_default();
+    let camera = scene.graph[camera].as_camera_mut();
+    let aspect_ratio = 1.0;
+    match camera.fit(&scene_aabb, aspect_ratio) {
+        FitParameters::Perspective { position, .. } => {
+            camera.local_transform_mut().set_position(position);
+        }
+        FitParameters::Orthographic {
+            position,
+            vertical_size,
+        } => {
+            if let Projection::Orthographic(ortho) = camera.projection_mut() {
+                ortho.vertical_size = vertical_size;
+            }
+            camera.local_transform_mut().set_position(position);
+        }
+    }
+
+    scene.update(rt_size, 0.016, Default::default());
+
+    let temp_handle = Handle::new(u32::MAX, u32::MAX);
+    if let Some(ldr_texture) = graphics_context
+        .renderer
+        .render_scene(temp_handle, scene, 0.0)
+        .ok()
+        .and_then(|data| {
+            data.ldr_scene_framebuffer
+                .color_attachments()
+                .first()
+                .map(|a| a.texture.clone())
+        })
+    {
+        let mut ldr_texture = ldr_texture.borrow_mut();
+        let (width, height) = match ldr_texture.kind() {
+            GpuTextureKind::Rectangle { width, height } => (width, height),
+            _ => unreachable!(),
+        };
+
+        let pipeline_state = graphics_context.renderer.pipeline_state();
+        let pixels = ldr_texture
+            .bind_mut(pipeline_state, 0)
+            .read_pixels(pipeline_state);
+
+        // TODO: This is a hack, refactor `render_scene` method to accept render data from
+        // outside, instead of messing around with these temporary handles.
+        graphics_context
+            .renderer
+            .scene_data_map
+            .remove(&temp_handle);
+
+        TextureResource::from_bytes(
+            TextureKind::Rectangle {
+                width: width as u32,
+                height: height as u32,
+            },
+            TexturePixelKind::RGBA8,
+            pixels,
+            ResourceKind::Embedded,
+        )
+        .map(|texture| AssetPreviewTexture {
+            texture,
+            // OpenGL was designed by mathematicians.
+            flip_y: true,
+        })
+    } else {
+        None
+    }
+}
+
 pub struct ModelPreview;
 
 impl AssetPreviewGenerator for ModelPreview {
@@ -228,96 +321,10 @@ impl AssetPreviewGenerator for ModelPreview {
         resource: &UntypedResource,
         engine: &mut Engine,
     ) -> Option<AssetPreviewTexture> {
-        let GraphicsContext::Initialized(ref mut graphics_context) = engine.graphics_context else {
-            Log::warn("Cannot render an asset preview when the renderer is not initialized!");
-            return None;
-        };
-
         let model = resource.try_cast::<Model>()?;
-
         let mut scene = Scene::new();
-        let rt_size = Vector2::new(128.0, 128.0);
-        scene.rendering_options.render_target = Some(TextureResource::new_render_target(
-            rt_size.x as u32,
-            rt_size.y as u32,
-        ));
-
         model.instantiate(&mut scene);
-
-        let camera = CameraBuilder::new(BaseBuilder::new()).build(&mut scene.graph);
-
-        scene.update(rt_size, 0.016, Default::default());
-
-        let scene_aabb = scene
-            .graph
-            .aabb_of_descendants(scene.graph.root(), |_, _| true)
-            .unwrap_or_default();
-        let camera = scene.graph[camera].as_camera_mut();
-        let aspect_ratio = 1.0;
-        match camera.fit(&scene_aabb, aspect_ratio) {
-            FitParameters::Perspective { position, .. } => {
-                camera.local_transform_mut().set_position(position);
-            }
-            FitParameters::Orthographic {
-                position,
-                vertical_size,
-            } => {
-                if let Projection::Orthographic(ortho) = camera.projection_mut() {
-                    ortho.vertical_size = vertical_size;
-                }
-                camera.local_transform_mut().set_position(position);
-            }
-        }
-
-        scene.update(rt_size, 0.016, Default::default());
-
-        let temp_handle = Handle::new(u32::MAX, u32::MAX);
-        if let Some(ldr_texture) = graphics_context
-            .renderer
-            .render_scene(temp_handle, &scene, 0.0)
-            .ok()
-            .and_then(|data| {
-                data.ldr_scene_framebuffer
-                    .color_attachments()
-                    .first()
-                    .map(|a| a.texture.clone())
-            })
-        {
-            let mut ldr_texture = ldr_texture.borrow_mut();
-            let (width, height) = match ldr_texture.kind() {
-                GpuTextureKind::Rectangle { width, height } => (width, height),
-                _ => unreachable!(),
-            };
-
-            let pipeline_state = graphics_context.renderer.pipeline_state();
-            let pixels = ldr_texture
-                .bind_mut(pipeline_state, 0)
-                .read_pixels(pipeline_state);
-
-            // TODO: This is a hack, refactor `render_scene` method to accept render data from
-            // outside, instead of messing around with these temporary handles.
-            graphics_context
-                .renderer
-                .scene_data_map
-                .remove(&temp_handle);
-
-            TextureResource::from_bytes(
-                TextureKind::Rectangle {
-                    width: width as u32,
-                    height: height as u32,
-                },
-                TexturePixelKind::RGBA8,
-                pixels,
-                ResourceKind::Embedded,
-            )
-            .map(|texture| AssetPreviewTexture {
-                texture,
-                // OpenGL was designed by mathematicians.
-                flip_y: true,
-            })
-        } else {
-            None
-        }
+        render_scene_to_texture(engine, &mut scene, Vector2::new(128.0, 128.0))
     }
 
     fn simple_icon(
@@ -398,11 +405,14 @@ impl AssetPreviewGenerator for MaterialPreview {
 
     fn generate_preview(
         &mut self,
-        _resource: &UntypedResource,
-        _engine: &mut Engine,
+        resource: &UntypedResource,
+        engine: &mut Engine,
     ) -> Option<AssetPreviewTexture> {
-        // TODO
-        None
+        let mut scene = Scene::new();
+        self.generate_scene(resource, &engine.resource_manager, &mut scene);
+        DirectionalLightBuilder::new(BaseLightBuilder::new(BaseBuilder::new()))
+            .build(&mut scene.graph);
+        render_scene_to_texture(engine, &mut scene, Vector2::new(128.0, 128.0))
     }
 
     fn simple_icon(
