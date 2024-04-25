@@ -5,6 +5,7 @@ use crate::{
         asset::{manager::ResourceManager, untyped::ResourceKind, untyped::UntypedResource},
         core::{
             algebra::{Matrix4, UnitQuaternion, Vector2, Vector3},
+            color::Color,
             log::Log,
             pool::Handle,
             sstorage::ImmutableString,
@@ -16,7 +17,7 @@ use crate::{
         graph::BaseSceneGraph,
         gui::{font::Font, UserInterface},
         material::{shader::Shader, Material, MaterialResource, PropertyValue},
-        renderer::framework::gpu_texture::GpuTextureKind,
+        renderer::framework::gpu_texture::{GpuTextureKind, PixelKind},
         resource::{
             curve::CurveResourceState,
             model::{Model, ModelResourceExtension},
@@ -590,10 +591,37 @@ impl AssetPreviewGenerator for UserInterfacePreview {
 
     fn generate_preview(
         &mut self,
-        _resource: &UntypedResource,
-        _engine: &mut Engine,
+        resource: &UntypedResource,
+        engine: &mut Engine,
     ) -> Option<AssetPreviewTexture> {
-        // TODO: Implement.
+        let GraphicsContext::Initialized(ref mut graphics_context) = engine.graphics_context else {
+            Log::warn("Cannot render an asset preview when the renderer is not initialized!");
+            return None;
+        };
+
+        if let Some(ui_resource) = resource.try_cast::<UserInterface>() {
+            let mut ui = ui_resource.data_ref().clone();
+            let screen_size = Vector2::new(256.0, 256.0);
+            ui.update(screen_size, 0.016, &Default::default());
+            while ui.poll_message().is_some() {}
+            ui.update(screen_size, 0.016, &Default::default());
+            let render_target = TextureResource::new_render_target(256, 256);
+            graphics_context
+                .renderer
+                .render_ui_to_texture(
+                    render_target.clone(),
+                    screen_size,
+                    ui.draw(),
+                    Color::opaque(100, 100, 100),
+                    PixelKind::RGBA8,
+                )
+                .ok()?;
+
+            return Some(AssetPreviewTexture {
+                texture: render_target,
+                flip_y: true,
+            });
+        }
         None
     }
 
