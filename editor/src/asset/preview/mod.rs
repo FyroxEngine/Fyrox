@@ -385,6 +385,7 @@ impl AssetPreviewGenerator for ModelPreview {
     ) -> Option<AssetPreviewTexture> {
         let model = resource.try_cast::<Model>()?;
         let mut scene = Scene::new();
+        scene.rendering_options.ambient_lighting_color = Color::opaque(180, 180, 180);
         model.instantiate(&mut scene);
         render_scene_to_texture(engine, &mut scene, Vector2::new(128.0, 128.0))
     }
