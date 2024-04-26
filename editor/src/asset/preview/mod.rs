@@ -15,7 +15,10 @@ use crate::{
         engine::{Engine, GraphicsContext},
         fxhash::FxHashMap,
         graph::BaseSceneGraph,
-        gui::{font::Font, UserInterface},
+        gui::{
+            font::Font, formatted_text::WrapMode, screen::ScreenBuilder, text::TextBuilder,
+            widget::WidgetBuilder, HorizontalAlignment, UserInterface, VerticalAlignment,
+        },
         material::{shader::Shader, Material, MaterialResource, PropertyValue},
         renderer::framework::gpu_texture::{GpuTextureKind, PixelKind},
         resource::{
@@ -550,6 +553,37 @@ impl AssetPreviewGenerator for CurvePreview {
 
 pub struct FontPreview;
 
+fn render_ui_to_texture(
+    ui: &mut UserInterface,
+    engine: &mut Engine,
+) -> Option<AssetPreviewTexture> {
+    let GraphicsContext::Initialized(ref mut graphics_context) = engine.graphics_context else {
+        Log::warn("Cannot render an asset preview when the renderer is not initialized!");
+        return None;
+    };
+
+    let screen_size = ui.screen_size();
+    ui.update(screen_size, 0.016, &Default::default());
+    while ui.poll_message().is_some() {}
+    ui.update(screen_size, 0.016, &Default::default());
+    let render_target = TextureResource::new_render_target(256, 256);
+    graphics_context
+        .renderer
+        .render_ui_to_texture(
+            render_target.clone(),
+            screen_size,
+            ui.draw(),
+            Color::opaque(100, 100, 100),
+            PixelKind::RGBA8,
+        )
+        .ok()?;
+
+    Some(AssetPreviewTexture {
+        texture: render_target,
+        flip_y: true,
+    })
+}
+
 impl AssetPreviewGenerator for FontPreview {
     fn generate_scene(
         &mut self,
@@ -562,11 +596,28 @@ impl AssetPreviewGenerator for FontPreview {
 
     fn generate_preview(
         &mut self,
-        _resource: &UntypedResource,
-        _engine: &mut Engine,
+        resource: &UntypedResource,
+        engine: &mut Engine,
     ) -> Option<AssetPreviewTexture> {
-        // TODO: Implement.
-        None
+        if let Some(font) = resource.try_cast::<Font>() {
+            let mut ui = UserInterface::new(Vector2::new(60.0, 60.0));
+            ScreenBuilder::new(
+                WidgetBuilder::new().with_child(
+                    TextBuilder::new(WidgetBuilder::new())
+                        .with_font(font)
+                        .with_font_size(16.0)
+                        .with_vertical_text_alignment(VerticalAlignment::Center)
+                        .with_horizontal_text_alignment(HorizontalAlignment::Center)
+                        .with_wrap(WrapMode::Letter)
+                        .with_text("AaBbCcDd1234567890")
+                        .build(&mut ui.build_ctx()),
+                ),
+            )
+            .build(&mut ui.build_ctx());
+            render_ui_to_texture(&mut ui, engine)
+        } else {
+            None
+        }
     }
 
     fn simple_icon(
@@ -595,35 +646,13 @@ impl AssetPreviewGenerator for UserInterfacePreview {
         resource: &UntypedResource,
         engine: &mut Engine,
     ) -> Option<AssetPreviewTexture> {
-        let GraphicsContext::Initialized(ref mut graphics_context) = engine.graphics_context else {
-            Log::warn("Cannot render an asset preview when the renderer is not initialized!");
-            return None;
-        };
-
         if let Some(ui_resource) = resource.try_cast::<UserInterface>() {
             let mut ui = ui_resource.data_ref().clone();
-            let screen_size = Vector2::new(256.0, 256.0);
-            ui.update(screen_size, 0.016, &Default::default());
-            while ui.poll_message().is_some() {}
-            ui.update(screen_size, 0.016, &Default::default());
-            let render_target = TextureResource::new_render_target(256, 256);
-            graphics_context
-                .renderer
-                .render_ui_to_texture(
-                    render_target.clone(),
-                    screen_size,
-                    ui.draw(),
-                    Color::opaque(100, 100, 100),
-                    PixelKind::RGBA8,
-                )
-                .ok()?;
-
-            return Some(AssetPreviewTexture {
-                texture: render_target,
-                flip_y: true,
-            });
+            ui.set_screen_size(Vector2::new(256.0, 256.0));
+            render_ui_to_texture(&mut ui, engine)
+        } else {
+            None
         }
-        None
     }
 
     fn simple_icon(
