@@ -22,6 +22,7 @@ fn make_numeric_input<T: NumericType>(
     max: T,
     step: T,
     editable: bool,
+    precision: usize,
 ) -> Handle<UiNode> {
     NumericUpDownBuilder::new(
         WidgetBuilder::new()
@@ -34,7 +35,7 @@ fn make_numeric_input<T: NumericType>(
                 bottom: 0.0,
             }),
     )
-    .with_precision(3)
+    .with_precision(precision)
     .with_value(value)
     .with_min_value(min)
     .with_max_value(max)
@@ -225,6 +226,7 @@ where
     min: SVector<T, D>,
     max: SVector<T, D>,
     step: SVector<T, D>,
+    precision: usize,
 }
 
 impl<T, const D: usize> VecEditorBuilder<T, D>
@@ -239,6 +241,7 @@ where
             min: SVector::repeat(T::min_value()),
             max: SVector::repeat(T::max_value()),
             step: SVector::repeat(T::one()),
+            precision: 3,
         }
     }
 
@@ -264,6 +267,11 @@ where
 
     pub fn with_step(mut self, step: SVector<T, D>) -> Self {
         self.step = step;
+        self
+    }
+
+    pub fn with_precision(mut self, precision: usize) -> Self {
+        self.precision = precision;
         self
     }
 
@@ -296,6 +304,7 @@ where
                 self.max[i],
                 self.step[i],
                 self.editable,
+                self.precision,
             );
             children.push(field);
             fields.push(field);
