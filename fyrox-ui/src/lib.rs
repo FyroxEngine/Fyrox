@@ -2401,31 +2401,33 @@ impl UserInterface {
                 state,
                 text,
             } => {
-                if self.keyboard_focus_node.is_some() {
-                    match state {
-                        ButtonState::Pressed => {
-                            self.send_message(WidgetMessage::key_down(
+                if let Some(keyboard_focus_node) = self.try_get(self.keyboard_focus_node) {
+                    if keyboard_focus_node.is_globally_visible() {
+                        match state {
+                            ButtonState::Pressed => {
+                                self.send_message(WidgetMessage::key_down(
+                                    self.keyboard_focus_node,
+                                    MessageDirection::FromWidget,
+                                    *button,
+                                ));
+
+                                if !text.is_empty() {
+                                    self.send_message(WidgetMessage::text(
+                                        self.keyboard_focus_node,
+                                        MessageDirection::FromWidget,
+                                        text.clone(),
+                                    ));
+                                }
+                            }
+                            ButtonState::Released => self.send_message(WidgetMessage::key_up(
                                 self.keyboard_focus_node,
                                 MessageDirection::FromWidget,
                                 *button,
-                            ));
-
-                            if !text.is_empty() {
-                                self.send_message(WidgetMessage::text(
-                                    self.keyboard_focus_node,
-                                    MessageDirection::FromWidget,
-                                    text.clone(),
-                                ));
-                            }
+                            )),
                         }
-                        ButtonState::Released => self.send_message(WidgetMessage::key_up(
-                            self.keyboard_focus_node,
-                            MessageDirection::FromWidget,
-                            *button,
-                        )),
-                    }
 
-                    event_processed = true;
+                        event_processed = true;
+                    }
                 }
             }
             &OsEvent::KeyboardModifiers(modifiers) => {
