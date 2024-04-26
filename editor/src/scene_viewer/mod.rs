@@ -113,8 +113,9 @@ impl SceneViewer {
                                 ctx,
                                 "Global Coordinates of the Current Selection",
                             ))
-                            .with_width(200.0),
+                            .with_width(160.0),
                     )
+                    .with_precision(1)
                     .with_editable(false)
                     .build(ctx);
                     global_position_display
