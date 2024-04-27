@@ -14,6 +14,7 @@ use crate::{
     },
     track::Track,
 };
+use core::ImmutableString;
 use fyrox_core::{NameProvider, TypeUuidProvider};
 use std::hash::Hash;
 use std::{
@@ -165,7 +166,7 @@ pub mod value;
 #[derive(Debug, Reflect, Visit, PartialEq)]
 pub struct Animation<T: EntityId> {
     #[visit(optional)]
-    name: String,
+    name: ImmutableString,
     tracks: Vec<Track<T>>,
     time_position: f32,
     #[visit(optional)]
@@ -275,7 +276,7 @@ impl<T: EntityId> Clone for Animation<T> {
 impl<T: EntityId> Animation<T> {
     /// Sets a new name for the animation. The name then could be used to find the animation in a container.
     pub fn set_name<S: AsRef<str>>(&mut self, name: S) {
-        self.name = name.as_ref().to_owned();
+        self.name = ImmutableString::new(name);
     }
 
     /// Returns current name of the animation.

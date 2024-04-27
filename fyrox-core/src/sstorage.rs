@@ -10,6 +10,7 @@ use crate::{
 };
 use fxhash::{FxHashMap, FxHasher};
 pub use fyrox_core_derive::TypeUuidProvider;
+use serde::{Deserialize, Serialize};
 use std::{
     fmt::{Debug, Display, Formatter},
     hash::{Hash, Hasher},
@@ -66,6 +67,50 @@ impl Visit for ImmutableString {
     }
 }
 
+impl Serialize for ImmutableString {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> Deserialize<'de> for ImmutableString {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        Ok(ImmutableString::new(
+            deserializer.deserialize_string(ImmutableStringVisitor {})?,
+        ))
+    }
+}
+
+struct ImmutableStringVisitor {}
+
+impl serde::de::Visitor<'_> for ImmutableStringVisitor {
+    type Value = ImmutableString;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(formatter, "a string")
+    }
+
+    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(ImmutableString::new(v))
+    }
+
+    fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(v.into())
+    }
+}
+
 impl Default for ImmutableString {
     fn default() -> Self {
         Self::new("")
@@ -103,11 +148,22 @@ impl ImmutableString {
     pub fn to_mutable(&self) -> String {
         self.0.string.clone()
     }
+
+    /// Get a reference to the inner str.
+    pub fn as_str(&self) -> &str {
+        self.deref()
+    }
 }
 
 impl From<&str> for ImmutableString {
     fn from(value: &str) -> Self {
         Self::new(value)
+    }
+}
+
+impl From<String> for ImmutableString {
+    fn from(value: String) -> Self {
+        SSTORAGE.lock().insert_owned(value)
     }
 }
 
@@ -161,6 +217,21 @@ impl ImmutableStringStorage {
             ImmutableString(immutable)
         }
     }
+    /// Insert without copying the given String.
+    #[inline]
+    fn insert_owned(&mut self, string: String) -> ImmutableString {
+        let mut hasher = FxHasher::default();
+        string.hash(&mut hasher);
+        let hash = hasher.finish();
+
+        if let Some(existing) = self.vec.get(&hash) {
+            ImmutableString(existing.clone())
+        } else {
+            let immutable = Arc::new(State { string, hash });
+            self.vec.insert(hash, immutable.clone());
+            ImmutableString(immutable)
+        }
+    }
 }
 
 impl ImmutableStringStorage {
@@ -180,11 +251,30 @@ mod test {
     use super::*;
 
     #[test]
+    fn test_immutable_string_distinctness() {
+        let a = ImmutableString::new("Foobar");
+        let b = ImmutableString::new("rabooF");
+
+        assert_ne!(a.id(), b.id())
+    }
+
+    #[test]
     fn test_immutable_string_uniqueness() {
         let a = ImmutableString::new("Foobar");
         let b = ImmutableString::new("Foobar");
 
-        assert_eq!(ImmutableStringStorage::entry_count(), 2);
+        // All tests share the same ImmutableStringStorage, so there is no way
+        // to know what this value should be. It depends on the order the test
+        // are run.
+        // assert_eq!(ImmutableStringStorage::entry_count(), 2);
+        assert_eq!(a.id(), b.id())
+    }
+
+    #[test]
+    fn test_immutable_string_uniqueness_from_owned() {
+        let a = ImmutableString::new("Foobar");
+        let b = ImmutableString::from("Foobar".to_owned());
+
         assert_eq!(a.id(), b.id())
     }
 
@@ -199,6 +289,13 @@ mod test {
     #[test]
     fn debug_for_immutable_string() {
         let a = ImmutableString::new("Foobar");
+
+        assert_eq!(format!("{a:?}"), "\"Foobar\"");
+    }
+
+    #[test]
+    fn debug_for_immutable_string_from_owned() {
+        let a = ImmutableString::from("Foobar".to_owned());
 
         assert_eq!(format!("{a:?}"), "\"Foobar\"");
     }
