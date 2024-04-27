@@ -5,9 +5,9 @@ name: audit
 
 on:
   push:
-    branches: [ master ]
+    branches: [master]
   pull_request:
-    branches: [ master ]
+    branches: [master]
   schedule:
     # Runs at 15:00 UTC on Fri
     - cron: "0 15 * * 5"
@@ -22,7 +22,7 @@ jobs:
   audit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       # Actions-rs/install is unmaintained but works for now.
       # Alternatives for when it breaks:
       #  - dtolnay/install - not a full replacement - only supports crates he uses (not audit currently)
