@@ -1,5 +1,5 @@
 use crate::{
-    core::{algebra::Vector2, log::Log, pool::Handle, visitor::prelude::*},
+    core::{algebra::Vector2, log::Log, pool::Handle, visitor::prelude::*, ImmutableString},
     dock::{Tile, TileBuilder, TileContent},
     message::MessageDirection,
     widget::WidgetBuilder,
@@ -34,7 +34,7 @@ impl Visit for SplitTilesDescriptor {
 pub enum TileContentDescriptor {
     #[default]
     Empty,
-    Window(String),
+    Window(ImmutableString),
     SplitTiles(SplitTilesDescriptor),
 }
 
@@ -105,7 +105,7 @@ impl TileDescriptor {
                     }
 
                     let mut window_handle =
-                        ui.find_handle(ui.root(), &mut |n| n.name() == window_name);
+                        ui.find_handle(ui.root(), &mut |n| n.name == *window_name);
 
                     if window_handle.is_none() {
                         for other_window_handle in windows.iter().cloned() {
@@ -153,7 +153,7 @@ impl TileDescriptor {
 
 #[derive(Debug, PartialEq, Clone, Visit, Default, Serialize, Deserialize)]
 pub struct FloatingWindowDescriptor {
-    pub name: String,
+    pub name: ImmutableString,
     pub position: Vector2<f32>,
     pub size: Vector2<f32>,
 }

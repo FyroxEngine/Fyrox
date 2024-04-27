@@ -12,6 +12,7 @@ use crate::{
         reflect::prelude::*,
         uuid::Uuid,
         visitor::prelude::*,
+        ImmutableString,
     },
     define_constructor,
     message::{CursorIcon, Force, KeyCode, MessageDirection, UiMessage},
@@ -671,7 +672,7 @@ pub struct Widget {
     #[reflect(hidden)]
     pub handle: Handle<UiNode>,
     /// Name of the widget. Could be useful for debugging purposes.
-    pub name: String,
+    pub name: ImmutableString,
     /// Desired position relative to the parent node. It is just a recommendation for the layout system, actual position
     /// will be stored in the `actual_local_position` field and can be fetched using [`Widget::actual_local_position`]
     /// method.
@@ -874,7 +875,7 @@ impl Widget {
     /// Sets the new name of the widget.
     #[inline]
     pub fn set_name<P: AsRef<str>>(&mut self, name: P) -> &mut Self {
-        self.name = name.as_ref().to_owned();
+        self.name = ImmutableString::new(name);
         self
     }
 
@@ -1320,7 +1321,7 @@ impl Widget {
                         self.foreground
                             .set_value_and_mark_modified(foreground.clone());
                     }
-                    WidgetMessage::Name(name) => self.name = name.clone(),
+                    WidgetMessage::Name(name) => self.name = ImmutableString::new(name),
                     &WidgetMessage::Width(width) => {
                         if *self.width != width {
                             self.set_width_notify(width);
@@ -2087,7 +2088,7 @@ impl WidgetBuilder {
     pub fn build(self) -> Widget {
         Widget {
             handle: Default::default(),
-            name: self.name,
+            name: self.name.into(),
             desired_local_position: self.desired_position.into(),
             width: self.width.into(),
             height: self.height.into(),
