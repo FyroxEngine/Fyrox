@@ -12,6 +12,7 @@ use crate::{
         type_traits::prelude::*,
         variable::InheritableVariable,
         visitor::{Visit, VisitError, VisitResult, Visitor},
+        ImmutableString,
     },
     engine::SerializationContext,
     graph::BaseSceneGraph,
@@ -356,7 +357,7 @@ pub struct Base {
     // Name is not inheritable, because property inheritance works bad with external 3D models.
     // They use names to search "original" nodes.
     #[reflect(setter = "set_name_internal")]
-    pub(crate) name: String,
+    pub(crate) name: ImmutableString,
 
     pub(crate) local_transform: Transform,
 
@@ -457,10 +458,10 @@ impl Base {
     /// Sets name of node. Can be useful to mark a node to be able to find it later on.
     #[inline]
     pub fn set_name<N: AsRef<str>>(&mut self, name: N) {
-        self.set_name_internal(name.as_ref().to_owned());
+        self.set_name_internal(ImmutableString::new(name));
     }
 
-    fn set_name_internal(&mut self, name: String) -> String {
+    fn set_name_internal(&mut self, name: ImmutableString) -> ImmutableString {
         std::mem::replace(&mut self.name, name)
     }
 
@@ -473,7 +474,7 @@ impl Base {
     /// Returns owned name of node.
     #[inline]
     pub fn name_owned(&self) -> String {
-        self.name.clone()
+        self.name.to_mutable()
     }
 
     /// Returns shared reference to local transform of a node, can be used to fetch
@@ -1074,7 +1075,7 @@ impl Visit for Base {
             let mut region = region.enter_region("Name")?;
             let mut value = String::default();
             value.visit("Value", &mut region)?;
-            self.name = value;
+            self.name = ImmutableString::new(value);
         }
         self.local_transform.visit("Transform", &mut region)?;
         self.visibility.visit("Visibility", &mut region)?;
@@ -1287,7 +1288,7 @@ impl BaseBuilder {
         Base {
             self_handle: Default::default(),
             script_message_sender: None,
-            name: self.name,
+            name: self.name.into(),
             children: self.children,
             local_transform: self.local_transform,
             lifetime: self.lifetime.into(),

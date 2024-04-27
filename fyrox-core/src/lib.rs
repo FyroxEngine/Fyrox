@@ -16,6 +16,7 @@ pub use nalgebra as algebra;
 pub use num_traits;
 pub use parking_lot;
 pub use rand;
+pub use sstorage::ImmutableString;
 pub use uuid;
 
 use crate::visitor::{Visit, VisitResult, Visitor};
