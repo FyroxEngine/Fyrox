@@ -26,7 +26,7 @@ jobs:
         # For reference: https://github.com/actions/virtual-environments#available-environments
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
@@ -58,7 +58,7 @@ jobs:
       matrix:
         rust: [stable]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
@@ -76,7 +76,7 @@ jobs:
     name: Rustfmt CI
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       # Use rust-toolchain because GHA tends to still have an old version for a few days after a new Rust release.
       - uses: dtolnay/rust-toolchain@stable
 
@@ -87,7 +87,7 @@ jobs:
     name: Clippy CI
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       # Use rust-toolchain because GHA tends to still have an old version for a few days after a new Rust release.
       - uses: dtolnay/rust-toolchain@stable
       # Caching must be after toolchain selection
@@ -107,7 +107,7 @@ jobs:
     name: Documentation CI
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       # Docs.rs uses nightly https://docs.rs/about/builds
       - uses: dtolnay/rust-toolchain@nightly
       # Caching must be after toolchain selection
@@ -123,7 +123,7 @@ jobs:
     name: Project Template (PC)
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Install Tools
@@ -141,7 +141,7 @@ jobs:
     name: Project Template (Android)
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - uses: actions/setup-java@v3
@@ -172,7 +172,7 @@ jobs:
     name: Project Template (WASM)
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Install Tools
