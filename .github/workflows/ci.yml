@@ -135,7 +135,7 @@ jobs:
           fyrox-template init --name test_project --style=3d
           cd test_project
           fyrox-template upgrade --version=latest --local
-          cargo build --package editor       
+          cargo build --package editor
 
   template_android:
     name: Project Template (Android)
@@ -146,8 +146,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - uses: actions/setup-java@v3
         with:
-          java-version: '17'
-          distribution: 'temurin'
+          java-version: "17"
+          distribution: "temurin"
       - uses: android-actions/setup-android@v3
         with:
           cmdline-tools-version: 10406996
@@ -185,6 +185,6 @@ jobs:
           cd ../
           fyrox-template init --name test_project --style=3d
           cd test_project
-          fyrox-template upgrade --version=latest --local  
+          fyrox-template upgrade --version=latest --local
           cd executor-wasm
           wasm-pack build --target=web
