@@ -946,11 +946,6 @@ impl Editor {
 
         self.scene_viewer
             .reset_camera_projection(self.engine.user_interfaces.first());
-        self.engine
-            .graphics_context
-            .as_initialized_mut()
-            .renderer
-            .flush();
 
         self.on_scene_changed();
     }
@@ -2069,8 +2064,6 @@ impl Editor {
         }
 
         engine.resource_manager.state().destroy_unused_resources();
-
-        graphics_context.renderer.flush();
 
         self.asset_browser
             .set_working_directory(engine, &working_directory);
