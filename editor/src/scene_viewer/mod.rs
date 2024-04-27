@@ -1,36 +1,41 @@
-use crate::fyrox::graph::BaseSceneGraph;
-use crate::fyrox::{
-    core::{color::Color, math::Rect, pool::Handle, uuid::Uuid},
-    engine::Engine,
-    fxhash::FxHashMap,
-    gui::{
-        border::BorderBuilder,
-        brush::Brush,
-        button::{Button, ButtonBuilder, ButtonMessage},
-        canvas::CanvasBuilder,
-        decorator::DecoratorMessage,
-        dropdown_list::DropdownListMessage,
-        formatted_text::WrapMode,
-        grid::{Column, GridBuilder, Row},
-        image::{ImageBuilder, ImageMessage},
-        message::{MessageDirection, MouseButton, UiMessage},
-        stack_panel::StackPanelBuilder,
-        tab_control::{
-            Tab, TabControl, TabControlBuilder, TabControlMessage, TabDefinition, TabUserData,
-        },
-        text::{TextBuilder, TextMessage},
-        utils::make_simple_tooltip,
-        vec::{Vec3EditorBuilder, Vec3EditorMessage},
-        widget::{WidgetBuilder, WidgetMessage},
-        window::{WindowBuilder, WindowMessage, WindowTitle},
-        HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
-        BRUSH_DARKEST,
-    },
-    resource::texture::TextureResource,
-    scene::camera::Projection,
-};
 use crate::{
-    gui::{make_dropdown_list_option, make_dropdown_list_option_with_height},
+    fyrox::{
+        core::{color::Color, math::Rect, pool::Handle, uuid::Uuid},
+        engine::Engine,
+        fxhash::FxHashMap,
+        graph::{BaseSceneGraph, SceneGraphNode},
+        gui::dropdown_list::DropdownList,
+        gui::{
+            border::BorderBuilder,
+            brush::Brush,
+            button::{Button, ButtonBuilder, ButtonMessage},
+            canvas::CanvasBuilder,
+            decorator::DecoratorMessage,
+            dropdown_list::DropdownListMessage,
+            formatted_text::WrapMode,
+            grid::{Column, GridBuilder, Row},
+            image::{ImageBuilder, ImageMessage},
+            message::{MessageDirection, MouseButton, UiMessage},
+            stack_panel::StackPanelBuilder,
+            tab_control::{
+                Tab, TabControl, TabControlBuilder, TabControlMessage, TabDefinition, TabUserData,
+            },
+            text::{TextBuilder, TextMessage},
+            utils::make_simple_tooltip,
+            vec::{Vec3EditorBuilder, Vec3EditorMessage},
+            widget::{WidgetBuilder, WidgetMessage},
+            window::{WindowBuilder, WindowMessage, WindowTitle},
+            HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
+            BRUSH_DARKEST,
+        },
+        renderer::framework::state::PolygonFillMode,
+        resource::texture::TextureResource,
+        scene::camera::Projection,
+    },
+    gui::{
+        make_dropdown_list_option, make_dropdown_list_option_universal,
+        make_dropdown_list_option_with_height,
+    },
     load_image,
     message::MessageSender,
     scene::container::EditorSceneEntry,
@@ -40,9 +45,18 @@ use crate::{
     DropdownListBuilder, GameScene, Message, Mode, SaveSceneConfirmationDialogAction,
     SceneContainer, Settings,
 };
-use std::cmp::Ordering;
+use std::{cmp::Ordering, ops::Deref};
+use strum::{IntoEnumIterator, VariantNames};
+use strum_macros::{AsRefStr, EnumIter, EnumString, VariantNames};
 
 mod gizmo;
+
+#[derive(Default, Clone, Debug, EnumIter, AsRefStr, EnumString, VariantNames)]
+pub enum GraphicsDebugSwitches {
+    #[default]
+    Shaded,
+    Wireframe,
+}
 
 pub struct SceneViewer {
     frame: Handle<UiNode>,
@@ -61,6 +75,7 @@ pub struct SceneViewer {
     tab_control: Handle<UiNode>,
     scene_gizmo: SceneGizmo,
     scene_gizmo_image: Handle<UiNode>,
+    debug_switches: Handle<UiNode>,
 }
 
 impl SceneViewer {
@@ -86,6 +101,7 @@ impl SceneViewer {
         .build(ctx);
 
         let global_position_display;
+        let debug_switches;
         let contextual_actions = StackPanelBuilder::new(
             WidgetBuilder::new()
                 .with_height(25.0)
@@ -119,6 +135,21 @@ impl SceneViewer {
                     .with_editable(false)
                     .build(ctx);
                     global_position_display
+                })
+                .with_child({
+                    debug_switches =
+                        DropdownListBuilder::new(WidgetBuilder::new().with_width(120.0))
+                            .with_items(
+                                GraphicsDebugSwitches::iter()
+                                    .zip(GraphicsDebugSwitches::VARIANTS.iter())
+                                    .map(|(variant, v)| {
+                                        make_dropdown_list_option_universal(ctx, v, 22.0, variant)
+                                    })
+                                    .collect::<Vec<_>>(),
+                            )
+                            .with_selected(0)
+                            .build(ctx);
+                    debug_switches
                 }),
         )
         .with_orientation(Orientation::Horizontal)
@@ -318,6 +349,7 @@ impl SceneViewer {
             tab_control,
             scene_gizmo,
             scene_gizmo_image,
+            debug_switches,
         }
     }
 }
@@ -433,6 +465,36 @@ impl SceneViewer {
                     }
                 } else if message.destination() == self.build_profile {
                     settings.build.selected_profile = *index;
+                } else if message.destination() == self.debug_switches {
+                    let items = ui
+                        .node(self.debug_switches)
+                        .component_ref::<DropdownList>()
+                        .unwrap()
+                        .items
+                        .deref();
+                    if let Some(item) = items.get(*index) {
+                        if let Some(variant) =
+                            ui.node(*item).user_data_cloned::<GraphicsDebugSwitches>()
+                        {
+                            if let Some(entry) = scenes.current_scene_entry_mut() {
+                                if let Some(game_scene) =
+                                    entry.controller.downcast_ref::<GameScene>()
+                                {
+                                    let scene = &mut engine.scenes[game_scene.scene];
+                                    match variant {
+                                        GraphicsDebugSwitches::Shaded => {
+                                            scene.rendering_options.polygon_rasterization_mode =
+                                                PolygonFillMode::Fill;
+                                        }
+                                        GraphicsDebugSwitches::Wireframe => {
+                                            scene.rendering_options.polygon_rasterization_mode =
+                                                PolygonFillMode::Line;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         } else if let Some(msg) = message.data::<TabControlMessage>() {
