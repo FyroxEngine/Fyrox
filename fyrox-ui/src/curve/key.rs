@@ -25,12 +25,12 @@ impl From<&CurveKey> for CurveKeyView {
 }
 
 #[derive(Default, Clone, Visit, Reflect, Debug)]
-pub struct KeyContainer {
+pub struct CurveKeyViewContainer {
     id: Uuid,
     keys: Vec<CurveKeyView>,
 }
 
-impl From<&Curve> for KeyContainer {
+impl From<&Curve> for CurveKeyViewContainer {
     fn from(curve: &Curve) -> Self {
         Self {
             keys: curve
@@ -43,7 +43,7 @@ impl From<&Curve> for KeyContainer {
     }
 }
 
-impl KeyContainer {
+impl CurveKeyViewContainer {
     pub fn add(&mut self, key: CurveKeyView) {
         self.keys.push(key)
     }
@@ -62,6 +62,10 @@ impl KeyContainer {
 
     pub fn key_mut(&mut self, id: Uuid) -> Option<&mut CurveKeyView> {
         self.keys.iter_mut().find(|k| k.id == id)
+    }
+
+    pub fn key_position(&self, id: Uuid) -> Option<usize> {
+        self.keys.iter().position(|key| key.id == id)
     }
 
     pub fn key_index_ref(&self, index: usize) -> Option<&CurveKeyView> {

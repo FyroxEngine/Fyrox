@@ -32,7 +32,7 @@ impl PropertyEditorDefinition for CurvePropertyEditorDefinition {
                 .with_min_size(Vector2::new(0.0, 200.0))
                 .with_margin(Thickness::uniform(1.0)),
         )
-        .with_curve(value.clone())
+        .with_curves(vec![value.clone()])
         .build(ctx.build_context);
         ctx.build_context
             .sender()
@@ -53,7 +53,7 @@ impl PropertyEditorDefinition for CurvePropertyEditorDefinition {
         Ok(Some(CurveEditorMessage::sync(
             ctx.instance,
             MessageDirection::ToWidget,
-            value.clone(),
+            vec![value.clone()],
         )))
     }
 
@@ -63,7 +63,7 @@ impl PropertyEditorDefinition for CurvePropertyEditorDefinition {
                 return Some(PropertyChanged {
                     name: ctx.name.to_string(),
                     owner_type_id: ctx.owner_type_id,
-                    value: FieldKind::object(value.clone()),
+                    value: FieldKind::object(value.first().cloned().unwrap()),
                 });
             }
         }

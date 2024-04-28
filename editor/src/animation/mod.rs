@@ -272,11 +272,11 @@ impl AnimationEditor {
                     && message.direction() == MessageDirection::FromWidget
                 {
                     match msg {
-                        CurveEditorMessage::Sync(curve) => {
+                        CurveEditorMessage::Sync(curves) => {
                             sender.do_command(ReplaceTrackCurveCommand {
                                 animation_player: selection.animation_player,
                                 animation: selection.animation,
-                                curve: curve.clone(),
+                                curve: curves.first().cloned().unwrap(),
                             });
                         }
                         CurveEditorMessage::ViewPosition(position) => {
@@ -662,7 +662,7 @@ impl AnimationEditor {
                             CurveEditorMessage::sync(
                                 self.curve_editor,
                                 MessageDirection::ToWidget,
-                                selected_curve.clone(),
+                                vec![selected_curve.clone()],
                             ),
                         );
                     }

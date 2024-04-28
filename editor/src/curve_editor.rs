@@ -306,7 +306,7 @@ impl CurveEditorWindow {
                 CurveEditorMessage::sync(
                     self.curve_editor,
                     MessageDirection::ToWidget,
-                    curve_resource.data_ref().curve.clone(),
+                    vec![curve_resource.data_ref().curve.clone()],
                 ),
             );
         }
@@ -444,7 +444,7 @@ impl CurveEditorWindow {
                     self.command_stack.do_command(
                         Command::new(ModifyCurveCommand {
                             curve_resource: curve_resource.clone(),
-                            curve: curve.clone(),
+                            curve: curve.first().cloned().unwrap(),
                         }),
                         &mut CurveEditorContext {},
                     );

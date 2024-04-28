@@ -1,21 +1,25 @@
-use crate::menu::ContextMenuBuilder;
 use crate::{
     brush::Brush,
     core::{
         algebra::{Matrix3, Point2, SimdPartialOrd, Vector2, Vector3},
         color::Color,
-        math::curve::{Curve, CurveKeyKind},
-        math::{cubicf, lerpf, wrap_angle, Rect},
+        math::{
+            cubicf,
+            curve::{Curve, CurveKeyKind},
+            lerpf, wrap_angle, Rect,
+        },
         pool::Handle,
+        reflect::prelude::*,
         type_traits::prelude::*,
+        uuid_provider,
+        visitor::prelude::*,
     },
-    core::{reflect::prelude::*, visitor::prelude::*},
-    curve::key::{CurveKeyView, KeyContainer},
+    curve::key::{CurveKeyView, CurveKeyViewContainer},
     define_constructor,
     draw::{CommandTexture, Draw, DrawingContext},
     formatted_text::{FormattedText, FormattedTextBuilder},
     grid::{Column, GridBuilder, Row},
-    menu::{MenuItemBuilder, MenuItemContent, MenuItemMessage},
+    menu::{ContextMenuBuilder, MenuItemBuilder, MenuItemContent, MenuItemMessage},
     message::{ButtonState, KeyCode, MessageDirection, MouseButton, UiMessage},
     numeric::{NumericUpDownBuilder, NumericUpDownMessage},
     popup::PopupBuilder,
@@ -25,19 +29,18 @@ use crate::{
     BuildContext, Control, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use fxhash::FxHashSet;
-use fyrox_core::uuid_provider;
 use fyrox_graph::BaseSceneGraph;
-use std::sync::mpsc::Sender;
 use std::{
     cell::{Cell, RefCell},
     ops::{Deref, DerefMut},
+    sync::mpsc::Sender,
 };
 
 pub mod key;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum CurveEditorMessage {
-    Sync(Curve),
+    Sync(Vec<Curve>),
     ViewPosition(Vector2<f32>),
     Zoom(Vector2<f32>),
     ZoomToFit {
@@ -59,7 +62,7 @@ pub enum CurveEditorMessage {
 }
 
 impl CurveEditorMessage {
-    define_constructor!(CurveEditorMessage:Sync => fn sync(Curve), layout: false);
+    define_constructor!(CurveEditorMessage:Sync => fn sync(Vec<Curve>), layout: false);
     define_constructor!(CurveEditorMessage:ViewPosition => fn view_position(Vector2<f32>), layout: false);
     define_constructor!(CurveEditorMessage:Zoom => fn zoom(Vector2<f32>), layout: false);
     define_constructor!(CurveEditorMessage:ZoomToFit => fn zoom_to_fit(after_layout: bool), layout: true);
@@ -79,10 +82,63 @@ pub struct HighlightZone {
     pub brush: Brush,
 }
 
+#[derive(Default, Clone, Visit, Reflect, Debug)]
+pub struct CurvesContainer {
+    curves: Vec<CurveKeyViewContainer>,
+}
+
+impl CurvesContainer {
+    pub fn from_native(curves: &[Curve]) -> Self {
+        Self {
+            curves: curves
+                .iter()
+                .map(CurveKeyViewContainer::from)
+                .collect::<Vec<_>>(),
+        }
+    }
+
+    pub fn to_native(&self) -> Vec<Curve> {
+        self.curves
+            .iter()
+            .map(|view| view.curve())
+            .collect::<Vec<_>>()
+    }
+
+    pub fn container_of(&self, key_id: Uuid) -> Option<&CurveKeyViewContainer> {
+        self.curves
+            .iter()
+            .find(|curve| curve.key_ref(key_id).is_some())
+    }
+
+    pub fn key_ref(&self, uuid: Uuid) -> Option<&CurveKeyView> {
+        // TODO: This will be slow for curves with lots of keys.
+        self.curves.iter().find_map(|keys| keys.key_ref(uuid))
+    }
+
+    pub fn key_mut(&mut self, uuid: Uuid) -> Option<&mut CurveKeyView> {
+        // TODO: This will be slow for curves with lots of keys.
+        self.curves.iter_mut().find_map(|keys| keys.key_mut(uuid))
+    }
+
+    pub fn remove(&mut self, uuid: Uuid) {
+        for curve in self.curves.iter_mut() {
+            curve.remove(uuid);
+        }
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &CurveKeyViewContainer> {
+        self.curves.iter()
+    }
+
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut CurveKeyViewContainer> {
+        self.curves.iter_mut()
+    }
+}
+
 #[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
 pub struct CurveEditor {
     widget: Widget,
-    key_container: KeyContainer,
+    curves: CurvesContainer,
     zoom: Vector2<f32>,
     view_position: Vector2<f32>,
     // Transforms a point from local to view coordinates.
@@ -147,7 +203,7 @@ struct ContextMenu {
 
 #[derive(Clone, Debug)]
 struct DragEntry {
-    key: Uuid,
+    key_id: Uuid,
     initial_position: Vector2<f32>,
 }
 
@@ -163,7 +219,7 @@ enum OperationContext {
         initial_view_pos: Vector2<f32>,
     },
     DragTangent {
-        key: usize,
+        key_id: Uuid,
         left: bool,
     },
     BoxSelection {
@@ -177,17 +233,15 @@ enum OperationContext {
 #[derive(Clone, Debug)]
 enum Selection {
     Keys { keys: FxHashSet<Uuid> },
-    // It is ok to use index directly in case of tangents since
-    // we won't change position of keys so index will be valid.
-    LeftTangent { key: usize },
-    RightTangent { key: usize },
+    LeftTangent { key_id: Uuid },
+    RightTangent { key_id: Uuid },
 }
 
 #[derive(Copy, Clone)]
 enum PickResult {
-    Key(usize),
-    LeftTangent(usize),
-    RightTangent(usize),
+    Key(Uuid),
+    LeftTangent(Uuid),
+    RightTangent(Uuid),
 }
 
 impl Selection {
@@ -207,7 +261,7 @@ impl Control for CurveEditor {
         self.draw_background(ctx);
         self.draw_highlight_zones(ctx);
         self.draw_grid(ctx);
-        self.draw_curve(ctx);
+        self.draw_curves(ctx);
         self.draw_keys(ctx);
         self.draw_operation(ctx);
         ctx.transform_stack.pop();
@@ -232,7 +286,7 @@ impl Control for CurveEditor {
                                 } => {
                                     let local_delta = local_mouse_pos - initial_mouse_pos;
                                     for entry in entries {
-                                        if let Some(key) = self.key_container.key_mut(entry.key) {
+                                        if let Some(key) = self.curves.key_mut(entry.key_id) {
                                             key.position = entry.initial_position + local_delta;
                                         }
                                     }
@@ -250,8 +304,8 @@ impl Control for CurveEditor {
                                         initial_view_pos + delta,
                                     ));
                                 }
-                                OperationContext::DragTangent { key, left } => {
-                                    if let Some(key) = self.key_container.key_index_mut(*key) {
+                                OperationContext::DragTangent { key_id: key, left } => {
+                                    if let Some(key) = self.curves.key_mut(*key) {
                                         let key_pos = key.position;
 
                                         let screen_key_pos = self
@@ -304,9 +358,9 @@ impl Control for CurveEditor {
                                             entries: keys
                                                 .iter()
                                                 .map(|k| DragEntry {
-                                                    key: *k,
+                                                    key_id: *k,
                                                     initial_position: self
-                                                        .key_container
+                                                        .curves
                                                         .key_ref(*k)
                                                         .map(|k| k.position)
                                                         .unwrap_or_default(),
@@ -315,17 +369,17 @@ impl Control for CurveEditor {
                                             initial_mouse_pos: local_mouse_pos,
                                         });
                                     }
-                                    Selection::LeftTangent { key } => {
+                                    Selection::LeftTangent { key_id: key } => {
                                         self.operation_context =
                                             Some(OperationContext::DragTangent {
-                                                key: *key,
+                                                key_id: *key,
                                                 left: true,
                                             })
                                     }
-                                    Selection::RightTangent { key } => {
+                                    Selection::RightTangent { key_id: key } => {
                                         self.operation_context =
                                             Some(OperationContext::DragTangent {
-                                                key: *key,
+                                                key_id: *key,
                                                 left: false,
                                             })
                                     }
@@ -355,7 +409,7 @@ impl Control for CurveEditor {
                                     // Ensure that the order of keys is correct.
                                     self.sort_keys();
 
-                                    self.send_curve(ui);
+                                    self.send_curves(ui);
                                 }
                                 OperationContext::BoxSelection { min, max, .. } => {
                                     let min = min.get();
@@ -365,9 +419,11 @@ impl Control for CurveEditor {
                                         Rect::new(min.x, min.y, max.x - min.x, max.y - min.y);
 
                                     let mut selection = FxHashSet::default();
-                                    for key in self.key_container.keys() {
-                                        if rect.contains(key.position) {
-                                            selection.insert(key.id);
+                                    for curve in self.curves.iter() {
+                                        for key in curve.keys() {
+                                            if rect.contains(key.position) {
+                                                selection.insert(key.id);
+                                            }
                                         }
                                     }
 
@@ -389,10 +445,8 @@ impl Control for CurveEditor {
                             if let Some(picked) = pick_result {
                                 match picked {
                                     PickResult::Key(picked_key) => {
-                                        if let Some(picked_key_id) = self
-                                            .key_container
-                                            .key_index_ref(picked_key)
-                                            .map(|key| key.id)
+                                        if let Some(picked_key_id) =
+                                            self.curves.key_ref(picked_key).map(|key| key.id)
                                         {
                                             if let Some(selection) = self.selection.as_mut() {
                                                 match selection {
@@ -428,13 +482,13 @@ impl Control for CurveEditor {
                                     }
                                     PickResult::LeftTangent(picked_key) => {
                                         self.set_selection(
-                                            Some(Selection::LeftTangent { key: picked_key }),
+                                            Some(Selection::LeftTangent { key_id: picked_key }),
                                             ui,
                                         );
                                     }
                                     PickResult::RightTangent(picked_key) => {
                                         self.set_selection(
-                                            Some(Selection::RightTangent { key: picked_key }),
+                                            Some(Selection::RightTangent { key_id: picked_key }),
                                             ui,
                                         );
                                     }
@@ -478,8 +532,8 @@ impl Control for CurveEditor {
                     && message.direction() == MessageDirection::ToWidget
                 {
                     match msg {
-                        CurveEditorMessage::Sync(curve) => {
-                            self.key_container = KeyContainer::from(curve);
+                        CurveEditorMessage::Sync(curves) => {
+                            self.curves = CurvesContainer::from_native(curves);
                         }
                         CurveEditorMessage::ViewPosition(view_position) => {
                             self.set_view_position(*view_position);
@@ -497,14 +551,35 @@ impl Control for CurveEditor {
                         }
                         CurveEditorMessage::AddKey(screen_pos) => {
                             let local_pos = self.point_to_local_space(*screen_pos);
-                            self.key_container.add(CurveKeyView {
-                                position: local_pos,
-                                kind: CurveKeyKind::Linear,
-                                id: Uuid::new_v4(),
-                            });
-                            self.set_selection(None, ui);
-                            self.sort_keys();
-                            self.send_curve(ui);
+                            let dest_curve = if let Some(selection) = self.selection.as_ref() {
+                                match selection {
+                                    Selection::Keys { keys } => {
+                                        self.curves.iter_mut().find(|curve| {
+                                            for key in curve.keys() {
+                                                if keys.contains(&key.id) {
+                                                    return true;
+                                                }
+                                            }
+                                            false
+                                        })
+                                    }
+                                    Selection::LeftTangent { .. } => None,
+                                    Selection::RightTangent { .. } => None,
+                                }
+                            } else {
+                                self.curves.curves.first_mut()
+                            };
+
+                            if let Some(dest_curve) = dest_curve {
+                                dest_curve.add(CurveKeyView {
+                                    position: local_pos,
+                                    kind: CurveKeyKind::Linear,
+                                    id: Uuid::new_v4(),
+                                });
+                                self.set_selection(None, ui);
+                                self.sort_keys();
+                                self.send_curves(ui);
+                            }
                         }
                         CurveEditorMessage::ZoomToFit { after_layout } => {
                             if *after_layout {
@@ -644,7 +719,30 @@ impl CurveEditor {
     }
 
     fn zoom_to_fit(&mut self, sender: &Sender<UiMessage>) {
-        let mut bounds = self.key_container.curve().bounds();
+        let mut min = Vector2::repeat(f32::MAX);
+        let mut max = Vector2::repeat(-f32::MAX);
+
+        for curve in self.curves.iter() {
+            let bounds = curve.curve().bounds();
+            if bounds.position.x < min.x {
+                min.x = bounds.position.x;
+            }
+            if bounds.position.y < min.y {
+                min.y = bounds.position.y;
+            }
+            let local_max = bounds.position + bounds.size;
+            if local_max.x > max.x {
+                max.x = local_max.x;
+            }
+            if local_max.y > max.y {
+                max.y = local_max.y;
+            }
+        }
+
+        let mut bounds = Rect {
+            position: min,
+            size: max - min,
+        };
 
         // Prevent division by zero.
         if bounds.size.x < 0.001 {
@@ -735,7 +833,9 @@ impl CurveEditor {
     }
 
     fn sort_keys(&mut self) {
-        self.key_container.sort_keys();
+        for curve in self.curves.iter_mut() {
+            curve.sort_keys();
+        }
     }
 
     fn set_selection(&mut self, selection: Option<Selection>, ui: &UserInterface) {
@@ -761,7 +861,7 @@ impl CurveEditor {
 
         if let Some(Selection::Keys { keys }) = self.selection.as_ref() {
             if let Some(first) = keys.iter().next() {
-                if let Some(key) = self.key_container.key_ref(*first) {
+                if let Some(key) = self.curves.key_ref(*first) {
                     ui.send_message(
                         NumericUpDownMessage::value(
                             self.context_menu.key_location,
@@ -787,25 +887,25 @@ impl CurveEditor {
     fn remove_selection(&mut self, ui: &mut UserInterface) {
         if let Some(Selection::Keys { keys }) = self.selection.as_ref() {
             for &id in keys {
-                self.key_container.remove(id);
+                self.curves.remove(id);
             }
 
             self.set_selection(None, ui);
 
             // Send modified curve back to user.
-            self.send_curve(ui);
+            self.send_curves(ui);
         }
     }
 
     fn change_selected_keys_kind(&mut self, kind: CurveKeyKind, ui: &mut UserInterface) {
         if let Some(Selection::Keys { keys }) = self.selection.as_ref() {
             for key in keys {
-                if let Some(key) = self.key_container.key_mut(*key) {
+                if let Some(key) = self.curves.key_mut(*key) {
                     key.kind = kind.clone();
                 }
             }
 
-            self.send_curve(ui);
+            self.send_curves(ui);
         }
     }
 
@@ -813,7 +913,7 @@ impl CurveEditor {
         if let Some(Selection::Keys { keys }) = self.selection.as_ref() {
             let mut modified = false;
             for key in keys {
-                if let Some(key) = self.key_container.key_mut(*key) {
+                if let Some(key) = self.curves.key_mut(*key) {
                     let key_value = &mut key.position.y;
                     if (*key_value).ne(&value) {
                         *key_value = value;
@@ -823,7 +923,7 @@ impl CurveEditor {
             }
 
             if modified {
-                self.send_curve(ui);
+                self.send_curves(ui);
             }
         }
     }
@@ -832,7 +932,7 @@ impl CurveEditor {
         if let Some(Selection::Keys { keys }) = self.selection.as_ref() {
             let mut modified = false;
             for key in keys {
-                if let Some(key) = self.key_container.key_mut(*key) {
+                if let Some(key) = self.curves.key_mut(*key) {
                     let key_location = &mut key.position.x;
                     if (*key_location).ne(&location) {
                         *key_location = location;
@@ -842,47 +942,49 @@ impl CurveEditor {
             }
 
             if modified {
-                self.send_curve(ui);
+                self.send_curves(ui);
             }
         }
     }
 
     /// `pos` must be in screen space.
     fn pick(&self, pos: Vector2<f32>) -> Option<PickResult> {
-        // Linear search is fine here, having a curve with thousands of
-        // points is insane anyway.
-        for (i, key) in self.key_container.keys().iter().enumerate() {
-            let screen_pos = self.point_to_screen_space(key.position);
-            let bounds = Rect::new(
-                screen_pos.x - self.key_size * 0.5,
-                screen_pos.y - self.key_size * 0.5,
-                self.key_size,
-                self.key_size,
-            );
-            if bounds.contains(pos) {
-                return Some(PickResult::Key(i));
-            }
-
-            // Check tangents.
-            if let CurveKeyKind::Cubic {
-                left_tangent,
-                right_tangent,
-            } = key.kind
-            {
-                let left_handle_pos = self.tangent_screen_position(
-                    wrap_angle(left_tangent.atan()) + std::f32::consts::PI,
-                    key.position,
+        for curve in self.curves.iter() {
+            // Linear search is fine here, having a curve with thousands of
+            // points is insane anyway.
+            for key in curve.keys().iter() {
+                let screen_pos = self.point_to_screen_space(key.position);
+                let bounds = Rect::new(
+                    screen_pos.x - self.key_size * 0.5,
+                    screen_pos.y - self.key_size * 0.5,
+                    self.key_size,
+                    self.key_size,
                 );
-
-                if (left_handle_pos - pos).norm() <= self.key_size * 0.5 {
-                    return Some(PickResult::LeftTangent(i));
+                if bounds.contains(pos) {
+                    return Some(PickResult::Key(key.id));
                 }
 
-                let right_handle_pos =
-                    self.tangent_screen_position(wrap_angle(right_tangent.atan()), key.position);
+                // Check tangents.
+                if let CurveKeyKind::Cubic {
+                    left_tangent,
+                    right_tangent,
+                } = key.kind
+                {
+                    let left_handle_pos = self.tangent_screen_position(
+                        wrap_angle(left_tangent.atan()) + std::f32::consts::PI,
+                        key.position,
+                    );
 
-                if (right_handle_pos - pos).norm() <= self.key_size * 0.5 {
-                    return Some(PickResult::RightTangent(i));
+                    if (left_handle_pos - pos).norm() <= self.key_size * 0.5 {
+                        return Some(PickResult::LeftTangent(key.id));
+                    }
+
+                    let right_handle_pos = self
+                        .tangent_screen_position(wrap_angle(right_tangent.atan()), key.position);
+
+                    if (right_handle_pos - pos).norm() <= self.key_size * 0.5 {
+                        return Some(PickResult::RightTangent(key.id));
+                    }
                 }
             }
         }
@@ -894,11 +996,11 @@ impl CurveEditor {
             + Vector2::new(angle.cos(), angle.sin()).scale(self.handle_radius)
     }
 
-    fn send_curve(&self, ui: &UserInterface) {
+    fn send_curves(&self, ui: &UserInterface) {
         ui.send_message(CurveEditorMessage::sync(
             self.handle,
             MessageDirection::FromWidget,
-            self.key_container.curve(),
+            self.curves.to_native(),
         ));
     }
 
@@ -1023,182 +1125,196 @@ impl CurveEditor {
         }
     }
 
-    fn draw_curve(&self, ctx: &mut DrawingContext) {
+    fn draw_curves(&self, ctx: &mut DrawingContext) {
         let screen_bounds = self.screen_bounds();
-        let draw_keys = self.key_container.keys();
 
-        if let Some(first) = draw_keys.first() {
-            let screen_pos = self.point_to_screen_space(first.position);
-            ctx.push_line(Vector2::new(0.0, screen_pos.y), screen_pos, 1.0);
-        }
-        if let Some(last) = draw_keys.last() {
-            let screen_pos = self.point_to_screen_space(last.position);
-            ctx.push_line(
-                screen_pos,
-                Vector2::new(screen_bounds.x() + screen_bounds.w(), screen_pos.y),
-                1.0,
-            );
-        }
+        for curve in self.curves.iter() {
+            let draw_keys = curve.keys();
 
-        for pair in draw_keys.windows(2) {
-            let left = &pair[0];
-            let right = &pair[1];
-
-            let left_pos = self.point_to_screen_space(left.position);
-            let right_pos = self.point_to_screen_space(right.position);
-
-            let steps = ((right_pos.x - left_pos.x).abs() / 2.0) as usize;
-
-            match (&left.kind, &right.kind) {
-                // Constant-to-any is depicted as two straight lines.
-                (CurveKeyKind::Constant, CurveKeyKind::Constant)
-                | (CurveKeyKind::Constant, CurveKeyKind::Linear)
-                | (CurveKeyKind::Constant, CurveKeyKind::Cubic { .. }) => {
-                    ctx.push_line(left_pos, Vector2::new(right_pos.x, left_pos.y), 1.0);
-                    ctx.push_line(Vector2::new(right_pos.x, left_pos.y), right_pos, 1.0);
-                }
-
-                // Linear-to-any is depicted as a straight line.
-                (CurveKeyKind::Linear, CurveKeyKind::Constant)
-                | (CurveKeyKind::Linear, CurveKeyKind::Linear)
-                | (CurveKeyKind::Linear, CurveKeyKind::Cubic { .. }) => {
-                    ctx.push_line(left_pos, right_pos, 1.0)
-                }
-
-                // Cubic-to-constant and cubic-to-linear is depicted as Hermite spline with right tangent == 0.0.
-                (
-                    CurveKeyKind::Cubic {
-                        right_tangent: left_tangent,
-                        ..
-                    },
-                    CurveKeyKind::Constant,
-                )
-                | (
-                    CurveKeyKind::Cubic {
-                        right_tangent: left_tangent,
-                        ..
-                    },
-                    CurveKeyKind::Linear,
-                ) => draw_cubic(left_pos, *left_tangent, right_pos, 0.0, steps, ctx),
-
-                // Cubic-to-cubic is depicted as Hermite spline.
-                (
-                    CurveKeyKind::Cubic {
-                        right_tangent: left_tangent,
-                        ..
-                    },
-                    CurveKeyKind::Cubic {
-                        left_tangent: right_tangent,
-                        ..
-                    },
-                ) => draw_cubic(
-                    left_pos,
-                    *left_tangent,
-                    right_pos,
-                    *right_tangent,
-                    steps,
-                    ctx,
-                ),
+            if let Some(first) = draw_keys.first() {
+                let screen_pos = self.point_to_screen_space(first.position);
+                ctx.push_line(Vector2::new(0.0, screen_pos.y), screen_pos, 1.0);
             }
-        }
-        ctx.commit(
-            self.clip_bounds(),
-            self.foreground(),
-            CommandTexture::None,
-            None,
-        );
-    }
-
-    fn draw_keys(&self, ctx: &mut DrawingContext) {
-        let keys_to_draw = self.key_container.keys();
-
-        for (i, key) in keys_to_draw.iter().enumerate() {
-            let origin = self.point_to_screen_space(key.position);
-            let size = Vector2::new(self.key_size, self.key_size);
-            let half_size = size.scale(0.5);
-
-            ctx.push_rect_filled(
-                &Rect::new(
-                    origin.x - half_size.x,
-                    origin.y - half_size.x,
-                    size.x,
-                    size.y,
-                ),
-                None,
-            );
-
-            let mut selected = false;
-            if let Some(selection) = self.selection.as_ref() {
-                match selection {
-                    Selection::Keys { keys } => {
-                        selected = keys.contains(&key.id);
-                    }
-                    Selection::LeftTangent { key } | Selection::RightTangent { key } => {
-                        selected = i == *key;
-                    }
-                }
+            if let Some(last) = draw_keys.last() {
+                let screen_pos = self.point_to_screen_space(last.position);
+                ctx.push_line(
+                    screen_pos,
+                    Vector2::new(screen_bounds.x() + screen_bounds.w(), screen_pos.y),
+                    1.0,
+                );
             }
 
-            // Show tangents for Cubic keys.
-            if selected {
-                let (show_left, show_right) = match keys_to_draw.get(i.wrapping_sub(1)) {
-                    Some(left) => match (&left.kind, &key.kind) {
-                        (CurveKeyKind::Cubic { .. }, CurveKeyKind::Cubic { .. }) => (true, true),
-                        (CurveKeyKind::Linear, CurveKeyKind::Cubic { .. })
-                        | (CurveKeyKind::Constant, CurveKeyKind::Cubic { .. }) => (false, true),
-                        _ => (false, false),
-                    },
-                    None => match key.kind {
-                        CurveKeyKind::Cubic { .. } => (false, true),
-                        _ => (false, false),
-                    },
-                };
+            for pair in draw_keys.windows(2) {
+                let left = &pair[0];
+                let right = &pair[1];
 
-                if let CurveKeyKind::Cubic {
-                    left_tangent,
-                    right_tangent,
-                } = key.kind
-                {
-                    if show_left {
-                        let left_handle_pos = self.tangent_screen_position(
-                            wrap_angle(left_tangent.atan()) + std::f32::consts::PI,
-                            key.position,
-                        );
-                        ctx.push_line(origin, left_handle_pos, 1.0);
-                        ctx.push_circle_filled(
-                            left_handle_pos,
-                            self.key_size * 0.5,
-                            6,
-                            Default::default(),
-                        );
+                let left_pos = self.point_to_screen_space(left.position);
+                let right_pos = self.point_to_screen_space(right.position);
+
+                let steps = ((right_pos.x - left_pos.x).abs() / 2.0) as usize;
+
+                match (&left.kind, &right.kind) {
+                    // Constant-to-any is depicted as two straight lines.
+                    (CurveKeyKind::Constant, CurveKeyKind::Constant)
+                    | (CurveKeyKind::Constant, CurveKeyKind::Linear)
+                    | (CurveKeyKind::Constant, CurveKeyKind::Cubic { .. }) => {
+                        ctx.push_line(left_pos, Vector2::new(right_pos.x, left_pos.y), 1.0);
+                        ctx.push_line(Vector2::new(right_pos.x, left_pos.y), right_pos, 1.0);
                     }
 
-                    if show_right {
-                        let right_handle_pos = self.tangent_screen_position(
-                            wrap_angle(right_tangent.atan()),
-                            key.position,
-                        );
-                        ctx.push_line(origin, right_handle_pos, 1.0);
-                        ctx.push_circle_filled(
-                            right_handle_pos,
-                            self.key_size * 0.5,
-                            6,
-                            Default::default(),
-                        );
+                    // Linear-to-any is depicted as a straight line.
+                    (CurveKeyKind::Linear, CurveKeyKind::Constant)
+                    | (CurveKeyKind::Linear, CurveKeyKind::Linear)
+                    | (CurveKeyKind::Linear, CurveKeyKind::Cubic { .. }) => {
+                        ctx.push_line(left_pos, right_pos, 1.0)
                     }
+
+                    // Cubic-to-constant and cubic-to-linear is depicted as Hermite spline with right tangent == 0.0.
+                    (
+                        CurveKeyKind::Cubic {
+                            right_tangent: left_tangent,
+                            ..
+                        },
+                        CurveKeyKind::Constant,
+                    )
+                    | (
+                        CurveKeyKind::Cubic {
+                            right_tangent: left_tangent,
+                            ..
+                        },
+                        CurveKeyKind::Linear,
+                    ) => draw_cubic(left_pos, *left_tangent, right_pos, 0.0, steps, ctx),
+
+                    // Cubic-to-cubic is depicted as Hermite spline.
+                    (
+                        CurveKeyKind::Cubic {
+                            right_tangent: left_tangent,
+                            ..
+                        },
+                        CurveKeyKind::Cubic {
+                            left_tangent: right_tangent,
+                            ..
+                        },
+                    ) => draw_cubic(
+                        left_pos,
+                        *left_tangent,
+                        right_pos,
+                        *right_tangent,
+                        steps,
+                        ctx,
+                    ),
                 }
             }
-
             ctx.commit(
                 self.clip_bounds(),
-                if selected {
-                    self.selected_key_brush.clone()
-                } else {
-                    self.key_brush.clone()
-                },
+                self.foreground(),
                 CommandTexture::None,
                 None,
             );
+        }
+    }
+
+    fn draw_keys(&self, ctx: &mut DrawingContext) {
+        for curve in self.curves.iter() {
+            let keys_to_draw = curve.keys();
+
+            for key in keys_to_draw.iter() {
+                let origin = self.point_to_screen_space(key.position);
+                let size = Vector2::new(self.key_size, self.key_size);
+                let half_size = size.scale(0.5);
+
+                ctx.push_rect_filled(
+                    &Rect::new(
+                        origin.x - half_size.x,
+                        origin.y - half_size.x,
+                        size.x,
+                        size.y,
+                    ),
+                    None,
+                );
+
+                let mut selected = false;
+                if let Some(selection) = self.selection.as_ref() {
+                    match selection {
+                        Selection::Keys { keys } => {
+                            selected = keys.contains(&key.id);
+                        }
+                        Selection::LeftTangent { key_id } | Selection::RightTangent { key_id } => {
+                            selected = key.id == *key_id;
+                        }
+                    }
+                }
+
+                // Show tangents for Cubic keys.
+                if selected {
+                    let (show_left, show_right) =
+                        match self.curves.container_of(key.id).and_then(|container| {
+                            container
+                                .key_position(key.id)
+                                .and_then(|i| keys_to_draw.get(i.wrapping_sub(1)))
+                        }) {
+                            Some(left) => match (&left.kind, &key.kind) {
+                                (CurveKeyKind::Cubic { .. }, CurveKeyKind::Cubic { .. }) => {
+                                    (true, true)
+                                }
+                                (CurveKeyKind::Linear, CurveKeyKind::Cubic { .. })
+                                | (CurveKeyKind::Constant, CurveKeyKind::Cubic { .. }) => {
+                                    (false, true)
+                                }
+                                _ => (false, false),
+                            },
+                            None => match key.kind {
+                                CurveKeyKind::Cubic { .. } => (false, true),
+                                _ => (false, false),
+                            },
+                        };
+
+                    if let CurveKeyKind::Cubic {
+                        left_tangent,
+                        right_tangent,
+                    } = key.kind
+                    {
+                        if show_left {
+                            let left_handle_pos = self.tangent_screen_position(
+                                wrap_angle(left_tangent.atan()) + std::f32::consts::PI,
+                                key.position,
+                            );
+                            ctx.push_line(origin, left_handle_pos, 1.0);
+                            ctx.push_circle_filled(
+                                left_handle_pos,
+                                self.key_size * 0.5,
+                                6,
+                                Default::default(),
+                            );
+                        }
+
+                        if show_right {
+                            let right_handle_pos = self.tangent_screen_position(
+                                wrap_angle(right_tangent.atan()),
+                                key.position,
+                            );
+                            ctx.push_line(origin, right_handle_pos, 1.0);
+                            ctx.push_circle_filled(
+                                right_handle_pos,
+                                self.key_size * 0.5,
+                                6,
+                                Default::default(),
+                            );
+                        }
+                    }
+                }
+
+                ctx.commit(
+                    self.clip_bounds(),
+                    if selected {
+                        self.selected_key_brush.clone()
+                    } else {
+                        self.key_brush.clone()
+                    },
+                    CommandTexture::None,
+                    None,
+                );
+            }
         }
     }
 
@@ -1223,7 +1339,7 @@ impl CurveEditor {
 
 pub struct CurveEditorBuilder {
     widget_builder: WidgetBuilder,
-    curve: Curve,
+    curves: Vec<Curve>,
     view_position: Vector2<f32>,
     zoom: f32,
     view_bounds: Option<Rect<f32>>,
@@ -1239,7 +1355,7 @@ impl CurveEditorBuilder {
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
-            curve: Default::default(),
+            curves: Default::default(),
             view_position: Default::default(),
             zoom: 1.0,
             view_bounds: None,
@@ -1252,8 +1368,8 @@ impl CurveEditorBuilder {
         }
     }
 
-    pub fn with_curve(mut self, curve: Curve) -> Self {
-        self.curve = curve;
+    pub fn with_curves(mut self, curves: Vec<Curve>) -> Self {
+        self.curves = curves;
         self
     }
 
@@ -1304,7 +1420,7 @@ impl CurveEditorBuilder {
     }
 
     pub fn build(mut self, ctx: &mut BuildContext) -> Handle<UiNode> {
-        let keys = KeyContainer::from(&self.curve);
+        let curves = CurvesContainer::from_native(&self.curves);
 
         let add_key;
         let remove;
@@ -1436,7 +1552,7 @@ impl CurveEditorBuilder {
                 .with_preview_messages(true)
                 .with_need_update(true)
                 .build(),
-            key_container: keys,
+            curves,
             zoom: Vector2::new(1.0, 1.0),
             view_position: Default::default(),
             view_matrix: Default::default(),
