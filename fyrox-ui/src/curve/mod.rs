@@ -644,11 +644,16 @@ impl CurveEditor {
     }
 
     fn zoom_to_fit(&mut self, sender: &Sender<UiMessage>) {
-        let bounds = if self.key_container.keys().is_empty() {
-            Rect::new(-1.0, -1.0, 2.0, 2.0)
-        } else {
-            self.key_container.curve().bounds()
-        };
+        let mut bounds = self.key_container.curve().bounds();
+
+        // Prevent division by zero.
+        if bounds.size.x < 0.001 {
+            bounds.size.x = 0.001;
+        }
+        if bounds.size.y < 0.001 {
+            bounds.size.y = 0.001;
+        }
+
         let center = bounds.center();
 
         sender
@@ -656,8 +661,8 @@ impl CurveEditor {
                 self.handle,
                 MessageDirection::ToWidget,
                 Vector2::new(
-                    self.actual_local_size().x / bounds.w().max(5.0 * f32::EPSILON),
-                    self.actual_local_size().y / bounds.h().max(5.0 * f32::EPSILON),
+                    self.actual_local_size().x / bounds.w(),
+                    self.actual_local_size().y / bounds.h(),
                 ),
             ))
             .unwrap();
