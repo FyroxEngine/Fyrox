@@ -1,26 +1,3 @@
-use crate::fyrox::core::log::Log;
-use crate::fyrox::graph::PrefabData;
-use crate::fyrox::resource::model::AnimationSource;
-use crate::fyrox::{
-    asset::manager::ResourceManager,
-    core::{
-        algebra::Vector2, math::Rect, pool::ErasedHandle, pool::Handle, uuid::Uuid,
-        variable::InheritableVariable,
-    },
-    fxhash::FxHashSet,
-    generic_animation::{signal::AnimationSignal, AnimationContainer},
-    graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
-    gui::{
-        border::BorderBuilder,
-        check_box::CheckBoxMessage,
-        curve::{CurveEditorBuilder, CurveEditorMessage, HighlightZone},
-        grid::{Column, GridBuilder, Row},
-        message::{MessageDirection, UiMessage},
-        widget::{WidgetBuilder, WidgetMessage},
-        window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, UiNode, UserInterface, BRUSH_DARK, BRUSH_PRIMARY,
-    },
-};
 use crate::{
     animation::{
         command::{
@@ -32,6 +9,28 @@ use crate::{
         thumb::{ThumbBuilder, ThumbMessage},
         toolbar::{Toolbar, ToolbarAction},
         track::TrackList,
+    },
+    command::{Command, CommandGroup},
+    fyrox::{
+        asset::manager::ResourceManager,
+        core::{
+            algebra::Vector2, log::Log, math::Rect, pool::ErasedHandle, pool::Handle, uuid::Uuid,
+            variable::InheritableVariable,
+        },
+        fxhash::FxHashSet,
+        generic_animation::{signal::AnimationSignal, AnimationContainer},
+        graph::{BaseSceneGraph, PrefabData, SceneGraph, SceneGraphNode},
+        gui::{
+            border::BorderBuilder,
+            check_box::CheckBoxMessage,
+            curve::{CurveEditorBuilder, CurveEditorMessage, HighlightZone},
+            grid::{Column, GridBuilder, Row},
+            message::{MessageDirection, UiMessage},
+            widget::{WidgetBuilder, WidgetMessage},
+            window::{WindowBuilder, WindowMessage, WindowTitle},
+            BuildContext, UiNode, UserInterface, BRUSH_DARK, BRUSH_PRIMARY,
+        },
+        resource::model::AnimationSource,
     },
     message::MessageSender,
     scene::{commands::ChangeSelectionCommand, Selection},
@@ -273,11 +272,21 @@ impl AnimationEditor {
                 {
                     match msg {
                         CurveEditorMessage::Sync(curves) => {
-                            sender.do_command(ReplaceTrackCurveCommand {
-                                animation_player: selection.animation_player,
-                                animation: selection.animation,
-                                curve: curves.first().cloned().unwrap(),
-                            });
+                            let group = CommandGroup::from(
+                                curves
+                                    .iter()
+                                    .cloned()
+                                    .map(|curve| {
+                                        Command::new(ReplaceTrackCurveCommand {
+                                            animation_player: selection.animation_player,
+                                            animation: selection.animation,
+                                            curve,
+                                        })
+                                    })
+                                    .collect::<Vec<_>>(),
+                            );
+
+                            sender.do_command(group);
                         }
                         CurveEditorMessage::ViewPosition(position) => {
                             ui.send_message(RulerMessage::view_position(
@@ -649,23 +658,45 @@ impl AnimationEditor {
                     ),
                 );
 
-                // TODO: Support multi-selection.
-                if let Some(SelectedEntity::Curve(selected_curve_id)) = selection.entities.first() {
-                    if let Some(selected_curve) = animation.tracks().iter().find_map(|t| {
-                        t.data_container()
-                            .curves_ref()
-                            .iter()
-                            .find(|c| &c.id() == selected_curve_id)
-                    }) {
-                        send_sync_message(
-                            ui,
-                            CurveEditorMessage::sync(
-                                self.curve_editor,
-                                MessageDirection::ToWidget,
-                                vec![selected_curve.clone()],
-                            ),
-                        );
+                let mut selected_curves = Vec::new();
+                for entity in selection.entities.iter() {
+                    match entity {
+                        SelectedEntity::Track(track_id) => {
+                            // If a track is selected, show all its curves at once. This way it will
+                            // be easier to edit complex values, such as Vector2/3/4.
+                            if let Some(track) = animation
+                                .tracks()
+                                .iter()
+                                .find(|track| &track.id() == track_id)
+                            {
+                                selected_curves
+                                    .extend(track.data_container().curves_ref().iter().cloned());
+                            }
+                        }
+                        SelectedEntity::Curve(curve_id) => {
+                            if let Some(selected_curve) = animation.tracks().iter().find_map(|t| {
+                                t.data_container()
+                                    .curves_ref()
+                                    .iter()
+                                    .find(|c| &c.id() == curve_id)
+                            }) {
+                                selected_curves.push(selected_curve.clone());
+                            }
+                        }
+                        _ => (),
                     }
+                }
+
+                if !selected_curves.is_empty() {
+                    send_sync_message(
+                        ui,
+                        CurveEditorMessage::sync(
+                            self.curve_editor,
+                            MessageDirection::ToWidget,
+                            selected_curves,
+                        ),
+                    );
+
                     is_curve_selected = true;
                 }
                 is_animation_selected = true;
