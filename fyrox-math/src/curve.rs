@@ -264,6 +264,17 @@ impl Curve {
     }
 
     pub fn bounds(&self) -> Rect<f32> {
+        // Handle edge cases first.
+        if self.keys.is_empty() {
+            return Rect::new(0.0, 0.0, 0.0, 0.0);
+        }
+
+        if self.keys.len() == 1 {
+            let first = self.keys().first().unwrap();
+            return Rect::new(first.location, first.value, 0.0, 0.0);
+        }
+
+        // If there's 2 or more keys, calculate bounds normally.
         let mut max_y = -f32::MAX;
         let mut min_y = f32::MAX;
         let mut max_x = -f32::MAX;
