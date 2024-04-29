@@ -36,6 +36,8 @@ use crate::{
     scene::{commands::ChangeSelectionCommand, Selection},
     send_sync_message, Message,
 };
+use fyrox::core::color::Color;
+use fyrox::gui::brush::Brush;
 use std::any::{Any, TypeId};
 
 pub mod command;
@@ -688,12 +690,27 @@ impl AnimationEditor {
                 }
 
                 if !selected_curves.is_empty() {
+                    let color_map = selected_curves
+                        .iter()
+                        .zip(Color::COLORS.iter().skip(3))
+                        .map(|(curve, color)| (curve.id, Brush::Solid(*color)))
+                        .collect::<Vec<_>>();
+
                     send_sync_message(
                         ui,
                         CurveEditorMessage::sync(
                             self.curve_editor,
                             MessageDirection::ToWidget,
                             selected_curves,
+                        ),
+                    );
+
+                    send_sync_message(
+                        ui,
+                        CurveEditorMessage::colorize(
+                            self.curve_editor,
+                            MessageDirection::ToWidget,
+                            color_map,
                         ),
                     );
 
