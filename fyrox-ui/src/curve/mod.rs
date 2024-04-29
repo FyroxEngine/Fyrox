@@ -27,6 +27,7 @@ use crate::{
     text::TextBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
+    BRUSH_BRIGHT,
 };
 use fxhash::FxHashSet;
 use fyrox_graph::BaseSceneGraph;
@@ -41,6 +42,7 @@ pub mod key;
 #[derive(Debug, Clone, PartialEq)]
 pub enum CurveEditorMessage {
     Sync(Vec<Curve>),
+    Colorize(Vec<(Uuid, Brush)>),
     ViewPosition(Vector2<f32>),
     Zoom(Vector2<f32>),
     ZoomToFit {
@@ -63,6 +65,7 @@ pub enum CurveEditorMessage {
 
 impl CurveEditorMessage {
     define_constructor!(CurveEditorMessage:Sync => fn sync(Vec<Curve>), layout: false);
+    define_constructor!(CurveEditorMessage:Colorize => fn colorize(Vec<(Uuid, Brush)>), layout: false);
     define_constructor!(CurveEditorMessage:ViewPosition => fn view_position(Vector2<f32>), layout: false);
     define_constructor!(CurveEditorMessage:Zoom => fn zoom(Vector2<f32>), layout: false);
     define_constructor!(CurveEditorMessage:ZoomToFit => fn zoom_to_fit(after_layout: bool), layout: true);
@@ -92,7 +95,7 @@ impl CurvesContainer {
         Self {
             curves: curves
                 .iter()
-                .map(CurveKeyViewContainer::from)
+                .map(|curve| CurveKeyViewContainer::new(curve, BRUSH_BRIGHT))
                 .collect::<Vec<_>>(),
         }
     }
@@ -533,7 +536,18 @@ impl Control for CurveEditor {
                 {
                     match msg {
                         CurveEditorMessage::Sync(curves) => {
+                            let color_map = self
+                                .curves
+                                .iter()
+                                .map(|curve| (curve.id(), curve.brush.clone()))
+                                .collect::<Vec<_>>();
+
                             self.curves = CurvesContainer::from_native(curves);
+
+                            self.colorize(&color_map);
+                        }
+                        CurveEditorMessage::Colorize(color_map) => {
+                            self.colorize(color_map);
                         }
                         CurveEditorMessage::ViewPosition(view_position) => {
                             self.set_view_position(*view_position);
@@ -716,6 +730,14 @@ impl CurveEditor {
             let clamped_view_space = -clamped_local_space_position;
             clamped_view_space
         });
+    }
+
+    fn colorize(&mut self, color_map: &[(Uuid, Brush)]) {
+        for (curve_id, brush) in color_map.iter() {
+            if let Some(curve) = self.curves.iter_mut().find(|curve| &curve.id() == curve_id) {
+                curve.brush = brush.clone();
+            }
+        }
     }
 
     fn zoom_to_fit(&mut self, sender: &Sender<UiMessage>) {
@@ -1207,7 +1229,7 @@ impl CurveEditor {
             }
             ctx.commit(
                 self.clip_bounds(),
-                self.foreground(),
+                curve.brush.clone(),
                 CommandTexture::None,
                 None,
             );
@@ -1542,7 +1564,7 @@ impl CurveEditorBuilder {
         let context_menu = RcUiNodeHandle::new(context_menu, ctx.sender());
 
         if self.widget_builder.foreground.is_none() {
-            self.widget_builder.foreground = Some(Brush::Solid(Color::opaque(130, 130, 130)))
+            self.widget_builder.foreground = Some(BRUSH_BRIGHT)
         }
 
         let editor = CurveEditor {

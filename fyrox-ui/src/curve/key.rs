@@ -1,9 +1,12 @@
-use crate::core::{
-    algebra::Vector2,
-    math::curve::{Curve, CurveKey, CurveKeyKind},
-    reflect::prelude::*,
-    uuid::Uuid,
-    visitor::prelude::*,
+use crate::{
+    brush::Brush,
+    core::{
+        algebra::Vector2,
+        math::curve::{Curve, CurveKey, CurveKeyKind},
+        reflect::prelude::*,
+        uuid::Uuid,
+        visitor::prelude::*,
+    },
 };
 use std::cmp::Ordering;
 
@@ -27,23 +30,23 @@ impl From<&CurveKey> for CurveKeyView {
 #[derive(Default, Clone, Visit, Reflect, Debug)]
 pub struct CurveKeyViewContainer {
     id: Uuid,
+    pub brush: Brush,
     keys: Vec<CurveKeyView>,
 }
 
-impl From<&Curve> for CurveKeyViewContainer {
-    fn from(curve: &Curve) -> Self {
+impl CurveKeyViewContainer {
+    pub fn new(curve: &Curve, brush: Brush) -> Self {
         Self {
             keys: curve
                 .keys()
                 .iter()
                 .map(CurveKeyView::from)
                 .collect::<Vec<_>>(),
+            brush,
             id: curve.id(),
         }
     }
-}
 
-impl CurveKeyViewContainer {
     pub fn add(&mut self, key: CurveKeyView) {
         self.keys.push(key)
     }
@@ -54,6 +57,10 @@ impl CurveKeyViewContainer {
         } else {
             None
         }
+    }
+
+    pub fn id(&self) -> Uuid {
+        self.id
     }
 
     pub fn key_ref(&self, id: Uuid) -> Option<&CurveKeyView> {
