@@ -1362,6 +1362,21 @@ impl TrackList {
                             .iter()
                             .enumerate()
                             .map(|(i, curve)| {
+                                let curve_name = match model_track.data_container().value_kind() {
+                                    TrackValueKind::Real => "Value",
+                                    TrackValueKind::Vector2
+                                    | TrackValueKind::Vector3
+                                    | TrackValueKind::Vector4 => {
+                                        ["X", "Y", "Z", "W"].get(i).unwrap_or(&"_")
+                                    }
+                                    TrackValueKind::UnitQuaternion => match i {
+                                        0 => "Pitch",
+                                        1 => "Yaw",
+                                        2 => "Roll",
+                                        _ => "Unknown",
+                                    },
+                                };
+
                                 let curve_view = TreeBuilder::new(
                                     WidgetBuilder::new().with_user_data(Arc::new(Mutex::new(
                                         CurveViewData { id: curve.id() },
@@ -1393,10 +1408,7 @@ impl TrackList {
                                                         },
                                                     ),
                                                 )
-                                                .with_text(format!(
-                                                    "Curve - {}",
-                                                    ["X", "Y", "Z", "W"].get(i).unwrap_or(&"_"),
-                                                ))
+                                                .with_text(curve_name)
                                                 .build(ctx),
                                             ),
                                     )
