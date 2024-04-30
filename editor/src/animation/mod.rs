@@ -37,6 +37,7 @@ use crate::{
     send_sync_message, Message,
 };
 use fyrox::core::color::Color;
+use fyrox::core::math::curve::Curve;
 use fyrox::gui::brush::Brush;
 use std::any::{Any, TypeId};
 
@@ -660,7 +661,7 @@ impl AnimationEditor {
                     ),
                 );
 
-                let mut selected_curves = Vec::new();
+                let mut selected_curves = Vec::<Curve>::new();
                 for entity in selection.entities.iter() {
                     match entity {
                         SelectedEntity::Track(track_id) => {
@@ -671,8 +672,14 @@ impl AnimationEditor {
                                 .iter()
                                 .find(|track| &track.id() == track_id)
                             {
-                                selected_curves
-                                    .extend(track.data_container().curves_ref().iter().cloned());
+                                for track_curve in track.data_container().curves_ref().iter() {
+                                    if !selected_curves
+                                        .iter()
+                                        .any(|curve| curve.id == track_curve.id)
+                                    {
+                                        selected_curves.push(track_curve.clone());
+                                    }
+                                }
                             }
                         }
                         SelectedEntity::Curve(curve_id) => {
@@ -682,7 +689,12 @@ impl AnimationEditor {
                                     .iter()
                                     .find(|c| &c.id() == curve_id)
                             }) {
-                                selected_curves.push(selected_curve.clone());
+                                if !selected_curves
+                                    .iter()
+                                    .any(|curve| curve.id == selected_curve.id)
+                                {
+                                    selected_curves.push(selected_curve.clone());
+                                }
                             }
                         }
                         _ => (),
