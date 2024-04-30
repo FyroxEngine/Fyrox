@@ -1,61 +1,60 @@
 #![allow(clippy::manual_map)]
 
-use crate::animation::animation_container_ref;
-use crate::command::{Command, CommandGroup};
-use crate::fyrox::core::pool::ErasedHandle;
-use crate::fyrox::graph::BaseSceneGraph;
-use crate::fyrox::graph::{SceneGraph, SceneGraphNode};
-use crate::fyrox::{
-    core::{
-        algebra::{UnitQuaternion, Vector2, Vector3, Vector4},
-        color::Color,
-        log::Log,
-        parking_lot::Mutex,
-        pool::Handle,
-        reflect::{prelude::*, Reflect},
-        type_traits::prelude::*,
-        uuid_provider,
-        variable::InheritableVariable,
-        visitor::prelude::*,
-    },
-    fxhash::{FxHashMap, FxHashSet},
-    generic_animation::{
-        container::{TrackDataContainer, TrackValueKind},
-        track::Track,
-        value::{ValueBinding, ValueType},
-        Animation,
-    },
-    gui::{
-        brush::Brush,
-        button::{ButtonBuilder, ButtonMessage},
-        check_box::{CheckBoxBuilder, CheckBoxMessage},
-        define_constructor,
-        draw::DrawingContext,
-        grid::{Column, GridBuilder, Row},
-        image::ImageBuilder,
-        menu::MenuItemMessage,
-        message::{MessageDirection, OsEvent, UiMessage},
-        popup::PopupBuilder,
-        scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
-        stack_panel::StackPanelBuilder,
-        text::{Text, TextBuilder, TextMessage},
-        text_box::{TextBoxBuilder, TextCommitMode},
-        tree::{Tree, TreeBuilder, TreeMessage, TreeRootBuilder, TreeRootMessage},
-        utils::{make_cross, make_simple_tooltip},
-        widget::{Widget, WidgetBuilder, WidgetMessage},
-        window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, Control, Orientation, RcUiNodeHandle, Thickness, UiNode, UserInterface,
-        VerticalAlignment, BRUSH_BRIGHT, BRUSH_TEXT,
-    },
-    resource::texture::TextureBytes,
-};
 use crate::{
     animation::{
+        animation_container_ref,
         command::{
             AddTrackCommand, RemoveTrackCommand, SetTrackBindingCommand, SetTrackEnabledCommand,
             SetTrackTargetCommand,
         },
         selection::{AnimationSelection, SelectedEntity},
+    },
+    command::{Command, CommandGroup},
+    fyrox::{
+        core::{
+            algebra::{UnitQuaternion, Vector2, Vector3, Vector4},
+            color::Color,
+            log::Log,
+            parking_lot::Mutex,
+            pool::{ErasedHandle, Handle},
+            reflect::{prelude::*, Reflect},
+            type_traits::prelude::*,
+            uuid_provider,
+            variable::InheritableVariable,
+            visitor::prelude::*,
+        },
+        fxhash::{FxHashMap, FxHashSet},
+        generic_animation::{
+            container::{TrackDataContainer, TrackValueKind},
+            track::Track,
+            value::{ValueBinding, ValueType},
+            Animation,
+        },
+        graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
+        gui::{
+            border::BorderBuilder,
+            brush::Brush,
+            button::{ButtonBuilder, ButtonMessage},
+            check_box::{CheckBoxBuilder, CheckBoxMessage},
+            define_constructor,
+            draw::DrawingContext,
+            grid::{Column, GridBuilder, Row},
+            image::ImageBuilder,
+            menu::{ContextMenuBuilder, MenuItemMessage},
+            message::{MessageDirection, OsEvent, UiMessage},
+            popup::PopupBuilder,
+            scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
+            stack_panel::StackPanelBuilder,
+            text::{Text, TextBuilder, TextMessage},
+            text_box::{TextBoxBuilder, TextCommitMode},
+            tree::{Tree, TreeBuilder, TreeMessage, TreeRootBuilder, TreeRootMessage},
+            utils::{make_cross, make_simple_tooltip},
+            widget::{Widget, WidgetBuilder, WidgetMessage},
+            window::{WindowBuilder, WindowMessage, WindowTitle},
+            BuildContext, Control, Orientation, RcUiNodeHandle, Thickness, UiNode, UserInterface,
+            VerticalAlignment, BRUSH_BRIGHT, BRUSH_TEXT,
+        },
+        resource::texture::TextureBytes,
     },
     gui::make_image_button_with_tooltip,
     load_image,
@@ -72,14 +71,12 @@ use crate::{
     },
     send_sync_message, utils,
 };
-use fyrox::gui::menu::ContextMenuBuilder;
 use std::{
     any::TypeId,
     cmp::Ordering,
     collections::hash_map::Entry,
     ops::{Deref, DerefMut},
-    sync::mpsc::Sender,
-    sync::Arc,
+    sync::{mpsc::Sender, Arc},
 };
 
 #[derive(PartialEq, Eq)]
@@ -1350,25 +1347,65 @@ impl TrackList {
 
                         let ctx = &mut ui.build_ctx();
 
+                        let colors = [
+                            Color::opaque(120, 0, 0),
+                            Color::opaque(0, 120, 0),
+                            Color::opaque(0, 0, 120),
+                            Color::opaque(120, 0, 120),
+                            Color::opaque(0, 120, 120),
+                            Color::opaque(120, 120, 0),
+                        ];
+
                         let curves = model_track
                             .data_container()
                             .curves_ref()
                             .iter()
                             .enumerate()
                             .map(|(i, curve)| {
-                                let curve_view =
-                                    TreeBuilder::new(WidgetBuilder::new().with_user_data(
-                                        Arc::new(Mutex::new(CurveViewData { id: curve.id() })),
-                                    ))
-                                    .with_content(
-                                        TextBuilder::new(WidgetBuilder::new())
-                                            .with_text(format!(
-                                                "Curve - {}",
-                                                ["X", "Y", "Z", "W"].get(i).unwrap_or(&"_"),
-                                            ))
-                                            .build(ctx),
+                                let curve_view = TreeBuilder::new(
+                                    WidgetBuilder::new().with_user_data(Arc::new(Mutex::new(
+                                        CurveViewData { id: curve.id() },
+                                    ))),
+                                )
+                                .with_content(
+                                    GridBuilder::new(
+                                        WidgetBuilder::new()
+                                            .with_child(
+                                                BorderBuilder::new(
+                                                    WidgetBuilder::new()
+                                                        .on_column(0)
+                                                        .with_foreground(Brush::Solid(
+                                                            Color::TRANSPARENT,
+                                                        ))
+                                                        .with_background(Brush::Solid(colors[i])),
+                                                )
+                                                .with_pad_by_corner_radius(false)
+                                                .with_corner_radius(2.0)
+                                                .build(ctx),
+                                            )
+                                            .with_child(
+                                                TextBuilder::new(
+                                                    WidgetBuilder::new().on_column(1).with_margin(
+                                                        Thickness {
+                                                            top: 2.0,
+                                                            left: 3.0,
+                                                            ..Default::default()
+                                                        },
+                                                    ),
+                                                )
+                                                .with_text(format!(
+                                                    "Curve - {}",
+                                                    ["X", "Y", "Z", "W"].get(i).unwrap_or(&"_"),
+                                                ))
+                                                .build(ctx),
+                                            ),
                                     )
-                                    .build(ctx);
+                                    .add_row(Row::auto())
+                                    .add_column(Column::strict(6.0))
+                                    .add_column(Column::stretch())
+                                    .build(ctx),
+                                )
+                                .build(ctx);
 
                                 self.curve_views.insert(curve.id(), curve_view);
 
