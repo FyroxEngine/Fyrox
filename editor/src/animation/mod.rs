@@ -661,7 +661,7 @@ impl AnimationEditor {
                     ),
                 );
 
-                let mut selected_curves = Vec::<Curve>::new();
+                let mut selected_curves = Vec::<(usize, Curve)>::new();
                 for entity in selection.entities.iter() {
                     match entity {
                         SelectedEntity::Track(track_id) => {
@@ -672,28 +672,37 @@ impl AnimationEditor {
                                 .iter()
                                 .find(|track| &track.id() == track_id)
                             {
-                                for track_curve in track.data_container().curves_ref().iter() {
+                                for (index, track_curve) in
+                                    track.data_container().curves_ref().iter().enumerate()
+                                {
                                     if !selected_curves
                                         .iter()
-                                        .any(|curve| curve.id == track_curve.id)
+                                        .any(|(_, curve)| curve.id == track_curve.id)
                                     {
-                                        selected_curves.push(track_curve.clone());
+                                        selected_curves.push((index, track_curve.clone()));
                                     }
                                 }
                             }
                         }
                         SelectedEntity::Curve(curve_id) => {
-                            if let Some(selected_curve) = animation.tracks().iter().find_map(|t| {
-                                t.data_container()
-                                    .curves_ref()
-                                    .iter()
-                                    .find(|c| &c.id() == curve_id)
-                            }) {
+                            if let Some((index, selected_curve)) =
+                                animation.tracks().iter().find_map(|t| {
+                                    t.data_container().curves_ref().iter().enumerate().find_map(
+                                        |(i, c)| {
+                                            if &c.id() == curve_id {
+                                                Some((i, c))
+                                            } else {
+                                                None
+                                            }
+                                        },
+                                    )
+                                })
+                            {
                                 if !selected_curves
                                     .iter()
-                                    .any(|curve| curve.id == selected_curve.id)
+                                    .any(|(_, curve)| curve.id == selected_curve.id)
                                 {
-                                    selected_curves.push(selected_curve.clone());
+                                    selected_curves.push((index, selected_curve.clone()));
                                 }
                             }
                         }
@@ -704,8 +713,7 @@ impl AnimationEditor {
                 if !selected_curves.is_empty() {
                     let color_map = selected_curves
                         .iter()
-                        .zip(Color::COLORS.iter().skip(3))
-                        .map(|(curve, color)| (curve.id, Brush::Solid(*color)))
+                        .map(|(index, curve)| (curve.id, Brush::Solid(Color::COLORS[3 + *index])))
                         .collect::<Vec<_>>();
 
                     send_sync_message(
@@ -713,7 +721,10 @@ impl AnimationEditor {
                         CurveEditorMessage::sync(
                             self.curve_editor,
                             MessageDirection::ToWidget,
-                            selected_curves,
+                            selected_curves
+                                .into_iter()
+                                .map(|(_, curve)| curve)
+                                .collect(),
                         ),
                     );
 
