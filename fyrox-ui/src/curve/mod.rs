@@ -1,3 +1,4 @@
+use crate::message::CursorIcon;
 use crate::{
     brush::Brush,
     core::{
@@ -233,6 +234,15 @@ enum OperationContext {
     },
 }
 
+impl OperationContext {
+    fn is_dragging(&self) -> bool {
+        matches!(
+            self,
+            OperationContext::DragKeys { .. } | OperationContext::DragTangent { .. }
+        )
+    }
+}
+
 #[derive(Clone, Debug)]
 enum Selection {
     Keys { keys: FxHashSet<Uuid> },
@@ -280,6 +290,30 @@ impl Control for CurveEditor {
                         self.remove_selection(ui);
                     }
                     WidgetMessage::MouseMove { pos, state } => {
+                        let is_dragging = self
+                            .operation_context
+                            .as_ref()
+                            .map_or(false, |ctx| ctx.is_dragging());
+                        if self.pick(*pos).is_some() || is_dragging {
+                            if self.cursor.is_none() {
+                                ui.send_message(WidgetMessage::cursor(
+                                    self.handle,
+                                    MessageDirection::ToWidget,
+                                    Some(if is_dragging {
+                                        CursorIcon::Grabbing
+                                    } else {
+                                        CursorIcon::Grab
+                                    }),
+                                ));
+                            }
+                        } else if self.cursor.is_some() {
+                            ui.send_message(WidgetMessage::cursor(
+                                self.handle,
+                                MessageDirection::ToWidget,
+                                None,
+                            ));
+                        }
+
                         let local_mouse_pos = self.point_to_local_space(*pos);
                         if let Some(operation_context) = self.operation_context.as_ref() {
                             match operation_context {
