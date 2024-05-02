@@ -200,6 +200,7 @@ pub mod decorator;
 pub mod dock;
 pub mod draw;
 pub mod dropdown_list;
+pub mod dropdown_menu;
 pub mod expander;
 pub mod file_browser;
 pub mod font;
