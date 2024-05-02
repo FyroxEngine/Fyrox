@@ -3,21 +3,18 @@
 
 #![warn(missing_docs)]
 
-use crate::message::KeyCode;
 use crate::{
     border::BorderBuilder,
     core::{
         algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-        visitor::prelude::*,
+        uuid_provider, variable::InheritableVariable, visitor::prelude::*,
     },
     define_constructor,
-    message::{ButtonState, MessageDirection, OsEvent, UiMessage},
+    message::{ButtonState, KeyCode, MessageDirection, OsEvent, UiMessage},
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, RestrictionEntry, Thickness, UiNode, UserInterface, BRUSH_DARKEST,
     BRUSH_PRIMARY,
 };
-use fyrox_core::uuid_provider;
-use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};
 
@@ -523,6 +520,7 @@ pub struct PopupBuilder {
     stays_open: bool,
     content: Handle<UiNode>,
     smart_placement: bool,
+    owner: Handle<UiNode>,
 }
 
 impl PopupBuilder {
@@ -534,6 +532,7 @@ impl PopupBuilder {
             stays_open: false,
             content: Default::default(),
             smart_placement: true,
+            owner: Default::default(),
         }
     }
 
@@ -558,6 +557,12 @@ impl PopupBuilder {
     /// Sets the content of the popup.
     pub fn with_content(mut self, content: Handle<UiNode>) -> Self {
         self.content = content;
+        self
+    }
+
+    /// Sets the desired owner of the popup, to which the popup will relay its own messages.
+    pub fn with_owner(mut self, owner: Handle<UiNode>) -> Self {
+        self.owner = owner;
         self
     }
 
@@ -586,7 +591,7 @@ impl PopupBuilder {
             content: self.content.into(),
             smart_placement: self.smart_placement.into(),
             body: body.into(),
-            owner: Handle::NONE,
+            owner: self.owner,
         }
     }
 
