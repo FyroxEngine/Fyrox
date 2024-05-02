@@ -593,7 +593,7 @@ impl Editor {
             &mut engine.user_interfaces.first_mut().build_ctx(),
         );
 
-        let scene_viewer = SceneViewer::new(&mut engine, message_sender.clone(), &settings);
+        let scene_viewer = SceneViewer::new(&mut engine, message_sender.clone(), &mut settings);
         let asset_browser = AssetBrowser::new(&mut engine);
         let menu = Menu::new(&mut engine, message_sender.clone(), &settings);
         let light_panel = LightPanel::new(&mut engine, message_sender.clone());
@@ -889,9 +889,12 @@ impl Editor {
     }
 
     fn reload_settings(&mut self) {
+        let old_subscribers = std::mem::take(&mut self.settings.subscribers);
+
         match Settings::load() {
             Ok(settings) => {
                 self.settings = settings;
+                self.settings.subscribers = old_subscribers;
 
                 Log::info("Editor settings were reloaded successfully!");
             }
@@ -2232,7 +2235,8 @@ impl Editor {
                 );
                 self.audio_preview_panel
                     .update(&entry.selection, game_scene, &self.engine);
-                self.scene_viewer.update(game_scene, &mut self.engine);
+                self.scene_viewer
+                    .update(&self.settings, game_scene, &mut self.engine);
             } else if let Some(ui_scene) = entry.controller.downcast_ref::<UiScene>() {
                 self.animation_editor.update(
                     &entry.selection,

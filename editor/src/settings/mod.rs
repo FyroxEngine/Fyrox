@@ -46,6 +46,7 @@ use crate::{
 use fyrox::gui::inspector::editors::collection::VecCollectionPropertyEditorDefinition;
 use ron::ser::PrettyConfig;
 use serde::{Deserialize, Serialize};
+use std::sync::mpsc::Sender;
 use std::{
     collections::HashMap,
     fs::File,
@@ -101,10 +102,15 @@ pub struct SettingsData {
     pub windows: WindowsSettings,
 }
 
+pub enum SettingsMessage {
+    Changed,
+}
+
 #[derive(Default)]
 pub struct Settings {
     settings: SettingsData,
     need_save: bool,
+    pub subscribers: Vec<Sender<SettingsMessage>>,
 }
 
 impl Deref for Settings {
@@ -118,6 +124,10 @@ impl Deref for Settings {
 impl DerefMut for Settings {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.need_save = true;
+
+        self.subscribers
+            .retain_mut(|subscriber| subscriber.send(SettingsMessage::Changed).is_ok());
+
         &mut self.settings
     }
 }
@@ -127,6 +137,7 @@ impl Settings {
         Ok(Settings {
             settings: SettingsData::load()?,
             need_save: false,
+            subscribers: Default::default(),
         })
     }
 

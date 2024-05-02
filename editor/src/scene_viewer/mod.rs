@@ -4,18 +4,20 @@ use crate::{
         engine::Engine,
         fxhash::FxHashMap,
         graph::{BaseSceneGraph, SceneGraphNode},
-        gui::dropdown_list::DropdownList,
         gui::{
             border::BorderBuilder,
             brush::Brush,
             button::{Button, ButtonBuilder, ButtonMessage},
             canvas::CanvasBuilder,
+            check_box::{CheckBoxBuilder, CheckBoxMessage},
             decorator::DecoratorMessage,
-            dropdown_list::DropdownListMessage,
+            dropdown_list::{DropdownList, DropdownListMessage},
+            dropdown_menu::DropdownMenuBuilder,
             formatted_text::WrapMode,
             grid::{Column, GridBuilder, Row},
             image::{ImageBuilder, ImageMessage},
             message::{MessageDirection, MouseButton, UiMessage},
+            numeric::{NumericUpDownBuilder, NumericUpDownMessage},
             stack_panel::StackPanelBuilder,
             tab_control::{
                 Tab, TabControl, TabControlBuilder, TabControlMessage, TabDefinition, TabUserData,
@@ -25,8 +27,8 @@ use crate::{
             vec::{Vec3EditorBuilder, Vec3EditorMessage},
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
-            HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
-            BRUSH_DARKEST,
+            BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+            VerticalAlignment, BRUSH_DARKEST,
         },
         renderer::framework::state::PolygonFillMode,
         resource::texture::TextureResource,
@@ -34,18 +36,23 @@ use crate::{
     },
     gui::{
         make_dropdown_list_option, make_dropdown_list_option_universal,
-        make_dropdown_list_option_with_height,
+        make_dropdown_list_option_with_height, make_image_button_with_tooltip,
     },
     load_image,
     message::MessageSender,
     scene::container::EditorSceneEntry,
     scene_viewer::gizmo::{SceneGizmo, SceneGizmoAction},
     send_sync_message,
+    settings::SettingsMessage,
     utils::enable_widget,
     DropdownListBuilder, GameScene, Message, Mode, SaveSceneConfirmationDialogAction,
     SceneContainer, Settings,
 };
-use std::{cmp::Ordering, ops::Deref};
+use std::{
+    cmp::Ordering,
+    ops::Deref,
+    sync::mpsc::{self, Receiver},
+};
 use strum::{IntoEnumIterator, VariantNames};
 use strum_macros::{AsRefStr, EnumIter, EnumString, VariantNames};
 
@@ -56,6 +63,168 @@ pub enum GraphicsDebugSwitches {
     #[default]
     Shaded,
     Wireframe,
+}
+
+struct GridSnappingMenu {
+    menu: Handle<UiNode>,
+    #[allow(dead_code)]
+    button: Handle<UiNode>,
+    enabled: Handle<UiNode>,
+    x_step: Handle<UiNode>,
+    y_step: Handle<UiNode>,
+    z_step: Handle<UiNode>,
+    receiver: Receiver<SettingsMessage>,
+}
+
+impl GridSnappingMenu {
+    fn new(ctx: &mut BuildContext, settings: &mut Settings) -> Self {
+        let (sender, receiver) = mpsc::channel();
+
+        settings.subscribers.push(sender);
+
+        let button;
+        let enabled;
+        let x_step;
+        let y_step;
+        let z_step;
+        let grid_snap_menu = DropdownMenuBuilder::new(WidgetBuilder::new())
+            .with_header({
+                button = make_image_button_with_tooltip(
+                    ctx,
+                    22.0,
+                    22.0,
+                    load_image(include_bytes!("../../resources/grid_snapping.png")),
+                    "Snapping Options",
+                    None,
+                );
+                button
+            })
+            .with_content(
+                GridBuilder::new(
+                    WidgetBuilder::new()
+                        .with_margin(Thickness::uniform(2.0))
+                        .with_child(
+                            TextBuilder::new(WidgetBuilder::new().on_row(0).on_column(0))
+                                .with_text("Grid Snapping")
+                                .build(ctx),
+                        )
+                        .with_child({
+                            enabled =
+                                CheckBoxBuilder::new(WidgetBuilder::new().on_row(0).on_column(1))
+                                    .checked(Some(settings.move_mode_settings.grid_snapping))
+                                    .build(ctx);
+                            enabled
+                        })
+                        .with_child(
+                            TextBuilder::new(WidgetBuilder::new().on_row(1).on_column(0))
+                                .with_text("X Step")
+                                .build(ctx),
+                        )
+                        .with_child({
+                            x_step = NumericUpDownBuilder::<f32>::new(
+                                WidgetBuilder::new().on_row(1).on_column(1),
+                            )
+                            .with_value(settings.move_mode_settings.x_snap_step)
+                            .build(ctx);
+                            x_step
+                        })
+                        .with_child(
+                            TextBuilder::new(WidgetBuilder::new().on_row(2).on_column(0))
+                                .with_text("Y Step")
+                                .build(ctx),
+                        )
+                        .with_child({
+                            y_step = NumericUpDownBuilder::<f32>::new(
+                                WidgetBuilder::new().on_row(2).on_column(1),
+                            )
+                            .with_value(settings.move_mode_settings.y_snap_step)
+                            .build(ctx);
+                            y_step
+                        })
+                        .with_child(
+                            TextBuilder::new(WidgetBuilder::new().on_row(3).on_column(0))
+                                .with_text("Z Step")
+                                .build(ctx),
+                        )
+                        .with_child({
+                            z_step = NumericUpDownBuilder::<f32>::new(
+                                WidgetBuilder::new().on_row(3).on_column(1),
+                            )
+                            .with_value(settings.move_mode_settings.z_snap_step)
+                            .build(ctx);
+                            z_step
+                        }),
+                )
+                .add_row(Row::auto())
+                .add_row(Row::auto())
+                .add_row(Row::auto())
+                .add_row(Row::auto())
+                .add_column(Column::stretch())
+                .add_column(Column::auto())
+                .build(ctx),
+            )
+            .build(ctx);
+
+        Self {
+            menu: grid_snap_menu,
+            button,
+            enabled,
+            x_step,
+            y_step,
+            z_step,
+            receiver,
+        }
+    }
+
+    fn update(&self, settings: &Settings, ui: &UserInterface) {
+        for message in self.receiver.try_iter() {
+            match message {
+                SettingsMessage::Changed => {
+                    ui.send_message(CheckBoxMessage::checked(
+                        self.enabled,
+                        MessageDirection::ToWidget,
+                        Some(settings.move_mode_settings.grid_snapping),
+                    ));
+
+                    ui.send_message(NumericUpDownMessage::value(
+                        self.x_step,
+                        MessageDirection::ToWidget,
+                        settings.move_mode_settings.x_snap_step,
+                    ));
+                    ui.send_message(NumericUpDownMessage::value(
+                        self.y_step,
+                        MessageDirection::ToWidget,
+                        settings.move_mode_settings.y_snap_step,
+                    ));
+                    ui.send_message(NumericUpDownMessage::value(
+                        self.z_step,
+                        MessageDirection::ToWidget,
+                        settings.move_mode_settings.z_snap_step,
+                    ));
+                }
+            }
+        }
+    }
+
+    fn handle_ui_message(&self, message: &UiMessage, settings: &mut Settings) {
+        if message.direction() != MessageDirection::FromWidget {
+            return;
+        }
+
+        if let Some(CheckBoxMessage::Check(Some(value))) = message.data() {
+            if message.destination() == self.enabled {
+                settings.move_mode_settings.grid_snapping = *value;
+            }
+        } else if let Some(NumericUpDownMessage::Value(value)) = message.data() {
+            if message.destination() == self.x_step {
+                settings.move_mode_settings.x_snap_step = *value;
+            } else if message.destination() == self.y_step {
+                settings.move_mode_settings.y_snap_step = *value;
+            } else if message.destination() == self.z_step {
+                settings.move_mode_settings.z_snap_step = *value;
+            }
+        }
+    }
 }
 
 pub struct SceneViewer {
@@ -76,10 +245,11 @@ pub struct SceneViewer {
     scene_gizmo: SceneGizmo,
     scene_gizmo_image: Handle<UiNode>,
     debug_switches: Handle<UiNode>,
+    grid_snap_menu: GridSnappingMenu,
 }
 
 impl SceneViewer {
-    pub fn new(engine: &mut Engine, sender: MessageSender, settings: &Settings) -> Self {
+    pub fn new(engine: &mut Engine, sender: MessageSender, settings: &mut Settings) -> Self {
         let scene_gizmo = SceneGizmo::new(engine);
 
         let ctx = &mut engine.user_interfaces.first_mut().build_ctx();
@@ -99,6 +269,8 @@ impl SceneViewer {
         )
         .with_orientation(Orientation::Horizontal)
         .build(ctx);
+
+        let grid_snap_menu = GridSnappingMenu::new(ctx, settings);
 
         let global_position_display;
         let debug_switches;
@@ -121,6 +293,7 @@ impl SceneViewer {
                     .build(ctx);
                     camera_projection
                 })
+                .with_child(grid_snap_menu.menu)
                 .with_child({
                     global_position_display = Vec3EditorBuilder::<f32>::new(
                         WidgetBuilder::new()
@@ -350,6 +523,7 @@ impl SceneViewer {
             scene_gizmo,
             scene_gizmo_image,
             debug_switches,
+            grid_snap_menu,
         }
     }
 }
@@ -427,6 +601,8 @@ impl SceneViewer {
         settings: &mut Settings,
         mode: &Mode,
     ) {
+        self.grid_snap_menu.handle_ui_message(message, settings);
+
         let ui = &engine.user_interfaces.first();
 
         if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
@@ -836,7 +1012,9 @@ impl SceneViewer {
         ui.node(self.frame).screen_bounds()
     }
 
-    pub fn update(&self, game_scene: &GameScene, engine: &mut Engine) {
+    pub fn update(&self, settings: &Settings, game_scene: &GameScene, engine: &mut Engine) {
         self.scene_gizmo.sync_rotations(game_scene, engine);
+        self.grid_snap_menu
+            .update(settings, engine.user_interfaces.first());
     }
 }
