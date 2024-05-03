@@ -2221,6 +2221,8 @@ impl Editor {
             export_window.update(self.engine.user_interfaces.first_mut());
         }
 
+        self.scene_viewer
+            .pre_update(&self.settings, &mut self.engine);
         if let Some(entry) = self.scenes.current_scene_entry_ref() {
             if let Some(game_scene) = entry.controller.downcast_ref::<GameScene>() {
                 if let Some(stats) = self.statistics_window.as_ref() {
@@ -2235,8 +2237,7 @@ impl Editor {
                 );
                 self.audio_preview_panel
                     .update(&entry.selection, game_scene, &self.engine);
-                self.scene_viewer
-                    .update(&self.settings, game_scene, &mut self.engine);
+                self.scene_viewer.update(game_scene, &mut self.engine);
             } else if let Some(ui_scene) = entry.controller.downcast_ref::<UiScene>() {
                 self.animation_editor.update(
                     &entry.selection,

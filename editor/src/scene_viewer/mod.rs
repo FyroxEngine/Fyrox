@@ -3,7 +3,7 @@ use crate::{
         core::{color::Color, math::Rect, pool::Handle, uuid::Uuid},
         engine::Engine,
         fxhash::FxHashMap,
-        graph::{BaseSceneGraph, SceneGraphNode},
+        graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
         gui::{
             border::BorderBuilder,
             brush::Brush,
@@ -28,7 +28,7 @@ use crate::{
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
             BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
-            VerticalAlignment, BRUSH_DARKEST,
+            VerticalAlignment, BRUSH_BRIGHT_BLUE, BRUSH_DARKEST,
         },
         renderer::framework::state::PolygonFillMode,
         resource::texture::TextureResource,
@@ -67,7 +67,6 @@ pub enum GraphicsDebugSwitches {
 
 struct GridSnappingMenu {
     menu: Handle<UiNode>,
-    #[allow(dead_code)]
     button: Handle<UiNode>,
     enabled: Handle<UiNode>,
     x_step: Handle<UiNode>,
@@ -180,6 +179,20 @@ impl GridSnappingMenu {
         for message in self.receiver.try_iter() {
             match message {
                 SettingsMessage::Changed => {
+                    if let Some(button) = ui.try_get_of_type::<Button>(self.button) {
+                        ui.send_message(DecoratorMessage::selected_brush(
+                            *button.decorator,
+                            MessageDirection::ToWidget,
+                            BRUSH_BRIGHT_BLUE,
+                        ));
+
+                        ui.send_message(DecoratorMessage::select(
+                            *button.decorator,
+                            MessageDirection::ToWidget,
+                            settings.move_mode_settings.grid_snapping,
+                        ));
+                    }
+
                     ui.send_message(CheckBoxMessage::checked(
                         self.enabled,
                         MessageDirection::ToWidget,
@@ -1012,9 +1025,12 @@ impl SceneViewer {
         ui.node(self.frame).screen_bounds()
     }
 
-    pub fn update(&self, settings: &Settings, game_scene: &GameScene, engine: &mut Engine) {
-        self.scene_gizmo.sync_rotations(game_scene, engine);
+    pub fn pre_update(&self, settings: &Settings, engine: &mut Engine) {
         self.grid_snap_menu
             .update(settings, engine.user_interfaces.first());
+    }
+
+    pub fn update(&self, game_scene: &GameScene, engine: &mut Engine) {
+        self.scene_gizmo.sync_rotations(game_scene, engine);
     }
 }
