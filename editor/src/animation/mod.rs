@@ -435,7 +435,8 @@ impl AnimationEditor {
                     let animation_ref = &animations[animation.into()];
 
                     let size = ui.node(self.curve_editor).actual_local_size();
-                    let zoom = size.x / animation_ref.length().max(f32::EPSILON);
+                    let length = animation_ref.length().max(1.0);
+                    let zoom = size.x / length;
 
                     ui.send_message(CurveEditorMessage::zoom(
                         self.curve_editor,
@@ -446,7 +447,7 @@ impl AnimationEditor {
                     ui.send_message(CurveEditorMessage::view_position(
                         self.curve_editor,
                         MessageDirection::ToWidget,
-                        Vector2::new(0.5 * (size.x - animation_ref.length()), -0.5 * size.y),
+                        Vector2::new(0.5 * animation_ref.length(), 0.0),
                     ));
                 }
                 ToolbarAction::PlayPause => {

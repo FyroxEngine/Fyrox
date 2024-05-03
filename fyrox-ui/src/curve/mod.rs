@@ -9,6 +9,7 @@ use crate::{
             curve::{Curve, CurveKeyKind},
             lerpf, wrap_angle, Rect,
         },
+        parking_lot::{MappedMutexGuard, Mutex, MutexGuard},
         pool::Handle,
         reflect::prelude::*,
         type_traits::prelude::*,
@@ -86,6 +87,258 @@ pub struct HighlightZone {
     pub brush: Brush,
 }
 
+#[derive(Debug, Default)]
+pub struct CurveTransformCell(Mutex<CurveTransform>);
+
+impl Clone for CurveTransformCell {
+    fn clone(&self) -> Self {
+        Self(Mutex::new(self.0.lock().clone()))
+    }
+}
+
+impl CurveTransformCell {
+    /// Position of the center of the curve editor in the curve coordinate space.
+    pub fn position(&self) -> Vector2<f32> {
+        self.0.lock().position
+    }
+    /// Scape of the curve editor: multiply curve space units by this to get screen space units.
+    pub fn scale(&self) -> Vector2<f32> {
+        self.0.lock().scale
+    }
+    /// Location of the curve editor on the screen, in screen space units.
+    pub fn bounds(&self) -> Rect<f32> {
+        self.0.lock().bounds
+    }
+    /// Modify the current position. Call this when the center of the curve view should change.
+    pub fn set_position(&self, position: Vector2<f32>) {
+        self.0.lock().position = position
+    }
+    /// Modify the current zoom of the curve view.
+    pub fn set_scale(&self, scale: Vector2<f32>) {
+        self.0.lock().scale = scale;
+    }
+    /// Update the bounds of the curve view. Call this to ensure the CurveTransform accurately
+    /// reflects the actual size of the widget being drawn.
+    pub fn set_bounds(&self, bounds: Rect<f32>) {
+        self.0.lock().bounds = bounds;
+    }
+    /// Just like [CurveTransformCell::y_step_iter] but for x-coordinates.
+    /// Iterate through a list of x-coordinates across the width of the bounds.
+    /// The x-coordinates are in curve-space, but their distance apart should be
+    /// at least `grid_size` in screen-space.
+    ///
+    /// This iterator indates where grid lines should be drawn to make a curve easier
+    /// to read for the user.
+    pub fn x_step_iter(&self, grid_size: f32) -> StepIterator {
+        self.0.lock().x_step_iter(grid_size)
+    }
+    /// Just like [CurveTransformCell::x_step_iter] but for y-coordinates.
+    /// Iterate through a list of y-coordinates across the width of the bounds.
+    /// The y-coordinates are in curve-space, but their distance apart should be
+    /// at least `grid_size` in screen-space.
+    ///
+    /// This iterator indates where grid lines should be drawn to make a curve easier
+    /// to read for the user.
+    pub fn y_step_iter(&self, grid_size: f32) -> StepIterator {
+        self.0.lock().y_step_iter(grid_size)
+    }
+    /// Construct the transformation matrices to reflect the current position, scale, and bounds.
+    pub fn update_transform(&self) {
+        self.0.lock().update_transform();
+    }
+    /// Transform a point on the curve into a point in the local coordinate space of the widget.
+    pub fn curve_to_local(&self) -> MappedMutexGuard<Matrix3<f32>> {
+        MutexGuard::map(self.0.lock(), |t| &mut t.curve_to_local)
+    }
+    /// Transform a point on the curve into a point on the screen.
+    pub fn curve_to_screen(&self) -> MappedMutexGuard<Matrix3<f32>> {
+        MutexGuard::map(self.0.lock(), |t| &mut t.curve_to_screen)
+    }
+    /// Transform a point in the local coordinate space of the widget into a point in the coordinate space of the curve.
+    /// After the transformation, the x-coordinate could be a key location and the y-coordinate could be a key value.
+    /// Y-coordinates are flipped so that positive-y becomes the up direction.
+    pub fn local_to_curve(&self) -> MappedMutexGuard<Matrix3<f32>> {
+        MutexGuard::map(self.0.lock(), |t| &mut t.local_to_curve)
+    }
+    /// Transform a point on the screen into a point in the coordinate space of the curve.
+    /// After the transformation, the x-coordinate could be a key location and the y-coordinate could be a key value.
+    /// Y-coordinates are flipped so that positive-y becomes the up direction.
+    pub fn screen_to_curve(&self) -> MappedMutexGuard<Matrix3<f32>> {
+        MutexGuard::map(self.0.lock(), |t| &mut t.screen_to_curve)
+    }
+}
+
+/// Default grid size when not otherwise specified
+pub const STANDARD_GRID_SIZE: f32 = 50.0;
+/// Step sizes are more readable when they are easily recognizable.
+/// This is a list of step sizes to round up to when choosing a step size.
+/// The values in this list are meaningless; they are just intended to be convenient and round and easy to read.
+const STANDARD_STEP_SIZES: [f32; 10] = [0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0, 25.0, 50.0, 100.0];
+
+/// Round the given step size up to the next standard step size, if possible.
+fn standardize_step(step: f32) -> f32 {
+    STANDARD_STEP_SIZES
+        .iter()
+        .copied()
+        .find(|x| step <= *x)
+        .unwrap_or(step)
+}
+
+/// This object represents the transformation curve coordinates into
+/// the local coordinates of the curve editor widget and into the coordinates
+/// of the screen. Using this object allows other widgets to align themselves
+/// perfectly with the coordinates of a curve editor.
+///
+/// Since widgets are not mutable during layout and rendering, a CurveTransform
+/// is intended to be used within a [CurveTransformCell] which provides interior mutability.
+#[derive(Clone, Debug)]
+pub struct CurveTransform {
+    /// Position of the center of the curve editor in the curve coordinate space.
+    pub position: Vector2<f32>,
+    /// Scape of the curve editor: multiply curve space units by this to get screen space units.
+    pub scale: Vector2<f32>,
+    /// Location of the curve editor on the screen, in screen space units.
+    pub bounds: Rect<f32>,
+    /// Transform a point on a curve into a point in the local space
+    /// of the curve editor. Before applying this transformation, (0,0) is
+    /// the origin of the curve, and positive-y is up.
+    /// After the transform, (0,0) is the top-left corner of the editor,
+    /// and positive-y is down.
+    pub curve_to_local: Matrix3<f32>,
+    /// The inverse of `curve_to_local`, transforming a point in the local space
+    /// of the editor widget into a point in the space of the curve.
+    pub local_to_curve: Matrix3<f32>,
+    /// Transform a point on the screen into a point in the space of the curve.
+    /// For example, a mouse click position would be transformed into the corresponding
+    /// (x,y) coordinates of a cure key that would result from the click.
+    pub screen_to_curve: Matrix3<f32>,
+    /// Transform a point on the curve into a point on the screen.
+    pub curve_to_screen: Matrix3<f32>,
+}
+
+impl Default for CurveTransform {
+    fn default() -> Self {
+        Self {
+            position: Vector2::default(),
+            scale: Vector2::new(1.0, 1.0),
+            bounds: Rect::default(),
+            curve_to_local: Matrix3::identity(),
+            local_to_curve: Matrix3::identity(),
+            screen_to_curve: Matrix3::identity(),
+            curve_to_screen: Matrix3::identity(),
+        }
+    }
+}
+
+impl CurveTransform {
+    /// Construct the transformations matrices for the current position, scale, and bounds.
+    pub fn update_transform(&mut self) {
+        let bounds = self.bounds;
+        let local_center = bounds.size.scale(0.5);
+        let mut curve_to_local = Matrix3::<f32>::identity();
+        // Translate the view position to be at (0,0) in the curve space.
+        curve_to_local.append_translation_mut(&-self.position);
+        // Scale from curve units into local space units.
+        curve_to_local.append_nonuniform_scaling_mut(&self.scale);
+        // Flip y-positive from pointing up to pointing down
+        curve_to_local.append_nonuniform_scaling_mut(&Vector2::new(1.0, -1.0));
+        // Translate (0,0) to the center of the widget in local space.
+        curve_to_local.append_translation_mut(&local_center);
+        // Find the inverse transform matrix automatically.
+        let local_to_curve = curve_to_local.try_inverse().unwrap_or_default();
+        let mut curve_to_screen = curve_to_local;
+        // Translate the local (0,0) to the top-left corner of the widget in screen coordinates.
+        curve_to_screen.append_translation_mut(&bounds.position);
+        // Find the screen-to-curve matrix automatically from the curve-to-screen matrix.
+        let screen_to_curve = curve_to_screen.try_inverse().unwrap_or_default();
+        *self = CurveTransform {
+            curve_to_local,
+            local_to_curve,
+            screen_to_curve,
+            curve_to_screen,
+            ..*self
+        };
+    }
+    /// Just like [CurveTransform::y_step_iter] but for x-coordinates.
+    /// Iterate through a list of x-coordinates across the width of the bounds.
+    /// The x-coordinates are in curve-space, but their distance apart should be
+    /// at least `grid_size` in screen-space.
+    ///
+    /// This iterator indates where grid lines should be drawn to make a curve easier
+    /// to read for the user.
+    pub fn x_step_iter(&self, grid_size: f32) -> StepIterator {
+        let zoom = self.scale;
+        let step_size = grid_size / zoom.x.clamp(0.001, 1000.0);
+        let screen_left = self.bounds.position.x;
+        let screen_right = self.bounds.position.x + self.bounds.size.x;
+        let left = self
+            .screen_to_curve
+            .transform_point(&Point2::new(screen_left, 0.0))
+            .x;
+        let right = self
+            .screen_to_curve
+            .transform_point(&Point2::new(screen_right, 0.0))
+            .x;
+        StepIterator::new(standardize_step(step_size), left, right)
+    }
+    /// Just like [CurveTransform::x_step_iter] but for y-coordinates.
+    /// Iterate through a list of y-coordinates across the width of the bounds.
+    /// The y-coordinates are in curve-space, but their distance apart should be
+    /// at least `grid_size` in screen-space.
+    ///
+    /// This iterator indates where grid lines should be drawn to make a curve easier
+    /// to read for the user.
+    pub fn y_step_iter(&self, grid_size: f32) -> StepIterator {
+        let zoom = self.scale;
+        let step_size = grid_size / zoom.y.clamp(0.001, 1000.0);
+        let screen_top = self.bounds.position.y;
+        let screen_bottom = self.bounds.position.y + self.bounds.size.y;
+        let start = self
+            .screen_to_curve
+            .transform_point(&Point2::new(0.0, screen_bottom))
+            .y;
+        let end = self
+            .screen_to_curve
+            .transform_point(&Point2::new(0.0, screen_top))
+            .y;
+        StepIterator::new(standardize_step(step_size), start, end)
+    }
+}
+
+/// Iterate through f32 values stepping by `step_size`. Each value is
+/// is a multiple of `step_size`.
+#[derive(Debug, Clone)]
+pub struct StepIterator {
+    pub step_size: f32,
+    index: isize,
+    end: isize,
+}
+
+impl StepIterator {
+    /// Construct an interator that starts at or before `start` and ends at or after `end`.
+    /// The intention is to cover the whole range of `start` to `end` at least.
+    pub fn new(step: f32, start: f32, end: f32) -> Self {
+        Self {
+            step_size: step,
+            index: (start / step).floor() as isize,
+            end: ((end / step).ceil() as isize).saturating_add(1),
+        }
+    }
+}
+
+impl Iterator for StepIterator {
+    type Item = f32;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index >= self.end {
+            return None;
+        }
+        let value = (self.index as f32) * self.step_size;
+        self.index += 1;
+        Some(value)
+    }
+}
+
 #[derive(Default, Clone, Visit, Reflect, Debug)]
 pub struct CurvesContainer {
     curves: Vec<CurveKeyViewContainer>,
@@ -143,24 +396,9 @@ impl CurvesContainer {
 pub struct CurveEditor {
     widget: Widget,
     curves: CurvesContainer,
-    zoom: Vector2<f32>,
-    view_position: Vector2<f32>,
-    // Transforms a point from local to view coordinates.
     #[visit(skip)]
     #[reflect(hidden)]
-    view_matrix: Cell<Matrix3<f32>>,
-    // Transforms a point from local to screen coordinates.
-    // View and screen coordinates are different:
-    //  - view is a local viewer of curve editor
-    //  - screen is global space
-    #[visit(skip)]
-    #[reflect(hidden)]
-    screen_matrix: Cell<Matrix3<f32>>,
-    // Transform a point from screen space (i.e. mouse position) to the
-    // local space (the space where all keys are)
-    #[visit(skip)]
-    #[reflect(hidden)]
-    inv_screen_matrix: Cell<Matrix3<f32>>,
+    curve_transform: CurveTransformCell,
     key_brush: Brush,
     selected_key_brush: Brush,
     key_size: f32,
@@ -270,7 +508,8 @@ uuid_provider!(CurveEditor = "5c7b087e-871e-498d-b064-187b604a37d8");
 impl Control for CurveEditor {
     fn draw(&self, ctx: &mut DrawingContext) {
         ctx.transform_stack.push(Matrix3::identity());
-        self.update_matrices();
+        self.curve_transform.set_bounds(self.screen_bounds());
+        self.curve_transform.update_transform();
         self.draw_background(ctx);
         self.draw_highlight_zones(ctx);
         self.draw_grid(ctx);
@@ -314,14 +553,14 @@ impl Control for CurveEditor {
                             ));
                         }
 
-                        let local_mouse_pos = self.point_to_local_space(*pos);
+                        let curve_mouse_pos = self.screen_to_curve_space(*pos);
                         if let Some(operation_context) = self.operation_context.as_ref() {
                             match operation_context {
                                 OperationContext::DragKeys {
                                     entries,
                                     initial_mouse_pos,
                                 } => {
-                                    let local_delta = local_mouse_pos - initial_mouse_pos;
+                                    let local_delta = curve_mouse_pos - initial_mouse_pos;
                                     for entry in entries {
                                         if let Some(key) = self.curves.key_mut(entry.key_id) {
                                             key.position = entry.initial_position + local_delta;
@@ -333,8 +572,11 @@ impl Control for CurveEditor {
                                     initial_mouse_pos,
                                     initial_view_pos,
                                 } => {
-                                    let d = pos - initial_mouse_pos;
-                                    let delta = Vector2::new(d.x / self.zoom.x, d.y / self.zoom.y);
+                                    let d = *pos - initial_mouse_pos;
+                                    let zoom = self.curve_transform.scale();
+                                    // Dragging left moves the position right. Dragging up moves the position down.
+                                    // Remember: up is negative-y in screen space, and up is positive-y in curve space.
+                                    let delta = Vector2::<f32>::new(-d.x / zoom.x, d.y / zoom.y);
                                     ui.send_message(CurveEditorMessage::view_position(
                                         self.handle,
                                         MessageDirection::ToWidget,
@@ -346,8 +588,8 @@ impl Control for CurveEditor {
                                         let key_pos = key.position;
 
                                         let screen_key_pos = self
-                                            .screen_matrix
-                                            .get()
+                                            .curve_transform
+                                            .curve_to_screen()
                                             .transform_point(&Point2::from(key_pos))
                                             .coords;
 
@@ -383,8 +625,8 @@ impl Control for CurveEditor {
                                     max,
                                     ..
                                 } => {
-                                    min.set(local_mouse_pos.inf(initial_mouse_pos));
-                                    max.set(local_mouse_pos.sup(initial_mouse_pos));
+                                    min.set(curve_mouse_pos.inf(initial_mouse_pos));
+                                    max.set(curve_mouse_pos.sup(initial_mouse_pos));
                                 }
                             }
                         } else if state.left == ButtonState::Pressed {
@@ -403,7 +645,7 @@ impl Control for CurveEditor {
                                                         .unwrap_or_default(),
                                                 })
                                                 .collect::<Vec<_>>(),
-                                            initial_mouse_pos: local_mouse_pos,
+                                            initial_mouse_pos: curve_mouse_pos,
                                         });
                                     }
                                     Selection::LeftTangent { key_id: key } => {
@@ -423,7 +665,7 @@ impl Control for CurveEditor {
                                 }
                             } else {
                                 self.operation_context = Some(OperationContext::BoxSelection {
-                                    initial_mouse_pos: local_mouse_pos,
+                                    initial_mouse_pos: curve_mouse_pos,
                                     min: Default::default(),
                                     max: Default::default(),
                                 })
@@ -538,7 +780,7 @@ impl Control for CurveEditor {
                             ui.capture_mouse(self.handle);
                             self.operation_context = Some(OperationContext::MoveView {
                                 initial_mouse_pos: *pos,
-                                initial_view_pos: self.view_position,
+                                initial_view_pos: self.curve_transform.position(),
                             });
                         }
                         _ => (),
@@ -546,12 +788,13 @@ impl Control for CurveEditor {
                     WidgetMessage::MouseWheel { amount, .. } => {
                         let k = if *amount < 0.0 { 0.9 } else { 1.1 };
 
+                        let zoom = self.curve_transform.scale();
                         let new_zoom = if ui.keyboard_modifiers().shift {
-                            Vector2::new(self.zoom.x * k, self.zoom.y)
+                            Vector2::new(zoom.x * k, zoom.y)
                         } else if ui.keyboard_modifiers.control {
-                            Vector2::new(self.zoom.x, self.zoom.y * k)
+                            Vector2::new(zoom.x, zoom.y * k)
                         } else {
-                            self.zoom * k
+                            zoom * k
                         };
 
                         ui.send_message(CurveEditorMessage::zoom(
@@ -588,7 +831,8 @@ impl Control for CurveEditor {
                             ui.send_message(message.reverse());
                         }
                         CurveEditorMessage::Zoom(zoom) => {
-                            self.zoom = zoom.simd_clamp(self.min_zoom, self.max_zoom);
+                            self.curve_transform
+                                .set_scale(zoom.simd_clamp(self.min_zoom, self.max_zoom));
                             ui.send_message(message.reverse());
                         }
                         CurveEditorMessage::RemoveSelection => {
@@ -598,7 +842,7 @@ impl Control for CurveEditor {
                             self.change_selected_keys_kind(kind.clone(), ui);
                         }
                         CurveEditorMessage::AddKey(screen_pos) => {
-                            let local_pos = self.point_to_local_space(*screen_pos);
+                            let local_pos = self.screen_to_curve_space(*screen_pos);
                             let dest_curve = if let Some(selection) = self.selection.as_ref() {
                                 match selection {
                                     Selection::Keys { keys } => {
@@ -751,19 +995,20 @@ fn round_to_step(x: f32, step: f32) -> f32 {
 impl CurveEditor {
     #[allow(clippy::let_and_return)] // Improves readability
     fn set_view_position(&mut self, position: Vector2<f32>) {
-        self.view_position = self.view_bounds.map_or(position, |bounds| {
-            let local_space_position = -position;
-            let clamped_local_space_position = Vector2::new(
-                local_space_position
-                    .x
-                    .clamp(bounds.position.x, bounds.position.x + 2.0 * bounds.size.x),
-                local_space_position
-                    .y
-                    .clamp(bounds.position.y, bounds.position.y + 2.0 * bounds.size.y),
-            );
-            let clamped_view_space = -clamped_local_space_position;
-            clamped_view_space
-        });
+        self.curve_transform
+            .set_position(self.view_bounds.map_or(position, |bounds| {
+                let local_space_position = -position;
+                let clamped_local_space_position = Vector2::new(
+                    local_space_position
+                        .x
+                        .clamp(bounds.position.x, bounds.position.x + 2.0 * bounds.size.x),
+                    local_space_position
+                        .y
+                        .clamp(bounds.position.y, bounds.position.y + 2.0 * bounds.size.y),
+                );
+                let clamped_view_space = -clamped_local_space_position;
+                clamped_view_space
+            }));
     }
 
     fn colorize(&mut self, color_map: &[(Uuid, Brush)]) {
@@ -825,66 +1070,37 @@ impl CurveEditor {
             .send(CurveEditorMessage::view_position(
                 self.handle,
                 MessageDirection::ToWidget,
-                Vector2::new(
-                    self.actual_local_size().x * 0.5 - center.x,
-                    -self.actual_local_size().y * 0.5 + center.y,
-                ),
+                center,
             ))
             .unwrap();
     }
 
-    fn update_matrices(&self) {
-        let vp = Vector2::new(self.view_position.x, -self.view_position.y);
-        self.view_matrix.set(
-            Matrix3::new_nonuniform_scaling_wrt_point(
-                &self.zoom,
-                &Point2::from(self.actual_local_size().scale(0.5)),
-            ) * Matrix3::new_translation(&vp),
-        );
-
-        let screen_bounds = self.screen_bounds();
-        self.screen_matrix.set(
-            Matrix3::new_translation(&screen_bounds.position)
-                // Flip Y because in math origin is in lower left corner.
-                * Matrix3::new_translation(&Vector2::new(0.0, screen_bounds.h()))
-                * Matrix3::new_nonuniform_scaling(&Vector2::new(1.0, -1.0))
-                * self.view_matrix.get(),
-        );
-
-        self.inv_screen_matrix
-            .set(self.view_matrix.get().try_inverse().unwrap_or_default());
-    }
-
     /// Transforms a point to view space.
     pub fn point_to_view_space(&self, point: Vector2<f32>) -> Vector2<f32> {
-        self.view_matrix
-            .get()
+        self.curve_transform
+            .local_to_curve()
             .transform_point(&Point2::from(point))
             .coords
     }
 
     /// Transforms a point to screen space.
     pub fn point_to_screen_space(&self, point: Vector2<f32>) -> Vector2<f32> {
-        self.screen_matrix
-            .get()
+        self.curve_transform
+            .curve_to_screen()
             .transform_point(&Point2::from(point))
             .coords
     }
 
     /// Transforms a vector to screen space.
     pub fn vector_to_screen_space(&self, vector: Vector2<f32>) -> Vector2<f32> {
-        (self.screen_matrix.get() * Vector3::new(vector.x, vector.y, 0.0)).xy()
+        (*self.curve_transform.curve_to_screen() * Vector3::new(vector.x, vector.y, 0.0)).xy()
     }
 
-    /// Transforms a point to local space.
-    pub fn point_to_local_space(&self, point: Vector2<f32>) -> Vector2<f32> {
-        let mut p = point - self.screen_position();
-        p.y = self.actual_local_size().y - p.y;
-        self.view_matrix
-            .get()
-            .try_inverse()
-            .unwrap_or_default()
-            .transform_point(&Point2::from(p))
+    /// Transforms a screen position to a curve position.
+    pub fn screen_to_curve_space(&self, point: Vector2<f32>) -> Vector2<f32> {
+        self.curve_transform
+            .screen_to_curve()
+            .transform_point(&Point2::from(point))
             .coords
     }
 
@@ -1097,27 +1313,20 @@ impl CurveEditor {
     fn draw_grid(&self, ctx: &mut DrawingContext) {
         let screen_bounds = self.screen_bounds();
 
-        let step_size_x = self.grid_size.x / self.zoom.x;
-        let step_size_y = self.grid_size.y / self.zoom.y;
+        let zoom = self.curve_transform.scale();
+        let step_size_x = self.grid_size.x / zoom.x;
+        let step_size_y = self.grid_size.y / zoom.y;
 
-        let mut local_left_bottom = self.point_to_local_space(screen_bounds.left_top_corner());
+        let mut local_left_bottom = self.screen_to_curve_space(screen_bounds.left_top_corner());
         let local_left_bottom_n = local_left_bottom;
         local_left_bottom.x = round_to_step(local_left_bottom.x, step_size_x);
         local_left_bottom.y = round_to_step(local_left_bottom.y, step_size_y);
 
-        let mut local_right_top = self.point_to_local_space(screen_bounds.right_bottom_corner());
+        let mut local_right_top = self.screen_to_curve_space(screen_bounds.right_bottom_corner());
         local_right_top.x = round_to_step(local_right_top.x, step_size_x);
         local_right_top.y = round_to_step(local_right_top.y, step_size_y);
 
-        let w = (local_right_top.x - local_left_bottom.x).abs();
-        let h = (local_right_top.y - local_left_bottom.y).abs();
-
-        let nw = ((w / step_size_x).ceil()) as usize;
-        let nh = ((h / step_size_y).ceil()) as usize;
-
-        for ny in 0..=nh {
-            let k = ny as f32 / (nh) as f32;
-            let y = local_left_bottom.y - k * h;
+        for y in self.curve_transform.y_step_iter(self.grid_size.y) {
             ctx.push_line(
                 self.point_to_screen_space(Vector2::new(local_left_bottom.x - step_size_x, y)),
                 self.point_to_screen_space(Vector2::new(local_right_top.x + step_size_x, y)),
@@ -1125,9 +1334,7 @@ impl CurveEditor {
             );
         }
 
-        for nx in 0..=nw {
-            let k = nx as f32 / (nw) as f32;
-            let x = local_left_bottom.x + k * w;
+        for x in self.curve_transform.x_step_iter(self.grid_size.x) {
             ctx.push_line(
                 self.point_to_screen_space(Vector2::new(x, local_left_bottom.y + step_size_y)),
                 self.point_to_screen_space(Vector2::new(x, local_right_top.y - step_size_y)),
@@ -1155,9 +1362,7 @@ impl CurveEditor {
         let mut text = self.text.borrow_mut();
 
         if self.show_y_values {
-            for ny in 0..=nh {
-                let k = ny as f32 / (nh) as f32;
-                let y = local_left_bottom.y - k * h;
+            for y in self.curve_transform.y_step_iter(self.grid_size.y) {
                 text.set_text(format!("{:.1}", y)).build();
                 ctx.draw_text(
                     self.clip_bounds(),
@@ -1168,9 +1373,7 @@ impl CurveEditor {
         }
 
         if self.show_x_values {
-            for nx in 0..=nw {
-                let k = nx as f32 / (nw) as f32;
-                let x = local_left_bottom.x + k * w;
+            for x in self.curve_transform.x_step_iter(self.grid_size.x) {
                 text.set_text(format!("{:.1}", x)).build();
                 ctx.draw_text(
                     self.clip_bounds(),
@@ -1417,7 +1620,7 @@ impl CurveEditorBuilder {
             view_bounds: None,
             show_x_values: true,
             show_y_values: true,
-            grid_size: Vector2::new(50.0, 50.0),
+            grid_size: Vector2::new(STANDARD_GRID_SIZE, STANDARD_GRID_SIZE),
             min_zoom: Vector2::new(0.001, 0.001),
             max_zoom: Vector2::new(1000.0, 1000.0),
             highlight_zones: Default::default(),
@@ -1609,11 +1812,7 @@ impl CurveEditorBuilder {
                 .with_need_update(true)
                 .build(),
             curves,
-            zoom: Vector2::new(1.0, 1.0),
-            view_position: Default::default(),
-            view_matrix: Default::default(),
-            screen_matrix: Default::default(),
-            inv_screen_matrix: Default::default(),
+            curve_transform: Default::default(),
             key_brush: Brush::Solid(Color::opaque(140, 140, 140)),
             selected_key_brush: Brush::Solid(Color::opaque(220, 220, 220)),
             key_size: 8.0,
