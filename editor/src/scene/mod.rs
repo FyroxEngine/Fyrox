@@ -1,61 +1,70 @@
-use crate::animation::command::fetch_animations_container;
-use crate::fyrox::graph::BaseSceneGraph;
-use crate::fyrox::scene::sound::AudioBus;
-use crate::fyrox::{
-    core::{
-        algebra::{Vector2, Vector3},
-        color::Color,
-        futures::executor::block_on,
-        log::Log,
-        make_relative_path,
-        math::{aabb::AxisAlignedBoundingBox, plane::Plane, Rect},
-        pool::{ErasedHandle, Handle},
-        reflect::Reflect,
-        visitor::Visitor,
-    },
-    engine::Engine,
-    fxhash::FxHashSet,
-    graph::SceneGraph,
-    gui::{
-        inspector::PropertyChanged,
-        message::{KeyCode, MessageDirection, MouseButton},
-        UiNode,
-    },
-    resource::{
-        model::{Model, ModelResourceExtension},
-        texture::{Texture, TextureKind, TextureResource, TextureResourceExtension},
-    },
-    scene::{
-        animation::{absm::AnimationBlendingStateMachine, AnimationPlayer},
-        base::BaseBuilder,
-        camera::{Camera, Projection},
-        debug::{Line, SceneDrawingContext},
-        graph::{Graph, GraphUpdateSwitches},
-        light::{point::PointLight, spot::SpotLight},
-        mesh::Mesh,
-        navmesh::NavigationalMesh,
-        node::Node,
-        pivot::PivotBuilder,
-        terrain::Terrain,
-        Scene, SceneContainer,
-    },
-};
 use crate::{
     absm::{
         command::fetch_machine,
         selection::{AbsmSelection, SelectedEntity},
     },
-    animation::{self, selection::AnimationSelection},
+    animation::{self, command::fetch_animations_container, selection::AnimationSelection},
     asset::item::AssetItem,
     audio::AudioBusSelection,
     camera::{CameraController, PickingOptions},
     command::{make_command, Command, CommandGroup, CommandStack},
+    fyrox::{
+        asset::manager::ResourceManager,
+        core::{
+            algebra::{Matrix4, UnitQuaternion, Vector2, Vector3},
+            color::Color,
+            futures::executor::block_on,
+            log::Log,
+            make_relative_path,
+            math::{aabb::AxisAlignedBoundingBox, plane::Plane, Rect},
+            pool::{ErasedHandle, Handle},
+            reflect::Reflect,
+            visitor::Visitor,
+            ImmutableString,
+        },
+        engine::{Engine, SerializationContext},
+        fxhash::FxHashSet,
+        graph::{BaseSceneGraph, SceneGraph},
+        gui::{
+            inspector::PropertyChanged,
+            message::{KeyCode, MessageDirection, MouseButton},
+            UiNode,
+        },
+        material::{
+            shader::ShaderResource, shader::ShaderResourceExtension, Material, MaterialResource,
+            PropertyValue,
+        },
+        resource::{
+            model::{Model, ModelResourceExtension},
+            texture::{Texture, TextureKind, TextureResource, TextureResourceExtension},
+        },
+        scene::{
+            animation::{absm::AnimationBlendingStateMachine, AnimationPlayer},
+            base::BaseBuilder,
+            camera::{Camera, Projection},
+            debug::{Line, SceneDrawingContext},
+            graph::{Graph, GraphUpdateSwitches},
+            light::{point::PointLight, spot::SpotLight},
+            mesh::RenderPath,
+            mesh::{
+                surface::{SurfaceBuilder, SurfaceData, SurfaceSharedData},
+                Mesh, MeshBuilder,
+            },
+            navmesh::NavigationalMesh,
+            node::Node,
+            pivot::PivotBuilder,
+            sound::AudioBus,
+            terrain::Terrain,
+            Scene, SceneContainer,
+        },
+    },
     highlight::HighlightRenderPass,
     inspector::{
         editors::handle::HandlePropertyEditorMessage,
         handlers::node::SceneNodePropertyChangedHandler,
     },
     interaction::navmesh::selection::NavmeshSelection,
+    load_image,
     message::MessageSender,
     scene::{
         clipboard::Clipboard,
@@ -71,13 +80,9 @@ use crate::{
     world::graph::selection::GraphSelection,
     Message, Settings,
 };
-use fyrox::asset::manager::ResourceManager;
-use fyrox::engine::SerializationContext;
-use std::cell::RefCell;
-use std::fmt::Debug;
-use std::rc::Rc;
-use std::sync::Arc;
-use std::{any::Any, fs::File, io::Write, path::Path};
+use std::{
+    any::Any, cell::RefCell, fmt::Debug, fs::File, io::Write, path::Path, rc::Rc, sync::Arc,
+};
 
 pub mod clipboard;
 pub mod dialog;
@@ -111,6 +116,35 @@ pub struct GameScene {
     pub highlighter: Option<Rc<RefCell<HighlightRenderPass>>>,
     pub resource_manager: ResourceManager,
     pub serialization_context: Arc<SerializationContext>,
+    pub grid: Handle<Node>,
+}
+
+lazy_static! {
+    static ref GRID_SHADER: ShaderResource = {
+        ShaderResource::from_str(
+            include_str!("../../resources/shaders/grid.shader",),
+            Default::default(),
+        )
+        .unwrap()
+    };
+}
+
+fn make_grid_material(color: Color) -> MaterialResource {
+    let mut material = Material::from_shader(GRID_SHADER.clone(), None);
+    material
+        .set_property(
+            &ImmutableString::new("diffuseColor"),
+            PropertyValue::Color(color),
+        )
+        .unwrap();
+    material
+        .set_texture(
+            &ImmutableString::new("diffuseTexture"),
+            load_image(include_bytes!("../../resources/grid.png"))
+                .and_then(|res| res.try_cast::<Texture>()),
+        )
+        .unwrap();
+    MaterialResource::new_ok(Default::default(), material)
 }
 
 impl GameScene {
@@ -131,11 +165,31 @@ impl GameScene {
             .change_root_node(PivotBuilder::new(BaseBuilder::new()).build_node());
 
         let editor_objects_root = PivotBuilder::new(BaseBuilder::new()).build(&mut scene.graph);
+
+        let grid =
+            MeshBuilder::new(BaseBuilder::new().with_visibility(settings.graphics.draw_grid))
+                .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
+                    SurfaceData::make_quad(
+                        &(Matrix4::new_nonuniform_scaling(&Vector3::new(1024.0, 1.0, 1024.0))
+                            * UnitQuaternion::from_axis_angle(
+                                &Vector3::x_axis(),
+                                90.0f32.to_radians(),
+                            )
+                            .to_homogeneous()),
+                    ),
+                ))
+                .with_material(make_grid_material(Color::WHITE))
+                .build()])
+                .with_render_path(RenderPath::Forward)
+                .build(&mut scene.graph);
+        scene.graph.link_nodes(grid, editor_objects_root);
+
         let camera_controller = CameraController::new(
             &mut scene.graph,
             editor_objects_root,
             path.as_ref()
                 .and_then(|p| settings.scene_settings.get(*p).map(|s| &s.camera_settings)),
+            grid,
         );
 
         // Freeze physics simulation in while editing scene by setting time step to zero.
@@ -166,6 +220,7 @@ impl GameScene {
             highlighter,
             resource_manager: engine.resource_manager.clone(),
             serialization_context: engine.serialization_context.clone(),
+            grid,
         }
     }
 

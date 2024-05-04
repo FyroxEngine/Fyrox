@@ -70,6 +70,7 @@ pub struct CameraController {
     editor_context: PickContext,
     scene_context: PickContext,
     prev_interaction_state: bool,
+    pub grid: Handle<Node>,
 }
 
 #[derive(Clone)]
@@ -108,6 +109,7 @@ impl CameraController {
         graph: &mut Graph,
         root: Handle<Node>,
         settings: Option<&SceneCameraSettings>,
+        grid: Handle<Node>,
     ) -> Self {
         let settings = settings.cloned().unwrap_or_default();
 
@@ -165,6 +167,7 @@ impl CameraController {
             editor_context: Default::default(),
             scene_context: Default::default(),
             prev_interaction_state: false,
+            grid,
         }
     }
 
@@ -578,6 +581,10 @@ impl CameraController {
             context.pick_list.clear();
 
             while let Some(handle) = self.stack.pop() {
+                if handle == self.grid {
+                    continue;
+                }
+
                 // Ignore editor nodes if we picking scene stuff only.
                 if !editor_only && handle == editor_objects_root {
                     continue;
