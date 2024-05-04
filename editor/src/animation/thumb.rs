@@ -4,7 +4,7 @@
 
 use crate::fyrox::{
     core::{
-        algebra::{Matrix3, Point2, Vector2},
+        algebra::{Point2, Vector2},
         pool::Handle,
         reflect::prelude::*,
         type_traits::prelude::*,
@@ -19,6 +19,7 @@ use crate::fyrox::{
         BuildContext, Control, UiNode, UserInterface, BRUSH_BRIGHT,
     },
 };
+use fyrox::gui::curve::CurveTransformCell;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -37,23 +38,20 @@ impl ThumbMessage {
 #[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
 pub struct Thumb {
     widget: Widget,
-    zoom: f32,
-    view_position: f32,
+    #[visit(skip)]
+    #[reflect(hidden)]
+    transform: CurveTransformCell,
     position: f32,
 }
 
 define_widget_deref!(Thumb);
 
 impl Thumb {
-    fn view_matrix(&self) -> Matrix3<f32> {
-        Matrix3::new_nonuniform_scaling_wrt_point(
-            &Vector2::new(self.zoom, 1.0),
-            &Point2::from(self.actual_local_size().scale(0.5)),
-        ) * Matrix3::new_translation(&Vector2::new(self.view_position, 0.0))
-    }
-
     fn local_to_view(&self, x: f32) -> f32 {
-        self.view_matrix().transform_point(&Point2::new(x, 0.0)).x
+        self.transform
+            .curve_to_local()
+            .transform_point(&Point2::new(x, 0.0))
+            .x
     }
 }
 
@@ -61,6 +59,8 @@ uuid_provider!(Thumb = "820ba009-54e0-4050-ba7e-28f1f5b40429");
 
 impl Control for Thumb {
     fn draw(&self, ctx: &mut DrawingContext) {
+        self.transform.set_bounds(self.screen_bounds());
+        self.transform.update_transform();
         let local_bounds = self.bounding_rect();
 
         let half_width = 5.0;
@@ -90,10 +90,10 @@ impl Control for Thumb {
             {
                 match msg {
                     ThumbMessage::Zoom(zoom) => {
-                        self.zoom = *zoom;
+                        self.transform.set_scale(Vector2::new(*zoom, 1.0));
                     }
                     ThumbMessage::ViewPosition(position) => {
-                        self.view_position = *position;
+                        self.transform.set_position(Vector2::new(*position, 0.0));
                     }
                     ThumbMessage::Position(value) => {
                         if value.ne(&self.position) {
@@ -123,8 +123,7 @@ impl ThumbBuilder {
                 .with_hit_test_visibility(false)
                 .with_foreground(BRUSH_BRIGHT)
                 .build(),
-            zoom: 1.0,
-            view_position: 0.0,
+            transform: CurveTransformCell::default(),
             position: 0.0,
         };
 

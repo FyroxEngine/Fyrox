@@ -1,8 +1,8 @@
 use crate::fyrox::graph::BaseSceneGraph;
 use crate::fyrox::{
     core::{
-        algebra::{Matrix3, Point2, Vector2},
-        math::{round_to_step, Rect},
+        algebra::{Point2, Vector2},
+        math::Rect,
         pool::Handle,
         reflect::prelude::*,
         type_traits::prelude::*,
@@ -24,6 +24,7 @@ use crate::fyrox::{
     },
 };
 use crate::menu::create_menu_item;
+use fyrox::gui::curve::{CurveTransformCell, STANDARD_GRID_SIZE};
 use fyrox::gui::menu::ContextMenuBuilder;
 use std::{
     cell::{Cell, RefCell},
@@ -140,8 +141,9 @@ struct DragContext {
 #[derive(Clone, Visit, Reflect, ComponentProvider)]
 pub struct Ruler {
     widget: Widget,
-    zoom: f32,
-    view_position: f32,
+    #[visit(skip)]
+    #[reflect(hidden)]
+    transform: CurveTransformCell,
     #[visit(skip)]
     #[reflect(hidden)]
     text: RefCell<FormattedText>,
@@ -166,28 +168,26 @@ impl Debug for Ruler {
 define_widget_deref!(Ruler);
 
 impl Ruler {
-    // It could be done without matrices, which is indeed faster, but I don't care.
-    fn view_matrix(&self) -> Matrix3<f32> {
-        Matrix3::new_nonuniform_scaling_wrt_point(
-            &Vector2::new(self.zoom, 1.0),
-            &Point2::from(self.actual_local_size().scale(0.5)),
-        ) * Matrix3::new_translation(&Vector2::new(self.view_position, 0.0))
-    }
-
     fn local_to_view(&self, x: f32) -> f32 {
-        self.view_matrix().transform_point(&Point2::new(x, 0.0)).x
+        self.transform
+            .curve_to_local()
+            .transform_point(&Point2::new(x, 0.0))
+            .x
     }
 
+    #[allow(unused)]
     fn view_to_local(&self, x: f32) -> f32 {
-        self.view_matrix()
-            .try_inverse()
-            .unwrap_or_default()
+        self.transform
+            .local_to_curve()
             .transform_point(&Point2::new(x, 0.0))
             .x
     }
 
     fn screen_to_value_space(&self, x: f32) -> f32 {
-        self.view_to_local(self.screen_to_local(Vector2::new(x, 0.0)).x)
+        self.transform
+            .screen_to_curve()
+            .transform_point(&Point2::new(x, 0.0))
+            .x
     }
 }
 
@@ -195,6 +195,8 @@ uuid_provider!(Ruler = "98655c9b-428f-4977-a478-ad3674cc66d4");
 
 impl Control for Ruler {
     fn draw(&self, ctx: &mut DrawingContext) {
+        self.transform.set_bounds(self.screen_bounds());
+        self.transform.update_transform();
         let local_bounds = self.bounding_rect();
 
         // Add clickable rectangle first.
@@ -207,20 +209,7 @@ impl Control for Ruler {
         );
 
         // Then draw the rest.
-        let step_size_x = 50.0 / self.zoom.clamp(0.001, 1000.0);
-
-        let left_local_bound = round_to_step(self.view_to_local(0.0), step_size_x);
-        let right_local_bound = round_to_step(
-            self.view_to_local(local_bounds.position.x + local_bounds.size.x),
-            step_size_x,
-        );
-
-        let range = right_local_bound - left_local_bound;
-        let steps = ((range / step_size_x).ceil()) as usize;
-
-        for nx in 0..=steps {
-            let k = nx as f32 / steps as f32;
-            let x = self.local_to_view(left_local_bound + k * range);
+        for x in self.transform.x_step_iter(STANDARD_GRID_SIZE) {
             ctx.push_line(
                 Vector2::new(x, local_bounds.size.y * 0.5),
                 Vector2::new(x, local_bounds.size.y),
@@ -237,9 +226,7 @@ impl Control for Ruler {
         // Draw values.
         let mut text = self.text.borrow_mut();
 
-        for nx in 0..=steps {
-            let k = nx as f32 / steps as f32;
-            let x = left_local_bound + k * range;
+        for x in self.transform.x_step_iter(STANDARD_GRID_SIZE) {
             text.set_text(format!("{:.1}s", x)).build();
             let vx = self.local_to_view(x);
             ctx.draw_text(self.clip_bounds(), Vector2::new(vx + 1.0, 0.0), &text);
@@ -273,10 +260,10 @@ impl Control for Ruler {
             {
                 match msg {
                     RulerMessage::Zoom(zoom) => {
-                        self.zoom = *zoom;
+                        self.transform.set_scale(Vector2::new(*zoom, 1.0));
                     }
                     RulerMessage::ViewPosition(position) => {
-                        self.view_position = *position;
+                        self.transform.set_position(Vector2::new(*position, 0.0));
                     }
                     RulerMessage::Value(value) => {
                         if value.ne(&self.value) {
@@ -455,8 +442,7 @@ impl RulerBuilder {
                 .with_background(BRUSH_DARKER)
                 .with_foreground(BRUSH_LIGHTER)
                 .build(),
-            zoom: 1.0,
-            view_position: 0.0,
+            transform: Default::default(),
             text: RefCell::new(FormattedTextBuilder::new(ctx.default_font()).build()),
             value: self.value,
             drag_context: None,
