@@ -480,7 +480,7 @@ impl Control for Tree {
                                 self.panel,
                             ));
                         }
-                        self.items = items.clone();
+                        self.items.clone_from(items);
                     }
                     &TreeMessage::Select(state) => {
                         if self.is_selected != state.0 {
@@ -791,7 +791,7 @@ impl Control for TreeRoot {
                                     }
                                 }
                             }
-                            self.selected = selected.clone();
+                            self.selected.clone_from(selected);
                             ui.send_message(message.reverse());
                         }
                     }

@@ -866,7 +866,7 @@ impl SceneController for GameScene {
                     frame_size.x as u32,
                     frame_size.y as u32,
                 ));
-                new_render_target = scene.rendering_options.render_target.clone();
+                new_render_target.clone_from(&scene.rendering_options.render_target);
 
                 let gc = engine.graphics_context.as_initialized_mut();
 

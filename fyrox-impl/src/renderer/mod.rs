@@ -190,7 +190,9 @@ pub struct QualitySettings {
     /// Point shadow map precision. Allows you to select compromise between
     /// quality and performance.
     pub point_shadow_map_precision: ShadowMapPrecision,
-    ///
+    /// Point shadows fade out range.
+    /// Specifies the distance from the camera at which point shadows start to fade out.
+    /// Shadows beyond this distance will gradually become less visible.
     pub point_shadows_fade_out_range: f32,
 
     /// Spot shadows
@@ -205,7 +207,8 @@ pub struct QualitySettings {
     /// Spot shadow map precision. Allows you to select compromise between
     /// quality and performance.
     pub spot_shadow_map_precision: ShadowMapPrecision,
-    ///
+    /// Specifies the distance from the camera at which spot shadows start to fade out.
+    /// Shadows beyond this distance will gradually become less visible.
     pub spot_shadows_fade_out_range: f32,
 
     /// Cascaded-shadow maps settings.

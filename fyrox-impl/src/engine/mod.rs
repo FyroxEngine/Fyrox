@@ -1607,12 +1607,14 @@ impl Engine {
             window_attributes.visible = window.is_visible().unwrap_or(true);
             window_attributes.transparent = params.window_attributes.transparent;
             window_attributes.decorations = window.is_decorated();
-            window_attributes.window_icon = params.window_attributes.window_icon.clone();
             window_attributes.preferred_theme = params.window_attributes.preferred_theme;
             window_attributes.resize_increments = window.resize_increments().map(Size::Physical);
             window_attributes.content_protected = params.window_attributes.content_protected;
             window_attributes.window_level = params.window_attributes.window_level;
             window_attributes.active = params.window_attributes.active;
+            window_attributes
+                .window_icon
+                .clone_from(&params.window_attributes.window_icon);
 
             self.graphics_context = GraphicsContext::Uninitialized(GraphicsContextParams {
                 window_attributes,

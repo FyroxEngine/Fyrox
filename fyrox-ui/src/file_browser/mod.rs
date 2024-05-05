@@ -238,7 +238,7 @@ impl Control for FileBrowser {
                                 item = result.path_item;
                             }
 
-                            self.path = path.clone();
+                            self.path.clone_from(path);
 
                             // Set value of text field.
                             ui.send_message(TextMessage::text(
@@ -288,7 +288,7 @@ impl Control for FileBrowser {
                                 }
                                 None => None,
                             };
-                            self.root = root.clone();
+                            self.root.clone_from(root);
                             self.path = root.clone().unwrap_or_default();
                             self.rebuild_from_root(ui);
                             self.watcher = watcher_replacement;
@@ -300,7 +300,7 @@ impl Control for FileBrowser {
                             _ => false,
                         };
                         if !equal {
-                            self.filter = filter.clone();
+                            self.filter.clone_from(filter);
                             self.rebuild_from_root(ui);
                         }
                     }
@@ -451,7 +451,7 @@ impl Control for FileBrowser {
                     }
 
                     if self.path != path {
-                        self.path = path.clone();
+                        self.path.clone_from(&path);
 
                         ui.send_message(TextMessage::text(
                             self.path_text,
@@ -672,7 +672,7 @@ fn build_all(
     if let Ok(canonical_final_path) = final_path.canonicalize() {
         if let Some(canonical_root) = root.and_then(|r| r.canonicalize().ok()) {
             if let Ok(stripped) = canonical_final_path.strip_prefix(canonical_root) {
-                dest_path = stripped.to_owned();
+                stripped.clone_into(&mut dest_path);
             }
         } else {
             dest_path = canonical_final_path;
@@ -859,7 +859,7 @@ impl FileBrowserBuilder {
     /// into view without any problems. It is possible because all widgets were created at
     /// that moment and layout system can give correct offsets to bring item into view.
     pub fn with_path<P: AsRef<Path>>(mut self, path: P) -> Self {
-        self.path = path.as_ref().to_owned();
+        path.as_ref().clone_into(&mut self.path);
         self
     }
 

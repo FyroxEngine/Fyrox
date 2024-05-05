@@ -1179,7 +1179,7 @@ impl BaseBuilder {
     /// Sets desired name.
     #[inline]
     pub fn with_name<P: AsRef<str>>(mut self, name: P) -> Self {
-        self.name = name.as_ref().to_owned();
+        name.as_ref().clone_into(&mut self.name);
         self
     }
 

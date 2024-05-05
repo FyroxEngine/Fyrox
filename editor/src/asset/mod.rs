@@ -450,7 +450,7 @@ impl ResourceCreator {
             if message.destination() == self.name
                 && message.direction() == MessageDirection::FromWidget
             {
-                self.name_str = text.clone();
+                self.name_str.clone_from(text);
             }
         }
 

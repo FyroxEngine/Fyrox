@@ -90,7 +90,7 @@ impl Control for TextureEditor {
             message.data::<TextureEditorMessage>()
         {
             if &self.texture != texture && message.direction() == MessageDirection::ToWidget {
-                self.texture = texture.clone();
+                self.texture.clone_from(texture);
 
                 ui.send_message(ImageMessage::texture(
                     self.image,

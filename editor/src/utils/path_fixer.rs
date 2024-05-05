@@ -324,7 +324,7 @@ impl PathFixer {
                                 ));
 
                                 self.scene = Some(scene);
-                                self.scene_path_value = path.clone();
+                                self.scene_path_value.clone_from(path);
 
                                 message = format!("Scene: {}", path.display());
                             }
@@ -405,7 +405,7 @@ impl PathFixer {
                             let candidates = find_file(file_name.as_ref());
                             // Skip ambiguous file paths.
                             if candidates.len() == 1 {
-                                resource_path = candidates.first().unwrap().clone();
+                                resource_path.clone_from(candidates.first().unwrap());
                             }
                         }
 

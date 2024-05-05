@@ -159,7 +159,7 @@ impl PathEditorBuilder {
 
     /// Sets the desired path.
     pub fn with_path<P: AsRef<Path>>(mut self, path: P) -> Self {
-        self.path = path.as_ref().to_owned();
+        path.as_ref().clone_into(&mut self.path);
         self
     }
 

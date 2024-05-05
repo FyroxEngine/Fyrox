@@ -1488,7 +1488,7 @@ impl TextBoxBuilder {
 
     /// Sets the desired text of the text box.
     pub fn with_text<P: AsRef<str>>(mut self, text: P) -> Self {
-        self.text = text.as_ref().to_owned();
+        text.as_ref().clone_into(&mut self.text);
         self
     }
 

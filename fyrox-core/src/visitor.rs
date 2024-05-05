@@ -1499,7 +1499,7 @@ impl Visitor {
             children.push(self.load_node_binary(file)?);
         }
 
-        node.children = children.clone();
+        node.children.clone_from(&children);
 
         let handle = self.nodes.spawn(node);
         for child_handle in children.iter() {

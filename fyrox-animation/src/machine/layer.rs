@@ -167,7 +167,7 @@ impl<T: EntityId> MachineLayer<T> {
     /// Sets new name for the layer. The name can then be used to find a layer in a parent state machine.
     #[inline]
     pub fn set_name<S: AsRef<str>>(&mut self, name: S) {
-        self.name = name.as_ref().to_owned();
+        name.as_ref().clone_into(&mut self.name);
     }
 
     /// Returns a current name of the layer.

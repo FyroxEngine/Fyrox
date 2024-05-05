@@ -215,7 +215,7 @@ where
                 && message.destination() == self.handle()
                 && message.direction() == MessageDirection::ToWidget
             {
-                self.resource = resource.clone();
+                self.resource.clone_from(resource);
 
                 ui.send_message(TextMessage::text(
                     self.name,

@@ -37,7 +37,7 @@ impl<T: EntityId> AnimationPose<T> {
         for (handle, local_pose) in self.poses.iter() {
             dest.poses.insert(*handle, local_pose.clone());
         }
-        dest.root_motion = self.root_motion.clone();
+        dest.root_motion.clone_from(&self.root_motion);
     }
 
     /// Sets root motion for the animation pose; the root motion will be blended with other motions

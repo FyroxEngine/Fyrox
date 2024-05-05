@@ -175,7 +175,7 @@ impl Default for SoundSource {
 impl SoundSource {
     /// Sets new name of the sound source.
     pub fn set_name<N: AsRef<str>>(&mut self, name: N) {
-        self.name = name.as_ref().to_owned();
+        name.as_ref().clone_into(&mut self.name);
     }
 
     /// Returns the name of the sound source.
@@ -397,7 +397,7 @@ impl SoundSource {
     /// Sets new name of the target audio bus. The name must be valid, otherwise the sound won't play!
     /// Default is [`AudioBusGraph::PRIMARY_BUS`].
     pub fn set_bus<S: AsRef<str>>(&mut self, bus: S) {
-        self.bus = bus.as_ref().to_owned();
+        bus.as_ref().clone_into(&mut self.bus);
     }
 
     /// Return the name of the target audio bus.
@@ -802,7 +802,7 @@ impl SoundSourceBuilder {
 
     /// Sets desired name of the source.
     pub fn with_name<N: AsRef<str>>(mut self, name: N) -> Self {
-        self.name = name.as_ref().to_owned();
+        name.as_ref().clone_into(&mut self.name);
         self
     }
 
