@@ -11,7 +11,7 @@ use crate::{
     fyrox::{
         asset::manager::ResourceManager,
         core::{
-            algebra::{Matrix4, UnitQuaternion, Vector2, Vector3},
+            algebra::{Matrix4, Vector2, Vector3},
             color::Color,
             futures::executor::block_on,
             log::Log,
@@ -20,7 +20,6 @@ use crate::{
             pool::{ErasedHandle, Handle},
             reflect::Reflect,
             visitor::Visitor,
-            ImmutableString,
         },
         engine::{Engine, SerializationContext},
         fxhash::FxHashSet,
@@ -32,7 +31,6 @@ use crate::{
         },
         material::{
             shader::ShaderResource, shader::ShaderResourceExtension, Material, MaterialResource,
-            PropertyValue,
         },
         resource::{
             model::{Model, ModelResourceExtension},
@@ -64,7 +62,6 @@ use crate::{
         handlers::node::SceneNodePropertyChangedHandler,
     },
     interaction::navmesh::selection::NavmeshSelection,
-    load_image,
     message::MessageSender,
     scene::{
         clipboard::Clipboard,
@@ -129,21 +126,8 @@ lazy_static! {
     };
 }
 
-fn make_grid_material(color: Color) -> MaterialResource {
-    let mut material = Material::from_shader(GRID_SHADER.clone(), None);
-    material
-        .set_property(
-            &ImmutableString::new("diffuseColor"),
-            PropertyValue::Color(color),
-        )
-        .unwrap();
-    material
-        .set_texture(
-            &ImmutableString::new("diffuseTexture"),
-            load_image(include_bytes!("../../resources/grid.png"))
-                .and_then(|res| res.try_cast::<Texture>()),
-        )
-        .unwrap();
+fn make_grid_material() -> MaterialResource {
+    let material = Material::from_shader(GRID_SHADER.clone(), None);
     MaterialResource::new_ok(Default::default(), material)
 }
 
@@ -166,22 +150,18 @@ impl GameScene {
 
         let editor_objects_root = PivotBuilder::new(BaseBuilder::new()).build(&mut scene.graph);
 
-        let grid =
-            MeshBuilder::new(BaseBuilder::new().with_visibility(settings.graphics.draw_grid))
-                .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
-                    SurfaceData::make_quad(
-                        &(Matrix4::new_nonuniform_scaling(&Vector3::new(1024.0, 1.0, 1024.0))
-                            * UnitQuaternion::from_axis_angle(
-                                &Vector3::x_axis(),
-                                90.0f32.to_radians(),
-                            )
-                            .to_homogeneous()),
-                    ),
-                ))
-                .with_material(make_grid_material(Color::WHITE))
-                .build()])
-                .with_render_path(RenderPath::Forward)
-                .build(&mut scene.graph);
+        let grid = MeshBuilder::new(
+            BaseBuilder::new()
+                .with_frustum_culling(false)
+                .with_visibility(settings.graphics.draw_grid),
+        )
+        .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
+            SurfaceData::make_quad(&Matrix4::new_scaling(2.0)),
+        ))
+        .with_material(make_grid_material())
+        .build()])
+        .with_render_path(RenderPath::Forward)
+        .build(&mut scene.graph);
         scene.graph.link_nodes(grid, editor_objects_root);
 
         let camera_controller = CameraController::new(
