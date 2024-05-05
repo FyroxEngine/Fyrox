@@ -282,9 +282,10 @@ impl NodeTrait for Rectangle {
     fn collect_render_data(&self, ctx: &mut RenderContext) -> RdcControlFlow {
         if !self.global_visibility()
             || !self.is_globally_enabled()
-            || !ctx
-                .frustum
-                .map_or(true, |f| f.is_intersects_aabb(&self.world_bounding_box()))
+            || (self.frustum_culling()
+                && !ctx
+                    .frustum
+                    .map_or(true, |f| f.is_intersects_aabb(&self.world_bounding_box())))
         {
             return RdcControlFlow::Continue;
         }
