@@ -122,8 +122,8 @@
 
                     vec3 fragPos3D = nearPoint + t * (farPoint - nearPoint);
 
-                    gl_FragDepth = (((fyrox_zFar - fyrox_zNear) * computeDepth(fragPos3D)) +
-                                    fyrox_zNear + fyrox_zFar) / 2.0;
+                    gl_FragDepth = ((gl_DepthRange.diff * computeDepth(fragPos3D)) +
+                                    gl_DepthRange.near + gl_DepthRange.far) / 2.0;
 
                     float linearDepth = computeLinearDepth(fragPos3D);
                     float fading = max(0, (0.25 - linearDepth));
