@@ -275,7 +275,7 @@ impl Control for ItemContextMenu {
             let mut dialog = self.folder_name_dialog.borrow_mut();
             if let Some(dialog) = dialog.as_mut() {
                 if message.destination() == dialog.folder_name_tb {
-                    dialog.folder_name = text.clone();
+                    dialog.folder_name.clone_from(text);
                 }
             }
         }

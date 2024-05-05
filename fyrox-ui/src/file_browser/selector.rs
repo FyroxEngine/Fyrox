@@ -181,7 +181,7 @@ impl FileSelectorBuilder {
     }
 
     pub fn with_path<P: AsRef<Path>>(mut self, path: P) -> Self {
-        self.path = path.as_ref().to_owned();
+        path.as_ref().clone_into(&mut self.path);
         self
     }
 
@@ -340,7 +340,7 @@ impl Control for FileSelectorField {
                 && message.direction() == MessageDirection::ToWidget
                 && &self.path != new_path
             {
-                self.path = new_path.clone();
+                self.path.clone_from(new_path);
                 ui.send_message(TextMessage::text(
                     self.path_field,
                     MessageDirection::ToWidget,

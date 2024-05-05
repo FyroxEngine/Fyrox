@@ -1644,7 +1644,7 @@ pub enum BrushMode {
         /// An offset for height map.
         amount: f32,
     },
-    ///
+    /// Flattens height map.
     FlattenHeightMap {
         /// Fixed height value for flattening.
         height: f32,

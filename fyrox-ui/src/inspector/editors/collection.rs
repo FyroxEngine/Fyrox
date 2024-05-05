@@ -146,7 +146,7 @@ impl<T: CollectionItem> Control for CollectionEditor<T> {
                         ));
                     }
 
-                    self.items = items.clone();
+                    self.items.clone_from(items);
                 }
             }
         } else if let Some(index) = self

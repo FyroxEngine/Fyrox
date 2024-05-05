@@ -238,7 +238,7 @@ where
     /// ```text
     /// 128 pixels wide
     /// _________________
-    /// | 0 | 1 | 2 | 3 |  
+    /// | 0 | 1 | 2 | 3 |
     /// |___|___|___|___|
     /// | 4 | 5 | 6 | 7 |  128 pixels tall
     /// |___|___|___|___|
@@ -258,7 +258,7 @@ where
     /// # use fyrox_animation::{
     /// #      spritesheet::{ImageParameters, SpriteSheetAnimation},
     /// #      core::math::Rect,
-    /// # };    
+    /// # };
     /// # use fyrox_core::{reflect::prelude::*, visitor::prelude::*};
     /// #
     /// #[derive(Clone, Reflect, Visit, Debug)]
@@ -350,7 +350,7 @@ where
 
     /// Sets new texture for the animation.
     pub fn set_texture(&mut self, texture: Option<T>) -> Option<T> {
-        self.frames_container.texture = texture.clone();
+        self.frames_container.texture.clone_from(&texture);
         std::mem::replace(&mut self.texture, texture)
     }
 

@@ -312,7 +312,7 @@ impl Control for PropertySelector {
                 && message.direction() == MessageDirection::ToWidget
                 && &self.selected_property_path != selection
             {
-                self.selected_property_path = selection.clone();
+                self.selected_property_path.clone_from(selection);
                 ui.send_message(message.reverse());
             }
         } else if let Some(SearchBarMessage::Text(filter_text)) = message.data() {

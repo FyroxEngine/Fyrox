@@ -321,10 +321,10 @@ impl Control for BlendSpaceField {
                         }
 
                         self.points = point_views;
-                        self.point_positions = points.clone();
+                        self.point_positions.clone_from(points);
                     }
                     BlendSpaceFieldMessage::Triangles(triangles) => {
-                        self.triangles = triangles.clone();
+                        self.triangles.clone_from(triangles);
                     }
                     BlendSpaceFieldMessage::MinValues(min) => {
                         self.min_values = *min;

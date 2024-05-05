@@ -183,7 +183,7 @@ impl Curve {
 
     #[inline]
     pub fn set_name<S: AsRef<str>>(&mut self, name: S) {
-        self.name = name.as_ref().to_owned();
+        name.as_ref().clone_into(&mut self.name);
     }
 
     #[inline]

@@ -276,7 +276,7 @@ impl Configurator {
                 && message.direction() == MessageDirection::FromWidget
             {
                 let entry = &self.history[index];
-                self.work_dir = entry.work_dir.clone();
+                self.work_dir.clone_from(&entry.work_dir);
 
                 engine
                     .user_interfaces

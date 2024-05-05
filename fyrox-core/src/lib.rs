@@ -164,10 +164,9 @@ impl<K: Hash + Eq + Clone, V: Hash + Eq + Clone> BiDirHashMap<K, V> {
         }
     }
 
-    pub fn contains_key<Q: ?Sized>(&self, key: &Q) -> bool
+    pub fn contains_key<Q: ?Sized + Hash + Eq>(&self, key: &Q) -> bool
     where
         K: Borrow<Q>,
-        Q: Hash + Eq,
     {
         self.forward_map.contains_key(key)
     }
@@ -181,10 +180,9 @@ impl<K: Hash + Eq + Clone, V: Hash + Eq + Clone> BiDirHashMap<K, V> {
         }
     }
 
-    pub fn contains_value<Q: ?Sized>(&self, value: &Q) -> bool
+    pub fn contains_value<Q: ?Sized + Hash + Eq>(&self, value: &Q) -> bool
     where
         V: Borrow<Q>,
-        Q: Hash + Eq,
     {
         self.backward_map.contains_key(value)
     }

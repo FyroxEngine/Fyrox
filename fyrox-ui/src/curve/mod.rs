@@ -889,7 +889,7 @@ impl Control for CurveEditor {
                             self.change_selected_keys_location(*location, ui);
                         }
                         CurveEditorMessage::HighlightZones(zones) => {
-                            self.highlight_zones = zones.clone();
+                            self.highlight_zones.clone_from(zones);
                         }
                     }
                 }

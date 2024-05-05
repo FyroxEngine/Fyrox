@@ -278,7 +278,7 @@ impl Control for Ruler {
                         // Do nothing. These messages are only for output.
                     }
                     RulerMessage::SyncSignals(signals) => {
-                        *self.signals.borrow_mut() = signals.clone();
+                        self.signals.borrow_mut().clone_from(signals);
                     }
                 }
             }

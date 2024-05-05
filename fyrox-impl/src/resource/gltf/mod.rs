@@ -529,7 +529,7 @@ fn import_surface(
     if let Some(data) = build_surface_data(&prim, morph_info, bufs, stats)? {
         let mut blend_shapes = Vec::new();
         if let Some(shape_con) = data.blend_shapes_container.as_ref() {
-            blend_shapes = shape_con.blend_shapes.clone();
+            blend_shapes.clone_from(&shape_con.blend_shapes)
         }
         let mut surf = Surface::new(SurfaceSharedData::new(data));
         if let Some(mat_index) = prim.material().index() {

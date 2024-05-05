@@ -192,7 +192,7 @@ impl Control for NodeSelector {
                     }
                     NodeSelectorMessage::Selection(selection) => {
                         if &self.selected != selection {
-                            self.selected = selection.clone();
+                            self.selected.clone_from(selection);
 
                             self.sync_selection(ui);
 

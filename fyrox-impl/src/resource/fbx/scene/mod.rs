@@ -217,7 +217,7 @@ fn link_child_with_parent_component(
         }
         FbxComponent::Texture(texture) => {
             if let FbxComponent::Video(video) = child {
-                texture.content = video.content.clone();
+                texture.content.clone_from(&video.content);
             }
         }
         // Ignore rest

@@ -415,7 +415,7 @@ impl Future for UntypedResource {
                 // Collect wakers, so we'll be able to wake task when worker thread finish loading.
                 let cx_waker = cx.waker();
                 if let Some(pos) = wakers.iter().position(|waker| waker.will_wake(cx_waker)) {
-                    wakers[pos] = cx_waker.clone();
+                    wakers[pos].clone_from(cx_waker);
                 } else {
                     wakers.push(cx_waker.clone())
                 }

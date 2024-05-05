@@ -97,7 +97,7 @@ pub fn apply_surface_data_patch(data: &mut SurfaceData, patch: &SurfaceDataPatch
     }
 }
 
-///
+/// Lightmap entry.
 #[derive(Default, Clone, Debug, Visit, Reflect)]
 pub struct LightmapEntry {
     /// Lightmap texture.

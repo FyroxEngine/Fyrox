@@ -210,7 +210,7 @@ where
                                 ));
                             }
 
-                            self.base.input_sockets = input_sockets.clone();
+                            self.base.input_sockets.clone_from(input_sockets);
                         }
                     }
                     AbsmNodeMessage::NormalColor(color) => {
@@ -227,7 +227,7 @@ where
                     }
                     AbsmNodeMessage::Name(name) => {
                         if &self.name_value != name {
-                            self.name_value = name.clone();
+                            self.name_value.clone_from(name);
 
                             ui.send_message(TextMessage::text(
                                 self.name,

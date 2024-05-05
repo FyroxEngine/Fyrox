@@ -79,7 +79,7 @@ impl PingPongBuffer {
 /// Audio bus is a top-level audio processing unit. It takes data from multiple audio sources and passes their
 /// samples through a chain of effects. Output signal is then can be either sent to an audio playback device or
 /// to some other audio bus and be processed again, but with different sound effects (this can be done via
-/// [`AudioBusGraph`].  
+/// [`AudioBusGraph`].
 #[derive(Debug, Reflect, Visit, Clone)]
 pub struct AudioBus {
     pub(crate) name: String,
@@ -124,7 +124,7 @@ impl AudioBus {
     /// to a bus by its name (implicit binding), so when changing the name you should also change the output bus name
     /// of a sound source, that uses the bus.
     pub fn set_name<S: AsRef<str>>(&mut self, name: S) {
-        self.name = name.as_ref().to_owned();
+        name.as_ref().clone_into(&mut self.name);
     }
 
     /// Returns current name of the audio bus. Could be useful if you need to find all sound sources that uses the bus.
@@ -254,7 +254,7 @@ impl AudioBus {
 /// filters (lowpass, highpass, bandpass, shelf filters, etc.) and complex effects such as reverberation.
 ///
 /// By default, each audio bus graph has a single audio bus called Primary. It is mandatory to at least one
-/// audio bus. Primary bus is responsible for outputting the data to an audio playback device.  
+/// audio bus. Primary bus is responsible for outputting the data to an audio playback device.
 ///
 /// # Sound source binding
 ///
@@ -290,7 +290,7 @@ pub struct AudioBusGraph {
 }
 
 impl AudioBusGraph {
-    /// The name of the audio bus that output samples directly to an audio playback device.  
+    /// The name of the audio bus that output samples directly to an audio playback device.
     pub const PRIMARY_BUS: &'static str = "Primary";
 
     /// Creates a new audio bus graph. Sound context already has an audio graph instance, so calling

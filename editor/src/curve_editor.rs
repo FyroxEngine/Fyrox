@@ -493,11 +493,11 @@ impl CurveEditorWindow {
                 if let Ok(curve) =
                     block_on(engine.resource_manager.request::<CurveResourceState>(path))
                 {
-                    self.path = path.clone();
+                    self.path.clone_from(path);
                     self.set_curve(curve, ui);
                 }
             } else if message.destination() == self.save_file_selector {
-                self.path = path.clone();
+                self.path.clone_from(path);
                 self.save();
             }
         } else if let Some(MessageBoxMessage::Close(result)) = message.data() {
