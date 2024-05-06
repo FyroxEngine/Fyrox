@@ -4,7 +4,15 @@
     properties: [
         (
             name: "diffuseColor",
-            kind: Color(r: 255, g: 255, b: 255, a: 255),
+            kind: Color(r: 40, g: 40, b: 40, a: 255),
+        ),
+        (
+            name: "xAxisColor",
+            kind: Color(r: 255, g: 0, b: 0, a: 255),
+        ),
+        (
+            name: "zAxisColor",
+            kind: Color(r: 0, g: 0, b: 255, a: 255),
         ),
     ],
 
@@ -71,10 +79,13 @@
                 // Fixed and adapted for Fyrox.
 
                 uniform vec4 diffuseColor;
+                uniform vec4 xAxisColor;
+                uniform vec4 zAxisColor;
 
                 uniform mat4 fyrox_viewProjectionMatrix;
                 uniform float fyrox_zNear;
                 uniform float fyrox_zFar;
+                uniform vec3 fyrox_cameraPosition;
 
                 out vec4 FragColor;
 
@@ -86,18 +97,25 @@
                     vec2 derivative = fwidth(coord);
                     vec2 grid = abs(fract(coord - 0.5) - 0.5) / derivative;
                     float line = min(grid.x, grid.y);
-                    float minimumz = min(derivative.y, 1);
-                    float minimumx = min(derivative.x, 1);
-                    vec4 color = vec4(0.2, 0.2, 0.2, 1.0 - min(line, 1.0));
+                    float minZ = 0.5 * min(derivative.y, 1);
+                    float minX = 0.5 * min(derivative.x, 1);
 
-                    // z axis
-                    if (fragPos3D.x > -minimumx && fragPos3D.x < minimumx) {
-                        color.z = 1.0;
-                    }
+                    vec4 color = diffuseColor;
+                    float alpha = 1.0 - min(line, 1.0);
+                    // Sharpen lines a bit.
+                    color.a = alpha >= 0.5 ? 1.0 : 0.0;
 
-                    // x axis
-                    if (fragPos3D.z > -minimumz && fragPos3D.z < minimumz) {
-                        color.x = 1.0;
+                    if (fragPos3D.x > -minX && fragPos3D.x < minX) {
+                        // z axis
+                        color.xyz = zAxisColor.xyz;
+                    } else if (fragPos3D.z > -minZ && fragPos3D.z < minZ) {
+                        // x axis
+                        color.xyz = xAxisColor.xyz;
+                    } else {
+                        vec3 viewDir = fragPos3D - fyrox_cameraPosition;
+                        // This helps to negate moire pattern at large distances.
+                        float cosAngle = abs(dot(vec3(0.0, 1.0, 0.0), normalize(viewDir)));
+                        color.a *= cosAngle;
                     }
 
                     return color;
@@ -117,16 +135,8 @@
                     float depth = computeDepth(fragPos3D);
                     gl_FragDepth = ((gl_DepthRange.diff * depth) + gl_DepthRange.near + gl_DepthRange.far) / 2.0;
 
-                    const float depthLimit = 0.9885;
-                    float fading;
-                    if (depth >= depthLimit) {
-                        fading = 1.0 - (depth - depthLimit) / (1.0 - depthLimit);
-                    } else {
-                        fading = 1.0;
-                    }
-
                     FragColor = grid(fragPos3D, 1.0);
-                    FragColor.a *= fading * float(t > 0);
+                    FragColor.a *= float(t > 0);
                 }
                "#,
         ),
