@@ -91,12 +91,12 @@
                     vec4 color = vec4(0.2, 0.2, 0.2, 1.0 - min(line, 1.0));
 
                     // z axis
-                    if (fragPos3D.x > -0.1 * minimumx && fragPos3D.x < 0.1 * minimumx) {
+                    if (fragPos3D.x > -minimumx && fragPos3D.x < minimumx) {
                         color.z = 1.0;
                     }
 
                     // x axis
-                    if (fragPos3D.z > -0.1 * minimumz && fragPos3D.z < 0.1 * minimumz) {
+                    if (fragPos3D.z > -minimumz && fragPos3D.z < minimumz) {
                         color.x = 1.0;
                     }
 
@@ -108,25 +108,22 @@
                     return (clip_space_pos.z / clip_space_pos.w);
                 }
 
-                float computeLinearDepth(vec3 pos) {
-                    vec4 clip_space_pos = fyrox_viewProjectionMatrix * vec4(pos.xyz, 1.0);
-                    float clip_space_depth = (clip_space_pos.z / clip_space_pos.w) * 2.0 - 1.0;
-                    float denom = (fyrox_zFar + fyrox_zNear - clip_space_depth * (fyrox_zFar - fyrox_zNear));
-                    float linearDepth = (2.0 * fyrox_zNear * fyrox_zFar) / max(denom, 0.00001);
-                    return linearDepth / fyrox_zFar;
-                }
-
                 void main()
                 {
                     float t = -nearPoint.y / (farPoint.y - nearPoint.y);
 
                     vec3 fragPos3D = nearPoint + t * (farPoint - nearPoint);
 
-                    gl_FragDepth = ((gl_DepthRange.diff * computeDepth(fragPos3D)) +
-                                    gl_DepthRange.near + gl_DepthRange.far) / 2.0;
+                    float depth = computeDepth(fragPos3D);
+                    gl_FragDepth = ((gl_DepthRange.diff * depth) + gl_DepthRange.near + gl_DepthRange.far) / 2.0;
 
-                    float linearDepth = computeLinearDepth(fragPos3D);
-                    float fading = max(0, (0.25 - linearDepth));
+                    const float depthLimit = 0.9885;
+                    float fading;
+                    if (depth >= depthLimit) {
+                        fading = 1.0 - (depth - depthLimit) / (1.0 - depthLimit);
+                    } else {
+                        fading = 1.0;
+                    }
 
                     FragColor = grid(fragPos3D, 1.0);
                     FragColor.a *= fading * float(t > 0);
