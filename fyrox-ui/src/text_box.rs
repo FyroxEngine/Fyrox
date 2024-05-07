@@ -474,7 +474,7 @@ impl TextBox {
         let mut str: String = str
             .chars()
             .map(|c| if c == '\n' { ' ' } else { c })
-            .filter(|c| c.is_control())
+            .filter(|c| !c.is_control())
             .collect();
         if let Some(filter) = self.filter.as_ref() {
             let filter = &mut *filter.lock();
