@@ -108,10 +108,14 @@ impl GridSnappingMenu {
                                 .build(ctx),
                         )
                         .with_child({
-                            enabled =
-                                CheckBoxBuilder::new(WidgetBuilder::new().on_row(0).on_column(1))
-                                    .checked(Some(settings.move_mode_settings.grid_snapping))
-                                    .build(ctx);
+                            enabled = CheckBoxBuilder::new(
+                                WidgetBuilder::new()
+                                    .on_row(0)
+                                    .on_column(1)
+                                    .with_tab_index(Some(0)),
+                            )
+                            .checked(Some(settings.move_mode_settings.grid_snapping))
+                            .build(ctx);
                             enabled
                         })
                         .with_child(
@@ -121,7 +125,10 @@ impl GridSnappingMenu {
                         )
                         .with_child({
                             x_step = NumericUpDownBuilder::<f32>::new(
-                                WidgetBuilder::new().on_row(1).on_column(1),
+                                WidgetBuilder::new()
+                                    .on_row(1)
+                                    .on_column(1)
+                                    .with_tab_index(Some(1)),
                             )
                             .with_value(settings.move_mode_settings.x_snap_step)
                             .build(ctx);
@@ -134,7 +141,10 @@ impl GridSnappingMenu {
                         )
                         .with_child({
                             y_step = NumericUpDownBuilder::<f32>::new(
-                                WidgetBuilder::new().on_row(2).on_column(1),
+                                WidgetBuilder::new()
+                                    .on_row(2)
+                                    .on_column(1)
+                                    .with_tab_index(Some(2)),
                             )
                             .with_value(settings.move_mode_settings.y_snap_step)
                             .build(ctx);
@@ -147,7 +157,10 @@ impl GridSnappingMenu {
                         )
                         .with_child({
                             z_step = NumericUpDownBuilder::<f32>::new(
-                                WidgetBuilder::new().on_row(3).on_column(1),
+                                WidgetBuilder::new()
+                                    .on_row(3)
+                                    .on_column(1)
+                                    .with_tab_index(Some(3)),
                             )
                             .with_value(settings.move_mode_settings.z_snap_step)
                             .build(ctx);
