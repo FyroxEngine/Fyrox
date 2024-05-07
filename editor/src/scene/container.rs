@@ -47,7 +47,7 @@ impl EditorSceneEntry {
         scene: Scene,
         path: Option<PathBuf>,
         engine: &mut Engine,
-        settings: &Settings,
+        settings: &mut Settings,
         message_sender: MessageSender,
         scene_viewer: &SceneViewer,
         highlighter: Option<Rc<RefCell<HighlightRenderPass>>>,

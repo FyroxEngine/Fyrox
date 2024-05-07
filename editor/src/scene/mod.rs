@@ -72,13 +72,23 @@ use crate::{
         controller::SceneController,
         selector::HierarchyNode,
     },
-    settings::keys::KeyBindings,
+    settings::{keys::KeyBindings, SettingsMessage},
     ui_scene::selection::UiSelection,
     world::graph::selection::GraphSelection,
     Message, Settings,
 };
 use std::{
-    any::Any, cell::RefCell, fmt::Debug, fs::File, io::Write, path::Path, rc::Rc, sync::Arc,
+    any::Any,
+    cell::RefCell,
+    fmt::Debug,
+    fs::File,
+    io::Write,
+    path::Path,
+    rc::Rc,
+    sync::{
+        mpsc::{self, Receiver},
+        Arc,
+    },
 };
 
 pub mod clipboard;
@@ -114,6 +124,7 @@ pub struct GameScene {
     pub resource_manager: ResourceManager,
     pub serialization_context: Arc<SerializationContext>,
     pub grid: Handle<Node>,
+    pub settings_receiver: Receiver<SettingsMessage>,
 }
 
 lazy_static! {
@@ -136,7 +147,7 @@ impl GameScene {
         mut scene: Scene,
         engine: &mut Engine,
         path: Option<&Path>,
-        settings: &Settings,
+        settings: &mut Settings,
         sender: MessageSender,
         highlighter: Option<Rc<RefCell<HighlightRenderPass>>>,
     ) -> Self {
@@ -163,6 +174,9 @@ impl GameScene {
         .with_render_path(RenderPath::Forward)
         .build(&mut scene.graph);
         scene.graph.link_nodes(grid, editor_objects_root);
+
+        let (settings_sender, settings_receiver) = mpsc::channel();
+        settings.subscribers.push(settings_sender);
 
         let camera_controller = CameraController::new(
             &mut scene.graph,
@@ -201,6 +215,7 @@ impl GameScene {
             resource_manager: engine.resource_manager.clone(),
             serialization_context: engine.serialization_context.clone(),
             grid,
+            settings_receiver,
         }
     }
 
@@ -849,6 +864,14 @@ impl SceneController for GameScene {
         self.draw_auxiliary_geometry(editor_selection, engine, settings);
 
         let scene = &mut engine.scenes[self.scene];
+
+        for message in self.settings_receiver.try_iter() {
+            match message {
+                SettingsMessage::Changed => {
+                    scene.graph[self.grid].set_visibility(settings.graphics.draw_grid);
+                }
+            }
+        }
 
         // Create new render target if preview frame has changed its size.
         let mut new_render_target = None;
