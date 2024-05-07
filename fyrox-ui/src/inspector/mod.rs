@@ -1000,7 +1000,11 @@ impl InspectorContext {
         });
 
         if layer_index == 0 {
-            assign_tab_indices(self.stack_panel, ui);
+            // The stack panel could not exist, if the inspector context was invalidated. This
+            // happens when the context is discarded by the inspector widget.
+            if ui.is_valid_handle(self.stack_panel) {
+                assign_tab_indices(self.stack_panel, ui);
+            }
         }
 
         if sync_errors.is_empty() {
