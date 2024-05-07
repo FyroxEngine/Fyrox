@@ -137,6 +137,11 @@
 
                     FragColor = grid(fragPos3D, 1.0);
                     FragColor.a *= float(t > 0);
+
+                    // Alpha test to prevent blending issues.
+                    if (FragColor.a < 0.1) {
+                        discard;
+                    }
                 }
                "#,
         ),
