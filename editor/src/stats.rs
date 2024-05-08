@@ -78,7 +78,13 @@ impl StatisticsWindow {
     pub fn update(&self, current_scene: Handle<Scene>, engine: &Engine) {
         if let GraphicsContext::Initialized(ref graphics_context) = engine.graphics_context {
             if let Some(stats) = graphics_context.renderer.scene_data_map.get(&current_scene) {
-                let statistics = stats.statistics.to_string();
+                let global_stats = graphics_context.renderer.get_statistics();
+                let statistics = format!(
+                    "FPS: {}\nFrame Time:{}\n{}",
+                    global_stats.frames_per_second,
+                    global_stats.pure_frame_time,
+                    stats.statistics.to_string()
+                );
                 engine
                     .user_interfaces
                     .first()
