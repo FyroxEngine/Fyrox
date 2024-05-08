@@ -1058,6 +1058,12 @@ impl Graph {
         self.pool.handle_from_index(index)
     }
 
+    /// Generates a set of handles that could be used to spawn a set of nodes.
+    #[inline]
+    pub fn generate_free_handles(&self, amount: usize) -> Vec<Handle<Node>> {
+        self.pool.generate_free_handles(amount)
+    }
+
     /// Creates an iterator that has linear iteration order over internal collection
     /// of nodes. It does *not* perform any tree traversal!
     #[inline]
