@@ -1,26 +1,26 @@
-use crate::command::{Command, CommandGroup};
-use crate::fyrox::graph::BaseSceneGraph;
-use crate::fyrox::{
-    asset::untyped::UntypedResource,
-    core::{algebra::Vector2, pool::Handle, reflect::Reflect, scope_profile},
-    gui::{
-        file_browser::FileSelectorMessage,
-        menu::{MenuItemBuilder, MenuItemContent, MenuItemMessage},
-        message::UiMessage,
-        popup::{Placement, PopupBuilder, PopupMessage},
-        stack_panel::StackPanelBuilder,
-        widget::{WidgetBuilder, WidgetMessage},
-        window::WindowMessage,
-        BuildContext, RcUiNodeHandle, UiNode,
-    },
-};
 use crate::{
+    command::{Command, CommandGroup},
+    fyrox::{
+        asset::untyped::UntypedResource,
+        core::{algebra::Vector2, pool::Handle, reflect::Reflect, scope_profile},
+        graph::BaseSceneGraph,
+        gui::{
+            file_browser::FileSelectorMessage,
+            menu::{ContextMenuBuilder, MenuItemBuilder, MenuItemContent, MenuItemMessage},
+            message::UiMessage,
+            popup::{Placement, PopupBuilder, PopupMessage},
+            stack_panel::StackPanelBuilder,
+            widget::{WidgetBuilder, WidgetMessage},
+            window::WindowMessage,
+            BuildContext, RcUiNodeHandle, UiNode,
+        },
+    },
     make_save_file_selector,
     menu::{create::CreateEntityMenu, create_menu_item, create_menu_item_shortcut},
     message::MessageSender,
     scene::{
         commands::{
-            graph::{AddNodeCommand, ReplaceNodeCommand, SetGraphRootCommand},
+            graph::{AddNodeCommand, LinkNodesCommand, ReplaceNodeCommand, SetGraphRootCommand},
             make_delete_selection_command, RevertSceneNodePropertyCommand,
         },
         controller::SceneController,
@@ -31,14 +31,14 @@ use crate::{
     world::WorldViewerItemContextMenu,
     Engine, Message, MessageDirection, PasteCommand,
 };
-use fyrox::gui::menu::ContextMenuBuilder;
 use std::{any::TypeId, path::PathBuf};
 
 pub struct SceneNodeContextMenu {
     menu: RcUiNodeHandle,
     delete_selection: Handle<UiNode>,
     copy_selection: Handle<UiNode>,
-    create_entity_menu: CreateEntityMenu,
+    create_child_entity_menu: CreateEntityMenu,
+    create_parent_entity_menu: CreateEntityMenu,
     replace_with_menu: CreateEntityMenu,
     placement_target: Handle<UiNode>,
     save_as_prefab: Handle<UiNode>,
@@ -81,7 +81,10 @@ impl SceneNodeContextMenu {
         let open_asset;
         let reset_inheritable_properties;
 
-        let (create_entity_menu, create_entity_menu_root_items) = CreateEntityMenu::new(ctx);
+        let (create_child_entity_menu, create_child_entity_menu_root_items) =
+            CreateEntityMenu::new(ctx);
+        let (create_parent_entity_menu, create_parent_entity_menu_root_items) =
+            CreateEntityMenu::new(ctx);
         let (replace_with_menu, replace_with_menu_root_items) = CreateEntityMenu::new(ctx);
 
         let menu = ContextMenuBuilder::new(
@@ -110,8 +113,16 @@ impl SceneNodeContextMenu {
                             MenuItemBuilder::new(
                                 WidgetBuilder::new().with_min_size(Vector2::new(120.0, 22.0)),
                             )
+                            .with_content(MenuItemContent::text("Create Parent"))
+                            .with_items(create_parent_entity_menu_root_items)
+                            .build(ctx),
+                        )
+                        .with_child(
+                            MenuItemBuilder::new(
+                                WidgetBuilder::new().with_min_size(Vector2::new(120.0, 22.0)),
+                            )
                             .with_content(MenuItemContent::text("Create Child"))
-                            .with_items(create_entity_menu_root_items)
+                            .with_items(create_child_entity_menu_root_items)
                             .build(ctx),
                         )
                         .with_child({
@@ -146,7 +157,7 @@ impl SceneNodeContextMenu {
         let save_as_prefab_dialog = make_save_file_selector(ctx, PathBuf::from("unnamed.rgs"));
 
         Self {
-            create_entity_menu,
+            create_child_entity_menu,
             menu,
             delete_selection,
             copy_selection,
@@ -158,6 +169,7 @@ impl SceneNodeContextMenu {
             make_root,
             open_asset,
             reset_inheritable_properties,
+            create_parent_entity_menu,
         }
     }
 
@@ -172,13 +184,42 @@ impl SceneNodeContextMenu {
     ) {
         scope_profile!();
 
-        if let Some(node) =
-            self.create_entity_menu
-                .handle_ui_message(message, sender, controller, editor_selection)
-        {
+        if let Some(node) = self.create_child_entity_menu.handle_ui_message(
+            message,
+            sender,
+            controller,
+            editor_selection,
+        ) {
             if let Some(graph_selection) = editor_selection.as_graph() {
                 if let Some(first) = graph_selection.nodes().first() {
                     sender.do_command(AddNodeCommand::new(node, *first, true));
+                }
+            }
+        } else if let Some(node) = self.create_parent_entity_menu.handle_ui_message(
+            message,
+            sender,
+            controller,
+            editor_selection,
+        ) {
+            if let Some(graph_selection) = editor_selection.as_graph() {
+                if let Some(first) = graph_selection.nodes().first() {
+                    if let Some(game_scene) = controller.downcast_ref::<GameScene>() {
+                        let scene = &engine.scenes[game_scene.scene];
+
+                        let first_ref = &scene.graph[*first];
+                        let parent = if first_ref.parent().is_some() {
+                            first_ref.parent()
+                        } else {
+                            game_scene.scene_content_root
+                        };
+
+                        let new_parent_handle = scene.graph.generate_free_handles(1)[0];
+                        let commands = CommandGroup::from(vec![
+                            Command::new(AddNodeCommand::new(node, parent, true)),
+                            Command::new(LinkNodesCommand::new(*first, new_parent_handle)),
+                        ]);
+                        sender.do_command(commands);
+                    }
                 }
             }
         } else if let Some(replacement) =

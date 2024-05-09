@@ -1567,6 +1567,7 @@ impl Editor {
                 &current_scene_entry.selection,
                 &*current_scene_entry.controller,
                 engine,
+                &self.message_sender,
             );
 
             if let Some(game_scene) = current_scene_entry.controller.downcast_mut::<GameScene>() {
@@ -2271,14 +2272,6 @@ impl Editor {
                     .handle_message(&message, &self.message_sender);
 
                 if let Some(entry) = self.scenes.current_scene_entry_mut() {
-                    self.inspector.handle_message(
-                        &message,
-                        &entry.selection,
-                        &*entry.controller,
-                        &mut self.engine,
-                        &self.message_sender,
-                    );
-
                     if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
                         self.particle_system_control_panel.handle_message(
                             &message,

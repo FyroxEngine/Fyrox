@@ -75,14 +75,10 @@ pub struct Inspector {
     pub property_editors: Arc<PropertyEditorDefinitionContainer>,
     pub(crate) window: Handle<UiNode>,
     inspector: Handle<UiNode>,
-    // Hack. This flag tells whether the inspector should sync with model or not.
-    // There is only one situation when it has to be `false` - when inspector has
-    // got new context - in this case we don't need to sync with model, because
-    // inspector is already in correct state.
-    needs_sync: bool,
     warning_text: Handle<UiNode>,
     type_name_text: Handle<UiNode>,
     docs_button: Handle<UiNode>,
+    old_selection: Selection,
 }
 
 #[macro_export]
@@ -250,10 +246,10 @@ impl Inspector {
             window,
             inspector,
             property_editors,
-            needs_sync: true,
             warning_text,
             type_name_text,
             docs_button,
+            old_selection: Default::default(),
         }
     }
 
@@ -280,15 +276,48 @@ impl Inspector {
         editor_selection: &Selection,
         controller: &dyn SceneController,
         engine: &mut Engine,
+        sender: &MessageSender,
     ) {
-        if self.needs_sync {
-            if editor_selection.is_single_selection() {
+        if &self.old_selection == editor_selection {
+            if !editor_selection.is_empty() {
                 controller.first_selected_entity(editor_selection, &engine.scenes, &mut |entity| {
                     self.sync_to(entity, engine.user_interfaces.first_mut());
                 });
+            } else if editor_selection.is_empty() {
+                self.clear(engine.user_interfaces.first());
             }
         } else {
-            self.needs_sync = true;
+            engine
+                .user_interfaces
+                .first_mut()
+                .send_message(WidgetMessage::visibility(
+                    self.warning_text,
+                    MessageDirection::ToWidget,
+                    editor_selection.len() > 1,
+                ));
+
+            // `first_selected_entity` is not guaranteed to call its callback.
+            // This flag allows us to determine whether an entity was found by first_selected_entity.
+            let mut found_entity = false;
+            let available_animations =
+                fetch_available_animations(editor_selection, controller, engine);
+            controller.first_selected_entity(editor_selection, &engine.scenes, &mut |entity| {
+                found_entity = true;
+                self.change_context(
+                    entity,
+                    engine.user_interfaces.first_mut(),
+                    engine.resource_manager.clone(),
+                    engine.serialization_context.clone(),
+                    &available_animations,
+                    sender,
+                )
+            });
+            // If `first_selected_entity` found no entity, then clear this inspector.
+            if !found_entity {
+                self.clear(engine.user_interfaces.first());
+            }
+
+            self.old_selection = editor_selection.clone();
         }
     }
 
@@ -319,8 +348,6 @@ impl Inspector {
             Default::default(),
         );
 
-        self.needs_sync = false;
-
         ui.send_message(InspectorMessage::context(
             self.inspector,
             MessageDirection::ToWidget,
@@ -335,48 +362,6 @@ impl Inspector {
                 format!("Type Name: {}", obj.type_name()),
             ),
         );
-    }
-
-    pub fn handle_message(
-        &mut self,
-        message: &Message,
-        editor_selection: &Selection,
-        controller: &dyn SceneController,
-        engine: &mut Engine,
-        sender: &MessageSender,
-    ) {
-        if let Message::SelectionChanged { .. } = message {
-            engine
-                .user_interfaces
-                .first_mut()
-                .send_message(WidgetMessage::visibility(
-                    self.warning_text,
-                    MessageDirection::ToWidget,
-                    editor_selection.len() > 1,
-                ));
-
-            // There is no guarantee that the callback passed to `first_selected_entity` will be called,
-            // depending on the selection. This flag will let us know if the callback was actually called.
-            let mut found_entity = false;
-            let available_animations =
-                fetch_available_animations(editor_selection, controller, engine);
-            controller.first_selected_entity(editor_selection, &engine.scenes, &mut |entity| {
-                // Remember that the callback was called.
-                found_entity = true;
-                self.change_context(
-                    entity,
-                    engine.user_interfaces.first_mut(),
-                    engine.resource_manager.clone(),
-                    engine.serialization_context.clone(),
-                    &available_animations,
-                    sender,
-                )
-            });
-            // If the callback was not called, there is nothing for the inspector to show, so clear it.
-            if !found_entity {
-                self.clear(engine.user_interfaces.first());
-            }
-        }
     }
 
     pub fn clear(&self, ui: &UserInterface) {
