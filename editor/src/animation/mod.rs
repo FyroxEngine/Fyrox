@@ -58,6 +58,8 @@ struct PreviewModeData<N: 'static> {
 
 pub struct AnimationEditor {
     pub window: Handle<UiNode>,
+    animation_player: ErasedHandle,
+    animation: ErasedHandle,
     track_list: TrackList,
     curve_editor: Handle<UiNode>,
     toolbar: Toolbar,
@@ -67,7 +69,40 @@ pub struct AnimationEditor {
     thumb: Handle<UiNode>,
 }
 
-fn fetch_selection<N>(editor_selection: &Selection) -> AnimationSelection<N> {
+fn fetch_selection<G, N>(
+    editor: &mut AnimationEditor,
+    graph: &G,
+    editor_selection: &Selection,
+) -> AnimationSelection<N>
+where
+    G: SceneGraph<Node = N>,
+    N: SceneGraphNode<SceneGraph = G>,
+{
+    let mut sel = inner_fetch_selection(editor_selection);
+    if animation_container_ref(graph, sel.animation_player).is_none() {
+        sel.animation_player = Handle::NONE;
+    }
+    if sel.animation_player.is_none() {
+        sel.animation_player = editor.animation_player.into();
+        sel.animation = editor.animation.into();
+    } else if ErasedHandle::from(sel.animation_player) == editor.animation_player {
+        if sel.animation.is_none() {
+            sel.animation = editor.animation.into();
+        } else {
+            editor.animation = sel.animation.into();
+        }
+    } else {
+        editor.animation_player = sel.animation_player.into();
+        editor.animation = sel.animation.into();
+    }
+    if !graph.is_valid_handle(sel.animation_player) {
+        sel.animation_player = Handle::NONE;
+        sel.animation = Handle::NONE;
+    }
+    sel
+}
+
+fn inner_fetch_selection<N>(editor_selection: &Selection) -> AnimationSelection<N> {
     if let Some(selection) = editor_selection.as_animation() {
         // Some selection in an animation.
         AnimationSelection {
@@ -219,6 +254,8 @@ impl AnimationEditor {
 
         Self {
             window,
+            animation_player: ErasedHandle::none(),
+            animation: ErasedHandle::none(),
             track_list,
             curve_editor,
             toolbar,
@@ -253,7 +290,7 @@ impl AnimationEditor {
         G: SceneGraph<Node = N, Prefab = P>,
         N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
     {
-        let selection = fetch_selection(editor_selection);
+        let selection = fetch_selection(self, graph, editor_selection);
 
         if let Some(container) = animation_container_ref(graph, selection.animation_player) {
             let toolbar_action = self.toolbar.handle_ui_message(
@@ -587,7 +624,7 @@ impl AnimationEditor {
         G: SceneGraph<Node = N>,
         N: SceneGraphNode<SceneGraph = G>,
     {
-        let selection = fetch_selection(editor_selection);
+        let selection = fetch_selection(self, graph, editor_selection);
 
         if let Some(container) = animation_container_ref(graph, selection.animation_player) {
             if let Some(animation) = container.try_get(selection.animation) {
@@ -609,7 +646,7 @@ impl AnimationEditor {
         G: SceneGraph<Node = N>,
         N: SceneGraphNode<SceneGraph = G>,
     {
-        let selection = fetch_selection(editor_selection);
+        let selection = fetch_selection(self, graph, editor_selection);
 
         let mut is_animation_player_selected = false;
         let mut is_animation_selected = false;
@@ -710,6 +747,23 @@ impl AnimationEditor {
                         _ => (),
                     }
                 }
+                let mut background_curves = Vec::<Curve>::new();
+                for track in animation.tracks() {
+                    for curve in track.data_container().curves_ref() {
+                        if !selected_curves.iter().any(|(_, c)| c.id == curve.id) {
+                            background_curves.push(curve.clone());
+                        }
+                    }
+                }
+
+                send_sync_message(
+                    ui,
+                    CurveEditorMessage::sync_background(
+                        self.curve_editor,
+                        MessageDirection::ToWidget,
+                        background_curves,
+                    ),
+                );
 
                 if !selected_curves.is_empty() {
                     let color_map = selected_curves
@@ -810,7 +864,7 @@ impl AnimationEditor {
             WidgetMessage::enabled(
                 self.curve_editor,
                 MessageDirection::ToWidget,
-                is_curve_selected,
+                is_animation_selected,
             ),
         );
     }

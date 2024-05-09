@@ -15,25 +15,27 @@ pub mod doc;
 pub mod path_fixer;
 pub mod ragdoll;
 
+/// True if `a` and `b` have the same length, and every element of `a` is equal to some element of `b`
+/// and every element of `b` is equal to some element of `a`.
 pub fn is_slice_equal_permutation<T: PartialEq>(a: &[T], b: &[T]) -> bool {
-    if a.is_empty() && !b.is_empty() {
-        false
-    } else {
-        // TODO: Find a way to do this faster.
-        for source in a.iter() {
-            let mut found = false;
-            for other in b.iter() {
-                if other == source {
-                    found = true;
-                    break;
-                }
-            }
-            if !found {
-                return false;
+    a.len() == b.len() && is_slice_subset_permutation(a, b) && is_slice_subset_permutation(b, a)
+}
+
+/// True if every elmenet of `a` is equal to some element of `b`.
+pub fn is_slice_subset_permutation<T: PartialEq>(a: &[T], b: &[T]) -> bool {
+    for source in a.iter() {
+        let mut found = false;
+        for other in b.iter() {
+            if other == source {
+                found = true;
+                break;
             }
         }
-        true
+        if !found {
+            return false;
+        }
     }
+    true
 }
 
 pub fn window_content(window: Handle<UiNode>, ui: &UserInterface) -> Handle<UiNode> {
@@ -130,4 +132,39 @@ pub fn is_native_scene(path: &Path) -> bool {
         }
     }
     false
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_subset() {
+        assert!(is_slice_subset_permutation(&[], &[1, 2, 3]));
+    }
+    #[test]
+    fn subset() {
+        assert!(is_slice_subset_permutation(&[2, 3], &[1, 2, 3]));
+    }
+    #[test]
+    fn not_subset() {
+        assert!(!is_slice_subset_permutation(&[1, 2, 3], &[1, 2]));
+    }
+    #[test]
+    fn not_empty() {
+        assert!(!is_slice_subset_permutation(&[1, 2], &[]));
+    }
+    #[test]
+    fn equal() {
+        assert!(is_slice_equal_permutation(&[1, 2], &[1, 2]));
+        assert!(is_slice_equal_permutation(&[1, 2], &[2, 1]));
+    }
+    #[test]
+    fn not_equal() {
+        assert!(!is_slice_equal_permutation(&[1, 2], &[1]));
+        assert!(!is_slice_equal_permutation(&[1], &[2, 1]));
+        assert!(!is_slice_equal_permutation(&[1, 2], &[2, 3]));
+        assert!(!is_slice_equal_permutation(&[1, 1], &[1, 2]));
+        assert!(!is_slice_equal_permutation(&[1, 2], &[2, 2]));
+    }
 }

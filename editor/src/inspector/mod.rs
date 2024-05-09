@@ -296,20 +296,24 @@ impl Inspector {
                     editor_selection.len() > 1,
                 ));
 
-            if !editor_selection.is_empty() {
-                let available_animations =
-                    fetch_available_animations(editor_selection, controller, engine);
-                controller.first_selected_entity(editor_selection, &engine.scenes, &mut |entity| {
-                    self.change_context(
-                        entity,
-                        engine.user_interfaces.first_mut(),
-                        engine.resource_manager.clone(),
-                        engine.serialization_context.clone(),
-                        &available_animations,
-                        sender,
-                    )
-                });
-            } else {
+            // `first_selected_entity` is not guaranteed to call its callback.
+            // This flag allows us to determine whether an entity was found by first_selected_entity.
+            let mut found_entity = false;
+            let available_animations =
+                fetch_available_animations(editor_selection, controller, engine);
+            controller.first_selected_entity(editor_selection, &engine.scenes, &mut |entity| {
+                found_entity = true;
+                self.change_context(
+                    entity,
+                    engine.user_interfaces.first_mut(),
+                    engine.resource_manager.clone(),
+                    engine.serialization_context.clone(),
+                    &available_animations,
+                    sender,
+                )
+            });
+            // If `first_selected_entity` found no entity, then clear this inspector.
+            if !found_entity {
                 self.clear(engine.user_interfaces.first());
             }
 
