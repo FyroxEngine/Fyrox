@@ -1060,17 +1060,24 @@ impl SceneController for GameScene {
                 (callback)(effect as &dyn Reflect);
             }
         } else if let Some(selection) = selection.as_animation() {
-            if let Some(animation) = scene
+            if let Some(player) = scene
                 .graph
                 .try_get_of_type::<AnimationPlayer>(selection.animation_player)
-                .and_then(|player| player.animations().try_get(selection.animation))
             {
-                if let Some(animation::selection::SelectedEntity::Signal(id)) =
-                    selection.entities.first()
-                {
-                    if let Some(signal) = animation.signals().iter().find(|s| s.id == *id) {
-                        (callback)(signal as &dyn Reflect);
+                if let Some(animation) = player.animations().try_get(selection.animation) {
+                    if let Some(animation::selection::SelectedEntity::Signal(id)) =
+                        selection.entities.first()
+                    {
+                        if let Some(signal) = animation.signals().iter().find(|s| s.id == *id) {
+                            (callback)(signal as &dyn Reflect);
+                        } else {
+                            (callback)(player as &dyn Reflect);
+                        }
+                    } else {
+                        (callback)(player as &dyn Reflect);
                     }
+                } else {
+                    (callback)(player as &dyn Reflect);
                 }
             }
         } else if let Some(selection) = selection.as_absm() {
@@ -1331,7 +1338,7 @@ impl PartialEq for Selection {
         if let (Some(this), Some(other)) = (self.0.as_ref(), other.0.as_ref()) {
             this.eq_ref(&**other)
         } else {
-            false
+            matches!((&self.0, &other.0), (None, None))
         }
     }
 }

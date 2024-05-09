@@ -43,6 +43,7 @@ pub mod key;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum CurveEditorMessage {
+    SyncBackground(Vec<Curve>),
     Sync(Vec<Curve>),
     Colorize(Vec<(Uuid, Brush)>),
     ViewPosition(Vector2<f32>),
@@ -66,6 +67,7 @@ pub enum CurveEditorMessage {
 }
 
 impl CurveEditorMessage {
+    define_constructor!(CurveEditorMessage:SyncBackground => fn sync_background(Vec<Curve>), layout: false);
     define_constructor!(CurveEditorMessage:Sync => fn sync(Vec<Curve>), layout: false);
     define_constructor!(CurveEditorMessage:Colorize => fn colorize(Vec<(Uuid, Brush)>), layout: false);
     define_constructor!(CurveEditorMessage:ViewPosition => fn view_position(Vector2<f32>), layout: false);
@@ -395,6 +397,7 @@ impl CurvesContainer {
 #[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
 pub struct CurveEditor {
     widget: Widget,
+    background_curves: CurvesContainer,
     curves: CurvesContainer,
     #[visit(skip)]
     #[reflect(hidden)]
@@ -513,7 +516,8 @@ impl Control for CurveEditor {
         self.draw_background(ctx);
         self.draw_highlight_zones(ctx);
         self.draw_grid(ctx);
-        self.draw_curves(ctx);
+        self.draw_curves(&self.background_curves, ctx);
+        self.draw_curves(&self.curves, ctx);
         self.draw_keys(ctx);
         self.draw_operation(ctx);
         ctx.transform_stack.pop();
@@ -812,6 +816,9 @@ impl Control for CurveEditor {
                     && message.direction() == MessageDirection::ToWidget
                 {
                     match msg {
+                        CurveEditorMessage::SyncBackground(curves) => {
+                            self.background_curves = CurvesContainer::from_native(curves);
+                        }
                         CurveEditorMessage::Sync(curves) => {
                             let color_map = self
                                 .curves
@@ -1384,10 +1391,10 @@ impl CurveEditor {
         }
     }
 
-    fn draw_curves(&self, ctx: &mut DrawingContext) {
+    fn draw_curves(&self, curves: &CurvesContainer, ctx: &mut DrawingContext) {
         let screen_bounds = self.screen_bounds();
 
-        for curve in self.curves.iter() {
+        for curve in curves.iter() {
             let draw_keys = curve.keys();
 
             if let Some(first) = draw_keys.first() {
@@ -1598,6 +1605,7 @@ impl CurveEditor {
 
 pub struct CurveEditorBuilder {
     widget_builder: WidgetBuilder,
+    background_curves: Vec<Curve>,
     curves: Vec<Curve>,
     view_position: Vector2<f32>,
     zoom: f32,
@@ -1614,6 +1622,7 @@ impl CurveEditorBuilder {
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
+            background_curves: Default::default(),
             curves: Default::default(),
             view_position: Default::default(),
             zoom: 1.0,
@@ -1625,6 +1634,11 @@ impl CurveEditorBuilder {
             max_zoom: Vector2::new(1000.0, 1000.0),
             highlight_zones: Default::default(),
         }
+    }
+
+    pub fn with_background_curves(mut self, curves: Vec<Curve>) -> Self {
+        self.background_curves = curves;
+        self
     }
 
     pub fn with_curves(mut self, curves: Vec<Curve>) -> Self {
@@ -1679,6 +1693,7 @@ impl CurveEditorBuilder {
     }
 
     pub fn build(mut self, ctx: &mut BuildContext) -> Handle<UiNode> {
+        let background_curves = CurvesContainer::from_native(&self.curves);
         let curves = CurvesContainer::from_native(&self.curves);
 
         let add_key;
@@ -1811,6 +1826,7 @@ impl CurveEditorBuilder {
                 .with_preview_messages(true)
                 .with_need_update(true)
                 .build(),
+            background_curves,
             curves,
             curve_transform: Default::default(),
             key_brush: Brush::Solid(Color::opaque(140, 140, 140)),

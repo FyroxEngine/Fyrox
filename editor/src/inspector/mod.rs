@@ -355,20 +355,25 @@ impl Inspector {
                     editor_selection.len() > 1,
                 ));
 
-            if !editor_selection.is_empty() {
-                let available_animations =
-                    fetch_available_animations(editor_selection, controller, engine);
-                controller.first_selected_entity(editor_selection, &engine.scenes, &mut |entity| {
-                    self.change_context(
-                        entity,
-                        engine.user_interfaces.first_mut(),
-                        engine.resource_manager.clone(),
-                        engine.serialization_context.clone(),
-                        &available_animations,
-                        sender,
-                    )
-                });
-            } else {
+            // There is no guarantee that the callback passed to `first_selected_entity` will be called,
+            // depending on the selection. This flag will let us know if the callback was actually called.
+            let mut found_entity = false;
+            let available_animations =
+                fetch_available_animations(editor_selection, controller, engine);
+            controller.first_selected_entity(editor_selection, &engine.scenes, &mut |entity| {
+                // Remember that the callback was called.
+                found_entity = true;
+                self.change_context(
+                    entity,
+                    engine.user_interfaces.first_mut(),
+                    engine.resource_manager.clone(),
+                    engine.serialization_context.clone(),
+                    &available_animations,
+                    sender,
+                )
+            });
+            // If the callback was not called, there is nothing for the inspector to show, so clear it.
+            if !found_entity {
                 self.clear(engine.user_interfaces.first());
             }
         }
