@@ -139,7 +139,7 @@
                     FragColor.a *= float(t > 0);
 
                     // Alpha test to prevent blending issues.
-                    if (FragColor.a < 0.1) {
+                    if (FragColor.a < 0.01) {
                         discard;
                     }
                 }
