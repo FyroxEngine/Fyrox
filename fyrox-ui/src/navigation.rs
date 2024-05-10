@@ -87,7 +87,7 @@ impl Control for NavigationLayer {
                 for descendant in ui.traverse_handle_iter(child) {
                     let descendant_ref = ui.node(descendant);
 
-                    if !*descendant_ref.tab_stop {
+                    if !*descendant_ref.tab_stop && descendant_ref.is_globally_visible() {
                         if let Some(tab_index) = *descendant_ref.tab_index {
                             tab_list.push(OrderedHandle {
                                 tab_index,
