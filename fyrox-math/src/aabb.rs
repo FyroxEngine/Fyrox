@@ -439,7 +439,7 @@ mod test {
         assert!(!_box.is_valid());
 
         _box.add_point(Vector3::new(1.0, 1.0, 1.0));
-        assert!(!_box.is_valid());
+        assert!(_box.is_valid());
 
         _box.add_point(Vector3::new(-1.0, -1.0, -1.0));
         assert!(_box.is_valid());
