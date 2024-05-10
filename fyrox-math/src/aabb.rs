@@ -144,9 +144,9 @@ impl AxisAlignedBoundingBox {
             x.iter().all(|e| e.is_nan() || e.is_infinite())
         }
 
-        self.max.x > self.min.x
-            && self.max.y > self.min.y
-            && self.max.z > self.min.z
+        self.max.x >= self.min.x
+            && self.max.y >= self.min.y
+            && self.max.z >= self.min.z
             && !is_nan_or_inf(&self.min)
             && !is_nan_or_inf(&self.max)
     }
