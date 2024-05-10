@@ -187,7 +187,7 @@ impl CameraController {
         let mut aabb = AxisAlignedBoundingBox::default();
         for descendant in scene.graph.traverse_iter(handle) {
             let descendant_aabb = descendant.local_bounding_box();
-            if descendant_aabb.is_valid() {
+            if !descendant_aabb.is_invalid_or_degenerate() {
                 aabb.add_box(descendant_aabb.transform(&descendant.global_transform()))
             }
         }
