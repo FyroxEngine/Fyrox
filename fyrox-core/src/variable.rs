@@ -41,7 +41,7 @@ impl Debug for VariableFlags {
                 match flag {
                     VariableFlags::MODIFIED => write!(f, "MOD")?,
                     VariableFlags::NEED_SYNC => write!(f, "SYNC")?,
-                    _ => write!(f, "{:?}", flag)?,
+                    _ => {}
                 }
             }
             Ok(())
