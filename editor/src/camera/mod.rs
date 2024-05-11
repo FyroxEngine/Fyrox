@@ -73,7 +73,7 @@ pub struct CameraController {
     pub grid: Handle<Node>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct CameraPickResult {
     pub position: Vector3<f32>,
     pub node: Handle<Node>,
@@ -599,12 +599,18 @@ impl CameraController {
                 }
 
                 if handle != scene_content_root {
-                    let object_space_ray =
-                        ray.transform(node.global_transform().try_inverse().unwrap_or_default());
-
-                    let aabb = node.local_bounding_box();
+                    let aabb = if node.is_resource_instance_root() {
+                        let mut aabb = graph.aabb_of_descendants(handle, |_, _| true).unwrap();
+                        // Inflate the bounding box by a tiny amount to ensure that it will be
+                        // larger than any inner bounding boxes all the times.
+                        aabb.inflate(Vector3::repeat(10.0 * f32::EPSILON));
+                        aabb
+                    } else {
+                        node.local_bounding_box()
+                            .transform(&node.global_transform())
+                    };
                     // Do coarse, but fast, intersection test with bounding box first.
-                    if let Some(points) = object_space_ray.aabb_intersection_points(&aabb) {
+                    if let Some(points) = ray.aabb_intersection_points(&aabb) {
                         if has_hull(node) {
                             if let Some((closest_distance, position)) =
                                 precise_ray_test(node, &ray, ignore_back_faces)
@@ -618,8 +624,8 @@ impl CameraController {
                         } else if !only_meshes {
                             // Hull-less objects (light sources, cameras, etc.) can still be selected
                             // by coarse intersection test results.
-                            let da = points[0].metric_distance(&object_space_ray.origin);
-                            let db = points[1].metric_distance(&object_space_ray.origin);
+                            let da = points[0].metric_distance(&ray.origin);
+                            let db = points[1].metric_distance(&ray.origin);
                             let closest_distance = da.min(db);
                             context.pick_list.push(CameraPickResult {
                                 position: transform_vertex(
