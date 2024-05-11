@@ -1051,12 +1051,20 @@ impl SceneController for GameScene {
     ) {
         let scene = &scenes[self.scene];
         if let Some(selection) = selection.as_graph() {
-            if let Some(node) = scene.graph.try_get(selection.nodes()[0]) {
+            if let Some(node) = selection
+                .nodes
+                .first()
+                .and_then(|handle| scene.graph.try_get(*handle))
+            {
                 (callback)(node as &dyn Reflect);
             }
         } else if let Some(selection) = selection.as_audio_bus() {
             let state = scene.graph.sound_context.state();
-            if let Some(effect) = state.bus_graph_ref().try_get_bus_ref(selection.buses[0]) {
+            if let Some(effect) = selection
+                .buses
+                .first()
+                .and_then(|handle| state.bus_graph_ref().try_get_bus_ref(*handle))
+            {
                 (callback)(effect as &dyn Reflect);
             }
         } else if let Some(selection) = selection.as_animation() {
