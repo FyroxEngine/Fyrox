@@ -2,7 +2,7 @@ use crate::{
     command::{Command, CommandGroup},
     fyrox::{
         asset::untyped::UntypedResource,
-        core::{algebra::Vector2, pool::Handle, reflect::Reflect, scope_profile},
+        core::{algebra::Vector2, algebra::Vector3, pool::Handle, reflect::Reflect, scope_profile},
         graph::BaseSceneGraph,
         gui::{
             file_browser::FileSelectorMessage,
@@ -20,7 +20,10 @@ use crate::{
     message::MessageSender,
     scene::{
         commands::{
-            graph::{AddNodeCommand, LinkNodesCommand, ReplaceNodeCommand, SetGraphRootCommand},
+            graph::{
+                AddNodeCommand, LinkNodesCommand, MoveNodeCommand, ReplaceNodeCommand,
+                SetGraphRootCommand,
+            },
             make_delete_selection_command, RevertSceneNodePropertyCommand,
         },
         controller::SceneController,
@@ -192,7 +195,23 @@ impl SceneNodeContextMenu {
         ) {
             if let Some(graph_selection) = editor_selection.as_graph() {
                 if let Some(first) = graph_selection.nodes().first() {
-                    sender.do_command(AddNodeCommand::new(node, *first, true));
+                    if let Some(game_scene) = controller.downcast_ref::<GameScene>() {
+                        let scene = &engine.scenes[game_scene.scene];
+
+                        let position = game_scene
+                            .camera_controller
+                            .placement_position(&scene.graph, *first);
+
+                        let node_handle = scene.graph.generate_free_handles(1)[0];
+                        sender.do_command(CommandGroup::from(vec![
+                            Command::new(AddNodeCommand::new(node, *first, true)),
+                            Command::new(MoveNodeCommand::new(
+                                node_handle,
+                                Vector3::default(),
+                                position,
+                            )),
+                        ]));
+                    }
                 }
             }
         } else if let Some(node) = self.create_parent_entity_menu.handle_ui_message(
@@ -206,6 +225,10 @@ impl SceneNodeContextMenu {
                     if let Some(game_scene) = controller.downcast_ref::<GameScene>() {
                         let scene = &engine.scenes[game_scene.scene];
 
+                        let position = game_scene
+                            .camera_controller
+                            .placement_position(&scene.graph, *first);
+
                         let first_ref = &scene.graph[*first];
                         let parent = if first_ref.parent().is_some() {
                             first_ref.parent()
@@ -217,6 +240,11 @@ impl SceneNodeContextMenu {
                         let commands = CommandGroup::from(vec![
                             Command::new(AddNodeCommand::new(node, parent, true)),
                             Command::new(LinkNodesCommand::new(*first, new_parent_handle)),
+                            Command::new(MoveNodeCommand::new(
+                                new_parent_handle,
+                                Vector3::default(),
+                                position,
+                            )),
                         ]);
                         sender.do_command(commands);
                     }

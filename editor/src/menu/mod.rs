@@ -1,25 +1,24 @@
-use crate::export::ExportWindow;
-use crate::fyrox::{
-    core::{algebra::Vector2, pool::Handle, scope_profile},
-    gui::{
-        menu::{MenuBuilder, MenuItemBuilder, MenuItemContent},
-        message::{MessageDirection, UiMessage},
-        widget::{WidgetBuilder, WidgetMessage},
-        BuildContext, Thickness, UiNode, UserInterface,
-    },
-};
-use crate::scene::controller::SceneController;
-use crate::stats::StatisticsWindow;
 use crate::{
     animation::AnimationEditor,
+    export::ExportWindow,
+    fyrox::{
+        core::{algebra::Vector2, pool::Handle, scope_profile},
+        gui::{
+            menu::{MenuBuilder, MenuItemBuilder, MenuItemContent},
+            message::{MessageDirection, UiMessage},
+            widget::{WidgetBuilder, WidgetMessage},
+            BuildContext, Thickness, UiNode, UserInterface,
+        },
+    },
     menu::{
         create::CreateEntityRootMenu, edit::EditMenu, file::FileMenu, help::HelpMenu,
         utils::UtilsMenu, view::ViewMenu,
     },
     message::MessageSender,
-    scene::container::EditorSceneEntry,
+    scene::{container::EditorSceneEntry, controller::SceneController},
     send_sync_message,
     settings::Settings,
+    stats::StatisticsWindow,
     utils::ragdoll::RagdollWizard,
     AbsmEditor, CurveEditorWindow, Engine, Mode, SceneSettingsWindow,
 };
@@ -189,6 +188,7 @@ impl Menu {
                 &self.message_sender,
                 &mut *entry.controller,
                 &entry.selection,
+                ctx.engine,
             );
         }
 

@@ -1,40 +1,43 @@
-use crate::fyrox::graph::{BaseSceneGraph, SceneGraph};
-use crate::fyrox::{
-    core::{
-        algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3},
-        math::{
-            aabb::AxisAlignedBoundingBox, plane::Plane, ray::Ray, Matrix4Ext, TriangleDefinition,
-            Vector3Ext,
+use crate::{
+    fyrox::{
+        core::{
+            algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3},
+            math::{
+                aabb::AxisAlignedBoundingBox, plane::Plane, ray::Ray, Matrix4Ext,
+                TriangleDefinition, Vector3Ext,
+            },
+            pool::Handle,
         },
-        pool::Handle,
+        graph::{BaseSceneGraph, SceneGraph},
+        gui::message::{KeyCode, KeyboardModifiers, MouseButton},
+        scene::{
+            base::BaseBuilder,
+            camera::{Camera, CameraBuilder, Exposure, FitParameters, Projection},
+            graph::Graph,
+            mesh::{
+                buffer::{VertexAttributeUsage, VertexReadTrait},
+                surface::SurfaceData,
+                Mesh,
+            },
+            node::Node,
+            pivot::PivotBuilder,
+            sound::listener::ListenerBuilder,
+            transform::TransformBuilder,
+            Scene,
+        },
     },
-    gui::message::{KeyCode, KeyboardModifiers, MouseButton},
-    scene::{
-        base::BaseBuilder,
-        camera::{Camera, CameraBuilder, Exposure, FitParameters, Projection},
-        graph::Graph,
-        mesh::{
-            buffer::{VertexAttributeUsage, VertexReadTrait},
-            surface::SurfaceData,
-            Mesh,
-        },
-        node::Node,
-        pivot::PivotBuilder,
-        sound::listener::ListenerBuilder,
-        transform::TransformBuilder,
-        Scene,
+    settings::{
+        camera::CameraSettings,
+        keys::KeyBindings,
+        scene::{SceneCameraSettings, SceneSettings},
+        Settings,
     },
 };
-use crate::settings::{
-    camera::CameraSettings,
-    keys::KeyBindings,
-    scene::{SceneCameraSettings, SceneSettings},
-    Settings,
-};
-use std::path::Path;
+use fyrox::graph::SceneGraphNode;
 use std::{
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
+    path::Path,
 };
 
 pub mod panel;
@@ -180,6 +183,25 @@ impl CameraController {
             || self.rotate != RotationMode::None
             || self.move_down
             || self.move_up
+    }
+
+    pub fn placement_position(&self, graph: &Graph, relative_to: Handle<Node>) -> Vector3<f32> {
+        let camera = &graph[self.camera];
+        let world_space_position = camera.global_position()
+            + camera
+                .look_vector()
+                .try_normalize(f32::EPSILON)
+                .unwrap_or_default()
+                .scale(5.0);
+        if let Some(relative_to) = graph.try_get(relative_to) {
+            return relative_to
+                .global_transform()
+                .try_inverse()
+                .unwrap_or_default()
+                .transform_point(&world_space_position.into())
+                .coords;
+        }
+        world_space_position
     }
 
     pub fn fit_object(&mut self, scene: &mut Scene, handle: Handle<Node>) {

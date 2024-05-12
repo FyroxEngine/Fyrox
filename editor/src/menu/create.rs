@@ -1,52 +1,58 @@
-use crate::fyrox::{
-    asset::untyped::ResourceKind,
-    core::{
-        algebra::{Matrix4, Vector3},
-        math::TriangleDefinition,
-        pool::Handle,
-    },
-    gui::{
-        menu::MenuItemMessage, message::MessageDirection, message::UiMessage,
-        widget::WidgetMessage, BuildContext, UiNode, UserInterface,
-    },
-    material::{Material, MaterialResource},
-    resource::texture::PLACEHOLDER,
-    scene::{
-        base::BaseBuilder,
-        camera::CameraBuilder,
-        decal::DecalBuilder,
-        light::{
-            directional::DirectionalLightBuilder, point::PointLightBuilder, spot::SpotLightBuilder,
-            BaseLightBuilder,
-        },
-        mesh::{
-            surface::{SurfaceBuilder, SurfaceData, SurfaceSharedData},
-            MeshBuilder,
-        },
-        navmesh::NavigationalMeshBuilder,
-        node::Node,
-        particle_system::{
-            emitter::{base::BaseEmitterBuilder, sphere::SphereEmitterBuilder},
-            ParticleSystemBuilder,
-        },
-        pivot::PivotBuilder,
-        sound::{listener::ListenerBuilder, SoundBuilder},
-        sprite::SpriteBuilder,
-        terrain::{Layer, TerrainBuilder},
-    },
-    utils::navmesh::Navmesh,
-};
 use crate::{
+    command::{Command, CommandGroup},
     create_terrain_layer_material,
+    fyrox::{
+        asset::untyped::ResourceKind,
+        core::{
+            algebra::{Matrix4, Vector3},
+            math::TriangleDefinition,
+            pool::Handle,
+        },
+        gui::{
+            menu::MenuItemMessage, message::MessageDirection, message::UiMessage,
+            widget::WidgetMessage, BuildContext, UiNode, UserInterface,
+        },
+        material::{Material, MaterialResource},
+        resource::texture::PLACEHOLDER,
+        scene::{
+            base::BaseBuilder,
+            camera::CameraBuilder,
+            decal::DecalBuilder,
+            light::{
+                directional::DirectionalLightBuilder, point::PointLightBuilder,
+                spot::SpotLightBuilder, BaseLightBuilder,
+            },
+            mesh::{
+                surface::{SurfaceBuilder, SurfaceData, SurfaceSharedData},
+                MeshBuilder,
+            },
+            navmesh::NavigationalMeshBuilder,
+            node::Node,
+            particle_system::{
+                emitter::{base::BaseEmitterBuilder, sphere::SphereEmitterBuilder},
+                ParticleSystemBuilder,
+            },
+            pivot::PivotBuilder,
+            sound::{listener::ListenerBuilder, SoundBuilder},
+            sprite::SpriteBuilder,
+            terrain::{Layer, TerrainBuilder},
+        },
+        utils::navmesh::Navmesh,
+    },
     menu::{
         animation::AnimationMenu, create_menu_item, create_root_menu_item, dim2::Dim2Menu,
         physics::PhysicsMenu, physics2d::Physics2dMenu, ui::UiMenu,
     },
     message::MessageSender,
-    scene::{commands::graph::AddNodeCommand, controller::SceneController, Selection},
+    scene::{
+        commands::graph::{AddNodeCommand, MoveNodeCommand},
+        controller::SceneController,
+        GameScene, Selection,
+    },
     ui_scene::UiScene,
     Mode,
 };
+use fyrox::engine::Engine;
 
 pub struct CreateEntityRootMenu {
     pub menu: Handle<UiNode>,
@@ -68,12 +74,29 @@ impl CreateEntityRootMenu {
         sender: &MessageSender,
         controller: &mut dyn SceneController,
         selection: &Selection,
+        engine: &Engine,
     ) {
         if let Some(node) = self
             .sub_menus
             .handle_ui_message(message, sender, controller, selection)
         {
-            sender.do_command(AddNodeCommand::new(node, Handle::NONE, true));
+            if let Some(game_scene) = controller.downcast_ref::<GameScene>() {
+                let scene = &engine.scenes[game_scene.scene];
+
+                let position = game_scene
+                    .camera_controller
+                    .placement_position(&scene.graph, Default::default());
+
+                let node_handle = scene.graph.generate_free_handles(1)[0];
+                sender.do_command(CommandGroup::from(vec![
+                    Command::new(AddNodeCommand::new(node, Handle::NONE, true)),
+                    Command::new(MoveNodeCommand::new(
+                        node_handle,
+                        Vector3::default(),
+                        position,
+                    )),
+                ]));
+            }
         }
     }
 
