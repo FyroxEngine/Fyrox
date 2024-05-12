@@ -1,37 +1,36 @@
-use crate::fyrox::graph::BaseSceneGraph;
-use crate::fyrox::{
-    asset::untyped::UntypedResource,
-    core::{
-        color::Color,
-        pool::{ErasedHandle, Handle},
-        scope_profile,
-    },
-    graph::SceneGraph,
-    gui::{
-        border::BorderBuilder,
-        brush::Brush,
-        button::{ButtonBuilder, ButtonMessage},
-        check_box::{CheckBoxBuilder, CheckBoxMessage},
-        decorator::{Decorator, DecoratorBuilder, DecoratorMessage},
-        grid::{Column, GridBuilder, Row},
-        message::{MessageDirection, UiMessage},
-        scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
-        searchbar::{SearchBarBuilder, SearchBarMessage},
-        stack_panel::StackPanelBuilder,
-        text::TextBuilder,
-        tree::{
-            TreeBuilder, TreeExpansionStrategy, TreeMessage, TreeRoot, TreeRootBuilder,
-            TreeRootMessage,
-        },
-        widget::{WidgetBuilder, WidgetMessage},
-        window::{WindowBuilder, WindowTitle},
-        wrap_panel::WrapPanelBuilder,
-        BuildContext, Orientation, RcUiNodeHandle, Thickness, UiNode, UserInterface,
-        VerticalAlignment, BRUSH_BRIGHT_BLUE, BRUSH_PRIMARY,
-    },
-};
 use crate::{
     asset::item::AssetItem,
+    fyrox::{
+        asset::untyped::UntypedResource,
+        core::{
+            color::Color,
+            pool::{ErasedHandle, Handle},
+            scope_profile,
+        },
+        graph::{BaseSceneGraph, SceneGraph},
+        gui::{
+            border::BorderBuilder,
+            brush::Brush,
+            button::{ButtonBuilder, ButtonMessage},
+            check_box::{CheckBoxBuilder, CheckBoxMessage},
+            decorator::{Decorator, DecoratorBuilder, DecoratorMessage},
+            grid::{Column, GridBuilder, Row},
+            message::{MessageDirection, UiMessage},
+            scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
+            searchbar::{SearchBarBuilder, SearchBarMessage},
+            stack_panel::StackPanelBuilder,
+            text::TextBuilder,
+            tree::{
+                TreeBuilder, TreeExpansionStrategy, TreeMessage, TreeRoot, TreeRootBuilder,
+                TreeRootMessage,
+            },
+            widget::{WidgetBuilder, WidgetMessage},
+            window::{WindowBuilder, WindowTitle},
+            wrap_panel::WrapPanelBuilder,
+            BuildContext, Orientation, RcUiNodeHandle, Thickness, UiNode, UserInterface,
+            VerticalAlignment, BRUSH_BRIGHT_BLUE, BRUSH_PRIMARY,
+        },
+    },
     gui::make_image_button_with_tooltip,
     load_image,
     message::MessageSender,
@@ -44,7 +43,6 @@ use rust_fuzzy_search::fuzzy_compare;
 use std::{
     borrow::Cow,
     cell::RefCell,
-    cmp::Ordering,
     collections::HashMap,
     ops::Deref,
     path::{Path, PathBuf},
@@ -438,84 +436,69 @@ impl WorldViewer {
             let ui_node = ui.node(tree_handle);
 
             if let Some(item) = ui_node.cast::<SceneItem>() {
-                let child_count = data_provider.child_count_of(node_handle);
                 let mut items = item.tree.items.clone();
 
-                match child_count.cmp(&items.len()) {
-                    Ordering::Less => {
-                        let mut i = 0;
-                        while i < items.len() {
-                            let item = items[i];
+                let mut i = 0;
+                while i < items.len() {
+                    let item = items[i];
 
-                            let child_node = tree_node(ui, item);
-                            if !data_provider.is_node_has_child(node_handle, child_node) {
-                                send_sync_message(
-                                    ui,
-                                    TreeMessage::remove_item(
-                                        tree_handle,
-                                        MessageDirection::ToWidget,
-                                        item,
-                                    ),
-                                );
-                                if let Some(existing_view) = self.node_to_view_map.get(&child_node)
-                                {
-                                    if *existing_view == item {
-                                        self.node_to_view_map.remove(&child_node);
-                                    }
-                                }
-                                items.remove(i);
-                            } else {
-                                self.stack.push((item, child_node));
-                                i += 1;
+                    let child_node = tree_node(ui, item);
+                    if !data_provider.is_node_has_child(node_handle, child_node) {
+                        send_sync_message(
+                            ui,
+                            TreeMessage::remove_item(tree_handle, MessageDirection::ToWidget, item),
+                        );
+                        if let Some(existing_view) = self.node_to_view_map.get(&child_node) {
+                            if *existing_view == item {
+                                self.node_to_view_map.remove(&child_node);
                             }
                         }
+                        items.remove(i);
+                    } else {
+                        i += 1;
                     }
-                    Ordering::Equal => {
-                        for &tree in items.iter() {
-                            let child = tree_node(ui, tree);
-                            self.stack.push((tree, child));
+                }
+
+                for child_handle in data_provider.children_of(node_handle) {
+                    let mut found = false;
+                    for &item in items.iter() {
+                        let tree_node_handle = tree_node(ui, item);
+                        if tree_node_handle == child_handle {
+                            found = true;
+                            break;
                         }
                     }
-                    Ordering::Greater => {
-                        for child_handle in data_provider.children_of(node_handle) {
-                            let mut found = false;
-                            for &item in items.iter() {
-                                let tree_node_handle = tree_node(ui, item);
-                                if tree_node_handle == child_handle {
-                                    self.stack.push((item, child_handle));
-                                    found = true;
-                                    break;
-                                }
-                            }
-                            if !found {
-                                let menu = self.item_context_menu.as_ref().map_or(
-                                    RcUiNodeHandle::new(Default::default(), ui.sender()),
-                                    |menu| menu.borrow().menu(),
-                                );
-                                let graph_node_item = make_graph_node_item(
-                                    data_provider.name_of(child_handle).unwrap_or_default(),
-                                    data_provider.is_instance(child_handle),
-                                    data_provider.icon_of(child_handle),
-                                    child_handle,
-                                    &mut ui.build_ctx(),
-                                    menu,
-                                    self.sender.clone(),
-                                    fetch_expanded_state(child_handle, data_provider, settings),
-                                );
-                                send_sync_message(
-                                    ui,
-                                    TreeMessage::add_item(
-                                        tree_handle,
-                                        MessageDirection::ToWidget,
-                                        graph_node_item,
-                                    ),
-                                );
-                                items.push(graph_node_item);
-                                self.node_to_view_map.insert(child_handle, graph_node_item);
-                                self.stack.push((graph_node_item, child_handle));
-                            }
-                        }
+                    if !found {
+                        let menu = self.item_context_menu.as_ref().map_or(
+                            RcUiNodeHandle::new(Default::default(), ui.sender()),
+                            |menu| menu.borrow().menu(),
+                        );
+                        let graph_node_item = make_graph_node_item(
+                            data_provider.name_of(child_handle).unwrap_or_default(),
+                            data_provider.is_instance(child_handle),
+                            data_provider.icon_of(child_handle),
+                            child_handle,
+                            &mut ui.build_ctx(),
+                            menu,
+                            self.sender.clone(),
+                            fetch_expanded_state(child_handle, data_provider, settings),
+                        );
+                        send_sync_message(
+                            ui,
+                            TreeMessage::add_item(
+                                tree_handle,
+                                MessageDirection::ToWidget,
+                                graph_node_item,
+                            ),
+                        );
+                        items.push(graph_node_item);
+                        self.node_to_view_map.insert(child_handle, graph_node_item);
                     }
+                }
+
+                for &tree in items.iter() {
+                    let child = tree_node(ui, tree);
+                    self.stack.push((tree, child));
                 }
 
                 // Check order
