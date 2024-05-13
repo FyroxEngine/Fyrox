@@ -1976,8 +1976,9 @@ impl Editor {
     }
 
     fn set_current_scene(&mut self, id: Uuid) {
-        assert!(self.scenes.set_current_scene(id));
-        self.on_scene_changed();
+        if self.scenes.set_current_scene(id) {
+            self.on_scene_changed();
+        }
     }
 
     fn on_scene_changed(&mut self) {
