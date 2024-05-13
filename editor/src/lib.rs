@@ -27,6 +27,7 @@ pub mod light;
 pub mod log;
 pub mod material;
 pub mod menu;
+pub mod mesh;
 pub mod message;
 pub mod overlay;
 pub mod particle;
@@ -161,6 +162,7 @@ use std::{
 
 use crate::command::Command;
 use crate::export::ExportWindow;
+use crate::mesh::MeshControlPanel;
 use crate::settings::build::BuildCommand;
 use crate::stats::{StatisticsWindow, StatisticsWindowAction};
 pub use message::Message;
@@ -505,6 +507,7 @@ pub struct Editor {
     pub animation_editor: AnimationEditor,
     pub particle_system_control_panel: ParticleSystemPreviewControlPanel,
     pub camera_control_panel: CameraPreviewControlPanel,
+    pub mesh_control_panel: MeshControlPanel,
     pub audio_preview_panel: AudioPreviewPanel,
     pub doc_window: DocWindow,
     pub docking_manager: Handle<UiNode>,
@@ -612,6 +615,7 @@ impl Editor {
         let particle_system_control_panel =
             ParticleSystemPreviewControlPanel::new(scene_viewer.frame(), ctx);
         let camera_control_panel = CameraPreviewControlPanel::new(scene_viewer.frame(), ctx);
+        let mesh_control_panel = MeshControlPanel::new(scene_viewer.frame(), ctx);
         let audio_preview_panel = AudioPreviewPanel::new(scene_viewer.frame(), ctx);
         let collider_control_panel = ColliderControlPanel::new(scene_viewer.frame(), ctx);
         let doc_window = DocWindow::new(ctx);
@@ -741,6 +745,7 @@ impl Editor {
                             absm_editor.window,
                             particle_system_control_panel.window,
                             camera_control_panel.window,
+                            mesh_control_panel.window,
                             audio_preview_panel.window,
                             collider_control_panel.window,
                             navmesh_panel.window,
@@ -836,6 +841,7 @@ impl Editor {
             scene_settings,
             particle_system_control_panel,
             camera_control_panel,
+            mesh_control_panel,
             audio_preview_panel,
             node_removal_dialog,
             doc_window,
@@ -1243,6 +1249,13 @@ impl Editor {
                     &current_scene_entry.selection,
                     game_scene,
                     engine,
+                );
+                self.mesh_control_panel.handle_ui_message(
+                    message,
+                    &current_scene_entry.selection,
+                    game_scene,
+                    engine,
+                    &self.message_sender,
                 );
                 self.collider_control_panel.handle_ui_message(
                     message,
@@ -2280,6 +2293,12 @@ impl Editor {
                             &mut self.engine,
                         );
                         self.camera_control_panel.handle_message(
+                            &message,
+                            &entry.selection,
+                            game_scene,
+                            &mut self.engine,
+                        );
+                        self.mesh_control_panel.handle_message(
                             &message,
                             &entry.selection,
                             game_scene,
