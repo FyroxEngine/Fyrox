@@ -1,34 +1,37 @@
-use crate::fyrox::graph::{BaseSceneGraph, SceneGraph};
-use crate::fyrox::{
-    core::{
-        algebra::{Matrix4, Vector3},
-        color::Color,
-        math::Matrix4Ext,
-        pool::Handle,
-        sstorage::ImmutableString,
-    },
-    fxhash::FxHashSet,
-    renderer::{
-        apply_material,
-        bundle::{RenderContext, RenderDataBundleStorage},
-        framework::{
-            error::FrameworkError,
-            framebuffer::{
-                Attachment, AttachmentKind, BlendParameters, DrawParameters, FrameBuffer,
-            },
-            geometry_buffer::{ElementRange, GeometryBuffer, GeometryBufferKind},
-            gpu_program::{GpuProgram, UniformLocation},
-            gpu_texture::{
-                Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
-                PixelKind, WrapMode,
-            },
-            state::{BlendFactor, BlendFunc, PipelineState},
+use crate::{
+    fyrox::{
+        core::{
+            algebra::{Matrix4, Vector3},
+            color::Color,
+            math::Matrix4Ext,
+            pool::Handle,
+            sstorage::ImmutableString,
         },
-        MaterialContext, RenderPassStatistics, SceneRenderPass, SceneRenderPassContext,
+        fxhash::FxHashSet,
+        graph::{BaseSceneGraph, SceneGraph},
+        renderer::{
+            apply_material,
+            bundle::{RenderContext, RenderDataBundleStorage},
+            framework::{
+                error::FrameworkError,
+                framebuffer::{
+                    Attachment, AttachmentKind, BlendParameters, DrawParameters, FrameBuffer,
+                },
+                geometry_buffer::{ElementRange, GeometryBuffer, GeometryBufferKind},
+                gpu_program::{GpuProgram, UniformLocation},
+                gpu_texture::{
+                    Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter,
+                    MinificationFilter, PixelKind, WrapMode,
+                },
+                state::{BlendFactor, BlendFunc, PipelineState},
+            },
+            MaterialContext, RenderPassStatistics, SceneRenderPass, SceneRenderPassContext,
+        },
+        scene::{mesh::surface::SurfaceData, node::Node, Scene},
     },
-    scene::{mesh::surface::SurfaceData, node::Node, Scene},
+    Editor,
 };
-use std::{cell::RefCell, rc::Rc};
+use std::{any::TypeId, cell::RefCell, rc::Rc};
 
 struct EdgeDetectShader {
     program: GpuProgram,
@@ -356,5 +359,9 @@ impl SceneRenderPass for HighlightRenderPass {
         }
 
         Ok(Default::default())
+    }
+
+    fn source_type_id(&self) -> TypeId {
+        TypeId::of::<Editor>()
     }
 }

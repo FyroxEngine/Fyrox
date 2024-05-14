@@ -2767,6 +2767,16 @@ impl Engine {
                 .remove(*type_uuid);
         }
 
+        // Unload custom render passes (if any).
+        if let GraphicsContext::Initialized(ref mut graphics_context) = self.graphics_context {
+            let render_passes = graphics_context.renderer.render_passes().to_vec();
+            for render_pass in render_passes {
+                if render_pass.borrow().source_type_id() == plugin_type_id {
+                    graphics_context.renderer.remove_render_pass(render_pass);
+                }
+            }
+        }
+
         // Unload the plugin.
         if let DynamicPluginState::Loaded(dynamic) = state {
             let mut visitor = Self::make_writing_visitor();

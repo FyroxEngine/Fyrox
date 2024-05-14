@@ -96,6 +96,7 @@ use glutin::{
 };
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
+use std::any::TypeId;
 use std::{cell::RefCell, collections::hash_map::Entry, rc::Rc, sync::mpsc::Receiver};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 #[cfg(not(target_arch = "wasm32"))]
@@ -823,6 +824,11 @@ pub trait SceneRenderPass {
     ) -> Result<RenderPassStatistics, FrameworkError> {
         Ok(RenderPassStatistics::default())
     }
+
+    /// Should return type id of a plugin, that holds this render pass. **WARNING:** Setting incorrect
+    /// (anything else, than a real plugin's type id) value here will result in hard crash with happy
+    /// debugging times.
+    fn source_type_id(&self) -> TypeId;
 }
 
 fn blit_pixels(

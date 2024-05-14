@@ -1,23 +1,25 @@
-use crate::fyrox::renderer::framework::geometry_buffer::ElementRange;
-use crate::fyrox::resource::texture::{
-    TextureImportOptions, TextureMinificationFilter, TextureResourceExtension,
-};
-use crate::fyrox::{
-    core::{algebra::Matrix4, math::Matrix4Ext, sstorage::ImmutableString},
-    renderer::{
-        framework::{
-            error::FrameworkError,
-            framebuffer::{BlendParameters, DrawParameters},
-            geometry_buffer::{GeometryBuffer, GeometryBufferKind},
-            gpu_program::{GpuProgram, UniformLocation},
-            state::{BlendFactor, BlendFunc, PipelineState},
+use crate::{
+    fyrox::{
+        core::{algebra::Matrix4, math::Matrix4Ext, sstorage::ImmutableString},
+        renderer::{
+            framework::{
+                error::FrameworkError,
+                framebuffer::{BlendParameters, DrawParameters},
+                geometry_buffer::{ElementRange, GeometryBuffer, GeometryBufferKind},
+                gpu_program::{GpuProgram, UniformLocation},
+                state::{BlendFactor, BlendFunc, PipelineState},
+            },
+            RenderPassStatistics, SceneRenderPass, SceneRenderPassContext,
         },
-        RenderPassStatistics, SceneRenderPass, SceneRenderPassContext,
+        resource::texture::{
+            CompressionOptions, TextureImportOptions, TextureMinificationFilter, TextureResource,
+            TextureResourceExtension,
+        },
+        scene::mesh::surface::SurfaceData,
     },
-    resource::texture::{CompressionOptions, TextureResource},
-    scene::mesh::surface::SurfaceData,
+    Editor,
 };
-use std::{cell::RefCell, rc::Rc};
+use std::{any::TypeId, cell::RefCell, rc::Rc};
 
 struct OverlayShader {
     program: GpuProgram,
@@ -154,5 +156,9 @@ impl SceneRenderPass for OverlayRenderPass {
         }
 
         Ok(Default::default())
+    }
+
+    fn source_type_id(&self) -> TypeId {
+        TypeId::of::<Editor>()
     }
 }
