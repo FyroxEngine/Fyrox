@@ -103,6 +103,7 @@ use fyrox_core::notify;
 use fyrox_core::notify::{EventKind, RecursiveMode, Watcher};
 use fyrox_core::pool::{PayloadContainer, Ticket};
 use fyrox_core::visitor::{Visit, Visitor, VisitorFlags};
+use fyrox_ui::constructor::WidgetConstructorContainer;
 use fyrox_ui::UiContainer;
 use winit::{
     dpi::{Position, Size},
@@ -2613,6 +2614,9 @@ impl Engine {
         visitor
             .blackboard
             .register(Arc::new(resource_manager.clone()));
+        visitor
+            .blackboard
+            .register(Arc::new(WidgetConstructorContainer::new()));
         Ok(visitor)
     }
 
