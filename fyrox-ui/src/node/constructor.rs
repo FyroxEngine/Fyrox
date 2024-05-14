@@ -49,12 +49,21 @@ use crate::{
     Control, UiNode,
 };
 use fxhash::FxHashMap;
+use fyrox_core::parking_lot::MutexGuard;
+use std::any::{Any, TypeId};
 
-/// A simple type alias for boxed widget constructor.
-pub type WidgetConstructor = Box<dyn FnMut() -> UiNode + Send>;
+/// Node constructor.
+pub struct WidgetConstructor {
+    /// A simple type alias for boxed widget constructor.
+    closure: Box<dyn FnMut() -> UiNode + Send>,
+
+    /// A type of the source of the script constructor.
+    pub source_type_id: TypeId,
+}
 
 /// A special container that is able to create widgets by their type UUID.
 pub struct WidgetConstructorContainer {
+    pub context_type_id: Mutex<TypeId>,
     map: Mutex<FxHashMap<Uuid, WidgetConstructor>>,
 }
 
@@ -68,6 +77,7 @@ impl WidgetConstructorContainer {
     /// Creates default widget constructor container with constructors for built-in widgets.
     pub fn new() -> Self {
         let container = WidgetConstructorContainer {
+            context_type_id: Mutex::new(().type_id()),
             map: Default::default(),
         };
 
@@ -219,10 +229,13 @@ impl WidgetConstructorContainer {
     where
         T: TypeUuidProvider + Control + Default,
     {
-        let previous = self
-            .map
-            .lock()
-            .insert(T::type_uuid(), Box::new(|| UiNode::new(T::default())));
+        let previous = self.map.lock().insert(
+            T::type_uuid(),
+            WidgetConstructor {
+                closure: Box::new(|| UiNode::new(T::default())),
+                source_type_id: *self.context_type_id.lock(),
+            },
+        );
 
         assert!(previous.is_none());
     }
@@ -240,7 +253,7 @@ impl WidgetConstructorContainer {
     /// Makes an attempt to create a widget using provided type UUID. It may fail if there is no
     /// widget constructor for specified type UUID.
     pub fn try_create(&self, type_uuid: &Uuid) -> Option<UiNode> {
-        self.map.lock().get_mut(type_uuid).map(|c| (c)())
+        self.map.lock().get_mut(type_uuid).map(|c| (c.closure)())
     }
 
     /// Returns total amount of constructors.
@@ -251,5 +264,10 @@ impl WidgetConstructorContainer {
     /// Returns true if the container is empty.
     pub fn is_empty(&self) -> bool {
         self.len() == 0
+    }
+
+    /// Returns the inner map of the node constructors.
+    pub fn map(&self) -> MutexGuard<'_, FxHashMap<Uuid, WidgetConstructor>> {
+        self.map.lock()
     }
 }

@@ -68,7 +68,6 @@ use crate::fyrox::{
     gui::{
         brush::Brush,
         button::ButtonBuilder,
-        constructor::WidgetConstructorContainer,
         dock::{
             DockingManager, DockingManagerBuilder, DockingManagerMessage, TileBuilder, TileContent,
         },
@@ -520,7 +519,6 @@ pub struct Editor {
     pub ragdoll_wizard: RagdollWizard,
     pub scene_node_context_menu: Rc<RefCell<SceneNodeContextMenu>>,
     pub widget_context_menu: Rc<RefCell<WidgetContextMenu>>,
-    pub widget_constructors: Arc<WidgetConstructorContainer>,
     pub collider_control_panel: ColliderControlPanel,
     pub overlay_pass: Option<Rc<RefCell<OverlayRenderPass>>>,
     pub highlighter: Option<Rc<RefCell<HighlightRenderPass>>>,
@@ -577,6 +575,7 @@ impl Editor {
             resource_manager: ResourceManager::new(task_pool.clone()),
             serialization_context,
             task_pool,
+            widget_constructors: Arc::new(Default::default()),
         })
         .unwrap();
 
@@ -854,7 +853,6 @@ impl Editor {
             is_suspended: false,
             ragdoll_wizard,
             scene_node_context_menu,
-            widget_constructors: Arc::new(WidgetConstructorContainer::new()),
             widget_context_menu,
             collider_control_panel,
             overlay_pass: None,
@@ -1897,7 +1895,7 @@ impl Editor {
             } else if ext == "ui" {
                 match block_on(UserInterface::load_from_file_ex(
                     &scene_path,
-                    self.widget_constructors.clone(),
+                    self.engine.widget_constructors.clone(),
                     self.engine.resource_manager.clone(),
                     &FsResourceIo,
                 )) {

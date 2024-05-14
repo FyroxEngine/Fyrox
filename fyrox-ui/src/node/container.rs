@@ -30,7 +30,8 @@ fn read_widget(name: &str, visitor: &mut Visitor) -> Result<UiNode, VisitError> 
 
     let mut widget = serialization_context
         .try_create(&id)
-        .ok_or_else(|| VisitError::User(format!("Unknown widget type uuid {}!", id)))?;
+        .ok_or_else(|| panic!("Unknown widget type uuid {}!", id))
+        .unwrap();
 
     widget.visit("WidgetData", &mut region)?;
 

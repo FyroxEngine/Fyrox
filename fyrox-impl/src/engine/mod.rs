@@ -448,6 +448,9 @@ pub struct Engine {
     /// value whenever you need it as a parameter in other parts of the engine.
     pub serialization_context: Arc<SerializationContext>,
 
+    /// A container with widget constructors.
+    pub widget_constructors: Arc<WidgetConstructorContainer>,
+
     /// Script processor is used to run script methods in a strict order.
     pub script_processor: ScriptProcessor,
 }
@@ -1025,6 +1028,8 @@ pub struct EngineInitParams {
     pub graphics_context_params: GraphicsContextParams,
     /// A special container that is able to create nodes by their type UUID.
     pub serialization_context: Arc<SerializationContext>,
+    /// A container with widget constructors.
+    pub widget_constructors: Arc<WidgetConstructorContainer>,
     /// A resource manager.
     pub resource_manager: ResourceManager,
     /// Task pool for asynchronous task management.
@@ -1302,6 +1307,7 @@ impl Engine {
         let EngineInitParams {
             graphics_context_params,
             serialization_context,
+            widget_constructors,
             resource_manager,
             task_pool,
         } = params;
@@ -1330,6 +1336,7 @@ impl Engine {
             performance_statistics: Default::default(),
             plugins: Default::default(),
             serialization_context,
+            widget_constructors,
             script_processor: Default::default(),
             plugins_enabled: false,
             elapsed_time: 0.0,
@@ -1733,6 +1740,7 @@ impl Engine {
                             lag,
                             user_interfaces: &mut self.user_interfaces,
                             serialization_context: &self.serialization_context,
+                            widget_constructors: &self.widget_constructors,
                             performance_statistics: &self.performance_statistics,
                             elapsed_time: self.elapsed_time,
                             script_processor: &self.script_processor,
@@ -1765,6 +1773,7 @@ impl Engine {
                     lag,
                     user_interfaces: &mut self.user_interfaces,
                     serialization_context: &self.serialization_context,
+                    widget_constructors: &self.widget_constructors,
                     performance_statistics: &self.performance_statistics,
                     elapsed_time: self.elapsed_time,
                     script_processor: &self.script_processor,
@@ -2005,6 +2014,7 @@ impl Engine {
                         lag,
                         user_interfaces: &mut self.user_interfaces,
                         serialization_context: &self.serialization_context,
+                        widget_constructors: &self.widget_constructors,
                         performance_statistics: &self.performance_statistics,
                         elapsed_time: self.elapsed_time,
                         script_processor: &self.script_processor,
@@ -2098,6 +2108,7 @@ impl Engine {
                 lag,
                 user_interfaces: &mut self.user_interfaces,
                 serialization_context: &self.serialization_context,
+                widget_constructors: &self.widget_constructors,
                 performance_statistics: &self.performance_statistics,
                 elapsed_time: self.elapsed_time,
                 script_processor: &self.script_processor,
@@ -2130,6 +2141,7 @@ impl Engine {
                         lag,
                         user_interfaces: &mut self.user_interfaces,
                         serialization_context: &self.serialization_context,
+                        widget_constructors: &self.widget_constructors,
                         performance_statistics: &self.performance_statistics,
                         elapsed_time: self.elapsed_time,
                         script_processor: &self.script_processor,
@@ -2167,6 +2179,7 @@ impl Engine {
                         lag,
                         user_interfaces: &mut self.user_interfaces,
                         serialization_context: &self.serialization_context,
+                        widget_constructors: &self.widget_constructors,
                         performance_statistics: &self.performance_statistics,
                         elapsed_time: self.elapsed_time,
                         script_processor: &self.script_processor,
@@ -2195,6 +2208,7 @@ impl Engine {
                     lag,
                     user_interfaces: &mut self.user_interfaces,
                     serialization_context: &self.serialization_context,
+                    widget_constructors: &self.widget_constructors,
                     performance_statistics: &self.performance_statistics,
                     elapsed_time: self.elapsed_time,
                     script_processor: &self.script_processor,
@@ -2222,6 +2236,7 @@ impl Engine {
                     lag,
                     user_interfaces: &mut self.user_interfaces,
                     serialization_context: &self.serialization_context,
+                    widget_constructors: &self.widget_constructors,
                     performance_statistics: &self.performance_statistics,
                     elapsed_time: self.elapsed_time,
                     script_processor: &self.script_processor,
@@ -2249,6 +2264,7 @@ impl Engine {
                     lag,
                     user_interfaces: &mut self.user_interfaces,
                     serialization_context: &self.serialization_context,
+                    widget_constructors: &self.widget_constructors,
                     performance_statistics: &self.performance_statistics,
                     elapsed_time: self.elapsed_time,
                     script_processor: &self.script_processor,
@@ -2391,6 +2407,7 @@ impl Engine {
                             lag: &mut 0.0,
                             user_interfaces: &mut self.user_interfaces,
                             serialization_context: &self.serialization_context,
+                            widget_constructors: &self.widget_constructors,
                             performance_statistics: &self.performance_statistics,
                             elapsed_time: self.elapsed_time,
                             script_processor: &self.script_processor,
@@ -2413,6 +2430,7 @@ impl Engine {
                         lag: &mut 0.0,
                         user_interfaces: &mut self.user_interfaces,
                         serialization_context: &self.serialization_context,
+                        widget_constructors: &self.widget_constructors,
                         performance_statistics: &self.performance_statistics,
                         elapsed_time: self.elapsed_time,
                         script_processor: &self.script_processor,
@@ -2427,6 +2445,7 @@ impl Engine {
 
     fn register_plugin_internal(
         serialization_context: &Arc<SerializationContext>,
+        widget_constructors: &Arc<WidgetConstructorContainer>,
         resource_manager: &ResourceManager,
         plugin: &dyn Plugin,
     ) {
@@ -2438,14 +2457,21 @@ impl Engine {
             .node_constructors
             .context_type_id
             .lock() = plugin.type_id();
+        *widget_constructors.context_type_id.lock() = plugin.type_id();
         plugin.register(PluginRegistrationContext {
             serialization_context,
+            widget_constructors,
             resource_manager,
         });
     }
 
     fn register_plugin(&self, plugin: &dyn Plugin) {
-        Self::register_plugin_internal(&self.serialization_context, &self.resource_manager, plugin)
+        Self::register_plugin_internal(
+            &self.serialization_context,
+            &self.widget_constructors,
+            &self.resource_manager,
+            plugin,
+        )
     }
 
     /// Adds a new static plugin.
@@ -2608,15 +2634,14 @@ impl Engine {
         binary_blob: &[u8],
         serialization_context: &Arc<SerializationContext>,
         resource_manager: &ResourceManager,
+        widget_constructors: &Arc<WidgetConstructorContainer>,
     ) -> Result<Visitor, VisitError> {
         let mut visitor = Visitor::load_from_memory(binary_blob)?;
         visitor.blackboard.register(serialization_context.clone());
         visitor
             .blackboard
             .register(Arc::new(resource_manager.clone()));
-        visitor
-            .blackboard
-            .register(Arc::new(WidgetConstructorContainer::new()));
+        visitor.blackboard.register(widget_constructors.clone());
         Ok(visitor)
     }
 
@@ -2767,6 +2792,17 @@ impl Engine {
                 .remove(*type_uuid);
         }
 
+        // Search for widget constructors, that belongs to dynamic plugins and remove them.
+        let mut constructors = FxHashSet::default();
+        for (type_uuid, constructor) in self.widget_constructors.map().iter() {
+            if constructor.source_type_id == plugin_type_id {
+                constructors.insert(*type_uuid);
+            }
+        }
+        for type_uuid in constructors.iter() {
+            self.widget_constructors.remove(*type_uuid);
+        }
+
         // Unload custom render passes (if any).
         if let GraphicsContext::Initialized(ref mut graphics_context) = self.graphics_context {
             let render_passes = graphics_context.renderer.render_passes().to_vec();
@@ -2822,6 +2858,7 @@ impl Engine {
                 binary_blob,
                 &self.serialization_context,
                 &self.resource_manager,
+                &self.widget_constructors,
             )
             .map_err(|e| e.to_string())?;
             dynamic
@@ -2835,6 +2872,7 @@ impl Engine {
             // types (or removed ones too).
             Self::register_plugin_internal(
                 &self.serialization_context,
+                &self.widget_constructors,
                 &self.resource_manager,
                 state.as_loaded_ref().plugin(),
             );
@@ -2859,6 +2897,7 @@ impl Engine {
                             &script.binary_blob,
                             &self.serialization_context,
                             &self.resource_manager,
+                            &self.widget_constructors,
                         )
                         .map_err(|e| e.to_string())?;
                         let mut opt_script: Option<Script> = None;
@@ -2876,6 +2915,7 @@ impl Engine {
                         &node_state.binary_blob,
                         &self.serialization_context,
                         &self.resource_manager,
+                        &self.widget_constructors,
                     )
                     .map_err(|e| e.to_string())?;
                     let mut container = NodeContainer::default();
@@ -2904,6 +2944,7 @@ impl Engine {
             dt,
             lag,
             serialization_context: &self.serialization_context,
+            widget_constructors: &self.widget_constructors,
             performance_statistics: &Default::default(),
             elapsed_time: self.elapsed_time,
             script_processor: &self.script_processor,
@@ -3421,6 +3462,7 @@ mod test {
         let mut engine = Engine::new(EngineInitParams {
             graphics_context_params: Default::default(),
             serialization_context: Arc::new(Default::default()),
+            widget_constructors: Arc::new(Default::default()),
             resource_manager: ResourceManager::new(task_pool.clone()),
             task_pool,
         })

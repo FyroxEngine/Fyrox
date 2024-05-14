@@ -17,6 +17,7 @@ use crate::{
 };
 use clap::Parser;
 use fyrox_core::task::TaskPool;
+use fyrox_ui::constructor::WidgetConstructorContainer;
 use std::{
     ops::{Deref, DerefMut},
     sync::Arc,
@@ -74,6 +75,7 @@ impl Executor {
             resource_manager: ResourceManager::new(task_pool.clone()),
             serialization_context,
             task_pool,
+            widget_constructors: Arc::new(WidgetConstructorContainer::new()),
         })
         .unwrap();
 
