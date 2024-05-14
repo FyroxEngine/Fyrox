@@ -256,7 +256,7 @@ fyrox = {{ workspace = true }}
 
 [features]
 default = ["{name}"]
-dylib = []
+dylib = ["fyrox/dylib"]
 "#,
         ),
     );
