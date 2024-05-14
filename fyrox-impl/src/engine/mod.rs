@@ -2854,6 +2854,16 @@ impl Engine {
         if let DynamicPluginState::Unloaded { binary_blob } = state {
             let mut dynamic = DynamicPlugin::load(lib_path)?;
 
+            // Re-register the plugin. This is needed, because it might contain new script/node/widget
+            // types (or removed ones too). This is done right before deserialization, because plugin
+            // might contain some entities, that have dynamic registration.
+            Self::register_plugin_internal(
+                &self.serialization_context,
+                &self.widget_constructors,
+                &self.resource_manager,
+                dynamic.plugin(),
+            );
+
             let mut visitor = Self::make_reading_visitor(
                 binary_blob,
                 &self.serialization_context,
@@ -2867,15 +2877,6 @@ impl Engine {
                 .map_err(|e| e.to_string())?;
 
             *state = DynamicPluginState::Loaded(dynamic);
-
-            // Re-register the plugin. This is needed, because it might contain new script
-            // types (or removed ones too).
-            Self::register_plugin_internal(
-                &self.serialization_context,
-                &self.widget_constructors,
-                &self.resource_manager,
-                state.as_loaded_ref().plugin(),
-            );
 
             need_reload.store(false, atomic::Ordering::Relaxed);
 
