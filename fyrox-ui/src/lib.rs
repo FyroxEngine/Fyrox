@@ -620,14 +620,20 @@ impl WidgetMethodsRegistry {
     fn register<T: Control + ?Sized>(&mut self, node: &T) {
         let node_handle = node.handle();
 
-        if node.preview_messages {
-            assert!(self.preview_message.insert(node_handle));
+        if node.preview_messages && !self.preview_message.insert(node_handle) {
+            Log::warn(format!(
+                "Widget {node_handle} `preview_message` method is already registered!"
+            ));
         }
-        if node.handle_os_events {
-            assert!(self.handle_os_event.insert(node_handle));
+        if node.handle_os_events && !self.handle_os_event.insert(node_handle) {
+            Log::warn(format!(
+                "Widget {node_handle} `handle_os_event` method is already registered!"
+            ));
         }
-        if node.need_update {
-            assert!(self.on_update.insert(node_handle));
+        if node.need_update && !self.on_update.insert(node_handle) {
+            Log::warn(format!(
+                "Widget {node_handle} `on_update` method is already registered!"
+            ));
         }
     }
 
