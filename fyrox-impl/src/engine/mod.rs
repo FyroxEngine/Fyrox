@@ -2779,6 +2779,12 @@ impl Engine {
                 "Plugin {plugin_index} was serialized successfully!"
             ));
 
+            // Explicitly drop the visitor to prevent any destructors from the previous version of
+            // the plugin to run at the end of the scope. This could happen, because the visitor
+            // manages serialized smart pointers and if they'll be kept alive longer than the plugin
+            // there's a very high chance of hard crash.
+            drop(visitor);
+
             *state = DynamicPluginState::Unloaded {
                 binary_blob: binary_blob.into_inner(),
             };
