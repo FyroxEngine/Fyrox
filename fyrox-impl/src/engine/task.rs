@@ -79,9 +79,10 @@ impl TaskPoolHandler {
     /// ```rust ,no_run
     /// # use fyrox_impl::plugin::{Plugin, PluginContext};
     /// # use fyrox_impl::core::visitor::prelude::*;
+    /// # use fyrox_impl::core::reflect::prelude::*;
     /// # use std::{fs::File, io::Read};
     ///
-    /// #[derive(Visit)]
+    /// #[derive(Visit, Reflect, Debug)]
     /// struct MyGame {
     ///     data: Option<Vec<u8>>,
     /// }

@@ -6,19 +6,22 @@ pub mod dynamic;
 
 use crate::{
     asset::manager::ResourceManager,
-    core::{notify::RecommendedWatcher, pool::Handle, visitor::Visit, visitor::VisitError},
+    core::{
+        notify::RecommendedWatcher, pool::Handle, reflect::Reflect, visitor::Visit,
+        visitor::VisitError,
+    },
     engine::{
         task::TaskPoolHandler, AsyncSceneLoader, GraphicsContext, PerformanceStatistics,
         ScriptProcessor, SerializationContext,
     },
     event::Event,
-    gui::message::UiMessage,
+    gui::{
+        constructor::WidgetConstructorContainer,
+        inspector::editors::PropertyEditorDefinitionContainer, message::UiMessage, UiContainer,
+    },
     plugin::dynamic::DynamicPlugin,
     scene::{Scene, SceneContainer},
 };
-use fyrox_ui::constructor::WidgetConstructorContainer;
-use fyrox_ui::inspector::editors::PropertyEditorDefinitionContainer;
-use fyrox_ui::UiContainer;
 use std::{
     any::Any,
     ops::{Deref, DerefMut},
@@ -206,12 +209,12 @@ where
 impl dyn Plugin {
     /// Performs downcasting to a particular type.
     pub fn cast<T: Plugin>(&self) -> Option<&T> {
-        self.as_any().downcast_ref::<T>()
+        BasePlugin::as_any(self).downcast_ref::<T>()
     }
 
     /// Performs downcasting to a particular type.
     pub fn cast_mut<T: Plugin>(&mut self) -> Option<&mut T> {
-        self.as_any_mut().downcast_mut::<T>()
+        BasePlugin::as_any_mut(self).downcast_mut::<T>()
     }
 }
 
@@ -235,14 +238,14 @@ impl dyn Plugin {
 ///
 /// ```rust
 /// # use fyrox_impl::{
-/// #     core::{pool::Handle}, core::visitor::prelude::*,
+/// #     core::{pool::Handle}, core::visitor::prelude::*, core::reflect::prelude::*,
 /// #     plugin::{Plugin, PluginContext, PluginRegistrationContext},
 /// #     scene::Scene,
 /// #     event::Event
 /// # };
 /// # use std::str::FromStr;
 ///
-/// #[derive(Default, Visit)]
+/// #[derive(Default, Visit, Reflect, Debug)]
 /// struct MyPlugin {}
 ///
 /// impl Plugin for MyPlugin {
@@ -261,7 +264,7 @@ impl dyn Plugin {
 ///     }
 /// }
 /// ```
-pub trait Plugin: BasePlugin + Visit {
+pub trait Plugin: BasePlugin + Visit + Reflect {
     /// The method is called when the plugin constructor was just registered in the engine. The main
     /// use of this method is to register scripts and custom scene graph nodes in [`SerializationContext`].
     fn register(&self, #[allow(unused_variables)] context: PluginRegistrationContext) {}

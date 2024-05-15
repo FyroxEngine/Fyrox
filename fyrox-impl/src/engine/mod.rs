@@ -231,13 +231,13 @@ struct SceneLoadingOptions {
 ///
 /// ```rust
 /// use fyrox_impl::{
-///     core::{color::Color, visitor::prelude::*, log::Log, pool::Handle},
+///     core::{color::Color, visitor::prelude::*, reflect::prelude::*, log::Log, pool::Handle},
 ///     plugin::{Plugin, PluginContext},
 ///     scene::Scene,
 /// };
 /// use std::path::Path;
 ///
-/// #[derive(Visit)]
+/// #[derive(Visit, Reflect, Debug)]
 /// struct MyGame {
 ///     scene: Handle<Scene>,
 /// }
