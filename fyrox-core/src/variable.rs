@@ -364,6 +364,10 @@ where
         self.value.doc()
     }
 
+    fn assembly_name(&self) -> &'static str {
+        env!("CARGO_PKG_NAME")
+    }
+
     #[inline]
     fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo])) {
         self.value.fields_info(func)

@@ -54,6 +54,10 @@ macro_rules! define_two_args_node {
                 ""
             }
 
+            fn assembly_name(&self) -> &'static str {
+                env!("CARGO_PKG_NAME")
+            }
+
             fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo])) {
                 func(&[
                     FieldInfo {
@@ -198,6 +202,10 @@ impl<T: EntityId> Reflect for NotNode<T> {
 
     fn doc(&self) -> &'static str {
         ""
+    }
+
+    fn assembly_name(&self) -> &'static str {
+        env!("CARGO_PKG_NAME")
     }
 
     fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo])) {

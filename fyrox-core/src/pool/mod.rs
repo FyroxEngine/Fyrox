@@ -110,6 +110,10 @@ where
         Ok(Box::new(this))
     }
 
+    fn assembly_name(&self) -> &'static str {
+        env!("CARGO_PKG_NAME")
+    }
+
     #[inline]
     fn as_array(&self, func: &mut dyn FnMut(Option<&dyn ReflectArray>)) {
         func(Some(self))

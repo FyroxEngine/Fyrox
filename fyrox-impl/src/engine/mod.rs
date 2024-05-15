@@ -1297,7 +1297,8 @@ impl Engine {
     ///     graphics_context_params,
     ///     resource_manager: ResourceManager::new(task_pool.clone()),
     ///     serialization_context: Arc::new(SerializationContext::new()),
-    ///     task_pool
+    ///     task_pool,
+    ///     widget_constructors: Arc::new(Default::default()),
     /// })
     /// .unwrap();
     /// ```

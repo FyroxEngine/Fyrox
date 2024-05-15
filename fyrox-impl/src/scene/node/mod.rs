@@ -602,6 +602,10 @@ impl Reflect for Node {
         self.0.deref().doc()
     }
 
+    fn assembly_name(&self) -> &'static str {
+        self.0.deref().assembly_name()
+    }
+
     fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo])) {
         self.0.deref().fields_info(func)
     }

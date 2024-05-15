@@ -408,6 +408,7 @@ fn gen_impl(
     let as_array_impl = ty_args.as_array_impl();
 
     let doc = args::fetch_doc_comment(&ty_args.attrs);
+    let assembly_name = std::env::var("CARGO_PKG_NAME").unwrap_or_default();
 
     let set_field = set_field.map(|set_field| {
         quote! {
@@ -430,6 +431,10 @@ fn gen_impl(
 
             fn doc(&self) -> &'static str {
                 #doc
+            }
+
+            fn assembly_name(&self) -> &'static str {
+                #assembly_name
             }
 
             fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo])) {

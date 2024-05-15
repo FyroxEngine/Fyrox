@@ -51,3 +51,25 @@ macro_rules! define_with {
         }
     };
 }
+
+#[cfg(test)]
+mod test {
+    use crate::scene::base::BaseBuilder;
+    use fyrox_core::reflect::Reflect;
+    use fyrox_core::ImmutableString;
+    use fyrox_sound::source::Status;
+    use fyrox_ui::widget::WidgetBuilder;
+
+    #[test]
+    fn test_assembly_names() {
+        let var = ImmutableString::new("Foobar");
+        let base = BaseBuilder::new().build_base();
+        let widget = WidgetBuilder::new().build();
+        let status = Status::Stopped;
+
+        assert_eq!(var.assembly_name(), "fyrox-core");
+        assert_eq!(base.assembly_name(), "fyrox-impl");
+        assert_eq!(widget.assembly_name(), "fyrox-ui");
+        assert_eq!(status.assembly_name(), "fyrox-sound");
+    }
+}

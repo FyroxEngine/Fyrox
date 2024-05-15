@@ -633,6 +633,10 @@ impl Reflect for Script {
         self.instance.doc()
     }
 
+    fn assembly_name(&self) -> &'static str {
+        self.instance.assembly_name()
+    }
+
     fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo])) {
         self.instance.fields_info(func)
     }
