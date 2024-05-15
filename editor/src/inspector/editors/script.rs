@@ -272,7 +272,7 @@ fn create_items(
 
             ctx[item].user_data = Some(Arc::new(Mutex::new((
                 *type_uuid,
-                Some(constructor.source_path.clone()),
+                Some(constructor.source_path.to_string()),
             ))));
 
             item

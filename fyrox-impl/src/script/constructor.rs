@@ -8,7 +8,6 @@ use crate::{
     },
     script::{Script, ScriptTrait},
 };
-use std::any::{Any, TypeId};
 use std::collections::BTreeMap;
 
 /// Script constructor contains all required data and methods to create script instances
@@ -21,15 +20,14 @@ pub struct ScriptConstructor {
     pub name: String,
 
     /// Script source path.
-    pub source_path: String,
+    pub source_path: &'static str,
 
-    /// A type of the source of the script constructor.
-    pub source_type_id: TypeId,
+    /// A name of the assembly this script constructor belongs to.
+    pub assembly_name: &'static str,
 }
 
 /// A special container that is able to create nodes by their type UUID.
 pub struct ScriptConstructorContainer {
-    pub(crate) context_type_id: Mutex<TypeId>,
     // BTreeMap allows to have sorted list of constructors.
     map: Mutex<BTreeMap<Uuid, ScriptConstructor>>,
 }
@@ -37,7 +35,6 @@ pub struct ScriptConstructorContainer {
 impl Default for ScriptConstructorContainer {
     fn default() -> Self {
         Self {
-            context_type_id: Mutex::new(().type_id()),
             map: Default::default(),
         }
     }
@@ -63,8 +60,8 @@ impl ScriptConstructorContainer {
             ScriptConstructor {
                 constructor: Box::new(|| Script::new(T::default())),
                 name: name.to_owned(),
-                source_path: T::source_path().to_owned(),
-                source_type_id: *self.context_type_id.lock(),
+                source_path: T::source_path(),
+                assembly_name: T::type_assembly_name(),
             },
         );
 

@@ -25,28 +25,25 @@ use crate::{
     },
 };
 use fxhash::FxHashMap;
-use std::any::{Any, TypeId};
 
 /// Node constructor.
 pub struct NodeConstructor {
     /// A simple type alias for boxed node constructor.
     closure: Box<dyn FnMut() -> Node + Send>,
 
-    /// A type of the source of the script constructor.
-    pub source_type_id: TypeId,
+    /// A name of the assembly this node constructor is from.
+    pub assembly_name: &'static str,
 }
 
 /// A special container that is able to create nodes by their type UUID.
 
 pub struct NodeConstructorContainer {
-    pub(crate) context_type_id: Mutex<TypeId>,
     map: Mutex<FxHashMap<Uuid, NodeConstructor>>,
 }
 
 impl Default for NodeConstructorContainer {
     fn default() -> Self {
         Self {
-            context_type_id: Mutex::new(().type_id()),
             map: Default::default(),
         }
     }
@@ -94,7 +91,7 @@ impl NodeConstructorContainer {
             T::type_uuid(),
             NodeConstructor {
                 closure: Box::new(|| Node::new(T::default())),
-                source_type_id: *self.context_type_id.lock(),
+                assembly_name: T::type_assembly_name(),
             },
         );
 

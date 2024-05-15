@@ -2450,14 +2450,6 @@ impl Engine {
         resource_manager: &ResourceManager,
         plugin: &dyn Plugin,
     ) {
-        *serialization_context
-            .script_constructors
-            .context_type_id
-            .lock() = plugin.type_id();
-        *serialization_context
-            .node_constructors
-            .context_type_id
-            .lock() = plugin.type_id();
         *widget_constructors.context_type_id.lock() = plugin.type_id();
         plugin.register(PluginRegistrationContext {
             serialization_context,
@@ -2594,7 +2586,6 @@ impl Engine {
         script: &Script,
         plugin: &dyn Plugin,
     ) -> bool {
-        let plugin_type_id = plugin.type_id();
         let script_id = script.deref().id();
 
         if let Some(constructor) = serialization_context
@@ -2602,7 +2593,7 @@ impl Engine {
             .map()
             .get(&script_id)
         {
-            if constructor.source_type_id == plugin_type_id {
+            if constructor.assembly_name == plugin.assembly_name() {
                 return true;
             }
         }
@@ -2614,11 +2605,10 @@ impl Engine {
         node: &Node,
         plugin: &dyn Plugin,
     ) -> bool {
-        let plugin_type_id = plugin.type_id();
         let node_id = (*node).id();
 
         if let Some(constructor) = serialization_context.node_constructors.map().get(&node_id) {
-            if constructor.source_type_id == plugin_type_id {
+            if constructor.assembly_name == plugin.assembly_name() {
                 return true;
             }
         }
@@ -2674,6 +2664,7 @@ impl Engine {
         }
 
         let plugin_type_id = state.as_loaded_ref().plugin().type_id();
+        let plugin_assembly_name = state.as_loaded_ref().plugin().assembly_name();
 
         // Collect all the data that belongs to the plugin
         struct ScriptState {
@@ -2770,7 +2761,7 @@ impl Engine {
         let mut constructors = FxHashSet::default();
         for (type_uuid, constructor) in self.serialization_context.script_constructors.map().iter()
         {
-            if constructor.source_type_id == plugin_type_id {
+            if constructor.assembly_name == plugin_assembly_name {
                 constructors.insert(*type_uuid);
             }
         }
@@ -2783,7 +2774,7 @@ impl Engine {
         // Search for node constructors, that belongs to dynamic plugins and remove them.
         let mut constructors = FxHashSet::default();
         for (type_uuid, constructor) in self.serialization_context.node_constructors.map().iter() {
-            if constructor.source_type_id == plugin_type_id {
+            if constructor.assembly_name == plugin_assembly_name {
                 constructors.insert(*type_uuid);
             }
         }
@@ -2796,7 +2787,7 @@ impl Engine {
         // Search for widget constructors, that belongs to dynamic plugins and remove them.
         let mut constructors = FxHashSet::default();
         for (type_uuid, constructor) in self.widget_constructors.map().iter() {
-            if constructor.source_type_id == plugin_type_id {
+            if constructor.assembly_name == plugin_assembly_name {
                 constructors.insert(*type_uuid);
             }
         }

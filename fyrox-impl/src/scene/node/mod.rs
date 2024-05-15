@@ -781,7 +781,7 @@ mod test {
             .script_constructors
             .map()
             .iter()
-            .any(|s| &s.1.source_path == file!()));
+            .any(|s| s.1.source_path == file!()));
 
         engine::initialize_resource_manager_loaders(
             &resource_manager,

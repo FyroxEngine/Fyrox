@@ -57,8 +57,8 @@ pub struct WidgetConstructor {
     /// A simple type alias for boxed widget constructor.
     closure: Box<dyn FnMut() -> UiNode + Send>,
 
-    /// A type of the source of the script constructor.
-    pub source_type_id: TypeId,
+    /// A name of the assembly this widget constructor belongs to.
+    pub assembly_name: &'static str,
 }
 
 /// A special container that is able to create widgets by their type UUID.
@@ -233,7 +233,7 @@ impl WidgetConstructorContainer {
             T::type_uuid(),
             WidgetConstructor {
                 closure: Box::new(|| UiNode::new(T::default())),
-                source_type_id: *self.context_type_id.lock(),
+                assembly_name: T::type_assembly_name(),
             },
         );
 
