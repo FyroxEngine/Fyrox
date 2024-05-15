@@ -99,10 +99,12 @@ use crate::plugin::dynamic::DynamicPlugin;
 use crate::plugin::{DynamicPluginState, PluginContainer};
 use crate::scene::base::visit_opt_script;
 use crate::scene::node::container::NodeContainer;
+use fyrox_core::futures::future::join_all;
 use fyrox_core::notify;
 use fyrox_core::notify::{EventKind, RecursiveMode, Watcher};
 use fyrox_core::pool::{PayloadContainer, Ticket};
 use fyrox_core::visitor::{Visit, Visitor, VisitorFlags};
+use fyrox_resource::state::ResourceState;
 use fyrox_ui::constructor::WidgetConstructorContainer;
 use fyrox_ui::UiContainer;
 use winit::{
@@ -2793,6 +2795,35 @@ impl Engine {
         }
         for type_uuid in constructors.iter() {
             self.widget_constructors.remove(*type_uuid);
+        }
+
+        // Reload resources, that belongs to the plugin.
+        {
+            let mut resources_to_reload = FxHashSet::default();
+            let mut state = self.resource_manager.state();
+            for resource in state.resources().iter() {
+                let data = resource.0.lock();
+                if let ResourceState::Ok(ref data) = data.state {
+                    data.as_reflect(&mut |reflect| {
+                        if reflect.assembly_name() == plugin_assembly_name {
+                            resources_to_reload.insert(resource.clone());
+                        }
+                    })
+                }
+            }
+
+            for resource_to_reload in resources_to_reload.iter() {
+                Log::info(format!(
+                    "Reloading {} resource, because it is used in plugin {plugin_assembly_name}",
+                    resource_to_reload.kind()
+                ));
+
+                state.reload_resource(resource_to_reload.clone());
+            }
+
+            drop(state);
+
+            block_on(join_all(resources_to_reload));
         }
 
         // Unload custom render passes (if any).
