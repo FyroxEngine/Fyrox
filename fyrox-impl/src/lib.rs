@@ -54,11 +54,11 @@ macro_rules! define_with {
 
 #[cfg(test)]
 mod test {
-    use crate::scene::base::BaseBuilder;
+    use crate::scene::base::{Base, BaseBuilder};
     use fyrox_core::reflect::Reflect;
     use fyrox_core::ImmutableString;
     use fyrox_sound::source::Status;
-    use fyrox_ui::widget::WidgetBuilder;
+    use fyrox_ui::widget::{Widget, WidgetBuilder};
 
     #[test]
     fn test_assembly_names() {
@@ -71,5 +71,10 @@ mod test {
         assert_eq!(base.assembly_name(), "fyrox-impl");
         assert_eq!(widget.assembly_name(), "fyrox-ui");
         assert_eq!(status.assembly_name(), "fyrox-sound");
+
+        assert_eq!(ImmutableString::type_assembly_name(), "fyrox-core");
+        assert_eq!(Base::type_assembly_name(), "fyrox-impl");
+        assert_eq!(Widget::type_assembly_name(), "fyrox-ui");
+        assert_eq!(Status::type_assembly_name(), "fyrox-sound");
     }
 }

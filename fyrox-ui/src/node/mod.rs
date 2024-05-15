@@ -267,6 +267,10 @@ impl Reflect for UiNode {
         self.0.deref().assembly_name()
     }
 
+    fn type_assembly_name() -> &'static str {
+        env!("CARGO_PKG_NAME")
+    }
+
     fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo])) {
         self.0.deref().fields_info(func)
     }

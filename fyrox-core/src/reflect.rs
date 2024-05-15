@@ -205,6 +205,15 @@ pub trait Reflect: ReflectBase {
     /// as an implementation.
     fn assembly_name(&self) -> &'static str;
 
+    /// Returns a parent assembly name of the type that implements this trait. **WARNING:** You should use
+    /// proc-macro (`#[derive(Reflect)]`) to ensure that this method will return correct assembly
+    /// name. In other words - there's no guarantee, that any implementation other than proc-macro
+    /// will return a correct name of the assembly. Alternatively, you can use `env!("CARGO_PKG_NAME")`
+    /// as an implementation.
+    fn type_assembly_name() -> &'static str
+    where
+        Self: Sized;
+
     /// Calls user method specified with `#[reflect(setter = ..)]` or falls back to
     /// [`Reflect::field_mut`]
     #[allow(clippy::type_complexity)]
@@ -1098,6 +1107,10 @@ macro_rules! blank_reflect {
             env!("CARGO_PKG_NAME")
         }
 
+        fn type_assembly_name() -> &'static str {
+            env!("CARGO_PKG_NAME")
+        }
+
         fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo])) {
             func(&[])
         }
@@ -1154,6 +1167,10 @@ macro_rules! delegate_reflect {
 
         fn assembly_name(&self) -> &'static str {
             self.deref().assembly_name()
+        }
+
+        fn type_assembly_name() -> &'static str {
+            env!("CARGO_PKG_NAME")
         }
 
         fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo])) {

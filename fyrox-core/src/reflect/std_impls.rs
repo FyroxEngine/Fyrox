@@ -296,6 +296,10 @@ macro_rules! impl_reflect_inner_mutability {
             env!("CARGO_PKG_NAME")
         }
 
+        fn type_assembly_name() -> &'static str {
+            env!("CARGO_PKG_NAME")
+        }
+
         fn fields_info(&$self, func: &mut dyn FnMut(&[FieldInfo])) {
             let guard = $acquire_lock_guard;
             guard.fields_info(func)

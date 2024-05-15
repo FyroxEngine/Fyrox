@@ -53,6 +53,10 @@ impl Reflect for Limb {
         env!("CARGO_PKG_NAME")
     }
 
+    fn type_assembly_name() -> &'static str {
+        env!("CARGO_PKG_NAME")
+    }
+
     fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo])) {
         func(&[
             FieldInfo {

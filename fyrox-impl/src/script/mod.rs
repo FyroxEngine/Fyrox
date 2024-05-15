@@ -637,6 +637,10 @@ impl Reflect for Script {
         self.instance.assembly_name()
     }
 
+    fn type_assembly_name() -> &'static str {
+        env!("CARGO_PKG_NAME")
+    }
+
     fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo])) {
         self.instance.fields_info(func)
     }

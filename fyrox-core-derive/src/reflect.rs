@@ -437,6 +437,10 @@ fn gen_impl(
                 #assembly_name
             }
 
+            fn type_assembly_name() -> &'static str {
+                #assembly_name
+            }
+
             fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo])) {
                 #metadata
             }

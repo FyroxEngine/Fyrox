@@ -368,6 +368,10 @@ where
         env!("CARGO_PKG_NAME")
     }
 
+    fn type_assembly_name() -> &'static str {
+        env!("CARGO_PKG_NAME")
+    }
+
     #[inline]
     fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo])) {
         self.value.fields_info(func)
