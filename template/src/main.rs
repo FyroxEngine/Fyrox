@@ -173,7 +173,7 @@ use std::path::Path;
 // Re-export the engine.
 pub use fyrox;
 
-#[derive(Default, Visit, Reflect)]
+#[derive(Default, Visit, Reflect, Debug)]
 pub struct Game {
     scene: Handle<Scene>,
 }
