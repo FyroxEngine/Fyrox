@@ -27,17 +27,10 @@ pub struct ScriptConstructor {
 }
 
 /// A special container that is able to create nodes by their type UUID.
+#[derive(Default)]
 pub struct ScriptConstructorContainer {
     // BTreeMap allows to have sorted list of constructors.
     map: Mutex<BTreeMap<Uuid, ScriptConstructor>>,
-}
-
-impl Default for ScriptConstructorContainer {
-    fn default() -> Self {
-        Self {
-            map: Default::default(),
-        }
-    }
 }
 
 impl ScriptConstructorContainer {

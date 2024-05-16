@@ -36,17 +36,9 @@ pub struct NodeConstructor {
 }
 
 /// A special container that is able to create nodes by their type UUID.
-
+#[derive(Default)]
 pub struct NodeConstructorContainer {
     map: Mutex<FxHashMap<Uuid, NodeConstructor>>,
-}
-
-impl Default for NodeConstructorContainer {
-    fn default() -> Self {
-        Self {
-            map: Default::default(),
-        }
-    }
 }
 
 impl NodeConstructorContainer {

@@ -162,7 +162,7 @@ dylib-engine = ["fyrox/dylib"]
         base_path.join("game/src/lib.rs"),
         r#"//! Game project.
 use fyrox::{
-    core::pool::Handle, core::visitor::prelude::*,
+    core::pool::Handle, core::visitor::prelude::*, core::reflect::prelude::*,
     event::Event,
     gui::message::UiMessage,
     plugin::{Plugin, PluginContext, PluginRegistrationContext},
@@ -173,7 +173,7 @@ use std::path::Path;
 // Re-export the engine.
 pub use fyrox;
 
-#[derive(Default, Visit)]
+#[derive(Default, Visit, Reflect)]
 pub struct Game {
     scene: Handle<Scene>,
 }
