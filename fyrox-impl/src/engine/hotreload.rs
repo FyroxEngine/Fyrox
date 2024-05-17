@@ -141,6 +141,7 @@ impl SceneState {
         resource_manager: &ResourceManager,
         widget_constructors: &Arc<WidgetConstructorContainer>,
     ) -> Result<(), String> {
+        let script_message_sender = prefab.data_ref().scene.graph.script_message_sender.clone();
         self.deserialize_into_scene_internal(
             |handle: Handle<Node>, index, script| {
                 prefab.data_ref().scene.graph[handle].scripts[index].script = script;
@@ -148,7 +149,7 @@ impl SceneState {
             |handle: Handle<Node>, node| {
                 prefab.data_ref().scene.graph[handle] = node;
             },
-            prefab.data_ref().scene.graph.script_message_sender.clone(),
+            script_message_sender,
             serialization_context,
             resource_manager,
             widget_constructors,
