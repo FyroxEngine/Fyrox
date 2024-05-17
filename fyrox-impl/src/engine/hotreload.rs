@@ -8,14 +8,18 @@ use crate::{
     engine::SerializationContext,
     gui::constructor::WidgetConstructorContainer,
     plugin::Plugin,
+    resource::model::ModelResource,
     scene::{
-        base::visit_opt_script,
+        base::{visit_opt_script, NodeScriptMessage},
         node::{container::NodeContainer, Node},
         Scene,
     },
     script::Script,
 };
-use std::{ops::Deref, sync::Arc};
+use std::{
+    ops::Deref,
+    sync::{mpsc::Sender, Arc},
+};
 
 pub struct ScriptState {
     index: usize,
@@ -112,11 +116,59 @@ impl SceneState {
         resource_manager: &ResourceManager,
         widget_constructors: &Arc<WidgetConstructorContainer>,
     ) -> Result<(), String> {
+        // SAFETY: Scene is guaranteed to be used only once per inner loop.
+        let scene2 = unsafe { &mut *(scene as *mut Scene) };
+
         let script_message_sender = scene.graph.script_message_sender.clone();
+        self.deserialize_into_scene_internal(
+            |handle: Handle<Node>, index, script| {
+                scene.graph[handle].scripts[index].script = script;
+            },
+            |handle: Handle<Node>, node| {
+                scene2.graph[handle] = node;
+            },
+            script_message_sender,
+            serialization_context,
+            resource_manager,
+            widget_constructors,
+        )
+    }
 
+    pub fn deserialize_into_prefab_scene(
+        self,
+        prefab: &ModelResource,
+        serialization_context: &Arc<SerializationContext>,
+        resource_manager: &ResourceManager,
+        widget_constructors: &Arc<WidgetConstructorContainer>,
+    ) -> Result<(), String> {
+        self.deserialize_into_scene_internal(
+            |handle: Handle<Node>, index, script| {
+                prefab.data_ref().scene.graph[handle].scripts[index].script = script;
+            },
+            |handle: Handle<Node>, node| {
+                prefab.data_ref().scene.graph[handle] = node;
+            },
+            prefab.data_ref().scene.graph.script_message_sender.clone(),
+            serialization_context,
+            resource_manager,
+            widget_constructors,
+        )
+    }
+
+    pub fn deserialize_into_scene_internal<S, N>(
+        self,
+        mut set_script: S,
+        mut set_node: N,
+        script_message_sender: Sender<NodeScriptMessage>,
+        serialization_context: &Arc<SerializationContext>,
+        resource_manager: &ResourceManager,
+        widget_constructors: &Arc<WidgetConstructorContainer>,
+    ) -> Result<(), String>
+    where
+        S: FnMut(Handle<Node>, usize, Option<Script>),
+        N: FnMut(Handle<Node>, Node),
+    {
         for node_state in self.nodes {
-            let node = &mut scene.graph[node_state.node];
-
             if node_state.binary_blob.is_empty() {
                 // Only scripts needs to be reloaded.
                 for script in node_state.scripts {
@@ -130,7 +182,7 @@ impl SceneState {
                     let mut opt_script: Option<Script> = None;
                     visit_opt_script("Script", &mut opt_script, &mut visitor)
                         .map_err(|e| e.to_string())?;
-                    node.scripts[script.index].script = opt_script;
+                    set_script(node_state.node, script.index, opt_script);
 
                     Log::info(format!(
                         "Script {} of node {} was successfully deserialized.",
@@ -151,7 +203,7 @@ impl SceneState {
                     .map_err(|e| e.to_string())?;
                 if let Some(mut new_node) = container.take() {
                     new_node.script_message_sender = Some(script_message_sender.clone());
-                    *node = new_node;
+                    set_node(node_state.node, new_node);
 
                     Log::info(format!(
                         "Node {} was successfully deserialized.",

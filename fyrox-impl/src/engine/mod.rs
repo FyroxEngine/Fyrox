@@ -2624,6 +2624,26 @@ impl Engine {
             }
         }
 
+        // Check every prefab for plugin content.
+        let mut prefab_scenes = Vec::new();
+        let rm_state = self.resource_manager.state();
+        for resource in rm_state.resources().iter() {
+            if let Some(model) = resource.try_cast::<Model>() {
+                let mut model_state = model.state();
+                if let Some(data) = model_state.data() {
+                    if let Some(scene_state) = hotreload::SceneState::try_create_from_plugin(
+                        Handle::NONE,
+                        &mut data.scene,
+                        &self.serialization_context,
+                        state.as_loaded_ref().plugin(),
+                    )? {
+                        prefab_scenes.push((model.clone(), scene_state));
+                    }
+                }
+            }
+        }
+        drop(rm_state);
+
         // Search for script constructors, that belongs to dynamic plugins and remove them.
         let mut constructors = FxHashSet::default();
         for (type_uuid, constructor) in self.serialization_context.script_constructors.map().iter()
@@ -2690,26 +2710,6 @@ impl Engine {
 
             block_on(join_all(resources_to_reload));
         }
-
-        // Check every prefab for plugin content.
-        let mut prefab_scenes = Vec::new();
-        let rm_state = self.resource_manager.state();
-        for resource in rm_state.resources().iter() {
-            if let Some(model) = resource.try_cast::<Model>() {
-                let mut model_state = model.state();
-                if let Some(data) = model_state.data() {
-                    if let Some(scene_state) = hotreload::SceneState::try_create_from_plugin(
-                        Handle::NONE,
-                        &mut data.scene,
-                        &self.serialization_context,
-                        state.as_loaded_ref().plugin(),
-                    )? {
-                        prefab_scenes.push((model.clone(), scene_state));
-                    }
-                }
-            }
-        }
-        drop(rm_state);
 
         // Unload custom render passes (if any).
         if let GraphicsContext::Initialized(ref mut graphics_context) = self.graphics_context {
@@ -2793,15 +2793,14 @@ impl Engine {
 
         // Deserialize prefab scene content.
         for (model, scene_state) in prefab_scenes {
-            let mut model_state = model.state();
-            if let Some(data) = model_state.data() {
-                scene_state.deserialize_into_scene(
-                    &mut data.scene,
+            Log::info(format!("Deserializing {} prefab content...", model.kind()));
+
+            scene_state.deserialize_into_prefab_scene(
+                &model,
                     &self.serialization_context,
                     &self.resource_manager,
                     &self.widget_constructors,
                 )?;
-            }
         }
 
         // Deserialize scene content.
