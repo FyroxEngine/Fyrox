@@ -23,6 +23,7 @@ use crate::{
 };
 use fxhash::FxHashMap;
 use fyrox_resource::state::ResourceState;
+use fyrox_resource::untyped::ResourceKind;
 use lazy_static::lazy_static;
 use std::error::Error;
 use std::{
@@ -925,6 +926,15 @@ pub type MaterialResource = Resource<Material>;
 
 /// Extension methods for material resource.
 pub trait MaterialResourceExtension {
+    /// Creates a new material resource.
+    ///
+    /// # Hot Reloading
+    ///
+    /// You must use this method to create materials, if you want hot reloading to be reliable and
+    /// prevent random crashes. Unlike [`Resource::new_ok`], this method ensures that correct vtable
+    /// is used.  
+    fn new(material: Material) -> MaterialResource;
+
     /// Creates a deep copy of the material resource.
     fn deep_copy(&self) -> MaterialResource;
 
@@ -939,6 +949,11 @@ pub trait MaterialResourceExtension {
 }
 
 impl MaterialResourceExtension for MaterialResource {
+    #[inline(never)] // Prevents vtable mismatch when doing hot reloading.
+    fn new(material: Material) -> MaterialResource {
+        Self::new_ok(ResourceKind::Embedded, material)
+    }
+
     fn deep_copy(&self) -> MaterialResource {
         let material_state = self.header();
         let kind = material_state.kind.clone();
