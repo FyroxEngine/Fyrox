@@ -700,6 +700,12 @@ impl Visit for UserInterface {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut region = visitor.enter_region(name)?;
 
+        if region.is_reading() {
+            self.nodes.clear();
+            self.root_canvas = Handle::NONE;
+            self.methods_registry = Default::default();
+        }
+
         self.screen_size.visit("ScreenSize", &mut region)?;
         self.nodes.visit("Nodes", &mut region)?;
         self.visual_debug.visit("VisualDebug", &mut region)?;
