@@ -933,7 +933,7 @@ pub trait MaterialResourceExtension {
     /// You must use this method to create materials, if you want hot reloading to be reliable and
     /// prevent random crashes. Unlike [`Resource::new_ok`], this method ensures that correct vtable
     /// is used.  
-    fn new(material: Material) -> MaterialResource;
+    fn new(material: Material) -> Self;
 
     /// Creates a deep copy of the material resource.
     fn deep_copy(&self) -> MaterialResource;
@@ -950,7 +950,7 @@ pub trait MaterialResourceExtension {
 
 impl MaterialResourceExtension for MaterialResource {
     #[inline(never)] // Prevents vtable mismatch when doing hot reloading.
-    fn new(material: Material) -> MaterialResource {
+    fn new(material: Material) -> Self {
         Self::new_ok(ResourceKind::Embedded, material)
     }
 

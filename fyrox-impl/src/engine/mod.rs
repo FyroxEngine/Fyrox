@@ -2797,10 +2797,10 @@ impl Engine {
 
             scene_state.deserialize_into_prefab_scene(
                 &model,
-                    &self.serialization_context,
-                    &self.resource_manager,
-                    &self.widget_constructors,
-                )?;
+                &self.serialization_context,
+                &self.resource_manager,
+                &self.widget_constructors,
+            )?;
         }
 
         // Deserialize scene content.
