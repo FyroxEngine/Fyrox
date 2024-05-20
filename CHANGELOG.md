@@ -1,20 +1,238 @@
-# 0.34 Engine + 0.21.0 Editor (WIP)
+# 0.34 Engine + 0.21.0 Editor
 
 ## Added
 
-- TODO
+- Code hot reloading for plugins.
+- Ability to have multiple scripts on one scene node.
+- Static and dynamic batching for meshes.
+- Project exporter for automated deployment.
+- Configurable build profiles for the editor.
+- Ability to have multiple user interface instances.
+- GLTF support (available via `gltf` feature).
+- Keyboard navigation support in the UI.
+- Preview generation for assets in the asset browser.
+- Grid for the scene preview.
+- `fyrox-template` improvements to generate projects, that supports code hot reloading.
+- `AnimationPlayer` + `AnimationBlendingStateMachine` widgets.
+- UI prefabs with ability to instantiate them.
+- `Pool::try_get_component_of_type` + the same for `MultiBorrowContext`.
+- `NodeTrait::on_unlink` method.
+- Implemented `ComponentProvider` trait for `Node`.
+- `MultiBorrowContext::get/get_mut` methods.
+- Ability to remove objects from multiborrow context.
+- `newtype_reflect` delegating macro.
+- `SceneGraph::change_hierarchy_root` method.
+- Ability to change UI scene root.
+- Property inheritance for UI widgets.
+- Ability to instantiate UI prefabs by dropping prefab into world viewer/scene previewer.
+- Ability to open scripts from the editor's inspector.
+- `Control::post_draw` method.
+- Ability to reorder children of a scene node.
+- `SceneGraph::relative_position` + `SceneGraphNode::child_position` methods.
+- Ability to reorder nodes/widgets in the world viewer.
+- Added more icons for widgets.
+- Added support for UI animations in the animation editor.
+- Configurable UI update switches.
+- Ability to edit ui absm nodes in the absm editor.
+- `AbsmEventProvider` widget.
+- Ability to enable msaa when initializing graphics context.
+- Ability to change corner radius in `Border` widget.
+- Ability to draw rectangles with rounded corners in UI drawing context.
+- Added layout rounding for `fyrox-ui` which significantly reduced blurring.
+- Added support for embedded textures in FBX.
+- `Selector` widget.
+- Added project dir and scenes to open as cli args to editor.
+- `utils::make_cross_primitive` helper method.
+- Ability to draw wire circle in the UI drawing context.
+- Ability to draw WireCircle primitives in VectorImage widget.
+- More tests.
+- Vertex buffer API improvements.
+- Rendering statistics window for the editor.
+- Added shape casting in physics.
+- Ability to unassign textures in material editor.
+- Allow to set negative playback speed for animations in animation editor.
+- `Scene::clone_one_to_one` shortcut for easier scene cloning.
+- `fyrox-dylib` crate to be able to link the engine dynamically.
+- Ability to link the engine dynamically to the editor.
+- Added property editor for untyped textures.
+- Added `Plugin::on_loaded` method.
+- `NetListener::local_address` method.
+- `Model::new` method.
+- Ability to disable space optimization of `InheritableVariable` on serialization.
+- Added CI for project template for all supported platforms.
+- Added diagnostics for degenerated triangles when calculating tangents.
+- `Pool::first_ref/first_mut` methods.
+- Added release keystore for android project templates.
+- Collect rendering statistics on per-scene basis.
+- `transmute_slice` helper function.
+- Ability to read GPU texture data.
+- Experimental histogram-based auto-exposure for HDR (disabled by default).
+- Short-path angle interpolation mode for `Curve` - `Curve::angle_at`.
+- Property editor for `RcUiNodeHandle` type.
+- Adaptive scroll bar thumb.
+- Ability to fetch current task pool from resource manager.
+- Async icon generation for assets in the asset browser.
+- Case-insensitive string comparison helper method `fyrox::core::cmp_strings_case_insensitive`.
+- Major performance improvement for searching in the asset browser.
+- Configurable interpolation mode for animations.
+- Ability to close popups using `Esc` key.
+- Added diagnostics for docking manager layout, that warns if a window has empty name.
+- Keyboard navigation for tree widget.
+- Ability to close windows by `Esc` key.
+- Focus opened window automatically.
+- Keyboard navigation for `Menu` widget.
+- Added `ImmutableString` editor.
+- Docs for inspector module.
+- Ability to deactivate menus using `Esc` key.
+- `PopupMessage::RelayedMessage` to re-cast messages from a popup to a widget.
+- `NavigationLayer` widget that handles `Tab`/`Shift+Tab` navigation.
+- Ability to switch check box state using space key.
+- Ability to click button widget using `Space`/`Enter` keys.
+- `accepts_input` for widgets that can be used for keyboard interaction.
+- Added keyboard navigation for input fields in the inspector.
+- Highlight a widget with keyboard focus.
+- `Visitor` docs.
+- Ability to open/close drop down list using arrow keys.
+- Re-cast `Variant` message on enum property editor.
+- Focus popup content (if any) on opening.
+- Keyboard navigation for list view widget.
+- Focus window content (if any) on opening.
+- Optional ability to bring focused item into view in navigation layer.
+- Hotkey to run the game from the editor (default is `F5`).
+- Ability to increase/decrease `NumericUpDown` widget value by arrow keys.
+- Configurable command stack max capacity (prevents the command stack to grow uncontrollably, which could eat a lot of memory if the editor is running for a long time).
+- Auto-select text on focusing `TextBox` widget.
+- Ability to render scene manually.
+- Ability to set precision for `VecEditor` widget.
+- Ability to switch between shaded and wireframe mode in the scene preview.
+- Multi-curve support for the curve editor widget.
+- `Color::COLORS` array with pre-defined colors.
+- Ability to set different brushes for every curve in the curve editor.
+- Apply different colors to curves in the animation editor.
+- Show multiple curves at once when selecting tracks in the animation editor.
+- Dropdown menu widget.
+- Quick-access menu for grid snapping.
+- `Create Parent` context menu option for scene nodes.
+- Add background curves concept to the curve editor widget.
+- Smart placement for newly created objects.
+- Added mesh control panel - allows to create physics entities (colliders, rigid bodies, etc) in a few clicks.
+- `Reflect::assembly_name` to retrieve assembly name of a type.
 
 ## Changed
 
-- TODO
+- Major style improvements for the editor UI.
+- Migrated to Rapier 0.18.
+- Refactored multiborrow context - removed static size constraint and made borrowing tracking dynamic and more efficient.
+- Use `Result` instead of `Option` for multiborrowing for better UX.
+- Added panic on `Ticket::drop` to prevent dangling pool records.
+- Moved generic graph handling code into `fyrox-graph` crate.
+- Do not call `Control::update` for every widget:
+  - in the editor on complex scenes it improves average performance by 13-20%.
+  - you have to set `need_update` flag when building the widget if you need `Control::update` to be called.
+- Mutable access to UI in `Control::update`.
+- Refactored `Selection` to use dynamic dispatch.
+- Refactored the entire editor command system to use dynamic dispatch.
+- Split `SceneGraph` trait into object-safe and object-non-safe parts.
+- Run most of `Engine::pre_update` logic even if there's no graphics context.
+- Moved color space transformation to vertex shader of particle system to increase performance.
+- Recalculate world space bounding box of a mesh on `sync_transform` instead of `update`.
+- Refactored rectpacker to use plain `Vec` instead of `Pool`.
+- Moved rectangle-related code to `rectutils` crate.
+- Automatically unregister faulty resources if registering ok one.
+- Prevent uvgen to modifying the actual surface data.
+- Extracted uvgen module to `uvgen` crate.
+- Use simple vec instead of pool in octree.
+- Moved `math` + `curve` + `octree` mods to `fyrox-math` crate.
+- Moved lightmapper into a `lightmap` crate.
+- Support for backwards movement (negative speed) for navmesh agent.
+- Moved the engine implementation into `fyrox-impl` crate, `fyrox` crate now is a proxy to it.
+- Moved interaction modes panel to the toolbar.
+- Made shader methods public to be able to create them manually.
+- Show unassigned handles in orange color to attract attention.
+- Major refactoring of `TextBox` widget that makes it much more pleasant to work with.
+- Major usability improvements for `DockingManager` tiles.
+- `Window` widget content is now linked to `NavigationLayer` widget instance.
+- Prevented `TextBox` and `NumericUpDown` widgets from sending change messages when they have not changed.
+- Reduced width and precision for worldspace position of current selection.
+- Use `ImmutableString` for scene nodes and widgets to reduce memory consumption on duplicated strings.
+- Do not flush the renderer when changing scenes, to prevent various graphical issues.
+- More informative names for curves in the animation editor.
+- Change cursor icon when picking/dragging keys in curve editor.
+- Major refactoring of coordinate system in the curve editor.
+- Keep the animation player selected in the animation editor.
+- Changed AABB validity to include zero-size dimensions to allow camera fitting to work with flat objects.
+- Prefer prefab roots when selecting nodes in scene.
+- `Reflect` trait bound for `Plugin` trait.
 
 ## Fixed
 
-- TODO
+- Fixed cascade shadow maps (CSM) rendering.
+- Fixed crash when setting particle spawn rate too high.
+- Fixed UB when using MultiBorrowContext.
+- Fixed visibility of cloned widget.
+- Set unique id for widget copies.
+- Fixed crash when closing scenes.
+- Fixed `Default` impl for `Pool`.
+- Fixed rare crash in `TextBox` widget when typing in something
+- Fixing double pixel loop (it was looping over y twice) in terrain internals.
+- Fixed creating a MenuItem in editor.
+- Force ui widget to recalculate layout if it was animated
+- Registered property editors for all UI properties.
+- Fixed incorrect FBX cluster loading (fixes incorrect rendering of FBX models)
+- Fixed crash when selection range is incorrect in the `TextBox` widget.
+- Fixed crash in the animation editor when trying to rebind a track referencing deleted scene node.
+- Properly expand tree items when building path in file browser widget.
+- Fixed doubling of items under disks in file browser widget.
+- Fixed track deletion in the animation editor.
+- Fixed file browser behaviour on empty file path
+- Select current dir in the asset browser.
+- Automatically remove disconnected listeners from the log.
+- Fixed support of custom layout panel of `ListView` widget.
+- Fixed async tasks at WebAssembly target.
+- Fixed property inheritance for types with interior mutability.
+- Keep selected brush when hovering mouse over a `Decorator` widget.
+- Fixed `TabControl` widget headers style.
+- Improved SearchBar widget style.
+- Fixed incorrect script task handling (it was passing task result to all scripts, instead the one that launched the task).
+- Prevent particle systems from over-spawn particles when spawn rates are high.
+- Fixed incorrect vertex buffer data layout.
+- Fixed crash if a selected node was deleted during asset hot reloading.
+- Prevent moving a folder into its own subfolder in the asset browser.
+- Fixed lightmap saving when corresponding lightmap textures were deleted.
+- Sort rectangles back-to-front when rendering to prevent blending issues.
+- Back-to-front sorting when rendering nodes with transparency.
+- Fixed seams on skybox cubemap.
+- Hide `should_be_deleted` field.
+- Do not update scripts on disabled nodes.
+- Fixed sound context serialization (this bug caused all sound buses to disappear on load)
+- Fixed potential crash in audio bus editor.
+- Fixed crash when closing the editor.
+- Fixed crash `attempt to subtract with overflow` in particle systems.
+- Fixed incorrect `Selection::is_empty` implementation.
+- Fixed canvas background color leaking to the rendered image on WebAssembly.
+- Ignore `target` dir when doing search in the asset browser.
+- Fixed accidental enabling/disabling tracks when expanding them in the animation editor.
+- Fixed editor layout saving and loading. 
+- Prevent `Inspector` properties from disappearing when expander is closed.
+- Use context menus instead of plain popups in color gradient editor.
+- Fixed incorrect extension proposal for in the resource creator.
+- Fixed incorrect resource creation in resource creator.
+- Fixed sluggish tiles resizing in the docking manager.
+- Keep the order of interaction modes the same.
+- Fixed bring-into-view for `ScrollPanel` widget - not it does not jump unpredictable.
+- Do not pass keyboard input to invisible widgets.
+- Handle edge cases properly when calculating curve bounds.
+- Fixed "zoom to fit" functionality in the curve editor widget.
+- Fixed sliding of the view in the curve editor widget on resizing.
+- Fixed frustum culling flag usage.
+- Fixed inspector syncing/context changing.
+- Fixed crash when trying to get selected entity from empty selection.
+- Fixed crash when closing scenes using `X` button on the tabs.
 
 ## Removed
 
-- TODO
+- Removed `define_command_stack` macro
+- Removed redundant `old_selection` arg from change selection command
 
 # 0.33.1 Engine + 0.20.1 Editor 
 
