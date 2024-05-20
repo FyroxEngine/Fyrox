@@ -36,6 +36,7 @@ use crate::{
     Message,
 };
 use cargo_metadata::{camino::Utf8Path, Metadata};
+use fyrox::graph::SceneGraph;
 use std::{
     ffi::OsStr,
     fmt::{Display, Formatter},
@@ -1063,16 +1064,14 @@ impl ExportWindow {
     }
 
     pub fn sync_to_model(&self, ui: &mut UserInterface) {
-        let ctx = ui
-            .node(self.inspector)
-            .cast::<Inspector>()
-            .unwrap()
-            .context()
-            .clone();
-
-        if let Err(sync_errors) = ctx.sync(&self.export_options, ui, 0, true, Default::default()) {
-            for error in sync_errors {
-                Log::err(format!("Failed to sync property. Reason: {:?}", error))
+        if let Some(inspector) = ui.try_get_of_type::<Inspector>(self.inspector) {
+            let ctx = inspector.context().clone();
+            if let Err(sync_errors) =
+                ctx.sync(&self.export_options, ui, 0, true, Default::default())
+            {
+                for error in sync_errors {
+                    Log::err(format!("Failed to sync property. Reason: {:?}", error))
+                }
             }
         }
     }
