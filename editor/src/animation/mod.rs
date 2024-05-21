@@ -624,6 +624,10 @@ impl AnimationEditor {
         G: SceneGraph<Node = N>,
         N: SceneGraphNode<SceneGraph = G>,
     {
+        if !self.is_in_preview_mode() {
+            return;
+        }
+
         let selection = fetch_selection(self, graph, editor_selection);
 
         if let Some(container) = animation_container_ref(graph, selection.animation_player) {
