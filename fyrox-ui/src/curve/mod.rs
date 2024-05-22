@@ -29,7 +29,7 @@ use crate::{
     text::TextBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
-    BRUSH_BRIGHT,
+    BRUSH_BRIGHT, BRUSH_LIGHT,
 };
 use fxhash::FxHashSet;
 use fyrox_graph::BaseSceneGraph;
@@ -818,6 +818,10 @@ impl Control for CurveEditor {
                     match msg {
                         CurveEditorMessage::SyncBackground(curves) => {
                             self.background_curves = CurvesContainer::from_native(curves);
+
+                            for curve in self.background_curves.iter_mut() {
+                                curve.brush = BRUSH_LIGHT;
+                            }
                         }
                         CurveEditorMessage::Sync(curves) => {
                             let color_map = self
@@ -1693,7 +1697,11 @@ impl CurveEditorBuilder {
     }
 
     pub fn build(mut self, ctx: &mut BuildContext) -> Handle<UiNode> {
-        let background_curves = CurvesContainer::from_native(&self.curves);
+        let mut background_curves = CurvesContainer::from_native(&self.curves);
+        for curve in background_curves.iter_mut() {
+            curve.brush = BRUSH_LIGHT;
+        }
+
         let curves = CurvesContainer::from_native(&self.curves);
 
         let add_key;
