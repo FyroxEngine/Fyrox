@@ -2,6 +2,17 @@
 name = "fyrox-dylib"
 version = "0.1.0"
 edition = "2021"
+authors = ["Dmitry Stepanov <d1maxa@yandex.ru>", "Fyrox Engine Contributors"]
+license = "MIT"
+description = "Dynamic library for Fyrox Game Engine"
+keywords = ["sound", "game", "engine", "3d", "gui"]
+categories = ["game-engines", "graphics", "gui", "rendering", "wasm"]
+include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md"]
+homepage = "https://fyrox.rs"
+documentation = "https://docs.rs/fyrox-dylib"
+repository = "https://github.com/FyroxEngine/Fyrox"
+readme = "README.md"
+rust-version = "1.72"
 
 [lib]
 crate-type = ["dylib"]
