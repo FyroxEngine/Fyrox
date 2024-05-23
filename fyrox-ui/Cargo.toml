@@ -15,7 +15,7 @@ readme = "README.md"
 rust-version = "1.72"
 
 [dependencies]
-fyrox-core = { path = "../fyrox-core", version = "0.28.0", features = ["serde"] }
+fyrox-core = { path = "../fyrox-core", version = "0.28.1", features = ["serde"] }
 fyrox-resource = { path = "../fyrox-resource", version = "0.12.0" }
 fyrox-graph = { path = "../fyrox-graph", version = "0.1.0" }
 fyrox-animation = { path = "../fyrox-animation", version = "0.2.0"}

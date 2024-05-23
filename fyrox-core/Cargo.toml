@@ -1,6 +1,6 @@
 [package]
 name = "fyrox-core"
-version = "0.28.0"
+version = "0.28.1"
 authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
 edition = "2021"
 license = "MIT"

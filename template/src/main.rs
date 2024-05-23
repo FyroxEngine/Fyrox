@@ -808,6 +808,10 @@ fn main() {
             // Engine -> (Editor, Scripts) version mapping.
             let editor_versions = [
                 (
+                    "0.34.0".to_string(),
+                    ("0.21.0".to_string(), Some("0.3.0".to_string())),
+                ),
+                (
                     "0.33.0".to_string(),
                     ("0.20.0".to_string(), Some("0.2.0".to_string())),
                 ),
