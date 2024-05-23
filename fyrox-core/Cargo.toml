@@ -1,6 +1,6 @@
 [package]
 name = "fyrox-core"
-version = "0.27.0"
+version = "0.28.0"
 authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
 edition = "2021"
 license = "MIT"
@@ -15,7 +15,7 @@ readme = "README.md"
 rust-version = "1.72"
 
 [dependencies]
-fyrox-core-derive = { path = "../fyrox-core-derive", version = "0.22.0" }
+fyrox-core-derive = { path = "../fyrox-core-derive", version = "0.23.0" }
 fyrox-math = { path = "../fyrox-math", version = "0.1.0" }
 base64 = "0.21.0"
 byteorder = "1.4.3"

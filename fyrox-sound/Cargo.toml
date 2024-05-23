@@ -1,6 +1,6 @@
 [package]
 name = "fyrox-sound"
-version = "0.34.0"
+version = "0.35.0"
 authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
 edition = "2021"
 license = "MIT"
@@ -15,8 +15,8 @@ readme = "README.md"
 rust-version = "1.72"
 
 [dependencies]
-fyrox-core = { path = "../fyrox-core", version = "0.27.0" }
-fyrox-resource = { path = "../fyrox-resource", version = "0.11.0" }
+fyrox-core = { path = "../fyrox-core", version = "0.28.0" }
+fyrox-resource = { path = "../fyrox-resource", version = "0.12.0" }
 lewton = "0.10.2"
 ogg = "0.8.0"
 hrtf = "0.8.0"

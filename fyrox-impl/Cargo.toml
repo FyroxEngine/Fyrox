@@ -1,6 +1,6 @@
 [package]
 name = "fyrox-impl"
-version = "0.33.1"
+version = "0.34.0"
 authors = ["Dmitry Stepanov <d1maxa@yandex.ru>", "Fyrox Engine Contributors"]
 edition = "2021"
 license = "MIT"
@@ -15,12 +15,12 @@ readme = "README.md"
 rust-version = "1.72"
 
 [dependencies]
-fyrox-core-derive = { path = "../fyrox-core-derive", version = "0.22.0" }
-fyrox-core = { path = "../fyrox-core", version = "0.27.0", features = ["serde"] }
-fyrox-sound = { path = "../fyrox-sound", version = "0.34.0" }
-fyrox-ui = { path = "../fyrox-ui", version = "0.24.0" }
-fyrox-resource = { path = "../fyrox-resource", version = "0.11.0" }
-fyrox-animation = { path = "../fyrox-animation", version = "0.1.0" }
+fyrox-core-derive = { path = "../fyrox-core-derive", version = "0.23.0" }
+fyrox-core = { path = "../fyrox-core", version = "0.28.0", features = ["serde"] }
+fyrox-sound = { path = "../fyrox-sound", version = "0.35.0" }
+fyrox-ui = { path = "../fyrox-ui", version = "0.25.0" }
+fyrox-resource = { path = "../fyrox-resource", version = "0.12.0" }
+fyrox-animation = { path = "../fyrox-animation", version = "0.2.0" }
 fyrox-graph = { path = "../fyrox-graph", version = "0.1.0" }
 rapier2d = { version = "0.18", features = ["debug-render"] }
 rapier3d = { version = "0.18", features = ["debug-render"] }

@@ -12,4 +12,4 @@ mesh_analysis = ["fyrox-impl/mesh_analysis"]
 gltf_blend_shapes = ["fyrox-impl/gltf_blend_shapes"]
 
 [dependencies]
-fyrox-impl = { path = "../fyrox-impl", version = "0.33.1" }
+fyrox-impl = { path = "../fyrox-impl", version = "0.34.0" }
