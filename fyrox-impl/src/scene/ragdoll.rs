@@ -1,5 +1,6 @@
 #![allow(missing_docs)] // TODO
 
+use crate::scene::collider::Collider;
 use crate::{
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector3},
@@ -188,11 +189,13 @@ impl Limb {
 }
 
 #[derive(Clone, Reflect, Visit, Debug, Default)]
+#[visit(optional)]
 pub struct Ragdoll {
     base: Base,
     character_rigid_body: InheritableVariable<Handle<Node>>,
     is_active: InheritableVariable<bool>,
     root_limb: InheritableVariable<Limb>,
+    deactivate_colliders: InheritableVariable<bool>,
     #[reflect(hidden)]
     prev_enabled: bool,
 }
@@ -249,10 +252,12 @@ impl NodeTrait for Ragdoll {
         self.prev_enabled = *self.is_active;
 
         self.root_limb.iterate_recursive(&mut |limb| {
-            if let Some(limb_body) = ctx
-                .nodes
-                .try_borrow_mut(limb.physical_bone)
-                .and_then(|n| n.query_component_mut::<RigidBody>())
+            let mbc = ctx.nodes.begin_multi_borrow();
+
+            let mut need_update_transform = false;
+
+            if let Ok(mut limb_body) =
+                mbc.try_get_component_of_type_mut::<RigidBody>(limb.physical_bone)
             {
                 if *self.is_active {
                     // Transfer linear and angular velocities to rag doll bodies.
@@ -266,17 +271,31 @@ impl NodeTrait for Ragdoll {
                     if limb_body.body_type() != RigidBodyType::Dynamic {
                         limb_body.set_body_type(RigidBodyType::Dynamic);
                     }
+
+                    if *self.deactivate_colliders {
+                        for child in limb_body.children() {
+                            if let Ok(mut collider) =
+                                mbc.try_get_component_of_type_mut::<Collider>(*child)
+                            {
+                                collider.set_is_sensor(false);
+                            }
+                        }
+                    }
+
                     let body_transform = limb_body.global_transform();
 
                     // Sync transform of the bone with respective body.
-                    let bone_parent = ctx.nodes[limb.bone].parent();
-                    let transform: Matrix4<f32> = ctx.nodes[bone_parent]
+                    let bone_parent = mbc.try_get(limb.bone).unwrap().parent();
+                    let transform: Matrix4<f32> = mbc
+                        .try_get(bone_parent)
+                        .unwrap()
                         .global_transform()
                         .try_inverse()
                         .unwrap_or_else(Matrix4::identity)
                         * body_transform;
 
-                    ctx.nodes[limb.bone]
+                    mbc.try_get_mut(limb.bone)
+                        .unwrap()
                         .local_transform_mut()
                         .set_position(Vector3::new(transform[12], transform[13], transform[14]))
                         .set_pre_rotation(UnitQuaternion::identity())
@@ -288,25 +307,27 @@ impl NodeTrait for Ragdoll {
                             Default::default(),
                         ));
 
-                    // Calculate transform of the descendants explicitly, so the next bones in hierarchy will have new transform
-                    // that can be used to calculate relative transform.
-                    Graph::update_hierarchical_data_recursively(
-                        ctx.nodes,
-                        ctx.sound_context,
-                        ctx.physics,
-                        ctx.physics2d,
-                        limb.bone,
-                    );
+                    need_update_transform = true;
                 } else {
                     limb_body.set_body_type(RigidBodyType::KinematicPositionBased);
                     limb_body.set_lin_vel(Default::default());
                     limb_body.set_ang_vel(Default::default());
 
+                    if *self.deactivate_colliders {
+                        for child in limb_body.children() {
+                            if let Ok(mut collider) =
+                                mbc.try_get_component_of_type_mut::<Collider>(*child)
+                            {
+                                collider.set_is_sensor(true);
+                            }
+                        }
+                    }
+
                     let self_transform_inverse =
                         self.global_transform().try_inverse().unwrap_or_default();
 
                     // Sync transform of the physical body with respective bone.
-                    if let Some(bone) = ctx.nodes.try_borrow(limb.bone) {
+                    if let Ok(bone) = mbc.try_get(limb.bone) {
                         let relative_transform = self_transform_inverse * bone.global_transform();
 
                         let position = Vector3::new(
@@ -320,12 +341,26 @@ impl NodeTrait for Ragdoll {
                             16,
                             Default::default(),
                         );
-                        ctx.nodes[limb.physical_bone]
+                        limb_body
                             .local_transform_mut()
                             .set_position(position)
                             .set_rotation(rotation);
                     }
                 }
+            };
+
+            drop(mbc);
+
+            if need_update_transform {
+                // Calculate transform of the descendants explicitly, so the next bones in hierarchy will have new transform
+                // that can be used to calculate relative transform.
+                Graph::update_hierarchical_data_recursively(
+                    ctx.nodes,
+                    ctx.sound_context,
+                    ctx.physics,
+                    ctx.physics2d,
+                    limb.bone,
+                );
             }
         });
 
@@ -373,6 +408,7 @@ pub struct RagdollBuilder {
     base_builder: BaseBuilder,
     character_rigid_body: Handle<Node>,
     is_active: bool,
+    deactivate_colliders: bool,
     root_limb: Limb,
 }
 
@@ -382,6 +418,7 @@ impl RagdollBuilder {
             base_builder,
             character_rigid_body: Default::default(),
             is_active: true,
+            deactivate_colliders: false,
             root_limb: Default::default(),
         }
     }
@@ -401,12 +438,18 @@ impl RagdollBuilder {
         self
     }
 
+    pub fn with_deactivate_colliders(mut self, value: bool) -> Self {
+        self.deactivate_colliders = value;
+        self
+    }
+
     pub fn build_ragdoll(self) -> Ragdoll {
         Ragdoll {
             base: self.base_builder.build_base(),
             character_rigid_body: self.character_rigid_body.into(),
             is_active: self.is_active.into(),
             root_limb: self.root_limb.into(),
+            deactivate_colliders: self.deactivate_colliders.into(),
             prev_enabled: self.is_active,
         }
     }
