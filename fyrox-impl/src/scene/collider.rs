@@ -386,24 +386,28 @@ pub enum TOIStatus {
     Penetrating,
 }
 
-impl From<rapier3d::parry::query::TOIStatus> for TOIStatus {
-    fn from(value: rapier3d::parry::query::TOIStatus) -> Self {
+impl From<rapier3d::parry::query::ShapeCastStatus> for TOIStatus {
+    fn from(value: rapier3d::parry::query::ShapeCastStatus) -> Self {
         match value {
-            rapier3d::parry::query::TOIStatus::OutOfIterations => Self::OutOfIterations,
-            rapier3d::parry::query::TOIStatus::Converged => Self::Converged,
-            rapier3d::parry::query::TOIStatus::Failed => Self::Failed,
-            rapier3d::parry::query::TOIStatus::Penetrating => Self::Penetrating,
+            rapier3d::parry::query::ShapeCastStatus::OutOfIterations => Self::OutOfIterations,
+            rapier3d::parry::query::ShapeCastStatus::Converged => Self::Converged,
+            rapier3d::parry::query::ShapeCastStatus::Failed => Self::Failed,
+            rapier3d::parry::query::ShapeCastStatus::PenetratingOrWithinTargetDist => {
+                Self::Penetrating
+            }
         }
     }
 }
 
-impl From<rapier2d::parry::query::TOIStatus> for TOIStatus {
-    fn from(value: rapier2d::parry::query::TOIStatus) -> Self {
+impl From<rapier2d::parry::query::ShapeCastStatus> for TOIStatus {
+    fn from(value: rapier2d::parry::query::ShapeCastStatus) -> Self {
         match value {
-            rapier2d::parry::query::TOIStatus::OutOfIterations => Self::OutOfIterations,
-            rapier2d::parry::query::TOIStatus::Converged => Self::Converged,
-            rapier2d::parry::query::TOIStatus::Failed => Self::Failed,
-            rapier2d::parry::query::TOIStatus::Penetrating => Self::Penetrating,
+            rapier2d::parry::query::ShapeCastStatus::OutOfIterations => Self::OutOfIterations,
+            rapier2d::parry::query::ShapeCastStatus::Converged => Self::Converged,
+            rapier2d::parry::query::ShapeCastStatus::Failed => Self::Failed,
+            rapier2d::parry::query::ShapeCastStatus::PenetratingOrWithinTargetDist => {
+                Self::Penetrating
+            }
         }
     }
 }

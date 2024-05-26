@@ -3,8 +3,8 @@
 use crate::{
     core::{
         algebra::{
-            DMatrix, Dyn, Isometry3, Matrix4, Point3, Translation3, UnitQuaternion, VecStorage,
-            Vector2, Vector3,
+            DMatrix, Dyn, Isometry3, Matrix4, Point3, Translation, Translation3, UnitQuaternion,
+            UnitVector3, VecStorage, Vector2, Vector3,
         },
         arrayvec::ArrayVec,
         instant,
@@ -13,6 +13,7 @@ use crate::{
         parking_lot::Mutex,
         pool::Handle,
         reflect::prelude::*,
+        uuid_provider,
         variable::{InheritableVariable, VariableFlags},
         visitor::prelude::*,
         BiDirHashMap,
@@ -21,47 +22,45 @@ use crate::{
         self,
         collider::{self, ColliderShape, GeometrySource},
         debug::SceneDrawingContext,
-        graph::{isometric_global_transform, NodePool},
+        graph::{isometric_global_transform, Graph, NodePool},
         joint::{JointLocalFrames, JointParams},
         mesh::{
             buffer::{VertexAttributeUsage, VertexReadTrait},
             Mesh,
         },
         node::{Node, NodeTrait},
+        rigidbody,
         rigidbody::ApplyAction,
         terrain::Terrain,
     },
     utils::raw_mesh::{RawMeshBuilder, RawVertex},
 };
-use fyrox_core::algebra::Translation;
-use fyrox_core::uuid_provider;
-use rapier2d::na::UnitVector3;
 use rapier3d::{
     dynamics::{
         CCDSolver, GenericJoint, GenericJointBuilder, ImpulseJointHandle, ImpulseJointSet,
         IslandManager, JointAxesMask, MultibodyJointHandle, MultibodyJointSet, RigidBody,
         RigidBodyActivation, RigidBodyBuilder, RigidBodyHandle, RigidBodySet, RigidBodyType,
     },
+    geometry::DefaultBroadPhase,
     geometry::{
-        BroadPhase, Collider, ColliderBuilder, ColliderHandle, ColliderSet, Cuboid,
-        InteractionGroups, NarrowPhase, Ray, SharedShape,
+        Collider, ColliderBuilder, ColliderHandle, ColliderSet, Cuboid, InteractionGroups,
+        NarrowPhase, Ray, SharedShape,
     },
+    parry::query::ShapeCastOptions,
     pipeline::{DebugRenderPipeline, EventHandler, PhysicsPipeline, QueryPipeline},
     prelude::JointAxis,
 };
-use std::num::NonZeroUsize;
 use std::{
     cell::{Cell, RefCell},
     cmp::Ordering,
     fmt::{Debug, Formatter},
     hash::Hash,
+    num::NonZeroUsize,
     sync::Arc,
     time::Duration,
 };
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
-use crate::scene::graph::Graph;
-use crate::scene::rigidbody;
 use fyrox_graph::{BaseSceneGraph, SceneGraphNode};
 pub use rapier3d::geometry::shape::*;
 
@@ -849,6 +848,31 @@ pub struct IntegrationParameters {
         description = "Maximum number of substeps performed by the  solver (default: `4`)."
     )]
     pub max_ccd_substeps: u32,
+
+    /// The coefficient in `[0, 1]` applied to warmstart impulses, i.e., impulses that are used as the
+    /// initial solution (instead of 0) at the next simulation step.
+    ///
+    /// This should generally be set to 1. Can be set to 0 if using a large [`Self::erp`] value.
+    /// (default `1.0`).
+    pub warmstart_coefficient: f32,
+
+    /// The approximate size of most dynamic objects in the scene.
+    ///
+    /// This value is used internally to estimate some length-based tolerance. In particular, the
+    /// values [`IntegrationParameters::allowed_linear_error`],
+    /// [`IntegrationParameters::max_penetration_correction`],
+    /// [`IntegrationParameters::prediction_distance`], [`RigidBodyActivation::linear_threshold`]
+    /// are scaled by this value implicitly.
+    ///
+    /// This value can be understood as the number of units-per-meter in your physical world compared
+    /// to a human-sized world in meter. For example, in a 2d game, if your typical object size is 100
+    /// pixels, set the `[`Self::length_unit`]` parameter to 100.0. The physics engine will interpret
+    /// it as if 100 pixels is equivalent to 1 meter in its various internal threshold.
+    /// (default `1.0`).
+    pub length_unit: f32,
+
+    /// The number of stabilization iterations run at each solver iterations (default: `2`).
+    pub num_internal_stabilization_iterations: usize,
 }
 
 impl Default for IntegrationParameters {
@@ -856,18 +880,21 @@ impl Default for IntegrationParameters {
         Self {
             dt: None,
             min_ccd_dt: 1.0 / 60.0 / 100.0,
-            erp: 0.8,
-            damping_ratio: 0.25,
-            joint_erp: 0.8,
-            joint_damping_ratio: 0.8,
-            allowed_linear_error: 0.002,
+            erp: 0.1,
+            damping_ratio: 20.0,
+            joint_erp: 1.0,
+            joint_damping_ratio: 1.0,
+            warmstart_coefficient: 1.0,
+            allowed_linear_error: 0.001,
             max_penetration_correction: f32::MAX,
             prediction_distance: 0.002,
             num_internal_pgs_iterations: 1,
-            num_additional_friction_iterations: 4,
+            num_additional_friction_iterations: 0,
             num_solver_iterations: 4,
             min_island_size: 128,
             max_ccd_substeps: 4,
+            length_unit: 1.0,
+            num_internal_stabilization_iterations: 2,
         }
     }
 }
@@ -898,7 +925,7 @@ pub struct PhysicsWorld {
     // Broad phase performs rough intersection checks.
     #[visit(skip)]
     #[reflect(hidden)]
-    broad_phase: BroadPhase,
+    broad_phase: DefaultBroadPhase,
     // Narrow phase is responsible for precise contact generation.
     #[visit(skip)]
     #[reflect(hidden)]
@@ -1019,7 +1046,7 @@ impl PhysicsWorld {
             pipeline: PhysicsPipeline::new(),
             gravity: Vector3::new(0.0, -9.81, 0.0).into(),
             integration_parameters: IntegrationParameters::default().into(),
-            broad_phase: BroadPhase::new(),
+            broad_phase: DefaultBroadPhase::new(),
             narrow_phase: NarrowPhase::new(),
             ccd_solver: CCDSolver::new(),
             islands: IslandManager::new(),
@@ -1051,9 +1078,13 @@ impl PhysicsWorld {
                 damping_ratio: self.integration_parameters.damping_ratio,
                 joint_erp: self.integration_parameters.joint_erp,
                 joint_damping_ratio: self.integration_parameters.joint_damping_ratio,
-                allowed_linear_error: self.integration_parameters.allowed_linear_error,
-                max_penetration_correction: self.integration_parameters.max_penetration_correction,
-                prediction_distance: self.integration_parameters.prediction_distance,
+                warmstart_coefficient: self.integration_parameters.warmstart_coefficient,
+                length_unit: self.integration_parameters.length_unit,
+                normalized_allowed_linear_error: self.integration_parameters.allowed_linear_error,
+                normalized_max_penetration_correction: self
+                    .integration_parameters
+                    .max_penetration_correction,
+                normalized_prediction_distance: self.integration_parameters.prediction_distance,
                 num_solver_iterations: NonZeroUsize::new(
                     self.integration_parameters.num_solver_iterations,
                 )
@@ -1064,6 +1095,9 @@ impl PhysicsWorld {
                 num_internal_pgs_iterations: self
                     .integration_parameters
                     .num_internal_pgs_iterations,
+                num_internal_stabilization_iterations: self
+                    .integration_parameters
+                    .num_internal_stabilization_iterations,
                 min_island_size: self.integration_parameters.min_island_size as usize,
                 max_ccd_substeps: self.integration_parameters.max_ccd_substeps as usize,
             };
@@ -1190,9 +1224,9 @@ impl PhysicsWorld {
                         self.colliders.get(handle).unwrap().user_data,
                     ),
                     normal: intersection.normal,
-                    position: ray.point_at(intersection.toi),
+                    position: ray.point_at(intersection.time_of_impact),
                     feature: intersection.feature.into(),
-                    toi: intersection.toi,
+                    toi: intersection.time_of_impact,
                 })
             },
         );
@@ -1275,6 +1309,13 @@ impl PhysicsWorld {
 
         let query = self.query.borrow_mut();
 
+        let opts = ShapeCastOptions {
+            max_time_of_impact: max_toi,
+            target_distance: 0.0,
+            stop_at_penetration,
+            compute_impact_geometry_on_penetration: true,
+        };
+
         query
             .cast_shape(
                 &self.bodies,
@@ -1282,15 +1323,14 @@ impl PhysicsWorld {
                 shape_pos,
                 shape_vel,
                 shape,
-                max_toi,
-                stop_at_penetration,
+                opts,
                 filter,
             )
             .map(|(handle, toi)| {
                 (
                     Handle::decode_from_u128(self.colliders.get(handle).unwrap().user_data),
                     TOI {
-                        toi: toi.toi,
+                        toi: toi.time_of_impact,
                         witness1: toi.witness1,
                         witness2: toi.witness2,
                         normal1: toi.normal1,
@@ -1401,13 +1441,13 @@ impl PhysicsWorld {
                     rigid_body_node.can_sleep.try_sync_model(|v| {
                         let activation = native.activation_mut();
                         if v {
-                            activation.linear_threshold =
-                                RigidBodyActivation::default_linear_threshold();
+                            activation.normalized_linear_threshold =
+                                RigidBodyActivation::default_normalized_linear_threshold();
                             activation.angular_threshold =
                                 RigidBodyActivation::default_angular_threshold();
                         } else {
                             activation.sleeping = false;
-                            activation.linear_threshold = -1.0;
+                            activation.normalized_linear_threshold = -1.0;
                             activation.angular_threshold = -1.0;
                         };
                     });

@@ -1,7 +1,5 @@
 //! Scene physics module.
 
-use crate::scene::dim2::joint::JointLocalFrames;
-use crate::scene::graph::Graph;
 use crate::{
     core::{
         algebra::{
@@ -19,11 +17,16 @@ use crate::{
         visitor::prelude::*,
         BiDirHashMap,
     },
+    graph::{BaseSceneGraph, SceneGraphNode},
     scene::{
         self,
         collider::{self},
         debug::SceneDrawingContext,
-        dim2::{self, collider::ColliderShape, joint::JointParams, rigidbody::ApplyAction},
+        dim2::{
+            self, collider::ColliderShape, joint::JointLocalFrames, joint::JointParams,
+            rigidbody::ApplyAction,
+        },
+        graph::Graph,
         graph::{
             physics::{FeatureId, IntegrationParameters, PhysicsPerformanceStatistics},
             NodePool,
@@ -40,21 +43,21 @@ use rapier2d::{
         RigidBodyType,
     },
     geometry::{
-        BroadPhase, Collider, ColliderBuilder, ColliderHandle, ColliderSet, Cuboid,
+        Collider, ColliderBuilder, ColliderHandle, ColliderSet, Cuboid, DefaultBroadPhase,
         InteractionGroups, NarrowPhase, Ray, SharedShape,
     },
+    parry::query::ShapeCastOptions,
     pipeline::{DebugRenderPipeline, EventHandler, PhysicsPipeline, QueryPipeline},
 };
-use std::num::NonZeroUsize;
 use std::{
     cell::RefCell,
     cmp::Ordering,
     fmt::{Debug, Formatter},
     hash::Hash,
+    num::NonZeroUsize,
     sync::Arc,
 };
 
-use fyrox_graph::{BaseSceneGraph, SceneGraphNode};
 pub use rapier2d::geometry::shape::*;
 
 /// A trait for ray cast results storage. It has two implementations: Vec and ArrayVec.
@@ -218,7 +221,7 @@ impl ContactPair {
                                 local_p2: p.local_p2.coords,
                                 dist: p.dist,
                                 impulse: p.data.impulse,
-                                tangent_impulse: p.data.tangent_impulse,
+                                tangent_impulse: p.data.tangent_impulse.x,
                             })
                             .collect(),
                         local_n1: m.local_n1,
@@ -365,7 +368,7 @@ pub struct PhysicsWorld {
     // Broad phase performs rough intersection checks.
     #[visit(skip)]
     #[reflect(hidden)]
-    broad_phase: BroadPhase,
+    broad_phase: DefaultBroadPhase,
     // Narrow phase is responsible for precise contact generation.
     #[visit(skip)]
     #[reflect(hidden)]
@@ -485,7 +488,7 @@ impl PhysicsWorld {
             pipeline: PhysicsPipeline::new(),
             gravity: Vector2::new(0.0, -9.81).into(),
             integration_parameters: IntegrationParameters::default().into(),
-            broad_phase: BroadPhase::new(),
+            broad_phase: DefaultBroadPhase::new(),
             narrow_phase: NarrowPhase::new(),
             ccd_solver: CCDSolver::new(),
             islands: IslandManager::new(),
@@ -517,9 +520,13 @@ impl PhysicsWorld {
                 damping_ratio: self.integration_parameters.damping_ratio,
                 joint_erp: self.integration_parameters.joint_erp,
                 joint_damping_ratio: self.integration_parameters.joint_damping_ratio,
-                allowed_linear_error: self.integration_parameters.allowed_linear_error,
-                max_penetration_correction: self.integration_parameters.max_penetration_correction,
-                prediction_distance: self.integration_parameters.prediction_distance,
+                warmstart_coefficient: self.integration_parameters.warmstart_coefficient,
+                length_unit: self.integration_parameters.length_unit,
+                normalized_allowed_linear_error: self.integration_parameters.allowed_linear_error,
+                normalized_max_penetration_correction: self
+                    .integration_parameters
+                    .max_penetration_correction,
+                normalized_prediction_distance: self.integration_parameters.prediction_distance,
                 num_solver_iterations: NonZeroUsize::new(
                     self.integration_parameters.num_solver_iterations,
                 )
@@ -530,6 +537,9 @@ impl PhysicsWorld {
                 num_internal_pgs_iterations: self
                     .integration_parameters
                     .num_internal_pgs_iterations,
+                num_internal_stabilization_iterations: self
+                    .integration_parameters
+                    .num_internal_stabilization_iterations,
                 min_island_size: self.integration_parameters.min_island_size as usize,
                 max_ccd_substeps: self.integration_parameters.max_ccd_substeps as usize,
             };
@@ -656,9 +666,9 @@ impl PhysicsWorld {
                         self.colliders.get(handle).unwrap().user_data,
                     ),
                     normal: intersection.normal,
-                    position: ray.point_at(intersection.toi),
+                    position: ray.point_at(intersection.time_of_impact),
                     feature: intersection.feature.into(),
-                    toi: intersection.toi,
+                    toi: intersection.time_of_impact,
                 })
             },
         );
@@ -741,6 +751,13 @@ impl PhysicsWorld {
 
         let query = self.query.borrow_mut();
 
+        let opts = ShapeCastOptions {
+            max_time_of_impact: max_toi,
+            target_distance: 0.0,
+            stop_at_penetration,
+            compute_impact_geometry_on_penetration: true,
+        };
+
         query
             .cast_shape(
                 &self.bodies,
@@ -748,15 +765,14 @@ impl PhysicsWorld {
                 shape_pos,
                 shape_vel,
                 shape,
-                max_toi,
-                stop_at_penetration,
+                opts,
                 filter,
             )
             .map(|(handle, toi)| {
                 (
                     Handle::decode_from_u128(self.colliders.get(handle).unwrap().user_data),
                     TOI {
-                        toi: toi.toi,
+                        toi: toi.time_of_impact,
                         witness1: toi.witness1,
                         witness2: toi.witness2,
                         normal1: toi.normal1,
@@ -865,13 +881,13 @@ impl PhysicsWorld {
                     rigid_body_node.can_sleep.try_sync_model(|v| {
                         let activation = native.activation_mut();
                         if v {
-                            activation.linear_threshold =
-                                RigidBodyActivation::default_linear_threshold();
+                            activation.normalized_linear_threshold =
+                                RigidBodyActivation::default_normalized_linear_threshold();
                             activation.angular_threshold =
                                 RigidBodyActivation::default_angular_threshold();
                         } else {
                             activation.sleeping = false;
-                            activation.linear_threshold = -1.0;
+                            activation.normalized_linear_threshold = -1.0;
                             activation.angular_threshold = -1.0;
                         };
                     });
