@@ -1,6 +1,7 @@
-#![allow(missing_docs)] // TODO
+//! Ragdoll is a set of rigid bodies linked with various joints, which can control a set of bones
+//! of a mesh. Ragdolls are used mostly for body physics. See [`Ragdoll`] docs for more info and
+//! usage examples.
 
-use crate::scene::collider::Collider;
 use crate::{
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector3},
@@ -8,29 +9,35 @@ use crate::{
         pool::Handle,
         reflect::prelude::*,
         uuid::{uuid, Uuid},
+        uuid_provider,
         variable::InheritableVariable,
         visitor::prelude::*,
         TypeUuidProvider,
     },
+    graph::BaseSceneGraph,
     impl_query_component,
     scene::{
         base::{Base, BaseBuilder},
+        collider::Collider,
         graph::Graph,
         node::{Node, NodeTrait, UpdateContext},
         rigidbody::{RigidBody, RigidBodyType},
     },
 };
-use fyrox_core::uuid_provider;
-use fyrox_graph::BaseSceneGraph;
 use std::{
     any::{type_name, Any, TypeId},
     ops::{Deref, DerefMut},
 };
 
+/// A part of ragdoll, that has a physical rigid body, a bone and zero or more children limbs.
+/// Multiple limbs together forms a ragdoll.
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct Limb {
+    /// A handle of a scene node, that is used as a bone in some other scene node (mesh).
     pub bone: Handle<Node>,
+    /// A handle to a rigid body scene node.
     pub physical_bone: Handle<Node>,
+    /// A set of children limbs.
     pub children: Vec<Limb>,
 }
 
@@ -176,6 +183,8 @@ impl Visit for Limb {
 }
 
 impl Limb {
+    /// Iterates recursively across the entire tree of descendant limbs and does the specified action
+    /// with every limb along the way.
     pub fn iterate_recursive<F>(&self, func: &mut F)
     where
         F: FnMut(&Self),
@@ -188,14 +197,32 @@ impl Limb {
     }
 }
 
+/// Ragdoll is a set of rigid bodies linked with various joints, which can control a set of bones
+/// of a mesh. Ragdolls are used mostly for body physics.
+///
+/// ## How to create
+///
+/// Usually, bodies have quite complex hierarchy of bones and total count of the bones could be 30+.
+/// Manual creation of such ragdoll is very tedious and counterproductive. That's why the best way
+/// to create a ragdoll is to use the editor, and the ragdoll wizard in particular. However, if
+/// you're brave enough you can read this code https://github.com/FyroxEngine/Fyrox/blob/master/editor/src/utils/ragdoll.rs -
+/// it creates a ragdoll using a humanoid skeleton.  
 #[derive(Clone, Reflect, Visit, Debug, Default)]
 #[visit(optional)]
 pub struct Ragdoll {
     base: Base,
-    character_rigid_body: InheritableVariable<Handle<Node>>,
-    is_active: InheritableVariable<bool>,
-    root_limb: InheritableVariable<Limb>,
-    deactivate_colliders: InheritableVariable<bool>,
+    /// A handle to a main rigid body of the character to which this ragdoll belongs to. If set, the
+    /// ragdoll will take control over the collider and will move it together with the root limb.
+    pub character_rigid_body: InheritableVariable<Handle<Node>>,
+    /// A flag, that defines whether the ragdoll is active or not. Active ragdoll enables limb rigid
+    /// bodies and takes control over `character_rigid_body` (if set).
+    pub is_active: InheritableVariable<bool>,
+    /// Root limb of the ragdoll. Usually it is hips of the body and rest of the limbs are forming
+    /// the rest of the hierarchy.
+    pub root_limb: InheritableVariable<Limb>,
+    /// A flag, that defines whether the ragdoll will deactivate colliders when it is not active or not.
+    /// This option could be useful if you want to disable physics of limbs while the ragdoll is active.
+    pub deactivate_colliders: InheritableVariable<bool>,
     #[reflect(hidden)]
     prev_enabled: bool,
 }
@@ -386,24 +413,7 @@ impl NodeTrait for Ragdoll {
     }
 }
 
-impl Ragdoll {
-    pub fn set_active(&mut self, active: bool) {
-        self.is_active.set_value_and_mark_modified(active);
-    }
-
-    pub fn is_active(&self) -> bool {
-        *self.is_active
-    }
-
-    pub fn root_limb(&self) -> &Limb {
-        &self.root_limb
-    }
-
-    pub fn set_root_limb(&mut self, root_limb: Limb) {
-        self.root_limb.set_value_and_mark_modified(root_limb);
-    }
-}
-
+/// Ragdoll builder creates [`Ragdoll`] scene nodes.
 pub struct RagdollBuilder {
     base_builder: BaseBuilder,
     character_rigid_body: Handle<Node>,
@@ -413,6 +423,7 @@ pub struct RagdollBuilder {
 }
 
 impl RagdollBuilder {
+    /// Creates a new ragdoll builder.
     pub fn new(base_builder: BaseBuilder) -> Self {
         Self {
             base_builder,
@@ -423,26 +434,31 @@ impl RagdollBuilder {
         }
     }
 
+    /// Sets the desired character rigid body.
     pub fn with_character_rigid_body(mut self, handle: Handle<Node>) -> Self {
         self.character_rigid_body = handle;
         self
     }
 
+    /// Sets whether the ragdoll is active or not.
     pub fn with_active(mut self, active: bool) -> Self {
         self.is_active = active;
         self
     }
 
+    /// Sets the desired root limb.
     pub fn with_root_limb(mut self, root_limb: Limb) -> Self {
         self.root_limb = root_limb;
         self
     }
 
+    /// Sets whether the ragdoll should deactivate colliders of its limbs when it is not active or not.
     pub fn with_deactivate_colliders(mut self, value: bool) -> Self {
         self.deactivate_colliders = value;
         self
     }
 
+    /// Builds the ragdoll.
     pub fn build_ragdoll(self) -> Ragdoll {
         Ragdoll {
             base: self.base_builder.build_base(),
@@ -459,6 +475,7 @@ impl RagdollBuilder {
         Node::new(self.build_ragdoll())
     }
 
+    /// Creates the ragdoll node and adds it to the given graph.
     pub fn build(self, graph: &mut Graph) -> Handle<Node> {
         graph.add_node(self.build_node())
     }

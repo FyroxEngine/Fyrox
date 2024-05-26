@@ -879,95 +879,98 @@ impl RagdollPreset {
             graph,
         );
 
-        graph[ragdoll].as_ragdoll_mut().set_root_limb(Limb {
-            bone: self.hips,
-            physical_bone: hips,
-            children: vec![
-                Limb {
-                    bone: self.spine,
-                    physical_bone: spine,
-                    children: vec![Limb {
-                        bone: self.spine1,
-                        physical_bone: spine1,
+        graph[ragdoll]
+            .as_ragdoll_mut()
+            .root_limb
+            .set_value_and_mark_modified(Limb {
+                bone: self.hips,
+                physical_bone: hips,
+                children: vec![
+                    Limb {
+                        bone: self.spine,
+                        physical_bone: spine,
                         children: vec![Limb {
-                            bone: self.spine2,
-                            physical_bone: spine2,
-                            children: vec![
-                                Limb {
-                                    bone: self.left_shoulder,
-                                    physical_bone: left_shoulder,
-                                    children: vec![Limb {
-                                        bone: self.left_arm,
-                                        physical_bone: left_arm,
+                            bone: self.spine1,
+                            physical_bone: spine1,
+                            children: vec![Limb {
+                                bone: self.spine2,
+                                physical_bone: spine2,
+                                children: vec![
+                                    Limb {
+                                        bone: self.left_shoulder,
+                                        physical_bone: left_shoulder,
                                         children: vec![Limb {
-                                            bone: self.left_fore_arm,
-                                            physical_bone: left_fore_arm,
+                                            bone: self.left_arm,
+                                            physical_bone: left_arm,
                                             children: vec![Limb {
-                                                bone: self.left_hand,
-                                                physical_bone: left_hand,
-                                                children: vec![],
+                                                bone: self.left_fore_arm,
+                                                physical_bone: left_fore_arm,
+                                                children: vec![Limb {
+                                                    bone: self.left_hand,
+                                                    physical_bone: left_hand,
+                                                    children: vec![],
+                                                }],
                                             }],
                                         }],
-                                    }],
-                                },
-                                Limb {
-                                    bone: self.right_shoulder,
-                                    physical_bone: right_shoulder,
-                                    children: vec![Limb {
-                                        bone: self.right_arm,
-                                        physical_bone: right_arm,
+                                    },
+                                    Limb {
+                                        bone: self.right_shoulder,
+                                        physical_bone: right_shoulder,
                                         children: vec![Limb {
-                                            bone: self.right_fore_arm,
-                                            physical_bone: right_fore_arm,
+                                            bone: self.right_arm,
+                                            physical_bone: right_arm,
                                             children: vec![Limb {
-                                                bone: self.right_hand,
-                                                physical_bone: right_hand,
-                                                children: vec![],
+                                                bone: self.right_fore_arm,
+                                                physical_bone: right_fore_arm,
+                                                children: vec![Limb {
+                                                    bone: self.right_hand,
+                                                    physical_bone: right_hand,
+                                                    children: vec![],
+                                                }],
                                             }],
                                         }],
-                                    }],
-                                },
-                                Limb {
-                                    bone: self.neck,
-                                    physical_bone: neck,
-                                    children: vec![Limb {
-                                        bone: self.head,
-                                        physical_bone: head,
-                                        children: vec![],
-                                    }],
-                                },
-                            ],
+                                    },
+                                    Limb {
+                                        bone: self.neck,
+                                        physical_bone: neck,
+                                        children: vec![Limb {
+                                            bone: self.head,
+                                            physical_bone: head,
+                                            children: vec![],
+                                        }],
+                                    },
+                                ],
+                            }],
                         }],
-                    }],
-                },
-                Limb {
-                    bone: self.left_up_leg,
-                    physical_bone: left_up_leg,
-                    children: vec![Limb {
-                        bone: self.left_leg,
-                        physical_bone: left_leg,
+                    },
+                    Limb {
+                        bone: self.left_up_leg,
+                        physical_bone: left_up_leg,
                         children: vec![Limb {
-                            bone: self.left_foot,
-                            physical_bone: left_foot,
-                            children: vec![],
+                            bone: self.left_leg,
+                            physical_bone: left_leg,
+                            children: vec![Limb {
+                                bone: self.left_foot,
+                                physical_bone: left_foot,
+                                children: vec![],
+                            }],
                         }],
-                    }],
-                },
-                Limb {
-                    bone: self.right_up_leg,
-                    physical_bone: right_up_leg,
-                    children: vec![Limb {
-                        bone: self.right_leg,
-                        physical_bone: right_leg,
+                    },
+                    Limb {
+                        bone: self.right_up_leg,
+                        physical_bone: right_up_leg,
                         children: vec![Limb {
-                            bone: self.right_foot,
-                            physical_bone: right_foot,
-                            children: vec![],
+                            bone: self.right_leg,
+                            physical_bone: right_leg,
+                            children: vec![Limb {
+                                bone: self.right_foot,
+                                physical_bone: right_foot,
+                                children: vec![],
+                            }],
                         }],
-                    }],
-                },
-            ],
-        });
+                    },
+                ],
+            });
 
         // Immediately after extract if from the scene to subgraph. This is required to not violate
         // the rule of one place of execution, only commands allowed to modify the scene.
