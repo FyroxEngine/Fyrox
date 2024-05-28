@@ -1,14 +1,15 @@
 //! Project manager is used to create, import, rename, delete, run and edit projects built with Fyrox.
 
+use fyrox::gui::navigation::NavigationLayerBuilder;
 use fyrox::{
     asset::manager::ResourceManager,
     core::{
-        algebra::Vector2,
         instant::Instant,
         log::{Log, MessageKind},
         pool::Handle,
         task::TaskPool,
     },
+    dpi::PhysicalSize,
     engine::{
         Engine, EngineInitParams, GraphicsContext, GraphicsContextParams, SerializationContext,
     },
@@ -16,14 +17,18 @@ use fyrox::{
     event_loop::{ControlFlow, EventLoop},
     gui::{
         border::BorderBuilder,
-        button::ButtonBuilder,
+        button::{ButtonBuilder, ButtonMessage},
         constructor::WidgetConstructorContainer,
+        font::Font,
         grid::{Column, GridBuilder, Row},
-        list_view::ListViewBuilder,
+        list_view::{ListViewBuilder, ListViewMessage},
+        message::{MessageDirection, UiMessage},
         screen::ScreenBuilder,
+        searchbar::{SearchBarBuilder, SearchBarMessage},
         stack_panel::StackPanelBuilder,
+        text::TextBuilder,
         widget::WidgetBuilder,
-        BuildContext, Orientation, UiNode,
+        BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, VerticalAlignment,
     },
     utils::translate_event,
     window::WindowAttributes,
@@ -32,6 +37,7 @@ use std::sync::Arc;
 
 fn main() {
     let mut window_attributes = WindowAttributes::default();
+    window_attributes.inner_size = Some(PhysicalSize::new(1000, 562).into());
     window_attributes.resizable = true;
     window_attributes.title = "Fyrox Project Manager".to_string();
 
@@ -50,7 +56,11 @@ fn main() {
     })
     .unwrap();
 
-    let _project_manager = ProjectManager::new(&mut engine.user_interfaces.first_mut().build_ctx());
+    let primary_ui = engine.user_interfaces.first_mut();
+    primary_ui.default_font = engine
+        .resource_manager
+        .request::<Font>("resources/arial.ttf");
+    let project_manager = ProjectManager::new(&mut primary_ui.build_ctx());
 
     let event_loop = EventLoop::new().unwrap();
 
@@ -81,6 +91,10 @@ fn main() {
                     while lag >= fixed_time_step {
                         engine.update(fixed_time_step, window_target, &mut lag, Default::default());
                         lag -= fixed_time_step;
+                    }
+
+                    while let Some(message) = engine.user_interfaces.first_mut().poll_message() {
+                        project_manager.handle_ui_message(&message);
                     }
 
                     if let GraphicsContext::Initialized(ref ctx) = engine.graphics_context {
@@ -116,38 +130,83 @@ fn main() {
         .unwrap();
 }
 
-struct ProjectManager {}
+struct ProjectManager {
+    create: Handle<UiNode>,
+    import: Handle<UiNode>,
+    projects: Handle<UiNode>,
+    edit: Handle<UiNode>,
+    run: Handle<UiNode>,
+    delete: Handle<UiNode>,
+    search_bar: Handle<UiNode>,
+}
 
-fn make_button(text: &str, ctx: &mut BuildContext) -> Handle<UiNode> {
+fn make_button(
+    text: &str,
+    width: f32,
+    height: f32,
+    tab_index: usize,
+    ctx: &mut BuildContext,
+) -> Handle<UiNode> {
     ButtonBuilder::new(
         WidgetBuilder::new()
-            .with_height(25.0)
-            .with_min_size(Vector2::new(120.0, 25.0)),
+            .with_width(width)
+            .with_height(height)
+            .with_tab_index(Some(tab_index))
+            .with_margin(Thickness::uniform(1.0)),
     )
-    .with_text(text)
+    .with_content(
+        TextBuilder::new(WidgetBuilder::new())
+            .with_text(text)
+            .with_font_size(16.0)
+            .with_vertical_text_alignment(VerticalAlignment::Center)
+            .with_horizontal_text_alignment(HorizontalAlignment::Center)
+            .build(ctx),
+    )
     .build(ctx)
 }
 
 impl ProjectManager {
     fn new(ctx: &mut BuildContext) -> Self {
+        let create = make_button("+ Create", 100.0, 25.0, 0, ctx);
+        let import = make_button("Import", 100.0, 25.0, 1, ctx);
+        let search_bar = SearchBarBuilder::new(
+            WidgetBuilder::new()
+                .with_tab_index(Some(2))
+                .with_margin(Thickness::uniform(1.0))
+                .with_height(25.0)
+                .with_width(200.0),
+        )
+        .build(ctx);
+
         let toolbar = StackPanelBuilder::new(
             WidgetBuilder::new()
-                .with_child(make_button("+ Create", ctx))
-                .with_child(make_button("Import", ctx)),
+                .with_child(create)
+                .with_child(import)
+                .with_child(search_bar),
         )
         .with_orientation(Orientation::Horizontal)
         .build(ctx);
 
+        let edit = make_button("Edit", 100.0, 25.0, 3, ctx);
+        let run = make_button("Run", 100.0, 25.0, 4, ctx);
+        let delete = make_button("Delete", 100.0, 25.0, 5, ctx);
+
         let sidebar = StackPanelBuilder::new(
             WidgetBuilder::new()
                 .on_column(1)
-                .with_child(make_button("Edit", ctx))
-                .with_child(make_button("Run", ctx))
-                .with_child(make_button("Delete", ctx)),
+                .with_child(edit)
+                .with_child(run)
+                .with_child(delete),
         )
         .build(ctx);
 
-        let projects = ListViewBuilder::new(WidgetBuilder::new().on_column(0)).build(ctx);
+        let projects = ListViewBuilder::new(
+            WidgetBuilder::new()
+                .with_tab_index(Some(6))
+                .with_margin(Thickness::uniform(1.0))
+                .on_column(0),
+        )
+        .build(ctx);
 
         let inner_content = GridBuilder::new(
             WidgetBuilder::new()
@@ -170,11 +229,49 @@ impl ProjectManager {
         .add_row(Row::stretch())
         .build(ctx);
 
+        let navigation_layer =
+            NavigationLayerBuilder::new(WidgetBuilder::new().with_child(main_content)).build(ctx);
+
         ScreenBuilder::new(WidgetBuilder::new().with_child(
-            BorderBuilder::new(WidgetBuilder::new().with_child(main_content)).build(ctx),
+            BorderBuilder::new(WidgetBuilder::new().with_child(navigation_layer)).build(ctx),
         ))
         .build(ctx);
 
-        Self {}
+        Self {
+            create,
+            import,
+            projects,
+            edit,
+            run,
+            delete,
+            search_bar,
+        }
+    }
+
+    fn handle_ui_message(&self, message: &UiMessage) {
+        if let Some(ButtonMessage::Click) = message.data() {
+            if message.destination() == self.create {
+                // TODO: Create project.
+            } else if message.destination() == self.import {
+                // TODO: Import project.
+            } else if message.destination() == self.edit {
+                // TODO: Edit project.
+            } else if message.destination() == self.run {
+                // TODO: Delete project.
+            } else if message.destination() == self.delete {
+            }
+        } else if let Some(ListViewMessage::SelectionChanged(Some(_index))) = message.data() {
+            if message.destination() == self.projects
+                && message.direction() == MessageDirection::FromWidget
+            {
+                // TODO: Change selection.
+            }
+        } else if let Some(SearchBarMessage::Text(_filter)) = message.data() {
+            if message.destination() == self.search_bar
+                && message.direction() == MessageDirection::FromWidget
+            {
+                // TODO: Filter projects.
+            }
+        }
     }
 }

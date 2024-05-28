@@ -531,6 +531,7 @@ impl Force {
 }
 
 /// An event that an OS sends to a window, that is then can be used to "feed" the user interface so it can do some actions.
+#[derive(Debug)]
 pub enum OsEvent {
     /// Mouse input event.
     MouseInput {
