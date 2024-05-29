@@ -1,8 +1,7 @@
 //! Project manager is used to create, import, rename, delete, run and edit projects built with Fyrox.
 
-use fyrox::gui::navigation::NavigationLayerBuilder;
 use fyrox::{
-    asset::manager::ResourceManager,
+    asset::{manager::ResourceManager, untyped::UntypedResource},
     core::{
         instant::Instant,
         log::{Log, MessageKind},
@@ -19,16 +18,23 @@ use fyrox::{
         border::BorderBuilder,
         button::{ButtonBuilder, ButtonMessage},
         constructor::WidgetConstructorContainer,
+        decorator::DecoratorBuilder,
         font::Font,
         grid::{Column, GridBuilder, Row},
+        image::ImageBuilder,
         list_view::{ListViewBuilder, ListViewMessage},
         message::{MessageDirection, UiMessage},
+        navigation::NavigationLayerBuilder,
         screen::ScreenBuilder,
         searchbar::{SearchBarBuilder, SearchBarMessage},
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
         widget::WidgetBuilder,
         BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, VerticalAlignment,
+    },
+    resource::texture::{
+        CompressionOptions, TextureImportOptions, TextureMinificationFilter, TextureResource,
+        TextureResourceExtension,
     },
     utils::translate_event,
     window::WindowAttributes,
@@ -137,6 +143,7 @@ struct ProjectManager {
     edit: Handle<UiNode>,
     run: Handle<UiNode>,
     delete: Handle<UiNode>,
+    rename: Handle<UiNode>,
     search_bar: Handle<UiNode>,
 }
 
@@ -165,6 +172,89 @@ fn make_button(
     .build(ctx)
 }
 
+fn load_image(data: &[u8]) -> Option<UntypedResource> {
+    Some(
+        TextureResource::load_from_memory(
+            Default::default(),
+            data,
+            TextureImportOptions::default()
+                .with_compression(CompressionOptions::NoCompression)
+                .with_minification_filter(TextureMinificationFilter::Linear),
+        )
+        .ok()?
+        .into(),
+    )
+}
+
+fn make_project_item(name: &str, path: &str, ctx: &mut BuildContext) -> Handle<UiNode> {
+    DecoratorBuilder::new(
+        BorderBuilder::new(
+            WidgetBuilder::new()
+                .with_margin(Thickness::uniform(1.0))
+                .with_child(
+                    GridBuilder::new(
+                        WidgetBuilder::new()
+                            .with_child(
+                                ImageBuilder::new(
+                                    WidgetBuilder::new()
+                                        .with_margin(Thickness::uniform(4.0))
+                                        .with_width(40.0)
+                                        .with_height(40.0)
+                                        .on_column(0),
+                                )
+                                .with_opt_texture(load_image(include_bytes!(
+                                    "../resources/icon.png"
+                                )))
+                                .build(ctx),
+                            )
+                            .with_child(
+                                GridBuilder::new(
+                                    WidgetBuilder::new()
+                                        .on_column(1)
+                                        .with_child(
+                                            TextBuilder::new(
+                                                WidgetBuilder::new()
+                                                    .on_row(0)
+                                                    .with_margin(Thickness::uniform(2.0))
+                                                    .with_vertical_alignment(
+                                                        VerticalAlignment::Center,
+                                                    ),
+                                            )
+                                            .with_font_size(18.0)
+                                            .with_text(name)
+                                            .build(ctx),
+                                        )
+                                        .with_child(
+                                            TextBuilder::new(
+                                                WidgetBuilder::new()
+                                                    .on_row(1)
+                                                    .with_margin(Thickness::uniform(2.0))
+                                                    .with_vertical_alignment(
+                                                        VerticalAlignment::Center,
+                                                    ),
+                                            )
+                                            .with_font_size(13.0)
+                                            .with_text(path)
+                                            .build(ctx),
+                                        ),
+                                )
+                                .add_column(Column::auto())
+                                .add_row(Row::auto())
+                                .add_row(Row::auto())
+                                .build(ctx),
+                            ),
+                    )
+                    .add_column(Column::auto())
+                    .add_column(Column::stretch())
+                    .add_row(Row::auto())
+                    .build(ctx),
+                ),
+        )
+        .with_corner_radius(4.0),
+    )
+    .build(ctx)
+}
+
 impl ProjectManager {
     fn new(ctx: &mut BuildContext) -> Self {
         let create = make_button("+ Create", 100.0, 25.0, 0, ctx);
@@ -189,23 +279,30 @@ impl ProjectManager {
 
         let edit = make_button("Edit", 100.0, 25.0, 3, ctx);
         let run = make_button("Run", 100.0, 25.0, 4, ctx);
-        let delete = make_button("Delete", 100.0, 25.0, 5, ctx);
+        let rename = make_button("Rename", 100.0, 25.0, 5, ctx);
+        let delete = make_button("Delete", 100.0, 25.0, 6, ctx);
 
         let sidebar = StackPanelBuilder::new(
             WidgetBuilder::new()
                 .on_column(1)
                 .with_child(edit)
                 .with_child(run)
+                .with_child(rename)
                 .with_child(delete),
         )
         .build(ctx);
 
         let projects = ListViewBuilder::new(
             WidgetBuilder::new()
-                .with_tab_index(Some(6))
+                .with_tab_index(Some(7))
                 .with_margin(Thickness::uniform(1.0))
                 .on_column(0),
         )
+        .with_items(vec![make_project_item(
+            "Project Name",
+            "path/to/project",
+            ctx,
+        )])
         .build(ctx);
 
         let inner_content = GridBuilder::new(
@@ -244,6 +341,7 @@ impl ProjectManager {
             edit,
             run,
             delete,
+            rename,
             search_bar,
         }
     }
@@ -259,6 +357,8 @@ impl ProjectManager {
             } else if message.destination() == self.run {
                 // TODO: Delete project.
             } else if message.destination() == self.delete {
+            } else if message.destination() == self.rename {
+                // TODO: Rename project.
             }
         } else if let Some(ListViewMessage::SelectionChanged(Some(_index))) = message.data() {
             if message.destination() == self.projects
