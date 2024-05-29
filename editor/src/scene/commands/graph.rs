@@ -1,19 +1,21 @@
-use crate::command::CommandContext;
-use crate::fyrox::graph::{BaseSceneGraph, LinkScheme, SceneGraphNode};
-use crate::fyrox::{
-    core::{
-        algebra::{UnitQuaternion, Vector3},
-        pool::{Handle, Ticket},
-    },
-    scene::{
-        base::Base,
-        graph::{Graph, SubGraph},
-        node::Node,
-    },
-};
 use crate::{
-    command::CommandTrait, scene::commands::GameSceneContext, scene::Selection,
-    world::graph::selection::GraphSelection, Message,
+    command::{CommandContext, CommandTrait},
+    fyrox::{
+        core::{
+            algebra::{UnitQuaternion, Vector3},
+            pool::{Handle, Ticket},
+        },
+        graph::{BaseSceneGraph, LinkScheme, SceneGraphNode},
+        scene::{
+            base::Base,
+            graph::{Graph, SubGraph},
+            node::Node,
+            transform::Transform,
+        },
+    },
+    scene::{commands::GameSceneContext, Selection},
+    world::graph::selection::GraphSelection,
+    Message,
 };
 
 #[derive(Debug)]
@@ -60,6 +62,51 @@ impl CommandTrait for MoveNodeCommand {
         let context = context.get_mut::<GameSceneContext>();
         let position = self.swap();
         self.set_position(&mut context.scene.graph, position);
+    }
+}
+
+#[derive(Debug)]
+pub struct SetNodeTransformCommand {
+    node: Handle<Node>,
+    old_transform: Transform,
+    new_transform: Transform,
+}
+
+impl SetNodeTransformCommand {
+    pub fn new(node: Handle<Node>, old_transform: Transform, new_transform: Transform) -> Self {
+        Self {
+            node,
+            old_transform,
+            new_transform,
+        }
+    }
+
+    fn swap(&mut self) -> Transform {
+        let transform = self.new_transform.clone();
+        std::mem::swap(&mut self.new_transform, &mut self.old_transform);
+        transform
+    }
+
+    fn set_transform(&self, graph: &mut Graph, transform: Transform) {
+        *graph[self.node].local_transform_mut() = transform;
+    }
+}
+
+impl CommandTrait for SetNodeTransformCommand {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
+        "Set Node Transform".to_owned()
+    }
+
+    fn execute(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
+        let transform = self.swap();
+        self.set_transform(&mut context.scene.graph, transform);
+    }
+
+    fn revert(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
+        let transform = self.swap();
+        self.set_transform(&mut context.scene.graph, transform);
     }
 }
 

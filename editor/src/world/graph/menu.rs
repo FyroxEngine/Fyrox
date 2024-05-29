@@ -22,7 +22,7 @@ use crate::{
         commands::{
             graph::{
                 AddNodeCommand, LinkNodesCommand, MoveNodeCommand, ReplaceNodeCommand,
-                SetGraphRootCommand,
+                SetGraphRootCommand, SetNodeTransformCommand,
             },
             make_delete_selection_command, RevertSceneNodePropertyCommand,
         },
@@ -318,10 +318,21 @@ impl SceneNodeContextMenu {
                 } else if message.destination() == self.make_root {
                     if let Some(graph_selection) = editor_selection.as_graph() {
                         if let Some(first) = graph_selection.nodes.first() {
-                            sender.do_command(SetGraphRootCommand {
-                                root: *first,
-                                link_scheme: Default::default(),
-                            });
+                            let commands = CommandGroup::from(vec![
+                                Command::new(SetNodeTransformCommand::new(
+                                    *first,
+                                    engine.scenes[game_scene.scene].graph[*first]
+                                        .local_transform()
+                                        .clone(),
+                                    Default::default(),
+                                )),
+                                Command::new(SetGraphRootCommand {
+                                    root: *first,
+                                    link_scheme: Default::default(),
+                                }),
+                            ]);
+
+                            sender.do_command(commands);
                         }
                     }
                 } else if message.destination() == self.open_asset {
