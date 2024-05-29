@@ -237,7 +237,7 @@ impl SceneNodeContextMenu {
                         };
 
                         let new_parent_handle = scene.graph.generate_free_handles(1)[0];
-                        let commands = CommandGroup::from(vec![
+                        let mut commands = CommandGroup::from(vec![
                             Command::new(AddNodeCommand::new(node, parent, true)),
                             Command::new(LinkNodesCommand::new(*first, new_parent_handle)),
                             Command::new(MoveNodeCommand::new(
@@ -246,6 +246,12 @@ impl SceneNodeContextMenu {
                                 position,
                             )),
                         ]);
+                        if *first == game_scene.scene_content_root {
+                            commands.push(SetGraphRootCommand {
+                                root: new_parent_handle,
+                                link_scheme: Default::default(),
+                            })
+                        }
                         sender.do_command(commands);
                     }
                 }
