@@ -880,21 +880,21 @@ impl Default for IntegrationParameters {
         Self {
             dt: None,
             min_ccd_dt: 1.0 / 60.0 / 100.0,
-            erp: 0.1,
+            erp: 0.01,
             damping_ratio: 20.0,
-            joint_erp: 1.0,
+            joint_erp: 0.9,
             joint_damping_ratio: 1.0,
             warmstart_coefficient: 1.0,
-            allowed_linear_error: 0.001,
+            allowed_linear_error: 0.002,
             max_penetration_correction: f32::MAX,
             prediction_distance: 0.002,
             num_internal_pgs_iterations: 1,
-            num_additional_friction_iterations: 0,
+            num_additional_friction_iterations: 4,
             num_solver_iterations: 4,
             min_island_size: 128,
             max_ccd_substeps: 4,
             length_unit: 1.0,
-            num_internal_stabilization_iterations: 2,
+            num_internal_stabilization_iterations: 4,
         }
     }
 }
@@ -908,6 +908,7 @@ pub struct PhysicsWorld {
     pub enabled: InheritableVariable<bool>,
 
     /// A set of parameters that define behavior of every rigid body.
+    #[visit(optional)]
     pub integration_parameters: InheritableVariable<IntegrationParameters>,
 
     /// Current gravity vector. Default is (0.0, -9.81, 0.0)
