@@ -202,7 +202,7 @@ impl Inspector {
                                                 .on_row(0)
                                                 .on_column(0),
                                         )
-                                        .with_wrap(WrapMode::Word)
+                                        .with_wrap(WrapMode::Letter)
                                         .build(ctx);
                                         type_name_text
                                     })
