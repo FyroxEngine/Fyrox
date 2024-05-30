@@ -5,6 +5,7 @@ use crate::fyrox::{
 };
 use crate::scene::SelectionContainer;
 use crate::utils;
+use fyrox::graph::BaseSceneGraph;
 
 #[derive(Debug, Default, Clone, Eq)]
 pub struct GraphSelection {
@@ -99,7 +100,11 @@ impl GraphSelection {
         graph: &Graph,
     ) -> Option<(UnitQuaternion<f32>, Vector3<f32>)> {
         if self.is_single_selection() {
-            Some(graph.global_rotation_position_no_scale(self.nodes[0]))
+            if graph.is_valid_handle(self.nodes[0]) {
+                Some(graph.global_rotation_position_no_scale(self.nodes[0]))
+            } else {
+                None
+            }
         } else if self.is_empty() {
             None
         } else {
