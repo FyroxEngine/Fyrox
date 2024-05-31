@@ -11,14 +11,19 @@ use crate::{
     },
 };
 
+/// The [SurfaceSharedData](crate::scene::mesh::surface::SurfaceSharedData) of a grid mesh for use
+/// in rendering a terrain.
 #[derive(Default, Debug, Clone)]
 pub struct TerrainGeometry {
     pub data: SurfaceSharedData,
-    /// Triangle ranges for each quadrant (in clockwise order; left-top -> right-top -> right-bottom -> left-bottom)  
+    /// Triangle ranges for each quadrant (in clockwise order; left-top -> right-top -> right-bottom -> left-bottom).
+    /// This is used when creating an instance to render just one particular quadrant of a
+    /// [QuadTreeNode](crate::scene::terrain::quadtree::QuadTree).
     pub quadrants: [ElementRange; 4],
 }
 
 impl TerrainGeometry {
+    /// Create a grid mesh with the given number of rows and columns.
     pub fn new(mesh_size: Vector2<u32>) -> Self {
         let mut surface_data = SurfaceData::new(
             VertexBuffer::new::<StaticVertex>(0, vec![]).unwrap(),
