@@ -9,20 +9,39 @@ use crate::{
     scene::debug::SceneDrawingContext,
 };
 
+/// A QuadTree represents the geometry of a chunk of a height map.
+/// It allows the chunk to be repeatedly split into four quadrants for increasing levels of detail.
+/// Whether a particular level of detail will be used in rendering is determined by its distance
+/// to the camera and whether it intersects the camera's frustrum.
+/// These distances and intersections are determined by the AABBs stored in the nodes of this tree.
 #[derive(Default, Debug, PartialEq)]
 pub struct QuadTree {
     root: QuadTreeNode,
     pub max_level: u32,
 }
 
+/// Each QuadTreeNode is primarily responsible for storing the AABB data for a particular
+/// area of terrain and pointers to the four children of the node.
 #[derive(Debug, PartialEq)]
 pub struct QuadTreeNode {
+    /// The size of the 2D area that this node represents.
     pub size: Vector2<u32>,
+    /// The position of the area that this node represents.
     pub position: Vector2<u32>,
+    /// The children of this node.
     pub kind: QuadTreeNodeKind,
+    /// The level of detail of this node.
+    /// This determines whether we should render this node directly (if `level` is high enough)
+    /// or whether we should render this node's children (if `level` is too low).
     pub level: u32,
+    /// The minimum of all terrain height data within the area this node represents.
     pub min_height: f32,
+    /// The maximum of all terrain height data within the area this node represents.
     pub max_height: f32,
+    /// A number that is unique to each node in the tree, increment as the tree is constructed
+    /// so that each constructed node gets a value one greater than the previous node.
+    /// It is used to create a [PersistentIdentifier](crate::renderer::bundle::PersistentIdentifier)
+    /// for each instance of the terrain geometry used to render the terrain.
     pub persistent_index: usize,
 }
 
@@ -40,21 +59,49 @@ impl Default for QuadTreeNode {
     }
 }
 
+/// The relevant details of a QuadTreeNode that needs to be rendered.
+/// These are generated based upon the camera position, view frustrum, and other details
+/// that are provided as arguments to [QuadTree::select].
 #[derive(Debug)]
 pub struct SelectedNode {
+    /// The position of the selected [QuadTreeNode].
+    /// This determines the translaiton of the [TerrainGeometry](crate::scene::terrain::geometry::TerrainGeometry) instance.
     pub position: Vector2<u32>,
+    /// The size of the selected [QuadTreeNode].
+    /// This determines the scaling of the [TerrainGeometry](crate::scene::terrain::geometry::TerrainGeometry) instance,
+    /// as it may be re-sized as needed to cover the area of the node.
     pub size: Vector2<u32>,
+    /// An array of four flags that marks which of the node's four quadrants need to be rendered.
+    /// If any quadrants are active, then an instance of the terrain geometry is put at the
+    /// [SelectedNode::position] and [SelectedNode::size].
+    /// The active_quadrants determine which elements go in the
+    /// [SurfaceInstanceData::element_range](crate::renderer::bundle::SurfaceInstanceData::element_range).
     pub active_quadrants: [bool; 4],
+    /// The [persistent_index](QuadTreeNode::persistent_index) of the selected [QuadTreeNode].
+    /// This is used to create a [PersistentIdentifier](crate::renderer::bundle::PersistentIdentifier) for
+    /// the geometry of this node.
     pub persistent_index: usize,
 }
 
 impl SelectedNode {
+    /// Do all four quadrants need to be drawn? If so, then we can render this entire node
+    /// with a single instance of terrain geometry.
     pub fn is_draw_full(&self) -> bool {
         self.active_quadrants.iter().all(|s| *s)
     }
 }
 
 impl QuadTreeNode {
+    /// * height_map: The height data as an array of f32.
+    /// * height_map_size: The number of rows and columns of the height data.
+    /// * position: The position of the area represented by this node within the data.
+    /// * node_size: The size of the area represented by this ndoe within the data.
+    /// * max_size: Any node below this size will be a leaf.
+    /// * level: The level of detail of this node.
+    /// * index: The mutable pointer to the current persistent index.
+    /// It will be recursively passed to each of the children and incremented by each child,
+    /// then it's value will be copied into [QuadTreeNode::persistent_index] of this node
+    /// and then incremented for the next node.
     pub fn new(
         height_map: &[f32],
         height_map_size: Vector2<u32>,
@@ -140,6 +187,12 @@ impl QuadTreeNode {
         }
     }
 
+    /// Construct an AABB for the node.
+    /// * transform: Transformation matrix to apply to the AABB just before it is returned.
+    /// * height_map_size: The overall size of the whole of the height map data that this node is a part of.
+    /// * physical_size: The size of the whole of the height map data in world units.
+    /// Note that the sizes of these arguments are only for the chunk of this [QuadTree].
+    /// Other chunks are not included since they have entirely separate height data.
     pub fn aabb(
         &self,
         transform: &Matrix4<f32>,
@@ -179,8 +232,22 @@ impl QuadTreeNode {
         }
     }
 
-    /// `level_ranges` contains a list of distances for every lod in farthest-to-closest direction (first will be the
+    /// Determine the size and position of terrain geometry instances that are needed in order to
+    /// render the part of the chunk that is represented by this node of the [QuadTree].
+    /// Return true if new elements have been added to `selection`.
+    /// * `transform`: The matrix transformation to apply to the rendered height map geometry.
+    /// * `height_map_size`: The size of the height data of this QuadTree's chunk in rows and columns.
+    /// * `physical_size`: The size of the chunk in local units before the transform is applied.
+    /// * `frustrum`: The camera frustrum in world space. Intersections with this frustrum are tested after `transform` is applied.
+    /// * `camera_position`: The camera position in world space. Distances from this position are calculated after `transform` is applied.
+    /// * `level_ranges`: a list of distances for every LOD in farthest-to-closest direction (first will be the
     /// most distant range).
+    /// * `selection`: a mutable list that will store the list of QuadTreeNodes that need to be rendered.
+    ///
+    /// Note that being in the `selection` list does not mean that the node will be rendered directly.
+    /// It may be the node's children that will be directly rendered.
+    /// A node can be included in the `selection` list with all four of its quadrants set to inactive
+    /// in [SelectedNode::active_quadrants].
     pub fn select(
         &self,
         transform: &Matrix4<f32>,
@@ -198,20 +265,31 @@ impl QuadTreeNode {
         if !frustum.map_or(true, |f| f.is_intersects_aabb(&aabb))
             || !aabb.is_intersects_sphere(camera_position, level_ranges[current_level])
         {
+            // This node is out of range, so add nothing to `selection` and return.
+            // If this node is rendered at all, it will need an active quadrant of the parent node.
             return false;
         }
 
+        // Get the range for the LOD above the LOD of this node.
+        // Check whether any part of the AABB of this node is within that range.
+        // If the list has no LOD range above the LOD of this node,
+        // then we are at the maximum LOD and the children of this node are to be ignored.
         if level_ranges
             .get(current_level + 1)
             .map_or(false, |next_range| {
                 aabb.is_intersects_sphere(camera_position, *next_range)
             })
         {
+            // We are close enough to the camera that we need to try to render a higher LOD,
+            // so examine the children of this node, if any.
             match self.kind {
                 QuadTreeNodeKind::Branch { ref leafs } => {
                     let mut active_quadrants = [false; 4];
 
+                    // Recursively go through the child for each quadrant to determine whether we need to
+                    // render that quadrant directly, or let the child render the quadrant.
                     for (leaf, is_active) in leafs.iter().zip(active_quadrants.iter_mut()) {
+                        // Activate the quadrant if the child has added nothing to the selection list.
                         *is_active = !leaf.select(
                             transform,
                             height_map_size,
@@ -223,6 +301,7 @@ impl QuadTreeNode {
                         );
                     }
 
+                    // Push the position of this node onto the list, even if `active_quadrants` is all false.
                     selection.push(SelectedNode {
                         position: self.position,
                         size: self.size,
@@ -231,6 +310,7 @@ impl QuadTreeNode {
                     });
                 }
                 QuadTreeNodeKind::Leaf => {
+                    // A leaf has no children, so push the node into the list with all four quadrants active.
                     selection.push(SelectedNode {
                         position: self.position,
                         size: self.size,
@@ -240,6 +320,8 @@ impl QuadTreeNode {
                 }
             }
         } else {
+            // Are far enough from the camera that we should ignore this node's children due to LOD.
+            // Just render this node with all four quadrants active.
             selection.push(SelectedNode {
                 position: self.position,
                 size: self.size,
@@ -247,7 +329,7 @@ impl QuadTreeNode {
                 persistent_index: self.persistent_index,
             });
         }
-
+        // At this point we are guaranteed to have added something to the selection list.
         true
     }
 
@@ -291,8 +373,20 @@ impl QuadTree {
         Self { max_level, root }
     }
 
-    /// `level_ranges` contains a list of distances for every lod in farthest-to-closest direction (first will be the
+    /// Determine the size and position of terrain geometry instances that are needed in order to render the chunk of this QuadTree.
+    /// * `transform`: The matrix transformation to apply to the rendered height map geometry.
+    /// * `height_map_size`: The size of the height data of this QuadTree's chunk in rows and columns.
+    /// * `physical_size`: The size of the chunk in local units before the transform is applied.
+    /// * `frustrum`: The camera frustrum in world space. Intersections with this frustrum are tested after `transform` is applied.
+    /// * `camera_position`: The camera position in world space. Distances from this position are calculated after `transform` is applied.
+    /// * `level_ranges`: a list of distances for every LOD in farthest-to-closest direction (first will be the
     /// most distant range).
+    /// * `selection`: a mutable list that will store the list of QuadTreeNodes that need to be rendered.
+    ///
+    /// Note that being in the `selection` list does not mean that the node will be rendered directly.
+    /// It may be the node's children that will be directly rendered.
+    /// A node can be included in the `selection` list with all four of its quadrants set to inactive
+    /// in [SelectedNode::active_quadrants].
     pub fn select(
         &self,
         transform: &Matrix4<f32>,
