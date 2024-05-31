@@ -205,7 +205,7 @@ impl Limb {
 /// Usually, bodies have quite complex hierarchy of bones and total count of the bones could be 30+.
 /// Manual creation of such ragdoll is very tedious and counterproductive. That's why the best way
 /// to create a ragdoll is to use the editor, and the ragdoll wizard in particular. However, if
-/// you're brave enough you can read this code https://github.com/FyroxEngine/Fyrox/blob/master/editor/src/utils/ragdoll.rs -
+/// you're brave enough you can read this code <https://github.com/FyroxEngine/Fyrox/blob/master/editor/src/utils/ragdoll.rs> -
 /// it creates a ragdoll using a humanoid skeleton.  
 #[derive(Clone, Reflect, Visit, Debug, Default)]
 #[visit(optional)]

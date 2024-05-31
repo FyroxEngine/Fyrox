@@ -861,7 +861,7 @@ pub struct IntegrationParameters {
     /// This value is used internally to estimate some length-based tolerance. In particular, the
     /// values [`IntegrationParameters::allowed_linear_error`],
     /// [`IntegrationParameters::max_penetration_correction`],
-    /// [`IntegrationParameters::prediction_distance`], [`RigidBodyActivation::linear_threshold`]
+    /// [`IntegrationParameters::prediction_distance`], [`RigidBodyActivation::normalized_linear_threshold`]
     /// are scaled by this value implicitly.
     ///
     /// This value can be understood as the number of units-per-meter in your physical world compared
