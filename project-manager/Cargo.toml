@@ -5,3 +5,6 @@ edition = "2021"
 
 [dependencies]
 fyrox = { path = "../fyrox" }
+serde = { version = "1", features = ["derive"] }
+ron = "0.8.1"
+open = "5.0.1"

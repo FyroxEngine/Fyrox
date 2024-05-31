@@ -1,8 +1,13 @@
 //! Project manager is used to create, import, rename, delete, run and edit projects built with Fyrox.
 
+mod settings;
+mod utils;
+
+use crate::{settings::Settings, utils::is_production_ready};
 use fyrox::{
     asset::{manager::ResourceManager, untyped::UntypedResource},
     core::{
+        color::Color,
         instant::Instant,
         log::{Log, MessageKind},
         pool::Handle,
@@ -16,10 +21,13 @@ use fyrox::{
     event_loop::{ControlFlow, EventLoop},
     gui::{
         border::BorderBuilder,
+        brush::Brush,
         button::{ButtonBuilder, ButtonMessage},
+        check_box::{CheckBoxBuilder, CheckBoxMessage},
         constructor::WidgetConstructorContainer,
         decorator::DecoratorBuilder,
         font::Font,
+        formatted_text::WrapMode,
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
         list_view::{ListViewBuilder, ListViewMessage},
@@ -29,8 +37,10 @@ use fyrox::{
         searchbar::{SearchBarBuilder, SearchBarMessage},
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
-        widget::WidgetBuilder,
-        BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, VerticalAlignment,
+        utils::make_simple_tooltip,
+        widget::{WidgetBuilder, WidgetMessage},
+        BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+        VerticalAlignment,
     },
     resource::texture::{
         CompressionOptions, TextureImportOptions, TextureMinificationFilter, TextureResource,
@@ -39,11 +49,11 @@ use fyrox::{
     utils::translate_event,
     window::WindowAttributes,
 };
-use std::sync::Arc;
+use std::{path::Path, sync::Arc};
 
 fn main() {
     let mut window_attributes = WindowAttributes::default();
-    window_attributes.inner_size = Some(PhysicalSize::new(1000, 562).into());
+    window_attributes.inner_size = Some(PhysicalSize::new(520, 562).into());
     window_attributes.resizable = true;
     window_attributes.title = "Fyrox Project Manager".to_string();
 
@@ -66,7 +76,7 @@ fn main() {
     primary_ui.default_font = engine
         .resource_manager
         .request::<Font>("resources/arial.ttf");
-    let project_manager = ProjectManager::new(&mut primary_ui.build_ctx());
+    let mut project_manager = ProjectManager::new(&mut primary_ui.build_ctx());
 
     let event_loop = EventLoop::new().unwrap();
 
@@ -99,8 +109,9 @@ fn main() {
                         lag -= fixed_time_step;
                     }
 
-                    while let Some(message) = engine.user_interfaces.first_mut().poll_message() {
-                        project_manager.handle_ui_message(&message);
+                    let ui = engine.user_interfaces.first_mut();
+                    while let Some(message) = ui.poll_message() {
+                        project_manager.handle_ui_message(&message, ui);
                     }
 
                     if let GraphicsContext::Initialized(ref ctx) = engine.graphics_context {
@@ -143,8 +154,12 @@ struct ProjectManager {
     edit: Handle<UiNode>,
     run: Handle<UiNode>,
     delete: Handle<UiNode>,
-    rename: Handle<UiNode>,
     search_bar: Handle<UiNode>,
+    project_controls: Handle<UiNode>,
+    hot_reload: Handle<UiNode>,
+    download: Handle<UiNode>,
+    selection: Option<usize>,
+    settings: Settings,
 }
 
 fn make_button(
@@ -186,7 +201,7 @@ fn load_image(data: &[u8]) -> Option<UntypedResource> {
     )
 }
 
-fn make_project_item(name: &str, path: &str, ctx: &mut BuildContext) -> Handle<UiNode> {
+fn make_project_item(name: &str, path: &Path, ctx: &mut BuildContext) -> Handle<UiNode> {
     DecoratorBuilder::new(
         BorderBuilder::new(
             WidgetBuilder::new()
@@ -234,7 +249,7 @@ fn make_project_item(name: &str, path: &str, ctx: &mut BuildContext) -> Handle<U
                                                     ),
                                             )
                                             .with_font_size(13.0)
-                                            .with_text(path)
+                                            .with_text(path.to_string_lossy())
                                             .build(ctx),
                                         ),
                                 )
@@ -255,8 +270,55 @@ fn make_project_item(name: &str, path: &str, ctx: &mut BuildContext) -> Handle<U
     .build(ctx)
 }
 
+fn make_project_items(settings: &Settings, ctx: &mut BuildContext) -> Vec<Handle<UiNode>> {
+    settings
+        .projects
+        .iter()
+        .map(|project| make_project_item("", &project.manifest_path, ctx))
+        .collect::<Vec<_>>()
+}
+
 impl ProjectManager {
     fn new(ctx: &mut BuildContext) -> Self {
+        let settings = Settings::load();
+
+        let is_ready = is_production_ready();
+
+        let download = ButtonBuilder::new(
+            WidgetBuilder::new()
+                .on_column(1)
+                .with_width(100.0)
+                .with_height(26.0)
+                .with_margin(Thickness::uniform(2.0)),
+        )
+        .with_text("Download...")
+        .build(ctx);
+
+        let warning = GridBuilder::new(
+            WidgetBuilder::new()
+                .with_visibility(!is_ready)
+                .with_child(
+                    TextBuilder::new(
+                        WidgetBuilder::new()
+                            .on_column(0)
+                            .with_margin(Thickness::uniform(2.0))
+                            .with_foreground(Brush::Solid(Color::RED)),
+                    )
+                    .with_text(
+                        "Rust is not installed, please click the button at the right \
+                        and follow build instructions for your platform.",
+                    )
+                    .with_font_size(18.0)
+                    .with_wrap(WrapMode::Word)
+                    .build(ctx),
+                )
+                .with_child(download),
+        )
+        .add_column(Column::stretch())
+        .add_column(Column::auto())
+        .add_row(Row::auto())
+        .build(ctx);
+
         let create = make_button("+ Create", 100.0, 25.0, 0, ctx);
         let import = make_button("Import", 100.0, 25.0, 1, ctx);
         let search_bar = SearchBarBuilder::new(
@@ -270,6 +332,8 @@ impl ProjectManager {
 
         let toolbar = StackPanelBuilder::new(
             WidgetBuilder::new()
+                .with_enabled(is_ready)
+                .on_row(1)
                 .with_child(create)
                 .with_child(import)
                 .with_child(search_bar),
@@ -279,37 +343,39 @@ impl ProjectManager {
 
         let edit = make_button("Edit", 100.0, 25.0, 3, ctx);
         let run = make_button("Run", 100.0, 25.0, 4, ctx);
-        let rename = make_button("Rename", 100.0, 25.0, 5, ctx);
-        let delete = make_button("Delete", 100.0, 25.0, 6, ctx);
+        let delete = make_button("Delete", 100.0, 25.0, 5, ctx);
+        let hot_reload = CheckBoxBuilder::new(WidgetBuilder::new().with_tooltip(
+            make_simple_tooltip(ctx, "Run the project with code hot reloading support. \
+            Significantly reduces iteration times, but might result in subtle bugs due to experimental \
+            and unsafe nature of code hot reloading."),
+        ))
+        .build(ctx);
 
-        let sidebar = StackPanelBuilder::new(
+        let project_controls = StackPanelBuilder::new(
             WidgetBuilder::new()
+                .with_enabled(false)
                 .on_column(1)
                 .with_child(edit)
                 .with_child(run)
-                .with_child(rename)
                 .with_child(delete),
         )
         .build(ctx);
 
         let projects = ListViewBuilder::new(
             WidgetBuilder::new()
-                .with_tab_index(Some(7))
+                .with_enabled(is_ready)
+                .with_tab_index(Some(6))
                 .with_margin(Thickness::uniform(1.0))
                 .on_column(0),
         )
-        .with_items(vec![make_project_item(
-            "Project Name",
-            "path/to/project",
-            ctx,
-        )])
+        .with_items(make_project_items(&settings, ctx))
         .build(ctx);
 
         let inner_content = GridBuilder::new(
             WidgetBuilder::new()
-                .on_row(1)
+                .on_row(2)
                 .with_child(projects)
-                .with_child(sidebar),
+                .with_child(project_controls),
         )
         .add_column(Column::stretch())
         .add_column(Column::auto())
@@ -318,10 +384,12 @@ impl ProjectManager {
 
         let main_content = GridBuilder::new(
             WidgetBuilder::new()
+                .with_child(warning)
                 .with_child(toolbar)
                 .with_child(inner_content),
         )
         .add_column(Column::auto())
+        .add_row(Row::auto())
         .add_row(Row::auto())
         .add_row(Row::stretch())
         .build(ctx);
@@ -341,36 +409,73 @@ impl ProjectManager {
             edit,
             run,
             delete,
-            rename,
             search_bar,
+            project_controls,
+            hot_reload,
+            download,
+            selection: None,
+            settings,
         }
     }
 
-    fn handle_ui_message(&self, message: &UiMessage) {
-        if let Some(ButtonMessage::Click) = message.data() {
-            if message.destination() == self.create {
-                // TODO: Create project.
-            } else if message.destination() == self.import {
-                // TODO: Import project.
-            } else if message.destination() == self.edit {
-                // TODO: Edit project.
-            } else if message.destination() == self.run {
-                // TODO: Delete project.
-            } else if message.destination() == self.delete {
-            } else if message.destination() == self.rename {
-                // TODO: Rename project.
+    fn refresh(&mut self, ui: &mut UserInterface) {
+        let items = make_project_items(&self.settings, &mut ui.build_ctx());
+        ui.send_message(ListViewMessage::items(
+            self.projects,
+            MessageDirection::ToWidget,
+            items,
+        ))
+    }
+
+    fn on_button_click(&mut self, button: Handle<UiNode>) {
+        if button == self.create {
+            // TODO: Create project.
+        } else if button == self.import {
+            // TODO: Import project.
+        } else if button == self.download {
+            let _ = open::that("https://rustup.rs/");
+        }
+
+        if let Some(index) = self.selection {
+            if let Some(_project) = self.settings.projects.get(index) {
+                if button == self.edit {
+                    // TODO: Edit project.
+                } else if button == self.run {
+                    // TODO: Delete project.
+                } else if button == self.delete {
+                }
             }
-        } else if let Some(ListViewMessage::SelectionChanged(Some(_index))) = message.data() {
+        }
+    }
+
+    fn handle_ui_message(&mut self, message: &UiMessage, ui: &mut UserInterface) {
+        if let Some(ButtonMessage::Click) = message.data() {
+            self.on_button_click(message.destination);
+        } else if let Some(ListViewMessage::SelectionChanged(selection)) = message.data() {
             if message.destination() == self.projects
                 && message.direction() == MessageDirection::FromWidget
             {
-                // TODO: Change selection.
+                self.selection.clone_from(selection);
+
+                ui.send_message(WidgetMessage::enabled(
+                    self.project_controls,
+                    MessageDirection::ToWidget,
+                    selection.is_some(),
+                ));
             }
         } else if let Some(SearchBarMessage::Text(_filter)) = message.data() {
             if message.destination() == self.search_bar
                 && message.direction() == MessageDirection::FromWidget
             {
                 // TODO: Filter projects.
+                self.refresh(ui);
+            }
+        } else if let Some(CheckBoxMessage::Check(Some(_value))) = message.data() {
+            if message.destination() == self.hot_reload
+                && message.direction() == MessageDirection::FromWidget
+            {
+                // TODO: Switch to respective mode.
+                self.settings.save();
             }
         }
     }
