@@ -88,6 +88,7 @@ impl Default for Layer {
     }
 }
 
+/// Extract the &[f32] from a TextureResource to create a QuadTree, or panic.
 fn make_quad_tree(
     texture: &Option<TextureResource>,
     height_map_size: Vector2<u32>,
@@ -98,6 +99,10 @@ fn make_quad_tree(
     QuadTree::new(height_map, height_map_size, block_size)
 }
 
+/// Create an Ok texture resource of the given size from the given height values.
+/// `height_map` should have exactly `size.x * size.y` elements.
+/// Returns None if the wrong number of height values are given to fill a height map
+/// of the given size.
 fn make_height_map_texture_internal(
     height_map: Vec<f32>,
     size: Vector2<u32>,
@@ -117,6 +122,10 @@ fn make_height_map_texture_internal(
     Some(Resource::new_ok(Default::default(), data))
 }
 
+/// Create an Ok texture resource of the given size from the given height values.
+/// `height_map` should have exactly `size.x * size.y` elements.
+/// **Panics** if the wrong number of height values are given to fill a height map
+/// of the given size.
 fn make_height_map_texture(height_map: Vec<f32>, size: Vector2<u32>) -> TextureResource {
     make_height_map_texture_internal(height_map, size).unwrap()
 }
@@ -265,6 +274,17 @@ impl Chunk {
     }
 
     /// Sets new height map to the chunk.
+    /// Tries to create a copy of the given texture and convert the copy into [R32F](TexturePixelKind::R32F) format.
+    /// If the conversion is successful, the resulting texture becomes the source for height data of this chunk
+    /// and the new texture is returned.
+    /// If the conversion fails, the argument texture is returned in its original format and the chunk is not modified.
+    ///
+    /// Failure can happen if:
+    /// * The given texture is None.
+    /// * The given texture is not in the [Ok state](crate::asset::state::ResourceState::Ok).
+    /// * The given texture is not [TextureKind::Rectangle].
+    /// * The width or height is incorrect due to not matching [height_map_size](Self::height_map_size).
+    /// * The texture's format is not one of the many formats that this method is capable of converting as identified by its [Texture::pixel_kind].
     pub fn set_height_map(
         &mut self,
         height_map: Option<TextureResource>,
@@ -581,6 +601,7 @@ pub struct Terrain {
     #[reflect(setter = "set_decal_layer_index")]
     decal_layer_index: InheritableVariable<u8>,
 
+    /// Size of the chunk, in meters.
     #[reflect(
         min_value = 0.001,
         description = "Size of the chunk, in meters.",
@@ -588,6 +609,7 @@ pub struct Terrain {
     )]
     chunk_size: InheritableVariable<Vector2<f32>>,
 
+    /// Min and max 'coordinate' of chunks along X axis.
     #[reflect(
         step = 1.0,
         description = "Min and max 'coordinate' of chunks along X axis.",
@@ -595,6 +617,7 @@ pub struct Terrain {
     )]
     width_chunks: InheritableVariable<Range<i32>>,
 
+    /// Min and max 'coordinate' of chunks along Y axis.
     #[reflect(
         step = 1.0,
         description = "Min and max 'coordinate' of chunks along Y axis.",
@@ -602,6 +625,7 @@ pub struct Terrain {
     )]
     length_chunks: InheritableVariable<Range<i32>>,
 
+    /// Size of the height map per chunk, in pixels. Warning: any change to this value will result in resampling!
     #[reflect(
         min_value = 2.0,
         step = 1.0,
@@ -613,6 +637,7 @@ pub struct Terrain {
     #[reflect(min_value = 8.0, step = 1.0, setter = "set_block_size")]
     block_size: InheritableVariable<Vector2<u32>>,
 
+    /// Size of the blending mask per chunk, in pixels. Warning: any change to this value will result in resampling!
     #[reflect(
         min_value = 1.0,
         step = 1.0,
@@ -630,6 +655,8 @@ pub struct Terrain {
     #[reflect(hidden)]
     bounding_box: Cell<AxisAlignedBoundingBox>,
 
+    /// The [SurfaceSharedData](crate::scene::mesh::surface::SurfaceSharedData) that will be instanced to render
+    /// all the chunks of the height map.
     #[reflect(hidden)]
     geometry: TerrainGeometry,
 
@@ -1466,6 +1493,10 @@ impl NodeTrait for Terrain {
 
         for (layer_index, layer) in self.layers().iter().enumerate() {
             for chunk in self.chunks_ref().iter() {
+                // Generate a list of distances for each LOD that the terrain can render.
+                // The first element of the list is the furthest distance, where the lowest LOD is used.
+                // The formula used to produce this list has been chosen arbitrarily based on what seems to produce
+                // the best results in the render.
                 let levels = (0..chunk.quad_tree.max_level)
                     .map(|n| {
                         ctx.z_far
@@ -1478,6 +1509,10 @@ impl NodeTrait for Terrain {
                 let chunk_transform =
                     self.global_transform() * Matrix4::new_translation(&chunk.position);
 
+                // Use the `levels` list and the camera position to generate a list of all the positions
+                // and scales where instances of the terrain geometry should appear in the render.
+                // The instances will be scaled based on the LOD that is needed at the instance's distance
+                // according to the `levels` list.
                 let mut selection = Vec::new();
                 chunk.quad_tree.select(
                     &chunk_transform,
