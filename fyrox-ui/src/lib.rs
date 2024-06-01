@@ -2765,6 +2765,15 @@ impl UserInterface {
         self.isolate_node(child_handle);
         self.nodes[child_handle].set_parent(parent_handle);
         self.nodes[parent_handle].add_child(child_handle, in_front);
+
+        // Sort by Z index. This uses stable sort, so every child node with the same z index will
+        // remain on its position.
+        let mbc = self.nodes.begin_multi_borrow();
+        if let Ok(mut parent) = mbc.try_get_mut(parent_handle) {
+            parent
+                .children
+                .sort_by_key(|handle| mbc.try_get(*handle).map(|c| *c.z_index).unwrap_or_default());
+        };
     }
 
     #[inline]
