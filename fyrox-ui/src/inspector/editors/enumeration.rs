@@ -456,7 +456,7 @@ where
             .expect("Must be a DropDownList");
 
         let variant_index = (self.index_generator)(value);
-        if Some(variant_index) != variant_selector_ref.selection() {
+        if Some(variant_index) != *variant_selector_ref.selection {
             let environment = ctx
                 .ui
                 .node(instance_ref.inspector)

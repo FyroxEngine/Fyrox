@@ -860,7 +860,7 @@ impl Toolbar {
                     .node(self.animations)
                     .query_component::<DropdownList>()
                     .unwrap()
-                    .items()[*index];
+                    .items[*index];
                 let animation = ui
                     .node(item)
                     .user_data_cloned::<Handle<Animation<Handle<N>>>>()

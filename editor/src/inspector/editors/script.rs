@@ -117,7 +117,7 @@ impl Control for ScriptPropertyEditor {
                         .node(self.variant_selector)
                         .cast::<DropdownList>()
                         .expect("Must be DropdownList")
-                        .items()
+                        .items
                         .iter()
                         .map(|el| {
                             ui.node(*el)
@@ -181,7 +181,7 @@ impl Control for ScriptPropertyEditor {
                     .node(self.variant_selector)
                     .cast::<DropdownList>()
                     .expect("Must be DropdownList")
-                    .items()[*i];
+                    .items[*i];
 
                 let new_selected_script_data = ui
                     .node(selected_item)
@@ -423,7 +423,7 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
             .expect("Must be a DropDownList");
 
         // Script list might change over time if some plugins were reloaded.
-        if variant_selector_ref.items().len()
+        if variant_selector_ref.items.len()
             != editor_environment
                 .serialization_context
                 .script_constructors

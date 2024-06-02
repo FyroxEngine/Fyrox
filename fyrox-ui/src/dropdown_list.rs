@@ -1,5 +1,8 @@
 //! Drop-down list. This is control which shows currently selected item and provides drop-down
 //! list to select its current item. It is build using composition with standard list view.
+//! See [`DropdownList`] docs for more info and usage examples.
+
+#![warn(missing_docs)]
 
 use crate::{
     border::BorderBuilder,
@@ -22,32 +25,120 @@ use std::{
     sync::mpsc::Sender,
 };
 
+/// A set of possible messages for [`DropdownList`] widget.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DropdownListMessage {
+    /// A message, that is used to set new selection and receive selection changes.
     SelectionChanged(Option<usize>),
+    /// A message, that is used to set new items of a dropdown list.
     Items(Vec<Handle<UiNode>>),
+    /// A message, that is used to add an item to a dropdown list.
     AddItem(Handle<UiNode>),
+    /// A message, that is used to open a dropdown list.
     Open,
+    /// A message, that is used to close a dropdown list.
     Close,
 }
 
 impl DropdownListMessage {
-    define_constructor!(DropdownListMessage:SelectionChanged => fn selection(Option<usize>), layout: false);
-    define_constructor!(DropdownListMessage:Items => fn items(Vec<Handle<UiNode >>), layout: false);
-    define_constructor!(DropdownListMessage:AddItem => fn add_item(Handle<UiNode>), layout: false);
-    define_constructor!(DropdownListMessage:Open => fn open(), layout: false);
-    define_constructor!(DropdownListMessage:Close => fn close(), layout: false);
+    define_constructor!(
+        /// Creates [`DropdownListMessage::SelectionChanged`] message.
+        DropdownListMessage:SelectionChanged => fn selection(Option<usize>), layout: false
+    );
+    define_constructor!(
+           /// Creates [`DropdownListMessage::Items`] message.
+        DropdownListMessage:Items => fn items(Vec<Handle<UiNode >>), layout: false
+    );
+    define_constructor!(
+        /// Creates [`DropdownListMessage::AddItem`] message.
+        DropdownListMessage:AddItem => fn add_item(Handle<UiNode>), layout: false
+    );
+    define_constructor!(
+        /// Creates [`DropdownListMessage::Open`] message.
+        DropdownListMessage:Open => fn open(), layout: false
+    );
+    define_constructor!(
+        /// Creates [`DropdownListMessage::Close`] message.
+        DropdownListMessage:Close => fn close(), layout: false
+    );
 }
 
+/// Drop-down list is a control which shows currently selected item and provides drop-down
+/// list to select its current item. It is used to show a single selected item in compact way.
+///
+/// ## Example
+///
+/// A dropdown list with two text items with the last one selected, could be created like so:
+///
+/// ```rust
+/// # use fyrox_ui::{
+/// #     core::pool::Handle, dropdown_list::DropdownListBuilder, text::TextBuilder,
+/// #     widget::WidgetBuilder, BuildContext, UiNode,
+/// # };
+/// #
+/// fn create_drop_down_list(ctx: &mut BuildContext) -> Handle<UiNode> {
+///     DropdownListBuilder::new(WidgetBuilder::new())
+///         .with_items(vec![
+///             TextBuilder::new(WidgetBuilder::new())
+///                 .with_text("Item 0")
+///                 .build(ctx),
+///             TextBuilder::new(WidgetBuilder::new())
+///                 .with_text("Item 1")
+///                 .build(ctx),
+///         ])
+///         .with_selected(1)
+///         .build(ctx)
+/// }
+/// ```
+///
+/// Keep in mind, that items of a dropdown list could be any widget, but usually each item is wrapped
+/// in some other widget that shows current state of items (selected, hovered, clicked, etc.). One
+/// of the most convenient way of doing this is to use Decorator widget:
+///
+/// ```rust
+/// # use fyrox_ui::{
+/// #     border::BorderBuilder, core::pool::Handle, decorator::DecoratorBuilder,
+/// #     dropdown_list::DropdownListBuilder, text::TextBuilder, widget::WidgetBuilder, BuildContext,
+/// #     UiNode,
+/// # };
+/// #
+/// fn make_item(text: &str, ctx: &mut BuildContext) -> Handle<UiNode> {
+///     DecoratorBuilder::new(BorderBuilder::new(
+///         WidgetBuilder::new().with_child(
+///             TextBuilder::new(WidgetBuilder::new())
+///                 .with_text(text)
+///                 .build(ctx),
+///         ),
+///     ))
+///     .build(ctx)
+/// }
+///
+/// fn create_drop_down_list_with_decorators(ctx: &mut BuildContext) -> Handle<UiNode> {
+///     DropdownListBuilder::new(WidgetBuilder::new())
+///         .with_items(vec![make_item("Item 0", ctx), make_item("Item 1", ctx)])
+///         .with_selected(1)
+///         .build(ctx)
+/// }
+/// ```
+///
+///
 #[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider)]
 pub struct DropdownList {
+    /// Base widget of the dropdown list.
     pub widget: Widget,
+    /// A handle of the inner popup of the dropdown list. It holds the actual items of the list.
     pub popup: InheritableVariable<Handle<UiNode>>,
+    /// A list of handles of items of the dropdown list.
     pub items: InheritableVariable<Vec<Handle<UiNode>>>,
+    /// A handle to the `ListView` widget, that holds the items of the dropdown list.
     pub list_view: InheritableVariable<Handle<UiNode>>,
+    /// A handle to a currently selected item.
     pub current: InheritableVariable<Handle<UiNode>>,
+    /// An index of currently selected item (or [`None`] if there's nothing selected).
     pub selection: InheritableVariable<Option<usize>>,
+    /// A flag, that defines whether the dropdown list's popup should close after selection or not.
     pub close_on_selection: InheritableVariable<bool>,
+    /// A handle to an inner Grid widget, that holds currently selected item and other decorators.
     pub main_grid: InheritableVariable<Handle<UiNode>>,
 }
 
@@ -214,18 +305,6 @@ impl Control for DropdownList {
 }
 
 impl DropdownList {
-    pub fn selection(&self) -> Option<usize> {
-        *self.selection
-    }
-
-    pub fn close_on_selection(&self) -> bool {
-        *self.close_on_selection
-    }
-
-    pub fn items(&self) -> &[Handle<UiNode>] {
-        &self.items
-    }
-
     fn sync_selected_item_preview(&mut self, ui: &mut UserInterface) {
         // Copy node from current selection in list view. This is not
         // always suitable because if an item has some visual behaviour
@@ -261,6 +340,7 @@ impl DropdownList {
     }
 }
 
+/// Dropdown list builder allows to create [`DropdownList`] widgets and add them a user interface.
 pub struct DropdownListBuilder {
     widget_builder: WidgetBuilder,
     items: Vec<Handle<UiNode>>,
@@ -269,6 +349,7 @@ pub struct DropdownListBuilder {
 }
 
 impl DropdownListBuilder {
+    /// Creates new dropdown list builder.
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
@@ -278,26 +359,31 @@ impl DropdownListBuilder {
         }
     }
 
+    /// Sets the desired items of the dropdown list.
     pub fn with_items(mut self, items: Vec<Handle<UiNode>>) -> Self {
         self.items = items;
         self
     }
 
+    /// Sets the selected item of the dropdown list.
     pub fn with_selected(mut self, index: usize) -> Self {
         self.selected = Some(index);
         self
     }
 
+    /// Sets the desired items of the dropdown list.
     pub fn with_opt_selected(mut self, index: Option<usize>) -> Self {
         self.selected = index;
         self
     }
 
+    /// Sets a flag, that defines whether the dropdown list should close on selection or not.
     pub fn with_close_on_selection(mut self, value: bool) -> Self {
         self.close_on_selection = value;
         self
     }
 
+    /// Finishes list building and adds it to the given user interface.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode>
     where
         Self: Sized,
