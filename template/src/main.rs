@@ -72,14 +72,14 @@ fn main() {
             );
         }
         Commands::Script { name } => {
-            fyrox_template_core::init_script(&name);
+            fyrox_template_core::init_script(&name).unwrap();
 
             println!(
                 "Script {name} was added successfully! Do not forget to add it to your module tree!",
             );
         }
         Commands::Upgrade { version, local } => {
-            fyrox_template_core::upgrade_project(&version, local);
+            fyrox_template_core::upgrade_project(&version, local).unwrap();
 
             println!("Fyrox version was successfully set to '{}'!", version);
         }

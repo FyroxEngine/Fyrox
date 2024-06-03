@@ -8,7 +8,7 @@ use std::{
     fs::{create_dir_all, read_dir, remove_dir_all, File},
     io::{Read, Write},
     path::Path,
-    process::{exit, Command},
+    process::Command,
 };
 use toml_edit::{table, value, DocumentMut};
 use uuid::Uuid;
@@ -21,27 +21,26 @@ const CURRENT_ENGINE_VERSION: &str = "0.34.0";
 const CURRENT_EDITOR_VERSION: &str = "0.21.0";
 const CURRENT_SCRIPTS_VERSION: &str = "0.3.0";
 
-fn write_file<P: AsRef<Path>, S: AsRef<str>>(path: P, content: S) {
-    let mut file = File::create(path.as_ref()).unwrap();
-    file.write_all(content.as_ref().as_bytes())
-        .unwrap_or_else(|x| {
-            panic!(
-                "Error happened while writing to file: {}.\nError:\n{}",
-                path.as_ref().to_string_lossy(),
-                x
-            )
-        });
-}
-
-fn write_file_binary<P: AsRef<Path>>(path: P, content: &[u8]) {
-    let mut file = File::create(path.as_ref()).unwrap();
-    file.write_all(content).unwrap_or_else(|x| {
-        panic!(
+fn write_file<P: AsRef<Path>, S: AsRef<str>>(path: P, content: S) -> Result<(), String> {
+    let mut file = File::create(path.as_ref()).map_err(|e| e.to_string())?;
+    file.write_all(content.as_ref().as_bytes()).map_err(|x| {
+        format!(
             "Error happened while writing to file: {}.\nError:\n{}",
             path.as_ref().to_string_lossy(),
             x
         )
-    });
+    })
+}
+
+fn write_file_binary<P: AsRef<Path>>(path: P, content: &[u8]) -> Result<(), String> {
+    let mut file = File::create(path.as_ref()).map_err(|e| e.to_string())?;
+    file.write_all(content).map_err(|x| {
+        format!(
+            "Error happened while writing to file: {}.\nError:\n{}",
+            path.as_ref().to_string_lossy(),
+            x
+        )
+    })
 }
 
 #[derive(Debug)]
@@ -86,12 +85,12 @@ fn check_name(name: &str) -> Result<&str, NameErrors> {
     Ok(name)
 }
 
-fn init_game(base_path: &Path, name: &str) {
+fn init_game(base_path: &Path, name: &str) -> Result<(), String> {
     Command::new("cargo")
         .args(["init", "--lib", "--vcs", "none"])
         .arg(base_path.join("game"))
         .output()
-        .unwrap();
+        .map_err(|e| e.to_string())?;
 
     // Write Cargo.toml
     write_file(
@@ -111,7 +110,7 @@ default = ["fyrox/default"]
 dylib-engine = ["fyrox/dylib"]
 "#,
         ),
-    );
+    )?;
 
     // Write lib.rs
     write_file(
@@ -186,15 +185,15 @@ impl Plugin for Game {
     }
 }
 "#,
-    );
+    )
 }
 
-fn init_executor(base_path: &Path, name: &str) {
+fn init_executor(base_path: &Path, name: &str) -> Result<(), String> {
     Command::new("cargo")
         .args(["init", "--bin", "--vcs", "none"])
         .arg(base_path.join("executor"))
         .output()
-        .unwrap();
+        .map_err(|e| e.to_string())?;
 
     // Write Cargo.toml
     write_file(
@@ -215,7 +214,7 @@ default = ["{name}"]
 dylib = ["fyrox/dylib"]
 "#,
         ),
-    );
+    )?;
 
     // Write main.rs
     write_file(
@@ -249,15 +248,15 @@ fn main() {{
     executor.run()
 }}"#,
         ),
-    );
+    )
 }
 
-fn init_wasm_executor(base_path: &Path, name: &str) {
+fn init_wasm_executor(base_path: &Path, name: &str) -> Result<(), String> {
     Command::new("cargo")
         .args(["init", "--lib", "--vcs", "none"])
         .arg(base_path.join("executor-wasm"))
         .output()
-        .unwrap();
+        .map_err(|e| e.to_string())?;
 
     // Write Cargo.toml
     write_file(
@@ -276,7 +275,7 @@ crate-type = ["cdylib", "rlib"]
 fyrox = {{workspace = true}}
 {name} = {{ path = "../game" }}"#,
         ),
-    );
+    )?;
 
     // Write lib.rs
     write_file(
@@ -328,7 +327,7 @@ pub fn main() {{
     executor.run()
 }}"#,
         ),
-    );
+    )?;
 
     // Write "entry" point stuff. This includes:
     //
@@ -341,27 +340,27 @@ pub fn main() {{
     write_file_binary(
         base_path.join("executor-wasm/index.html"),
         include_bytes!("wasm/index.html"),
-    );
+    )?;
     write_file_binary(
         base_path.join("executor-wasm/styles.css"),
         include_bytes!("wasm/styles.css"),
-    );
+    )?;
     write_file_binary(
         base_path.join("executor-wasm/main.js"),
         include_bytes!("wasm/main.js"),
-    );
+    )?;
     write_file_binary(
         base_path.join("executor-wasm/README.md"),
         include_bytes!("wasm/README.md"),
-    );
+    )
 }
 
-fn init_editor(base_path: &Path, name: &str) {
+fn init_editor(base_path: &Path, name: &str) -> Result<(), String> {
     Command::new("cargo")
         .args(["init", "--bin", "--vcs", "none"])
         .arg(base_path.join("editor"))
         .output()
-        .unwrap();
+        .map_err(|e| e.to_string())?;
 
     // Write Cargo.toml
     write_file(
@@ -383,7 +382,7 @@ default = ["{name}", "fyroxed_base/default"]
 dylib = ["fyroxed_base/dylib_engine"]
 "#,
         ),
-    );
+    )?;
 
     write_file(
         base_path.join("editor/src/main.rs"),
@@ -423,15 +422,15 @@ fn main() {{
 }}
 "#,
         ),
-    );
+    )
 }
 
-fn init_game_dylib(base_path: &Path, name: &str) {
+fn init_game_dylib(base_path: &Path, name: &str) -> Result<(), String> {
     Command::new("cargo")
         .args(["init", "--lib", "--vcs", "none"])
         .arg(base_path.join("game-dylib"))
         .output()
-        .unwrap();
+        .map_err(|e| e.to_string())?;
 
     // Write Cargo.toml
     write_file(
@@ -454,7 +453,7 @@ default = ["{name}/default"]
 dylib-engine = ["{name}/dylib-engine"]
 "#,
         ),
-    );
+    )?;
 
     // Write lib.rs
     write_file(
@@ -469,15 +468,15 @@ pub fn fyrox_plugin() -> Box<dyn Plugin> {{
 }}
 "#,
         ),
-    );
+    )
 }
 
-fn init_android_executor(base_path: &Path, name: &str) {
+fn init_android_executor(base_path: &Path, name: &str) -> Result<(), String> {
     Command::new("cargo")
         .args(["init", "--lib", "--vcs", "none"])
         .arg(base_path.join("executor-android"))
         .output()
-        .unwrap();
+        .map_err(|e| e.to_string())?;
 
     // Write Cargo.toml
     write_file(
@@ -512,7 +511,7 @@ fyrox = {{ workspace = true }}
 {} = {{ path = "../game" }}"#,
             name,
         ),
-    );
+    )?;
 
     // Write main.rs
     write_file(
@@ -536,29 +535,29 @@ fn android_main(app: fyrox::platform::android::activity::AndroidApp) {{
     executor.run()
 }}"#,
         ),
-    );
+    )?;
 
     write_file_binary(
         base_path.join("executor-android/README.md"),
         include_bytes!("android/README.md"),
-    );
+    )?;
     write_file_binary(
         base_path.join("executor-android/release.keystore"),
         include_bytes!("android/release.keystore"),
-    );
-    create_dir_all(base_path.join("executor-android/assets")).unwrap();
+    )?;
+    create_dir_all(base_path.join("executor-android/assets")).map_err(|e| e.to_string())
 }
 
-fn init_workspace(base_path: &Path, vcs: &str) {
+fn init_workspace(base_path: &Path, vcs: &str) -> Result<(), String> {
     Command::new("cargo")
         .args(["init", "--vcs", vcs])
         .arg(base_path)
         .output()
-        .unwrap();
+        .map_err(|e| e.to_string())?;
 
     let src_path = base_path.join("src");
     if src_path.exists() {
-        remove_dir_all(src_path).unwrap();
+        remove_dir_all(src_path).map_err(|e| e.to_string())?;
     }
 
     // Write Cargo.toml
@@ -593,7 +592,7 @@ inherits = "release"
 opt-level = 3
 "#,
         ),
-    );
+    )?;
 
     if vcs == "git" {
         // Write .gitignore
@@ -603,23 +602,25 @@ opt-level = 3
 /target
 *.log
 "#,
-        );
+        )?;
     }
+
+    Ok(())
 }
 
-fn init_data(base_path: &Path, style: &str) {
+fn init_data(base_path: &Path, style: &str) -> Result<(), String> {
     let data_path = base_path.join("data");
-    create_dir_all(&data_path).unwrap();
+    create_dir_all(&data_path).map_err(|e| e.to_string())?;
 
     let scene_path = data_path.join("scene.rgs");
     match style {
         "2d" => write_file_binary(scene_path, include_bytes!("2d.rgs")),
         "3d" => write_file_binary(scene_path, include_bytes!("3d.rgs")),
-        _ => println!("Unknown style: {}. Use either `2d` or `3d`", style),
+        _ => Err(format!("Unknown style: {}. Use either `2d` or `3d`", style)),
     }
 }
 
-pub fn init_script(raw_name: &str) {
+pub fn init_script(raw_name: &str) -> Result<(), String> {
     let mut base_path = Path::new("game/src/");
     if !base_path.exists() {
         eprintln!("game/src directory does not exists! Fallback to root directory...");
@@ -631,7 +632,7 @@ pub fn init_script(raw_name: &str) {
     let file_name = base_path.join(script_file_stem.clone() + ".rs");
 
     if file_name.exists() {
-        panic!("Script {} already exists!", script_name);
+        return Err(format!("Script {} already exists!", script_name));
     }
 
     let script_uuid = Uuid::new_v4().to_string();
@@ -678,7 +679,7 @@ impl ScriptTrait for {name} {{
             name = script_name,
             id = script_uuid
         ),
-    );
+    )
 }
 
 pub fn init_project(name: &str, style: &str, vcs: &str, overwrite: bool) -> Result<(), String> {
@@ -707,29 +708,26 @@ pub fn init_project(name: &str, style: &str, vcs: &str, overwrite: bool) -> Resu
         ));
     }
 
-    init_workspace(base_path, vcs);
-    init_data(base_path, style);
-    init_game(base_path, name);
-    init_game_dylib(base_path, name);
-    init_editor(base_path, name);
-    init_executor(base_path, name);
-    init_wasm_executor(base_path, name);
-    init_android_executor(base_path, name);
-
-    Ok(())
+    init_workspace(base_path, vcs)?;
+    init_data(base_path, style)?;
+    init_game(base_path, name)?;
+    init_game_dylib(base_path, name)?;
+    init_editor(base_path, name)?;
+    init_executor(base_path, name)?;
+    init_wasm_executor(base_path, name)?;
+    init_android_executor(base_path, name)
 }
 
-pub fn upgrade_project(version: &str, local: bool) {
-    let semver_regex = Regex::new(include_str!("regex")).unwrap();
+pub fn upgrade_project(version: &str, local: bool) -> Result<(), String> {
+    let semver_regex = Regex::new(include_str!("regex")).map_err(|e| e.to_string())?;
 
     if version != "latest" && version != "nightly" && !semver_regex.is_match(version) {
-        println!(
+        return Err(format!(
             "Invalid version: {version}. Please specify one of the following:\n\
                     \tnightly - uses latest nightly version of the engine from GitHub directly.\
                     \tlatest - uses latest stable version of the engine.\n\
                     \tmajor.minor.patch - uses specific stable version from crates.io (0.30.0 for example).",
-        );
-        exit(1);
+        ));
     }
 
     // Engine -> (Editor, Scripts) version mapping.
@@ -818,11 +816,17 @@ pub fn upgrade_project(version: &str, local: bool) {
                     }
                 }
 
-                let mut file = File::create(workspace_manifest_path).unwrap();
-                file.write_all(document.to_string().as_bytes()).unwrap();
+                let mut file = File::create(workspace_manifest_path).map_err(|e| e.to_string())?;
+                file.write_all(document.to_string().as_bytes())
+                    .map_err(|e| e.to_string())?;
             }
         }
     }
 
-    Command::new("cargo").args(["update"]).output().unwrap();
+    Command::new("cargo")
+        .args(["update"])
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
 }
