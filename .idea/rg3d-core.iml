@@ -41,6 +41,7 @@
       <sourceFolder url="file://$MODULE_DIR$/fyrox-impl/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/fyrox/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/project-manager/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/template-core/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
       <excludeFolder url="file://$MODULE_DIR$/examples/wasm/target" />
     </content>

@@ -9,6 +9,7 @@ members = [
     "fyrox-animation",
 	"editor",
     "editor-standalone",
+	"template-core",
 	"template",
     "fyrox-graph",
     "fyrox-math",

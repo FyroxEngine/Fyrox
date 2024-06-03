@@ -427,9 +427,10 @@ impl ProjectManager {
         ))
     }
 
-    fn on_button_click(&mut self, button: Handle<UiNode>) {
+    fn on_button_click(&mut self, button: Handle<UiNode>, ui: &mut UserInterface) {
         if button == self.create {
-            // TODO: Create project.
+            fyrox_template_core::init_project("test", "3d", "git", true).unwrap();
+            self.refresh(ui);
         } else if button == self.import {
             // TODO: Import project.
         } else if button == self.download {
@@ -450,7 +451,7 @@ impl ProjectManager {
 
     fn handle_ui_message(&mut self, message: &UiMessage, ui: &mut UserInterface) {
         if let Some(ButtonMessage::Click) = message.data() {
-            self.on_button_click(message.destination);
+            self.on_button_click(message.destination, ui);
         } else if let Some(ListViewMessage::SelectionChanged(selection)) = message.data() {
             if message.destination() == self.projects
                 && message.direction() == MessageDirection::FromWidget

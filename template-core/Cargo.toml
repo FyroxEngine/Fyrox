@@ -1,10 +1,10 @@
 [package]
-name = "fyrox-template"
+name = "fyrox-template-core"
 version = "0.11.0"
 edition = "2021"
 authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
 license = "MIT"
-description = "Command line interface for project template generator for Fyrox engine"
+description = "Project template generator for Fyrox engine"
 keywords = ["fyrox", "game", "project"]
 categories = ["game-development"]
 include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md"]
@@ -14,5 +14,8 @@ readme = "README.md"
 rust-version = "1.72"
 
 [dependencies]
-fyrox-template-core = { version = "0.11.0", path = "../template-core" }
-clap = { version = "4", features = ["derive"] }
+uuid = { version = "1", features = ["v4"] }
+convert_case = "0.6.0"
+toml = "0.8.10"
+toml_edit = "0.22.6"
+regex = "1.7.3"
