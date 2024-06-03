@@ -121,7 +121,49 @@ impl DropdownListMessage {
 /// }
 /// ```
 ///
+/// ## Selection
 ///
+/// Dropdown list supports two kinds of selection - `None` or `Some(index)`. To catch a moment when
+/// selection changes, use the following code:
+///
+/// ```rust
+/// use fyrox_ui::{
+///     core::pool::Handle,
+///     dropdown_list::DropdownListMessage,
+///     message::{MessageDirection, UiMessage},
+///     UiNode,
+/// };
+///
+/// struct Foo {
+///     dropdown_list: Handle<UiNode>,
+/// }
+///
+/// impl Foo {
+///     fn on_ui_message(&mut self, message: &UiMessage) {
+///         if let Some(DropdownListMessage::SelectionChanged(new_selection)) = message.data() {
+///             if message.destination() == self.dropdown_list
+///                 && message.direction() == MessageDirection::FromWidget
+///             {
+///                 // Do something.
+///                 dbg!(new_selection);
+///             }
+///         }
+///     }
+/// }
+/// ```
+///
+/// To change selection of a dropdown list, send [`DropdownListMessage::SelectionChanged`] message
+/// to it.
+///
+/// ## Items
+///
+/// To change current items of a dropdown list, create the items first and then send them to the
+/// dropdown list using [`DropdownListMessage::Items`] message.
+///
+/// ## Opening and Closing
+///
+/// A dropdown list could be opened and closed manually using [`DropdownListMessage::Open`] and
+/// [`DropdownListMessage::Close`] messages.  
 #[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider)]
 pub struct DropdownList {
     /// Base widget of the dropdown list.
