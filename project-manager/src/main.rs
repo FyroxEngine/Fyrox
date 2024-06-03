@@ -1,11 +1,16 @@
 //! Project manager is used to create, import, rename, delete, run and edit projects built with Fyrox.
 
+mod project;
 mod settings;
 mod utils;
 
-use crate::{settings::Settings, utils::is_production_ready};
+use crate::{
+    project::ProjectWizard,
+    settings::Settings,
+    utils::{is_production_ready, load_image, make_button},
+};
 use fyrox::{
-    asset::{manager::ResourceManager, untyped::UntypedResource},
+    asset::manager::ResourceManager,
     core::{
         color::Color,
         instant::Instant,
@@ -39,12 +44,7 @@ use fyrox::{
         text::TextBuilder,
         utils::make_simple_tooltip,
         widget::{WidgetBuilder, WidgetMessage},
-        BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
-        VerticalAlignment,
-    },
-    resource::texture::{
-        CompressionOptions, TextureImportOptions, TextureMinificationFilter, TextureResource,
-        TextureResourceExtension,
+        BuildContext, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
     utils::translate_event,
     window::WindowAttributes,
@@ -160,45 +160,7 @@ struct ProjectManager {
     download: Handle<UiNode>,
     selection: Option<usize>,
     settings: Settings,
-}
-
-fn make_button(
-    text: &str,
-    width: f32,
-    height: f32,
-    tab_index: usize,
-    ctx: &mut BuildContext,
-) -> Handle<UiNode> {
-    ButtonBuilder::new(
-        WidgetBuilder::new()
-            .with_width(width)
-            .with_height(height)
-            .with_tab_index(Some(tab_index))
-            .with_margin(Thickness::uniform(1.0)),
-    )
-    .with_content(
-        TextBuilder::new(WidgetBuilder::new())
-            .with_text(text)
-            .with_font_size(16.0)
-            .with_vertical_text_alignment(VerticalAlignment::Center)
-            .with_horizontal_text_alignment(HorizontalAlignment::Center)
-            .build(ctx),
-    )
-    .build(ctx)
-}
-
-fn load_image(data: &[u8]) -> Option<UntypedResource> {
-    Some(
-        TextureResource::load_from_memory(
-            Default::default(),
-            data,
-            TextureImportOptions::default()
-                .with_compression(CompressionOptions::NoCompression)
-                .with_minification_filter(TextureMinificationFilter::Linear),
-        )
-        .ok()?
-        .into(),
-    )
+    project_wizard: Option<ProjectWizard>,
 }
 
 fn make_project_item(name: &str, path: &Path, ctx: &mut BuildContext) -> Handle<UiNode> {
@@ -415,6 +377,7 @@ impl ProjectManager {
             download,
             selection: None,
             settings,
+            project_wizard: None,
         }
     }
 
@@ -429,8 +392,7 @@ impl ProjectManager {
 
     fn on_button_click(&mut self, button: Handle<UiNode>, ui: &mut UserInterface) {
         if button == self.create {
-            fyrox_template_core::init_project(Path::new("./"), "test", "3d", "git", true).unwrap();
-            self.refresh(ui);
+            self.project_wizard = Some(ProjectWizard::new(&mut ui.build_ctx()));
         } else if button == self.import {
             // TODO: Import project.
         } else if button == self.download {
