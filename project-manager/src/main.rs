@@ -429,7 +429,7 @@ impl ProjectManager {
 
     fn on_button_click(&mut self, button: Handle<UiNode>, ui: &mut UserInterface) {
         if button == self.create {
-            fyrox_template_core::init_project("test", "3d", "git", true).unwrap();
+            fyrox_template_core::init_project(Path::new("./"), "test", "3d", "git", true).unwrap();
             self.refresh(ui);
         } else if button == self.import {
             // TODO: Import project.

@@ -1,6 +1,7 @@
 //! Fyrox Project Template Generator command line interface.
 
 use clap::{Parser, Subcommand};
+use std::path::Path;
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -55,7 +56,8 @@ fn main() {
             vcs,
             overwrite,
         } => {
-            fyrox_template_core::init_project(&name, &style, &vcs, overwrite).unwrap();
+            fyrox_template_core::init_project(Path::new("./"), &name, &style, &vcs, overwrite)
+                .unwrap();
 
             println!("Project {} was generated successfully!", name);
             println!(
@@ -72,14 +74,14 @@ fn main() {
             );
         }
         Commands::Script { name } => {
-            fyrox_template_core::init_script(&name).unwrap();
+            fyrox_template_core::init_script(Path::new("./"), &name).unwrap();
 
             println!(
                 "Script {name} was added successfully! Do not forget to add it to your module tree!",
             );
         }
         Commands::Upgrade { version, local } => {
-            fyrox_template_core::upgrade_project(&version, local).unwrap();
+            fyrox_template_core::upgrade_project(Path::new("./"), &version, local).unwrap();
 
             println!("Fyrox version was successfully set to '{}'!", version);
         }

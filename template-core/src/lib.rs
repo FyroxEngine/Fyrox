@@ -620,11 +620,11 @@ fn init_data(base_path: &Path, style: &str) -> Result<(), String> {
     }
 }
 
-pub fn init_script(raw_name: &str) -> Result<(), String> {
-    let mut base_path = Path::new("game/src/");
+pub fn init_script(root_path: &Path, raw_name: &str) -> Result<(), String> {
+    let mut base_path = root_path.join("game/src/");
     if !base_path.exists() {
         eprintln!("game/src directory does not exists! Fallback to root directory...");
-        base_path = Path::new("");
+        base_path = root_path.to_path_buf();
     }
 
     let script_file_stem = raw_name.to_case(Case::Snake);
@@ -682,7 +682,13 @@ impl ScriptTrait for {name} {{
     )
 }
 
-pub fn init_project(name: &str, style: &str, vcs: &str, overwrite: bool) -> Result<(), String> {
+pub fn init_project(
+    root_path: &Path,
+    name: &str,
+    style: &str,
+    vcs: &str,
+    overwrite: bool,
+) -> Result<(), String> {
     let name = check_name(name);
     let name = match name {
         Ok(s) => s,
@@ -692,7 +698,8 @@ pub fn init_project(name: &str, style: &str, vcs: &str, overwrite: bool) -> Resu
         }
     };
 
-    let base_path = Path::new(name);
+    let base_path = root_path.join(name);
+    let base_path = &base_path;
 
     // Check the path is empty / doesn't already exist (To prevent overriding)
     if !overwrite
@@ -718,7 +725,7 @@ pub fn init_project(name: &str, style: &str, vcs: &str, overwrite: bool) -> Resu
     init_android_executor(base_path, name)
 }
 
-pub fn upgrade_project(version: &str, local: bool) -> Result<(), String> {
+pub fn upgrade_project(root_path: &Path, version: &str, local: bool) -> Result<(), String> {
     let semver_regex = Regex::new(include_str!("regex")).map_err(|e| e.to_string())?;
 
     if version != "latest" && version != "nightly" && !semver_regex.is_match(version) {
@@ -756,8 +763,8 @@ pub fn upgrade_project(version: &str, local: bool) -> Result<(), String> {
     .collect::<HashMap<_, _>>();
 
     // Open workspace manifest.
-    let workspace_manifest_path = "Cargo.toml";
-    if let Ok(mut file) = File::open(workspace_manifest_path) {
+    let workspace_manifest_path = root_path.join("Cargo.toml");
+    if let Ok(mut file) = File::open(&workspace_manifest_path) {
         let mut toml = String::new();
         if file.read_to_string(&mut toml).is_ok() {
             drop(file);
