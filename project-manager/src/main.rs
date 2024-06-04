@@ -400,12 +400,17 @@ impl ProjectManager {
         }
 
         if let Some(index) = self.selection {
-            if let Some(_project) = self.settings.projects.get(index) {
+            if let Some(project) = self.settings.projects.get(index) {
                 if button == self.edit {
                     // TODO: Edit project.
                 } else if button == self.run {
-                    // TODO: Delete project.
+                    // TODO: Run project.
                 } else if button == self.delete {
+                    if let Some(dir) = project.manifest_path.parent() {
+                        let _ = std::fs::remove_dir_all(dir);
+                    }
+                    self.settings.projects.remove(index);
+                    self.refresh(ui);
                 }
             }
         }
