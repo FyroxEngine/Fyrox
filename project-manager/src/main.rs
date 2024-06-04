@@ -412,6 +412,10 @@ impl ProjectManager {
     }
 
     fn handle_ui_message(&mut self, message: &UiMessage, ui: &mut UserInterface) {
+        if let Some(project_wizard) = self.project_wizard.as_mut() {
+            project_wizard.handle_ui_message(message, ui)
+        }
+
         if let Some(ButtonMessage::Click) = message.data() {
             self.on_button_click(message.destination, ui);
         } else if let Some(ListViewMessage::SelectionChanged(selection)) = message.data() {
