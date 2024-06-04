@@ -1,3 +1,4 @@
+use crate::settings::{Project, Settings};
 use crate::{make_button, utils::make_dropdown_list_option};
 use fyrox::{
     core::pool::Handle,
@@ -234,7 +235,12 @@ impl ProjectWizard {
         ));
     }
 
-    pub fn handle_ui_message(&mut self, message: &UiMessage, ui: &UserInterface) {
+    pub fn handle_ui_message(
+        &mut self,
+        message: &UiMessage,
+        ui: &UserInterface,
+        settings: &mut Settings,
+    ) -> bool {
         if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.create {
                 let _ = fyrox_template_core::init_project(
@@ -244,7 +250,18 @@ impl ProjectWizard {
                     self.vcs.as_str(),
                     true,
                 );
+                settings.projects.push(Project {
+                    manifest_path: self
+                        .path
+                        .join(&self.name)
+                        .join("Cargo.toml")
+                        .canonicalize()
+                        .unwrap_or_default(),
+                    name: self.name.clone(),
+                    hot_reload: false,
+                });
                 self.close_and_remove(ui);
+                return true;
             } else if message.destination() == self.cancel {
                 self.close_and_remove(ui);
             }
@@ -269,5 +286,6 @@ impl ProjectWizard {
                 self.path.clone_from(path);
             }
         }
+        false
     }
 }

@@ -30,5 +30,6 @@ impl Settings {
 #[derive(Serialize, Deserialize)]
 pub struct Project {
     pub manifest_path: PathBuf,
+    pub name: String,
     pub hot_reload: bool,
 }

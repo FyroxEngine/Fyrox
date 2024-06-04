@@ -236,7 +236,7 @@ fn make_project_items(settings: &Settings, ctx: &mut BuildContext) -> Vec<Handle
     settings
         .projects
         .iter()
-        .map(|project| make_project_item("", &project.manifest_path, ctx))
+        .map(|project| make_project_item(&project.name, &project.manifest_path, ctx))
         .collect::<Vec<_>>()
 }
 
@@ -413,7 +413,9 @@ impl ProjectManager {
 
     fn handle_ui_message(&mut self, message: &UiMessage, ui: &mut UserInterface) {
         if let Some(project_wizard) = self.project_wizard.as_mut() {
-            project_wizard.handle_ui_message(message, ui)
+            if project_wizard.handle_ui_message(message, ui, &mut self.settings) {
+                self.refresh(ui);
+            }
         }
 
         if let Some(ButtonMessage::Click) = message.data() {
