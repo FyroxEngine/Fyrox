@@ -1,9 +1,11 @@
 //! Project manager is used to create, import, rename, delete, run and edit projects built with Fyrox.
 
+mod build;
 mod project;
 mod settings;
 mod utils;
 
+use crate::build::BuildWindow;
 use crate::{
     project::ProjectWizard,
     settings::Settings,
@@ -49,6 +51,7 @@ use fyrox::{
     utils::translate_event,
     window::WindowAttributes,
 };
+use std::process::Stdio;
 use std::{path::Path, sync::Arc};
 
 fn main() {
@@ -106,6 +109,9 @@ fn main() {
 
                     while lag >= fixed_time_step {
                         engine.update(fixed_time_step, window_target, &mut lag, Default::default());
+
+                        project_manager.update(engine.user_interfaces.first_mut());
+
                         lag -= fixed_time_step;
                     }
 
@@ -141,6 +147,9 @@ fn main() {
                         }
                     }
                 }
+                Event::LoopExiting => {
+                    project_manager.settings.save();
+                }
                 _ => (),
             }
         })
@@ -161,6 +170,7 @@ struct ProjectManager {
     selection: Option<usize>,
     settings: Settings,
     project_wizard: Option<ProjectWizard>,
+    build_window: Option<BuildWindow>,
 }
 
 fn make_project_item(name: &str, path: &Path, ctx: &mut BuildContext) -> Handle<UiNode> {
@@ -378,6 +388,7 @@ impl ProjectManager {
             selection: None,
             settings,
             project_wizard: None,
+            build_window: None,
         }
     }
 
@@ -388,6 +399,12 @@ impl ProjectManager {
             MessageDirection::ToWidget,
             items,
         ))
+    }
+
+    fn update(&mut self, ui: &mut UserInterface) {
+        if let Some(build_window) = self.build_window.as_mut() {
+            build_window.update(ui);
+        }
     }
 
     fn on_button_click(&mut self, button: Handle<UiNode>, ui: &mut UserInterface) {
@@ -404,7 +421,22 @@ impl ProjectManager {
                 if button == self.edit {
                     // TODO: Edit project.
                 } else if button == self.run {
-                    // TODO: Run project.
+                    let mut new_process = std::process::Command::new("cargo");
+                    new_process
+                        .current_dir(project.manifest_path.parent().unwrap())
+                        .stderr(Stdio::piped())
+                        .args(["run", "--package", "executor"]);
+
+                    match new_process.spawn() {
+                        Ok(mut new_process) => {
+                            let mut build_window = BuildWindow::new(&mut ui.build_ctx());
+
+                            build_window.listen(new_process.stderr.take().unwrap(), ui);
+
+                            self.build_window = Some(build_window);
+                        }
+                        Err(e) => Log::err(format!("Failed to enter build mode: {:?}", e)),
+                    }
                 } else if button == self.delete {
                     if let Some(dir) = project.manifest_path.parent() {
                         let _ = std::fs::remove_dir_all(dir);
@@ -421,6 +453,10 @@ impl ProjectManager {
             if project_wizard.handle_ui_message(message, ui, &mut self.settings) {
                 self.refresh(ui);
             }
+        }
+
+        if let Some(build_window) = self.build_window.as_mut() {
+            build_window.handle_ui_message(message, ui);
         }
 
         if let Some(ButtonMessage::Click) = message.data() {
@@ -449,7 +485,6 @@ impl ProjectManager {
                 && message.direction() == MessageDirection::FromWidget
             {
                 // TODO: Switch to respective mode.
-                self.settings.save();
             }
         }
     }
