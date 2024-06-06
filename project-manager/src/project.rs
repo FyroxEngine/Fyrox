@@ -1,5 +1,8 @@
-use crate::settings::{Project, Settings};
-use crate::{make_button, utils::make_dropdown_list_option};
+use crate::{
+    make_button,
+    settings::{Project, Settings},
+    utils::make_dropdown_list_option,
+};
 use fyrox::{
     core::pool::Handle,
     gui::{
@@ -250,13 +253,20 @@ impl ProjectWizard {
                     self.vcs.as_str(),
                     true,
                 );
+                let mut manifest_path = self
+                    .path
+                    .join(&self.name)
+                    .join("Cargo.toml")
+                    .canonicalize()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_string();
+                // Remove "\\?\" prefix on Windows, otherwise it will be impossible to compile anything,
+                // because there are some quirks on Unicode path handling on Windows and any path starting
+                // from two slashes will not work correctly as a working directory for a child process.
+                let manifest_path = manifest_path.replace(r"\\?\", r"");
                 settings.projects.push(Project {
-                    manifest_path: self
-                        .path
-                        .join(&self.name)
-                        .join("Cargo.toml")
-                        .canonicalize()
-                        .unwrap_or_default(),
+                    manifest_path: manifest_path.into(),
                     name: self.name.clone(),
                     hot_reload: false,
                 });

@@ -5,8 +5,8 @@ mod project;
 mod settings;
 mod utils;
 
-use crate::build::BuildWindow;
 use crate::{
+    build::BuildWindow,
     project::ProjectWizard,
     settings::Settings,
     utils::{is_production_ready, load_image, make_button},
@@ -51,8 +51,7 @@ use fyrox::{
     utils::translate_event,
     window::WindowAttributes,
 };
-use std::process::Stdio;
-use std::{path::Path, sync::Arc};
+use std::{path::Path, process::Stdio, sync::Arc};
 
 fn main() {
     let mut window_attributes = WindowAttributes::default();
@@ -419,11 +418,26 @@ impl ProjectManager {
         if let Some(index) = self.selection {
             if let Some(project) = self.settings.projects.get(index) {
                 if button == self.edit {
-                    // TODO: Edit project.
-                } else if button == self.run {
                     let mut new_process = std::process::Command::new("cargo");
                     new_process
                         .current_dir(project.manifest_path.parent().unwrap())
+                        .stderr(Stdio::piped())
+                        .args(["run", "--package", "editor"]);
+
+                    match new_process.spawn() {
+                        Ok(mut new_process) => {
+                            let mut build_window = BuildWindow::new(&mut ui.build_ctx());
+
+                            build_window.listen(new_process.stderr.take().unwrap(), ui);
+
+                            self.build_window = Some(build_window);
+                        }
+                        Err(e) => Log::err(format!("Failed to start the editor: {:?}", e)),
+                    }
+                } else if button == self.run {
+                    let mut new_process = std::process::Command::new("cargo");
+                    new_process
+                        .current_dir(dbg!(project.manifest_path.parent().unwrap()))
                         .stderr(Stdio::piped())
                         .args(["run", "--package", "executor"]);
 
@@ -435,7 +449,7 @@ impl ProjectManager {
 
                             self.build_window = Some(build_window);
                         }
-                        Err(e) => Log::err(format!("Failed to enter build mode: {:?}", e)),
+                        Err(e) => Log::err(format!("Failed to start the game: {:?}", e)),
                     }
                 } else if button == self.delete {
                     if let Some(dir) = project.manifest_path.parent() {
