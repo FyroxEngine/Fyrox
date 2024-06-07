@@ -253,7 +253,7 @@ impl ProjectWizard {
                     self.vcs.as_str(),
                     true,
                 );
-                let mut manifest_path = self
+                let manifest_path = self
                     .path
                     .join(&self.name)
                     .join("Cargo.toml")

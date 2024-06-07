@@ -23,11 +23,11 @@ use std::{
     sync::Arc,
 };
 
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Default)]
 #[clap(author, version, about, long_about = None)]
 struct Args {
-    #[clap(short, long, default_value = "")]
-    override_scene: String,
+    #[clap(short, long, default_value = None)]
+    override_scene: Option<String>,
 }
 
 /// Executor is a small wrapper that manages plugins and scripts for your game.
@@ -140,17 +140,9 @@ impl Executor {
         let event_loop = self.event_loop;
         let headless = self.headless;
 
-        let args = Args::parse();
+        let args = Args::try_parse().unwrap_or_default();
 
-        engine.enable_plugins(
-            if args.override_scene.is_empty() {
-                None
-            } else {
-                Some(&args.override_scene)
-            },
-            true,
-            Some(&event_loop),
-        );
+        engine.enable_plugins(args.override_scene.as_deref(), true, Some(&event_loop));
 
         let mut previous = Instant::now();
         let fixed_time_step = 1.0 / self.desired_update_rate;
