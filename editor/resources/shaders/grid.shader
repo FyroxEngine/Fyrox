@@ -1,5 +1,5 @@
 (
-    name: "GizmoShader",
+    name: "GridShader",
 
     properties: [
         (
@@ -128,7 +128,7 @@
 
                 void main()
                 {
-                    float t = -nearPoint.y / (farPoint.y - nearPoint.y);
+                    float t = -nearPoint.y / max(farPoint.y - nearPoint.y, 0.000001);
 
                     vec3 fragPos3D = nearPoint + t * (farPoint - nearPoint);
 
