@@ -1151,11 +1151,11 @@ impl UserInterface {
         }
     }
 
-    fn update_visual_transform(&mut self) {
+    fn update_visual_transform(&mut self, from: Handle<UiNode>) {
         scope_profile!();
 
         self.stack.clear();
-        self.stack.push(self.root_canvas);
+        self.stack.push(from);
         while let Some(node_handle) = self.stack.pop() {
             let (widget, parent) = self
                 .nodes
@@ -1242,7 +1242,7 @@ impl UserInterface {
         );
 
         if self.need_update_global_transform {
-            self.update_visual_transform();
+            self.update_visual_transform(self.root_canvas);
             self.need_update_global_transform = false;
         }
 
@@ -1882,6 +1882,11 @@ impl UserInterface {
                                     MessageDirection::ToWidget,
                                     (parent_size - size).scale(0.5),
                                 ));
+                            }
+                        }
+                        WidgetMessage::RenderTransform(_) => {
+                            if self.nodes.is_valid_handle(message.destination()) {
+                                self.update_visual_transform(message.destination());
                             }
                         }
                         WidgetMessage::AdjustPositionToFit => {
@@ -2958,7 +2963,7 @@ impl UserInterface {
     pub fn resolve(&mut self) {
         self.restore_dynamic_node_data();
         self.restore_original_handles_and_inherit_properties(&[], |_, _| {});
-        self.update_visual_transform();
+        self.update_visual_transform(self.root_canvas);
         self.update_global_visibility(self.root_canvas);
         let instances = self.restore_integrity(|model, model_data, handle, dest_graph| {
             model_data.copy_node_to(handle, dest_graph, &mut |_, original_handle, node| {
