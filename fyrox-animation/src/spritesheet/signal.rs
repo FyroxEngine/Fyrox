@@ -6,7 +6,7 @@ use fyrox_core::uuid_provider;
 
 /// Animation signal is used as a point at which to notify external observers that animation just
 /// started to play a specific frame.
-#[derive(Visit, Reflect, Debug, Clone)]
+#[derive(PartialEq, Visit, Reflect, Debug, Clone)]
 pub struct Signal {
     /// Signal id. It should be used to distinguish different signals. For example, `JUMP` signal
     /// can have `id = 0`, while `CROUCH` signal - `id = 1`, etc.

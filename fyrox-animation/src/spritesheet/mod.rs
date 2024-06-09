@@ -21,9 +21,9 @@ use strum_macros::{AsRefStr, EnumString, VariantNames};
 pub mod signal;
 
 /// Trait for anything that can be used as a texture.
-pub trait SpriteSheetTexture: Clone + Visit + Reflect + 'static {}
+pub trait SpriteSheetTexture: PartialEq + Clone + Visit + Reflect + 'static {}
 
-impl<T: Clone + Visit + Reflect + 'static> SpriteSheetTexture for T {}
+impl<T: PartialEq + Clone + Visit + Reflect + 'static> SpriteSheetTexture for T {}
 
 /// Animation playback status.
 #[derive(Visit, Reflect, Copy, Clone, Eq, PartialEq, Debug, AsRefStr, EnumString, VariantNames)]
@@ -170,6 +170,17 @@ where
     events: VecDeque<Event>,
 }
 
+impl<T: SpriteSheetTexture> PartialEq for SpriteSheetAnimation<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.frames_container == other.frames_container
+            && self.current_frame == other.current_frame
+            && self.speed == other.speed
+            && self.looping == other.looping
+            && self.signals == other.signals
+            && self.texture == other.texture
+    }
+}
+
 impl<T> TypeUuidProvider for SpriteSheetAnimation<T>
 where
     T: SpriteSheetTexture,
@@ -261,7 +272,7 @@ where
     /// # };
     /// # use fyrox_core::{reflect::prelude::*, visitor::prelude::*};
     /// #
-    /// #[derive(Clone, Reflect, Visit, Debug)]
+    /// #[derive(PartialEq, Clone, Reflect, Visit, Debug)]
     /// struct MyTexture {}
     ///
     /// fn extract_animations() {
@@ -554,7 +565,7 @@ mod test {
     };
     use fyrox_core::{algebra::Vector2, math::Rect, reflect::prelude::*, visitor::prelude::*};
 
-    #[derive(Clone, Reflect, Visit, Debug)]
+    #[derive(PartialEq, Clone, Reflect, Visit, Debug)]
     struct MyTexture {}
 
     #[test]
