@@ -1,3 +1,12 @@
+# 0.34.1 Engine + 0.21.1 Editor
+
+- Fixed crash when trying to create parent for root in the editor
+- Dispatch script messages after everything is initialized and updated
+- Prevent selection type name from disappearing in the inspector
+- Fixed potential crash when undoing asset instantiation
+- Fixed rendering issues in 2d projection mode in the editor
+- Update visual transform of a widget when render transform changes
+
 # 0.34 Engine + 0.21.0 Editor
 
 ## Added
