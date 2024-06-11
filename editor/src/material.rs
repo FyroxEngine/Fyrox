@@ -37,7 +37,7 @@ use crate::fyrox::{
     scene::{
         base::BaseBuilder,
         mesh::{
-            surface::{SurfaceBuilder, SurfaceData, SurfaceSharedData},
+            surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
             MeshBuilder,
         },
     },
@@ -50,6 +50,7 @@ use crate::{
     scene::commands::material::{SetMaterialPropertyValueCommand, SetMaterialShaderCommand},
     send_sync_message, Engine, Message,
 };
+use fyrox::asset::untyped::ResourceKind;
 use fyrox::gui::menu::ContextMenuBuilder;
 use std::{path::Path, sync::Arc};
 
@@ -252,7 +253,8 @@ impl MaterialEditor {
 
         let graph = &mut engine.scenes[preview.scene()].graph;
         let sphere = MeshBuilder::new(BaseBuilder::new())
-            .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
+            .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_ok(
+                ResourceKind::Embedded,
                 SurfaceData::make_sphere(30, 30, 1.0, &Matrix4::identity()),
             ))
             .build()])

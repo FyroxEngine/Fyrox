@@ -45,7 +45,7 @@ use crate::{
             light::{point::PointLight, spot::SpotLight},
             mesh::RenderPath,
             mesh::{
-                surface::{SurfaceBuilder, SurfaceData, SurfaceSharedData},
+                surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
                 Mesh, MeshBuilder,
             },
             navmesh::NavigationalMesh,
@@ -77,6 +77,7 @@ use crate::{
     world::graph::selection::GraphSelection,
     Message, Settings,
 };
+use fyrox::asset::untyped::ResourceKind;
 use std::{
     any::Any,
     cell::RefCell,
@@ -166,7 +167,8 @@ impl GameScene {
                 .with_frustum_culling(false)
                 .with_visibility(settings.graphics.draw_grid),
         )
-        .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
+        .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_ok(
+            ResourceKind::Embedded,
             SurfaceData::make_quad(&Matrix4::new_scaling(2.0)),
         ))
         .with_material(make_grid_material())

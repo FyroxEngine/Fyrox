@@ -46,7 +46,7 @@ use crate::{
             buffer::{VertexAttributeUsage, VertexBuffer, VertexWriteTrait},
             surface::{
                 BlendShape, BlendShapesContainer, InputBlendShapeData, Surface, SurfaceData,
-                SurfaceSharedData, VertexWeightSet,
+                SurfaceResource, VertexWeightSet,
             },
             vertex::{AnimatedVertex, StaticVertex},
             Mesh, MeshBuilder,
@@ -278,7 +278,10 @@ async fn create_surfaces(
         let mut surface_data = data.base_mesh_builder.build();
         surface_data.blend_shapes_container =
             make_blend_shapes_container(&surface_data.vertex_buffer, data.blend_shapes);
-        let mut surface = Surface::new(SurfaceSharedData::new(surface_data));
+        let mut surface = Surface::new(SurfaceResource::new_ok(
+            ResourceKind::Embedded,
+            surface_data,
+        ));
         surface.vertex_weights = data.skin_data;
         surfaces.push(surface);
     } else {
@@ -287,7 +290,10 @@ async fn create_surfaces(
             let mut surface_data = data.base_mesh_builder.build();
             surface_data.blend_shapes_container =
                 make_blend_shapes_container(&surface_data.vertex_buffer, data.blend_shapes);
-            let mut surface = Surface::new(SurfaceSharedData::new(surface_data));
+            let mut surface = Surface::new(SurfaceResource::new_ok(
+                ResourceKind::Embedded,
+                surface_data,
+            ));
             surface.vertex_weights = data.skin_data;
             let material = fbx_scene.get(material_handle).as_material()?;
             if let Err(e) = surface.material().data_ref().set_property(
@@ -596,7 +602,7 @@ async fn convert_mesh(
 
         if geom.tangents.is_none() {
             for surface in surfaces.iter_mut() {
-                surface.data().lock().calculate_tangents().unwrap();
+                surface.data().data_ref().calculate_tangents().unwrap();
             }
         }
 
@@ -856,7 +862,7 @@ async fn convert(
                     .set_value_silent(surface_bones.iter().copied().collect());
 
                 let data_rc = surface.data();
-                let mut data = data_rc.lock();
+                let mut data = data_rc.data_ref();
                 if data.vertex_buffer.vertex_count() as usize == surface.vertex_weights.len() {
                     let mut vertex_buffer_mut = data.vertex_buffer.modify();
                     for (mut view, weight_set) in vertex_buffer_mut

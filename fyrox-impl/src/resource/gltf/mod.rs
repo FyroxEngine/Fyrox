@@ -24,7 +24,7 @@ use crate::resource::texture::{TextureError, TextureResource};
 use crate::scene::animation::{AnimationContainer, AnimationPlayerBuilder};
 use crate::scene::base::BaseBuilder;
 use crate::scene::graph::Graph;
-use crate::scene::mesh::surface::{BlendShape, Surface, SurfaceSharedData};
+use crate::scene::mesh::surface::{BlendShape, Surface, SurfaceResource};
 use crate::scene::mesh::{Mesh, MeshBuilder};
 use crate::scene::node::Node;
 use crate::scene::pivot::PivotBuilder;
@@ -40,6 +40,7 @@ mod surface;
 mod uri;
 
 use animation::import_animations;
+use fyrox_resource::untyped::ResourceKind;
 use material::*;
 pub use surface::SurfaceDataError;
 use surface::{build_surface_data, BlendShapeInfoContainer, GeometryStatistics};
@@ -531,7 +532,7 @@ fn import_surface(
         if let Some(shape_con) = data.blend_shapes_container.as_ref() {
             blend_shapes.clone_from(&shape_con.blend_shapes)
         }
-        let mut surf = Surface::new(SurfaceSharedData::new(data));
+        let mut surf = Surface::new(SurfaceResource::new_ok(ResourceKind::Embedded, data));
         if let Some(mat_index) = prim.material().index() {
             surf.set_material(
                 mats.get(mat_index)

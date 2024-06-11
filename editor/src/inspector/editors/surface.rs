@@ -19,7 +19,7 @@ use crate::fyrox::{
         widget::{Widget, WidgetBuilder},
         BuildContext, Control, Thickness, UiNode, UserInterface,
     },
-    scene::mesh::surface::SurfaceSharedData,
+    scene::mesh::surface::SurfaceResource,
 };
 use std::{
     any::TypeId,
@@ -30,7 +30,7 @@ use std::{
 #[allow(dead_code)]
 pub struct SurfaceDataPropertyEditor {
     widget: Widget,
-    data: SurfaceSharedData,
+    data: SurfaceResource,
 }
 
 define_widget_deref!(SurfaceDataPropertyEditor);
@@ -43,9 +43,9 @@ impl Control for SurfaceDataPropertyEditor {
     }
 }
 
-fn surface_data_info(data: &SurfaceSharedData) -> String {
+fn surface_data_info(data: &SurfaceResource) -> String {
     let use_count = data.use_count();
-    let guard = data.lock();
+    let guard = data.data_ref();
     format!(
         "Vertices: {}\nTriangles: {}\nUse Count: {}",
         guard.vertex_buffer.vertex_count(),
@@ -55,7 +55,7 @@ fn surface_data_info(data: &SurfaceSharedData) -> String {
 }
 
 impl SurfaceDataPropertyEditor {
-    pub fn build(ctx: &mut BuildContext, data: SurfaceSharedData) -> Handle<UiNode> {
+    pub fn build(ctx: &mut BuildContext, data: SurfaceResource) -> Handle<UiNode> {
         let editor = Self {
             widget: WidgetBuilder::new()
                 .with_child(
@@ -88,14 +88,14 @@ pub struct SurfaceDataPropertyEditorDefinition;
 
 impl PropertyEditorDefinition for SurfaceDataPropertyEditorDefinition {
     fn value_type_id(&self) -> TypeId {
-        TypeId::of::<SurfaceSharedData>()
+        TypeId::of::<SurfaceResource>()
     }
 
     fn create_instance(
         &self,
         ctx: PropertyEditorBuildContext,
     ) -> Result<PropertyEditorInstance, InspectorError> {
-        let value = ctx.property_info.cast_value::<SurfaceSharedData>()?;
+        let value = ctx.property_info.cast_value::<SurfaceResource>()?;
 
         Ok(PropertyEditorInstance::Simple {
             editor: SurfaceDataPropertyEditor::build(ctx.build_context, value.clone()),

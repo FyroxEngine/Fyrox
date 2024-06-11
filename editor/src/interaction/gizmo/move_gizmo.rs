@@ -10,7 +10,7 @@ use crate::fyrox::{
         base::BaseBuilder,
         graph::Graph,
         mesh::{
-            surface::{SurfaceBuilder, SurfaceData, SurfaceSharedData},
+            surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
             MeshBuilder, RenderPath,
         },
         node::Node,
@@ -25,6 +25,7 @@ use crate::{
     scene::{GameScene, Selection},
     set_mesh_diffuse_color, Engine,
 };
+use fyrox::asset::untyped::ResourceKind;
 
 pub struct MoveGizmo {
     pub origin: Handle<Node>,
@@ -49,12 +50,10 @@ fn make_smart_dot(graph: &mut Graph) -> Handle<Node> {
     )
     .with_render_path(RenderPath::Forward)
     .with_surfaces(vec![{
-        SurfaceBuilder::new(SurfaceSharedData::new(SurfaceData::make_sphere(
-            8,
-            8,
-            scale,
-            &Matrix4::identity(),
-        )))
+        SurfaceBuilder::new(SurfaceResource::new_ok(
+            ResourceKind::Embedded,
+            SurfaceData::make_sphere(8, 8, scale, &Matrix4::identity()),
+        ))
         .with_material(make_color_material(Color::WHITE))
         .build()
     }])
@@ -83,7 +82,8 @@ fn make_move_axis(
                         ),
                 )
                 .with_render_path(RenderPath::Forward)
-                .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
+                .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_ok(
+                    ResourceKind::Embedded,
                     SurfaceData::make_cone(10, 0.05, 0.1, &Matrix4::identity()),
                 ))
                 .with_material(make_color_material(color))
@@ -99,7 +99,8 @@ fn make_move_axis(
             ),
     )
     .with_render_path(RenderPath::Forward)
-    .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
+    .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_ok(
+        ResourceKind::Embedded,
         SurfaceData::make_cylinder(10, 0.015, 1.0, true, &Matrix4::identity()),
     ))
     .with_material(make_color_material(color))
@@ -128,11 +129,14 @@ fn create_quad_plane(
     )
     .with_render_path(RenderPath::Forward)
     .with_surfaces(vec![{
-        SurfaceBuilder::new(SurfaceSharedData::new(SurfaceData::make_quad(
-            &(transform
-                * UnitQuaternion::from_axis_angle(&Vector3::x_axis(), 90.0f32.to_radians())
-                    .to_homogeneous()),
-        )))
+        SurfaceBuilder::new(SurfaceResource::new_ok(
+            ResourceKind::Embedded,
+            SurfaceData::make_quad(
+                &(transform
+                    * UnitQuaternion::from_axis_angle(&Vector3::x_axis(), 90.0f32.to_radians())
+                        .to_homogeneous()),
+            ),
+        ))
         .with_material(make_color_material(color))
         .build()
     }])

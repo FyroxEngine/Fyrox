@@ -1,21 +1,23 @@
 //! Surface is a set of triangles with a single material. Such arrangement makes GPU rendering very efficient.
 //! See [`Surface`] docs for more info and usage examples.
 
-use crate::material::MaterialResourceExtension;
 use crate::{
+    asset::{untyped::ResourceKind, Resource, ResourceData},
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
         hash_combine,
+        log::Log,
         math::TriangleDefinition,
-        parking_lot::{Mutex, MutexGuard},
         pool::{ErasedHandle, Handle},
         reflect::prelude::*,
         sparse::AtomicIndex,
+        type_traits::prelude::*,
+        uuid_provider,
         variable::InheritableVariable,
         visitor::{Visit, VisitResult, Visitor},
+        Uuid,
     },
-    material,
-    material::{Material, MaterialResource},
+    material::{self, Material, MaterialResource, MaterialResourceExtension},
     resource::texture::{TextureKind, TexturePixelKind, TextureResource, TextureResourceExtension},
     scene::{
         mesh::{
@@ -30,11 +32,8 @@ use crate::{
     utils::raw_mesh::{RawMesh, RawMeshBuilder},
 };
 use fxhash::{FxHashMap, FxHasher};
-use fyrox_core::log::Log;
-use fyrox_core::uuid_provider;
-use fyrox_resource::untyped::ResourceKind;
 use half::f16;
-use std::{hash::Hasher, sync::Arc};
+use std::{any::Any, error::Error, hash::Hasher, path::Path, sync::Arc};
 
 /// A target shape for blending.
 #[derive(Debug, Clone, Visit, Reflect, PartialEq)]
@@ -59,7 +58,7 @@ impl Default for BlendShape {
 }
 
 /// A container for multiple blend shapes/
-#[derive(Debug, Clone, Default)]
+#[derive(Reflect, Debug, Clone, Default)]
 pub struct BlendShapesContainer {
     /// A list of blend shapes.
     pub blend_shapes: Vec<BlendShape>,
@@ -190,7 +189,8 @@ impl BlendShapesContainer {
 /// Data source of a surface. Each surface can share same data source, this is used
 /// in instancing technique to render multiple instances of same model at different
 /// places.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Reflect, TypeUuidProvider)]
+#[type_uuid(id = "8a23a414-e66d-4e12-9628-92c6ab49c2f0")]
 pub struct SurfaceData {
     /// Current vertex buffer.
     pub vertex_buffer: VertexBuffer,
@@ -201,7 +201,31 @@ pub struct SurfaceData {
     // If true - indicates that surface was generated and does not have reference
     // resource. Procedural data will be serialized.
     is_embedded: bool,
+    #[reflect(hidden)]
     pub(crate) cache_index: Arc<AtomicIndex>,
+}
+
+impl ResourceData for SurfaceData {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn type_uuid(&self) -> Uuid {
+        <SurfaceData as fyrox_core::TypeUuidProvider>::type_uuid()
+    }
+
+    fn save(&mut self, _path: &Path) -> Result<(), Box<dyn Error>> {
+        // TODO: Add saving.
+        Ok(())
+    }
+
+    fn can_be_saved(&self) -> bool {
+        true
+    }
 }
 
 impl SurfaceData {
@@ -1120,46 +1144,17 @@ impl VertexWeightSet {
 /// Surface shared data is a vertex and index buffer that can be shared across multiple objects. This is
 /// very useful memory optimization - you create a single data storage for a surface and then share it
 /// with any instance count you want. Memory usage does not increase with instance count in this case.
-#[derive(Default, Debug, Clone, Reflect)]
-pub struct SurfaceSharedData(#[reflect(hidden)] Arc<Mutex<SurfaceData>>);
+pub type SurfaceResource = Resource<SurfaceData>;
 
-impl PartialEq for SurfaceSharedData {
-    fn eq(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.0, &other.0)
-    }
+/// A trait with extension methods for surface resource.
+pub trait SurfaceResourceExtension {
+    /// Creates a full copy of the internals of the data and creates a new surface resource of it.
+    fn deep_clone(&self) -> Self;
 }
 
-impl Visit for SurfaceSharedData {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        self.0.visit(name, visitor)
-    }
-}
-
-impl SurfaceSharedData {
-    /// Creates new surface shared data.
-    pub fn new(data: SurfaceData) -> Self {
-        Self(Arc::new(Mutex::new(data)))
-    }
-
-    /// Provides access to inner data.
-    pub fn lock(&self) -> MutexGuard<'_, SurfaceData> {
-        self.0.lock()
-    }
-
-    /// Returns unique numeric id of the surface shared data. The id is not stable across multiple runs of
-    /// your application!
-    pub fn key(&self) -> u64 {
-        &*self.0 as *const _ as u64
-    }
-
-    /// Creates a deep clone of the data.
-    pub fn deep_clone(&self) -> Self {
-        Self::new(self.lock().clone())
-    }
-
-    /// Returns total amount of uses of the shared data.
-    pub fn use_count(&self) -> usize {
-        Arc::strong_count(&self.0)
+impl SurfaceResourceExtension for SurfaceResource {
+    fn deep_clone(&self) -> Self {
+        Self::new_ok(self.kind(), self.data_ref().clone())
     }
 }
 
@@ -1179,10 +1174,11 @@ impl SurfaceSharedData {
 /// #     },
 /// #     scene::mesh::{
 /// #         buffer::{TriangleBuffer, VertexBuffer},
-/// #         surface::{Surface, SurfaceBuilder, SurfaceData, SurfaceSharedData},
+/// #         surface::{Surface, SurfaceBuilder, SurfaceData, SurfaceResource},
 /// #         vertex::StaticVertex,
 /// #     },
 /// # };
+/// use fyrox_resource::untyped::ResourceKind;
 /// fn create_triangle_surface() -> Surface {
 ///     let vertex_buffer = VertexBuffer::new(
 ///         3,
@@ -1213,7 +1209,7 @@ impl SurfaceSharedData {
 ///
 ///     let data = SurfaceData::new(vertex_buffer, triangle_buffer, true);
 ///
-///     SurfaceBuilder::new(SurfaceSharedData::new(data)).build()
+///     SurfaceBuilder::new(SurfaceResource::new_ok(ResourceKind::Embedded, data)).build()
 /// }
 /// ```
 ///
@@ -1226,10 +1222,11 @@ impl SurfaceSharedData {
 /// ```rust
 /// # use fyrox_impl::{
 /// #     core::algebra::Matrix4,
-/// #     scene::mesh::surface::{Surface, SurfaceBuilder, SurfaceData, SurfaceSharedData},
+/// #     scene::mesh::surface::{Surface, SurfaceBuilder, SurfaceData, SurfaceResource},
 /// # };
+/// use fyrox_resource::untyped::ResourceKind;
 /// fn create_cone_surface() -> Surface {
-///     SurfaceBuilder::new(SurfaceSharedData::new(SurfaceData::make_cone(
+///     SurfaceBuilder::new(SurfaceResource::new_ok(ResourceKind::Embedded, SurfaceData::make_cone(
 ///         16,
 ///         1.0,
 ///         2.0,
@@ -1243,7 +1240,7 @@ impl SurfaceSharedData {
 /// methods.
 #[derive(Debug, Reflect, PartialEq)]
 pub struct Surface {
-    pub(crate) data: InheritableVariable<SurfaceSharedData>,
+    pub(crate) data: InheritableVariable<SurfaceResource>,
 
     pub(crate) material: InheritableVariable<MaterialResource>,
 
@@ -1313,7 +1310,11 @@ impl Visit for Surface {
 impl Default for Surface {
     fn default() -> Self {
         Self {
-            data: SurfaceSharedData::new(SurfaceData::make_cube(Matrix4::identity())).into(),
+            data: SurfaceResource::new_ok(
+                ResourceKind::Embedded,
+                SurfaceData::make_cube(Matrix4::identity()),
+            )
+            .into(),
             material: MaterialResource::new_ok(Default::default(), Material::standard()).into(),
             vertex_weights: Default::default(),
             bones: Default::default(),
@@ -1325,7 +1326,7 @@ impl Default for Surface {
 impl Surface {
     /// Creates new surface instance with given data and without any texture.
     #[inline]
-    pub fn new(data: SurfaceSharedData) -> Self {
+    pub fn new(data: SurfaceResource) -> Self {
         Self {
             data: data.into(),
             ..Default::default()
@@ -1334,7 +1335,7 @@ impl Surface {
 
     /// Calculates material id.
     pub fn material_id(&self) -> u64 {
-        self.material.key() as u64
+        self.material.key()
     }
 
     /// Calculates batch id.
@@ -1347,13 +1348,13 @@ impl Surface {
 
     /// Returns current data used by surface.
     #[inline]
-    pub fn data(&self) -> SurfaceSharedData {
+    pub fn data(&self) -> SurfaceResource {
         (*self.data).clone()
     }
 
     /// Returns current data used by surface.
     #[inline]
-    pub fn data_ref(&self) -> &SurfaceSharedData {
+    pub fn data_ref(&self) -> &SurfaceResource {
         &self.data
     }
 
@@ -1386,7 +1387,7 @@ impl Surface {
 
 /// Surface builder allows you to create surfaces in declarative manner.
 pub struct SurfaceBuilder {
-    data: SurfaceSharedData,
+    data: SurfaceResource,
     material: Option<MaterialResource>,
     bones: Vec<Handle<Node>>,
     unique_material: bool,
@@ -1394,7 +1395,7 @@ pub struct SurfaceBuilder {
 
 impl SurfaceBuilder {
     /// Creates new builder instance with given data and no textures or bones.
-    pub fn new(data: SurfaceSharedData) -> Self {
+    pub fn new(data: SurfaceResource) -> Self {
         Self {
             data,
             material: None,

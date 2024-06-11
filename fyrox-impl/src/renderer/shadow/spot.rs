@@ -175,7 +175,7 @@ impl SpotShadowMapRenderer {
 
             let blend_shapes_storage = bundle
                 .data
-                .lock()
+                .data_ref()
                 .blend_shapes_container
                 .as_ref()
                 .and_then(|c| c.blend_shape_storage.clone());

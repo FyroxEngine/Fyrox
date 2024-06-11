@@ -655,7 +655,7 @@ pub struct Terrain {
     #[reflect(hidden)]
     bounding_box: Cell<AxisAlignedBoundingBox>,
 
-    /// The [SurfaceSharedData](crate::scene::mesh::surface::SurfaceSharedData) that will be instanced to render
+    /// The [SurfaceSharedData](crate::scene::mesh::surface::SurfaceResource) that will be instanced to render
     /// all the chunks of the height map.
     #[reflect(hidden)]
     geometry: TerrainGeometry,

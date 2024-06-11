@@ -33,12 +33,13 @@ use crate::{
                 VertexAttributeUsage, VertexBuffer, VertexBufferRefMut, VertexReadTrait,
                 VertexViewMut, VertexWriteTrait,
             },
-            surface::{BlendShape, Surface, SurfaceData, SurfaceSharedData},
+            surface::{BlendShape, Surface, SurfaceData, SurfaceResource},
         },
         node::{Node, NodeTrait, RdcControlFlow, SyncContext},
     },
 };
 use fxhash::{FxHashMap, FxHasher};
+use fyrox_resource::untyped::ResourceKind;
 use std::{
     cell::Cell,
     hash::{Hash, Hasher},
@@ -135,7 +136,7 @@ pub enum BatchingMode {
 
 #[derive(Debug, Clone)]
 struct Batch {
-    data: SurfaceSharedData,
+    data: SurfaceResource,
     material: MaterialResource,
 }
 
@@ -190,20 +191,23 @@ impl RenderDataBundleStorageTrait for BatchContainer {
     ) {
         let mut hasher = FxHasher::default();
         layout.hash(&mut hasher);
-        hasher.write_u64(material.key() as u64);
+        hasher.write_u64(material.key());
         let batch_hash = hasher.finish();
 
         let batch = self.batches.entry(batch_hash).or_insert_with(|| Batch {
-            data: SurfaceSharedData::new(SurfaceData::new(
-                VertexBuffer::new_with_layout(layout, 0, BytesStorage::with_capacity(4096))
-                    .unwrap(),
-                TriangleBuffer::new(Vec::with_capacity(4096)),
-                false,
-            )),
+            data: SurfaceResource::new_ok(
+                ResourceKind::Embedded,
+                SurfaceData::new(
+                    VertexBuffer::new_with_layout(layout, 0, BytesStorage::with_capacity(4096))
+                        .unwrap(),
+                    TriangleBuffer::new(Vec::with_capacity(4096)),
+                    false,
+                ),
+            ),
             material: material.clone(),
         });
 
-        let mut batch_data_guard = batch.data.lock();
+        let mut batch_data_guard = batch.data.data_ref();
         let batch_data = &mut *batch_data_guard;
 
         func(
@@ -214,30 +218,33 @@ impl RenderDataBundleStorageTrait for BatchContainer {
 
     fn push(
         &mut self,
-        data: &SurfaceSharedData,
+        data: &SurfaceResource,
         material: &MaterialResource,
         _render_path: RenderPath,
         _decal_layer_index: u8,
         _sort_index: u64,
         instance_data: SurfaceInstanceData,
     ) {
-        let src_data = data.lock();
+        let src_data = data.data_ref();
 
         let mut hasher = FxHasher::default();
         src_data.vertex_buffer.layout().hash(&mut hasher);
-        hasher.write_u64(material.key() as u64);
+        hasher.write_u64(material.key());
         let batch_hash = hasher.finish();
 
         let batch = self.batches.entry(batch_hash).or_insert_with(|| Batch {
-            data: SurfaceSharedData::new(SurfaceData::new(
-                src_data.vertex_buffer.clone_empty(4096),
-                TriangleBuffer::new(Vec::with_capacity(4096)),
-                false,
-            )),
+            data: SurfaceResource::new_ok(
+                ResourceKind::Embedded,
+                SurfaceData::new(
+                    src_data.vertex_buffer.clone_empty(4096),
+                    TriangleBuffer::new(Vec::with_capacity(4096)),
+                    false,
+                ),
+            ),
             material: material.clone(),
         });
 
-        let mut batch_data_guard = batch.data.lock();
+        let mut batch_data_guard = batch.data.data_ref();
         let batch_data = &mut *batch_data_guard;
         let start_vertex_index = batch_data.vertex_buffer.vertex_count();
         let mut batch_vertex_buffer = batch_data.vertex_buffer.modify();
@@ -275,16 +282,17 @@ impl RenderDataBundleStorageTrait for BatchContainer {
 /// #         base::BaseBuilder,
 /// #         graph::Graph,
 /// #         mesh::{
-/// #             surface::{SurfaceBuilder, SurfaceData, SurfaceSharedData},
+/// #             surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
 /// #             MeshBuilder,
 /// #         },
 /// #         node::Node,
 /// #     },
 /// # };
+/// use fyrox_resource::untyped::ResourceKind;
 /// fn create_cube_mesh(graph: &mut Graph) -> Handle<Node> {
 ///     let cube_surface_data = SurfaceData::make_cube(Matrix4::identity());
 ///
-///     let cube_surface = SurfaceBuilder::new(SurfaceSharedData::new(cube_surface_data)).build();
+///     let cube_surface = SurfaceBuilder::new(SurfaceResource::new_ok(ResourceKind::Embedded, cube_surface_data)).build();
 ///
 ///     MeshBuilder::new(BaseBuilder::new())
 ///         .with_surfaces(vec![cube_surface])
@@ -435,7 +443,7 @@ impl Mesh {
         let mut bounding_box = AxisAlignedBoundingBox::default();
         for surface in self.surfaces.iter() {
             let data = surface.data();
-            let data = data.lock();
+            let data = data.data_ref();
             if surface.bones().is_empty() {
                 for view in data.vertex_buffer.iter() {
                     bounding_box.add_point(
@@ -542,13 +550,13 @@ impl NodeTrait for Mesh {
             if let BatchingMode::Static = *self.batching_mode {
                 let container = self.batch_container.0.lock();
                 for batch in container.batches.values() {
-                    let data = batch.data.lock();
+                    let data = batch.data.data_ref();
                     extend_aabb_from_vertex_buffer(&data.vertex_buffer, &mut bounding_box);
                 }
             } else {
                 for surface in self.surfaces.iter() {
                     let data = surface.data();
-                    let data = data.lock();
+                    let data = data.data_ref();
                     extend_aabb_from_vertex_buffer(&data.vertex_buffer, &mut bounding_box);
                 }
             }
@@ -621,7 +629,7 @@ impl NodeTrait for Mesh {
                     &batch.material,
                     self.render_path(),
                     self.decal_layer_index(),
-                    batch.material.key() as u64,
+                    batch.material.key(),
                     SurfaceInstanceData {
                         world_transform: Matrix4::identity(),
                         bone_matrices: Default::default(),
@@ -653,7 +661,7 @@ impl NodeTrait for Mesh {
                     BatchingMode::None => BatchingMode::None,
                     BatchingMode::Static => BatchingMode::Static,
                     BatchingMode::Dynamic => {
-                        let surface_data_guard = surface.data_ref().lock();
+                        let surface_data_guard = surface.data_ref().data_ref();
                         if self.blend_shapes().is_empty()
                             && surface.bones().is_empty()
                             && surface_data_guard.vertex_buffer.vertex_count() < 256
@@ -672,7 +680,7 @@ impl NodeTrait for Mesh {
                             surface.material(),
                             self.render_path(),
                             self.decal_layer_index(),
-                            surface.material().key() as u64,
+                            surface.material().key(),
                             SurfaceInstanceData {
                                 world_transform: world,
                                 bone_matrices: surface
@@ -704,7 +712,7 @@ impl NodeTrait for Mesh {
                         );
                     }
                     BatchingMode::Dynamic => {
-                        let surface_data_guard = surface.data_ref().lock();
+                        let surface_data_guard = surface.data_ref().data_ref();
 
                         ctx.storage.push_triangles(
                             &surface_data_guard
@@ -747,7 +755,7 @@ impl NodeTrait for Mesh {
         let transform = self.global_transform();
 
         for surface in self.surfaces() {
-            for vertex in surface.data().lock().vertex_buffer.iter() {
+            for vertex in surface.data().data_ref().vertex_buffer.iter() {
                 let len = 0.025;
                 let position = transform
                     .transform_point(&Point3::from(

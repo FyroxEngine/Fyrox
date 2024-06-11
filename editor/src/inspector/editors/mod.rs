@@ -49,7 +49,7 @@ use crate::fyrox::{
             BaseLight,
         },
         mesh::{
-            surface::{BlendShape, Surface, SurfaceSharedData},
+            surface::{BlendShape, Surface, SurfaceResource},
             RenderPath,
         },
         node::Node,
@@ -423,7 +423,7 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
     container.insert(SpriteSheetFramesContainerEditorDefinition);
 
     container.insert(SurfaceDataPropertyEditorDefinition);
-    container.insert(InheritablePropertyEditorDefinition::<SurfaceSharedData>::new());
+    container.insert(InheritablePropertyEditorDefinition::<SurfaceResource>::new());
     container.insert(InheritablePropertyEditorDefinition::<Status>::new());
 
     register_absm_property_editors::<Node>(&container);

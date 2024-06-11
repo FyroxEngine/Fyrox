@@ -33,7 +33,7 @@ use crate::{
             camera::{CameraBuilder, FitParameters, Projection},
             light::{directional::DirectionalLightBuilder, BaseLightBuilder},
             mesh::{
-                surface::{SurfaceBuilder, SurfaceData, SurfaceSharedData},
+                surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
                 MeshBuilder, RenderPath,
             },
             node::Node,
@@ -135,7 +135,8 @@ impl AssetPreviewGenerator for TexturePreview {
             let material = MaterialResource::new_ok(Default::default(), material);
 
             MeshBuilder::new(BaseBuilder::new())
-                .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
+                .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_ok(
+                    ResourceKind::Embedded,
                     SurfaceData::make_quad(
                         &(UnitQuaternion::from_axis_angle(
                             &Vector3::z_axis(),
@@ -418,7 +419,8 @@ impl AssetPreviewGenerator for ShaderPreview {
             );
 
             MeshBuilder::new(BaseBuilder::new())
-                .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
+                .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_ok(
+                    ResourceKind::Embedded,
                     SurfaceData::make_sphere(32, 32, 1.0, &Matrix4::identity()),
                 ))
                 .with_material(material)
@@ -458,7 +460,8 @@ impl AssetPreviewGenerator for MaterialPreview {
     ) -> Handle<Node> {
         if let Some(material) = resource.try_cast::<Material>() {
             MeshBuilder::new(BaseBuilder::new())
-                .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
+                .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_ok(
+                    ResourceKind::Embedded,
                     SurfaceData::make_sphere(32, 32, 1.0, &Matrix4::identity()),
                 ))
                 .with_material(material)

@@ -683,7 +683,7 @@ mod test {
         scene::{
             base::BaseBuilder,
             mesh::{
-                surface::{SurfaceBuilder, SurfaceData, SurfaceSharedData},
+                surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
                 MeshBuilder,
             },
             pivot::PivotBuilder,
@@ -693,6 +693,7 @@ mod test {
         script::ScriptTrait,
     };
     use fyrox_graph::SceneGraph;
+    use fyrox_resource::untyped::ResourceKind;
     use std::{fs, path::Path, sync::Arc};
 
     #[derive(Debug, Clone, Reflect, Visit, Default)]
@@ -730,7 +731,8 @@ mod test {
                                 .build(),
                         ),
                     )
-                    .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
+                    .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_ok(
+                        ResourceKind::Embedded,
                         SurfaceData::make_cone(16, 1.0, 1.0, &Matrix4::identity()),
                     ))
                     .build()])

@@ -7,7 +7,7 @@ use crate::{
             state::PipelineState,
         },
     },
-    scene::mesh::surface::{SurfaceData, SurfaceSharedData},
+    scene::mesh::surface::{SurfaceData, SurfaceResource},
 };
 use fyrox_core::log::Log;
 
@@ -42,10 +42,10 @@ impl GeometryCache {
     pub fn get<'a>(
         &'a mut self,
         state: &PipelineState,
-        data: &SurfaceSharedData,
+        data: &SurfaceResource,
         time_to_live: TimeToLive,
     ) -> Option<&'a mut GeometryBuffer> {
-        let data = data.lock();
+        let data = data.data_ref();
 
         match self
             .buffer

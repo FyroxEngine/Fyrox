@@ -7,6 +7,7 @@ use crate::{
         byteorder::{ByteOrder, LittleEndian},
         futures::io::Error,
         math::TriangleDefinition,
+        reflect::prelude::*,
         visitor::{prelude::*, PodVecView},
     },
     core::{array_as_u8_slice, value_as_u8_slice},
@@ -32,7 +33,7 @@ pub trait VertexTrait: Copy + 'static {
 }
 
 /// Data type for a vertex attribute component.
-#[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Ord, Hash, Visit, Debug)]
+#[derive(Reflect, Copy, Clone, PartialOrd, PartialEq, Eq, Ord, Hash, Visit, Debug)]
 #[repr(u8)]
 pub enum VertexAttributeDataType {
     /// 32-bit floating-point.
@@ -64,7 +65,7 @@ impl VertexAttributeDataType {
 
 /// An usage for vertex attribute. It is a fixed set, but there are plenty
 /// room for any custom data - it may be fit into `TexCoordN` attributes.
-#[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Ord, Hash, Visit, Debug)]
+#[derive(Reflect, Copy, Clone, PartialOrd, PartialEq, Eq, Ord, Hash, Visit, Debug)]
 #[repr(u32)]
 pub enum VertexAttributeUsage {
     /// Vertex position. Usually `Vector2<f32>` or `Vector3<f32>`.
@@ -152,7 +153,7 @@ pub struct VertexAttributeDescriptor {
 
 /// Vertex attribute is a simple "bridge" between raw data and its interpretation. In
 /// other words it defines how to treat raw data in vertex shader.
-#[derive(Visit, Copy, Clone, Default, Debug, Hash)]
+#[derive(Reflect, Visit, Copy, Clone, Default, Debug, Hash)]
 pub struct VertexAttribute {
     /// Claimed usage of the attribute. It could be Position, Normal, etc.
     pub usage: VertexAttributeUsage,
@@ -183,9 +184,10 @@ pub struct VertexAttribute {
 }
 
 /// Bytes storage of a vertex buffer.
-#[derive(Clone, Debug)]
+#[derive(Reflect, Clone, Debug)]
 pub struct BytesStorage {
     bytes: Vec<u8>,
+    #[reflect(hidden)]
     layout: Layout,
 }
 
@@ -361,7 +363,7 @@ impl Deref for BytesStorage {
 ///
 /// Vertex size cannot be more than 256 bytes, this limitation shouldn't be a problem because almost every GPU supports up to
 /// 16 vertex attributes with 16 bytes of size each, which gives exactly 256 bytes.
-#[derive(Clone, Visit, Default, Debug)]
+#[derive(Reflect, Clone, Visit, Default, Debug)]
 pub struct VertexBuffer {
     dense_layout: Vec<VertexAttribute>,
     sparse_layout: [Option<VertexAttribute>; VertexAttributeUsage::Count as usize],
@@ -1430,7 +1432,7 @@ impl<'a> VertexWriteTrait for VertexViewMut<'a> {
 }
 
 /// A buffer for data that defines connections between vertices.
-#[derive(Visit, Default, Clone, Debug)]
+#[derive(Reflect, Visit, Default, Clone, Debug)]
 pub struct TriangleBuffer {
     triangles: Vec<TriangleDefinition>,
     modifications_counter: u64,

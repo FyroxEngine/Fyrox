@@ -10,7 +10,7 @@ use crate::fyrox::{
         base::BaseBuilder,
         graph::Graph,
         mesh::{
-            surface::{SurfaceBuilder, SurfaceData, SurfaceSharedData},
+            surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
             MeshBuilder, RenderPath,
         },
         node::Node,
@@ -21,6 +21,7 @@ use crate::{
     make_color_material, scene::GameScene, set_mesh_diffuse_color,
     world::graph::selection::GraphSelection, Engine,
 };
+use fyrox::asset::untyped::ResourceKind;
 
 pub enum ScaleGizmoMode {
     None,
@@ -63,7 +64,8 @@ fn make_scale_axis(
                         ),
                 )
                 .with_render_path(RenderPath::Forward)
-                .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
+                .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_ok(
+                    ResourceKind::Embedded,
                     SurfaceData::make_cube(Matrix4::new_nonuniform_scaling(&Vector3::new(
                         0.1, 0.1, 0.1,
                     ))),
@@ -81,7 +83,8 @@ fn make_scale_axis(
             ),
     )
     .with_render_path(RenderPath::Forward)
-    .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
+    .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_ok(
+        ResourceKind::Embedded,
         SurfaceData::make_cylinder(10, 0.015, 1.0, true, &Matrix4::identity()),
     ))
     .with_material(make_color_material(color))
@@ -103,7 +106,8 @@ impl ScaleGizmo {
                 .with_visibility(false),
         )
         .with_render_path(RenderPath::Forward)
-        .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
+        .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_ok(
+            ResourceKind::Embedded,
             SurfaceData::make_cube(Matrix4::new_nonuniform_scaling(&Vector3::new(
                 0.1, 0.1, 0.1,
             ))),

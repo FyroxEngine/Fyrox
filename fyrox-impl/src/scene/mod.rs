@@ -487,18 +487,19 @@ impl Scene {
     /// #     scene::{
     /// #         base::BaseBuilder,
     /// #         mesh::{
-    /// #             surface::{SurfaceBuilder, SurfaceData, SurfaceSharedData},
+    /// #             surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
     /// #             MeshBuilder,
     /// #         },
     /// #         Scene,
     /// #     },
     /// # };
+    /// use fyrox_resource::untyped::ResourceKind;
     /// #
     /// // Create a scene.
     /// let mut scene = Scene::new();
     ///
     /// MeshBuilder::new(BaseBuilder::new())
-    ///     .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
+    ///     .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_ok( ResourceKind::Embedded,
     ///         SurfaceData::make_cube(Default::default()),
     ///     ))
     ///     .build()])

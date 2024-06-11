@@ -18,13 +18,14 @@ use crate::{
                 BytesStorage, TriangleBuffer, TriangleBufferRefMut, VertexAttributeDescriptor,
                 VertexBuffer, VertexBufferRefMut,
             },
-            surface::{SurfaceData, SurfaceSharedData},
+            surface::{SurfaceData, SurfaceResource},
             RenderPath,
         },
         node::Node,
     },
 };
 use fxhash::{FxBuildHasher, FxHashMap, FxHasher};
+use fyrox_resource::untyped::ResourceKind;
 use std::{
     collections::hash_map::DefaultHasher,
     fmt::{Debug, Formatter},
@@ -95,7 +96,7 @@ pub struct PersistentIdentifier(pub u64);
 impl PersistentIdentifier {
     /// Creates a new persistent identifier using shared surface data, node handle and an arbitrary index.
     pub fn new_combined(
-        surface_data: &SurfaceSharedData,
+        surface_data: &SurfaceResource,
         handle: Handle<Node>,
         index: usize,
     ) -> Self {
@@ -130,7 +131,7 @@ pub struct SurfaceInstanceData {
 /// A set of surface instances that share the same vertex/index data and a material.
 pub struct RenderDataBundle {
     /// A pointer to shared surface data.
-    pub data: SurfaceSharedData,
+    pub data: SurfaceResource,
     /// Amount of time (in seconds) for GPU geometry buffer (vertex + index buffers) generated for
     /// the `data`.
     pub time_to_live: TimeToLive,
@@ -200,7 +201,7 @@ pub trait RenderDataBundleStorageTrait {
     /// the surface instance will be put in a separate bundle.
     fn push(
         &mut self,
-        data: &SurfaceSharedData,
+        data: &SurfaceResource,
         material: &MaterialResource,
         render_path: RenderPath,
         decal_layer_index: u8,
@@ -328,7 +329,7 @@ impl RenderDataBundleStorageTrait for RenderDataBundleStorage {
         func: &mut dyn FnMut(VertexBufferRefMut, TriangleBufferRefMut),
     ) {
         let mut hasher = FxHasher::default();
-        hasher.write_u64(material.key() as u64);
+        hasher.write_u64(material.key());
         layout.hash(&mut hasher);
         hasher.write_u8(if is_skinned { 1 } else { 0 });
         hasher.write_u8(decal_layer_index);
@@ -352,8 +353,10 @@ impl RenderDataBundleStorageTrait for RenderDataBundleStorage {
             let triangle_buffer = TriangleBuffer::new(Vec::with_capacity(default_capacity * 3));
 
             // Create temporary surface data (valid for one frame).
-            let data =
-                SurfaceSharedData::new(SurfaceData::new(vertex_buffer, triangle_buffer, true));
+            let data = SurfaceResource::new_ok(
+                ResourceKind::Embedded,
+                SurfaceData::new(vertex_buffer, triangle_buffer, true),
+            );
 
             self.bundle_map.insert(key, self.bundles.len());
             let persistent_identifier = PersistentIdentifier::new_combined(&data, node_handle, 0);
@@ -382,7 +385,7 @@ impl RenderDataBundleStorageTrait for RenderDataBundleStorage {
             self.bundles.last_mut().unwrap()
         };
 
-        let mut data = bundle.data.lock();
+        let mut data = bundle.data.data_ref();
         let data = &mut *data;
 
         let vertex_buffer = data.vertex_buffer.modify();
@@ -396,7 +399,7 @@ impl RenderDataBundleStorageTrait for RenderDataBundleStorage {
     /// If only one of these parameters is different, then the surface instance will be put in a separate bundle.
     fn push(
         &mut self,
-        data: &SurfaceSharedData,
+        data: &SurfaceResource,
         material: &MaterialResource,
         render_path: RenderPath,
         decal_layer_index: u8,
@@ -406,7 +409,7 @@ impl RenderDataBundleStorageTrait for RenderDataBundleStorage {
         let is_skinned = !instance_data.bone_matrices.is_empty();
 
         let mut hasher = FxHasher::default();
-        hasher.write_u64(material.key() as u64);
+        hasher.write_u64(material.key());
         hasher.write_u64(data.key());
         hasher.write_u8(if is_skinned { 1 } else { 0 });
         hasher.write_u8(decal_layer_index);

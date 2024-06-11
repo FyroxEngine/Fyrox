@@ -467,7 +467,7 @@ fn make_trimesh(
 
             for surface in mesh.surfaces() {
                 let shared_data = surface.data();
-                let shared_data = shared_data.lock();
+                let shared_data = shared_data.data_ref();
 
                 let vertices = &shared_data.vertex_buffer;
                 for triangle in shared_data.geometry_buffer.iter() {
@@ -558,7 +558,7 @@ fn make_polyhedron_shape(owner_inv_transform: Matrix4<f32>, mesh: &Mesh) -> Shar
 
     for surface in mesh.surfaces() {
         let shared_data = surface.data();
-        let shared_data = shared_data.lock();
+        let shared_data = shared_data.data_ref();
 
         let vertices = &shared_data.vertex_buffer;
         for triangle in shared_data.geometry_buffer.iter() {

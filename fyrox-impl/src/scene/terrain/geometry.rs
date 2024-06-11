@@ -6,16 +6,17 @@ use crate::{
     renderer::framework::geometry_buffer::ElementRange,
     scene::mesh::{
         buffer::{TriangleBuffer, VertexBuffer},
-        surface::{SurfaceData, SurfaceSharedData},
+        surface::{SurfaceData, SurfaceResource},
         vertex::StaticVertex,
     },
 };
+use fyrox_resource::untyped::ResourceKind;
 
-/// The [SurfaceSharedData](crate::scene::mesh::surface::SurfaceSharedData) of a grid mesh for use
+/// The [SurfaceSharedData](crate::scene::mesh::surface::SurfaceResource) of a grid mesh for use
 /// in rendering a terrain.
 #[derive(Default, Debug, Clone)]
 pub struct TerrainGeometry {
-    pub data: SurfaceSharedData,
+    pub data: SurfaceResource,
     /// Triangle ranges for each quadrant (in clockwise order; left-top -> right-top -> right-bottom -> left-bottom).
     /// This is used when creating an instance to render just one particular quadrant of a
     /// [QuadTreeNode](crate::scene::terrain::quadtree::QuadTree).
@@ -96,7 +97,7 @@ impl TerrainGeometry {
         surface_data.calculate_tangents().unwrap();
 
         Self {
-            data: SurfaceSharedData::new(surface_data),
+            data: SurfaceResource::new_ok(ResourceKind::Embedded, surface_data),
             quadrants,
         }
     }

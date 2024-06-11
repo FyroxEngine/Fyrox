@@ -278,8 +278,8 @@ where
 
     /// Returns a pointer as numeric value which can be used as a hash.
     #[inline]
-    pub fn key(&self) -> usize {
-        self.untyped.key()
+    pub fn key(&self) -> u64 {
+        self.untyped.key() as u64
     }
 
     /// Returns kind of the resource.

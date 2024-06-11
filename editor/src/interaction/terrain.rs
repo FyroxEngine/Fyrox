@@ -30,7 +30,7 @@ use crate::fyrox::{
         camera::Camera,
         graph::Graph,
         mesh::{
-            surface::{SurfaceBuilder, SurfaceData, SurfaceSharedData},
+            surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
             MeshBuilder, RenderPath,
         },
         node::Node,
@@ -51,6 +51,7 @@ use crate::{
     settings::Settings,
     MSG_SYNC_FLAG,
 };
+use fyrox::asset::untyped::ResourceKind;
 use std::sync::Arc;
 
 pub struct TerrainInteractionMode {
@@ -110,7 +111,8 @@ impl BrushGizmo {
                 .with_visibility(false),
         )
         .with_render_path(RenderPath::Forward)
-        .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
+        .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_ok(
+            ResourceKind::Embedded,
             SurfaceData::make_quad(&Matrix4::identity()),
         ))
         .with_material(make_color_material(Color::from_rgba(0, 255, 0, 130)))

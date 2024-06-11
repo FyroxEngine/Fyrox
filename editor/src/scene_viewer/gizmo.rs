@@ -14,7 +14,7 @@ use crate::fyrox::{
         graph::Graph,
         light::{directional::DirectionalLightBuilder, BaseLightBuilder},
         mesh::{
-            surface::{SurfaceBuilder, SurfaceData, SurfaceSharedData},
+            surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
             MeshBuilder,
         },
         node::Node,
@@ -24,6 +24,7 @@ use crate::fyrox::{
     },
 };
 use crate::scene::GameScene;
+use fyrox::asset::untyped::ResourceKind;
 
 pub struct CameraRotation {
     pub yaw: f32,
@@ -61,7 +62,8 @@ fn make_cone(transform: Matrix4<f32>, color: Color, graph: &mut Graph) -> Handle
         .unwrap();
 
     MeshBuilder::new(BaseBuilder::new().with_cast_shadows(false))
-        .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
+        .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_ok(
+            ResourceKind::Embedded,
             SurfaceData::make_cone(16, 0.3, 1.0, &transform),
         ))
         .with_material(MaterialResource::new_ok(Default::default(), material))
@@ -162,7 +164,8 @@ impl SceneGizmo {
                     neg_z
                 },
             ]))
-            .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
+            .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_ok(
+                ResourceKind::Embedded,
                 SurfaceData::make_cube(Matrix4::identity()),
             ))
             .build()])

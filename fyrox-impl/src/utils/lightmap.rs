@@ -26,7 +26,7 @@ use crate::{
                 VertexAttributeDataType, VertexAttributeDescriptor, VertexAttributeUsage,
                 VertexFetchError, VertexReadTrait, VertexWriteTrait,
             },
-            surface::{SurfaceData, SurfaceSharedData},
+            surface::{SurfaceData, SurfaceResource},
             Mesh,
         },
         node::Node,
@@ -154,7 +154,7 @@ pub struct Lightmap {
 
 struct Instance {
     owner: Handle<Node>,
-    source_data: SurfaceSharedData,
+    source_data: SurfaceResource,
     data: Option<lightmap::input::Mesh>,
     transform: Matrix4<f32>,
 }
@@ -314,7 +314,7 @@ impl From<VertexFetchError> for LightmapGenerationError {
 /// It is used to split preparation step from the actual lightmap generation; to be able to put heavy generation in a separate
 /// thread.
 pub struct LightmapInputData {
-    data_set: FxHashMap<u64, SurfaceSharedData>,
+    data_set: FxHashMap<u64, SurfaceResource>,
     instances: Vec<Instance>,
     lights: FxHashMap<Handle<Node>, LightDefinition>,
 }
@@ -443,7 +443,7 @@ impl LightmapInputData {
 
                     // Gather unique "list" of surface data to generate UVs for.
                     let data = surface.data();
-                    let key = &*data.lock() as *const _ as u64;
+                    let key = &*data.data_ref() as *const _ as u64;
                     data_set.entry(key).or_insert_with(|| surface.data());
 
                     instances.push(Instance {
@@ -516,7 +516,7 @@ impl Lightmap {
                 if cancellation_token.is_cancelled() {
                     Err(LightmapGenerationError::Cancelled)
                 } else {
-                    let mut data = data.lock();
+                    let mut data = data.data_ref();
                     let data = &mut *data;
 
                     let mut patch = uvgen::generate_uvs(
@@ -545,7 +545,7 @@ impl Lightmap {
                 if cancellation_token.is_cancelled() {
                     Err(LightmapGenerationError::Cancelled)
                 } else {
-                    let data = instance.source_data.lock();
+                    let data = instance.source_data.data_ref();
 
                     let normal_matrix = instance
                         .transform
@@ -684,7 +684,7 @@ mod test {
             base::BaseBuilder,
             light::{point::PointLightBuilder, BaseLightBuilder},
             mesh::{
-                surface::SurfaceSharedData,
+                surface::SurfaceResource,
                 surface::{SurfaceBuilder, SurfaceData},
                 MeshBuilder,
             },
@@ -693,6 +693,7 @@ mod test {
         },
         utils::lightmap::{Lightmap, LightmapInputData},
     };
+    use fyrox_resource::untyped::ResourceKind;
     use std::path::Path;
 
     #[test]
@@ -707,9 +708,11 @@ mod test {
         );
 
         MeshBuilder::new(BaseBuilder::new())
-            .with_surfaces(vec![
-                SurfaceBuilder::new(SurfaceSharedData::new(data)).build()
-            ])
+            .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_ok(
+                ResourceKind::Embedded,
+                data,
+            ))
+            .build()])
             .build(&mut scene.graph);
 
         PointLightBuilder::new(BaseLightBuilder::new(

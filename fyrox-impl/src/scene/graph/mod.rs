@@ -739,7 +739,7 @@ impl Graph {
             }
 
             for (_, data) in unique_data_set.into_iter() {
-                let mut data = data.lock();
+                let mut data = data.data_ref();
 
                 if let Some(patch) = lightmap.patches.get(&data.content_hash()) {
                     lightmap::apply_surface_data_patch(&mut data, &patch.0);
@@ -1663,7 +1663,7 @@ mod test {
             base::BaseBuilder,
             graph::Graph,
             mesh::{
-                surface::{SurfaceBuilder, SurfaceData, SurfaceSharedData},
+                surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
                 MeshBuilder,
             },
             node::Node,
@@ -1673,6 +1673,7 @@ mod test {
         },
         script::ScriptTrait,
     };
+    use fyrox_resource::untyped::ResourceKind;
     use std::{fs, path::Path, sync::Arc};
 
     #[derive(Clone, Debug, PartialEq, Reflect, Visit, TypeUuidProvider, ComponentProvider)]
@@ -1864,7 +1865,8 @@ mod test {
                         .build(),
                 ),
             )
-            .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
+            .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_ok(
+                ResourceKind::Embedded,
                 SurfaceData::make_cone(16, 1.0, 1.0, &Matrix4::identity()),
             ))
             .build()])

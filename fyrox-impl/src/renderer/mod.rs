@@ -663,7 +663,7 @@ pub struct Renderer {
     matrix_storage: MatrixStorageCache,
     // TextureId -> FrameBuffer mapping. This mapping is used for temporal frame buffers
     // like ones used to render UI instances.
-    ui_frame_buffers: FxHashMap<usize, FrameBuffer>,
+    ui_frame_buffers: FxHashMap<u64, FrameBuffer>,
     /// Pipeline state.
     pub state: SharedPipelineState,
 }

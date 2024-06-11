@@ -756,7 +756,7 @@ fn precise_ray_test(
 
         for surface in mesh.surfaces().iter() {
             let data = surface.data();
-            let data = data.lock();
+            let data = data.data_ref();
 
             for triangle in data
                 .geometry_buffer

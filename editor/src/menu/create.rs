@@ -23,7 +23,7 @@ use crate::{
                 spot::SpotLightBuilder, BaseLightBuilder,
             },
             mesh::{
-                surface::{SurfaceBuilder, SurfaceData, SurfaceSharedData},
+                surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
                 MeshBuilder,
             },
             navmesh::NavigationalMeshBuilder,
@@ -368,7 +368,8 @@ impl CreateEntityMenu {
                     if message.destination() == self.create_cube {
                         Some(
                             MeshBuilder::new(BaseBuilder::new().with_name("Cube"))
-                                .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
+                                .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_ok(
+                                    ResourceKind::Embedded,
                                     SurfaceData::make_cube(Matrix4::identity()),
                                 ))
                                 .with_material(placeholder_material())
@@ -405,7 +406,8 @@ impl CreateEntityMenu {
                     } else if message.destination() == self.create_cone {
                         Some(
                             MeshBuilder::new(BaseBuilder::new().with_name("Cone"))
-                                .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
+                                .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_ok(
+                                    ResourceKind::Embedded,
                                     SurfaceData::make_cone(16, 0.5, 1.0, &Matrix4::identity()),
                                 ))
                                 .with_material(placeholder_material())
@@ -415,7 +417,8 @@ impl CreateEntityMenu {
                     } else if message.destination() == self.create_cylinder {
                         Some(
                             MeshBuilder::new(BaseBuilder::new().with_name("Cylinder"))
-                                .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
+                                .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_ok(
+                                    ResourceKind::Embedded,
                                     SurfaceData::make_cylinder(
                                         16,
                                         0.5,
@@ -431,7 +434,8 @@ impl CreateEntityMenu {
                     } else if message.destination() == self.create_sphere {
                         Some(
                             MeshBuilder::new(BaseBuilder::new().with_name("Sphere"))
-                                .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
+                                .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_ok(
+                                    ResourceKind::Embedded,
                                     SurfaceData::make_sphere(16, 16, 0.5, &Matrix4::identity()),
                                 ))
                                 .with_material(placeholder_material())
@@ -441,7 +445,8 @@ impl CreateEntityMenu {
                     } else if message.destination() == self.create_quad {
                         Some(
                             MeshBuilder::new(BaseBuilder::new().with_name("Quad"))
-                                .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
+                                .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_ok(
+                                    ResourceKind::Embedded,
                                     SurfaceData::make_quad(&Matrix4::identity()),
                                 ))
                                 .with_material(placeholder_material())
