@@ -83,8 +83,8 @@ impl Default for KeyBindings {
             move_back: KeyBinding::from_key_code(KeyCode::KeyS),
             move_left: KeyBinding::from_key_code(KeyCode::KeyA),
             move_right: KeyBinding::from_key_code(KeyCode::KeyD),
-            move_up: KeyBinding::from_key_code(KeyCode::KeyQ),
-            move_down: KeyBinding::from_key_code(KeyCode::KeyE),
+            move_up: KeyBinding::from_key_code(KeyCode::KeyE),
+            move_down: KeyBinding::from_key_code(KeyCode::KeyQ),
             speed_up: KeyBinding::from_key_code(KeyCode::ControlLeft),
             slow_down: KeyBinding::from_key_code(KeyCode::ShiftLeft),
 
