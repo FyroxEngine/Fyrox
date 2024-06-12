@@ -1394,6 +1394,12 @@ impl Widget {
                     WidgetMessage::RenderTransform(transform) => {
                         self.render_transform = *transform;
                     }
+                    WidgetMessage::ZIndex(index) => {
+                        if *self.z_index != *index {
+                            self.z_index.set_value_and_mark_modified(*index);
+                            self.invalidate_layout();
+                        }
+                    }
                     _ => (),
                 }
             }
