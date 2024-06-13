@@ -161,7 +161,7 @@ use std::{
 
 use crate::command::Command;
 use crate::export::ExportWindow;
-use crate::mesh::MeshControlPanel;
+use crate::mesh::{MeshControlPanel, SurfaceDataViewer};
 use crate::settings::build::BuildCommand;
 use crate::stats::{StatisticsWindow, StatisticsWindowAction};
 pub use message::Message;
@@ -524,6 +524,7 @@ pub struct Editor {
     pub highlighter: Option<Rc<RefCell<HighlightRenderPass>>>,
     pub export_window: Option<ExportWindow>,
     pub statistics_window: Option<StatisticsWindow>,
+    pub surface_data_viewer: Option<SurfaceDataViewer>,
 }
 
 impl Editor {
@@ -859,6 +860,7 @@ impl Editor {
             highlighter: None,
             export_window: None,
             statistics_window: None,
+            surface_data_viewer: None,
         };
 
         if let Some(data) = startup_data {
@@ -1159,6 +1161,10 @@ impl Editor {
                 settings: &mut self.settings,
             },
         );
+
+        if let Some(surface_data_viewer) = self.surface_data_viewer.as_mut() {
+            surface_data_viewer.handle_ui_message(message, engine);
+        }
 
         self.build_window.handle_ui_message(
             message,
@@ -2232,6 +2238,9 @@ impl Editor {
         self.asset_browser.update(&mut self.engine);
         if let Some(export_window) = self.export_window.as_mut() {
             export_window.update(self.engine.user_interfaces.first_mut());
+        }
+        if let Some(surface_data_viewer) = self.surface_data_viewer.as_mut() {
+            surface_data_viewer.update(&mut self.engine);
         }
 
         self.scene_viewer

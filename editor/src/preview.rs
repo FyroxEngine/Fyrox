@@ -416,4 +416,12 @@ impl PreviewPanel {
     pub fn model(&self) -> Handle<Node> {
         self.model
     }
+
+    pub fn destroy(self, engine: &mut Engine) {
+        engine
+            .user_interfaces
+            .first_mut()
+            .send_message(WidgetMessage::remove(self.root, MessageDirection::ToWidget));
+        engine.scenes.remove(self.scene);
+    }
 }

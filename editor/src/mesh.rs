@@ -18,11 +18,12 @@ use crate::{
             collider::{ColliderBuilder, ColliderShape, ConvexPolyhedronShape, GeometrySource},
             mesh::Mesh,
             node::Node,
-            rigidbody::{RigidBodyBuilder, RigidBodyType},
+            rigidbody::{RigidBody, RigidBodyBuilder, RigidBodyType},
             Scene,
         },
     },
     message::MessageSender,
+    preview::PreviewPanel,
     scene::{
         commands::graph::{AddNodeCommand, LinkNodesCommand},
         GameScene, Selection,
@@ -30,7 +31,9 @@ use crate::{
     world::graph::selection::GraphSelection,
     Message,
 };
-use fyrox::scene::rigidbody::RigidBody;
+use fyrox::gui::widget::WidgetMessage;
+use fyrox::scene::mesh::surface::{SurfaceBuilder, SurfaceResource};
+use fyrox::scene::mesh::MeshBuilder;
 
 pub struct MeshControlPanel {
     scene_viewer_frame: Handle<UiNode>,
@@ -280,5 +283,56 @@ impl MeshControlPanel {
                     MessageDirection::ToWidget,
                 ));
         }
+    }
+}
+
+pub struct SurfaceDataViewer {
+    pub window: Handle<UiNode>,
+    preview_panel: PreviewPanel,
+}
+
+impl SurfaceDataViewer {
+    pub fn new(engine: &mut Engine) -> Self {
+        let preview_panel = PreviewPanel::new(engine, 256, 256);
+
+        let ctx = &mut engine.user_interfaces.first_mut().build_ctx();
+
+        let window = WindowBuilder::new(WidgetBuilder::new())
+            .open(false)
+            .with_content(preview_panel.root)
+            .build(ctx);
+
+        Self {
+            window,
+            preview_panel,
+        }
+    }
+
+    pub fn open(&mut self, surface_data: SurfaceResource, engine: &mut Engine) {
+        let graph = &mut engine.scenes[self.preview_panel.scene()].graph;
+        let sphere = MeshBuilder::new(BaseBuilder::new())
+            .with_surfaces(vec![SurfaceBuilder::new(surface_data).build()])
+            .build(graph);
+
+        self.preview_panel.set_model(sphere, engine);
+    }
+
+    pub fn close_and_destroy(self, engine: &mut Engine) {
+        engine
+            .user_interfaces
+            .first_mut()
+            .send_message(WidgetMessage::remove(
+                self.window,
+                MessageDirection::ToWidget,
+            ));
+        self.preview_panel.destroy(engine);
+    }
+
+    pub fn handle_ui_message(&mut self, message: &UiMessage, engine: &mut Engine) {
+        self.preview_panel.handle_message(message, engine)
+    }
+
+    pub fn update(&mut self, engine: &mut Engine) {
+        self.preview_panel.update(engine)
     }
 }
