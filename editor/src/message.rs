@@ -1,15 +1,18 @@
-use crate::command::{Command, CommandTrait};
-use crate::fyrox::{
-    core::{
-        log::Log,
-        pool::{ErasedHandle, Handle},
-        uuid::Uuid,
+use crate::{
+    command::{Command, CommandTrait},
+    fyrox::{
+        core::{
+            log::Log,
+            pool::{ErasedHandle, Handle},
+            uuid::Uuid,
+        },
+        gui::UiNode,
+        material::MaterialResource,
+        scene::{camera::Projection, mesh::surface::SurfaceResource, node::Node},
     },
-    gui::UiNode,
-    material::MaterialResource,
-    scene::{camera::Projection, node::Node},
+    scene::Selection,
+    SaveSceneConfirmationDialogAction,
 };
-use crate::{scene::Selection, SaveSceneConfirmationDialogAction};
 use std::{path::PathBuf, sync::mpsc::Sender};
 
 #[derive(Debug)]
@@ -74,6 +77,7 @@ pub enum Message {
     ShowDocumentation(String),
     SaveLayout,
     LoadLayout,
+    ViewSurfaceData(SurfaceResource),
 }
 
 #[derive(Clone, Debug)]

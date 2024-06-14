@@ -1,45 +1,57 @@
-use crate::fyrox::{
-    core::{
-        pool::Handle, reflect::prelude::*, type_traits::prelude::*, uuid_provider,
-        visitor::prelude::*,
-    },
-    gui::{
-        define_widget_deref,
-        grid::Column,
-        grid::{GridBuilder, Row},
-        inspector::{
-            editors::{
-                PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
-                PropertyEditorMessageContext, PropertyEditorTranslationContext,
+use crate::{
+    fyrox::{
+        core::{pool::Handle, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
+        gui::{
+            button::{ButtonBuilder, ButtonMessage},
+            define_widget_deref,
+            grid::{Column, GridBuilder, Row},
+            inspector::{
+                editors::{
+                    PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
+                    PropertyEditorMessageContext, PropertyEditorTranslationContext,
+                },
+                InspectorError, PropertyChanged,
             },
-            InspectorError, PropertyChanged,
+            message::UiMessage,
+            text::TextBuilder,
+            widget::{Widget, WidgetBuilder},
+            BuildContext, Control, Thickness, UiNode, UserInterface,
         },
-        message::UiMessage,
-        text::TextBuilder,
-        widget::{Widget, WidgetBuilder},
-        BuildContext, Control, Thickness, UiNode, UserInterface,
+        scene::mesh::surface::SurfaceResource,
     },
-    scene::mesh::surface::SurfaceResource,
+    message::MessageSender,
+    Message,
 };
 use std::{
     any::TypeId,
     ops::{Deref, DerefMut},
 };
 
-#[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[derive(Clone, Visit, Reflect, Debug, ComponentProvider, TypeUuidProvider)]
+#[type_uuid(id = "8461a183-4fd4-4f74-a4f4-7fd8e84bf423")]
 #[allow(dead_code)]
 pub struct SurfaceDataPropertyEditor {
     widget: Widget,
+    view: Handle<UiNode>,
     data: SurfaceResource,
+    #[visit(skip)]
+    #[reflect(hidden)]
+    sender: Option<MessageSender>,
 }
 
 define_widget_deref!(SurfaceDataPropertyEditor);
 
-uuid_provider!(SurfaceDataPropertyEditor = "8461a183-4fd4-4f74-a4f4-7fd8e84bf423");
-
 impl Control for SurfaceDataPropertyEditor {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
-        self.widget.handle_routed_message(ui, message)
+        self.widget.handle_routed_message(ui, message);
+
+        if let Some(ButtonMessage::Click) = message.data() {
+            if message.destination == self.view {
+                if let Some(sender) = self.sender.as_ref() {
+                    sender.send(Message::ViewSurfaceData(self.data.clone()));
+                }
+            }
+        }
     }
 }
 
@@ -55,12 +67,27 @@ fn surface_data_info(data: &SurfaceResource) -> String {
 }
 
 impl SurfaceDataPropertyEditor {
-    pub fn build(ctx: &mut BuildContext, data: SurfaceResource) -> Handle<UiNode> {
-        let editor = Self {
-            widget: WidgetBuilder::new()
-                .with_child(
-                    GridBuilder::new(
-                        WidgetBuilder::new().with_child(
+    pub fn build(
+        ctx: &mut BuildContext,
+        data: SurfaceResource,
+        sender: MessageSender,
+    ) -> Handle<UiNode> {
+        let view = ButtonBuilder::new(
+            WidgetBuilder::new()
+                .with_margin(Thickness::uniform(1.0))
+                .on_row(0)
+                .on_column(1)
+                .with_width(45.0)
+                .with_height(22.0),
+        )
+        .with_text("View...")
+        .build(ctx);
+
+        let widget = WidgetBuilder::new()
+            .with_child(
+                GridBuilder::new(
+                    WidgetBuilder::new()
+                        .with_child(
                             TextBuilder::new(
                                 WidgetBuilder::new()
                                     .on_row(0)
@@ -69,14 +96,21 @@ impl SurfaceDataPropertyEditor {
                             )
                             .with_text(surface_data_info(&data))
                             .build(ctx),
-                        ),
-                    )
-                    .add_column(Column::stretch())
-                    .add_row(Row::auto())
-                    .build(ctx),
+                        )
+                        .with_child(view),
                 )
-                .build(),
+                .add_column(Column::stretch())
+                .add_column(Column::auto())
+                .add_row(Row::auto())
+                .build(ctx),
+            )
+            .build();
+
+        let editor = Self {
+            widget,
             data,
+            view,
+            sender: Some(sender),
         };
 
         ctx.add_node(UiNode::new(editor))
@@ -84,7 +118,9 @@ impl SurfaceDataPropertyEditor {
 }
 
 #[derive(Debug)]
-pub struct SurfaceDataPropertyEditorDefinition;
+pub struct SurfaceDataPropertyEditorDefinition {
+    pub sender: MessageSender,
+}
 
 impl PropertyEditorDefinition for SurfaceDataPropertyEditorDefinition {
     fn value_type_id(&self) -> TypeId {
@@ -98,7 +134,11 @@ impl PropertyEditorDefinition for SurfaceDataPropertyEditorDefinition {
         let value = ctx.property_info.cast_value::<SurfaceResource>()?;
 
         Ok(PropertyEditorInstance::Simple {
-            editor: SurfaceDataPropertyEditor::build(ctx.build_context, value.clone()),
+            editor: SurfaceDataPropertyEditor::build(
+                ctx.build_context,
+                value.clone(),
+                self.sender.clone(),
+            ),
         })
     }
 

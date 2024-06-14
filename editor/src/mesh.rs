@@ -16,7 +16,10 @@ use crate::{
         scene::{
             base::BaseBuilder,
             collider::{ColliderBuilder, ColliderShape, ConvexPolyhedronShape, GeometrySource},
-            mesh::Mesh,
+            mesh::{
+                surface::{SurfaceBuilder, SurfaceResource},
+                Mesh, MeshBuilder,
+            },
             node::Node,
             rigidbody::{RigidBody, RigidBodyBuilder, RigidBodyType},
             Scene,
@@ -31,9 +34,6 @@ use crate::{
     world::graph::selection::GraphSelection,
     Message,
 };
-use fyrox::gui::widget::WidgetMessage;
-use fyrox::scene::mesh::surface::{SurfaceBuilder, SurfaceResource};
-use fyrox::scene::mesh::MeshBuilder;
 
 pub struct MeshControlPanel {
     scene_viewer_frame: Handle<UiNode>,
@@ -293,11 +293,11 @@ pub struct SurfaceDataViewer {
 
 impl SurfaceDataViewer {
     pub fn new(engine: &mut Engine) -> Self {
-        let preview_panel = PreviewPanel::new(engine, 256, 256);
+        let preview_panel = PreviewPanel::new(engine, 386, 386);
 
         let ctx = &mut engine.user_interfaces.first_mut().build_ctx();
 
-        let window = WindowBuilder::new(WidgetBuilder::new())
+        let window = WindowBuilder::new(WidgetBuilder::new().with_width(400.0).with_height(400.0))
             .open(false)
             .with_content(preview_panel.root)
             .build(ctx);
@@ -309,27 +309,46 @@ impl SurfaceDataViewer {
     }
 
     pub fn open(&mut self, surface_data: SurfaceResource, engine: &mut Engine) {
+        let ui = engine.user_interfaces.first();
+        ui.send_message(WindowMessage::open_modal(
+            self.window,
+            MessageDirection::ToWidget,
+            true,
+            true,
+        ));
+
+        let guard = surface_data.data_ref();
+        let title = WindowTitle::text(format!(
+            "Surface Data - Vertices: {} Triangles: {}",
+            guard.vertex_buffer.vertex_count(),
+            guard.geometry_buffer.len(),
+        ));
+        ui.send_message(WindowMessage::title(
+            self.window,
+            MessageDirection::ToWidget,
+            title,
+        ));
+        drop(guard);
+
         let graph = &mut engine.scenes[self.preview_panel.scene()].graph;
-        let sphere = MeshBuilder::new(BaseBuilder::new())
+        let mesh = MeshBuilder::new(BaseBuilder::new())
             .with_surfaces(vec![SurfaceBuilder::new(surface_data).build()])
             .build(graph);
 
-        self.preview_panel.set_model(sphere, engine);
+        self.preview_panel.set_model(mesh, engine);
     }
 
-    pub fn close_and_destroy(self, engine: &mut Engine) {
-        engine
-            .user_interfaces
-            .first_mut()
-            .send_message(WidgetMessage::remove(
-                self.window,
-                MessageDirection::ToWidget,
-            ));
-        self.preview_panel.destroy(engine);
-    }
+    pub fn handle_ui_message(mut self, message: &UiMessage, engine: &mut Engine) -> Option<Self> {
+        self.preview_panel.handle_message(message, engine);
 
-    pub fn handle_ui_message(&mut self, message: &UiMessage, engine: &mut Engine) {
-        self.preview_panel.handle_message(message, engine)
+        if let Some(WindowMessage::Close) = message.data() {
+            if message.destination() == self.window {
+                self.preview_panel.destroy(engine);
+                return None;
+            }
+        }
+
+        Some(self)
     }
 
     pub fn update(&mut self, engine: &mut Engine) {

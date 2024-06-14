@@ -1162,8 +1162,8 @@ impl Editor {
             },
         );
 
-        if let Some(surface_data_viewer) = self.surface_data_viewer.as_mut() {
-            surface_data_viewer.handle_ui_message(message, engine);
+        if let Some(surface_data_viewer) = self.surface_data_viewer.take() {
+            self.surface_data_viewer = surface_data_viewer.handle_ui_message(message, engine);
         }
 
         self.build_window.handle_ui_message(
@@ -2477,6 +2477,11 @@ impl Editor {
                     }
                     Message::LoadLayout => {
                         self.load_layout();
+                    }
+                    Message::ViewSurfaceData(data) => {
+                        let mut viewer = SurfaceDataViewer::new(&mut self.engine);
+                        viewer.open(data, &mut self.engine);
+                        self.surface_data_viewer = Some(viewer);
                     }
                     _ => (),
                 }

@@ -94,7 +94,6 @@ use crate::{
     message::MessageSender,
 };
 use fyrox::asset::untyped::UntypedResource;
-use fyrox::scene::mesh::surface::SurfaceData;
 use std::{path::Path, sync::Arc};
 
 pub mod animation;
@@ -325,19 +324,6 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
     container.insert(InheritablePropertyEditorDefinition::<Option<ShaderResource>>::new());
     container.register_inheritable_vec_collection::<Option<ShaderResource>>();
 
-    container.insert(ResourceFieldPropertyEditorDefinition::<SurfaceData>::new(
-        Arc::new(Mutex::new(
-            |resource_manager: &ResourceManager, path: &Path| {
-                resource_manager
-                    .try_request::<SurfaceData>(path)
-                    .map(block_on)
-            },
-        )),
-        sender,
-    ));
-    container.insert(InheritablePropertyEditorDefinition::<Option<SurfaceData>>::new());
-    container.register_inheritable_vec_collection::<Option<SurfaceData>>();
-
     container.register_inheritable_inspectable::<ColorGradingLut>();
     container.register_inheritable_inspectable::<InteractionGroups>();
 
@@ -436,7 +422,11 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
     container.register_inheritable_inspectable::<ConvexPolyhedronShape>();
     container.insert(SpriteSheetFramesContainerEditorDefinition);
 
-    container.insert(SurfaceDataPropertyEditorDefinition);
+    container.insert(SurfaceDataPropertyEditorDefinition {
+        sender: sender.clone(),
+    });
+    container.insert(InheritablePropertyEditorDefinition::<Option<SurfaceResource>>::new());
+    container.register_inheritable_vec_collection::<Option<SurfaceResource>>();
     container.insert(InheritablePropertyEditorDefinition::<SurfaceResource>::new());
     container.insert(InheritablePropertyEditorDefinition::<Status>::new());
 
