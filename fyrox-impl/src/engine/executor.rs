@@ -1,23 +1,23 @@
 //! Executor is a small wrapper that manages plugins and scripts for your game.
 
-use crate::plugin::Plugin;
 use crate::{
     asset::manager::ResourceManager,
     core::{
         instant::Instant,
         log::{Log, MessageKind},
+        task::TaskPool,
     },
     engine::{
         Engine, EngineInitParams, GraphicsContext, GraphicsContextParams, SerializationContext,
     },
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget},
+    gui::constructor::WidgetConstructorContainer,
+    plugin::Plugin,
     utils::translate_event,
     window::WindowAttributes,
 };
 use clap::Parser;
-use fyrox_core::task::TaskPool;
-use fyrox_ui::constructor::WidgetConstructorContainer;
 use std::{
     ops::{Deref, DerefMut},
     sync::Arc,
@@ -36,6 +36,7 @@ pub struct Executor {
     engine: Engine,
     desired_update_rate: f32,
     headless: bool,
+    throttle_threshold: f32,
 }
 
 impl Deref for Executor {
@@ -61,6 +62,8 @@ impl Default for Executor {
 impl Executor {
     /// Default update rate in frames per second.
     pub const DEFAULT_UPDATE_RATE: f32 = 60.0;
+    /// Default time step (in seconds).
+    pub const DEFAULT_TIME_STEP: f32 = 1.0 / Self::DEFAULT_UPDATE_RATE;
 
     /// Creates new game executor using specified set of parameters. Much more flexible version of
     /// [`Executor::new`].
@@ -84,6 +87,7 @@ impl Executor {
             engine,
             desired_update_rate: Self::DEFAULT_UPDATE_RATE,
             headless: false,
+            throttle_threshold: 2.0 * Self::DEFAULT_TIME_STEP,
         }
     }
 
@@ -116,6 +120,20 @@ impl Executor {
         self.headless
     }
 
+    /// Sets the desired throttle threshold (in seconds), at which the engine will stop trying to
+    /// stabilize the update rate of the game logic and will increase the time step. This option
+    /// could be useful to prevent potential hang up of the game if its logic or rendering takes too
+    /// much time at each frame. The default value is two default time steps (33.3(3) milliseconds
+    /// or 0.0333(3) seconds).
+    pub fn set_throttle_threshold(&mut self, threshold: f32) {
+        self.throttle_threshold = threshold.max(0.001);
+    }
+
+    /// Returns current throttle threshold. See [`Self::set_throttle_threshold`] docs for more info.
+    pub fn throttle_threshold(&self) -> f32 {
+        self.throttle_threshold
+    }
+
     /// Sets the desired update rate in frames per second.
     pub fn set_desired_update_rate(&mut self, update_rate: f32) {
         self.desired_update_rate = update_rate.abs();
@@ -139,6 +157,7 @@ impl Executor {
         let mut engine = self.engine;
         let event_loop = self.event_loop;
         let headless = self.headless;
+        let throttle_threshold = self.throttle_threshold;
 
         let args = Args::try_parse().unwrap_or_default();
 
@@ -195,9 +214,30 @@ impl Executor {
                     previous = Instant::now();
                     lag += elapsed.as_secs_f32();
 
+                    // Update rate stabilization loop.
                     while lag >= fixed_time_step {
-                        engine.update(fixed_time_step, window_target, &mut lag, Default::default());
-                        lag -= fixed_time_step;
+                        let time_step;
+                        if lag >= throttle_threshold {
+                            // Modify the delta time to let the game internals to fast-forward the
+                            // logic by the current lag.
+                            time_step = lag;
+                            // Reset the lag to exit early from the loop, thus preventing its
+                            // potential infinite increase, that in its turn could hang up the game.
+                            lag = 0.0;
+                        } else {
+                            time_step = fixed_time_step;
+                        }
+
+                        engine.update(time_step, window_target, &mut lag, Default::default());
+
+                        // Additional check is needed, because the `update` call above could modify
+                        // the lag.
+                        if lag >= fixed_time_step {
+                            lag -= fixed_time_step;
+                        } else if lag < 0.0 {
+                            // Prevent from going back in time.
+                            lag = 0.0;
+                        }
                     }
 
                     if let GraphicsContext::Initialized(ref ctx) = engine.graphics_context {
