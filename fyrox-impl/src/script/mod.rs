@@ -2,8 +2,6 @@
 
 //! Script is used to add custom logic to scene nodes. See [ScriptTrait] for more info.
 
-use crate::plugin::PluginContainer;
-use crate::scene::base::NodeScriptMessage;
 use crate::{
     asset::manager::ResourceManager,
     core::{
@@ -17,10 +15,10 @@ use crate::{
     },
     engine::{task::TaskPoolHandler, GraphicsContext, ScriptMessageDispatcher},
     event::Event,
-    plugin::Plugin,
-    scene::{node::Node, Scene},
+    gui::UiContainer,
+    plugin::{Plugin, PluginContainer},
+    scene::{base::NodeScriptMessage, node::Node, Scene},
 };
-use fyrox_ui::UiContainer;
 use std::{
     any::{Any, TypeId},
     fmt::{Debug, Formatter},
@@ -304,9 +302,39 @@ pub struct ScriptContext<'a, 'b, 'c> {
     /// which the engine "ticks" and this delta time affects elapsed time.
     pub elapsed_time: f32,
 
-    /// A reference to the plugin which the script instance belongs to. You can use it to access plugin data
-    /// inside script methods. For example you can store some "global" data in the plugin - for example a
-    /// controls configuration, some entity managers and so on.
+    /// A slice of references to all registered plugins. For example you can store some "global" data
+    /// in a plugin and access it later in scripts. A simplest example would be something like this:
+    ///
+    /// ```rust
+    /// # use fyrox_impl::{
+    /// #     core::{reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
+    /// #     plugin::Plugin,
+    /// #     script::{ScriptContext, ScriptTrait},
+    /// # };
+    /// #
+    /// #[derive(Visit, Reflect, Default, Debug)]
+    /// struct Game {
+    ///     player_name: String,
+    /// }
+    ///
+    /// impl Plugin for Game {}
+    ///
+    /// #[derive(Visit, Reflect, Clone, Default, Debug, TypeUuidProvider, ComponentProvider)]
+    /// #[type_uuid(id = "f732654e-5e3c-4b52-9a3d-44c0cfb14e18")]
+    /// struct MyScript {}
+    ///
+    /// impl ScriptTrait for MyScript {
+    ///     fn on_update(&mut self, ctx: &mut ScriptContext) {
+    ///         let game = ctx.plugins.get::<Game>();
+    ///
+    ///         println!("Player name is: {}", game.player_name);
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// Since player name usually a sort of a "global" variable, it can be stored in the plugin itself,
+    /// and to access the plugin all you need to do is to call `ctx.plugins.get::<Game>()`. You can
+    /// also mutate any data in a plugin by getting the mutable reference via `get_mut()` method.
     pub plugins: PluginsRefMut<'a>,
 
     /// Handle of a node to which the script instance belongs to. To access the node itself use `scene` field:
@@ -385,9 +413,8 @@ pub struct ScriptMessageContext<'a, 'b, 'c> {
     /// which the engine "ticks" and this delta time affects elapsed time.
     pub elapsed_time: f32,
 
-    /// A reference to the plugin which the script instance belongs to. You can use it to access plugin data
-    /// inside script methods. For example you can store some "global" data in the plugin - for example a
-    /// controls configuration, some entity managers and so on.
+    /// A slice of references to all registered plugins. For example you can store some "global" data
+    /// in a plugin and access it later in scripts. See examples in the [`ScriptContext`] struct.
     pub plugins: PluginsRefMut<'a>,
 
     /// Handle of a node to which the script instance belongs to. To access the node itself use `scene` field:
@@ -459,9 +486,8 @@ pub struct ScriptDeinitContext<'a, 'b, 'c> {
     /// which the engine "ticks" and this delta time affects elapsed time.
     pub elapsed_time: f32,
 
-    /// A reference to the plugin which the script instance belongs to. You can use it to access plugin data
-    /// inside script methods. For example you can store some "global" data in the plugin - for example a
-    /// controls configuration, some entity managers and so on.
+    /// A slice of references to all registered plugins. For example you can store some "global" data
+    /// in a plugin and access it later in scripts. See examples in the [`ScriptContext`] struct.
     pub plugins: PluginsRefMut<'a>,
 
     /// A reference to resource manager, use it to load resources.
