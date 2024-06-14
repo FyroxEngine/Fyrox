@@ -20,7 +20,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, RestrictionEntry, Thickness, UiNode, UserInterface,
     VerticalAlignment, BRUSH_BRIGHT, BRUSH_DARKER, BRUSH_LIGHT, BRUSH_LIGHTEST,
 };
-use fyrox_graph::BaseSceneGraph;
+use fyrox_graph::{BaseSceneGraph, SceneGraph};
 use std::{
     cell::RefCell,
     ops::{Deref, DerefMut},
@@ -859,7 +859,7 @@ impl Control for Window {
                     WindowMessage::Title(title) => {
                         match title {
                             WindowTitle::Text(text) => {
-                                if ui.node(self.title).cast::<Text>().is_some() {
+                                if ui.try_get_of_type::<Text>(self.title).is_some() {
                                     // Just modify existing text, this is much faster than
                                     // re-create text everytime.
                                     ui.send_message(TextMessage::text(
@@ -873,6 +873,11 @@ impl Control for Window {
                                         MessageDirection::ToWidget,
                                     ));
                                     self.title = make_text_title(&mut ui.build_ctx(), text);
+                                    ui.send_message(WidgetMessage::link(
+                                        self.title,
+                                        MessageDirection::ToWidget,
+                                        self.title_grid,
+                                    ));
                                 }
                             }
                             WindowTitle::Node(node) => {
