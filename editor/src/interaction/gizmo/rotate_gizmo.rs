@@ -177,10 +177,10 @@ impl RotationGizmo {
             if let Some(new_pos) = offset_ray.plane_intersection_point(&plane) {
                 let center = transform.position();
                 let old = (old_pos - center)
-                    .try_normalize(std::f32::EPSILON)
+                    .try_normalize(f32::EPSILON)
                     .unwrap_or_default();
                 let new = (new_pos - center)
-                    .try_normalize(std::f32::EPSILON)
+                    .try_normalize(f32::EPSILON)
                     .unwrap_or_default();
 
                 let angle_delta = old.dot(&new).clamp(-1.0, 1.0).acos();
