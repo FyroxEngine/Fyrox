@@ -1065,12 +1065,12 @@ impl VertexBuffer {
     pub fn attribute_view_mut<T: Copy>(
         &mut self,
         usage: VertexAttributeUsage,
-    ) -> Option<AttributeViewRef<'_, T>> {
+    ) -> Option<AttributeViewRefMut<'_, T>> {
         if let Some(attribute) = self.dense_layout.iter().find(|attribute| {
             attribute.usage == usage
                 && attribute.size * attribute.data_type.size() == std::mem::size_of::<T>() as u8
         }) {
-            Some(AttributeViewRef {
+            Some(AttributeViewRefMut {
                 ptr: unsafe { self.data.bytes.as_mut_ptr().add(attribute.offset as usize) },
                 stride: self.vertex_size as usize,
                 count: self.vertex_count as usize,

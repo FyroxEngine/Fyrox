@@ -8,7 +8,7 @@ pub mod camera;
 /// Registers every script from the crate in the given constructor container. Use it, if you want to register all
 /// available scripts at once. Typical usage could be like this:
 ///
-/// ```rust
+/// ```rust,no_run
 /// # use fyrox::{
 /// #     core::pool::Handle, core::visitor::prelude::*, core::reflect::prelude::*,
 /// #     plugin::{Plugin, PluginContext, PluginRegistrationContext},

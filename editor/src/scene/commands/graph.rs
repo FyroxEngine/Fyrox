@@ -271,6 +271,7 @@ impl CommandTrait for SetGraphNodeChildPosition {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct DeleteNodeCommand {
     handle: Handle<Node>,
