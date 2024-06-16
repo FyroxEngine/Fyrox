@@ -34,6 +34,7 @@ use crate::{
 };
 use ddsfile::{Caps2, D3DFormat};
 use fast_image_resize as fr;
+use fast_image_resize::ResizeOptions;
 use fxhash::FxHasher;
 use fyrox_core::num_traits::Bounded;
 use fyrox_core::sparse::AtomicIndex;
@@ -49,7 +50,6 @@ use std::{
     fmt::{Debug, Display, Formatter},
     hash::{Hash, Hasher},
     io::Cursor,
-    num::NonZeroU32,
     ops::{Deref, DerefMut, Shr},
     path::Path,
 };
@@ -1439,9 +1439,9 @@ impl Texture {
                 let src_pixel_type = convert_pixel_type_enum(src_pixel_kind);
                 let mut level_width = width;
                 let mut level_height = height;
-                let mut current_level = fr::Image::from_vec_u8(
-                    NonZeroU32::new(level_width).unwrap(),
-                    NonZeroU32::new(level_height).unwrap(),
+                let mut current_level = fr::images::Image::from_vec_u8(
+                    level_width,
+                    level_height,
                     dyn_img.as_bytes().to_vec(),
                     src_pixel_type,
                 )
@@ -1449,18 +1449,23 @@ impl Texture {
 
                 while level_width != 0 && level_height != 0 {
                     if mip_count != 0 {
-                        let mut dst_img = fr::Image::new(
-                            NonZeroU32::new(level_width).unwrap(),
-                            NonZeroU32::new(level_height).unwrap(),
-                            src_pixel_type,
-                        );
+                        let mut dst_img =
+                            fr::images::Image::new(level_width, level_height, src_pixel_type);
 
-                        let mut resizer = fr::Resizer::new(fr::ResizeAlg::Convolution(
-                            import_options.mip_filter.into_filter_type(),
-                        ));
+                        let mut resizer = fr::Resizer::new();
 
                         resizer
-                            .resize(&current_level.view(), &mut dst_img.view_mut())
+                            .resize(
+                                &current_level,
+                                &mut dst_img,
+                                Some(&ResizeOptions {
+                                    algorithm: fr::ResizeAlg::Convolution(
+                                        import_options.mip_filter.into_filter_type(),
+                                    ),
+                                    cropping: Default::default(),
+                                    mul_div_alpha: true,
+                                }),
+                            )
                             .expect("Pixel types must match!");
 
                         current_level = dst_img;

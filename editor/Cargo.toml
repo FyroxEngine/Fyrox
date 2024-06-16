@@ -24,8 +24,8 @@ open = "5"
 rust-fuzzy-search = "0.1.1"
 cargo_metadata = "0.18.1"
 serde_json = "1.0.113"
-image = { version = "0.24.8", default-features = false, features = ["gif", "jpeg", "png", "tga", "tiff", "bmp"] }
-imageproc = "0.23.0"
+image = { version = "0.25.1", default-features = false, features = ["gif", "jpeg", "png", "tga", "tiff", "bmp"] }
+imageproc = "0.25.0"
 
 [features]
 default = ["fyrox/default"]
