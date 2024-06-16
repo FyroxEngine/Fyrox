@@ -294,7 +294,7 @@ fn convert_joint_params(
         scene::dim2::joint::JointParams::FixedJoint(_) => {}
         scene::dim2::joint::JointParams::PrismaticJoint(v) => {
             if v.limits_enabled {
-                joint.set_limits(JointAxis::X, [v.limits.start, v.limits.end]);
+                joint.set_limits(JointAxis::LinX, [v.limits.start, v.limits.end]);
             }
         }
     }
@@ -516,16 +516,16 @@ impl PhysicsWorld {
             let integration_parameters = rapier2d::dynamics::IntegrationParameters {
                 dt: self.integration_parameters.dt.unwrap_or(dt),
                 min_ccd_dt: self.integration_parameters.min_ccd_dt,
-                erp: self.integration_parameters.erp,
-                damping_ratio: self.integration_parameters.damping_ratio,
-                joint_erp: self.integration_parameters.joint_erp,
+                contact_damping_ratio: self.integration_parameters.contact_damping_ratio,
+                contact_natural_frequency: self.integration_parameters.contact_natural_frequency,
+                joint_natural_frequency: self.integration_parameters.joint_natural_frequency,
                 joint_damping_ratio: self.integration_parameters.joint_damping_ratio,
                 warmstart_coefficient: self.integration_parameters.warmstart_coefficient,
                 length_unit: self.integration_parameters.length_unit,
                 normalized_allowed_linear_error: self.integration_parameters.allowed_linear_error,
-                normalized_max_penetration_correction: self
+                normalized_max_corrective_velocity: self
                     .integration_parameters
-                    .max_penetration_correction,
+                    .normalized_max_corrective_velocity,
                 normalized_prediction_distance: self.integration_parameters.prediction_distance,
                 num_solver_iterations: NonZeroUsize::new(
                     self.integration_parameters.num_solver_iterations,
@@ -641,7 +641,7 @@ impl PhysicsWorld {
         // likely end up in panic because of invalid handle stored in internal acceleration
         // structure. This could be fixed by delaying deleting of bodies/collider to the end
         // of the frame.
-        query.update(&self.bodies, &self.colliders);
+        query.update(&self.colliders);
 
         query_buffer.clear();
         let ray = Ray::new(

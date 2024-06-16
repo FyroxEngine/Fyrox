@@ -431,7 +431,7 @@ fn convert_joint_params(
         scene::joint::JointParams::FixedJoint(_) => {}
         scene::joint::JointParams::PrismaticJoint(v) => {
             if v.limits_enabled {
-                joint.set_limits(JointAxis::X, [v.limits.start, v.limits.end]);
+                joint.set_limits(JointAxis::LinX, [v.limits.start, v.limits.end]);
             }
         }
         scene::joint::JointParams::RevoluteJoint(v) => {
@@ -751,37 +751,41 @@ pub struct IntegrationParameters {
     )]
     pub min_ccd_dt: f32,
 
-    /// The Error Reduction Parameter in `[0, 1]` is the proportion of the positional error to be
-    /// corrected at each time step (default: `0.8`).
+    /// The damping ratio used by the springs for contact constraint stabilization.
+    /// Larger values make the constraints more compliant (allowing more visible penetrations
+    /// before stabilization). Default `5.0`.
     #[reflect(
         min_value = 0.0,
-        max_value = 1.0,
-        description = "The Error Reduction Parameter in `[0, 1]` is the proportion of the \
-        positional error to be corrected at each time step (default: `0.8`)"
+        description = "The damping ratio used by the springs for contact constraint stabilization.
+Larger values make the constraints more compliant (allowing more visible penetrations
+before stabilization). Default `5.0`."
     )]
-    pub erp: f32,
+    pub contact_damping_ratio: f32,
 
-    /// 0-1: the damping ratio used by the springs.
-    /// Lower values make the constraints more compliant (more "springy", allowing more visible penetrations
-    /// before stabilization).
-    /// (default `0.25`).
+    /// The natural frequency used by the springs for contact constraint regularization.
+    /// Increasing this value will make it so that penetrations get fixed more quickly at the
+    /// expense of potential jitter effects due to overshooting. In order to make the simulation
+    /// look stiffer, it is recommended to increase the `contact_damping_ratio` instead of this
+    /// value. Default: `30.0`
     #[reflect(
         min_value = 0.0,
-        max_value = 1.0,
-        description = "The damping ratio used by the springs in `[0, 1]` Lower values make the constraints more \
-     compliant (more springy, allowing more visible penetrations before stabilization). Default `0.25`"
+        description = "The natural frequency used by the springs for contact constraint regularization.
+Increasing this value will make it so that penetrations get fixed more quickly at the
+expense of potential jitter effects due to overshooting. In order to make the simulation
+look stiffer, it is recommended to increase the `contact_damping_ratio` instead of this
+value. Default: `30.0`"
     )]
-    pub damping_ratio: f32,
+    pub contact_natural_frequency: f32,
 
-    /// The Error Reduction Parameter for joints in `[0, 1]` is the proportion of the positional
-    /// error to be corrected at each time step (default: `0.8`).
+    /// The natural frequency used by the springs for joint constraint regularization.
+    /// Increasing this value will make it so that penetrations get fixed more quickly.
+    /// Default: `1.0e6`
     #[reflect(
         min_value = 0.0,
-        max_value = 1.0,
-        description = "The Error Reduction Parameter for joints in `[0, 1]` is the proportion \
-        of the positional error to be corrected at each time step (default: `0.8`)."
+        description = "The natural frequency used by the springs for joint constraint regularization.
+Increasing this value will make it so that penetrations get fixed more quickly. Default: `1.0e6`."
     )]
-    pub joint_erp: f32,
+    pub joint_natural_frequency: f32,
 
     /// The fraction of critical damping applied to the joint for constraints regularization.
     /// (default `0.8`).
@@ -799,12 +803,12 @@ pub struct IntegrationParameters {
     )]
     pub allowed_linear_error: f32,
 
-    /// Maximum amount of penetration the solver will attempt to resolve in one timestep.
+    /// Maximum amount of penetration the solver will attempt to resolve in one timestep (default: `10.0`).
     #[reflect(
         min_value = 0.0,
-        description = "Maximum amount of penetration the solver will attempt to resolve in one timestep."
+        description = "Maximum amount of penetration the solver will attempt to resolve in one timestep (default: `10.0`)."
     )]
-    pub max_penetration_correction: f32,
+    pub normalized_max_corrective_velocity: f32,
 
     /// The maximal distance separating two objects that will generate predictive contacts (default: `0.002`).
     #[reflect(
@@ -880,13 +884,13 @@ impl Default for IntegrationParameters {
         Self {
             dt: None,
             min_ccd_dt: 1.0 / 60.0 / 100.0,
-            erp: 0.01,
-            damping_ratio: 20.0,
-            joint_erp: 0.9,
+            contact_damping_ratio: 5.0,
+            contact_natural_frequency: 30.0,
+            joint_natural_frequency: 1.0e6,
             joint_damping_ratio: 1.0,
             warmstart_coefficient: 1.0,
             allowed_linear_error: 0.002,
-            max_penetration_correction: f32::MAX,
+            normalized_max_corrective_velocity: 10.0,
             prediction_distance: 0.002,
             num_internal_pgs_iterations: 1,
             num_additional_friction_iterations: 4,
@@ -1075,16 +1079,16 @@ impl PhysicsWorld {
             let integration_parameters = rapier3d::dynamics::IntegrationParameters {
                 dt: self.integration_parameters.dt.unwrap_or(dt),
                 min_ccd_dt: self.integration_parameters.min_ccd_dt,
-                erp: self.integration_parameters.erp,
-                damping_ratio: self.integration_parameters.damping_ratio,
-                joint_erp: self.integration_parameters.joint_erp,
+                contact_damping_ratio: self.integration_parameters.contact_damping_ratio,
+                contact_natural_frequency: self.integration_parameters.contact_natural_frequency,
+                joint_natural_frequency: self.integration_parameters.joint_natural_frequency,
                 joint_damping_ratio: self.integration_parameters.joint_damping_ratio,
                 warmstart_coefficient: self.integration_parameters.warmstart_coefficient,
                 length_unit: self.integration_parameters.length_unit,
                 normalized_allowed_linear_error: self.integration_parameters.allowed_linear_error,
-                normalized_max_penetration_correction: self
+                normalized_max_corrective_velocity: self
                     .integration_parameters
-                    .max_penetration_correction,
+                    .normalized_max_corrective_velocity,
                 normalized_prediction_distance: self.integration_parameters.prediction_distance,
                 num_solver_iterations: NonZeroUsize::new(
                     self.integration_parameters.num_solver_iterations,
@@ -1200,7 +1204,7 @@ impl PhysicsWorld {
         // likely end up in panic because of invalid handle stored in internal acceleration
         // structure. This could be fixed by delaying deleting of bodies/collider to the end
         // of the frame.
-        query.update(&self.bodies, &self.colliders);
+        query.update(&self.colliders);
 
         query_buffer.clear();
         let ray = Ray::new(
