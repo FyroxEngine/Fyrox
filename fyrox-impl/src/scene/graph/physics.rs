@@ -854,19 +854,10 @@ Increasing this value will make it so that penetrations get fixed more quickly. 
     pub max_ccd_substeps: u32,
 
     /// The coefficient in `[0, 1]` applied to warmstart impulses, i.e., impulses that are used as the
-    /// initial solution (instead of 0) at the next simulation step.
-    ///
-    /// This should generally be set to 1. Can be set to 0 if using a large [`Self::erp`] value.
-    /// (default `1.0`).
+    /// initial solution (instead of 0) at the next simulation step. Default `1.0`.
     pub warmstart_coefficient: f32,
 
     /// The approximate size of most dynamic objects in the scene.
-    ///
-    /// This value is used internally to estimate some length-based tolerance. In particular, the
-    /// values [`IntegrationParameters::allowed_linear_error`],
-    /// [`IntegrationParameters::max_penetration_correction`],
-    /// [`IntegrationParameters::prediction_distance`], [`RigidBodyActivation::normalized_linear_threshold`]
-    /// are scaled by this value implicitly.
     ///
     /// This value can be understood as the number of units-per-meter in your physical world compared
     /// to a human-sized world in meter. For example, in a 2d game, if your typical object size is 100
