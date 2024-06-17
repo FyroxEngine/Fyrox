@@ -2488,6 +2488,12 @@ impl Editor {
                         viewer.open(data, &mut self.engine);
                         self.surface_data_viewer = Some(viewer);
                     }
+                    Message::SyncInteractionModes => {
+                        self.scene_viewer.sync_interaction_modes(
+                            self.scenes.current_scene_entry_mut(),
+                            self.engine.user_interfaces.first_mut(),
+                        );
+                    }
                     _ => (),
                 }
             }

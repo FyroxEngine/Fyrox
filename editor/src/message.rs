@@ -78,6 +78,7 @@ pub enum Message {
     SaveLayout,
     LoadLayout,
     ViewSurfaceData(SurfaceResource),
+    SyncInteractionModes,
 }
 
 #[derive(Clone, Debug)]

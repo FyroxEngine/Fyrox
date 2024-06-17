@@ -93,6 +93,7 @@ impl EditorSceneEntry {
             message_sender.clone(),
             scene_viewer.frame(),
         ));
+        interaction_modes.sender = Some(message_sender.clone());
 
         let mut entry = EditorSceneEntry {
             has_unsaved_changes: false,
@@ -128,6 +129,7 @@ impl EditorSceneEntry {
             message_sender.clone(),
         ));
         interaction_modes.add(MoveWidgetsInteractionMode::new(message_sender.clone()));
+        interaction_modes.sender = Some(message_sender.clone());
 
         let mut entry = EditorSceneEntry {
             has_unsaved_changes: false,

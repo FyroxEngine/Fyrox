@@ -592,9 +592,9 @@ impl SceneViewer {
         }
     }
 
-    pub fn on_current_scene_changed(
+    pub fn sync_interaction_modes(
         &mut self,
-        new_scene: Option<&mut EditorSceneEntry>,
+        scene: Option<&mut EditorSceneEntry>,
         ui: &mut UserInterface,
     ) {
         // Remove interaction mode buttons first.
@@ -603,7 +603,7 @@ impl SceneViewer {
         }
 
         // Create new buttons for each mode.
-        if let Some(scene_entry) = new_scene {
+        if let Some(scene_entry) = scene {
             for mode in scene_entry.interaction_modes.iter_mut() {
                 let button = mode.make_button(
                     &mut ui.build_ctx(),
@@ -617,6 +617,14 @@ impl SceneViewer {
                 self.interaction_modes.insert(mode.uuid(), button);
             }
         }
+    }
+
+    pub fn on_current_scene_changed(
+        &mut self,
+        new_scene: Option<&mut EditorSceneEntry>,
+        ui: &mut UserInterface,
+    ) {
+        self.sync_interaction_modes(new_scene, ui)
     }
 
     pub fn handle_ui_message(

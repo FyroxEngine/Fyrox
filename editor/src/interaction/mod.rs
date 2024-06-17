@@ -5,6 +5,7 @@ use crate::{
             color::Color,
             pool::Handle,
             uuid::Uuid,
+            TypeUuidProvider,
         },
         gui::{
             border::BorderBuilder,
@@ -22,9 +23,10 @@ use crate::{
         scene::{camera::Projection, graph::Graph, node::Node},
     },
     load_image,
+    message::MessageSender,
     scene::{controller::SceneController, Selection},
     settings::Settings,
-    Engine,
+    Engine, Message,
 };
 use std::any::Any;
 
@@ -41,6 +43,8 @@ pub trait BaseInteractionMode: 'static {
     fn as_any(&self) -> &dyn Any;
 
     fn as_any_mut(&mut self) -> &mut dyn Any;
+
+    fn into_any(self: Box<Self>) -> Box<dyn Any>;
 }
 
 impl<T> BaseInteractionMode for T
@@ -52,6 +56,10 @@ where
     }
 
     fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn into_any(self: Box<Self>) -> Box<dyn Any> {
         self
     }
 }
@@ -228,11 +236,33 @@ pub struct InteractionModeContainer {
     // is not an issue, because there are tiny amount of modes anyway (currently - max 5) and linear
     // search is faster in such conditions.
     container: Vec<Box<dyn InteractionMode>>,
+    pub sender: Option<MessageSender>,
 }
 
 impl InteractionModeContainer {
+    fn try_notify_changed(&self) {
+        if let Some(sender) = self.sender.as_ref() {
+            sender.send(Message::SyncInteractionModes);
+        }
+    }
+
     pub fn add<T: InteractionMode>(&mut self, mode: T) {
         self.container.push(Box::new(mode));
+        self.try_notify_changed();
+    }
+
+    pub fn remove(&mut self, id: &Uuid) -> Option<Box<dyn InteractionMode>> {
+        if let Some(position) = self.container.iter().position(|mode| mode.uuid() == *id) {
+            self.try_notify_changed();
+            Some(self.container.remove(position))
+        } else {
+            None
+        }
+    }
+
+    pub fn remove_typed<T: InteractionMode + TypeUuidProvider>(&mut self) -> Option<Box<T>> {
+        self.remove(&T::type_uuid())
+            .and_then(|mode| mode.into_any().downcast::<T>().ok())
     }
 
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut dyn InteractionMode> + '_ {
@@ -254,6 +284,7 @@ impl InteractionModeContainer {
     }
 
     pub fn drain(&mut self) -> impl Iterator<Item = Box<dyn InteractionMode>> + '_ {
+        self.try_notify_changed();
         self.container.drain(..)
     }
 }
