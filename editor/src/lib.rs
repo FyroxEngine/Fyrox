@@ -33,6 +33,7 @@ pub mod overlay;
 pub mod particle;
 pub mod physics;
 pub mod plugin;
+pub mod plugins;
 pub mod preview;
 pub mod scene;
 pub mod scene_viewer;
@@ -44,58 +45,6 @@ pub mod world;
 
 pub use fyrox;
 
-use crate::fyrox::{
-    asset::{io::FsResourceIo, manager::ResourceManager, untyped::UntypedResource},
-    core::{
-        algebra::{Matrix3, Vector2},
-        color::Color,
-        futures::executor::block_on,
-        log::{Log, MessageKind},
-        pool::Handle,
-        scope_profile,
-        sstorage::ImmutableString,
-        task::TaskPool,
-        uuid::Uuid,
-        watcher::FileSystemWatcher,
-        TypeUuidProvider,
-    },
-    dpi::{LogicalSize, PhysicalPosition},
-    engine::{Engine, EngineInitParams, GraphicsContextParams, SerializationContext},
-    event::{Event, WindowEvent},
-    event_loop::{EventLoop, EventLoopWindowTarget},
-    fxhash::FxHashMap,
-    graph::BaseSceneGraph,
-    gui::{
-        brush::Brush,
-        button::ButtonBuilder,
-        dock::{
-            DockingManager, DockingManagerBuilder, DockingManagerMessage, TileBuilder, TileContent,
-        },
-        dropdown_list::DropdownListBuilder,
-        file_browser::{FileBrowserMode, FileSelectorBuilder, Filter},
-        font::Font,
-        formatted_text::WrapMode,
-        grid::{Column, GridBuilder, Row},
-        key::HotKey,
-        message::{MessageDirection, UiMessage},
-        messagebox::{MessageBoxBuilder, MessageBoxButtons, MessageBoxMessage, MessageBoxResult},
-        text::TextBuilder,
-        widget::{WidgetBuilder, WidgetMessage},
-        window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, UiNode, UserInterface, VerticalAlignment,
-    },
-    material::{
-        shader::{ShaderResource, ShaderResourceExtension},
-        Material, MaterialResource, PropertyValue,
-    },
-    resource::texture::{
-        CompressionOptions, TextureImportOptions, TextureKind, TextureMinificationFilter,
-        TextureResource, TextureResourceExtension,
-    },
-    scene::{graph::GraphUpdateSwitches, mesh::Mesh, Scene, SceneLoader},
-    utils::{translate_cursor_icon, translate_event},
-    window::{Icon, WindowAttributes},
-};
 use crate::{
     absm::AbsmEditor,
     animation::AnimationEditor,
@@ -103,9 +52,66 @@ use crate::{
     audio::{preview::AudioPreviewPanel, AudioPanel},
     build::BuildWindow,
     camera::panel::CameraPreviewControlPanel,
-    command::{panel::CommandStackViewer, CommandTrait},
+    command::{panel::CommandStackViewer, Command, CommandTrait},
     configurator::Configurator,
     curve_editor::CurveEditorWindow,
+    export::ExportWindow,
+    fyrox::{
+        asset::{io::FsResourceIo, manager::ResourceManager, untyped::UntypedResource},
+        core::{
+            algebra::{Matrix3, Vector2},
+            color::Color,
+            futures::executor::block_on,
+            log::{Log, MessageKind},
+            pool::Handle,
+            scope_profile,
+            sstorage::ImmutableString,
+            task::TaskPool,
+            uuid::Uuid,
+            watcher::FileSystemWatcher,
+            TypeUuidProvider,
+        },
+        dpi::{LogicalSize, PhysicalPosition},
+        engine::{Engine, EngineInitParams, GraphicsContextParams, SerializationContext},
+        event::{Event, WindowEvent},
+        event_loop::{EventLoop, EventLoopWindowTarget},
+        fxhash::FxHashMap,
+        graph::BaseSceneGraph,
+        gui::{
+            brush::Brush,
+            button::ButtonBuilder,
+            dock::{
+                DockingManager, DockingManagerBuilder, DockingManagerMessage, TileBuilder,
+                TileContent,
+            },
+            dropdown_list::DropdownListBuilder,
+            file_browser::{FileBrowserMode, FileSelectorBuilder, Filter},
+            font::Font,
+            formatted_text::WrapMode,
+            grid::{Column, GridBuilder, Row},
+            key::HotKey,
+            message::{MessageDirection, UiMessage},
+            messagebox::{
+                MessageBoxBuilder, MessageBoxButtons, MessageBoxMessage, MessageBoxResult,
+            },
+            text::TextBuilder,
+            widget::{WidgetBuilder, WidgetMessage},
+            window::{WindowBuilder, WindowMessage, WindowTitle},
+            BuildContext, UiNode, UserInterface, VerticalAlignment,
+        },
+        material::{
+            shader::{ShaderResource, ShaderResourceExtension},
+            Material, MaterialResource, PropertyValue,
+        },
+        plugin::{Plugin, PluginContainer},
+        resource::texture::{
+            CompressionOptions, TextureImportOptions, TextureKind, TextureMinificationFilter,
+            TextureResource, TextureResourceExtension,
+        },
+        scene::{graph::GraphUpdateSwitches, mesh::Mesh, Scene, SceneLoader},
+        utils::{translate_cursor_icon, translate_event},
+        window::{Icon, WindowAttributes},
+    },
     highlight::HighlightRenderPass,
     inspector::Inspector,
     interaction::{
@@ -120,11 +126,13 @@ use crate::{
     log::LogPanel,
     material::MaterialEditor,
     menu::{Menu, MenuContext, Panels},
+    mesh::{MeshControlPanel, SurfaceDataViewer},
     message::MessageSender,
     overlay::OverlayRenderPass,
     particle::ParticleSystemPreviewControlPanel,
     physics::ColliderControlPanel,
     plugin::EditorPlugin,
+    plugins::collider::ColliderShapePlugin,
     scene::{
         commands::{
             make_delete_selection_command, ChangeSelectionCommand, GameSceneContext, PasteCommand,
@@ -135,7 +143,9 @@ use crate::{
         GameScene, Selection,
     },
     scene_viewer::SceneViewer,
+    settings::build::BuildCommand,
     settings::Settings,
+    stats::{StatisticsWindow, StatisticsWindowAction},
     ui_scene::{
         commands::graph::PasteWidgetCommand, menu::WidgetContextMenu,
         utils::UiSceneWorldViewerDataProvider, UiScene,
@@ -143,10 +153,9 @@ use crate::{
     utils::{doc::DocWindow, path_fixer::PathFixer, ragdoll::RagdollWizard},
     world::{graph::menu::SceneNodeContextMenu, graph::EditorSceneWrapper, WorldViewer},
 };
-use fyrox::plugin::{Plugin, PluginContainer};
-use std::collections::VecDeque;
 use std::{
     cell::RefCell,
+    collections::VecDeque,
     io::{BufRead, BufReader},
     path::{Path, PathBuf},
     process::Stdio,
@@ -159,11 +168,6 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::command::Command;
-use crate::export::ExportWindow;
-use crate::mesh::{MeshControlPanel, SurfaceDataViewer};
-use crate::settings::build::BuildCommand;
-use crate::stats::{StatisticsWindow, StatisticsWindowAction};
 pub use message::Message;
 
 pub const FIXED_TIMESTEP: f32 = 1.0 / 60.0;
@@ -174,18 +178,19 @@ pub fn send_sync_message(ui: &UserInterface, mut msg: UiMessage) {
     ui.send_message(msg);
 }
 
-pub fn load_image(data: &[u8]) -> Option<UntypedResource> {
-    Some(
-        TextureResource::load_from_memory(
-            Default::default(),
-            data,
-            TextureImportOptions::default()
-                .with_compression(CompressionOptions::NoCompression)
-                .with_minification_filter(TextureMinificationFilter::Linear),
-        )
-        .ok()?
-        .into(),
+pub fn load_texture(data: &[u8]) -> Option<TextureResource> {
+    TextureResource::load_from_memory(
+        Default::default(),
+        data,
+        TextureImportOptions::default()
+            .with_compression(CompressionOptions::NoCompression)
+            .with_minification_filter(TextureMinificationFilter::Linear),
     )
+    .ok()
+}
+
+pub fn load_image(data: &[u8]) -> Option<UntypedResource> {
+    Some(load_texture(data)?.into())
 }
 
 lazy_static! {
@@ -845,7 +850,7 @@ impl Editor {
             audio_preview_panel,
             node_removal_dialog,
             doc_window,
-            plugins: Default::default(),
+            plugins: vec![Some(Box::new(ColliderShapePlugin::default()))],
             // Apparently, some window managers (like Wayland), does not send `Focused` event after the window
             // was created. So we must assume that the editor is focused by default, otherwise editor's thread
             // will sleep forever and the window won't come up.
