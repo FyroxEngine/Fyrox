@@ -706,6 +706,16 @@ pub trait BaseSceneGraph: AbstractSceneGraph {
             self.set_root(scheme.root);
         }
     }
+
+    /// Removes all the nodes from the given slice.
+    #[inline]
+    fn remove_nodes(&mut self, nodes: &[Handle<Self::Node>]) {
+        for &node in nodes {
+            if self.is_valid_handle(node) {
+                self.remove_node(node)
+            }
+        }
+    }
 }
 
 pub trait SceneGraph: BaseSceneGraph {
