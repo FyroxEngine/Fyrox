@@ -186,6 +186,8 @@ impl GameScene {
             path.as_ref()
                 .and_then(|p| settings.scene_settings.get(*p).map(|s| &s.camera_settings)),
             grid,
+            editor_objects_root,
+            scene_content_root,
         );
 
         // Freeze physics simulation in while editing scene by setting time step to zero.
@@ -615,19 +617,18 @@ impl SceneController for GameScene {
                 let rel_pos = cursor_pos - screen_bounds.position;
                 let graph = &mut engine.scenes[self.scene].graph;
 
-                let position = if let Some(result) = self.camera_controller.pick(PickingOptions {
-                    cursor_pos: rel_pos,
+                let position = if let Some(result) = self.camera_controller.pick(
                     graph,
-                    editor_objects_root: self.editor_objects_root,
-                    scene_content_root: self.scene_content_root,
-                    screen_size: frame_size,
-                    editor_only: false,
-                    filter: |handle, _| !preview.nodes.contains(&handle),
-                    ignore_back_faces: settings.selection.ignore_back_faces,
-                    // We need info only about closest intersection.
-                    use_picking_loop: false,
-                    only_meshes: false,
-                }) {
+                    PickingOptions {
+                        cursor_pos: rel_pos,
+                        editor_only: false,
+                        filter: Some(&mut |handle, _| !preview.nodes.contains(&handle)),
+                        ignore_back_faces: settings.selection.ignore_back_faces,
+                        // We need info only about closest intersection.
+                        use_picking_loop: false,
+                        only_meshes: false,
+                    },
+                ) {
                     Some(result.position)
                 } else {
                     // In case of empty space, check intersection with oXZ plane (3D) or oXY (2D).
@@ -670,8 +671,6 @@ impl SceneController for GameScene {
             return;
         }
 
-        let frame_size = screen_bounds.size;
-
         if let Some(item) = engine
             .user_interfaces
             .first_mut()
@@ -705,18 +704,17 @@ impl SceneController for GameScene {
                     let cursor_pos = engine.user_interfaces.first_mut().cursor_position();
                     let rel_pos = cursor_pos - screen_bounds.position;
                     let graph = &engine.scenes[self.scene].graph;
-                    if let Some(result) = self.camera_controller.pick(PickingOptions {
-                        cursor_pos: rel_pos,
+                    if let Some(result) = self.camera_controller.pick(
                         graph,
-                        editor_objects_root: self.editor_objects_root,
-                        scene_content_root: self.scene_content_root,
-                        screen_size: frame_size,
-                        editor_only: false,
-                        filter: |_, _| true,
-                        ignore_back_faces: settings.selection.ignore_back_faces,
-                        use_picking_loop: true,
-                        only_meshes: false,
-                    }) {
+                        PickingOptions {
+                            cursor_pos: rel_pos,
+                            editor_only: false,
+                            filter: None,
+                            ignore_back_faces: settings.selection.ignore_back_faces,
+                            use_picking_loop: true,
+                            only_meshes: false,
+                        },
+                    ) {
                         let texture = tex.clone();
                         let mut texture = texture.state();
                         if texture.data().is_some() {
@@ -915,8 +913,15 @@ impl SceneController for GameScene {
         camera.projection_mut().set_z_near(settings.graphics.z_near);
         camera.projection_mut().set_z_far(settings.graphics.z_far);
 
-        self.camera_controller
-            .update(&mut scene.graph, settings, path, dt);
+        self.camera_controller.update(
+            &mut scene.graph,
+            settings,
+            path,
+            self.editor_objects_root,
+            self.scene_content_root,
+            screen_bounds.size,
+            dt,
+        );
 
         if let Some(highlighter) = self.highlighter.as_ref() {
             let mut highlighter = highlighter.borrow_mut();

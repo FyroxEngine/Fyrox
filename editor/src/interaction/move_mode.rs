@@ -1,33 +1,32 @@
-use crate::command::{Command, CommandGroup};
-use crate::fyrox::core::uuid::{uuid, Uuid};
-use crate::fyrox::core::TypeUuidProvider;
-use crate::fyrox::graph::SceneGraph;
-use crate::fyrox::gui::{BuildContext, UiNode};
-use crate::fyrox::{
-    core::{
-        algebra::{Matrix4, Point3, Vector2, Vector3},
-        math::plane::Plane,
-        pool::Handle,
-    },
-    fxhash::FxHashSet,
-    scene::{
-        camera::{Camera, Projection},
-        graph::Graph,
-        node::Node,
-        Scene,
-    },
-};
-use crate::interaction::make_interaction_mode_button;
-use crate::message::MessageSender;
-use crate::scene::controller::SceneController;
 use crate::{
     camera::{CameraController, PickingOptions},
-    interaction::{
-        calculate_gizmo_distance_scaling, gizmo::move_gizmo::MoveGizmo, plane::PlaneKind,
-        InteractionMode,
+    command::{Command, CommandGroup},
+    fyrox::{
+        core::{
+            algebra::{Matrix4, Point3, Vector2, Vector3},
+            math::plane::Plane,
+            pool::Handle,
+            uuid::{uuid, Uuid},
+            TypeUuidProvider,
+        },
+        fxhash::FxHashSet,
+        graph::SceneGraph,
+        gui::{BuildContext, UiNode},
+        scene::{
+            camera::{Camera, Projection},
+            graph::Graph,
+            node::Node,
+            Scene,
+        },
     },
+    interaction::{
+        calculate_gizmo_distance_scaling, gizmo::move_gizmo::MoveGizmo,
+        make_interaction_mode_button, plane::PlaneKind, InteractionMode,
+    },
+    message::MessageSender,
     scene::{
         commands::{graph::MoveNodeCommand, ChangeSelectionCommand},
+        controller::SceneController,
         GameScene, Selection,
     },
     settings::Settings,
@@ -186,19 +185,18 @@ impl MoveContext {
             .flat_map(|node| graph.traverse_handle_iter(node))
             .collect::<FxHashSet<Handle<Node>>>();
 
-        let new_position = if let Some(result) = game_scene.camera_controller.pick(PickingOptions {
-            cursor_pos: mouse_position,
+        let new_position = if let Some(result) = game_scene.camera_controller.pick(
             graph,
-            editor_objects_root: game_scene.editor_objects_root,
-            scene_content_root: game_scene.scene_content_root,
-            screen_size: frame_size,
-            editor_only: false,
-            filter: |handle, _| !preview_nodes.contains(&handle),
-            ignore_back_faces: settings.selection.ignore_back_faces,
-            // We need info only about closest intersection.
-            use_picking_loop: false,
-            only_meshes: false,
-        }) {
+            PickingOptions {
+                cursor_pos: mouse_position,
+                editor_only: false,
+                filter: Some(&mut |handle, _| !preview_nodes.contains(&handle)),
+                ignore_back_faces: settings.selection.ignore_back_faces,
+                // We need info only about closest intersection.
+                use_picking_loop: false,
+                only_meshes: false,
+            },
+        ) {
             Some(result.position)
         } else {
             // In case of empty space, check intersection with oXZ plane (3D) or oXY (2D).
@@ -300,22 +298,17 @@ impl InteractionMode for MoveInteractionMode {
         let scene = &mut engine.scenes[game_scene.scene];
         let graph = &mut scene.graph;
 
-        let camera = game_scene.camera_controller.camera;
-        let camera_pivot = game_scene.camera_controller.pivot;
-        if let Some(result) = game_scene.camera_controller.pick(PickingOptions {
-            cursor_pos: mouse_pos,
+        if let Some(result) = game_scene.camera_controller.pick(
             graph,
-            editor_objects_root: game_scene.editor_objects_root,
-            scene_content_root: game_scene.scene_content_root,
-            screen_size: frame_size,
-            editor_only: true,
-            filter: |handle, _| {
-                handle != camera && handle != camera_pivot && handle != self.move_gizmo.origin
+            PickingOptions {
+                cursor_pos: mouse_pos,
+                editor_only: true,
+                filter: Some(&mut |handle, _| handle != self.move_gizmo.origin),
+                ignore_back_faces: false,
+                use_picking_loop: true,
+                only_meshes: false,
             },
-            ignore_back_faces: false,
-            use_picking_loop: true,
-            only_meshes: false,
-        }) {
+        ) {
             if let Some(plane_kind) = self.move_gizmo.handle_pick(result.node, graph) {
                 if let Some(selection) = editor_selection.as_graph() {
                     self.move_context = Some(MoveContext::from_graph_selection(
@@ -338,7 +331,7 @@ impl InteractionMode for MoveInteractionMode {
         controller: &mut dyn SceneController,
         engine: &mut Engine,
         mouse_pos: Vector2<f32>,
-        frame_size: Vector2<f32>,
+        _frame_size: Vector2<f32>,
         settings: &Settings,
     ) {
         let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
@@ -383,18 +376,17 @@ impl InteractionMode for MoveInteractionMode {
         } else {
             let new_selection = game_scene
                 .camera_controller
-                .pick(PickingOptions {
-                    cursor_pos: mouse_pos,
-                    graph: &scene.graph,
-                    editor_objects_root: game_scene.editor_objects_root,
-                    scene_content_root: game_scene.scene_content_root,
-                    screen_size: frame_size,
-                    editor_only: false,
-                    filter: |_, _| true,
-                    ignore_back_faces: settings.selection.ignore_back_faces,
-                    use_picking_loop: true,
-                    only_meshes: false,
-                })
+                .pick(
+                    &scene.graph,
+                    PickingOptions {
+                        cursor_pos: mouse_pos,
+                        editor_only: false,
+                        filter: None,
+                        ignore_back_faces: settings.selection.ignore_back_faces,
+                        use_picking_loop: true,
+                        only_meshes: false,
+                    },
+                )
                 .map(|result| {
                     if let (Some(selection), true) = (
                         editor_selection.as_graph(),
@@ -449,18 +441,17 @@ impl InteractionMode for MoveInteractionMode {
         } else {
             let picked = game_scene
                 .camera_controller
-                .pick(PickingOptions {
-                    cursor_pos: mouse_position,
-                    graph: &scene.graph,
-                    editor_objects_root: game_scene.editor_objects_root,
-                    scene_content_root: game_scene.scene_content_root,
-                    screen_size: frame_size,
-                    editor_only: true,
-                    filter: |_, _| true,
-                    ignore_back_faces: false,
-                    use_picking_loop: false,
-                    only_meshes: false,
-                })
+                .pick(
+                    &scene.graph,
+                    PickingOptions {
+                        cursor_pos: mouse_position,
+                        editor_only: true,
+                        filter: None,
+                        ignore_back_faces: false,
+                        use_picking_loop: false,
+                        only_meshes: false,
+                    },
+                )
                 .map(|r| r.node)
                 .unwrap_or_default();
             self.move_gizmo.handle_pick(picked, &mut scene.graph);

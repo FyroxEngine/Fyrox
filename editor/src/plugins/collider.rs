@@ -304,7 +304,6 @@ impl EditorPlugin for ColliderShapePlugin {
             .node(editor.scene_viewer.frame());
 
         let origin = frame.screen_position();
-        let screen_size = frame.actual_global_size();
 
         let Some(entry) = editor.scenes.current_scene_entry_mut() else {
             return;
@@ -323,18 +322,17 @@ impl EditorPlugin for ColliderShapePlugin {
                 shape.reset_handles(scene);
                 self.active_handle = Handle::NONE;
 
-                if let Some(result) = game_scene.camera_controller.pick(PickingOptions {
-                    cursor_pos,
-                    graph: &scene.graph,
-                    editor_objects_root: game_scene.editor_objects_root,
-                    scene_content_root: game_scene.scene_content_root,
-                    screen_size,
-                    editor_only: true,
-                    filter: |_handle, _| true,
-                    ignore_back_faces: false,
-                    use_picking_loop: false,
-                    only_meshes: false,
-                }) {
+                if let Some(result) = game_scene.camera_controller.pick(
+                    &scene.graph,
+                    PickingOptions {
+                        cursor_pos,
+                        editor_only: true,
+                        filter: None,
+                        ignore_back_faces: false,
+                        use_picking_loop: false,
+                        only_meshes: false,
+                    },
+                ) {
                     if shape.has_handle(result.node) {
                         scene.graph[result.node]
                             .as_sprite_mut()

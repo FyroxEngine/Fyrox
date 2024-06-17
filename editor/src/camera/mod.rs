@@ -8,7 +8,7 @@ use crate::{
             },
             pool::Handle,
         },
-        graph::{BaseSceneGraph, SceneGraph},
+        graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
         gui::message::{KeyCode, KeyboardModifiers, MouseButton},
         scene::{
             base::BaseBuilder,
@@ -33,7 +33,6 @@ use crate::{
         Settings,
     },
 };
-use fyrox::graph::SceneGraphNode;
 use std::{
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
@@ -74,6 +73,9 @@ pub struct CameraController {
     scene_context: PickContext,
     prev_interaction_state: bool,
     pub grid: Handle<Node>,
+    pub editor_objects_root: Handle<Node>,
+    pub scene_content_root: Handle<Node>,
+    pub screen_size: Vector2<f32>,
 }
 
 #[derive(Clone, Debug)]
@@ -91,17 +93,13 @@ struct PickContext {
     old_cursor_pos: Vector2<f32>,
 }
 
-pub struct PickingOptions<'a, F>
-where
-    F: FnMut(Handle<Node>, &Node) -> bool,
-{
+pub type PickingFilter<'a> = Option<&'a mut dyn FnMut(Handle<Node>, &Node) -> bool>;
+
+#[derive(Default)]
+pub struct PickingOptions<'a> {
     pub cursor_pos: Vector2<f32>,
-    pub graph: &'a Graph,
-    pub editor_objects_root: Handle<Node>,
-    pub scene_content_root: Handle<Node>,
-    pub screen_size: Vector2<f32>,
     pub editor_only: bool,
-    pub filter: F,
+    pub filter: PickingFilter<'a>,
     pub ignore_back_faces: bool,
     pub use_picking_loop: bool,
     pub only_meshes: bool,
@@ -113,6 +111,8 @@ impl CameraController {
         root: Handle<Node>,
         settings: Option<&SceneCameraSettings>,
         grid: Handle<Node>,
+        editor_objects_root: Handle<Node>,
+        scene_content_root: Handle<Node>,
     ) -> Self {
         let settings = settings.cloned().unwrap_or_default();
 
@@ -171,6 +171,9 @@ impl CameraController {
             scene_context: Default::default(),
             prev_interaction_state: false,
             grid,
+            editor_objects_root,
+            scene_content_root,
+            screen_size: Default::default(),
         }
     }
 
@@ -459,8 +462,18 @@ impl CameraController {
         graph: &mut Graph,
         settings: &mut Settings,
         scene_path: Option<&Path>,
+        editor_objects_root: Handle<Node>,
+        scene_content_root: Handle<Node>,
+        screen_size: Vector2<f32>,
         dt: f32,
     ) {
+        // These fields can be overwritten by commands, so we must keep them in sync with the actual
+        // values.
+        self.editor_objects_root = editor_objects_root;
+        self.scene_content_root = scene_content_root;
+        // Keep screen size in-sync.
+        self.screen_size = screen_size;
+
         let camera = graph[self.camera].as_camera_mut();
 
         match camera.projection_value() {
@@ -569,16 +582,9 @@ impl CameraController {
         }
     }
 
-    pub fn pick<F>(&mut self, options: PickingOptions<'_, F>) -> Option<CameraPickResult>
-    where
-        F: FnMut(Handle<Node>, &Node) -> bool,
-    {
+    pub fn pick(&mut self, graph: &Graph, options: PickingOptions) -> Option<CameraPickResult> {
         let PickingOptions {
             cursor_pos,
-            graph,
-            editor_objects_root,
-            scene_content_root,
-            screen_size,
             editor_only,
             mut filter,
             ignore_back_faces,
@@ -587,28 +593,32 @@ impl CameraController {
         } = options;
 
         if let Some(camera) = graph[self.camera].cast::<Camera>() {
-            let ray = camera.make_ray(cursor_pos, screen_size);
+            let ray = camera.make_ray(cursor_pos, self.screen_size);
 
             self.stack.clear();
             let context = if editor_only {
                 // In case if we want to pick stuff from editor scene only, we have to
                 // start traversing graph from editor root.
-                self.stack.push(editor_objects_root);
+                self.stack.push(self.editor_objects_root);
                 &mut self.editor_context
             } else {
-                self.stack.push(scene_content_root);
+                self.stack.push(self.scene_content_root);
                 &mut self.scene_context
             };
 
             context.pick_list.clear();
 
             while let Some(handle) = self.stack.pop() {
-                if handle == self.grid {
+                if handle == self.grid
+                    || handle == self.camera
+                    || handle == self.camera_hinge
+                    || handle == self.pivot
+                {
                     continue;
                 }
 
                 // Ignore editor nodes if we picking scene stuff only.
-                if !editor_only && handle == editor_objects_root {
+                if !editor_only && handle == self.editor_objects_root {
                     continue;
                 }
 
@@ -616,11 +626,13 @@ impl CameraController {
 
                 self.stack.extend_from_slice(node.children());
 
-                if !node.global_visibility() || !filter(handle, node) {
+                if !node.global_visibility()
+                    || !filter.as_mut().map_or(true, |func| func(handle, node))
+                {
                     continue;
                 }
 
-                if handle != scene_content_root {
+                if handle != self.scene_content_root {
                     let aabb = if node.is_resource_instance_root() {
                         let mut aabb = graph.aabb_of_descendants(handle, |_, _| true).unwrap();
                         // Inflate the bounding box by a tiny amount to ensure that it will be

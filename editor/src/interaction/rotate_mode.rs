@@ -58,7 +58,7 @@ impl InteractionMode for RotateInteractionMode {
         controller: &mut dyn SceneController,
         engine: &mut Engine,
         mouse_pos: Vector2<f32>,
-        frame_size: Vector2<f32>,
+        _frame_size: Vector2<f32>,
         _settings: &Settings,
     ) {
         let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
@@ -68,22 +68,17 @@ impl InteractionMode for RotateInteractionMode {
         let graph = &mut engine.scenes[game_scene.scene].graph;
 
         // Pick gizmo nodes.
-        let camera = game_scene.camera_controller.camera;
-        let camera_pivot = game_scene.camera_controller.pivot;
-        if let Some(result) = game_scene.camera_controller.pick(PickingOptions {
-            cursor_pos: mouse_pos,
+        if let Some(result) = game_scene.camera_controller.pick(
             graph,
-            editor_objects_root: game_scene.editor_objects_root,
-            scene_content_root: game_scene.scene_content_root,
-            screen_size: frame_size,
-            editor_only: true,
-            filter: |handle, _| {
-                handle != camera && handle != camera_pivot && handle != self.rotation_gizmo.origin
+            PickingOptions {
+                cursor_pos: mouse_pos,
+                editor_only: true,
+                filter: Some(&mut |handle, _| handle != self.rotation_gizmo.origin),
+                ignore_back_faces: false,
+                use_picking_loop: true,
+                only_meshes: false,
             },
-            ignore_back_faces: false,
-            use_picking_loop: true,
-            only_meshes: false,
-        }) {
+        ) {
             if self.rotation_gizmo.handle_pick(result.node, graph) {
                 let graph = &mut engine.scenes[game_scene.scene].graph;
                 if let Some(selection) = editor_selection.as_graph() {
@@ -100,7 +95,7 @@ impl InteractionMode for RotateInteractionMode {
         controller: &mut dyn SceneController,
         engine: &mut Engine,
         mouse_pos: Vector2<f32>,
-        frame_size: Vector2<f32>,
+        _frame_size: Vector2<f32>,
         settings: &Settings,
     ) {
         let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
@@ -139,18 +134,17 @@ impl InteractionMode for RotateInteractionMode {
         } else {
             let new_selection = game_scene
                 .camera_controller
-                .pick(PickingOptions {
-                    cursor_pos: mouse_pos,
+                .pick(
                     graph,
-                    editor_objects_root: game_scene.editor_objects_root,
-                    scene_content_root: game_scene.scene_content_root,
-                    screen_size: frame_size,
-                    editor_only: false,
-                    filter: |_, _| true,
-                    ignore_back_faces: settings.selection.ignore_back_faces,
-                    use_picking_loop: true,
-                    only_meshes: false,
-                })
+                    PickingOptions {
+                        cursor_pos: mouse_pos,
+                        editor_only: false,
+                        filter: None,
+                        ignore_back_faces: settings.selection.ignore_back_faces,
+                        use_picking_loop: true,
+                        only_meshes: false,
+                    },
+                )
                 .map(|result| {
                     if let (Some(selection), true) = (
                         editor_selection.as_graph(),
@@ -225,18 +219,17 @@ impl InteractionMode for RotateInteractionMode {
             } else {
                 let picked = game_scene
                     .camera_controller
-                    .pick(PickingOptions {
-                        cursor_pos: mouse_position,
+                    .pick(
                         graph,
-                        editor_objects_root: game_scene.editor_objects_root,
-                        scene_content_root: game_scene.scene_content_root,
-                        screen_size: frame_size,
-                        editor_only: true,
-                        filter: |_, _| true,
-                        ignore_back_faces: false,
-                        use_picking_loop: false,
-                        only_meshes: false,
-                    })
+                        PickingOptions {
+                            cursor_pos: mouse_position,
+                            editor_only: true,
+                            filter: None,
+                            ignore_back_faces: false,
+                            use_picking_loop: false,
+                            only_meshes: false,
+                        },
+                    )
                     .map(|r| r.node)
                     .unwrap_or_default();
                 if picked.is_none() {
