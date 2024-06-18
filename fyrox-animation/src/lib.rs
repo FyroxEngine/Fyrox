@@ -782,6 +782,7 @@ impl<T: EntityId> Default for Animation<T> {
             events: Default::default(),
             time_slice: Default::default(),
             root_motion: None,
+            max_event_capacity: 32,
         }
     }
 }
