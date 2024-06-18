@@ -265,6 +265,63 @@ impl ShapeGizmo {
         }
     }
 
+    fn handle_major_axis(&self, handle: Handle<Node>) -> Option<Vector3<f32>> {
+        match self {
+            ShapeGizmo::NonEditable => (),
+            ShapeGizmo::Cuboid {
+                pos_x_handle,
+                pos_y_handle,
+                pos_z_handle,
+                neg_x_handle,
+                neg_y_handle,
+                neg_z_handle,
+            } => {
+                if handle == *pos_x_handle {
+                    return Some(Vector3::x());
+                } else if handle == *pos_y_handle {
+                    return Some(Vector3::y());
+                } else if handle == *pos_z_handle {
+                    return Some(Vector3::z());
+                } else if handle == *neg_x_handle {
+                    return Some(-Vector3::x());
+                } else if handle == *neg_y_handle {
+                    return Some(-Vector3::y());
+                } else if handle == *neg_z_handle {
+                    return Some(-Vector3::z());
+                }
+            }
+            ShapeGizmo::Ball { radius_handle } => {
+                if handle == *radius_handle {
+                    return Some(Vector3::x());
+                }
+            }
+            ShapeGizmo::Capsule { radius_handle, .. } => {
+                if handle == *radius_handle {
+                    return Some(Vector3::x());
+                }
+            }
+            ShapeGizmo::Cylinder {
+                radius_handle,
+                half_height_handle,
+            }
+            | ShapeGizmo::Cone {
+                radius_handle,
+                half_height_handle,
+            } => {
+                if handle == *radius_handle {
+                    return Some(Vector3::x());
+                } else if handle == *half_height_handle {
+                    return Some(Vector3::y());
+                }
+            }
+            ShapeGizmo::Segment { .. } | ShapeGizmo::Triangle { .. } => {
+                // No sensible axis, because the value is a vector.
+            }
+        }
+
+        None
+    }
+
     fn try_sync_to_shape(
         &self,
         shape: ColliderShape,
@@ -422,11 +479,11 @@ impl ShapeGizmo {
                 } else if handle == *pos_z_handle {
                     return Some(ShapeHandleValue::Scalar(cuboid.half_extents.z));
                 } else if handle == *neg_x_handle {
-                    return Some(ShapeHandleValue::Scalar(-cuboid.half_extents.x));
+                    return Some(ShapeHandleValue::Scalar(cuboid.half_extents.x));
                 } else if handle == *neg_y_handle {
-                    return Some(ShapeHandleValue::Scalar(-cuboid.half_extents.y));
+                    return Some(ShapeHandleValue::Scalar(cuboid.half_extents.y));
                 } else if handle == *neg_z_handle {
-                    return Some(ShapeHandleValue::Scalar(-cuboid.half_extents.z));
+                    return Some(ShapeHandleValue::Scalar(cuboid.half_extents.z));
                 }
             }
             (
@@ -485,11 +542,12 @@ impl ShapeGizmo {
         handle: Handle<Node>,
         value: ShapeHandleValue,
         collider: &mut Collider,
+        initial_collider_local_position: Vector3<f32>,
     ) -> Option<ShapeHandleValue> {
         match (self, collider.shape_mut()) {
             (Self::Ball { radius_handle }, ColliderShape::Ball(ball_shape)) => {
                 if handle == *radius_handle {
-                    ball_shape.radius = value.into_scalar();
+                    ball_shape.radius = value.into_scalar().max(0.0);
                 }
             }
             (
@@ -500,9 +558,9 @@ impl ShapeGizmo {
                 ColliderShape::Cylinder(cylinder),
             ) => {
                 if handle == *radius_handle {
-                    cylinder.radius = value.into_scalar();
+                    cylinder.radius = value.into_scalar().max(0.0);
                 } else if handle == *half_height_handle {
-                    cylinder.half_height = value.into_scalar();
+                    cylinder.half_height = value.into_scalar().max(0.0);
                 }
             }
             (
@@ -513,9 +571,9 @@ impl ShapeGizmo {
                 ColliderShape::Cone(cone),
             ) => {
                 if handle == *radius_handle {
-                    cone.radius = value.into_scalar();
+                    cone.radius = value.into_scalar().max(0.0);
                 } else if handle == *half_height_handle {
-                    cone.half_height = value.into_scalar();
+                    cone.half_height = value.into_scalar().max(0.0);
                 }
             }
             (
@@ -530,34 +588,34 @@ impl ShapeGizmo {
                 ColliderShape::Cuboid(cuboid),
             ) => {
                 if handle == *pos_x_handle {
-                    cuboid.half_extents.x = value.into_scalar();
+                    cuboid.half_extents.x = value.into_scalar().max(0.0);
                 } else if handle == *pos_y_handle {
-                    cuboid.half_extents.y = value.into_scalar();
+                    cuboid.half_extents.y = value.into_scalar().max(0.0);
                 } else if handle == *pos_z_handle {
-                    cuboid.half_extents.z = value.into_scalar();
+                    cuboid.half_extents.z = value.into_scalar().max(0.0);
                 } else if handle == *neg_x_handle {
+                    cuboid.half_extents.x = value.into_scalar().max(0.0);
                     let transform = collider.local_transform_mut();
-                    let position = **transform.position();
                     transform.set_position(Vector3::new(
-                        position.x - value.into_scalar(),
-                        position.y,
-                        position.z,
+                        initial_collider_local_position.x - value.into_scalar() / 2.0,
+                        initial_collider_local_position.y,
+                        initial_collider_local_position.z,
                     ));
                 } else if handle == *neg_y_handle {
+                    cuboid.half_extents.y = value.into_scalar().max(0.0);
                     let transform = collider.local_transform_mut();
-                    let position = **transform.position();
                     transform.set_position(Vector3::new(
-                        position.x,
-                        position.y - value.into_scalar(),
-                        position.z,
+                        initial_collider_local_position.x,
+                        initial_collider_local_position.y - value.into_scalar() / 2.0,
+                        initial_collider_local_position.z,
                     ));
                 } else if handle == *neg_z_handle {
+                    cuboid.half_extents.z = value.into_scalar().max(0.0);
                     let transform = collider.local_transform_mut();
-                    let position = **transform.position();
                     transform.set_position(Vector3::new(
-                        position.x,
-                        position.y,
-                        position.z - value.into_scalar(),
+                        initial_collider_local_position.x,
+                        initial_collider_local_position.y,
+                        initial_collider_local_position.z - value.into_scalar() / 2.0,
                     ));
                 }
             }
@@ -570,7 +628,7 @@ impl ShapeGizmo {
                 ColliderShape::Capsule(capsule),
             ) => {
                 if handle == *radius_handle {
-                    capsule.radius = value.into_scalar();
+                    capsule.radius = value.into_scalar().max(0.0);
                 } else if handle == *begin_handle {
                     capsule.begin = value.into_vector();
                 } else if handle == *end_handle {
@@ -639,6 +697,7 @@ impl ShapeGizmo {
     }
 }
 
+#[derive(Copy, Clone)]
 enum ShapeHandleValue {
     Scalar(f32),
     Vector(Vector3<f32>),
@@ -664,9 +723,11 @@ impl ShapeHandleValue {
 
 struct DragContext {
     handle: Handle<Node>,
-    initial_position: Vector3<f32>,
+    initial_handle_position: Vector3<f32>,
     plane: Plane,
     initial_value: ShapeHandleValue,
+    initial_collider_local_position: Vector3<f32>,
+    handle_major_axis: Option<Vector3<f32>>,
 }
 
 #[derive(TypeUuidProvider)]
@@ -730,10 +791,14 @@ impl InteractionMode for ColliderShapeInteractionMode {
 
                 self.drag_context = Some(DragContext {
                     handle: result.node,
-                    initial_position,
+                    initial_handle_position: initial_position,
                     plane: Plane::from_normal_and_point(&-camera_view_dir, &initial_position)
                         .unwrap_or_default(),
+                    handle_major_axis: self.gizmo.handle_major_axis(result.node),
                     initial_value: handle_value,
+                    initial_collider_local_position: **scene.graph[self.collider]
+                        .local_transform()
+                        .position(),
                 })
             }
         }
@@ -788,13 +853,26 @@ impl InteractionMode for ColliderShapeInteractionMode {
             let camera = scene.graph[game_scene.camera_controller.camera].as_camera();
             let ray = camera.make_ray(mouse_position, frame_size);
             if let Some(intersection) = ray.plane_intersection_point(&drag_context.plane) {
-                let delta = drag_context.initial_position.metric_distance(&intersection);
+                let inv_transform = scene.graph[self.collider]
+                    .global_transform()
+                    .try_inverse()
+                    .unwrap_or_default();
+                let local_space_drag_dir = inv_transform
+                    .transform_vector(&(intersection - drag_context.initial_handle_position));
+                let sign = local_space_drag_dir
+                    .dot(&drag_context.handle_major_axis.unwrap_or_default())
+                    .signum();
+                let delta = sign
+                    * drag_context
+                        .initial_handle_position
+                        .metric_distance(&intersection);
 
-                if let ShapeHandleValue::Scalar(inital_value) = drag_context.initial_value {
+                if let ShapeHandleValue::Scalar(initial_value) = drag_context.initial_value {
                     self.gizmo.set_value_by_handle(
                         drag_context.handle,
-                        ShapeHandleValue::Scalar(inital_value + delta),
+                        ShapeHandleValue::Scalar(initial_value + delta),
                         scene.graph[self.collider].as_collider_mut(),
+                        drag_context.initial_collider_local_position,
                     );
                 }
             }
