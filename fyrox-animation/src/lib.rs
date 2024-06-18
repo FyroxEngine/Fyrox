@@ -394,13 +394,12 @@ impl<T: EntityId> Animation<T> {
                 && (current_time_position < signal.time && new_time_position >= signal.time)
                 || self.speed < 0.0
                     && (current_time_position > signal.time && new_time_position <= signal.time)
+                    && self.events.len() < self.max_event_capacity
             {
-                if self.events.len() < self.max_event_capacity {
-                    self.events.push_back(AnimationEvent {
-                        signal_id: signal.id,
-                        name: signal.name.clone(),
-                    });
-                }
+                self.events.push_back(AnimationEvent {
+                    signal_id: signal.id,
+                    name: signal.name.clone(),
+                });
             }
         }
 
