@@ -168,6 +168,7 @@ where
     #[reflect(hidden)]
     #[visit(skip)]
     events: VecDeque<Event>,
+    max_event_capacity: usize,
 }
 
 impl<T: SpriteSheetTexture> PartialEq for SpriteSheetAnimation<T> {
@@ -204,6 +205,7 @@ where
             signals: Default::default(),
             texture: None,
             events: Default::default(),
+            max_event_capacity: 32,
         }
     }
 }
@@ -370,6 +372,16 @@ where
         self.texture.clone()
     }
 
+    /// Gets the maximum capacity of events.
+    pub fn get_max_event_capacity(&self) -> usize {
+        self.max_event_capacity
+    }
+
+    /// Sets the maximum capacity of events.
+    pub fn set_max_event_capacity(&mut self, max_event_capacity: usize) {
+        self.max_event_capacity = max_event_capacity;
+    }
+
     /// Returns a shared reference to inner frames container.
     pub fn frames(&self) -> &SpriteSheetFramesContainer<T> {
         &self.frames_container
@@ -415,7 +427,7 @@ where
                 && (self.current_frame < signal_frame && next_frame >= signal_frame)
                 || self.speed < 0.0
                     && (self.current_frame > signal_frame && next_frame <= signal_frame))
-                && self.events.len() < 32
+                && self.events.len() < self.max_event_capacity
             {
                 self.events.push_back(Event::Signal(signal.id));
             }

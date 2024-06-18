@@ -53,12 +53,12 @@ pub mod value;
 ///                                             v
 ///   Time   > |---------------|------------------------------------>
 ///            |               |
-///   Track1 > | node.position |                                     
+///   Track1 > | node.position |
 ///            |   X curve     |..1..........5...........10..........
 ///            |   Y curve     |..2.........-2..................1....  < Curve key frames
 ///            |   Z curve     |..1..........9......................4
-///            |_______________|  
-///   Track2   | node.property |                                  
+///            |_______________|
+///   Track2   | node.property |
 ///            | ............  |.....................................
 ///            | ............  |.....................................
 ///            | ............  |.....................................
@@ -191,6 +191,7 @@ pub struct Animation<T: EntityId> {
     #[reflect(hidden)]
     #[visit(skip)]
     events: VecDeque<AnimationEvent>,
+    max_event_capacity: usize,
 }
 
 impl<T: EntityId> TypeUuidProvider for Animation<T> {
@@ -269,11 +270,22 @@ impl<T: EntityId> Clone for Animation<T> {
             events: Default::default(),
             time_slice: self.time_slice.clone(),
             root_motion: self.root_motion.clone(),
+            max_event_capacity: 32,
         }
     }
 }
 
 impl<T: EntityId> Animation<T> {
+    /// Gets the maximum capacity of events.
+    pub fn get_max_event_capacity(&self) -> usize {
+        self.max_event_capacity
+    }
+
+    /// Sets the maximum capacity of events.
+    pub fn set_max_event_capacity(&mut self, max_event_capacity: usize) {
+        self.max_event_capacity = max_event_capacity;
+    }
+
     /// Sets a new name for the animation. The name then could be used to find the animation in a container.
     pub fn set_name<S: AsRef<str>>(&mut self, name: S) {
         self.name = ImmutableString::new(name);
@@ -308,7 +320,7 @@ impl<T: EntityId> Animation<T> {
     /// Calculates new length of the animation based on the content of its tracks. It looks for the most "right"
     /// curve key in all curves of all tracks and treats it as length of the animation. The method could be used
     /// in case if you formed animation from code using just curves and don't know the actual length of the
-    /// animation.  
+    /// animation.
     pub fn fit_length_to_content(&mut self) {
         self.time_slice.start = 0.0;
         for track in self.tracks.iter_mut() {
@@ -382,14 +394,12 @@ impl<T: EntityId> Animation<T> {
                 && (current_time_position < signal.time && new_time_position >= signal.time)
                 || self.speed < 0.0
                     && (current_time_position > signal.time && new_time_position <= signal.time)
+                    && self.events.len() < self.max_event_capacity
             {
-                // TODO: Make this configurable.
-                if self.events.len() < 32 {
-                    self.events.push_back(AnimationEvent {
-                        signal_id: signal.id,
-                        name: signal.name.clone(),
-                    });
-                }
+                self.events.push_back(AnimationEvent {
+                    signal_id: signal.id,
+                    name: signal.name.clone(),
+                });
             }
         }
 
@@ -771,6 +781,7 @@ impl<T: EntityId> Default for Animation<T> {
             events: Default::default(),
             time_slice: Default::default(),
             root_motion: None,
+            max_event_capacity: 32,
         }
     }
 }
