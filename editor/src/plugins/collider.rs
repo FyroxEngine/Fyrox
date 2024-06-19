@@ -2,6 +2,7 @@
 
 use crate::{
     camera::PickingOptions,
+    command::SetPropertyCommand,
     fyrox::{
         asset::untyped::ResourceKind,
         core::{
@@ -9,6 +10,7 @@ use crate::{
             color::Color,
             math::plane::Plane,
             pool::Handle,
+            reflect::Reflect,
             type_traits::prelude::*,
             Uuid,
         },
@@ -26,8 +28,9 @@ use crate::{
         InteractionMode,
     },
     load_texture,
+    message::MessageSender,
     plugin::EditorPlugin,
-    scene::{controller::SceneController, GameScene, Selection},
+    scene::{commands::GameSceneContext, controller::SceneController, GameScene, Selection},
     settings::Settings,
     Editor, Message,
 };
@@ -756,6 +759,7 @@ struct DragContext {
     initial_collider_local_position: Vector3<f32>,
     handle_major_axis: Option<Vector3<f32>>,
     plane_kind: Option<PlaneKind>,
+    initial_shape: ColliderShape,
 }
 
 #[derive(TypeUuidProvider)]
@@ -766,6 +770,7 @@ pub struct ColliderShapeInteractionMode {
     move_gizmo: MoveGizmo,
     drag_context: Option<DragContext>,
     selected_handle: Handle<Node>,
+    message_sender: MessageSender,
 }
 
 impl ColliderShapeInteractionMode {
@@ -818,6 +823,7 @@ impl InteractionMode for ColliderShapeInteractionMode {
                 .unwrap_or_default();
             let collider = scene.graph[self.collider].as_collider();
             let initial_collider_local_position = **collider.local_transform().position();
+            let initial_shape = collider.shape().clone();
 
             if let Some(handle_value) = self.shape_gizmo.value_by_handle(result.node, collider) {
                 self.selected_handle = result.node;
@@ -830,6 +836,7 @@ impl InteractionMode for ColliderShapeInteractionMode {
                     initial_value: handle_value,
                     initial_collider_local_position,
                     plane_kind: None,
+                    initial_shape,
                 })
             } else if let Some(plane_kind) =
                 self.move_gizmo.handle_pick(result.node, &mut scene.graph)
@@ -847,6 +854,7 @@ impl InteractionMode for ColliderShapeInteractionMode {
                         initial_value: handle_value,
                         initial_collider_local_position,
                         plane_kind: Some(plane_kind),
+                        initial_shape,
                     })
                 }
             }
@@ -856,14 +864,37 @@ impl InteractionMode for ColliderShapeInteractionMode {
     fn on_left_mouse_button_up(
         &mut self,
         _editor_selection: &Selection,
-        _controller: &mut dyn SceneController,
-        _engine: &mut Engine,
+        controller: &mut dyn SceneController,
+        engine: &mut Engine,
         _mouse_pos: Vector2<f32>,
         _frame_size: Vector2<f32>,
         _settings: &Settings,
     ) {
-        if let Some(_drag_context) = self.drag_context.take() {
-            // TODO: Commit changes using commands.
+        let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
+            return;
+        };
+
+        let scene = &mut engine.scenes[game_scene.scene];
+
+        if let Some(drag_context) = self.drag_context.take() {
+            let collider = self.collider;
+
+            let value = std::mem::replace(
+                scene.graph[collider].as_collider_mut().shape_mut(),
+                drag_context.initial_shape,
+            );
+
+            let command = SetPropertyCommand::new(
+                "shape".into(),
+                Box::new(value) as Box<dyn Reflect>,
+                move |ctx| {
+                    ctx.get_mut::<GameSceneContext>()
+                        .scene
+                        .graph
+                        .node_mut(collider)
+                },
+            );
+            self.message_sender.do_command(command);
         }
     }
 
@@ -1110,6 +1141,7 @@ impl EditorPlugin for ColliderShapePlugin {
                         move_gizmo,
                         drag_context: None,
                         selected_handle: Default::default(),
+                        message_sender: editor.message_sender.clone(),
                     });
 
                     break;
