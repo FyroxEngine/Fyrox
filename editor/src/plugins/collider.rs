@@ -21,7 +21,10 @@ use crate::{
             sprite::SpriteBuilder, transform::TransformBuilder, Scene,
         },
     },
-    interaction::{make_interaction_mode_button, InteractionMode},
+    interaction::{
+        gizmo::move_gizmo::MoveGizmo, make_interaction_mode_button, plane::PlaneKind,
+        InteractionMode,
+    },
     load_texture,
     plugin::EditorPlugin,
     scene::{controller::SceneController, GameScene, Selection},
@@ -670,6 +673,30 @@ impl ShapeGizmo {
         None
     }
 
+    fn is_vector_handle(&self, handle: Handle<Node>) -> bool {
+        match self {
+            ShapeGizmo::NonEditable
+            | ShapeGizmo::Cuboid { .. }
+            | ShapeGizmo::Ball { .. }
+            | ShapeGizmo::Cylinder { .. }
+            | ShapeGizmo::Cone { .. } => false,
+            ShapeGizmo::Capsule {
+                begin_handle,
+                end_handle,
+                ..
+            } => handle == *begin_handle || handle == *end_handle,
+            ShapeGizmo::Segment {
+                begin_handle,
+                end_handle,
+            } => handle == *begin_handle || handle == *end_handle,
+            ShapeGizmo::Triangle {
+                a_handle,
+                b_handle,
+                c_handle,
+            } => handle == *a_handle || handle == *b_handle || handle == *c_handle,
+        }
+    }
+
     fn reset_handles(&self, scene: &mut Scene) {
         self.for_each_handle(|handle| {
             scene.graph[handle].as_sprite_mut().set_color(Color::MAROON);
@@ -728,14 +755,17 @@ struct DragContext {
     initial_value: ShapeHandleValue,
     initial_collider_local_position: Vector3<f32>,
     handle_major_axis: Option<Vector3<f32>>,
+    plane_kind: Option<PlaneKind>,
 }
 
 #[derive(TypeUuidProvider)]
 #[type_uuid(id = "a012dd4c-ce6d-4e7e-8879-fd8eddaa9677")]
 pub struct ColliderShapeInteractionMode {
     collider: Handle<Node>,
-    gizmo: ShapeGizmo,
+    shape_gizmo: ShapeGizmo,
+    move_gizmo: MoveGizmo,
     drag_context: Option<DragContext>,
+    selected_handle: Handle<Node>,
 }
 
 impl ColliderShapeInteractionMode {
@@ -751,7 +781,7 @@ impl ColliderShapeInteractionMode {
 
         let scene = &mut engine.scenes[game_scene.scene];
 
-        self.gizmo.set_visibility(scene, visibility);
+        self.shape_gizmo.set_visibility(scene, visibility);
     }
 }
 
@@ -779,27 +809,46 @@ impl InteractionMode for ColliderShapeInteractionMode {
                 ..Default::default()
             },
         ) {
-            if let Some(handle_value) = self
-                .gizmo
-                .value_by_handle(result.node, scene.graph[self.collider].as_collider())
-            {
-                let initial_position = scene.graph[result.node].global_position();
-                let camera_view_dir = scene.graph[game_scene.camera_controller.camera]
-                    .look_vector()
-                    .try_normalize(f32::EPSILON)
-                    .unwrap_or_default();
+            let initial_position = scene.graph[result.node].global_position();
+            let camera_view_dir = scene.graph[game_scene.camera_controller.camera]
+                .look_vector()
+                .try_normalize(f32::EPSILON)
+                .unwrap_or_default();
+            let plane = Plane::from_normal_and_point(&-camera_view_dir, &initial_position)
+                .unwrap_or_default();
+            let collider = scene.graph[self.collider].as_collider();
+            let initial_collider_local_position = **collider.local_transform().position();
+
+            if let Some(handle_value) = self.shape_gizmo.value_by_handle(result.node, collider) {
+                self.selected_handle = result.node;
 
                 self.drag_context = Some(DragContext {
                     handle: result.node,
                     initial_handle_position: initial_position,
-                    plane: Plane::from_normal_and_point(&-camera_view_dir, &initial_position)
-                        .unwrap_or_default(),
-                    handle_major_axis: self.gizmo.handle_major_axis(result.node),
+                    plane,
+                    handle_major_axis: self.shape_gizmo.handle_major_axis(result.node),
                     initial_value: handle_value,
-                    initial_collider_local_position: **scene.graph[self.collider]
-                        .local_transform()
-                        .position(),
+                    initial_collider_local_position,
+                    plane_kind: None,
                 })
+            } else if let Some(plane_kind) =
+                self.move_gizmo.handle_pick(result.node, &mut scene.graph)
+            {
+                let collider = scene.graph[self.collider].as_collider();
+                if let Some(handle_value) = self
+                    .shape_gizmo
+                    .value_by_handle(self.selected_handle, collider)
+                {
+                    self.drag_context = Some(DragContext {
+                        handle: self.selected_handle,
+                        initial_handle_position: initial_position,
+                        plane,
+                        handle_major_axis: None,
+                        initial_value: handle_value,
+                        initial_collider_local_position,
+                        plane_kind: Some(plane_kind),
+                    })
+                }
             }
         }
     }
@@ -813,12 +862,14 @@ impl InteractionMode for ColliderShapeInteractionMode {
         _frame_size: Vector2<f32>,
         _settings: &Settings,
     ) {
-        if let Some(_drag_context) = self.drag_context.take() {}
+        if let Some(_drag_context) = self.drag_context.take() {
+            // TODO: Commit changes using commands.
+        }
     }
 
     fn on_mouse_move(
         &mut self,
-        _mouse_offset: Vector2<f32>,
+        mouse_offset: Vector2<f32>,
         mouse_position: Vector2<f32>,
         _editor_selection: &Selection,
         controller: &mut dyn SceneController,
@@ -832,7 +883,8 @@ impl InteractionMode for ColliderShapeInteractionMode {
 
         let scene = &mut engine.scenes[game_scene.scene];
 
-        self.gizmo.reset_handles(scene);
+        self.shape_gizmo.reset_handles(scene);
+        self.move_gizmo.reset_state(&mut scene.graph);
 
         if let Some(result) = game_scene.camera_controller.pick(
             &scene.graph,
@@ -842,38 +894,71 @@ impl InteractionMode for ColliderShapeInteractionMode {
                 ..Default::default()
             },
         ) {
-            if self.gizmo.has_handle(result.node) {
+            if self.shape_gizmo.has_handle(result.node) {
                 scene.graph[result.node]
                     .as_sprite_mut()
                     .set_color(Color::RED);
             }
+
+            self.move_gizmo.handle_pick(result.node, &mut scene.graph);
         }
 
         if let Some(drag_context) = self.drag_context.as_ref() {
-            let camera = scene.graph[game_scene.camera_controller.camera].as_camera();
-            let ray = camera.make_ray(mouse_position, frame_size);
-            if let Some(intersection) = ray.plane_intersection_point(&drag_context.plane) {
-                let inv_transform = scene.graph[self.collider]
-                    .global_transform()
-                    .try_inverse()
-                    .unwrap_or_default();
-                let local_space_drag_dir = inv_transform
-                    .transform_vector(&(intersection - drag_context.initial_handle_position));
-                let sign = local_space_drag_dir
-                    .dot(&drag_context.handle_major_axis.unwrap_or_default())
-                    .signum();
-                let delta = sign
-                    * drag_context
-                        .initial_handle_position
-                        .metric_distance(&intersection);
+            match drag_context.initial_value {
+                ShapeHandleValue::Scalar(initial_value) => {
+                    let camera = scene.graph[game_scene.camera_controller.camera].as_camera();
+                    let ray = camera.make_ray(mouse_position, frame_size);
+                    if let Some(intersection) = ray.plane_intersection_point(&drag_context.plane) {
+                        let inv_transform = scene.graph[self.collider]
+                            .global_transform()
+                            .try_inverse()
+                            .unwrap_or_default();
+                        let local_space_drag_dir = inv_transform.transform_vector(
+                            &(intersection - drag_context.initial_handle_position),
+                        );
+                        let sign = local_space_drag_dir
+                            .dot(&drag_context.handle_major_axis.unwrap_or_default())
+                            .signum();
+                        let delta = sign
+                            * drag_context
+                                .initial_handle_position
+                                .metric_distance(&intersection);
 
-                if let ShapeHandleValue::Scalar(initial_value) = drag_context.initial_value {
-                    self.gizmo.set_value_by_handle(
-                        drag_context.handle,
-                        ShapeHandleValue::Scalar(initial_value + delta),
-                        scene.graph[self.collider].as_collider_mut(),
-                        drag_context.initial_collider_local_position,
-                    );
+                        self.shape_gizmo.set_value_by_handle(
+                            drag_context.handle,
+                            ShapeHandleValue::Scalar(initial_value + delta),
+                            scene.graph[self.collider].as_collider_mut(),
+                            drag_context.initial_collider_local_position,
+                        );
+                    }
+                }
+                ShapeHandleValue::Vector(_) => {
+                    if let Some(plane_kind) = drag_context.plane_kind {
+                        let value = self
+                            .shape_gizmo
+                            .value_by_handle(
+                                drag_context.handle,
+                                scene.graph[self.collider].as_collider(),
+                            )
+                            .unwrap()
+                            .into_vector();
+
+                        let offset = self.move_gizmo.calculate_offset(
+                            &scene.graph,
+                            game_scene.camera_controller.camera,
+                            mouse_offset,
+                            mouse_position,
+                            frame_size,
+                            plane_kind,
+                        );
+
+                        self.shape_gizmo.set_value_by_handle(
+                            drag_context.handle,
+                            ShapeHandleValue::Vector(value + offset),
+                            scene.graph[self.collider].as_collider_mut(),
+                            drag_context.initial_collider_local_position,
+                        );
+                    }
                 }
             }
         }
@@ -912,7 +997,7 @@ impl InteractionMode for ColliderShapeInteractionMode {
 
         let shape = collider.shape().clone();
         if !self
-            .gizmo
+            .shape_gizmo
             .try_sync_to_shape(shape.clone(), center, side, up, look, scene)
         {
             let new_gizmo = ShapeGizmo::create(
@@ -926,9 +1011,18 @@ impl InteractionMode for ColliderShapeInteractionMode {
                 true,
             );
 
-            let old_gizmo = std::mem::replace(&mut self.gizmo, new_gizmo);
+            let old_gizmo = std::mem::replace(&mut self.shape_gizmo, new_gizmo);
 
             old_gizmo.destroy(scene);
+        }
+
+        self.move_gizmo.set_visible(
+            &mut scene.graph,
+            self.shape_gizmo.is_vector_handle(self.selected_handle),
+        );
+        if let Some(selected_handle) = scene.graph.try_get(self.selected_handle) {
+            let position = selected_handle.global_position();
+            self.move_gizmo.set_position(scene, position)
         }
     }
 
@@ -978,7 +1072,7 @@ impl EditorPlugin for ColliderShapePlugin {
                 .interaction_modes
                 .remove_typed::<ColliderShapeInteractionMode>()
             {
-                mode.gizmo.destroy(scene);
+                mode.shape_gizmo.destroy(scene);
             }
 
             for node_handle in selection.nodes().iter() {
@@ -997,7 +1091,7 @@ impl EditorPlugin for ColliderShapePlugin {
                         .try_normalize(f32::EPSILON)
                         .unwrap_or_default();
 
-                    let gizmo = ShapeGizmo::create(
+                    let shape_gizmo = ShapeGizmo::create(
                         collider.shape().clone(),
                         center,
                         side,
@@ -1008,10 +1102,14 @@ impl EditorPlugin for ColliderShapePlugin {
                         false,
                     );
 
+                    let move_gizmo = MoveGizmo::new(game_scene, &mut editor.engine);
+
                     entry.interaction_modes.add(ColliderShapeInteractionMode {
                         collider: *node_handle,
-                        gizmo,
+                        shape_gizmo,
+                        move_gizmo,
                         drag_context: None,
+                        selected_handle: Default::default(),
                     });
 
                     break;
