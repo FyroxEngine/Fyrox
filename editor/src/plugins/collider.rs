@@ -17,7 +17,10 @@ use crate::{
         engine::Engine,
         graph::{BaseSceneGraph, SceneGraph},
         gui::{BuildContext, UiNode},
-        material::{Material, MaterialResource},
+        material::{
+            shader::{ShaderResource, ShaderResourceExtension},
+            Material, MaterialResource,
+        },
         scene::{
             base::BaseBuilder, collider::Collider, collider::ColliderShape, node::Node,
             sprite::SpriteBuilder, transform::TransformBuilder, Scene,
@@ -72,13 +75,23 @@ enum ShapeGizmo {
     },
 }
 
+lazy_static! {
+    static ref GIZMO_SHADER: ShaderResource = {
+        ShaderResource::from_str(
+            include_str!("../../resources/shaders/sprite_gizmo.shader",),
+            Default::default(),
+        )
+        .unwrap()
+    };
+}
+
 fn make_handle(
     scene: &mut Scene,
     position: Vector3<f32>,
     root: Handle<Node>,
     visible: bool,
 ) -> Handle<Node> {
-    let mut material = Material::standard_sprite();
+    let mut material = Material::from_shader(GIZMO_SHADER.clone(), None);
 
     material
         .set_texture(
