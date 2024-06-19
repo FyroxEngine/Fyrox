@@ -1,13 +1,18 @@
 //! Collider shape editing plugin.
 
 mod ball;
+mod ball2d;
 mod capsule;
+mod capsule2d;
 mod cone;
 mod cuboid;
+mod cuboid2d;
 mod cylinder;
 mod dummy;
 mod segment;
+mod segment2d;
 mod triangle;
+mod triangle2d;
 
 use crate::{
     camera::PickingOptions,
@@ -24,14 +29,14 @@ use crate::{
             Uuid,
         },
         engine::Engine,
-        graph::{BaseSceneGraph, SceneGraph},
+        graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
         gui::{BuildContext, UiNode},
         material::{
             shader::{ShaderResource, ShaderResourceExtension},
             Material, MaterialResource,
         },
         scene::{
-            base::BaseBuilder, collider::Collider, collider::ColliderShape, node::Node,
+            base::BaseBuilder, collider::Collider, collider::ColliderShape, dim2, node::Node,
             sprite::SpriteBuilder, transform::TransformBuilder, Scene,
         },
     },
@@ -43,9 +48,11 @@ use crate::{
     message::MessageSender,
     plugin::EditorPlugin,
     plugins::collider::{
-        ball::BallShapeGizmo, capsule::CapsuleShapeGizmo, cone::ConeShapeGizmo,
-        cuboid::CuboidShapeGizmo, cylinder::CylinderShapeGizmo, dummy::DummyShapeGizmo,
-        segment::SegmentShapeGizmo, triangle::TriangleShapeGizmo,
+        ball::BallShapeGizmo, ball2d::Ball2DShapeGizmo, capsule::CapsuleShapeGizmo,
+        capsule2d::Capsule2DShapeGizmo, cone::ConeShapeGizmo, cuboid::CuboidShapeGizmo,
+        cuboid2d::Cuboid2DShapeGizmo, cylinder::CylinderShapeGizmo, dummy::DummyShapeGizmo,
+        segment::SegmentShapeGizmo, segment2d::Segment2DShapeGizmo, triangle::TriangleShapeGizmo,
+        triangle2d::Triangle2DShapeGizmo,
     },
     scene::{commands::GameSceneContext, controller::SceneController, GameScene, Selection},
     settings::Settings,
@@ -72,6 +79,26 @@ fn try_get_collider_shape_mut(
     scene
         .graph
         .try_get_mut_of_type::<Collider>(collider)
+        .map(|c| c.shape_mut())
+}
+
+fn try_get_collider_shape_2d(
+    collider: Handle<Node>,
+    scene: &Scene,
+) -> Option<dim2::collider::ColliderShape> {
+    scene
+        .graph
+        .try_get_of_type::<dim2::collider::Collider>(collider)
+        .map(|c| c.shape().clone())
+}
+
+fn try_get_collider_shape_mut_2d(
+    collider: Handle<Node>,
+    scene: &mut Scene,
+) -> Option<&mut dim2::collider::ColliderShape> {
+    scene
+        .graph
+        .try_get_mut_of_type::<dim2::collider::Collider>(collider)
         .map(|c| c.shape_mut())
 }
 
@@ -173,6 +200,30 @@ fn make_shape_gizmo(
             | ColliderShape::Heightfield(_)
             | ColliderShape::Polyhedron(_) => Box::new(DummyShapeGizmo),
         }
+    } else if let Some(collider) = scene
+        .graph
+        .try_get_of_type::<dim2::collider::Collider>(collider)
+    {
+        let shape = collider.shape().clone();
+        match shape {
+            dim2::collider::ColliderShape::Ball(ball) => Box::new(Ball2DShapeGizmo::new(
+                &ball, center, side, root, visible, scene,
+            )),
+            dim2::collider::ColliderShape::Cuboid(cuboid) => Box::new(Cuboid2DShapeGizmo::new(
+                &cuboid, center, side, up, visible, root, scene,
+            )),
+            dim2::collider::ColliderShape::Capsule(capsule) => Box::new(Capsule2DShapeGizmo::new(
+                &capsule, center, side, visible, root, scene,
+            )),
+            dim2::collider::ColliderShape::Segment(segment) => Box::new(Segment2DShapeGizmo::new(
+                &segment, center, root, visible, scene,
+            )),
+            dim2::collider::ColliderShape::Triangle(triangle) => Box::new(
+                Triangle2DShapeGizmo::new(&triangle, center, root, visible, scene),
+            ),
+            dim2::collider::ColliderShape::Trimesh(_)
+            | dim2::collider::ColliderShape::Heightfield(_) => Box::new(DummyShapeGizmo),
+        }
     } else {
         Box::new(DummyShapeGizmo)
     }
@@ -246,6 +297,12 @@ impl ShapeHandleValue {
     }
 }
 
+#[derive(Clone)]
+enum ColliderInitialShape {
+    TwoD(dim2::collider::ColliderShape),
+    ThreeD(ColliderShape),
+}
+
 struct DragContext {
     handle: Handle<Node>,
     initial_handle_position: Vector3<f32>,
@@ -254,7 +311,7 @@ struct DragContext {
     initial_collider_local_position: Vector3<f32>,
     handle_major_axis: Option<Vector3<f32>>,
     plane_kind: Option<PlaneKind>,
-    initial_shape: ColliderShape,
+    initial_shape: ColliderInitialShape,
 }
 
 #[derive(TypeUuidProvider)]
@@ -316,9 +373,18 @@ impl InteractionMode for ColliderShapeInteractionMode {
                 .unwrap_or_default();
             let plane = Plane::from_normal_and_point(&-camera_view_dir, &initial_position)
                 .unwrap_or_default();
-            let collider = scene.graph[self.collider].as_collider();
-            let initial_collider_local_position = **collider.local_transform().position();
-            let initial_shape = collider.shape().clone();
+            let collider_node = &scene.graph[self.collider];
+            let initial_collider_local_position = **collider_node.local_transform().position();
+
+            let initial_shape = if let Some(collider) = collider_node.component_ref::<Collider>() {
+                ColliderInitialShape::ThreeD(collider.shape().clone())
+            } else if let Some(collider_2d) =
+                collider_node.component_ref::<dim2::collider::Collider>()
+            {
+                ColliderInitialShape::TwoD(collider_2d.shape().clone())
+            } else {
+                unreachable!();
+            };
 
             if let Some(handle_value) =
                 self.shape_gizmo
@@ -376,21 +442,28 @@ impl InteractionMode for ColliderShapeInteractionMode {
         if let Some(drag_context) = self.drag_context.take() {
             let collider = self.collider;
 
-            let value = std::mem::replace(
-                scene.graph[collider].as_collider_mut().shape_mut(),
-                drag_context.initial_shape,
-            );
+            let value = if let (Some(collider), ColliderInitialShape::ThreeD(shape)) = (
+                scene.graph.try_get_mut_of_type::<Collider>(collider),
+                drag_context.initial_shape.clone(),
+            ) {
+                Box::new(std::mem::replace(collider.shape_mut(), shape)) as Box<dyn Reflect>
+            } else if let (Some(collider), ColliderInitialShape::TwoD(shape)) = (
+                scene
+                    .graph
+                    .try_get_mut_of_type::<dim2::collider::Collider>(collider),
+                drag_context.initial_shape.clone(),
+            ) {
+                Box::new(std::mem::replace(collider.shape_mut(), shape)) as Box<dyn Reflect>
+            } else {
+                unreachable!();
+            };
 
-            let command = SetPropertyCommand::new(
-                "shape".into(),
-                Box::new(value) as Box<dyn Reflect>,
-                move |ctx| {
-                    ctx.get_mut::<GameSceneContext>()
-                        .scene
-                        .graph
-                        .node_mut(collider)
-                },
-            );
+            let command = SetPropertyCommand::new("shape".into(), value, move |ctx| {
+                ctx.get_mut::<GameSceneContext>()
+                    .scene
+                    .graph
+                    .node_mut(collider)
+            });
             self.message_sender.do_command(command);
         }
     }
@@ -504,7 +577,7 @@ impl InteractionMode for ColliderShapeInteractionMode {
 
         let scene = &mut engine.scenes[game_scene.scene];
 
-        let Some(collider) = scene.graph.try_get_of_type::<Collider>(self.collider) else {
+        let Some(collider) = scene.graph.try_get(self.collider) else {
             return;
         };
 
@@ -602,7 +675,15 @@ impl EditorPlugin for ColliderShapePlugin {
             }
 
             for node_handle in selection.nodes().iter() {
-                if let Some(collider) = scene.graph.try_get_of_type::<Collider>(*node_handle) {
+                if let Some(collider) = scene.graph.try_get(*node_handle) {
+                    if collider.component_ref::<Collider>().is_none()
+                        && collider
+                            .component_ref::<dim2::collider::Collider>()
+                            .is_none()
+                    {
+                        continue;
+                    }
+
                     let center = collider.global_position();
                     let side = collider
                         .side_vector()
