@@ -11,10 +11,6 @@ pub struct DummyShapeGizmo;
 impl ShapeGizmoTrait for DummyShapeGizmo {
     fn for_each_handle(&self, _func: &mut dyn FnMut(Handle<Node>)) {}
 
-    fn handle_major_axis(&self, _handle: Handle<Node>) -> Option<Vector3<f32>> {
-        None
-    }
-
     fn try_sync_to_collider(
         &self,
         _collider: Handle<Node>,
@@ -44,9 +40,5 @@ impl ShapeGizmoTrait for DummyShapeGizmo {
         _scene: &mut Scene,
         _initial_collider_local_position: Vector3<f32>,
     ) {
-    }
-
-    fn is_vector_handle(&self, _handle: Handle<Node>) -> bool {
-        false
     }
 }

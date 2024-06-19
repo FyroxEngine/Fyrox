@@ -105,7 +105,14 @@ fn try_get_collider_shape_mut_2d(
 trait ShapeGizmoTrait {
     fn for_each_handle(&self, func: &mut dyn FnMut(Handle<Node>));
 
-    fn handle_major_axis(&self, handle: Handle<Node>) -> Option<Vector3<f32>>;
+    fn handle_major_axis(
+        &self,
+        _handle: Handle<Node>,
+        _collider: Handle<Node>,
+        _scene: &Scene,
+    ) -> Option<Vector3<f32>> {
+        None
+    }
 
     fn try_sync_to_collider(
         &self,
@@ -133,7 +140,9 @@ trait ShapeGizmoTrait {
         initial_collider_local_position: Vector3<f32>,
     );
 
-    fn is_vector_handle(&self, handle: Handle<Node>) -> bool;
+    fn is_vector_handle(&self, _handle: Handle<Node>) -> bool {
+        false
+    }
 
     fn reset_handles(&self, scene: &mut Scene) {
         self.for_each_handle(&mut |handle| {
@@ -396,7 +405,11 @@ impl InteractionMode for ColliderShapeInteractionMode {
                     handle: result.node,
                     initial_handle_position: initial_position,
                     plane,
-                    handle_major_axis: self.shape_gizmo.handle_major_axis(result.node),
+                    handle_major_axis: self.shape_gizmo.handle_major_axis(
+                        result.node,
+                        self.collider,
+                        scene,
+                    ),
                     initial_value: handle_value,
                     initial_collider_local_position,
                     plane_kind: None,

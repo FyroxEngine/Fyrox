@@ -37,7 +37,12 @@ impl ShapeGizmoTrait for Ball2DShapeGizmo {
         func(self.radius_handle)
     }
 
-    fn handle_major_axis(&self, handle: Handle<Node>) -> Option<Vector3<f32>> {
+    fn handle_major_axis(
+        &self,
+        handle: Handle<Node>,
+        _collider: Handle<Node>,
+        _scene: &Scene,
+    ) -> Option<Vector3<f32>> {
         if handle == self.radius_handle {
             Some(Vector3::x())
         } else {
@@ -95,9 +100,5 @@ impl ShapeGizmoTrait for Ball2DShapeGizmo {
         if handle == self.radius_handle {
             ball.radius = value.into_scalar();
         }
-    }
-
-    fn is_vector_handle(&self, _handle: Handle<Node>) -> bool {
-        false
     }
 }

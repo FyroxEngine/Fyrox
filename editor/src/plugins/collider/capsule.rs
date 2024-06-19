@@ -12,6 +12,7 @@ use crate::{
         ShapeGizmoTrait, ShapeHandleValue,
     },
 };
+use fyrox::core::math;
 
 pub struct CapsuleShapeGizmo {
     radius_handle: Handle<Node>,
@@ -43,9 +44,21 @@ impl ShapeGizmoTrait for CapsuleShapeGizmo {
         }
     }
 
-    fn handle_major_axis(&self, handle: Handle<Node>) -> Option<Vector3<f32>> {
+    fn handle_major_axis(
+        &self,
+        handle: Handle<Node>,
+        collider: Handle<Node>,
+        scene: &Scene,
+    ) -> Option<Vector3<f32>> {
+        let Some(ColliderShape::Capsule(capsule)) = try_get_collider_shape(collider, scene) else {
+            return None;
+        };
+
         if handle == self.radius_handle {
-            Some(Vector3::x())
+            Some(
+                math::get_arbitrary_line_perpendicular(capsule.begin, capsule.end)
+                    .unwrap_or_else(Vector3::x),
+            )
         } else {
             None
         }
@@ -55,7 +68,7 @@ impl ShapeGizmoTrait for CapsuleShapeGizmo {
         &self,
         collider: Handle<Node>,
         center: Vector3<f32>,
-        side: Vector3<f32>,
+        _side: Vector3<f32>,
         _up: Vector3<f32>,
         _look: Vector3<f32>,
         scene: &mut Scene,
@@ -64,11 +77,11 @@ impl ShapeGizmoTrait for CapsuleShapeGizmo {
             return false;
         };
 
-        set_node_position(
-            self.radius_handle,
-            center + side.scale(capsule.radius),
-            scene,
-        );
+        let perp = math::get_arbitrary_line_perpendicular(capsule.begin, capsule.end)
+            .unwrap_or_else(Vector3::x)
+            .scale(capsule.radius);
+
+        set_node_position(self.radius_handle, center + capsule.begin + perp, scene);
         set_node_position(self.begin_handle, center + capsule.begin, scene);
         set_node_position(self.end_handle, center + capsule.end, scene);
 

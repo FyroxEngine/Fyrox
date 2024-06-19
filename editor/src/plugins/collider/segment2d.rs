@@ -45,10 +45,6 @@ impl ShapeGizmoTrait for Segment2DShapeGizmo {
         }
     }
 
-    fn handle_major_axis(&self, _handle: Handle<Node>) -> Option<Vector3<f32>> {
-        None
-    }
-
     fn try_sync_to_collider(
         &self,
         collider: Handle<Node>,

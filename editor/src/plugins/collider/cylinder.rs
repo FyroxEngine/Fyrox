@@ -47,7 +47,12 @@ impl ShapeGizmoTrait for CylinderShapeGizmo {
         }
     }
 
-    fn handle_major_axis(&self, handle: Handle<Node>) -> Option<Vector3<f32>> {
+    fn handle_major_axis(
+        &self,
+        handle: Handle<Node>,
+        _collider: Handle<Node>,
+        _scene: &Scene,
+    ) -> Option<Vector3<f32>> {
         if handle == self.radius_handle {
             Some(Vector3::x())
         } else if handle == self.half_height_handle {
@@ -123,9 +128,5 @@ impl ShapeGizmoTrait for CylinderShapeGizmo {
         } else if handle == self.half_height_handle {
             cylinder.half_height = value.into_scalar().max(0.0);
         }
-    }
-
-    fn is_vector_handle(&self, _handle: Handle<Node>) -> bool {
-        false
     }
 }

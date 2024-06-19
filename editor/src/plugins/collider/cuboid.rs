@@ -88,7 +88,12 @@ impl ShapeGizmoTrait for CuboidShapeGizmo {
         }
     }
 
-    fn handle_major_axis(&self, handle: Handle<Node>) -> Option<Vector3<f32>> {
+    fn handle_major_axis(
+        &self,
+        handle: Handle<Node>,
+        _collider: Handle<Node>,
+        _scene: &Scene,
+    ) -> Option<Vector3<f32>> {
         if handle == self.pos_x_handle {
             Some(Vector3::x())
         } else if handle == self.pos_y_handle {
@@ -227,9 +232,5 @@ impl ShapeGizmoTrait for CuboidShapeGizmo {
                 initial_collider_local_position.z - value.into_scalar() / 2.0,
             ));
         }
-    }
-
-    fn is_vector_handle(&self, _handle: Handle<Node>) -> bool {
-        false
     }
 }
