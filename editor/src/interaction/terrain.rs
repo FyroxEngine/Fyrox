@@ -1,10 +1,12 @@
+use fyrox::scene::terrain::ChunkData;
+
 use crate::fyrox::core::uuid::{uuid, Uuid};
 use crate::fyrox::core::TypeUuidProvider;
 use crate::fyrox::graph::BaseSceneGraph;
 use crate::fyrox::gui::{HorizontalAlignment, Thickness, VerticalAlignment};
 use crate::fyrox::{
     core::{
-        algebra::{Matrix4, Vector2, Vector3},
+        algebra::{Matrix2, Matrix4, Vector2, Vector3},
         arrayvec::ArrayVec,
         color::Color,
         log::{Log, MessageKind},
@@ -34,7 +36,9 @@ use crate::fyrox::{
             MeshBuilder, RenderPath,
         },
         node::Node,
-        terrain::{Brush, BrushMode, BrushShape, Terrain, TerrainRayCastResult},
+        terrain::{
+            Brush, BrushMode, BrushShape, BrushStroke, BrushTarget, Terrain, TerrainRayCastResult,
+        },
     },
 };
 use crate::interaction::make_interaction_mode_button;
@@ -54,13 +58,18 @@ use crate::{
 use fyrox::asset::untyped::ResourceKind;
 use std::sync::Arc;
 
+fn modify_clamp(x: &mut f32, delta: f32, min: f32, max: f32) {
+    *x = (*x + delta).clamp(min, max)
+}
+
 pub struct TerrainInteractionMode {
-    heightmaps: Vec<Vec<f32>>,
-    masks: Vec<Vec<u8>>,
+    undo_chunks: Vec<ChunkData>,
     message_sender: MessageSender,
     interacting: bool,
     brush_gizmo: BrushGizmo,
+    brush_position: Vector3<f32>,
     brush: Brush,
+    stroke: BrushStroke,
     brush_panel: BrushPanel,
     scene_viewer_frame: Handle<UiNode>,
 }
@@ -73,9 +82,12 @@ impl TerrainInteractionMode {
         scene_viewer_frame: Handle<UiNode>,
     ) -> Self {
         let brush = Brush {
-            center: Default::default(),
             shape: BrushShape::Circle { radius: 1.0 },
-            mode: BrushMode::ModifyHeightMap { amount: 1.0 },
+            mode: BrushMode::Raise { amount: 1.0 },
+            target: BrushTarget::HeightMap,
+            alpha: 1.0,
+            hardness: 1.0,
+            transform: Matrix2::identity(),
         };
 
         let brush_panel =
@@ -83,14 +95,33 @@ impl TerrainInteractionMode {
 
         Self {
             brush_panel,
-            heightmaps: Default::default(),
+            undo_chunks: Default::default(),
             brush_gizmo: BrushGizmo::new(game_scene, engine),
             interacting: false,
             message_sender,
             brush,
-            masks: Default::default(),
+            brush_position: Vector3::default(),
+            stroke: BrushStroke::default(),
             scene_viewer_frame,
         }
+    }
+    fn modify_brush_opacity(&mut self, direction: f32) {
+        modify_clamp(&mut self.brush.alpha, 0.01 * direction, 0.0, 1.0);
+    }
+    fn draw(&mut self, terrain: &mut Terrain, shift: bool) {
+        let mut brush_copy = self.brush.clone();
+        if let BrushMode::Raise { amount } = &mut brush_copy.mode {
+            if shift {
+                *amount *= -1.0;
+            }
+        }
+
+        self.undo_chunks = terrain.draw(
+            self.brush_position,
+            &brush_copy,
+            &mut self.stroke,
+            std::mem::take(&mut self.undo_chunks),
+        );
     }
 }
 
@@ -129,19 +160,6 @@ impl BrushGizmo {
     }
 }
 
-fn copy_layer_masks(terrain: &Terrain, layer: usize) -> Vec<Vec<u8>> {
-    let mut masks = Vec::new();
-
-    for chunk in terrain.chunks_ref() {
-        match chunk.layer_masks.get(layer) {
-            Some(mask) => masks.push(mask.data_ref().data().to_vec()),
-            None => Log::err("layer index out of range"),
-        }
-    }
-
-    masks
-}
-
 impl TypeUuidProvider for TerrainInteractionMode {
     fn type_uuid() -> Uuid {
         uuid!("bc19eff3-3e3a-49c0-9a9d-17d36fccc34e")
@@ -164,37 +182,38 @@ impl InteractionMode for TerrainInteractionMode {
 
         if let Some(selection) = editor_selection.as_graph() {
             if selection.is_single_selection() {
+                let shift = engine
+                    .user_interfaces
+                    .first_mut()
+                    .keyboard_modifiers()
+                    .shift;
                 let graph = &mut engine.scenes[game_scene.scene].graph;
                 let handle = selection.nodes()[0];
-                if let Some(terrain) = &graph[handle].cast::<Terrain>() {
+                let ray = graph[game_scene.camera_controller.camera]
+                    .cast::<Camera>()
+                    .map(|cam| cam.make_ray(mouse_pos, frame_size));
+                if let Some(terrain) = graph[handle].cast_mut::<Terrain>() {
                     // Pick height value at the point of interaction.
-                    if let BrushMode::FlattenHeightMap { height } = &mut self.brush.mode {
-                        let camera = &graph[game_scene.camera_controller.camera];
-                        if let Some(camera) = camera.cast::<Camera>() {
-                            let ray = camera.make_ray(mouse_pos, frame_size);
-
+                    if let BrushMode::Flatten { .. } = &mut self.brush.mode {
+                        if let Some(ray) = ray {
                             let mut intersections = ArrayVec::<TerrainRayCastResult, 128>::new();
                             terrain.raycast(ray, &mut intersections, true);
 
-                            if let Some(closest) = intersections.first() {
-                                *height = closest.height;
+                            let first = intersections.first();
+                            if let (Some(closest), BrushTarget::HeightMap) =
+                                (first, self.brush.target)
+                            {
+                                self.stroke.value = closest.height;
+                            } else if let Some(closest) = first {
+                                let p = closest.position;
+                                self.stroke.value = terrain
+                                    .interpolate_value(Vector2::new(p.x, p.z), self.brush.target);
+                            } else {
+                                self.stroke.value = 0.0;
                             }
                         }
                     }
-
-                    match self.brush.mode {
-                        BrushMode::ModifyHeightMap { .. } | BrushMode::FlattenHeightMap { .. } => {
-                            self.heightmaps = terrain
-                                .chunks_ref()
-                                .iter()
-                                .map(|c| c.heightmap_owned())
-                                .collect();
-                        }
-                        BrushMode::DrawOnMask { layer, .. } => {
-                            self.masks = copy_layer_masks(terrain, layer);
-                        }
-                    }
-
+                    self.draw(terrain, shift);
                     self.interacting = true;
                 }
             }
@@ -204,52 +223,37 @@ impl InteractionMode for TerrainInteractionMode {
     fn on_left_mouse_button_up(
         &mut self,
         editor_selection: &Selection,
-        controller: &mut dyn SceneController,
-        engine: &mut Engine,
+        _controller: &mut dyn SceneController,
+        _engine: &mut Engine,
         _mouse_pos: Vector2<f32>,
         _frame_size: Vector2<f32>,
         _settings: &Settings,
     ) {
-        let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
-            return;
-        };
-
+        self.stroke.clear();
         if let Some(selection) = editor_selection.as_graph() {
             if selection.is_single_selection() {
-                let graph = &mut engine.scenes[game_scene.scene].graph;
                 let handle = selection.nodes()[0];
 
-                if let Some(terrain) = &graph[handle].cast::<Terrain>() {
-                    if self.interacting {
-                        let new_heightmaps = terrain
-                            .chunks_ref()
-                            .iter()
-                            .map(|c| c.heightmap_owned())
-                            .collect();
-
-                        match self.brush.mode {
-                            BrushMode::ModifyHeightMap { .. }
-                            | BrushMode::FlattenHeightMap { .. } => {
-                                self.message_sender
-                                    .do_command(ModifyTerrainHeightCommand::new(
-                                        handle,
-                                        std::mem::take(&mut self.heightmaps),
-                                        new_heightmaps,
-                                    ));
-                            }
-                            BrushMode::DrawOnMask { layer, .. } => {
-                                self.message_sender
-                                    .do_command(ModifyTerrainLayerMaskCommand::new(
-                                        handle,
-                                        std::mem::take(&mut self.masks),
-                                        copy_layer_masks(terrain, layer),
-                                        layer,
-                                    ));
-                            }
+                if self.interacting {
+                    match self.brush.target {
+                        BrushTarget::HeightMap => {
+                            self.message_sender
+                                .do_command(ModifyTerrainHeightCommand::new(
+                                    handle,
+                                    std::mem::take(&mut self.undo_chunks),
+                                ));
                         }
-
-                        self.interacting = false;
+                        BrushTarget::LayerMask { layer, .. } => {
+                            self.message_sender
+                                .do_command(ModifyTerrainLayerMaskCommand::new(
+                                    handle,
+                                    std::mem::take(&mut self.undo_chunks),
+                                    layer,
+                                ));
+                        }
                     }
+
+                    self.interacting = false;
                 }
             }
         }
@@ -268,10 +272,17 @@ impl InteractionMode for TerrainInteractionMode {
         let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
             return;
         };
+        let graph = &mut engine.scenes[game_scene.scene].graph;
+
+        let mut gizmo_visible = false;
 
         if let Some(selection) = editor_selection.as_graph() {
             if selection.is_single_selection() {
-                let graph = &mut engine.scenes[game_scene.scene].graph;
+                let shift = engine
+                    .user_interfaces
+                    .first_mut()
+                    .keyboard_modifiers()
+                    .shift;
                 let handle = selection.nodes()[0];
 
                 let camera = &graph[game_scene.camera_controller.camera];
@@ -282,44 +293,11 @@ impl InteractionMode for TerrainInteractionMode {
                         terrain.raycast(ray, &mut intersections, true);
 
                         if let Some(closest) = intersections.first() {
-                            self.brush.center = closest.position;
-
-                            let mut brush_copy = self.brush.clone();
-                            match &mut brush_copy.mode {
-                                BrushMode::ModifyHeightMap { amount } => {
-                                    if engine
-                                        .user_interfaces
-                                        .first_mut()
-                                        .keyboard_modifiers()
-                                        .shift
-                                    {
-                                        *amount *= -1.0;
-                                    }
-                                }
-                                BrushMode::DrawOnMask { alpha, .. } => {
-                                    if engine
-                                        .user_interfaces
-                                        .first_mut()
-                                        .keyboard_modifiers()
-                                        .shift
-                                    {
-                                        *alpha = -1.0;
-                                    }
-                                }
-                                BrushMode::FlattenHeightMap { height } => {
-                                    if engine
-                                        .user_interfaces
-                                        .first_mut()
-                                        .keyboard_modifiers()
-                                        .shift
-                                    {
-                                        *height *= -1.0;
-                                    }
-                                }
-                            }
+                            self.brush_position = closest.position;
+                            gizmo_visible = true;
 
                             if self.interacting {
-                                terrain.draw(&brush_copy);
+                                self.draw(terrain, shift);
                             }
 
                             let scale = match self.brush.shape {
@@ -338,6 +316,10 @@ impl InteractionMode for TerrainInteractionMode {
                     }
                 }
             }
+        }
+        let gizmo = &mut graph[self.brush_gizmo.brush];
+        if gizmo.visibility() != gizmo_visible {
+            gizmo.set_visibility(gizmo_visible);
         }
     }
 
@@ -417,22 +399,15 @@ impl InteractionMode for TerrainInteractionMode {
     ) -> bool {
         let mut processed = false;
 
-        fn modify_clamp(x: &mut f32, delta: f32, min: f32, max: f32) {
-            *x = (*x + delta).clamp(min, max)
-        }
-
         let key_bindings = &settings.key_bindings.terrain_key_bindings;
         if hotkey == &key_bindings.draw_on_mask_mode {
-            self.brush.mode = BrushMode::DrawOnMask {
-                layer: 0,
-                alpha: 1.0,
-            };
+            self.brush.target = BrushTarget::LayerMask { layer: 0 };
             processed = true;
         } else if hotkey == &key_bindings.modify_height_map_mode {
-            self.brush.mode = BrushMode::ModifyHeightMap { amount: 1.0 };
+            self.brush.target = BrushTarget::HeightMap;
             processed = true;
         } else if hotkey == &key_bindings.flatten_slopes_mode {
-            self.brush.mode = BrushMode::FlattenHeightMap { height: 0.0 };
+            self.brush.mode = BrushMode::Flatten;
             processed = true;
         } else if hotkey == &key_bindings.increase_brush_size {
             match &mut self.brush.shape {
@@ -453,34 +428,18 @@ impl InteractionMode for TerrainInteractionMode {
             }
             processed = true;
         } else if hotkey == &key_bindings.decrease_brush_opacity {
-            match &mut self.brush.mode {
-                BrushMode::ModifyHeightMap { amount } => {
-                    *amount -= 0.01;
-                }
-                BrushMode::FlattenHeightMap { height } => {
-                    *height -= 0.01;
-                }
-                BrushMode::DrawOnMask { alpha, .. } => modify_clamp(alpha, -0.01, 0.0, 1.0),
-            }
+            self.modify_brush_opacity(-1.0);
             processed = true;
         } else if hotkey == &key_bindings.increase_brush_opacity {
-            match &mut self.brush.mode {
-                BrushMode::ModifyHeightMap { amount } => {
-                    *amount += 0.01;
-                }
-                BrushMode::FlattenHeightMap { height } => {
-                    *height += 0.01;
-                }
-                BrushMode::DrawOnMask { alpha, .. } => modify_clamp(alpha, 0.01, 0.0, 1.0),
-            }
+            self.modify_brush_opacity(1.0);
             processed = true;
         } else if hotkey == &key_bindings.prev_layer {
-            if let BrushMode::DrawOnMask { layer, .. } = &mut self.brush.mode {
+            if let BrushTarget::LayerMask { layer, .. } = &mut self.brush.target {
                 *layer = layer.saturating_sub(1);
             }
             processed = true;
         } else if hotkey == &key_bindings.next_layer {
-            if let BrushMode::DrawOnMask { layer, .. } = &mut self.brush.mode {
+            if let BrushTarget::LayerMask { layer, .. } = &mut self.brush.target {
                 *layer = layer.saturating_add(1);
             }
             processed = true;
@@ -520,26 +479,42 @@ struct BrushPanel {
 fn make_brush_mode_enum_property_editor_definition() -> EnumPropertyEditorDefinition<BrushMode> {
     EnumPropertyEditorDefinition {
         variant_generator: |i| match i {
-            0 => BrushMode::ModifyHeightMap { amount: 0.1 },
-            1 => BrushMode::DrawOnMask {
-                layer: 0,
-                alpha: 1.0,
-            },
-            2 => BrushMode::FlattenHeightMap { height: 0.0 },
+            0 => BrushMode::Raise { amount: 0.1 },
+            1 => BrushMode::Assign { value: 0.0 },
+            2 => BrushMode::Flatten,
+            3 => BrushMode::Smooth { kernel_radius: 1 },
             _ => unreachable!(),
         },
         index_generator: |v| match v {
-            BrushMode::ModifyHeightMap { .. } => 0,
-            BrushMode::DrawOnMask { .. } => 1,
-            BrushMode::FlattenHeightMap { .. } => 2,
+            BrushMode::Raise { .. } => 0,
+            BrushMode::Assign { .. } => 1,
+            BrushMode::Flatten { .. } => 2,
+            BrushMode::Smooth { .. } => 3,
         },
         names_generator: || {
             vec![
-                "Modify Height Map".to_string(),
-                "Draw On Mask".to_string(),
-                "Flatten Height Map".to_string(),
+                "Raise or Lower".to_string(),
+                "Assign Value".to_string(),
+                "Flatten".to_string(),
+                "Smooth".to_string(),
             ]
         },
+    }
+}
+
+fn make_brush_target_enum_property_editor_definition() -> EnumPropertyEditorDefinition<BrushTarget>
+{
+    EnumPropertyEditorDefinition {
+        variant_generator: |i| match i {
+            0 => BrushTarget::HeightMap,
+            1 => BrushTarget::LayerMask { layer: 0 },
+            _ => unreachable!(),
+        },
+        index_generator: |v| match v {
+            BrushTarget::HeightMap => 0,
+            BrushTarget::LayerMask { .. } => 1,
+        },
+        names_generator: || vec!["Height Map".to_string(), "Layer Mask".to_string()],
     }
 }
 
@@ -565,6 +540,7 @@ impl BrushPanel {
     fn new(ctx: &mut BuildContext, brush: &Brush) -> Self {
         let property_editors = PropertyEditorDefinitionContainer::with_default_editors();
         property_editors.insert(make_brush_mode_enum_property_editor_definition());
+        property_editors.insert(make_brush_target_enum_property_editor_definition());
         property_editors.insert(make_brush_shape_enum_property_editor_definition());
 
         let context = InspectorContext::from_object(

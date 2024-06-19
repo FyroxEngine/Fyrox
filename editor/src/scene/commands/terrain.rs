@@ -1,8 +1,6 @@
+use fyrox::scene::terrain::ChunkData;
+
 use crate::command::CommandContext;
-use crate::fyrox::core::log::Log;
-use crate::fyrox::resource::texture::{
-    TextureKind, TexturePixelKind, TextureResourceExtension, TextureWrapMode,
-};
 use crate::fyrox::{
     core::pool::Handle,
     resource::texture::TextureResource,
@@ -100,54 +98,27 @@ impl CommandTrait for DeleteTerrainLayerCommand {
 #[derive(Debug)]
 pub struct ModifyTerrainHeightCommand {
     terrain: Handle<Node>,
-    // TODO: This is very memory-inefficient solution, it could be done
-    //  better by either pack/unpack data on the fly, or by saving changes
-    //  for sub-chunks.
-    old_heightmaps: Vec<Vec<f32>>,
-    new_heightmaps: Vec<Vec<f32>>,
+    heightmaps: Vec<ChunkData>,
+    skip_first_execute: bool,
 }
 
 impl ModifyTerrainHeightCommand {
-    pub fn new(
-        terrain: Handle<Node>,
-        old_heightmaps: Vec<Vec<f32>>,
-        new_heightmaps: Vec<Vec<f32>>,
-    ) -> Self {
+    pub fn new(terrain: Handle<Node>, heightmaps: Vec<ChunkData>) -> Self {
         Self {
             terrain,
-            old_heightmaps,
-            new_heightmaps,
+            heightmaps,
+            skip_first_execute: true,
         }
     }
 
     pub fn swap(&mut self, context: &mut dyn CommandContext) {
         let context = context.get_mut::<GameSceneContext>();
         let terrain = context.scene.graph[self.terrain].as_terrain_mut();
-        let heigth_map_size = terrain.height_map_size();
-        for (chunk, (old, new)) in terrain.chunks_mut().iter_mut().zip(
-            self.old_heightmaps
-                .iter_mut()
-                .zip(self.new_heightmaps.iter_mut()),
-        ) {
-            let height_map = TextureResource::from_bytes(
-                TextureKind::Rectangle {
-                    width: heigth_map_size.x,
-                    height: heigth_map_size.y,
-                },
-                TexturePixelKind::R32F,
-                fyrox::core::transmute_vec_as_bytes(new.clone()),
-                Default::default(),
-            )
-            .unwrap();
-
-            let mut data = height_map.data_ref();
-            data.set_s_wrap_mode(TextureWrapMode::ClampToEdge);
-            data.set_t_wrap_mode(TextureWrapMode::ClampToEdge);
-            drop(data);
-
-            chunk.replace_height_map(height_map).unwrap();
-            std::mem::swap(old, new);
+        let current_chunks = terrain.chunks_mut();
+        for c in self.heightmaps.iter_mut() {
+            c.swap_height_from_list(current_chunks);
         }
+        terrain.update_quad_trees();
     }
 }
 
@@ -157,6 +128,10 @@ impl CommandTrait for ModifyTerrainHeightCommand {
     }
 
     fn execute(&mut self, context: &mut dyn CommandContext) {
+        if self.skip_first_execute {
+            self.skip_first_execute = false;
+            return;
+        }
         self.swap(context);
     }
 
@@ -168,51 +143,27 @@ impl CommandTrait for ModifyTerrainHeightCommand {
 #[derive(Debug)]
 pub struct ModifyTerrainLayerMaskCommand {
     terrain: Handle<Node>,
-    // TODO: This is very memory-inefficient solution, it could be done
-    //  better by either pack/unpack data on the fly, or by saving changes
-    //  for sub-chunks.
-    old_masks: Vec<Vec<u8>>,
-    new_masks: Vec<Vec<u8>>,
+    masks: Vec<ChunkData>,
     layer: usize,
+    skip_first_execute: bool,
 }
 
 impl ModifyTerrainLayerMaskCommand {
-    pub fn new(
-        terrain: Handle<Node>,
-        old_masks: Vec<Vec<u8>>,
-        new_masks: Vec<Vec<u8>>,
-        layer: usize,
-    ) -> Self {
+    pub fn new(terrain: Handle<Node>, masks: Vec<ChunkData>, layer: usize) -> Self {
         Self {
             terrain,
-            old_masks,
-            new_masks,
+            masks,
             layer,
+            skip_first_execute: true,
         }
     }
 
     pub fn swap(&mut self, context: &mut dyn CommandContext) {
         let context = context.get_mut::<GameSceneContext>();
         let terrain = context.scene.graph[self.terrain].as_terrain_mut();
-
-        for (i, chunk) in terrain.chunks_mut().iter_mut().enumerate() {
-            if i >= self.old_masks.len() || i >= self.new_masks.len() {
-                Log::err("Invalid mask index.")
-            } else {
-                let old = &mut self.old_masks[i];
-                let new = &mut self.new_masks[i];
-                let chunk_mask = &mut chunk.layer_masks[self.layer];
-
-                let mut texture_data = chunk_mask.data_ref();
-
-                for (mask_pixel, new_pixel) in
-                    texture_data.modify().data_mut().iter_mut().zip(new.iter())
-                {
-                    *mask_pixel = *new_pixel;
-                }
-
-                std::mem::swap(old, new);
-            }
+        let current_chunks = terrain.chunks_mut();
+        for c in self.masks.iter_mut() {
+            c.swap_layer_mask_from_list(current_chunks, self.layer);
         }
     }
 }
@@ -223,6 +174,10 @@ impl CommandTrait for ModifyTerrainLayerMaskCommand {
     }
 
     fn execute(&mut self, context: &mut dyn CommandContext) {
+        if self.skip_first_execute {
+            self.skip_first_execute = false;
+            return;
+        }
         self.swap(context);
     }
 

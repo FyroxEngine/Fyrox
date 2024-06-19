@@ -974,29 +974,20 @@ mod test {
     fn rect_clip_by() {
         let rect = Rect::new(0, 0, 10, 10);
 
-        assert_eq!(rect.clip_by(Rect::new(2, 2, 1, 1)), Rect::new(2, 2, 1, 1));
         assert_eq!(
-            rect.clip_by(Rect::new(0, 0, 15, 15)),
+            rect.clip_by(Rect::new(2, 2, 1, 1)).unwrap(),
+            Rect::new(2, 2, 1, 1)
+        );
+        assert_eq!(
+            rect.clip_by(Rect::new(0, 0, 15, 15)).unwrap(),
             Rect::new(0, 0, 10, 10)
         );
 
         // When there is no intersection.
-        assert_eq!(
-            rect.clip_by(Rect::new(-2, 1, 1, 1)),
-            Rect::new(0, 0, 10, 10)
-        );
-        assert_eq!(
-            rect.clip_by(Rect::new(11, 1, 1, 1)),
-            Rect::new(0, 0, 10, 10)
-        );
-        assert_eq!(
-            rect.clip_by(Rect::new(1, -2, 1, 1)),
-            Rect::new(0, 0, 10, 10)
-        );
-        assert_eq!(
-            rect.clip_by(Rect::new(1, 11, 1, 1)),
-            Rect::new(0, 0, 10, 10)
-        );
+        assert!(rect.clip_by(Rect::new(-2, 1, 1, 1)).is_none());
+        assert!(rect.clip_by(Rect::new(11, 1, 1, 1)).is_none());
+        assert!(rect.clip_by(Rect::new(1, -2, 1, 1)).is_none());
+        assert!(rect.clip_by(Rect::new(1, 11, 1, 1)).is_none());
     }
 
     #[test]
