@@ -86,7 +86,7 @@ impl ShapeGizmoTrait for Ball2DShapeGizmo {
         };
 
         if handle == self.radius_handle {
-            ball.radius = value.into_scalar();
+            ball.radius = value.into_scalar().max(0.0);
         }
     }
 }

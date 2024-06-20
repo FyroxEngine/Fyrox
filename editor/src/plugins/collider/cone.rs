@@ -41,9 +41,9 @@ impl ShapeGizmoTrait for ConeShapeGizmo {
         };
 
         if handle == self.radius_handle {
-            Some(Vector3::new(cone.radius, 0.0, 0.0))
+            Some(Vector3::new(cone.radius, -cone.half_height, 0.0))
         } else if handle == self.half_height_handle {
-            Some(Vector3::new(0.0, cone.half_height * 2.0, 0.0))
+            Some(Vector3::new(0.0, cone.half_height, 0.0))
         } else {
             None
         }

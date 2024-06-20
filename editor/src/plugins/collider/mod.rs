@@ -191,6 +191,7 @@ fn make_shape_gizmo(
 ) -> Box<dyn ShapeGizmoTrait> {
     if let Some(collider) = scene.graph.try_get_of_type::<Collider>(collider) {
         let shape = collider.shape().clone();
+        use fyrox::scene::collider::ColliderShape;
         match shape {
             ColliderShape::Ball(_) => Box::new(BallShapeGizmo::new(root, visible, scene)),
             ColliderShape::Cylinder(_) => Box::new(CylinderShapeGizmo::new(visible, root, scene)),
@@ -208,24 +209,14 @@ fn make_shape_gizmo(
         .try_get_of_type::<dim2::collider::Collider>(collider)
     {
         let shape = collider.shape().clone();
+        use dim2::collider::ColliderShape;
         match shape {
-            dim2::collider::ColliderShape::Ball(_) => {
-                Box::new(Ball2DShapeGizmo::new(root, visible, scene))
-            }
-            dim2::collider::ColliderShape::Cuboid(_) => {
-                Box::new(Cuboid2DShapeGizmo::new(visible, root, scene))
-            }
-            dim2::collider::ColliderShape::Capsule(_) => {
-                Box::new(Capsule2DShapeGizmo::new(visible, root, scene))
-            }
-            dim2::collider::ColliderShape::Segment(_) => {
-                Box::new(Segment2DShapeGizmo::new(root, visible, scene))
-            }
-            dim2::collider::ColliderShape::Triangle(_) => {
-                Box::new(Triangle2DShapeGizmo::new(root, visible, scene))
-            }
-            dim2::collider::ColliderShape::Trimesh(_)
-            | dim2::collider::ColliderShape::Heightfield(_) => Box::new(DummyShapeGizmo),
+            ColliderShape::Ball(_) => Box::new(Ball2DShapeGizmo::new(root, visible, scene)),
+            ColliderShape::Cuboid(_) => Box::new(Cuboid2DShapeGizmo::new(visible, root, scene)),
+            ColliderShape::Capsule(_) => Box::new(Capsule2DShapeGizmo::new(visible, root, scene)),
+            ColliderShape::Segment(_) => Box::new(Segment2DShapeGizmo::new(root, visible, scene)),
+            ColliderShape::Triangle(_) => Box::new(Triangle2DShapeGizmo::new(root, visible, scene)),
+            ColliderShape::Trimesh(_) | ColliderShape::Heightfield(_) => Box::new(DummyShapeGizmo),
         }
     } else {
         Box::new(DummyShapeGizmo)
@@ -353,6 +344,7 @@ impl InteractionMode for ColliderShapeInteractionMode {
             PickingOptions {
                 cursor_pos: mouse_position,
                 editor_only: true,
+                filter: Some(&mut |handle, _| handle != self.move_gizmo.origin),
                 ..Default::default()
             },
         ) {
@@ -486,6 +478,7 @@ impl InteractionMode for ColliderShapeInteractionMode {
             PickingOptions {
                 cursor_pos: mouse_position,
                 editor_only: true,
+                filter: Some(&mut |handle, _| handle != self.move_gizmo.origin),
                 ..Default::default()
             },
         ) {

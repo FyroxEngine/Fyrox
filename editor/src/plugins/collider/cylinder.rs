@@ -36,14 +36,15 @@ impl ShapeGizmoTrait for CylinderShapeGizmo {
         collider: Handle<Node>,
         scene: &Scene,
     ) -> Option<Vector3<f32>> {
-        let Some(ColliderShape::Cone(cone)) = try_get_collider_shape(collider, scene) else {
+        let Some(ColliderShape::Cylinder(cylinder)) = try_get_collider_shape(collider, scene)
+        else {
             return None;
         };
 
         if handle == self.radius_handle {
-            Some(Vector3::new(cone.radius, 0.0, 0.0))
+            Some(Vector3::new(cylinder.radius, 0.0, 0.0))
         } else if handle == self.half_height_handle {
-            Some(Vector3::new(0.0, cone.half_height * 2.0, 0.0))
+            Some(Vector3::new(0.0, cylinder.half_height, 0.0))
         } else {
             None
         }
