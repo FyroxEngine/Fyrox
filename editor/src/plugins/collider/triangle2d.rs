@@ -1,15 +1,11 @@
 use crate::{
     fyrox::{
         core::{algebra::Vector3, pool::Handle},
-        scene::{
-            dim2::collider::{ColliderShape, TriangleShape},
-            node::Node,
-            Scene,
-        },
+        scene::{dim2::collider::ColliderShape, node::Node, Scene},
     },
     plugins::collider::{
-        make_handle, set_node_position, try_get_collider_shape_2d, try_get_collider_shape_mut_2d,
-        ShapeGizmoTrait, ShapeHandleValue,
+        make_handle, try_get_collider_shape_2d, try_get_collider_shape_mut_2d, ShapeGizmoTrait,
+        ShapeHandleValue,
     },
 };
 
@@ -20,17 +16,11 @@ pub struct Triangle2DShapeGizmo {
 }
 
 impl Triangle2DShapeGizmo {
-    pub fn new(
-        triangle: &TriangleShape,
-        center: Vector3<f32>,
-        root: Handle<Node>,
-        visible: bool,
-        scene: &mut Scene,
-    ) -> Self {
+    pub fn new(root: Handle<Node>, visible: bool, scene: &mut Scene) -> Self {
         Self {
-            a_handle: make_handle(scene, center + triangle.a.to_homogeneous(), root, visible),
-            b_handle: make_handle(scene, center + triangle.b.to_homogeneous(), root, visible),
-            c_handle: make_handle(scene, center + triangle.c.to_homogeneous(), root, visible),
+            a_handle: make_handle(scene, root, visible),
+            b_handle: make_handle(scene, root, visible),
+            c_handle: make_handle(scene, root, visible),
         }
     }
 }
@@ -42,25 +32,26 @@ impl ShapeGizmoTrait for Triangle2DShapeGizmo {
         }
     }
 
-    fn try_sync_to_collider(
+    fn handle_local_position(
         &self,
+        handle: Handle<Node>,
         collider: Handle<Node>,
-        center: Vector3<f32>,
-        _side: Vector3<f32>,
-        _up: Vector3<f32>,
-        _look: Vector3<f32>,
-        scene: &mut Scene,
-    ) -> bool {
+        scene: &Scene,
+    ) -> Option<Vector3<f32>> {
         let Some(ColliderShape::Triangle(triangle)) = try_get_collider_shape_2d(collider, scene)
         else {
-            return false;
+            return None;
         };
 
-        set_node_position(self.a_handle, center + triangle.a.to_homogeneous(), scene);
-        set_node_position(self.b_handle, center + triangle.b.to_homogeneous(), scene);
-        set_node_position(self.c_handle, center + triangle.c.to_homogeneous(), scene);
-
-        true
+        if handle == self.a_handle {
+            Some(triangle.a.to_homogeneous())
+        } else if handle == self.b_handle {
+            Some(triangle.b.to_homogeneous())
+        } else if handle == self.c_handle {
+            Some(triangle.c.to_homogeneous())
+        } else {
+            None
+        }
     }
 
     fn value_by_handle(

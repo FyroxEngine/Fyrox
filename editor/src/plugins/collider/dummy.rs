@@ -11,16 +11,13 @@ pub struct DummyShapeGizmo;
 impl ShapeGizmoTrait for DummyShapeGizmo {
     fn for_each_handle(&self, _func: &mut dyn FnMut(Handle<Node>)) {}
 
-    fn try_sync_to_collider(
+    fn handle_local_position(
         &self,
+        _handle: Handle<Node>,
         _collider: Handle<Node>,
-        _center: Vector3<f32>,
-        _side: Vector3<f32>,
-        _up: Vector3<f32>,
-        _look: Vector3<f32>,
-        _scene: &mut Scene,
-    ) -> bool {
-        false
+        _scene: &Scene,
+    ) -> Option<Vector3<f32>> {
+        None
     }
 
     fn value_by_handle(

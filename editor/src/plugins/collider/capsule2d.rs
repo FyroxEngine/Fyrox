@@ -1,18 +1,13 @@
 use crate::{
     fyrox::{
-        core::{algebra::Vector3, pool::Handle},
-        scene::{
-            dim2::collider::{CapsuleShape, ColliderShape},
-            node::Node,
-            Scene,
-        },
+        core::{algebra::Vector3, math, pool::Handle},
+        scene::{dim2::collider::ColliderShape, node::Node, Scene},
     },
     plugins::collider::{
-        make_handle, set_node_position, try_get_collider_shape_2d, try_get_collider_shape_mut_2d,
-        ShapeGizmoTrait, ShapeHandleValue,
+        make_handle, try_get_collider_shape_2d, try_get_collider_shape_mut_2d, ShapeGizmoTrait,
+        ShapeHandleValue,
     },
 };
-use fyrox::core::math;
 
 pub struct Capsule2DShapeGizmo {
     radius_handle: Handle<Node>,
@@ -21,23 +16,11 @@ pub struct Capsule2DShapeGizmo {
 }
 
 impl Capsule2DShapeGizmo {
-    pub fn new(
-        capsule: &CapsuleShape,
-        center: Vector3<f32>,
-        side: Vector3<f32>,
-        visible: bool,
-        root: Handle<Node>,
-        scene: &mut Scene,
-    ) -> Self {
+    pub fn new(visible: bool, root: Handle<Node>, scene: &mut Scene) -> Self {
         Self {
-            radius_handle: make_handle(scene, center + side.scale(capsule.radius), root, visible),
-            begin_handle: make_handle(
-                scene,
-                center + capsule.begin.to_homogeneous(),
-                root,
-                visible,
-            ),
-            end_handle: make_handle(scene, center + capsule.end.to_homogeneous(), root, visible),
+            radius_handle: make_handle(scene, root, visible),
+            begin_handle: make_handle(scene, root, visible),
+            end_handle: make_handle(scene, root, visible),
         }
     }
 }
@@ -46,6 +29,35 @@ impl ShapeGizmoTrait for Capsule2DShapeGizmo {
     fn for_each_handle(&self, func: &mut dyn FnMut(Handle<Node>)) {
         for handle in [self.radius_handle, self.begin_handle, self.end_handle] {
             func(handle)
+        }
+    }
+
+    fn handle_local_position(
+        &self,
+        handle: Handle<Node>,
+        collider: Handle<Node>,
+        scene: &Scene,
+    ) -> Option<Vector3<f32>> {
+        let Some(ColliderShape::Capsule(capsule)) = try_get_collider_shape_2d(collider, scene)
+        else {
+            return None;
+        };
+
+        if handle == self.radius_handle {
+            let perp = math::get_arbitrary_line_perpendicular(
+                capsule.begin.to_homogeneous(),
+                capsule.end.to_homogeneous(),
+            )
+            .unwrap_or_else(Vector3::x)
+            .scale(capsule.radius);
+
+            Some(capsule.begin.to_homogeneous() + perp)
+        } else if handle == self.begin_handle {
+            Some(capsule.begin.to_homogeneous())
+        } else if handle == self.end_handle {
+            Some(capsule.end.to_homogeneous())
+        } else {
+            None
         }
     }
 
@@ -71,45 +83,6 @@ impl ShapeGizmoTrait for Capsule2DShapeGizmo {
         } else {
             None
         }
-    }
-
-    fn try_sync_to_collider(
-        &self,
-        collider: Handle<Node>,
-        center: Vector3<f32>,
-        _side: Vector3<f32>,
-        _up: Vector3<f32>,
-        _look: Vector3<f32>,
-        scene: &mut Scene,
-    ) -> bool {
-        let Some(ColliderShape::Capsule(capsule)) = try_get_collider_shape_2d(collider, scene)
-        else {
-            return false;
-        };
-
-        let perp = math::get_arbitrary_line_perpendicular(
-            capsule.begin.to_homogeneous(),
-            capsule.end.to_homogeneous(),
-        )
-        .unwrap_or_else(Vector3::x)
-        .scale(capsule.radius);
-        set_node_position(
-            self.radius_handle,
-            center + capsule.begin.to_homogeneous() + perp,
-            scene,
-        );
-        set_node_position(
-            self.begin_handle,
-            center + capsule.begin.to_homogeneous(),
-            scene,
-        );
-        set_node_position(
-            self.end_handle,
-            center + capsule.end.to_homogeneous(),
-            scene,
-        );
-
-        true
     }
 
     fn value_by_handle(

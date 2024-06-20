@@ -3,14 +3,13 @@ use crate::{
         core::{algebra::Vector3, pool::Handle},
         graph::SceneGraph,
         scene::{
-            dim2::collider::{Collider, ColliderShape, CuboidShape},
+            dim2::collider::{Collider, ColliderShape},
             node::Node,
             Scene,
         },
     },
     plugins::collider::{
-        make_handle, set_node_position, try_get_collider_shape_2d, ShapeGizmoTrait,
-        ShapeHandleValue,
+        make_handle, try_get_collider_shape_2d, ShapeGizmoTrait, ShapeHandleValue,
     },
 };
 
@@ -22,40 +21,12 @@ pub struct Cuboid2DShapeGizmo {
 }
 
 impl Cuboid2DShapeGizmo {
-    pub fn new(
-        cuboid: &CuboidShape,
-        center: Vector3<f32>,
-        side: Vector3<f32>,
-        up: Vector3<f32>,
-        visible: bool,
-        root: Handle<Node>,
-        scene: &mut Scene,
-    ) -> Self {
+    pub fn new(visible: bool, root: Handle<Node>, scene: &mut Scene) -> Self {
         Self {
-            pos_x_handle: make_handle(
-                scene,
-                center + side.scale(cuboid.half_extents.x),
-                root,
-                visible,
-            ),
-            pos_y_handle: make_handle(
-                scene,
-                center + up.scale(cuboid.half_extents.y),
-                root,
-                visible,
-            ),
-            neg_x_handle: make_handle(
-                scene,
-                center - side.scale(cuboid.half_extents.x),
-                root,
-                visible,
-            ),
-            neg_y_handle: make_handle(
-                scene,
-                center - up.scale(cuboid.half_extents.y),
-                root,
-                visible,
-            ),
+            pos_x_handle: make_handle(scene, root, visible),
+            pos_y_handle: make_handle(scene, root, visible),
+            neg_x_handle: make_handle(scene, root, visible),
+            neg_y_handle: make_handle(scene, root, visible),
         }
     }
 }
@@ -69,6 +40,29 @@ impl ShapeGizmoTrait for Cuboid2DShapeGizmo {
             self.neg_y_handle,
         ] {
             func(handle)
+        }
+    }
+
+    fn handle_local_position(
+        &self,
+        handle: Handle<Node>,
+        collider: Handle<Node>,
+        scene: &Scene,
+    ) -> Option<Vector3<f32>> {
+        let Some(ColliderShape::Cuboid(cuboid)) = try_get_collider_shape_2d(collider, scene) else {
+            return None;
+        };
+
+        if handle == self.pos_x_handle {
+            Some(Vector3::new(cuboid.half_extents.x, 0.0, 0.0))
+        } else if handle == self.pos_y_handle {
+            Some(Vector3::new(0.0, cuboid.half_extents.y, 0.0))
+        } else if handle == self.neg_x_handle {
+            Some(Vector3::new(-cuboid.half_extents.x, 0.0, 0.0))
+        } else if handle == self.neg_y_handle {
+            Some(Vector3::new(0.0, -cuboid.half_extents.y, 0.0))
+        } else {
+            None
         }
     }
 
@@ -89,43 +83,6 @@ impl ShapeGizmoTrait for Cuboid2DShapeGizmo {
         } else {
             None
         }
-    }
-
-    fn try_sync_to_collider(
-        &self,
-        collider: Handle<Node>,
-        center: Vector3<f32>,
-        side: Vector3<f32>,
-        up: Vector3<f32>,
-        _look: Vector3<f32>,
-        scene: &mut Scene,
-    ) -> bool {
-        let Some(ColliderShape::Cuboid(cuboid)) = try_get_collider_shape_2d(collider, scene) else {
-            return false;
-        };
-
-        set_node_position(
-            self.pos_x_handle,
-            center + side.scale(cuboid.half_extents.x),
-            scene,
-        );
-        set_node_position(
-            self.pos_y_handle,
-            center + up.scale(cuboid.half_extents.y),
-            scene,
-        );
-        set_node_position(
-            self.neg_x_handle,
-            center - side.scale(cuboid.half_extents.x),
-            scene,
-        );
-        set_node_position(
-            self.neg_y_handle,
-            center - up.scale(cuboid.half_extents.y),
-            scene,
-        );
-
-        true
     }
 
     fn value_by_handle(

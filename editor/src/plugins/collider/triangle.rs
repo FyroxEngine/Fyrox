@@ -1,15 +1,11 @@
 use crate::{
     fyrox::{
         core::{algebra::Vector3, pool::Handle},
-        scene::{
-            collider::{ColliderShape, TriangleShape},
-            node::Node,
-            Scene,
-        },
+        scene::{collider::ColliderShape, node::Node, Scene},
     },
     plugins::collider::{
-        make_handle, set_node_position, try_get_collider_shape, try_get_collider_shape_mut,
-        ShapeGizmoTrait, ShapeHandleValue,
+        make_handle, try_get_collider_shape, try_get_collider_shape_mut, ShapeGizmoTrait,
+        ShapeHandleValue,
     },
 };
 
@@ -20,17 +16,11 @@ pub struct TriangleShapeGizmo {
 }
 
 impl TriangleShapeGizmo {
-    pub fn new(
-        triangle: &TriangleShape,
-        center: Vector3<f32>,
-        root: Handle<Node>,
-        visible: bool,
-        scene: &mut Scene,
-    ) -> Self {
+    pub fn new(root: Handle<Node>, visible: bool, scene: &mut Scene) -> Self {
         Self {
-            a_handle: make_handle(scene, center + triangle.a, root, visible),
-            b_handle: make_handle(scene, center + triangle.b, root, visible),
-            c_handle: make_handle(scene, center + triangle.c, root, visible),
+            a_handle: make_handle(scene, root, visible),
+            b_handle: make_handle(scene, root, visible),
+            c_handle: make_handle(scene, root, visible),
         }
     }
 }
@@ -42,25 +32,26 @@ impl ShapeGizmoTrait for TriangleShapeGizmo {
         }
     }
 
-    fn try_sync_to_collider(
+    fn handle_local_position(
         &self,
+        handle: Handle<Node>,
         collider: Handle<Node>,
-        center: Vector3<f32>,
-        _side: Vector3<f32>,
-        _up: Vector3<f32>,
-        _look: Vector3<f32>,
-        scene: &mut Scene,
-    ) -> bool {
+        scene: &Scene,
+    ) -> Option<Vector3<f32>> {
         let Some(ColliderShape::Triangle(triangle)) = try_get_collider_shape(collider, scene)
         else {
-            return false;
+            return None;
         };
 
-        set_node_position(self.a_handle, center + triangle.a, scene);
-        set_node_position(self.b_handle, center + triangle.b, scene);
-        set_node_position(self.c_handle, center + triangle.c, scene);
-
-        true
+        if handle == self.a_handle {
+            Some(triangle.a)
+        } else if handle == self.b_handle {
+            Some(triangle.b)
+        } else if handle == self.c_handle {
+            Some(triangle.c)
+        } else {
+            None
+        }
     }
 
     fn value_by_handle(

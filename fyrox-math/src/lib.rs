@@ -551,7 +551,7 @@ pub fn get_arbitrary_line_perpendicular(
     end: Vector3<f32>,
 ) -> Option<Vector3<f32>> {
     let dir = (end - begin).try_normalize(f32::EPSILON)?;
-    for axis in [Vector3::x(), Vector3::y(), Vector3::z()] {
+    for axis in [Vector3::z(), Vector3::y(), Vector3::x()] {
         let perp = dir.cross(&axis);
         if perp.norm_squared().ne(&0.0) {
             return Some(perp);

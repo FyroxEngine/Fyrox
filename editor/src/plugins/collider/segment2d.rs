@@ -1,15 +1,11 @@
 use crate::{
     fyrox::{
         core::{algebra::Vector3, pool::Handle},
-        scene::{
-            dim2::collider::{ColliderShape, SegmentShape},
-            node::Node,
-            Scene,
-        },
+        scene::{dim2::collider::ColliderShape, node::Node, Scene},
     },
     plugins::collider::{
-        make_handle, set_node_position, try_get_collider_shape_2d, try_get_collider_shape_mut_2d,
-        ShapeGizmoTrait, ShapeHandleValue,
+        make_handle, try_get_collider_shape_2d, try_get_collider_shape_mut_2d, ShapeGizmoTrait,
+        ShapeHandleValue,
     },
 };
 
@@ -19,21 +15,10 @@ pub struct Segment2DShapeGizmo {
 }
 
 impl Segment2DShapeGizmo {
-    pub fn new(
-        segment: &SegmentShape,
-        center: Vector3<f32>,
-        root: Handle<Node>,
-        visible: bool,
-        scene: &mut Scene,
-    ) -> Self {
+    pub fn new(root: Handle<Node>, visible: bool, scene: &mut Scene) -> Self {
         Self {
-            begin_handle: make_handle(
-                scene,
-                center + segment.begin.to_homogeneous(),
-                root,
-                visible,
-            ),
-            end_handle: make_handle(scene, center + segment.end.to_homogeneous(), root, visible),
+            begin_handle: make_handle(scene, root, visible),
+            end_handle: make_handle(scene, root, visible),
         }
     }
 }
@@ -45,32 +30,24 @@ impl ShapeGizmoTrait for Segment2DShapeGizmo {
         }
     }
 
-    fn try_sync_to_collider(
+    fn handle_local_position(
         &self,
+        handle: Handle<Node>,
         collider: Handle<Node>,
-        center: Vector3<f32>,
-        _side: Vector3<f32>,
-        _up: Vector3<f32>,
-        _look: Vector3<f32>,
-        scene: &mut Scene,
-    ) -> bool {
+        scene: &Scene,
+    ) -> Option<Vector3<f32>> {
         let Some(ColliderShape::Segment(segment)) = try_get_collider_shape_2d(collider, scene)
         else {
-            return false;
+            return None;
         };
 
-        set_node_position(
-            self.begin_handle,
-            center + segment.begin.to_homogeneous(),
-            scene,
-        );
-        set_node_position(
-            self.end_handle,
-            center + segment.end.to_homogeneous(),
-            scene,
-        );
-
-        true
+        if handle == self.begin_handle {
+            Some(segment.begin.to_homogeneous())
+        } else if handle == self.end_handle {
+            Some(segment.end.to_homogeneous())
+        } else {
+            None
+        }
     }
 
     fn value_by_handle(

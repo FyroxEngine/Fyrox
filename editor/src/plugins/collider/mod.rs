@@ -20,9 +20,9 @@ use crate::{
     fyrox::{
         asset::untyped::ResourceKind,
         core::{
-            algebra::{Vector2, Vector3},
+            algebra::{UnitQuaternion, Vector2, Vector3},
             color::Color,
-            math::plane::Plane,
+            math::{plane::Plane, Matrix4Ext},
             pool::Handle,
             reflect::Reflect,
             type_traits::prelude::*,
@@ -37,12 +37,12 @@ use crate::{
         },
         scene::{
             base::BaseBuilder, collider::Collider, collider::ColliderShape, dim2, node::Node,
-            sprite::SpriteBuilder, transform::TransformBuilder, Scene,
+            sprite::SpriteBuilder, Scene,
         },
     },
     interaction::{
-        gizmo::move_gizmo::MoveGizmo, make_interaction_mode_button, plane::PlaneKind,
-        InteractionMode,
+        calculate_gizmo_distance_scaling, gizmo::move_gizmo::MoveGizmo,
+        make_interaction_mode_button, plane::PlaneKind, InteractionMode,
     },
     load_texture,
     message::MessageSender,
@@ -58,12 +58,6 @@ use crate::{
     settings::Settings,
     Editor, Message,
 };
-
-fn set_node_position(handle: Handle<Node>, position: Vector3<f32>, scene: &mut Scene) {
-    scene.graph[handle]
-        .local_transform_mut()
-        .set_position(position);
-}
 
 fn try_get_collider_shape(collider: Handle<Node>, scene: &Scene) -> Option<ColliderShape> {
     scene
@@ -105,6 +99,13 @@ fn try_get_collider_shape_mut_2d(
 trait ShapeGizmoTrait {
     fn for_each_handle(&self, func: &mut dyn FnMut(Handle<Node>));
 
+    fn handle_local_position(
+        &self,
+        handle: Handle<Node>,
+        collider: Handle<Node>,
+        scene: &Scene,
+    ) -> Option<Vector3<f32>>;
+
     fn handle_major_axis(
         &self,
         _handle: Handle<Node>,
@@ -113,16 +114,6 @@ trait ShapeGizmoTrait {
     ) -> Option<Vector3<f32>> {
         None
     }
-
-    fn try_sync_to_collider(
-        &self,
-        collider: Handle<Node>,
-        center: Vector3<f32>,
-        side: Vector3<f32>,
-        up: Vector3<f32>,
-        look: Vector3<f32>,
-        scene: &mut Scene,
-    ) -> bool;
 
     fn value_by_handle(
         &self,
@@ -169,14 +160,31 @@ trait ShapeGizmoTrait {
             scene.graph[handle].set_visibility(visibility);
         })
     }
+
+    fn try_sync_to_collider(&self, collider: Handle<Node>, scene: &mut Scene) -> bool {
+        let mut is_ok = true;
+        let transform = scene.graph[collider].global_transform();
+        self.for_each_handle(&mut |handle| {
+            if let Some(local_position) = self.handle_local_position(handle, collider, scene) {
+                scene.graph[handle]
+                    .local_transform_mut()
+                    .set_position(transform.transform_point(&local_position.into()).coords)
+                    .set_rotation(UnitQuaternion::from_matrix_eps(
+                        &transform.basis(),
+                        f32::EPSILON,
+                        16,
+                        Default::default(),
+                    ));
+            } else {
+                is_ok = false;
+            }
+        });
+        is_ok
+    }
 }
 
 fn make_shape_gizmo(
     collider: Handle<Node>,
-    center: Vector3<f32>,
-    side: Vector3<f32>,
-    up: Vector3<f32>,
-    look: Vector3<f32>,
     scene: &mut Scene,
     root: Handle<Node>,
     visible: bool,
@@ -184,27 +192,13 @@ fn make_shape_gizmo(
     if let Some(collider) = scene.graph.try_get_of_type::<Collider>(collider) {
         let shape = collider.shape().clone();
         match shape {
-            ColliderShape::Ball(ball) => Box::new(BallShapeGizmo::new(
-                &ball, center, side, root, visible, scene,
-            )),
-            ColliderShape::Cylinder(cylinder) => Box::new(CylinderShapeGizmo::new(
-                &cylinder, center, side, up, visible, root, scene,
-            )),
-            ColliderShape::Cone(cone) => Box::new(ConeShapeGizmo::new(
-                &cone, center, side, up, visible, root, scene,
-            )),
-            ColliderShape::Cuboid(cuboid) => Box::new(CuboidShapeGizmo::new(
-                &cuboid, center, side, up, look, visible, root, scene,
-            )),
-            ColliderShape::Capsule(capsule) => Box::new(CapsuleShapeGizmo::new(
-                &capsule, center, side, visible, root, scene,
-            )),
-            ColliderShape::Segment(segment) => Box::new(SegmentShapeGizmo::new(
-                &segment, center, root, visible, scene,
-            )),
-            ColliderShape::Triangle(triangle) => Box::new(TriangleShapeGizmo::new(
-                &triangle, center, root, visible, scene,
-            )),
+            ColliderShape::Ball(_) => Box::new(BallShapeGizmo::new(root, visible, scene)),
+            ColliderShape::Cylinder(_) => Box::new(CylinderShapeGizmo::new(visible, root, scene)),
+            ColliderShape::Cone(_) => Box::new(ConeShapeGizmo::new(visible, root, scene)),
+            ColliderShape::Cuboid(_) => Box::new(CuboidShapeGizmo::new(visible, root, scene)),
+            ColliderShape::Capsule(_) => Box::new(CapsuleShapeGizmo::new(visible, root, scene)),
+            ColliderShape::Segment(_) => Box::new(SegmentShapeGizmo::new(root, visible, scene)),
+            ColliderShape::Triangle(_) => Box::new(TriangleShapeGizmo::new(root, visible, scene)),
             ColliderShape::Trimesh(_)
             | ColliderShape::Heightfield(_)
             | ColliderShape::Polyhedron(_) => Box::new(DummyShapeGizmo),
@@ -215,21 +209,21 @@ fn make_shape_gizmo(
     {
         let shape = collider.shape().clone();
         match shape {
-            dim2::collider::ColliderShape::Ball(ball) => Box::new(Ball2DShapeGizmo::new(
-                &ball, center, side, root, visible, scene,
-            )),
-            dim2::collider::ColliderShape::Cuboid(cuboid) => Box::new(Cuboid2DShapeGizmo::new(
-                &cuboid, center, side, up, visible, root, scene,
-            )),
-            dim2::collider::ColliderShape::Capsule(capsule) => Box::new(Capsule2DShapeGizmo::new(
-                &capsule, center, side, visible, root, scene,
-            )),
-            dim2::collider::ColliderShape::Segment(segment) => Box::new(Segment2DShapeGizmo::new(
-                &segment, center, root, visible, scene,
-            )),
-            dim2::collider::ColliderShape::Triangle(triangle) => Box::new(
-                Triangle2DShapeGizmo::new(&triangle, center, root, visible, scene),
-            ),
+            dim2::collider::ColliderShape::Ball(_) => {
+                Box::new(Ball2DShapeGizmo::new(root, visible, scene))
+            }
+            dim2::collider::ColliderShape::Cuboid(_) => {
+                Box::new(Cuboid2DShapeGizmo::new(visible, root, scene))
+            }
+            dim2::collider::ColliderShape::Capsule(_) => {
+                Box::new(Capsule2DShapeGizmo::new(visible, root, scene))
+            }
+            dim2::collider::ColliderShape::Segment(_) => {
+                Box::new(Segment2DShapeGizmo::new(root, visible, scene))
+            }
+            dim2::collider::ColliderShape::Triangle(_) => {
+                Box::new(Triangle2DShapeGizmo::new(root, visible, scene))
+            }
             dim2::collider::ColliderShape::Trimesh(_)
             | dim2::collider::ColliderShape::Heightfield(_) => Box::new(DummyShapeGizmo),
         }
@@ -248,12 +242,7 @@ lazy_static! {
     };
 }
 
-fn make_handle(
-    scene: &mut Scene,
-    position: Vector3<f32>,
-    root: Handle<Node>,
-    visible: bool,
-) -> Handle<Node> {
+fn make_handle(scene: &mut Scene, root: Handle<Node>, visible: bool) -> Handle<Node> {
     let mut material = Material::from_shader(GIZMO_SHADER.clone(), None);
 
     material
@@ -263,19 +252,11 @@ fn make_handle(
         )
         .unwrap();
 
-    let handle = SpriteBuilder::new(
-        BaseBuilder::new()
-            .with_local_transform(
-                TransformBuilder::new()
-                    .with_local_position(position)
-                    .build(),
-            )
-            .with_visibility(visible),
-    )
-    .with_material(MaterialResource::new_ok(ResourceKind::Embedded, material))
-    .with_size(0.05)
-    .with_color(Color::MAROON)
-    .build(&mut scene.graph);
+    let handle = SpriteBuilder::new(BaseBuilder::new().with_visibility(visible))
+        .with_material(MaterialResource::new_ok(ResourceKind::Embedded, material))
+        .with_size(0.05)
+        .with_color(Color::MAROON)
+        .build(&mut scene.graph);
 
     scene.graph.link_nodes(handle, root);
 
@@ -555,7 +536,7 @@ impl InteractionMode for ColliderShapeInteractionMode {
                             .unwrap()
                             .into_vector();
 
-                        let offset = self.move_gizmo.calculate_offset(
+                        let global_offset = self.move_gizmo.calculate_offset(
                             &scene.graph,
                             game_scene.camera_controller.camera,
                             mouse_offset,
@@ -564,9 +545,15 @@ impl InteractionMode for ColliderShapeInteractionMode {
                             plane_kind,
                         );
 
+                        let local_offset = scene.graph[self.collider]
+                            .global_transform()
+                            .try_inverse()
+                            .unwrap_or_default()
+                            .transform_vector(&global_offset);
+
                         self.shape_gizmo.set_value_by_handle(
                             drag_context.handle,
-                            ShapeHandleValue::Vector(value + offset),
+                            ShapeHandleValue::Vector(value + local_offset),
                             self.collider,
                             scene,
                             drag_context.initial_collider_local_position,
@@ -590,38 +577,9 @@ impl InteractionMode for ColliderShapeInteractionMode {
 
         let scene = &mut engine.scenes[game_scene.scene];
 
-        let Some(collider) = scene.graph.try_get(self.collider) else {
-            return;
-        };
-
-        let center = collider.global_position();
-        let side = collider
-            .side_vector()
-            .try_normalize(f32::EPSILON)
-            .unwrap_or_default();
-        let up = collider
-            .up_vector()
-            .try_normalize(f32::EPSILON)
-            .unwrap_or_default();
-        let look = collider
-            .look_vector()
-            .try_normalize(f32::EPSILON)
-            .unwrap_or_default();
-
-        if !self
-            .shape_gizmo
-            .try_sync_to_collider(self.collider, center, side, up, look, scene)
-        {
-            let new_gizmo = make_shape_gizmo(
-                self.collider,
-                center,
-                side,
-                up,
-                look,
-                scene,
-                game_scene.editor_objects_root,
-                true,
-            );
+        if !self.shape_gizmo.try_sync_to_collider(self.collider, scene) {
+            let new_gizmo =
+                make_shape_gizmo(self.collider, scene, game_scene.editor_objects_root, true);
 
             let old_gizmo = std::mem::replace(&mut self.shape_gizmo, new_gizmo);
 
@@ -632,9 +590,23 @@ impl InteractionMode for ColliderShapeInteractionMode {
             &mut scene.graph,
             self.shape_gizmo.is_vector_handle(self.selected_handle),
         );
-        if let Some(selected_handle) = scene.graph.try_get(self.selected_handle) {
-            let position = selected_handle.global_position();
-            self.move_gizmo.set_position(scene, position)
+        let scale = calculate_gizmo_distance_scaling(
+            &scene.graph,
+            game_scene.camera_controller.camera,
+            self.move_gizmo.origin,
+        );
+        if let Some(handle_local_position) =
+            self.shape_gizmo
+                .handle_local_position(self.selected_handle, self.collider, scene)
+        {
+            let transform = scene.graph[self.collider].global_transform();
+            let position = transform
+                .transform_point(&handle_local_position.into())
+                .coords;
+            self.move_gizmo
+                .transform(&mut scene.graph)
+                .set_position(position)
+                .set_scale(scale);
         }
     }
 
@@ -697,26 +669,8 @@ impl EditorPlugin for ColliderShapePlugin {
                         continue;
                     }
 
-                    let center = collider.global_position();
-                    let side = collider
-                        .side_vector()
-                        .try_normalize(f32::EPSILON)
-                        .unwrap_or_default();
-                    let up = collider
-                        .up_vector()
-                        .try_normalize(f32::EPSILON)
-                        .unwrap_or_default();
-                    let look = collider
-                        .look_vector()
-                        .try_normalize(f32::EPSILON)
-                        .unwrap_or_default();
-
                     let shape_gizmo = make_shape_gizmo(
                         *node_handle,
-                        center,
-                        side,
-                        up,
-                        look,
                         scene,
                         game_scene.editor_objects_root,
                         false,
