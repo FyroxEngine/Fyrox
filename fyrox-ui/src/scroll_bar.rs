@@ -3,6 +3,7 @@
 
 #![warn(missing_docs)]
 
+use crate::font::FontResource;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -443,6 +444,8 @@ pub struct ScrollBarBuilder {
     body: Option<Handle<UiNode>>,
     show_value: bool,
     value_precision: usize,
+    font: Option<FontResource>,
+    font_size: f32,
 }
 
 impl ScrollBarBuilder {
@@ -461,6 +464,8 @@ impl ScrollBarBuilder {
             body: None,
             show_value: false,
             value_precision: 3,
+            font: None,
+            font_size: 14.0,
         }
     }
 
@@ -527,6 +532,18 @@ impl ScrollBarBuilder {
     /// Sets the desired value precision of the scroll bar.
     pub fn with_value_precision(mut self, precision: usize) -> Self {
         self.value_precision = precision;
+        self
+    }
+
+    /// Sets the desired font.
+    pub fn with_font(mut self, font: FontResource) -> Self {
+        self.font = Some(font);
+        self
+    }
+
+    /// Sets the desired font size.
+    pub fn with_font_size(mut self, size: f32) -> Self {
+        self.font_size = size;
         self
     }
 
@@ -615,6 +632,8 @@ impl ScrollBarBuilder {
                         Orientation::Vertical => 1,
                     }),
             )
+            .with_font(self.font.unwrap_or_else(|| ctx.default_font()))
+            .with_font_size(self.font_size)
             .with_text(format!("{:.1$}", value, self.value_precision))
             .build(ctx);
 
