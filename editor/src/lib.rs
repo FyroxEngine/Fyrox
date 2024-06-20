@@ -983,12 +983,16 @@ impl Editor {
 
             let mut processed = false;
             if let Some(scene) = self.scenes.current_scene_entry_mut() {
-                if let Some(current_interaction_mode) = scene.current_interaction_mode {
-                    processed |= scene
-                        .interaction_modes
-                        .get_mut(&current_interaction_mode)
-                        .unwrap()
-                        .on_hot_key(&hot_key, &mut *scene.controller, engine, &self.settings);
+                if let Some(current_interaction_mode) = scene
+                    .current_interaction_mode
+                    .and_then(|current_mode| scene.interaction_modes.get_mut(&current_mode))
+                {
+                    processed |= current_interaction_mode.on_hot_key(
+                        &hot_key,
+                        &mut *scene.controller,
+                        engine,
+                        &self.settings,
+                    );
                 }
             }
 
@@ -1299,17 +1303,18 @@ impl Editor {
                 self.navmesh_panel
                     .handle_message(message, &current_scene_entry.selection);
 
-                if let Some(current_im) = current_scene_entry.current_interaction_mode {
-                    current_scene_entry
-                        .interaction_modes
-                        .get_mut(&current_im)
-                        .unwrap()
-                        .handle_ui_message(
-                            message,
-                            &current_scene_entry.selection,
-                            game_scene,
-                            engine,
-                        );
+                if let Some(interaction_mode) = current_scene_entry
+                    .current_interaction_mode
+                    .and_then(|current_mode| {
+                        current_scene_entry.interaction_modes.get_mut(&current_mode)
+                    })
+                {
+                    interaction_mode.handle_ui_message(
+                        message,
+                        &current_scene_entry.selection,
+                        game_scene,
+                        engine,
+                    );
                 }
 
                 self.scene_node_context_menu.borrow_mut().handle_ui_message(
@@ -2547,8 +2552,11 @@ impl Editor {
                 );
             }
 
-            if let Some(mode) = entry.current_interaction_mode {
-                entry.interaction_modes.get_mut(&mode).unwrap().update(
+            if let Some(interaction_mode) = entry
+                .current_interaction_mode
+                .and_then(|current_mode| entry.interaction_modes.get_mut(&current_mode))
+            {
+                interaction_mode.update(
                     &entry.selection,
                     &mut **controller,
                     &mut self.engine,

@@ -153,21 +153,21 @@ impl EditorSceneEntry {
     pub fn set_interaction_mode(&mut self, engine: &mut Engine, mode: Option<Uuid>) {
         if self.current_interaction_mode != mode {
             // Deactivate current first.
-            if let Some(current_mode) = self.current_interaction_mode {
-                self.interaction_modes
-                    .get_mut(&current_mode)
-                    .unwrap()
-                    .deactivate(&*self.controller, engine);
+            if let Some(interaction_mode) = self
+                .current_interaction_mode
+                .and_then(|current_mode| self.interaction_modes.get_mut(&current_mode))
+            {
+                interaction_mode.deactivate(&*self.controller, engine);
             }
 
             self.current_interaction_mode = mode;
 
             // Activate new.
-            if let Some(current_mode) = self.current_interaction_mode {
-                self.interaction_modes
-                    .get_mut(&current_mode)
-                    .unwrap()
-                    .activate(&*self.controller, engine);
+            if let Some(interaction_mode) = self
+                .current_interaction_mode
+                .and_then(|current_mode| self.interaction_modes.get_mut(&current_mode))
+            {
+                interaction_mode.activate(&*self.controller, engine);
             }
         }
     }
