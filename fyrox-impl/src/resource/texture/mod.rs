@@ -256,7 +256,7 @@ pub struct Texture {
     t_wrap_mode: TextureWrapMode,
     mip_count: u32,
     anisotropy: f32,
-    data_hash: u64,
+    modifications_counter: u64,
     is_render_target: bool,
     #[doc(hidden)]
     #[reflect(hidden)]
@@ -372,7 +372,7 @@ impl Default for Texture {
             t_wrap_mode: TextureWrapMode::Repeat,
             mip_count: 1,
             anisotropy: 16.0,
-            data_hash: 0,
+            modifications_counter: 0,
             is_render_target: false,
             cache_index: Default::default(),
         }
@@ -625,7 +625,7 @@ impl TextureResourceExtension for TextureResource {
                 t_wrap_mode: TextureWrapMode::Repeat,
                 mip_count: 1,
                 anisotropy: 1.0,
-                data_hash: 0,
+                modifications_counter: 0,
                 is_render_target: true,
                 cache_index: Default::default(),
             },
@@ -1364,7 +1364,7 @@ impl Texture {
 
             Ok(Self {
                 pixel_kind,
-                data_hash: data_hash(&bytes),
+                modifications_counter: 0,
                 minification_filter: import_options.minification_filter,
                 magnification_filter: import_options.magnification_filter,
                 s_wrap_mode: import_options.s_wrap_mode,
@@ -1513,7 +1513,7 @@ impl Texture {
             Ok(Self {
                 pixel_kind: final_pixel_kind,
                 kind: TextureKind::Rectangle { width, height },
-                data_hash: data_hash(&bytes),
+                modifications_counter: 0,
                 bytes: bytes.into(),
                 mip_count,
                 minification_filter: import_options.minification_filter,
@@ -1557,7 +1557,7 @@ impl Texture {
         } else {
             Some(Self {
                 kind,
-                data_hash: data_hash(&bytes),
+                modifications_counter: 0,
                 bytes: bytes.into(),
                 pixel_kind,
                 ..Default::default()
@@ -1615,9 +1615,14 @@ impl Texture {
         self.kind
     }
 
-    /// Returns current data hash. Hash is guaranteed to be in actual state.
-    pub fn data_hash(&self) -> u64 {
-        self.data_hash
+    /// Returns total amount of modifications done on the texture.
+    pub fn modifications_count(&self) -> u64 {
+        self.modifications_counter
+    }
+
+    /// Calculates current data hash.
+    pub fn calculate_data_hash(&self) -> u64 {
+        data_hash(&self.bytes.0)
     }
 
     /// Returns current pixel kind.
@@ -1714,7 +1719,7 @@ pub struct TextureDataRefMut<'a> {
 
 impl<'a> Drop for TextureDataRefMut<'a> {
     fn drop(&mut self) {
-        self.texture.data_hash = data_hash(&self.texture.bytes);
+        self.texture.modifications_counter += 1;
     }
 }
 

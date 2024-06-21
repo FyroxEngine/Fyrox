@@ -1444,7 +1444,7 @@ impl Renderer {
                     .unwrap()
                     .texture
                     .clone(),
-                data_hash: 0,
+                modifications_counter: 0,
             },
             render_target.data_ref().cache_index.clone(),
             TimeToLive(f32::INFINITY),
@@ -1587,7 +1587,7 @@ impl Renderer {
             self.texture_cache.map.spawn(
                 TextureRenderData {
                     gpu_texture: scene_associated_data.ldr_scene_frame_texture(),
-                    data_hash: 0,
+                    modifications_counter: 0,
                 },
                 rt.data_ref().cache_index.clone(),
                 TimeToLive(f32::INFINITY),

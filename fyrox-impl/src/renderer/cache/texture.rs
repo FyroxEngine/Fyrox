@@ -18,7 +18,7 @@ use std::{cell::RefCell, rc::Rc};
 
 pub(crate) struct TextureRenderData {
     pub gpu_texture: Rc<RefCell<GpuTexture>>,
-    pub data_hash: u64,
+    pub modifications_counter: u64,
 }
 
 #[derive(Default)]
@@ -41,7 +41,7 @@ fn create_gpu_texture(
     )
     .map(|gpu_texture| TextureRenderData {
         gpu_texture: Rc::new(RefCell::new(gpu_texture)),
-        data_hash: texture.data_hash(),
+        modifications_counter: texture.modifications_count(),
     })
 }
 
@@ -87,8 +87,8 @@ impl TextureCache {
                     // Check if some value has changed in resource.
 
                     // Data might change from last frame, so we have to check it and upload new if so.
-                    let data_hash = texture.data_hash();
-                    if entry.data_hash != data_hash {
+                    let modifications_count = texture.modifications_count();
+                    if entry.modifications_counter != modifications_count {
                         let mut gpu_texture = entry.gpu_texture.borrow_mut();
                         if let Err(e) = gpu_texture.bind_mut(state, 0).set_data(
                             texture.kind().into(),
@@ -104,7 +104,7 @@ impl TextureCache {
                                 ),
                             )
                         } else {
-                            entry.data_hash = data_hash;
+                            entry.modifications_counter = modifications_count;
                         }
                     }
 
