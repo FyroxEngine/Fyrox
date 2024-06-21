@@ -223,6 +223,8 @@ pub enum ButtonContent {
         text: String,
         /// Optional font of the button. If [`None`], the default font will be used.
         font: Option<FontResource>,
+        /// Font size of the text. Default is 14.0
+        size: f32,
     },
     /// Arbitrary widget handle. It could be any widget handle, for example a handle of [`crate::image::Image`]
     /// widget.
@@ -235,6 +237,7 @@ impl ButtonContent {
         Self::Text {
             text: s.as_ref().to_owned(),
             font: None,
+            size: 14.0,
         }
     }
 
@@ -243,6 +246,16 @@ impl ButtonContent {
         Self::Text {
             text: s.as_ref().to_owned(),
             font: Some(font),
+            size: 14.0,
+        }
+    }
+
+    /// Creates [`ButtonContent::Text`] with custom font and size.
+    pub fn text_with_font_size<S: AsRef<str>>(s: S, font: FontResource, size: f32) -> Self {
+        Self::Text {
+            text: s.as_ref().to_owned(),
+            font: Some(font),
+            size,
         }
     }
 
@@ -253,11 +266,12 @@ impl ButtonContent {
 
     fn build(&self, ctx: &mut BuildContext) -> Handle<UiNode> {
         match self {
-            Self::Text { text, font } => TextBuilder::new(WidgetBuilder::new())
+            Self::Text { text, font, size } => TextBuilder::new(WidgetBuilder::new())
                 .with_text(text)
                 .with_horizontal_text_alignment(HorizontalAlignment::Center)
                 .with_vertical_text_alignment(VerticalAlignment::Center)
                 .with_font(font.clone().unwrap_or_else(|| ctx.default_font()))
+                .with_font_size(*size)
                 .build(ctx),
             Self::Node(node) => *node,
         }
@@ -294,6 +308,12 @@ impl ButtonBuilder {
     /// Sets the content of the button to be [`ButtonContent::Text`] (text with a custom font).
     pub fn with_text_and_font(mut self, text: &str, font: FontResource) -> Self {
         self.content = Some(ButtonContent::text_with_font(text, font));
+        self
+    }
+
+    /// Sets the content of the button to be [`ButtonContent::Text`] (text with a custom font and size).
+    pub fn with_text_and_font_size(mut self, text: &str, font: FontResource, size: f32) -> Self {
+        self.content = Some(ButtonContent::text_with_font_size(text, font, size));
         self
     }
 
