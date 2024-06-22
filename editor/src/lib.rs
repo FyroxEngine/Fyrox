@@ -253,7 +253,7 @@ pub fn make_save_file_selector(
 ) -> Handle<UiNode> {
     FileSelectorBuilder::new(
         WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
-            .with_title(WindowTitle::Text("Save Scene As".into()))
+            .with_title(WindowTitle::text("Save Scene As"))
             .open(false),
     )
     .with_mode(FileBrowserMode::Save { default_file_name })
@@ -320,7 +320,7 @@ impl SaveSceneConfirmationDialog {
                 .can_close(false)
                 .can_minimize(false)
                 .open(false)
-                .with_title(WindowTitle::Text("Unsaved changes".to_owned())),
+                .with_title(WindowTitle::text("Unsaved changes")),
         )
         .with_buttons(MessageBoxButtons::YesNoCancel)
         .build(ctx);
@@ -771,7 +771,7 @@ impl Editor {
                 .can_close(false)
                 .can_minimize(false)
                 .open(false)
-                .with_title(WindowTitle::Text("Unsaved changes".to_owned())),
+                .with_title(WindowTitle::text("Unsaved changes")),
         )
         .with_buttons(MessageBoxButtons::YesNoCancel)
         .build(ctx);
@@ -781,7 +781,7 @@ impl Editor {
                 .can_close(false)
                 .can_minimize(false)
                 .open(false)
-                .with_title(WindowTitle::Text("Validation failed!".to_owned())),
+                .with_title(WindowTitle::text("Validation failed!")),
         )
         .with_buttons(MessageBoxButtons::Ok)
         .build(ctx);

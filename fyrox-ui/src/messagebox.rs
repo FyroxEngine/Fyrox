@@ -239,7 +239,7 @@ impl Control for MessageBox {
                         ui.send_message(WindowMessage::title(
                             self.handle(),
                             MessageDirection::ToWidget,
-                            WindowTitle::Text(title.clone()),
+                            WindowTitle::text(title.clone()),
                         ));
                     }
 

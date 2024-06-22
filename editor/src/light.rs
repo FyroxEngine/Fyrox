@@ -208,7 +208,7 @@ impl LightPanel {
                 .with_width(300.0)
                 .with_height(400.0),
         )
-        .with_title(WindowTitle::Text("Light Settings".to_owned()))
+        .with_title(WindowTitle::text("Light Settings"))
         .open(false)
         .with_content(
             GridBuilder::new(

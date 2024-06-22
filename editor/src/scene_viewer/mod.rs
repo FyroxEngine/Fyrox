@@ -1029,7 +1029,7 @@ impl SceneViewer {
         ui.send_message(WindowMessage::title(
             self.window,
             MessageDirection::ToWidget,
-            WindowTitle::Text(title),
+            WindowTitle::text(title),
         ));
     }
 

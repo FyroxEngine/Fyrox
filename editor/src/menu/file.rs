@@ -73,7 +73,7 @@ impl FileMenu {
         let configure_message = MessageBoxBuilder::new(
             WindowBuilder::new(WidgetBuilder::new().with_width(250.0).with_height(150.0))
                 .open(false)
-                .with_title(WindowTitle::Text("Warning".to_owned())),
+                .with_title(WindowTitle::text("Warning")),
         )
         .with_text("Cannot reconfigure editor while scene is open! Close scene first and retry.")
         .with_buttons(MessageBoxButtons::Ok)
@@ -141,7 +141,7 @@ impl FileMenu {
         let load_file_selector = FileSelectorBuilder::new(
             WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
                 .open(false)
-                .with_title(WindowTitle::Text("Select a Scene To Load".into())),
+                .with_title(WindowTitle::text("Select a Scene To Load")),
         )
         .with_filter(make_scene_file_filter())
         .build(ctx);
