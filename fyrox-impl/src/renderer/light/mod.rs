@@ -162,7 +162,6 @@ impl DeferredLightRenderer {
                         TriangleDefinition([20, 21, 22]),
                         TriangleDefinition([20, 22, 23]),
                     ]),
-                    true,
                 ),
                 GeometryBufferKind::StaticDraw,
                 state,

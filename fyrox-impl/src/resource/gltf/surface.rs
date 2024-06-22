@@ -197,11 +197,11 @@ pub fn build_surface_data(
     let morphs: Vec<InputBlendShapeData> = build_morph_data(primitive, morph_info, buffers)?;
     let mut surf = if !morphs.is_empty() {
         let shapes = mesh::surface::BlendShapesContainer::from_lists(&vs, morphs.as_slice());
-        let mut surf = SurfaceData::new(vs, tris, false);
+        let mut surf = SurfaceData::new(vs, tris);
         surf.blend_shapes_container = Some(shapes);
         surf
     } else {
-        SurfaceData::new(vs, tris, false)
+        SurfaceData::new(vs, tris)
     };
     let has_tex = primitive.get(&Semantic::TexCoords(0)).is_some();
     let has_norm = primitive.get(&Semantic::Normals).is_some();

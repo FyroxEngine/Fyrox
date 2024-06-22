@@ -198,9 +198,6 @@ pub struct SurfaceData {
     pub geometry_buffer: TriangleBuffer,
     /// A container for blend shapes.
     pub blend_shapes_container: Option<BlendShapesContainer>,
-    // If true - indicates that surface was generated and does not have reference
-    // resource. Procedural data will be serialized.
-    is_embedded: bool,
     #[reflect(hidden)]
     pub(crate) cache_index: Arc<AtomicIndex>,
 }
@@ -229,15 +226,12 @@ impl ResourceData for SurfaceData {
 }
 
 impl SurfaceData {
-    /// Creates new data source using given vertices and indices. `is_procedural` flags affects serialization - when it
-    /// is `true` the content of the vertex and triangle buffers will be serialized. It is useful if you need to save
-    /// surfaces with procedural content.
-    pub fn new(vertex_buffer: VertexBuffer, triangles: TriangleBuffer, is_embedded: bool) -> Self {
+    /// Creates new data source using given vertices and indices.
+    pub fn new(vertex_buffer: VertexBuffer, triangles: TriangleBuffer) -> Self {
         Self {
             vertex_buffer,
             geometry_buffer: triangles,
             blend_shapes_container: None,
-            is_embedded,
             cache_index: Arc::new(AtomicIndex::unassigned()),
         }
     }
@@ -273,7 +267,7 @@ impl SurfaceData {
 
     /// Converts raw mesh into "renderable" mesh. It is useful to build procedural meshes. See [`RawMesh`] docs for more
     /// info.
-    pub fn from_raw_mesh<T>(raw: RawMesh<T>, is_embedded: bool) -> Self
+    pub fn from_raw_mesh<T>(raw: RawMesh<T>) -> Self
     where
         T: VertexTrait,
     {
@@ -281,7 +275,6 @@ impl SurfaceData {
             vertex_buffer: VertexBuffer::new(raw.vertices.len(), raw.vertices).unwrap(),
             geometry_buffer: TriangleBuffer::new(raw.triangles),
             blend_shapes_container: Default::default(),
-            is_embedded,
             cache_index: Arc::new(AtomicIndex::unassigned()),
         }
     }
@@ -407,7 +400,6 @@ impl SurfaceData {
         Self::new(
             VertexBuffer::new(vertices.len(), vertices).unwrap(),
             TriangleBuffer::new(triangles),
-            true,
         )
     }
 
@@ -446,7 +438,6 @@ impl SurfaceData {
         Self::new(
             VertexBuffer::new(vertices.len(), vertices).unwrap(),
             TriangleBuffer::new(triangles),
-            true,
         )
     }
 
@@ -485,7 +476,6 @@ impl SurfaceData {
                 TriangleDefinition([0, 1, 2]),
                 TriangleDefinition([0, 2, 3]),
             ]),
-            true,
         );
         data.calculate_tangents().unwrap();
         data.transform_geometry(transform).unwrap();
@@ -590,7 +580,7 @@ impl SurfaceData {
             }
         }
 
-        let mut data = Self::from_raw_mesh(builder.build(), true);
+        let mut data = Self::from_raw_mesh(builder.build());
         data.calculate_tangents().unwrap();
         data.transform_geometry(transform).unwrap();
         data
@@ -668,7 +658,7 @@ impl SurfaceData {
             ));
         }
 
-        let mut data = Self::from_raw_mesh(builder.build(), true);
+        let mut data = Self::from_raw_mesh(builder.build());
         data.calculate_tangents().unwrap();
         data.transform_geometry(transform).unwrap();
         data
@@ -725,7 +715,6 @@ impl SurfaceData {
         let mut data = Self::new(
             VertexBuffer::new(vertices.len(), vertices).unwrap(),
             TriangleBuffer::new(triangles),
-            true,
         );
         data.calculate_tangents().unwrap();
         data.transform_geometry(transform).unwrap();
@@ -840,7 +829,7 @@ impl SurfaceData {
             ));
         }
 
-        let mut data = Self::from_raw_mesh(builder.build(), true);
+        let mut data = Self::from_raw_mesh(builder.build());
         data.calculate_tangents().unwrap();
         data.transform_geometry(transform).unwrap();
         data
@@ -1019,7 +1008,6 @@ impl SurfaceData {
         let mut data = Self::new(
             VertexBuffer::new(vertices.len(), vertices).unwrap(),
             TriangleBuffer::new(triangles),
-            true,
         );
         data.calculate_tangents().unwrap();
         data.transform_geometry(&transform).unwrap();
@@ -1040,24 +1028,14 @@ impl SurfaceData {
         self.geometry_buffer.modify().clear();
         self.vertex_buffer.modify().clear();
     }
-
-    /// Marks surface's content as procedural (created from code) or not. Content of procedural surfaces will
-    /// be serialized. It is useful if you need to save procedural surfaces to disk or some other storage.
-    pub fn set_embedded(&mut self, is_embedded: bool) {
-        self.is_embedded = is_embedded;
-    }
 }
 
 impl Visit for SurfaceData {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut region = visitor.enter_region(name)?;
 
-        self.is_embedded.visit("IsProcedural", &mut region)?;
-
-        if self.is_embedded {
-            self.vertex_buffer.visit("VertexBuffer", &mut region)?;
-            self.geometry_buffer.visit("GeometryBuffer", &mut region)?
-        }
+        self.vertex_buffer.visit("VertexBuffer", &mut region)?;
+        self.geometry_buffer.visit("GeometryBuffer", &mut region)?;
 
         Ok(())
     }
@@ -1207,7 +1185,7 @@ impl SurfaceResourceExtension for SurfaceResource {
 ///
 ///     let triangle_buffer = TriangleBuffer::new(vec![TriangleDefinition([0, 1, 2])]);
 ///
-///     let data = SurfaceData::new(vertex_buffer, triangle_buffer, true);
+///     let data = SurfaceData::new(vertex_buffer, triangle_buffer);
 ///
 ///     SurfaceBuilder::new(SurfaceResource::new_ok(ResourceKind::Embedded, data)).build()
 /// }
