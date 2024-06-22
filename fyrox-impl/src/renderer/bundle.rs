@@ -355,7 +355,7 @@ impl RenderDataBundleStorageTrait for RenderDataBundleStorage {
             // Create temporary surface data (valid for one frame).
             let data = SurfaceResource::new_ok(
                 ResourceKind::Embedded,
-                SurfaceData::new(vertex_buffer, triangle_buffer, true),
+                SurfaceData::new(vertex_buffer, triangle_buffer),
             );
 
             self.bundle_map.insert(key, self.bundles.len());
