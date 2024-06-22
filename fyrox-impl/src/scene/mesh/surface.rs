@@ -1185,7 +1185,7 @@ impl SurfaceResourceExtension for SurfaceResource {
 ///
 ///     let triangle_buffer = TriangleBuffer::new(vec![TriangleDefinition([0, 1, 2])]);
 ///
-///     let data = SurfaceData::new(vertex_buffer, triangle_buffer, true);
+///     let data = SurfaceData::new(vertex_buffer, triangle_buffer);
 ///
 ///     SurfaceBuilder::new(SurfaceResource::new_ok(ResourceKind::Embedded, data)).build()
 /// }

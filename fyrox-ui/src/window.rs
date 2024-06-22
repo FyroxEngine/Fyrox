@@ -897,7 +897,7 @@ impl Control for Window {
                                         &mut ui.build_ctx(),
                                         text,
                                         font,
-                                        font_size.clone().unwrap_or(14.0),
+                                        (*font_size).unwrap_or(14.0),
                                     );
                                     ui.send_message(WidgetMessage::link(
                                         self.title,
