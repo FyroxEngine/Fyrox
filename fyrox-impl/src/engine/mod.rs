@@ -99,7 +99,7 @@ use std::{
 
 use crate::plugin::dynamic::DynamicPlugin;
 use crate::plugin::{DynamicPluginState, PluginContainer};
-use crate::scene::mesh::surface::SurfaceData;
+use crate::scene::mesh::surface::{SurfaceData, SurfaceDataLoader};
 use fyrox_core::futures::future::join_all;
 use fyrox_core::notify;
 use fyrox_core::notify::{EventKind, RecursiveMode, Watcher};
@@ -1231,6 +1231,7 @@ pub(crate) fn initialize_resource_manager_loaders(
     loaders.set(UserInterfaceLoader {
         resource_manager: resource_manager.clone(),
     });
+    loaders.set(SurfaceDataLoader {});
 }
 
 fn try_copy_library(source_lib_path: &Path, lib_path: &Path) -> Result<(), String> {

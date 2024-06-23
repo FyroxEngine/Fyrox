@@ -2,7 +2,13 @@
 //! See [`Surface`] docs for more info and usage examples.
 
 use crate::{
-    asset::{untyped::ResourceKind, Resource, ResourceData},
+    asset::{
+        io::ResourceIo,
+        loader::{BoxedLoaderFuture, LoaderPayload, ResourceLoader},
+        state::LoadError,
+        untyped::ResourceKind,
+        Resource, ResourceData,
+    },
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
         hash_combine,
@@ -33,7 +39,13 @@ use crate::{
 };
 use fxhash::{FxHashMap, FxHasher};
 use half::f16;
-use std::{any::Any, error::Error, hash::Hasher, path::Path, sync::Arc};
+use std::{
+    any::Any,
+    error::Error,
+    hash::Hasher,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 /// A target shape for blending.
 #[derive(Debug, Clone, Visit, Reflect, PartialEq)]
@@ -1414,5 +1426,32 @@ impl SurfaceBuilder {
             bones: self.bones.into(),
             unique_material: self.unique_material.into(),
         }
+    }
+}
+
+/// Default surface resource loader.
+pub struct SurfaceDataLoader {}
+
+impl ResourceLoader for SurfaceDataLoader {
+    fn extensions(&self) -> &[&str] {
+        &["surface"]
+    }
+
+    fn data_type_uuid(&self) -> Uuid {
+        <SurfaceData as TypeUuidProvider>::type_uuid()
+    }
+
+    fn load(&self, path: PathBuf, io: Arc<dyn ResourceIo>) -> BoxedLoaderFuture {
+        Box::pin(async move {
+            let io = io.as_ref();
+
+            let data = io.load_file(&path).await.map_err(LoadError::new)?;
+            let mut visitor = Visitor::load_from_memory(&data).map_err(LoadError::new)?;
+            let mut surface_data = SurfaceData::default();
+            surface_data
+                .visit("SurfaceData", &mut visitor)
+                .map_err(LoadError::new)?;
+            Ok(LoaderPayload::new(surface_data))
+        })
     }
 }
