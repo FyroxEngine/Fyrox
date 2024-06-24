@@ -58,6 +58,7 @@ use crate::{
     settings::Settings,
     Editor, Message,
 };
+use fyrox::scene::sprite::Sprite;
 
 fn try_get_collider_shape(collider: Handle<Node>, scene: &Scene) -> Option<ColliderShape> {
     scene
@@ -161,20 +162,31 @@ trait ShapeGizmoTrait {
         })
     }
 
-    fn try_sync_to_collider(&self, collider: Handle<Node>, scene: &mut Scene) -> bool {
+    fn try_sync_to_collider(
+        &self,
+        collider: Handle<Node>,
+        camera: Handle<Node>,
+        scene: &mut Scene,
+    ) -> bool {
         let mut is_ok = true;
         let transform = scene.graph[collider].global_transform();
         self.for_each_handle(&mut |handle| {
             if let Some(local_position) = self.handle_local_position(handle, collider, scene) {
-                scene.graph[handle]
-                    .local_transform_mut()
+                let scale = calculate_gizmo_distance_scaling(&scene.graph, camera, handle);
+
+                let node = &mut scene.graph[handle];
+                node.local_transform_mut()
                     .set_position(transform.transform_point(&local_position.into()).coords)
+                    .set_scale(scale)
                     .set_rotation(UnitQuaternion::from_matrix_eps(
                         &transform.basis(),
                         f32::EPSILON,
                         16,
                         Default::default(),
                     ));
+                if let Some(sprite) = node.component_mut::<Sprite>() {
+                    sprite.set_size(0.05 * scale.x);
+                }
             } else {
                 is_ok = false;
             }
@@ -570,7 +582,11 @@ impl InteractionMode for ColliderShapeInteractionMode {
 
         let scene = &mut engine.scenes[game_scene.scene];
 
-        if !self.shape_gizmo.try_sync_to_collider(self.collider, scene) {
+        if !self.shape_gizmo.try_sync_to_collider(
+            self.collider,
+            game_scene.camera_controller.camera,
+            scene,
+        ) {
             let new_gizmo =
                 make_shape_gizmo(self.collider, scene, game_scene.editor_objects_root, true);
 
