@@ -99,6 +99,7 @@ use std::{
 
 use crate::plugin::dynamic::DynamicPlugin;
 use crate::plugin::{DynamicPluginState, PluginContainer};
+use crate::scene::mesh::surface;
 use crate::scene::mesh::surface::{SurfaceData, SurfaceDataLoader};
 use fyrox_core::futures::future::join_all;
 use fyrox_core::notify;
@@ -1195,6 +1196,20 @@ pub(crate) fn initialize_resource_manager_loaders(
         material::STANDARD_TERRAIN.clone(),
         material::STANDARD_TWOSIDES.clone(),
         material::STANDARD_PARTICLE_SYSTEM.clone(),
+    ] {
+        state.built_in_resources.insert(
+            material.kind().path_owned().unwrap(),
+            material.clone().into_untyped(),
+        );
+    }
+
+    for material in [
+        surface::CUBE.clone(),
+        surface::QUAD.clone(),
+        surface::CYLINDER.clone(),
+        surface::SPHERE.clone(),
+        surface::CONE.clone(),
+        surface::TORUS.clone(),
     ] {
         state.built_in_resources.insert(
             material.kind().path_owned().unwrap(),
