@@ -19,7 +19,7 @@ use crate::{
                 FieldKind, InspectorError, PropertyChanged,
             },
             message::{MessageDirection, UiMessage},
-            text::TextBuilder,
+            text::{TextBuilder, TextMessage},
             widget::{Widget, WidgetBuilder, WidgetMessage},
             BuildContext, Control, Thickness, UiNode, UserInterface,
         },
@@ -50,6 +50,7 @@ pub struct SurfaceDataPropertyEditor {
     widget: Widget,
     view: Handle<UiNode>,
     data: SurfaceResource,
+    text: Handle<UiNode>,
     #[visit(skip)]
     #[reflect(hidden)]
     sender: Option<MessageSender>,
@@ -104,6 +105,12 @@ impl Control for SurfaceDataPropertyEditor {
             {
                 self.data = value.clone();
                 ui.send_message(message.reverse());
+
+                ui.send_message(TextMessage::text(
+                    self.text,
+                    MessageDirection::ToWidget,
+                    surface_data_info(value),
+                ));
             }
         }
     }
@@ -111,9 +118,11 @@ impl Control for SurfaceDataPropertyEditor {
 
 fn surface_data_info(data: &SurfaceResource) -> String {
     let use_count = data.use_count();
+    let kind = data.kind();
     let guard = data.data_ref();
     format!(
-        "Vertices: {}\nTriangles: {}\nUse Count: {}",
+        "{}\nVertices: {}\nTriangles: {}\nUse Count: {}",
+        kind,
         guard.vertex_buffer.vertex_count(),
         guard.geometry_buffer.len(),
         use_count
@@ -138,26 +147,22 @@ impl SurfaceDataPropertyEditor {
         .with_text("View...")
         .build(ctx);
 
+        let text = TextBuilder::new(
+            WidgetBuilder::new()
+                .on_row(0)
+                .on_column(0)
+                .with_margin(Thickness::uniform(1.0)),
+        )
+        .with_text(surface_data_info(&data))
+        .build(ctx);
+
         let widget = WidgetBuilder::new()
             .with_child(
-                GridBuilder::new(
-                    WidgetBuilder::new()
-                        .with_child(
-                            TextBuilder::new(
-                                WidgetBuilder::new()
-                                    .on_row(0)
-                                    .on_column(0)
-                                    .with_margin(Thickness::uniform(1.0)),
-                            )
-                            .with_text(surface_data_info(&data))
-                            .build(ctx),
-                        )
-                        .with_child(view),
-                )
-                .add_column(Column::stretch())
-                .add_column(Column::auto())
-                .add_row(Row::auto())
-                .build(ctx),
+                GridBuilder::new(WidgetBuilder::new().with_child(text).with_child(view))
+                    .add_column(Column::stretch())
+                    .add_column(Column::auto())
+                    .add_row(Row::auto())
+                    .build(ctx),
             )
             .with_allow_drop(true)
             .build();
@@ -168,6 +173,7 @@ impl SurfaceDataPropertyEditor {
             view,
             sender: Some(sender),
             resource_manager,
+            text,
         };
 
         ctx.add_node(UiNode::new(editor))
