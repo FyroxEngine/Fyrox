@@ -237,41 +237,30 @@ impl GameScene {
         pure_scene
     }
 
-    #[allow(clippy::redundant_clone)] // false positive
     pub fn save(
         &mut self,
         path: &Path,
         settings: &Settings,
         engine: &mut Engine,
     ) -> Result<String, String> {
-        // Validate first.
-        let valid = true;
-        let mut reason = "Scene is not saved, because validation failed:\n".to_owned();
+        let mut pure_scene = self.make_purified_scene(engine);
 
-        if valid {
-            let mut pure_scene = self.make_purified_scene(engine);
+        let mut visitor = Visitor::new();
+        pure_scene.save("Scene", &mut visitor).unwrap();
 
-            let mut visitor = Visitor::new();
-            pure_scene.save("Scene", &mut visitor).unwrap();
-            if let Err(e) = visitor.save_binary(path) {
-                Err(format!("Failed to save scene! Reason: {}", e))
-            } else {
-                if settings.debugging.save_scene_in_text_form {
-                    let text = visitor.save_text();
-                    let mut path = path.to_path_buf();
-                    path.set_extension("txt");
-                    if let Ok(mut file) = File::create(path) {
-                        Log::verify(file.write_all(text.as_bytes()));
-                    }
-                }
-
-                Ok(format!("Scene {} was successfully saved!", path.display()))
-            }
+        if let Err(e) = visitor.save_binary(path) {
+            Err(format!("Failed to save scene! Reason: {}", e))
         } else {
-            use std::fmt::Write;
-            writeln!(&mut reason, "\nPlease fix errors and try again.").unwrap();
+            if settings.debugging.save_scene_in_text_form {
+                let text = visitor.save_text();
+                let mut path = path.to_path_buf();
+                path.set_extension("txt");
+                if let Ok(mut file) = File::create(path) {
+                    Log::verify(file.write_all(text.as_bytes()));
+                }
+            }
 
-            Err(reason)
+            Ok(format!("Scene {} was successfully saved!", path.display()))
         }
     }
 
