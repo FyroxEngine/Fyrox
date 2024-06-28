@@ -81,45 +81,6 @@ pub struct Inspector {
     docs_button: Handle<UiNode>,
 }
 
-#[macro_export]
-macro_rules! make_command {
-    ($cmd:ty, $handle:expr, $value:expr) => {
-        Some($crate::scene::commands::Command::new(<$cmd>::new(
-            $handle,
-            $value.cast_value().cloned()?,
-        )))
-    };
-}
-
-#[macro_export]
-macro_rules! handle_properties {
-    ($name:expr, $handle:expr, $value:expr, $($prop:path => $cmd:ty),*) => {
-        match $name {
-            $($prop => {
-                $crate::make_command!($cmd, $handle, $value)
-            })*
-            _ => None,
-        }
-    }
-}
-
-#[macro_export]
-macro_rules! handle_property_changed {
-    ($args:expr, $handle:expr, $($prop:path => $cmd:ty),*) => {
-        match $args.value {
-            FieldKind::Object(ref value) => {
-                match $args.name.as_ref() {
-                    $($prop => {
-                        $crate::make_command!($cmd, $handle, value)
-                    })*
-                    _ => None,
-                }
-            }
-            _ => None
-        }
-    }
-}
-
 fn fetch_available_animations(
     selection: &Selection,
     controller: &dyn SceneController,
