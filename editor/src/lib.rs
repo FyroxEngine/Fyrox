@@ -168,6 +168,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use crate::plugins::tilemap::TileMapEditorPlugin;
 pub use message::Message;
 
 pub const FIXED_TIMESTEP: f32 = 1.0 / 60.0;
@@ -850,7 +851,10 @@ impl Editor {
             audio_preview_panel,
             node_removal_dialog,
             doc_window,
-            plugins: vec![Some(Box::new(ColliderShapePlugin::default()))],
+            plugins: vec![
+                Some(Box::new(ColliderShapePlugin::default())),
+                Some(Box::new(TileMapEditorPlugin::default())),
+            ],
             // Apparently, some window managers (like Wayland), does not send `Focused` event after the window
             // was created. So we must assume that the editor is focused by default, otherwise editor's thread
             // will sleep forever and the window won't come up.
