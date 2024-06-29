@@ -253,7 +253,7 @@ pub fn make_save_file_selector(
 ) -> Handle<UiNode> {
     FileSelectorBuilder::new(
         WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
-            .with_title(WindowTitle::Text("Save Scene As".into()))
+            .with_title(WindowTitle::text("Save Scene As"))
             .open(false),
     )
     .with_mode(FileBrowserMode::Save { default_file_name })
@@ -320,7 +320,7 @@ impl SaveSceneConfirmationDialog {
                 .can_close(false)
                 .can_minimize(false)
                 .open(false)
-                .with_title(WindowTitle::Text("Unsaved changes".to_owned())),
+                .with_title(WindowTitle::text("Unsaved changes")),
         )
         .with_buttons(MessageBoxButtons::YesNoCancel)
         .build(ctx);
@@ -771,7 +771,7 @@ impl Editor {
                 .can_close(false)
                 .can_minimize(false)
                 .open(false)
-                .with_title(WindowTitle::Text("Unsaved changes".to_owned())),
+                .with_title(WindowTitle::text("Unsaved changes")),
         )
         .with_buttons(MessageBoxButtons::YesNoCancel)
         .build(ctx);
@@ -781,7 +781,7 @@ impl Editor {
                 .can_close(false)
                 .can_minimize(false)
                 .open(false)
-                .with_title(WindowTitle::Text("Validation failed!".to_owned())),
+                .with_title(WindowTitle::text("Validation failed!")),
         )
         .with_buttons(MessageBoxButtons::Ok)
         .build(ctx);
@@ -983,12 +983,16 @@ impl Editor {
 
             let mut processed = false;
             if let Some(scene) = self.scenes.current_scene_entry_mut() {
-                if let Some(current_interaction_mode) = scene.current_interaction_mode {
-                    processed |= scene
-                        .interaction_modes
-                        .get_mut(&current_interaction_mode)
-                        .unwrap()
-                        .on_hot_key(&hot_key, &mut *scene.controller, engine, &self.settings);
+                if let Some(current_interaction_mode) = scene
+                    .current_interaction_mode
+                    .and_then(|current_mode| scene.interaction_modes.get_mut(&current_mode))
+                {
+                    processed |= current_interaction_mode.on_hot_key(
+                        &hot_key,
+                        &mut *scene.controller,
+                        engine,
+                        &self.settings,
+                    );
                 }
             }
 
@@ -1299,17 +1303,18 @@ impl Editor {
                 self.navmesh_panel
                     .handle_message(message, &current_scene_entry.selection);
 
-                if let Some(current_im) = current_scene_entry.current_interaction_mode {
-                    current_scene_entry
-                        .interaction_modes
-                        .get_mut(&current_im)
-                        .unwrap()
-                        .handle_ui_message(
-                            message,
-                            &current_scene_entry.selection,
-                            game_scene,
-                            engine,
-                        );
+                if let Some(interaction_mode) = current_scene_entry
+                    .current_interaction_mode
+                    .and_then(|current_mode| {
+                        current_scene_entry.interaction_modes.get_mut(&current_mode)
+                    })
+                {
+                    interaction_mode.handle_ui_message(
+                        message,
+                        &current_scene_entry.selection,
+                        game_scene,
+                        engine,
+                    );
                 }
 
                 self.scene_node_context_menu.borrow_mut().handle_ui_message(
@@ -2547,8 +2552,11 @@ impl Editor {
                 );
             }
 
-            if let Some(mode) = entry.current_interaction_mode {
-                entry.interaction_modes.get_mut(&mode).unwrap().update(
+            if let Some(interaction_mode) = entry
+                .current_interaction_mode
+                .and_then(|current_mode| entry.interaction_modes.get_mut(&current_mode))
+            {
+                interaction_mode.update(
                     &entry.selection,
                     &mut **controller,
                     &mut self.engine,

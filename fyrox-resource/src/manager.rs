@@ -77,6 +77,12 @@ pub struct ResourceManager {
     state: Arc<Mutex<ResourceManagerState>>,
 }
 
+impl Debug for ResourceManager {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "ResourceManager")
+    }
+}
+
 /// An error that may occur during texture registration.
 #[derive(Debug)]
 pub enum ResourceRegistrationError {

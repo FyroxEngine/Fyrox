@@ -37,6 +37,7 @@ pub struct Executor {
     desired_update_rate: f32,
     headless: bool,
     throttle_threshold: f32,
+    throttle_frame_interval: usize,
 }
 
 impl Deref for Executor {
@@ -88,6 +89,7 @@ impl Executor {
             desired_update_rate: Self::DEFAULT_UPDATE_RATE,
             headless: false,
             throttle_threshold: 2.0 * Self::DEFAULT_TIME_STEP,
+            throttle_frame_interval: 5,
         }
     }
 
@@ -125,6 +127,12 @@ impl Executor {
     /// could be useful to prevent potential hang up of the game if its logic or rendering takes too
     /// much time at each frame. The default value is two default time steps (33.3(3) milliseconds
     /// or 0.0333(3) seconds).
+    ///
+    /// ## Important notes
+    ///
+    /// Physics could suffer from variable time step which may result in objects falling through the
+    /// ground and some other nasty things. Throttle threshold should be at reasonably high levels
+    /// (usually 2x-3x of the fixed time step).
     pub fn set_throttle_threshold(&mut self, threshold: f32) {
         self.throttle_threshold = threshold.max(0.001);
     }
@@ -132,6 +140,21 @@ impl Executor {
     /// Returns current throttle threshold. See [`Self::set_throttle_threshold`] docs for more info.
     pub fn throttle_threshold(&self) -> f32 {
         self.throttle_threshold
+    }
+
+    /// Sets the amount of frames (consecutive) that will be allowed to have lag spikes and the engine
+    /// won't modify time step for internal update calls during such interval. This setting allows the
+    /// engine to ignore small lag spikes and do not fast-forward game logic using variable time step.
+    /// Variable time step could be bad for physics, which may result in objects falling through the
+    /// ground, etc. Default is 5 frames.
+    pub fn set_throttle_frame_interval(&mut self, interval: usize) {
+        self.throttle_frame_interval = interval;
+    }
+
+    /// Returns current throttle frame interval. See [`Self::set_throttle_frame_interval`] docs for
+    /// more info.
+    pub fn throttle_frame_interval(&self) -> usize {
+        self.throttle_frame_interval
     }
 
     /// Sets the desired update rate in frames per second.
@@ -158,6 +181,7 @@ impl Executor {
         let event_loop = self.event_loop;
         let headless = self.headless;
         let throttle_threshold = self.throttle_threshold;
+        let throttle_frame_interval = self.throttle_frame_interval;
 
         let args = Args::try_parse().unwrap_or_default();
 
@@ -166,6 +190,8 @@ impl Executor {
         let mut previous = Instant::now();
         let fixed_time_step = 1.0 / self.desired_update_rate;
         let mut lag = 0.0;
+        let mut frame_counter = 0usize;
+        let mut last_throttle_frame_number = 0usize;
 
         run_executor(event_loop, move |event, window_target| {
             window_target.set_control_flow(ControlFlow::Wait);
@@ -217,13 +243,18 @@ impl Executor {
                     // Update rate stabilization loop.
                     while lag >= fixed_time_step {
                         let time_step;
-                        if lag >= throttle_threshold {
+                        if lag >= throttle_threshold
+                            && (frame_counter - last_throttle_frame_number
+                                >= throttle_frame_interval)
+                        {
                             // Modify the delta time to let the game internals to fast-forward the
                             // logic by the current lag.
                             time_step = lag;
                             // Reset the lag to exit early from the loop, thus preventing its
                             // potential infinite increase, that in its turn could hang up the game.
                             lag = 0.0;
+
+                            last_throttle_frame_number = frame_counter;
                         } else {
                             time_step = fixed_time_step;
                         }
@@ -263,6 +294,8 @@ impl Executor {
                             );
 
                             engine.render().unwrap();
+
+                            frame_counter += 1;
                         }
                         _ => (),
                     }

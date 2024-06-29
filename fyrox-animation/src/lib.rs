@@ -191,6 +191,7 @@ pub struct Animation<T: EntityId> {
     #[reflect(hidden)]
     #[visit(skip)]
     events: VecDeque<AnimationEvent>,
+    #[visit(optional)]
     max_event_capacity: usize,
 }
 

@@ -201,7 +201,6 @@ impl RenderDataBundleStorageTrait for BatchContainer {
                     VertexBuffer::new_with_layout(layout, 0, BytesStorage::with_capacity(4096))
                         .unwrap(),
                     TriangleBuffer::new(Vec::with_capacity(4096)),
-                    false,
                 ),
             ),
             material: material.clone(),
@@ -238,7 +237,6 @@ impl RenderDataBundleStorageTrait for BatchContainer {
                 SurfaceData::new(
                     src_data.vertex_buffer.clone_empty(4096),
                     TriangleBuffer::new(Vec::with_capacity(4096)),
-                    false,
                 ),
             ),
             material: material.clone(),

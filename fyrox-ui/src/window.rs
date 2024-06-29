@@ -1,6 +1,7 @@
 //! The Window widget provides a standard window that can contain another widget. See [`Window`] docs
 //! for more info and usage examples.
 
+use crate::font::FontResource;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -858,7 +859,11 @@ impl Control for Window {
                     }
                     WindowMessage::Title(title) => {
                         match title {
-                            WindowTitle::Text(text) => {
+                            WindowTitle::Text {
+                                text,
+                                font,
+                                font_size,
+                            } => {
                                 if ui.try_get_of_type::<Text>(self.title).is_some() {
                                     // Just modify existing text, this is much faster than
                                     // re-create text everytime.
@@ -867,12 +872,33 @@ impl Control for Window {
                                         MessageDirection::ToWidget,
                                         text.clone(),
                                     ));
+                                    if let Some(font) = font {
+                                        ui.send_message(TextMessage::font(
+                                            self.title,
+                                            MessageDirection::ToWidget,
+                                            font.clone(),
+                                        ))
+                                    }
+                                    if let Some(font_size) = font_size {
+                                        ui.send_message(TextMessage::font_size(
+                                            self.title,
+                                            MessageDirection::ToWidget,
+                                            *font_size,
+                                        ));
+                                    }
                                 } else {
                                     ui.send_message(WidgetMessage::remove(
                                         self.title,
                                         MessageDirection::ToWidget,
                                     ));
-                                    self.title = make_text_title(&mut ui.build_ctx(), text);
+                                    let font =
+                                        font.clone().unwrap_or_else(|| ui.default_font.clone());
+                                    self.title = make_text_title(
+                                        &mut ui.build_ctx(),
+                                        text,
+                                        font,
+                                        (*font_size).unwrap_or(14.0),
+                                    );
                                     ui.send_message(WidgetMessage::link(
                                         self.title,
                                         MessageDirection::ToWidget,
@@ -979,16 +1005,45 @@ pub struct WindowBuilder {
 ///
 /// If you need more flexibility (i.e. put a picture near text) then [`WindowTitle::Node`] option
 /// is for you: it allows to put any UI node hierarchy you want to.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum WindowTitle {
-    Text(String),
+    Text {
+        /// Actual text of the title.
+        text: String,
+        /// Optional font, if [`None`], then the default font will be used.
+        font: Option<FontResource>,
+        /// Optional size of the text. Default is [`None`] (in this case default size will be used).
+        font_size: Option<f32>,
+    },
     Node(Handle<UiNode>),
 }
 
 impl WindowTitle {
     /// A shortcut to create [`WindowTitle::Text`]
     pub fn text<P: AsRef<str>>(text: P) -> Self {
-        WindowTitle::Text(text.as_ref().to_owned())
+        WindowTitle::Text {
+            text: text.as_ref().to_owned(),
+            font: None,
+            font_size: None,
+        }
+    }
+
+    /// A shortcut to create [`WindowTitle::Text`] with custom font.
+    pub fn text_with_font<P: AsRef<str>>(text: P, font: FontResource) -> Self {
+        WindowTitle::Text {
+            text: text.as_ref().to_owned(),
+            font: Some(font),
+            font_size: None,
+        }
+    }
+
+    /// A shortcut to create [`WindowTitle::Text`] with custom font and size.
+    pub fn text_with_font_size<P: AsRef<str>>(text: P, font: FontResource, size: f32) -> Self {
+        WindowTitle::Text {
+            text: text.as_ref().to_owned(),
+            font: Some(font),
+            font_size: Some(size),
+        }
     }
 
     /// A shortcut to create [`WindowTitle::Node`]
@@ -997,13 +1052,20 @@ impl WindowTitle {
     }
 }
 
-fn make_text_title(ctx: &mut BuildContext, text: &str) -> Handle<UiNode> {
+fn make_text_title(
+    ctx: &mut BuildContext,
+    text: &str,
+    font: FontResource,
+    size: f32,
+) -> Handle<UiNode> {
     TextBuilder::new(
         WidgetBuilder::new()
             .with_margin(Thickness::left(5.0))
             .on_row(0)
             .on_column(0),
     )
+    .with_font_size(size)
+    .with_font(font)
     .with_vertical_text_alignment(VerticalAlignment::Center)
     .with_horizontal_text_alignment(HorizontalAlignment::Left)
     .with_text(text)
@@ -1225,7 +1287,16 @@ impl WindowBuilder {
                                     None => Handle::NONE,
                                     Some(window_title) => match window_title {
                                         WindowTitle::Node(node) => node,
-                                        WindowTitle::Text(text) => make_text_title(ctx, &text),
+                                        WindowTitle::Text {
+                                            text,
+                                            font,
+                                            font_size,
+                                        } => make_text_title(
+                                            ctx,
+                                            &text,
+                                            font.unwrap_or_else(|| ctx.default_font()),
+                                            font_size.unwrap_or(14.0),
+                                        ),
                                     },
                                 };
                                 title

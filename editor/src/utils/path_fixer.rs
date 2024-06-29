@@ -70,7 +70,7 @@ impl PathFixer {
         let scene_selector = FileSelectorBuilder::new(
             WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
                 .open(false)
-                .with_title(WindowTitle::Text("Select a scene for diagnostics".into())),
+                .with_title(WindowTitle::text("Select a scene for diagnostics")),
         )
         .with_filter(make_scene_file_filter())
         .build(ctx);
@@ -78,9 +78,7 @@ impl PathFixer {
         let new_path_selector = FileSelectorBuilder::new(
             WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
                 .open(false)
-                .with_title(WindowTitle::Text(
-                    "Select a new path to the resource".into(),
-                )),
+                .with_title(WindowTitle::text("Select a new path to the resource")),
         )
         .build(ctx);
 

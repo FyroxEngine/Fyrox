@@ -82,7 +82,7 @@ impl Configurator {
         let folder_browser = FileSelectorBuilder::new(
             WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
                 .open(false)
-                .with_title(WindowTitle::Text("Select Working Directory".into())),
+                .with_title(WindowTitle::text("Select Working Directory")),
         )
         .with_filter(filter)
         .build(ctx);
@@ -112,7 +112,7 @@ impl Configurator {
                 .with_height(250.0)
                 .with_min_size(Vector2::new(370.0, 250.0)),
         )
-        .with_title(WindowTitle::Text("Configure Editor".into()))
+        .with_title(WindowTitle::text("Configure Editor"))
         .open(false)
         .can_close(false)
         .with_content(

@@ -35,7 +35,7 @@ impl CommandStackViewer {
         let redo;
         let clear;
         let window = WindowBuilder::new(WidgetBuilder::new().with_name("CommandStackPanel"))
-            .with_title(WindowTitle::Text("Command Stack".to_owned()))
+            .with_title(WindowTitle::text("Command Stack"))
             .with_content(
                 GridBuilder::new(
                     WidgetBuilder::new()

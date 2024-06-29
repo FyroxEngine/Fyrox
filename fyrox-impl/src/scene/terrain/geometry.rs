@@ -44,7 +44,6 @@ impl TerrainGeometry {
         let mut surface_data = SurfaceData::new(
             VertexBuffer::new::<StaticVertex>(0, vec![]).unwrap(),
             TriangleBuffer::default(),
-            false,
         );
 
         let mut vertex_buffer_mut = surface_data.vertex_buffer.modify();

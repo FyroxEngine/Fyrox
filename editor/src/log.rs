@@ -102,7 +102,7 @@ impl LogPanel {
         let severity_list;
         let window = WindowBuilder::new(WidgetBuilder::new().with_name("LogPanel"))
             .can_minimize(false)
-            .with_title(WindowTitle::Text("Message Log".to_owned()))
+            .with_title(WindowTitle::text("Message Log"))
             .with_content(
                 GridBuilder::new(
                     WidgetBuilder::new()

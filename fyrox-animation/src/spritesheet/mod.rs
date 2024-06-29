@@ -168,6 +168,7 @@ where
     #[reflect(hidden)]
     #[visit(skip)]
     events: VecDeque<Event>,
+    #[visit(optional)]
     max_event_capacity: usize,
 }
 

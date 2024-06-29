@@ -336,6 +336,12 @@ impl MoveGizmo {
         Vector3::default()
     }
 
+    pub fn set_position(&self, scene: &mut Scene, position: Vector3<f32>) {
+        let graph = &mut scene.graph;
+        let node = &mut graph[self.origin];
+        node.local_transform_mut().set_position(position);
+    }
+
     pub fn sync_transform(&self, scene: &mut Scene, selection: &Selection, scale: Vector3<f32>) {
         let graph = &mut scene.graph;
         if let Some(selection) = selection.as_graph() {
@@ -352,5 +358,9 @@ impl MoveGizmo {
 
     pub fn set_visible(&self, graph: &mut Graph, visible: bool) {
         graph[self.origin].set_visibility(visible);
+    }
+
+    pub fn destroy(self, graph: &mut Graph) {
+        graph.remove_node(self.origin)
     }
 }

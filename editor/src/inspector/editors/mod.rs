@@ -1,82 +1,87 @@
-use crate::fyrox::gui::font::FontResource;
-use crate::fyrox::gui::UiNode;
-use crate::fyrox::scene::base::ScriptRecord;
-use crate::fyrox::scene::mesh::BatchingMode;
-use crate::fyrox::{
-    asset::{manager::ResourceManager, Resource},
-    core::{
-        futures::executor::block_on,
-        parking_lot::Mutex,
-        pool::{ErasedHandle, Handle},
-    },
-    gui,
-    gui::inspector::editors::{
-        bit::BitFieldPropertyEditorDefinition, collection::VecCollectionPropertyEditorDefinition,
-        enumeration::EnumPropertyEditorDefinition, inherit::InheritablePropertyEditorDefinition,
-        inspectable::InspectablePropertyEditorDefinition, PropertyEditorDefinitionContainer,
-    },
-    gui::UserInterface,
-    material::{
-        shader::{Shader, ShaderResource},
-        MaterialResource,
-    },
-    renderer::framework::state::PolygonFillMode,
-    resource::{
-        curve::{CurveResource, CurveResourceState},
-        model::{MaterialSearchOptions, Model, ModelResource},
-        texture::{
-            CompressionOptions, MipFilter, TextureMagnificationFilter, TextureMinificationFilter,
-            TextureResource, TextureWrapMode,
-        },
-    },
-    scene,
-    scene::{
-        base::{Base, LevelOfDetail, LodGroup, Mobility, Property, PropertyValue},
-        camera::{
-            ColorGradingLut, Exposure, OrthographicProjection, PerspectiveProjection, Projection,
-            SkyBox,
-        },
-        collider::{
-            BallShape, BitMask, CapsuleShape, ColliderShape, ConeShape, ConvexPolyhedronShape,
-            CuboidShape, CylinderShape, GeometrySource, HeightfieldShape, InteractionGroups,
-            SegmentShape, TriangleShape, TrimeshShape,
-        },
-        dim2,
-        graph::physics::CoefficientCombineRule,
-        joint::*,
-        light::{
-            directional::{CsmOptions, FrustumSplitOptions},
-            BaseLight,
-        },
-        mesh::{
-            surface::{BlendShape, Surface, SurfaceResource},
-            RenderPath,
-        },
-        node::Node,
-        particle_system::{
-            emitter::{
-                base::BaseEmitter, cuboid::CuboidEmitter, cylinder::CylinderEmitter,
-                sphere::SphereEmitter, Emitter,
-            },
-            ParticleSystemRng,
-        },
-        ragdoll::Limb,
-        rigidbody::RigidBodyType,
-        sound::{
-            self,
-            filter::{
-                AllPassFilterEffect, BandPassFilterEffect, HighPassFilterEffect,
-                HighShelfFilterEffect, LowPassFilterEffect, LowShelfFilterEffect,
-            },
-            reverb::Reverb,
-            Attenuate, AudioBus, Biquad, DistanceModel, Effect, SoundBuffer, SoundBufferResource,
-            Status,
-        },
-        terrain::{Chunk, Layer},
-        transform::Transform,
-    },
-};
 use crate::{
+    fyrox::{
+        asset::{manager::ResourceManager, untyped::UntypedResource, Resource},
+        core::{
+            futures::executor::block_on,
+            parking_lot::Mutex,
+            pool::{ErasedHandle, Handle},
+        },
+        gui::{
+            self,
+            font::FontResource,
+            inspector::editors::{
+                bit::BitFieldPropertyEditorDefinition,
+                collection::VecCollectionPropertyEditorDefinition,
+                enumeration::EnumPropertyEditorDefinition,
+                inherit::InheritablePropertyEditorDefinition,
+                inspectable::InspectablePropertyEditorDefinition,
+                PropertyEditorDefinitionContainer,
+            },
+            UiNode, UserInterface,
+        },
+        material::{
+            shader::{Shader, ShaderResource},
+            MaterialResource,
+        },
+        renderer::framework::state::PolygonFillMode,
+        resource::{
+            curve::{CurveResource, CurveResourceState},
+            model::{MaterialSearchOptions, Model, ModelResource},
+            texture::{
+                CompressionOptions, MipFilter, TextureMagnificationFilter,
+                TextureMinificationFilter, TextureResource, TextureWrapMode,
+            },
+        },
+        scene::{
+            self,
+            base::{
+                Base, LevelOfDetail, LodGroup, Mobility, Property, PropertyValue, ScriptRecord,
+            },
+            camera::{
+                ColorGradingLut, Exposure, OrthographicProjection, PerspectiveProjection,
+                Projection, SkyBox,
+            },
+            collider::{
+                BallShape, BitMask, CapsuleShape, ColliderShape, ConeShape, ConvexPolyhedronShape,
+                CuboidShape, CylinderShape, GeometrySource, HeightfieldShape, InteractionGroups,
+                SegmentShape, TriangleShape, TrimeshShape,
+            },
+            dim2,
+            graph::physics::CoefficientCombineRule,
+            joint::*,
+            light::{
+                directional::{CsmOptions, FrustumSplitOptions},
+                BaseLight,
+            },
+            mesh::{
+                surface::{BlendShape, Surface, SurfaceResource},
+                BatchingMode, RenderPath,
+            },
+            node::Node,
+            particle_system::{
+                emitter::{
+                    base::BaseEmitter, cuboid::CuboidEmitter, cylinder::CylinderEmitter,
+                    sphere::SphereEmitter, Emitter,
+                },
+                ParticleSystemRng,
+            },
+            ragdoll::Limb,
+            rigidbody::RigidBodyType,
+            sound::{
+                self,
+                filter::{
+                    AllPassFilterEffect, BandPassFilterEffect, HighPassFilterEffect,
+                    HighShelfFilterEffect, LowPassFilterEffect, LowShelfFilterEffect,
+                },
+                reverb::Reverb,
+                Attenuate, AudioBus, Biquad, DistanceModel, Effect, SoundBuffer,
+                SoundBufferResource, Status,
+            },
+            terrain::{Chunk, Layer},
+            tilemap::{tileset::TileSet, Tile},
+            transform::Transform,
+        },
+    },
     inspector::editors::{
         animation::{
             AnimationContainerPropertyEditorDefinition, AnimationPropertyEditorDefinition,
@@ -93,7 +98,6 @@ use crate::{
     },
     message::MessageSender,
 };
-use fyrox::asset::untyped::UntypedResource;
 use std::{path::Path, sync::Arc};
 
 pub mod animation;
@@ -313,6 +317,19 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
     >::new());
     container.register_inheritable_vec_collection::<Option<UserInterface>>();
 
+    container.insert(ResourceFieldPropertyEditorDefinition::<TileSet>::new(
+        Arc::new(Mutex::new(
+            |resource_manager: &ResourceManager, path: &Path| {
+                resource_manager.try_request::<TileSet>(path).map(block_on)
+            },
+        )),
+        sender.clone(),
+    ));
+    container.insert(InheritablePropertyEditorDefinition::<
+        Option<Resource<TileSet>>,
+    >::new());
+    container.register_inheritable_vec_collection::<Option<TileSet>>();
+
     container.insert(ResourceFieldPropertyEditorDefinition::<Shader>::new(
         Arc::new(Mutex::new(
             |resource_manager: &ResourceManager, path: &Path| {
@@ -467,6 +484,9 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
     container.insert(VecCollectionPropertyEditorDefinition::<Limb>::new());
 
     container.register_inheritable_enum::<BatchingMode, _>();
+
+    container.register_inheritable_inspectable::<Tile>();
+    container.register_inheritable_vec_collection::<Tile>();
 
     container
 }

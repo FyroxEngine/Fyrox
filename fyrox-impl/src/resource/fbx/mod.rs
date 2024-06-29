@@ -237,8 +237,8 @@ enum FbxMeshBuilder {
 impl FbxMeshBuilder {
     fn build(self) -> SurfaceData {
         match self {
-            FbxMeshBuilder::Static(builder) => SurfaceData::from_raw_mesh(builder.build(), false),
-            FbxMeshBuilder::Animated(builder) => SurfaceData::from_raw_mesh(builder.build(), false),
+            FbxMeshBuilder::Static(builder) => SurfaceData::from_raw_mesh(builder.build()),
+            FbxMeshBuilder::Animated(builder) => SurfaceData::from_raw_mesh(builder.build()),
         }
     }
 }
@@ -279,7 +279,7 @@ async fn create_surfaces(
         surface_data.blend_shapes_container =
             make_blend_shapes_container(&surface_data.vertex_buffer, data.blend_shapes);
         let mut surface = Surface::new(SurfaceResource::new_ok(
-            ResourceKind::Embedded,
+            ResourceKind::External(model_path.to_path_buf()),
             surface_data,
         ));
         surface.vertex_weights = data.skin_data;
@@ -291,7 +291,7 @@ async fn create_surfaces(
             surface_data.blend_shapes_container =
                 make_blend_shapes_container(&surface_data.vertex_buffer, data.blend_shapes);
             let mut surface = Surface::new(SurfaceResource::new_ok(
-                ResourceKind::Embedded,
+                ResourceKind::External(model_path.to_path_buf()),
                 surface_data,
             ));
             surface.vertex_weights = data.skin_data;
