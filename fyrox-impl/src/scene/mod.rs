@@ -25,6 +25,7 @@ pub mod rigidbody;
 pub mod sound;
 pub mod sprite;
 pub mod terrain;
+pub mod tilemap;
 pub mod transform;
 
 use crate::{

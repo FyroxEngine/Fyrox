@@ -483,6 +483,7 @@ pub const HEADER_MARGIN: Thickness = Thickness {
 pub enum InspectorError {
     /// An error occurred due to reflection when some value did not have its expected type.
     CastError(CastError),
+    /// The object type has changed and the inspector context is no longer valid.
     OutOfSync,
     /// An error message produced by some editor with specialized details unique to that editor.
     /// For example, an array editor might complain if there is no editor definition for the type
@@ -570,6 +571,8 @@ pub struct InspectorContext {
     /// editor widgets. This identifies sync messages and prevents the Inspector from trying to translate them,
     /// and thereby it prevents sync messages from potentially creating an infinite message loop.
     pub sync_flag: u64,
+    /// Type id of the object for which the context was created.
+    pub object_type_id: TypeId,
 }
 
 impl PartialEq for InspectorContext {
@@ -589,6 +592,7 @@ impl Default for InspectorContext {
             ),
             environment: None,
             sync_flag: 0,
+            object_type_id: ().type_id(),
         }
     }
 }
@@ -937,6 +941,7 @@ impl InspectorContext {
             property_definitions: definition_container,
             sync_flag,
             environment,
+            object_type_id: object.type_id(),
         }
     }
 
@@ -959,6 +964,10 @@ impl InspectorContext {
         generate_property_string_values: bool,
         filter: PropertyFilter,
     ) -> Result<(), Vec<InspectorError>> {
+        if object.type_id() != self.object_type_id {
+            return Err(vec![InspectorError::OutOfSync]);
+        }
+
         let mut sync_errors = Vec::new();
 
         object.fields_info(&mut |fields_info| {
@@ -994,6 +1003,8 @@ impl InspectorContext {
                             }
                             Err(e) => sync_errors.push(e),
                         }
+                    } else {
+                        sync_errors.push(InspectorError::OutOfSync);
                     }
                 }
             }

@@ -99,7 +99,9 @@ use std::{
 
 use crate::plugin::dynamic::DynamicPlugin;
 use crate::plugin::{DynamicPluginState, PluginContainer};
-use crate::scene::mesh::surface::SurfaceData;
+use crate::scene::mesh::surface;
+use crate::scene::mesh::surface::{SurfaceData, SurfaceDataLoader};
+use crate::scene::tilemap::tileset::{TileSet, TileSetLoader};
 use fyrox_core::futures::future::join_all;
 use fyrox_core::notify;
 use fyrox_core::notify::{EventKind, RecursiveMode, Watcher};
@@ -1202,6 +1204,20 @@ pub(crate) fn initialize_resource_manager_loaders(
         );
     }
 
+    for material in [
+        surface::CUBE.clone(),
+        surface::QUAD.clone(),
+        surface::CYLINDER.clone(),
+        surface::SPHERE.clone(),
+        surface::CONE.clone(),
+        surface::TORUS.clone(),
+    ] {
+        state.built_in_resources.insert(
+            material.kind().path_owned().unwrap(),
+            material.clone().into_untyped(),
+        );
+    }
+
     state.constructors_container.add::<Texture>();
     state.constructors_container.add::<Shader>();
     state.constructors_container.add::<Model>();
@@ -1212,6 +1228,7 @@ pub(crate) fn initialize_resource_manager_loaders(
     state.constructors_container.add::<Font>();
     state.constructors_container.add::<UserInterface>();
     state.constructors_container.add::<SurfaceData>();
+    state.constructors_container.add::<TileSet>();
 
     let loaders = &mut state.loaders;
     loaders.set(model_loader);
@@ -1231,6 +1248,8 @@ pub(crate) fn initialize_resource_manager_loaders(
     loaders.set(UserInterfaceLoader {
         resource_manager: resource_manager.clone(),
     });
+    loaders.set(SurfaceDataLoader {});
+    loaders.set(TileSetLoader);
 }
 
 fn try_copy_library(source_lib_path: &Path, lib_path: &Path) -> Result<(), String> {

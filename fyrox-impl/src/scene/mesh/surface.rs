@@ -2,7 +2,13 @@
 //! See [`Surface`] docs for more info and usage examples.
 
 use crate::{
-    asset::{untyped::ResourceKind, Resource, ResourceData},
+    asset::{
+        io::ResourceIo,
+        loader::{BoxedLoaderFuture, LoaderPayload, ResourceLoader},
+        state::LoadError,
+        untyped::ResourceKind,
+        Resource, ResourceData,
+    },
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
         hash_combine,
@@ -33,7 +39,14 @@ use crate::{
 };
 use fxhash::{FxHashMap, FxHasher};
 use half::f16;
-use std::{any::Any, error::Error, hash::Hasher, path::Path, sync::Arc};
+use lazy_static::lazy_static;
+use std::{
+    any::Any,
+    error::Error,
+    hash::Hasher,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 /// A target shape for blending.
 #[derive(Debug, Clone, Visit, Reflect, PartialEq)]
@@ -1415,4 +1428,79 @@ impl SurfaceBuilder {
             unique_material: self.unique_material.into(),
         }
     }
+}
+
+/// Default surface resource loader.
+pub struct SurfaceDataLoader {}
+
+impl ResourceLoader for SurfaceDataLoader {
+    fn extensions(&self) -> &[&str] {
+        &["surface"]
+    }
+
+    fn data_type_uuid(&self) -> Uuid {
+        <SurfaceData as TypeUuidProvider>::type_uuid()
+    }
+
+    fn load(&self, path: PathBuf, io: Arc<dyn ResourceIo>) -> BoxedLoaderFuture {
+        Box::pin(async move {
+            let io = io.as_ref();
+
+            let data = io.load_file(&path).await.map_err(LoadError::new)?;
+            let mut visitor = Visitor::load_from_memory(&data).map_err(LoadError::new)?;
+            let mut surface_data = SurfaceData::default();
+            surface_data
+                .visit("SurfaceData", &mut visitor)
+                .map_err(LoadError::new)?;
+            Ok(LoaderPayload::new(surface_data))
+        })
+    }
+}
+
+lazy_static! {
+    /// Cube surface resource.
+    pub static ref CUBE: SurfaceResource = SurfaceResource::new_ok(
+        "__CubeSurface".into(),
+        SurfaceData::make_cube(Matrix4::identity()),
+    );
+}
+
+lazy_static! {
+    /// Quad surface resource.
+    pub static ref QUAD: SurfaceResource = SurfaceResource::new_ok(
+        "__QuadSurface".into(),
+        SurfaceData::make_quad(&Matrix4::identity()),
+    );
+}
+
+lazy_static! {
+    /// Cylinder surface resource.
+    pub static ref CYLINDER: SurfaceResource = SurfaceResource::new_ok(
+        "__CylinderSurface".into(),
+        SurfaceData::make_cylinder(32, 1.0, 1.0, true, &Matrix4::identity()),
+    );
+}
+
+lazy_static! {
+    /// Sphere surface resource.
+    pub static ref SPHERE: SurfaceResource = SurfaceResource::new_ok(
+        "__SphereSurface".into(),
+        SurfaceData::make_sphere(32, 32, 1.0, &Matrix4::identity()),
+    );
+}
+
+lazy_static! {
+    /// Cone surface resource.
+    pub static ref CONE: SurfaceResource = SurfaceResource::new_ok(
+        "__ConeSurface".into(),
+        SurfaceData::make_cone(32, 1.0, 1.0, &Matrix4::identity()),
+    );
+}
+
+lazy_static! {
+    /// Torus surface resource.
+    pub static ref TORUS: SurfaceResource = SurfaceResource::new_ok(
+        "__TorusSurface".into(),
+        SurfaceData::make_torus(1.0, 0.25,32, 32,  &Matrix4::identity()),
+    );
 }

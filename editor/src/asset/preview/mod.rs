@@ -62,6 +62,7 @@ impl AssetPreviewGeneratorsCollection {
         this.add(CurveResourceState::type_uuid(), CurvePreview);
         this.add(Font::type_uuid(), FontPreview);
         this.add(UserInterface::type_uuid(), UserInterfacePreview);
+        this.add(SurfaceData::type_uuid(), SurfaceDataPreview);
         this
     }
 
@@ -391,6 +392,47 @@ impl AssetPreviewGenerator for ModelPreview {
         let mut scene = Scene::new();
         scene.rendering_options.ambient_lighting_color = Color::opaque(180, 180, 180);
         model.instantiate(&mut scene);
+        render_scene_to_texture(engine, &mut scene, Vector2::new(128.0, 128.0))
+    }
+
+    fn simple_icon(
+        &self,
+        _resource: &UntypedResource,
+        _resource_manager: &ResourceManager,
+    ) -> Option<UntypedResource> {
+        load_image(include_bytes!("../../../resources/model.png"))
+    }
+}
+
+pub struct SurfaceDataPreview;
+
+impl AssetPreviewGenerator for SurfaceDataPreview {
+    fn generate_scene(
+        &mut self,
+        resource: &UntypedResource,
+        _resource_manager: &ResourceManager,
+        scene: &mut Scene,
+    ) -> Handle<Node> {
+        if let Some(surface) = resource.try_cast::<SurfaceData>() {
+            MeshBuilder::new(BaseBuilder::new())
+                .with_surfaces(vec![SurfaceBuilder::new(surface.clone()).build()])
+                .build(&mut scene.graph)
+        } else {
+            Handle::NONE
+        }
+    }
+
+    fn generate_preview(
+        &mut self,
+        resource: &UntypedResource,
+        engine: &mut Engine,
+    ) -> Option<AssetPreviewTexture> {
+        let surface = resource.try_cast::<SurfaceData>()?;
+        let mut scene = Scene::new();
+        scene.rendering_options.ambient_lighting_color = Color::opaque(180, 180, 180);
+        MeshBuilder::new(BaseBuilder::new())
+            .with_surfaces(vec![SurfaceBuilder::new(surface.clone()).build()])
+            .build(&mut scene.graph);
         render_scene_to_texture(engine, &mut scene, Vector2::new(128.0, 128.0))
     }
 

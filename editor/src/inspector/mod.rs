@@ -1,31 +1,32 @@
-use crate::fyrox::{
-    asset::manager::ResourceManager,
-    core::{
-        color::Color,
-        log::{Log, MessageKind},
-        pool::ErasedHandle,
-        pool::Handle,
-        reflect::prelude::*,
-    },
-    engine::SerializationContext,
-    graph::BaseSceneGraph,
-    gui::{
-        button::ButtonMessage,
-        grid::{Column, GridBuilder, Row},
-        inspector::{
-            editors::PropertyEditorDefinitionContainer, InspectorBuilder, InspectorContext,
-            InspectorEnvironment, InspectorMessage,
-        },
-        message::{MessageDirection, UiMessage},
-        scroll_viewer::ScrollViewerBuilder,
-        text::{TextBuilder, TextMessage},
-        widget::WidgetBuilder,
-        window::{WindowBuilder, WindowTitle},
-        BuildContext, Thickness, UiNode, UserInterface,
-    },
-};
 use crate::{
     absm::animation_container_ref,
+    fyrox::{
+        asset::manager::ResourceManager,
+        core::{
+            color::Color,
+            log::{Log, MessageKind},
+            pool::ErasedHandle,
+            pool::Handle,
+            reflect::prelude::*,
+        },
+        engine::SerializationContext,
+        graph::BaseSceneGraph,
+        gui::{
+            button::ButtonMessage,
+            grid::{Column, GridBuilder, Row},
+            inspector::{
+                editors::PropertyEditorDefinitionContainer, InspectorBuilder, InspectorContext,
+                InspectorEnvironment, InspectorError, InspectorMessage,
+            },
+            message::{MessageDirection, UiMessage},
+            scroll_viewer::ScrollViewerBuilder,
+            text::{TextBuilder, TextMessage},
+            widget::WidgetBuilder,
+            window::{WindowBuilder, WindowTitle},
+            BuildContext, Thickness, UiNode, UserInterface,
+        },
+        scene::SceneContainer,
+    },
     gui::make_image_button_with_tooltip,
     inspector::editors::make_property_editors_container,
     load_image,
@@ -78,52 +79,12 @@ pub struct Inspector {
     warning_text: Handle<UiNode>,
     type_name_text: Handle<UiNode>,
     docs_button: Handle<UiNode>,
-    old_selection: Selection,
-}
-
-#[macro_export]
-macro_rules! make_command {
-    ($cmd:ty, $handle:expr, $value:expr) => {
-        Some($crate::scene::commands::Command::new(<$cmd>::new(
-            $handle,
-            $value.cast_value().cloned()?,
-        )))
-    };
-}
-
-#[macro_export]
-macro_rules! handle_properties {
-    ($name:expr, $handle:expr, $value:expr, $($prop:path => $cmd:ty),*) => {
-        match $name {
-            $($prop => {
-                $crate::make_command!($cmd, $handle, $value)
-            })*
-            _ => None,
-        }
-    }
-}
-
-#[macro_export]
-macro_rules! handle_property_changed {
-    ($args:expr, $handle:expr, $($prop:path => $cmd:ty),*) => {
-        match $args.value {
-            FieldKind::Object(ref value) => {
-                match $args.name.as_ref() {
-                    $($prop => {
-                        $crate::make_command!($cmd, $handle, value)
-                    })*
-                    _ => None,
-                }
-            }
-            _ => None
-        }
-    }
 }
 
 fn fetch_available_animations(
     selection: &Selection,
     controller: &dyn SceneController,
-    engine: &Engine,
+    scenes: &SceneContainer,
 ) -> Vec<AnimationDefinition> {
     if let Some(ui_scene) = controller.downcast_ref::<UiScene>() {
         // TODO: Remove duplicated code.
@@ -145,7 +106,7 @@ fn fetch_available_animations(
     if let Some(game_scene) = controller.downcast_ref::<GameScene>() {
         if let Some(absm_selection) = selection.as_absm() {
             if let Some((_, animation_player)) = animation_container_ref(
-                &engine.scenes[game_scene.scene].graph,
+                &scenes[game_scene.scene].graph,
                 absm_selection.absm_node_handle,
             ) {
                 return animation_player
@@ -159,6 +120,21 @@ fn fetch_available_animations(
         }
     }
     Default::default()
+}
+
+fn print_errors(sync_errors: &[InspectorError]) {
+    for error in sync_errors {
+        Log::writeln(
+            MessageKind::Error,
+            format!("Failed to sync property. Reason: {:?}", error),
+        )
+    }
+}
+
+fn is_out_of_sync(sync_errors: &[InspectorError]) -> bool {
+    sync_errors
+        .iter()
+        .any(|err| matches!(err, &InspectorError::OutOfSync))
 }
 
 impl Inspector {
@@ -249,11 +225,14 @@ impl Inspector {
             warning_text,
             type_name_text,
             docs_button,
-            old_selection: Default::default(),
         }
     }
 
-    fn sync_to(&mut self, obj: &dyn Reflect, ui: &mut UserInterface) {
+    fn sync_to(
+        &mut self,
+        obj: &dyn Reflect,
+        ui: &mut UserInterface,
+    ) -> Result<(), Vec<InspectorError>> {
         let ctx = ui
             .node(self.inspector)
             .cast::<fyrox::gui::inspector::Inspector>()
@@ -261,14 +240,7 @@ impl Inspector {
             .context()
             .clone();
 
-        if let Err(sync_errors) = ctx.sync(obj, ui, 0, true, Default::default()) {
-            for error in sync_errors {
-                Log::writeln(
-                    MessageKind::Error,
-                    format!("Failed to sync property. Reason: {:?}", error),
-                )
-            }
-        }
+        ctx.sync(obj, ui, 0, true, Default::default())
     }
 
     pub fn sync_to_model(
@@ -278,46 +250,42 @@ impl Inspector {
         engine: &mut Engine,
         sender: &MessageSender,
     ) {
-        if &self.old_selection == editor_selection {
-            if !editor_selection.is_empty() {
-                controller.first_selected_entity(editor_selection, &engine.scenes, &mut |entity| {
-                    self.sync_to(entity, engine.user_interfaces.first_mut());
-                });
-            } else if editor_selection.is_empty() {
-                self.clear(engine.user_interfaces.first());
-            }
-        } else {
-            engine
-                .user_interfaces
-                .first_mut()
-                .send_message(WidgetMessage::visibility(
-                    self.warning_text,
-                    MessageDirection::ToWidget,
-                    editor_selection.len() > 1,
-                ));
+        let mut need_clear = true;
 
-            // `first_selected_entity` is not guaranteed to call its callback.
-            // This flag allows us to determine whether an entity was found by first_selected_entity.
-            let mut found_entity = false;
-            let available_animations =
-                fetch_available_animations(editor_selection, controller, engine);
-            controller.first_selected_entity(editor_selection, &engine.scenes, &mut |entity| {
-                found_entity = true;
-                self.change_context(
-                    entity,
-                    engine.user_interfaces.first_mut(),
-                    engine.resource_manager.clone(),
-                    engine.serialization_context.clone(),
-                    &available_animations,
-                    sender,
-                )
-            });
-            // If `first_selected_entity` found no entity, then clear this inspector.
-            if !found_entity {
-                self.clear(engine.user_interfaces.first());
-            }
+        let ui = engine.user_interfaces.first_mut();
 
-            self.old_selection = editor_selection.clone();
+        ui.send_message(WidgetMessage::visibility(
+            self.warning_text,
+            MessageDirection::ToWidget,
+            editor_selection.len() > 1,
+        ));
+
+        controller.first_selected_entity(editor_selection, &engine.scenes, &mut |entity| {
+            if let Err(errors) = self.sync_to(entity, ui) {
+                if is_out_of_sync(&errors) {
+                    let available_animations =
+                        fetch_available_animations(editor_selection, controller, &engine.scenes);
+
+                    self.change_context(
+                        entity,
+                        ui,
+                        engine.resource_manager.clone(),
+                        engine.serialization_context.clone(),
+                        &available_animations,
+                        sender,
+                    );
+
+                    need_clear = false;
+                } else {
+                    print_errors(&errors);
+                }
+            } else {
+                need_clear = false;
+            }
+        });
+
+        if need_clear {
+            self.clear(ui);
         }
     }
 

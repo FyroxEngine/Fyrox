@@ -1,5 +1,6 @@
 //! A special container that is able to create nodes by their type UUID.
 
+use crate::scene::tilemap::TileMap;
 use crate::{
     core::{
         parking_lot::{Mutex, MutexGuard},
@@ -69,6 +70,7 @@ impl NodeConstructorContainer {
         container.add::<AnimationBlendingStateMachine>();
         container.add::<NavigationalMesh>();
         container.add::<Ragdoll>();
+        container.add::<TileMap>();
 
         container
     }
