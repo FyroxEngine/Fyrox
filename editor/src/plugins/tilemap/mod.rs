@@ -101,8 +101,18 @@ pub struct TileMapEditorPlugin {
 impl EditorPlugin for TileMapEditorPlugin {
     fn on_ui_message(&mut self, message: &mut UiMessage, editor: &mut Editor) {
         if let Some(tile_set_editor) = self.tile_set_editor.take() {
-            self.tile_set_editor =
-                tile_set_editor.handle_ui_message(message, editor.engine.user_interfaces.first());
+            self.tile_set_editor = tile_set_editor.handle_ui_message(
+                message,
+                editor.engine.user_interfaces.first(),
+                &editor.engine.resource_manager,
+                &editor.message_sender,
+            );
+        }
+    }
+
+    fn on_sync_to_model(&mut self, editor: &mut Editor) {
+        if let Some(tile_set_editor) = self.tile_set_editor.as_mut() {
+            tile_set_editor.sync_to_model(editor.engine.user_interfaces.first_mut());
         }
     }
 

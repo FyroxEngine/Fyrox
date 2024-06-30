@@ -200,6 +200,7 @@ impl TileMapBuilder {
                 uv_rect: Rect::new(0.0, 0.0, 1.0, 1.0),
                 collider: Default::default(),
                 color: Default::default(),
+                id: Uuid::new_v4(),
             }],
         };
 

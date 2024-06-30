@@ -87,6 +87,7 @@ pub struct TileDefinition {
     pub uv_rect: Rect<f32>,
     pub collider: TileCollider,
     pub color: Color,
+    pub id: Uuid,
 }
 
 #[derive(Clone, Default, Debug, Reflect, Visit, TypeUuidProvider, ComponentProvider)]
