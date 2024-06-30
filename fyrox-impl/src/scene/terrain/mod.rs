@@ -625,8 +625,9 @@ pub struct TerrainRayCastResult {
 ///
 /// ## Painting
 ///
-/// Terrain has a single method for "painting" - [`Terrain::draw`], it accepts a brush with specific parameters,
-/// which can either alternate height map or a layer mask. See method's documentation for more info.
+/// Painting involves constructing a [BrushStroke] and calling its [BrushStroke::accept_messages] method with
+/// a channel receiver, and sending a series of pixel messages into that channel. The BrushStroke will translate
+/// those messages into modifications to the Terrain's textures.
 ///
 /// ## Ray casting
 ///

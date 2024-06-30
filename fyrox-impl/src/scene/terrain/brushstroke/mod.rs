@@ -36,7 +36,7 @@ use std::sync::mpsc::{Receiver, SendError, Sender};
 
 pub mod brushraster;
 use brushraster::*;
-mod strokechunks;
+pub mod strokechunks;
 use strokechunks::*;
 
 /// The number of pixel messages we can accept at once before we must start processing them.

@@ -1,10 +1,13 @@
+//! This module manages the record of which pixels have been recently edited by a brushstroke.
+//! It stores the modified chunks and the pixels within each chunk since the last time
+//! the changes were written to the terrain's textures.
 use super::{ChunkData, StrokeData, TerrainTextureKind};
 use crate::core::algebra::Vector2;
 use crate::fxhash::{FxHashMap, FxHashSet};
 use crate::resource::texture::TextureResource;
 use crate::scene::terrain::pixel_position_to_grid_position;
 
-/// The pixels for a stroke for one chunk, generalized over the type of data being edited.
+/// The list of modified pixels in each chunk.
 #[derive(Debug, Default)]
 pub struct StrokeChunks {
     /// The size of each chunk as measured by distance from one chunk origin to the next.
@@ -16,14 +19,17 @@ pub struct StrokeChunks {
     written_pixels: FxHashMap<Vector2<i32>, FxHashSet<Vector2<u32>>>,
     /// The number of pixels written to this object.
     count: usize,
+    /// Pixel hash sets that are allocated but not currently in use
     unused_chunks: Vec<FxHashSet<Vector2<u32>>>,
 }
 
 impl StrokeChunks {
+    /// The number of modified pixels that this object is currently tracking
     #[inline]
     pub fn count(&self) -> usize {
         self.count
     }
+    /// The kind of texture being edited
     #[inline]
     pub fn kind(&self) -> TerrainTextureKind {
         self.kind
@@ -104,10 +110,12 @@ impl StrokeChunks {
             }
         }
     }
+    /// Calculates which chunk contains the given pixel position.
     #[inline]
     pub fn pixel_position_to_grid_position(&self, position: Vector2<i32>) -> Vector2<i32> {
         pixel_position_to_grid_position(position, self.chunk_size)
     }
+    /// Calculates the origin pixel position of the given chunk.
     pub fn chunk_to_origin(&self, grid_position: Vector2<i32>) -> Vector2<i32> {
         Vector2::new(
             grid_position.x * self.chunk_size.x as i32,
