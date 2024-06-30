@@ -12,6 +12,7 @@ use crate::core::{
     math::{OptionRect, Rect},
 };
 
+/// Adjust the strength of a brush pixel based on the hardness of the brush.
 fn apply_hardness(hardness: f32, strength: f32) -> f32 {
     if strength == 0.0 {
         return 0.0;
@@ -33,6 +34,9 @@ pub trait BrushRaster {
     /// An AABB that contains all the pixels of the brush, with (0.0, 0.0) being
     /// at the center of the brush.
     fn bounds(&self) -> Rect<f32>;
+    /// An AABB that contains all the pixels of the brush after it has been transformed
+    /// and translated. First the brush is multiplied by `transform` and then it is
+    /// translated to `center`, and then an AABB it calculated for the resulting brush.
     fn transformed_bounds(&self, center: Vector2<f32>, transform: &Matrix2<f32>) -> Rect<i32> {
         let mut bounds = OptionRect::<i32>::default();
         let rect = self.bounds();
@@ -148,6 +152,9 @@ impl Iterator for RectIter {
     }
 }
 
+/// An iterator over the pixels of a [BrushRaster] object.
+/// For each pixel, it produces a [BrushPixel].
+/// The pixels produced can include pixels with zero strength.
 #[derive(Debug, Clone)]
 pub struct StampPixels<R> {
     brush_raster: R,
@@ -161,11 +168,11 @@ impl<R> StampPixels<R>
 where
     R: BrushRaster,
 {
+    /// An AABB containing all the pixels that this iterator produces.
     pub fn bounds(&self) -> Rect<i32> {
         self.bounds_iter.bounds()
     }
-    /// Construct a new pixel iterator for a round brush at the given position, radius,
-    /// and 2x2 transform matrix.
+    /// Construct a new pixel iterator for a stamp at the given location.
     pub fn new(
         brush_raster: R,
         center: Vector2<f32>,
@@ -205,7 +212,9 @@ where
     }
 }
 
-/// An iterator of the pixels of a round brush.
+/// An iterator of the pixels that are painted when a brush
+/// is smeared from a start point to an end point.
+/// It works just like [StampPixels] but across a line segment instead of at a single point.
 #[derive(Debug, Clone)]
 pub struct SmearPixels<R> {
     brush_raster: R,
@@ -221,8 +230,7 @@ impl<R> SmearPixels<R> {
     pub fn bounds(&self) -> Rect<i32> {
         self.bounds_iter.bounds()
     }
-    /// Construct a new pixel iterator for a brush at the given position, radius,
-    /// and 2x2 transform matrix.
+    /// Construct a new pixel iterator for a smear with the given start and end points.
     pub fn new(
         brush_raster: R,
         start: Vector2<f32>,

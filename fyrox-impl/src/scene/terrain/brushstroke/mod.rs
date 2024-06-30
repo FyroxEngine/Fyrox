@@ -34,7 +34,7 @@ use fyrox_core::uuid_provider;
 use std::collections::VecDeque;
 use std::sync::mpsc::{Receiver, SendError, Sender};
 
-mod brushraster;
+pub mod brushraster;
 use brushraster::*;
 mod strokechunks;
 use strokechunks::*;
