@@ -1,13 +1,16 @@
+pub mod tileset;
+
 use crate::{
     fyrox::{
         core::{algebra::Vector2, pool::Handle, type_traits::prelude::*, Uuid},
         engine::Engine,
         graph::{BaseSceneGraph, SceneGraphNode},
-        gui::{BuildContext, UiNode},
+        gui::{message::UiMessage, BuildContext, UiNode},
         scene::{node::Node, tilemap::TileMap},
     },
     interaction::{make_interaction_mode_button, InteractionMode},
     plugin::EditorPlugin,
+    plugins::tilemap::tileset::TileSetEditor,
     scene::{controller::SceneController, GameScene, Selection},
     settings::Settings,
     Editor, Message,
@@ -71,16 +74,45 @@ impl InteractionMode for TileMapInteractionMode {
         )
     }
 
+    fn update(
+        &mut self,
+        _editor_selection: &Selection,
+        controller: &mut dyn SceneController,
+        engine: &mut Engine,
+        _settings: &Settings,
+    ) {
+        let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
+            return;
+        };
+
+        let _scene = &mut engine.scenes[game_scene.scene];
+    }
+
     fn uuid(&self) -> Uuid {
         Self::type_uuid()
     }
 }
 
 #[derive(Default)]
-pub struct TileMapEditorPlugin {}
+pub struct TileMapEditorPlugin {
+    tile_set_editor: Option<TileSetEditor>,
+}
 
 impl EditorPlugin for TileMapEditorPlugin {
+    fn on_ui_message(&mut self, message: &mut UiMessage, editor: &mut Editor) {
+        if let Some(tile_set_editor) = self.tile_set_editor.take() {
+            self.tile_set_editor =
+                tile_set_editor.handle_ui_message(message, editor.engine.user_interfaces.first());
+        }
+    }
+
     fn on_message(&mut self, message: &Message, editor: &mut Editor) {
+        if let Message::OpenTileSetEditor(tile_set) = message {
+            let ui = editor.engine.user_interfaces.first_mut();
+            let tile_set_editor = TileSetEditor::new(tile_set.clone(), &mut ui.build_ctx());
+            self.tile_set_editor = Some(tile_set_editor);
+        }
+
         let Some(entry) = editor.scenes.current_scene_entry_mut() else {
             return;
         };
