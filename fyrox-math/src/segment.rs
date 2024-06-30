@@ -76,7 +76,7 @@ where
     }
     /// The interpolation parameter of the point on this segment that is closest to the given point.
     ///
-    /// https://math.stackexchange.com/questions/2193720/find-a-point-on-a-line-segment-which-is-the-closest-to-other-point-not-on-the-li
+    /// [Stack Exchange question: Find a point on a line segment which is the closest to other point not on the line segment](https://math.stackexchange.com/questions/2193720/find-a-point-on-a-line-segment-which-is-the-closest-to-other-point-not-on-the-li)
     pub fn nearest_t<S>(&self, point: &Vector<T, D, S>) -> T
     where
         S: Storage<T, D>,
