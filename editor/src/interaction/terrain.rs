@@ -1,4 +1,8 @@
-use fyrox::scene::terrain::ChunkData;
+use fyrox::fxhash::FxHashMap;
+use fyrox::resource::texture::TextureResource;
+use fyrox::scene::terrain::brushstroke::{
+    BrushSender, BrushThreadMessage, TerrainTextureData, TerrainTextureKind, UndoData,
+};
 
 use crate::fyrox::core::uuid::{uuid, Uuid};
 use crate::fyrox::core::TypeUuidProvider;
@@ -36,9 +40,8 @@ use crate::fyrox::{
             MeshBuilder, RenderPath,
         },
         node::Node,
-        terrain::{
-            Brush, BrushMode, BrushShape, BrushStroke, BrushTarget, Terrain, TerrainRayCastResult,
-        },
+        terrain::brushstroke::{Brush, BrushMode, BrushShape, BrushStroke, BrushTarget},
+        terrain::{Terrain, TerrainRayCastResult},
     },
 };
 use crate::interaction::make_interaction_mode_button;
@@ -56,20 +59,36 @@ use crate::{
     MSG_SYNC_FLAG,
 };
 use fyrox::asset::untyped::ResourceKind;
+use std::sync::mpsc::channel;
 use std::sync::Arc;
 
 fn modify_clamp(x: &mut f32, delta: f32, min: f32, max: f32) {
     *x = (*x + delta).clamp(min, max)
 }
 
+fn handle_undo_chunks(undo_chunks: UndoData, sender: &MessageSender) {
+    match undo_chunks.target {
+        BrushTarget::HeightMap => sender.do_command(ModifyTerrainHeightCommand::new(
+            undo_chunks.node,
+            undo_chunks.chunks,
+        )),
+        BrushTarget::LayerMask { layer } => sender.do_command(ModifyTerrainLayerMaskCommand::new(
+            undo_chunks.node,
+            undo_chunks.chunks,
+            layer,
+        )),
+    }
+}
+
 pub struct TerrainInteractionMode {
-    undo_chunks: Vec<ChunkData>,
     message_sender: MessageSender,
+    brush_sender: Option<BrushSender>,
     interacting: bool,
     brush_gizmo: BrushGizmo,
+    prev_brush_position: Option<Vector2<f32>>,
     brush_position: Vector3<f32>,
+    brush_value: f32,
     brush: Brush,
-    stroke: BrushStroke,
     brush_panel: BrushPanel,
     scene_viewer_frame: Handle<UiNode>,
 }
@@ -94,34 +113,108 @@ impl TerrainInteractionMode {
             BrushPanel::new(&mut engine.user_interfaces.first_mut().build_ctx(), &brush);
 
         Self {
+            message_sender,
+            brush_sender: None,
             brush_panel,
-            undo_chunks: Default::default(),
             brush_gizmo: BrushGizmo::new(game_scene, engine),
             interacting: false,
-            message_sender,
             brush,
+            brush_value: Default::default(),
+            prev_brush_position: None,
             brush_position: Vector3::default(),
-            stroke: BrushStroke::default(),
             scene_viewer_frame,
         }
     }
     fn modify_brush_opacity(&mut self, direction: f32) {
         modify_clamp(&mut self.brush.alpha, 0.01 * direction, 0.0, 1.0);
     }
-    fn draw(&mut self, terrain: &mut Terrain, shift: bool) {
-        let mut brush_copy = self.brush.clone();
-        if let BrushMode::Raise { amount } = &mut brush_copy.mode {
+    fn start_background_thread(&mut self) {
+        let (sender, receiver) = channel::<BrushThreadMessage>();
+        self.brush_sender = Some(BrushSender::new(sender));
+        let sender_clone = self.message_sender.clone();
+        let mut stroke = BrushStroke::with_chunk_handler(Box::new(move |undo_chunks| {
+            handle_undo_chunks(undo_chunks, &sender_clone)
+        }));
+        match std::thread::Builder::new()
+            .name("Terrain Brush".into())
+            .spawn(move || stroke.accept_messages(receiver))
+        {
+            Ok(_) => (),
+            Err(_) => {
+                Log::err("Brush thread failed to start.");
+                self.brush_sender = None;
+            }
+        }
+    }
+    fn end_background_thread(&mut self) {
+        self.brush_sender = None;
+    }
+    fn start_stroke(&self, terrain: &mut Terrain, handle: Handle<Node>, shift: bool) {
+        let mut brush = self.brush.clone();
+        // Ignore stroke with a non-existent layer index.
+        if let BrushTarget::LayerMask { layer } = brush.target {
+            if layer >= terrain.layers().len() {
+                return;
+            }
+        }
+        // Holding shift as start of stroke causes the stroke to reverse lowering and raising.
+        if let BrushMode::Raise { amount } = &mut brush.mode {
             if shift {
                 *amount *= -1.0;
             }
         }
-
-        self.undo_chunks = terrain.draw(
-            self.brush_position,
-            &brush_copy,
-            &mut self.stroke,
-            std::mem::take(&mut self.undo_chunks),
-        );
+        let chunk_size = match brush.target {
+            BrushTarget::HeightMap => terrain.height_map_size(),
+            BrushTarget::LayerMask { .. } => terrain.mask_size(),
+        };
+        let kind = match brush.target {
+            BrushTarget::HeightMap => TerrainTextureKind::Height,
+            BrushTarget::LayerMask { .. } => TerrainTextureKind::Mask,
+        };
+        let resources: FxHashMap<Vector2<i32>, TextureResource> = match brush.target {
+            BrushTarget::HeightMap => terrain
+                .chunks_ref()
+                .iter()
+                .map(|c| (c.grid_position(), c.heightmap().clone()))
+                .collect(),
+            BrushTarget::LayerMask { layer } => terrain
+                .chunks_ref()
+                .iter()
+                .map(|c| (c.grid_position(), c.layer_masks[layer].clone()))
+                .collect(),
+        };
+        let data = TerrainTextureData {
+            chunk_size,
+            kind,
+            resources,
+        };
+        if let Some(sender) = &self.brush_sender {
+            sender.start_stroke(brush, handle, data);
+        } else {
+            Log::err("Brush thread failure");
+        }
+    }
+    fn draw(&mut self, terrain: &mut Terrain) {
+        let Some(position) = terrain.project(self.brush_position) else {
+            return;
+        };
+        let position = match self.brush.target {
+            BrushTarget::HeightMap => terrain.local_to_height_pixel(position),
+            BrushTarget::LayerMask { .. } => terrain.local_to_mask_pixel(position),
+        };
+        let scale = match self.brush.target {
+            BrushTarget::HeightMap => terrain.height_grid_scale(),
+            BrushTarget::LayerMask { .. } => terrain.mask_grid_scale(),
+        };
+        if let Some(sender) = &self.brush_sender {
+            if let Some(start) = self.prev_brush_position.take() {
+                self.brush
+                    .smear(start, position, scale, self.brush_value, sender);
+            } else {
+                self.brush.stamp(position, scale, self.brush_value, sender);
+            }
+            self.prev_brush_position = Some(position);
+        }
     }
 }
 
@@ -203,17 +296,19 @@ impl InteractionMode for TerrainInteractionMode {
                             if let (Some(closest), BrushTarget::HeightMap) =
                                 (first, self.brush.target)
                             {
-                                self.stroke.value = closest.height;
+                                self.brush_value = closest.height;
                             } else if let Some(closest) = first {
                                 let p = closest.position;
-                                self.stroke.value = terrain
+                                self.brush_value = terrain
                                     .interpolate_value(Vector2::new(p.x, p.z), self.brush.target);
                             } else {
-                                self.stroke.value = 0.0;
+                                self.brush_value = 0.0;
                             }
                         }
                     }
-                    self.draw(terrain, shift);
+                    self.start_stroke(terrain, handle, shift);
+                    self.prev_brush_position = None;
+                    self.draw(terrain);
                     self.interacting = true;
                 }
             }
@@ -222,40 +317,18 @@ impl InteractionMode for TerrainInteractionMode {
 
     fn on_left_mouse_button_up(
         &mut self,
-        editor_selection: &Selection,
+        _editor_selection: &Selection,
         _controller: &mut dyn SceneController,
         _engine: &mut Engine,
         _mouse_pos: Vector2<f32>,
         _frame_size: Vector2<f32>,
         _settings: &Settings,
     ) {
-        self.stroke.clear();
-        if let Some(selection) = editor_selection.as_graph() {
-            if selection.is_single_selection() {
-                let handle = selection.nodes()[0];
-
-                if self.interacting {
-                    match self.brush.target {
-                        BrushTarget::HeightMap => {
-                            self.message_sender
-                                .do_command(ModifyTerrainHeightCommand::new(
-                                    handle,
-                                    std::mem::take(&mut self.undo_chunks),
-                                ));
-                        }
-                        BrushTarget::LayerMask { layer, .. } => {
-                            self.message_sender
-                                .do_command(ModifyTerrainLayerMaskCommand::new(
-                                    handle,
-                                    std::mem::take(&mut self.undo_chunks),
-                                    layer,
-                                ));
-                        }
-                    }
-
-                    self.interacting = false;
-                }
+        if self.interacting {
+            if let Some(s) = &self.brush_sender {
+                s.end_stroke()
             }
+            self.interacting = false;
         }
     }
 
@@ -278,11 +351,6 @@ impl InteractionMode for TerrainInteractionMode {
 
         if let Some(selection) = editor_selection.as_graph() {
             if selection.is_single_selection() {
-                let shift = engine
-                    .user_interfaces
-                    .first_mut()
-                    .keyboard_modifiers()
-                    .shift;
                 let handle = selection.nodes()[0];
 
                 let camera = &graph[game_scene.camera_controller.camera];
@@ -297,7 +365,7 @@ impl InteractionMode for TerrainInteractionMode {
                             gizmo_visible = true;
 
                             if self.interacting {
-                                self.draw(terrain, shift);
+                                self.draw(terrain);
                             }
 
                             let scale = match self.brush.shape {
@@ -328,6 +396,8 @@ impl InteractionMode for TerrainInteractionMode {
             return;
         };
 
+        self.start_background_thread();
+
         self.brush_gizmo
             .set_visible(&mut engine.scenes[game_scene.scene].graph, true);
 
@@ -353,6 +423,8 @@ impl InteractionMode for TerrainInteractionMode {
         let Some(game_scene) = controller.downcast_ref::<GameScene>() else {
             return;
         };
+
+        self.end_background_thread();
 
         self.brush_gizmo
             .set_visible(&mut engine.scenes[game_scene.scene].graph, false);
@@ -482,7 +554,7 @@ fn make_brush_mode_enum_property_editor_definition() -> EnumPropertyEditorDefini
             0 => BrushMode::Raise { amount: 0.1 },
             1 => BrushMode::Assign { value: 0.0 },
             2 => BrushMode::Flatten,
-            3 => BrushMode::Smooth { kernel_radius: 1 },
+            3 => BrushMode::Smooth { kernel_radius: 5 },
             _ => unreachable!(),
         },
         index_generator: |v| match v {
@@ -555,7 +627,7 @@ impl BrushPanel {
         );
 
         let inspector;
-        let window = WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(150.0))
+        let window = WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(250.0))
             .can_minimize(false)
             .can_maximize(false)
             .with_content({

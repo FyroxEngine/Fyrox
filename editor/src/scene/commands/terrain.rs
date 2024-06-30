@@ -1,4 +1,4 @@
-use fyrox::scene::terrain::ChunkData;
+use fyrox::scene::terrain::brushstroke::ChunkData;
 
 use crate::command::CommandContext;
 use crate::fyrox::{

@@ -8,6 +8,7 @@ pub mod octree;
 pub mod plane;
 pub mod ray;
 pub mod triangulator;
+pub mod segment;
 
 use crate::ray::IntersectionResult;
 use nalgebra::{

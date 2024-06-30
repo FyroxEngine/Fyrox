@@ -6,7 +6,7 @@ use crate::scene::node::RdcControlFlow;
 use crate::{
     asset::Resource,
     core::{
-        algebra::{Matrix2, Matrix4, Point3, Vector2, Vector3, Vector4},
+        algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
         arrayvec::ArrayVec,
         log::Log,
         math::{aabb::AxisAlignedBoundingBox, ray::Ray, ray_rect_intersection, Rect},
@@ -49,11 +49,11 @@ use std::{
     ops::{Deref, DerefMut, Range},
 };
 
-mod brushstroke;
+pub mod brushstroke;
 mod geometry;
 mod quadtree;
 
-pub use brushstroke::*;
+use brushstroke::*;
 
 /// Current implementation version marker.
 pub const VERSION: u8 = 1;
@@ -78,123 +78,6 @@ impl TerrainRect {
             grid_position: cell_pos.map(|x| x as i32),
             bounds: Rect::new(min.x, min.y, cell_size.x, cell_size.y),
         }
-    }
-}
-
-fn push_height_data(chunks: &mut Vec<ChunkData>, new_chunk: &Chunk) {
-    if chunks
-        .iter()
-        .all(|c| c.grid_position != new_chunk.grid_position)
-    {
-        chunks.push(ChunkData::from_height(new_chunk));
-    }
-}
-
-fn push_layer_mask_data(chunks: &mut Vec<ChunkData>, new_chunk: &Chunk, layer: usize) {
-    if chunks
-        .iter()
-        .all(|c| c.grid_position != new_chunk.grid_position)
-    {
-        chunks.push(ChunkData::from_layer_mask(new_chunk, layer));
-    }
-}
-
-/// Abstract access to terrain height data for use by brushes.
-pub struct BrushableHeight<'a, 'b> {
-    /// The terrain to be edited
-    pub terrain: &'a mut Terrain,
-    /// The deta of the in-progress brushstroke.
-    pub stroke: &'b mut StrokeData<f32>,
-    /// Copies of the chunks that have been edited by the brushstroke,
-    /// as they were before being touched by the brush.
-    pub chunks: Vec<ChunkData>,
-}
-
-/// Abstract access to terrain layer mask data for use by brushes.
-pub struct BrushableLayerMask<'a, 'b> {
-    /// The terrain to be edited
-    pub terrain: &'a mut Terrain,
-    /// The deta of the in-progress brushstroke.
-    pub stroke: &'b mut StrokeData<u8>,
-    /// The layer to edit.
-    pub layer: usize,
-    /// Copies of the chunks that have been edited by the brushstroke,
-    /// as they were before being touched by the brush.
-    pub chunks: Vec<ChunkData>,
-}
-
-impl<'a, 'b> BrushableTerrainData<f32> for BrushableHeight<'a, 'b> {
-    fn get_value(&self, position: Vector2<i32>) -> f32 {
-        self.stroke
-            .get(position)
-            .map(|x| x.original_value)
-            .or_else(|| self.terrain.get_height(position))
-            .unwrap_or(0.0)
-    }
-
-    fn update<F>(&mut self, position: Vector2<i32>, strength: f32, func: F)
-    where
-        F: FnOnce(&Self, f32) -> f32,
-    {
-        if let Some(pixel_value) = self.terrain.get_height(position) {
-            if let Some(pixel_value) = self.stroke.update_pixel(position, strength, pixel_value) {
-                let value = func(self, pixel_value);
-                self.terrain.update_height_pixel(
-                    position,
-                    |_| value,
-                    |c| push_height_data(&mut self.chunks, c),
-                );
-            }
-        }
-    }
-
-    fn sum_kernel(&self, position: Vector2<i32>, kernel_radius: u32) -> f32 {
-        let r = kernel_radius as i32;
-        let mut sum = 0.0;
-        for x in position.x - r..=position.x + r {
-            for y in position.y - r..=position.y + r {
-                sum += self.get_value(Vector2::new(x, y));
-            }
-        }
-        sum
-    }
-}
-
-impl<'a, 'b> BrushableTerrainData<u8> for BrushableLayerMask<'a, 'b> {
-    fn get_value(&self, position: Vector2<i32>) -> u8 {
-        self.stroke
-            .get(position)
-            .map(|x| x.original_value)
-            .or_else(|| self.terrain.get_layer_mask(position, self.layer))
-            .unwrap_or(0)
-    }
-
-    fn update<F>(&mut self, position: Vector2<i32>, strength: f32, func: F)
-    where
-        F: FnOnce(&Self, u8) -> u8,
-    {
-        if let Some(pixel_value) = self.terrain.get_layer_mask(position, self.layer) {
-            if let Some(pixel_value) = self.stroke.update_pixel(position, strength, pixel_value) {
-                let value = func(self, pixel_value);
-                self.terrain
-                    .update_mask_pixel(position, self.layer, |_| value);
-                let chunk_pos = self.terrain.chunk_containing_mask_pos(position);
-                if let Some(chunk) = self.terrain.find_chunk(chunk_pos) {
-                    push_layer_mask_data(&mut self.chunks, chunk, self.layer);
-                }
-            }
-        }
-    }
-
-    fn sum_kernel(&self, position: Vector2<i32>, kernel_radius: u32) -> f32 {
-        let r = kernel_radius as i32;
-        let mut sum: u32 = 0;
-        for x in position.x - r..=position.x + r {
-            for y in position.y - r..=position.y + r {
-                sum += self.get_value(Vector2::new(x, y)) as u32;
-            }
-        }
-        sum as f32
     }
 }
 
@@ -271,81 +154,6 @@ fn make_height_map_texture_internal(
 /// of the given size.
 fn make_height_map_texture(height_map: Vec<f32>, size: Vector2<u32>) -> TextureResource {
     make_height_map_texture_internal(height_map, size).unwrap()
-}
-
-/// A copy of a layer of data from a chunk.
-/// It can be height data or mask data, since the type is erased.
-/// The layer that this data represents must be remembered externally.
-pub struct ChunkData {
-    /// The grid position of the original chunk.
-    pub grid_position: Vector2<i32>,
-    /// The type-erased data from either the height or one of the layers of the chunk.
-    pub content: Box<[u8]>,
-}
-
-impl std::fmt::Debug for ChunkData {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ChunkData")
-            .field("grid_position", &self.grid_position)
-            .field("content", &format!("[..](len: {})", &self.content.len()))
-            .finish()
-    }
-}
-
-impl ChunkData {
-    /// Create a ChunkData object using data from the height map of the given chunk.
-    pub fn from_height(chunk: &Chunk) -> ChunkData {
-        let data = Box::<[u8]>::from(chunk.heightmap().data_ref().data());
-        ChunkData {
-            grid_position: chunk.grid_position,
-            content: data,
-        }
-    }
-    /// Create a ChunkData object using data from a layer mask of the given chunk.
-    pub fn from_layer_mask(chunk: &Chunk, layer: usize) -> ChunkData {
-        let resource = &chunk.layer_masks[layer];
-        let data = Box::<[u8]>::from(resource.data_ref().data());
-        ChunkData {
-            grid_position: chunk.grid_position,
-            content: data,
-        }
-    }
-    /// Swap the content of this data with the content of the given chunk's height map.
-    pub fn swap_height(&mut self, chunk: &mut Chunk) {
-        let mut state = chunk.heightmap().state();
-        let mut modify = state.data().unwrap().modify();
-        for (a, b) in modify.data_mut().iter_mut().zip(self.content.iter_mut()) {
-            std::mem::swap(a, b);
-        }
-    }
-    /// Swap the content of this data with the content of the given chunk's mask layer.
-    pub fn swap_layer_mask(&mut self, chunk: &mut Chunk, layer: usize) {
-        let mut state = chunk.layer_masks[layer].state();
-        let mut modify = state.data().unwrap().modify();
-        for (a, b) in modify.data_mut().iter_mut().zip(self.content.iter_mut()) {
-            std::mem::swap(a, b);
-        }
-    }
-    /// Swap the height data of the a chunk from the list with the height data in this object.
-    /// The given list of chunks will be searched to find the chunk that matches `grid_position`.
-    pub fn swap_height_from_list(&mut self, chunks: &mut [Chunk]) {
-        for c in chunks {
-            if c.grid_position == self.grid_position {
-                self.swap_height(c);
-                break;
-            }
-        }
-    }
-    /// Swap the layer mask data of a particular layer of a chunk from the list with the data in this object.
-    /// The given list of chunks will be searched to find the chunk that matches `grid_position`.
-    pub fn swap_layer_mask_from_list(&mut self, chunks: &mut [Chunk], layer: usize) {
-        for c in chunks {
-            if c.grid_position == self.grid_position {
-                self.swap_layer_mask(c, layer);
-                break;
-            }
-        }
-    }
 }
 
 /// Chunk is smaller block of a terrain. Terrain can have as many chunks as you need, which always arranged in a
@@ -498,6 +306,12 @@ impl Chunk {
             0.0,
             self.grid_position.y as f32 * self.physical_size.y,
         )
+    }
+
+    /// The 2D position of the chunk within the chunk array.
+    #[inline]
+    pub fn grid_position(&self) -> Vector2<i32> {
+        self.grid_position
     }
 
     /// Returns a reference to height map.
@@ -841,13 +655,13 @@ pub struct TerrainRayCastResult {
 /// - **Grid Position:** These are the 2D `i32` coordinates that represent a chunk's position within the regular grid of
 /// chunks that make up a terrain. The *local 2D* position of a chunk can be calculated from its *grid position* by
 /// multiplying its x and y coordinates by the x and y of [Terrain::chunk_size].
-/// - **Height Pixel Position:** These are the 2D `i32` coordinates that measure position across the x and z axes of
+/// - **Height Pixel Position:** These are the 2D coordinates that measure position across the x and z axes of
 /// the terrain using pixels in the height data of each chunk. (0,0) is the position of the Terrain node.
 /// The *height pixel position* of a chunk can be calculated from its *grid position* by
 /// multiplying its x and y coordinates by (x - 1) and (y - 1) of [Terrain::height_map_size].
 /// Subtracting 1 from each dimension is necessary because the height map data of chunks overlaps by one pixel
 /// on each edge, so the distance between the origins of two adjacent chunks is one less than height_map_size.
-/// - **Mask Pixel Position:** These are the 2D `i32` coordinates that measure position across the x and z axes of
+/// - **Mask Pixel Position:** These are the 2D coordinates that measure position across the x and z axes of
 /// the terrain using pixels of the mask data of each chunk. (0,0) is the position of the (0,0) pixel of the
 /// mask texture of the (0,0) chunk.
 /// This means that (0,0) is offset from the position of the Terrain node by a half-pixel in the x direction
@@ -1120,6 +934,29 @@ fn project(global_transform: Matrix4<f32>, p: Vector3<f32>) -> Option<Vector2<f3
     }
 }
 
+/// Calculate the grid position of the chunk that would contain the given pixel position
+/// assuming chunks have the given size.
+fn pixel_position_to_grid_position(
+    position: Vector2<i32>,
+    chunk_size: Vector2<u32>,
+) -> Vector2<i32> {
+    let chunk_size = chunk_size.map(|x| x as i32);
+    let x = position.x / chunk_size.x;
+    let y = position.y / chunk_size.y;
+    // Correct for the possibility of x or y being negative.
+    let x = if position.x < 0 && position.x % chunk_size.x != 0 {
+        x - 1
+    } else {
+        x
+    };
+    let y = if position.y < 0 && position.y % chunk_size.y != 0 {
+        y - 1
+    } else {
+        y
+    };
+    Vector2::new(x, y)
+}
+
 impl TypeUuidProvider for Terrain {
     fn type_uuid() -> Uuid {
         uuid!("4b0a7927-bcd8-41a3-949a-dd10fba8e16a")
@@ -1247,7 +1084,11 @@ impl Terrain {
                     let heightmap =
                         vec![0.0; (self.height_map_size.x * self.height_map_size.y) as usize];
                     let new_chunk = Chunk {
-                        quad_tree: QuadTree::new(&heightmap, *self.block_size, *self.block_size),
+                        quad_tree: QuadTree::new(
+                            &heightmap,
+                            *self.height_map_size,
+                            *self.block_size,
+                        ),
                         heightmap: Some(make_height_map_texture(heightmap, self.height_map_size())),
                         position: Vector3::new(
                             x as f32 * self.chunk_size.x,
@@ -1331,6 +1172,20 @@ impl Terrain {
     /// expressed in local 2D coordinate system of terrain.
     pub fn project(&self, p: Vector3<f32>) -> Option<Vector2<f32>> {
         project(self.global_transform(), p)
+    }
+
+    /// Convert from local 2D to height pixel position.
+    pub fn local_to_height_pixel(&self, p: Vector2<f32>) -> Vector2<f32> {
+        let scale = self.height_grid_scale();
+        Vector2::new(p.x / scale.x, p.y / scale.y)
+    }
+
+    /// Convert from local 2D to mask pixel position.
+    pub fn local_to_mask_pixel(&self, p: Vector2<f32>) -> Vector2<f32> {
+        let scale = self.mask_grid_scale();
+        let half = scale * 0.5;
+        let p = p - half;
+        Vector2::new(p.x / scale.x, p.y / scale.y)
     }
 
     /// The size of each cell of the height grid in local 2D units.
@@ -1495,21 +1350,8 @@ impl Terrain {
     /// in 4 chunks.
     pub fn chunk_containing_height_pos(&self, position: Vector2<i32>) -> Vector2<i32> {
         // Subtract 1 from x and y to exclude the overlapping pixel along both axes from the chunk size.
-        let chunk_size = self.height_map_size.map(|x| x as i32 - 1);
-        let x = position.x / chunk_size.x;
-        let y = position.y / chunk_size.y;
-        // Correct for the possibility of x or y being negative.
-        let x = if position.x < 0 && position.x % chunk_size.x != 0 {
-            x - 1
-        } else {
-            x
-        };
-        let y = if position.y < 0 && position.y % chunk_size.y != 0 {
-            y - 1
-        } else {
-            y
-        };
-        Vector2::new(x, y)
+        let chunk_size = self.height_map_size.map(|x| x - 1);
+        pixel_position_to_grid_position(position, chunk_size)
     }
 
     /// Determines the position of the (0,0) coordinate of the given chunk
@@ -1526,22 +1368,7 @@ impl Terrain {
     /// This method makes no guarantee that there is actually a chunk at the returned coordinates.
     /// It returns the grid_position that the chunk would have if it existed.
     pub fn chunk_containing_mask_pos(&self, position: Vector2<i32>) -> Vector2<i32> {
-        // Subtract 1 from x and y to exclude the overlapping pixel along both axes from the chunk size.
-        let chunk_size = self.mask_size.map(|x| x as i32);
-        let x = position.x / chunk_size.x;
-        let y = position.y / chunk_size.y;
-        // Correct for the possibility of x or y being negative.
-        let x = if position.x < 0 && position.x % chunk_size.x != 0 {
-            x - 1
-        } else {
-            x
-        };
-        let y = if position.y < 0 && position.y % chunk_size.y != 0 {
-            y - 1
-        } else {
-            y
-        };
-        Vector2::new(x, y)
+        pixel_position_to_grid_position(position, *self.mask_size)
     }
 
     /// Determines the position of the (0,0) coordinate of the given chunk
@@ -1690,85 +1517,6 @@ impl Terrain {
         }
 
         self.bounding_box_dirty.set(true);
-    }
-
-    fn draw_data<D, V>(
-        center: Vector2<f32>,
-        scale: Vector2<f32>,
-        brush: &Brush,
-        value: f32,
-        data: &mut D,
-    ) where
-        D: BrushableTerrainData<V>,
-        V: BrushValue,
-    {
-        let scale_matrix = Matrix2::new(1.0 / scale.x, 0.0, 0.0, 1.0 / scale.y);
-        let transform = brush.transform * scale_matrix;
-        match brush.shape {
-            BrushShape::Circle { radius } => brush.mode.draw(
-                CircleBrushPixels::new(scale_matrix * center, radius, brush.hardness, transform),
-                data,
-                value,
-                brush.alpha,
-            ),
-            BrushShape::Rectangle { width, length } => brush.mode.draw(
-                RectBrushPixels::new(
-                    scale_matrix * center,
-                    Vector2::new(width, length),
-                    brush.hardness,
-                    transform,
-                ),
-                data,
-                value,
-                brush.alpha,
-            ),
-        }
-    }
-
-    /// Multi-functional drawing method. It uses given brush to modify terrain, see [`Brush`] docs for
-    /// more info.
-    /// - `position`: The position of the brush in global space.
-    /// - `brush`: The Brush structure defines how the terrain will be modified around the given position.
-    /// - `stroke`: The BrushStroke structure remembers information about a brushstroke across multiple calls to `draw`.
-    /// - `chunks`: The vector in which to save copies of the data from modified chunks for the purpose of creating an undo command.
-    /// This vector will be returned.
-    pub fn draw(
-        &mut self,
-        position: Vector3<f32>,
-        brush: &Brush,
-        stroke: &mut BrushStroke,
-        chunks: Vec<ChunkData>,
-    ) -> Vec<ChunkData> {
-        let center = project(self.global_transform(), position).unwrap();
-        match brush.target {
-            BrushTarget::HeightMap => {
-                let scale = self.height_grid_scale();
-                let value = stroke.value;
-                let mut data = BrushableHeight {
-                    stroke: &mut stroke.height_pixels,
-                    terrain: self,
-                    chunks,
-                };
-                Terrain::draw_data(center, scale, brush, value, &mut data);
-                let chunks = data.chunks;
-                self.update_quad_trees();
-                chunks
-            }
-            BrushTarget::LayerMask { layer } => {
-                let scale = self.mask_grid_scale();
-                let value = stroke.value;
-                let mut data = BrushableLayerMask {
-                    stroke: &mut stroke.mask_pixels,
-                    terrain: self,
-                    layer,
-                    chunks,
-                };
-                Terrain::draw_data(center, scale, brush, value, &mut data);
-                let chunks = data.chunks;
-                self.update_quad_trees();
-                chunks
-            }
-        }
     }
 
     /// Casts a ray and looks for intersections with the terrain. This method collects all results in
@@ -1992,7 +1740,9 @@ impl Terrain {
     }
 
     fn resize_height_maps(&mut self, mut new_size: Vector2<u32>) {
-        new_size = new_size.sup(&Vector2::repeat(2));
+        // Height maps should be a 1 + a multiple of 2 and they should be at least
+        // 3x3, since a 1x1 height map would be just a single vertex with no faces.
+        new_size = new_size.sup(&Vector2::repeat(3));
 
         for chunk in self.chunks.iter_mut() {
             let texture = chunk.heightmap.as_ref().unwrap().data_ref();
@@ -2035,6 +1785,7 @@ impl Terrain {
 
             chunk.height_map_size = new_size;
             chunk.heightmap = Some(make_height_map_texture(resampled_heightmap, new_size));
+            chunk.update_quad_tree();
         }
 
         self.height_map_size.set_value_and_mark_modified(new_size);
