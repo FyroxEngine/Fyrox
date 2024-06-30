@@ -53,6 +53,7 @@ use crate::{
     Message, Mode,
 };
 use fyrox::core::Uuid;
+use fyrox::scene::tilemap::tileset::TileSet;
 use std::sync::mpsc;
 use std::sync::mpsc::Sender;
 use std::{
@@ -209,6 +210,14 @@ impl ContextMenu {
                                 block_on(engine.resource_manager.request::<Material>(path))
                             {
                                 sender.send(Message::OpenMaterialEditor(material));
+                            }
+                        }
+                    } else if item.path.extension().map_or(false, |ext| ext == "tileset") {
+                        if let Ok(path) = make_relative_path(&item.path) {
+                            if let Ok(tile_set) =
+                                block_on(engine.resource_manager.request::<TileSet>(path))
+                            {
+                                sender.send(Message::OpenTileSetEditor(tile_set));
                             }
                         }
                     } else {

@@ -6,10 +6,10 @@ use crate::{
         Resource, ResourceData,
     },
     core::{
-        io::FileLoadError, math::Rect, reflect::prelude::*, type_traits::prelude::*,
+        color::Color, io::FileLoadError, math::Rect, reflect::prelude::*, type_traits::prelude::*,
         visitor::prelude::*,
     },
-    resource::texture::TextureResource,
+    material::MaterialResource,
 };
 use std::{
     any::Any,
@@ -83,15 +83,16 @@ pub enum TileCollider {
 
 #[derive(Clone, Default, Debug, Reflect, Visit)]
 pub struct TileDefinition {
-    texture: TextureResource,
-    uv_rect: Rect<f32>,
-    collider: TileCollider,
+    pub material: MaterialResource,
+    pub uv_rect: Rect<f32>,
+    pub collider: TileCollider,
+    pub color: Color,
 }
 
 #[derive(Clone, Default, Debug, Reflect, Visit, TypeUuidProvider, ComponentProvider)]
 #[type_uuid(id = "7b7e057b-a41e-4150-ab3b-0ae99f4024f0")]
 pub struct TileSet {
-    tiles: Vec<TileDefinition>,
+    pub tiles: Vec<TileDefinition>,
 }
 
 impl TileSet {
