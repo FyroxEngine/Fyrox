@@ -7,9 +7,9 @@ use crate::{
         },
         FieldKind, InspectorError, PropertyChanged,
     },
+    matrix2::{Matrix2EditorBuilder, Matrix2EditorMessage},
     message::{MessageDirection, UiMessage},
     numeric::NumericType,
-    matrix2::{Matrix2EditorBuilder, Matrix2EditorMessage},
     widget::WidgetBuilder,
     Thickness,
 };
@@ -28,9 +28,7 @@ impl<T: NumericType> Default for Matrix2PropertyEditorDefinition<T> {
     }
 }
 
-impl<T: NumericType> PropertyEditorDefinition
-    for Matrix2PropertyEditorDefinition<T>
-{
+impl<T: NumericType> PropertyEditorDefinition for Matrix2PropertyEditorDefinition<T> {
     fn value_type_id(&self) -> TypeId {
         TypeId::of::<Matrix2<T>>()
     }
