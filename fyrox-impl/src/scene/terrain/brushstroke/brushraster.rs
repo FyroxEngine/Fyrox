@@ -285,10 +285,6 @@ mod tests {
     #[test]
     fn rect_extend_to_contain_f64() {
         let mut rect = Rect::new(0.0, 0.0, 1.0, 1.0);
-
-        //rect.extend_to_contain(Rect::new(1.0, 1.0, 1.0, 1.0));
-        //assert_eq!(rect, Rect::new(0.0, 0.0, 2.0, 2.0));
-
         rect.extend_to_contain(Rect::new(-1.0, -1.0, 1.0, 1.0));
         assert_eq!(rect, Rect::new(-1.0, -1.0, 2.0, 2.0));
     }
@@ -414,11 +410,13 @@ mod tests {
     #[test]
     fn simple_rect() {
         let iter = StampPixels::new(
-            RectRaster(1.0, 1.0),
+            RectRaster(1.1, 1.1),
             Vector2::new(1.0, 1.0),
             1.0,
             Matrix2::identity(),
         );
+        assert_eq!(iter.bounds().w(), 4, "w != 4: {:?}", iter.bounds());
+        assert_eq!(iter.bounds().h(), 4, "h != 4: {:?}", iter.bounds());
         assert_eq!(find_strength_at(&iter, (1, 1)), 1.0);
         assert_eq!(find_strength_at(&iter, (0, 1)), 1.0);
         assert_eq!(find_strength_at(&iter, (0, 2)), 1.0);
@@ -428,11 +426,13 @@ mod tests {
     #[test]
     fn distant_rect() {
         let iter = StampPixels::new(
-            RectRaster(1001.0, 2501.0),
-            Vector2::new(1.0, 1.0),
+            RectRaster(1.1, 1.1),
+            Vector2::new(1001.0, 2501.0),
             1.0,
             Matrix2::identity(),
         );
+        assert_eq!(iter.bounds().w(), 4, "w != 4: {:?}", iter.bounds());
+        assert_eq!(iter.bounds().h(), 4, "h != 4: {:?}", iter.bounds());
         assert_eq!(find_strength_at(&iter, (1001, 2501)), 1.0);
         assert_eq!(find_strength_at(&iter, (1000, 2501)), 1.0);
         assert_eq!(find_strength_at(&iter, (1000, 2502)), 1.0);
