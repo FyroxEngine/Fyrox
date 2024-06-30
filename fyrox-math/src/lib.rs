@@ -959,13 +959,13 @@ mod test {
         let mut rect = Rect::new(10, 10, 11, 11);
 
         rect.push(Vector2::new(0, 0));
-        assert_eq!(rect, Rect::new(0, 0, 11, 11));
+        assert_eq!(rect, Rect::new(0, 0, 21, 21));
 
         rect.push(Vector2::new(0, 20));
-        assert_eq!(rect, Rect::new(0, 0, 11, 20));
+        assert_eq!(rect, Rect::new(0, 0, 21, 21));
 
         rect.push(Vector2::new(20, 20));
-        assert_eq!(rect, Rect::new(0, 0, 20, 20));
+        assert_eq!(rect, Rect::new(0, 0, 21, 21));
 
         rect.push(Vector2::new(30, 30));
         assert_eq!(rect, Rect::new(0, 0, 30, 30));
@@ -1030,7 +1030,7 @@ mod test {
         assert_eq!(rect, Rect::new(0.0, 0.0, 2.0, 2.0));
 
         rect.extend_to_contain(Rect::new(-1.0, -1.0, 1.0, 1.0));
-        assert_eq!(rect, Rect::new(-1.0, -1.0, 2.0, 2.0));
+        assert_eq!(rect, Rect::new(-1.0, -1.0, 3.0, 3.0));
     }
 
     #[test]
