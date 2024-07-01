@@ -46,6 +46,10 @@ const MESSAGE_BUFFER_SIZE: usize = 40;
 /// The number of processed pixels we can hold before we must write the pixels to the targetted textures.
 /// Modifying a texture is expensive, so it is important to do it in batches of multiple pixels.
 const PIXEL_BUFFER_SIZE: usize = 40;
+/// The maximum number of pixels that are allowed to be involved in a single step of a brushstroke.
+/// This limit is arbitrarily chosen, but there should be some limit to prevent the editor
+/// from freezing as a result of an excessively large brush.
+const BRUSH_PIXEL_SANITY_LIMIT: i32 = 1000000;
 
 #[inline]
 fn mask_raise(original: u8, amount: f32) -> u8 {
@@ -746,6 +750,22 @@ pub struct Brush {
     pub alpha: f32,
 }
 
+/// Verify that the brush operation is not so big that it could cause the editor to freeze.
+/// The user can type in any size of brush they please, even disastrous sizes, and
+/// this check prevents the editor from breaking.
+fn within_size_limit(bounds: &Rect<i32>) -> bool {
+    let size = bounds.size;
+    let area = size.x * size.y;
+    let accepted = area <= BRUSH_PIXEL_SANITY_LIMIT;
+    if !accepted {
+        Log::warn(format!(
+            "Terrain brush operation dropped due to sanity limit: {}",
+            area
+        ))
+    }
+    accepted
+}
+
 impl Brush {
     /// Send the pixels for this brush to the brush thread.
     /// - `position`: The position of the brush in texture pixels.
@@ -766,22 +786,30 @@ impl Brush {
         transform.m12 *= x_factor;
         match self.shape {
             BrushShape::Circle { radius } => {
-                for BrushPixel { position, strength } in StampPixels::new(
+                let iter = StampPixels::new(
                     CircleRaster(radius / scale.y),
                     position,
                     self.hardness,
                     transform,
-                ) {
+                );
+                if !within_size_limit(&iter.bounds()) {
+                    return;
+                }
+                for BrushPixel { position, strength } in iter {
                     sender.draw_pixel(position, strength, value);
                 }
             }
             BrushShape::Rectangle { width, length } => {
-                for BrushPixel { position, strength } in StampPixels::new(
+                let iter = StampPixels::new(
                     RectRaster(width * 0.5 / scale.y, length * 0.5 / scale.y),
                     position,
                     self.hardness,
                     transform,
-                ) {
+                );
+                if !within_size_limit(&iter.bounds()) {
+                    return;
+                }
+                for BrushPixel { position, strength } in iter {
                     sender.draw_pixel(position, strength, value);
                 }
             }
@@ -808,24 +836,32 @@ impl Brush {
         transform.m12 *= x_factor;
         match self.shape {
             BrushShape::Circle { radius } => {
-                for BrushPixel { position, strength } in SmearPixels::new(
+                let iter = SmearPixels::new(
                     CircleRaster(radius / scale.y),
                     start,
                     end,
                     self.hardness,
                     transform,
-                ) {
+                );
+                if !within_size_limit(&iter.bounds()) {
+                    return;
+                }
+                for BrushPixel { position, strength } in iter {
                     sender.draw_pixel(position, strength, value);
                 }
             }
             BrushShape::Rectangle { width, length } => {
-                for BrushPixel { position, strength } in SmearPixels::new(
+                let iter = SmearPixels::new(
                     RectRaster(width * 0.5 / scale.y, length * 0.5 / scale.y),
                     start,
                     end,
                     self.hardness,
                     transform,
-                ) {
+                );
+                if !within_size_limit(&iter.bounds()) {
+                    return;
+                }
+                for BrushPixel { position, strength } in iter {
                     sender.draw_pixel(position, strength, value);
                 }
             }
