@@ -116,6 +116,12 @@ impl EditorPlugin for TileMapEditorPlugin {
         }
     }
 
+    fn on_update(&mut self, _editor: &mut Editor) {
+        if let Some(tile_set_editor) = self.tile_set_editor.as_mut() {
+            tile_set_editor.update();
+        }
+    }
+
     fn on_message(&mut self, message: &Message, editor: &mut Editor) {
         if let Message::OpenTileSetEditor(tile_set) = message {
             let ui = editor.engine.user_interfaces.first_mut();

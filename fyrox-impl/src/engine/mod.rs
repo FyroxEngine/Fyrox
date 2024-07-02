@@ -1249,7 +1249,9 @@ pub(crate) fn initialize_resource_manager_loaders(
         resource_manager: resource_manager.clone(),
     });
     loaders.set(SurfaceDataLoader {});
-    loaders.set(TileSetLoader);
+    loaders.set(TileSetLoader {
+        resource_manager: resource_manager.clone(),
+    });
 }
 
 fn try_copy_library(source_lib_path: &Path, lib_path: &Path) -> Result<(), String> {

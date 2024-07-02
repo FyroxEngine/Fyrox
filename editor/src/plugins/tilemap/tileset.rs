@@ -2,8 +2,11 @@ use crate::{
     asset::item::AssetItem,
     command::{Command, CommandContext, CommandGroup, CommandTrait},
     fyrox::{
-        asset::{manager::ResourceManager, untyped::ResourceKind},
-        core::{futures::executor::block_on, make_relative_path, math::Rect, pool::Handle, Uuid},
+        asset::{manager::ResourceManager, untyped::ResourceKind, ResourceData},
+        core::{
+            futures::executor::block_on, log::Log, make_relative_path, math::Rect, pool::Handle,
+            Uuid,
+        },
         graph::{BaseSceneGraph, SceneGraphNode},
         gui::{
             border::BorderBuilder,
@@ -35,6 +38,7 @@ pub struct TileSetEditor {
     remove: Handle<UiNode>,
     remove_all: Handle<UiNode>,
     selection: Option<usize>,
+    need_save: bool,
 }
 
 fn make_button(
@@ -128,6 +132,7 @@ impl TileSetEditor {
             remove,
             remove_all,
             selection: Default::default(),
+            need_save: false,
         };
 
         editor.sync_to_model(ctx.inner_mut());
@@ -203,6 +208,12 @@ impl TileSetEditor {
         }
     }
 
+    fn try_save(&self) {
+        if let ResourceKind::External(path) = self.tile_set.kind() {
+            Log::verify(self.tile_set.data_ref().save(&path));
+        }
+    }
+
     pub fn handle_ui_message(
         mut self,
         message: &UiMessage,
@@ -211,9 +222,8 @@ impl TileSetEditor {
         sender: &MessageSender,
     ) -> Option<Self> {
         if let Some(WindowMessage::Close) = message.data() {
-            if message.destination() == self.window
-                && message.direction() == MessageDirection::FromWidget
-            {
+            if message.destination() == self.window {
+                self.try_save();
                 self.destroy(ui);
                 return None;
             }
@@ -243,6 +253,7 @@ impl TileSetEditor {
                                         id: Uuid::new_v4(),
                                     },
                                 });
+                                self.need_save = true;
                             }
                         } else if let Some(texture) = resource_manager.try_request::<Texture>(&path)
                         {
@@ -265,6 +276,7 @@ impl TileSetEditor {
                                         id: Uuid::new_v4(),
                                     },
                                 });
+                                self.need_save = true;
                             }
                         }
                     }
@@ -280,6 +292,7 @@ impl TileSetEditor {
                         index: selection,
                         tile: None,
                     });
+                    self.need_save = true;
                 }
             } else if message.destination() == self.remove_all {
                 let mut commands = Vec::new();
@@ -296,6 +309,7 @@ impl TileSetEditor {
 
                 if !commands.is_empty() {
                     sender.do_command(CommandGroup::from(commands));
+                    self.need_save = true;
                 }
             }
         } else if let Some(ListViewMessage::SelectionChanged(selection)) = message.data() {
@@ -313,6 +327,13 @@ impl TileSetEditor {
         }
 
         Some(self)
+    }
+
+    pub fn update(&mut self) {
+        if self.need_save {
+            self.try_save();
+            self.need_save = false;
+        }
     }
 }
 
