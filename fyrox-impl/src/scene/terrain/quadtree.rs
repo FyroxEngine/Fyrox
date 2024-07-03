@@ -96,6 +96,7 @@ impl QuadTreeNode {
     /// * height_map_size: The number of rows and columns of the height data.
     /// * position: The position of the area represented by this node within the data.
     /// * node_size: The size of the area represented by this ndoe within the data.
+    /// Each node should overlap with its neighbors along the edges by one pixel.
     /// * max_size: Any node below this size will be a leaf.
     /// * level: The level of detail of this node.
     /// * index: The mutable pointer to the current persistent index.
@@ -113,8 +114,26 @@ impl QuadTreeNode {
     ) -> Self {
         let mut min_height = f32::MAX;
         let mut max_height = f32::MIN;
-        for y in position.y..((position.y + node_size.y).min(height_map_size.y)) {
-            for x in position.x..((position.x + node_size.x).min(height_map_size.x)) {
+        let x_max = position.x + node_size.x;
+        let y_max = position.y + node_size.y;
+        assert!(
+            x_max <= height_map_size.x,
+            "position.x({}) + node_size.x({}) = {} > {} (height_map_size.x)",
+            position.x,
+            node_size.x,
+            x_max,
+            height_map_size.x
+        );
+        assert!(
+            y_max <= height_map_size.y,
+            "position.y({}) + node_size.y({}) = {} > {} (height_map_size.y)",
+            position.y,
+            node_size.y,
+            y_max,
+            height_map_size.y
+        );
+        for y in position.y..y_max {
+            for x in position.x..x_max {
                 let height = height_map[(y * height_map_size.x + x) as usize];
                 if height < min_height {
                     min_height = height;
@@ -125,11 +144,17 @@ impl QuadTreeNode {
             }
         }
 
-        let kind = if node_size.x < max_size.x && node_size.y < max_size.y {
+        let kind = if node_size.x <= max_size.x && node_size.y <= max_size.y {
             QuadTreeNodeKind::Leaf
         } else {
             // Build children nodes recursively.
-            let new_size = node_size / 2;
+            // Convert pixel size into mesh size, counting the edges between vertices instead of counting vertices.
+            let real_size = Vector2::new(node_size.x - 1, node_size.y - 1);
+            // Calculate child size by taking half of the real size and adding 1 to convert back into pixel size.
+            let new_size = Vector2::new(real_size.x / 2 + 1, real_size.y / 2 + 1);
+            // The first pixel of the next node starts on the last pixel of the previous node, not on the first pixel beyond the previous node.
+            // Therefore we position the node at node_size.x - 1 instead of node_size.x.
+            let center_pos = Vector2::new(new_size.x - 1, new_size.y - 1);
             let next_level = level + 1;
             QuadTreeNodeKind::Branch {
                 leafs: [
@@ -145,7 +170,7 @@ impl QuadTreeNode {
                     Box::new(QuadTreeNode::new(
                         height_map,
                         height_map_size,
-                        position + Vector2::new(new_size.x, 0),
+                        position + Vector2::new(center_pos.x, 0),
                         new_size,
                         max_size,
                         next_level,
@@ -154,7 +179,7 @@ impl QuadTreeNode {
                     Box::new(QuadTreeNode::new(
                         height_map,
                         height_map_size,
-                        position + new_size,
+                        position + center_pos,
                         new_size,
                         max_size,
                         next_level,
@@ -163,7 +188,7 @@ impl QuadTreeNode {
                     Box::new(QuadTreeNode::new(
                         height_map,
                         height_map_size,
-                        position + Vector2::new(0, new_size.y),
+                        position + Vector2::new(0, center_pos.y),
                         new_size,
                         max_size,
                         next_level,
@@ -199,13 +224,18 @@ impl QuadTreeNode {
         height_map_size: Vector2<u32>,
         physical_size: Vector2<f32>,
     ) -> AxisAlignedBoundingBox {
-        let min_x = (self.position.x as f32 / height_map_size.x as f32) * physical_size.x;
-        let min_y = (self.position.y as f32 / height_map_size.y as f32) * physical_size.y;
+        // Convert sizes form pixel sizes to mesh sizes.
+        // For calculating AABB, we do not care about the number of vertices;
+        // we care about the number of edges between vertices, which is one fewer.
+        let real_map_size = Vector2::new(height_map_size.x - 1, height_map_size.y - 1);
+        let real_node_size = Vector2::new(self.size.x - 1, self.size.y - 1);
+        let min_x = (self.position.x as f32 / real_map_size.x as f32) * physical_size.x;
+        let min_y = (self.position.y as f32 / real_map_size.y as f32) * physical_size.y;
 
-        let max_x =
-            ((self.position.x + self.size.x) as f32 / height_map_size.x as f32) * physical_size.x;
-        let max_y =
-            ((self.position.y + self.size.y) as f32 / height_map_size.y as f32) * physical_size.y;
+        let max_x = ((self.position.x + real_node_size.x) as f32 / real_map_size.x as f32)
+            * physical_size.x;
+        let max_y = ((self.position.y + real_node_size.y) as f32 / real_map_size.y as f32)
+            * physical_size.y;
 
         let min = Vector3::new(min_x, self.min_height, min_y);
         let max = Vector3::new(max_x, self.max_height, max_y);
