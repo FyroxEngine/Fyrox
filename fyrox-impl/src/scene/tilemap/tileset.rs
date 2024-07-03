@@ -11,6 +11,7 @@ use crate::{
     },
     material::MaterialResource,
 };
+use fyrox_resource::manager::ResourceManager;
 use std::{
     any::Any,
     error::Error,
@@ -87,6 +88,7 @@ pub struct TileDefinition {
     pub uv_rect: Rect<f32>,
     pub collider: TileCollider,
     pub color: Color,
+    pub id: Uuid,
 }
 
 #[derive(Clone, Default, Debug, Reflect, Visit, TypeUuidProvider, ComponentProvider)]
@@ -97,9 +99,14 @@ pub struct TileSet {
 
 impl TileSet {
     /// Load a tile set resource from the specific file path.
-    pub async fn from_file(path: &Path, io: &dyn ResourceIo) -> Result<Self, TileSetResourceError> {
+    pub async fn from_file(
+        path: &Path,
+        resource_manager: ResourceManager,
+        io: &dyn ResourceIo,
+    ) -> Result<Self, TileSetResourceError> {
         let bytes = io.load_file(path).await?;
         let mut visitor = Visitor::load_from_memory(&bytes)?;
+        visitor.blackboard.register(Arc::new(resource_manager));
         let mut tile_set = TileSet::default();
         tile_set.visit("TileSet", &mut visitor)?;
         Ok(tile_set)
@@ -133,7 +140,9 @@ impl ResourceData for TileSet {
 
 pub type TileSetResource = Resource<TileSet>;
 
-pub struct TileSetLoader;
+pub struct TileSetLoader {
+    pub resource_manager: ResourceManager,
+}
 
 impl ResourceLoader for TileSetLoader {
     fn extensions(&self) -> &[&str] {
@@ -145,8 +154,9 @@ impl ResourceLoader for TileSetLoader {
     }
 
     fn load(&self, path: PathBuf, io: Arc<dyn ResourceIo>) -> BoxedLoaderFuture {
+        let resource_manager = self.resource_manager.clone();
         Box::pin(async move {
-            let tile_set = TileSet::from_file(&path, io.as_ref())
+            let tile_set = TileSet::from_file(&path, resource_manager, io.as_ref())
                 .await
                 .map_err(LoadError::new)?;
             Ok(LoaderPayload::new(tile_set))

@@ -211,6 +211,7 @@ pub mod inspector;
 pub mod key;
 pub mod list_view;
 pub mod loader;
+pub mod matrix2;
 pub mod menu;
 pub mod message;
 pub mod messagebox;
@@ -1683,7 +1684,11 @@ impl UserInterface {
             Rect::new(0.0, 0.0, self.screen_size.x, self.screen_size.y)
         };
 
-        node.clip_bounds.set(screen_bounds.clip_by(parent_bounds));
+        node.clip_bounds.set(
+            screen_bounds
+                .clip_by(parent_bounds)
+                .unwrap_or(screen_bounds),
+        );
 
         for &child in node.children() {
             self.calculate_clip_bounds(child, node.clip_bounds.get());

@@ -7,6 +7,7 @@ pub mod frustum;
 pub mod octree;
 pub mod plane;
 pub mod ray;
+pub mod segment;
 pub mod triangulator;
 
 use crate::ray::IntersectionResult;
@@ -958,13 +959,13 @@ mod test {
         let mut rect = Rect::new(10, 10, 11, 11);
 
         rect.push(Vector2::new(0, 0));
-        assert_eq!(rect, Rect::new(0, 0, 11, 11));
+        assert_eq!(rect, Rect::new(0, 0, 21, 21));
 
         rect.push(Vector2::new(0, 20));
-        assert_eq!(rect, Rect::new(0, 0, 11, 20));
+        assert_eq!(rect, Rect::new(0, 0, 21, 21));
 
         rect.push(Vector2::new(20, 20));
-        assert_eq!(rect, Rect::new(0, 0, 20, 20));
+        assert_eq!(rect, Rect::new(0, 0, 21, 21));
 
         rect.push(Vector2::new(30, 30));
         assert_eq!(rect, Rect::new(0, 0, 30, 30));
@@ -989,29 +990,20 @@ mod test {
     fn rect_clip_by() {
         let rect = Rect::new(0, 0, 10, 10);
 
-        assert_eq!(rect.clip_by(Rect::new(2, 2, 1, 1)), Rect::new(2, 2, 1, 1));
         assert_eq!(
-            rect.clip_by(Rect::new(0, 0, 15, 15)),
+            rect.clip_by(Rect::new(2, 2, 1, 1)).unwrap(),
+            Rect::new(2, 2, 1, 1)
+        );
+        assert_eq!(
+            rect.clip_by(Rect::new(0, 0, 15, 15)).unwrap(),
             Rect::new(0, 0, 10, 10)
         );
 
         // When there is no intersection.
-        assert_eq!(
-            rect.clip_by(Rect::new(-2, 1, 1, 1)),
-            Rect::new(0, 0, 10, 10)
-        );
-        assert_eq!(
-            rect.clip_by(Rect::new(11, 1, 1, 1)),
-            Rect::new(0, 0, 10, 10)
-        );
-        assert_eq!(
-            rect.clip_by(Rect::new(1, -2, 1, 1)),
-            Rect::new(0, 0, 10, 10)
-        );
-        assert_eq!(
-            rect.clip_by(Rect::new(1, 11, 1, 1)),
-            Rect::new(0, 0, 10, 10)
-        );
+        assert!(rect.clip_by(Rect::new(-2, 1, 1, 1)).is_none());
+        assert!(rect.clip_by(Rect::new(11, 1, 1, 1)).is_none());
+        assert!(rect.clip_by(Rect::new(1, -2, 1, 1)).is_none());
+        assert!(rect.clip_by(Rect::new(1, 11, 1, 1)).is_none());
     }
 
     #[test]
@@ -1038,7 +1030,7 @@ mod test {
         assert_eq!(rect, Rect::new(0.0, 0.0, 2.0, 2.0));
 
         rect.extend_to_contain(Rect::new(-1.0, -1.0, 1.0, 1.0));
-        assert_eq!(rect, Rect::new(-1.0, -1.0, 2.0, 2.0));
+        assert_eq!(rect, Rect::new(-1.0, -1.0, 3.0, 3.0));
     }
 
     #[test]

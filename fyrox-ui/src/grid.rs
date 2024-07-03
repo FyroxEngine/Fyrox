@@ -8,8 +8,9 @@ use crate::{
         algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, scope_profile,
         type_traits::prelude::*, uuid_provider, variable::InheritableVariable, visitor::prelude::*,
     },
+    define_constructor,
     draw::{CommandTexture, Draw, DrawingContext},
-    message::UiMessage,
+    message::{MessageDirection, UiMessage},
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
 };
@@ -19,6 +20,41 @@ use std::{
     ops::{Deref, DerefMut},
 };
 use strum_macros::{AsRefStr, EnumString, VariantNames};
+
+/// A set of messages that can be used to modify [`Grid`] widget state.
+#[derive(Debug, PartialEq, Clone)]
+pub enum GridMessage {
+    /// Sets new rows for the grid widget.
+    Rows(Vec<Row>),
+    /// Sets new columns for the grid widget.
+    Columns(Vec<Column>),
+    /// Sets whether the grid should draw its border or not.
+    DrawBorder(bool),
+    /// Sets new border thickness for the grid.
+    BorderThickness(f32),
+}
+
+impl GridMessage {
+    define_constructor!(
+        /// Creates a new [`Self::Rows`] message.
+        GridMessage:Rows => fn rows(Vec<Row>), layout: false
+    );
+
+    define_constructor!(
+        /// Creates a new [`Self::Columns`] message.
+        GridMessage:Columns => fn columns(Vec<Column>), layout: false
+    );
+
+    define_constructor!(
+        /// Creates a new [`Self::DrawBorder`] message.
+        GridMessage:DrawBorder => fn draw_border(bool), layout: false
+    );
+
+    define_constructor!(
+        /// Creates a new [`Self::BorderThickness`] message.
+        GridMessage:BorderThickness => fn border_thickness(f32), layout: false
+    );
+}
 
 /// Size mode defines how grid's dimension (see [`GridDimension`]) will behave on layout step.
 #[derive(
@@ -505,6 +541,36 @@ impl Control for Grid {
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
+
+        if let Some(msg) = message.data::<GridMessage>() {
+            if message.direction() == MessageDirection::ToWidget
+                && message.destination() == self.handle
+            {
+                match msg {
+                    GridMessage::Rows(rows) => {
+                        if &*self.rows.borrow() != rows {
+                            self.rows
+                                .set_value_and_mark_modified(RefCell::new(rows.clone()));
+                            self.invalidate_layout();
+                        }
+                    }
+                    GridMessage::Columns(columns) => {
+                        if &*self.columns.borrow() != columns {
+                            self.columns
+                                .set_value_and_mark_modified(RefCell::new(columns.clone()));
+                            self.invalidate_layout();
+                        }
+                    }
+                    GridMessage::DrawBorder(draw_border) => {
+                        self.draw_border.set_value_and_mark_modified(*draw_border);
+                    }
+                    GridMessage::BorderThickness(border_thickness) => {
+                        self.border_thickness
+                            .set_value_and_mark_modified(*border_thickness);
+                    }
+                }
+            }
+        }
     }
 }
 
