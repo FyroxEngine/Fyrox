@@ -1,3 +1,4 @@
+mod tile_set_import;
 pub mod tileset;
 
 use crate::{
@@ -5,7 +6,10 @@ use crate::{
         core::{algebra::Vector2, pool::Handle, type_traits::prelude::*, Uuid},
         engine::Engine,
         graph::{BaseSceneGraph, SceneGraphNode},
-        gui::{message::UiMessage, BuildContext, UiNode},
+        gui::{
+            button::ButtonBuilder, message::UiMessage, utils::make_simple_tooltip,
+            widget::WidgetBuilder, BuildContext, Thickness, UiNode,
+        },
         scene::{node::Node, tilemap::TileMap},
     },
     interaction::{make_interaction_mode_button, InteractionMode},
@@ -15,6 +19,24 @@ use crate::{
     settings::Settings,
     Editor, Message,
 };
+
+fn make_button(
+    title: &str,
+    tooltip: &str,
+    enabled: bool,
+    ctx: &mut BuildContext,
+) -> Handle<UiNode> {
+    ButtonBuilder::new(
+        WidgetBuilder::new()
+            .with_enabled(enabled)
+            .with_width(100.0)
+            .with_height(24.0)
+            .with_margin(Thickness::uniform(1.0))
+            .with_tooltip(make_simple_tooltip(ctx, tooltip)),
+    )
+    .with_text(title)
+    .build(ctx)
+}
 
 #[derive(TypeUuidProvider)]
 #[type_uuid(id = "33fa8ef9-a29c-45d4-a493-79571edd870a")]
@@ -61,19 +83,6 @@ impl InteractionMode for TileMapInteractionMode {
         // TODO
     }
 
-    fn deactivate(&mut self, _controller: &dyn SceneController, _engine: &mut Engine) {
-        // TODO
-    }
-
-    fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<UiNode> {
-        make_interaction_mode_button(
-            ctx,
-            include_bytes!("../../../resources/tile.png"),
-            "Edit Tile Map",
-            selected,
-        )
-    }
-
     fn update(
         &mut self,
         _editor_selection: &Selection,
@@ -88,6 +97,19 @@ impl InteractionMode for TileMapInteractionMode {
         let _scene = &mut engine.scenes[game_scene.scene];
     }
 
+    fn deactivate(&mut self, _controller: &dyn SceneController, _engine: &mut Engine) {
+        // TODO
+    }
+
+    fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<UiNode> {
+        make_interaction_mode_button(
+            ctx,
+            include_bytes!("../../../resources/tile.png"),
+            "Edit Tile Map",
+            selected,
+        )
+    }
+
     fn uuid(&self) -> Uuid {
         Self::type_uuid()
     }
@@ -99,20 +121,20 @@ pub struct TileMapEditorPlugin {
 }
 
 impl EditorPlugin for TileMapEditorPlugin {
+    fn on_sync_to_model(&mut self, editor: &mut Editor) {
+        if let Some(tile_set_editor) = self.tile_set_editor.as_mut() {
+            tile_set_editor.sync_to_model(editor.engine.user_interfaces.first_mut());
+        }
+    }
+
     fn on_ui_message(&mut self, message: &mut UiMessage, editor: &mut Editor) {
         if let Some(tile_set_editor) = self.tile_set_editor.take() {
             self.tile_set_editor = tile_set_editor.handle_ui_message(
                 message,
-                editor.engine.user_interfaces.first(),
+                editor.engine.user_interfaces.first_mut(),
                 &editor.engine.resource_manager,
                 &editor.message_sender,
             );
-        }
-    }
-
-    fn on_sync_to_model(&mut self, editor: &mut Editor) {
-        if let Some(tile_set_editor) = self.tile_set_editor.as_mut() {
-            tile_set_editor.sync_to_model(editor.engine.user_interfaces.first_mut());
         }
     }
 
