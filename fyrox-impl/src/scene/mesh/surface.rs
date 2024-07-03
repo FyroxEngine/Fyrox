@@ -196,6 +196,7 @@ impl BlendShapesContainer {
         }
 
         let bytes = crate::core::transmute_vec_as_bytes::<VertexData>(vertex_data);
+
         assert_eq!(
             bytes.len(),
             (width * height * depth) as usize * std::mem::size_of::<VertexData>()

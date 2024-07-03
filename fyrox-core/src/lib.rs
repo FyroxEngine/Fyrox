@@ -24,7 +24,6 @@ use fxhash::FxHashMap;
 use std::ffi::OsString;
 use std::hash::Hasher;
 use std::{
-    any::{Any, TypeId},
     borrow::Borrow,
     cmp,
     hash::Hash,
@@ -55,9 +54,10 @@ pub mod watcher;
 pub use futures;
 pub use instant;
 
+pub use notify;
+
 #[cfg(target_arch = "wasm32")]
 pub use js_sys;
-pub use notify;
 use std::marker::PhantomData;
 #[cfg(target_arch = "wasm32")]
 pub use wasm_bindgen;
@@ -320,24 +320,7 @@ pub fn value_as_u8_slice<T: Sized>(v: &T) -> &'_ [u8] {
     unsafe { std::slice::from_raw_parts(v as *const T as *const u8, std::mem::size_of::<T>()) }
 }
 
-fn to_bytes_no_padding_usize(item: &Vec<usize>) -> Vec<u8> {
-    let mut bytes: Vec<u8> = Vec::new();
-    for &byte in item {
-        bytes.extend_from_slice(&byte.to_ne_bytes());
-    }
-    bytes
-}
-
-fn to_bytes_no_padding_f32(item: &Vec<f32>) -> Vec<u8> {
-    let mut bytes: Vec<u8> = Vec::new();
-    for &byte in item {
-        bytes.extend_from_slice(&byte.to_ne_bytes());
-    }
-    bytes
-}
-
 /// Takes a vector of trivially-copyable values and turns it into a vector of bytes.
-
 pub fn transmute_vec_as_bytes<T: Pod>(vec: Vec<T>) -> Vec<u8> {
     unsafe {
         let mut vec = std::mem::ManuallyDrop::new(vec);
