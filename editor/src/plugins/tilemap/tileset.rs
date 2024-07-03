@@ -168,6 +168,7 @@ impl TileSetEditor {
                 let tile_view = DecoratorBuilder::new(BorderBuilder::new(
                     WidgetBuilder::new().with_id(tile.id).with_child(
                         ImageBuilder::new(WidgetBuilder::new().with_width(48.0).with_height(48.0))
+                            .with_uv_rect(tile.uv_rect)
                             .with_opt_texture(texture.map(|t| t.into()))
                             .build(ctx),
                     ),
@@ -214,6 +215,7 @@ impl TileSetEditor {
                         .collect::<Vec<_>>();
                     if !commands.is_empty() {
                         sender.do_command(CommandGroup::from(commands));
+                        self.need_save = true;
                     }
                 }
             }

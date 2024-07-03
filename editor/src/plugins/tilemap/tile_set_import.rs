@@ -2,7 +2,7 @@ use crate::{
     asset::item::AssetItem,
     fyrox::{
         asset::{manager::ResourceManager, untyped::ResourceKind},
-        core::pool::Handle,
+        core::{algebra::Vector2, math::Rect, pool::Handle, Uuid},
         graph::BaseSceneGraph,
         gui::{
             button::ButtonMessage,
@@ -33,6 +33,7 @@ pub struct TileSetImporter {
     width_cells: Handle<UiNode>,
     height_cells: Handle<UiNode>,
     grid: Handle<UiNode>,
+    size: Vector2<usize>,
 }
 
 pub enum ImportResult {
@@ -150,6 +151,7 @@ impl TileSetImporter {
             width_cells,
             height_cells,
             grid,
+            size: Default::default(),
         }
     }
 
@@ -170,6 +172,29 @@ impl TileSetImporter {
             MessageDirection::ToWidget,
             true,
         ));
+    }
+
+    fn update_tiles(&mut self) {
+        self.tiles.clear();
+
+        if let Some(material) = self.material.as_ref() {
+            for y in 0..self.size.y {
+                for x in 0..self.size.x {
+                    self.tiles.push(TileDefinition {
+                        material: material.clone(),
+                        uv_rect: Rect::new(
+                            x as f32 / self.size.x as f32,
+                            y as f32 / self.size.y as f32,
+                            1.0 / self.size.x as f32,
+                            1.0 / self.size.y as f32,
+                        ),
+                        collider: Default::default(),
+                        color: Default::default(),
+                        id: Uuid::new_v4(),
+                    });
+                }
+            }
+        }
     }
 
     pub fn destroy(self, ui: &UserInterface) {
@@ -229,13 +254,19 @@ impl TileSetImporter {
                         self.grid,
                         MessageDirection::ToWidget,
                         std::iter::repeat(Column::stretch()).take(*value).collect(),
-                    ))
+                    ));
+
+                    self.size.x = *value;
+                    self.update_tiles();
                 } else if message.destination() == self.height_cells {
                     ui.send_message(GridMessage::rows(
                         self.grid,
                         MessageDirection::ToWidget,
                         std::iter::repeat(Row::stretch()).take(*value).collect(),
-                    ))
+                    ));
+
+                    self.size.y = *value;
+                    self.update_tiles();
                 }
             }
         }
