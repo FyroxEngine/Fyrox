@@ -24,6 +24,7 @@ use fxhash::FxHashMap;
 use std::ffi::OsString;
 use std::hash::Hasher;
 use std::{
+    any::{Any, TypeId},
     borrow::Borrow,
     cmp,
     hash::Hash,
@@ -319,7 +320,24 @@ pub fn value_as_u8_slice<T: Sized>(v: &T) -> &'_ [u8] {
     unsafe { std::slice::from_raw_parts(v as *const T as *const u8, std::mem::size_of::<T>()) }
 }
 
+fn to_bytes_no_padding_usize(item: &Vec<usize>) -> Vec<u8> {
+    let mut bytes: Vec<u8> = Vec::new();
+    for &byte in item {
+        bytes.extend_from_slice(&byte.to_ne_bytes());
+    }
+    bytes
+}
+
+fn to_bytes_no_padding_f32(item: &Vec<f32>) -> Vec<u8> {
+    let mut bytes: Vec<u8> = Vec::new();
+    for &byte in item {
+        bytes.extend_from_slice(&byte.to_ne_bytes());
+    }
+    bytes
+}
+
 /// Takes a vector of trivially-copyable values and turns it into a vector of bytes.
+
 pub fn transmute_vec_as_bytes<T: Pod>(vec: Vec<T>) -> Vec<u8> {
     unsafe {
         let mut vec = std::mem::ManuallyDrop::new(vec);
@@ -448,15 +466,15 @@ where
 mod test {
     use std::path::Path;
 
-    use fxhash::FxHashMap;
-    use uuid::uuid;
-
     use crate::{
         append_extension, cmp_strings_case_insensitive, combine_uuids, hash_combine,
-        make_relative_path,
+        make_relative_path, transmute_vec_as_bytes,
         visitor::{Visit, Visitor},
         BiDirHashMap,
     };
+    use fxhash::FxHashMap;
+    use std::mem::size_of;
+    use uuid::uuid;
 
     #[test]
     fn test_combine_uuids() {
@@ -625,5 +643,21 @@ mod test {
         assert!(cmp_strings_case_insensitive("FooBar", "FOOBaR"));
         assert!(!cmp_strings_case_insensitive("FooBaz", "FOOBaR"));
         assert!(cmp_strings_case_insensitive("foobar", "foobar"));
+    }
+
+    #[test]
+    fn test_transmute_vec_as_bytes_length_new_f32() {
+        let vec = vec![1.0f32, 2.0, 3.0];
+        let byte_vec = transmute_vec_as_bytes(vec.clone());
+        let expected_length = vec.len() * size_of::<f32>();
+        assert_eq!(byte_vec.len(), expected_length);
+    }
+
+    #[test]
+    fn test_transmute_vec_as_bytes_length_new_usize() {
+        let vec = vec![1usize, 2, 3];
+        let byte_vec = transmute_vec_as_bytes(vec.clone());
+        let expected_length = vec.len() * size_of::<usize>();
+        assert_eq!(byte_vec.len(), expected_length);
     }
 }

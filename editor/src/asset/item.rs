@@ -1,12 +1,14 @@
 use crate::fyrox::{
-    asset::untyped::UntypedResource,
+    asset::{manager::ResourceManager, untyped::UntypedResource, Resource, TypedResourceData},
     core::{
-        algebra::Vector2, color::Color, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-        uuid_provider, visitor::prelude::*,
+        algebra::Vector2, color::Color, futures::executor::block_on, make_relative_path,
+        pool::Handle, reflect::prelude::*, type_traits::prelude::*, uuid_provider,
+        visitor::prelude::*,
     },
     gui::{
         border::BorderBuilder,
         brush::Brush,
+        define_constructor,
         draw::{CommandTexture, Draw, DrawingContext},
         formatted_text::WrapMode,
         grid::{Column, GridBuilder, Row},
@@ -19,7 +21,6 @@ use crate::fyrox::{
         UserInterface, BRUSH_DARKER, BRUSH_DARKEST,
     },
 };
-use fyrox::gui::define_constructor;
 use std::{
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
@@ -46,6 +47,33 @@ pub struct AssetItem {
     pub path: PathBuf,
     preview: Handle<UiNode>,
     selected: bool,
+}
+
+impl AssetItem {
+    pub fn relative_path(
+        &self,
+        resource_manager: &ResourceManager,
+    ) -> Result<PathBuf, std::io::Error> {
+        if resource_manager
+            .state()
+            .built_in_resources
+            .contains_key(&self.path)
+        {
+            Ok(self.path.clone())
+        } else {
+            make_relative_path(&self.path)
+        }
+    }
+
+    pub fn resource<T: TypedResourceData>(
+        &self,
+        resource_manager: &ResourceManager,
+    ) -> Option<Resource<T>> {
+        self.relative_path(resource_manager)
+            .ok()
+            .and_then(|path| resource_manager.try_request::<T>(path))
+            .and_then(|resource| block_on(resource).ok())
+    }
 }
 
 impl Deref for AssetItem {

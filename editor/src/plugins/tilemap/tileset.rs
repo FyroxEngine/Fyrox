@@ -3,31 +3,30 @@ use crate::{
     command::{Command, CommandContext, CommandGroup, CommandTrait},
     fyrox::{
         asset::{manager::ResourceManager, untyped::ResourceKind, ResourceData},
-        core::{
-            futures::executor::block_on, log::Log, make_relative_path, math::Rect, pool::Handle,
-            Uuid,
-        },
+        core::{log::Log, math::Rect, pool::Handle, Uuid},
         graph::{BaseSceneGraph, SceneGraphNode},
         gui::{
             border::BorderBuilder,
-            button::{ButtonBuilder, ButtonMessage},
+            button::ButtonMessage,
             decorator::DecoratorBuilder,
             grid::{Column, GridBuilder, Row},
             image::ImageBuilder,
             list_view::{ListView, ListViewBuilder, ListViewMessage},
             message::{MessageDirection, UiMessage},
             stack_panel::StackPanelBuilder,
-            utils::make_simple_tooltip,
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
             wrap_panel::WrapPanelBuilder,
             BuildContext, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
         },
-        material::{Material, MaterialResource, PropertyValue},
+        material::{Material, MaterialResource},
         resource::texture::Texture,
         scene::tilemap::tileset::{TileDefinition, TileSetResource},
     },
     message::MessageSender,
+    plugins::tilemap::{
+        make_button, tile_set_import::ImportResult, tile_set_import::TileSetImporter,
+    },
 };
 
 pub struct TileSetEditor {
@@ -39,24 +38,7 @@ pub struct TileSetEditor {
     remove_all: Handle<UiNode>,
     selection: Option<usize>,
     need_save: bool,
-}
-
-fn make_button(
-    title: &str,
-    tooltip: &str,
-    enabled: bool,
-    ctx: &mut BuildContext,
-) -> Handle<UiNode> {
-    ButtonBuilder::new(
-        WidgetBuilder::new()
-            .with_enabled(enabled)
-            .with_width(100.0)
-            .with_height(24.0)
-            .with_margin(Thickness::uniform(1.0))
-            .with_tooltip(make_simple_tooltip(ctx, tooltip)),
-    )
-    .with_text(title)
-    .build(ctx)
+    tile_set_importer: Option<TileSetImporter>,
 }
 
 impl TileSetEditor {
@@ -133,6 +115,7 @@ impl TileSetEditor {
             remove_all,
             selection: Default::default(),
             need_save: false,
+            tile_set_importer: None,
         };
 
         editor.sync_to_model(ctx.inner_mut());
@@ -140,11 +123,15 @@ impl TileSetEditor {
         editor
     }
 
-    fn destroy(self, ui: &UserInterface) {
+    fn destroy(mut self, ui: &UserInterface) {
         ui.send_message(WidgetMessage::remove(
             self.window,
             MessageDirection::ToWidget,
         ));
+
+        if let Some(importer) = self.tile_set_importer.take() {
+            importer.destroy(ui);
+        }
     }
 
     pub fn sync_to_model(&mut self, ui: &mut UserInterface) {
@@ -175,19 +162,7 @@ impl TileSetEditor {
                 .iter()
                 .all(|tile_view| ui.node(*tile_view).id != tile.id)
             {
-                let texture =
-                    tile.material
-                        .data_ref()
-                        .properties()
-                        .iter()
-                        .find_map(|(name, value)| {
-                            if name.as_str() == "diffuseTexture" {
-                                if let PropertyValue::Sampler { value, .. } = value {
-                                    return value.clone();
-                                }
-                            }
-                            None
-                        });
+                let texture = tile.material.data_ref().texture("diffuseTexture");
 
                 let ctx = &mut ui.build_ctx();
                 let tile_view = DecoratorBuilder::new(BorderBuilder::new(
@@ -217,10 +192,33 @@ impl TileSetEditor {
     pub fn handle_ui_message(
         mut self,
         message: &UiMessage,
-        ui: &UserInterface,
+        ui: &mut UserInterface,
         resource_manager: &ResourceManager,
         sender: &MessageSender,
     ) -> Option<Self> {
+        if let Some(importer) = self.tile_set_importer.take() {
+            match importer.handle_ui_message(message, ui, resource_manager) {
+                ImportResult::None(importer) => {
+                    self.tile_set_importer = Some(importer);
+                }
+                ImportResult::Closed => {}
+                ImportResult::TileSet(tiles) => {
+                    let commands = tiles
+                        .into_iter()
+                        .map(|tile| {
+                            Command::new(AddTileCommand {
+                                tile_set: self.tile_set.clone(),
+                                tile,
+                            })
+                        })
+                        .collect::<Vec<_>>();
+                    if !commands.is_empty() {
+                        sender.do_command(CommandGroup::from(commands));
+                    }
+                }
+            }
+        }
+
         if let Some(WindowMessage::Close) = message.data() {
             if message.destination() == self.window {
                 self.try_save();
@@ -230,61 +228,43 @@ impl TileSetEditor {
         } else if let Some(WidgetMessage::Drop(dropped)) = message.data() {
             if message.destination() == self.tiles {
                 if let Some(item) = ui.node(*dropped).cast::<AssetItem>() {
-                    let path = if resource_manager
-                        .state()
-                        .built_in_resources
-                        .contains_key(&item.path)
-                    {
-                        Ok(item.path.clone())
-                    } else {
-                        make_relative_path(&item.path)
-                    };
+                    if let Some(material) = item.resource::<Material>(resource_manager) {
+                        sender.do_command(AddTileCommand {
+                            tile_set: self.tile_set.clone(),
+                            tile: TileDefinition {
+                                material,
+                                uv_rect: Rect::new(0.0, 0.0, 1.0, 1.0),
+                                collider: Default::default(),
+                                color: Default::default(),
+                                id: Uuid::new_v4(),
+                            },
+                        });
+                        self.need_save = true;
+                    } else if let Some(texture) = item.resource::<Texture>(resource_manager) {
+                        let mut material = Material::standard_2d();
+                        material
+                            .set_texture(&"diffuseTexture".into(), Some(texture))
+                            .unwrap();
 
-                    if let Ok(path) = path {
-                        if let Some(material) = resource_manager.try_request::<Material>(&path) {
-                            if let Ok(material) = block_on(material) {
-                                sender.do_command(AddTileCommand {
-                                    tile_set: self.tile_set.clone(),
-                                    tile: TileDefinition {
-                                        material,
-                                        uv_rect: Rect::new(0.0, 0.0, 1.0, 1.0),
-                                        collider: Default::default(),
-                                        color: Default::default(),
-                                        id: Uuid::new_v4(),
-                                    },
-                                });
-                                self.need_save = true;
-                            }
-                        } else if let Some(texture) = resource_manager.try_request::<Texture>(&path)
-                        {
-                            if let Ok(texture) = block_on(texture) {
-                                let mut material = Material::standard_2d();
-                                material
-                                    .set_texture(&"diffuseTexture".into(), Some(texture))
-                                    .unwrap();
+                        let material = MaterialResource::new_ok(ResourceKind::Embedded, material);
 
-                                let material =
-                                    MaterialResource::new_ok(ResourceKind::Embedded, material);
-
-                                sender.do_command(AddTileCommand {
-                                    tile_set: self.tile_set.clone(),
-                                    tile: TileDefinition {
-                                        material,
-                                        uv_rect: Rect::new(0.0, 0.0, 1.0, 1.0),
-                                        collider: Default::default(),
-                                        color: Default::default(),
-                                        id: Uuid::new_v4(),
-                                    },
-                                });
-                                self.need_save = true;
-                            }
-                        }
+                        sender.do_command(AddTileCommand {
+                            tile_set: self.tile_set.clone(),
+                            tile: TileDefinition {
+                                material,
+                                uv_rect: Rect::new(0.0, 0.0, 1.0, 1.0),
+                                collider: Default::default(),
+                                color: Default::default(),
+                                id: Uuid::new_v4(),
+                            },
+                        });
+                        self.need_save = true;
                     }
                 }
             }
         } else if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.import {
-                // TODO: Add import.
+                self.tile_set_importer = Some(TileSetImporter::new(&mut ui.build_ctx()));
             } else if message.destination() == self.remove {
                 if let Some(selection) = self.selection {
                     sender.do_command(RemoveTileCommand {
