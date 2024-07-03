@@ -31,6 +31,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use bytemuck::Pod;
 pub mod color;
 pub mod color_gradient;
 pub mod io;
@@ -54,10 +55,9 @@ pub mod watcher;
 pub use futures;
 pub use instant;
 
-pub use notify;
-
 #[cfg(target_arch = "wasm32")]
 pub use js_sys;
+pub use notify;
 use std::marker::PhantomData;
 #[cfg(target_arch = "wasm32")]
 pub use wasm_bindgen;
@@ -67,7 +67,6 @@ pub use wasm_bindgen_futures;
 pub use web_sys;
 
 pub use type_traits::prelude::*;
-
 /// Defines as_(variant), as_mut_(variant) and is_(variant) methods.
 #[macro_export]
 macro_rules! define_is_as {
@@ -338,21 +337,15 @@ fn to_bytes_no_padding_f32(item: &Vec<f32>) -> Vec<u8> {
 }
 
 /// Takes a vector of trivially-copyable values and turns it into a vector of bytes.
-pub fn transmute_vec_as_bytes<T: 'static>(vec: Vec<T>) -> Vec<u8> {
-    if TypeId::of::<T>() == TypeId::of::<usize>() {
-        let casted_vec: Vec<usize> = vec
-            .into_iter()
-            .map(|x| *(&x as &dyn Any).downcast_ref::<usize>().unwrap())
-            .collect();
-        return to_bytes_no_padding_usize(&casted_vec);
-    } else if TypeId::of::<T>() == TypeId::of::<f32>() {
-        let casted_vec: Vec<f32> = vec
-            .into_iter()
-            .map(|x| *(&x as &dyn Any).downcast_ref::<f32>().unwrap())
-            .collect();
-        return to_bytes_no_padding_f32(&casted_vec);
-    } else {
-        panic!("Unsupported type");
+
+pub fn transmute_vec_as_bytes<T: Pod>(vec: Vec<T>) -> Vec<u8> {
+    unsafe {
+        let mut vec = std::mem::ManuallyDrop::new(vec);
+        Vec::from_raw_parts(
+            vec.as_mut_ptr() as *mut u8,
+            vec.len() * std::mem::size_of::<T>(),
+            vec.capacity() * std::mem::size_of::<T>(),
+        )
     }
 }
 

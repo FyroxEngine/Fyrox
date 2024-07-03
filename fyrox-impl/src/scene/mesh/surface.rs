@@ -37,6 +37,7 @@ use crate::{
     },
     utils::raw_mesh::{RawMesh, RawMeshBuilder},
 };
+use bytemuck::{Pod, Zeroable};
 use fxhash::{FxHashMap, FxHasher};
 use half::f16;
 use lazy_static::lazy_static;
@@ -94,6 +95,33 @@ pub struct InputBlendShapeData {
     pub tangents: FxHashMap<u32, Vector3<f16>>,
 }
 
+#[repr(C)]
+#[derive(Default, Clone, Copy)]
+struct PodVector3 {
+    x: f16,
+    y: f16,
+    z: f16,
+}
+
+unsafe impl Pod for PodVector3 {}
+unsafe impl Zeroable for PodVector3 {}
+
+impl From<Vector3<f16>> for PodVector3 {
+    fn from(v: Vector3<f16>) -> Self {
+        PodVector3 {
+            x: v.x,
+            y: v.y,
+            z: v.z,
+        }
+    }
+}
+
+impl From<PodVector3> for Vector3<f16> {
+    fn from(pv: PodVector3) -> Self {
+        Vector3::new(pv.x, pv.y, pv.z)
+    }
+}
+
 impl BlendShapesContainer {
     /// Packs all blend shapes into one volume texture.
     pub fn from_lists(
@@ -101,11 +129,11 @@ impl BlendShapesContainer {
         input_blend_shapes: &[InputBlendShapeData],
     ) -> Self {
         #[repr(C)]
-        #[derive(Default, Clone, Copy)]
+        #[derive(Default, Clone, Copy, Pod, Zeroable)]
         struct VertexData {
-            position: Vector3<f16>,
-            normal: Vector3<f16>,
-            tangent: Vector3<f16>,
+            position: PodVector3,
+            normal: PodVector3,
+            tangent: PodVector3,
         }
 
         #[inline]
@@ -148,27 +176,26 @@ impl BlendShapesContainer {
             for (index, position) in blend_shape.positions.iter() {
                 if let Some(vertex) = fetch(&mut vertex_data, *index as usize, width, height, layer)
                 {
-                    vertex.position = *position;
+                    vertex.position = (*position).into();
                 }
             }
 
             for (index, normal) in blend_shape.normals.iter() {
                 if let Some(vertex) = fetch(&mut vertex_data, *index as usize, width, height, layer)
                 {
-                    vertex.normal = *normal;
+                    vertex.normal = (*normal).into();
                 }
             }
 
             for (index, tangent) in blend_shape.tangents.iter() {
                 if let Some(vertex) = fetch(&mut vertex_data, *index as usize, width, height, layer)
                 {
-                    vertex.tangent = *tangent;
+                    vertex.tangent = (*tangent).into();
                 }
             }
         }
 
-        let bytes = crate::core::transmute_vec_as_bytes(vertex_data);
-
+        let bytes = crate::core::transmute_vec_as_bytes::<VertexData>(vertex_data);
         assert_eq!(
             bytes.len(),
             (width * height * depth) as usize * std::mem::size_of::<VertexData>()
