@@ -914,6 +914,18 @@ impl Material {
     pub fn properties(&self) -> &FxHashMap<ImmutableString, PropertyValue> {
         &self.properties
     }
+
+    /// Tries to find a sampler with the given name and returns its texture (if any).
+    pub fn texture(&self, name: &str) -> Option<TextureResource> {
+        self.properties.iter().find_map(|(property_name, value)| {
+            if property_name.as_str() == name {
+                if let PropertyValue::Sampler { value, .. } = value {
+                    return value.clone();
+                }
+            }
+            None
+        })
+    }
 }
 
 /// Shared material is a material instance that can be used across multiple objects. It is useful
