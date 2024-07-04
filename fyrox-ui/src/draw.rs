@@ -10,10 +10,11 @@ use crate::{
     formatted_text::FormattedText,
     Thickness,
 };
+use bytemuck::{Pod, Zeroable};
 use fyrox_resource::untyped::UntypedResource;
 use std::ops::Range;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug, Pod, Zeroable)]
 #[repr(C)]
 pub struct Vertex {
     pub pos: Vector2<f32>,

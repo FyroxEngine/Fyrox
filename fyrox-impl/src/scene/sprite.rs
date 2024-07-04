@@ -31,12 +31,13 @@ use crate::{
         node::{Node, NodeTrait},
     },
 };
+use bytemuck::{Pod, Zeroable};
 use fyrox_core::value_as_u8_slice;
 use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};
 
 /// A vertex for sprites.
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Debug, Default, Pod, Zeroable)]
 #[repr(C)] // OpenGL expects this structure packed as in C
 pub struct SpriteVertex {
     /// Position of vertex in local coordinates.

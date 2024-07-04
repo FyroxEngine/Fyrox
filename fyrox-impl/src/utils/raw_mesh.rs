@@ -8,9 +8,9 @@ use crate::{
     core::hash_as_bytes,
     core::{algebra::Vector3, math::TriangleDefinition},
 };
+use bytemuck::{Pod, Zeroable};
 use fxhash::{FxBuildHasher, FxHashSet};
 use std::hash::{Hash, Hasher};
-
 #[derive(Copy, Clone)]
 struct IndexedStorage<T> {
     index: u32,
@@ -18,6 +18,8 @@ struct IndexedStorage<T> {
 }
 
 /// Raw vertex is just a point in 3d space that supports hashing.
+#[repr(C)]
+#[derive(Copy, Clone, Pod, Zeroable)]
 pub struct RawVertex {
     /// An X component.
     pub x: f32,
