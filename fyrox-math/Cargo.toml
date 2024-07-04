@@ -15,7 +15,8 @@ rust-version = "1.72"
 
 [dependencies]
 rectutils = "0.2.0"
-nalgebra = "0.32.3"
+nalgebra = { version = "0.32.3", features = ["bytemuck"] }
 arrayvec = "0.7.4"
 num-traits = "0.2.18"
 uuid = { version = "1", features = ["v4"] }
+bytemuck = { version = "1.16.1", features = ["derive"]}

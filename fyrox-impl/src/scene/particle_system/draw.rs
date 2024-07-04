@@ -7,10 +7,11 @@ use crate::{
         VertexAttributeDataType, VertexAttributeDescriptor, VertexAttributeUsage, VertexTrait,
     },
 };
+use bytemuck::{Pod, Zeroable};
 
 /// OpenGL expects this structure packed as in C.
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Pod, Zeroable)]
 pub struct Vertex {
     pub position: Vector3<f32>,
     pub tex_coord: Vector2<f32>,

@@ -4,10 +4,11 @@ use crate::{
     uuid_provider,
     visitor::{Visit, VisitResult, Visitor},
 };
+use bytemuck::{Pod, Zeroable};
 use num_traits::Zero;
 use std::ops::{Add, AddAssign, Sub, SubAssign};
 
-#[derive(Copy, Clone, Debug, PartialOrd, PartialEq, Eq, Visit, Reflect)]
+#[derive(Copy, Clone, Debug, PartialOrd, PartialEq, Eq, Visit, Reflect, Pod, Zeroable)]
 #[repr(C)]
 pub struct Color {
     // Do not change order! OpenGL requires this order!

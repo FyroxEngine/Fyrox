@@ -11,6 +11,7 @@ pub mod segment;
 pub mod triangulator;
 
 use crate::ray::IntersectionResult;
+use bytemuck::{Pod, Zeroable};
 use nalgebra::{
     Matrix3, Matrix4, RealField, Scalar, SimdRealField, UnitQuaternion, Vector2, Vector3,
 };
@@ -420,7 +421,7 @@ impl Hash for TriangleEdge {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Default, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default, Hash, Pod, Zeroable)]
 #[repr(C)]
 pub struct TriangleDefinition(pub [u32; 3]);
 

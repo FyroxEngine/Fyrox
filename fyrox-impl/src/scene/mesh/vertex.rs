@@ -9,10 +9,11 @@ use crate::{
         VertexAttributeDataType, VertexAttributeDescriptor, VertexAttributeUsage, VertexTrait,
     },
 };
+use bytemuck::{Pod, Zeroable};
 use std::hash::{Hash, Hasher};
 
 /// A vertex for static meshes.
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Debug, Default, Pod, Zeroable)]
 #[repr(C)] // OpenGL expects this structure packed as in C
 pub struct StaticVertex {
     /// Position of vertex in local coordinates.

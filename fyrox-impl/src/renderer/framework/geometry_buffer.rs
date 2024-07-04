@@ -309,7 +309,12 @@ impl GeometryBuffer {
         Ok(geometry_buffer)
     }
 
-    pub fn set_buffer_data<T>(&mut self, state: &PipelineState, buffer: usize, data: &[T]) {
+    pub fn set_buffer_data<T: bytemuck::Pod>(
+        &mut self,
+        state: &PipelineState,
+        buffer: usize,
+        data: &[T],
+    ) {
         scope_profile!();
 
         let buffer = &mut self.buffers[buffer];

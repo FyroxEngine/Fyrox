@@ -12,6 +12,7 @@ use crate::{
     },
     core::{array_as_u8_slice, value_as_u8_slice},
 };
+use bytemuck::Pod;
 use fxhash::FxHasher;
 use std::{
     alloc::Layout,
@@ -423,7 +424,7 @@ impl<'a> VertexBufferRefMut<'a> {
     /// the type does not have any custom destructors.
     pub fn push_vertex<T>(&mut self, vertex: &T) -> Result<(), ValidationError>
     where
-        T: VertexTrait,
+        T: VertexTrait + bytemuck::Pod,
     {
         if std::mem::size_of::<T>() == self.vertex_buffer.vertex_size as usize {
             self.vertex_buffer
@@ -448,7 +449,7 @@ impl<'a> VertexBufferRefMut<'a> {
     /// the type does not have any custom destructors.
     pub fn push_vertices<T>(&mut self, vertices: &[T]) -> Result<(), ValidationError>
     where
-        T: VertexTrait,
+        T: VertexTrait + Pod,
     {
         if std::mem::size_of::<T>() == self.vertex_buffer.vertex_size as usize {
             self.vertex_buffer
@@ -491,7 +492,7 @@ impl<'a> VertexBufferRefMut<'a> {
         vertices: impl Iterator<Item = T>,
     ) -> Result<(), ValidationError>
     where
-        T: VertexTrait,
+        T: VertexTrait + Pod,
     {
         if std::mem::size_of::<T>() == self.vertex_buffer.vertex_size as usize {
             for vertex in vertices {
@@ -523,7 +524,7 @@ impl<'a> VertexBufferRefMut<'a> {
         mut transformer: F,
     ) -> Result<(), ValidationError>
     where
-        T: VertexTrait,
+        T: VertexTrait + Pod,
         F: FnMut(&T) -> T,
     {
         if std::mem::size_of::<T>() == self.vertex_buffer.vertex_size as usize {
@@ -666,7 +667,7 @@ impl<'a> VertexBufferRefMut<'a> {
         fill_value: T,
     ) -> Result<(), ValidationError>
     where
-        T: Copy,
+        T: Copy + Pod,
     {
         if self.vertex_buffer.sparse_layout[descriptor.usage as usize].is_some() {
             Err(ValidationError::DuplicatedAttributeDescriptor)

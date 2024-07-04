@@ -20,8 +20,10 @@ use crate::{
     renderer::RenderPassStatistics,
     scene::{camera::Camera, debug::SceneDrawingContext},
 };
+use bytemuck::{Pod, Zeroable};
 
 #[repr(C)]
+#[derive(Copy, Pod, Zeroable, Clone)]
 struct Vertex {
     position: Vector3<f32>,
     color: u32,
