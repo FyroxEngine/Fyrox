@@ -22,7 +22,7 @@ byteorder = "1.4.3"
 rand = "0.8.4"
 memoffset = "0.9.0"
 lazy_static = "1.4.0"
-nalgebra = "0.32.3"
+nalgebra = { version = "0.32.3", features = ["bytemuck"] }
 arrayvec = "0.7.2"
 futures = {version = "0.3.17", features = ["thread-pool"] }
 uuid = { version = "1", features = ["v4", "js"] }
@@ -35,6 +35,7 @@ once_cell = "1.17.1"
 notify = "6"
 serde = { version = "1", features = ["derive"] }
 bincode = "1.3.3"
+bytemuck = "1.16.1"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 web-sys = { version = "0.3.53", features = ["Request", "Window", "Response", "AudioContext", "AudioBuffer", "AudioContextOptions", "AudioNode", "AudioBufferSourceNode", "AudioDestinationNode"] }

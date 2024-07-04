@@ -37,6 +37,7 @@ use crate::{
     },
     utils::raw_mesh::{RawMesh, RawMeshBuilder},
 };
+use bytemuck::{Pod, Zeroable};
 use fxhash::{FxHashMap, FxHasher};
 use half::f16;
 use lazy_static::lazy_static;
@@ -101,7 +102,7 @@ impl BlendShapesContainer {
         input_blend_shapes: &[InputBlendShapeData],
     ) -> Self {
         #[repr(C)]
-        #[derive(Default, Clone, Copy)]
+        #[derive(Default, Clone, Copy, Pod, Zeroable)]
         struct VertexData {
             position: Vector3<f16>,
             normal: Vector3<f16>,
@@ -167,7 +168,7 @@ impl BlendShapesContainer {
             }
         }
 
-        let bytes = crate::core::transmute_vec_as_bytes(vertex_data);
+        let bytes = crate::core::transmute_vec_as_bytes::<VertexData>(vertex_data);
 
         assert_eq!(
             bytes.len(),

@@ -30,6 +30,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use bytemuck::Pod;
 pub mod color;
 pub mod color_gradient;
 pub mod io;
@@ -66,7 +67,6 @@ pub use wasm_bindgen_futures;
 pub use web_sys;
 
 pub use type_traits::prelude::*;
-
 /// Defines as_(variant), as_mut_(variant) and is_(variant) methods.
 #[macro_export]
 macro_rules! define_is_as {
@@ -321,7 +321,7 @@ pub fn value_as_u8_slice<T: Sized>(v: &T) -> &'_ [u8] {
 }
 
 /// Takes a vector of trivially-copyable values and turns it into a vector of bytes.
-pub fn transmute_vec_as_bytes<T: Copy>(vec: Vec<T>) -> Vec<u8> {
+pub fn transmute_vec_as_bytes<T: Pod>(vec: Vec<T>) -> Vec<u8> {
     unsafe {
         let mut vec = std::mem::ManuallyDrop::new(vec);
         Vec::from_raw_parts(
@@ -449,15 +449,15 @@ where
 mod test {
     use std::path::Path;
 
-    use fxhash::FxHashMap;
-    use uuid::uuid;
-
     use crate::{
         append_extension, cmp_strings_case_insensitive, combine_uuids, hash_combine,
-        make_relative_path,
+        make_relative_path, transmute_vec_as_bytes,
         visitor::{Visit, Visitor},
         BiDirHashMap,
     };
+    use fxhash::FxHashMap;
+    use std::mem::size_of;
+    use uuid::uuid;
 
     #[test]
     fn test_combine_uuids() {
@@ -626,5 +626,21 @@ mod test {
         assert!(cmp_strings_case_insensitive("FooBar", "FOOBaR"));
         assert!(!cmp_strings_case_insensitive("FooBaz", "FOOBaR"));
         assert!(cmp_strings_case_insensitive("foobar", "foobar"));
+    }
+
+    #[test]
+    fn test_transmute_vec_as_bytes_length_new_f32() {
+        let vec = vec![1.0f32, 2.0, 3.0];
+        let byte_vec = transmute_vec_as_bytes(vec.clone());
+        let expected_length = vec.len() * size_of::<f32>();
+        assert_eq!(byte_vec.len(), expected_length);
+    }
+
+    #[test]
+    fn test_transmute_vec_as_bytes_length_new_usize() {
+        let vec = vec![1usize, 2, 3];
+        let byte_vec = transmute_vec_as_bytes(vec.clone());
+        let expected_length = vec.len() * size_of::<usize>();
+        assert_eq!(byte_vec.len(), expected_length);
     }
 }
