@@ -1,24 +1,34 @@
+pub mod brush;
 mod tile_set_import;
 pub mod tileset;
 
 use crate::{
     fyrox::{
-        core::{algebra::Vector2, pool::Handle, type_traits::prelude::*, Uuid},
+        core::{
+            algebra::{Vector2, Vector3},
+            color::Color,
+            math::plane::Plane,
+            parking_lot::Mutex,
+            pool::Handle,
+            type_traits::prelude::*,
+            Uuid,
+        },
         engine::Engine,
         graph::{BaseSceneGraph, SceneGraphNode},
         gui::{
             button::ButtonBuilder, message::UiMessage, utils::make_simple_tooltip,
             widget::WidgetBuilder, BuildContext, Thickness, UiNode,
         },
-        scene::{node::Node, tilemap::TileMap},
+        scene::{debug::Line, node::Node, tilemap::TileMap},
     },
     interaction::{make_interaction_mode_button, InteractionMode},
     plugin::EditorPlugin,
-    plugins::tilemap::tileset::TileSetEditor,
+    plugins::tilemap::{brush::Brush, tileset::TileSetEditor},
     scene::{controller::SceneController, GameScene, Selection},
     settings::Settings,
     Editor, Message,
 };
+use std::sync::Arc;
 
 fn make_button(
     title: &str,
@@ -43,6 +53,8 @@ fn make_button(
 pub struct TileMapInteractionMode {
     #[allow(dead_code)]
     tile_map: Handle<Node>,
+    brush: Arc<Mutex<Brush>>,
+    brush_position: Vector2<i32>,
 }
 
 impl InteractionMode for TileMapInteractionMode {
@@ -73,14 +85,30 @@ impl InteractionMode for TileMapInteractionMode {
     fn on_mouse_move(
         &mut self,
         _mouse_offset: Vector2<f32>,
-        _mouse_position: Vector2<f32>,
+        mouse_position: Vector2<f32>,
         _editor_selection: &Selection,
-        _controller: &mut dyn SceneController,
-        _engine: &mut Engine,
-        _frame_size: Vector2<f32>,
+        controller: &mut dyn SceneController,
+        engine: &mut Engine,
+        frame_size: Vector2<f32>,
         _settings: &Settings,
     ) {
-        // TODO
+        let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
+            return;
+        };
+
+        let scene = &mut engine.scenes[game_scene.scene];
+
+        let camera = scene.graph[game_scene.camera_controller.camera].as_camera();
+        let ray = camera.make_ray(mouse_position, frame_size);
+
+        // TODO: This does not take global transform of the tile map into account!
+        let plane = Plane::from_normal_and_point(&Vector3::new(0.0, 0.0, 1.0), &Default::default())
+            .unwrap_or_default();
+
+        if let Some(intersection) = ray.plane_intersection_point(&plane) {
+            let grid_coord = Vector2::new(intersection.x as i32, intersection.y as i32);
+            self.brush_position = grid_coord;
+        }
     }
 
     fn update(
@@ -94,7 +122,39 @@ impl InteractionMode for TileMapInteractionMode {
             return;
         };
 
-        let _scene = &mut engine.scenes[game_scene.scene];
+        let scene = &mut engine.scenes[game_scene.scene];
+
+        let Some(tile_map) = scene.graph.try_get(self.tile_map) else {
+            return;
+        };
+
+        let transform = tile_map.global_transform();
+
+        let mut draw_line = |begin: Vector2<i32>, end: Vector2<i32>, color: Color| {
+            scene.drawing_context.add_line(Line {
+                begin: transform
+                    .transform_point(&Vector3::new(begin.x as f32, begin.y as f32, 0.0).into())
+                    .coords,
+                end: transform
+                    .transform_point(&Vector3::new(end.x as f32, end.y as f32, 0.0).into())
+                    .coords,
+                color,
+            });
+        };
+
+        let size = 1000i32;
+        for y in -size..size {
+            draw_line(Vector2::new(-size, y), Vector2::new(size, y), Color::WHITE);
+        }
+        for x in -size..size {
+            draw_line(Vector2::new(x, -size), Vector2::new(x, size), Color::WHITE);
+        }
+        self.brush.lock().draw_outline(
+            &mut scene.drawing_context,
+            self.brush_position,
+            &transform,
+            Color::RED,
+        );
     }
 
     fn deactivate(&mut self, _controller: &dyn SceneController, _engine: &mut Engine) {
@@ -118,6 +178,7 @@ impl InteractionMode for TileMapInteractionMode {
 #[derive(Default)]
 pub struct TileMapEditorPlugin {
     tile_set_editor: Option<TileSetEditor>,
+    brush: Arc<Mutex<Brush>>,
 }
 
 impl EditorPlugin for TileMapEditorPlugin {
@@ -171,13 +232,15 @@ impl EditorPlugin for TileMapEditorPlugin {
                 .remove_typed::<TileMapInteractionMode>();
 
             for node_handle in selection.nodes().iter() {
-                if let Some(collider) = scene.graph.try_get(*node_handle) {
-                    if collider.component_ref::<TileMap>().is_none() {
+                if let Some(tile_map) = scene.graph.try_get(*node_handle) {
+                    if tile_map.component_ref::<TileMap>().is_none() {
                         continue;
                     }
 
                     entry.interaction_modes.add(TileMapInteractionMode {
                         tile_map: *node_handle,
+                        brush: self.brush.clone(),
+                        brush_position: Default::default(),
                     });
 
                     break;
