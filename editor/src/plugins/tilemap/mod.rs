@@ -1,5 +1,7 @@
 pub mod brush;
-mod tile_set_import;
+pub mod palette;
+pub mod panel;
+pub mod tile_set_import;
 pub mod tileset;
 
 use crate::{
@@ -23,7 +25,7 @@ use crate::{
     },
     interaction::{make_interaction_mode_button, InteractionMode},
     plugin::EditorPlugin,
-    plugins::tilemap::{brush::Brush, tileset::TileSetEditor},
+    plugins::tilemap::{brush::Brush, panel::TileMapPanel, tileset::TileSetEditor},
     scene::{controller::SceneController, GameScene, Selection},
     settings::Settings,
     Editor, Message,
@@ -179,6 +181,7 @@ impl InteractionMode for TileMapInteractionMode {
 pub struct TileMapEditorPlugin {
     tile_set_editor: Option<TileSetEditor>,
     brush: Arc<Mutex<Brush>>,
+    panel: Option<TileMapPanel>,
 }
 
 impl EditorPlugin for TileMapEditorPlugin {
@@ -206,8 +209,9 @@ impl EditorPlugin for TileMapEditorPlugin {
     }
 
     fn on_message(&mut self, message: &Message, editor: &mut Editor) {
+        let ui = editor.engine.user_interfaces.first_mut();
+
         if let Message::OpenTileSetEditor(tile_set) = message {
-            let ui = editor.engine.user_interfaces.first_mut();
             let tile_set_editor = TileSetEditor::new(tile_set.clone(), &mut ui.build_ctx());
             self.tile_set_editor = Some(tile_set_editor);
         }
@@ -231,6 +235,10 @@ impl EditorPlugin for TileMapEditorPlugin {
                 .interaction_modes
                 .remove_typed::<TileMapInteractionMode>();
 
+            if let Some(panel) = self.panel.take() {
+                panel.destroy(ui);
+            }
+
             for node_handle in selection.nodes().iter() {
                 if let Some(tile_map) = scene.graph.try_get(*node_handle) {
                     if tile_map.component_ref::<TileMap>().is_none() {
@@ -242,6 +250,11 @@ impl EditorPlugin for TileMapEditorPlugin {
                         brush: self.brush.clone(),
                         brush_position: Default::default(),
                     });
+
+                    self.panel = Some(TileMapPanel::new(
+                        &mut ui.build_ctx(),
+                        editor.scene_viewer.frame(),
+                    ));
 
                     break;
                 }
