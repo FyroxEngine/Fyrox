@@ -98,17 +98,33 @@ impl PaletteWidget {
     }
 
     fn selected_tiles_to_brush(&self, ui: &UserInterface) -> TileMapBrush {
-        TileMapBrush {
-            tiles: self
-                .selection
-                .iter()
-                .filter_map(|h| ui.try_get_of_type::<TileView>(*h))
-                .map(|view| BrushTile {
-                    tile_index: view.tile_index,
-                    local_position: view.local_position,
-                })
-                .collect::<Vec<_>>(),
+        let mut tiles = self
+            .selection
+            .iter()
+            .filter_map(|h| ui.try_get_of_type::<TileView>(*h))
+            .map(|view| BrushTile {
+                definition_index: view.definition_index,
+                local_position: view.local_position,
+            })
+            .collect::<Vec<_>>();
+
+        let mut min_x = i32::MAX;
+        let mut min_y = i32::MAX;
+        for tile in tiles.iter() {
+            if tile.local_position.x < min_x {
+                min_x = tile.local_position.x;
+            }
+            if tile.local_position.y < min_y {
+                min_y = tile.local_position.y;
+            }
         }
+        let origin = Vector2::new(min_x, min_y);
+
+        for tile in tiles.iter_mut() {
+            tile.local_position -= origin;
+        }
+
+        TileMapBrush { tiles }
     }
 
     fn set_selection(&mut self, new_selection: &[Handle<UiNode>], ui: &UserInterface) {
@@ -315,7 +331,7 @@ pub struct TileView {
     widget: Widget,
     #[component(include)]
     selectable: Selectable,
-    tile_index: usize,
+    definition_index: usize,
     local_position: Vector2<i32>,
     tile_set: TileSetResource,
 }
@@ -325,7 +341,7 @@ define_widget_deref!(TileView);
 impl Control for TileView {
     fn draw(&self, drawing_context: &mut DrawingContext) {
         let tile_set = self.tile_set.data_ref();
-        if let Some(tile_definition) = tile_set.tiles.get(self.tile_index) {
+        if let Some(tile_definition) = tile_set.tiles.get(self.definition_index) {
             if let Some(texture) = tile_definition
                 .material
                 .data_ref()
@@ -380,7 +396,7 @@ impl Control for TileView {
 
 pub struct TileViewBuilder {
     widget_builder: WidgetBuilder,
-    tile_index: usize,
+    definition_index: usize,
     local_position: Vector2<i32>,
     tile_set: TileSetResource,
 }
@@ -389,7 +405,7 @@ impl TileViewBuilder {
     pub fn new(tile_set: TileSetResource, widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
-            tile_index: 0,
+            definition_index: 0,
             local_position: Default::default(),
             tile_set,
         }
@@ -400,8 +416,8 @@ impl TileViewBuilder {
         self
     }
 
-    pub fn with_tile_index(mut self, index: usize) -> Self {
-        self.tile_index = index;
+    pub fn with_definition_index(mut self, index: usize) -> Self {
+        self.definition_index = index;
         self
     }
 
@@ -409,7 +425,7 @@ impl TileViewBuilder {
         ctx.add_node(UiNode::new(TileView {
             widget: self.widget_builder.build(),
             selectable: Default::default(),
-            tile_index: self.tile_index,
+            definition_index: self.definition_index,
             local_position: self.local_position,
             tile_set: self.tile_set,
         }))

@@ -26,14 +26,17 @@ use crate::{
         tilemap::tileset::{TileDefinition, TileSet, TileSetResource},
     },
 };
+use fxhash::FxHashMap;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Clone, Reflect, Default, Debug, PartialEq, Visit, ComponentProvider, TypeUuidProvider)]
 #[type_uuid(id = "e429ca1b-a311-46c3-b580-d5a2f49db7e2")]
 pub struct Tile {
-    position: Vector2<i32>,
-    definition_index: usize,
+    pub position: Vector2<i32>,
+    pub definition_index: usize,
 }
+
+pub type Tiles = FxHashMap<Vector2<i32>, Tile>;
 
 #[derive(Clone, Reflect, Debug, Visit, ComponentProvider, TypeUuidProvider)]
 #[type_uuid(id = "aa9a3385-a4af-4faf-a69a-8d3af1a3aa67")]
@@ -41,7 +44,7 @@ pub struct TileMap {
     base: Base,
     tile_set: InheritableVariable<Option<TileSetResource>>,
     #[reflect(read_only)]
-    tiles: InheritableVariable<Vec<Tile>>,
+    tiles: InheritableVariable<Tiles>,
     tile_scale: InheritableVariable<Vector2<f32>>,
 }
 
@@ -54,11 +57,11 @@ impl TileMap {
         self.tile_set.set_value_and_mark_modified(tile_set);
     }
 
-    pub fn tiles(&self) -> &[Tile] {
+    pub fn tiles(&self) -> &Tiles {
         &self.tiles
     }
 
-    pub fn set_tiles(&mut self, tiles: Vec<Tile>) {
+    pub fn set_tiles(&mut self, tiles: Tiles) {
         self.tiles.set_value_and_mark_modified(tiles);
     }
 
@@ -68,6 +71,13 @@ impl TileMap {
 
     pub fn set_tile_scale(&mut self, tile_scale: Vector2<f32>) {
         self.tile_scale.set_value_and_mark_modified(tile_scale);
+    }
+
+    pub fn insert_tile(&mut self, position: Vector2<i32>, tile: Tile) {
+        self.tiles
+            .entry(position)
+            .and_modify(|entry| *entry = tile.clone())
+            .or_insert(tile);
     }
 }
 
@@ -137,7 +147,7 @@ impl NodeTrait for TileMap {
 
         let tile_set = tile_set_resource.data_ref();
 
-        for tile in self.tiles.iter() {
+        for tile in self.tiles.values() {
             let Some(tile_definition) = tile_set.tiles.get(tile.definition_index) else {
                 continue;
             };
@@ -213,7 +223,7 @@ impl NodeTrait for TileMap {
 pub struct TileMapBuilder {
     base_builder: BaseBuilder,
     tile_set: Option<TileSetResource>,
-    tiles: Vec<Tile>,
+    tiles: Tiles,
     tile_scale: Vector2<f32>,
 }
 
@@ -251,7 +261,10 @@ impl TileMapBuilder {
         Self {
             base_builder,
             tile_set,
-            tiles,
+            tiles: tiles
+                .into_iter()
+                .map(|tile| (tile.position, tile))
+                .collect(),
             tile_scale: Vector2::repeat(1.0),
         }
     }
@@ -261,7 +274,7 @@ impl TileMapBuilder {
         self
     }
 
-    pub fn with_tiles(mut self, tiles: Vec<Tile>) -> Self {
+    pub fn with_tiles(mut self, tiles: Tiles) -> Self {
         self.tiles = tiles;
         self
     }

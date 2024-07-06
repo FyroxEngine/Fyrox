@@ -8,7 +8,7 @@ use crate::fyrox::{
 
 #[derive(Default, PartialEq, Debug, Clone)]
 pub struct BrushTile {
-    pub tile_index: usize,
+    pub definition_index: usize,
     pub local_position: Vector2<i32>,
 }
 

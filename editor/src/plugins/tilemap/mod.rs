@@ -4,8 +4,8 @@ pub mod panel;
 pub mod tile_set_import;
 pub mod tileset;
 
-use crate::plugins::tilemap::palette::PaletteMessage;
 use crate::{
+    command::SetPropertyCommand,
     fyrox::{
         core::{
             algebra::{Vector2, Vector3},
@@ -17,17 +17,24 @@ use crate::{
             Uuid,
         },
         engine::Engine,
-        graph::{BaseSceneGraph, SceneGraphNode},
+        graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
         gui::{
             button::ButtonBuilder, message::UiMessage, utils::make_simple_tooltip,
             widget::WidgetBuilder, BuildContext, Thickness, UiNode,
         },
-        scene::{debug::Line, node::Node, tilemap::TileMap},
+        scene::{
+            debug::Line,
+            node::Node,
+            tilemap::{Tile, TileMap, Tiles},
+        },
     },
     interaction::{make_interaction_mode_button, InteractionMode},
+    message::MessageSender,
     plugin::EditorPlugin,
-    plugins::tilemap::{brush::TileMapBrush, panel::TileMapPanel, tileset::TileSetEditor},
-    scene::{controller::SceneController, GameScene, Selection},
+    plugins::tilemap::{
+        brush::TileMapBrush, palette::PaletteMessage, panel::TileMapPanel, tileset::TileSetEditor,
+    },
+    scene::{commands::GameSceneContext, controller::SceneController, GameScene, Selection},
     settings::Settings,
     Editor, Message,
 };
@@ -51,6 +58,10 @@ fn make_button(
     .build(ctx)
 }
 
+struct InteractionContext {
+    previous_tiles: Tiles,
+}
+
 #[derive(TypeUuidProvider)]
 #[type_uuid(id = "33fa8ef9-a29c-45d4-a493-79571edd870a")]
 pub struct TileMapInteractionMode {
@@ -58,31 +69,69 @@ pub struct TileMapInteractionMode {
     tile_map: Handle<Node>,
     brush: Arc<Mutex<TileMapBrush>>,
     brush_position: Vector2<i32>,
+    interaction_context: Option<InteractionContext>,
+    sender: MessageSender,
 }
 
 impl InteractionMode for TileMapInteractionMode {
     fn on_left_mouse_button_down(
         &mut self,
         _editor_selection: &Selection,
-        _controller: &mut dyn SceneController,
-        _engine: &mut Engine,
+        controller: &mut dyn SceneController,
+        engine: &mut Engine,
         _mouse_pos: Vector2<f32>,
         _frame_size: Vector2<f32>,
         _settings: &Settings,
     ) {
-        // TODO
+        let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
+            return;
+        };
+
+        let scene = &engine.scenes[game_scene.scene];
+
+        let Some(tile_map) = scene.graph.try_get_of_type::<TileMap>(self.tile_map) else {
+            return;
+        };
+
+        self.interaction_context = Some(InteractionContext {
+            previous_tiles: tile_map.tiles().clone(),
+        });
     }
 
     fn on_left_mouse_button_up(
         &mut self,
         _editor_selection: &Selection,
-        _controller: &mut dyn SceneController,
-        _engine: &mut Engine,
+        controller: &mut dyn SceneController,
+        engine: &mut Engine,
         _mouse_pos: Vector2<f32>,
         _frame_size: Vector2<f32>,
         _settings: &Settings,
     ) {
-        // TODO
+        let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
+            return;
+        };
+
+        let scene = &mut engine.scenes[game_scene.scene];
+
+        let tile_map_handle = self.tile_map;
+        let Some(tile_map) = scene.graph.try_get_mut_of_type::<TileMap>(tile_map_handle) else {
+            return;
+        };
+
+        if let Some(interaction_context) = self.interaction_context.take() {
+            let new_tiles = tile_map.tiles().clone();
+            tile_map.set_tiles(interaction_context.previous_tiles);
+            self.sender.do_command(SetPropertyCommand::new(
+                "tiles".to_string(),
+                Box::new(new_tiles),
+                move |ctx| {
+                    ctx.get_mut::<GameSceneContext>()
+                        .scene
+                        .graph
+                        .node_mut(tile_map_handle)
+                },
+            ));
+        }
     }
 
     fn on_mouse_move(
@@ -111,6 +160,24 @@ impl InteractionMode for TileMapInteractionMode {
         if let Some(intersection) = ray.plane_intersection_point(&plane) {
             let grid_coord = Vector2::new(intersection.x as i32, intersection.y as i32);
             self.brush_position = grid_coord;
+
+            let Some(tile_map) = scene.graph.try_get_mut_of_type::<TileMap>(self.tile_map) else {
+                return;
+            };
+
+            if self.interaction_context.is_some() {
+                let brush = self.brush.lock();
+                for tile in brush.tiles.iter() {
+                    let position = grid_coord + tile.local_position;
+                    tile_map.insert_tile(
+                        position,
+                        Tile {
+                            position,
+                            definition_index: tile.definition_index,
+                        },
+                    )
+                }
+            }
         }
     }
 
@@ -262,6 +329,8 @@ impl EditorPlugin for TileMapEditorPlugin {
                         tile_map: *node_handle,
                         brush: self.brush.clone(),
                         brush_position: Default::default(),
+                        interaction_context: None,
+                        sender: editor.message_sender.clone(),
                     });
 
                     self.panel = Some(TileMapPanel::new(

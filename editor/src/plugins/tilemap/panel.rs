@@ -35,7 +35,7 @@ impl TileMapPanel {
                         let side_size = 10;
 
                         TileViewBuilder::new(tile_set_resource.clone(), WidgetBuilder::new())
-                            .with_tile_index(index)
+                            .with_definition_index(index)
                             .with_position(Vector2::new(
                                 index as i32 % side_size,
                                 index as i32 / side_size,
