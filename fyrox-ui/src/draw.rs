@@ -11,6 +11,7 @@ use crate::{
     Thickness,
 };
 use bytemuck::{Pod, Zeroable};
+use fyrox_core::math::round_to_step;
 use fyrox_resource::untyped::UntypedResource;
 use std::ops::Range;
 
@@ -663,6 +664,42 @@ pub trait Draw {
             // or be continuous line instead of separate segments.
             self.push_line(prev, next, thickness);
             prev = next;
+        }
+    }
+
+    fn push_grid(&mut self, zoom: f32, cell_size: Vector2<f32>, grid_bounds: Rect<f32>) {
+        let mut local_left_bottom = grid_bounds.left_top_corner();
+        local_left_bottom.x = round_to_step(local_left_bottom.x, cell_size.x);
+        local_left_bottom.y = round_to_step(local_left_bottom.y, cell_size.y);
+
+        let mut local_right_top = grid_bounds.right_bottom_corner();
+        local_right_top.x = round_to_step(local_right_top.x, cell_size.x);
+        local_right_top.y = round_to_step(local_right_top.y, cell_size.y);
+
+        let w = (local_right_top.x - local_left_bottom.x).abs();
+        let h = (local_right_top.y - local_left_bottom.y).abs();
+
+        let nw = ((w / cell_size.x).ceil()) as usize;
+        let nh = ((h / cell_size.y).ceil()) as usize;
+
+        for ny in 0..=nh {
+            let k = ny as f32 / (nh) as f32;
+            let y = local_left_bottom.y + k * h;
+            self.push_line(
+                Vector2::new(local_left_bottom.x - cell_size.x, y),
+                Vector2::new(local_right_top.x + cell_size.x, y),
+                1.0 / zoom,
+            );
+        }
+
+        for nx in 0..=nw {
+            let k = nx as f32 / (nw) as f32;
+            let x = local_left_bottom.x + k * w;
+            self.push_line(
+                Vector2::new(x, local_left_bottom.y + cell_size.y),
+                Vector2::new(x, local_right_top.y - cell_size.y),
+                1.0 / zoom,
+            );
         }
     }
 }

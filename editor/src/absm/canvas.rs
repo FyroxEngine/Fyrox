@@ -2,7 +2,7 @@ use crate::fyrox::{
     core::{
         algebra::{Matrix3, Point2, Vector2},
         color::Color,
-        math::{round_to_step, Rect},
+        math::Rect,
         pool::Handle,
         reflect::prelude::*,
         type_traits::prelude::*,
@@ -309,56 +309,22 @@ uuid_provider!(AbsmCanvas = "100b1c33-d017-4fe6-95e7-e1daf310ef27");
 
 impl Control for AbsmCanvas {
     fn draw(&self, ctx: &mut DrawingContext) {
-        let size = 9999.0;
+        let grid_size = 9999.0;
 
-        let local_bounds = self
+        let grid_bounds = self
             .widget
             .bounding_rect()
-            .inflate(size, size)
-            .translate(Vector2::new(size * 0.5, size * 0.5));
-        DrawingContext::push_rect_filled(ctx, &local_bounds, None);
+            .inflate(grid_size, grid_size)
+            .translate(Vector2::new(grid_size * 0.5, grid_size * 0.5));
+        ctx.push_rect_filled(&grid_bounds, None);
         ctx.commit(
             self.clip_bounds(),
             self.widget.background(),
             CommandTexture::None,
             None,
         );
-        let step_size = 50.0;
 
-        let mut local_left_bottom = local_bounds.left_top_corner();
-        local_left_bottom.x = round_to_step(local_left_bottom.x, step_size);
-        local_left_bottom.y = round_to_step(local_left_bottom.y, step_size);
-
-        let mut local_right_top = local_bounds.right_bottom_corner();
-        local_right_top.x = round_to_step(local_right_top.x, step_size);
-        local_right_top.y = round_to_step(local_right_top.y, step_size);
-
-        let w = (local_right_top.x - local_left_bottom.x).abs();
-        let h = (local_right_top.y - local_left_bottom.y).abs();
-
-        let nw = ((w / step_size).ceil()) as usize;
-        let nh = ((h / step_size).ceil()) as usize;
-
-        for ny in 0..=nh {
-            let k = ny as f32 / (nh) as f32;
-            let y = local_left_bottom.y + k * h;
-            ctx.push_line(
-                Vector2::new(local_left_bottom.x - step_size, y),
-                Vector2::new(local_right_top.x + step_size, y),
-                1.0 / self.zoom,
-            );
-        }
-
-        for nx in 0..=nw {
-            let k = nx as f32 / (nw) as f32;
-            let x = local_left_bottom.x + k * w;
-            ctx.push_line(
-                Vector2::new(x, local_left_bottom.y + step_size),
-                Vector2::new(x, local_right_top.y - step_size),
-                1.0 / self.zoom,
-            );
-        }
-
+        ctx.push_grid(self.zoom, Vector2::repeat(50.0), grid_bounds);
         ctx.commit(
             self.clip_bounds(),
             Brush::Solid(Color::opaque(60, 60, 60)),
