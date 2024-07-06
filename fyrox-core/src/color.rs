@@ -591,6 +591,16 @@ impl Color {
     }
 
     #[inline]
+    pub const fn repeat_opaque(c: u8) -> Self {
+        Self {
+            r: c,
+            g: c,
+            b: c,
+            a: 255,
+        }
+    }
+
+    #[inline]
     pub const fn from_rgba(r: u8, g: u8, b: u8, a: u8) -> Self {
         Self { r, g, b, a }
     }
