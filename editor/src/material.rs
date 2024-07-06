@@ -735,8 +735,9 @@ impl MaterialEditor {
                         .cast::<AssetItem>()
                     {
                         if let Ok(relative_path) = make_relative_path(&asset_item.path) {
-                            let texture =
-                                Some(engine.resource_manager.request::<Texture>(relative_path));
+                            let texture = engine
+                                .resource_manager
+                                .try_request::<Texture>(relative_path);
 
                             engine
                                 .user_interfaces
