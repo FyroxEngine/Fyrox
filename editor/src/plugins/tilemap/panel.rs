@@ -31,7 +31,7 @@ impl TileMapPanel {
                     .tiles
                     .iter()
                     .enumerate()
-                    .map(|(index, tile)| {
+                    .map(|(index, _tile)| {
                         let side_size = 10;
 
                         TileViewBuilder::new(tile_set_resource.clone(), WidgetBuilder::new())
