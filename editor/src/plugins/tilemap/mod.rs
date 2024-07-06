@@ -4,6 +4,7 @@ pub mod panel;
 pub mod tile_set_import;
 pub mod tileset;
 
+use crate::plugins::tilemap::palette::PaletteMessage;
 use crate::{
     fyrox::{
         core::{
@@ -25,7 +26,7 @@ use crate::{
     },
     interaction::{make_interaction_mode_button, InteractionMode},
     plugin::EditorPlugin,
-    plugins::tilemap::{brush::Brush, panel::TileMapPanel, tileset::TileSetEditor},
+    plugins::tilemap::{brush::TileMapBrush, panel::TileMapPanel, tileset::TileSetEditor},
     scene::{controller::SceneController, GameScene, Selection},
     settings::Settings,
     Editor, Message,
@@ -55,7 +56,7 @@ fn make_button(
 pub struct TileMapInteractionMode {
     #[allow(dead_code)]
     tile_map: Handle<Node>,
-    brush: Arc<Mutex<Brush>>,
+    brush: Arc<Mutex<TileMapBrush>>,
     brush_position: Vector2<i32>,
 }
 
@@ -180,7 +181,7 @@ impl InteractionMode for TileMapInteractionMode {
 #[derive(Default)]
 pub struct TileMapEditorPlugin {
     tile_set_editor: Option<TileSetEditor>,
-    brush: Arc<Mutex<Brush>>,
+    brush: Arc<Mutex<TileMapBrush>>,
     panel: Option<TileMapPanel>,
 }
 
@@ -192,13 +193,25 @@ impl EditorPlugin for TileMapEditorPlugin {
     }
 
     fn on_ui_message(&mut self, message: &mut UiMessage, editor: &mut Editor) {
+        let ui = editor.engine.user_interfaces.first_mut();
+
         if let Some(tile_set_editor) = self.tile_set_editor.take() {
             self.tile_set_editor = tile_set_editor.handle_ui_message(
                 message,
-                editor.engine.user_interfaces.first_mut(),
+                ui,
                 &editor.engine.resource_manager,
                 &editor.message_sender,
             );
+        }
+
+        if let Some(panel) = self.panel.take() {
+            if let Some(PaletteMessage::Brush(brush)) = message.data() {
+                if message.destination() == panel.palette {
+                    *self.brush.lock() = brush.clone();
+                }
+            }
+
+            self.panel = panel.handle_ui_message(message, ui);
         }
     }
 
@@ -241,9 +254,9 @@ impl EditorPlugin for TileMapEditorPlugin {
 
             for node_handle in selection.nodes().iter() {
                 if let Some(tile_map) = scene.graph.try_get(*node_handle) {
-                    if tile_map.component_ref::<TileMap>().is_none() {
+                    let Some(tile_map) = tile_map.component_ref::<TileMap>() else {
                         continue;
-                    }
+                    };
 
                     entry.interaction_modes.add(TileMapInteractionMode {
                         tile_map: *node_handle,
@@ -254,6 +267,7 @@ impl EditorPlugin for TileMapEditorPlugin {
                     self.panel = Some(TileMapPanel::new(
                         &mut ui.build_ctx(),
                         editor.scene_viewer.frame(),
+                        tile_map.tile_set().cloned(),
                     ));
 
                     break;

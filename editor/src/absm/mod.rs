@@ -43,7 +43,7 @@ mod connection;
 mod node;
 mod parameter;
 mod segment;
-mod selectable;
+pub mod selectable;
 pub mod selection;
 mod socket;
 mod state_graph;

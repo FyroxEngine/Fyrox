@@ -3,14 +3,13 @@ use crate::fyrox::{
         algebra::{Matrix4, Vector2, Vector3},
         color::Color,
     },
-    scene::{debug::SceneDrawingContext, tilemap::tileset::TileDefinition},
+    scene::debug::SceneDrawingContext,
 };
 
-#[allow(dead_code)] // TODO
-#[derive(Default)]
+#[derive(Default, PartialEq, Debug, Clone)]
 pub struct BrushTile {
-    definition: TileDefinition,
-    local_position: Vector2<i32>,
+    pub tile_index: usize,
+    pub local_position: Vector2<i32>,
 }
 
 impl BrushTile {
@@ -35,12 +34,12 @@ impl BrushTile {
     }
 }
 
-#[derive(Default)]
-pub struct Brush {
-    tiles: Vec<BrushTile>,
+#[derive(Default, PartialEq, Debug, Clone)]
+pub struct TileMapBrush {
+    pub tiles: Vec<BrushTile>,
 }
 
-impl Brush {
+impl TileMapBrush {
     pub fn draw_outline(
         &self,
         ctx: &mut SceneDrawingContext,
