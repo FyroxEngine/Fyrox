@@ -45,6 +45,32 @@ pub struct TileMap {
     tile_scale: InheritableVariable<Vector2<f32>>,
 }
 
+impl TileMap {
+    pub fn tile_set(&self) -> Option<&TileSetResource> {
+        self.tile_set.as_ref()
+    }
+
+    pub fn set_tile_set(&mut self, tile_set: Option<TileSetResource>) {
+        self.tile_set.set_value_and_mark_modified(tile_set);
+    }
+
+    pub fn tiles(&self) -> &[Tile] {
+        &self.tiles
+    }
+
+    pub fn set_tiles(&mut self, tiles: Vec<Tile>) {
+        self.tiles.set_value_and_mark_modified(tiles);
+    }
+
+    pub fn tile_scale(&self) -> Vector2<f32> {
+        *self.tile_scale
+    }
+
+    pub fn set_tile_scale(&mut self, tile_scale: Vector2<f32>) {
+        self.tile_scale.set_value_and_mark_modified(tile_scale);
+    }
+}
+
 impl Default for TileMap {
     fn default() -> Self {
         Self {
