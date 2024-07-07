@@ -203,10 +203,10 @@ impl InteractionMode for TileMapInteractionMode {
         let mut draw_line = |begin: Vector2<i32>, end: Vector2<i32>, color: Color| {
             scene.drawing_context.add_line(Line {
                 begin: transform
-                    .transform_point(&Vector3::new(begin.x as f32, begin.y as f32, 0.0).into())
+                    .transform_point(&Vector3::new(begin.x as f32, begin.y as f32, -0.01).into())
                     .coords,
                 end: transform
-                    .transform_point(&Vector3::new(end.x as f32, end.y as f32, 0.0).into())
+                    .transform_point(&Vector3::new(end.x as f32, end.y as f32, -0.01).into())
                     .coords,
                 color,
             });
