@@ -1,8 +1,4 @@
-use fyrox::fxhash::FxHashMap;
-use fyrox::resource::texture::TextureResource;
-use fyrox::scene::terrain::brushstroke::{
-    BrushSender, BrushThreadMessage, TerrainTextureData, TerrainTextureKind, UndoData,
-};
+use fyrox::scene::terrain::brushstroke::{BrushSender, BrushThreadMessage, UndoData};
 
 use crate::fyrox::core::uuid::{uuid, Uuid};
 use crate::fyrox::core::TypeUuidProvider;
@@ -157,37 +153,19 @@ impl TerrainInteractionMode {
                 return;
             }
         }
-        // Holding shift as start of stroke causes the stroke to reverse lowering and raising.
-        if let BrushMode::Raise { amount } = &mut brush.mode {
-            if shift {
-                *amount *= -1.0;
+        // Reverse the behavior of a brush when shift is held.
+        if shift {
+            match &mut brush.mode {
+                BrushMode::Raise { amount } => {
+                    *amount *= -1.0;
+                }
+                BrushMode::Assign { value } => {
+                    *value = 1.0 - *value;
+                }
+                _ => (),
             }
         }
-        let chunk_size = match brush.target {
-            BrushTarget::HeightMap => terrain.height_map_size(),
-            BrushTarget::LayerMask { .. } => terrain.mask_size(),
-        };
-        let kind = match brush.target {
-            BrushTarget::HeightMap => TerrainTextureKind::Height,
-            BrushTarget::LayerMask { .. } => TerrainTextureKind::Mask,
-        };
-        let resources: FxHashMap<Vector2<i32>, TextureResource> = match brush.target {
-            BrushTarget::HeightMap => terrain
-                .chunks_ref()
-                .iter()
-                .map(|c| (c.grid_position(), c.heightmap().clone()))
-                .collect(),
-            BrushTarget::LayerMask { layer } => terrain
-                .chunks_ref()
-                .iter()
-                .map(|c| (c.grid_position(), c.layer_masks[layer].clone()))
-                .collect(),
-        };
-        let data = TerrainTextureData {
-            chunk_size,
-            kind,
-            resources,
-        };
+        let data = terrain.texture_data(brush.target);
         if let Some(sender) = &self.brush_sender {
             sender.start_stroke(brush, handle, data);
         } else {
@@ -208,10 +186,13 @@ impl TerrainInteractionMode {
         };
         if let Some(sender) = &self.brush_sender {
             if let Some(start) = self.prev_brush_position.take() {
-                self.brush
-                    .smear(start, position, scale, self.brush_value, sender);
+                self.brush.smear(start, position, scale, |p, a| {
+                    sender.draw_pixel(p, a, self.brush_value)
+                });
             } else {
-                self.brush.stamp(position, scale, self.brush_value, sender);
+                self.brush.stamp(position, scale, |p, a| {
+                    sender.draw_pixel(p, a, self.brush_value)
+                });
             }
             self.prev_brush_position = Some(position);
         }
@@ -298,9 +279,12 @@ impl InteractionMode for TerrainInteractionMode {
                             {
                                 self.brush_value = closest.height;
                             } else if let Some(closest) = first {
-                                let p = closest.position;
-                                self.brush_value = terrain
-                                    .interpolate_value(Vector2::new(p.x, p.z), self.brush.target);
+                                let p = terrain.project(closest.position);
+                                self.brush_value = if let Some(position) = p {
+                                    terrain.interpolate_value(position, self.brush.target)
+                                } else {
+                                    0.0
+                                };
                             } else {
                                 self.brush_value = 0.0;
                             }

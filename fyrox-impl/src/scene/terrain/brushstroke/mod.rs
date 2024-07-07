@@ -63,66 +63,6 @@ fn mask_lerp(original: u8, value: f32, t: f32) -> u8 {
     (original * (1.0 - t) + value * t).clamp(0.0, 255.0) as u8
 }
 
-/// A value that is stored in a terrain and can be edited by a brush.
-pub trait BrushValue {
-    /// Increase the value by the given amount, or decrease it if the amount is negative.
-    fn raise(self, amount: f32) -> Self;
-    /// Linear interpolations between two values.
-    fn lerp(self, other: Self, t: f32) -> Self;
-    /// Linear interpolation toward an `f32` value.
-    fn lerp_f32(self, value: f32, t: f32) -> Self;
-    /// Create a value based upon a float representation.
-    fn from_f32(value: f32) -> Self;
-    /// Create an f32 representation of this value.
-    fn into_f32(self) -> f32;
-}
-
-impl BrushValue for f32 {
-    #[inline]
-    fn raise(self, amount: f32) -> Self {
-        self + amount
-    }
-    #[inline]
-    fn lerp(self, value: Self, t: f32) -> Self {
-        self * (1.0 - t) + value * t
-    }
-    #[inline]
-    fn lerp_f32(self, value: f32, t: f32) -> Self {
-        self * (1.0 - t) + value * t
-    }
-    #[inline]
-    fn from_f32(value: f32) -> Self {
-        value
-    }
-    #[inline]
-    fn into_f32(self) -> f32 {
-        self
-    }
-}
-
-impl BrushValue for u8 {
-    #[inline]
-    fn raise(self, amount: f32) -> Self {
-        (self as f32 + amount * 255.0).clamp(0.0, 255.0) as Self
-    }
-    #[inline]
-    fn lerp(self, other: Self, t: f32) -> Self {
-        (self as f32 * (1.0 - t) + other as f32 * t) as Self
-    }
-    #[inline]
-    fn lerp_f32(self, value: f32, t: f32) -> Self {
-        (self as f32 * (1.0 - t) + value * 255.0 * t).clamp(0.0, 255.0) as Self
-    }
-    #[inline]
-    fn from_f32(value: f32) -> Self {
-        (value * 255.0).clamp(0.0, 255.0) as Self
-    }
-    #[inline]
-    fn into_f32(self) -> f32 {
-        self as f32 / 255.0
-    }
-}
-
 /// A message that can be sent to the terrain painting thread to control the painting.
 #[derive(Debug, Clone)]
 pub enum BrushThreadMessage {
@@ -336,6 +276,69 @@ impl BrushStroke {
             ..Default::default()
         }
     }
+    /// The brush that this stroke is using. This is immutable access only, because
+    /// the brush's target may only be changed through [BrushStroke::start_stroke] or
+    /// [BrushStroke::accept_messages].
+    ///
+    /// Mutable access to the brush's other properties is available through
+    /// [BrushStroke::shape], [BrushStroke::mode], [BrushStroke::hardness],
+    /// and [BrushStroke::alpha].
+    pub fn brush(&self) -> &Brush {
+        &self.brush
+    }
+    /// Mutable access to the brush's shape
+    pub fn shape(&mut self) -> &mut BrushShape {
+        &mut self.brush.shape
+    }
+    /// Mutable access to the brush's mode
+    pub fn mode(&mut self) -> &mut BrushMode {
+        &mut self.brush.mode
+    }
+    /// Mutable access to the brush's hardness. The hardness controls how the edges
+    /// of the brush are blended with the original value of the texture.
+    pub fn hardness(&mut self) -> &mut f32 {
+        &mut self.brush.hardness
+    }
+    /// Mutable access to the brush's alpha. The alpha value controls how
+    /// the operation's result is blended with the original value of the texture.
+    pub fn alpha(&mut self) -> &mut f32 {
+        &mut self.brush.alpha
+    }
+    /// Insert a stamp of the brush at the given position with the given texture scale and the given value.
+    /// - `position`: The center of the stamp.
+    /// - `scale`: The size of each pixel in 2D local space. This is used to convert the brush's shape from local space to texture space.
+    /// - `value`: A value that is a parameter for the brush operation.
+    pub fn stamp(&mut self, position: Vector2<f32>, scale: Vector2<f32>, value: f32) {
+        let brush = self.brush.clone();
+        brush.stamp(position, scale, |position, alpha| {
+            self.draw_pixel(BrushPixelMessage {
+                position,
+                alpha,
+                value,
+            })
+        });
+    }
+    /// Insert a smear of the brush at the given position with the given texture scale and the given value.
+    /// - `start`: The center of the smear's start.
+    /// - `end`: The center of the smear's end.
+    /// - `scale`: The size of each pixel in 2D local space. This is used to convert the brush's shape from local space to texture space.
+    /// - `value`: A value that is a parameter for the brush operation.
+    pub fn smear(
+        &mut self,
+        start: Vector2<f32>,
+        end: Vector2<f32>,
+        scale: Vector2<f32>,
+        value: f32,
+    ) {
+        let brush = self.brush.clone();
+        brush.smear(start, end, scale, |position, alpha| {
+            self.draw_pixel(BrushPixelMessage {
+                position,
+                alpha,
+                value,
+            })
+        });
+    }
     /// Prepare this object for a new brushstroke.
     pub fn clear(&mut self) {
         self.height_pixels.clear();
@@ -414,16 +417,26 @@ impl BrushStroke {
                 }
                 // Apply buffered pixels to the terrain textures.
                 self.end_stroke();
-
-                // Prepare to process the next stroke.
-                self.clear();
             }
             BrushThreadMessage::Pixel(pixel) => {
                 message_buffer.push(pixel);
             }
         }
     }
-    fn end_stroke(&mut self) {
+    /// -`brush`: The brush to paint with
+    /// -`node`: The handle of the terrain being modified. It is not used except to pass to `undo_chunk_handler`,
+    /// so it can be safely [Handle::NONE] if `undo_chunk_handler` is None, or if `undo_chunk_handler` is prepared for NONE.
+    /// -`textures`: Hash map of texture resources that this stroke will edit.
+    pub fn start_stroke(&mut self, brush: Brush, node: Handle<Node>, textures: TerrainTextureData) {
+        self.brush = brush;
+        self.node = node;
+        self.chunks.set_layout(textures.kind, textures.chunk_size);
+        self.textures = textures.resources;
+    }
+    /// Send the textures that have been touched by the brush to the undo handler,
+    /// then write the current changes to the textures and clear the stroke to prepare
+    /// for starting a new stroke.
+    pub fn end_stroke(&mut self) {
         if let Some(handler) = &mut self.undo_chunk_handler {
             // Copy the textures that are about to be modified so that the modifications can be undone.
             self.chunks
@@ -437,14 +450,23 @@ impl BrushStroke {
         }
         // Flush pixels to the terrain textures
         self.apply();
+        self.clear();
     }
-    fn handle_pixel_message(&mut self, pixel: BrushPixelMessage) {
+    /// Insert a pixel with the given texture-space coordinates and strength.
+    pub fn draw_pixel(&mut self, pixel: BrushPixelMessage) {
+        let pixel = BrushPixelMessage {
+            alpha: 0.5 * (1.0 - (pixel.alpha * std::f32::consts::PI).cos()),
+            ..pixel
+        };
         let position = pixel.position;
         match self.chunks.kind() {
             TerrainTextureKind::Height => self.accept_pixel_height(pixel),
             TerrainTextureKind::Mask => self.accept_pixel_mask(pixel),
         }
         self.chunks.write(position);
+    }
+    fn handle_pixel_message(&mut self, pixel: BrushPixelMessage) {
+        self.draw_pixel(pixel);
         if self.chunks.count() >= PIXEL_BUFFER_SIZE {
             self.flush();
         }
@@ -545,13 +567,20 @@ impl BrushStroke {
         };
         self.mask_pixels.set_latest(position, result);
     }
-    fn flush(&mut self) {
+    /// Update the texture resources to match the current state of this stroke.
+    pub fn flush(&mut self) {
+        // chunks stores the pixels that we have modified but not yet written to the textures.
+        // If we have an undo handler, we must inform the handler of the textures we are writing to
+        // because we are about to forget that we have written to them.
         if self.undo_chunk_handler.is_some() {
             // Copy the textures that are about to be modified so that the modifications can be undone.
             self.chunks
                 .copy_texture_data(&self.textures, &mut self.undo_chunks);
         }
+        // Do the actual texture modification.
         self.apply();
+        // Erase our memory of having modified these pixels, since they have already been finalized
+        // by writing them to the textures.
         self.chunks.clear();
     }
     fn apply(&self) {
@@ -592,7 +621,7 @@ impl<V> StrokeData<V> {
         if let Some(el) = self.0.get_mut(&position) {
             el.latest_value = value;
         } else {
-            unreachable!("Setting latest value of missing element");
+            panic!("Setting latest value of missing element");
         }
     }
     /// Stores or modifies the StrokeElement at the given position.
@@ -728,7 +757,7 @@ pub enum BrushTarget {
 uuid_provider!(BrushTarget = "461c1be7-189e-44ee-b8fd-00b8fdbc668f");
 
 /// Brush is used to modify terrain. It supports multiple shapes and modes.
-#[derive(Clone, Default, Reflect, Debug)]
+#[derive(Clone, Reflect, Debug)]
 pub struct Brush {
     /// Shape of the brush.
     pub shape: BrushShape,
@@ -746,6 +775,19 @@ pub struct Brush {
     /// 0.0 means the brush is fully transparent and does not draw.
     /// 1.0 means the brush is fully opaque.
     pub alpha: f32,
+}
+
+impl Default for Brush {
+    fn default() -> Self {
+        Self {
+            transform: Matrix2::identity(),
+            hardness: 0.0,
+            alpha: 1.0,
+            shape: Default::default(),
+            mode: Default::default(),
+            target: Default::default(),
+        }
+    }
 }
 
 /// Verify that the brush operation is not so big that it could cause the editor to freeze.
@@ -770,14 +812,11 @@ impl Brush {
     /// - `scale`: The size of each pixel in local 2D space. This is used
     /// to convert the brush's radius from local 2D to pixels.
     /// - `value`: The brush's value. The meaning of this number depends on the brush.
-    /// - `sender`: The sender that will transmit the pixels.
-    pub fn stamp(
-        &self,
-        position: Vector2<f32>,
-        scale: Vector2<f32>,
-        value: f32,
-        sender: &BrushSender,
-    ) {
+    /// - `draw_pixel`: The function that will draw the pixels to the terrain.
+    pub fn stamp<F>(&self, position: Vector2<f32>, scale: Vector2<f32>, mut draw_pixel: F)
+    where
+        F: FnMut(Vector2<i32>, f32),
+    {
         let mut transform = self.transform;
         let x_factor = scale.y / scale.x;
         transform.m11 *= x_factor;
@@ -794,7 +833,7 @@ impl Brush {
                     return;
                 }
                 for BrushPixel { position, strength } in iter {
-                    sender.draw_pixel(position, strength, value);
+                    draw_pixel(position, strength);
                 }
             }
             BrushShape::Rectangle { width, length } => {
@@ -808,7 +847,7 @@ impl Brush {
                     return;
                 }
                 for BrushPixel { position, strength } in iter {
-                    sender.draw_pixel(position, strength, value);
+                    draw_pixel(position, strength);
                 }
             }
         }
@@ -818,16 +857,16 @@ impl Brush {
     /// - `end`: The current position of the brush in texture pixels.
     /// - `scale`: The size of each pixel in local 2D space. This is used
     /// to convert the brush's radius from local 2D to pixels.
-    /// - `value`: The brush's value. The meaning of this number depends on the brush.
-    /// - `sender`: The sender that will transmit the pixels.
-    pub fn smear(
+    /// - `draw_pixel`: The function that will draw the pixels to the terrain.
+    pub fn smear<F>(
         &self,
         start: Vector2<f32>,
         end: Vector2<f32>,
         scale: Vector2<f32>,
-        value: f32,
-        sender: &BrushSender,
-    ) {
+        mut draw_pixel: F,
+    ) where
+        F: FnMut(Vector2<i32>, f32),
+    {
         let mut transform = self.transform;
         let x_factor = scale.y / scale.x;
         transform.m11 *= x_factor;
@@ -845,7 +884,7 @@ impl Brush {
                     return;
                 }
                 for BrushPixel { position, strength } in iter {
-                    sender.draw_pixel(position, strength, value);
+                    draw_pixel(position, strength);
                 }
             }
             BrushShape::Rectangle { width, length } => {
@@ -860,7 +899,7 @@ impl Brush {
                     return;
                 }
                 for BrushPixel { position, strength } in iter {
-                    sender.draw_pixel(position, strength, value);
+                    draw_pixel(position, strength);
                 }
             }
         }

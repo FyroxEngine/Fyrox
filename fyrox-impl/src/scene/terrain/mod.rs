@@ -37,6 +37,7 @@ use crate::{
         terrain::{geometry::TerrainGeometry, quadtree::QuadTree},
     },
 };
+use fxhash::FxHashMap;
 use fyrox_core::uuid_provider;
 use fyrox_graph::BaseSceneGraph;
 use fyrox_resource::untyped::ResourceKind;
@@ -53,7 +54,7 @@ pub mod brushstroke;
 mod geometry;
 mod quadtree;
 
-use brushstroke::*;
+pub use brushstroke::*;
 
 /// Current implementation version marker.
 pub const VERSION: u8 = 1;
@@ -585,6 +586,121 @@ pub struct TerrainRayCastResult {
     pub toi: f32,
 }
 
+/// An object representing the state of a terrain brush being used from code.
+/// It has methods for starting, stopping, stamping, and smearing.
+///
+/// Each BrushContext requires some amount of heap allocation, so it may be preferable
+/// to reuse a BrushContext for multiple strokes when possible.
+///
+/// A single brush stroke can include multiple operations across multiple frames, but
+/// the terrain's texture resources should not be replaced during a stroke because
+/// the BrushContext holds references the the texture resources that the terrain
+/// had when the stroke started, and any brush operations will be applied to those
+/// textures regardless of replacing the textures in the terrain.
+#[derive(Default)]
+pub struct BrushContext {
+    /// Parameter value for the brush. For flattening, this is the target height.
+    /// For flattening, it starts as None and then is given a value based on the first
+    /// stamp or smear.
+    pub value: Option<f32>,
+    /// The pixel and brush data of the in-progress stroke.
+    pub stroke: BrushStroke,
+}
+
+impl BrushContext {
+    /// The current brush. This is immutable access only, because
+    /// the brush's target may only be changed through [BrushContext::start_stroke].
+    ///
+    /// Mutable access to the brush's other properties is available through
+    /// [BrushContext::shape], [BrushContext::mode], [BrushContext::hardness],
+    /// and [BrushContext::alpha].
+    pub fn brush(&self) -> &Brush {
+        self.stroke.brush()
+    }
+    /// Mutable access to the brush's shape. This allows the shape of the brush
+    /// to change without starting a new stroke.
+    pub fn shape(&mut self) -> &mut BrushShape {
+        self.stroke.shape()
+    }
+    /// Mutable access to the brush's mode. This allows the mode of the brush
+    /// to change without starting a new stroke.
+    pub fn mode(&mut self) -> &mut BrushMode {
+        self.stroke.mode()
+    }
+    /// Mutable access to the brush's hardness. This allows the hardness of the brush
+    /// to change without starting a new stroke.
+    pub fn hardness(&mut self) -> &mut f32 {
+        self.stroke.hardness()
+    }
+    /// Mutable access to the brush's alpha. This allows the alpha of the brush
+    /// to change without starting a new stroke.
+    pub fn alpha(&mut self) -> &mut f32 {
+        self.stroke.alpha()
+    }
+    /// Modify the given BrushStroke so that it is using the given Brush and it is modifying the given terrain.
+    /// The BrushContext will now hold references to the textures of this terrain for the target of the given brush,
+    /// and so the stroke should not be used with other terrains until the stroke is finished.
+    /// - `terrain`: The terrain that this stroke will edit.
+    /// - `brush`: The Brush containing the brush shape and painting operation to perform.
+    pub fn start_stroke(&mut self, terrain: &Terrain, brush: Brush) {
+        self.value = None;
+        terrain.start_stroke(brush, &mut self.stroke);
+    }
+    /// Modify the brushstroke to include a stamp of the brush at the given position.
+    /// The location of the stamp relative to the textures is determined based on the global position
+    /// of the terrain and the size of each terrain pixel.
+    /// - `terrain`: The terrain that will be used to translate the given world-space coordinates into
+    /// texture-space coordinates. This should be the same terrain as was given to [BrushContext::start_stroke].
+    /// - `position`: The position of the brush in world coordinates.
+    pub fn stamp(&mut self, terrain: &Terrain, position: Vector3<f32>) {
+        let value = if matches!(self.stroke.brush().mode, BrushMode::Flatten { .. }) {
+            self.interpolate_value(terrain, position)
+        } else {
+            0.0
+        };
+        terrain.stamp(position, value, &mut self.stroke);
+    }
+    /// Modify the brushstroke to include a smear of the brush from `start` to `end`.
+    /// The location of the smear relative to the textures is determined based on the global position
+    /// of the terrain and the size of each terrain pixel.
+    /// - `terrain`: The terrain that will be used to translate the given world-space coordinates into
+    /// texture-space coordinates. This should be the same terrain as was given to [BrushContext::start_stroke].
+    /// - `start`: The start of the brush in world coordinates.
+    /// - `end`: The end of the brush in world coordinates.
+    pub fn smear(&mut self, terrain: &Terrain, start: Vector3<f32>, end: Vector3<f32>) {
+        let value = if matches!(self.stroke.brush().mode, BrushMode::Flatten { .. }) {
+            self.interpolate_value(terrain, start)
+        } else {
+            0.0
+        };
+        terrain.smear(start, end, value, &mut self.stroke);
+    }
+    /// Update the terrain's textures to include the latest pixel data without ending the stroke.
+    pub fn flush(&mut self) {
+        self.stroke.flush();
+    }
+    /// Update the terrain's textures to include the latest data and clear this context of all pixel data
+    /// to prepare for starting another stroke.
+    pub fn end_stroke(&mut self) {
+        self.stroke.end_stroke();
+    }
+}
+
+impl BrushContext {
+    fn interpolate_value(&mut self, terrain: &Terrain, position: Vector3<f32>) -> f32 {
+        if let Some(v) = self.value {
+            return v;
+        }
+        let Some(position) = terrain.project(position) else {
+            return 0.0;
+        };
+        let target = self.stroke.brush().target;
+        let v = terrain.interpolate_value(position, target);
+        self.value = Some(v);
+        v
+    }
+}
+
 /// Terrain is a height field where each point has fixed coordinates in XZ plane, but variable Y coordinate.
 /// It can be used to create landscapes. It supports multiple layers, where each layer has its own material
 /// and mask.
@@ -771,7 +887,7 @@ impl Default for Terrain {
             width_chunks: Default::default(),
             length_chunks: Default::default(),
             height_map_size: Default::default(),
-            block_size: Vector2::new(32, 32).into(),
+            block_size: Vector2::new(33, 33).into(),
             mask_size: Default::default(),
             chunks: Default::default(),
             bounding_box_dirty: Cell::new(true),
@@ -1796,6 +1912,94 @@ impl Terrain {
     /// Returns data for rendering (vertex and index buffers).
     pub fn geometry(&self) -> &TerrainGeometry {
         &self.geometry
+    }
+    /// Create an object that specifies which TextureResources are being used by this terrain
+    /// to hold the data for the given BrushTarget.
+    pub fn texture_data(&self, target: BrushTarget) -> TerrainTextureData {
+        let chunk_size = match target {
+            BrushTarget::HeightMap => self.height_map_size(),
+            BrushTarget::LayerMask { .. } => self.mask_size(),
+        };
+        let kind = match target {
+            BrushTarget::HeightMap => TerrainTextureKind::Height,
+            BrushTarget::LayerMask { .. } => TerrainTextureKind::Mask,
+        };
+        let resources: FxHashMap<Vector2<i32>, TextureResource> = match target {
+            BrushTarget::HeightMap => self
+                .chunks_ref()
+                .iter()
+                .map(|c| (c.grid_position(), c.heightmap().clone()))
+                .collect(),
+            BrushTarget::LayerMask { layer } => self
+                .chunks_ref()
+                .iter()
+                .map(|c| (c.grid_position(), c.layer_masks[layer].clone()))
+                .collect(),
+        };
+        TerrainTextureData {
+            chunk_size,
+            kind,
+            resources,
+        }
+    }
+    /// Modify the given BrushStroke so that it is using the given Brush and it is modifying this terrain.
+    /// The BrushStroke will now hold references to the textures of this terrain for the target of the given brush,
+    /// and so the stroke should not be used with other terrains until the stroke is finished.
+    /// - `brush`: The Brush containing the brush shape and painting operation to perform.
+    /// - `stroke`: The BrushStroke object to be reset to start a new stroke.
+    fn start_stroke(&self, brush: Brush, stroke: &mut BrushStroke) {
+        let target = brush.target;
+        stroke.start_stroke(brush, self.self_handle, self.texture_data(target))
+    }
+    /// Modify the given BrushStroke to include a stamp of its brush at the given position.
+    /// The location of the stamp relative to the textures is determined based on the global position
+    /// of the terrain and the size of each terrain pixel.
+    /// - `position`: The position of the brush in world coordinates.
+    /// - `value`: The value of the brush stroke, whose meaning depends on the brush operation.
+    /// For flatten brush operations, this is the target value to flatten toward.
+    /// - `stroke`: The BrushStroke object to be modified.
+    fn stamp(&self, position: Vector3<f32>, value: f32, stroke: &mut BrushStroke) {
+        let Some(position) = self.project(position) else {
+            return;
+        };
+        let position = match stroke.brush().target {
+            BrushTarget::HeightMap => self.local_to_height_pixel(position),
+            BrushTarget::LayerMask { .. } => self.local_to_mask_pixel(position),
+        };
+        let scale = match stroke.brush().target {
+            BrushTarget::HeightMap => self.height_grid_scale(),
+            BrushTarget::LayerMask { .. } => self.mask_grid_scale(),
+        };
+        stroke.stamp(position, scale, value);
+    }
+    /// Modify the given BrushStroke to include a stamp of its brush at the given position.
+    /// The location of the stamp relative to the textures is determined based on the global position
+    /// of the terrain and the size of each terrain pixel.
+    /// - `start`: The start of the smear in world coordinates.
+    /// - `end`: The end of the smear in world coordinates.
+    /// - `value`: The value of the brush stroke, whose meaning depends on the brush operation.
+    /// For flatten brush operations, this is the target value to flatten toward.
+    /// - `stroke`: The BrushStroke object to be modified.
+    fn smear(&self, start: Vector3<f32>, end: Vector3<f32>, value: f32, stroke: &mut BrushStroke) {
+        let Some(start) = self.project(start) else {
+            return;
+        };
+        let Some(end) = self.project(end) else {
+            return;
+        };
+        let start = match stroke.brush().target {
+            BrushTarget::HeightMap => self.local_to_height_pixel(start),
+            BrushTarget::LayerMask { .. } => self.local_to_mask_pixel(start),
+        };
+        let end = match stroke.brush().target {
+            BrushTarget::HeightMap => self.local_to_height_pixel(end),
+            BrushTarget::LayerMask { .. } => self.local_to_mask_pixel(end),
+        };
+        let scale = match stroke.brush().target {
+            BrushTarget::HeightMap => self.height_grid_scale(),
+            BrushTarget::LayerMask { .. } => self.mask_grid_scale(),
+        };
+        stroke.smear(start, end, scale, value);
     }
 }
 
