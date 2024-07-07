@@ -108,7 +108,18 @@ impl NodeTrait for TileMap {
     crate::impl_query_component!();
 
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
-        AxisAlignedBoundingBox::unit()
+        let mut min = Vector2::repeat(i32::MAX);
+        let mut max = Vector2::repeat(i32::MIN);
+
+        for tile in self.tiles.values() {
+            min = tile.position.inf(&min);
+            max = tile.position.sup(&max);
+        }
+
+        let min_pos = min.cast::<f32>().to_homogeneous();
+        let max_pos = max.cast::<f32>().to_homogeneous();
+
+        AxisAlignedBoundingBox::from_min_max(min_pos, max_pos)
     }
 
     fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
