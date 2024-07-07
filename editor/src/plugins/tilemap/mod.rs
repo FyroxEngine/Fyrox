@@ -167,13 +167,13 @@ impl InteractionMode for TileMapInteractionMode {
 
             if self.interaction_context.is_some() {
                 let brush = self.brush.lock();
-                for tile in brush.tiles.iter() {
-                    let position = grid_coord + tile.local_position;
+                for brush_tile in brush.tiles.iter() {
+                    let position = grid_coord + brush_tile.local_position;
                     tile_map.insert_tile(
                         position,
                         Tile {
                             position,
-                            definition_index: tile.definition_index,
+                            definition_index: brush_tile.definition_index,
                         },
                     )
                 }

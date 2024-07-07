@@ -122,6 +122,9 @@ impl PaletteWidget {
 
         for tile in tiles.iter_mut() {
             tile.local_position -= origin;
+            // Flip the position, because world's coordinate system is X-left Y-up, but palette has
+            // X-right Y-down.
+            tile.local_position = -tile.local_position;
         }
 
         TileMapBrush { tiles }
@@ -360,11 +363,11 @@ impl Control for TileView {
                         ),
                         Vector2::new(
                             tile_definition.uv_rect.position.x + tile_definition.uv_rect.size.x,
-                            tile_definition.uv_rect.position.y - tile_definition.uv_rect.size.y,
+                            tile_definition.uv_rect.position.y + tile_definition.uv_rect.size.y,
                         ),
                         Vector2::new(
                             tile_definition.uv_rect.position.x,
-                            tile_definition.uv_rect.position.y - tile_definition.uv_rect.size.y,
+                            tile_definition.uv_rect.position.y + tile_definition.uv_rect.size.y,
                         ),
                     ]),
                 );

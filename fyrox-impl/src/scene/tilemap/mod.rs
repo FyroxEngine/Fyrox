@@ -3,10 +3,9 @@
 pub mod tileset;
 
 use crate::{
-    asset::untyped::ResourceKind,
     core::{
         algebra::{Vector2, Vector3},
-        math::{aabb::AxisAlignedBoundingBox, Rect, TriangleDefinition},
+        math::{aabb::AxisAlignedBoundingBox, TriangleDefinition},
         pool::Handle,
         reflect::prelude::*,
         type_traits::prelude::*,
@@ -15,7 +14,6 @@ use crate::{
         visitor::prelude::*,
     },
     graph::BaseSceneGraph,
-    material::{Material, MaterialResource},
     renderer::{self, bundle::RenderContext},
     scene::{
         base::{Base, BaseBuilder},
@@ -23,7 +21,7 @@ use crate::{
         graph::Graph,
         mesh::{buffer::VertexTrait, RenderPath},
         node::{Node, NodeTrait, RdcControlFlow},
-        tilemap::tileset::{TileDefinition, TileSet, TileSetResource},
+        tilemap::tileset::TileSetResource,
     },
 };
 use fxhash::FxHashMap;
@@ -229,42 +227,10 @@ pub struct TileMapBuilder {
 
 impl TileMapBuilder {
     pub fn new(base_builder: BaseBuilder) -> Self {
-        // TODO: testing
-        let tile_set = TileSet {
-            tiles: vec![TileDefinition {
-                material: MaterialResource::new_ok(ResourceKind::Embedded, Material::standard_2d()),
-                uv_rect: Rect::new(0.0, 0.0, 1.0, 1.0),
-                collider: Default::default(),
-                color: Default::default(),
-                id: Uuid::new_v4(),
-            }],
-        };
-
-        let tile_set = Some(TileSetResource::new_ok(ResourceKind::Embedded, tile_set));
-
-        let tiles = vec![
-            Tile {
-                position: Default::default(),
-                definition_index: 0,
-            },
-            Tile {
-                position: Vector2::new(1, 0),
-                definition_index: 0,
-            },
-            Tile {
-                position: Vector2::new(0, 1),
-                definition_index: 0,
-            },
-        ];
-        // TODO: testing
-
         Self {
             base_builder,
-            tile_set,
-            tiles: tiles
-                .into_iter()
-                .map(|tile| (tile.position, tile))
-                .collect(),
+            tile_set: None,
+            tiles: Default::default(),
             tile_scale: Vector2::repeat(1.0),
         }
     }
