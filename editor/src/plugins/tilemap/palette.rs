@@ -23,6 +23,7 @@ use crate::{
     },
     plugins::tilemap::brush::{BrushTile, TileMapBrush},
 };
+use fyrox::core::math::OptionRect;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Debug, PartialEq, Clone)]
@@ -46,6 +47,19 @@ pub(super) struct DragContext {
     entries: Vec<Entry>,
 }
 
+#[derive(Clone, Debug, Visit, Reflect, PartialEq)]
+enum Mode {
+    None,
+    Panning {
+        initial_view_position: Vector2<f32>,
+        click_position: Vector2<f32>,
+    },
+    Selecting {
+        click_position: Vector2<f32>,
+    },
+    Dragging(DragContext),
+}
+
 #[derive(Clone, Debug, Visit, Reflect, TypeUuidProvider, ComponentProvider)]
 #[type_uuid(id = "5356a864-c026-4bd7-a4b1-30bacf77d8fa")]
 pub struct PaletteWidget {
@@ -54,11 +68,8 @@ pub struct PaletteWidget {
     view_position: Vector2<f32>,
     zoom: f32,
     tile_size: Vector2<f32>,
-    initial_view_position: Vector2<f32>,
-    click_position: Vector2<f32>,
-    is_dragging_view: bool,
-    drag_context: Option<DragContext>,
     selection: Vec<Handle<UiNode>>,
+    mode: Mode,
 }
 
 define_widget_deref!(PaletteWidget);
@@ -156,10 +167,17 @@ impl PaletteWidget {
             ));
 
             // Make sure to update dragging context if we're in Drag mode.
-            if self.drag_context.is_some() {
-                self.drag_context = Some(self.make_drag_context(ui));
+            if let Mode::Dragging(_) = self.mode {
+                self.mode = Mode::Dragging(self.make_drag_context(ui));
             }
         }
+    }
+
+    fn local_to_grid_pos(&self, pos: Vector2<f32>) -> Vector2<i32> {
+        Vector2::new(
+            (pos.x / self.tile_size.x) as i32,
+            (pos.y / self.tile_size.y) as i32,
+        )
     }
 }
 
@@ -234,46 +252,103 @@ impl Control for PaletteWidget {
             }
         } else if let Some(WidgetMessage::MouseDown { pos, button }) = message.data() {
             if *button == MouseButton::Middle {
-                self.is_dragging_view = true;
-                self.click_position = *pos;
-                self.initial_view_position = self.view_position;
-
+                self.mode = Mode::Panning {
+                    initial_view_position: self.view_position,
+                    click_position: *pos,
+                };
                 ui.capture_mouse(self.handle());
             } else if *button == MouseButton::Left && !message.handled() {
                 if message.destination() != self.handle {
-                    self.drag_context = Some(self.make_drag_context(ui));
+                    if ui.keyboard_modifiers().alt {
+                        self.mode = Mode::Dragging(self.make_drag_context(ui));
+                    } else {
+                        self.mode = Mode::Selecting {
+                            click_position: *pos,
+                        };
+                    }
                 } else {
                     self.set_selection(&[], ui);
                 }
             }
-        } else if let Some(WidgetMessage::MouseUp { button, pos }) = message.data() {
+        } else if let Some(WidgetMessage::MouseUp { button, .. }) = message.data() {
             if *button == MouseButton::Middle {
-                self.is_dragging_view = false;
-
-                ui.release_mouse_capture();
+                if matches!(self.mode, Mode::Panning { .. }) {
+                    self.mode = Mode::None;
+                    ui.release_mouse_capture();
+                }
             } else if *button == MouseButton::Left {
-                if let Some(drag_context) = self.drag_context.take() {
-                    if self.screen_to_local(*pos) != drag_context.initial_cursor_position {}
+                match self.mode {
+                    Mode::Selecting { .. } => {
+                        self.mode = Mode::None;
+                    }
+                    Mode::Dragging(ref drag_context) => {
+                        for entry in drag_context.entries.iter() {
+                            let tile = ui.try_get_of_type::<TileView>(entry.node).unwrap();
+                            for other_tile_handle in self.tiles.iter() {
+                                let other_tile =
+                                    ui.try_get_of_type::<TileView>(*other_tile_handle).unwrap();
+                                if !std::ptr::eq(tile, other_tile)
+                                    && other_tile.local_position == tile.local_position
+                                {
+                                    ui.send_message(WidgetMessage::remove(
+                                        *other_tile_handle,
+                                        MessageDirection::ToWidget,
+                                    ));
+                                }
+                            }
+                        }
+
+                        self.mode = Mode::None;
+                    }
+                    _ => (),
                 }
             }
         } else if let Some(WidgetMessage::MouseMove { pos, .. }) = message.data() {
-            if self.is_dragging_view {
-                self.view_position = self.initial_view_position + (*pos - self.click_position);
-                self.update_transform(ui);
-            }
+            let local_cursor_pos = self.point_to_local_space(*pos);
 
-            if let Some(drag_context) = self.drag_context.as_ref() {
-                for entry in drag_context.entries.iter() {
-                    let local_cursor_pos = self.point_to_local_space(*pos);
+            match self.mode {
+                Mode::None => {}
+                Mode::Selecting { click_position } => {
+                    let local_click_position = self.point_to_local_space(click_position);
+                    let grid_click_position = self.local_to_grid_pos(local_click_position);
+                    let current_grid_position = self.local_to_grid_pos(local_cursor_pos);
 
-                    let new_position = entry.initial_position
-                        + (local_cursor_pos - drag_context.initial_cursor_position);
+                    let mut rect = OptionRect::default();
 
-                    ui.send_message(WidgetMessage::desired_position(
-                        entry.node,
-                        MessageDirection::ToWidget,
-                        new_position,
-                    ));
+                    rect.push(grid_click_position);
+                    rect.push(current_grid_position);
+
+                    let selection_bounds = rect.unwrap();
+
+                    let mut selection = Vec::new();
+                    for tile in self.tiles.iter() {
+                        let tile_ref = ui.try_get_of_type::<TileView>(*tile).unwrap();
+                        if selection_bounds.contains(tile_ref.local_position) {
+                            selection.push(*tile);
+                        }
+                    }
+                    self.set_selection(&selection, ui);
+                }
+                Mode::Dragging(ref drag_context) => {
+                    for entry in drag_context.entries.iter() {
+                        let new_position = entry.initial_position
+                            + (local_cursor_pos - drag_context.initial_cursor_position);
+
+                        let grid_position = self.local_to_grid_pos(new_position);
+
+                        ui.send_message(TileViewMessage::local_position(
+                            entry.node,
+                            MessageDirection::ToWidget,
+                            grid_position,
+                        ));
+                    }
+                }
+                Mode::Panning {
+                    initial_view_position,
+                    click_position,
+                } => {
+                    self.view_position = initial_view_position + (*pos - click_position);
+                    self.update_transform(ui);
                 }
             }
         } else if let Some(WidgetMessage::MouseWheel { amount, pos }) = message.data() {
@@ -286,6 +361,22 @@ impl Control for PaletteWidget {
             self.view_position -= (new_cursor_pos - cursor_pos).scale(self.zoom);
 
             self.update_transform(ui);
+        } else if let Some(WidgetMessage::Remove) = message.data() {
+            if let Some(position) = self
+                .tiles
+                .iter()
+                .position(|handle| *handle == message.destination())
+            {
+                self.tiles.remove(position);
+            }
+
+            if let Some(position) = self
+                .selection
+                .iter()
+                .position(|handle| *handle == message.destination())
+            {
+                self.selection.remove(position);
+            }
         }
     }
 }
@@ -319,13 +410,19 @@ impl PaletteWidgetBuilder {
             view_position: Default::default(),
             zoom: 1.0,
             tile_size: Vector2::repeat(32.0),
-            initial_view_position: Default::default(),
-            click_position: Default::default(),
-            is_dragging_view: false,
-            drag_context: None,
             selection: Default::default(),
+            mode: Mode::None,
         }))
     }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum TileViewMessage {
+    LocalPosition(Vector2<i32>),
+}
+
+impl TileViewMessage {
+    define_constructor!(TileViewMessage:LocalPosition => fn local_position(Vector2<i32>), layout: false);
 }
 
 #[derive(Clone, Debug, Visit, Reflect, TypeUuidProvider, ComponentProvider)]
@@ -390,10 +487,19 @@ impl Control for TileView {
             );
         }
     }
+
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
         self.selectable
             .handle_routed_message(self.handle, ui, message);
+        if let Some(TileViewMessage::LocalPosition(position)) = message.data() {
+            if message.destination() == self.handle
+                && message.direction() == MessageDirection::ToWidget
+            {
+                self.local_position = *position;
+                self.invalidate_layout();
+            }
+        }
     }
 }
 
