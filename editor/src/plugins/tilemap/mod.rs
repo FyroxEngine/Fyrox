@@ -32,7 +32,10 @@ use crate::{
     message::MessageSender,
     plugin::EditorPlugin,
     plugins::tilemap::{
-        brush::TileMapBrush, palette::PaletteMessage, panel::TileMapPanel, tileset::TileSetEditor,
+        brush::{TileMapBrush, TileMapBrushLoader},
+        palette::PaletteMessage,
+        panel::TileMapPanel,
+        tileset::TileSetEditor,
     },
     scene::{commands::GameSceneContext, controller::SceneController, GameScene, Selection},
     settings::Settings,
@@ -253,6 +256,14 @@ pub struct TileMapEditorPlugin {
 }
 
 impl EditorPlugin for TileMapEditorPlugin {
+    fn on_start(&mut self, editor: &mut Editor) {
+        let mut resource_manager = editor.engine.resource_manager.state();
+        resource_manager
+            .constructors_container
+            .add::<TileMapBrush>();
+        resource_manager.loaders.set(TileMapBrushLoader {});
+    }
+
     fn on_sync_to_model(&mut self, editor: &mut Editor) {
         if let Some(tile_set_editor) = self.tile_set_editor.as_mut() {
             tile_set_editor.sync_to_model(editor.engine.user_interfaces.first_mut());
