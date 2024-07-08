@@ -218,10 +218,11 @@ where
 #[derive(Debug, Clone)]
 pub struct SmearPixels<R> {
     brush_raster: R,
-    start: Vector2<f32>,
-    end: Vector2<f32>,
+    segment: LineSegment2<f32>,
+    aspect_segment: LineSegment2<f32>,
     hardness: f32,
     inv_transform: Matrix2<f32>,
+    aspect_transform: Matrix2<f32>,
     bounds_iter: RectIter,
 }
 
@@ -248,12 +249,22 @@ impl<R> SmearPixels<R> {
             .unwrap_or((Matrix2::identity(), Matrix2::identity()));
         bounds.extend_to_contain(brush_raster.transformed_bounds(start, &transform));
         bounds.extend_to_contain(brush_raster.transformed_bounds(end, &transform));
+        let segment = LineSegment2::new(&start, &end);
+        let aspect_bounds = brush_raster.bounds();
+        let aspect_transform =
+            Matrix2::new(1.0 / aspect_bounds.w(), 0.0, 0.0, 1.0 / aspect_bounds.h());
+        let aspect_transform = aspect_transform * inv_transform;
+        let aspect_segment = LineSegment2 {
+            start: aspect_transform * segment.start,
+            end: aspect_transform * segment.end,
+        };
         Self {
             brush_raster,
-            start,
-            end,
+            segment,
+            aspect_segment,
             hardness,
             inv_transform,
+            aspect_transform,
             bounds_iter: RectIter::new(bounds.unwrap()),
         }
     }
@@ -269,12 +280,14 @@ where
         let position = self.bounds_iter.next()?;
         let fx = position.x as f32;
         let fy = position.y as f32;
-        let segment = LineSegment2::new(&self.start, &self.end);
-        let center = segment.nearest_point(&Vector2::new(fx, fy));
-        let p = Vector2::new(fx, fy) - center;
+        let p = Vector2::new(fx, fy);
+        let aspect_p = self.aspect_transform * p;
+        let t = self.aspect_segment.nearest_t(&aspect_p);
+        let center = self.segment.interpolate_clamped(t);
+        let p = p - center;
         let p = self.inv_transform * p;
-        let strength = self.brush_raster.strength_at(p);
-        let strength = apply_hardness(self.hardness, strength);
+        let s = self.brush_raster.strength_at(p);
+        let strength = apply_hardness(self.hardness, s);
         Some(BrushPixel { position, strength })
     }
 }
