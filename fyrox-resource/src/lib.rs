@@ -310,6 +310,17 @@ where
             phantom: Default::default(),
         }
     }
+
+    /// Tries to save the resource to the specified path.
+    pub fn save(&self, path: &Path) -> Result<(), Box<dyn Error>> {
+        self.untyped.save(path)
+    }
+
+    /// Tries to save the resource back to its external location. This method will fail on attempt
+    /// to save embedded resource, because embedded resources does not have external location.
+    pub fn save_back(&self) -> Result<(), Box<dyn Error>> {
+        self.untyped.save_back()
+    }
 }
 
 impl<T> Default for Resource<T>

@@ -4,25 +4,22 @@
 
 use crate::{
     core::{
-        parking_lot::Mutex, reflect::prelude::*, uuid::Uuid, visitor::prelude::*, TypeUuidProvider,
+        math::curve::Curve, parking_lot::Mutex, reflect::prelude::*, uuid, uuid::Uuid,
+        visitor::prelude::*, visitor::RegionGuard, TypeUuidProvider,
     },
     manager::ResourceManager,
     state::{LoadError, ResourceState},
     Resource, ResourceData, ResourceLoadError, TypedResourceData, CURVE_RESOURCE_UUID,
     MODEL_RESOURCE_UUID, SHADER_RESOURCE_UUID, SOUND_BUFFER_RESOURCE_UUID, TEXTURE_RESOURCE_UUID,
 };
-use fyrox_core::math::curve::Curve;
-use fyrox_core::uuid;
-use fyrox_core::visitor::RegionGuard;
-use std::ffi::OsStr;
-use std::fmt::Display;
-use std::path::Path;
 use std::{
-    fmt::{Debug, Formatter},
+    error::Error,
+    ffi::OsStr,
+    fmt::{Debug, Display, Formatter},
     future::Future,
     hash::{Hash, Hasher},
     marker::PhantomData,
-    path::PathBuf,
+    path::{Path, PathBuf},
     pin::Pin,
     sync::Arc,
     task::{Context, Poll},
@@ -367,6 +364,26 @@ impl UntypedResource {
     /// Set a new path for the untyped resource.
     pub fn set_kind(&self, new_kind: ResourceKind) {
         self.0.lock().kind = new_kind;
+    }
+
+    /// Tries to save the resource to the specified path.
+    pub fn save(&self, path: &Path) -> Result<(), Box<dyn Error>> {
+        let mut guard = self.0.lock();
+        match guard.state {
+            ResourceState::Pending { .. } | ResourceState::LoadError { .. } => {
+                Err("Unable to save unloaded resource!".into())
+            }
+            ResourceState::Ok(ref mut data) => data.save(path),
+        }
+    }
+
+    /// Tries to save the resource back to its external location. This method will fail on attempt
+    /// to save embedded resource, because embedded resources does not have external location.
+    pub fn save_back(&self) -> Result<(), Box<dyn Error>> {
+        match self.kind() {
+            ResourceKind::Embedded => Err("Embedded resource cannot be saved!".into()),
+            ResourceKind::External(path) => self.save(&path),
+        }
     }
 
     /// Tries to cast untyped resource to a particular type.
