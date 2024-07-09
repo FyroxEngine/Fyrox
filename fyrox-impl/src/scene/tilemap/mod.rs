@@ -1,5 +1,6 @@
 #![allow(missing_docs)] // TODO
 
+pub mod brush;
 pub mod tileset;
 
 use crate::{
@@ -21,7 +22,7 @@ use crate::{
         graph::Graph,
         mesh::{buffer::VertexTrait, RenderPath},
         node::{Node, NodeTrait, RdcControlFlow},
-        tilemap::tileset::TileSetResource,
+        tilemap::{brush::TileMapBrushResource, tileset::TileSetResource},
     },
 };
 use fxhash::FxHashMap;
@@ -44,6 +45,8 @@ pub struct TileMap {
     #[reflect(read_only)]
     tiles: InheritableVariable<Tiles>,
     tile_scale: InheritableVariable<Vector2<f32>>,
+    brushes: InheritableVariable<Vec<Option<TileMapBrushResource>>>,
+    active_brush: InheritableVariable<Option<TileMapBrushResource>>,
 }
 
 impl TileMap {
@@ -77,6 +80,22 @@ impl TileMap {
             .and_modify(|entry| *entry = tile.clone())
             .or_insert(tile);
     }
+
+    pub fn active_brush(&self) -> Option<TileMapBrushResource> {
+        (*self.active_brush).clone()
+    }
+
+    pub fn set_active_brush(&mut self, brush: Option<TileMapBrushResource>) {
+        self.active_brush.set_value_and_mark_modified(brush);
+    }
+
+    pub fn brushes(&self) -> &[Option<TileMapBrushResource>] {
+        &self.brushes
+    }
+
+    pub fn set_brushes(&mut self, brushes: Vec<Option<TileMapBrushResource>>) {
+        self.brushes.set_value_and_mark_modified(brushes);
+    }
 }
 
 impl Default for TileMap {
@@ -86,6 +105,8 @@ impl Default for TileMap {
             tile_set: Default::default(),
             tiles: Default::default(),
             tile_scale: Vector2::repeat(1.0).into(),
+            brushes: Default::default(),
+            active_brush: Default::default(),
         }
     }
 }
@@ -234,6 +255,7 @@ pub struct TileMapBuilder {
     tile_set: Option<TileSetResource>,
     tiles: Tiles,
     tile_scale: Vector2<f32>,
+    brushes: Vec<Option<TileMapBrushResource>>,
 }
 
 impl TileMapBuilder {
@@ -243,6 +265,7 @@ impl TileMapBuilder {
             tile_set: None,
             tiles: Default::default(),
             tile_scale: Vector2::repeat(1.0),
+            brushes: Default::default(),
         }
     }
 
@@ -261,12 +284,19 @@ impl TileMapBuilder {
         self
     }
 
+    pub fn with_brushes(mut self, brushes: Vec<Option<TileMapBrushResource>>) -> Self {
+        self.brushes = brushes;
+        self
+    }
+
     pub fn build_node(self) -> Node {
         Node::new(TileMap {
             base: self.base_builder.build_base(),
             tile_set: self.tile_set.into(),
             tiles: self.tiles.into(),
             tile_scale: self.tile_scale.into(),
+            brushes: self.brushes.into(),
+            active_brush: Default::default(),
         })
     }
 

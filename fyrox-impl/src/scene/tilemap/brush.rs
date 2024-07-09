@@ -1,4 +1,4 @@
-use crate::fyrox::{
+use crate::{
     asset::{
         io::ResourceIo,
         loader::{BoxedLoaderFuture, LoaderPayload, ResourceLoader},

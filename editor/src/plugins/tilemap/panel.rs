@@ -1,6 +1,7 @@
 use crate::{
     fyrox::{
-        core::{algebra::Vector2, pool::Handle},
+        asset::manager::ResourceManager,
+        core::pool::Handle,
         gui::{
             grid::GridBuilder,
             message::{MessageDirection, UiMessage},
@@ -8,9 +9,9 @@ use crate::{
             window::{WindowBuilder, WindowMessage, WindowTitle},
             BuildContext, HorizontalAlignment, Thickness, UiNode, UserInterface, VerticalAlignment,
         },
-        scene::tilemap::tileset::TileSetResource,
+        scene::tilemap::TileMap,
     },
-    plugins::tilemap::palette::{PaletteWidgetBuilder, TileViewBuilder},
+    plugins::{tilemap::palette::PaletteMessage, tilemap::palette::PaletteWidgetBuilder},
 };
 
 pub struct TileMapPanel {
@@ -22,33 +23,13 @@ impl TileMapPanel {
     pub fn new(
         ctx: &mut BuildContext,
         scene_frame: Handle<UiNode>,
-        tile_set: Option<TileSetResource>,
+        resource_manager: ResourceManager,
+        tile_map: &TileMap,
     ) -> Self {
-        let tiles = tile_set
-            .map(|tile_set_resource| {
-                let tile_set = tile_set_resource.data_ref();
-                tile_set
-                    .tiles
-                    .iter()
-                    .enumerate()
-                    .map(|(index, _tile)| {
-                        let side_size = 11;
-
-                        TileViewBuilder::new(tile_set_resource.clone(), WidgetBuilder::new())
-                            .with_definition_index(index)
-                            .with_position(Vector2::new(
-                                index as i32 % side_size,
-                                index as i32 / side_size,
-                            ))
-                            .build(ctx)
-                    })
-                    .collect::<Vec<_>>()
-            })
-            .unwrap_or_default();
-
         let palette = PaletteWidgetBuilder::new(WidgetBuilder::new())
-            .with_tiles(tiles)
-            .build(ctx);
+            .with_brush(tile_map.active_brush())
+            .with_tile_set(tile_map.tile_set().cloned())
+            .build(resource_manager, ctx);
 
         let content = GridBuilder::new(WidgetBuilder::new().with_child(palette)).build(ctx);
 
@@ -90,5 +71,19 @@ impl TileMapPanel {
         }
 
         Some(self)
+    }
+
+    pub fn sync_to_model(&self, ui: &UserInterface, tile_map: &TileMap) {
+        ui.send_message(PaletteMessage::brush_resource(
+            self.palette,
+            MessageDirection::ToWidget,
+            tile_map.active_brush(),
+        ));
+
+        ui.send_message(PaletteMessage::tile_set(
+            self.palette,
+            MessageDirection::ToWidget,
+            tile_map.tile_set().cloned(),
+        ));
     }
 }

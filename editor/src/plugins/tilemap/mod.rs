@@ -1,4 +1,3 @@
-pub mod brush;
 pub mod palette;
 pub mod panel;
 pub mod tile_set_import;
@@ -25,18 +24,13 @@ use crate::{
         scene::{
             debug::Line,
             node::Node,
-            tilemap::{Tile, TileMap, Tiles},
+            tilemap::{brush::TileMapBrush, Tile, TileMap, Tiles},
         },
     },
     interaction::{make_interaction_mode_button, InteractionMode},
     message::MessageSender,
     plugin::EditorPlugin,
-    plugins::tilemap::{
-        brush::{TileMapBrush, TileMapBrushLoader},
-        palette::PaletteMessage,
-        panel::TileMapPanel,
-        tileset::TileSetEditor,
-    },
+    plugins::tilemap::{palette::PaletteMessage, panel::TileMapPanel, tileset::TileSetEditor},
     scene::{commands::GameSceneContext, controller::SceneController, GameScene, Selection},
     settings::Settings,
     Editor, Message,
@@ -256,17 +250,37 @@ pub struct TileMapEditorPlugin {
 }
 
 impl EditorPlugin for TileMapEditorPlugin {
-    fn on_start(&mut self, editor: &mut Editor) {
-        let mut resource_manager = editor.engine.resource_manager.state();
-        resource_manager
-            .constructors_container
-            .add::<TileMapBrush>();
-        resource_manager.loaders.set(TileMapBrushLoader {});
-    }
-
     fn on_sync_to_model(&mut self, editor: &mut Editor) {
+        let ui = editor.engine.user_interfaces.first_mut();
+
         if let Some(tile_set_editor) = self.tile_set_editor.as_mut() {
-            tile_set_editor.sync_to_model(editor.engine.user_interfaces.first_mut());
+            tile_set_editor.sync_to_model(ui);
+        }
+
+        let Some(entry) = editor.scenes.current_scene_entry_mut() else {
+            return;
+        };
+
+        let Some(selection) = entry.selection.as_graph() else {
+            return;
+        };
+
+        let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() else {
+            return;
+        };
+
+        let scene = &mut editor.engine.scenes[game_scene.scene];
+
+        for node_handle in selection.nodes().iter() {
+            if let Some(tile_map_node) = scene.graph.try_get(*node_handle) {
+                let Some(tile_map) = tile_map_node.component_ref::<TileMap>() else {
+                    continue;
+                };
+
+                if let Some(panel) = self.panel.as_mut() {
+                    panel.sync_to_model(ui, tile_map);
+                }
+            }
         }
     }
 
@@ -283,7 +297,7 @@ impl EditorPlugin for TileMapEditorPlugin {
         }
 
         if let Some(panel) = self.panel.take() {
-            if let Some(PaletteMessage::Brush(brush)) = message.data() {
+            if let Some(PaletteMessage::ActiveBrush(brush)) = message.data() {
                 if message.destination() == panel.palette {
                     *self.brush.lock() = brush.clone();
                 }
@@ -347,7 +361,8 @@ impl EditorPlugin for TileMapEditorPlugin {
                     self.panel = Some(TileMapPanel::new(
                         &mut ui.build_ctx(),
                         editor.scene_viewer.frame(),
-                        tile_map.tile_set().cloned(),
+                        editor.engine.resource_manager.clone(),
+                        tile_map,
                     ));
 
                     break;

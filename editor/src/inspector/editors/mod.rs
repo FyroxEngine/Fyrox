@@ -98,6 +98,7 @@ use crate::{
     },
     message::MessageSender,
 };
+use fyrox::scene::tilemap::brush::{TileMapBrush, TileMapBrushResource};
 use std::{path::Path, sync::Arc};
 
 pub mod animation;
@@ -340,6 +341,22 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
     ));
     container.insert(InheritablePropertyEditorDefinition::<Option<ShaderResource>>::new());
     container.register_inheritable_vec_collection::<Option<ShaderResource>>();
+
+    container.insert(ResourceFieldPropertyEditorDefinition::<TileMapBrush>::new(
+        Arc::new(Mutex::new(
+            |resource_manager: &ResourceManager, path: &Path| {
+                resource_manager
+                    .try_request::<TileMapBrush>(path)
+                    .map(block_on)
+            },
+        )),
+        sender.clone(),
+    ));
+    container.insert(InheritablePropertyEditorDefinition::<
+        Option<TileMapBrushResource>,
+    >::new());
+    container.register_inheritable_vec_collection::<Option<TileMapBrushResource>>();
+    container.register_inheritable_inspectable::<TileMapBrush>();
 
     container.register_inheritable_inspectable::<ColorGradingLut>();
     container.register_inheritable_inspectable::<InteractionGroups>();

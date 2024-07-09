@@ -101,6 +101,7 @@ use crate::plugin::dynamic::DynamicPlugin;
 use crate::plugin::{DynamicPluginState, PluginContainer};
 use crate::scene::mesh::surface;
 use crate::scene::mesh::surface::{SurfaceData, SurfaceDataLoader};
+use crate::scene::tilemap::brush::{TileMapBrush, TileMapBrushLoader};
 use crate::scene::tilemap::tileset::{TileSet, TileSetLoader};
 use fyrox_core::futures::future::join_all;
 use fyrox_core::notify;
@@ -1229,6 +1230,7 @@ pub(crate) fn initialize_resource_manager_loaders(
     state.constructors_container.add::<UserInterface>();
     state.constructors_container.add::<SurfaceData>();
     state.constructors_container.add::<TileSet>();
+    state.constructors_container.add::<TileMapBrush>();
 
     let loaders = &mut state.loaders;
     loaders.set(model_loader);
@@ -1252,6 +1254,7 @@ pub(crate) fn initialize_resource_manager_loaders(
     loaders.set(TileSetLoader {
         resource_manager: resource_manager.clone(),
     });
+    state.loaders.set(TileMapBrushLoader {});
 }
 
 fn try_copy_library(source_lib_path: &Path, lib_path: &Path) -> Result<(), String> {
