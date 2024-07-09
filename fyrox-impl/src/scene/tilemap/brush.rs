@@ -23,10 +23,22 @@ use std::{
     sync::Arc,
 };
 
-#[derive(Default, PartialEq, Debug, Clone, Visit, Reflect)]
+#[derive(PartialEq, Debug, Clone, Visit, Reflect)]
 pub struct BrushTile {
     pub definition_index: usize,
     pub local_position: Vector2<i32>,
+    #[visit(optional)]
+    pub id: Uuid,
+}
+
+impl Default for BrushTile {
+    fn default() -> Self {
+        Self {
+            definition_index: 0,
+            local_position: Default::default(),
+            id: Uuid::new_v4(),
+        }
+    }
 }
 
 impl BrushTile {
@@ -106,6 +118,14 @@ impl TileMapBrush {
         for tile in self.tiles.iter() {
             tile.draw_outline(ctx, position, world_transform, color);
         }
+    }
+
+    pub fn find_tile(&self, id: &Uuid) -> Option<&BrushTile> {
+        self.tiles.iter().find(|tile| tile.id == *id)
+    }
+
+    pub fn find_tile_mut(&mut self, id: &Uuid) -> Option<&mut BrushTile> {
+        self.tiles.iter_mut().find(|tile| tile.id == *id)
     }
 
     /// Load a curve resource from the specific file path.

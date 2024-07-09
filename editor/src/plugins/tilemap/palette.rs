@@ -1,8 +1,6 @@
 use crate::{
     absm::selectable::{Selectable, SelectableMessage},
-    asset::item::AssetItem,
     fyrox::{
-        asset::manager::ResourceManager,
         core::{
             algebra::{Matrix3, Point2, Vector2},
             color::Color,
@@ -22,26 +20,26 @@ use crate::{
             BuildContext, Control, UiNode, UserInterface,
         },
         scene::tilemap::{
-            brush::{BrushTile, TileMapBrush, TileMapBrushResource},
+            brush::{BrushTile, TileMapBrush},
             tileset::TileSetResource,
         },
     },
 };
-use fyrox::core::log::Log;
-use fyrox::scene::tilemap::tileset::TileSet;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum PaletteMessage {
     ActiveBrush(TileMapBrush),
-    BrushResource(Option<TileMapBrushResource>),
-    TileSet(Option<TileSetResource>),
+    AddTile(Handle<UiNode>),
+    RemoveTile(Handle<UiNode>),
+    MoveTiles(Vec<(Uuid, Vector2<i32>)>),
 }
 
 impl PaletteMessage {
     define_constructor!(PaletteMessage:ActiveBrush => fn active_brush(TileMapBrush), layout: false);
-    define_constructor!(PaletteMessage:BrushResource => fn brush_resource(Option<TileMapBrushResource>), layout: false);
-    define_constructor!(PaletteMessage:TileSet => fn tile_set(Option<TileSetResource>), layout: false);
+    define_constructor!(PaletteMessage:AddTile => fn add_tile(Handle<UiNode>), layout: false);
+    define_constructor!(PaletteMessage:RemoveTile => fn remove_tile(Handle<UiNode>), layout: false);
+    define_constructor!(PaletteMessage:MoveTiles => fn move_tiles(Vec<(Uuid, Vector2<i32>)>), layout: false);
 }
 
 #[derive(Debug, Clone, PartialEq, Visit, Reflect, Default)]
@@ -73,17 +71,12 @@ enum Mode {
 #[type_uuid(id = "5356a864-c026-4bd7-a4b1-30bacf77d8fa")]
 pub struct PaletteWidget {
     widget: Widget,
-    tiles: Vec<Handle<UiNode>>,
+    pub tiles: Vec<Handle<UiNode>>,
     view_position: Vector2<f32>,
     zoom: f32,
     tile_size: Vector2<f32>,
     selection: Vec<Handle<UiNode>>,
     mode: Mode,
-    tile_set: Option<TileSetResource>,
-    brush_resource: Option<TileMapBrushResource>,
-    #[visit(skip)]
-    #[reflect(hidden)]
-    resource_manager: ResourceManager,
 }
 
 define_widget_deref!(PaletteWidget);
@@ -122,14 +115,14 @@ impl PaletteWidget {
         }
     }
 
-    fn selected_tiles_to_brush(&self, ui: &UserInterface) -> TileMapBrush {
-        let mut tiles = self
-            .selection
+    fn tiles_to_brush(&self, tiles: &[Handle<UiNode>], ui: &UserInterface) -> TileMapBrush {
+        let mut tiles = tiles
             .iter()
-            .filter_map(|h| ui.try_get_of_type::<TileView>(*h))
+            .filter_map(|h| ui.try_get_of_type::<BrushTileView>(*h))
             .map(|view| BrushTile {
                 definition_index: view.definition_index,
                 local_position: view.local_position,
+                id: view.id,
             })
             .collect::<Vec<_>>();
 
@@ -177,7 +170,7 @@ impl PaletteWidget {
             ui.send_message(PaletteMessage::active_brush(
                 self.handle(),
                 MessageDirection::FromWidget,
-                self.selected_tiles_to_brush(ui),
+                self.tiles_to_brush(&self.selection, ui),
             ));
 
             // Make sure to update dragging context if we're in Drag mode.
@@ -193,50 +186,6 @@ impl PaletteWidget {
             (pos.y / self.tile_size.y) as i32,
         )
     }
-
-    fn recreate_tiles(&mut self, ui: &mut UserInterface) {
-        for &tile in self.children() {
-            ui.send_message(WidgetMessage::remove(tile, MessageDirection::ToWidget));
-        }
-
-        if let Some(tile_set) = self.tile_set.as_ref() {
-            if let Some(brush_resource) = self.brush_resource.as_ref() {
-                let brush = brush_resource.data_ref();
-                self.tiles = generate_tiles(tile_set.clone(), &brush, &mut ui.build_ctx());
-
-                for &tile in &self.tiles {
-                    ui.send_message(WidgetMessage::link(
-                        tile,
-                        MessageDirection::ToWidget,
-                        self.handle,
-                    ));
-                }
-            }
-        }
-    }
-
-    fn save_brush(&self) {
-        if let Some(active_brush) = self.brush_resource.as_ref() {
-            Log::verify(active_brush.save_back())
-        }
-    }
-}
-
-fn generate_tiles(
-    tile_set_resource: TileSetResource,
-    tile_map_brush: &TileMapBrush,
-    ctx: &mut BuildContext,
-) -> Vec<Handle<UiNode>> {
-    tile_map_brush
-        .tiles
-        .iter()
-        .map(|tile| {
-            TileViewBuilder::new(tile_set_resource.clone(), WidgetBuilder::new())
-                .with_definition_index(tile.definition_index)
-                .with_position(tile.local_position)
-                .build(ctx)
-        })
-        .collect::<Vec<_>>()
 }
 
 impl Control for PaletteWidget {
@@ -250,7 +199,7 @@ impl Control for PaletteWidget {
 
     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
         for &child_handle in self.widget.children() {
-            if let Some(tile) = ui.try_get_of_type::<TileView>(child_handle) {
+            if let Some(tile) = ui.try_get_of_type::<BrushTileView>(child_handle) {
                 ui.arrange_node(
                     child_handle,
                     &Rect::new(
@@ -340,21 +289,20 @@ impl Control for PaletteWidget {
                         self.mode = Mode::None;
                     }
                     Mode::Dragging(ref drag_context) => {
-                        for entry in drag_context.entries.iter() {
-                            let tile = ui.try_get_of_type::<TileView>(entry.node).unwrap();
-                            for other_tile_handle in self.tiles.iter() {
-                                let other_tile =
-                                    ui.try_get_of_type::<TileView>(*other_tile_handle).unwrap();
-                                if !std::ptr::eq(tile, other_tile)
-                                    && other_tile.local_position == tile.local_position
-                                {
-                                    ui.send_message(WidgetMessage::remove(
-                                        *other_tile_handle,
-                                        MessageDirection::ToWidget,
-                                    ));
-                                }
-                            }
-                        }
+                        ui.send_message(PaletteMessage::move_tiles(
+                            self.handle,
+                            MessageDirection::FromWidget,
+                            drag_context
+                                .entries
+                                .iter()
+                                .map(|entry| {
+                                    let tile_view =
+                                        ui.try_get_of_type::<BrushTileView>(entry.node).unwrap();
+
+                                    (tile_view.id, tile_view.local_position)
+                                })
+                                .collect::<Vec<_>>(),
+                        ));
 
                         self.mode = Mode::None;
                     }
@@ -380,7 +328,7 @@ impl Control for PaletteWidget {
 
                     let mut selection = Vec::new();
                     for tile in self.tiles.iter() {
-                        let tile_ref = ui.try_get_of_type::<TileView>(*tile).unwrap();
+                        let tile_ref = ui.try_get_of_type::<BrushTileView>(*tile).unwrap();
                         if selection_bounds.contains(tile_ref.local_position) {
                             selection.push(*tile);
                         }
@@ -419,76 +367,34 @@ impl Control for PaletteWidget {
             self.view_position -= (new_cursor_pos - cursor_pos).scale(self.zoom);
 
             self.update_transform(ui);
-        } else if let Some(WidgetMessage::Remove) = message.data() {
-            if let Some(position) = self
-                .tiles
-                .iter()
-                .position(|handle| *handle == message.destination())
-            {
-                self.tiles.remove(position);
-            }
-
-            if let Some(position) = self
-                .selection
-                .iter()
-                .position(|handle| *handle == message.destination())
-            {
-                self.selection.remove(position);
-            }
-        } else if let Some(WidgetMessage::Drop(dropped)) = message.data() {
-            if message.destination() == self.handle {
-                if let Some(item) = ui.node(*dropped).cast::<AssetItem>() {
-                    if let Some(brush) = item.resource::<TileMapBrush>(&self.resource_manager) {
-                        ui.send_message(PaletteMessage::brush_resource(
-                            self.handle,
-                            MessageDirection::ToWidget,
-                            Some(brush),
-                        ));
-                    } else if let Some(tile_set) = item.resource::<TileSet>(&self.resource_manager)
-                    {
-                        if let Some(active_brush) = self.brush_resource.as_ref() {
-                            let tile_set = tile_set.data_ref();
-                            let tiles = tile_set
-                                .tiles
-                                .iter()
-                                .enumerate()
-                                .map(|(index, _tile)| {
-                                    let side_size = 11;
-
-                                    BrushTile {
-                                        definition_index: index,
-                                        local_position: Vector2::new(
-                                            index as i32 % side_size,
-                                            index as i32 / side_size,
-                                        ),
-                                    }
-                                })
-                                .collect::<Vec<_>>();
-                            active_brush.data_ref().tiles = tiles;
-                            self.save_brush();
-                            self.recreate_tiles(ui);
-                        }
-                    }
-                }
-            }
         } else if let Some(msg) = message.data::<PaletteMessage>() {
-            if message.destination() == self.handle {
+            if message.direction() == MessageDirection::ToWidget {
                 match msg {
-                    PaletteMessage::BrushResource(brush_resource) => {
-                        if &self.brush_resource != brush_resource {
-                            self.brush_resource.clone_from(brush_resource);
-                            self.recreate_tiles(ui);
+                    PaletteMessage::AddTile(tile) => {
+                        if !self.tiles.contains(tile) {
+                            ui.send_message(WidgetMessage::link(
+                                *tile,
+                                MessageDirection::ToWidget,
+                                self.handle,
+                            ));
+                            self.tiles.push(*tile);
                         }
                     }
-                    PaletteMessage::ActiveBrush(_) => {
-                        // Nothing to do.
-                    }
-                    PaletteMessage::TileSet(tile_set) => {
-                        if &self.tile_set != tile_set {
-                            self.tile_set.clone_from(tile_set);
-                            self.recreate_tiles(ui);
+                    PaletteMessage::RemoveTile(tile) => {
+                        if let Some(position) = self
+                            .tiles
+                            .iter()
+                            .position(|existing_tile| existing_tile == tile)
+                        {
+                            ui.send_message(WidgetMessage::remove(
+                                *tile,
+                                MessageDirection::ToWidget,
+                            ));
+
+                            self.tiles.remove(position);
                         }
                     }
+                    _ => (),
                 }
             }
         }
@@ -497,58 +403,36 @@ impl Control for PaletteWidget {
 
 pub struct PaletteWidgetBuilder {
     widget_builder: WidgetBuilder,
-    brush: Option<TileMapBrushResource>,
-    tile_set: Option<TileSetResource>,
+    tiles: Vec<Handle<UiNode>>,
 }
 
 impl PaletteWidgetBuilder {
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
-            brush: None,
-            tile_set: None,
+            tiles: Default::default(),
         }
     }
 
-    pub fn with_brush(mut self, brush: Option<TileMapBrushResource>) -> Self {
-        self.brush = brush;
+    pub fn with_tiles(mut self, tiles: Vec<Handle<UiNode>>) -> Self {
+        self.tiles = tiles;
         self
     }
 
-    pub fn with_tile_set(mut self, tile_set_resource: Option<TileSetResource>) -> Self {
-        self.tile_set = tile_set_resource;
-        self
-    }
-
-    pub fn build(
-        self,
-        resource_manager: ResourceManager,
-        ctx: &mut BuildContext,
-    ) -> Handle<UiNode> {
-        let mut tiles = Vec::default();
-        if let Some(brush) = self.brush.as_ref() {
-            let brush = brush.data_ref();
-            if let Some(tile_set_resource) = self.tile_set.as_ref() {
-                tiles = generate_tiles(tile_set_resource.clone(), &brush, ctx);
-            }
-        }
-
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         ctx.add_node(UiNode::new(PaletteWidget {
             widget: self
                 .widget_builder
                 .with_allow_drop(true)
                 .with_clip_to_bounds(false)
-                .with_children(tiles.iter().cloned())
+                .with_children(self.tiles.iter().cloned())
                 .build(),
-            tiles,
+            tiles: self.tiles,
             view_position: Default::default(),
             zoom: 1.0,
             tile_size: Vector2::repeat(32.0),
             selection: Default::default(),
             mode: Mode::None,
-            tile_set: self.tile_set,
-            brush_resource: self.brush,
-            resource_manager,
         }))
     }
 }
@@ -564,7 +448,7 @@ impl TileViewMessage {
 
 #[derive(Clone, Debug, Visit, Reflect, TypeUuidProvider, ComponentProvider)]
 #[type_uuid(id = "c8ff0080-fb29-480a-8a88-59ee4c58d60d")]
-pub struct TileView {
+pub struct BrushTileView {
     widget: Widget,
     #[component(include)]
     selectable: Selectable,
@@ -573,9 +457,9 @@ pub struct TileView {
     tile_set: TileSetResource,
 }
 
-define_widget_deref!(TileView);
+define_widget_deref!(BrushTileView);
 
-impl Control for TileView {
+impl Control for BrushTileView {
     fn draw(&self, drawing_context: &mut DrawingContext) {
         let tile_set = self.tile_set.data_ref();
         if let Some(tile_definition) = tile_set.tiles.get(self.definition_index) {
@@ -668,7 +552,7 @@ impl TileViewBuilder {
     }
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
-        ctx.add_node(UiNode::new(TileView {
+        ctx.add_node(UiNode::new(BrushTileView {
             widget: self.widget_builder.build(),
             selectable: Default::default(),
             definition_index: self.definition_index,

@@ -1,6 +1,7 @@
+use crate::plugins::tilemap::commands::{AddTileCommand, RemoveTileCommand};
 use crate::{
     asset::item::AssetItem,
-    command::{Command, CommandContext, CommandGroup, CommandTrait},
+    command::{Command, CommandGroup},
     fyrox::{
         asset::{manager::ResourceManager, untyped::ResourceKind, ResourceData},
         core::{log::Log, math::Rect, pool::Handle, Uuid},
@@ -316,49 +317,5 @@ impl TileSetEditor {
             self.try_save();
             self.need_save = false;
         }
-    }
-}
-
-#[derive(Debug)]
-pub struct AddTileCommand {
-    tile_set: TileSetResource,
-    tile: TileDefinition,
-}
-
-impl CommandTrait for AddTileCommand {
-    fn name(&mut self, _context: &dyn CommandContext) -> String {
-        "Add Tile".into()
-    }
-
-    fn execute(&mut self, _context: &mut dyn CommandContext) {
-        self.tile_set.data_ref().tiles.push(self.tile.clone());
-    }
-
-    fn revert(&mut self, _context: &mut dyn CommandContext) {
-        self.tile = self.tile_set.data_ref().tiles.pop().unwrap();
-    }
-}
-
-#[derive(Debug)]
-pub struct RemoveTileCommand {
-    tile_set: TileSetResource,
-    index: usize,
-    tile: Option<TileDefinition>,
-}
-
-impl CommandTrait for RemoveTileCommand {
-    fn name(&mut self, _text: &dyn CommandContext) -> String {
-        "Remove Tile".into()
-    }
-
-    fn execute(&mut self, _context: &mut dyn CommandContext) {
-        self.tile = Some(self.tile_set.data_ref().tiles.remove(self.index));
-    }
-
-    fn revert(&mut self, _context: &mut dyn CommandContext) {
-        self.tile_set
-            .data_ref()
-            .tiles
-            .insert(self.index, self.tile.take().unwrap());
     }
 }

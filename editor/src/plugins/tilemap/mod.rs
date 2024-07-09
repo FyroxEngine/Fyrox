@@ -1,3 +1,4 @@
+mod commands;
 pub mod palette;
 pub mod panel;
 pub mod tile_set_import;
@@ -247,6 +248,7 @@ pub struct TileMapEditorPlugin {
     tile_set_editor: Option<TileSetEditor>,
     brush: Arc<Mutex<TileMapBrush>>,
     panel: Option<TileMapPanel>,
+    tile_map: Handle<Node>,
 }
 
 impl EditorPlugin for TileMapEditorPlugin {
@@ -303,7 +305,23 @@ impl EditorPlugin for TileMapEditorPlugin {
                 }
             }
 
-            self.panel = panel.handle_ui_message(message, ui);
+            let tile_map = editor
+                .scenes
+                .current_scene_entry_mut()
+                .and_then(|entry| entry.controller.downcast_mut::<GameScene>())
+                .and_then(|scene| {
+                    editor.engine.scenes[scene.scene]
+                        .graph
+                        .try_get_of_type::<TileMap>(self.tile_map)
+                });
+
+            self.panel = panel.handle_ui_message(
+                message,
+                ui,
+                &editor.engine.resource_manager,
+                tile_map,
+                &editor.message_sender,
+            );
         }
     }
 
@@ -350,6 +368,8 @@ impl EditorPlugin for TileMapEditorPlugin {
                         continue;
                     };
 
+                    self.tile_map = *node_handle;
+
                     entry.interaction_modes.add(TileMapInteractionMode {
                         tile_map: *node_handle,
                         brush: self.brush.clone(),
@@ -361,7 +381,6 @@ impl EditorPlugin for TileMapEditorPlugin {
                     self.panel = Some(TileMapPanel::new(
                         &mut ui.build_ctx(),
                         editor.scene_viewer.frame(),
-                        editor.engine.resource_manager.clone(),
                         tile_map,
                     ));
 
