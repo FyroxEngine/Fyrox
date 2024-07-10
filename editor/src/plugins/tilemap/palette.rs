@@ -15,7 +15,7 @@ use crate::{
             brush::Brush,
             define_constructor, define_widget_deref,
             draw::{CommandTexture, Draw, DrawingContext},
-            message::{MessageDirection, MouseButton, UiMessage},
+            message::{KeyCode, MessageDirection, MouseButton, UiMessage},
             widget::{Widget, WidgetBuilder, WidgetMessage},
             BuildContext, Control, UiNode, UserInterface,
         },
@@ -29,10 +29,16 @@ use std::ops::{Deref, DerefMut};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum PaletteMessage {
+    // Direction: FromWidget
     ActiveBrush(TileMapBrush),
+    // Direction: ToWidget
     AddTile(Handle<UiNode>),
+    // Direction: ToWidget
     RemoveTile(Handle<UiNode>),
+    // Direction: FromWidget
     MoveTiles(Vec<(Uuid, Vector2<i32>)>),
+    // Direction: FromWidget
+    DeleteTiles(Vec<Uuid>),
 }
 
 impl PaletteMessage {
@@ -40,6 +46,7 @@ impl PaletteMessage {
     define_constructor!(PaletteMessage:AddTile => fn add_tile(Handle<UiNode>), layout: false);
     define_constructor!(PaletteMessage:RemoveTile => fn remove_tile(Handle<UiNode>), layout: false);
     define_constructor!(PaletteMessage:MoveTiles => fn move_tiles(Vec<(Uuid, Vector2<i32>)>), layout: false);
+    define_constructor!(PaletteMessage:DeleteTiles => fn delete_tiles(Vec<Uuid>), layout: false);
 }
 
 #[derive(Debug, Clone, PartialEq, Visit, Reflect, Default)]
@@ -397,6 +404,25 @@ impl Control for PaletteWidget {
                     _ => (),
                 }
             }
+        } else if let Some(WidgetMessage::KeyDown(key)) = message.data() {
+            if *key == KeyCode::Delete && !message.handled() {
+                let tiles = self
+                    .tiles_to_brush(&self.selection, ui)
+                    .tiles
+                    .into_iter()
+                    .map(|tile| tile.id)
+                    .collect::<Vec<_>>();
+
+                if !tiles.is_empty() {
+                    ui.send_message(PaletteMessage::delete_tiles(
+                        self.handle,
+                        MessageDirection::FromWidget,
+                        tiles,
+                    ));
+
+                    message.set_handled(true);
+                }
+            };
         }
     }
 }

@@ -196,35 +196,55 @@ impl TileMapPanel {
                     }
                 }
             }
-        } else if let Some(PaletteMessage::MoveTiles(move_data)) = message.data() {
+        } else if let Some(msg) = message.data() {
             if let Some(tile_map) = tile_map {
                 if let Some(active_brush_resource) = tile_map.active_brush().as_ref() {
                     if message.destination() == self.palette
                         && message.direction == MessageDirection::FromWidget
                     {
-                        let mut commands = vec![Command::new(MoveBrushTilesCommand {
-                            brush: active_brush_resource.clone(),
-                            positions: move_data.clone(),
-                        })];
+                        match msg {
+                            PaletteMessage::MoveTiles(move_data) => {
+                                let mut commands = vec![Command::new(MoveBrushTilesCommand {
+                                    brush: active_brush_resource.clone(),
+                                    positions: move_data.clone(),
+                                })];
 
-                        let active_brush = active_brush_resource.data_ref();
-                        for (id, new_tile_position) in move_data.iter() {
-                            if let Some(tile) = active_brush.find_tile(id) {
-                                for other_tile in active_brush.tiles.iter() {
-                                    if !std::ptr::eq(tile, other_tile)
-                                        && other_tile.local_position == *new_tile_position
-                                    {
-                                        commands.push(Command::new(RemoveBrushTileCommand {
-                                            brush: active_brush_resource.clone(),
-                                            id: other_tile.id,
-                                            tile: None,
-                                        }));
+                                let active_brush = active_brush_resource.data_ref();
+                                for (id, new_tile_position) in move_data.iter() {
+                                    if let Some(tile) = active_brush.find_tile(id) {
+                                        for other_tile in active_brush.tiles.iter() {
+                                            if !std::ptr::eq(tile, other_tile)
+                                                && other_tile.local_position == *new_tile_position
+                                            {
+                                                commands.push(Command::new(
+                                                    RemoveBrushTileCommand {
+                                                        brush: active_brush_resource.clone(),
+                                                        id: other_tile.id,
+                                                        tile: None,
+                                                    },
+                                                ));
+                                            }
+                                        }
                                     }
                                 }
-                            }
-                        }
 
-                        sender.do_command(CommandGroup::from(commands));
+                                sender.do_command(CommandGroup::from(commands));
+                            }
+                            PaletteMessage::DeleteTiles(ids) => {
+                                sender.do_command(CommandGroup::from(
+                                    ids.iter()
+                                        .map(|id| {
+                                            Command::new(RemoveBrushTileCommand {
+                                                brush: active_brush_resource.clone(),
+                                                id: *id,
+                                                tile: None,
+                                            })
+                                        })
+                                        .collect::<Vec<_>>(),
+                                ))
+                            }
+                            _ => (),
+                        }
                     }
                 }
             }
