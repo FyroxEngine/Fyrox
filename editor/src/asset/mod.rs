@@ -1,10 +1,12 @@
-use crate::asset::preview::cache::{AssetPreviewCache, IconRequest};
 use crate::{
     asset::{
         dependency::DependencyViewer,
         inspector::AssetInspector,
         item::{AssetItem, AssetItemBuilder, AssetItemMessage},
-        preview::AssetPreviewGeneratorsCollection,
+        preview::{
+            cache::{AssetPreviewCache, IconRequest},
+            AssetPreviewGeneratorsCollection,
+        },
     },
     fyrox::{
         asset::{
@@ -14,7 +16,7 @@ use crate::{
         },
         core::{
             color::Color, futures::executor::block_on, log::Log, make_relative_path,
-            parking_lot::lock_api::Mutex, pool::Handle, scope_profile, TypeUuidProvider,
+            parking_lot::lock_api::Mutex, pool::Handle, scope_profile, TypeUuidProvider, Uuid,
         },
         engine::Engine,
         graph::BaseSceneGraph,
@@ -43,24 +45,24 @@ use crate::{
         },
         material::Material,
         resource::{model::Model, texture::Texture},
-        scene::sound::SoundBuffer,
+        scene::{sound::SoundBuffer, tilemap::tileset::TileSet},
         walkdir,
     },
-    gui::make_dropdown_list_option,
+    gui::{make_dropdown_list_option, make_image_button_with_tooltip},
+    load_image,
     message::MessageSender,
     preview::PreviewPanel,
     utils::window_content,
     Message, Mode,
 };
-use fyrox::core::Uuid;
-use fyrox::scene::tilemap::tileset::TileSet;
-use std::sync::mpsc;
-use std::sync::mpsc::Sender;
 use std::{
     ffi::OsStr,
     path::{Path, PathBuf},
     process::Command,
-    sync::Arc,
+    sync::{
+        mpsc::{self, Sender},
+        Arc,
+    },
 };
 
 mod dependency;
@@ -474,6 +476,7 @@ pub struct AssetBrowser {
     scroll_panel: Handle<UiNode>,
     search_bar: Handle<UiNode>,
     add_resource: Handle<UiNode>,
+    refresh: Handle<UiNode>,
     preview: PreviewPanel,
     items: Vec<Handle<UiNode>>,
     item_to_select: Option<PathBuf>,
@@ -502,11 +505,51 @@ impl AssetBrowser {
 
         let inspector = AssetInspector::new(ctx, 1, 0);
 
+        let add_resource = ButtonBuilder::new(
+            WidgetBuilder::new()
+                .with_tab_index(Some(1))
+                .with_height(20.0)
+                .with_width(20.0)
+                .with_margin(Thickness::uniform(1.0))
+                .with_tooltip(make_simple_tooltip(ctx, "Add New Resource")),
+        )
+        .with_text("+")
+        .build(ctx);
+
+        let refresh = make_image_button_with_tooltip(
+            ctx,
+            18.0,
+            18.0,
+            load_image(include_bytes!("../../resources/reimport.png")),
+            "Refresh",
+            Some(1),
+        );
+        ctx[refresh].set_column(1);
+
+        let search_bar = SearchBarBuilder::new(
+            WidgetBuilder::new()
+                .with_tab_index(Some(2))
+                .on_column(2)
+                .with_height(22.0)
+                .with_margin(Thickness::uniform(1.0)),
+        )
+        .build(ctx);
+
+        let toolbar = GridBuilder::new(
+            WidgetBuilder::new()
+                .with_child(add_resource)
+                .with_child(refresh)
+                .with_child(search_bar),
+        )
+        .add_column(Column::auto())
+        .add_column(Column::auto())
+        .add_column(Column::stretch())
+        .add_row(Row::auto())
+        .build(ctx);
+
         let content_panel;
         let folder_browser;
-        let search_bar;
         let scroll_panel;
-        let add_resource;
         let window = WindowBuilder::new(WidgetBuilder::new().with_name("AssetBrowser"))
             .can_minimize(false)
             .with_title(WindowTitle::text("Asset Browser"))
@@ -535,42 +578,7 @@ impl AssetBrowser {
                             GridBuilder::new(
                                 WidgetBuilder::new()
                                     .on_column(1)
-                                    .with_child(
-                                        GridBuilder::new(
-                                            WidgetBuilder::new()
-                                                .with_child({
-                                                    add_resource = ButtonBuilder::new(
-                                                        WidgetBuilder::new()
-                                                            .with_tab_index(Some(1))
-                                                            .with_height(20.0)
-                                                            .with_width(20.0)
-                                                            .with_margin(Thickness::uniform(1.0))
-                                                            .with_tooltip(make_simple_tooltip(
-                                                                ctx,
-                                                                "Add New Resource",
-                                                            )),
-                                                    )
-                                                    .with_text("+")
-                                                    .build(ctx);
-                                                    add_resource
-                                                })
-                                                .with_child({
-                                                    search_bar = SearchBarBuilder::new(
-                                                        WidgetBuilder::new()
-                                                            .with_tab_index(Some(2))
-                                                            .on_column(1)
-                                                            .with_height(22.0)
-                                                            .with_margin(Thickness::uniform(1.0)),
-                                                    )
-                                                    .build(ctx);
-                                                    search_bar
-                                                }),
-                                        )
-                                        .add_column(Column::auto())
-                                        .add_column(Column::stretch())
-                                        .add_row(Row::auto())
-                                        .build(ctx),
-                                    )
+                                    .with_child(toolbar)
                                     .with_child({
                                         scroll_panel = ScrollViewerBuilder::new(
                                             WidgetBuilder::new().on_row(1),
@@ -650,6 +658,7 @@ impl AssetBrowser {
             preview_cache: AssetPreviewCache::new(preview_receiver, 4),
             preview_sender,
             preview_generators: AssetPreviewGeneratorsCollection::new(),
+            refresh,
         }
     }
 
@@ -989,6 +998,8 @@ impl AssetBrowser {
                 resource_creator.open(engine.user_interfaces.first());
 
                 self.resource_creator = Some(resource_creator);
+            } else if message.destination() == self.refresh {
+                self.refresh(engine.user_interfaces.first_mut(), &engine.resource_manager);
             }
         }
     }
