@@ -1,3 +1,4 @@
+use crate::interaction::gizmo::move_gizmo::MoveGizmo;
 use crate::{
     fyrox::{
         core::{color::Color, math::Rect, pool::Handle, uuid::Uuid},
@@ -32,7 +33,7 @@ use crate::{
         },
         renderer::framework::state::PolygonFillMode,
         resource::texture::TextureResource,
-        scene::camera::{Camera, Projection},
+        scene::camera::Projection,
     },
     gui::{
         make_dropdown_list_option, make_dropdown_list_option_universal,
@@ -48,6 +49,7 @@ use crate::{
     DropdownListBuilder, GameScene, Message, Mode, SaveSceneConfirmationDialogAction,
     SceneContainer, Settings,
 };
+use fyrox::asset::graph;
 use std::{
     cmp::Ordering,
     ops::Deref,
@@ -55,6 +57,7 @@ use std::{
 };
 use strum::{IntoEnumIterator, VariantNames};
 use strum_macros::{AsRefStr, EnumIter, EnumString, VariantNames};
+
 mod gizmo;
 
 #[derive(Default, Clone, Debug, EnumIter, AsRefStr, EnumString, VariantNames)]
@@ -269,13 +272,18 @@ pub struct SceneViewer {
     tab_control: Handle<UiNode>,
     scene_gizmo: SceneGizmo,
     scene_gizmo_image: Handle<UiNode>,
+    move_gizmo: Option<MoveGizmo>,
     debug_switches: Handle<UiNode>,
     grid_snap_menu: GridSnappingMenu,
-    camera: Camera,
 }
 
 impl SceneViewer {
-    pub fn new(engine: &mut Engine, sender: MessageSender, settings: &mut Settings) -> Self {
+    pub fn new(
+        engine: &mut Engine,
+        sender: MessageSender,
+        settings: &mut Settings,
+        game_scene: &GameScene,
+    ) -> Self {
         let scene_gizmo = SceneGizmo::new(engine);
 
         let ctx = &mut engine.user_interfaces.first_mut().build_ctx();
@@ -530,7 +538,8 @@ impl SceneViewer {
             )
             .with_title(WindowTitle::text("Scene Preview"))
             .build(ctx);
-        let camera = Camera::default();
+
+        let move_gizmo = crate::interaction::gizmo::move_gizmo::MoveGizmo::new(game_scene, engine);
         Self {
             sender,
             window,
@@ -550,7 +559,7 @@ impl SceneViewer {
             scene_gizmo_image,
             debug_switches,
             grid_snap_menu,
-            camera,
+            move_gizmo: Some(move_gizmo),
         }
     }
 }
@@ -833,13 +842,10 @@ impl SceneViewer {
                                 //anytime gizmo is hovered
                                 if self.scene_gizmo.is_left_mouse_pressed {
                                     print!("attempting to move gizmo...");
-                                    let rel_pos = pos
-                                        - engine
-                                            .user_interfaces
-                                            .first()
-                                            .node(self.scene_gizmo_image)
-                                            .screen_position();
-                                    self.scene_gizmo.on_mouse_move(rel_pos, engine);
+                                    if let Some(move_gizmo) = &mut self.move_gizmo {
+                                        let scene = &mut engine.scenes[game_scene.scene];
+                                        move_gizmo.set_position(scene, pos);
+                                    }
                                 }
                                 let rel_pos = pos
                                     - engine
@@ -850,7 +856,7 @@ impl SceneViewer {
                                 self.scene_gizmo.on_mouse_move(rel_pos, engine);
                             }
                             WidgetMessage::MouseUp { pos, .. } => {
-                                print!("Stopped moving gizmo: {}", pos);
+                                print!("Mouse released {}", pos);
                                 self.scene_gizmo.is_left_mouse_pressed = false;
                             }
                             _ => (),

@@ -49,6 +49,7 @@ pub struct SceneGizmo {
     pub pos_z: Handle<Node>,
     pub neg_z: Handle<Node>,
     pub center: Handle<Node>,
+    pub is_left_mouse_pressed: bool,
 }
 
 fn make_cone(transform: Matrix4<f32>, color: Color, graph: &mut Graph) -> Handle<Node> {
@@ -206,6 +207,7 @@ impl SceneGizmo {
             pos_z,
             neg_z,
             center,
+            is_left_mouse_pressed: false,
         }
     }
 
