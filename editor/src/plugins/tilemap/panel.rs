@@ -1,23 +1,31 @@
 use crate::{
     asset::item::AssetItem,
-    command::{Command, CommandGroup},
+    command::{Command, CommandGroup, SetPropertyCommand},
     fyrox::{
         asset::manager::ResourceManager,
         core::{algebra::Vector2, pool::Handle, Uuid},
         graph::{BaseSceneGraph, SceneGraphNode},
         gui::{
-            grid::GridBuilder,
+            border::BorderBuilder,
+            dropdown_list::{DropdownListBuilder, DropdownListMessage},
+            grid::{Column, GridBuilder, Row},
             message::{MessageDirection, UiMessage},
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
-            BuildContext, HorizontalAlignment, Thickness, UiNode, UserInterface, VerticalAlignment,
+            wrap_panel::WrapPanelBuilder,
+            BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+            VerticalAlignment,
         },
-        scene::tilemap::{
-            brush::{BrushTile, TileMapBrush},
-            tileset::{TileSet, TileSetResource},
-            TileMap,
+        scene::{
+            node::Node,
+            tilemap::{
+                brush::{BrushTile, TileMapBrush},
+                tileset::{TileSet, TileSetResource},
+                TileMap,
+            },
         },
     },
+    gui::make_dropdown_list_option,
     message::MessageSender,
     plugins::tilemap::{
         commands::{MoveBrushTilesCommand, RemoveBrushTileCommand, SetBrushTilesCommand},
@@ -25,11 +33,13 @@ use crate::{
             PaletteMessage, PaletteWidget, PaletteWidgetBuilder, TileViewBuilder, TileViewMessage,
         },
     },
+    scene::commands::GameSceneContext,
 };
 
 pub struct TileMapPanel {
     pub window: Handle<UiNode>,
     pub palette: Handle<UiNode>,
+    active_brush_selector: Handle<UiNode>,
 }
 
 fn generate_tiles(
@@ -52,6 +62,22 @@ fn generate_tiles(
         .collect::<Vec<_>>()
 }
 
+fn make_brush_entries(tile_map: &TileMap, ctx: &mut BuildContext) -> Vec<Handle<UiNode>> {
+    tile_map
+        .brushes()
+        .iter()
+        .flatten()
+        .map(|brush| make_dropdown_list_option(ctx, &brush.kind().to_string()))
+        .collect::<Vec<_>>()
+}
+
+fn selected_brush_index(tile_map: &TileMap) -> Option<usize> {
+    tile_map
+        .brushes()
+        .iter()
+        .position(|brush| brush == &tile_map.active_brush())
+}
+
 impl TileMapPanel {
     pub fn new(ctx: &mut BuildContext, scene_frame: Handle<UiNode>, tile_map: &TileMap) -> Self {
         let tiles = tile_map
@@ -67,7 +93,27 @@ impl TileMapPanel {
             .with_tiles(tiles)
             .build(ctx);
 
-        let content = GridBuilder::new(WidgetBuilder::new().with_child(palette)).build(ctx);
+        let active_brush_selector =
+            DropdownListBuilder::new(WidgetBuilder::new().with_width(250.0))
+                .with_opt_selected(selected_brush_index(tile_map))
+                .with_items(make_brush_entries(tile_map, ctx))
+                .build(ctx);
+
+        let toolbar = WrapPanelBuilder::new(
+            WidgetBuilder::new()
+                .on_row(0)
+                .with_child(active_brush_selector),
+        )
+        .with_orientation(Orientation::Horizontal)
+        .build(ctx);
+
+        let content = GridBuilder::new(WidgetBuilder::new().with_child(toolbar).with_child(
+            BorderBuilder::new(WidgetBuilder::new().on_row(1).with_child(palette)).build(ctx),
+        ))
+        .add_row(Row::strict(23.0))
+        .add_row(Row::stretch())
+        .add_column(Column::stretch())
+        .build(ctx);
 
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(250.0).with_height(350.0))
             .open(false)
@@ -88,7 +134,11 @@ impl TileMapPanel {
             ))
             .unwrap();
 
-        Self { window, palette }
+        Self {
+            window,
+            palette,
+            active_brush_selector,
+        }
     }
 
     pub fn destroy(self, ui: &UserInterface) {
@@ -103,6 +153,7 @@ impl TileMapPanel {
         message: &UiMessage,
         ui: &UserInterface,
         resource_manager: &ResourceManager,
+        tile_map_handle: Handle<Node>,
         tile_map: Option<&TileMap>,
         sender: &MessageSender,
     ) -> Option<Self> {
@@ -177,12 +228,38 @@ impl TileMapPanel {
                     }
                 }
             }
+        } else if let Some(DropdownListMessage::SelectionChanged(Some(index))) = message.data() {
+            if message.destination() == self.active_brush_selector
+                && message.direction() == MessageDirection::FromWidget
+            {
+                if let Some(tile_map) = tile_map {
+                    if let Some(brush) = tile_map.brushes().get(*index) {
+                        sender.do_command(SetPropertyCommand::new(
+                            "active_brush".into(),
+                            Box::new(brush.clone()),
+                            move |ctx| {
+                                ctx.get_mut::<GameSceneContext>()
+                                    .scene
+                                    .graph
+                                    .node_mut(tile_map_handle)
+                            },
+                        ));
+                    }
+                }
+            }
         }
 
         Some(self)
     }
 
     pub fn sync_to_model(&self, ui: &mut UserInterface, tile_map: &TileMap) {
+        let items = make_brush_entries(tile_map, &mut ui.build_ctx());
+        ui.send_message(DropdownListMessage::items(
+            self.active_brush_selector,
+            MessageDirection::ToWidget,
+            items,
+        ));
+
         let Some(active_brush) = tile_map.active_brush() else {
             return;
         };

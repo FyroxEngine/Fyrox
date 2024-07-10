@@ -319,6 +319,7 @@ impl EditorPlugin for TileMapEditorPlugin {
                 message,
                 ui,
                 &editor.engine.resource_manager,
+                self.tile_map,
                 tile_map,
                 &editor.message_sender,
             );
