@@ -181,7 +181,7 @@ impl ContextMenu {
         message: &UiMessage,
         sender: &MessageSender,
         engine: &mut Engine,
-    ) {
+    ) -> bool {
         if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
             if message.destination() == self.menu.handle() {
                 self.placement_target = *target;
@@ -194,7 +194,8 @@ impl ContextMenu {
                 .and_then(|n| n.cast::<AssetItem>())
             {
                 if message.destination() == self.delete {
-                    Log::verify(std::fs::remove_file(&item.path))
+                    Log::verify(std::fs::remove_file(&item.path));
+                    return true;
                 } else if message.destination() == self.show_in_explorer {
                     if let Ok(canonical_path) = item.path.canonicalize() {
                         show_in_explorer(canonical_path)
@@ -236,6 +237,8 @@ impl ContextMenu {
                 }
             }
         }
+
+        false
     }
 }
 
@@ -818,8 +821,12 @@ impl AssetBrowser {
 
         self.inspector.handle_ui_message(message, engine);
         self.preview.handle_message(message, engine);
-        self.context_menu
-            .handle_ui_message(message, &sender, engine);
+        if self
+            .context_menu
+            .handle_ui_message(message, &sender, engine)
+        {
+            self.refresh(engine.user_interfaces.first_mut(), &engine.resource_manager);
+        }
         self.dependency_viewer
             .handle_ui_message(message, engine.user_interfaces.first_mut());
         if let Some(resource_creator) = self.resource_creator.as_mut() {
