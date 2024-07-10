@@ -1,4 +1,5 @@
 use crate::{
+    camera::CameraController,
     fyrox::{
         core::{color::Color, math::Rect, pool::Handle, uuid::Uuid},
         engine::Engine,
@@ -32,7 +33,7 @@ use crate::{
         },
         renderer::framework::state::PolygonFillMode,
         resource::texture::TextureResource,
-        scene::camera::{Camera, Projection},
+        scene::camera::Projection,
     },
     gui::{
         make_dropdown_list_option, make_dropdown_list_option_universal,
@@ -48,6 +49,7 @@ use crate::{
     DropdownListBuilder, GameScene, Message, Mode, SaveSceneConfirmationDialogAction,
     SceneContainer, Settings,
 };
+use fyrox::core::algebra::{UnitQuaternion, Vector3};
 use std::{
     cmp::Ordering,
     ops::Deref,
@@ -271,7 +273,6 @@ pub struct SceneViewer {
     scene_gizmo_image: Handle<UiNode>,
     debug_switches: Handle<UiNode>,
     grid_snap_menu: GridSnappingMenu,
-    camera: Camera,
 }
 
 impl SceneViewer {
@@ -530,7 +531,6 @@ impl SceneViewer {
             )
             .with_title(WindowTitle::text("Scene Preview"))
             .build(ctx);
-        let camera = Camera::default();
         Self {
             sender,
             window,
@@ -550,7 +550,6 @@ impl SceneViewer {
             scene_gizmo_image,
             debug_switches,
             grid_snap_menu,
-            camera,
         }
     }
 }
@@ -792,10 +791,18 @@ impl SceneViewer {
                                             .first()
                                             .node(self.scene_gizmo_image)
                                             .screen_position();
+
                                     if let Some(action) = self.scene_gizmo.on_click(rel_pos, engine)
                                     {
                                         match action {
                                             SceneGizmoAction::Rotate(rotation) => {
+                                                if self.scene_gizmo.is_left_mouse_pressed {
+                                                    //rotate gizmo when left mouse is pressed
+                                                    game_scene.camera_controller.pitch =
+                                                        rotation.yaw;
+                                                    game_scene.camera_controller.yaw =
+                                                        rotation.pitch;
+                                                }
                                                 game_scene.camera_controller.pitch = rotation.pitch;
                                                 game_scene.camera_controller.yaw = rotation.yaw;
                                             }
@@ -831,29 +838,29 @@ impl SceneViewer {
                             }
                             WidgetMessage::MouseMove { pos, .. } => {
                                 //anytime gizmo is hovered
-                                if self.scene_gizmo.is_left_mouse_pressed {
-                                    print!("attempting to move gizmo...");
-                                    let rel_pos = pos
-                                        - engine
-                                            .user_interfaces
-                                            .first()
-                                            .node(self.scene_gizmo_image)
-                                            .screen_position();
-                                    self.scene_gizmo.on_mouse_move(rel_pos, engine);
-                                }
                                 let rel_pos = pos
                                     - engine
                                         .user_interfaces
                                         .first()
                                         .node(self.scene_gizmo_image)
                                         .screen_position();
-                                self.scene_gizmo.on_mouse_move(rel_pos, engine);
+                                self.scene_gizmo.on_mouse_move(rel_pos, engine, game_scene);
+                                if self.scene_gizmo.is_left_mouse_pressed {
+                                    self.scene_gizmo.apply_rotations(engine);
+
+                                    game_scene.camera_controller.apply_camera_rotation();
+                                    game_scene.camera_controller.pitch =
+                                        self.scene_gizmo.camera_rotation.pitch;
+                                    game_scene.camera_controller.pitch =
+                                        self.scene_gizmo.camera_rotation.yaw;
+                                }
                             }
-                            WidgetMessage::MouseUp { pos, .. } => {
-                                print!("Stopped moving gizmo: {}", pos);
-                                self.scene_gizmo.is_left_mouse_pressed = false;
+                            WidgetMessage::MouseUp { button, .. } => {
+                                if button == MouseButton::Left {
+                                    self.scene_gizmo.is_left_mouse_pressed = false;
+                                }
                             }
-                            _ => (),
+                            _ => {}
                         }
                     }
                 }
@@ -1070,5 +1077,27 @@ impl SceneViewer {
 
     pub fn update(&self, game_scene: &GameScene, engine: &mut Engine) {
         self.scene_gizmo.sync_rotations(game_scene, engine);
+    }
+    fn apply_camera_rotation(
+        &mut self,
+        camera_controller: &CameraController,
+        engine: &mut Engine,
+        game_scene: &mut GameScene,
+    ) {
+        let scene = &mut engine.scenes[game_scene.scene];
+        let graph = &mut scene.graph;
+
+        let camera = &mut graph[camera_controller.camera];
+        let transform = camera.local_transform_mut();
+
+        let yaw_rotation =
+            UnitQuaternion::from_axis_angle(&Vector3::y_axis(), camera_controller.yaw);
+        let pitch_rotation =
+            UnitQuaternion::from_axis_angle(&Vector3::x_axis(), camera_controller.pitch);
+
+        // Apply yaw rotation first, then pitch rotation
+        let combined_rotation = yaw_rotation * pitch_rotation;
+
+        transform.set_rotation(combined_rotation);
     }
 }

@@ -50,6 +50,8 @@ pub struct SceneGizmo {
     pub neg_z: Handle<Node>,
     pub center: Handle<Node>,
     pub is_left_mouse_pressed: bool,
+    pub last_mouse_position: Option<Vector2<f32>>,
+    pub camera_rotation: CameraRotation,
 }
 
 fn make_cone(transform: Matrix4<f32>, color: Color, graph: &mut Graph) -> Handle<Node> {
@@ -208,6 +210,11 @@ impl SceneGizmo {
             neg_z,
             center,
             is_left_mouse_pressed: false,
+            last_mouse_position: None,
+            camera_rotation: CameraRotation {
+                yaw: 0.0,
+                pitch: 0.0,
+            },
         }
     }
 
@@ -273,7 +280,12 @@ impl SceneGizmo {
         closest
     }
 
-    pub fn on_mouse_move(&self, pos: Vector2<f32>, engine: &Engine) {
+    pub fn on_mouse_move(
+        &mut self,
+        pos: Vector2<f32>,
+        engine: &mut Engine,
+        game_scene: &GameScene,
+    ) {
         let graph = &engine.scenes[self.scene].graph;
         let closest = self.pick(pos, engine);
 
@@ -298,6 +310,24 @@ impl SceneGizmo {
                     default_color
                 },
             )
+        }
+        if self.is_left_mouse_pressed {
+            if let Some(last_pos) = self.last_mouse_position {
+                let delta = pos - last_pos;
+                self.camera_rotation.yaw += delta.x * 0.1;
+                self.camera_rotation.pitch += delta.y * 0.1;
+                // Apply rotation to the gizmo hinge
+                let graph = &mut engine.scenes[self.scene].graph;
+                graph[self.camera_hinge].local_transform_mut().set_rotation(
+                    UnitQuaternion::from_axis_angle(&Vector3::y_axis(), self.camera_rotation.yaw),
+                );
+                graph[self.camera_pivot].local_transform_mut().set_rotation(
+                    UnitQuaternion::from_axis_angle(&Vector3::x_axis(), self.camera_rotation.pitch),
+                );
+            }
+            self.last_mouse_position = Some(pos);
+        } else {
+            self.last_mouse_position = None;
         }
     }
 
@@ -339,5 +369,25 @@ impl SceneGizmo {
         } else {
             None
         }
+    }
+    //alternate version delete me later
+    pub fn apply_rotation(&mut self, delta_yaw: f32, delta_pitch: f32) {
+        self.camera_rotation.yaw += delta_yaw;
+        self.camera_rotation.pitch += delta_pitch;
+
+        self.camera_rotation.pitch = self
+            .camera_rotation
+            .pitch
+            .clamp(-90.0f32.to_radians(), 90.0f32.to_radians());
+    }
+    //Moves Gizmo in sync with the camera
+    pub fn apply_rotations(&mut self, engine: &mut Engine) {
+        let graph = &mut engine.scenes[self.scene].graph;
+        graph[self.camera_hinge].local_transform_mut().set_rotation(
+            UnitQuaternion::from_axis_angle(&Vector3::y_axis(), self.camera_rotation.yaw),
+        );
+        graph[self.camera_pivot].local_transform_mut().set_rotation(
+            UnitQuaternion::from_axis_angle(&Vector3::x_axis(), self.camera_rotation.pitch),
+        );
     }
 }
