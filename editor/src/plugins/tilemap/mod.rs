@@ -10,7 +10,7 @@ use crate::{
         core::{
             algebra::{Vector2, Vector3},
             color::Color,
-            math::plane::Plane,
+            math::{plane::Plane, Matrix4Ext},
             parking_lot::Mutex,
             pool::Handle,
             type_traits::prelude::*,
@@ -80,15 +80,21 @@ impl TileMapInteractionMode {
         mouse_position: Vector2<f32>,
         frame_size: Vector2<f32>,
     ) -> Option<Vector2<i32>> {
+        let tile_map = scene.graph.try_get_of_type::<TileMap>(self.tile_map)?;
+        let global_transform = tile_map.global_transform();
+        let inv_global_transform = global_transform.try_inverse().unwrap_or_default();
+
         let camera = scene.graph[game_scene.camera_controller.camera].as_camera();
         let ray = camera.make_ray(mouse_position, frame_size);
 
-        // TODO: This does not take global transform of the tile map into account!
-        let plane = Plane::from_normal_and_point(&Vector3::new(0.0, 0.0, 1.0), &Default::default())
-            .unwrap_or_default();
+        let plane =
+            Plane::from_normal_and_point(&global_transform.look(), &global_transform.position())
+                .unwrap_or_default();
 
-        ray.plane_intersection_point(&plane)
-            .map(|intersection| Vector2::new(intersection.x as i32, intersection.y as i32))
+        ray.plane_intersection_point(&plane).map(|intersection| {
+            let local_intersection = inv_global_transform.transform_point(&intersection.into());
+            Vector2::new(local_intersection.x as i32, local_intersection.y as i32)
+        })
     }
 
     fn draw_with_current_brush(
