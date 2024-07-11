@@ -20,7 +20,7 @@ use crate::{
         graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
         gui::{
             button::ButtonBuilder, message::UiMessage, utils::make_simple_tooltip,
-            widget::WidgetBuilder, BuildContext, Thickness, UiNode,
+            widget::WidgetBuilder, BuildContext, Thickness, UiNode, UserInterface,
         },
         scene::{
             debug::Line,
@@ -103,7 +103,10 @@ impl TileMapInteractionMode {
         game_scene: &GameScene,
         mouse_position: Vector2<f32>,
         frame_size: Vector2<f32>,
+        ui: &UserInterface,
     ) {
+        let modifiers = ui.keyboard_modifiers();
+
         if let Some(grid_coord) = self.pick_grid(scene, game_scene, mouse_position, frame_size) {
             self.brush_position = grid_coord;
 
@@ -113,15 +116,21 @@ impl TileMapInteractionMode {
 
             if self.interaction_context.is_some() {
                 let brush = self.brush.lock();
+
                 for brush_tile in brush.tiles.iter() {
                     let position = grid_coord + brush_tile.local_position;
-                    tile_map.insert_tile(
-                        position,
-                        Tile {
+
+                    if modifiers.shift {
+                        tile_map.remove_tile(position);
+                    } else {
+                        tile_map.insert_tile(
                             position,
-                            definition_index: brush_tile.definition_index,
-                        },
-                    )
+                            Tile {
+                                position,
+                                definition_index: brush_tile.definition_index,
+                            },
+                        )
+                    }
                 }
             }
         }
@@ -152,7 +161,13 @@ impl InteractionMode for TileMapInteractionMode {
             previous_tiles: tile_map.tiles().clone(),
         });
 
-        self.draw_with_current_brush(scene, game_scene, mouse_position, frame_size);
+        self.draw_with_current_brush(
+            scene,
+            game_scene,
+            mouse_position,
+            frame_size,
+            engine.user_interfaces.first(),
+        );
     }
 
     fn on_left_mouse_button_up(
@@ -207,7 +222,13 @@ impl InteractionMode for TileMapInteractionMode {
 
         let scene = &mut engine.scenes[game_scene.scene];
 
-        self.draw_with_current_brush(scene, game_scene, mouse_position, frame_size);
+        self.draw_with_current_brush(
+            scene,
+            game_scene,
+            mouse_position,
+            frame_size,
+            engine.user_interfaces.first(),
+        );
     }
 
     fn update(

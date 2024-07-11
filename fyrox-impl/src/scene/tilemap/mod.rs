@@ -50,30 +50,37 @@ pub struct TileMap {
 }
 
 impl TileMap {
+    #[inline]
     pub fn tile_set(&self) -> Option<&TileSetResource> {
         self.tile_set.as_ref()
     }
 
+    #[inline]
     pub fn set_tile_set(&mut self, tile_set: Option<TileSetResource>) {
         self.tile_set.set_value_and_mark_modified(tile_set);
     }
 
+    #[inline]
     pub fn tiles(&self) -> &Tiles {
         &self.tiles
     }
 
+    #[inline]
     pub fn set_tiles(&mut self, tiles: Tiles) {
         self.tiles.set_value_and_mark_modified(tiles);
     }
 
+    #[inline]
     pub fn tile_scale(&self) -> Vector2<f32> {
         *self.tile_scale
     }
 
+    #[inline]
     pub fn set_tile_scale(&mut self, tile_scale: Vector2<f32>) {
         self.tile_scale.set_value_and_mark_modified(tile_scale);
     }
 
+    #[inline]
     pub fn insert_tile(&mut self, position: Vector2<i32>, tile: Tile) {
         self.tiles
             .entry(position)
@@ -81,18 +88,27 @@ impl TileMap {
             .or_insert(tile);
     }
 
+    #[inline]
+    pub fn remove_tile(&mut self, position: Vector2<i32>) -> Option<Tile> {
+        self.tiles.remove(&position)
+    }
+
+    #[inline]
     pub fn active_brush(&self) -> Option<TileMapBrushResource> {
         (*self.active_brush).clone()
     }
 
+    #[inline]
     pub fn set_active_brush(&mut self, brush: Option<TileMapBrushResource>) {
         self.active_brush.set_value_and_mark_modified(brush);
     }
 
+    #[inline]
     pub fn brushes(&self) -> &[Option<TileMapBrushResource>] {
         &self.brushes
     }
 
+    #[inline]
     pub fn set_brushes(&mut self, brushes: Vec<Option<TileMapBrushResource>>) {
         self.brushes.set_value_and_mark_modified(brushes);
     }
