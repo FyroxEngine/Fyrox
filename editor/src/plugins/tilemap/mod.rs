@@ -26,6 +26,7 @@ use crate::{
             debug::Line,
             node::Node,
             tilemap::{brush::TileMapBrush, Tile, TileMap, Tiles},
+            Scene,
         },
     },
     interaction::{make_interaction_mode_button, InteractionMode},
@@ -71,21 +72,71 @@ pub struct TileMapInteractionMode {
     sender: MessageSender,
 }
 
+impl TileMapInteractionMode {
+    fn pick_grid(
+        &self,
+        scene: &Scene,
+        game_scene: &GameScene,
+        mouse_position: Vector2<f32>,
+        frame_size: Vector2<f32>,
+    ) -> Option<Vector2<i32>> {
+        let camera = scene.graph[game_scene.camera_controller.camera].as_camera();
+        let ray = camera.make_ray(mouse_position, frame_size);
+
+        // TODO: This does not take global transform of the tile map into account!
+        let plane = Plane::from_normal_and_point(&Vector3::new(0.0, 0.0, 1.0), &Default::default())
+            .unwrap_or_default();
+
+        ray.plane_intersection_point(&plane)
+            .map(|intersection| Vector2::new(intersection.x as i32, intersection.y as i32))
+    }
+
+    fn draw_with_current_brush(
+        &mut self,
+        scene: &mut Scene,
+        game_scene: &GameScene,
+        mouse_position: Vector2<f32>,
+        frame_size: Vector2<f32>,
+    ) {
+        if let Some(grid_coord) = self.pick_grid(scene, game_scene, mouse_position, frame_size) {
+            self.brush_position = grid_coord;
+
+            let Some(tile_map) = scene.graph.try_get_mut_of_type::<TileMap>(self.tile_map) else {
+                return;
+            };
+
+            if self.interaction_context.is_some() {
+                let brush = self.brush.lock();
+                for brush_tile in brush.tiles.iter() {
+                    let position = grid_coord + brush_tile.local_position;
+                    tile_map.insert_tile(
+                        position,
+                        Tile {
+                            position,
+                            definition_index: brush_tile.definition_index,
+                        },
+                    )
+                }
+            }
+        }
+    }
+}
+
 impl InteractionMode for TileMapInteractionMode {
     fn on_left_mouse_button_down(
         &mut self,
         _editor_selection: &Selection,
         controller: &mut dyn SceneController,
         engine: &mut Engine,
-        _mouse_pos: Vector2<f32>,
-        _frame_size: Vector2<f32>,
+        mouse_position: Vector2<f32>,
+        frame_size: Vector2<f32>,
         _settings: &Settings,
     ) {
         let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
             return;
         };
 
-        let scene = &engine.scenes[game_scene.scene];
+        let scene = &mut engine.scenes[game_scene.scene];
 
         let Some(tile_map) = scene.graph.try_get_of_type::<TileMap>(self.tile_map) else {
             return;
@@ -94,6 +145,8 @@ impl InteractionMode for TileMapInteractionMode {
         self.interaction_context = Some(InteractionContext {
             previous_tiles: tile_map.tiles().clone(),
         });
+
+        self.draw_with_current_brush(scene, game_scene, mouse_position, frame_size);
     }
 
     fn on_left_mouse_button_up(
@@ -148,35 +201,7 @@ impl InteractionMode for TileMapInteractionMode {
 
         let scene = &mut engine.scenes[game_scene.scene];
 
-        let camera = scene.graph[game_scene.camera_controller.camera].as_camera();
-        let ray = camera.make_ray(mouse_position, frame_size);
-
-        // TODO: This does not take global transform of the tile map into account!
-        let plane = Plane::from_normal_and_point(&Vector3::new(0.0, 0.0, 1.0), &Default::default())
-            .unwrap_or_default();
-
-        if let Some(intersection) = ray.plane_intersection_point(&plane) {
-            let grid_coord = Vector2::new(intersection.x as i32, intersection.y as i32);
-            self.brush_position = grid_coord;
-
-            let Some(tile_map) = scene.graph.try_get_mut_of_type::<TileMap>(self.tile_map) else {
-                return;
-            };
-
-            if self.interaction_context.is_some() {
-                let brush = self.brush.lock();
-                for brush_tile in brush.tiles.iter() {
-                    let position = grid_coord + brush_tile.local_position;
-                    tile_map.insert_tile(
-                        position,
-                        Tile {
-                            position,
-                            definition_index: brush_tile.definition_index,
-                        },
-                    )
-                }
-            }
-        }
+        self.draw_with_current_brush(scene, game_scene, mouse_position, frame_size);
     }
 
     fn update(
