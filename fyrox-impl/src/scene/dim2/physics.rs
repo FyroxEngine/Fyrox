@@ -2,6 +2,7 @@
 
 use crate::{
     core::{
+        algebra::Point3,
         algebra::{
             Isometry2, Isometry3, Matrix4, Point2, Rotation3, Translation2, Translation3,
             UnitComplex, UnitQuaternion, UnitVector2, Vector2, Vector3,
@@ -13,7 +14,7 @@ use crate::{
         parking_lot::Mutex,
         pool::Handle,
         reflect::prelude::*,
-        variable::VariableFlags,
+        variable::{InheritableVariable, VariableFlags},
         visitor::prelude::*,
         BiDirHashMap,
     },
@@ -23,18 +24,19 @@ use crate::{
         collider::{self},
         debug::SceneDrawingContext,
         dim2::{
-            self, collider::ColliderShape, joint::JointLocalFrames, joint::JointParams,
-            rigidbody::ApplyAction,
+            self, collider::ColliderShape, collider::TileMapShape, joint::JointLocalFrames,
+            joint::JointParams, rigidbody::ApplyAction,
         },
-        graph::Graph,
         graph::{
+            isometric_global_transform,
             physics::{FeatureId, IntegrationParameters, PhysicsPerformanceStatistics},
-            NodePool,
+            Graph, NodePool,
         },
         node::{Node, NodeTrait},
+        tilemap::{tileset::TileCollider, TileMap},
     },
 };
-use fyrox_core::variable::InheritableVariable;
+pub use rapier2d::geometry::shape::*;
 use rapier2d::{
     dynamics::{
         CCDSolver, GenericJoint, GenericJointBuilder, ImpulseJointHandle, ImpulseJointSet,
@@ -57,8 +59,6 @@ use std::{
     num::NonZeroUsize,
     sync::Arc,
 };
-
-pub use rapier2d::geometry::shape::*;
 
 /// A trait for ray cast results storage. It has two implementations: Vec and ArrayVec.
 /// Latter is needed for the cases where you need to avoid runtime memory allocations
@@ -302,8 +302,78 @@ fn convert_joint_params(
     joint
 }
 
+fn tile_map_to_collider_shape(
+    tile_map_shape: &TileMapShape,
+    owner_inv_transform: Matrix4<f32>,
+    nodes: &NodePool,
+) -> Option<SharedShape> {
+    let tile_map_handle = tile_map_shape.tile_map.0;
+    let tile_map = nodes
+        .try_borrow(tile_map_handle)?
+        .component_ref::<TileMap>()?;
+
+    let tile_set_resource = tile_map.tile_set()?.data_ref();
+    let tile_set = tile_set_resource.as_loaded_ref()?;
+
+    let global_transform = owner_inv_transform * tile_map.global_transform();
+
+    let mut vertices = Vec::new();
+    let mut triangles = Vec::new();
+
+    for tile in tile_map.tiles().values() {
+        let Some(tile_definition) = tile_set.tiles.get(tile.definition_index) else {
+            continue;
+        };
+
+        match tile_definition.collider {
+            TileCollider::None => {}
+            TileCollider::Rectangle => {
+                let position = tile.position.cast::<f32>().to_homogeneous();
+                let size = tile_map.tile_scale().to_homogeneous();
+                vertices.push(
+                    global_transform
+                        .transform_point(&Point3::from(position))
+                        .xy(),
+                );
+                vertices.push(
+                    global_transform
+                        .transform_point(&Point3::from(position + Vector3::new(size.x, 0.0, 0.0)))
+                        .xy(),
+                );
+                vertices.push(
+                    global_transform
+                        .transform_point(&Point3::from(position + size))
+                        .xy(),
+                );
+                vertices.push(
+                    global_transform
+                        .transform_point(&Point3::from(position + Vector3::new(0.0, size.y, 0.0)))
+                        .xy(),
+                );
+
+                let origin = triangles.len() as u32;
+                triangles.push([origin, origin + 1, origin + 2]);
+                triangles.push([origin, origin + 2, origin + 3]);
+            }
+            TileCollider::Mesh => {
+                // TODO: Add image-to-mesh conversion.
+            }
+        }
+    }
+
+    if triangles.is_empty() {
+        None
+    } else {
+        Some(SharedShape::trimesh(vertices, triangles))
+    }
+}
+
 // Converts descriptor in a shared shape.
-fn collider_shape_into_native_shape(shape: &ColliderShape) -> Option<SharedShape> {
+fn collider_shape_into_native_shape(
+    shape: &ColliderShape,
+    owner_inv_transform: Matrix4<f32>,
+    nodes: &NodePool,
+) -> Option<SharedShape> {
     match shape {
         ColliderShape::Ball(ball) => Some(SharedShape::ball(ball.radius)),
         ColliderShape::Cuboid(cuboid) => {
@@ -328,6 +398,9 @@ fn collider_shape_into_native_shape(shape: &ColliderShape) -> Option<SharedShape
         }
         ColliderShape::Heightfield(_) => {
             None // TODO
+        }
+        ColliderShape::TileMap(tilemap) => {
+            tile_map_to_collider_shape(tilemap, owner_inv_transform, nodes)
         }
     }
 }
@@ -1013,7 +1086,13 @@ impl PhysicsWorld {
                     }
 
                     collider_node.shape.try_sync_model(|v| {
-                        if let Some(shape) = collider_shape_into_native_shape(&v) {
+                        let inv_global_transform = isometric_global_transform(nodes, handle)
+                            .try_inverse()
+                            .unwrap();
+
+                        if let Some(shape) =
+                            collider_shape_into_native_shape(&v, inv_global_transform, nodes)
+                        {
                             native.set_shape(shape);
                         }
                     });
@@ -1052,7 +1131,14 @@ impl PhysicsWorld {
         {
             if parent_body.native.get() != RigidBodyHandle::invalid() {
                 let rigid_body_native = parent_body.native.get();
-                if let Some(shape) = collider_shape_into_native_shape(collider_node.shape()) {
+                let inv_global_transform = isometric_global_transform(nodes, handle)
+                    .try_inverse()
+                    .unwrap();
+                if let Some(shape) = collider_shape_into_native_shape(
+                    collider_node.shape(),
+                    inv_global_transform,
+                    nodes,
+                ) {
                     let mut builder = ColliderBuilder::new(shape)
                         .position(Isometry2 {
                             rotation: UnitComplex::from_angle(

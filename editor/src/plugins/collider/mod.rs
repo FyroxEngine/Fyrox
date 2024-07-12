@@ -228,7 +228,9 @@ fn make_shape_gizmo(
             ColliderShape::Capsule(_) => Box::new(Capsule2DShapeGizmo::new(visible, root, scene)),
             ColliderShape::Segment(_) => Box::new(Segment2DShapeGizmo::new(root, visible, scene)),
             ColliderShape::Triangle(_) => Box::new(Triangle2DShapeGizmo::new(root, visible, scene)),
-            ColliderShape::Trimesh(_) | ColliderShape::Heightfield(_) => Box::new(DummyShapeGizmo),
+            ColliderShape::Trimesh(_)
+            | ColliderShape::Heightfield(_)
+            | ColliderShape::TileMap(_) => Box::new(DummyShapeGizmo),
         }
     } else {
         Box::new(DummyShapeGizmo)

@@ -247,6 +247,9 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
     container.register_inheritable_vec_collection::<GeometrySource>();
     container.register_inheritable_inspectable::<GeometrySource>();
 
+    container.register_inheritable_vec_collection::<dim2::collider::GeometrySource>();
+    container.register_inheritable_inspectable::<dim2::collider::GeometrySource>();
+
     container.insert(make_status_enum_editor_definition());
 
     container.insert(EnumPropertyEditorDefinition::<LodGroup>::new_optional());
@@ -453,6 +456,7 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
     container.register_inheritable_inspectable::<dim2::collider::TrimeshShape>();
     container.register_inheritable_inspectable::<HeightfieldShape>();
     container.register_inheritable_inspectable::<dim2::collider::HeightfieldShape>();
+    container.register_inheritable_inspectable::<dim2::collider::TileMapShape>();
     container.register_inheritable_inspectable::<ConvexPolyhedronShape>();
     container.insert(SpriteSheetFramesContainerEditorDefinition);
 

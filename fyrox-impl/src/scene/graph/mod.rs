@@ -193,7 +193,8 @@ fn remap_handles(old_new_mapping: &NodeHandleMap<Node>, dest_graph: &mut Graph) 
     }
 }
 
-fn isometric_local_transform(nodes: &NodePool, node: Handle<Node>) -> Matrix4<f32> {
+/// Calculates local transform of a scene node without scaling.
+pub fn isometric_local_transform(nodes: &NodePool, node: Handle<Node>) -> Matrix4<f32> {
     let transform = nodes[node].local_transform();
     TransformBuilder::new()
         .with_local_position(**transform.position())
@@ -204,7 +205,8 @@ fn isometric_local_transform(nodes: &NodePool, node: Handle<Node>) -> Matrix4<f3
         .matrix()
 }
 
-fn isometric_global_transform(nodes: &NodePool, node: Handle<Node>) -> Matrix4<f32> {
+/// Calculates global transform of a scene node without scaling.
+pub fn isometric_global_transform(nodes: &NodePool, node: Handle<Node>) -> Matrix4<f32> {
     let parent = nodes[node].parent();
     if parent.is_some() {
         isometric_global_transform(nodes, parent) * isometric_local_transform(nodes, node)
