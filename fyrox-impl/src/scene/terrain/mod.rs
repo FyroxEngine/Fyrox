@@ -10,6 +10,7 @@ use crate::{
         arrayvec::ArrayVec,
         log::Log,
         math::{aabb::AxisAlignedBoundingBox, ray::Ray, ray_rect_intersection, Rect},
+        parking_lot::Mutex,
         pool::Handle,
         reflect::prelude::*,
         sstorage::ImmutableString,
@@ -122,8 +123,9 @@ fn make_quad_tree(
     block_size: Vector2<u32>,
 ) -> QuadTree {
     let texture = texture.as_ref().unwrap().data_ref();
+    let height_mod_count = texture.modifications_count();
     let height_map = texture.data_of_type::<f32>().unwrap();
-    QuadTree::new(height_map, height_map_size, block_size)
+    QuadTree::new(height_map, height_map_size, block_size, height_mod_count)
 }
 
 /// Create an Ok texture resource of the given size from the given height values.
@@ -161,10 +163,10 @@ fn make_height_map_texture(height_map: Vec<f32>, size: Vector2<u32>) -> TextureR
 /// grid. You can add chunks from any side of a terrain. Chunks could be considered as a "sub-terrain", which could
 /// use its own set of materials for layers. This could be useful for different biomes, to prevent high amount of
 /// layers which could harm the performance.
-#[derive(Debug, Reflect, PartialEq)]
+#[derive(Debug, Reflect)]
 pub struct Chunk {
     #[reflect(hidden)]
-    quad_tree: QuadTree,
+    quad_tree: Mutex<QuadTree>,
     #[reflect(hidden)]
     version: u8,
     #[reflect(
@@ -187,9 +189,21 @@ pub struct Chunk {
     /// Layer blending masks of the chunk.
     #[reflect(hidden)]
     pub layer_masks: Vec<TextureResource>,
+    #[reflect(hidden)]
+    height_map_modifications_count: u64,
 }
 
 uuid_provider!(Chunk = "ae996754-69c1-49ba-9c17-a7bd4be072a9");
+
+impl PartialEq for Chunk {
+    fn eq(&self, other: &Self) -> bool {
+        self.version == other.version
+            && self.heightmap == other.heightmap
+            && self.height_map_size == other.height_map_size
+            && self.grid_position == other.grid_position
+            && self.layer_masks == other.layer_masks
+    }
+}
 
 impl Clone for Chunk {
     // Deep cloning.
@@ -207,7 +221,12 @@ impl Clone for Chunk {
                 .iter()
                 .map(|m| m.deep_clone())
                 .collect::<Vec<_>>(),
-            quad_tree: make_quad_tree(&self.heightmap, self.height_map_size, self.block_size),
+            quad_tree: Mutex::new(make_quad_tree(
+                &self.heightmap,
+                self.height_map_size,
+                self.block_size,
+            )),
+            height_map_modifications_count: self.height_map_modifications_count,
         }
     }
 }
@@ -271,7 +290,11 @@ impl Visit for Chunk {
             _ => (),
         }
 
-        self.quad_tree = make_quad_tree(&self.heightmap, self.height_map_size, self.block_size);
+        self.quad_tree = Mutex::new(make_quad_tree(
+            &self.heightmap,
+            self.height_map_size,
+            self.block_size,
+        ));
 
         Ok(())
     }
@@ -289,11 +312,23 @@ impl Default for Chunk {
             block_size: Vector2::new(32, 32),
             grid_position: Default::default(),
             layer_masks: Default::default(),
+            height_map_modifications_count: 0,
         }
     }
 }
 
 impl Chunk {
+    /// Check the heightmap for modifications and update data as necessary.
+    pub fn update(&self) {
+        let Some(heightmap) = self.heightmap.as_ref() else {
+            return;
+        };
+        let count = heightmap.data_ref().modifications_count();
+        let mut quad_tree = self.quad_tree.lock();
+        if count != quad_tree.height_mod_count() {
+            *quad_tree = make_quad_tree(&self.heightmap, self.height_map_size, self.block_size);
+        }
+    }
     /// Returns position of the chunk in local 2D coordinates relative to origin of the
     /// terrain.
     pub fn local_position(&self) -> Vector2<f32> {
@@ -493,7 +528,10 @@ impl Chunk {
                             if let Some(texture) =
                                 make_height_map_texture_internal(pixels, self.height_map_size)
                             {
-                                return std::mem::replace(&mut self.heightmap, Some(texture));
+                                let prev_texture =
+                                    std::mem::replace(&mut self.heightmap, Some(texture));
+                                self.update_quad_tree();
+                                return prev_texture;
                             }
                         }
                     }
@@ -529,6 +567,7 @@ impl Chunk {
             {
                 drop(data);
                 self.heightmap = Some(heightmap);
+                self.update_quad_tree();
                 return Ok(());
             }
         }
@@ -551,6 +590,7 @@ impl Chunk {
         let transform = *transform * Matrix4::new_translation(&self.position());
 
         self.quad_tree
+            .lock()
             .debug_draw(&transform, self.height_map_size, self.physical_size, ctx)
     }
 
@@ -560,8 +600,12 @@ impl Chunk {
     }
 
     /// Recalculates the quad tree for this chunk.
-    pub fn update_quad_tree(&mut self) {
-        self.quad_tree = make_quad_tree(&self.heightmap, self.height_map_size, self.block_size);
+    pub fn update_quad_tree(&self) {
+        if self.heightmap.is_none() {
+            return;
+        }
+        *self.quad_tree.lock() =
+            make_quad_tree(&self.heightmap, self.height_map_size, self.block_size);
     }
 }
 
@@ -1201,12 +1245,14 @@ impl Terrain {
                     let heightmap =
                         vec![0.0; (self.height_map_size.x * self.height_map_size.y) as usize];
                     let new_chunk = Chunk {
-                        quad_tree: QuadTree::new(
+                        quad_tree: Mutex::new(QuadTree::new(
                             &heightmap,
                             *self.height_map_size,
                             *self.block_size,
-                        ),
+                            0,
+                        )),
                         heightmap: Some(make_height_map_texture(heightmap, self.height_map_size())),
+                        height_map_modifications_count: 0,
                         position: Vector3::new(
                             x as f32 * self.chunk_size.x,
                             0.0,
@@ -1629,7 +1675,7 @@ impl Terrain {
             drop(texture_modifier);
             drop(texture_data);
 
-            chunk.quad_tree =
+            *chunk.quad_tree.lock() =
                 make_quad_tree(&chunk.heightmap, chunk.height_map_size, chunk.block_size);
         }
 
@@ -2071,17 +2117,21 @@ impl NodeTrait for Terrain {
             return RdcControlFlow::Continue;
         }
 
+        for c in self.chunks.iter() {
+            c.update();
+        }
+
         for (layer_index, layer) in self.layers().iter().enumerate() {
             for chunk in self.chunks_ref().iter() {
                 // Generate a list of distances for each LOD that the terrain can render.
                 // The first element of the list is the furthest distance, where the lowest LOD is used.
                 // The formula used to produce this list has been chosen arbitrarily based on what seems to produce
                 // the best results in the render.
-                let levels = (0..chunk.quad_tree.max_level)
+                let quad_tree = chunk.quad_tree.lock();
+                let levels = (0..quad_tree.max_level)
                     .map(|n| {
                         ctx.z_far
-                            * ((chunk.quad_tree.max_level - n) as f32
-                                / chunk.quad_tree.max_level as f32)
+                            * ((quad_tree.max_level - n) as f32 / quad_tree.max_level as f32)
                                 .powf(3.0)
                     })
                     .collect::<Vec<_>>();
@@ -2094,7 +2144,7 @@ impl NodeTrait for Terrain {
                 // The instances will be scaled based on the LOD that is needed at the instance's distance
                 // according to the `levels` list.
                 let mut selection = Vec::new();
-                chunk.quad_tree.select(
+                quad_tree.select(
                     &chunk_transform,
                     self.height_map_size(),
                     self.chunk_size(),
@@ -2321,9 +2371,15 @@ impl TerrainBuilder {
                 let heightmap =
                     vec![0.0; (self.height_map_size.x * self.height_map_size.y) as usize];
                 let chunk = Chunk {
-                    quad_tree: QuadTree::new(&heightmap, self.height_map_size, self.block_size),
+                    quad_tree: Mutex::new(QuadTree::new(
+                        &heightmap,
+                        self.height_map_size,
+                        self.block_size,
+                        0,
+                    )),
                     height_map_size: self.height_map_size,
                     heightmap: Some(make_height_map_texture(heightmap, self.height_map_size)),
+                    height_map_modifications_count: 0,
                     position: Vector3::new(
                         x as f32 * self.chunk_size.x,
                         0.0,

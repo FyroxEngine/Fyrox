@@ -18,6 +18,7 @@ use crate::{
 pub struct QuadTree {
     root: QuadTreeNode,
     pub max_level: u32,
+    height_mod_count: u64,
 }
 
 /// Each QuadTreeNode is primarily responsible for storing the AABB data for a particular
@@ -387,6 +388,7 @@ impl QuadTree {
         height_map: &[f32],
         height_map_size: Vector2<u32>,
         block_size: Vector2<u32>,
+        height_mod_count: u64,
     ) -> Self {
         let mut index = 0;
         let root = QuadTreeNode::new(
@@ -400,7 +402,15 @@ impl QuadTree {
         );
         let mut max_level = 0;
         root.max_level(&mut max_level);
-        Self { max_level, root }
+        Self {
+            max_level,
+            root,
+            height_mod_count,
+        }
+    }
+
+    pub fn height_mod_count(&self) -> u64 {
+        self.height_mod_count
     }
 
     /// Determine the size and position of terrain geometry instances that are needed in order to render the chunk of this QuadTree.
@@ -468,7 +478,7 @@ mod test {
         let heightmap = vec![0.0; (height_map_size.x * height_map_size.y) as usize];
         let z_far = 100.0;
 
-        let quadtree = QuadTree::new(&heightmap, height_map_size, block_size);
+        let quadtree = QuadTree::new(&heightmap, height_map_size, block_size, 0);
 
         let levels = (0..quadtree.max_level)
             .map(|n| z_far * (n as f32 / quadtree.max_level as f32))
