@@ -796,13 +796,6 @@ impl SceneViewer {
                                     {
                                         match action {
                                             SceneGizmoAction::Rotate(rotation) => {
-                                                if self.scene_gizmo.is_left_mouse_pressed {
-                                                    //rotate gizmo when left mouse is pressed
-                                                    game_scene.camera_controller.pitch =
-                                                        rotation.yaw;
-                                                    game_scene.camera_controller.yaw =
-                                                        rotation.pitch;
-                                                }
                                                 game_scene.camera_controller.pitch = rotation.pitch;
                                                 game_scene.camera_controller.yaw = rotation.yaw;
                                             }
@@ -838,21 +831,14 @@ impl SceneViewer {
                             }
                             WidgetMessage::MouseMove { pos, .. } => {
                                 //anytime gizmo is hovered
-                                let rel_pos = pos
-                                    - engine
-                                        .user_interfaces
-                                        .first()
-                                        .node(self.scene_gizmo_image)
-                                        .screen_position();
-                                self.scene_gizmo.on_mouse_move(rel_pos, engine, game_scene);
                                 if self.scene_gizmo.is_left_mouse_pressed {
-                                    self.scene_gizmo.apply_rotations(engine);
-
-                                    game_scene.camera_controller.apply_camera_rotation();
-                                    game_scene.camera_controller.pitch =
-                                        self.scene_gizmo.camera_rotation.pitch;
-                                    game_scene.camera_controller.pitch =
-                                        self.scene_gizmo.camera_rotation.yaw;
+                                    let rel_pos = pos
+                                        - engine
+                                            .user_interfaces
+                                            .first()
+                                            .node(self.scene_gizmo_image)
+                                            .screen_position();
+                                    self.scene_gizmo.on_mouse_move(rel_pos, engine);
                                 }
                             }
                             WidgetMessage::MouseUp { button, .. } => {
@@ -1048,7 +1034,6 @@ impl SceneViewer {
             render_target.map(Into::into),
         ));
     }
-
     pub fn set_title(&self, ui: &UserInterface, title: String) {
         ui.send_message(WindowMessage::title(
             self.window,
@@ -1077,27 +1062,5 @@ impl SceneViewer {
 
     pub fn update(&self, game_scene: &GameScene, engine: &mut Engine) {
         self.scene_gizmo.sync_rotations(game_scene, engine);
-    }
-    fn apply_camera_rotation(
-        &mut self,
-        camera_controller: &CameraController,
-        engine: &mut Engine,
-        game_scene: &mut GameScene,
-    ) {
-        let scene = &mut engine.scenes[game_scene.scene];
-        let graph = &mut scene.graph;
-
-        let camera = &mut graph[camera_controller.camera];
-        let transform = camera.local_transform_mut();
-
-        let yaw_rotation =
-            UnitQuaternion::from_axis_angle(&Vector3::y_axis(), camera_controller.yaw);
-        let pitch_rotation =
-            UnitQuaternion::from_axis_angle(&Vector3::x_axis(), camera_controller.pitch);
-
-        // Apply yaw rotation first, then pitch rotation
-        let combined_rotation = yaw_rotation * pitch_rotation;
-
-        transform.set_rotation(combined_rotation);
     }
 }
