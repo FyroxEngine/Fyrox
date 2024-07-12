@@ -1,5 +1,4 @@
 use crate::{
-    camera::CameraController,
     fyrox::{
         core::{color::Color, math::Rect, pool::Handle, uuid::Uuid},
         engine::Engine,
@@ -49,7 +48,6 @@ use crate::{
     DropdownListBuilder, GameScene, Message, Mode, SaveSceneConfirmationDialogAction,
     SceneContainer, Settings,
 };
-use fyrox::core::algebra::{UnitQuaternion, Vector3};
 use std::{
     cmp::Ordering,
     ops::Deref,

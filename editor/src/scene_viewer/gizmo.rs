@@ -24,7 +24,7 @@ use crate::fyrox::{
     },
 };
 use crate::scene::GameScene;
-use fyrox::{asset::untyped::ResourceKind, core::num_traits::Float};
+use fyrox::asset::untyped::ResourceKind;
 use std::cell::RefCell;
 
 pub struct CameraRotation {
