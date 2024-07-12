@@ -55,7 +55,6 @@ use std::{
 };
 use strum::{IntoEnumIterator, VariantNames};
 use strum_macros::{AsRefStr, EnumIter, EnumString, VariantNames};
-
 mod gizmo;
 
 #[derive(Default, Clone, Debug, EnumIter, AsRefStr, EnumString, VariantNames)]
@@ -530,7 +529,6 @@ impl SceneViewer {
             )
             .with_title(WindowTitle::text("Scene Preview"))
             .build(ctx);
-
         Self {
             sender,
             window,
@@ -784,12 +782,14 @@ impl SceneViewer {
                         match *msg {
                             WidgetMessage::MouseDown { button, pos, .. } => {
                                 if button == MouseButton::Left {
+                                    self.scene_gizmo.is_left_mouse_pressed = true;
                                     let rel_pos = pos
                                         - engine
                                             .user_interfaces
                                             .first()
                                             .node(self.scene_gizmo_image)
                                             .screen_position();
+
                                     if let Some(action) = self.scene_gizmo.on_click(rel_pos, engine)
                                     {
                                         match action {
@@ -828,15 +828,23 @@ impl SceneViewer {
                                 }
                             }
                             WidgetMessage::MouseMove { pos, .. } => {
-                                let rel_pos = pos
-                                    - engine
-                                        .user_interfaces
-                                        .first()
-                                        .node(self.scene_gizmo_image)
-                                        .screen_position();
-                                self.scene_gizmo.on_mouse_move(rel_pos, engine);
+                                //anytime gizmo is hovered
+                                if self.scene_gizmo.is_left_mouse_pressed {
+                                    let rel_pos = pos
+                                        - engine
+                                            .user_interfaces
+                                            .first()
+                                            .node(self.scene_gizmo_image)
+                                            .screen_position();
+                                    self.scene_gizmo.on_mouse_move(rel_pos, engine);
+                                }
                             }
-                            _ => (),
+                            WidgetMessage::MouseUp { button, .. } => {
+                                if button == MouseButton::Left {
+                                    self.scene_gizmo.is_left_mouse_pressed = false;
+                                }
+                            }
+                            _ => {}
                         }
                     }
                 }
@@ -1024,7 +1032,6 @@ impl SceneViewer {
             render_target.map(Into::into),
         ));
     }
-
     pub fn set_title(&self, ui: &UserInterface, title: String) {
         ui.send_message(WindowMessage::title(
             self.window,
