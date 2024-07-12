@@ -397,6 +397,27 @@ where
     phantom: PhantomData<T>,
 }
 
+impl<'a, T> ResourceDataRef<'a, T>
+where
+    T: TypedResourceData,
+{
+    #[inline]
+    pub fn as_loaded_ref(&self) -> Option<&T> {
+        match self.guard.state {
+            ResourceState::Ok(ref data) => ResourceData::as_any(&**data).downcast_ref(),
+            _ => None,
+        }
+    }
+
+    #[inline]
+    pub fn as_loaded_mut(&mut self) -> Option<&mut T> {
+        match self.guard.state {
+            ResourceState::Ok(ref mut data) => ResourceData::as_any_mut(&mut **data).downcast_mut(),
+            _ => None,
+        }
+    }
+}
+
 impl<'a, T> Debug for ResourceDataRef<'a, T>
 where
     T: TypedResourceData,
