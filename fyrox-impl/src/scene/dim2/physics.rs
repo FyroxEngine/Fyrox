@@ -315,7 +315,10 @@ fn tile_map_to_collider_shape(
     let tile_set_resource = tile_map.tile_set()?.data_ref();
     let tile_set = tile_set_resource.as_loaded_ref()?;
 
-    let global_transform = owner_inv_transform * tile_map.global_transform();
+    let tile_scale = tile_map.tile_scale();
+    let global_transform = owner_inv_transform
+        * tile_map.global_transform()
+        * Matrix4::new_nonuniform_scaling(&Vector3::new(tile_scale.x, tile_scale.y, 1.0));
 
     let mut vertices = Vec::new();
     let mut triangles = Vec::new();
@@ -328,8 +331,9 @@ fn tile_map_to_collider_shape(
         match tile_definition.collider {
             TileCollider::None => {}
             TileCollider::Rectangle => {
+                let origin = vertices.len() as u32;
+
                 let position = tile.position.cast::<f32>().to_homogeneous();
-                let size = tile_map.tile_scale().to_homogeneous();
                 vertices.push(
                     global_transform
                         .transform_point(&Point3::from(position))
@@ -337,21 +341,20 @@ fn tile_map_to_collider_shape(
                 );
                 vertices.push(
                     global_transform
-                        .transform_point(&Point3::from(position + Vector3::new(size.x, 0.0, 0.0)))
+                        .transform_point(&Point3::from(position + Vector3::new(1.0, 0.0, 0.0)))
                         .xy(),
                 );
                 vertices.push(
                     global_transform
-                        .transform_point(&Point3::from(position + size))
+                        .transform_point(&Point3::from(position + Vector3::new(1.0, 1.0, 0.0)))
                         .xy(),
                 );
                 vertices.push(
                     global_transform
-                        .transform_point(&Point3::from(position + Vector3::new(0.0, size.y, 0.0)))
+                        .transform_point(&Point3::from(position + Vector3::new(0.0, 1.0, 0.0)))
                         .xy(),
                 );
 
-                let origin = triangles.len() as u32;
                 triangles.push([origin, origin + 1, origin + 2]);
                 triangles.push([origin, origin + 2, origin + 3]);
             }
