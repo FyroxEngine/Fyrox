@@ -16,7 +16,7 @@ use crate::{
             formatted_text::WrapMode,
             grid::{Column, GridBuilder, Row},
             image::{ImageBuilder, ImageMessage},
-            message::{MessageDirection, MouseButton, UiMessage},
+            message::{ButtonState, MessageDirection, MouseButton, UiMessage},
             numeric::{NumericUpDownBuilder, NumericUpDownMessage},
             stack_panel::StackPanelBuilder,
             tab_control::{
@@ -782,7 +782,6 @@ impl SceneViewer {
                         match *msg {
                             WidgetMessage::MouseDown { button, pos, .. } => {
                                 if button == MouseButton::Left {
-                                    self.scene_gizmo.is_left_mouse_pressed = true;
                                     let rel_pos = pos
                                         - engine
                                             .user_interfaces
@@ -827,21 +826,20 @@ impl SceneViewer {
                                     }
                                 }
                             }
-                            WidgetMessage::MouseMove { pos, .. } => {
-                                //anytime gizmo is hovered
-                                if self.scene_gizmo.is_left_mouse_pressed {
-                                    let rel_pos = pos
-                                        - engine
-                                            .user_interfaces
-                                            .first()
-                                            .node(self.scene_gizmo_image)
-                                            .screen_position();
-                                    self.scene_gizmo.on_mouse_move(rel_pos, engine);
-                                }
-                            }
-                            WidgetMessage::MouseUp { button, .. } => {
-                                if button == MouseButton::Left {
-                                    self.scene_gizmo.is_left_mouse_pressed = false;
+                            WidgetMessage::MouseMove { pos, state, .. } => {
+                                let rel_pos = pos
+                                    - engine
+                                        .user_interfaces
+                                        .first()
+                                        .node(self.scene_gizmo_image)
+                                        .screen_position();
+                                self.scene_gizmo.on_mouse_move(rel_pos, engine, None);
+                                if state.left == ButtonState::Pressed {
+                                    self.scene_gizmo.on_mouse_move(
+                                        pos,
+                                        engine,
+                                        Some(&mut game_scene.camera_controller),
+                                    );
                                 }
                             }
                             _ => {}
