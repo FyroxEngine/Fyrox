@@ -16,7 +16,7 @@ use crate::{
             formatted_text::WrapMode,
             grid::{Column, GridBuilder, Row},
             image::{ImageBuilder, ImageMessage},
-            message::{ButtonState, MessageDirection, MouseButton, UiMessage},
+            message::{MessageDirection, MouseButton, UiMessage},
             numeric::{NumericUpDownBuilder, NumericUpDownMessage},
             stack_panel::StackPanelBuilder,
             tab_control::{
@@ -833,14 +833,12 @@ impl SceneViewer {
                                         .first()
                                         .node(self.scene_gizmo_image)
                                         .screen_position();
-                                self.scene_gizmo.on_mouse_move(rel_pos, engine, None);
-                                if state.left == ButtonState::Pressed {
-                                    self.scene_gizmo.on_mouse_move(
-                                        pos,
-                                        engine,
-                                        Some(&mut game_scene.camera_controller),
-                                    );
-                                }
+                                self.scene_gizmo.on_mouse_move(
+                                    rel_pos,
+                                    engine,
+                                    &mut game_scene.camera_controller,
+                                    state.left,
+                                );
                             }
                             _ => (),
                         }
