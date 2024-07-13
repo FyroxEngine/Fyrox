@@ -12,7 +12,7 @@ use crate::{
             button::ButtonMessage,
             decorator::DecoratorBuilder,
             grid::{Column, GridBuilder, Row},
-            image::ImageBuilder,
+            image::{ImageBuilder, ImageMessage},
             inspector::{
                 editors::PropertyEditorDefinitionContainer, Inspector, InspectorBuilder,
                 InspectorContext, InspectorMessage,
@@ -99,7 +99,7 @@ impl TileSetEditor {
         let inspector = InspectorBuilder::new(
             WidgetBuilder::new()
                 .on_column(1)
-                .with_width(240.0)
+                .with_width(270.0)
                 .with_visibility(false),
         )
         .build(ctx);
@@ -193,10 +193,21 @@ impl TileSetEditor {
         }
 
         for tile in tile_set.tiles.iter() {
-            if tile_views
-                .iter()
-                .all(|tile_view| ui.node(*tile_view).id != tile.id)
-            {
+            if let Some(tile_view_ref) = tile_views.iter().find_map(|tile_view| {
+                let tile_view_ref = ui.node(*tile_view);
+                if tile_view_ref.id == tile.id {
+                    Some(tile_view_ref)
+                } else {
+                    None
+                }
+            }) {
+                let image = tile_view_ref.children()[0];
+                ui.send_message(ImageMessage::uv_rect(
+                    image,
+                    MessageDirection::ToWidget,
+                    tile.uv_rect,
+                ));
+            } else {
                 let texture = tile.material.data_ref().texture("diffuseTexture");
 
                 let ctx = &mut ui.build_ctx();
@@ -413,18 +424,22 @@ impl TileSetEditor {
                 }
             }
         } else if let Some(InspectorMessage::PropertyChanged(args)) = message.data() {
-            let tile_set = self.tile_set.clone();
-            sender.send(Message::DoCommand(
-                make_command(args, move |_| {
-                    // FIXME: HACK!
-                    unsafe {
-                        std::mem::transmute::<&'_ mut TileSet, &'static mut TileSet>(
-                            &mut *tile_set.data_ref(),
-                        )
-                    }
-                })
-                .unwrap(),
-            ));
+            if let Some(selection) = self.selection {
+                let tile_set = self.tile_set.clone();
+                sender.send(Message::DoCommand(
+                    make_command(args, move |_| {
+                        // FIXME: HACK!
+                        let tile_set = unsafe {
+                            std::mem::transmute::<&'_ mut TileSet, &'static mut TileSet>(
+                                &mut *tile_set.data_ref(),
+                            )
+                        };
+
+                        &mut tile_set.tiles[selection]
+                    })
+                    .unwrap(),
+                ));
+            }
         }
 
         Some(self)
