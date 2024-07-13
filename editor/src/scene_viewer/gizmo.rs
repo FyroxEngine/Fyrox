@@ -306,15 +306,12 @@ impl SceneGizmo {
                 },
             )
         }
-        //rotate gizmo while holding left mouse button
         if left_mouse_button == ButtonState::Pressed {
             let delta = pos - self.last_click_position;
-            if delta.magnitude() > 0.01 {
+            if delta.magnitude() > 0.1 {
                 camera_controller.yaw = delta.x * 0.1;
                 camera_controller.pitch = delta.y * 0.1;
             }
-            // camera_controller.yaw = delta.x * 0.1;
-            // camera_controller.pitch = delta.y * 0.1;
         }
     }
 
