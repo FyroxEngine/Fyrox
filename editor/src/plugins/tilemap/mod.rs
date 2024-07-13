@@ -347,6 +347,8 @@ impl EditorPlugin for TileMapEditorPlugin {
                 ui,
                 &editor.engine.resource_manager,
                 &editor.message_sender,
+                editor.inspector.property_editors.clone(),
+                editor.engine.serialization_context.clone(),
             );
         }
 

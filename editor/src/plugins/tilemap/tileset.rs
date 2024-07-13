@@ -1,10 +1,10 @@
-use crate::plugins::tilemap::commands::{AddTileCommand, RemoveTileCommand};
 use crate::{
     asset::item::AssetItem,
-    command::{Command, CommandGroup},
+    command::{make_command, Command, CommandGroup},
     fyrox::{
         asset::{manager::ResourceManager, untyped::ResourceKind, ResourceData},
         core::{log::Log, math::Rect, pool::Handle, Uuid},
+        engine::SerializationContext,
         graph::{BaseSceneGraph, SceneGraphNode},
         gui::{
             border::BorderBuilder,
@@ -12,6 +12,10 @@ use crate::{
             decorator::DecoratorBuilder,
             grid::{Column, GridBuilder, Row},
             image::ImageBuilder,
+            inspector::{
+                editors::PropertyEditorDefinitionContainer, Inspector, InspectorBuilder,
+                InspectorContext, InspectorMessage,
+            },
             list_view::{ListView, ListViewBuilder, ListViewMessage},
             message::{MessageDirection, UiMessage},
             stack_panel::StackPanelBuilder,
@@ -22,13 +26,18 @@ use crate::{
         },
         material::{Material, MaterialResource},
         resource::texture::Texture,
-        scene::tilemap::tileset::{TileDefinition, TileSetResource},
+        scene::tilemap::tileset::{TileDefinition, TileSet, TileSetResource},
     },
+    inspector::EditorEnvironment,
     message::MessageSender,
     plugins::tilemap::{
-        make_button, tile_set_import::ImportResult, tile_set_import::TileSetImporter,
+        commands::{AddTileCommand, RemoveTileCommand},
+        make_button,
+        tile_set_import::{ImportResult, TileSetImporter},
     },
+    Message,
 };
+use std::sync::Arc;
 
 pub struct TileSetEditor {
     window: Handle<UiNode>,
@@ -40,6 +49,7 @@ pub struct TileSetEditor {
     selection: Option<usize>,
     need_save: bool,
     tile_set_importer: Option<TileSetImporter>,
+    inspector: Handle<UiNode>,
 }
 
 impl TileSetEditor {
@@ -73,7 +83,6 @@ impl TileSetEditor {
 
         let tiles = ListViewBuilder::new(
             WidgetBuilder::new()
-                .on_row(1)
                 .with_margin(Thickness::uniform(1.0))
                 .with_allow_drop(true),
         )
@@ -86,13 +95,30 @@ impl TileSetEditor {
         )
         .build(ctx);
 
-        let content = GridBuilder::new(WidgetBuilder::new().with_child(buttons).with_child(tiles))
-            .add_row(Row::auto())
-            .add_row(Row::stretch())
-            .add_column(Column::stretch())
-            .build(ctx);
+        let inspector = InspectorBuilder::new(WidgetBuilder::new().on_column(1)).build(ctx);
 
-        let window = WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
+        let split_panel = GridBuilder::new(
+            WidgetBuilder::new()
+                .with_child(tiles)
+                .with_child(inspector)
+                .on_row(1),
+        )
+        .add_column(Column::stretch())
+        .add_column(Column::strict(240.0))
+        .add_row(Row::stretch())
+        .build(ctx);
+
+        let content = GridBuilder::new(
+            WidgetBuilder::new()
+                .with_child(buttons)
+                .with_child(split_panel),
+        )
+        .add_row(Row::auto())
+        .add_row(Row::stretch())
+        .add_column(Column::stretch())
+        .build(ctx);
+
+        let window = WindowBuilder::new(WidgetBuilder::new().with_width(550.0).with_height(400.0))
             .open(false)
             .with_title(WindowTitle::text("Tile Set Editor"))
             .with_content(content)
@@ -117,6 +143,7 @@ impl TileSetEditor {
             selection: Default::default(),
             need_save: false,
             tile_set_importer: None,
+            inspector,
         };
 
         editor.sync_to_model(ctx.inner_mut());
@@ -183,6 +210,24 @@ impl TileSetEditor {
                 ));
             }
         }
+
+        if let Some(selection) = self.selection {
+            if let Some(tile_definition) = tile_set.tiles.get(selection) {
+                let ctx = ui
+                    .node(self.inspector)
+                    .cast::<Inspector>()
+                    .unwrap()
+                    .context()
+                    .clone();
+
+                if let Err(sync_errors) = ctx.sync(tile_definition, ui, 0, true, Default::default())
+                {
+                    for error in sync_errors {
+                        Log::err(format!("Failed to sync property. Reason: {:?}", error))
+                    }
+                }
+            }
+        }
     }
 
     fn try_save(&self) {
@@ -197,6 +242,8 @@ impl TileSetEditor {
         ui: &mut UserInterface,
         resource_manager: &ResourceManager,
         sender: &MessageSender,
+        property_editors: Arc<PropertyEditorDefinitionContainer>,
+        serialization_context: Arc<SerializationContext>,
     ) -> Option<Self> {
         if let Some(importer) = self.tile_set_importer.take() {
             match importer.handle_ui_message(message, ui, resource_manager) {
@@ -306,7 +353,59 @@ impl TileSetEditor {
                     MessageDirection::ToWidget,
                     self.selection.is_some(),
                 ));
+
+                if let Some(selection) = selection {
+                    let tile_set = self.tile_set.data_ref();
+                    if let Some(tile_definition) = tile_set
+                        .as_loaded_ref()
+                        .and_then(|tile_set| tile_set.tiles.get(*selection))
+                    {
+                        let env = Arc::new(EditorEnvironment {
+                            resource_manager: resource_manager.clone(),
+                            serialization_context,
+                            available_animations: Default::default(),
+                            sender: sender.clone(),
+                        });
+
+                        let context = InspectorContext::from_object(
+                            tile_definition,
+                            &mut ui.build_ctx(),
+                            property_editors,
+                            Some(env),
+                            1,
+                            0,
+                            true,
+                            Default::default(),
+                            80.0,
+                        );
+
+                        ui.send_message(InspectorMessage::context(
+                            self.inspector,
+                            MessageDirection::ToWidget,
+                            context,
+                        ));
+                    } else {
+                        ui.send_message(InspectorMessage::context(
+                            self.inspector,
+                            MessageDirection::ToWidget,
+                            Default::default(),
+                        ));
+                    }
+                }
             }
+        } else if let Some(InspectorMessage::PropertyChanged(args)) = message.data() {
+            let tile_set = self.tile_set.clone();
+            sender.send(Message::DoCommand(
+                make_command(args, move |_| {
+                    // FIXME: HACK!
+                    unsafe {
+                        std::mem::transmute::<&'_ mut TileSet, &'static mut TileSet>(
+                            &mut *tile_set.data_ref(),
+                        )
+                    }
+                })
+                .unwrap(),
+            ));
         }
 
         Some(self)
