@@ -132,7 +132,8 @@ impl Default for TriangleShape {
 /// # Notes
 ///
 /// Currently there is only one way to set geometry - using a scene node as a source of data.
-#[derive(Default, Clone, Copy, PartialEq, Hash, Debug, Visit, Reflect, Eq)]
+#[derive(Default, Clone, Copy, PartialEq, Hash, Debug, Visit, Reflect, Eq, TypeUuidProvider)]
+#[type_uuid(id = "1d451699-d76e-4774-87ea-dd3e2751cb39")]
 pub struct GeometrySource(pub Handle<Node>);
 
 /// Arbitrary triangle mesh shape.
@@ -147,6 +148,13 @@ pub struct TrimeshShape {
 pub struct HeightfieldShape {
     /// A handle to terrain scene node.
     pub geometry_source: GeometrySource,
+}
+
+/// Arbitrary height field shape.
+#[derive(Default, Clone, Debug, PartialEq, Visit, Reflect, Eq)]
+pub struct TileMapShape {
+    /// A handle to tile map scene node.
+    pub tile_map: GeometrySource,
 }
 
 /// Possible collider shapes.
@@ -166,6 +174,8 @@ pub enum ColliderShape {
     Trimesh(TrimeshShape),
     /// See [`HeightfieldShape`] docs.
     Heightfield(HeightfieldShape),
+    /// See [`TileMapShape`] docs.
+    TileMap(TileMapShape),
 }
 
 uuid_provider!(ColliderShape = "4615485f-f8db-4405-b4a5-437e74b3f5b8");
