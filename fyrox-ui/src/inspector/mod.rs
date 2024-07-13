@@ -445,6 +445,7 @@ pub trait InspectorEnvironment: Any + Send + Sync {
 ///         0,
 ///         true,
 ///         Default::default(),
+///         150.0
 ///     );
 ///
 ///     InspectorBuilder::new(WidgetBuilder::new())
@@ -468,8 +469,6 @@ impl Inspector {
     }
 }
 
-/// The width of editor name labels to ensure inspectors have a uniform appearance.
-pub const NAME_COLUMN_WIDTH: f32 = 150.0;
 /// Default margines for editor containers.
 pub const HEADER_MARGIN: Thickness = Thickness {
     left: 2.0,
@@ -573,6 +572,8 @@ pub struct InspectorContext {
     pub sync_flag: u64,
     /// Type id of the object for which the context was created.
     pub object_type_id: TypeId,
+    /// A width of the property name column.
+    pub name_column_width: f32,
 }
 
 impl PartialEq for InspectorContext {
@@ -593,6 +594,7 @@ impl Default for InspectorContext {
             environment: None,
             sync_flag: 0,
             object_type_id: ().type_id(),
+            name_column_width: 150.0,
         }
     }
 }
@@ -681,6 +683,7 @@ pub fn make_expander_container(
     description: &str,
     header: Handle<UiNode>,
     content: Handle<UiNode>,
+    width: f32,
     ctx: &mut BuildContext,
 ) -> Handle<UiNode> {
     ExpanderBuilder::new(WidgetBuilder::new())
@@ -690,7 +693,7 @@ pub fn make_expander_container(
             description,
             ctx,
         ))
-        .with_expander_column(Column::strict(NAME_COLUMN_WIDTH))
+        .with_expander_column(Column::strict(width))
         .with_expanded(true)
         .with_header(header)
         .with_content(content)
@@ -716,6 +719,7 @@ fn make_simple_property_container(
     title: Handle<UiNode>,
     editor: Handle<UiNode>,
     description: &str,
+    width: f32,
     ctx: &mut BuildContext,
 ) -> Handle<UiNode> {
     ctx[editor].set_row(0).set_column(1);
@@ -725,7 +729,7 @@ fn make_simple_property_container(
 
     GridBuilder::new(WidgetBuilder::new().with_child(title).with_child(editor))
         .add_row(Row::auto())
-        .add_columns(vec![Column::strict(NAME_COLUMN_WIDTH), Column::stretch()])
+        .add_columns(vec![Column::strict(width), Column::stretch()])
         .build(ctx)
 }
 
@@ -794,6 +798,7 @@ impl InspectorContext {
         layer_index: usize,
         generate_property_string_values: bool,
         filter: PropertyFilter,
+        name_column_width: f32,
     ) -> Self {
         let mut entries = Vec::new();
 
@@ -835,6 +840,7 @@ impl InspectorContext {
                             layer_index,
                             generate_property_string_values,
                             filter: filter.clone(),
+                            name_column_width,
                         },
                     ) {
                         Ok(instance) => {
@@ -844,6 +850,7 @@ impl InspectorContext {
                                         create_header(ctx, info.display_name, layer_index),
                                         editor,
                                         &description,
+                                        name_column_width,
                                         ctx,
                                     ),
                                     editor,
@@ -881,6 +888,7 @@ impl InspectorContext {
                                 ))
                                 .build(ctx),
                             &description,
+                            name_column_width,
                             ctx,
                         ),
                     };
@@ -898,6 +906,7 @@ impl InspectorContext {
                             ))
                             .build(ctx),
                         &description,
+                        name_column_width,
                         ctx,
                     ));
                 }
@@ -942,6 +951,7 @@ impl InspectorContext {
             sync_flag,
             environment,
             object_type_id: object.type_id(),
+            name_column_width,
         }
     }
 
@@ -992,6 +1002,7 @@ impl InspectorContext {
                             environment: self.environment.clone(),
                             generate_property_string_values,
                             filter: filter.clone(),
+                            name_column_width: self.name_column_width,
                         };
 
                         match constructor.property_editor.create_message(ctx) {

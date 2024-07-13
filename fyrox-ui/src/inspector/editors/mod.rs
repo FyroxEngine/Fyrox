@@ -152,6 +152,8 @@ pub struct PropertyEditorBuildContext<'a, 'b, 'c, 'd> {
     pub generate_property_string_values: bool,
     /// Determines how properties should be filtered in any Inspectors created within the editor that is being built.
     pub filter: PropertyFilter,
+    /// Width of the property name column.
+    pub name_column_width: f32,
 }
 
 /// This structure is passed to [PropertyEditorDefinition::create_message] in order to generate a message that will
@@ -189,6 +191,8 @@ pub struct PropertyEditorMessageContext<'a, 'b, 'c> {
     pub generate_property_string_values: bool,
     /// Determines how properties should be filtered in any Inspectors that are updated by the created message.
     pub filter: PropertyFilter,
+    /// Width of the property name column.
+    pub name_column_width: f32,
 }
 
 /// The details relevant to translating a message from an editor widget into

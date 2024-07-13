@@ -78,6 +78,7 @@ impl ParameterPanel {
                     0,
                     true,
                     Default::default(),
+                    150.0,
                 )
             })
             .unwrap_or_default();

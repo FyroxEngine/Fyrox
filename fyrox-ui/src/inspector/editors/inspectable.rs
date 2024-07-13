@@ -77,6 +77,7 @@ where
             ctx.layer_index + 1,
             ctx.generate_property_string_values,
             ctx.filter,
+            ctx.name_column_width,
         );
 
         let editor;
@@ -91,6 +92,7 @@ where
                     .build(ctx.build_context);
                 editor
             },
+            ctx.name_column_width,
             ctx.build_context,
         );
 

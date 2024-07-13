@@ -219,6 +219,7 @@ impl ScriptPropertyEditorBuilder {
         filter: PropertyFilter,
         script: &Option<Script>,
         definition_container: Arc<PropertyEditorDefinitionContainer>,
+        name_column_width: f32,
         ctx: &mut BuildContext,
     ) -> Handle<UiNode> {
         let context = script.as_ref().map(|script| {
@@ -231,6 +232,7 @@ impl ScriptPropertyEditorBuilder {
                 layer_index,
                 generate_property_string_values,
                 filter,
+                name_column_width,
             )
         });
 
@@ -389,10 +391,12 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
                     ctx.filter,
                     value,
                     ctx.definition_container.clone(),
+                    ctx.name_column_width,
                     ctx.build_context,
                 );
                 editor
             },
+            ctx.name_column_width,
             ctx.build_context,
         );
 
@@ -479,6 +483,7 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
                         ctx.layer_index + 1,
                         ctx.generate_property_string_values,
                         ctx.filter,
+                        ctx.name_column_width,
                     )
                 })
                 .unwrap_or_default();

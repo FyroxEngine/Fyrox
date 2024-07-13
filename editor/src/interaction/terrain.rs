@@ -610,6 +610,7 @@ impl BrushPanel {
             0,
             true,
             Default::default(),
+            150.0,
         );
 
         let inspector;

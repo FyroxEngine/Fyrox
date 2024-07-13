@@ -118,6 +118,7 @@ impl SceneSettingsWindow {
 
                 pass
             }),
+            150.0,
         );
 
         ui.send_message(InspectorMessage::context(

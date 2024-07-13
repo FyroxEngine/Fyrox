@@ -246,6 +246,7 @@ where
                         layer_index: ctx.layer_index,
                         generate_property_string_values: ctx.generate_property_string_values,
                         filter: ctx.filter,
+                        name_column_width: ctx.name_column_width,
                     })?;
 
             let wrapper = InheritablePropertyEditorBuilder::new(WidgetBuilder::new())
@@ -314,6 +315,7 @@ where
                     ui: ctx.ui,
                     generate_property_string_values: ctx.generate_property_string_values,
                     filter: ctx.filter,
+                    name_column_width: ctx.name_column_width,
                 });
         }
 
