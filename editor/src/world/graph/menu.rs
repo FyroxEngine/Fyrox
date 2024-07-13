@@ -194,24 +194,8 @@ impl SceneNodeContextMenu {
             editor_selection,
         ) {
             if let Some(graph_selection) = editor_selection.as_graph() {
-                if let Some(first) = graph_selection.nodes().first() {
-                    if let Some(game_scene) = controller.downcast_ref::<GameScene>() {
-                        let scene = &engine.scenes[game_scene.scene];
-
-                        let position = game_scene
-                            .camera_controller
-                            .placement_position(&scene.graph, *first);
-
-                        let node_handle = scene.graph.generate_free_handles(1)[0];
-                        sender.do_command(CommandGroup::from(vec![
-                            Command::new(AddNodeCommand::new(node, *first, true)),
-                            Command::new(MoveNodeCommand::new(
-                                node_handle,
-                                Vector3::default(),
-                                position,
-                            )),
-                        ]));
-                    }
+                if let Some(parent) = graph_selection.nodes().first() {
+                    sender.do_command(AddNodeCommand::new(node, *parent, true));
                 }
             }
         } else if let Some(node) = self.create_parent_entity_menu.handle_ui_message(
@@ -240,12 +224,16 @@ impl SceneNodeContextMenu {
                         let mut commands = CommandGroup::from(vec![
                             Command::new(AddNodeCommand::new(node, parent, true)),
                             Command::new(LinkNodesCommand::new(*first, new_parent_handle)),
-                            Command::new(MoveNodeCommand::new(
+                        ]);
+
+                        if parent == game_scene.scene_content_root {
+                            commands.push(MoveNodeCommand::new(
                                 new_parent_handle,
                                 Vector3::default(),
                                 position,
-                            )),
-                        ]);
+                            ));
+                        }
+
                         if *first == game_scene.scene_content_root {
                             commands.push(SetGraphRootCommand {
                                 root: new_parent_handle,
