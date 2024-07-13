@@ -3,11 +3,12 @@ use crate::{
     command::{make_command, Command, CommandGroup},
     fyrox::{
         asset::{manager::ResourceManager, untyped::ResourceKind, ResourceData},
-        core::{log::Log, math::Rect, pool::Handle, Uuid},
+        core::{color::Color, log::Log, math::Rect, pool::Handle, Uuid},
         engine::SerializationContext,
         graph::{BaseSceneGraph, SceneGraphNode},
         gui::{
             border::BorderBuilder,
+            brush::Brush,
             button::ButtonMessage,
             decorator::DecoratorBuilder,
             grid::{Column, GridBuilder, Row},
@@ -201,12 +202,18 @@ impl TileSetEditor {
                 let ctx = &mut ui.build_ctx();
                 let tile_view = DecoratorBuilder::new(BorderBuilder::new(
                     WidgetBuilder::new().with_id(tile.id).with_child(
-                        ImageBuilder::new(WidgetBuilder::new().with_width(48.0).with_height(48.0))
-                            .with_uv_rect(tile.uv_rect)
-                            .with_opt_texture(texture.map(|t| t.into()))
-                            .build(ctx),
+                        ImageBuilder::new(
+                            WidgetBuilder::new()
+                                .with_width(52.0)
+                                .with_height(52.0)
+                                .with_margin(Thickness::uniform(2.0)),
+                        )
+                        .with_uv_rect(tile.uv_rect)
+                        .with_opt_texture(texture.map(|t| t.into()))
+                        .build(ctx),
                     ),
                 ))
+                .with_selected_brush(Brush::Solid(Color::RED))
                 .build(ctx);
 
                 ui.send_message(ListViewMessage::add_item(
