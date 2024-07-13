@@ -95,7 +95,13 @@ impl TileSetEditor {
         )
         .build(ctx);
 
-        let inspector = InspectorBuilder::new(WidgetBuilder::new().on_column(1)).build(ctx);
+        let inspector = InspectorBuilder::new(
+            WidgetBuilder::new()
+                .on_column(1)
+                .with_width(240.0)
+                .with_visibility(false),
+        )
+        .build(ctx);
 
         let split_panel = GridBuilder::new(
             WidgetBuilder::new()
@@ -104,7 +110,7 @@ impl TileSetEditor {
                 .on_row(1),
         )
         .add_column(Column::stretch())
-        .add_column(Column::strict(240.0))
+        .add_column(Column::auto())
         .add_row(Row::stretch())
         .build(ctx);
 
@@ -350,6 +356,12 @@ impl TileSetEditor {
 
                 ui.send_message(WidgetMessage::enabled(
                     self.remove,
+                    MessageDirection::ToWidget,
+                    self.selection.is_some(),
+                ));
+
+                ui.send_message(WidgetMessage::visibility(
+                    self.inspector,
                     MessageDirection::ToWidget,
                     self.selection.is_some(),
                 ));
