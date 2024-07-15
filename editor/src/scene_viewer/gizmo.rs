@@ -7,7 +7,6 @@ use crate::fyrox::{
         sstorage::ImmutableString,
     },
     engine::Engine,
-    gui::message::ButtonState,
     material::{Material, MaterialResource, PropertyValue},
     resource::texture::{TextureResource, TextureResourceExtension},
     scene::{
@@ -51,7 +50,10 @@ pub struct SceneGizmo {
     pub pos_z: Handle<Node>,
     pub neg_z: Handle<Node>,
     pub center: Handle<Node>,
-    pub last_click_position: Vector2<f32>,
+    pub first_yaw: f32,
+    pub first_pitch: f32,
+    pub is_dragging: bool,
+    pub first_click_pos: Vector2<f32>,
 }
 
 fn make_cone(transform: Matrix4<f32>, color: Color, graph: &mut Graph) -> Handle<Node> {
@@ -209,7 +211,10 @@ impl SceneGizmo {
             pos_z,
             neg_z,
             center,
-            last_click_position: Vector2::default(),
+            first_yaw: 0.0,
+            first_pitch: 0.0,
+            first_click_pos: Vector2::default(),
+            is_dragging: false,
         }
     }
 
@@ -243,7 +248,7 @@ impl SceneGizmo {
         ]
     }
 
-    fn pick(&self, pos: Vector2<f32>, engine: &Engine) -> Handle<Node> {
+    fn pick(&mut self, pos: Vector2<f32>, engine: &Engine) -> Handle<Node> {
         let graph = &engine.scenes[self.scene].graph;
         let ray = graph[self.camera].as_camera().make_ray(
             pos,
@@ -270,7 +275,6 @@ impl SceneGizmo {
                 }
             }
         }
-
         closest
     }
 
@@ -279,46 +283,48 @@ impl SceneGizmo {
         pos: Vector2<f32>,
         engine: &mut Engine,
         camera_controller: &mut CameraController,
-        left_mouse_button: ButtonState,
     ) {
-        let graph = &engine.scenes[self.scene].graph;
-        let closest = self.pick(pos, engine);
-
-        fn set_color(node: Handle<Node>, graph: &Graph, color: Color) {
-            graph[node].as_mesh().surfaces()[0]
-                .material()
-                .data_ref()
-                .set_property(
-                    &ImmutableString::new("diffuseColor"),
-                    PropertyValue::Color(color),
-                )
-                .unwrap();
-        }
-
-        for (node, default_color) in self.parts() {
-            set_color(
-                node,
-                graph,
-                if node == closest {
-                    Color::opaque(255, 255, 0)
-                } else {
-                    default_color
-                },
-            )
-        }
-        if left_mouse_button == ButtonState::Pressed {
-            let delta = pos - self.last_click_position;
-            if delta.magnitude() > 0.1 {
-                camera_controller.yaw = delta.x * 0.1;
-                camera_controller.pitch = delta.y * 0.1;
+        if self.is_dragging {
+            let delta = pos - self.first_click_pos;
+            let sens: f32 = 0.09;
+            camera_controller.yaw = self.first_yaw + delta.x * -sens; // mouse left -> look left
+            camera_controller.pitch = self.first_pitch + delta.y * sens; // mouse up -> look right
+        } else {
+            let graph = &engine.scenes[self.scene].graph;
+            let closest = self.pick(pos, engine);
+            fn set_color(node: Handle<Node>, graph: &Graph, color: Color) {
+                graph[node].as_mesh().surfaces()[0]
+                    .material()
+                    .data_ref()
+                    .set_property(
+                        &ImmutableString::new("diffuseColor"),
+                        PropertyValue::Color(color),
+                    )
+                    .unwrap();
+            }
+            for (node, default_color) in self.parts() {
+                set_color(
+                    node,
+                    graph,
+                    if node == closest {
+                        Color::opaque(255, 255, 0)
+                    } else {
+                        default_color
+                    },
+                );
             }
         }
     }
 
     pub fn on_click(&mut self, pos: Vector2<f32>, engine: &Engine) -> Option<SceneGizmoAction> {
-        self.last_click_position = pos;
+        self.first_click_pos = pos;
+        if self.is_dragging {
+            return Some(SceneGizmoAction::Rotate(CameraRotation {
+                pitch: self.first_pitch.to_radians(),
+                yaw: self.first_yaw.to_radians(),
+            }));
+        }
         let closest = self.pick(pos, engine);
-
         if closest == self.neg_x {
             Some(SceneGizmoAction::Rotate(CameraRotation {
                 pitch: 0.0,
