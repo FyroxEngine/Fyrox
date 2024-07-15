@@ -130,9 +130,12 @@ impl CommandTrait for RemoveBrushTileCommand {
             .position(|tile| tile.id == self.id)
             .unwrap();
         self.tile = Some(brush.tiles.remove(index));
+        drop(brush);
+        Log::verify(self.brush.save_back());
     }
 
     fn revert(&mut self, _context: &mut dyn CommandContext) {
         self.brush.data_ref().tiles.push(self.tile.take().unwrap());
+        Log::verify(self.brush.save_back());
     }
 }
