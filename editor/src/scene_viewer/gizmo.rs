@@ -37,6 +37,11 @@ pub enum SceneGizmoAction {
     SwitchProjection,
 }
 
+pub struct DragContext {
+    pub initial_click_pos: Vector2<f32>,
+    pub initial_rotation: CameraRotation,
+}
+
 pub struct SceneGizmo {
     pub scene: Handle<Scene>,
     pub render_target: TextureResource,
@@ -50,10 +55,7 @@ pub struct SceneGizmo {
     pub pos_z: Handle<Node>,
     pub neg_z: Handle<Node>,
     pub center: Handle<Node>,
-    pub first_yaw: f32,
-    pub first_pitch: f32,
-    pub is_dragging: bool,
-    pub first_click_pos: Vector2<f32>,
+    pub drag_context: Option<DragContext>,
 }
 
 fn make_cone(transform: Matrix4<f32>, color: Color, graph: &mut Graph) -> Handle<Node> {
@@ -211,10 +213,7 @@ impl SceneGizmo {
             pos_z,
             neg_z,
             center,
-            first_yaw: 0.0,
-            first_pitch: 0.0,
-            first_click_pos: Vector2::default(),
-            is_dragging: false,
+            drag_context: None,
         }
     }
 
@@ -284,11 +283,11 @@ impl SceneGizmo {
         engine: &mut Engine,
         camera_controller: &mut CameraController,
     ) {
-        if self.is_dragging {
-            let delta = pos - self.first_click_pos;
+        if let Some(drag_context) = self.drag_context.as_ref() {
+            let delta = pos - drag_context.initial_click_pos;
             let sens: f32 = 0.09;
-            camera_controller.yaw = self.first_yaw + delta.x * -sens; // mouse left -> look left
-            camera_controller.pitch = self.first_pitch + delta.y * sens; // mouse up -> look right
+            camera_controller.yaw = drag_context.initial_rotation.yaw + delta.x * -sens;
+            camera_controller.pitch = drag_context.initial_rotation.pitch + delta.y * sens;
         } else {
             let graph = &engine.scenes[self.scene].graph;
             let closest = self.pick(pos, engine);
@@ -317,13 +316,10 @@ impl SceneGizmo {
     }
 
     pub fn on_click(&mut self, pos: Vector2<f32>, engine: &Engine) -> Option<SceneGizmoAction> {
-        self.first_click_pos = pos;
-        if self.is_dragging {
-            return Some(SceneGizmoAction::Rotate(CameraRotation {
-                pitch: self.first_pitch.to_radians(),
-                yaw: self.first_yaw.to_radians(),
-            }));
+        if let Some(_drag_context) = self.drag_context.as_ref() {
+            return None;
         }
+
         let closest = self.pick(pos, engine);
         if closest == self.neg_x {
             Some(SceneGizmoAction::Rotate(CameraRotation {

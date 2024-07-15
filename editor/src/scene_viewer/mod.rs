@@ -48,6 +48,7 @@ use crate::{
     DropdownListBuilder, GameScene, Message, Mode, SaveSceneConfirmationDialogAction,
     SceneContainer, Settings,
 };
+use gizmo::{CameraRotation, DragContext};
 use std::{
     cmp::Ordering,
     ops::Deref,
@@ -55,6 +56,7 @@ use std::{
 };
 use strum::{IntoEnumIterator, VariantNames};
 use strum_macros::{AsRefStr, EnumIter, EnumString, VariantNames};
+
 mod gizmo;
 
 #[derive(Default, Clone, Debug, EnumIter, AsRefStr, EnumString, VariantNames)]
@@ -787,16 +789,19 @@ impl SceneViewer {
                                             .first()
                                             .node(self.scene_gizmo_image)
                                             .screen_position();
-                                    self.scene_gizmo.first_click_pos = rel_pos;
-                                    self.scene_gizmo.first_yaw =
-                                        game_scene.camera_controller.yaw.to_radians();
-                                    self.scene_gizmo.first_pitch =
-                                        game_scene.camera_controller.pitch.to_radians();
-                                    self.scene_gizmo.is_dragging = true;
+                                    self.scene_gizmo.drag_context = Some(DragContext {
+                                        initial_click_pos: rel_pos,
+                                        initial_rotation: CameraRotation {
+                                            pitch: game_scene.camera_controller.pitch.to_radians(),
+                                            yaw: game_scene.camera_controller.yaw.to_radians(),
+                                        },
+                                    })
                                 }
                             }
-                            WidgetMessage::MouseUp { pos, .. } => {
-                                self.scene_gizmo.is_dragging = false;
+                            WidgetMessage::MouseUp { pos, button } => {
+                                if button == MouseButton::Left {
+                                    self.scene_gizmo.drag_context = None;
+                                }
                                 let rel_pos = pos
                                     - engine
                                         .user_interfaces
@@ -1039,6 +1044,7 @@ impl SceneViewer {
             render_target.map(Into::into),
         ));
     }
+
     pub fn set_title(&self, ui: &UserInterface, title: String) {
         ui.send_message(WindowMessage::title(
             self.window,
