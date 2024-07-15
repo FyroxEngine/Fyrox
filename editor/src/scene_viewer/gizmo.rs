@@ -7,7 +7,6 @@ use crate::fyrox::{
         sstorage::ImmutableString,
     },
     engine::Engine,
-    gui::message::ButtonState,
     material::{Material, MaterialResource, PropertyValue},
     resource::texture::{TextureResource, TextureResourceExtension},
     scene::{
@@ -37,7 +36,13 @@ pub enum SceneGizmoAction {
     Rotate(CameraRotation),
     SwitchProjection,
 }
-
+/** Potential new struct
+  pub struct SceneGizmoOrbital {
+    pub orientation: CameraRotation,
+    pub first_click_pos: Vector2<f32>,
+    pub sensitivity: f32,
+}
+**/
 pub struct SceneGizmo {
     pub scene: Handle<Scene>,
     pub render_target: TextureResource,
@@ -51,7 +56,10 @@ pub struct SceneGizmo {
     pub pos_z: Handle<Node>,
     pub neg_z: Handle<Node>,
     pub center: Handle<Node>,
-    pub last_click_position: Vector2<f32>,
+    pub first_yaw: f32,
+    pub first_pitch: f32,
+    pub is_dragging: bool,
+    pub first_click_pos: Vector2<f32>,
 }
 
 fn make_cone(transform: Matrix4<f32>, color: Color, graph: &mut Graph) -> Handle<Node> {
@@ -209,7 +217,10 @@ impl SceneGizmo {
             pos_z,
             neg_z,
             center,
-            last_click_position: Vector2::default(),
+            first_yaw: 0.0,
+            first_pitch: 0.0,
+            first_click_pos: Vector2::default(),
+            is_dragging: false,
         }
     }
 
@@ -243,7 +254,7 @@ impl SceneGizmo {
         ]
     }
 
-    fn pick(&self, pos: Vector2<f32>, engine: &Engine) -> Handle<Node> {
+    fn pick(&mut self, pos: Vector2<f32>, engine: &Engine) -> Handle<Node> {
         let graph = &engine.scenes[self.scene].graph;
         let ray = graph[self.camera].as_camera().make_ray(
             pos,
@@ -270,7 +281,6 @@ impl SceneGizmo {
                 }
             }
         }
-
         closest
     }
 
@@ -279,11 +289,17 @@ impl SceneGizmo {
         pos: Vector2<f32>,
         engine: &mut Engine,
         camera_controller: &mut CameraController,
-        left_mouse_button: ButtonState,
     ) {
+        if self.is_dragging {
+            let delta = pos - self.first_click_pos;
+            const SENS: f32 = 0.1;
+            camera_controller.yaw = self.first_yaw + delta.x * -SENS; // mouse left -> look left
+            camera_controller.pitch = self.first_pitch + delta.y * SENS; // mouse up -> look right
+            return;
+        }
+
         let graph = &engine.scenes[self.scene].graph;
         let closest = self.pick(pos, engine);
-
         fn set_color(node: Handle<Node>, graph: &Graph, color: Color) {
             graph[node].as_mesh().surfaces()[0]
                 .material()
@@ -304,55 +320,55 @@ impl SceneGizmo {
                 } else {
                     default_color
                 },
-            )
-        }
-        if left_mouse_button == ButtonState::Pressed {
-            let delta = pos - self.last_click_position;
-            if delta.magnitude() > 0.1 {
-                camera_controller.yaw = delta.x * 0.1;
-                camera_controller.pitch = delta.y * 0.1;
-            }
+            );
         }
     }
 
     pub fn on_click(&mut self, pos: Vector2<f32>, engine: &Engine) -> Option<SceneGizmoAction> {
-        self.last_click_position = pos;
+        // handle orbital
+        self.first_click_pos = pos;
+        if self.is_dragging {
+            return Some(SceneGizmoAction::Rotate(CameraRotation {
+                pitch: self.first_pitch.to_radians(),
+                yaw: self.first_yaw.to_radians(),
+            }));
+        }
+        // handle on click perspective shift
         let closest = self.pick(pos, engine);
-
         if closest == self.neg_x {
-            Some(SceneGizmoAction::Rotate(CameraRotation {
+            return Some(SceneGizmoAction::Rotate(CameraRotation {
                 pitch: 0.0,
                 yaw: 90.0f32.to_radians(),
-            }))
+            }));
         } else if closest == self.pos_x {
-            Some(SceneGizmoAction::Rotate(CameraRotation {
+            return Some(SceneGizmoAction::Rotate(CameraRotation {
                 pitch: 0.0,
                 yaw: -90.0f32.to_radians(),
-            }))
+            }));
         } else if closest == self.neg_y {
-            Some(SceneGizmoAction::Rotate(CameraRotation {
+            return Some(SceneGizmoAction::Rotate(CameraRotation {
                 pitch: -90.0f32.to_radians(),
                 yaw: 0.0,
-            }))
+            }));
         } else if closest == self.pos_y {
-            Some(SceneGizmoAction::Rotate(CameraRotation {
+            return Some(SceneGizmoAction::Rotate(CameraRotation {
                 pitch: 90.0f32.to_radians(),
                 yaw: 0.0,
-            }))
+            }));
         } else if closest == self.neg_z {
-            Some(SceneGizmoAction::Rotate(CameraRotation {
+            return Some(SceneGizmoAction::Rotate(CameraRotation {
                 pitch: 0.0,
                 yaw: 0.0f32.to_radians(),
-            }))
+            }));
         } else if closest == self.pos_z {
-            Some(SceneGizmoAction::Rotate(CameraRotation {
+            return Some(SceneGizmoAction::Rotate(CameraRotation {
                 pitch: 0.0,
                 yaw: -180.0f32.to_radians(),
-            }))
+            }));
         } else if closest == self.center {
-            Some(SceneGizmoAction::SwitchProjection)
+            return Some(SceneGizmoAction::SwitchProjection);
         } else {
-            None
+            return None;
         }
     }
 }

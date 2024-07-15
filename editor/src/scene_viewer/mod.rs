@@ -747,14 +747,14 @@ impl SceneViewer {
                         }
                         WidgetMessage::MouseUp { button, pos, .. } => {
                             engine.user_interfaces.first_mut().release_mouse_capture();
-
+                            // self.scene_gizmo.is_dragging = false;
                             entry.on_mouse_up(button, pos, screen_bounds, engine, settings)
                         }
                         WidgetMessage::MouseWheel { amount, .. } => {
                             entry.on_mouse_wheel(amount, engine, settings);
                         }
                         WidgetMessage::MouseMove { pos, .. } => {
-                            entry.on_mouse_move(pos, screen_bounds, engine, settings)
+                            entry.on_mouse_move(pos, screen_bounds, engine, settings);
                         }
                         WidgetMessage::KeyUp(key) => {
                             if entry.on_key_up(key, engine, &settings.key_bindings) {
@@ -780,7 +780,7 @@ impl SceneViewer {
                 } else if message.destination() == self.scene_gizmo_image {
                     if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
                         match *msg {
-                            WidgetMessage::MouseDown { button, pos, .. } => {
+                            WidgetMessage::MouseDown { pos, button, .. } => {
                                 if button == MouseButton::Left {
                                     let rel_pos = pos
                                         - engine
@@ -788,56 +788,74 @@ impl SceneViewer {
                                             .first()
                                             .node(self.scene_gizmo_image)
                                             .screen_position();
-
-                                    if let Some(action) = self.scene_gizmo.on_click(rel_pos, engine)
-                                    {
-                                        match action {
-                                            SceneGizmoAction::Rotate(rotation) => {
-                                                game_scene.camera_controller.pitch = rotation.pitch;
-                                                game_scene.camera_controller.yaw = rotation.yaw;
-                                            }
-                                            SceneGizmoAction::SwitchProjection => {
-                                                let graph = &engine.scenes[game_scene.scene].graph;
-                                                match graph[game_scene.camera_controller.camera]
-                                                    .as_camera()
-                                                    .projection()
-                                                {
-                                                    Projection::Perspective(_) => {
-                                                        ui.send_message(
-                                                            DropdownListMessage::selection(
-                                                                self.camera_projection,
-                                                                MessageDirection::ToWidget,
-                                                                Some(1),
-                                                            ),
-                                                        );
-                                                    }
-                                                    Projection::Orthographic(_) => {
-                                                        ui.send_message(
-                                                            DropdownListMessage::selection(
-                                                                self.camera_projection,
-                                                                MessageDirection::ToWidget,
-                                                                Some(0),
-                                                            ),
-                                                        );
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
+                                    self.scene_gizmo.first_click_pos = rel_pos;
+                                    self.scene_gizmo.first_yaw =
+                                        game_scene.camera_controller.yaw.to_radians();
+                                    self.scene_gizmo.first_pitch =
+                                        game_scene.camera_controller.pitch.to_radians();
+                                    self.scene_gizmo.is_dragging = true;
                                 }
                             }
-                            WidgetMessage::MouseMove { pos, state, .. } => {
+                            WidgetMessage::MouseUp { pos, .. } => {
+                                self.scene_gizmo.is_dragging = false;
                                 let rel_pos = pos
                                     - engine
                                         .user_interfaces
                                         .first()
                                         .node(self.scene_gizmo_image)
                                         .screen_position();
+                                if let Some(action) = self.scene_gizmo.on_click(rel_pos, engine) {
+                                    match action {
+                                        SceneGizmoAction::Rotate(rotation) => {
+                                            game_scene.camera_controller.pitch = rotation.pitch;
+                                            game_scene.camera_controller.yaw = rotation.yaw;
+                                        }
+                                        SceneGizmoAction::SwitchProjection => {
+                                            let graph = &engine.scenes[game_scene.scene].graph;
+                                            match graph[game_scene.camera_controller.camera]
+                                                .as_camera()
+                                                .projection()
+                                            {
+                                                Projection::Perspective(_) => {
+                                                    ui.send_message(
+                                                        DropdownListMessage::selection(
+                                                            self.camera_projection,
+                                                            MessageDirection::ToWidget,
+                                                            Some(1),
+                                                        ),
+                                                    );
+                                                }
+                                                Projection::Orthographic(_) => {
+                                                    ui.send_message(
+                                                        DropdownListMessage::selection(
+                                                            self.camera_projection,
+                                                            MessageDirection::ToWidget,
+                                                            Some(0),
+                                                        ),
+                                                    );
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            WidgetMessage::MouseMove { pos, .. } => {
+                                let rel_pos = pos
+                                    - engine
+                                        .user_interfaces
+                                        .first()
+                                        .node(self.scene_gizmo_image)
+                                        .screen_position();
+                                println!(
+                                    "Gizmo Controller Received MousePosition x - y : {} - {}",
+                                    pos.x.to_radians(),
+                                    pos.y.to_radians()
+                                );
+
                                 self.scene_gizmo.on_mouse_move(
                                     rel_pos,
                                     engine,
                                     &mut game_scene.camera_controller,
-                                    state.left,
                                 );
                             }
                             _ => (),
