@@ -1,3 +1,4 @@
+use crate::plugins::tilemap::tileset::TileSetTileView;
 use crate::{
     absm::selectable::{Selectable, SelectableMessage},
     fyrox::{
@@ -39,6 +40,12 @@ pub enum PaletteMessage {
     MoveTiles(Vec<(Uuid, Vector2<i32>)>),
     // Direction: FromWidget
     DeleteTiles(Vec<Uuid>),
+    // Direction: FromWidget
+    DuplicateTiles(Vec<(Uuid, Vector2<i32>)>),
+    InsertTile {
+        definition_id: usize,
+        position: Vector2<i32>,
+    },
 }
 
 impl PaletteMessage {
@@ -47,6 +54,8 @@ impl PaletteMessage {
     define_constructor!(PaletteMessage:RemoveTile => fn remove_tile(Handle<UiNode>), layout: false);
     define_constructor!(PaletteMessage:MoveTiles => fn move_tiles(Vec<(Uuid, Vector2<i32>)>), layout: false);
     define_constructor!(PaletteMessage:DeleteTiles => fn delete_tiles(Vec<Uuid>), layout: false);
+    define_constructor!(PaletteMessage:DuplicateTiles => fn duplicate_tiles(Vec<(Uuid, Vector2<i32>)>), layout: false);
+    define_constructor!(PaletteMessage:InsertTile  => fn insert_tile(definition_id: usize, position: Vector2<i32>), layout: false);
 }
 
 #[derive(Debug, Clone, PartialEq, Visit, Reflect, Default)]
@@ -438,6 +447,22 @@ impl Control for PaletteWidget {
                     message.set_handled(true);
                 }
             };
+        } else if let Some(WidgetMessage::Drop(widget)) = message.data() {
+            if message.destination() == self.handle
+                && message.direction() == MessageDirection::FromWidget
+            {
+                if let Some(tile_set_tile) = ui.try_get_of_type::<TileSetTileView>(*widget) {
+                    let local_cursor_position = self.point_to_local_space(ui.cursor_position());
+                    let grid_cursor_position = self.local_to_grid_pos(local_cursor_position);
+
+                    ui.send_message(PaletteMessage::insert_tile(
+                        self.handle,
+                        MessageDirection::FromWidget,
+                        tile_set_tile.definition_id,
+                        grid_cursor_position,
+                    ));
+                }
+            }
         }
     }
 }

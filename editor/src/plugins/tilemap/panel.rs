@@ -1,3 +1,4 @@
+use crate::plugins::tilemap::commands::AddBrushTileCommand;
 use crate::{
     asset::item::AssetItem,
     command::{Command, CommandGroup, SetPropertyCommand},
@@ -247,6 +248,17 @@ impl TileMapPanel {
                                         .collect::<Vec<_>>(),
                                 ))
                             }
+                            PaletteMessage::InsertTile {
+                                definition_id,
+                                position,
+                            } => sender.do_command(AddBrushTileCommand {
+                                brush: active_brush_resource.clone(),
+                                tile: Some(BrushTile {
+                                    definition_index: *definition_id,
+                                    local_position: *position,
+                                    id: Uuid::new_v4(),
+                                }),
+                            }),
                             _ => (),
                         }
                     }

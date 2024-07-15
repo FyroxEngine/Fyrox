@@ -3,7 +3,10 @@ use crate::{
     command::{make_command, Command, CommandGroup},
     fyrox::{
         asset::{manager::ResourceManager, untyped::ResourceKind, ResourceData},
-        core::{color::Color, log::Log, math::Rect, pool::Handle, Uuid},
+        core::{
+            color::Color, log::Log, math::Rect, pool::Handle, reflect::prelude::*,
+            type_traits::prelude::*, visitor::prelude::*, Uuid,
+        },
         engine::SerializationContext,
         graph::{BaseSceneGraph, SceneGraphNode},
         gui::{
@@ -11,6 +14,7 @@ use crate::{
             brush::Brush,
             button::ButtonMessage,
             decorator::DecoratorBuilder,
+            define_widget_deref,
             grid::{Column, GridBuilder, Row},
             image::{ImageBuilder, ImageMessage},
             inspector::{
@@ -20,10 +24,12 @@ use crate::{
             list_view::{ListView, ListViewBuilder, ListViewMessage},
             message::{MessageDirection, UiMessage},
             stack_panel::StackPanelBuilder,
+            widget::Widget,
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
             wrap_panel::WrapPanelBuilder,
-            BuildContext, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
+            BuildContext, Control, Orientation, Thickness, UiNode, UserInterface,
+            VerticalAlignment,
         },
         material::{Material, MaterialResource},
         resource::texture::Texture,
@@ -38,7 +44,10 @@ use crate::{
     },
     Message,
 };
-use std::sync::Arc;
+use std::{
+    ops::{Deref, DerefMut},
+    sync::Arc,
+};
 
 pub struct TileSetEditor {
     window: Handle<UiNode>,
@@ -192,40 +201,20 @@ impl TileSetEditor {
             }
         }
 
-        for tile in tile_set.tiles.iter() {
-            if let Some(tile_view_ref) = tile_views.iter().find_map(|tile_view| {
-                let tile_view_ref = ui.node(*tile_view);
-                if tile_view_ref.id == tile.id {
-                    Some(tile_view_ref)
-                } else {
-                    None
-                }
-            }) {
-                let image = tile_view_ref.children()[0];
+        for (i, tile) in tile_set.tiles.iter().enumerate() {
+            if let Some(tile_view) = tile_views
+                .iter()
+                .find(|tile_view| ui.node(**tile_view).id == tile.id)
+            {
                 ui.send_message(ImageMessage::uv_rect(
-                    image,
+                    *tile_view,
                     MessageDirection::ToWidget,
                     tile.uv_rect,
                 ));
             } else {
-                let texture = tile.material.data_ref().texture("diffuseTexture");
-
                 let ctx = &mut ui.build_ctx();
-                let tile_view = DecoratorBuilder::new(BorderBuilder::new(
-                    WidgetBuilder::new().with_id(tile.id).with_child(
-                        ImageBuilder::new(
-                            WidgetBuilder::new()
-                                .with_width(52.0)
-                                .with_height(52.0)
-                                .with_margin(Thickness::uniform(2.0)),
-                        )
-                        .with_uv_rect(tile.uv_rect)
-                        .with_opt_texture(texture.map(|t| t.into()))
-                        .build(ctx),
-                    ),
-                ))
-                .with_selected_brush(Brush::Solid(Color::RED))
-                .build(ctx);
+                let tile_view =
+                    TileSetTileViewBuilder::new(WidgetBuilder::new()).build(i, tile, ctx);
 
                 ui.send_message(ListViewMessage::add_item(
                     self.tiles,
@@ -450,5 +439,73 @@ impl TileSetEditor {
             self.try_save();
             self.need_save = false;
         }
+    }
+}
+
+#[derive(Clone, Debug, Visit, Reflect, TypeUuidProvider, ComponentProvider)]
+#[type_uuid(id = "0acb6bea-ce7b-42bd-bd05-542a6e519330")]
+pub struct TileSetTileView {
+    widget: Widget,
+    pub definition_id: usize,
+    image: Handle<UiNode>,
+}
+
+define_widget_deref!(TileSetTileView);
+
+impl Control for TileSetTileView {
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
+        self.widget.handle_routed_message(ui, message);
+
+        if let Some(ImageMessage::UvRect(uv_rect)) = message.data() {
+            if message.destination() == self.handle
+                && message.direction() == MessageDirection::FromWidget
+            {
+                ui.send_message(ImageMessage::uv_rect(
+                    self.image,
+                    MessageDirection::ToWidget,
+                    *uv_rect,
+                ));
+            }
+        }
+    }
+}
+
+pub struct TileSetTileViewBuilder {
+    widget_builder: WidgetBuilder,
+}
+
+impl TileSetTileViewBuilder {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
+        Self { widget_builder }
+    }
+
+    pub fn build(self, id: usize, tile: &TileDefinition, ctx: &mut BuildContext) -> Handle<UiNode> {
+        let texture = tile.material.data_ref().texture("diffuseTexture");
+
+        let image = ImageBuilder::new(
+            WidgetBuilder::new()
+                .with_width(52.0)
+                .with_height(52.0)
+                .with_margin(Thickness::uniform(2.0)),
+        )
+        .with_uv_rect(tile.uv_rect)
+        .with_opt_texture(texture.map(|t| t.into()))
+        .build(ctx);
+
+        let decorator =
+            DecoratorBuilder::new(BorderBuilder::new(WidgetBuilder::new().with_child(image)))
+                .with_selected_brush(Brush::Solid(Color::RED))
+                .build(ctx);
+
+        ctx.add_node(UiNode::new(TileSetTileView {
+            widget: self
+                .widget_builder
+                .with_id(tile.id)
+                .with_allow_drag(true)
+                .with_child(decorator)
+                .build(),
+            definition_id: id,
+            image,
+        }))
     }
 }

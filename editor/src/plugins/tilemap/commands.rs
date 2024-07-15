@@ -139,3 +139,25 @@ impl CommandTrait for RemoveBrushTileCommand {
         Log::verify(self.brush.save_back());
     }
 }
+
+#[derive(Debug)]
+pub struct AddBrushTileCommand {
+    pub brush: TileMapBrushResource,
+    pub tile: Option<BrushTile>,
+}
+
+impl CommandTrait for AddBrushTileCommand {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
+        "Add Brush Tile".to_string()
+    }
+
+    fn execute(&mut self, _context: &mut dyn CommandContext) {
+        self.brush.data_ref().tiles.push(self.tile.take().unwrap());
+        Log::verify(self.brush.save_back());
+    }
+
+    fn revert(&mut self, _context: &mut dyn CommandContext) {
+        self.tile = self.brush.data_ref().tiles.pop();
+        Log::verify(self.brush.save_back());
+    }
+}
