@@ -779,7 +779,7 @@ impl SceneViewer {
                 } else if message.destination() == self.scene_gizmo_image {
                     if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
                         match *msg {
-                            WidgetMessage::MouseDown { pos, button, .. } => {
+                            WidgetMessage::MouseDown { button, pos, .. } => {
                                 if button == MouseButton::Left {
                                     let rel_pos = pos
                                         - engine
