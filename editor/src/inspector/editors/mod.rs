@@ -99,6 +99,7 @@ use crate::{
     message::MessageSender,
 };
 use fyrox::scene::tilemap::brush::{TileMapBrush, TileMapBrushResource};
+use fyrox::scene::tilemap::tileset::TileCollider;
 use std::{path::Path, sync::Arc};
 
 pub mod animation;
@@ -508,6 +509,8 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
 
     container.register_inheritable_inspectable::<Tile>();
     container.register_inheritable_vec_collection::<Tile>();
+
+    container.register_inheritable_enum::<TileCollider, _>();
 
     container
 }

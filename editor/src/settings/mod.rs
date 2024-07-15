@@ -336,6 +336,7 @@ impl SettingsWindow {
             0,
             true,
             Default::default(),
+            150.0,
         );
         ui.send_message(InspectorMessage::context(
             self.inspector,

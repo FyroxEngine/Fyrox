@@ -813,6 +813,7 @@ impl ExportWindow {
                             0,
                             true,
                             Default::default(),
+                            150.0,
                         );
 
                         inspector = InspectorBuilder::new(WidgetBuilder::new())

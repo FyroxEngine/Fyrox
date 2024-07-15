@@ -109,6 +109,13 @@ impl PaletteWidget {
     }
 
     fn make_drag_context(&self, ui: &UserInterface) -> DragContext {
+        for selected in self.selection.iter() {
+            ui.send_message(WidgetMessage::topmost(
+                *selected,
+                MessageDirection::ToWidget,
+            ));
+        }
+
         DragContext {
             initial_cursor_position: self.point_to_local_space(ui.cursor_position()),
             entries: self
@@ -399,6 +406,14 @@ impl Control for PaletteWidget {
                             ));
 
                             self.tiles.remove(position);
+
+                            if let Some(pos_in_selection) = self
+                                .selection
+                                .iter()
+                                .position(|selected| *selected == *tile)
+                            {
+                                self.selection.remove(pos_in_selection);
+                            }
                         }
                     }
                     _ => (),

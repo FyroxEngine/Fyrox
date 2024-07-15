@@ -99,6 +99,7 @@ where
                     layer_index: ctx.layer_index,
                     generate_property_string_values: ctx.generate_property_string_values,
                     filter: ctx.filter,
+                    name_column_width: ctx.name_column_width,
                 })
         } else {
             Err(InspectorError::Custom("No editor!".to_string()))
@@ -127,6 +128,7 @@ where
                     ui: ctx.ui,
                     generate_property_string_values: ctx.generate_property_string_values,
                     filter: ctx.filter,
+                    name_column_width: ctx.name_column_width,
                 });
         }
 

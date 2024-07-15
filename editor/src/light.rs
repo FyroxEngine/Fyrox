@@ -232,6 +232,7 @@ impl LightPanel {
                                 0,
                                 true,
                                 Default::default(),
+                                150.0,
                             ))
                             .build(ctx);
                             inspector

@@ -253,6 +253,7 @@ fn create_items<'a, 'b, T, I>(
     generate_property_string_values: bool,
     filter: PropertyFilter,
     immutable_collection: bool,
+    name_column_width: f32,
 ) -> Result<Vec<Item>, InspectorError>
 where
     T: CollectionItem,
@@ -277,6 +278,7 @@ where
                         layer_index: layer_index + 1,
                         generate_property_string_values,
                         filter: filter.clone(),
+                        name_column_width,
                     })?;
 
             if let PropertyEditorInstance::Simple { editor } = editor {
@@ -381,6 +383,7 @@ where
         ctx: &mut BuildContext,
         property_info: &FieldInfo<'a, '_>,
         sync_flag: u64,
+        name_column_width: f32,
     ) -> Result<Handle<UiNode>, InspectorError> {
         let definition_container = self
             .definition_container
@@ -399,6 +402,7 @@ where
                 self.generate_property_string_values,
                 self.filter,
                 self.immutable_collection,
+                name_column_width,
             )?
         } else {
             Vec::new()
@@ -499,9 +503,15 @@ where
                 .with_generate_property_string_values(ctx.generate_property_string_values)
                 .with_filter(ctx.filter)
                 .with_immutable_collection(ctx.property_info.immutable_collection)
-                .build(ctx.build_context, ctx.property_info, ctx.sync_flag)?;
+                .build(
+                    ctx.build_context,
+                    ctx.property_info,
+                    ctx.sync_flag,
+                    ctx.name_column_width,
+                )?;
                 editor
             },
+            ctx.name_column_width,
             ctx.build_context,
         );
 
@@ -522,6 +532,7 @@ where
             environment,
             generate_property_string_values,
             filter,
+            name_column_width,
         } = ctx;
 
         let instance_ref = if let Some(instance) = ui.node(instance).cast::<CollectionEditor<T>>() {
@@ -547,6 +558,7 @@ where
                 generate_property_string_values,
                 filter,
                 property_info.immutable_collection,
+                name_column_width,
             )?;
 
             Ok(Some(CollectionEditorMessage::items(
@@ -584,6 +596,7 @@ where
                                 ui,
                                 generate_property_string_values,
                                 filter: filter.clone(),
+                                name_column_width,
                             })?
                     {
                         ui.send_message(message.with_flags(ctx.sync_flag))

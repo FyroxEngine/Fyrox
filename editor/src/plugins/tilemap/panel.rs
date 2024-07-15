@@ -35,6 +35,7 @@ use crate::{
     },
     scene::commands::GameSceneContext,
 };
+use fyrox::fxhash::FxHashSet;
 
 pub struct TileMapPanel {
     pub window: Handle<UiNode>,
@@ -209,6 +210,7 @@ impl TileMapPanel {
                                     positions: move_data.clone(),
                                 })];
 
+                                let mut tiles_to_remove = FxHashSet::default();
                                 let active_brush = active_brush_resource.data_ref();
                                 for (id, new_tile_position) in move_data.iter() {
                                     if let Some(tile) = active_brush.find_tile(id) {
@@ -216,16 +218,18 @@ impl TileMapPanel {
                                             if !std::ptr::eq(tile, other_tile)
                                                 && other_tile.local_position == *new_tile_position
                                             {
-                                                commands.push(Command::new(
-                                                    RemoveBrushTileCommand {
-                                                        brush: active_brush_resource.clone(),
-                                                        id: other_tile.id,
-                                                        tile: None,
-                                                    },
-                                                ));
+                                                tiles_to_remove.insert(other_tile.id);
                                             }
                                         }
                                     }
+                                }
+
+                                for tile_to_remove in tiles_to_remove {
+                                    commands.push(Command::new(RemoveBrushTileCommand {
+                                        brush: active_brush_resource.clone(),
+                                        id: tile_to_remove,
+                                        tile: None,
+                                    }));
                                 }
 
                                 sender.do_command(CommandGroup::from(commands));
@@ -290,24 +294,28 @@ impl TileMapPanel {
             return;
         };
 
-        let tile_views = ui
+        let mut tile_views = ui
             .node(self.palette)
             .component_ref::<PaletteWidget>()
             .unwrap()
             .tiles
             .clone();
 
-        for tile_view in tile_views.iter() {
+        let mut i = tile_views.len();
+        while i > 0 {
+            i -= 1;
+            let tile_view = tile_views[i];
             if active_brush
                 .tiles
                 .iter()
-                .all(|tile| tile.id != ui.node(*tile_view).id)
+                .all(|tile| tile.id != ui.node(tile_view).id)
             {
                 ui.send_message(PaletteMessage::remove_tile(
                     self.palette,
                     MessageDirection::ToWidget,
-                    *tile_view,
+                    tile_view,
                 ));
+                tile_views.remove(i);
             }
         }
 

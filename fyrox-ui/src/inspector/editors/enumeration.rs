@@ -81,6 +81,9 @@ pub struct EnumPropertyEditor<T: InspectableEnum> {
     #[visit(skip)]
     #[reflect(hidden)]
     pub filter: PropertyFilter,
+    #[visit(skip)]
+    #[reflect(hidden)]
+    pub name_column_width: f32,
 }
 
 impl<T: InspectableEnum> Debug for EnumPropertyEditor<T> {
@@ -102,6 +105,7 @@ impl<T: InspectableEnum> Clone for EnumPropertyEditor<T> {
             layer_index: self.layer_index,
             generate_property_string_values: self.generate_property_string_values,
             filter: self.filter.clone(),
+            name_column_width: self.name_column_width,
         }
     }
 }
@@ -153,6 +157,7 @@ impl<T: InspectableEnum> Control for EnumPropertyEditor<T> {
                     self.layer_index,
                     self.generate_property_string_values,
                     self.filter.clone(),
+                    self.name_column_width,
                 );
 
                 ui.send_message(InspectorMessage::context(
@@ -267,6 +272,7 @@ impl EnumPropertyEditorBuilder {
         ctx: &mut BuildContext,
         definition: &EnumPropertyEditorDefinition<T>,
         value: &T,
+        name_column_width: f32,
     ) -> Handle<UiNode> {
         let definition_container = self
             .definition_container
@@ -281,6 +287,7 @@ impl EnumPropertyEditorBuilder {
             self.layer_index,
             self.generate_property_string_values,
             self.filter.clone(),
+            name_column_width,
         );
 
         let inspector = InspectorBuilder::new(WidgetBuilder::new())
@@ -302,6 +309,7 @@ impl EnumPropertyEditorBuilder {
             layer_index: self.layer_index,
             generate_property_string_values: self.generate_property_string_values,
             filter: self.filter,
+            name_column_width,
         };
 
         ctx.add_node(UiNode::new(editor))
@@ -428,9 +436,10 @@ where
                     .with_sync_flag(ctx.sync_flag)
                     .with_generate_property_string_values(ctx.generate_property_string_values)
                     .with_filter(ctx.filter)
-                    .build(ctx.build_context, self, value);
+                    .build(ctx.build_context, self, value, ctx.name_column_width);
                 editor
             },
+            ctx.name_column_width,
             ctx.build_context,
         );
 
@@ -485,6 +494,7 @@ where
                 ctx.layer_index + 1,
                 ctx.generate_property_string_values,
                 ctx.filter,
+                ctx.name_column_width,
             );
 
             Ok(Some(InspectorMessage::context(
