@@ -248,7 +248,7 @@ impl SceneGizmo {
         ]
     }
 
-    fn pick(&mut self, pos: Vector2<f32>, engine: &Engine) -> Handle<Node> {
+    fn pick(&self, pos: Vector2<f32>, engine: &Engine) -> Handle<Node> {
         let graph = &engine.scenes[self.scene].graph;
         let ray = graph[self.camera].as_camera().make_ray(
             pos,
