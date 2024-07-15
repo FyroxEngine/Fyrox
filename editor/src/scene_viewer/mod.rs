@@ -48,7 +48,6 @@ use crate::{
     DropdownListBuilder, GameScene, Message, Mode, SaveSceneConfirmationDialogAction,
     SceneContainer, Settings,
 };
-use gizmo::{CameraRotation, DragContext};
 use std::{
     cmp::Ordering,
     ops::Deref,
@@ -789,9 +788,9 @@ impl SceneViewer {
                                             .first()
                                             .node(self.scene_gizmo_image)
                                             .screen_position();
-                                    self.scene_gizmo.drag_context = Some(DragContext {
+                                    self.scene_gizmo.drag_context = Some(gizmo::DragContext {
                                         initial_click_pos: rel_pos,
-                                        initial_rotation: CameraRotation {
+                                        initial_rotation: gizmo::CameraRotation {
                                             pitch: game_scene.camera_controller.pitch.to_radians(),
                                             yaw: game_scene.camera_controller.yaw.to_radians(),
                                         },
