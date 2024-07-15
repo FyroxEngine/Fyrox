@@ -747,7 +747,6 @@ impl SceneViewer {
                         }
                         WidgetMessage::MouseUp { button, pos, .. } => {
                             engine.user_interfaces.first_mut().release_mouse_capture();
-                            // self.scene_gizmo.is_dragging = false;
                             entry.on_mouse_up(button, pos, screen_bounds, engine, settings)
                         }
                         WidgetMessage::MouseWheel { amount, .. } => {
@@ -846,12 +845,6 @@ impl SceneViewer {
                                         .first()
                                         .node(self.scene_gizmo_image)
                                         .screen_position();
-                                println!(
-                                    "Gizmo Controller Received MousePosition x - y : {} - {}",
-                                    pos.x.to_radians(),
-                                    pos.y.to_radians()
-                                );
-
                                 self.scene_gizmo.on_mouse_move(
                                     rel_pos,
                                     engine,

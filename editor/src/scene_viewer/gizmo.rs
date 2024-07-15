@@ -36,13 +36,7 @@ pub enum SceneGizmoAction {
     Rotate(CameraRotation),
     SwitchProjection,
 }
-/** Potential new struct
-  pub struct SceneGizmoOrbital {
-    pub orientation: CameraRotation,
-    pub first_click_pos: Vector2<f32>,
-    pub sensitivity: f32,
-}
-**/
+
 pub struct SceneGizmo {
     pub scene: Handle<Scene>,
     pub render_target: TextureResource,
@@ -292,40 +286,37 @@ impl SceneGizmo {
     ) {
         if self.is_dragging {
             let delta = pos - self.first_click_pos;
-            const SENS: f32 = 0.1;
-            camera_controller.yaw = self.first_yaw + delta.x * -SENS; // mouse left -> look left
-            camera_controller.pitch = self.first_pitch + delta.y * SENS; // mouse up -> look right
-            return;
-        }
-
-        let graph = &engine.scenes[self.scene].graph;
-        let closest = self.pick(pos, engine);
-        fn set_color(node: Handle<Node>, graph: &Graph, color: Color) {
-            graph[node].as_mesh().surfaces()[0]
-                .material()
-                .data_ref()
-                .set_property(
-                    &ImmutableString::new("diffuseColor"),
-                    PropertyValue::Color(color),
-                )
-                .unwrap();
-        }
-
-        for (node, default_color) in self.parts() {
-            set_color(
-                node,
-                graph,
-                if node == closest {
-                    Color::opaque(255, 255, 0)
-                } else {
-                    default_color
-                },
-            );
+            let sens: f32 = 0.09;
+            camera_controller.yaw = self.first_yaw + delta.x * -sens; // mouse left -> look left
+            camera_controller.pitch = self.first_pitch + delta.y * sens; // mouse up -> look right
+        } else {
+            let graph = &engine.scenes[self.scene].graph;
+            let closest = self.pick(pos, engine);
+            fn set_color(node: Handle<Node>, graph: &Graph, color: Color) {
+                graph[node].as_mesh().surfaces()[0]
+                    .material()
+                    .data_ref()
+                    .set_property(
+                        &ImmutableString::new("diffuseColor"),
+                        PropertyValue::Color(color),
+                    )
+                    .unwrap();
+            }
+            for (node, default_color) in self.parts() {
+                set_color(
+                    node,
+                    graph,
+                    if node == closest {
+                        Color::opaque(255, 255, 0)
+                    } else {
+                        default_color
+                    },
+                );
+            }
         }
     }
 
     pub fn on_click(&mut self, pos: Vector2<f32>, engine: &Engine) -> Option<SceneGizmoAction> {
-        // handle orbital
         self.first_click_pos = pos;
         if self.is_dragging {
             return Some(SceneGizmoAction::Rotate(CameraRotation {
@@ -333,42 +324,41 @@ impl SceneGizmo {
                 yaw: self.first_yaw.to_radians(),
             }));
         }
-        // handle on click perspective shift
         let closest = self.pick(pos, engine);
         if closest == self.neg_x {
-            return Some(SceneGizmoAction::Rotate(CameraRotation {
+            Some(SceneGizmoAction::Rotate(CameraRotation {
                 pitch: 0.0,
                 yaw: 90.0f32.to_radians(),
-            }));
+            }))
         } else if closest == self.pos_x {
-            return Some(SceneGizmoAction::Rotate(CameraRotation {
+            Some(SceneGizmoAction::Rotate(CameraRotation {
                 pitch: 0.0,
                 yaw: -90.0f32.to_radians(),
-            }));
+            }))
         } else if closest == self.neg_y {
-            return Some(SceneGizmoAction::Rotate(CameraRotation {
+            Some(SceneGizmoAction::Rotate(CameraRotation {
                 pitch: -90.0f32.to_radians(),
                 yaw: 0.0,
-            }));
+            }))
         } else if closest == self.pos_y {
-            return Some(SceneGizmoAction::Rotate(CameraRotation {
+            Some(SceneGizmoAction::Rotate(CameraRotation {
                 pitch: 90.0f32.to_radians(),
                 yaw: 0.0,
-            }));
+            }))
         } else if closest == self.neg_z {
-            return Some(SceneGizmoAction::Rotate(CameraRotation {
+            Some(SceneGizmoAction::Rotate(CameraRotation {
                 pitch: 0.0,
                 yaw: 0.0f32.to_radians(),
-            }));
+            }))
         } else if closest == self.pos_z {
-            return Some(SceneGizmoAction::Rotate(CameraRotation {
+            Some(SceneGizmoAction::Rotate(CameraRotation {
                 pitch: 0.0,
                 yaw: -180.0f32.to_radians(),
-            }));
+            }))
         } else if closest == self.center {
-            return Some(SceneGizmoAction::SwitchProjection);
+            Some(SceneGizmoAction::SwitchProjection)
         } else {
-            return None;
+            None
         }
     }
 }
