@@ -127,7 +127,7 @@ impl TileMapInteractionMode {
                             position,
                             Tile {
                                 position,
-                                definition_index: brush_tile.definition_id,
+                                definition_handle: brush_tile.definition_handle,
                             },
                         )
                     }

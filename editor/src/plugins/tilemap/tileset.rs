@@ -45,7 +45,7 @@ use crate::{
     Message,
 };
 use fyrox::graph::SceneGraph;
-use fyrox::scene::tilemap::tileset::TileDefinitionId;
+use fyrox::scene::tilemap::tileset::TileDefinitionHandle;
 use std::{
     ops::{Deref, DerefMut},
     sync::Arc,
@@ -58,7 +58,7 @@ pub struct TileSetEditor {
     import: Handle<UiNode>,
     remove: Handle<UiNode>,
     remove_all: Handle<UiNode>,
-    selection: Option<TileDefinitionId>,
+    selection: Option<TileDefinitionHandle>,
     need_save: bool,
     tile_set_importer: Option<TileSetImporter>,
     inspector: Handle<UiNode>,
@@ -189,17 +189,19 @@ impl TileSetEditor {
             .items
             .clone();
 
-        fn view_definition_id(ui: &UserInterface, tile_view: Handle<UiNode>) -> TileDefinitionId {
+        fn view_definition_id(
+            ui: &UserInterface,
+            tile_view: Handle<UiNode>,
+        ) -> TileDefinitionHandle {
             ui.try_get_of_type::<TileSetTileView>(tile_view)
                 .unwrap()
-                .definition_id
+                .definition_handle
         }
 
         for tile_view in tile_views.iter() {
-            if tile_set
+            if !tile_set
                 .tiles
-                .values()
-                .all(|tile| tile.id != view_definition_id(ui, *tile_view))
+                .is_valid_handle(view_definition_id(ui, *tile_view))
             {
                 ui.send_message(ListViewMessage::remove_item(
                     self.tiles,
@@ -209,10 +211,10 @@ impl TileSetEditor {
             }
         }
 
-        for tile in tile_set.tiles.values() {
+        for (tile_handle, tile) in tile_set.tiles.pair_iter() {
             if let Some(tile_view) = tile_views
                 .iter()
-                .find(|tile_view| view_definition_id(ui, **tile_view) == tile.id)
+                .find(|tile_view| view_definition_id(ui, **tile_view) == tile_handle)
             {
                 ui.send_message(ImageMessage::uv_rect(
                     *tile_view,
@@ -221,7 +223,8 @@ impl TileSetEditor {
                 ));
             } else {
                 let ctx = &mut ui.build_ctx();
-                let tile_view = TileSetTileViewBuilder::new(WidgetBuilder::new()).build(tile, ctx);
+                let tile_view =
+                    TileSetTileViewBuilder::new(WidgetBuilder::new()).build(tile_handle, tile, ctx);
 
                 ui.send_message(ListViewMessage::add_item(
                     self.tiles,
@@ -232,7 +235,7 @@ impl TileSetEditor {
         }
 
         if let Some(selection) = self.selection {
-            if let Some(tile_definition) = tile_set.tiles.get(&selection) {
+            if let Some(tile_definition) = tile_set.tiles.try_borrow(selection) {
                 let ctx = ui
                     .node(self.inspector)
                     .cast::<Inspector>()
@@ -277,7 +280,8 @@ impl TileSetEditor {
                         .map(|tile| {
                             Command::new(AddTileCommand {
                                 tile_set: self.tile_set.clone(),
-                                tile,
+                                tile: Some(tile),
+                                handle: Default::default(),
                             })
                         })
                         .collect::<Vec<_>>();
@@ -301,13 +305,13 @@ impl TileSetEditor {
                     if let Some(material) = item.resource::<Material>(resource_manager) {
                         sender.do_command(AddTileCommand {
                             tile_set: self.tile_set.clone(),
-                            tile: TileDefinition {
+                            tile: Some(TileDefinition {
                                 material,
                                 uv_rect: Rect::new(0.0, 0.0, 1.0, 1.0),
                                 collider: Default::default(),
                                 color: Default::default(),
-                                id: TileDefinitionId(Uuid::new_v4()),
-                            },
+                            }),
+                            handle: Default::default(),
                         });
                         self.need_save = true;
                     } else if let Some(texture) = item.resource::<Texture>(resource_manager) {
@@ -320,13 +324,13 @@ impl TileSetEditor {
 
                         sender.do_command(AddTileCommand {
                             tile_set: self.tile_set.clone(),
-                            tile: TileDefinition {
+                            tile: Some(TileDefinition {
                                 material,
                                 uv_rect: Rect::new(0.0, 0.0, 1.0, 1.0),
                                 collider: Default::default(),
                                 color: Default::default(),
-                                id: TileDefinitionId(Uuid::new_v4()),
-                            },
+                            }),
+                            handle: Default::default(),
                         });
                         self.need_save = true;
                     }
@@ -339,7 +343,7 @@ impl TileSetEditor {
                 if let Some(selection) = self.selection {
                     sender.do_command(RemoveTileCommand {
                         tile_set: self.tile_set.clone(),
-                        id: selection,
+                        handle: selection,
                         tile: None,
                     });
                     self.need_save = true;
@@ -347,10 +351,10 @@ impl TileSetEditor {
             } else if message.destination() == self.remove_all {
                 let mut commands = Vec::new();
 
-                for id in self.tile_set.data_ref().tiles.keys() {
+                for (handle, _) in self.tile_set.data_ref().tiles.pair_iter() {
                     commands.push(Command::new(RemoveTileCommand {
                         tile_set: self.tile_set.clone(),
-                        id: *id,
+                        handle,
                         tile: None,
                     }));
                 }
@@ -368,7 +372,7 @@ impl TileSetEditor {
                     .try_get_of_type::<ListView>(self.tiles)
                     .and_then(|list| selection.and_then(|i| list.items.get(i).cloned()))
                     .and_then(|handle| ui.try_get_of_type::<TileSetTileView>(handle))
-                    .map(|view| view.definition_id);
+                    .map(|view| view.definition_handle);
 
                 self.selection = selection;
 
@@ -388,7 +392,7 @@ impl TileSetEditor {
                     let tile_set = self.tile_set.data_ref();
                     if let Some(tile_definition) = tile_set
                         .as_loaded_ref()
-                        .and_then(|tile_set| tile_set.tiles.get(&selection))
+                        .and_then(|tile_set| tile_set.tiles.try_borrow(selection))
                     {
                         let env = Arc::new(EditorEnvironment {
                             resource_manager: resource_manager.clone(),
@@ -435,7 +439,7 @@ impl TileSetEditor {
                             )
                         };
 
-                        tile_set.tiles.get_mut(&selection).unwrap()
+                        &mut tile_set.tiles[selection]
                     })
                     .unwrap(),
                 ));
@@ -457,7 +461,7 @@ impl TileSetEditor {
 #[type_uuid(id = "0acb6bea-ce7b-42bd-bd05-542a6e519330")]
 pub struct TileSetTileView {
     widget: Widget,
-    pub definition_id: TileDefinitionId,
+    pub definition_handle: TileDefinitionHandle,
     image: Handle<UiNode>,
 }
 
@@ -490,7 +494,12 @@ impl TileSetTileViewBuilder {
         Self { widget_builder }
     }
 
-    pub fn build(self, tile: &TileDefinition, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(
+        self,
+        tile_handle: TileDefinitionHandle,
+        tile: &TileDefinition,
+        ctx: &mut BuildContext,
+    ) -> Handle<UiNode> {
         let texture = tile.material.data_ref().texture("diffuseTexture");
 
         let image = ImageBuilder::new(
@@ -514,7 +523,7 @@ impl TileSetTileViewBuilder {
                 .with_allow_drag(true)
                 .with_child(decorator)
                 .build(),
-            definition_id: tile.id,
+            definition_handle: tile_handle,
             image,
         }))
     }

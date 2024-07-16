@@ -3,7 +3,7 @@
 pub mod brush;
 pub mod tileset;
 
-use crate::scene::tilemap::tileset::TileDefinitionId;
+use crate::scene::tilemap::tileset::TileDefinitionHandle;
 use crate::{
     core::{
         algebra::{Vector2, Vector3},
@@ -33,7 +33,7 @@ use std::ops::{Deref, DerefMut};
 #[type_uuid(id = "e429ca1b-a311-46c3-b580-d5a2f49db7e2")]
 pub struct Tile {
     pub position: Vector2<i32>,
-    pub definition_index: TileDefinitionId,
+    pub definition_handle: TileDefinitionHandle,
 }
 
 pub type Tiles = FxHashMap<Vector2<i32>, Tile>;
@@ -195,7 +195,7 @@ impl NodeTrait for TileMap {
         let tile_set = tile_set_resource.data_ref();
 
         for tile in self.tiles.values() {
-            let Some(tile_definition) = tile_set.tiles.get(&tile.definition_index) else {
+            let Some(tile_definition) = tile_set.tiles.try_borrow(tile.definition_handle) else {
                 continue;
             };
 

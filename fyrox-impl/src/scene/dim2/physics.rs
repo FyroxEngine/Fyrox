@@ -324,7 +324,7 @@ fn tile_map_to_collider_shape(
     let mut triangles = Vec::new();
 
     for tile in tile_map.tiles().values() {
-        let Some(tile_definition) = tile_set.tiles.get(&tile.definition_index) else {
+        let Some(tile_definition) = tile_set.tiles.try_borrow(tile.definition_handle) else {
             continue;
         };
 

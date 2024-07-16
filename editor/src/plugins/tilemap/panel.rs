@@ -58,7 +58,7 @@ fn generate_tiles(
                 tile_set_resource.clone(),
                 WidgetBuilder::new().with_id(tile.id),
             )
-            .with_definition_id(tile.definition_id)
+            .with_definition_id(tile.definition_handle)
             .with_position(tile.local_position)
             .build(ctx)
         })
@@ -174,13 +174,13 @@ impl TileMapPanel {
                                 let tile_set = tile_set.data_ref();
                                 let tiles = tile_set
                                     .tiles
-                                    .values()
+                                    .pair_iter()
                                     .enumerate()
-                                    .map(|(index, tile)| {
+                                    .map(|(index, (tile_handle, _))| {
                                         let side_size = 11;
 
                                         BrushTile {
-                                            definition_id: tile.id,
+                                            definition_handle: tile_handle,
                                             local_position: Vector2::new(
                                                 index as i32 % side_size,
                                                 index as i32 / side_size,
@@ -255,7 +255,7 @@ impl TileMapPanel {
                             } => sender.do_command(AddBrushTileCommand {
                                 brush: active_brush_resource.clone(),
                                 tile: Some(BrushTile {
-                                    definition_id: *definition_id,
+                                    definition_handle: *definition_id,
                                     local_position: *position,
                                     id: Uuid::new_v4(),
                                 }),
@@ -348,7 +348,7 @@ impl TileMapPanel {
                     tile_set.clone(),
                     WidgetBuilder::new().with_id(tile.id),
                 )
-                .with_definition_id(tile.definition_id)
+                .with_definition_id(tile.definition_handle)
                 .with_position(tile.local_position)
                 .build(ctx);
 

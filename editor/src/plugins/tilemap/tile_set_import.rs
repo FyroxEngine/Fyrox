@@ -2,7 +2,7 @@ use crate::{
     asset::item::AssetItem,
     fyrox::{
         asset::{manager::ResourceManager, untyped::ResourceKind},
-        core::{algebra::Vector2, math::Rect, pool::Handle, Uuid},
+        core::{algebra::Vector2, math::Rect, pool::Handle},
         graph::BaseSceneGraph,
         gui::{
             button::ButtonMessage,
@@ -22,7 +22,6 @@ use crate::{
     },
     plugins::tilemap::make_button,
 };
-use fyrox::scene::tilemap::tileset::TileDefinitionId;
 
 pub struct TileSetImporter {
     window: Handle<UiNode>,
@@ -191,7 +190,6 @@ impl TileSetImporter {
                         ),
                         collider: Default::default(),
                         color: Default::default(),
-                        id: TileDefinitionId(Uuid::new_v4()),
                     });
                 }
             }

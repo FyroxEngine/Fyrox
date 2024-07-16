@@ -1,14 +1,19 @@
-use crate::command::{CommandContext, CommandTrait};
-use fyrox::core::algebra::Vector2;
-use fyrox::core::log::Log;
-use fyrox::core::Uuid;
-use fyrox::scene::tilemap::brush::{BrushTile, TileMapBrushResource};
-use fyrox::scene::tilemap::tileset::{TileDefinition, TileDefinitionId, TileSetResource};
+use crate::{
+    command::{CommandContext, CommandTrait},
+    fyrox::{
+        core::{algebra::Vector2, log::Log, Uuid},
+        scene::tilemap::{
+            brush::{BrushTile, TileMapBrushResource},
+            tileset::{TileDefinition, TileDefinitionHandle, TileSetResource},
+        },
+    },
+};
 
 #[derive(Debug)]
 pub struct AddTileCommand {
     pub tile_set: TileSetResource,
-    pub tile: TileDefinition,
+    pub tile: Option<TileDefinition>,
+    pub handle: TileDefinitionHandle,
 }
 
 impl CommandTrait for AddTileCommand {
@@ -17,26 +22,22 @@ impl CommandTrait for AddTileCommand {
     }
 
     fn execute(&mut self, _context: &mut dyn CommandContext) {
-        self.tile_set
-            .data_ref()
-            .tiles
-            .insert(self.tile.id, self.tile.clone());
-    }
-
-    fn revert(&mut self, _context: &mut dyn CommandContext) {
-        self.tile = self
+        self.handle = self
             .tile_set
             .data_ref()
             .tiles
-            .remove(&self.tile.id)
-            .unwrap();
+            .spawn(self.tile.take().unwrap());
+    }
+
+    fn revert(&mut self, _context: &mut dyn CommandContext) {
+        self.tile = self.tile_set.data_ref().tiles.try_free(self.handle);
     }
 }
 
 #[derive(Debug)]
 pub struct RemoveTileCommand {
     pub tile_set: TileSetResource,
-    pub id: TileDefinitionId,
+    pub handle: TileDefinitionHandle,
     pub tile: Option<TileDefinition>,
 }
 
@@ -46,14 +47,15 @@ impl CommandTrait for RemoveTileCommand {
     }
 
     fn execute(&mut self, _context: &mut dyn CommandContext) {
-        self.tile = self.tile_set.data_ref().tiles.remove(&self.id);
+        self.tile = self.tile_set.data_ref().tiles.try_free(self.handle);
     }
 
     fn revert(&mut self, _context: &mut dyn CommandContext) {
-        self.tile_set
+        self.handle = self
+            .tile_set
             .data_ref()
             .tiles
-            .insert(self.id, self.tile.take().unwrap());
+            .spawn(self.tile.take().unwrap());
     }
 }
 
