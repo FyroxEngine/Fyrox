@@ -22,6 +22,7 @@ use crate::{
     },
     plugins::tilemap::make_button,
 };
+use fyrox::scene::tilemap::tileset::TileDefinitionId;
 
 pub struct TileSetImporter {
     window: Handle<UiNode>,
@@ -190,7 +191,7 @@ impl TileSetImporter {
                         ),
                         collider: Default::default(),
                         color: Default::default(),
-                        id: Uuid::new_v4(),
+                        id: TileDefinitionId(Uuid::new_v4()),
                     });
                 }
             }

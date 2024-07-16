@@ -44,6 +44,8 @@ use crate::{
     },
     Message,
 };
+use fyrox::graph::SceneGraph;
+use fyrox::scene::tilemap::tileset::TileDefinitionId;
 use std::{
     ops::{Deref, DerefMut},
     sync::Arc,
@@ -56,7 +58,7 @@ pub struct TileSetEditor {
     import: Handle<UiNode>,
     remove: Handle<UiNode>,
     remove_all: Handle<UiNode>,
-    selection: Option<usize>,
+    selection: Option<TileDefinitionId>,
     need_save: bool,
     tile_set_importer: Option<TileSetImporter>,
     inspector: Handle<UiNode>,
@@ -187,11 +189,17 @@ impl TileSetEditor {
             .items
             .clone();
 
+        fn view_definition_id(ui: &UserInterface, tile_view: Handle<UiNode>) -> TileDefinitionId {
+            ui.try_get_of_type::<TileSetTileView>(tile_view)
+                .unwrap()
+                .definition_id
+        }
+
         for tile_view in tile_views.iter() {
             if tile_set
                 .tiles
-                .iter()
-                .all(|tile| tile.id != ui.node(*tile_view).id)
+                .values()
+                .all(|tile| tile.id != view_definition_id(ui, *tile_view))
             {
                 ui.send_message(ListViewMessage::remove_item(
                     self.tiles,
@@ -201,10 +209,10 @@ impl TileSetEditor {
             }
         }
 
-        for (i, tile) in tile_set.tiles.iter().enumerate() {
+        for tile in tile_set.tiles.values() {
             if let Some(tile_view) = tile_views
                 .iter()
-                .find(|tile_view| ui.node(**tile_view).id == tile.id)
+                .find(|tile_view| view_definition_id(ui, **tile_view) == tile.id)
             {
                 ui.send_message(ImageMessage::uv_rect(
                     *tile_view,
@@ -213,8 +221,7 @@ impl TileSetEditor {
                 ));
             } else {
                 let ctx = &mut ui.build_ctx();
-                let tile_view =
-                    TileSetTileViewBuilder::new(WidgetBuilder::new()).build(i, tile, ctx);
+                let tile_view = TileSetTileViewBuilder::new(WidgetBuilder::new()).build(tile, ctx);
 
                 ui.send_message(ListViewMessage::add_item(
                     self.tiles,
@@ -225,7 +232,7 @@ impl TileSetEditor {
         }
 
         if let Some(selection) = self.selection {
-            if let Some(tile_definition) = tile_set.tiles.get(selection) {
+            if let Some(tile_definition) = tile_set.tiles.get(&selection) {
                 let ctx = ui
                     .node(self.inspector)
                     .cast::<Inspector>()
@@ -299,7 +306,7 @@ impl TileSetEditor {
                                 uv_rect: Rect::new(0.0, 0.0, 1.0, 1.0),
                                 collider: Default::default(),
                                 color: Default::default(),
-                                id: Uuid::new_v4(),
+                                id: TileDefinitionId(Uuid::new_v4()),
                             },
                         });
                         self.need_save = true;
@@ -318,7 +325,7 @@ impl TileSetEditor {
                                 uv_rect: Rect::new(0.0, 0.0, 1.0, 1.0),
                                 collider: Default::default(),
                                 color: Default::default(),
-                                id: Uuid::new_v4(),
+                                id: TileDefinitionId(Uuid::new_v4()),
                             },
                         });
                         self.need_save = true;
@@ -332,7 +339,7 @@ impl TileSetEditor {
                 if let Some(selection) = self.selection {
                     sender.do_command(RemoveTileCommand {
                         tile_set: self.tile_set.clone(),
-                        index: selection,
+                        id: selection,
                         tile: None,
                     });
                     self.need_save = true;
@@ -340,12 +347,10 @@ impl TileSetEditor {
             } else if message.destination() == self.remove_all {
                 let mut commands = Vec::new();
 
-                let mut tile_index = self.tile_set.data_ref().tiles.len();
-                while tile_index > 0 {
-                    tile_index -= 1;
+                for id in self.tile_set.data_ref().tiles.keys() {
                     commands.push(Command::new(RemoveTileCommand {
                         tile_set: self.tile_set.clone(),
-                        index: tile_index,
+                        id: *id,
                         tile: None,
                     }));
                 }
@@ -359,7 +364,13 @@ impl TileSetEditor {
             if message.destination() == self.tiles
                 && message.direction() == MessageDirection::FromWidget
             {
-                self.selection = *selection;
+                let selection = ui
+                    .try_get_of_type::<ListView>(self.tiles)
+                    .and_then(|list| selection.and_then(|i| list.items.get(i).cloned()))
+                    .and_then(|handle| ui.try_get_of_type::<TileSetTileView>(handle))
+                    .map(|view| view.definition_id);
+
+                self.selection = selection;
 
                 ui.send_message(WidgetMessage::enabled(
                     self.remove,
@@ -377,7 +388,7 @@ impl TileSetEditor {
                     let tile_set = self.tile_set.data_ref();
                     if let Some(tile_definition) = tile_set
                         .as_loaded_ref()
-                        .and_then(|tile_set| tile_set.tiles.get(*selection))
+                        .and_then(|tile_set| tile_set.tiles.get(&selection))
                     {
                         let env = Arc::new(EditorEnvironment {
                             resource_manager: resource_manager.clone(),
@@ -424,7 +435,7 @@ impl TileSetEditor {
                             )
                         };
 
-                        &mut tile_set.tiles[selection]
+                        tile_set.tiles.get_mut(&selection).unwrap()
                     })
                     .unwrap(),
                 ));
@@ -446,7 +457,7 @@ impl TileSetEditor {
 #[type_uuid(id = "0acb6bea-ce7b-42bd-bd05-542a6e519330")]
 pub struct TileSetTileView {
     widget: Widget,
-    pub definition_id: usize,
+    pub definition_id: TileDefinitionId,
     image: Handle<UiNode>,
 }
 
@@ -479,7 +490,7 @@ impl TileSetTileViewBuilder {
         Self { widget_builder }
     }
 
-    pub fn build(self, id: usize, tile: &TileDefinition, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, tile: &TileDefinition, ctx: &mut BuildContext) -> Handle<UiNode> {
         let texture = tile.material.data_ref().texture("diffuseTexture");
 
         let image = ImageBuilder::new(
@@ -500,11 +511,10 @@ impl TileSetTileViewBuilder {
         ctx.add_node(UiNode::new(TileSetTileView {
             widget: self
                 .widget_builder
-                .with_id(tile.id)
                 .with_allow_drag(true)
                 .with_child(decorator)
                 .build(),
-            definition_id: id,
+            definition_id: tile.id,
             image,
         }))
     }

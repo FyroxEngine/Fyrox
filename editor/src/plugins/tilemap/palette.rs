@@ -26,6 +26,7 @@ use crate::{
         },
     },
 };
+use fyrox::scene::tilemap::tileset::TileDefinitionId;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Debug, PartialEq, Clone)]
@@ -43,7 +44,7 @@ pub enum PaletteMessage {
     // Direction: FromWidget
     DuplicateTiles(Vec<(Uuid, Vector2<i32>)>),
     InsertTile {
-        definition_id: usize,
+        definition_id: TileDefinitionId,
         position: Vector2<i32>,
     },
 }
@@ -55,7 +56,7 @@ impl PaletteMessage {
     define_constructor!(PaletteMessage:MoveTiles => fn move_tiles(Vec<(Uuid, Vector2<i32>)>), layout: false);
     define_constructor!(PaletteMessage:DeleteTiles => fn delete_tiles(Vec<Uuid>), layout: false);
     define_constructor!(PaletteMessage:DuplicateTiles => fn duplicate_tiles(Vec<(Uuid, Vector2<i32>)>), layout: false);
-    define_constructor!(PaletteMessage:InsertTile  => fn insert_tile(definition_id: usize, position: Vector2<i32>), layout: false);
+    define_constructor!(PaletteMessage:InsertTile  => fn insert_tile(definition_id: TileDefinitionId, position: Vector2<i32>), layout: false);
 }
 
 #[derive(Debug, Clone, PartialEq, Visit, Reflect, Default)]
@@ -143,7 +144,7 @@ impl PaletteWidget {
             .iter()
             .filter_map(|h| ui.try_get_of_type::<BrushTileView>(*h))
             .map(|view| BrushTile {
-                definition_index: view.definition_index,
+                definition_id: view.definition_id,
                 local_position: view.local_position,
                 id: view.id,
             })
@@ -518,7 +519,7 @@ pub struct BrushTileView {
     widget: Widget,
     #[component(include)]
     selectable: Selectable,
-    definition_index: usize,
+    definition_id: TileDefinitionId,
     local_position: Vector2<i32>,
     tile_set: TileSetResource,
 }
@@ -528,7 +529,7 @@ define_widget_deref!(BrushTileView);
 impl Control for BrushTileView {
     fn draw(&self, drawing_context: &mut DrawingContext) {
         let tile_set = self.tile_set.data_ref();
-        if let Some(tile_definition) = tile_set.tiles.get(self.definition_index) {
+        if let Some(tile_definition) = tile_set.tiles.get(&self.definition_id) {
             if let Some(texture) = tile_definition
                 .material
                 .data_ref()
@@ -590,18 +591,18 @@ impl Control for BrushTileView {
     }
 }
 
-pub struct TileViewBuilder {
+pub struct BrushTileViewBuilder {
     widget_builder: WidgetBuilder,
-    definition_index: usize,
+    definition_id: TileDefinitionId,
     local_position: Vector2<i32>,
     tile_set: TileSetResource,
 }
 
-impl TileViewBuilder {
+impl BrushTileViewBuilder {
     pub fn new(tile_set: TileSetResource, widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
-            definition_index: 0,
+            definition_id: Default::default(),
             local_position: Default::default(),
             tile_set,
         }
@@ -612,8 +613,8 @@ impl TileViewBuilder {
         self
     }
 
-    pub fn with_definition_index(mut self, index: usize) -> Self {
-        self.definition_index = index;
+    pub fn with_definition_id(mut self, id: TileDefinitionId) -> Self {
+        self.definition_id = id;
         self
     }
 
@@ -621,7 +622,7 @@ impl TileViewBuilder {
         ctx.add_node(UiNode::new(BrushTileView {
             widget: self.widget_builder.build(),
             selectable: Default::default(),
-            definition_index: self.definition_index,
+            definition_id: self.definition_id,
             local_position: self.local_position,
             tile_set: self.tile_set,
         }))

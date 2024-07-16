@@ -11,7 +11,9 @@ use crate::{
     },
     material::MaterialResource,
 };
+use fxhash::FxHashMap;
 use fyrox_resource::manager::ResourceManager;
+use std::ops::{Deref, DerefMut};
 use std::{
     any::Any,
     error::Error,
@@ -88,13 +90,30 @@ pub struct TileDefinition {
     pub uv_rect: Rect<f32>,
     pub collider: TileCollider,
     pub color: Color,
-    pub id: Uuid,
+    pub id: TileDefinitionId,
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Visit, Reflect, Debug, Default)]
+pub struct TileDefinitionId(pub Uuid);
+
+impl Deref for TileDefinitionId {
+    type Target = Uuid;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for TileDefinitionId {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
 }
 
 #[derive(Clone, Default, Debug, Reflect, Visit, TypeUuidProvider, ComponentProvider)]
 #[type_uuid(id = "7b7e057b-a41e-4150-ab3b-0ae99f4024f0")]
 pub struct TileSet {
-    pub tiles: Vec<TileDefinition>,
+    pub tiles: FxHashMap<TileDefinitionId, TileDefinition>,
 }
 
 impl TileSet {

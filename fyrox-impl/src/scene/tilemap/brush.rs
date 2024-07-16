@@ -1,3 +1,4 @@
+use crate::scene::tilemap::tileset::TileDefinitionId;
 use crate::{
     asset::{
         io::ResourceIo,
@@ -25,7 +26,7 @@ use std::{
 
 #[derive(PartialEq, Debug, Clone, Visit, Reflect)]
 pub struct BrushTile {
-    pub definition_index: usize,
+    pub definition_id: TileDefinitionId,
     pub local_position: Vector2<i32>,
     #[visit(optional)]
     pub id: Uuid,
@@ -34,7 +35,7 @@ pub struct BrushTile {
 impl Default for BrushTile {
     fn default() -> Self {
         Self {
-            definition_index: 0,
+            definition_id: Default::default(),
             local_position: Default::default(),
             id: Uuid::new_v4(),
         }

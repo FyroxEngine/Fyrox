@@ -31,7 +31,8 @@ use crate::{
     plugins::tilemap::{
         commands::{MoveBrushTilesCommand, RemoveBrushTileCommand, SetBrushTilesCommand},
         palette::{
-            PaletteMessage, PaletteWidget, PaletteWidgetBuilder, TileViewBuilder, TileViewMessage,
+            BrushTileViewBuilder, PaletteMessage, PaletteWidget, PaletteWidgetBuilder,
+            TileViewMessage,
         },
     },
     scene::commands::GameSceneContext,
@@ -53,11 +54,11 @@ fn generate_tiles(
         .tiles
         .iter()
         .map(|tile| {
-            TileViewBuilder::new(
+            BrushTileViewBuilder::new(
                 tile_set_resource.clone(),
                 WidgetBuilder::new().with_id(tile.id),
             )
-            .with_definition_index(tile.definition_index)
+            .with_definition_id(tile.definition_id)
             .with_position(tile.local_position)
             .build(ctx)
         })
@@ -173,13 +174,13 @@ impl TileMapPanel {
                                 let tile_set = tile_set.data_ref();
                                 let tiles = tile_set
                                     .tiles
-                                    .iter()
+                                    .values()
                                     .enumerate()
-                                    .map(|(index, _tile)| {
+                                    .map(|(index, tile)| {
                                         let side_size = 11;
 
                                         BrushTile {
-                                            definition_index: index,
+                                            definition_id: tile.id,
                                             local_position: Vector2::new(
                                                 index as i32 % side_size,
                                                 index as i32 / side_size,
@@ -254,7 +255,7 @@ impl TileMapPanel {
                             } => sender.do_command(AddBrushTileCommand {
                                 brush: active_brush_resource.clone(),
                                 tile: Some(BrushTile {
-                                    definition_index: *definition_id,
+                                    definition_id: *definition_id,
                                     local_position: *position,
                                     id: Uuid::new_v4(),
                                 }),
@@ -343,11 +344,13 @@ impl TileMapPanel {
                 ));
             } else {
                 let ctx = &mut ui.build_ctx();
-                let tile_view =
-                    TileViewBuilder::new(tile_set.clone(), WidgetBuilder::new().with_id(tile.id))
-                        .with_definition_index(tile.definition_index)
-                        .with_position(tile.local_position)
-                        .build(ctx);
+                let tile_view = BrushTileViewBuilder::new(
+                    tile_set.clone(),
+                    WidgetBuilder::new().with_id(tile.id),
+                )
+                .with_definition_id(tile.definition_id)
+                .with_position(tile.local_position)
+                .build(ctx);
 
                 ui.send_message(PaletteMessage::add_tile(
                     self.palette,

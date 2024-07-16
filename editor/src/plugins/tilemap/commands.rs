@@ -3,7 +3,7 @@ use fyrox::core::algebra::Vector2;
 use fyrox::core::log::Log;
 use fyrox::core::Uuid;
 use fyrox::scene::tilemap::brush::{BrushTile, TileMapBrushResource};
-use fyrox::scene::tilemap::tileset::{TileDefinition, TileSetResource};
+use fyrox::scene::tilemap::tileset::{TileDefinition, TileDefinitionId, TileSetResource};
 
 #[derive(Debug)]
 pub struct AddTileCommand {
@@ -17,18 +17,26 @@ impl CommandTrait for AddTileCommand {
     }
 
     fn execute(&mut self, _context: &mut dyn CommandContext) {
-        self.tile_set.data_ref().tiles.push(self.tile.clone());
+        self.tile_set
+            .data_ref()
+            .tiles
+            .insert(self.tile.id, self.tile.clone());
     }
 
     fn revert(&mut self, _context: &mut dyn CommandContext) {
-        self.tile = self.tile_set.data_ref().tiles.pop().unwrap();
+        self.tile = self
+            .tile_set
+            .data_ref()
+            .tiles
+            .remove(&self.tile.id)
+            .unwrap();
     }
 }
 
 #[derive(Debug)]
 pub struct RemoveTileCommand {
     pub tile_set: TileSetResource,
-    pub index: usize,
+    pub id: TileDefinitionId,
     pub tile: Option<TileDefinition>,
 }
 
@@ -38,14 +46,14 @@ impl CommandTrait for RemoveTileCommand {
     }
 
     fn execute(&mut self, _context: &mut dyn CommandContext) {
-        self.tile = Some(self.tile_set.data_ref().tiles.remove(self.index));
+        self.tile = self.tile_set.data_ref().tiles.remove(&self.id);
     }
 
     fn revert(&mut self, _context: &mut dyn CommandContext) {
         self.tile_set
             .data_ref()
             .tiles
-            .insert(self.index, self.tile.take().unwrap());
+            .insert(self.id, self.tile.take().unwrap());
     }
 }
 
