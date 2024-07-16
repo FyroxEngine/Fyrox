@@ -100,6 +100,10 @@ pub struct TileSet {
 }
 
 impl TileSet {
+    pub fn add_tile(&mut self, tile: TileDefinition) -> TileDefinitionHandle {
+        self.tiles.spawn(tile)
+    }
+
     /// Load a tile set resource from the specific file path.
     pub async fn from_file(
         path: &Path,

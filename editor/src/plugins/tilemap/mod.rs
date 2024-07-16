@@ -123,13 +123,10 @@ impl TileMapInteractionMode {
                     if modifiers.shift {
                         tile_map.remove_tile(position);
                     } else {
-                        tile_map.insert_tile(
+                        tile_map.insert_tile(Tile {
                             position,
-                            Tile {
-                                position,
-                                definition_handle: brush_tile.definition_handle,
-                            },
-                        )
+                            definition_handle: brush_tile.definition_handle,
+                        });
                     }
                 }
             }

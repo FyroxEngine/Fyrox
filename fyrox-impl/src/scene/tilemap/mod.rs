@@ -39,8 +39,107 @@ pub struct Tile {
     pub definition_handle: TileDefinitionHandle,
 }
 
-pub type Tiles = FxHashMap<Vector2<i32>, Tile>;
+#[derive(Clone, Reflect, Debug, Default, PartialEq)]
+pub struct Tiles(FxHashMap<Vector2<i32>, Tile>);
 
+impl Visit for Tiles {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        self.0.visit(name, visitor)
+    }
+}
+
+impl Deref for Tiles {
+    type Target = FxHashMap<Vector2<i32>, Tile>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl Tiles {
+    #[inline]
+    pub fn insert(&mut self, tile: Tile) -> Option<Tile> {
+        self.0.insert(tile.position, tile)
+    }
+
+    #[inline]
+    pub fn remove(&mut self, position: Vector2<i32>) -> Option<Tile> {
+        self.0.remove(&position)
+    }
+}
+
+/// Tile map is a 2D "image", made out of a small blocks called tiles. Tile maps used in 2D games to
+/// build game worlds quickly and easily.
+///
+/// ## Example
+///
+/// The following example creates a simple tile map with two tile types - grass and stone. It creates
+/// stone foundation and lays grass on top of it.
+///
+/// ```rust
+/// use fyrox_impl::{
+///     asset::untyped::ResourceKind,
+///     core::{algebra::Vector2, color::Color, math::Rect, pool::Handle},
+///     material::{Material, MaterialResource},
+///     scene::{
+///         base::BaseBuilder,
+///         graph::Graph,
+///         node::Node,
+///         tilemap::{
+///             tileset::{TileCollider, TileDefinition, TileSet, TileSetResource},
+///             Tile, TileMapBuilder, Tiles,
+///         },
+///     },
+/// };
+///
+/// fn create_tile_map(graph: &mut Graph) -> Handle<Node> {
+///     // Each tile could have its own material, for simplicity it is just a standard 2D material.
+///     let material = MaterialResource::new_ok(ResourceKind::Embedded, Material::standard_2d());
+///
+///     // Create a tile set - it is a data source for the tile map. Tile map will reference the tiles
+///     // stored in the tile set by handles. We'll create two tile types with different colors.
+///     let mut tile_set = TileSet::default();
+///     let stone_tile = tile_set.add_tile(TileDefinition {
+///         material,
+///         uv_rect: Rect::new(0.0, 0.0, 1.0, 1.0),
+///         collider: TileCollider::Rectangle,
+///         color: Color::BROWN,
+///     });
+///     let grass_tile = tile_set.add_tile(TileDefinition {
+///         material,
+///         uv_rect: Rect::new(0.0, 0.0, 1.0, 1.0),
+///         collider: TileCollider::Rectangle,
+///         color: Color::GREEN,
+///     });
+///     let tile_set = TileSetResource::new_ok(ResourceKind::Embedded, tile_set);
+///
+///     let mut tiles = Tiles::default();
+///
+///     // Create stone foundation.
+///     for x in 0..10 {
+///         for y in 0..2 {
+///             tiles.insert(Tile {
+///                 position: Vector2::new(x, y),
+///                 definition_handle: stone_tile,
+///             });
+///         }
+///     }
+///
+///     // Add grass on top of it.
+///     for x in 0..10 {
+///         tiles.insert(Tile {
+///             position: Vector2::new(x, 2),
+///             definition_handle: grass_tile,
+///         });
+///     }
+///
+///     // Finally create the tile map.
+///     TileMapBuilder::new(BaseBuilder::new())
+///         .with_tile_set(tile_set)
+///         .with_tiles(tiles)
+///         .build(graph)
+/// }
+/// ```
 #[derive(Clone, Reflect, Debug, Visit, ComponentProvider, TypeUuidProvider)]
 #[type_uuid(id = "aa9a3385-a4af-4faf-a69a-8d3af1a3aa67")]
 pub struct TileMap {
@@ -85,16 +184,13 @@ impl TileMap {
     }
 
     #[inline]
-    pub fn insert_tile(&mut self, position: Vector2<i32>, tile: Tile) {
-        self.tiles
-            .entry(position)
-            .and_modify(|entry| *entry = tile.clone())
-            .or_insert(tile);
+    pub fn insert_tile(&mut self, tile: Tile) -> Option<Tile> {
+        self.tiles.insert(tile)
     }
 
     #[inline]
     pub fn remove_tile(&mut self, position: Vector2<i32>) -> Option<Tile> {
-        self.tiles.remove(&position)
+        self.tiles.remove(position)
     }
 
     #[inline]
