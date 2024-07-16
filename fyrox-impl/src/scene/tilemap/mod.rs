@@ -3,7 +3,6 @@
 pub mod brush;
 pub mod tileset;
 
-use crate::scene::tilemap::tileset::TileDefinitionHandle;
 use crate::{
     core::{
         algebra::{Vector2, Vector3},
@@ -23,7 +22,11 @@ use crate::{
         graph::Graph,
         mesh::{buffer::VertexTrait, RenderPath},
         node::{Node, NodeTrait, RdcControlFlow},
-        tilemap::{brush::TileMapBrushResource, tileset::TileSetResource},
+        tilemap::{
+            brush::TileMapBrushResource,
+            tileset::{TileDefinitionHandle, TileSetResource},
+        },
+        Scene,
     },
 };
 use fxhash::FxHashMap;
@@ -264,6 +267,17 @@ impl NodeTrait for TileMap {
         }
 
         RdcControlFlow::Continue
+    }
+
+    fn validate(&self, _scene: &Scene) -> Result<(), String> {
+        if self.tile_set.is_none() {
+            Err(
+                "Tile set resource is not set. Tile map will not be rendered correctly!"
+                    .to_string(),
+            )
+        } else {
+            Ok(())
+        }
     }
 }
 
