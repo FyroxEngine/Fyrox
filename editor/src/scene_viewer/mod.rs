@@ -622,8 +622,27 @@ impl SceneViewer {
     pub fn on_current_scene_changed(
         &mut self,
         new_scene: Option<&mut EditorSceneEntry>,
-        ui: &mut UserInterface,
+        engine: &mut Engine,
     ) {
+        let ui = engine.user_interfaces.first_mut();
+        let index = new_scene
+            .as_ref()
+            .and_then(|entry| entry.controller.downcast_ref::<GameScene>())
+            .map(|game_scene| {
+                let scene = &engine.scenes[game_scene.scene];
+                match scene.graph[game_scene.camera_controller.camera]
+                    .as_camera()
+                    .projection()
+                {
+                    Projection::Perspective(_) => 0,
+                    Projection::Orthographic(_) => 1,
+                }
+            });
+        ui.send_message(DropdownListMessage::selection(
+            self.camera_projection,
+            MessageDirection::ToWidget,
+            index,
+        ));
         self.sync_interaction_modes(new_scene, ui)
     }
 

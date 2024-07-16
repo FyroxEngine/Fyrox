@@ -129,6 +129,7 @@ impl CameraController {
                                 ])
                                 .with_name("EditorCamera"),
                         )
+                        .with_projection(settings.projection)
                         .with_exposure(Exposure::Manual(std::f32::consts::E))
                         .with_z_far(512.0)
                         .build(graph);
@@ -311,6 +312,7 @@ impl CameraController {
                 position: self.position(graph),
                 yaw: self.yaw,
                 pitch: self.pitch,
+                projection: graph[self.camera].as_camera().projection().clone(),
             };
 
             if let Some(scene_settings) = settings.scene_settings.get(path) {

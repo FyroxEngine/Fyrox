@@ -2021,10 +2021,8 @@ impl Editor {
 
         self.world_viewer.sync_selection = true;
 
-        self.scene_viewer.on_current_scene_changed(
-            self.scenes.current_scene_entry_mut(),
-            self.engine.user_interfaces.first_mut(),
-        );
+        self.scene_viewer
+            .on_current_scene_changed(self.scenes.current_scene_entry_mut(), &mut self.engine);
         self.sync_to_model();
         self.poll_ui_messages();
     }

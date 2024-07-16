@@ -31,6 +31,7 @@ use fyrox_graph::BaseSceneGraph;
 use fyrox_resource::state::LoadError;
 use fyrox_resource::untyped::ResourceKind;
 use lazy_static::lazy_static;
+use serde::{Deserialize, Serialize};
 use std::{
     fmt::{Display, Formatter},
     ops::{Deref, DerefMut},
@@ -40,7 +41,7 @@ use strum_macros::{AsRefStr, EnumString, VariantNames};
 /// Perspective projection make parallel lines to converge at some point. Objects will be smaller
 /// with increasing distance. This the projection type "used" by human eyes, photographic lens and
 /// it looks most realistic.
-#[derive(Reflect, Clone, Debug, PartialEq, Visit)]
+#[derive(Reflect, Clone, Debug, PartialEq, Visit, Serialize, Deserialize)]
 pub struct PerspectiveProjection {
     /// Vertical angle at the top of viewing frustum, in radians. Larger values will increase field
     /// of view and create fish-eye effect, smaller values could be used to create "binocular" effect
@@ -92,7 +93,7 @@ impl PerspectiveProjection {
 
 /// Parallel projection. Object's size won't be affected by distance from the viewer, it can be
 /// used for 2D games.
-#[derive(Reflect, Clone, Debug, PartialEq, Visit)]
+#[derive(Reflect, Clone, Debug, PartialEq, Visit, Serialize, Deserialize)]
 pub struct OrthographicProjection {
     /// Location of the near clipping plane. If it is larger than [`Self::z_far`] then it will be
     /// treated like far clipping plane.
@@ -163,7 +164,18 @@ impl OrthographicProjection {
 /// objects will look smaller with increasing distance.
 /// 2) Orthographic projection most useful for 2D games, objects won't look smaller with increasing
 /// distance.
-#[derive(Reflect, Clone, Debug, PartialEq, Visit, AsRefStr, EnumString, VariantNames)]
+#[derive(
+    Reflect,
+    Clone,
+    Debug,
+    PartialEq,
+    Visit,
+    AsRefStr,
+    EnumString,
+    VariantNames,
+    Serialize,
+    Deserialize,
+)]
 pub enum Projection {
     /// See [`PerspectiveProjection`] docs.
     Perspective(PerspectiveProjection),
