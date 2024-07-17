@@ -1,4 +1,5 @@
-#![allow(missing_docs)] // TODO
+//! Tile map is a 2D "image", made out of a small blocks called tiles. Tile maps used in 2D games to
+//! build game worlds quickly and easily. See [`TileMap`] docs for more info and usage examples.
 
 pub mod brush;
 pub mod tileset;
@@ -23,7 +24,7 @@ use crate::{
         mesh::{buffer::VertexTrait, RenderPath},
         node::{Node, NodeTrait, RdcControlFlow},
         tilemap::{
-            brush::TileMapBrushResource,
+            brush::{TileMapBrush, TileMapBrushResource},
             tileset::{TileDefinitionHandle, TileSetResource},
         },
         Scene,
@@ -32,13 +33,18 @@ use crate::{
 use fxhash::FxHashMap;
 use std::ops::{Deref, DerefMut};
 
+/// Tile is a base block of a tile map. It has a position and a handle of tile definition, stored
+/// in the respective tile set.
 #[derive(Clone, Reflect, Default, Debug, PartialEq, Visit, ComponentProvider, TypeUuidProvider)]
 #[type_uuid(id = "e429ca1b-a311-46c3-b580-d5a2f49db7e2")]
 pub struct Tile {
+    /// Position of the tile (in grid coordinates).
     pub position: Vector2<i32>,
+    /// A handle of the tile definition.
     pub definition_handle: TileDefinitionHandle,
 }
 
+/// A set of tiles.
 #[derive(Clone, Reflect, Debug, Default, PartialEq)]
 pub struct Tiles(FxHashMap<Vector2<i32>, Tile>);
 
@@ -57,11 +63,14 @@ impl Deref for Tiles {
 }
 
 impl Tiles {
+    /// Inserts a tile in the tile container. Returns previous tile, located at the same position as
+    /// the new one (if any).
     #[inline]
     pub fn insert(&mut self, tile: Tile) -> Option<Tile> {
         self.0.insert(tile.position, tile)
     }
 
+    /// Tries to remove a tile at the given position.
     #[inline]
     pub fn remove(&mut self, position: Vector2<i32>) -> Option<Tile> {
         self.0.remove(&position)
@@ -100,7 +109,7 @@ impl Tiles {
 ///     // stored in the tile set by handles. We'll create two tile types with different colors.
 ///     let mut tile_set = TileSet::default();
 ///     let stone_tile = tile_set.add_tile(TileDefinition {
-///         material,
+///         material: material.clone(),
 ///         uv_rect: Rect::new(0.0, 0.0, 1.0, 1.0),
 ///         collider: TileCollider::Rectangle,
 ///         color: Color::BROWN,
@@ -153,64 +162,96 @@ pub struct TileMap {
 }
 
 impl TileMap {
+    /// Returns a reference to the current tile set (if any).
     #[inline]
     pub fn tile_set(&self) -> Option<&TileSetResource> {
         self.tile_set.as_ref()
     }
 
+    /// Sets new tile set.
     #[inline]
     pub fn set_tile_set(&mut self, tile_set: Option<TileSetResource>) {
         self.tile_set.set_value_and_mark_modified(tile_set);
     }
 
+    /// Returns a reference to the tile container.
     #[inline]
     pub fn tiles(&self) -> &Tiles {
         &self.tiles
     }
 
+    /// Sets new tiles.
     #[inline]
     pub fn set_tiles(&mut self, tiles: Tiles) {
         self.tiles.set_value_and_mark_modified(tiles);
     }
 
+    /// Returns current tile scaling.
     #[inline]
     pub fn tile_scale(&self) -> Vector2<f32> {
         *self.tile_scale
     }
 
+    /// Sets new tile scaling, which defines tile size.
     #[inline]
     pub fn set_tile_scale(&mut self, tile_scale: Vector2<f32>) {
         self.tile_scale.set_value_and_mark_modified(tile_scale);
     }
 
+    /// Inserts a tile in the tile map. Returns previous tile, located at the same position as
+    /// the new one (if any).
     #[inline]
     pub fn insert_tile(&mut self, tile: Tile) -> Option<Tile> {
         self.tiles.insert(tile)
     }
 
+    /// Removes a tile from the tile map.
     #[inline]
     pub fn remove_tile(&mut self, position: Vector2<i32>) -> Option<Tile> {
         self.tiles.remove(position)
     }
 
+    /// Returns active brush of the tile map.
     #[inline]
     pub fn active_brush(&self) -> Option<TileMapBrushResource> {
         (*self.active_brush).clone()
     }
 
+    /// Sets new active brush of the tile map.
     #[inline]
     pub fn set_active_brush(&mut self, brush: Option<TileMapBrushResource>) {
         self.active_brush.set_value_and_mark_modified(brush);
     }
 
+    /// Returns a reference to the set of brushes.
     #[inline]
     pub fn brushes(&self) -> &[Option<TileMapBrushResource>] {
         &self.brushes
     }
 
+    /// Sets news brushes of the tile map. This set could be used to store the most used brushes.
     #[inline]
     pub fn set_brushes(&mut self, brushes: Vec<Option<TileMapBrushResource>>) {
         self.brushes.set_value_and_mark_modified(brushes);
+    }
+
+    /// Draws on the tile map using the given brush.
+    #[inline]
+    pub fn draw(&mut self, origin: Vector2<i32>, brush: &TileMapBrush) {
+        for brush_tile in brush.tiles.iter() {
+            self.insert_tile(Tile {
+                position: origin + brush_tile.local_position,
+                definition_handle: brush_tile.definition_handle,
+            });
+        }
+    }
+
+    /// Erases the tiles under the given brush.
+    #[inline]
+    pub fn erase(&mut self, origin: Vector2<i32>, brush: &TileMapBrush) {
+        for brush_tile in brush.tiles.iter() {
+            self.remove_tile(origin + brush_tile.local_position);
+        }
     }
 }
 
@@ -377,6 +418,7 @@ impl NodeTrait for TileMap {
     }
 }
 
+/// Tile map builder allows you to create [`TileMap`] scene nodes.
 pub struct TileMapBuilder {
     base_builder: BaseBuilder,
     tile_set: Option<TileSetResource>,
@@ -386,6 +428,7 @@ pub struct TileMapBuilder {
 }
 
 impl TileMapBuilder {
+    /// Creates new tile map builder.
     pub fn new(base_builder: BaseBuilder) -> Self {
         Self {
             base_builder,
@@ -396,26 +439,31 @@ impl TileMapBuilder {
         }
     }
 
+    /// Sets the desired tile set.
     pub fn with_tile_set(mut self, tile_set: TileSetResource) -> Self {
         self.tile_set = Some(tile_set);
         self
     }
 
+    /// Sets the actual tiles of the tile map.
     pub fn with_tiles(mut self, tiles: Tiles) -> Self {
         self.tiles = tiles;
         self
     }
 
+    /// Sets the actual tile scaling.
     pub fn with_tile_scale(mut self, tile_scale: Vector2<f32>) -> Self {
         self.tile_scale = tile_scale;
         self
     }
 
+    /// Sets brushes of the tile map.
     pub fn with_brushes(mut self, brushes: Vec<Option<TileMapBrushResource>>) -> Self {
         self.brushes = brushes;
         self
     }
 
+    /// Builds tile map scene node, but not adds it to a scene graph.
     pub fn build_node(self) -> Node {
         Node::new(TileMap {
             base: self.base_builder.build_base(),
@@ -427,6 +475,7 @@ impl TileMapBuilder {
         })
     }
 
+    /// Finishes tile map building and adds it to the specified scene graph.
     pub fn build(self, graph: &mut Graph) -> Handle<Node> {
         graph.add_node(self.build_node())
     }

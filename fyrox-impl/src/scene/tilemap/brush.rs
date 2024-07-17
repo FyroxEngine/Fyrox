@@ -1,4 +1,6 @@
-use crate::scene::tilemap::tileset::TileDefinitionHandle;
+//! Tile map brush is a set of tiles arranged in arbitrary shape, that can be used to draw on a tile
+//! map.
+
 use crate::{
     asset::{
         io::ResourceIo,
@@ -14,7 +16,7 @@ use crate::{
         type_traits::prelude::*,
         visitor::prelude::*,
     },
-    scene::debug::SceneDrawingContext,
+    scene::{debug::SceneDrawingContext, tilemap::tileset::TileDefinitionHandle},
 };
 use std::{
     any::Any,
@@ -24,11 +26,14 @@ use std::{
     sync::Arc,
 };
 
+/// Brush tile is a building block of a brush.
 #[derive(PartialEq, Debug, Clone, Visit, Reflect)]
 pub struct BrushTile {
+    /// Handle of the tile definition in a tile set.
     pub definition_handle: TileDefinitionHandle,
+    /// Local position of tile (in grid coordinates).
     pub local_position: Vector2<i32>,
-    #[visit(optional)]
+    /// Unique id of the tile.
     pub id: Uuid,
 }
 
@@ -43,6 +48,7 @@ impl Default for BrushTile {
 }
 
 impl BrushTile {
+    /// Draws brush outline to the scene drawing context.
     pub fn draw_outline(
         &self,
         ctx: &mut SceneDrawingContext,
@@ -64,7 +70,7 @@ impl BrushTile {
     }
 }
 
-/// An error that may occur during curve resource loading.
+/// An error that may occur during tile map brush resource loading.
 #[derive(Debug)]
 pub enum TileMapBrushResourceError {
     /// An i/o error has occurred.
@@ -102,13 +108,17 @@ impl From<VisitError> for TileMapBrushResourceError {
     }
 }
 
+/// Tile map brush is a set of tiles arranged in arbitrary shape, that can be used to draw on a tile
+/// map.
 #[derive(Default, PartialEq, Debug, Clone, Visit, Reflect, TypeUuidProvider)]
 #[type_uuid(id = "23ed39da-cb01-4181-a058-94dc77ecb4b2")]
 pub struct TileMapBrush {
+    /// Tiles of the brush.
     pub tiles: Vec<BrushTile>,
 }
 
 impl TileMapBrush {
+    /// Draw brush outline to the scene drawing context.
     pub fn draw_outline(
         &self,
         ctx: &mut SceneDrawingContext,
@@ -121,15 +131,17 @@ impl TileMapBrush {
         }
     }
 
+    /// Tries to find a tile with the given id.
     pub fn find_tile(&self, id: &Uuid) -> Option<&BrushTile> {
         self.tiles.iter().find(|tile| tile.id == *id)
     }
 
+    /// Tries to find a tile with the given id.
     pub fn find_tile_mut(&mut self, id: &Uuid) -> Option<&mut BrushTile> {
         self.tiles.iter_mut().find(|tile| tile.id == *id)
     }
 
-    /// Load a curve resource from the specific file path.
+    /// Load a tile map brush resource from the specific file path.
     pub async fn from_file(
         path: &Path,
         io: &dyn ResourceIo,
@@ -171,6 +183,7 @@ impl ResourceData for TileMapBrush {
     }
 }
 
+/// Standard tile map brush loader.
 pub struct TileMapBrushLoader {}
 
 impl ResourceLoader for TileMapBrushLoader {
@@ -184,12 +197,13 @@ impl ResourceLoader for TileMapBrushLoader {
 
     fn load(&self, path: PathBuf, io: Arc<dyn ResourceIo>) -> BoxedLoaderFuture {
         Box::pin(async move {
-            let curve_state = TileMapBrush::from_file(&path, io.as_ref())
+            let tile_map_brush = TileMapBrush::from_file(&path, io.as_ref())
                 .await
                 .map_err(LoadError::new)?;
-            Ok(LoaderPayload::new(curve_state))
+            Ok(LoaderPayload::new(tile_map_brush))
         })
     }
 }
 
+/// An alias to `Resource<TileMapBrush>`.
 pub type TileMapBrushResource = Resource<TileMapBrush>;

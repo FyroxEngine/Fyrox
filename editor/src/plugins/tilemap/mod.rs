@@ -25,7 +25,7 @@ use crate::{
         scene::{
             debug::Line,
             node::Node,
-            tilemap::{brush::TileMapBrush, Tile, TileMap, Tiles},
+            tilemap::{brush::TileMapBrush, TileMap, Tiles},
             Scene,
         },
     },
@@ -117,17 +117,10 @@ impl TileMapInteractionMode {
             if self.interaction_context.is_some() {
                 let brush = self.brush.lock();
 
-                for brush_tile in brush.tiles.iter() {
-                    let position = grid_coord + brush_tile.local_position;
-
-                    if modifiers.shift {
-                        tile_map.remove_tile(position);
-                    } else {
-                        tile_map.insert_tile(Tile {
-                            position,
-                            definition_handle: brush_tile.definition_handle,
-                        });
-                    }
+                if modifiers.shift {
+                    tile_map.erase(grid_coord, &brush);
+                } else {
+                    tile_map.draw(grid_coord, &brush)
                 }
             }
         }
