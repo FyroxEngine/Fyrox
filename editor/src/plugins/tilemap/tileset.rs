@@ -269,7 +269,7 @@ impl TileSetEditor {
         serialization_context: Arc<SerializationContext>,
     ) -> Option<Self> {
         if let Some(importer) = self.tile_set_importer.take() {
-            match importer.handle_ui_message(message, ui, resource_manager) {
+            match importer.handle_ui_message(message, ui) {
                 ImportResult::None(importer) => {
                     self.tile_set_importer = Some(importer);
                 }
@@ -302,7 +302,7 @@ impl TileSetEditor {
         } else if let Some(WidgetMessage::Drop(dropped)) = message.data() {
             if message.destination() == self.tiles {
                 if let Some(item) = ui.node(*dropped).cast::<AssetItem>() {
-                    if let Some(material) = item.resource::<Material>(resource_manager) {
+                    if let Some(material) = item.resource::<Material>() {
                         sender.do_command(AddTileCommand {
                             tile_set: self.tile_set.clone(),
                             tile: Some(TileDefinition {
@@ -314,7 +314,7 @@ impl TileSetEditor {
                             handle: Default::default(),
                         });
                         self.need_save = true;
-                    } else if let Some(texture) = item.resource::<Texture>(resource_manager) {
+                    } else if let Some(texture) = item.resource::<Texture>() {
                         let mut material = Material::standard_2d();
                         material
                             .set_texture(&"diffuseTexture".into(), Some(texture))

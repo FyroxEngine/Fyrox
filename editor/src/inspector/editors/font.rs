@@ -1,30 +1,32 @@
-use crate::fyrox::graph::BaseSceneGraph;
-use crate::fyrox::{
-    asset::{manager::ResourceManager, untyped::ResourceKind},
-    core::{
-        algebra::Vector2, color::Color, make_relative_path, pool::Handle, reflect::prelude::*,
-        type_traits::prelude::*, uuid_provider, visitor::prelude::*,
-    },
-    gui::{
-        brush::Brush,
-        define_constructor,
-        draw::{CommandTexture, Draw, DrawingContext},
-        font::{Font, FontResource, BUILT_IN_FONT},
-        formatted_text::WrapMode,
-        inspector::{
-            editors::{
-                PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
-                PropertyEditorMessageContext, PropertyEditorTranslationContext,
-            },
-            FieldKind, InspectorError, PropertyChanged,
+use crate::{
+    asset::item::AssetItem,
+    fyrox::{
+        asset::untyped::ResourceKind,
+        core::{
+            algebra::Vector2, color::Color, pool::Handle, reflect::prelude::*,
+            type_traits::prelude::*, uuid_provider, visitor::prelude::*,
         },
-        message::{MessageDirection, UiMessage},
-        text::{TextBuilder, TextMessage},
-        widget::{Widget, WidgetBuilder, WidgetMessage},
-        BuildContext, Control, UiNode, UserInterface,
+        graph::BaseSceneGraph,
+        gui::{
+            brush::Brush,
+            define_constructor,
+            draw::{CommandTexture, Draw, DrawingContext},
+            font::{Font, FontResource, BUILT_IN_FONT},
+            formatted_text::WrapMode,
+            inspector::{
+                editors::{
+                    PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
+                    PropertyEditorMessageContext, PropertyEditorTranslationContext,
+                },
+                FieldKind, InspectorError, PropertyChanged,
+            },
+            message::{MessageDirection, UiMessage},
+            text::{TextBuilder, TextMessage},
+            widget::{Widget, WidgetBuilder, WidgetMessage},
+            BuildContext, Control, UiNode, UserInterface,
+        },
     },
 };
-use crate::{asset::item::AssetItem, inspector::EditorEnvironment};
 use std::{
     any::TypeId,
     fmt::{Debug, Formatter},
@@ -35,9 +37,6 @@ use std::{
 pub struct FontField {
     widget: Widget,
     text_preview: Handle<UiNode>,
-    #[visit(skip)]
-    #[reflect(hidden)]
-    resource_manager: ResourceManager,
     font: FontResource,
 }
 
@@ -91,15 +90,12 @@ impl Control for FontField {
         if let Some(WidgetMessage::Drop(dropped)) = message.data::<WidgetMessage>() {
             if message.destination() == self.handle {
                 if let Some(item) = ui.node(*dropped).cast::<AssetItem>() {
-                    if let Ok(relative_path) = make_relative_path(&item.path) {
-                        if let Some(font) = self.resource_manager.try_request::<Font>(relative_path)
-                        {
-                            ui.send_message(FontFieldMessage::font(
-                                self.handle(),
-                                MessageDirection::ToWidget,
-                                font,
-                            ));
-                        }
+                    if let Some(font) = item.resource::<Font>() {
+                        ui.send_message(FontFieldMessage::font(
+                            self.handle(),
+                            MessageDirection::ToWidget,
+                            font,
+                        ));
                     }
                 }
             }
@@ -155,11 +151,7 @@ impl FontFieldBuilder {
         self
     }
 
-    pub fn build(
-        self,
-        ctx: &mut BuildContext,
-        resource_manager: ResourceManager,
-    ) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let text_preview;
         let widget = self
             .widget_builder
@@ -177,7 +169,6 @@ impl FontFieldBuilder {
         let editor = FontField {
             widget,
             text_preview,
-            resource_manager,
             font: self.font,
         };
 
@@ -204,16 +195,7 @@ impl PropertyEditorDefinition for FontPropertyEditorDefinition {
                 WidgetBuilder::new().with_min_size(Vector2::new(0.0, 17.0)),
             )
             .with_font(value.clone())
-            .build(
-                ctx.build_context,
-                ctx.environment
-                    .as_ref()
-                    .unwrap()
-                    .as_any()
-                    .downcast_ref::<EditorEnvironment>()
-                    .map(|e| e.resource_manager.clone())
-                    .unwrap(),
-            ),
+            .build(ctx.build_context),
         })
     }
 

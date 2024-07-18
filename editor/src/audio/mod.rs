@@ -2,8 +2,7 @@ use crate::{
     audio::bus::{AudioBusView, AudioBusViewBuilder, AudioBusViewMessage},
     command::CommandGroup,
     fyrox::{
-        asset::manager::ResourceManager,
-        core::{futures::executor::block_on, parking_lot::Mutex, pool::Handle},
+        core::pool::Handle,
         engine::Engine,
         graph::BaseSceneGraph,
         gui::{
@@ -38,7 +37,7 @@ use crate::{
     ChangeSelectionCommand, Command, GameScene, GridBuilder, MessageDirection, Mode, Selection,
     UserInterface,
 };
-use std::{cmp::Ordering, path::Path, sync::Arc};
+use std::cmp::Ordering;
 use strum::VariantNames;
 
 mod bus;
@@ -168,20 +167,12 @@ impl AudioPanel {
                                         renderer
                                     })
                                     .with_child({
-                                        hrir_resource = ResourceFieldBuilder::<
-                                            HrirSphereResourceData,
-                                        >::new(
-                                            WidgetBuilder::new().with_tab_index(Some(2)),
-                                            Arc::new(Mutex::new(
-                                                |resource_manager: &ResourceManager, path: &Path| {
-                                                    resource_manager
-                                                        .try_request::<HrirSphereResourceData>(path)
-                                                        .map(block_on)
-                                                },
-                                            )),
-                                            sender,
-                                        )
-                                        .build(ctx, engine.resource_manager.clone());
+                                        hrir_resource =
+                                            ResourceFieldBuilder::<HrirSphereResourceData>::new(
+                                                WidgetBuilder::new().with_tab_index(Some(2)),
+                                                sender,
+                                            )
+                                            .build(ctx, engine.resource_manager.clone());
                                         hrir_resource
                                     }),
                             )

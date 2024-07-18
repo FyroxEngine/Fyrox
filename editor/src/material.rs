@@ -1,58 +1,54 @@
-use crate::fyrox::{
-    asset::manager::ResourceManager,
-    core::{
-        algebra::{Matrix4, Vector2, Vector3, Vector4},
-        futures::executor::block_on,
-        make_relative_path,
-        parking_lot::Mutex,
-        pool::Handle,
-        sstorage::ImmutableString,
-        BiDirHashMap,
-    },
-    graph::BaseSceneGraph,
-    gui::{
-        border::BorderBuilder,
-        check_box::{CheckBoxBuilder, CheckBoxMessage},
-        color::{ColorFieldBuilder, ColorFieldMessage},
-        grid::{Column, GridBuilder, Row},
-        image::{Image, ImageBuilder, ImageMessage},
-        list_view::{ListViewBuilder, ListViewMessage},
-        menu::{MenuItemBuilder, MenuItemContent, MenuItemMessage},
-        message::{MessageDirection, UiMessage},
-        numeric::{NumericUpDownBuilder, NumericUpDownMessage},
-        popup::{Placement, PopupBuilder, PopupMessage},
-        scroll_viewer::ScrollViewerBuilder,
-        stack_panel::StackPanelBuilder,
-        text::TextBuilder,
-        vec::{
-            Vec2EditorBuilder, Vec2EditorMessage, Vec3EditorBuilder, Vec3EditorMessage,
-            Vec4EditorBuilder, Vec4EditorMessage,
-        },
-        widget::{WidgetBuilder, WidgetMessage},
-        window::{WindowBuilder, WindowTitle},
-        BuildContext, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
-    },
-    material::{shader::Shader, MaterialResource, PropertyValue},
-    resource::texture::Texture,
-    scene::{
-        base::BaseBuilder,
-        mesh::{
-            surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
-            MeshBuilder,
-        },
-    },
-};
 use crate::{
     asset::item::AssetItem,
+    fyrox::{
+        asset::untyped::ResourceKind,
+        core::{
+            algebra::{Matrix4, Vector2, Vector3, Vector4},
+            parking_lot::Mutex,
+            pool::Handle,
+            sstorage::ImmutableString,
+            BiDirHashMap,
+        },
+        graph::BaseSceneGraph,
+        gui::{
+            border::BorderBuilder,
+            check_box::{CheckBoxBuilder, CheckBoxMessage},
+            color::{ColorFieldBuilder, ColorFieldMessage},
+            grid::{Column, GridBuilder, Row},
+            image::{Image, ImageBuilder, ImageMessage},
+            list_view::{ListViewBuilder, ListViewMessage},
+            menu::{ContextMenuBuilder, MenuItemBuilder, MenuItemContent, MenuItemMessage},
+            message::{MessageDirection, UiMessage},
+            numeric::{NumericUpDownBuilder, NumericUpDownMessage},
+            popup::{Placement, PopupBuilder, PopupMessage},
+            scroll_viewer::ScrollViewerBuilder,
+            stack_panel::StackPanelBuilder,
+            text::TextBuilder,
+            vec::{
+                Vec2EditorBuilder, Vec2EditorMessage, Vec3EditorBuilder, Vec3EditorMessage,
+                Vec4EditorBuilder, Vec4EditorMessage,
+            },
+            widget::{WidgetBuilder, WidgetMessage},
+            window::{WindowBuilder, WindowTitle},
+            BuildContext, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
+        },
+        material::{shader::Shader, MaterialResource, PropertyValue},
+        resource::texture::Texture,
+        scene::{
+            base::BaseBuilder,
+            mesh::{
+                surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
+                MeshBuilder,
+            },
+        },
+    },
     inspector::editors::resource::{ResourceFieldBuilder, ResourceFieldMessage},
     message::MessageSender,
     preview::PreviewPanel,
     scene::commands::material::{SetMaterialPropertyValueCommand, SetMaterialShaderCommand},
     send_sync_message, Engine, Message,
 };
-use fyrox::asset::untyped::ResourceKind;
-use fyrox::gui::menu::ContextMenuBuilder;
-use std::{path::Path, sync::Arc};
+use std::sync::Arc;
 
 struct TextureContextMenu {
     popup: RcUiNodeHandle,
@@ -285,15 +281,8 @@ impl MaterialEditor {
                                         .build(ctx),
                                     )
                                     .with_child({
-                                        shader = ResourceFieldBuilder::new(
+                                        shader = ResourceFieldBuilder::<Shader>::new(
                                             WidgetBuilder::new().on_column(1),
-                                            Arc::new(Mutex::new(
-                                                |resource_manager: &ResourceManager,  path: &Path| {
-                                                    resource_manager
-                                                        .try_request::<Shader>(path)
-                                                        .map(block_on)
-                                                },
-                                            )),
                                             sender,
                                         )
                                         .build(ctx, engine.resource_manager.clone());
@@ -734,27 +723,21 @@ impl MaterialEditor {
                         .node(*handle)
                         .cast::<AssetItem>()
                     {
-                        if let Ok(relative_path) = make_relative_path(&asset_item.path) {
-                            let texture = engine
-                                .resource_manager
-                                .try_request::<Texture>(relative_path);
+                        let texture = asset_item.resource::<Texture>();
 
-                            engine
-                                .user_interfaces
-                                .first_mut()
-                                .send_message(ImageMessage::texture(
-                                    message.destination(),
-                                    MessageDirection::ToWidget,
-                                    texture.clone().map(Into::into),
-                                ));
+                        engine
+                            .user_interfaces
+                            .first_mut()
+                            .send_message(ImageMessage::texture(
+                                message.destination(),
+                                MessageDirection::ToWidget,
+                                texture.clone().map(Into::into),
+                            ));
 
-                            Some(PropertyValue::Sampler {
-                                value: texture,
-                                fallback: Default::default(),
-                            })
-                        } else {
-                            None
-                        }
+                        Some(PropertyValue::Sampler {
+                            value: texture,
+                            fallback: Default::default(),
+                        })
                     } else {
                         None
                     }

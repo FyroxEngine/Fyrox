@@ -2,7 +2,7 @@ use crate::fyrox::graph::BaseSceneGraph;
 use crate::fyrox::{
     asset::{manager::ResourceManager, state::LoadError, Resource, TypedResourceData},
     core::{
-        color::Color, make_relative_path, parking_lot::Mutex, pool::Handle, reflect::prelude::*,
+        color::Color, parking_lot::Mutex, pool::Handle, reflect::prelude::*,
         type_traits::prelude::*, uuid::uuid, visitor::prelude::*,
     },
     gui::{
@@ -29,6 +29,7 @@ use crate::{
     asset::item::AssetItem, inspector::EditorEnvironment, load_image, message::MessageSender,
     Message,
 };
+use fyrox::core::PhantomDataSendSync;
 use std::{
     any::TypeId,
     fmt::{Debug, Formatter},
@@ -103,9 +104,6 @@ where
     #[visit(skip)]
     #[reflect(hidden)]
     resource: Option<Resource<T>>,
-    #[visit(skip)]
-    #[reflect(hidden)]
-    loader: ResourceLoaderCallback<T>,
     locate: Handle<UiNode>,
     #[visit(skip)]
     #[reflect(hidden)]
@@ -131,7 +129,6 @@ where
             name: self.name,
             resource_manager: self.resource_manager.clone(),
             resource: self.resource.clone(),
-            loader: self.loader.clone(),
             locate: self.locate,
             sender: self.sender.clone(),
         }
@@ -186,27 +183,12 @@ where
         if let Some(WidgetMessage::Drop(dropped)) = message.data::<WidgetMessage>() {
             if message.destination() == self.handle() {
                 if let Some(item) = ui.node(*dropped).cast::<AssetItem>() {
-                    let path = if self
-                        .resource_manager
-                        .state()
-                        .built_in_resources
-                        .contains_key(&item.path)
-                    {
-                        Ok(item.path.clone())
-                    } else {
-                        make_relative_path(&item.path)
-                    };
-
-                    if let Ok(path) = path {
-                        if let Some(Ok(value)) =
-                            (self.loader.lock())(&self.resource_manager, path.as_path())
-                        {
-                            ui.send_message(ResourceFieldMessage::value(
-                                self.handle(),
-                                MessageDirection::ToWidget,
-                                Some(value),
-                            ));
-                        }
+                    if let Some(value) = item.resource::<T>() {
+                        ui.send_message(ResourceFieldMessage::value(
+                            self.handle(),
+                            MessageDirection::ToWidget,
+                            Some(value),
+                        ));
                     }
                 }
             }
@@ -243,7 +225,6 @@ where
 {
     widget_builder: WidgetBuilder,
     resource: Option<Resource<T>>,
-    loader: ResourceLoaderCallback<T>,
     sender: MessageSender,
 }
 
@@ -251,15 +232,10 @@ impl<T> ResourceFieldBuilder<T>
 where
     T: TypedResourceData,
 {
-    pub fn new(
-        widget_builder: WidgetBuilder,
-        loader: ResourceLoaderCallback<T>,
-        sender: MessageSender,
-    ) -> Self {
+    pub fn new(widget_builder: WidgetBuilder, sender: MessageSender) -> Self {
         Self {
             widget_builder,
             resource: None,
-            loader,
             sender,
         }
     }
@@ -329,7 +305,6 @@ where
             name,
             resource_manager,
             resource: self.resource,
-            loader: self.loader,
             locate,
             sender: self.sender,
         };
@@ -342,16 +317,20 @@ pub struct ResourceFieldPropertyEditorDefinition<T>
 where
     T: TypedResourceData,
 {
-    loader: ResourceLoaderCallback<T>,
     sender: MessageSender,
+    #[allow(dead_code)]
+    phantom: PhantomDataSendSync<T>,
 }
 
 impl<T> ResourceFieldPropertyEditorDefinition<T>
 where
     T: TypedResourceData,
 {
-    pub fn new(loader: ResourceLoaderCallback<T>, sender: MessageSender) -> Self {
-        Self { loader, sender }
+    pub fn new(sender: MessageSender) -> Self {
+        Self {
+            sender,
+            phantom: Default::default(),
+        }
     }
 }
 
@@ -379,22 +358,18 @@ where
         let value = ctx.property_info.cast_value::<Option<Resource<T>>>()?;
 
         Ok(PropertyEditorInstance::Simple {
-            editor: ResourceFieldBuilder::new(
-                WidgetBuilder::new(),
-                self.loader.clone(),
-                self.sender.clone(),
-            )
-            .with_resource(value.clone())
-            .build(
-                ctx.build_context,
-                ctx.environment
-                    .as_ref()
-                    .unwrap()
-                    .as_any()
-                    .downcast_ref::<EditorEnvironment>()
-                    .map(|e| e.resource_manager.clone())
-                    .unwrap(),
-            ),
+            editor: ResourceFieldBuilder::new(WidgetBuilder::new(), self.sender.clone())
+                .with_resource(value.clone())
+                .build(
+                    ctx.build_context,
+                    ctx.environment
+                        .as_ref()
+                        .unwrap()
+                        .as_any()
+                        .downcast_ref::<EditorEnvironment>()
+                        .map(|e| e.resource_manager.clone())
+                        .unwrap(),
+                ),
         })
     }
 

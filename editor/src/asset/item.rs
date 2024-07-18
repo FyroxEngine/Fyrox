@@ -62,10 +62,14 @@ pub struct AssetItem {
 }
 
 impl AssetItem {
-    pub fn relative_path(
-        &self,
-        resource_manager: &ResourceManager,
-    ) -> Result<PathBuf, std::io::Error> {
+    pub fn relative_path(&self) -> Result<PathBuf, std::io::Error> {
+        let Some(resource_manager) = self.resource_manager.as_ref() else {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "No resource manager".to_string(),
+            ));
+        };
+
         if resource_manager
             .state()
             .built_in_resources
@@ -77,11 +81,10 @@ impl AssetItem {
         }
     }
 
-    pub fn resource<T: TypedResourceData>(
-        &self,
-        resource_manager: &ResourceManager,
-    ) -> Option<Resource<T>> {
-        self.relative_path(resource_manager)
+    pub fn resource<T: TypedResourceData>(&self) -> Option<Resource<T>> {
+        let resource_manager = self.resource_manager.as_ref()?;
+
+        self.relative_path()
             .ok()
             .and_then(|path| resource_manager.try_request::<T>(path))
             .and_then(|resource| block_on(resource).ok())

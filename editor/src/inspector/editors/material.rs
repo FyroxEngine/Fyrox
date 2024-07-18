@@ -1,34 +1,35 @@
-use crate::fyrox::graph::BaseSceneGraph;
-use crate::fyrox::{
-    asset::{core::pool::Handle, manager::ResourceManager, state::ResourceState},
-    core::{
-        color::Color, futures::executor::block_on, make_relative_path, parking_lot::Mutex,
-        reflect::prelude::*, type_traits::prelude::*, uuid_provider, visitor::prelude::*,
-    },
-    gui::{
-        brush::Brush,
-        button::{ButtonBuilder, ButtonMessage},
-        define_constructor,
-        draw::{CommandTexture, Draw, DrawingContext},
-        grid::{Column, GridBuilder, Row},
-        inspector::{
-            editors::{
-                PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
-                PropertyEditorMessageContext, PropertyEditorTranslationContext,
-            },
-            FieldKind, InspectorError, PropertyChanged,
-        },
-        message::UiMessage,
-        text::{TextBuilder, TextMessage},
-        utils::make_simple_tooltip,
-        widget::{Widget, WidgetBuilder, WidgetMessage},
-        BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
-    },
-    material::{Material, MaterialResource, MaterialResourceExtension},
-};
 use crate::{
-    asset::item::AssetItem, inspector::EditorEnvironment, message::MessageSender, Message,
-    MessageDirection,
+    asset::item::AssetItem,
+    fyrox::{
+        asset::{core::pool::Handle, state::ResourceState},
+        core::{
+            color::Color, parking_lot::Mutex, reflect::prelude::*, type_traits::prelude::*,
+            uuid_provider, visitor::prelude::*,
+        },
+        graph::BaseSceneGraph,
+        gui::{
+            brush::Brush,
+            button::{ButtonBuilder, ButtonMessage},
+            define_constructor,
+            draw::{CommandTexture, Draw, DrawingContext},
+            grid::{Column, GridBuilder, Row},
+            inspector::{
+                editors::{
+                    PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
+                    PropertyEditorMessageContext, PropertyEditorTranslationContext,
+                },
+                FieldKind, InspectorError, PropertyChanged,
+            },
+            message::UiMessage,
+            text::{TextBuilder, TextMessage},
+            utils::make_simple_tooltip,
+            widget::{Widget, WidgetBuilder, WidgetMessage},
+            BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
+        },
+        material::{Material, MaterialResource, MaterialResourceExtension},
+    },
+    message::MessageSender,
+    Message, MessageDirection,
 };
 use std::{
     any::TypeId,
@@ -55,9 +56,6 @@ pub struct MaterialFieldEditor {
     edit: Handle<UiNode>,
     make_unique: Handle<UiNode>,
     material: MaterialResource,
-    #[visit(skip)]
-    #[reflect(hidden)]
-    resource_manager: ResourceManager,
 }
 
 impl Debug for MaterialFieldEditor {
@@ -126,27 +124,12 @@ impl Control for MaterialFieldEditor {
             }
         } else if let Some(WidgetMessage::Drop(dropped)) = message.data() {
             if let Some(item) = ui.node(*dropped).cast::<AssetItem>() {
-                let path = if self
-                    .resource_manager
-                    .state()
-                    .built_in_resources
-                    .contains_key(&item.path)
-                {
-                    Ok(item.path.clone())
-                } else {
-                    make_relative_path(&item.path)
-                };
-
-                if let Ok(path) = path {
-                    if let Some(material) = self.resource_manager.try_request::<Material>(path) {
-                        if let Ok(material) = block_on(material) {
-                            ui.send_message(MaterialFieldMessage::material(
-                                self.handle(),
-                                MessageDirection::ToWidget,
-                                material,
-                            ));
-                        }
-                    }
+                if let Some(material) = item.resource::<Material>() {
+                    ui.send_message(MaterialFieldMessage::material(
+                        self.handle(),
+                        MessageDirection::ToWidget,
+                        material,
+                    ));
                 }
             }
         }
@@ -182,7 +165,6 @@ impl MaterialFieldEditorBuilder {
         ctx: &mut BuildContext,
         sender: MessageSender,
         material: MaterialResource,
-        resource_manager: ResourceManager,
     ) -> Handle<UiNode> {
         let edit;
         let text;
@@ -252,7 +234,6 @@ impl MaterialFieldEditorBuilder {
             material,
             text,
             make_unique,
-            resource_manager,
         };
 
         ctx.add_node(UiNode::new(editor))
@@ -274,18 +255,13 @@ impl PropertyEditorDefinition for MaterialPropertyEditorDefinition {
         ctx: PropertyEditorBuildContext,
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<MaterialResource>()?;
-        if let Some(environment) = EditorEnvironment::try_get_from(&ctx.environment) {
-            Ok(PropertyEditorInstance::Simple {
-                editor: MaterialFieldEditorBuilder::new(WidgetBuilder::new()).build(
-                    ctx.build_context,
-                    self.sender.lock().clone(),
-                    value.clone(),
-                    environment.resource_manager.clone(),
-                ),
-            })
-        } else {
-            Err(InspectorError::Custom("No environment!".to_string()))
-        }
+        Ok(PropertyEditorInstance::Simple {
+            editor: MaterialFieldEditorBuilder::new(WidgetBuilder::new()).build(
+                ctx.build_context,
+                self.sender.lock().clone(),
+                value.clone(),
+            ),
+        })
     }
 
     fn create_message(

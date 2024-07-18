@@ -362,7 +362,6 @@ impl EditorPlugin for TileMapEditorPlugin {
             self.panel = panel.handle_ui_message(
                 message,
                 ui,
-                &editor.engine.resource_manager,
                 self.tile_map,
                 tile_map,
                 &editor.message_sender,

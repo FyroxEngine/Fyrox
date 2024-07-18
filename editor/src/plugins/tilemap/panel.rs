@@ -3,7 +3,6 @@ use crate::{
     asset::item::AssetItem,
     command::{Command, CommandGroup, SetPropertyCommand},
     fyrox::{
-        asset::manager::ResourceManager,
         core::{algebra::Vector2, pool::Handle, Uuid},
         graph::{BaseSceneGraph, SceneGraphNode},
         gui::{
@@ -155,7 +154,6 @@ impl TileMapPanel {
         self,
         message: &UiMessage,
         ui: &UserInterface,
-        resource_manager: &ResourceManager,
         tile_map_handle: Handle<Node>,
         tile_map: Option<&TileMap>,
         sender: &MessageSender,
@@ -169,7 +167,7 @@ impl TileMapPanel {
             if let Some(tile_map) = tile_map {
                 if message.destination() == self.palette {
                     if let Some(item) = ui.node(*dropped).cast::<AssetItem>() {
-                        if let Some(tile_set) = item.resource::<TileSet>(resource_manager) {
+                        if let Some(tile_set) = item.resource::<TileSet>() {
                             if let Some(active_brush) = tile_map.active_brush().as_ref() {
                                 let tile_set = tile_set.data_ref();
                                 let tiles = tile_set

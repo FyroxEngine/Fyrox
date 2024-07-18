@@ -1,7 +1,7 @@
 use crate::{
     asset::item::AssetItem,
     fyrox::{
-        asset::{manager::ResourceManager, untyped::ResourceKind},
+        asset::{ untyped::ResourceKind},
         core::{algebra::Vector2, math::Rect, pool::Handle},
         graph::BaseSceneGraph,
         gui::{
@@ -203,12 +203,7 @@ impl TileSetImporter {
         ));
     }
 
-    pub fn handle_ui_message(
-        mut self,
-        message: &UiMessage,
-        ui: &UserInterface,
-        resource_manager: &ResourceManager,
-    ) -> ImportResult {
+    pub fn handle_ui_message(mut self, message: &UiMessage, ui: &UserInterface) -> ImportResult {
         if let Some(WindowMessage::Close) = message.data() {
             if message.destination() == self.window {
                 self.destroy(ui);
@@ -217,11 +212,11 @@ impl TileSetImporter {
         } else if let Some(WidgetMessage::Drop(dropped)) = message.data() {
             if message.destination() == self.image {
                 if let Some(item) = ui.node(*dropped).cast::<AssetItem>() {
-                    if let material @ Some(_) = item.resource::<Material>(resource_manager) {
+                    if let material @ Some(_) = item.resource::<Material>() {
                         self.set_material(material, ui);
                     }
 
-                    if let Some(texture) = item.resource::<Texture>(resource_manager) {
+                    if let Some(texture) = item.resource::<Texture>() {
                         let mut material = Material::standard_2d();
 
                         material

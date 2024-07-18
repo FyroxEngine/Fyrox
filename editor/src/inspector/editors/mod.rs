@@ -1,8 +1,7 @@
 use crate::{
     fyrox::{
-        asset::{manager::ResourceManager, untyped::UntypedResource, Resource},
+        asset::{untyped::UntypedResource, Resource},
         core::{
-            futures::executor::block_on,
             parking_lot::Mutex,
             pool::{ErasedHandle, Handle},
         },
@@ -100,7 +99,6 @@ use crate::{
 };
 use fyrox::scene::tilemap::brush::{TileMapBrush, TileMapBrushResource};
 use fyrox::scene::tilemap::tileset::TileCollider;
-use std::{path::Path, sync::Arc};
 
 pub mod animation;
 pub mod font;
@@ -267,24 +265,12 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
     }
 
     container.insert(ResourceFieldPropertyEditorDefinition::<Model>::new(
-        Arc::new(Mutex::new(
-            |resource_manager: &ResourceManager, path: &Path| {
-                resource_manager.try_request::<Model>(path).map(block_on)
-            },
-        )),
         sender.clone(),
     ));
     container.insert(InheritablePropertyEditorDefinition::<Option<ModelResource>>::new());
     container.register_inheritable_vec_collection::<Option<ModelResource>>();
 
     container.insert(ResourceFieldPropertyEditorDefinition::<SoundBuffer>::new(
-        Arc::new(Mutex::new(
-            |resource_manager: &ResourceManager, path: &Path| {
-                resource_manager
-                    .try_request::<SoundBuffer>(path)
-                    .map(block_on)
-            },
-        )),
         sender.clone(),
     ));
     container.insert(InheritablePropertyEditorDefinition::<
@@ -292,29 +278,12 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
     >::new());
     container.register_inheritable_vec_collection::<Option<SoundBufferResource>>();
 
-    container.insert(
-        ResourceFieldPropertyEditorDefinition::<CurveResourceState>::new(
-            Arc::new(Mutex::new(
-                |resource_manager: &ResourceManager, path: &Path| {
-                    resource_manager
-                        .try_request::<CurveResourceState>(path)
-                        .map(block_on)
-                },
-            )),
-            sender.clone(),
-        ),
-    );
+    container
+        .insert(ResourceFieldPropertyEditorDefinition::<CurveResourceState>::new(sender.clone()));
     container.insert(InheritablePropertyEditorDefinition::<Option<CurveResource>>::new());
     container.register_inheritable_vec_collection::<Option<CurveResource>>();
 
     container.insert(ResourceFieldPropertyEditorDefinition::<UserInterface>::new(
-        Arc::new(Mutex::new(
-            |resource_manager: &ResourceManager, path: &Path| {
-                resource_manager
-                    .try_request::<UserInterface>(path)
-                    .map(block_on)
-            },
-        )),
         sender.clone(),
     ));
     container.insert(InheritablePropertyEditorDefinition::<
@@ -323,11 +292,6 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
     container.register_inheritable_vec_collection::<Option<UserInterface>>();
 
     container.insert(ResourceFieldPropertyEditorDefinition::<TileSet>::new(
-        Arc::new(Mutex::new(
-            |resource_manager: &ResourceManager, path: &Path| {
-                resource_manager.try_request::<TileSet>(path).map(block_on)
-            },
-        )),
         sender.clone(),
     ));
     container.insert(InheritablePropertyEditorDefinition::<
@@ -336,24 +300,12 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
     container.register_inheritable_vec_collection::<Option<TileSet>>();
 
     container.insert(ResourceFieldPropertyEditorDefinition::<Shader>::new(
-        Arc::new(Mutex::new(
-            |resource_manager: &ResourceManager, path: &Path| {
-                resource_manager.try_request::<Shader>(path).map(block_on)
-            },
-        )),
         sender.clone(),
     ));
     container.insert(InheritablePropertyEditorDefinition::<Option<ShaderResource>>::new());
     container.register_inheritable_vec_collection::<Option<ShaderResource>>();
 
     container.insert(ResourceFieldPropertyEditorDefinition::<TileMapBrush>::new(
-        Arc::new(Mutex::new(
-            |resource_manager: &ResourceManager, path: &Path| {
-                resource_manager
-                    .try_request::<TileMapBrush>(path)
-                    .map(block_on)
-            },
-        )),
         sender.clone(),
     ));
     container.insert(InheritablePropertyEditorDefinition::<
