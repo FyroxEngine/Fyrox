@@ -43,9 +43,8 @@ use crate::{
             BuildContext, HorizontalAlignment, Orientation, RcUiNodeHandle, Thickness, UiNode,
             UserInterface, VerticalAlignment, BRUSH_DARK,
         },
-        material::Material,
         resource::{model::Model, texture::Texture},
-        scene::{sound::SoundBuffer, tilemap::tileset::TileSet},
+        scene::sound::SoundBuffer,
         walkdir,
     },
     gui::{make_dropdown_list_option, make_image_button_with_tooltip},
@@ -176,12 +175,7 @@ impl ContextMenu {
         }
     }
 
-    pub fn handle_ui_message(
-        &mut self,
-        message: &UiMessage,
-        sender: &MessageSender,
-        engine: &mut Engine,
-    ) -> bool {
+    pub fn handle_ui_message(&mut self, message: &UiMessage, engine: &mut Engine) -> bool {
         if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
             if message.destination() == self.menu.handle() {
                 self.placement_target = *target;
@@ -201,31 +195,7 @@ impl ContextMenu {
                         show_in_explorer(canonical_path)
                     }
                 } else if message.destination() == self.open {
-                    if item
-                        .path
-                        .extension()
-                        .map_or(false, |ext| ext == "rgs" || ext == "ui")
-                    {
-                        sender.send(Message::LoadScene(item.path.clone()));
-                    } else if item.path.extension().map_or(false, |ext| ext == "material") {
-                        if let Ok(path) = make_relative_path(&item.path) {
-                            if let Ok(material) =
-                                block_on(engine.resource_manager.request::<Material>(path))
-                            {
-                                sender.send(Message::OpenMaterialEditor(material));
-                            }
-                        }
-                    } else if item.path.extension().map_or(false, |ext| ext == "tileset") {
-                        if let Ok(path) = make_relative_path(&item.path) {
-                            if let Ok(tile_set) =
-                                block_on(engine.resource_manager.request::<TileSet>(path))
-                            {
-                                sender.send(Message::OpenTileSetEditor(tile_set));
-                            }
-                        }
-                    } else {
-                        open_in_explorer(&item.path)
-                    }
+                    item.open();
                 } else if message.destination() == self.copy_path {
                     if let Ok(canonical_path) = item.path.canonicalize() {
                         put_path_to_clipboard(engine, canonical_path.as_os_str())
@@ -669,7 +639,12 @@ impl AssetBrowser {
         self.preview.clear(engine);
     }
 
-    pub fn set_working_directory(&mut self, engine: &mut Engine, dir: &Path) {
+    pub fn set_working_directory(
+        &mut self,
+        engine: &mut Engine,
+        dir: &Path,
+        message_sender: &MessageSender,
+    ) {
         assert!(dir.is_dir());
 
         engine
@@ -694,6 +669,7 @@ impl AssetBrowser {
             Path::new("./"),
             engine.user_interfaces.first_mut(),
             &engine.resource_manager,
+            message_sender,
         );
     }
 
@@ -702,12 +678,17 @@ impl AssetBrowser {
         path: &Path,
         ui: &mut UserInterface,
         resource_manager: &ResourceManager,
+        message_sender: &MessageSender,
     ) -> Handle<UiNode> {
         let asset_item = AssetItemBuilder::new(
             WidgetBuilder::new().with_context_menu(self.context_menu.menu.clone()),
         )
         .with_path(path)
-        .build(&mut ui.build_ctx());
+        .build(
+            resource_manager.clone(),
+            message_sender.clone(),
+            &mut ui.build_ctx(),
+        );
 
         // Spawn async task, that will load the respective resource and generate preview for it in
         // a separate thread. This prevents blocking the main thread and thus keeps the editor
@@ -747,12 +728,18 @@ impl AssetBrowser {
         path: &Path,
         ui: &mut UserInterface,
         resource_manager: &ResourceManager,
+        message_sender: &MessageSender,
     ) {
         self.selected_path = path.to_path_buf();
-        self.refresh(ui, resource_manager);
+        self.refresh(ui, resource_manager, message_sender);
     }
 
-    fn refresh(&mut self, ui: &mut UserInterface, resource_manager: &ResourceManager) {
+    fn refresh(
+        &mut self,
+        ui: &mut UserInterface,
+        resource_manager: &ResourceManager,
+        message_sender: &MessageSender,
+    ) {
         let item_to_select = self.item_to_select.take();
         let mut handle_to_select = Handle::NONE;
 
@@ -768,7 +755,8 @@ impl AssetBrowser {
                             .extension()
                             .map_or(false, |ext| is_supported_resource(ext, resource_manager))
                     {
-                        let asset_item = self.add_asset(&entry_path, ui, resource_manager);
+                        let asset_item =
+                            self.add_asset(&entry_path, ui, resource_manager, message_sender);
 
                         if let Some(item_to_select) = item_to_select.as_ref() {
                             if item_to_select == &entry_path {
@@ -790,7 +778,7 @@ impl AssetBrowser {
                         .cloned()
                         .collect::<Vec<_>>();
                     for path in built_in_resources {
-                        self.add_asset(&path, ui, resource_manager);
+                        self.add_asset(&path, ui, resource_manager, message_sender);
                     }
                 }
             }
@@ -821,11 +809,12 @@ impl AssetBrowser {
 
         self.inspector.handle_ui_message(message, engine);
         self.preview.handle_message(message, engine);
-        if self
-            .context_menu
-            .handle_ui_message(message, &sender, engine)
-        {
-            self.refresh(engine.user_interfaces.first_mut(), &engine.resource_manager);
+        if self.context_menu.handle_ui_message(message, engine) {
+            self.refresh(
+                engine.user_interfaces.first_mut(),
+                &engine.resource_manager,
+                &sender,
+            );
         }
         self.dependency_viewer
             .handle_ui_message(message, engine.user_interfaces.first_mut());
@@ -837,7 +826,11 @@ impl AssetBrowser {
                 &self.selected_path,
             );
             if asset_added {
-                self.refresh(engine.user_interfaces.first_mut(), &engine.resource_manager);
+                self.refresh(
+                    engine.user_interfaces.first_mut(),
+                    &engine.resource_manager,
+                    &sender,
+                );
             }
         }
 
@@ -891,7 +884,7 @@ impl AssetBrowser {
                             MessageDirection::ToWidget,
                             Default::default(),
                         ));
-                        self.set_path(path, ui, &engine.resource_manager);
+                        self.set_path(path, ui, &engine.resource_manager, &sender);
                     }
                     FileBrowserMessage::Drop {
                         dropped,
@@ -905,6 +898,7 @@ impl AssetBrowser {
                             dropped_path,
                             ui,
                             &engine.resource_manager,
+                            &sender,
                         );
                     }
                     _ => (),
@@ -916,7 +910,7 @@ impl AssetBrowser {
             {
                 if search_text.is_empty() {
                     let path = self.selected_path.clone();
-                    self.set_path(&path, ui, &engine.resource_manager);
+                    self.set_path(&path, ui, &engine.resource_manager, &sender);
                 } else {
                     self.clear_assets(ui);
                     let search_text = search_text.to_lowercase();
@@ -956,6 +950,7 @@ impl AssetBrowser {
                                                 &relative_path,
                                                 ui,
                                                 &engine.resource_manager,
+                                                &sender,
                                             );
                                         }
                                     }
@@ -1006,7 +1001,11 @@ impl AssetBrowser {
 
                 self.resource_creator = Some(resource_creator);
             } else if message.destination() == self.refresh {
-                self.refresh(engine.user_interfaces.first_mut(), &engine.resource_manager);
+                self.refresh(
+                    engine.user_interfaces.first_mut(),
+                    &engine.resource_manager,
+                    &sender,
+                );
             }
         }
     }
@@ -1042,6 +1041,7 @@ impl AssetBrowser {
         dropped_path: &Path,
         ui: &mut UserInterface,
         resource_manager: &ResourceManager,
+        message_sender: &MessageSender,
     ) {
         fn filter(res: &UntypedResource) -> bool {
             if [Texture::type_uuid(), SoundBuffer::type_uuid()].contains(&res.type_uuid()) {
@@ -1083,7 +1083,7 @@ impl AssetBrowser {
                                 filter,
                             )));
 
-                            self.refresh(ui, resource_manager);
+                            self.refresh(ui, resource_manager, message_sender);
                         }
                     }
                 }
@@ -1145,7 +1145,7 @@ impl AssetBrowser {
                 }
             }
 
-            self.refresh(ui, resource_manager);
+            self.refresh(ui, resource_manager, message_sender);
         }
     }
 }

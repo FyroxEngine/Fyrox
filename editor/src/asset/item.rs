@@ -1,25 +1,31 @@
-use crate::fyrox::{
-    asset::{manager::ResourceManager, untyped::UntypedResource, Resource, TypedResourceData},
-    core::{
-        algebra::Vector2, color::Color, futures::executor::block_on, make_relative_path,
-        pool::Handle, reflect::prelude::*, type_traits::prelude::*, uuid_provider,
-        visitor::prelude::*,
+use crate::{
+    asset::open_in_explorer,
+    fyrox::{
+        asset::{manager::ResourceManager, untyped::UntypedResource, Resource, TypedResourceData},
+        core::{
+            algebra::Vector2, color::Color, futures::executor::block_on, make_relative_path,
+            pool::Handle, reflect::prelude::*, type_traits::prelude::*, uuid_provider,
+            visitor::prelude::*,
+        },
+        gui::{
+            border::BorderBuilder,
+            brush::Brush,
+            define_constructor,
+            draw::{CommandTexture, Draw, DrawingContext},
+            formatted_text::WrapMode,
+            grid::{Column, GridBuilder, Row},
+            image::{ImageBuilder, ImageMessage},
+            message::{MessageDirection, UiMessage},
+            text::TextBuilder,
+            widget::{Widget, WidgetBuilder, WidgetMessage},
+            BuildContext, Control, HorizontalAlignment, RcUiNodeHandle, Thickness, UiNode,
+            UserInterface, BRUSH_DARKER, BRUSH_DARKEST,
+        },
+        material::Material,
+        scene::tilemap::tileset::TileSet,
     },
-    gui::{
-        border::BorderBuilder,
-        brush::Brush,
-        define_constructor,
-        draw::{CommandTexture, Draw, DrawingContext},
-        formatted_text::WrapMode,
-        grid::{Column, GridBuilder, Row},
-        image::ImageBuilder,
-        image::ImageMessage,
-        message::{MessageDirection, UiMessage},
-        text::TextBuilder,
-        widget::{Widget, WidgetBuilder, WidgetMessage},
-        BuildContext, Control, HorizontalAlignment, RcUiNodeHandle, Thickness, UiNode,
-        UserInterface, BRUSH_DARKER, BRUSH_DARKEST,
-    },
+    message::MessageSender,
+    Message,
 };
 use std::{
     ops::{Deref, DerefMut},
@@ -47,6 +53,12 @@ pub struct AssetItem {
     pub path: PathBuf,
     preview: Handle<UiNode>,
     selected: bool,
+    #[visit(skip)]
+    #[reflect(hidden)]
+    sender: Option<MessageSender>,
+    #[visit(skip)]
+    #[reflect(hidden)]
+    resource_manager: Option<ResourceManager>,
 }
 
 impl AssetItem {
@@ -73,6 +85,38 @@ impl AssetItem {
             .ok()
             .and_then(|path| resource_manager.try_request::<T>(path))
             .and_then(|resource| block_on(resource).ok())
+    }
+
+    pub fn open(&self) {
+        let Some(sender) = self.sender.as_ref() else {
+            return;
+        };
+
+        let Some(resource_manager) = self.resource_manager.as_ref() else {
+            return;
+        };
+
+        if self
+            .path
+            .extension()
+            .map_or(false, |ext| ext == "rgs" || ext == "ui")
+        {
+            sender.send(Message::LoadScene(self.path.clone()));
+        } else if self.path.extension().map_or(false, |ext| ext == "material") {
+            if let Ok(path) = make_relative_path(&self.path) {
+                if let Ok(material) = block_on(resource_manager.request::<Material>(path)) {
+                    sender.send(Message::OpenMaterialEditor(material));
+                }
+            }
+        } else if self.path.extension().map_or(false, |ext| ext == "tileset") {
+            if let Ok(path) = make_relative_path(&self.path) {
+                if let Ok(tile_set) = block_on(resource_manager.request::<TileSet>(path)) {
+                    sender.send(Message::OpenTileSetEditor(tile_set));
+                }
+            }
+        } else {
+            open_in_explorer(&self.path)
+        }
     }
 }
 
@@ -161,6 +205,8 @@ impl Control for AssetItem {
                     ))
                 }
             }
+        } else if let Some(WidgetMessage::DoubleClick { .. }) = message.data() {
+            self.open();
         }
     }
 }
@@ -212,7 +258,12 @@ impl AssetItemBuilder {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(
+        self,
+        resource_manager: ResourceManager,
+        message_sender: MessageSender,
+        ctx: &mut BuildContext,
+    ) -> Handle<UiNode> {
         let path = self.path.unwrap_or_default();
 
         let preview = ImageBuilder::new(
@@ -256,6 +307,8 @@ impl AssetItemBuilder {
             path,
             preview,
             selected: false,
+            sender: Some(message_sender),
+            resource_manager: Some(resource_manager),
         };
         ctx.add_node(UiNode::new(item))
     }
