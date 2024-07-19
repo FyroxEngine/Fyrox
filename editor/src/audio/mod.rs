@@ -268,24 +268,28 @@ impl AudioPanel {
                     sender.do_command(CommandGroup::from(commands));
                 }
             }
-        } else if let Some(ListViewMessage::SelectionChanged(Some(effect_index))) = message.data() {
+        } else if let Some(ListViewMessage::SelectionChanged(selected_indices)) = message.data() {
             if message.destination() == self.audio_buses
                 && message.direction() == MessageDirection::FromWidget
             {
                 let ui = &engine.user_interfaces.first();
 
-                let effect = item_bus(
-                    ui.node(self.audio_buses)
-                        .cast::<ListView>()
-                        .expect("Must be ListView")
-                        .items()[*effect_index],
-                    ui,
-                );
+                let mut selection = Vec::new();
+
+                for bus_index in selected_indices {
+                    let bus = item_bus(
+                        ui.node(self.audio_buses)
+                            .cast::<ListView>()
+                            .expect("Must be ListView")
+                            .items()[*bus_index],
+                        ui,
+                    );
+
+                    selection.push(bus);
+                }
 
                 sender.do_command(ChangeSelectionCommand::new(Selection::new(
-                    AudioBusSelection {
-                        buses: vec![effect],
-                    },
+                    AudioBusSelection { buses: selection },
                 )))
             }
         } else if let Some(AudioBusViewMessage::ChangeParent(new_parent)) = message.data() {
@@ -406,7 +410,7 @@ impl AudioPanel {
             _ => (),
         }
 
-        let mut selection_index = None;
+        let mut selected_buses = Vec::new();
         let mut is_primary_bus_selected = false;
 
         if let Some(selection) = editor_selection.as_audio_bus() {
@@ -414,7 +418,7 @@ impl AudioPanel {
                 let bus_handle = item_bus(item, ui);
 
                 if selection.buses.contains(&bus_handle) {
-                    selection_index = Some(index);
+                    selected_buses.push(index);
 
                     if context_state.bus_graph_ref().primary_bus_handle() == bus_handle {
                         is_primary_bus_selected = true;
@@ -427,19 +431,19 @@ impl AudioPanel {
 
         send_sync_message(
             ui,
-            ListViewMessage::selection(
-                self.audio_buses,
+            WidgetMessage::enabled(
+                self.remove_bus,
                 MessageDirection::ToWidget,
-                selection_index,
+                !selected_buses.is_empty() && !is_primary_bus_selected,
             ),
         );
 
         send_sync_message(
             ui,
-            WidgetMessage::enabled(
-                self.remove_bus,
+            ListViewMessage::selection(
+                self.audio_buses,
                 MessageDirection::ToWidget,
-                selection_index.is_some() && !is_primary_bus_selected,
+                selected_buses,
             ),
         );
 

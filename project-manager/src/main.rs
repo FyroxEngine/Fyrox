@@ -479,12 +479,12 @@ impl ProjectManager {
             if message.destination() == self.projects
                 && message.direction() == MessageDirection::FromWidget
             {
-                self.selection.clone_from(selection);
+                self.selection.clone_from(&selection.first().cloned());
 
                 ui.send_message(WidgetMessage::enabled(
                     self.project_controls,
                     MessageDirection::ToWidget,
-                    selection.is_some(),
+                    !selection.is_empty(),
                 ));
             }
         } else if let Some(SearchBarMessage::Text(_filter)) = message.data() {

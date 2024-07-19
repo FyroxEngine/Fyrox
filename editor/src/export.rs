@@ -1004,43 +1004,45 @@ impl ExportWindow {
             } else if message.destination() == self.cancel {
                 self.close_and_destroy(ui);
             }
-        } else if let Some(ListViewMessage::SelectionChanged(Some(index))) = message.data() {
+        } else if let Some(ListViewMessage::SelectionChanged(selection)) = message.data() {
             if message.destination() == self.target_platform_list
                 && message.direction() == MessageDirection::FromWidget
             {
-                match *index {
-                    0 => self.export_options.target_platform = TargetPlatform::PC,
-                    1 => self.export_options.target_platform = TargetPlatform::WebAssembly,
-                    2 => self.export_options.target_platform = TargetPlatform::Android,
-                    _ => Log::err("Unhandled platform index!"),
-                }
-
-                // TODO: move this to settings.
-                let build_targets = match self.export_options.target_platform {
-                    TargetPlatform::PC => vec!["default".to_string()],
-                    TargetPlatform::WebAssembly => vec!["wasm32-unknown-unknown".to_string()],
-                    TargetPlatform::Android => {
-                        vec![
-                            "armv7-linux-androideabi".to_string(),
-                            "aarch64-linux-android".to_string(),
-                        ]
+                if let Some(index) = selection.first().cloned() {
+                    match index {
+                        0 => self.export_options.target_platform = TargetPlatform::PC,
+                        1 => self.export_options.target_platform = TargetPlatform::WebAssembly,
+                        2 => self.export_options.target_platform = TargetPlatform::Android,
+                        _ => Log::err("Unhandled platform index!"),
                     }
-                };
 
-                self.export_options.build_targets = build_targets;
+                    // TODO: move this to settings.
+                    let build_targets = match self.export_options.target_platform {
+                        TargetPlatform::PC => vec!["default".to_string()],
+                        TargetPlatform::WebAssembly => vec!["wasm32-unknown-unknown".to_string()],
+                        TargetPlatform::Android => {
+                            vec![
+                                "armv7-linux-androideabi".to_string(),
+                                "aarch64-linux-android".to_string(),
+                            ]
+                        }
+                    };
 
-                let ui_items = self
-                    .export_options
-                    .build_targets
-                    .iter()
-                    .map(|name| make_dropdown_list_option(&mut ui.build_ctx(), name))
-                    .collect::<Vec<_>>();
+                    self.export_options.build_targets = build_targets;
 
-                ui.send_message(DropdownListMessage::items(
-                    self.build_targets_selector,
-                    MessageDirection::ToWidget,
-                    ui_items,
-                ));
+                    let ui_items = self
+                        .export_options
+                        .build_targets
+                        .iter()
+                        .map(|name| make_dropdown_list_option(&mut ui.build_ctx(), name))
+                        .collect::<Vec<_>>();
+
+                    ui.send_message(DropdownListMessage::items(
+                        self.build_targets_selector,
+                        MessageDirection::ToWidget,
+                        ui_items,
+                    ));
+                }
             }
         } else if let Some(InspectorMessage::PropertyChanged(args)) = message.data() {
             if message.destination() == self.inspector

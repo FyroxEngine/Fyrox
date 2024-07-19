@@ -368,9 +368,10 @@ impl TileSetEditor {
             if message.destination() == self.tiles
                 && message.direction() == MessageDirection::FromWidget
             {
+                let selected_index = selection.first().cloned();
                 let selection = ui
                     .try_get_of_type::<ListView>(self.tiles)
-                    .and_then(|list| selection.and_then(|i| list.items.get(i).cloned()))
+                    .and_then(|list| selected_index.and_then(|i| list.items.get(i).cloned()))
                     .and_then(|handle| ui.try_get_of_type::<TileSetTileView>(handle))
                     .map(|view| view.definition_handle);
 

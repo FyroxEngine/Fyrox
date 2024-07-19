@@ -283,7 +283,7 @@ impl Control for DropdownList {
                             ui.send_message(ListViewMessage::selection(
                                 *self.list_view,
                                 MessageDirection::ToWidget,
-                                selection,
+                                selection.map(|index| vec![index]).unwrap_or_default(),
                             ));
 
                             self.sync_selected_item_preview(ui);
@@ -307,16 +307,17 @@ impl Control for DropdownList {
         if let Some(ListViewMessage::SelectionChanged(selection)) =
             message.data::<ListViewMessage>()
         {
+            let selection = selection.first().cloned();
             if message.direction() == MessageDirection::FromWidget
                 && message.destination() == *self.list_view
-                && &*self.selection != selection
+                && *self.selection != selection
             {
                 // Post message again but from name of this drop-down list so user can catch
                 // message and respond properly.
                 ui.send_message(DropdownListMessage::selection(
                     self.handle,
                     MessageDirection::ToWidget,
-                    *selection,
+                    selection,
                 ));
             }
         } else if let Some(msg) = message.data::<PopupMessage>() {

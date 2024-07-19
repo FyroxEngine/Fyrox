@@ -340,11 +340,11 @@ impl ResourceCreator {
     ) -> bool {
         let mut asset_added = false;
 
-        if let Some(ListViewMessage::SelectionChanged(Some(index))) = message.data() {
+        if let Some(ListViewMessage::SelectionChanged(selection)) = message.data() {
             if message.destination() == self.resource_constructors_list
                 && message.direction() == MessageDirection::FromWidget
             {
-                self.selected = Some(*index);
+                self.selected = selection.first().cloned();
                 engine
                     .user_interfaces
                     .first_mut()

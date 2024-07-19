@@ -25,8 +25,8 @@ use std::ops::{Deref, DerefMut};
 /// A set of messages that can be used to modify/fetch the state of a [`ListView`] widget at runtime.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ListViewMessage {
-    /// A message, that is used to either fetch or modify current selection of a [`ListView`] widget. See [ff](ListView#selection)
-    SelectionChanged(Option<usize>),
+    /// A message, that is used to either fetch or modify current selection of a [`ListView`] widget.
+    SelectionChanged(Vec<usize>),
     /// A message, that is used to set new items of a list view.
     Items(Vec<Handle<UiNode>>),
     /// A message, that is used to add an item to a list view.
@@ -40,7 +40,7 @@ pub enum ListViewMessage {
 impl ListViewMessage {
     define_constructor!(
         /// Creates [`ListViewMessage::SelectionChanged`] message.
-        ListViewMessage:SelectionChanged => fn selection(Option<usize>), layout: false
+        ListViewMessage:SelectionChanged => fn selection(Vec<usize>), layout: false
     );
     define_constructor!(
         /// Creates [`ListViewMessage::Items`] message.
@@ -131,7 +131,7 @@ impl ListViewMessage {
 ///     ui.send_message(ListViewMessage::selection(
 ///         my_list_view,
 ///         MessageDirection::ToWidget,
-///         Some(1),
+///         vec![1],
 ///     ));
 /// }
 /// ```
@@ -218,9 +218,7 @@ pub struct ListView {
     /// Base widget of the list view.
     pub widget: Widget,
     /// Current selection.
-    #[visit(skip)]
-    #[reflect(hidden)]
-    pub selected_index: Option<usize>,
+    pub selection: Vec<usize>,
     /// An array of handle of item containers, which wraps the actual items.
     pub item_containers: InheritableVariable<Vec<Handle<UiNode>>>,
     /// Current panel widget that is used to arrange the items.
@@ -242,29 +240,38 @@ impl ListView {
 
     fn fix_selection(&self, ui: &UserInterface) {
         // Check if current selection is out-of-bounds.
-        if let Some(selected_index) = self.selected_index {
-            if selected_index >= self.items.len() {
-                let new_selection = if self.items.is_empty() {
-                    None
-                } else {
-                    Some(self.items.len() - 1)
-                };
+        let mut fixed_selection = Vec::with_capacity(self.selection.len());
 
-                ui.send_message(ListViewMessage::selection(
-                    self.handle,
-                    MessageDirection::ToWidget,
-                    new_selection,
-                ));
+        for &selected_index in self.selection.iter() {
+            if selected_index >= self.items.len() {
+                if !self.items.is_empty() {
+                    fixed_selection.push(self.items.len() - 1);
+                }
+            } else {
+                fixed_selection.push(selected_index);
             }
         }
+
+        if self.selection != fixed_selection {
+            ui.send_message(ListViewMessage::selection(
+                self.handle,
+                MessageDirection::ToWidget,
+                fixed_selection,
+            ));
+        }
+    }
+
+    fn largest_selection_index(&self) -> Option<usize> {
+        self.selection.iter().max().cloned()
+    }
+
+    fn smallest_selection_index(&self) -> Option<usize> {
+        self.selection.iter().min().cloned()
     }
 
     fn sync_decorators(&self, ui: &UserInterface) {
         for (i, &container) in self.item_containers.iter().enumerate() {
-            let select = match self.selected_index {
-                None => false,
-                Some(selected_index) => i == selected_index,
-            };
+            let select = self.selection.contains(&i);
             if let Some(container) = ui.node(container).cast::<ListViewItem>() {
                 let mut stack = container.children().to_vec();
                 while let Some(handle) = stack.pop() {
@@ -318,21 +325,31 @@ impl Control for ListViewItem {
 
         if let Some(WidgetMessage::MouseUp { .. }) = message.data::<WidgetMessage>() {
             if !message.handled() {
-                let self_index = ui
+                let list_view = ui
                     .node(parent_list_view)
                     .cast::<ListView>()
-                    .expect("Parent of ListViewItem must be ListView!")
+                    .expect("Parent of ListViewItem must be ListView!");
+
+                let self_index = list_view
                     .item_containers
                     .iter()
                     .position(|c| *c == self.handle)
                     .expect("ListViewItem must be used as a child of ListView");
+
+                let new_selection = if ui.keyboard_modifiers.control {
+                    let mut selection = list_view.selection.clone();
+                    selection.push(self_index);
+                    selection
+                } else {
+                    vec![self_index]
+                };
 
                 // Explicitly set selection on parent items control. This will send
                 // SelectionChanged message and all items will react.
                 ui.send_message(ListViewMessage::selection(
                     parent_list_view,
                     MessageDirection::ToWidget,
-                    Some(self_index),
+                    new_selection,
                 ));
                 message.set_handled(true);
             }
@@ -390,9 +407,9 @@ impl Control for ListView {
                         self.item_containers.push(item_container);
                         self.items.push(item);
                     }
-                    &ListViewMessage::SelectionChanged(selection) => {
-                        if self.selected_index != selection {
-                            self.selected_index = selection;
+                    ListViewMessage::SelectionChanged(selection) => {
+                        if &self.selection != selection {
+                            self.selection.clone_from(selection);
                             self.sync_decorators(ui);
                             ui.send_message(message.reverse());
                         }
@@ -427,7 +444,7 @@ impl Control for ListView {
         } else if let Some(WidgetMessage::KeyDown(key_code)) = message.data() {
             if !message.handled() {
                 let new_selection = if *key_code == KeyCode::ArrowDown {
-                    match self.selected_index {
+                    match self.largest_selection_index() {
                         Some(i) => Some(i.saturating_add(1) % self.items.len()),
                         None => {
                             if self.items.is_empty() {
@@ -438,7 +455,7 @@ impl Control for ListView {
                         }
                     }
                 } else if *key_code == KeyCode::ArrowUp {
-                    match self.selected_index {
+                    match self.smallest_selection_index() {
                         Some(i) => {
                             let mut index = (i as isize).saturating_sub(1);
                             let count = self.items.len() as isize;
@@ -463,7 +480,7 @@ impl Control for ListView {
                     ui.send_message(ListViewMessage::selection(
                         self.handle,
                         MessageDirection::ToWidget,
-                        Some(new_selection),
+                        vec![new_selection],
                     ));
 
                     message.set_handled(true);
@@ -549,7 +566,7 @@ impl ListViewBuilder {
                 .with_accepts_input(true)
                 .with_child(back)
                 .build(),
-            selected_index: None,
+            selection: Default::default(),
             item_containers: item_containers.into(),
             items: self.items.into(),
             panel: panel.into(),

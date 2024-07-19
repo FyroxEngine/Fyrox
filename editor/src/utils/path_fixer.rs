@@ -318,7 +318,7 @@ impl PathFixer {
                                 ui.send_message(ListViewMessage::selection(
                                     self.resources_list,
                                     MessageDirection::ToWidget,
-                                    None,
+                                    Default::default(),
                                 ));
 
                                 self.scene = Some(scene);
@@ -447,15 +447,15 @@ impl PathFixer {
             message.data::<ListViewMessage>()
         {
             if message.destination() == self.resources_list {
-                self.selection = *selection;
+                self.selection = selection.first().cloned();
 
-                if let Some(selection) = selection {
+                if let Some(selection) = self.selection {
                     ui.send_message(TextMessage::text(
                         self.resource_path,
                         MessageDirection::ToWidget,
                         format!(
                             "Resource: {}",
-                            self.orphaned_scene_resources[*selection].kind()
+                            self.orphaned_scene_resources[selection].kind()
                         ),
                     ))
                 } else {
@@ -469,7 +469,7 @@ impl PathFixer {
                 ui.send_message(WidgetMessage::enabled(
                     self.fix,
                     MessageDirection::ToWidget,
-                    selection.is_some(),
+                    self.selection.is_some(),
                 ));
             }
         }
