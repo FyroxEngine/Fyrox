@@ -598,7 +598,7 @@ impl AssetPreviewGenerator for CurvePreview {
 
 pub struct FontPreview;
 
-fn render_ui_to_texture(
+pub fn render_ui_to_texture(
     ui: &mut UserInterface,
     engine: &mut Engine,
 ) -> Option<AssetPreviewTexture> {

@@ -1,9 +1,11 @@
 mod commands;
 pub mod palette;
 pub mod panel;
+mod preview;
 pub mod tile_set_import;
 pub mod tileset;
 
+use crate::plugins::tilemap::preview::TileSetPreview;
 use crate::{
     command::SetPropertyCommand,
     fyrox::{
@@ -37,6 +39,7 @@ use crate::{
     settings::Settings,
     Editor, Message,
 };
+use fyrox::scene::tilemap::tileset::TileSet;
 use std::sync::Arc;
 
 fn make_button(
@@ -294,6 +297,13 @@ pub struct TileMapEditorPlugin {
 }
 
 impl EditorPlugin for TileMapEditorPlugin {
+    fn on_start(&mut self, editor: &mut Editor) {
+        editor
+            .asset_browser
+            .preview_generators
+            .add(TileSet::type_uuid(), TileSetPreview);
+    }
+
     fn on_sync_to_model(&mut self, editor: &mut Editor) {
         let ui = editor.engine.user_interfaces.first_mut();
 
