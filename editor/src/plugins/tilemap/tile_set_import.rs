@@ -1,7 +1,7 @@
 use crate::{
     asset::item::AssetItem,
     fyrox::{
-        asset::{ untyped::ResourceKind},
+        asset::untyped::ResourceKind,
         core::{algebra::Vector2, math::Rect, pool::Handle},
         graph::BaseSceneGraph,
         gui::{
