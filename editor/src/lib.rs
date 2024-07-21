@@ -991,7 +991,7 @@ impl Editor {
                     .current_interaction_mode
                     .and_then(|current_mode| scene.interaction_modes.get_mut(&current_mode))
                 {
-                    processed |= current_interaction_mode.on_hot_key(
+                    processed |= current_interaction_mode.on_hot_key_pressed(
                         &hot_key,
                         &mut *scene.controller,
                         engine,
@@ -1123,6 +1123,25 @@ impl Editor {
                             }
                         }
                     }
+                }
+            }
+        } else if let Some(WidgetMessage::KeyUp(key)) = message.data() {
+            let hot_key = HotKey::Some {
+                code: *key,
+                modifiers,
+            };
+
+            if let Some(scene) = self.scenes.current_scene_entry_mut() {
+                if let Some(current_interaction_mode) = scene
+                    .current_interaction_mode
+                    .and_then(|current_mode| scene.interaction_modes.get_mut(&current_mode))
+                {
+                    current_interaction_mode.on_hot_key_released(
+                        &hot_key,
+                        &mut *scene.controller,
+                        engine,
+                        &self.settings,
+                    );
                 }
             }
         }

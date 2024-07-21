@@ -148,7 +148,17 @@ pub trait InteractionMode: BaseInteractionMode {
 
     fn on_drop(&mut self, _engine: &mut Engine) {}
 
-    fn on_hot_key(
+    fn on_hot_key_pressed(
+        &mut self,
+        #[allow(unused_variables)] hotkey: &HotKey,
+        #[allow(unused_variables)] controller: &mut dyn SceneController,
+        #[allow(unused_variables)] engine: &mut Engine,
+        #[allow(unused_variables)] settings: &Settings,
+    ) -> bool {
+        false
+    }
+
+    fn on_hot_key_released(
         &mut self,
         #[allow(unused_variables)] hotkey: &HotKey,
         #[allow(unused_variables)] controller: &mut dyn SceneController,
@@ -281,6 +291,16 @@ impl InteractionModeContainer {
             .iter_mut()
             .find(|mode| mode.uuid() == *id)
             .map(|mode| &mut **mode)
+    }
+
+    pub fn of_type<T: InteractionMode + TypeUuidProvider>(&self) -> Option<&T> {
+        self.get(&T::type_uuid())
+            .and_then(|mode| mode.as_any().downcast_ref())
+    }
+
+    pub fn of_type_mut<T: InteractionMode + TypeUuidProvider>(&mut self) -> Option<&mut T> {
+        self.get_mut(&T::type_uuid())
+            .and_then(|mode| mode.as_any_mut().downcast_mut())
     }
 
     pub fn drain(&mut self) -> impl Iterator<Item = Box<dyn InteractionMode>> + '_ {

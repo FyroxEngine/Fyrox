@@ -448,7 +448,7 @@ impl InteractionMode for TerrainInteractionMode {
             ));
     }
 
-    fn on_hot_key(
+    fn on_hot_key_pressed(
         &mut self,
         hotkey: &HotKey,
         _controller: &mut dyn SceneController,

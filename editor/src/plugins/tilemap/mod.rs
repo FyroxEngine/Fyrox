@@ -5,7 +5,6 @@ mod preview;
 pub mod tile_set_import;
 pub mod tileset;
 
-use crate::plugins::tilemap::preview::TileSetPreview;
 use crate::{
     command::SetPropertyCommand,
     fyrox::{
@@ -27,6 +26,7 @@ use crate::{
         scene::{
             debug::Line,
             node::Node,
+            tilemap::tileset::TileSet,
             tilemap::{brush::TileMapBrush, TileMap, Tiles},
             Scene,
         },
@@ -34,12 +34,16 @@ use crate::{
     interaction::{make_interaction_mode_button, InteractionMode},
     message::MessageSender,
     plugin::EditorPlugin,
-    plugins::tilemap::{palette::PaletteMessage, panel::TileMapPanel, tileset::TileSetEditor},
+    plugins::tilemap::{
+        palette::PaletteMessage, panel::TileMapPanel, preview::TileSetPreview,
+        tileset::TileSetEditor,
+    },
     scene::{commands::GameSceneContext, controller::SceneController, GameScene, Selection},
     settings::Settings,
     Editor, Message,
 };
-use fyrox::scene::tilemap::tileset::TileSet;
+use fyrox::gui::key::HotKey;
+use fyrox::gui::message::KeyCode;
 use std::sync::Arc;
 
 fn make_button(
@@ -60,6 +64,18 @@ fn make_button(
     .build(ctx)
 }
 
+pub enum DrawingMode {
+    Draw,
+    Erase,
+    FloodFill,
+    Pick {
+        click_grid_position: Option<Vector2<i32>>,
+    },
+    RectFill {
+        click_grid_position: Option<Vector2<i32>>,
+    },
+}
+
 struct InteractionContext {
     previous_tiles: Tiles,
 }
@@ -67,12 +83,13 @@ struct InteractionContext {
 #[derive(TypeUuidProvider)]
 #[type_uuid(id = "33fa8ef9-a29c-45d4-a493-79571edd870a")]
 pub struct TileMapInteractionMode {
-    #[allow(dead_code)]
     tile_map: Handle<Node>,
     brush: Arc<Mutex<TileMapBrush>>,
     brush_position: Vector2<i32>,
     interaction_context: Option<InteractionContext>,
     sender: MessageSender,
+    #[allow(dead_code)]
+    drawing_mode: DrawingMode,
 }
 
 impl TileMapInteractionMode {
@@ -286,6 +303,70 @@ impl InteractionMode for TileMapInteractionMode {
     fn uuid(&self) -> Uuid {
         Self::type_uuid()
     }
+
+    fn on_hot_key_pressed(
+        &mut self,
+        hotkey: &HotKey,
+        _controller: &mut dyn SceneController,
+        _engine: &mut Engine,
+        _settings: &Settings,
+    ) -> bool {
+        if let HotKey::Some { code, .. } = hotkey {
+            match *code {
+                KeyCode::AltLeft => {
+                    self.drawing_mode = DrawingMode::Pick {
+                        click_grid_position: None,
+                    };
+                    return true;
+                }
+                KeyCode::ShiftLeft => {
+                    self.drawing_mode = DrawingMode::Erase;
+                    return true;
+                }
+                KeyCode::ControlLeft => {
+                    self.drawing_mode = DrawingMode::RectFill {
+                        click_grid_position: None,
+                    };
+                    return true;
+                }
+                _ => (),
+            }
+        }
+        false
+    }
+
+    fn on_hot_key_released(
+        &mut self,
+        hotkey: &HotKey,
+        _controller: &mut dyn SceneController,
+        _engine: &mut Engine,
+        _settings: &Settings,
+    ) -> bool {
+        if let HotKey::Some { code, .. } = hotkey {
+            match *code {
+                KeyCode::AltLeft => {
+                    if matches!(self.drawing_mode, DrawingMode::Pick { .. }) {
+                        self.drawing_mode = DrawingMode::Draw;
+                        return true;
+                    }
+                }
+                KeyCode::ShiftLeft => {
+                    if matches!(self.drawing_mode, DrawingMode::Erase) {
+                        self.drawing_mode = DrawingMode::Draw;
+                        return true;
+                    }
+                }
+                KeyCode::ControlLeft => {
+                    if matches!(self.drawing_mode, DrawingMode::RectFill { .. }) {
+                        self.drawing_mode = DrawingMode::Draw;
+                        return true;
+                    }
+                }
+                _ => (),
+            }
+        }
+        false
+    }
 }
 
 #[derive(Default)]
@@ -359,10 +440,11 @@ impl EditorPlugin for TileMapEditorPlugin {
                 }
             }
 
-            let tile_map = editor
-                .scenes
-                .current_scene_entry_mut()
-                .and_then(|entry| entry.controller.downcast_mut::<GameScene>())
+            let editor_scene_entry = editor.scenes.current_scene_entry_mut();
+
+            let tile_map = editor_scene_entry
+                .as_ref()
+                .and_then(|entry| entry.controller.downcast_ref::<GameScene>())
                 .and_then(|scene| {
                     editor.engine.scenes[scene.scene]
                         .graph
@@ -375,13 +457,21 @@ impl EditorPlugin for TileMapEditorPlugin {
                 self.tile_map,
                 tile_map,
                 &editor.message_sender,
+                editor_scene_entry,
             );
         }
     }
 
-    fn on_update(&mut self, _editor: &mut Editor) {
+    fn on_update(&mut self, editor: &mut Editor) {
         if let Some(tile_set_editor) = self.tile_set_editor.as_mut() {
             tile_set_editor.update();
+        }
+
+        if let Some(panel) = self.panel.as_mut() {
+            panel.update(
+                editor.engine.user_interfaces.first(),
+                editor.scenes.current_scene_entry_ref(),
+            );
         }
     }
 
@@ -430,6 +520,7 @@ impl EditorPlugin for TileMapEditorPlugin {
                         brush_position: Default::default(),
                         interaction_context: None,
                         sender: editor.message_sender.clone(),
+                        drawing_mode: DrawingMode::Draw,
                     });
 
                     self.panel = Some(TileMapPanel::new(

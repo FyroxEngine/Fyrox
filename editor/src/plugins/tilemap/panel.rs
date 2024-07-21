@@ -1,12 +1,14 @@
-use crate::plugins::tilemap::commands::AddBrushTileCommand;
 use crate::{
     asset::item::AssetItem,
     command::{Command, CommandGroup, SetPropertyCommand},
     fyrox::{
         core::{algebra::Vector2, pool::Handle, Uuid},
-        graph::{BaseSceneGraph, SceneGraphNode},
+        fxhash::FxHashSet,
+        graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
         gui::{
             border::BorderBuilder,
+            button::{Button, ButtonMessage},
+            decorator::DecoratorMessage,
             dropdown_list::{DropdownListBuilder, DropdownListMessage},
             grid::{Column, GridBuilder, Row},
             message::{MessageDirection, UiMessage},
@@ -25,23 +27,32 @@ use crate::{
             },
         },
     },
-    gui::make_dropdown_list_option,
+    gui::{make_dropdown_list_option, make_image_button_with_tooltip},
+    load_image,
     message::MessageSender,
     plugins::tilemap::{
-        commands::{MoveBrushTilesCommand, RemoveBrushTileCommand, SetBrushTilesCommand},
+        commands::{
+            AddBrushTileCommand, MoveBrushTilesCommand, RemoveBrushTileCommand,
+            SetBrushTilesCommand,
+        },
         palette::{
             BrushTileViewBuilder, PaletteMessage, PaletteWidget, PaletteWidgetBuilder,
             TileViewMessage,
         },
+        DrawingMode, TileMapInteractionMode,
     },
-    scene::commands::GameSceneContext,
+    scene::{commands::GameSceneContext, container::EditorSceneEntry},
 };
-use fyrox::fxhash::FxHashSet;
 
 pub struct TileMapPanel {
     pub window: Handle<UiNode>,
     pub palette: Handle<UiNode>,
     active_brush_selector: Handle<UiNode>,
+    draw_button: Handle<UiNode>,
+    erase_button: Handle<UiNode>,
+    flood_fill_button: Handle<UiNode>,
+    pick_button: Handle<UiNode>,
+    rect_fill_button: Handle<UiNode>,
 }
 
 fn generate_tiles(
@@ -96,14 +107,62 @@ impl TileMapPanel {
             .build(ctx);
 
         let active_brush_selector =
-            DropdownListBuilder::new(WidgetBuilder::new().with_width(250.0))
+            DropdownListBuilder::new(WidgetBuilder::new().with_width(250.0).with_height(20.0))
                 .with_opt_selected(selected_brush_index(tile_map))
                 .with_items(make_brush_entries(tile_map, ctx))
                 .build(ctx);
 
+        let width = 20.0;
+        let height = 20.0;
+        let draw_button = make_image_button_with_tooltip(
+            ctx,
+            width,
+            height,
+            load_image(include_bytes!("../../../resources/brush.png")),
+            "Draw with active brush.",
+            Some(0),
+        );
+        let erase_button = make_image_button_with_tooltip(
+            ctx,
+            width,
+            height,
+            load_image(include_bytes!("../../../resources/eraser.png")),
+            "Erase with active brush.",
+            Some(0),
+        );
+        let flood_fill_button = make_image_button_with_tooltip(
+            ctx,
+            width,
+            height,
+            load_image(include_bytes!("../../../resources/fill.png")),
+            "Flood fill with random tiles from current brush.",
+            Some(0),
+        );
+        let pick_button = make_image_button_with_tooltip(
+            ctx,
+            width,
+            height,
+            load_image(include_bytes!("../../../resources/pipette.png")),
+            "Pick tiles for drawing from the tile map.",
+            Some(0),
+        );
+        let rect_fill_button = make_image_button_with_tooltip(
+            ctx,
+            width,
+            height,
+            load_image(include_bytes!("../../../resources/rect_fill.png")),
+            "Fill the rectangle using the current brush.",
+            Some(0),
+        );
+
         let toolbar = WrapPanelBuilder::new(
             WidgetBuilder::new()
                 .on_row(0)
+                .with_child(draw_button)
+                .with_child(erase_button)
+                .with_child(flood_fill_button)
+                .with_child(pick_button)
+                .with_child(rect_fill_button)
                 .with_child(active_brush_selector),
         )
         .with_orientation(Orientation::Horizontal)
@@ -112,12 +171,12 @@ impl TileMapPanel {
         let content = GridBuilder::new(WidgetBuilder::new().with_child(toolbar).with_child(
             BorderBuilder::new(WidgetBuilder::new().on_row(1).with_child(palette)).build(ctx),
         ))
-        .add_row(Row::strict(23.0))
+        .add_row(Row::auto())
         .add_row(Row::stretch())
         .add_column(Column::stretch())
         .build(ctx);
 
-        let window = WindowBuilder::new(WidgetBuilder::new().with_width(250.0).with_height(350.0))
+        let window = WindowBuilder::new(WidgetBuilder::new().with_width(250.0).with_height(400.0))
             .open(false)
             .with_title(WindowTitle::text("Tile Map Control Panel"))
             .with_content(content)
@@ -140,6 +199,11 @@ impl TileMapPanel {
             window,
             palette,
             active_brush_selector,
+            draw_button,
+            erase_button,
+            flood_fill_button,
+            pick_button,
+            rect_fill_button,
         }
     }
 
@@ -157,6 +221,7 @@ impl TileMapPanel {
         tile_map_handle: Handle<Node>,
         tile_map: Option<&TileMap>,
         sender: &MessageSender,
+        editor_scene: Option<&mut EditorSceneEntry>,
     ) -> Option<Self> {
         if let Some(WindowMessage::Close) = message.data() {
             if message.destination() == self.window {
@@ -282,9 +347,87 @@ impl TileMapPanel {
                     }
                 }
             }
+        } else if let Some(ButtonMessage::Click) = message.data() {
+            if let Some(interaction_mode) = editor_scene.and_then(|entry| {
+                entry
+                    .interaction_modes
+                    .of_type_mut::<TileMapInteractionMode>()
+            }) {
+                if message.destination() == self.draw_button {
+                    interaction_mode.drawing_mode = DrawingMode::Draw;
+                } else if message.destination() == self.erase_button {
+                    interaction_mode.drawing_mode = DrawingMode::Erase;
+                } else if message.destination() == self.flood_fill_button {
+                    interaction_mode.drawing_mode = DrawingMode::FloodFill;
+                } else if message.destination() == self.rect_fill_button {
+                    interaction_mode.drawing_mode = DrawingMode::RectFill {
+                        click_grid_position: Default::default(),
+                    };
+                } else if message.destination() == self.pick_button {
+                    interaction_mode.drawing_mode = DrawingMode::Pick {
+                        click_grid_position: Default::default(),
+                    };
+                }
+            }
         }
 
         Some(self)
+    }
+
+    pub fn update(&self, ui: &UserInterface, editor_scene: Option<&EditorSceneEntry>) {
+        if let Some(interaction_mode) = editor_scene
+            .and_then(|entry| entry.interaction_modes.of_type::<TileMapInteractionMode>())
+        {
+            fn highlight_tool_button(button: Handle<UiNode>, highlight: bool, ui: &UserInterface) {
+                let decorator = *ui.try_get_of_type::<Button>(button).unwrap().decorator;
+                ui.send_message(DecoratorMessage::select(
+                    decorator,
+                    MessageDirection::ToWidget,
+                    highlight,
+                ));
+            }
+
+            fn highlight_all_except(
+                button: Handle<UiNode>,
+                buttons: &[Handle<UiNode>],
+                highlight: bool,
+                ui: &UserInterface,
+            ) {
+                for other_button in buttons {
+                    if *other_button == button {
+                        highlight_tool_button(*other_button, highlight, ui);
+                    } else {
+                        highlight_tool_button(*other_button, !highlight, ui);
+                    }
+                }
+            }
+
+            let buttons = [
+                self.pick_button,
+                self.draw_button,
+                self.erase_button,
+                self.flood_fill_button,
+                self.rect_fill_button,
+            ];
+
+            match interaction_mode.drawing_mode {
+                DrawingMode::Draw => {
+                    highlight_all_except(self.draw_button, &buttons, true, ui);
+                }
+                DrawingMode::Erase => {
+                    highlight_all_except(self.erase_button, &buttons, true, ui);
+                }
+                DrawingMode::FloodFill => {
+                    highlight_all_except(self.flood_fill_button, &buttons, true, ui);
+                }
+                DrawingMode::Pick { .. } => {
+                    highlight_all_except(self.pick_button, &buttons, true, ui);
+                }
+                DrawingMode::RectFill { .. } => {
+                    highlight_all_except(self.rect_fill_button, &buttons, true, ui);
+                }
+            }
+        }
     }
 
     pub fn sync_to_model(&self, ui: &mut UserInterface, tile_map: &TileMap) {
