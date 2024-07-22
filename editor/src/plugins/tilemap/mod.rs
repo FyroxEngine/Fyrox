@@ -20,8 +20,8 @@ use crate::{
         engine::Engine,
         graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
         gui::{
-            button::ButtonBuilder, message::UiMessage, utils::make_simple_tooltip,
-            widget::WidgetBuilder, BuildContext, Thickness, UiNode, UserInterface,
+            button::ButtonBuilder, key::HotKey, message::KeyCode, message::UiMessage,
+            utils::make_simple_tooltip, widget::WidgetBuilder, BuildContext, Thickness, UiNode,
         },
         scene::{
             debug::Line,
@@ -42,8 +42,6 @@ use crate::{
     settings::Settings,
     Editor, Message,
 };
-use fyrox::gui::key::HotKey;
-use fyrox::gui::message::KeyCode;
 use std::sync::Arc;
 
 fn make_button(
@@ -88,7 +86,6 @@ pub struct TileMapInteractionMode {
     brush_position: Vector2<i32>,
     interaction_context: Option<InteractionContext>,
     sender: MessageSender,
-    #[allow(dead_code)]
     drawing_mode: DrawingMode,
 }
 
@@ -116,35 +113,6 @@ impl TileMapInteractionMode {
             Vector2::new(local_intersection.x as i32, local_intersection.y as i32)
         })
     }
-
-    fn draw_with_current_brush(
-        &mut self,
-        scene: &mut Scene,
-        game_scene: &GameScene,
-        mouse_position: Vector2<f32>,
-        frame_size: Vector2<f32>,
-        ui: &UserInterface,
-    ) {
-        let modifiers = ui.keyboard_modifiers();
-
-        if let Some(grid_coord) = self.pick_grid(scene, game_scene, mouse_position, frame_size) {
-            self.brush_position = grid_coord;
-
-            let Some(tile_map) = scene.graph.try_get_mut_of_type::<TileMap>(self.tile_map) else {
-                return;
-            };
-
-            if self.interaction_context.is_some() {
-                let brush = self.brush.lock();
-
-                if modifiers.shift {
-                    tile_map.erase(grid_coord, &brush);
-                } else {
-                    tile_map.draw(grid_coord, &brush)
-                }
-            }
-        }
-    }
 }
 
 impl InteractionMode for TileMapInteractionMode {
@@ -163,21 +131,37 @@ impl InteractionMode for TileMapInteractionMode {
 
         let scene = &mut engine.scenes[game_scene.scene];
 
-        let Some(tile_map) = scene.graph.try_get_of_type::<TileMap>(self.tile_map) else {
-            return;
-        };
+        let brush = self.brush.lock();
 
-        self.interaction_context = Some(InteractionContext {
-            previous_tiles: tile_map.tiles().clone(),
-        });
+        if let Some(grid_coord) = self.pick_grid(scene, game_scene, mouse_position, frame_size) {
+            let Some(tile_map) = scene.graph.try_get_mut_of_type::<TileMap>(self.tile_map) else {
+                return;
+            };
 
-        self.draw_with_current_brush(
-            scene,
-            game_scene,
-            mouse_position,
-            frame_size,
-            engine.user_interfaces.first(),
-        );
+            self.interaction_context = Some(InteractionContext {
+                previous_tiles: tile_map.tiles().clone(),
+            });
+
+            self.brush_position = grid_coord;
+
+            match self.drawing_mode {
+                DrawingMode::Draw => tile_map.draw(grid_coord, &brush),
+                DrawingMode::Erase => {
+                    tile_map.erase(grid_coord, &brush);
+                }
+                DrawingMode::FloodFill => {
+                    tile_map.flood_fill(grid_coord, &brush);
+                }
+                DrawingMode::RectFill {
+                    ref mut click_grid_position,
+                }
+                | DrawingMode::Pick {
+                    ref mut click_grid_position,
+                } => {
+                    *click_grid_position = Some(grid_coord);
+                }
+            }
+        }
     }
 
     fn on_left_mouse_button_up(
@@ -232,13 +216,27 @@ impl InteractionMode for TileMapInteractionMode {
 
         let scene = &mut engine.scenes[game_scene.scene];
 
-        self.draw_with_current_brush(
-            scene,
-            game_scene,
-            mouse_position,
-            frame_size,
-            engine.user_interfaces.first(),
-        );
+        let brush = self.brush.lock();
+
+        if let Some(grid_coord) = self.pick_grid(scene, game_scene, mouse_position, frame_size) {
+            let Some(tile_map) = scene.graph.try_get_mut_of_type::<TileMap>(self.tile_map) else {
+                return;
+            };
+
+            self.brush_position = grid_coord;
+
+            if self.interaction_context.is_some() {
+                match self.drawing_mode {
+                    DrawingMode::Draw => tile_map.draw(grid_coord, &brush),
+                    DrawingMode::Erase => {
+                        tile_map.erase(grid_coord, &brush);
+                    }
+                    _ => {
+                        // Do nothing
+                    }
+                }
+            }
+        }
     }
 
     fn update(
