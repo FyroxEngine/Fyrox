@@ -7,7 +7,7 @@ pub mod tileset;
 use crate::{
     core::{
         algebra::{Vector2, Vector3},
-        math::{aabb::AxisAlignedBoundingBox, TriangleDefinition},
+        math::{aabb::AxisAlignedBoundingBox, Rect, TriangleDefinition},
         pool::Handle,
         reflect::prelude::*,
         type_traits::prelude::*,
@@ -16,6 +16,7 @@ use crate::{
         visitor::prelude::*,
     },
     graph::BaseSceneGraph,
+    rand::{seq::IteratorRandom, thread_rng},
     renderer::{self, bundle::RenderContext},
     scene::{
         base::{Base, BaseBuilder},
@@ -30,7 +31,7 @@ use crate::{
         Scene,
     },
 };
-use fxhash::FxHashMap;
+use fxhash::{FxHashMap, FxHashSet};
 use std::ops::{Deref, DerefMut};
 
 /// Tile is a base block of a tile map. It has a position and a handle of tile definition, stored
@@ -253,6 +254,66 @@ impl TileMap {
             self.remove_tile(origin + brush_tile.local_position);
         }
     }
+
+    /// Calculates bounding rectangle in grid coordinates.
+    #[inline]
+    pub fn bounding_rect(&self) -> Rect<i32> {
+        let mut min = Vector2::repeat(i32::MAX);
+        let mut max = Vector2::repeat(i32::MIN);
+
+        for tile in self.tiles.values() {
+            min = tile.position.inf(&min);
+            max = tile.position.sup(&max);
+        }
+
+        Rect::from_points(min, max)
+    }
+
+    /// Tries to fetch tile definition index at the given point.
+    #[inline]
+    pub fn definition_at(&self, point: Vector2<i32>) -> Option<TileDefinitionHandle> {
+        self.tiles.get(&point).map(|tile| tile.definition_handle)
+    }
+
+    /// Fills the tile map at the given point using random tiles from the given brush. This method
+    /// extends tile map when trying to fill at a point that lies outside the bounding rectangle.
+    /// Keep in mind, that flood fill is only possible either on free cells or on cells with the same
+    /// tile kind.
+    #[inline]
+    pub fn flood_fill(&mut self, start_point: Vector2<i32>, brush: &TileMapBrush) {
+        let mut bounds = self.bounding_rect();
+        bounds.push(start_point);
+
+        let allowed_definition = self.definition_at(start_point);
+        let mut visited = FxHashSet::default();
+
+        let mut stack = vec![start_point];
+        while let Some(position) = stack.pop() {
+            let definition = self.definition_at(position);
+            if definition == allowed_definition && !visited.contains(&position) {
+                if let Some(random_tile) = brush.tiles.iter().choose(&mut thread_rng()) {
+                    self.insert_tile(Tile {
+                        position,
+                        definition_handle: random_tile.definition_handle,
+                    });
+                }
+
+                visited.insert(position);
+
+                // Continue on neighbours.
+                for neighbour_position in [
+                    Vector2::new(position.x - 1, position.y),
+                    Vector2::new(position.x + 1, position.y),
+                    Vector2::new(position.x, position.y - 1),
+                    Vector2::new(position.x, position.y + 1),
+                ] {
+                    if bounds.contains(neighbour_position) {
+                        stack.push(neighbour_position);
+                    }
+                }
+            }
+        }
+    }
 }
 
 impl Default for TileMap {
@@ -286,16 +347,10 @@ impl NodeTrait for TileMap {
     crate::impl_query_component!();
 
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
-        let mut min = Vector2::repeat(i32::MAX);
-        let mut max = Vector2::repeat(i32::MIN);
+        let rect = self.bounding_rect();
 
-        for tile in self.tiles.values() {
-            min = tile.position.inf(&min);
-            max = tile.position.sup(&max);
-        }
-
-        let min_pos = min.cast::<f32>().to_homogeneous();
-        let max_pos = max.cast::<f32>().to_homogeneous();
+        let min_pos = rect.position.cast::<f32>().to_homogeneous();
+        let max_pos = (rect.position + rect.size).cast::<f32>().to_homogeneous();
 
         AxisAlignedBoundingBox::from_min_max(min_pos, max_pos)
     }
