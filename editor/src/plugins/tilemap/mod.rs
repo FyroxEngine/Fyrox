@@ -47,6 +47,7 @@ use crate::{
     settings::Settings,
     Editor, Message,
 };
+use fyrox::core::algebra::Matrix4;
 use std::sync::Arc;
 
 fn make_button(
@@ -328,12 +329,52 @@ impl InteractionMode for TileMapInteractionMode {
         for x in -size..size {
             draw_line(Vector2::new(x, -size), Vector2::new(x, size), Color::WHITE);
         }
-        self.brush.lock().draw_outline(
-            &mut scene.drawing_context,
-            self.brush_position,
-            &transform,
-            Color::RED,
-        );
+
+        match self.drawing_mode {
+            DrawingMode::Draw | DrawingMode::Erase => {
+                self.brush.lock().draw_outline(
+                    &mut scene.drawing_context,
+                    self.brush_position,
+                    &transform,
+                    Color::RED,
+                );
+            }
+            DrawingMode::FloodFill => {
+                scene.drawing_context.draw_rectangle(
+                    0.5,
+                    0.5,
+                    transform
+                        * Matrix4::new_translation(
+                            &self.brush_position.cast::<f32>().to_homogeneous(),
+                        ),
+                    Color::RED,
+                );
+            }
+            DrawingMode::Pick {
+                click_grid_position,
+            }
+            | DrawingMode::RectFill {
+                click_grid_position,
+            } => {
+                if self.interaction_context.is_some() {
+                    if let Some(click_grid_position) = click_grid_position {
+                        let rect = Rect::from_points(click_grid_position, self.brush_position);
+                        let position = rect.position.cast::<f32>();
+                        let half_size = rect.size.cast::<f32>().scale(0.5);
+
+                        scene.drawing_context.draw_rectangle(
+                            half_size.x,
+                            half_size.y,
+                            transform
+                                * Matrix4::new_translation(
+                                    &(position + half_size).to_homogeneous(),
+                                ),
+                            Color::RED,
+                        );
+                    }
+                }
+            }
+        }
     }
 
     fn deactivate(&mut self, _controller: &dyn SceneController, _engine: &mut Engine) {
