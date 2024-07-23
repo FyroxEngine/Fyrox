@@ -2,12 +2,12 @@ use crate::{
     asset::item::AssetItem,
     command::{Command, CommandGroup, SetPropertyCommand},
     fyrox::{
-        core::{algebra::Vector2, pool::Handle, Uuid},
+        core::{algebra::Vector2, pool::Handle, TypeUuidProvider, Uuid},
         fxhash::FxHashSet,
         graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
         gui::{
             border::BorderBuilder,
-            button::{Button, ButtonMessage},
+            button::{Button, ButtonBuilder, ButtonMessage},
             decorator::DecoratorMessage,
             dropdown_list::{DropdownListBuilder, DropdownListMessage},
             grid::{Column, GridBuilder, Row},
@@ -42,12 +42,14 @@ use crate::{
         DrawingMode, TileMapInteractionMode,
     },
     scene::{commands::GameSceneContext, container::EditorSceneEntry},
+    Message,
 };
 
 pub struct TileMapPanel {
     pub window: Handle<UiNode>,
     pub palette: Handle<UiNode>,
     active_brush_selector: Handle<UiNode>,
+    edit: Handle<UiNode>,
     draw_button: Handle<UiNode>,
     erase_button: Handle<UiNode>,
     flood_fill_button: Handle<UiNode>,
@@ -112,6 +114,10 @@ impl TileMapPanel {
                 .with_items(make_brush_entries(tile_map, ctx))
                 .build(ctx);
 
+        let edit = ButtonBuilder::new(WidgetBuilder::new().with_width(45.0).with_height(26.0))
+            .with_text("Edit")
+            .build(ctx);
+
         let width = 20.0;
         let height = 20.0;
         let draw_button = make_image_button_with_tooltip(
@@ -158,6 +164,7 @@ impl TileMapPanel {
         let toolbar = WrapPanelBuilder::new(
             WidgetBuilder::new()
                 .on_row(0)
+                .with_child(edit)
                 .with_child(draw_button)
                 .with_child(erase_button)
                 .with_child(flood_fill_button)
@@ -199,6 +206,7 @@ impl TileMapPanel {
             window,
             palette,
             active_brush_selector,
+            edit,
             draw_button,
             erase_button,
             flood_fill_button,
@@ -367,6 +375,10 @@ impl TileMapPanel {
                     interaction_mode.drawing_mode = DrawingMode::Pick {
                         click_grid_position: Default::default(),
                     };
+                } else if message.destination() == self.edit {
+                    sender.send(Message::SetInteractionMode(
+                        TileMapInteractionMode::type_uuid(),
+                    ));
                 }
             }
         }
