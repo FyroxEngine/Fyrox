@@ -18,6 +18,7 @@ use crate::{
     },
     scene::{debug::SceneDrawingContext, tilemap::tileset::TileDefinitionHandle},
 };
+use fyrox_core::math::Rect;
 use std::{
     any::Any,
     error::Error,
@@ -118,6 +119,20 @@ pub struct TileMapBrush {
 }
 
 impl TileMapBrush {
+    /// Returns bounding rectangle of the tile map brush in grid coordinates.
+    #[inline]
+    pub fn bounding_rect(&self) -> Rect<i32> {
+        let mut min = Vector2::repeat(i32::MAX);
+        let mut max = Vector2::repeat(i32::MIN);
+
+        for tile in self.tiles.iter() {
+            min = tile.local_position.inf(&min);
+            max = tile.local_position.sup(&max);
+        }
+
+        Rect::from_points(min, max)
+    }
+
     /// Draw brush outline to the scene drawing context.
     pub fn draw_outline(
         &self,

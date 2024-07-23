@@ -314,6 +314,29 @@ impl TileMap {
             }
         }
     }
+
+    /// Fills the given rectangle using the specified brush.
+    #[inline]
+    pub fn rect_fill(&mut self, rect: Rect<i32>, brush: &TileMapBrush) {
+        let brush_rect = brush.bounding_rect();
+        for y in
+            (rect.position.y..(rect.position.y + rect.size.y)).step_by(brush_rect.size.y as usize)
+        {
+            for x in (rect.position.x..(rect.position.x + rect.size.x))
+                .step_by(brush_rect.size.x as usize)
+            {
+                for brush_tile in brush.tiles.iter() {
+                    let position = Vector2::new(x, y) + brush_tile.local_position;
+                    if rect.contains(position) {
+                        self.insert_tile(Tile {
+                            position,
+                            definition_handle: brush_tile.definition_handle,
+                        });
+                    }
+                }
+            }
+        }
+    }
 }
 
 impl Default for TileMap {
