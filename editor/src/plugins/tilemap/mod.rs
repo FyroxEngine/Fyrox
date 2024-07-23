@@ -1,3 +1,5 @@
+#![allow(clippy::collapsible_match)] // STFU
+
 mod commands;
 pub mod palette;
 pub mod panel;
@@ -11,7 +13,7 @@ use crate::{
         core::{
             algebra::{Vector2, Vector3},
             color::Color,
-            math::{plane::Plane, Matrix4Ext},
+            math::{plane::Plane, Matrix4Ext, Rect},
             parking_lot::Mutex,
             pool::Handle,
             type_traits::prelude::*,
@@ -26,8 +28,11 @@ use crate::{
         scene::{
             debug::Line,
             node::Node,
-            tilemap::tileset::TileSet,
-            tilemap::{brush::TileMapBrush, TileMap, Tiles},
+            tilemap::{
+                brush::{BrushTile, TileMapBrush},
+                tileset::TileSet,
+                TileMap, Tiles,
+            },
             Scene,
         },
     },
@@ -169,8 +174,8 @@ impl InteractionMode for TileMapInteractionMode {
         _editor_selection: &Selection,
         controller: &mut dyn SceneController,
         engine: &mut Engine,
-        _mouse_pos: Vector2<f32>,
-        _frame_size: Vector2<f32>,
+        mouse_position: Vector2<f32>,
+        frame_size: Vector2<f32>,
         _settings: &Settings,
     ) {
         let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
@@ -179,24 +184,70 @@ impl InteractionMode for TileMapInteractionMode {
 
         let scene = &mut engine.scenes[game_scene.scene];
 
+        let grid_coord = self.pick_grid(scene, game_scene, mouse_position, frame_size);
+
         let tile_map_handle = self.tile_map;
         let Some(tile_map) = scene.graph.try_get_mut_of_type::<TileMap>(tile_map_handle) else {
             return;
         };
 
         if let Some(interaction_context) = self.interaction_context.take() {
-            let new_tiles = tile_map.tiles().clone();
-            tile_map.set_tiles(interaction_context.previous_tiles);
-            self.sender.do_command(SetPropertyCommand::new(
-                "tiles".to_string(),
-                Box::new(new_tiles),
-                move |ctx| {
-                    ctx.get_mut::<GameSceneContext>()
-                        .scene
-                        .graph
-                        .node_mut(tile_map_handle)
-                },
-            ));
+            if let Some(grid_coord) = grid_coord {
+                let mut brush = self.brush.lock();
+                match self.drawing_mode {
+                    DrawingMode::Pick {
+                        click_grid_position,
+                    } => {
+                        if let Some(click_grid_position) = click_grid_position {
+                            brush.tiles.clear();
+                            let selected_rect = Rect::from_points(grid_coord, click_grid_position);
+                            for y in selected_rect.position.y
+                                ..(selected_rect.position.y + selected_rect.size.y)
+                            {
+                                for x in selected_rect.position.x
+                                    ..(selected_rect.position.x + selected_rect.size.x)
+                                {
+                                    let position = Vector2::new(x, y);
+                                    if let Some(tile) = tile_map.tiles().get(&position) {
+                                        brush.tiles.push(BrushTile {
+                                            definition_handle: tile.definition_handle,
+                                            local_position: position - selected_rect.position,
+                                            id: Uuid::new_v4(),
+                                        })
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    DrawingMode::RectFill {
+                        click_grid_position,
+                    } => {
+                        if let Some(click_grid_position) = click_grid_position {
+                            tile_map.rect_fill(
+                                Rect::from_points(grid_coord, click_grid_position),
+                                &brush,
+                            );
+                        }
+                    }
+
+                    _ => (),
+                }
+            }
+
+            if !matches!(self.drawing_mode, DrawingMode::Pick { .. }) {
+                let new_tiles = tile_map.tiles().clone();
+                tile_map.set_tiles(interaction_context.previous_tiles);
+                self.sender.do_command(SetPropertyCommand::new(
+                    "tiles".to_string(),
+                    Box::new(new_tiles),
+                    move |ctx| {
+                        ctx.get_mut::<GameSceneContext>()
+                            .scene
+                            .graph
+                            .node_mut(tile_map_handle)
+                    },
+                ));
+            }
         }
     }
 
