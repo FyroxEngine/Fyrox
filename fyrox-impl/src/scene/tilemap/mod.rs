@@ -319,6 +319,11 @@ impl TileMap {
     #[inline]
     pub fn rect_fill(&mut self, rect: Rect<i32>, brush: &TileMapBrush) {
         let brush_rect = brush.bounding_rect();
+
+        if brush_rect.size.x == 0 || brush_rect.size.y == 0 {
+            return;
+        }
+
         for y in
             (rect.position.y..(rect.position.y + rect.size.y)).step_by(brush_rect.size.y as usize)
         {
