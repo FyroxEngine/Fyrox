@@ -258,6 +258,10 @@ impl TileMap {
     /// Calculates bounding rectangle in grid coordinates.
     #[inline]
     pub fn bounding_rect(&self) -> Rect<i32> {
+        if self.tiles.is_empty() {
+            return Rect::default();
+        }
+
         let mut min = Vector2::repeat(i32::MAX);
         let mut max = Vector2::repeat(i32::MIN);
 
@@ -319,6 +323,8 @@ impl TileMap {
     #[inline]
     pub fn rect_fill(&mut self, rect: Rect<i32>, brush: &TileMapBrush) {
         let brush_rect = brush.bounding_rect();
+
+        dbg!(brush_rect);
 
         if brush_rect.size.x == 0 || brush_rect.size.y == 0 {
             return;
