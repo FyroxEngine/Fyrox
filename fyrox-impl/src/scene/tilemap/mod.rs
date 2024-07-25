@@ -267,7 +267,9 @@ impl TileMap {
 
         for tile in self.tiles.values() {
             min = tile.position.inf(&min);
-            max = tile.position.sup(&max);
+
+            let right_bottom_corner = tile.position + Vector2::repeat(1);
+            max = right_bottom_corner.sup(&max);
         }
 
         Rect::from_points(min, max)

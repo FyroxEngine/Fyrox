@@ -127,7 +127,9 @@ impl TileMapBrush {
 
         for tile in self.tiles.iter() {
             min = tile.local_position.inf(&min);
-            max = tile.local_position.sup(&max);
+
+            let right_bottom_corner = tile.local_position + Vector2::repeat(1);
+            max = right_bottom_corner.sup(&max);
         }
 
         Rect::from_points(min, max)
