@@ -437,7 +437,7 @@ impl ProjectManager {
                 } else if button == self.run {
                     let mut new_process = std::process::Command::new("cargo");
                     new_process
-                        .current_dir(dbg!(project.manifest_path.parent().unwrap()))
+                        .current_dir(project.manifest_path.parent().unwrap())
                         .stderr(Stdio::piped())
                         .args(["run", "--package", "executor"]);
 

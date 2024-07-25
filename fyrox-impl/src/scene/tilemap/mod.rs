@@ -326,8 +326,6 @@ impl TileMap {
     pub fn rect_fill(&mut self, rect: Rect<i32>, brush: &TileMapBrush) {
         let brush_rect = brush.bounding_rect();
 
-        dbg!(brush_rect);
-
         if brush_rect.size.x == 0 || brush_rect.size.y == 0 {
             return;
         }
@@ -339,8 +337,13 @@ impl TileMap {
                 .step_by(brush_rect.size.x as usize)
             {
                 for brush_tile in brush.tiles.iter() {
-                    let position = Vector2::new(x, y) + brush_tile.local_position;
-                    if rect.contains(position) {
+                    let position =
+                        Vector2::new(x, y) + brush_tile.local_position - brush_rect.position;
+                    if position.x >= rect.position.x
+                        && position.x < rect.position.x + rect.size.x
+                        && position.y >= rect.position.y
+                        && position.y < rect.position.y + rect.size.y
+                    {
                         self.insert_tile(Tile {
                             position,
                             definition_handle: brush_tile.definition_handle,
