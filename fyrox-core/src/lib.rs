@@ -4,6 +4,7 @@
 
 #![allow(clippy::upper_case_acronyms)]
 #![allow(clippy::from_over_into)]
+#![allow(clippy::doc_lazy_continuation)]
 
 #[macro_use]
 extern crate memoffset;

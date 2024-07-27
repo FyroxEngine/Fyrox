@@ -5,6 +5,7 @@
 // These are useless.
 #![allow(clippy::upper_case_acronyms)]
 #![allow(clippy::inconsistent_struct_constructor)]
+#![allow(clippy::mutable_key_type)]
 
 #[macro_use]
 extern crate lazy_static;
