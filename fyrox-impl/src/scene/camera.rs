@@ -252,6 +252,18 @@ impl Projection {
             Projection::Orthographic(v) => v.matrix(frame_size),
         }
     }
+
+    /// Returns `true` if the current projection is perspective.
+    #[inline]
+    pub fn is_perspective(&self) -> bool {
+        matches!(self, Projection::Perspective(_))
+    }
+
+    /// Returns `true` if the current projection is orthographic.
+    #[inline]
+    pub fn is_orthographic(&self) -> bool {
+        matches!(self, Projection::Orthographic(_))
+    }
 }
 
 impl Default for Projection {
