@@ -1,6 +1,7 @@
 #![allow(clippy::collapsible_match)] // STFU
 
 mod commands;
+mod misc;
 pub mod palette;
 pub mod panel;
 mod preview;
@@ -11,7 +12,7 @@ use crate::{
     command::SetPropertyCommand,
     fyrox::{
         core::{
-            algebra::{Vector2, Vector3},
+            algebra::{Matrix4, Vector2, Vector3},
             color::Color,
             math::{plane::Plane, Matrix4Ext, Rect},
             parking_lot::Mutex,
@@ -40,14 +41,14 @@ use crate::{
     message::MessageSender,
     plugin::EditorPlugin,
     plugins::tilemap::{
-        palette::PaletteMessage, panel::TileMapPanel, preview::TileSetPreview,
-        tileset::TileSetEditor,
+        misc::TilesPropertyEditorDefinition, palette::PaletteMessage, panel::TileMapPanel,
+        preview::TileSetPreview, tileset::TileSetEditor,
     },
     scene::{commands::GameSceneContext, controller::SceneController, GameScene, Selection},
     settings::Settings,
     Editor, Message,
 };
-use fyrox::core::algebra::Matrix4;
+use fyrox::gui::inspector::editors::inherit::InheritablePropertyEditorDefinition;
 use std::sync::Arc;
 
 fn make_button(
@@ -477,6 +478,15 @@ impl EditorPlugin for TileMapEditorPlugin {
             .asset_browser
             .preview_generators
             .add(TileSet::type_uuid(), TileSetPreview);
+
+        editor
+            .inspector
+            .property_editors
+            .insert(TilesPropertyEditorDefinition);
+        editor
+            .inspector
+            .property_editors
+            .insert(InheritablePropertyEditorDefinition::<Tiles>::new());
     }
 
     fn on_sync_to_model(&mut self, editor: &mut Editor) {
