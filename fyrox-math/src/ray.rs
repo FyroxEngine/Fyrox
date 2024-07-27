@@ -5,7 +5,7 @@ use crate::aabb::AxisAlignedBoundingBox;
 use crate::{is_point_inside_triangle, plane::Plane, solve_quadratic};
 use nalgebra::{Matrix4, Point3, Vector3};
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Ray {
     pub origin: Vector3<f32>,
     pub dir: Vector3<f32>,
