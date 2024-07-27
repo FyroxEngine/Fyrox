@@ -116,7 +116,10 @@ impl TileMapInteractionMode {
 
         ray.plane_intersection_point(&plane).map(|intersection| {
             let local_intersection = inv_global_transform.transform_point(&intersection.into());
-            Vector2::new(local_intersection.x as i32, local_intersection.y as i32)
+            Vector2::new(
+                local_intersection.x.round() as i32,
+                local_intersection.y.round() as i32,
+            )
         })
     }
 }
@@ -345,7 +348,8 @@ impl InteractionMode for TileMapInteractionMode {
                     0.5,
                     transform
                         * Matrix4::new_translation(
-                            &self.brush_position.cast::<f32>().to_homogeneous(),
+                            &(self.brush_position.cast::<f32>().to_homogeneous()
+                                + Vector3::new(0.5, 0.5, 0.0)),
                         ),
                     Color::RED,
                 );
