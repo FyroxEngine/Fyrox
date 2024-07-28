@@ -23,8 +23,10 @@ use crate::{
         engine::Engine,
         graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
         gui::{
-            button::ButtonBuilder, key::HotKey, message::KeyCode, message::UiMessage,
-            utils::make_simple_tooltip, widget::WidgetBuilder, BuildContext, Thickness, UiNode,
+            button::ButtonBuilder,
+            inspector::editors::inherit::InheritablePropertyEditorDefinition, key::HotKey,
+            message::KeyCode, message::UiMessage, utils::make_simple_tooltip,
+            widget::WidgetBuilder, BuildContext, Thickness, UiNode,
         },
         scene::{
             debug::Line,
@@ -32,7 +34,7 @@ use crate::{
             tilemap::{
                 brush::{BrushTile, TileMapBrush},
                 tileset::TileSet,
-                TileMap, Tiles,
+                Tile, TileMap, Tiles,
             },
             Scene,
         },
@@ -48,8 +50,6 @@ use crate::{
     settings::Settings,
     Editor, Message,
 };
-use fyrox::gui::inspector::editors::inherit::InheritablePropertyEditorDefinition;
-use fyrox::scene::tilemap::Tile;
 use std::sync::Arc;
 
 fn make_button(
@@ -156,12 +156,12 @@ impl InteractionMode for TileMapInteractionMode {
             self.brush_position = grid_coord;
 
             match self.drawing_mode {
-                DrawingMode::Draw => tile_map.draw(grid_coord, &brush),
+                DrawingMode::Draw => tile_map.tiles.draw(grid_coord, &brush),
                 DrawingMode::Erase => {
-                    tile_map.erase(grid_coord, &brush);
+                    tile_map.tiles.erase(grid_coord, &brush);
                 }
                 DrawingMode::FloodFill => {
-                    tile_map.flood_fill(grid_coord, &brush);
+                    tile_map.tiles.flood_fill(grid_coord, &brush);
                 }
                 DrawingMode::RectFill {
                     ref mut click_grid_position,
@@ -229,7 +229,7 @@ impl InteractionMode for TileMapInteractionMode {
                         click_grid_position,
                     } => {
                         if let Some(click_grid_position) = click_grid_position {
-                            tile_map.rect_fill(
+                            tile_map.tiles.rect_fill(
                                 Rect::from_points(grid_coord, click_grid_position),
                                 &brush,
                             );
@@ -284,9 +284,9 @@ impl InteractionMode for TileMapInteractionMode {
 
             if self.interaction_context.is_some() {
                 match self.drawing_mode {
-                    DrawingMode::Draw => tile_map.draw(grid_coord, &brush),
+                    DrawingMode::Draw => tile_map.tiles.draw(grid_coord, &brush),
                     DrawingMode::Erase => {
-                        tile_map.erase(grid_coord, &brush);
+                        tile_map.tiles.erase(grid_coord, &brush);
                     }
                     _ => {
                         // Do nothing
@@ -385,11 +385,37 @@ impl InteractionMode for TileMapInteractionMode {
         let brush = self.brush.lock();
 
         tile_map.overlay_tiles.clear();
-        for tile in brush.tiles.iter() {
-            tile_map.overlay_tiles.insert(Tile {
-                position: self.brush_position + tile.local_position,
-                definition_handle: tile.definition_handle,
-            });
+        match self.drawing_mode {
+            DrawingMode::Draw => {
+                for tile in brush.tiles.iter() {
+                    tile_map.overlay_tiles.insert(Tile {
+                        position: self.brush_position + tile.local_position,
+                        definition_handle: tile.definition_handle,
+                    });
+                }
+            }
+            DrawingMode::Erase => {}
+            DrawingMode::FloodFill => {
+                let tiles = tile_map
+                    .tiles
+                    .flood_fill_immutable(self.brush_position, &brush);
+                for tile in tiles {
+                    tile_map.overlay_tiles.insert(tile);
+                }
+            }
+            DrawingMode::Pick { .. } => {}
+            DrawingMode::RectFill {
+                click_grid_position,
+            } => {
+                if self.interaction_context.is_some() {
+                    if let Some(click_grid_position) = click_grid_position {
+                        tile_map.overlay_tiles.rect_fill(
+                            Rect::from_points(self.brush_position, click_grid_position),
+                            &brush,
+                        );
+                    }
+                }
+            }
         }
     }
 

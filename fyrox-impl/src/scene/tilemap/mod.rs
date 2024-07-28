@@ -64,6 +64,45 @@ impl Deref for Tiles {
 }
 
 impl Tiles {
+    /// Calculates bounding rectangle in grid coordinates.
+    #[inline]
+    pub fn bounding_rect(&self) -> Rect<i32> {
+        if self.0.is_empty() {
+            return Rect::default();
+        }
+
+        let mut min = Vector2::repeat(i32::MAX);
+        let mut max = Vector2::repeat(i32::MIN);
+
+        for tile in self.0.values() {
+            min = tile.position.inf(&min);
+
+            let right_bottom_corner = tile.position + Vector2::repeat(1);
+            max = right_bottom_corner.sup(&max);
+        }
+
+        Rect::from_points(min, max)
+    }
+
+    /// Draws on the tile map using the given brush.
+    #[inline]
+    pub fn draw(&mut self, origin: Vector2<i32>, brush: &TileMapBrush) {
+        for brush_tile in brush.tiles.iter() {
+            self.insert(Tile {
+                position: origin + brush_tile.local_position,
+                definition_handle: brush_tile.definition_handle,
+            });
+        }
+    }
+
+    /// Erases the tiles under the given brush.
+    #[inline]
+    pub fn erase(&mut self, origin: Vector2<i32>, brush: &TileMapBrush) {
+        for brush_tile in brush.tiles.iter() {
+            self.remove(origin + brush_tile.local_position);
+        }
+    }
+
     /// Inserts a tile in the tile container. Returns previous tile, located at the same position as
     /// the new one (if any).
     #[inline]
@@ -81,6 +120,101 @@ impl Tiles {
     #[inline]
     pub fn clear(&mut self) {
         self.0.clear();
+    }
+
+    /// Tries to fetch tile definition index at the given point.
+    #[inline]
+    pub fn definition_at(&self, point: Vector2<i32>) -> Option<TileDefinitionHandle> {
+        self.0.get(&point).map(|tile| tile.definition_handle)
+    }
+
+    /// Fills the tile map at the given point using random tiles from the given brush. This method
+    /// extends tile map when trying to fill at a point that lies outside the bounding rectangle.
+    /// Keep in mind, that flood fill is only possible either on free cells or on cells with the same
+    /// tile kind.
+    #[inline]
+    pub fn flood_fill_immutable(
+        &self,
+        start_point: Vector2<i32>,
+        brush: &TileMapBrush,
+    ) -> Vec<Tile> {
+        let mut bounds = self.bounding_rect();
+        bounds.push(start_point);
+
+        let allowed_definition = self.definition_at(start_point);
+        let mut visited = FxHashSet::default();
+        let mut tiles = Vec::new();
+        let mut stack = vec![start_point];
+        while let Some(position) = stack.pop() {
+            let definition = self.definition_at(position);
+            if definition == allowed_definition && !visited.contains(&position) {
+                if let Some(random_tile) = brush.tiles.iter().choose(&mut thread_rng()) {
+                    tiles.push(Tile {
+                        position,
+                        definition_handle: random_tile.definition_handle,
+                    });
+                }
+
+                visited.insert(position);
+
+                // Continue on neighbours.
+                for neighbour_position in [
+                    Vector2::new(position.x - 1, position.y),
+                    Vector2::new(position.x + 1, position.y),
+                    Vector2::new(position.x, position.y - 1),
+                    Vector2::new(position.x, position.y + 1),
+                ] {
+                    if bounds.contains(neighbour_position) {
+                        stack.push(neighbour_position);
+                    }
+                }
+            }
+        }
+        tiles
+    }
+
+    /// Fills the tile map at the given point using random tiles from the given brush. This method
+    /// extends tile map when trying to fill at a point that lies outside the bounding rectangle.
+    /// Keep in mind, that flood fill is only possible either on free cells or on cells with the same
+    /// tile kind.
+    #[inline]
+    pub fn flood_fill(&mut self, start_point: Vector2<i32>, brush: &TileMapBrush) {
+        for tile in self.flood_fill_immutable(start_point, brush) {
+            self.insert(tile);
+        }
+    }
+
+    /// Fills the given rectangle using the specified brush.
+    #[inline]
+    pub fn rect_fill(&mut self, rect: Rect<i32>, brush: &TileMapBrush) {
+        let brush_rect = brush.bounding_rect();
+
+        if brush_rect.size.x == 0 || brush_rect.size.y == 0 {
+            return;
+        }
+
+        for y in
+            (rect.position.y..(rect.position.y + rect.size.y)).step_by(brush_rect.size.y as usize)
+        {
+            for x in (rect.position.x..(rect.position.x + rect.size.x))
+                .step_by(brush_rect.size.x as usize)
+            {
+                for brush_tile in brush.tiles.iter() {
+                    let position =
+                        Vector2::new(x, y) + brush_tile.local_position - brush_rect.position;
+                    if position.x >= rect.position.x
+                        && position.x < rect.position.x + rect.size.x
+                        && position.y >= rect.position.y
+                        && position.y < rect.position.y + rect.size.y
+                    {
+                        self.insert(Tile {
+                            position,
+                            definition_handle: brush_tile.definition_handle,
+                        });
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -161,8 +295,9 @@ impl Tiles {
 pub struct TileMap {
     base: Base,
     tile_set: InheritableVariable<Option<TileSetResource>>,
+    /// Tile container of the tile map.
     #[reflect(read_only)]
-    tiles: InheritableVariable<Tiles>,
+    pub tiles: InheritableVariable<Tiles>,
     tile_scale: InheritableVariable<Vector2<f32>>,
     brushes: InheritableVariable<Vec<Option<TileMapBrushResource>>>,
     active_brush: InheritableVariable<Option<TileMapBrushResource>>,
@@ -245,122 +380,10 @@ impl TileMap {
         self.brushes.set_value_and_mark_modified(brushes);
     }
 
-    /// Draws on the tile map using the given brush.
-    #[inline]
-    pub fn draw(&mut self, origin: Vector2<i32>, brush: &TileMapBrush) {
-        for brush_tile in brush.tiles.iter() {
-            self.insert_tile(Tile {
-                position: origin + brush_tile.local_position,
-                definition_handle: brush_tile.definition_handle,
-            });
-        }
-    }
-
-    /// Erases the tiles under the given brush.
-    #[inline]
-    pub fn erase(&mut self, origin: Vector2<i32>, brush: &TileMapBrush) {
-        for brush_tile in brush.tiles.iter() {
-            self.remove_tile(origin + brush_tile.local_position);
-        }
-    }
-
     /// Calculates bounding rectangle in grid coordinates.
     #[inline]
     pub fn bounding_rect(&self) -> Rect<i32> {
-        if self.tiles.is_empty() {
-            return Rect::default();
-        }
-
-        let mut min = Vector2::repeat(i32::MAX);
-        let mut max = Vector2::repeat(i32::MIN);
-
-        for tile in self.tiles.values() {
-            min = tile.position.inf(&min);
-
-            let right_bottom_corner = tile.position + Vector2::repeat(1);
-            max = right_bottom_corner.sup(&max);
-        }
-
-        Rect::from_points(min, max)
-    }
-
-    /// Tries to fetch tile definition index at the given point.
-    #[inline]
-    pub fn definition_at(&self, point: Vector2<i32>) -> Option<TileDefinitionHandle> {
-        self.tiles.get(&point).map(|tile| tile.definition_handle)
-    }
-
-    /// Fills the tile map at the given point using random tiles from the given brush. This method
-    /// extends tile map when trying to fill at a point that lies outside the bounding rectangle.
-    /// Keep in mind, that flood fill is only possible either on free cells or on cells with the same
-    /// tile kind.
-    #[inline]
-    pub fn flood_fill(&mut self, start_point: Vector2<i32>, brush: &TileMapBrush) {
-        let mut bounds = self.bounding_rect();
-        bounds.push(start_point);
-
-        let allowed_definition = self.definition_at(start_point);
-        let mut visited = FxHashSet::default();
-
-        let mut stack = vec![start_point];
-        while let Some(position) = stack.pop() {
-            let definition = self.definition_at(position);
-            if definition == allowed_definition && !visited.contains(&position) {
-                if let Some(random_tile) = brush.tiles.iter().choose(&mut thread_rng()) {
-                    self.insert_tile(Tile {
-                        position,
-                        definition_handle: random_tile.definition_handle,
-                    });
-                }
-
-                visited.insert(position);
-
-                // Continue on neighbours.
-                for neighbour_position in [
-                    Vector2::new(position.x - 1, position.y),
-                    Vector2::new(position.x + 1, position.y),
-                    Vector2::new(position.x, position.y - 1),
-                    Vector2::new(position.x, position.y + 1),
-                ] {
-                    if bounds.contains(neighbour_position) {
-                        stack.push(neighbour_position);
-                    }
-                }
-            }
-        }
-    }
-
-    /// Fills the given rectangle using the specified brush.
-    #[inline]
-    pub fn rect_fill(&mut self, rect: Rect<i32>, brush: &TileMapBrush) {
-        let brush_rect = brush.bounding_rect();
-
-        if brush_rect.size.x == 0 || brush_rect.size.y == 0 {
-            return;
-        }
-
-        for y in
-            (rect.position.y..(rect.position.y + rect.size.y)).step_by(brush_rect.size.y as usize)
-        {
-            for x in (rect.position.x..(rect.position.x + rect.size.x))
-                .step_by(brush_rect.size.x as usize)
-            {
-                for brush_tile in brush.tiles.iter() {
-                    let position =
-                        Vector2::new(x, y) + brush_tile.local_position - brush_rect.position;
-                    if position.x >= rect.position.x
-                        && position.x < rect.position.x + rect.size.x
-                        && position.y >= rect.position.y
-                        && position.y < rect.position.y + rect.size.y
-                    {
-                        self.insert_tile(Tile {
-                            position,
-                            definition_handle: brush_tile.definition_handle,
-                        });
-                    }
-                }
-            }
-        }
+        self.tiles.bounding_rect()
     }
 }
 
