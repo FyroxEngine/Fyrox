@@ -76,6 +76,12 @@ impl Tiles {
     pub fn remove(&mut self, position: Vector2<i32>) -> Option<Tile> {
         self.0.remove(&position)
     }
+
+    /// Clears the tile container.
+    #[inline]
+    pub fn clear(&mut self) {
+        self.0.clear();
+    }
 }
 
 /// Tile map is a 2D "image", made out of a small blocks called tiles. Tile maps used in 2D games to
@@ -160,6 +166,9 @@ pub struct TileMap {
     tile_scale: InheritableVariable<Vector2<f32>>,
     brushes: InheritableVariable<Vec<Option<TileMapBrushResource>>>,
     active_brush: InheritableVariable<Option<TileMapBrushResource>>,
+    /// Tiles that will be rendered on top of everything else.
+    #[reflect(read_only)]
+    pub overlay_tiles: InheritableVariable<Tiles>,
 }
 
 impl TileMap {
@@ -364,6 +373,7 @@ impl Default for TileMap {
             tile_scale: Vector2::repeat(1.0).into(),
             brushes: Default::default(),
             active_brush: Default::default(),
+            overlay_tiles: Default::default(),
         }
     }
 }
@@ -428,73 +438,78 @@ impl NodeTrait for TileMap {
 
         let tile_set = tile_set_resource.data_ref();
 
-        for tile in self.tiles.values() {
-            let Some(tile_definition) = tile_set.tiles.try_borrow(tile.definition_handle) else {
-                continue;
-            };
+        for tiles in [&self.tiles, &self.overlay_tiles] {
+            for tile in tiles.values() {
+                let Some(tile_definition) = tile_set.tiles.try_borrow(tile.definition_handle)
+                else {
+                    continue;
+                };
 
-            let global_transform = self.global_transform();
+                let global_transform = self.global_transform();
 
-            type Vertex = RectangleVertex;
+                type Vertex = RectangleVertex;
 
-            let position = tile.position.cast::<f32>().to_homogeneous();
+                let position = tile.position.cast::<f32>().to_homogeneous();
 
-            let vertices = [
-                Vertex {
-                    position: global_transform
-                        .transform_point(&(position + Vector3::new(0.0, 1.0, 0.0)).into())
-                        .coords,
-                    tex_coord: tile_definition.uv_rect.right_top_corner(),
-                    color: tile_definition.color,
-                },
-                Vertex {
-                    position: global_transform
-                        .transform_point(&(position + Vector3::new(1.0, 1.0, 0.0)).into())
-                        .coords,
-                    tex_coord: tile_definition.uv_rect.left_top_corner(),
-                    color: tile_definition.color,
-                },
-                Vertex {
-                    position: global_transform
-                        .transform_point(&(position + Vector3::new(1.00, 0.0, 0.0)).into())
-                        .coords,
-                    tex_coord: tile_definition.uv_rect.left_bottom_corner(),
-                    color: tile_definition.color,
-                },
-                Vertex {
-                    position: global_transform
-                        .transform_point(&(position + Vector3::new(0.0, 0.0, 0.0)).into())
-                        .coords,
-                    tex_coord: tile_definition.uv_rect.right_bottom_corner(),
-                    color: tile_definition.color,
-                },
-            ];
+                let vertices = [
+                    Vertex {
+                        position: global_transform
+                            .transform_point(&(position + Vector3::new(0.0, 1.0, 0.0)).into())
+                            .coords,
+                        tex_coord: tile_definition.uv_rect.right_top_corner(),
+                        color: tile_definition.color,
+                    },
+                    Vertex {
+                        position: global_transform
+                            .transform_point(&(position + Vector3::new(1.0, 1.0, 0.0)).into())
+                            .coords,
+                        tex_coord: tile_definition.uv_rect.left_top_corner(),
+                        color: tile_definition.color,
+                    },
+                    Vertex {
+                        position: global_transform
+                            .transform_point(&(position + Vector3::new(1.00, 0.0, 0.0)).into())
+                            .coords,
+                        tex_coord: tile_definition.uv_rect.left_bottom_corner(),
+                        color: tile_definition.color,
+                    },
+                    Vertex {
+                        position: global_transform
+                            .transform_point(&(position + Vector3::new(0.0, 0.0, 0.0)).into())
+                            .coords,
+                        tex_coord: tile_definition.uv_rect.right_bottom_corner(),
+                        color: tile_definition.color,
+                    },
+                ];
 
-            let triangles = [TriangleDefinition([0, 1, 2]), TriangleDefinition([2, 3, 0])];
+                let triangles = [TriangleDefinition([0, 1, 2]), TriangleDefinition([2, 3, 0])];
 
-            let sort_index = ctx.calculate_sorting_index(self.global_position());
+                let sort_index = ctx.calculate_sorting_index(self.global_position());
 
-            ctx.storage.push_triangles(
-                RectangleVertex::layout(),
-                &tile_definition.material,
-                RenderPath::Forward,
-                0,
-                sort_index,
-                false,
-                self.self_handle,
-                &mut move |mut vertex_buffer, mut triangle_buffer| {
-                    let start_vertex_index = vertex_buffer.vertex_count();
+                ctx.storage.push_triangles(
+                    RectangleVertex::layout(),
+                    &tile_definition.material,
+                    RenderPath::Forward,
+                    0,
+                    sort_index,
+                    false,
+                    self.self_handle,
+                    &mut move |mut vertex_buffer, mut triangle_buffer| {
+                        let start_vertex_index = vertex_buffer.vertex_count();
 
-                    for vertex in vertices.iter() {
-                        vertex_buffer
-                            .push_vertex_raw(value_as_u8_slice(vertex))
-                            .unwrap();
-                    }
+                        for vertex in vertices.iter() {
+                            vertex_buffer
+                                .push_vertex_raw(value_as_u8_slice(vertex))
+                                .unwrap();
+                        }
 
-                    triangle_buffer
-                        .push_triangles_iter_with_offset(start_vertex_index, triangles.into_iter());
-                },
-            );
+                        triangle_buffer.push_triangles_iter_with_offset(
+                            start_vertex_index,
+                            triangles.into_iter(),
+                        );
+                    },
+                );
+            }
         }
 
         RdcControlFlow::Continue
@@ -566,6 +581,7 @@ impl TileMapBuilder {
             tile_scale: self.tile_scale.into(),
             brushes: self.brushes.into(),
             active_brush: Default::default(),
+            overlay_tiles: Default::default(),
         })
     }
 

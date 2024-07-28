@@ -49,6 +49,7 @@ use crate::{
     Editor, Message,
 };
 use fyrox::gui::inspector::editors::inherit::InheritablePropertyEditorDefinition;
+use fyrox::scene::tilemap::Tile;
 use std::sync::Arc;
 
 fn make_button(
@@ -308,7 +309,7 @@ impl InteractionMode for TileMapInteractionMode {
 
         let scene = &mut engine.scenes[game_scene.scene];
 
-        let Some(tile_map) = scene.graph.try_get(self.tile_map) else {
+        let Some(tile_map) = scene.graph.try_get_mut_of_type::<TileMap>(self.tile_map) else {
             return;
         };
 
@@ -379,6 +380,16 @@ impl InteractionMode for TileMapInteractionMode {
                     }
                 }
             }
+        }
+
+        let brush = self.brush.lock();
+
+        tile_map.overlay_tiles.clear();
+        for tile in brush.tiles.iter() {
+            tile_map.overlay_tiles.insert(Tile {
+                position: self.brush_position + tile.local_position,
+                definition_handle: tile.definition_handle,
+            });
         }
     }
 
