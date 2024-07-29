@@ -62,6 +62,7 @@ pub struct TileMapPanel {
     flood_fill_button: Handle<UiNode>,
     pick_button: Handle<UiNode>,
     rect_fill_button: Handle<UiNode>,
+    nine_slice_button: Handle<UiNode>,
 }
 
 fn generate_tiles(
@@ -208,6 +209,14 @@ impl TileMapPanel {
             "Fill the rectangle using the current brush.",
             Some(0),
         );
+        let nine_slice_button = make_drawing_mode_button(
+            ctx,
+            width,
+            height,
+            load_image(include_bytes!("../../../resources/nine_slice.png")),
+            "Draw rectangles with fixed corners, but stretchable sides.",
+            Some(0),
+        );
 
         let drawing_modes_panel = WrapPanelBuilder::new(
             WidgetBuilder::new()
@@ -216,7 +225,8 @@ impl TileMapPanel {
                 .with_child(erase_button)
                 .with_child(flood_fill_button)
                 .with_child(pick_button)
-                .with_child(rect_fill_button),
+                .with_child(rect_fill_button)
+                .with_child(nine_slice_button),
         )
         .with_orientation(Orientation::Horizontal)
         .build(ctx);
@@ -269,6 +279,7 @@ impl TileMapPanel {
             flood_fill_button,
             pick_button,
             rect_fill_button,
+            nine_slice_button,
         }
     }
 
@@ -432,6 +443,10 @@ impl TileMapPanel {
                     interaction_mode.drawing_mode = DrawingMode::Pick {
                         click_grid_position: Default::default(),
                     };
+                } else if message.destination() == self.nine_slice_button {
+                    interaction_mode.drawing_mode = DrawingMode::NineSlice {
+                        click_grid_position: Default::default(),
+                    };
                 } else if message.destination() == self.edit {
                     sender.send(Message::SetInteractionMode(
                         TileMapInteractionMode::type_uuid(),
@@ -494,6 +509,9 @@ impl TileMapPanel {
                 }
                 DrawingMode::RectFill { .. } => {
                     highlight_all_except(self.rect_fill_button, &buttons, true, ui);
+                }
+                DrawingMode::NineSlice { .. } => {
+                    highlight_all_except(self.nine_slice_button, &buttons, true, ui);
                 }
             }
         }

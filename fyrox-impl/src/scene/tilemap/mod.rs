@@ -34,6 +34,73 @@ use crate::{
 use fxhash::{FxHashMap, FxHashSet};
 use std::ops::{Deref, DerefMut};
 
+struct BresenhamLineIter {
+    dx: i32,
+    dy: i32,
+    x: i32,
+    y: i32,
+    error: i32,
+    end_x: i32,
+    is_steep: bool,
+    y_step: i32,
+}
+
+impl BresenhamLineIter {
+    fn new(start: Vector2<i32>, end: Vector2<i32>) -> BresenhamLineIter {
+        let (mut x0, mut y0) = (start.x, start.y);
+        let (mut x1, mut y1) = (end.x, end.y);
+
+        let is_steep = (y1 - y0).abs() > (x1 - x0).abs();
+        if is_steep {
+            std::mem::swap(&mut x0, &mut y0);
+            std::mem::swap(&mut x1, &mut y1);
+        }
+
+        if x0 > x1 {
+            std::mem::swap(&mut x0, &mut x1);
+            std::mem::swap(&mut y0, &mut y1);
+        }
+
+        let dx = x1 - x0;
+
+        BresenhamLineIter {
+            dx,
+            dy: (y1 - y0).abs(),
+            x: x0,
+            y: y0,
+            error: dx / 2,
+            end_x: x1,
+            is_steep,
+            y_step: if y0 < y1 { 1 } else { -1 },
+        }
+    }
+}
+
+impl Iterator for BresenhamLineIter {
+    type Item = Vector2<i32>;
+
+    fn next(&mut self) -> Option<Vector2<i32>> {
+        if self.x > self.end_x {
+            None
+        } else {
+            let ret = if self.is_steep {
+                Vector2::new(self.y, self.x)
+            } else {
+                Vector2::new(self.x, self.y)
+            };
+
+            self.x += 1;
+            self.error -= self.dy;
+            if self.error < 0 {
+                self.y += self.y_step;
+                self.error += self.dx;
+            }
+
+            Some(ret)
+        }
+    }
+}
+
 /// Tile is a base block of a tile map. It has a position and a handle of tile definition, stored
 /// in the respective tile set.
 #[derive(Clone, Reflect, Default, Debug, PartialEq, Visit, ComponentProvider, TypeUuidProvider)]
@@ -214,6 +281,109 @@ impl Tiles {
                     }
                 }
             }
+        }
+    }
+
+    /// Draw a line from a point to point.
+    #[inline]
+    pub fn line(
+        &mut self,
+        from: Vector2<i32>,
+        to: Vector2<i32>,
+        definition_handle: TileDefinitionHandle,
+    ) {
+        for position in BresenhamLineIter::new(from, to) {
+            self.insert(Tile {
+                position,
+                definition_handle,
+            });
+        }
+    }
+
+    /// Fills in a rectangle using special brush with 3x3 tiles. It puts
+    /// corner tiles in the respective corners of the target rectangle and draws lines between each
+    /// corner using middle tiles.
+    #[inline]
+    pub fn nine_slice(&mut self, rect: Rect<i32>, brush: &TileMapBrush) {
+        let brush_rect = brush.bounding_rect();
+
+        // Place corners first.
+        for (corner_position, actual_corner_position) in [
+            (Vector2::new(0, 0), rect.left_top_corner()),
+            (Vector2::new(2, 0), rect.right_top_corner()),
+            (Vector2::new(2, 2), rect.right_bottom_corner()),
+            (Vector2::new(0, 2), rect.left_bottom_corner()),
+        ] {
+            if let Some(tile) = brush
+                .tiles
+                .iter()
+                .find(|tile| tile.local_position - brush_rect.position == corner_position)
+            {
+                self.insert(Tile {
+                    position: actual_corner_position,
+                    definition_handle: tile.definition_handle,
+                });
+            }
+        }
+
+        // Fill gaps.
+        for (brush_tile_position, (begin, end)) in [
+            (
+                Vector2::new(0, 1),
+                (
+                    Vector2::new(rect.position.x, rect.position.y + 1),
+                    Vector2::new(rect.position.x, rect.position.y + rect.size.y - 1),
+                ),
+            ),
+            (
+                Vector2::new(1, 0),
+                (
+                    Vector2::new(rect.position.x + 1, rect.position.y),
+                    Vector2::new(rect.position.x + rect.size.x - 1, rect.position.y),
+                ),
+            ),
+            (
+                Vector2::new(2, 1),
+                (
+                    Vector2::new(rect.position.x + rect.size.x, rect.position.y + 1),
+                    Vector2::new(
+                        rect.position.x + rect.size.x,
+                        rect.position.y + rect.size.y - 1,
+                    ),
+                ),
+            ),
+            (
+                Vector2::new(1, 2),
+                (
+                    Vector2::new(rect.position.x + 1, rect.position.y + rect.size.y),
+                    Vector2::new(
+                        rect.position.x + rect.size.x - 1,
+                        rect.position.y + rect.size.y,
+                    ),
+                ),
+            ),
+        ] {
+            if let Some(tile) = brush
+                .tiles
+                .iter()
+                .find(|tile| tile.local_position - brush_rect.position == brush_tile_position)
+            {
+                self.line(begin, end, tile.definition_handle);
+            }
+        }
+
+        if let Some(center_tile) = brush
+            .tiles
+            .iter()
+            .find(|tile| tile.local_position - brush_rect.position == Vector2::new(1, 1))
+        {
+            self.flood_fill(
+                rect.center(),
+                &TileMapBrush {
+                    // TODO: Remove alloc.
+                    tiles: vec![center_tile.clone()],
+                },
+            );
         }
     }
 }

@@ -81,6 +81,9 @@ pub enum DrawingMode {
     RectFill {
         click_grid_position: Option<Vector2<i32>>,
     },
+    NineSlice {
+        click_grid_position: Option<Vector2<i32>>,
+    },
 }
 
 struct InteractionContext {
@@ -170,6 +173,9 @@ impl InteractionMode for TileMapInteractionMode {
                 }
                 | DrawingMode::Pick {
                     ref mut click_grid_position,
+                }
+                | DrawingMode::NineSlice {
+                    ref mut click_grid_position,
                 } => {
                     *click_grid_position = Some(grid_coord);
                 }
@@ -237,7 +243,16 @@ impl InteractionMode for TileMapInteractionMode {
                             );
                         }
                     }
-
+                    DrawingMode::NineSlice {
+                        click_grid_position,
+                    } => {
+                        if let Some(click_grid_position) = click_grid_position {
+                            tile_map.tiles.nine_slice(
+                                Rect::from_points(grid_coord, click_grid_position),
+                                &brush,
+                            )
+                        }
+                    }
                     _ => (),
                 }
             }
@@ -363,6 +378,9 @@ impl InteractionMode for TileMapInteractionMode {
             }
             | DrawingMode::RectFill {
                 click_grid_position,
+            }
+            | DrawingMode::NineSlice {
+                click_grid_position,
             } => {
                 if self.interaction_context.is_some() {
                     if let Some(click_grid_position) = click_grid_position {
@@ -412,6 +430,18 @@ impl InteractionMode for TileMapInteractionMode {
                 if self.interaction_context.is_some() {
                     if let Some(click_grid_position) = click_grid_position {
                         tile_map.overlay_tiles.rect_fill(
+                            Rect::from_points(self.brush_position, click_grid_position),
+                            &brush,
+                        );
+                    }
+                }
+            }
+            DrawingMode::NineSlice {
+                click_grid_position,
+            } => {
+                if self.interaction_context.is_some() {
+                    if let Some(click_grid_position) = click_grid_position {
+                        tile_map.overlay_tiles.nine_slice(
                             Rect::from_points(self.brush_position, click_grid_position),
                             &brush,
                         );
