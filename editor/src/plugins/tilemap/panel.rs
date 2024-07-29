@@ -2,21 +2,27 @@ use crate::{
     asset::item::AssetItem,
     command::{Command, CommandGroup, SetPropertyCommand},
     fyrox::{
+        asset::untyped::UntypedResource,
+        core::color::Color,
         core::{algebra::Vector2, pool::Handle, TypeUuidProvider, Uuid},
         fxhash::FxHashSet,
         graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
         gui::{
             border::BorderBuilder,
+            brush::Brush,
             button::{Button, ButtonBuilder, ButtonMessage},
-            decorator::DecoratorMessage,
+            decorator::{DecoratorBuilder, DecoratorMessage},
             dropdown_list::{DropdownListBuilder, DropdownListMessage},
             grid::{Column, GridBuilder, Row},
+            image::ImageBuilder,
             message::{MessageDirection, UiMessage},
+            utils::make_simple_tooltip,
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
             wrap_panel::WrapPanelBuilder,
             BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
-            VerticalAlignment,
+            VerticalAlignment, BRUSH_BRIGHT_BLUE, BRUSH_DARKER, BRUSH_LIGHT, BRUSH_LIGHTER,
+            BRUSH_LIGHTEST,
         },
         scene::{
             node::Node,
@@ -27,7 +33,7 @@ use crate::{
             },
         },
     },
-    gui::{make_dropdown_list_option, make_image_button_with_tooltip},
+    gui::make_dropdown_list_option,
     load_image,
     message::MessageSender,
     plugins::tilemap::{
@@ -94,6 +100,47 @@ fn selected_brush_index(tile_map: &TileMap) -> Option<usize> {
         .position(|brush| brush == &tile_map.active_brush())
 }
 
+fn make_drawing_mode_button(
+    ctx: &mut BuildContext,
+    width: f32,
+    height: f32,
+    image: Option<UntypedResource>,
+    tooltip: &str,
+    tab_index: Option<usize>,
+) -> Handle<UiNode> {
+    ButtonBuilder::new(
+        WidgetBuilder::new()
+            .with_tab_index(tab_index)
+            .with_tooltip(make_simple_tooltip(ctx, tooltip))
+            .with_margin(Thickness::uniform(1.0)),
+    )
+    .with_back(
+        DecoratorBuilder::new(
+            BorderBuilder::new(WidgetBuilder::new().with_foreground(BRUSH_DARKER))
+                .with_pad_by_corner_radius(false)
+                .with_corner_radius(4.0)
+                .with_stroke_thickness(Thickness::uniform(1.0)),
+        )
+        .with_selected_brush(BRUSH_BRIGHT_BLUE)
+        .with_normal_brush(BRUSH_LIGHT)
+        .with_hover_brush(BRUSH_LIGHTER)
+        .with_pressed_brush(BRUSH_LIGHTEST)
+        .build(ctx),
+    )
+    .with_content(
+        ImageBuilder::new(
+            WidgetBuilder::new()
+                .with_background(Brush::Solid(Color::opaque(180, 180, 180)))
+                .with_margin(Thickness::uniform(2.0))
+                .with_width(width)
+                .with_height(height),
+        )
+        .with_opt_texture(image)
+        .build(ctx),
+    )
+    .build(ctx)
+}
+
 impl TileMapPanel {
     pub fn new(ctx: &mut BuildContext, scene_frame: Handle<UiNode>, tile_map: &TileMap) -> Self {
         let tiles = tile_map
@@ -121,7 +168,7 @@ impl TileMapPanel {
 
         let width = 20.0;
         let height = 20.0;
-        let draw_button = make_image_button_with_tooltip(
+        let draw_button = make_drawing_mode_button(
             ctx,
             width,
             height,
@@ -129,7 +176,7 @@ impl TileMapPanel {
             "Draw with active brush.",
             Some(0),
         );
-        let erase_button = make_image_button_with_tooltip(
+        let erase_button = make_drawing_mode_button(
             ctx,
             width,
             height,
@@ -137,7 +184,7 @@ impl TileMapPanel {
             "Erase with active brush.",
             Some(0),
         );
-        let flood_fill_button = make_image_button_with_tooltip(
+        let flood_fill_button = make_drawing_mode_button(
             ctx,
             width,
             height,
@@ -145,7 +192,7 @@ impl TileMapPanel {
             "Flood fill with random tiles from current brush.",
             Some(0),
         );
-        let pick_button = make_image_button_with_tooltip(
+        let pick_button = make_drawing_mode_button(
             ctx,
             width,
             height,
@@ -153,7 +200,7 @@ impl TileMapPanel {
             "Pick tiles for drawing from the tile map.",
             Some(0),
         );
-        let rect_fill_button = make_image_button_with_tooltip(
+        let rect_fill_button = make_drawing_mode_button(
             ctx,
             width,
             height,
