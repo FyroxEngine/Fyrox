@@ -277,8 +277,8 @@ impl CameraController {
                 if self.pitch > 90.0f32.to_radians() {
                     self.pitch = 90.0f32.to_radians();
                 }
-                if self.pitch < -90.0f32.to_radians() {
-                    self.pitch = -90.0f32.to_radians();
+                if self.pitch < (-90.0f32).to_radians() {
+                    self.pitch = (-90.0f32).to_radians();
                 }
             }
             MouseControlMode::Drag {

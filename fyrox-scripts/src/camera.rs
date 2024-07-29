@@ -135,7 +135,7 @@ impl Default for FlyingCameraController {
             pitch: Default::default(),
             speed: 5.0.into(),
             sensitivity: 0.7.into(),
-            pitch_limit: (-89.9f32.to_radians()..89.9f32.to_radians()).into(),
+            pitch_limit: ((-89.9f32).to_radians()..89.9f32.to_radians()).into(),
             move_forward_key: KeyBinding::Some(KeyCode::KeyW).into(),
             move_backward_key: KeyBinding::Some(KeyCode::KeyS).into(),
             move_left_key: KeyBinding::Some(KeyCode::KeyA).into(),

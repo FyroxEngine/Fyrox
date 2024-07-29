@@ -129,7 +129,7 @@ impl SceneGizmo {
                         Matrix4::new_translation(&Vector3::new(-1.50, 0.0, 0.0))
                             * UnitQuaternion::from_axis_angle(
                                 &Vector3::z_axis(),
-                                -90.0f32.to_radians(),
+                                (-90.0f32).to_radians(),
                             )
                             .to_homogeneous(),
                         Color::WHITE,
@@ -142,7 +142,7 @@ impl SceneGizmo {
                         Matrix4::new_translation(&Vector3::new(0.0, 0.0, 1.50))
                             * UnitQuaternion::from_axis_angle(
                                 &Vector3::x_axis(),
-                                -90.0f32.to_radians(),
+                                (-90.0f32).to_radians(),
                             )
                             .to_homogeneous(),
                         Color::BLUE,
@@ -310,11 +310,11 @@ impl SceneGizmo {
         } else if closest == self.pos_x {
             Some(SceneGizmoAction::Rotate(CameraRotation {
                 pitch: 0.0,
-                yaw: -90.0f32.to_radians(),
+                yaw: (-90.0f32).to_radians(),
             }))
         } else if closest == self.neg_y {
             Some(SceneGizmoAction::Rotate(CameraRotation {
-                pitch: -90.0f32.to_radians(),
+                pitch: (-90.0f32).to_radians(),
                 yaw: 0.0,
             }))
         } else if closest == self.pos_y {
@@ -330,7 +330,7 @@ impl SceneGizmo {
         } else if closest == self.pos_z {
             Some(SceneGizmoAction::Rotate(CameraRotation {
                 pitch: 0.0,
-                yaw: -180.0f32.to_radians(),
+                yaw: (-180.0f32).to_radians(),
             }))
         } else if closest == self.center {
             Some(SceneGizmoAction::SwitchProjection)

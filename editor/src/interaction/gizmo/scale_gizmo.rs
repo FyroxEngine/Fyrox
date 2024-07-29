@@ -120,7 +120,7 @@ impl ScaleGizmo {
 
         let (x_axis, x_arrow) = make_scale_axis(
             graph,
-            UnitQuaternion::from_axis_angle(&Vector3::z_axis(), -90.0f32.to_radians()),
+            UnitQuaternion::from_axis_angle(&Vector3::z_axis(), (-90.0f32).to_radians()),
             Color::RED,
             "X",
         );
