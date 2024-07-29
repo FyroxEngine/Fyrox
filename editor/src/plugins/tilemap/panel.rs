@@ -492,6 +492,7 @@ impl TileMapPanel {
                 self.erase_button,
                 self.flood_fill_button,
                 self.rect_fill_button,
+                self.nine_slice_button,
             ];
 
             match interaction_mode.drawing_mode {
