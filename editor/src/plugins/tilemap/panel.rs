@@ -50,6 +50,7 @@ pub struct TileMapPanel {
     pub palette: Handle<UiNode>,
     active_brush_selector: Handle<UiNode>,
     edit: Handle<UiNode>,
+    pub drawing_modes_panel: Handle<UiNode>,
     draw_button: Handle<UiNode>,
     erase_button: Handle<UiNode>,
     flood_fill_button: Handle<UiNode>,
@@ -161,15 +162,23 @@ impl TileMapPanel {
             Some(0),
         );
 
-        let toolbar = WrapPanelBuilder::new(
+        let drawing_modes_panel = WrapPanelBuilder::new(
             WidgetBuilder::new()
-                .on_row(0)
-                .with_child(edit)
+                .with_enabled(false)
                 .with_child(draw_button)
                 .with_child(erase_button)
                 .with_child(flood_fill_button)
                 .with_child(pick_button)
-                .with_child(rect_fill_button)
+                .with_child(rect_fill_button),
+        )
+        .with_orientation(Orientation::Horizontal)
+        .build(ctx);
+
+        let toolbar = WrapPanelBuilder::new(
+            WidgetBuilder::new()
+                .on_row(0)
+                .with_child(edit)
+                .with_child(drawing_modes_panel)
                 .with_child(active_brush_selector),
         )
         .with_orientation(Orientation::Horizontal)
@@ -207,6 +216,7 @@ impl TileMapPanel {
             palette,
             active_brush_selector,
             edit,
+            drawing_modes_panel,
             draw_button,
             erase_button,
             flood_fill_button,

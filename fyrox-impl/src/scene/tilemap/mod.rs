@@ -303,6 +303,7 @@ pub struct TileMap {
     active_brush: InheritableVariable<Option<TileMapBrushResource>>,
     /// Tiles that will be rendered on top of everything else.
     #[reflect(read_only)]
+    #[visit(skip)]
     pub overlay_tiles: InheritableVariable<Tiles>,
 }
 

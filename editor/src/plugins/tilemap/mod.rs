@@ -25,8 +25,9 @@ use crate::{
         gui::{
             button::ButtonBuilder,
             inspector::editors::inherit::InheritablePropertyEditorDefinition, key::HotKey,
-            message::KeyCode, message::UiMessage, utils::make_simple_tooltip,
-            widget::WidgetBuilder, BuildContext, Thickness, UiNode,
+            message::KeyCode, message::MessageDirection, message::UiMessage,
+            utils::make_simple_tooltip, widget::WidgetBuilder, widget::WidgetMessage, BuildContext,
+            Thickness, UiNode,
         },
         scene::{
             debug::Line,
@@ -95,6 +96,7 @@ pub struct TileMapInteractionMode {
     interaction_context: Option<InteractionContext>,
     sender: MessageSender,
     drawing_mode: DrawingMode,
+    drawing_modes_panel: Handle<UiNode>,
 }
 
 impl TileMapInteractionMode {
@@ -419,8 +421,38 @@ impl InteractionMode for TileMapInteractionMode {
         }
     }
 
-    fn deactivate(&mut self, _controller: &dyn SceneController, _engine: &mut Engine) {
-        // TODO
+    fn activate(&mut self, _controller: &dyn SceneController, engine: &mut Engine) {
+        engine
+            .user_interfaces
+            .first()
+            .send_message(WidgetMessage::enabled(
+                self.drawing_modes_panel,
+                MessageDirection::ToWidget,
+                true,
+            ));
+    }
+
+    fn deactivate(&mut self, controller: &dyn SceneController, engine: &mut Engine) {
+        engine
+            .user_interfaces
+            .first()
+            .send_message(WidgetMessage::enabled(
+                self.drawing_modes_panel,
+                MessageDirection::ToWidget,
+                false,
+            ));
+
+        let Some(game_scene) = controller.downcast_ref::<GameScene>() else {
+            return;
+        };
+
+        let scene = &mut engine.scenes[game_scene.scene];
+
+        let Some(tile_map) = scene.graph.try_get_mut_of_type::<TileMap>(self.tile_map) else {
+            return;
+        };
+
+        tile_map.overlay_tiles.clear();
     }
 
     fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<UiNode> {
@@ -655,6 +687,16 @@ impl EditorPlugin for TileMapEditorPlugin {
 
                     self.tile_map = *node_handle;
 
+                    let panel = TileMapPanel::new(
+                        &mut ui.build_ctx(),
+                        editor.scene_viewer.frame(),
+                        tile_map,
+                    );
+
+                    let drawing_modes_panel = panel.drawing_modes_panel;
+
+                    self.panel = Some(panel);
+
                     entry.interaction_modes.add(TileMapInteractionMode {
                         tile_map: *node_handle,
                         brush: self.brush.clone(),
@@ -662,13 +704,8 @@ impl EditorPlugin for TileMapEditorPlugin {
                         interaction_context: None,
                         sender: editor.message_sender.clone(),
                         drawing_mode: DrawingMode::Draw,
+                        drawing_modes_panel,
                     });
-
-                    self.panel = Some(TileMapPanel::new(
-                        &mut ui.build_ctx(),
-                        editor.scene_viewer.frame(),
-                        tile_map,
-                    ));
 
                     break;
                 }
