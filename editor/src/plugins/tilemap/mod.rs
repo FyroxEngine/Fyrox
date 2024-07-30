@@ -84,6 +84,9 @@ pub enum DrawingMode {
     NineSlice {
         click_grid_position: Option<Vector2<i32>>,
     },
+    Line {
+        click_grid_position: Option<Vector2<i32>>,
+    },
 }
 
 struct InteractionContext {
@@ -176,6 +179,9 @@ impl InteractionMode for TileMapInteractionMode {
                 }
                 | DrawingMode::NineSlice {
                     ref mut click_grid_position,
+                }
+                | DrawingMode::Line {
+                    ref mut click_grid_position,
                 } => {
                     *click_grid_position = Some(grid_coord);
                 }
@@ -251,6 +257,17 @@ impl InteractionMode for TileMapInteractionMode {
                                 Rect::from_points(grid_coord, click_grid_position),
                                 &brush,
                             )
+                        }
+                    }
+                    DrawingMode::Line {
+                        click_grid_position,
+                    } => {
+                        if let Some(click_grid_position) = click_grid_position {
+                            tile_map.tiles.draw_line_with_brush(
+                                self.brush_position,
+                                click_grid_position,
+                                &brush,
+                            );
                         }
                     }
                     _ => (),
@@ -373,6 +390,26 @@ impl InteractionMode for TileMapInteractionMode {
                     Color::RED,
                 );
             }
+            DrawingMode::Line {
+                click_grid_position,
+            } => {
+                if self.interaction_context.is_some() {
+                    if let Some(click_grid_position) = click_grid_position {
+                        for point in [click_grid_position, self.brush_position] {
+                            scene.drawing_context.draw_rectangle(
+                                0.5,
+                                0.5,
+                                transform
+                                    * Matrix4::new_translation(
+                                        &(point.cast::<f32>().to_homogeneous()
+                                            + Vector3::new(0.5, 0.5, 0.0)),
+                                    ),
+                                Color::RED,
+                            );
+                        }
+                    }
+                }
+            }
             DrawingMode::Pick {
                 click_grid_position,
             }
@@ -443,6 +480,19 @@ impl InteractionMode for TileMapInteractionMode {
                     if let Some(click_grid_position) = click_grid_position {
                         tile_map.overlay_tiles.nine_slice(
                             Rect::from_points(self.brush_position, click_grid_position),
+                            &brush,
+                        );
+                    }
+                }
+            }
+            DrawingMode::Line {
+                click_grid_position,
+            } => {
+                if self.interaction_context.is_some() {
+                    if let Some(click_grid_position) = click_grid_position {
+                        tile_map.overlay_tiles.draw_line_with_brush(
+                            self.brush_position,
+                            click_grid_position,
                             &brush,
                         );
                     }

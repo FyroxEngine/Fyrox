@@ -286,7 +286,7 @@ impl Tiles {
 
     /// Draw a line from a point to point.
     #[inline]
-    pub fn line(
+    pub fn draw_line(
         &mut self,
         from: Vector2<i32>,
         to: Vector2<i32>,
@@ -297,6 +297,24 @@ impl Tiles {
                 position,
                 definition_handle,
             });
+        }
+    }
+
+    /// Draw a line from a point to point using random tiles from the given brush.
+    #[inline]
+    pub fn draw_line_with_brush(
+        &mut self,
+        from: Vector2<i32>,
+        to: Vector2<i32>,
+        brush: &TileMapBrush,
+    ) {
+        for position in BresenhamLineIter::new(from, to) {
+            if let Some(random_tile) = brush.tiles.iter().choose(&mut thread_rng()) {
+                self.insert(Tile {
+                    position,
+                    definition_handle: random_tile.definition_handle,
+                });
+            }
         }
     }
 
@@ -368,7 +386,7 @@ impl Tiles {
                 .iter()
                 .find(|tile| tile.local_position - brush_rect.position == brush_tile_position)
             {
-                self.line(begin, end, tile.definition_handle);
+                self.draw_line(begin, end, tile.definition_handle);
             }
         }
 
