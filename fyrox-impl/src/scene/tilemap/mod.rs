@@ -11,7 +11,6 @@ use crate::{
         pool::Handle,
         reflect::prelude::*,
         type_traits::prelude::*,
-        value_as_u8_slice,
         variable::InheritableVariable,
         visitor::prelude::*,
     },
@@ -659,33 +658,31 @@ impl NodeTrait for TileMap {
 
                 let global_transform = self.global_transform();
 
-                type Vertex = RectangleVertex;
-
                 let position = tile.position.cast::<f32>().to_homogeneous();
 
                 let vertices = [
-                    Vertex {
+                    RectangleVertex {
                         position: global_transform
                             .transform_point(&(position + Vector3::new(0.0, 1.0, 0.0)).into())
                             .coords,
                         tex_coord: tile_definition.uv_rect.right_top_corner(),
                         color: tile_definition.color,
                     },
-                    Vertex {
+                    RectangleVertex {
                         position: global_transform
                             .transform_point(&(position + Vector3::new(1.0, 1.0, 0.0)).into())
                             .coords,
                         tex_coord: tile_definition.uv_rect.left_top_corner(),
                         color: tile_definition.color,
                     },
-                    Vertex {
+                    RectangleVertex {
                         position: global_transform
                             .transform_point(&(position + Vector3::new(1.00, 0.0, 0.0)).into())
                             .coords,
                         tex_coord: tile_definition.uv_rect.left_bottom_corner(),
                         color: tile_definition.color,
                     },
-                    Vertex {
+                    RectangleVertex {
                         position: global_transform
                             .transform_point(&(position + Vector3::new(0.0, 0.0, 0.0)).into())
                             .coords,
@@ -709,11 +706,7 @@ impl NodeTrait for TileMap {
                     &mut move |mut vertex_buffer, mut triangle_buffer| {
                         let start_vertex_index = vertex_buffer.vertex_count();
 
-                        for vertex in vertices.iter() {
-                            vertex_buffer
-                                .push_vertex_raw(value_as_u8_slice(vertex))
-                                .unwrap();
-                        }
+                        vertex_buffer.push_vertices(&vertices).unwrap();
 
                         triangle_buffer.push_triangles_iter_with_offset(
                             start_vertex_index,
