@@ -1,3 +1,4 @@
+use crate::camera::CameraController;
 use crate::fyrox::{
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector2, Vector3},
@@ -36,6 +37,11 @@ pub enum SceneGizmoAction {
     SwitchProjection,
 }
 
+pub struct DragContext {
+    pub initial_click_pos: Vector2<f32>,
+    pub initial_rotation: CameraRotation,
+}
+
 pub struct SceneGizmo {
     pub scene: Handle<Scene>,
     pub render_target: TextureResource,
@@ -49,6 +55,7 @@ pub struct SceneGizmo {
     pub pos_z: Handle<Node>,
     pub neg_z: Handle<Node>,
     pub center: Handle<Node>,
+    pub drag_context: Option<DragContext>,
 }
 
 fn make_cone(transform: Matrix4<f32>, color: Color, graph: &mut Graph) -> Handle<Node> {
@@ -206,6 +213,7 @@ impl SceneGizmo {
             pos_z,
             neg_z,
             center,
+            drag_context: None,
         }
     }
 
@@ -217,7 +225,6 @@ impl SceneGizmo {
         let pivot_rotation = **graph[game_scene.camera_controller.pivot]
             .local_transform()
             .rotation();
-
         let gizmo_graph = &mut engine.scenes[self.scene].graph;
 
         gizmo_graph[self.camera_hinge]
@@ -267,41 +274,53 @@ impl SceneGizmo {
                 }
             }
         }
-
         closest
     }
 
-    pub fn on_mouse_move(&self, pos: Vector2<f32>, engine: &Engine) {
-        let graph = &engine.scenes[self.scene].graph;
-        let closest = self.pick(pos, engine);
-
-        fn set_color(node: Handle<Node>, graph: &Graph, color: Color) {
-            graph[node].as_mesh().surfaces()[0]
-                .material()
-                .data_ref()
-                .set_property(
-                    &ImmutableString::new("diffuseColor"),
-                    PropertyValue::Color(color),
-                )
-                .unwrap();
-        }
-
-        for (node, default_color) in self.parts() {
-            set_color(
-                node,
-                graph,
-                if node == closest {
-                    Color::opaque(255, 255, 0)
-                } else {
-                    default_color
-                },
-            )
+    pub fn on_mouse_move(
+        &mut self,
+        pos: Vector2<f32>,
+        engine: &mut Engine,
+        camera_controller: &mut CameraController,
+    ) {
+        if let Some(drag_context) = self.drag_context.as_ref() {
+            let delta = pos - drag_context.initial_click_pos;
+            let sens: f32 = 0.09;
+            camera_controller.yaw = drag_context.initial_rotation.yaw + delta.x * -sens;
+            camera_controller.pitch = drag_context.initial_rotation.pitch + delta.y * sens;
+        } else {
+            let graph = &engine.scenes[self.scene].graph;
+            let closest = self.pick(pos, engine);
+            fn set_color(node: Handle<Node>, graph: &Graph, color: Color) {
+                graph[node].as_mesh().surfaces()[0]
+                    .material()
+                    .data_ref()
+                    .set_property(
+                        &ImmutableString::new("diffuseColor"),
+                        PropertyValue::Color(color),
+                    )
+                    .unwrap();
+            }
+            for (node, default_color) in self.parts() {
+                set_color(
+                    node,
+                    graph,
+                    if node == closest {
+                        Color::opaque(255, 255, 0)
+                    } else {
+                        default_color
+                    },
+                );
+            }
         }
     }
 
-    pub fn on_click(&self, pos: Vector2<f32>, engine: &Engine) -> Option<SceneGizmoAction> {
-        let closest = self.pick(pos, engine);
+    pub fn on_click(&mut self, pos: Vector2<f32>, engine: &Engine) -> Option<SceneGizmoAction> {
+        if let Some(_drag_context) = self.drag_context.as_ref() {
+            return None;
+        }
 
+        let closest = self.pick(pos, engine);
         if closest == self.neg_x {
             Some(SceneGizmoAction::Rotate(CameraRotation {
                 pitch: 0.0,
