@@ -135,13 +135,24 @@
                     // Each node has tex coords in [0; 1] range, here we must scale and offset it
                     // to match the actual position.
                     vec2 actualTexCoords = vec2(vertexTexCoord * nodeUvOffsets.zw + nodeUvOffsets.xy);
-                    float height = texture(heightMapTexture, actualTexCoords).r;
+                    vec2 heightSize = vec2(textureSize(heightMapTexture, 0));
+                    vec2 innerSize = heightSize - 3.0;
+                    vec2 pixelSize = 1.0 / heightSize;
+                    vec2 heightCoords = (actualTexCoords * innerSize + 1.5) * pixelSize;
+                    float height = texture(heightMapTexture, heightCoords).r;
                     vec4 finalVertexPosition = vec4(vertexPosition.x, height, vertexPosition.z, 1.0);
+                    float hx0 = texture(heightMapTexture, heightCoords + ivec2(-1, 0) * pixelSize, 0).r;
+                    float hx1 = texture(heightMapTexture, heightCoords + ivec2(1, 0) * pixelSize, 0).r;
+                    float hy0 = texture(heightMapTexture, heightCoords + ivec2(0, -1) * pixelSize, 0).r;
+                    float hy1 = texture(heightMapTexture, heightCoords + ivec2(0, 1) * pixelSize, 0).r;
+                    vec2 pixelFactor = heightSize / nodeUvOffsets.zw;
+                    vec3 n = vec3(hx0-hx1, 2.0, hy0-hy1) * vec3(pixelFactor.x, 1.0, pixelFactor.y);
+                    vec3 tan = vec3(n.y, -n.x, 0.0);
 
                     mat3 nm = mat3(fyrox_worldMatrix);
-                    normal = normalize(nm * vertexNormal);
-                    tangent = normalize(nm * vertexTangent.xyz);
-                    binormal = normalize(vertexTangent.w * cross(normal, tangent));
+                    normal = normalize(nm * n);
+                    tangent = normalize(nm * tan);
+                    binormal = normalize(-1.0 * cross(normal, tangent));
                     texCoord = actualTexCoords;
                     position = vec3(fyrox_worldMatrix * finalVertexPosition);
                     secondTexCoord = vertexSecondTexCoord;
@@ -206,8 +217,8 @@
 
                     outColor = diffuseColor * texture(diffuseTexture, tc);
 
-                    vec4 n = normalize(texture(normalTexture, tc) * 2.0 - 1.0);
-                    outNormal = vec4(normalize(tangentSpace * n.xyz) * 0.5 + 0.5, 1.0);
+                    vec3 n = normalize(texture(normalTexture, tc).xyz * 2.0 - 1.0);
+                    outNormal = vec4(normalize(tangentSpace * n), 1.0);
 
                     outMaterial.x = texture(metallicTexture, tc).r;
                     outMaterial.y = texture(roughnessTexture, tc).r;
@@ -277,7 +288,11 @@
                 void main()
                 {
                     vec2 actualTexCoords = vec2(vertexTexCoord * nodeUvOffsets.zw + nodeUvOffsets.xy);
-                    float height = texture(heightMapTexture, actualTexCoords).r;
+                    vec2 heightSize = vec2(textureSize(heightMapTexture, 0));
+                    vec2 innerSize = heightSize - 3.0;
+                    vec2 pixelSize = 1.0 / heightSize;
+                    vec2 heightCoords = (actualTexCoords * innerSize + 1.5) * pixelSize;
+                    float height = texture(heightMapTexture, heightCoords).r;
                     vec4 finalVertexPosition = vec4(vertexPosition.x, height, vertexPosition.z, 1.0);
 
                     gl_Position = fyrox_worldViewProjection * finalVertexPosition;
@@ -339,7 +354,11 @@
                 void main()
                 {
                     vec2 actualTexCoords = vec2(vertexTexCoord * nodeUvOffsets.zw + nodeUvOffsets.xy);
-                    float height = texture(heightMapTexture, actualTexCoords).r;
+                    vec2 heightSize = vec2(textureSize(heightMapTexture, 0));
+                    vec2 innerSize = heightSize - 3.0;
+                    vec2 pixelSize = 1.0 / heightSize;
+                    vec2 heightCoords = (actualTexCoords * innerSize + 1.5) * pixelSize;
+                    float height = texture(heightMapTexture, heightCoords).r;
                     vec4 finalVertexPosition = vec4(vertexPosition.x, height, vertexPosition.z, 1.0);
 
                     gl_Position = fyrox_worldViewProjection * finalVertexPosition;
@@ -398,7 +417,11 @@
                 void main()
                 {
                     vec2 actualTexCoords = vec2(vertexTexCoord * nodeUvOffsets.zw + nodeUvOffsets.xy);
-                    float height = texture(heightMapTexture, actualTexCoords).r;
+                    vec2 heightSize = vec2(textureSize(heightMapTexture, 0));
+                    vec2 innerSize = heightSize - 3.0;
+                    vec2 pixelSize = 1.0 / heightSize;
+                    vec2 heightCoords = (actualTexCoords * innerSize + 1.5) * pixelSize;
+                    float height = texture(heightMapTexture, heightCoords).r;
                     vec4 finalVertexPosition = vec4(vertexPosition.x, height, vertexPosition.z, 1.0);
 
                     gl_Position = fyrox_worldViewProjection * finalVertexPosition;
@@ -459,7 +482,11 @@
                 void main()
                 {
                     vec2 actualTexCoords = vec2(vertexTexCoord * nodeUvOffsets.zw + nodeUvOffsets.xy);
-                    float height = texture(heightMapTexture, actualTexCoords).r;
+                    vec2 heightSize = vec2(textureSize(heightMapTexture, 0));
+                    vec2 innerSize = heightSize - 3.0;
+                    vec2 pixelSize = 1.0 / heightSize;
+                    vec2 heightCoords = (actualTexCoords * innerSize + 1.5) * pixelSize;
+                    float height = texture(heightMapTexture, heightCoords).r;
                     vec4 finalVertexPosition = vec4(vertexPosition.x, height, vertexPosition.z, 1.0);
 
                     gl_Position = fyrox_worldViewProjection * finalVertexPosition;

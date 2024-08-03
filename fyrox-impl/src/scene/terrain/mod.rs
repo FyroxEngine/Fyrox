@@ -2,9 +2,10 @@
 
 use crate::material::MaterialResourceExtension;
 use crate::renderer::bundle::PersistentIdentifier;
+use crate::resource::texture::TextureDataRefMut;
 use crate::scene::node::RdcControlFlow;
 use crate::{
-    asset::Resource,
+    asset::{Resource, ResourceDataRef},
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
         arrayvec::ArrayVec,
@@ -36,6 +37,7 @@ use crate::{
         mesh::RenderPath,
         node::{Node, NodeTrait},
         terrain::{geometry::TerrainGeometry, quadtree::QuadTree},
+        Scene,
     },
 };
 use fxhash::FxHashMap;
@@ -58,7 +60,7 @@ mod quadtree;
 pub use brushstroke::*;
 
 /// Current implementation version marker.
-pub const VERSION: u8 = 1;
+pub const VERSION: u8 = 2;
 
 /// Position of a single cell within terrain data.
 #[derive(Debug, Clone)]
@@ -80,6 +82,122 @@ impl TerrainRect {
             grid_position: cell_pos.map(|x| x as i32),
             bounds: Rect::new(min.x, min.y, cell_size.x, cell_size.y),
         }
+    }
+}
+
+/// A 2D-array interface to the height map data of a chunk.
+/// This interface is aware of the one-pixel margin around the edges
+/// of the height map data, so valid x-coordinates are in the range -1..=width
+/// and y-coordinates are in the range -1..=height.
+/// (0,0) is the actual origin of the chunk, while (-1,-1) is the in the margin of the chunk.
+pub struct ChunkHeightData<'a>(pub ResourceDataRef<'a, Texture>);
+/// A mutable 2D-array interface to the height map data of a chunk.
+/// This interface is aware of the one-pixel margin around the edges
+/// of the height map data, so valid x-coordinates are in the range -1..=width.
+/// (0,0) is the actual origin of the chunk, while (-1,-1) is the in the margin of the chunk.
+pub struct ChunkHeightMutData<'a>(pub TextureDataRefMut<'a>);
+
+impl<'a> ChunkHeightData<'a> {
+    /// The size of the hight map, excluding the margins
+    pub fn size(&self) -> Vector2<u32> {
+        match self.0.kind() {
+            TextureKind::Rectangle { width, height } => Vector2::new(width - 2, height - 2),
+            _ => panic!("Invalid texture kind."),
+        }
+    }
+    /// The length of each horizontal row in the underlying texture.
+    pub fn row_size(&self) -> usize {
+        match self.0.kind() {
+            TextureKind::Rectangle { width, .. } => width as usize,
+            _ => panic!("Invalid texture kind."),
+        }
+    }
+    /// Get the value at the given position, if possible.
+    pub fn get(&self, position: Vector2<i32>) -> Option<f32> {
+        if self.is_valid_index(position) {
+            Some(self[position])
+        } else {
+            None
+        }
+    }
+    #[inline]
+    fn is_valid_index(&self, position: Vector2<i32>) -> bool {
+        let s = self.size();
+        (-1..=s.x as i32).contains(&position.x) && (-1..=s.y as i32).contains(&position.y)
+    }
+}
+
+impl<'a> ChunkHeightMutData<'a> {
+    /// The size of the hight map, excluding the margins
+    pub fn size(&self) -> Vector2<u32> {
+        match self.0.kind() {
+            TextureKind::Rectangle { width, height } => Vector2::new(width - 2, height - 2),
+            _ => panic!("Invalid texture kind."),
+        }
+    }
+    /// The length of each horizontal row in the underlying texture.
+    pub fn row_size(&self) -> usize {
+        match self.0.kind() {
+            TextureKind::Rectangle { width, .. } => width as usize,
+            _ => panic!("Invalid texture kind."),
+        }
+    }
+    /// Get the value at the given position, if possible.
+    pub fn get(&self, position: Vector2<i32>) -> Option<f32> {
+        if self.is_valid_index(position) {
+            Some(self[position])
+        } else {
+            None
+        }
+    }
+    /// Get the value at the given position, if possible.
+    pub fn get_mut(&mut self, position: Vector2<i32>) -> Option<&mut f32> {
+        if self.is_valid_index(position) {
+            Some(&mut self[position])
+        } else {
+            None
+        }
+    }
+    #[inline]
+    fn is_valid_index(&self, position: Vector2<i32>) -> bool {
+        let s = self.size();
+        (-1..=s.x as i32).contains(&position.x) && (-1..=s.y as i32).contains(&position.y)
+    }
+}
+
+impl<'a> std::ops::Index<Vector2<i32>> for ChunkHeightData<'a> {
+    type Output = f32;
+
+    fn index(&self, position: Vector2<i32>) -> &Self::Output {
+        assert!(self.is_valid_index(position));
+        let row_size = self.row_size();
+        let x = (position.x + 1) as usize;
+        let y = (position.y + 1) as usize;
+        // self.0.data_of_type().unwrap()[y * width + x]
+        match self.0.data_of_type::<f32>() {
+            Some(d) => &d[y * row_size + x],
+            None => panic!("Height data type error: {:?}", self.0),
+        }
+    }
+}
+impl<'a> std::ops::Index<Vector2<i32>> for ChunkHeightMutData<'a> {
+    type Output = f32;
+
+    fn index(&self, position: Vector2<i32>) -> &Self::Output {
+        assert!(self.is_valid_index(position));
+        let row_size = self.row_size();
+        let x = (position.x + 1) as usize;
+        let y = (position.y + 1) as usize;
+        &self.0.data_of_type::<f32>().unwrap()[y * row_size + x]
+    }
+}
+impl<'a> std::ops::IndexMut<Vector2<i32>> for ChunkHeightMutData<'a> {
+    fn index_mut(&mut self, position: Vector2<i32>) -> &mut Self::Output {
+        assert!(self.is_valid_index(position));
+        let row_size = self.row_size();
+        let x = (position.x + 1) as usize;
+        let y = (position.y + 1) as usize;
+        &mut self.0.data_mut_of_type::<f32>().unwrap()[y * row_size + x]
     }
 }
 
@@ -167,8 +285,6 @@ fn make_height_map_texture(height_map: Vec<f32>, size: Vector2<u32>) -> TextureR
 pub struct Chunk {
     #[reflect(hidden)]
     quad_tree: Mutex<QuadTree>,
-    #[reflect(hidden)]
-    version: u8,
     #[reflect(
         setter = "set_height_map",
         description = "Height map of the chunk. You can assign a custom height map image here. Keep in mind, that \
@@ -197,8 +313,7 @@ uuid_provider!(Chunk = "ae996754-69c1-49ba-9c17-a7bd4be072a9");
 
 impl PartialEq for Chunk {
     fn eq(&self, other: &Self) -> bool {
-        self.version == other.version
-            && self.heightmap == other.heightmap
+        self.heightmap == other.heightmap
             && self.height_map_size == other.height_map_size
             && self.grid_position == other.grid_position
             && self.layer_masks == other.layer_masks
@@ -209,7 +324,6 @@ impl Clone for Chunk {
     // Deep cloning.
     fn clone(&self) -> Self {
         Self {
-            version: self.version,
             heightmap: Some(self.heightmap.as_ref().unwrap().deep_clone()),
             position: self.position,
             physical_size: self.physical_size,
@@ -236,11 +350,7 @@ impl Visit for Chunk {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut region = visitor.enter_region(name)?;
 
-        let mut version = if region.is_reading() {
-            0u8
-        } else {
-            self.version
-        };
+        let mut version = VERSION;
         let _ = version.visit("Version", &mut region);
 
         match version {
@@ -273,7 +383,7 @@ impl Visit for Chunk {
                     Vector2::new(width_point_count, length_point_count),
                 ));
             }
-            VERSION => {
+            1 | VERSION => {
                 self.heightmap.visit("Heightmap", &mut region)?;
                 // We do not need to visit position, since its value is implied by grid_position.
                 //self.position.visit("Position", &mut region)?;
@@ -290,6 +400,10 @@ impl Visit for Chunk {
             _ => (),
         }
 
+        if region.is_reading() && version < 2 {
+            self.create_margin();
+        }
+
         self.quad_tree = Mutex::new(make_quad_tree(
             &self.heightmap,
             self.height_map_size,
@@ -304,7 +418,6 @@ impl Default for Chunk {
     fn default() -> Self {
         Self {
             quad_tree: Default::default(),
-            version: VERSION,
             heightmap: Default::default(),
             position: Default::default(),
             physical_size: Default::default(),
@@ -318,6 +431,25 @@ impl Default for Chunk {
 }
 
 impl Chunk {
+    /// Return a view of the height data as a 2D array of f32.
+    pub fn height_data(&self) -> ChunkHeightData {
+        ChunkHeightData(self.heightmap.as_ref().map(|r| r.data_ref()).unwrap())
+    }
+
+    /// Modify the height texture of the chunk to give it a one pixel margin around all four edges.
+    /// The [`Chunk::height_map_size`] is increased to match. The margin is initialized to zero.
+    pub fn create_margin(&mut self) {
+        let data = self.heightmap.as_ref().map(|r| r.data_ref()).unwrap();
+        let size = match data.kind() {
+            TextureKind::Rectangle { width, height } => Vector2::new(width, height),
+            _ => panic!("Texture is not rectangle"),
+        };
+        let data_f32 = From::<&[f32]>::from(data.data_of_type().unwrap());
+        let result = create_zero_margin(data_f32, size);
+        drop(data);
+        self.heightmap = Some(make_height_map_texture(result, size.map(|x| x + 2)));
+        self.height_map_size = self.height_map_size.map(|x| x + 2);
+    }
     /// Check the heightmap for modifications and update data as necessary.
     pub fn update(&self) {
         let Some(heightmap) = self.heightmap.as_ref() else {
@@ -819,7 +951,7 @@ impl BrushContext {
 /// - **Height Pixel Position:** These are the 2D coordinates that measure position across the x and z axes of
 /// the terrain using pixels in the height data of each chunk. (0,0) is the position of the Terrain node.
 /// The *height pixel position* of a chunk can be calculated from its *grid position* by
-/// multiplying its x and y coordinates by (x - 1) and (y - 1) of [Terrain::height_map_size].
+/// multiplying its x and y coordinates by (x - 3) and (y - 3) of [Terrain::height_map_size].
 /// Subtracting 1 from each dimension is necessary because the height map data of chunks overlaps by one pixel
 /// on each edge, so the distance between the origins of two adjacent chunks is one less than height_map_size.
 /// - **Mask Pixel Position:** These are the 2D coordinates that measure position across the x and z axes of
@@ -855,7 +987,7 @@ pub struct Terrain {
     /// Min and max 'coordinate' of chunks along X axis.
     #[reflect(
         step = 1.0,
-        description = "Min and max 'coordinate' of chunks along X axis.",
+        description = "Min and max 'coordinate' of chunks along X axis. Modifying this will create new chunks or destroy existing chunks.",
         setter = "set_width_chunks"
     )]
     width_chunks: InheritableVariable<Range<i32>>,
@@ -863,14 +995,14 @@ pub struct Terrain {
     /// Min and max 'coordinate' of chunks along Y axis.
     #[reflect(
         step = 1.0,
-        description = "Min and max 'coordinate' of chunks along Y axis.",
+        description = "Min and max 'coordinate' of chunks along Y axis. Modifying this will create new chunks or destroy existing chunks.",
         setter = "set_length_chunks"
     )]
     length_chunks: InheritableVariable<Range<i32>>,
 
     /// Size of the height map per chunk, in pixels. Warning: any change to this value will result in resampling!
     ///
-    /// Each dimension should be one greater than some power of 2, such as 5 = 4 + 1, 9 = 8 + 1, 17 = 16 + 1, and so on.
+    /// Each dimension should be three greater than some power of 2, such as 7 = 4 + 3, 11 = 8 + 3, 19 = 16 + 3, and so on.
     /// This is important because when chunks are being split into quadrants for LOD, the splits must always happen
     /// along its vertices, and there should be an equal number of vertices on each side of each split.
     /// If there cannot be an equal number of vertices on each side of the split, then the split will be made
@@ -879,7 +1011,8 @@ pub struct Terrain {
     #[reflect(
         min_value = 2.0,
         step = 1.0,
-        description = "Size of the height map per chunk, in pixels. Should be a power of 2 plus 1, for example: 5, 9, 17, etc. \
+        description = "Size of the height map per chunk, in pixels. \
+        Each dimension should be a power of 2 plus 3, for example: 7 (4 + 3), 11 (8 + 3), 19 (16 + 3), etc. \
         Warning: any change to this value will result in resampling!",
         setter = "set_height_map_size"
     )]
@@ -889,9 +1022,16 @@ pub struct Terrain {
     /// as measured by counting vertices along each dimension.
     ///
     /// Each dimension should be one greater than some power of 2, such as 5 = 4 + 1, 9 = 8 + 1, 17 = 16 + 1, and so on.
-    /// This helps the vertices of the block to align with the pixels of the height data texture, since the height data
-    /// texture should also have dimensions that are one greater than some power of 2.
-    #[reflect(min_value = 8.0, step = 1.0, setter = "set_block_size")]
+    /// This helps the vertices of the block to align with the pixels of the height data texture.
+    /// Excluding the one-pixel margin that is not rendered, height data should also be one greater than some power of 2.
+    #[reflect(
+        min_value = 8.0,
+        step = 1.0,
+        setter = "set_block_size",
+        description = "Size of the mesh block in vertices. \
+        Each dimension should be a power of 2 plus 1, for example: 5 (4 + 1), 9 (8 + 1), 17 (16 + 1), etc. \
+        The power of two should not be greater than the power of two of the height map size."
+    )]
     block_size: InheritableVariable<Vector2<u32>>,
 
     /// Size of the blending mask per chunk, in pixels. Warning: any change to this value will result in resampling!
@@ -916,9 +1056,6 @@ pub struct Terrain {
     /// all the chunks of the height map.
     #[reflect(hidden)]
     geometry: TerrainGeometry,
-
-    #[reflect(hidden)]
-    version: u8,
 }
 
 impl Default for Terrain {
@@ -930,14 +1067,13 @@ impl Default for Terrain {
             chunk_size: Vector2::new(16.0, 16.0).into(),
             width_chunks: Default::default(),
             length_chunks: Default::default(),
-            height_map_size: Default::default(),
+            height_map_size: Vector2::new(259, 259).into(),
             block_size: Vector2::new(33, 33).into(),
-            mask_size: Default::default(),
+            mask_size: Vector2::new(256, 256).into(),
             chunks: Default::default(),
             bounding_box_dirty: Cell::new(true),
             bounding_box: Cell::new(Default::default()),
             geometry: Default::default(),
-            version: VERSION,
         }
     }
 }
@@ -963,11 +1099,7 @@ impl Visit for Terrain {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut region = visitor.enter_region(name)?;
 
-        let mut version = if region.is_reading() {
-            0u8
-        } else {
-            self.version
-        };
+        let mut version = VERSION;
         let _ = version.visit("Version", &mut region);
 
         match version {
@@ -1044,7 +1176,7 @@ impl Visit for Terrain {
 
                 self.chunks = chunks.into();
             }
-            VERSION => {
+            1 | VERSION => {
                 // Current version
                 self.base.visit("Base", &mut region)?;
                 self.layers.visit("Layers", &mut region)?;
@@ -1063,6 +1195,27 @@ impl Visit for Terrain {
 
         if region.is_reading() {
             self.geometry = TerrainGeometry::new(*self.block_size);
+            if version < 2 {
+                Log::info(format!("Updating terrain to version: {}", VERSION));
+                *self.height_map_size = self.height_map_size.map(|x| x + 2);
+                for c in self.chunks.iter() {
+                    if c.height_map_size() != self.height_map_size() {
+                        Log::err(format!(
+                            "Terrain version update failure, height map size mismatch: {} != {}",
+                            c.height_map_size(),
+                            self.height_map_size()
+                        ));
+                    }
+                }
+                for pos in self
+                    .chunks
+                    .iter()
+                    .map(|c| c.grid_position)
+                    .collect::<Vec<_>>()
+                {
+                    self.align_chunk_margins(pos);
+                }
+            }
         }
 
         Ok(())
@@ -1118,6 +1271,60 @@ fn pixel_position_to_grid_position(
     Vector2::new(x, y)
 }
 
+fn resize_f32(mut data: Vec<f32>, data_size: Vector2<u32>, new_size: Vector2<u32>) -> Vec<f32> {
+    let max = data.iter().copied().reduce(f32::max).unwrap();
+    let min = data.iter().copied().reduce(f32::min).unwrap();
+    let range = max - min;
+
+    if range == 0.0 {
+        let size: usize = (new_size.x * new_size.y) as usize;
+        data.clear();
+        data.extend(std::iter::repeat(min).take(size));
+        return data;
+    }
+
+    for height in &mut data {
+        *height = (*height - min) / range;
+    }
+
+    let heightmap_image =
+        ImageBuffer::<Luma<f32>, Vec<f32>>::from_vec(data_size.x, data_size.y, data).unwrap();
+
+    let resampled_heightmap_image = image::imageops::resize(
+        &heightmap_image,
+        new_size.x,
+        new_size.y,
+        FilterType::Lanczos3,
+    );
+
+    let mut resampled_heightmap = resampled_heightmap_image.into_raw();
+
+    for height in &mut resampled_heightmap {
+        *height = (*height * range) + min;
+    }
+    resampled_heightmap
+}
+
+fn create_zero_margin(mut data: Vec<f32>, data_size: Vector2<u32>) -> Vec<f32> {
+    let w0 = data_size.x as usize;
+    let w1 = w0 + 2;
+    let h0 = data_size.y as usize;
+    let h1 = h0 + 2;
+    let new_area = w1 * h1;
+    data.extend(std::iter::repeat(0.0).take(new_area - data.len()));
+    for y in (0..h0).rev() {
+        let i0 = y * w0;
+        let i1 = (y + 1) * w1;
+        data.copy_within(i0..i0 + w0, i1 + 1);
+        data[i1] = 0.0;
+        data[i1 + w1 - 1] = 0.0;
+    }
+    for v in data.iter_mut().take(w1) {
+        *v = 0.0;
+    }
+    data
+}
+
 impl TypeUuidProvider for Terrain {
     fn type_uuid() -> Uuid {
         uuid!("4b0a7927-bcd8-41a3-949a-dd10fba8e16a")
@@ -1125,6 +1332,127 @@ impl TypeUuidProvider for Terrain {
 }
 
 impl Terrain {
+    /// The height map of a chunk must have one-pixel margins around the edges which do not correpond
+    /// to vertices in the terrain of that chunk, but are still needed for calculating the normal of
+    /// the edge vertices.
+    /// The normal for each vertex is derived from the heights of the four neighbor vertices, which means
+    /// that every vertex must have four neighbors, even edge vertices. The one-pixel margin guarantees this.
+    ///
+    /// This method modifies the margin of the chunk at the given position so that it matches the data in
+    /// the eight neighboring chunks.
+    pub fn align_chunk_margins(&mut self, grid_position: Vector2<i32>) {
+        let Some(chunk) = self.find_chunk(grid_position) else {
+            return;
+        };
+        let size = self.height_map_size();
+        let x1 = size.x as i32 - 2;
+        let y1 = size.y as i32 - 2;
+        let mut data = chunk.heightmap.as_ref().unwrap().data_ref();
+        let mut mut_data = ChunkHeightMutData(data.modify());
+        if let Some(other_chunk) = self.find_chunk(grid_position + Vector2::new(-1, 0)) {
+            let data = other_chunk.height_data();
+            for y in 0..y1 {
+                mut_data[Vector2::new(-1, y)] = data[Vector2::new(x1 - 2, y)];
+            }
+        }
+        if let Some(other_chunk) = self.find_chunk(grid_position + Vector2::new(1, 0)) {
+            let data = other_chunk.height_data();
+            for y in 0..y1 {
+                mut_data[Vector2::new(x1, y)] = data[Vector2::new(1, y)];
+            }
+        }
+        if let Some(other_chunk) = self.find_chunk(grid_position + Vector2::new(0, -1)) {
+            let data = other_chunk.height_data();
+            for x in 0..x1 {
+                mut_data[Vector2::new(x, -1)] = data[Vector2::new(x, y1 - 2)];
+            }
+        }
+        if let Some(other_chunk) = self.find_chunk(grid_position + Vector2::new(0, 1)) {
+            let data = other_chunk.height_data();
+            for x in 0..x1 {
+                mut_data[Vector2::new(x, y1)] = data[Vector2::new(x, 1)];
+            }
+        }
+        if let Some(other_chunk) = self.find_chunk(grid_position + Vector2::new(-1, -1)) {
+            let data = other_chunk.height_data();
+            mut_data[Vector2::new(-1, -1)] = data[Vector2::new(x1 - 2, y1 - 2)];
+        }
+        if let Some(other_chunk) = self.find_chunk(grid_position + Vector2::new(1, -1)) {
+            let data = other_chunk.height_data();
+            mut_data[Vector2::new(x1, -1)] = data[Vector2::new(1, y1 - 2)];
+        }
+        if let Some(other_chunk) = self.find_chunk(grid_position + Vector2::new(-1, 1)) {
+            let data = other_chunk.height_data();
+            mut_data[Vector2::new(-1, y1)] = data[Vector2::new(x1 - 2, 1)];
+        }
+        if let Some(other_chunk) = self.find_chunk(grid_position + Vector2::new(1, 1)) {
+            let data = other_chunk.height_data();
+            mut_data[Vector2::new(x1, y1)] = data[Vector2::new(1, 1)];
+        }
+    }
+
+    /// The height map of a chunk must duplicate the height data of neighboring chunks along each edge.
+    /// Otherwise the terrain would split apart at chunk boundaries.
+    /// This method modifies all eight neighboring chunks surrounding the chunk at the given position to
+    /// force them to align with the edge data of the chunk at the given position.
+    pub fn align_chunk_edges(&mut self, grid_position: Vector2<i32>) {
+        let Some(chunk) = self.find_chunk(grid_position) else {
+            return;
+        };
+        let size = self.height_map_size();
+        let x1 = size.x as i32 - 3;
+        let y1 = size.y as i32 - 3;
+        let source = chunk.height_data();
+        if let Some(other_chunk) = self.find_chunk(grid_position + Vector2::new(-1, 0)) {
+            let mut data = other_chunk.heightmap.as_ref().unwrap().data_ref();
+            let mut mut_data = ChunkHeightMutData(data.modify());
+            for y in 0..=y1 {
+                mut_data[Vector2::new(x1, y)] = source[Vector2::new(0, y)];
+            }
+        }
+        if let Some(other_chunk) = self.find_chunk(grid_position + Vector2::new(1, 0)) {
+            let mut data = other_chunk.heightmap.as_ref().unwrap().data_ref();
+            let mut mut_data = ChunkHeightMutData(data.modify());
+            for y in 0..=y1 {
+                mut_data[Vector2::new(0, y)] = source[Vector2::new(x1, y)];
+            }
+        }
+        if let Some(other_chunk) = self.find_chunk(grid_position + Vector2::new(0, -1)) {
+            let mut data = other_chunk.heightmap.as_ref().unwrap().data_ref();
+            let mut mut_data = ChunkHeightMutData(data.modify());
+            for x in 0..=x1 {
+                mut_data[Vector2::new(x, y1)] = source[Vector2::new(x, 0)];
+            }
+        }
+        if let Some(other_chunk) = self.find_chunk(grid_position + Vector2::new(0, 1)) {
+            let mut data = other_chunk.heightmap.as_ref().unwrap().data_ref();
+            let mut mut_data = ChunkHeightMutData(data.modify());
+            for x in 0..=x1 {
+                mut_data[Vector2::new(x, 0)] = source[Vector2::new(x, y1)];
+            }
+        }
+        if let Some(other_chunk) = self.find_chunk(grid_position + Vector2::new(-1, -1)) {
+            let mut data = other_chunk.heightmap.as_ref().unwrap().data_ref();
+            let mut mut_data = ChunkHeightMutData(data.modify());
+            mut_data[Vector2::new(x1, y1)] = source[Vector2::new(0, 0)];
+        }
+        if let Some(other_chunk) = self.find_chunk(grid_position + Vector2::new(1, -1)) {
+            let mut data = other_chunk.heightmap.as_ref().unwrap().data_ref();
+            let mut mut_data = ChunkHeightMutData(data.modify());
+            mut_data[Vector2::new(0, y1)] = source[Vector2::new(x1, 0)];
+        }
+        if let Some(other_chunk) = self.find_chunk(grid_position + Vector2::new(-1, 1)) {
+            let mut data = other_chunk.heightmap.as_ref().unwrap().data_ref();
+            let mut mut_data = ChunkHeightMutData(data.modify());
+            mut_data[Vector2::new(x1, 0)] = source[Vector2::new(0, y1)];
+        }
+        if let Some(other_chunk) = self.find_chunk(grid_position + Vector2::new(1, 1)) {
+            let mut data = other_chunk.heightmap.as_ref().unwrap().data_ref();
+            let mut mut_data = ChunkHeightMutData(data.modify());
+            mut_data[Vector2::new(0, 0)] = source[Vector2::new(x1, y1)];
+        }
+    }
+
     /// Returns chunk size in meters. This is equivalent to [Chunk::physical_size].
     pub fn chunk_size(&self) -> Vector2<f32> {
         *self.chunk_size
@@ -1234,10 +1562,13 @@ impl Terrain {
         self.width_chunks.set_value_and_mark_modified(width_chunks);
         self.length_chunks
             .set_value_and_mark_modified(length_chunks);
+        let mut created_chunks = Vec::new();
+        let mut preserved_chunks = Vec::new();
 
         for z in (*self.length_chunks).clone() {
             for x in (*self.width_chunks).clone() {
                 let chunk = if let Some(existing_chunk) = chunks.remove(&Vector2::new(x, z)) {
+                    preserved_chunks.push(existing_chunk.grid_position);
                     // Put existing chunk back at its position.
                     existing_chunk
                 } else {
@@ -1274,14 +1605,20 @@ impl Terrain {
                                 )
                             })
                             .collect::<Vec<_>>(),
-                        version: VERSION,
                     };
-
+                    created_chunks.push(new_chunk.grid_position);
                     new_chunk
                 };
 
                 self.chunks.push(chunk);
             }
+        }
+
+        for grid_position in created_chunks {
+            self.align_chunk_margins(grid_position);
+        }
+        for grid_position in preserved_chunks {
+            self.align_chunk_edges(grid_position);
         }
 
         self.bounding_box_dirty.set(true);
@@ -1353,8 +1690,10 @@ impl Terrain {
 
     /// The size of each cell of the height grid in local 2D units.
     pub fn height_grid_scale(&self) -> Vector2<f32> {
-        let cell_width = self.chunk_size.x / (self.height_map_size.x - 1) as f32;
-        let cell_length = self.chunk_size.y / (self.height_map_size.y - 1) as f32;
+        // Subtract 2 to exclude the margins which are not rendered.
+        // Subtract 1 to count the edges between pixels instead of the pixels.
+        let cell_width = self.chunk_size.x / (self.height_map_size.x - 3) as f32;
+        let cell_length = self.chunk_size.y / (self.height_map_size.y - 3) as f32;
         Vector2::new(cell_width, cell_length)
     }
 
@@ -1394,47 +1733,10 @@ impl Terrain {
 
     /// Return the value of the height map at the given height pixel position.
     pub fn get_height(&self, position: Vector2<i32>) -> Option<f32> {
-        let chunk_pos = self.chunk_containing_height_pos(position);
-        let origin = self.chunk_height_pos_origin(chunk_pos);
-        let pos = (position - origin).map(|x| x as usize);
-        let end = self.height_map_size.map(|x| (x - 1) as usize);
-        if let h @ Some(_) = self.get_height_in_chunk(chunk_pos, pos) {
-            return h;
-        }
-        if pos.x == 0 {
-            if let h @ Some(_) = self.get_height_in_chunk(
-                Vector2::new(chunk_pos.x - 1, chunk_pos.y),
-                Vector2::new(pos.x + end.x, pos.y),
-            ) {
-                return h;
-            }
-        }
-        if pos.y == 0 {
-            if let h @ Some(_) = self.get_height_in_chunk(
-                Vector2::new(chunk_pos.x, chunk_pos.y - 1),
-                Vector2::new(pos.x, pos.y + end.y),
-            ) {
-                return h;
-            }
-        }
-        if pos.x == 0 && pos.y == 0 {
-            if let h @ Some(_) = self.get_height_in_chunk(
-                Vector2::new(chunk_pos.x - 1, chunk_pos.y - 1),
-                Vector2::new(pos.x + end.x, pos.y + end.y),
-            ) {
-                return h;
-            }
-        }
-        None
-    }
-
-    fn get_height_in_chunk(
-        &self,
-        chunk_pos: Vector2<i32>,
-        pixel_pos: Vector2<usize>,
-    ) -> Option<f32> {
-        let index = pixel_pos.y * self.height_map_size.x as usize + pixel_pos.x;
-        let chunk = self.find_chunk(chunk_pos)?;
+        let chunk = self.chunks_containing_height_pos_iter(position).next()?;
+        let p = (position - self.chunk_height_pos_origin(chunk.grid_position))
+            .map(|x| (x + 1) as usize);
+        let index = p.y * self.height_map_size.x as usize + p.x;
         let texture_data = chunk.heightmap.as_ref().unwrap().data_ref();
         let height_map = texture_data.data_of_type::<f32>().unwrap();
         Some(height_map[index])
@@ -1484,7 +1786,7 @@ impl Terrain {
     /// Convert height pixel position into local 2D position.
     pub fn height_pos_to_local(&self, position: Vector2<i32>) -> Vector2<f32> {
         let pos = position.map(|x| x as f32);
-        let chunk_size = self.height_map_size.map(|x| (x - 1) as f32);
+        let chunk_size = self.height_map_size.map(|x| (x - 3) as f32);
         let physical_size = &self.chunk_size;
         Vector2::new(
             pos.x / chunk_size.x * physical_size.x,
@@ -1494,6 +1796,7 @@ impl Terrain {
 
     /// Convert mask pixel position into local 2D position.
     pub fn mask_pos_to_local(&self, position: Vector2<i32>) -> Vector2<f32> {
+        // Shift by 0.5 in each dimension to get the center of the pixel.
         let pos = position.map(|x| x as f32 + 0.5);
         let chunk_size = self.mask_size.map(|x| x as f32);
         let physical_size = &self.chunk_size;
@@ -1504,7 +1807,7 @@ impl Terrain {
     }
 
     /// Determines the chunk containing the given height pixel coordinate.
-    /// Be aware that the edges of chunks overlap because the vertices along each edge of a chunk
+    /// Be aware that the edges of chunks overlap by two pixels because the vertices along each edge of a chunk
     /// have the same height as the corresponding vertices of the next chunk in that direction.
     /// Due to this, if `position.x` is on the x-axis origin of the chunk returned by this method,
     /// then the position is also contained in the chunk at x - 1.
@@ -1512,9 +1815,35 @@ impl Terrain {
     /// If position is on the origin in both the x and y axes, then the position is actually contained
     /// in 4 chunks.
     pub fn chunk_containing_height_pos(&self, position: Vector2<i32>) -> Vector2<i32> {
-        // Subtract 1 from x and y to exclude the overlapping pixel along both axes from the chunk size.
-        let chunk_size = self.height_map_size.map(|x| x - 1);
+        // Subtract 3 from x and y to exclude the overlapping pixels along both axes from the chunk size.
+        let chunk_size = self.height_map_size.map(|x| x - 3);
         pixel_position_to_grid_position(position, chunk_size)
+    }
+
+    /// Given the grid position of some chunk and a height pixel position, return true
+    /// if the chunk at that position would include data for the height at that position.
+    pub fn chunk_contains_height_pos(
+        &self,
+        chunk_grid_position: Vector2<i32>,
+        pixel_position: Vector2<i32>,
+    ) -> bool {
+        let p = pixel_position - self.chunk_height_pos_origin(chunk_grid_position);
+        let w = self.height_map_size.x as i32;
+        let h = self.height_map_size.y as i32;
+        (-1..w - 1).contains(&p.x) && (-1..h - 1).contains(&p.y)
+    }
+
+    /// Iterate through all the chunks that contain the given height pixel position.
+    pub fn chunks_containing_height_pos_iter(
+        &self,
+        pixel_position: Vector2<i32>,
+    ) -> impl Iterator<Item = &Chunk> {
+        let w = self.height_map_size.x as i32;
+        let h = self.height_map_size.y as i32;
+        self.chunks.iter().filter(move |c| {
+            let p = pixel_position - self.chunk_height_pos_origin(c.grid_position);
+            (-1..w - 1).contains(&p.x) && (-1..h - 1).contains(&p.y)
+        })
     }
 
     /// Determines the position of the (0,0) coordinate of the given chunk
@@ -1564,90 +1893,6 @@ impl Terrain {
         *value = func(*value);
     }
 
-    /// Applies the given function to the value at the given position in height pixel coordinates.
-    /// This method calls the given function with the height value of that pixel.
-    /// The returned value is written to every chunk that contains that pixel, replacing the current value.
-    /// Most pixels are contained in only one chunk, but some pixels are contained in anywhere from zero to four chunks,
-    /// due to chunks overlapping at the edges and corners.
-    /// If no chunk contains the given position, then the function is not called.
-    pub fn update_height_pixel<F, G>(
-        &mut self,
-        position: Vector2<i32>,
-        mut pixel_func: F,
-        mut chunk_func: G,
-    ) where
-        F: FnMut(f32) -> f32,
-        G: FnMut(&Chunk),
-    {
-        let chunk_pos = self.chunk_containing_height_pos(position);
-        let origin = self.chunk_height_pos_origin(chunk_pos);
-        let pos = (position - origin).map(|x| x as usize);
-        let mut result: Option<f32> = None;
-        let end = self.height_map_size.map(|x| (x - 1) as usize);
-        self.update_pixel_in_chunk(
-            chunk_pos,
-            pos,
-            &mut result,
-            &mut pixel_func,
-            &mut chunk_func,
-        );
-        if pos.x == 0 {
-            self.update_pixel_in_chunk(
-                Vector2::new(chunk_pos.x - 1, chunk_pos.y),
-                Vector2::new(pos.x + end.x, pos.y),
-                &mut result,
-                &mut pixel_func,
-                &mut chunk_func,
-            );
-        }
-        if pos.y == 0 {
-            self.update_pixel_in_chunk(
-                Vector2::new(chunk_pos.x, chunk_pos.y - 1),
-                Vector2::new(pos.x, pos.y + end.y),
-                &mut result,
-                &mut pixel_func,
-                &mut chunk_func,
-            );
-        }
-        if pos.x == 0 && pos.y == 0 {
-            self.update_pixel_in_chunk(
-                Vector2::new(chunk_pos.x - 1, chunk_pos.y - 1),
-                Vector2::new(pos.x + end.x, pos.y + end.y),
-                &mut result,
-                &mut pixel_func,
-                &mut chunk_func,
-            );
-        }
-    }
-
-    fn update_pixel_in_chunk<F, G>(
-        &mut self,
-        chunk_pos: Vector2<i32>,
-        pixel_pos: Vector2<usize>,
-        result: &mut Option<f32>,
-        pixel_func: F,
-        chunk_func: G,
-    ) where
-        F: FnOnce(f32) -> f32,
-        G: FnOnce(&Chunk),
-    {
-        let index = pixel_pos.y * self.height_map_size.x as usize + pixel_pos.x;
-        let Some(chunk) = self.find_chunk_mut(chunk_pos) else {
-            return;
-        };
-        chunk_func(chunk);
-        let mut texture_data = chunk.heightmap.as_ref().unwrap().data_ref();
-        let mut texture_modifier = texture_data.modify();
-        let height_map = texture_modifier.data_mut_of_type::<f32>().unwrap();
-        let value = &mut height_map[index];
-        if let Some(new_value) = result {
-            *value = *new_value;
-        } else {
-            *value = pixel_func(*value);
-            *result = Some(*value);
-        }
-    }
-
     /// Applies the given function to each pixel of the height map.
     pub fn for_each_height_map_pixel<F>(&mut self, mut func: F)
     where
@@ -1659,9 +1904,9 @@ impl Terrain {
             let height_map = texture_modifier.data_mut_of_type::<f32>().unwrap();
 
             for iy in 0..chunk.height_map_size.y {
-                let kz = iy as f32 / (chunk.height_map_size.y - 1) as f32;
+                let kz = (iy as f32 - 1.0) / (chunk.height_map_size.y - 3) as f32;
                 for ix in 0..chunk.height_map_size.x {
-                    let kx = ix as f32 / (chunk.height_map_size.x - 1) as f32;
+                    let kx = (ix as f32 - 1.0) / (chunk.height_map_size.x - 3) as f32;
 
                     let pixel_position = chunk.local_position()
                         + Vector2::new(kx * chunk.physical_size.x, kz * chunk.physical_size.y);
@@ -1711,16 +1956,23 @@ impl Terrain {
                 let texture = chunk.heightmap.as_ref().unwrap().data_ref();
                 let height_map = texture.data_of_type::<f32>().unwrap();
 
-                let cell_width = chunk.physical_size.x / (chunk.height_map_size.x - 1) as f32;
-                let cell_length = chunk.physical_size.y / (chunk.height_map_size.y - 1) as f32;
+                // The number of cells along each dimension of the chunk is 3 less then the number of pixels
+                // along that dimension.
+                // There are 2 margin pixels which are only used for calculating normals.
+                // Among the remaining pixels, the cells count the space between the pixels,
+                // so the number of cells is one less than the number of pixels.
+                let chunk_width = (chunk.height_map_size.x - 3) as f32;
+                let chunk_length = (chunk.height_map_size.y - 3) as f32;
+                let cell_width = chunk.physical_size.x / chunk_width;
+                let cell_length = chunk.physical_size.y / chunk_length;
 
-                for iy in 0..chunk.height_map_size.y {
-                    let kz = iy as f32 / (chunk.height_map_size.y - 1) as f32;
-                    let next_iy = iy + 1;
+                // Search everything between the margins, but not including the margins
+                for iy in 1..chunk.height_map_size.y - 2 {
+                    let kz = (iy - 1) as f32 / chunk_length;
 
-                    for ix in 0..chunk.height_map_size.x {
-                        let kx = ix as f32 / (chunk.height_map_size.x - 1) as f32;
-                        let next_ix = ix + 1;
+                    // Search everything between the margins, but not including the margins
+                    for ix in 1..chunk.height_map_size.x - 2 {
+                        let kx = (ix - 1) as f32 / chunk_width;
 
                         let pixel_position = chunk.local_position()
                             + Vector2::new(kx * chunk.physical_size.x, kz * chunk.physical_size.y);
@@ -1731,46 +1983,42 @@ impl Terrain {
                         if ray_rect_intersection(cell_bounds, origin_proj, dir_proj).is_some() {
                             // If we have 2D intersection, go back in 3D and do precise intersection
                             // check.
-                            if next_ix < chunk.height_map_size.x
-                                && next_iy < chunk.height_map_size.y
-                            {
-                                let i0 = (iy * chunk.height_map_size.x + ix) as usize;
-                                let i1 = ((iy + 1) * chunk.height_map_size.x + ix) as usize;
-                                let i2 = ((iy + 1) * chunk.height_map_size.x + ix + 1) as usize;
-                                let i3 = (iy * chunk.height_map_size.x + ix + 1) as usize;
+                            let i0 = (iy * chunk.height_map_size.x + ix) as usize;
+                            let i1 = ((iy + 1) * chunk.height_map_size.x + ix) as usize;
+                            let i2 = ((iy + 1) * chunk.height_map_size.x + ix + 1) as usize;
+                            let i3 = (iy * chunk.height_map_size.x + ix + 1) as usize;
 
-                                let v0 = Vector3::new(
-                                    pixel_position.x,
-                                    height_map[i0],
-                                    pixel_position.y, // Remember Z -> Y mapping!
-                                );
-                                let v1 = Vector3::new(v0.x, height_map[i1], v0.z + cell_length);
-                                let v2 = Vector3::new(v1.x + cell_width, height_map[i2], v1.z);
-                                let v3 = Vector3::new(v0.x + cell_width, height_map[i3], v0.z);
+                            let v0 = Vector3::new(
+                                pixel_position.x,
+                                height_map[i0],
+                                pixel_position.y, // Remember Z -> Y mapping!
+                            );
+                            let v1 = Vector3::new(v0.x, height_map[i1], v0.z + cell_length);
+                            let v2 = Vector3::new(v1.x + cell_width, height_map[i2], v1.z);
+                            let v3 = Vector3::new(v0.x + cell_width, height_map[i3], v0.z);
 
-                                for vertices in &[[v0, v1, v2], [v2, v3, v0]] {
-                                    if let Some((toi, intersection)) =
-                                        local_ray.triangle_intersection(vertices)
-                                    {
-                                        let normal = (vertices[2] - vertices[0])
-                                            .cross(&(vertices[1] - vertices[0]))
-                                            .try_normalize(f32::EPSILON)
-                                            .unwrap_or_else(Vector3::y);
+                            for vertices in &[[v0, v1, v2], [v2, v3, v0]] {
+                                if let Some((toi, intersection)) =
+                                    local_ray.triangle_intersection(vertices)
+                                {
+                                    let normal = (vertices[2] - vertices[0])
+                                        .cross(&(vertices[1] - vertices[0]))
+                                        .try_normalize(f32::EPSILON)
+                                        .unwrap_or_else(Vector3::y);
 
-                                        let result = TerrainRayCastResult {
-                                            position: self
-                                                .global_transform()
-                                                .transform_point(&Point3::from(intersection))
-                                                .coords,
-                                            height: intersection.y,
-                                            normal,
-                                            chunk_index,
-                                            toi,
-                                        };
+                                    let result = TerrainRayCastResult {
+                                        position: self
+                                            .global_transform()
+                                            .transform_point(&Point3::from(intersection))
+                                            .coords,
+                                        height: intersection.y,
+                                        normal,
+                                        chunk_index,
+                                        toi,
+                                    };
 
-                                        if results.try_push(result).is_err() {
-                                            break 'chunk_loop;
-                                        }
+                                    if results.try_push(result).is_err() {
+                                        break 'chunk_loop;
                                     }
                                 }
                             }
@@ -1903,55 +2151,34 @@ impl Terrain {
     }
 
     fn resize_height_maps(&mut self, mut new_size: Vector2<u32>) {
-        // Height maps should be a 1 + a multiple of 2 and they should be at least
-        // 3x3, since a 1x1 height map would be just a single vertex with no faces.
-        new_size = new_size.sup(&Vector2::repeat(3));
+        // Height map dimensions should be a 3 + a power of 2 and they should be at least 5x5,
+        // since two pixels along each edge are duplicated from neighboring chunks.
+        new_size = new_size.sup(&Vector2::repeat(5));
 
         for chunk in self.chunks.iter_mut() {
             let texture = chunk.heightmap.as_ref().unwrap().data_ref();
-            let mut heightmap = texture.data_of_type::<f32>().unwrap().to_vec();
+            let heightmap = texture.data_of_type::<f32>().unwrap().to_vec();
 
-            let mut max = -f32::MAX;
-            for &height in &heightmap {
-                if height > max {
-                    max = height;
-                }
-            }
-
-            if max != 0.0 {
-                for height in &mut heightmap {
-                    *height /= max;
-                }
-            }
-
-            let heightmap_image = ImageBuffer::<Luma<f32>, Vec<f32>>::from_vec(
-                chunk.height_map_size.x,
-                chunk.height_map_size.y,
-                heightmap,
-            )
-            .unwrap();
-
-            let resampled_heightmap_image = image::imageops::resize(
-                &heightmap_image,
-                new_size.x,
-                new_size.y,
-                FilterType::Lanczos3,
-            );
-
-            let mut resampled_heightmap = resampled_heightmap_image.into_raw();
-
-            for height in &mut resampled_heightmap {
-                *height *= max;
-            }
+            let resampled_heightmap = resize_f32(heightmap, chunk.height_map_size, new_size);
 
             drop(texture);
-
             chunk.height_map_size = new_size;
             chunk.heightmap = Some(make_height_map_texture(resampled_heightmap, new_size));
-            chunk.update_quad_tree();
         }
-
         self.height_map_size.set_value_and_mark_modified(new_size);
+
+        // Re-establish alignment of edges and margins.
+        for grid_position in self
+            .chunks
+            .iter()
+            .map(|c| c.grid_position)
+            .collect::<Vec<_>>()
+        {
+            self.align_chunk_margins(grid_position);
+            self.align_chunk_edges(grid_position);
+        }
+        self.update_quad_trees();
+
         self.bounding_box_dirty.set(true);
     }
 
@@ -2049,8 +2276,75 @@ impl Terrain {
     }
 }
 
+/// True if the given number is a power of two.
+fn is_power_of_two(x: u32) -> bool {
+    x != 0 && (x & (x - 1)) == 0
+}
+
+fn validate_height_map_size(x: u32, size: Vector2<u32>) -> Result<(), String> {
+    if is_power_of_two(x - 3) {
+        return Ok(());
+    }
+    let mut suggestion = 2;
+    while suggestion + 3 < x {
+        suggestion *= 2;
+    }
+    Err(format!(
+        "Height map size ({}, {}): {} is not 3 plus a power of 2. Consider: {}",
+        size.x,
+        size.y,
+        x,
+        suggestion + 3
+    ))
+}
+
+fn validate_block_size(x: u32, size: Vector2<u32>) -> Result<(), String> {
+    if is_power_of_two(x - 1) {
+        return Ok(());
+    }
+    let mut suggestion = 2;
+    while suggestion + 1 < x {
+        suggestion *= 2;
+    }
+    Err(format!(
+        "Block size ({}, {}): {} is not 1 plus a power of 2. Consider: {}",
+        size.x,
+        size.y,
+        x,
+        suggestion + 1
+    ))
+}
+
 impl NodeTrait for Terrain {
     crate::impl_query_component!();
+
+    fn validate(&self, _: &Scene) -> Result<(), String> {
+        let h_size = self.height_map_size();
+        validate_height_map_size(h_size.x, h_size)?;
+        validate_height_map_size(h_size.y, h_size)?;
+        let b_size = self.block_size();
+        validate_block_size(b_size.x, b_size)?;
+        validate_block_size(b_size.y, b_size)?;
+        if b_size.x - 1 > h_size.x - 3 {
+            return Err(format!(
+                "Block size ({}, {}): {} is too large for height map. Consider: {}",
+                b_size.x,
+                b_size.y,
+                b_size.x,
+                h_size.x - 2
+            ));
+        }
+        if b_size.y - 1 > h_size.y - 3 {
+            return Err(format!(
+                "Block size ({}, {}): {} is too large for height map. Consider: {}",
+                b_size.x,
+                b_size.y,
+                b_size.y,
+                h_size.y - 2
+            ));
+        }
+        Ok(())
+    }
 
     /// Returns pre-cached bounding axis-aligned bounding box of the terrain. Keep in mind that
     /// if you're modified terrain, bounding box will be recalculated and it is not fast.
@@ -2128,7 +2422,7 @@ impl NodeTrait for Terrain {
                 // The formula used to produce this list has been chosen arbitrarily based on what seems to produce
                 // the best results in the render.
                 let quad_tree = chunk.quad_tree.lock();
-                let levels = (0..quad_tree.max_level)
+                let levels = (0..=quad_tree.max_level)
                     .map(|n| {
                         ctx.z_far
                             * ((quad_tree.max_level - n) as f32 / quad_tree.max_level as f32)
@@ -2178,12 +2472,16 @@ impl NodeTrait for Terrain {
                     "Unable to set height map texture for terrain material.",
                 );
 
+                // The size of the chunk excluding the margins
+                let size = self.height_map_size.map(|x| (x - 3) as f32);
                 for node in selection {
-                    let kx = node.position.x as f32 / self.height_map_size.x as f32;
-                    let kz = node.position.y as f32 / self.height_map_size.y as f32;
+                    // Exclude margins from node position. The node at (1,1) is actually at the origin
+                    // of the chunk, because (0,0) is in the margin, and we do not render the margin.
+                    let kx = (node.position.x - 1) as f32 / size.x;
+                    let kz = (node.position.y - 1) as f32 / size.y;
 
-                    let kw = node.size.x as f32 / self.height_map_size.x as f32;
-                    let kh = node.size.y as f32 / self.height_map_size.y as f32;
+                    let kw = (node.size.x - 1) as f32 / size.x;
+                    let kh = (node.size.y - 1) as f32 / size.y;
 
                     Log::verify_message(
                         material.set_property(
@@ -2400,7 +2698,6 @@ impl TerrainBuilder {
                             )
                         })
                         .collect::<Vec<_>>(),
-                    version: VERSION,
                     block_size: self.block_size,
                 };
 
@@ -2420,7 +2717,6 @@ impl TerrainBuilder {
             width_chunks: self.width_chunks.into(),
             length_chunks: self.length_chunks.into(),
             decal_layer_index: self.decal_layer_index.into(),
-            version: VERSION,
             geometry: TerrainGeometry::new(self.block_size),
             block_size: self.block_size.into(),
         };
@@ -2430,5 +2726,76 @@ impl TerrainBuilder {
     /// Builds terrain node and adds it to given graph.
     pub fn build(self, graph: &mut Graph) -> Handle<Node> {
         graph.add_node(self.build_node())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn power_of_two() {
+        assert!(!is_power_of_two(0));
+        assert!(is_power_of_two(1));
+        assert!(is_power_of_two(2));
+        assert!(!is_power_of_two(3));
+        assert!(is_power_of_two(4));
+        assert!(!is_power_of_two(5));
+        assert!(!is_power_of_two(6));
+        assert!(!is_power_of_two(7));
+        assert!(is_power_of_two(8));
+        assert!(!is_power_of_two(9));
+        assert!(!is_power_of_two(15));
+        assert!(is_power_of_two(16));
+    }
+    #[test]
+    fn resize_1x1() {
+        let r = resize_f32(vec![3.5], Vector2::new(1, 1), Vector2::new(2, 2));
+        assert_eq!(r, vec![3.5, 3.5, 3.5, 3.5]);
+    }
+    #[test]
+    fn resize_2x1() {
+        let r = resize_f32(vec![1.0, 2.0], Vector2::new(2, 1), Vector2::new(3, 1));
+        assert_eq!(r, vec![1.0, 1.5, 2.0]);
+    }
+    #[test]
+    fn zero_margin_0x0() {
+        let r = create_zero_margin(Vec::new(), Vector2::new(0, 0));
+        assert_eq!(r, vec![0.0, 0.0, 0.0, 0.0]);
+    }
+    #[test]
+    fn zero_margin_1x1() {
+        let r = create_zero_margin(vec![3.5], Vector2::new(1, 1));
+        assert_eq!(r, vec![0.0, 0.0, 0.0, 0.0, 3.5, 0.0, 0.0, 0.0, 0.0]);
+    }
+    #[test]
+    fn zero_margin_2x1() {
+        let r = create_zero_margin(vec![1.0, 2.0], Vector2::new(2, 1));
+        assert_eq!(
+            r,
+            vec![0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        );
+    }
+    #[test]
+    fn zero_margin_1x2() {
+        let r = create_zero_margin(vec![1.0, 2.0], Vector2::new(1, 2));
+        assert_eq!(
+            r,
+            vec![0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 0.0]
+        );
+    }
+    #[test]
+    fn zero_margin_3x3() {
+        let r = create_zero_margin(
+            vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0],
+            Vector2::new(3, 3),
+        );
+        assert_eq!(
+            r,
+            vec![
+                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 2.0, 3.0, 0.0, 0.0, 4.0, 5.0, 6.0, 0.0, 0.0,
+                7.0, 8.0, 9.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+            ]
+        );
     }
 }
