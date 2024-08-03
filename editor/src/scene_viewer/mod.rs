@@ -655,7 +655,7 @@ impl SceneViewer {
     ) {
         self.grid_snap_menu.handle_ui_message(message, settings);
 
-        let ui = &engine.user_interfaces.first();
+        let ui = engine.user_interfaces.first_mut();
 
         if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
             for (mode_id, mode_button) in self.interaction_modes.iter() {
@@ -801,36 +801,32 @@ impl SceneViewer {
                         match *msg {
                             WidgetMessage::MouseDown { button, pos, .. } => {
                                 if button == MouseButton::Left {
-                                    let rel_pos = pos
-                                        - engine
-                                            .user_interfaces
-                                            .first()
-                                            .node(self.scene_gizmo_image)
-                                            .screen_position();
+                                    let rel_pos =
+                                        pos - ui.node(self.scene_gizmo_image).screen_position();
                                     self.scene_gizmo.drag_context = Some(gizmo::DragContext {
                                         initial_click_pos: rel_pos,
                                         initial_rotation: gizmo::CameraRotation {
-                                            pitch: game_scene.camera_controller.pitch.to_radians(),
-                                            yaw: game_scene.camera_controller.yaw.to_radians(),
+                                            pitch: game_scene.camera_controller.pitch(),
+                                            yaw: game_scene.camera_controller.yaw(),
                                         },
-                                    })
+                                    });
+                                    ui.capture_mouse(self.scene_gizmo_image);
                                 }
                             }
                             WidgetMessage::MouseUp { pos, button } => {
                                 if button == MouseButton::Left {
                                     self.scene_gizmo.drag_context = None;
+                                    ui.release_mouse_capture();
                                 }
-                                let rel_pos = pos
-                                    - engine
-                                        .user_interfaces
-                                        .first()
-                                        .node(self.scene_gizmo_image)
-                                        .screen_position();
-                                if let Some(action) = self.scene_gizmo.on_click(rel_pos, engine) {
+                                let rel_pos =
+                                    pos - ui.node(self.scene_gizmo_image).screen_position();
+                                if let Some(action) =
+                                    self.scene_gizmo.on_click(rel_pos, &engine.scenes)
+                                {
                                     match action {
                                         SceneGizmoAction::Rotate(rotation) => {
-                                            game_scene.camera_controller.pitch = rotation.pitch;
-                                            game_scene.camera_controller.yaw = rotation.yaw;
+                                            game_scene.camera_controller.set_pitch(rotation.pitch);
+                                            game_scene.camera_controller.set_yaw(rotation.yaw);
                                         }
                                         SceneGizmoAction::SwitchProjection => {
                                             let graph = &engine.scenes[game_scene.scene].graph;

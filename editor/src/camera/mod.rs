@@ -59,8 +59,8 @@ pub struct CameraController {
     pub pivot: Handle<Node>,
     pub camera_hinge: Handle<Node>,
     pub camera: Handle<Node>,
-    pub yaw: f32,
-    pub pitch: f32,
+    yaw: f32,
+    pitch: f32,
     pub z_offset: f32,
     mouse_control_mode: MouseControlMode,
     move_left: bool,
@@ -175,6 +175,22 @@ impl CameraController {
             scene_content_root,
             screen_size: Default::default(),
         }
+    }
+
+    pub fn pitch(&self) -> f32 {
+        self.pitch
+    }
+
+    pub fn set_pitch(&mut self, pitch: f32) {
+        self.pitch = pitch.clamp((-90.0f32).to_radians(), 90.0f32.to_radians());
+    }
+
+    pub fn yaw(&self) -> f32 {
+        self.yaw
+    }
+
+    pub fn set_yaw(&mut self, yaw: f32) {
+        self.yaw = yaw;
     }
 
     pub fn is_interacting(&self) -> bool {

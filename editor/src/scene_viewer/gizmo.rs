@@ -26,6 +26,7 @@ use crate::fyrox::{
 };
 use crate::scene::GameScene;
 use fyrox::asset::untyped::ResourceKind;
+use fyrox::scene::SceneContainer;
 
 pub struct CameraRotation {
     pub yaw: f32,
@@ -247,8 +248,8 @@ impl SceneGizmo {
         ]
     }
 
-    fn pick(&self, pos: Vector2<f32>, engine: &Engine) -> Handle<Node> {
-        let graph = &engine.scenes[self.scene].graph;
+    fn pick(&self, pos: Vector2<f32>, scenes: &SceneContainer) -> Handle<Node> {
+        let graph = &scenes[self.scene].graph;
         let ray = graph[self.camera].as_camera().make_ray(
             pos,
             self.render_target
@@ -285,12 +286,12 @@ impl SceneGizmo {
     ) {
         if let Some(drag_context) = self.drag_context.as_ref() {
             let delta = pos - drag_context.initial_click_pos;
-            let sens: f32 = 0.09;
-            camera_controller.yaw = drag_context.initial_rotation.yaw + delta.x * -sens;
-            camera_controller.pitch = drag_context.initial_rotation.pitch + delta.y * sens;
+            let sens: f32 = 0.03;
+            camera_controller.set_yaw(drag_context.initial_rotation.yaw + delta.x * -sens);
+            camera_controller.set_pitch(drag_context.initial_rotation.pitch + delta.y * sens);
         } else {
             let graph = &engine.scenes[self.scene].graph;
-            let closest = self.pick(pos, engine);
+            let closest = self.pick(pos, &engine.scenes);
             fn set_color(node: Handle<Node>, graph: &Graph, color: Color) {
                 graph[node].as_mesh().surfaces()[0]
                     .material()
@@ -315,12 +316,16 @@ impl SceneGizmo {
         }
     }
 
-    pub fn on_click(&mut self, pos: Vector2<f32>, engine: &Engine) -> Option<SceneGizmoAction> {
+    pub fn on_click(
+        &mut self,
+        pos: Vector2<f32>,
+        scenes: &SceneContainer,
+    ) -> Option<SceneGizmoAction> {
         if let Some(_drag_context) = self.drag_context.as_ref() {
             return None;
         }
 
-        let closest = self.pick(pos, engine);
+        let closest = self.pick(pos, scenes);
         if closest == self.neg_x {
             Some(SceneGizmoAction::Rotate(CameraRotation {
                 pitch: 0.0,
