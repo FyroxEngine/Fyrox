@@ -173,7 +173,6 @@ impl<'a> std::ops::Index<Vector2<i32>> for ChunkHeightData<'a> {
         let row_size = self.row_size();
         let x = (position.x + 1) as usize;
         let y = (position.y + 1) as usize;
-        // self.0.data_of_type().unwrap()[y * width + x]
         match self.0.data_of_type::<f32>() {
             Some(d) => &d[y * row_size + x],
             None => panic!("Height data type error: {:?}", self.0),
@@ -1332,7 +1331,7 @@ impl TypeUuidProvider for Terrain {
 }
 
 impl Terrain {
-    /// The height map of a chunk must have one-pixel margins around the edges which do not correpond
+    /// The height map of a chunk must have one-pixel margins around the edges which do not correspond
     /// to vertices in the terrain of that chunk, but are still needed for calculating the normal of
     /// the edge vertices.
     /// The normal for each vertex is derived from the heights of the four neighbor vertices, which means

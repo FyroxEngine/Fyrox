@@ -218,7 +218,7 @@
                     outColor = diffuseColor * texture(diffuseTexture, tc);
 
                     vec3 n = normalize(texture(normalTexture, tc).xyz * 2.0 - 1.0);
-                    outNormal = vec4(normalize(tangentSpace * n), 1.0);
+                    outNormal = vec4(normalize(tangentSpace * n) * 0.5 + 0.5, 1.0);
 
                     outMaterial.x = texture(metallicTexture, tc).r;
                     outMaterial.y = texture(roughnessTexture, tc).r;
