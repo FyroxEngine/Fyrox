@@ -1,4 +1,6 @@
-//! 3D and 2D Game Engine.
+//! 3D/2D Game Engine.
+//!
+//! Tutorials can be found [here](https://fyrox-book.github.io/tutorials/tutorials.html)
 
 #![doc(
     html_logo_url = "https://fyrox.rs/assets/logos/logo.png",
