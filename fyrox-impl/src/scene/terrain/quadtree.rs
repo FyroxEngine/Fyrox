@@ -4,6 +4,7 @@ use crate::{
     core::{
         algebra::{Matrix4, Vector2, Vector3},
         color::Color,
+        log::Log,
         math::{aabb::AxisAlignedBoundingBox, frustum::Frustum},
     },
     scene::debug::SceneDrawingContext,
@@ -145,7 +146,10 @@ impl QuadTreeNode {
             }
         }
 
-        let kind = if node_size.x <= max_size.x && node_size.y <= max_size.y {
+        let kind = if node_size.x < 3
+            || node_size.y < 3
+            || node_size.x <= max_size.x && node_size.y <= max_size.y
+        {
             QuadTreeNodeKind::Leaf
         } else {
             // Build children nodes recursively.
@@ -225,18 +229,33 @@ impl QuadTreeNode {
         height_map_size: Vector2<u32>,
         physical_size: Vector2<f32>,
     ) -> AxisAlignedBoundingBox {
+        if self.size.x < 1 || self.size.y < 1 {
+            Log::err("Invalid Terrain quad tree node size");
+            return Default::default();
+        }
+        if height_map_size.x < 3 || height_map_size.y < 3 {
+            Log::err("Invalid Terrain height texture size");
+            return Default::default();
+        }
+        if self.position.x < 1 || self.position.y < 1 {
+            Log::err("Invalid Terrain quad tree node position");
+            return Default::default();
+        }
         // Convert sizes form pixel sizes to mesh sizes.
         // For calculating AABB, we do not care about the number of vertices;
         // we care about the number of edges between vertices, which is one fewer.
-        let real_map_size = Vector2::new(height_map_size.x - 1, height_map_size.y - 1);
-        let real_node_size = Vector2::new(self.size.x - 1, self.size.y - 1);
-        let min_x = (self.position.x as f32 / real_map_size.x as f32) * physical_size.x;
-        let min_y = (self.position.y as f32 / real_map_size.y as f32) * physical_size.y;
+        let real_node_size = self.size.map(|x| x - 1);
+        // For the height map size, we count the number of edges excluding the margin edges, so three fewer.
+        let real_map_size = height_map_size.map(|x| x - 3);
+        // For the position, we must exclude the margin, so 1 becomes 0 and so on.
+        let real_pos = self.position.map(|x| x - 1);
+        let min_x = (real_pos.x as f32 / real_map_size.x as f32) * physical_size.x;
+        let min_y = (real_pos.y as f32 / real_map_size.y as f32) * physical_size.y;
 
-        let max_x = ((self.position.x + real_node_size.x) as f32 / real_map_size.x as f32)
-            * physical_size.x;
-        let max_y = ((self.position.y + real_node_size.y) as f32 / real_map_size.y as f32)
-            * physical_size.y;
+        let max_x =
+            ((real_pos.x + real_node_size.x) as f32 / real_map_size.x as f32) * physical_size.x;
+        let max_y =
+            ((real_pos.y + real_node_size.y) as f32 / real_map_size.y as f32) * physical_size.y;
 
         let min = Vector3::new(min_x, self.min_height, min_y);
         let max = Vector3::new(max_x, self.max_height, max_y);
@@ -289,12 +308,16 @@ impl QuadTreeNode {
         level_ranges: &[f32],
         selection: &mut Vec<SelectedNode>,
     ) -> bool {
-        let aabb = self.aabb(transform, height_map_size, physical_size);
-
         let current_level = self.level as usize;
 
+        let Some(radius) = level_ranges.get(current_level).copied() else {
+            return false;
+        };
+
+        let aabb = self.aabb(transform, height_map_size, physical_size);
+
         if !frustum.map_or(true, |f| f.is_intersects_aabb(&aabb))
-            || !aabb.is_intersects_sphere(camera_position, level_ranges[current_level])
+            || !aabb.is_intersects_sphere(camera_position, radius)
         {
             // This node is out of range, so add nothing to `selection` and return.
             // If this node is rendered at all, it will need an active quadrant of the parent node.
@@ -394,8 +417,8 @@ impl QuadTree {
         let root = QuadTreeNode::new(
             height_map,
             height_map_size,
-            Vector2::new(0, 0),
-            height_map_size,
+            Vector2::new(1, 1),
+            height_map_size.map(|x| x - 2),
             block_size,
             0,
             &mut index,

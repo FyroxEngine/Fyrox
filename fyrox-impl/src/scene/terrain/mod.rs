@@ -2178,12 +2178,14 @@ impl NodeTrait for Terrain {
                     "Unable to set height map texture for terrain material.",
                 );
 
+                let total_size = self.height_map_size.map(|x| (x - 3) as f32);
                 for node in selection {
-                    let kx = node.position.x as f32 / self.height_map_size.x as f32;
-                    let kz = node.position.y as f32 / self.height_map_size.y as f32;
+                    let kx = (node.position.x - 1) as f32 / total_size.x;
+                    let kz = (node.position.y - 1) as f32 / total_size.y;
 
-                    let kw = node.size.x as f32 / self.height_map_size.x as f32;
-                    let kh = node.size.y as f32 / self.height_map_size.y as f32;
+                    let node_size = node.size.map(|x| x - 1);
+                    let kw = node_size.x as f32 / total_size.x;
+                    let kh = node_size.y as f32 / total_size.y;
 
                     Log::verify_message(
                         material.set_property(
