@@ -47,9 +47,9 @@ impl StrokeChunks {
     pub fn set_layout(&mut self, kind: TerrainTextureKind, size: Vector2<u32>) {
         self.kind = kind;
         // If the texture is a height texture, then its edges overlap with the neigboring chunks,
-        // so the size we need is one less than the actual size in each dimension.
+        // so the size we need is three less than the actual size in each dimension.
         self.chunk_size = match kind {
-            TerrainTextureKind::Height => size.map(|x| x - 1),
+            TerrainTextureKind::Height => size.map(|x| x - 3),
             TerrainTextureKind::Mask => size,
         };
     }
@@ -102,7 +102,11 @@ impl StrokeChunks {
             let origin = self.chunk_to_origin(*c);
             let row_size = self.row_size();
             for p in pxs.iter() {
-                let Some(value) = stroke.latest_pixel_value(origin + p.map(|x| x as i32)) else {
+                let position = match self.kind {
+                    TerrainTextureKind::Mask => origin + p.map(|x| x as i32),
+                    TerrainTextureKind::Height => origin + p.map(|x| x as i32 - 1),
+                };
+                let Some(value) = stroke.latest_pixel_value(position) else {
                     continue;
                 };
                 let index = p.x as usize + p.y as usize * row_size;
@@ -125,7 +129,7 @@ impl StrokeChunks {
     /// The width of the texture in pixels.
     pub fn row_size(&self) -> usize {
         match self.kind {
-            TerrainTextureKind::Height => (self.chunk_size.x + 1) as usize,
+            TerrainTextureKind::Height => (self.chunk_size.x + 3) as usize,
             TerrainTextureKind::Mask => self.chunk_size.x as usize,
         }
     }
@@ -133,47 +137,59 @@ impl StrokeChunks {
     /// based on the row size. The given position is relative to the origin of the texture
     /// and must be within the bounds of the texture.
     pub fn pixel_index(&self, position: Vector2<i32>) -> usize {
-        if position.x < 0
-            || position.x >= self.chunk_size.x as i32
-            || position.y < 0
-            || position.y >= self.chunk_size.y as i32
-        {
+        if !self.is_valid_pixel(position) {
             panic!(
                 "Invalid pixel position: ({}, {}) within ({}, {})",
                 position.x, position.y, self.chunk_size.x, self.chunk_size.y
             );
         }
-        let p = position.map(|x| x as usize);
+        let p = match self.kind {
+            TerrainTextureKind::Height => position.map(|x| (x + 1) as usize),
+            TerrainTextureKind::Mask => position.map(|x| x as usize),
+        };
         p.x + p.y * self.row_size()
+    }
+    /// True if the given pixel position is within the bounds of a chunk for the current kind of chunk data.
+    /// Due to the margins of the height textures, it is permitted to index height textures to -1 and chunk_size.x + 1.
+    pub fn is_valid_pixel(&self, position: Vector2<i32>) -> bool {
+        let size = self.chunk_size.map(|x| x as i32);
+        match self.kind {
+            TerrainTextureKind::Height => {
+                (-1..=size.x + 1).contains(&position.x) && (-1..=size.y + 1).contains(&position.y)
+            }
+            TerrainTextureKind::Mask => {
+                (0..size.x).contains(&position.x) && (0..size.y).contains(&position.x)
+            }
+        }
     }
     /// Insert the the pixel at the given position into this data.
     /// This method determines which chunks have a pixel at that position
     /// and marks each of those chunks as being modified.
     pub fn write(&mut self, position: Vector2<i32>) {
         let grid_pos = self.pixel_position_to_grid_position(position);
-        let origin = self.chunk_to_origin(grid_pos);
-        let pos = (position - origin).map(|x| x as u32);
         self.count += 1;
-        self.write_to_chunk(grid_pos, pos);
-        if self.kind == TerrainTextureKind::Height {
-            if pos.x == 0 {
-                self.write_to_chunk(
-                    Vector2::new(grid_pos.x - 1, grid_pos.y),
-                    Vector2::new(self.chunk_size.x, pos.y),
-                );
+        match self.kind {
+            TerrainTextureKind::Height => {
+                for x in grid_pos.x - 1..=grid_pos.x + 1 {
+                    for y in grid_pos.y - 1..=grid_pos.y + 1 {
+                        self.write_height(Vector2::new(x, y), position);
+                    }
+                }
             }
-            if pos.y == 0 {
-                self.write_to_chunk(
-                    Vector2::new(grid_pos.x, grid_pos.y - 1),
-                    Vector2::new(pos.x, self.chunk_size.y),
-                );
+            TerrainTextureKind::Mask => {
+                let origin = self.chunk_to_origin(grid_pos);
+                let pos = (position - origin).map(|x| x as u32);
+                self.write_to_chunk(grid_pos, pos);
             }
-            if pos.x == 0 && pos.y == 0 {
-                self.write_to_chunk(
-                    Vector2::new(grid_pos.x - 1, grid_pos.y - 1),
-                    self.chunk_size,
-                );
-            }
+        }
+    }
+    fn write_height(&mut self, grid_pos: Vector2<i32>, position: Vector2<i32>) {
+        let origin = self.chunk_to_origin(grid_pos);
+        let pos = position - origin;
+        let size = self.chunk_size;
+        let (w, h) = (size.x as i32, size.y as i32);
+        if (-1..=w + 1).contains(&pos.x) && (-1..=h + 1).contains(&pos.y) {
+            self.write_to_chunk(grid_pos, pos.map(|x| (x + 1) as u32));
         }
     }
     fn write_to_chunk(&mut self, grid_pos: Vector2<i32>, position: Vector2<u32>) {
@@ -205,7 +221,7 @@ mod tests {
     #[test]
     fn chunk_to_origin() {
         let mut chunks = StrokeChunks::default();
-        chunks.set_layout(TerrainTextureKind::Height, Vector2::new(5, 5));
+        chunks.set_layout(TerrainTextureKind::Height, Vector2::new(7, 7));
         assert_eq!(
             chunks.chunk_to_origin(Vector2::new(0, 0)),
             Vector2::new(0, 0)
@@ -222,7 +238,7 @@ mod tests {
     #[test]
     fn pixel_position_to_grid_position() {
         let mut chunks = StrokeChunks::default();
-        chunks.set_layout(TerrainTextureKind::Height, Vector2::new(5, 5));
+        chunks.set_layout(TerrainTextureKind::Height, Vector2::new(7, 7));
         assert_eq!(
             chunks.pixel_position_to_grid_position(Vector2::new(0, 0)),
             Vector2::new(0, 0)

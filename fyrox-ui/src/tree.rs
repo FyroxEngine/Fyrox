@@ -60,7 +60,7 @@ pub enum TreeMessage {
     /// A message, that is used to prevent expander from being hidden when a tree does not have
     /// any child items.
     SetExpanderShown(bool),
-    /// A message, that is use to specify a new set of children items of a tree.
+    /// A message, that is used to specify a new set of children items of a tree.
     SetItems {
         /// A set of handles to new tree items.
         items: Vec<Handle<UiNode>>,
@@ -197,7 +197,7 @@ impl TreeRootMessage {
 /// }
 /// ```
 ///
-/// Note, that `TreeRoot` widget is mandatory here. Otherwise some functionality of descendant trees
+/// Note, that `TreeRoot` widget is mandatory here. Otherwise, some functionality of descendant trees
 /// won't work (primarily - selection). See [`TreeRoot`] docs for more detailed explanation.
 ///
 /// ## Built-in controls
@@ -208,6 +208,133 @@ impl TreeRootMessage {
 /// `Ctrl+Click` - enables multi-selection.
 /// `Alt+Click` - prevents selection allowing you to use drag'n'drop.
 /// `Shift+Click` - selects a span of items.
+/// `ArrowUp` - navigate up from the topmost selection.
+/// `ArrowDown` - navigate down from the lowermost selection.
+/// `ArrowRight` - expand the selected item (first from the selection) or (if it is expanded), go
+/// down the tree.
+/// `ArrowLeft` - collapse the selected item or (if it is collapsed), go up the tree.
+///
+/// ## Adding Items
+///
+/// An item could be added to a tree using [`TreeMessage::AddItem`] message like so:
+///
+/// ```rust
+/// # use fyrox_ui::{
+/// #     core::pool::Handle,
+/// #     message::MessageDirection,
+/// #     text::TextBuilder,
+/// #     tree::{TreeBuilder, TreeMessage},
+/// #     widget::WidgetBuilder,
+/// #     UiNode, UserInterface,
+/// # };
+/// #
+/// fn add_item(tree: Handle<UiNode>, ui: &mut UserInterface) {
+///     let ctx = &mut ui.build_ctx();
+///
+///     let item = TreeBuilder::new(WidgetBuilder::new())
+///         .with_content(
+///             TextBuilder::new(WidgetBuilder::new())
+///                 .with_text("Some New Item")
+///                 .build(ctx),
+///         )
+///         .build(ctx);
+///
+///     ui.send_message(TreeMessage::add_item(
+///         tree,
+///         MessageDirection::ToWidget,
+///         item,
+///     ));
+/// }
+/// ```
+///
+/// ## Removing Items
+///
+/// An item could be removed from a tree using [`TreeMessage::RemoveItem`] message like so:
+///
+/// ```rust
+/// # use fyrox_ui::{
+/// #     core::pool::Handle, message::MessageDirection, tree::TreeMessage, UiNode, UserInterface,
+/// # };
+/// #
+/// fn remove_item(tree: Handle<UiNode>, item_to_remove: Handle<UiNode>, ui: &UserInterface) {
+///     // Note that the `ui` is borrowed as immutable here, which means that the item will **not**
+///     // be removed immediately, but on the next update call.
+///     ui.send_message(TreeMessage::remove_item(
+///         tree,
+///         MessageDirection::ToWidget,
+///         item_to_remove,
+///     ));
+/// }
+/// ```
+///
+/// ## Setting New Items
+///
+/// Tree's items could be changed all at once using the [`TreeMessage::SetItems`] message like so:
+///
+/// ```rust
+/// # use fyrox_ui::{
+/// #     core::pool::Handle,
+/// #     message::MessageDirection,
+/// #     text::TextBuilder,
+/// #     tree::{TreeBuilder, TreeMessage},
+/// #     widget::WidgetBuilder,
+/// #     UiNode, UserInterface,
+/// # };
+/// #
+/// fn set_items(tree: Handle<UiNode>, ui: &mut UserInterface) {
+///     let ctx = &mut ui.build_ctx();
+///
+///     let items = vec![
+///         TreeBuilder::new(WidgetBuilder::new())
+///             .with_content(
+///                 TextBuilder::new(WidgetBuilder::new())
+///                     .with_text("Item 0")
+///                     .build(ctx),
+///             )
+///             .build(ctx),
+///         TreeBuilder::new(WidgetBuilder::new())
+///             .with_content(
+///                 TextBuilder::new(WidgetBuilder::new())
+///                     .with_text("Item 1")
+///                     .build(ctx),
+///             )
+///             .build(ctx),
+///     ];
+///
+///     // A flag, that tells that the UI system must destroy previous items first.
+///     let remove_previous = true;
+///     ui.send_message(TreeMessage::set_items(
+///         tree,
+///         MessageDirection::ToWidget,
+///         items,
+///         remove_previous,
+///     ));
+/// }
+/// ```
+///
+/// ## Expanding Items
+///
+/// It is possible to expand/collapse trees at runtime using [`TreeMessage::Expand`] message. It provides
+/// different expansion strategies, see docs for [`TreeExpansionStrategy`] for more info. Tree expansion
+/// could useful to highlight something visually.
+///
+/// ```rust
+/// # use fyrox_ui::{
+/// #     core::pool::Handle,
+/// #     message::MessageDirection,
+/// #     tree::{TreeExpansionStrategy, TreeMessage},
+/// #     UiNode, UserInterface,
+/// # };
+/// #
+/// fn expand_tree(tree: Handle<UiNode>, ui: &UserInterface) {
+///     ui.send_message(TreeMessage::expand(
+///         tree,
+///         MessageDirection::ToWidget,
+///         true,
+///         TreeExpansionStrategy::RecursiveAncestors,
+///     ));
+/// }
+/// ```
 #[derive(Default, Debug, Clone, Visit, Reflect, ComponentProvider)]
 pub struct Tree {
     /// Base widget of the tree.
@@ -695,6 +822,56 @@ fn build_expander(
 /// Tree root is special widget that handles the entire hierarchy of descendant [`Tree`] widgets. Its
 /// main purpose is to handle selection of descendant [`Tree`] widgets. Tree root cannot have a
 /// content and it only could have children tree items. See docs for [`Tree`] for usage examples.
+///
+/// ## Selection
+///
+/// Tree root handles selection in the entire descendant hierarchy, and you can use [`TreeRootMessage::Selected`]
+/// message to manipulate (or listen for changes) the current selection.
+///
+/// ### Listening for Changes
+///
+/// All that is needed is to check a UI message that comes from the common message queue like so:
+///
+/// ```rust
+/// # use fyrox_ui::{
+/// #     core::pool::Handle,
+/// #     message::{MessageDirection, UiMessage},
+/// #     tree::TreeRootMessage,
+/// #     UiNode,
+/// # };
+/// #
+/// fn listen_for_selection_changes(tree_root: Handle<UiNode>, message: &UiMessage) {
+///     if let Some(TreeRootMessage::Selected(new_selection)) = message.data() {
+///         if message.destination() == tree_root
+///             && message.direction() == MessageDirection::FromWidget
+///         {
+///             println!("Selection has changed: {new_selection}");
+///         }
+///     }
+/// }
+/// ```
+///
+/// ### Changing Selection
+///
+/// To change a selection of the entire tree use something like this:
+///
+/// ```rust
+/// # use fyrox_ui::{
+/// #     core::pool::Handle, message::MessageDirection, tree::TreeRootMessage, UiNode, UserInterface,
+/// # };
+/// #
+/// fn change_selection(
+///     tree: Handle<UiNode>,
+///     new_selection: Vec<Handle<UiNode>>,
+///     ui: &UserInterface,
+/// ) {
+///     ui.send_message(TreeRootMessage::select(
+///         tree,
+///         MessageDirection::ToWidget,
+///         new_selection,
+///     ));
+/// }
+/// ```
 #[derive(Default, Debug, Clone, Visit, Reflect, ComponentProvider)]
 pub struct TreeRoot {
     /// Base widget of the tree root.

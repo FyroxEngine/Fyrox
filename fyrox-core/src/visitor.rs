@@ -1636,6 +1636,7 @@ impl Visit for String {
 }
 
 impl Visit for PathBuf {
+    #[allow(clippy::needless_borrows_for_generic_args)] // Fix your shit first before releasing.
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut region = visitor.enter_region(name)?;
 

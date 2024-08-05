@@ -502,14 +502,18 @@ impl SceneController for GameScene {
 
     fn on_mouse_move(
         &mut self,
-        _pos: Vector2<f32>,
+        pos: Vector2<f32>,
         offset: Vector2<f32>,
         _screen_bounds: Rect<f32>,
-        _engine: &mut Engine,
-        settings: &Settings,
+        engine: &mut Engine,
+        _settings: &Settings,
     ) {
-        self.camera_controller
-            .on_mouse_move(offset, &settings.camera);
+        self.camera_controller.on_mouse_move(
+            &mut engine.scenes[self.scene].graph,
+            pos,
+            _screen_bounds.size,
+            offset,
+        );
     }
 
     fn on_mouse_up(
@@ -527,12 +531,13 @@ impl SceneController for GameScene {
     fn on_mouse_down(
         &mut self,
         button: MouseButton,
-        _pos: Vector2<f32>,
+        pos: Vector2<f32>,
         _screen_bounds: Rect<f32>,
         engine: &mut Engine,
         _settings: &Settings,
     ) {
         self.camera_controller.on_mouse_button_down(
+            pos,
             button,
             engine.user_interfaces.first_mut().keyboard_modifiers(),
             &mut engine.scenes[self.scene].graph,

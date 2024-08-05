@@ -157,6 +157,8 @@ impl QuadTreeNode {
             let real_size = Vector2::new(node_size.x - 1, node_size.y - 1);
             // Calculate child size by taking half of the real size and adding 1 to convert back into pixel size.
             let new_size = Vector2::new(real_size.x / 2 + 1, real_size.y / 2 + 1);
+            // Due to the overlap at the edges of nodes, the sums of the widths and heights of the children are one greater than the parent.
+            let remain = (node_size - new_size).map(|x| x + 1);
             // The first pixel of the next node starts on the last pixel of the previous node, not on the first pixel beyond the previous node.
             // Therefore we position the node at node_size.x - 1 instead of node_size.x.
             let center_pos = Vector2::new(new_size.x - 1, new_size.y - 1);
@@ -176,7 +178,7 @@ impl QuadTreeNode {
                         height_map,
                         height_map_size,
                         position + Vector2::new(center_pos.x, 0),
-                        new_size,
+                        Vector2::new(remain.x, new_size.y),
                         max_size,
                         next_level,
                         index,
@@ -185,7 +187,7 @@ impl QuadTreeNode {
                         height_map,
                         height_map_size,
                         position + center_pos,
-                        new_size,
+                        remain,
                         max_size,
                         next_level,
                         index,
@@ -194,7 +196,7 @@ impl QuadTreeNode {
                         height_map,
                         height_map_size,
                         position + Vector2::new(0, center_pos.y),
-                        new_size,
+                        Vector2::new(new_size.x, remain.y),
                         max_size,
                         next_level,
                         index,
@@ -241,21 +243,19 @@ impl QuadTreeNode {
             Log::err("Invalid Terrain quad tree node position");
             return Default::default();
         }
-        // Convert sizes form pixel sizes to mesh sizes.
+        // Convert sizes from pixel sizes to mesh sizes.
         // For calculating AABB, we do not care about the number of vertices;
         // we care about the number of edges between vertices, which is one fewer.
-        let real_node_size = self.size.map(|x| x - 1);
-        // For the height map size, we count the number of edges excluding the margin edges, so three fewer.
         let real_map_size = height_map_size.map(|x| x - 3);
-        // For the position, we must exclude the margin, so 1 becomes 0 and so on.
-        let real_pos = self.position.map(|x| x - 1);
-        let min_x = (real_pos.x as f32 / real_map_size.x as f32) * physical_size.x;
-        let min_y = (real_pos.y as f32 / real_map_size.y as f32) * physical_size.y;
+        // Nodes have no margins, but we still need to subtract one so we are measuring length, not counting vertices.
+        let real_node_size = self.size.map(|x| x - 1);
+        // Exclude the one-pixel margin when calculating the real position of this node.
+        let pos = self.position.map(|x| x - 1);
+        let min_x = (pos.x as f32 / real_map_size.x as f32) * physical_size.x;
+        let min_y = (pos.y as f32 / real_map_size.y as f32) * physical_size.y;
 
-        let max_x =
-            ((real_pos.x + real_node_size.x) as f32 / real_map_size.x as f32) * physical_size.x;
-        let max_y =
-            ((real_pos.y + real_node_size.y) as f32 / real_map_size.y as f32) * physical_size.y;
+        let max_x = ((pos.x + real_node_size.x) as f32 / real_map_size.x as f32) * physical_size.x;
+        let max_y = ((pos.y + real_node_size.y) as f32 / real_map_size.y as f32) * physical_size.y;
 
         let min = Vector3::new(min_x, self.min_height, min_y);
         let max = Vector3::new(max_x, self.max_height, max_y);
@@ -414,6 +414,7 @@ impl QuadTree {
         height_mod_count: u64,
     ) -> Self {
         let mut index = 0;
+        // The root node excludes the margins.
         let root = QuadTreeNode::new(
             height_map,
             height_map_size,

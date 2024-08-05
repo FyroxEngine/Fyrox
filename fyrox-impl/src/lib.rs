@@ -1,4 +1,6 @@
-//! 3D and 2D Game Engine.
+//! 3D/2D Game Engine.
+//!
+//! Tutorials can be found [here](https://fyrox-book.github.io/tutorials/tutorials.html)
 
 #![doc(
     html_logo_url = "https://fyrox.rs/assets/logos/logo.png",
@@ -8,6 +10,8 @@
 #![allow(clippy::upper_case_acronyms)]
 #![allow(clippy::from_over_into)]
 #![allow(clippy::approx_constant)]
+#![allow(clippy::doc_lazy_continuation)]
+#![allow(clippy::mutable_key_type)]
 
 pub mod engine;
 pub mod material;

@@ -27,7 +27,6 @@ use crate::{
         },
     },
     settings::{
-        camera::CameraSettings,
         keys::KeyBindings,
         scene::{SceneCameraSettings, SceneSettings},
         Settings,
@@ -44,23 +43,26 @@ pub mod panel;
 pub const DEFAULT_Z_OFFSET: f32 = -3.0;
 
 #[derive(PartialEq, Copy, Clone)]
-enum RotationMode {
+enum MouseControlMode {
     None,
-    Center { prev_z_offset: f32 },
-    Orbital,
+    CenteredRotation {
+        prev_z_offset: f32,
+    },
+    OrbitalRotation,
+    Drag {
+        initial_position: Vector3<f32>,
+        initial_mouse_position: Vector2<f32>,
+    },
 }
 
 pub struct CameraController {
     pub pivot: Handle<Node>,
     pub camera_hinge: Handle<Node>,
     pub camera: Handle<Node>,
-    pub yaw: f32,
-    pub pitch: f32,
+    yaw: f32,
+    pitch: f32,
     pub z_offset: f32,
-    rotate: RotationMode,
-    drag_side: f32,
-    drag_up: f32,
-    drag: bool,
+    mouse_control_mode: MouseControlMode,
     move_left: bool,
     move_right: bool,
     move_forward: bool,
@@ -155,11 +157,8 @@ impl CameraController {
             camera,
             yaw: settings.yaw,
             pitch: settings.pitch,
-            rotate: RotationMode::None,
-            drag_side: 0.0,
-            drag_up: 0.0,
+            mouse_control_mode: MouseControlMode::None,
             z_offset: DEFAULT_Z_OFFSET,
-            drag: false,
             move_left: false,
             move_right: false,
             move_forward: false,
@@ -178,13 +177,28 @@ impl CameraController {
         }
     }
 
+    pub fn pitch(&self) -> f32 {
+        self.pitch
+    }
+
+    pub fn set_pitch(&mut self, pitch: f32) {
+        self.pitch = pitch.clamp((-90.0f32).to_radians(), 90.0f32.to_radians());
+    }
+
+    pub fn yaw(&self) -> f32 {
+        self.yaw
+    }
+
+    pub fn set_yaw(&mut self, yaw: f32) {
+        self.yaw = yaw;
+    }
+
     pub fn is_interacting(&self) -> bool {
         self.move_backward
             || self.move_forward
             || self.move_left
             || self.move_right
-            || self.drag
-            || self.rotate != RotationMode::None
+            || self.mouse_control_mode != MouseControlMode::None
             || self.move_down
             || self.move_up
     }
@@ -264,22 +278,49 @@ impl CameraController {
             .set_projection(projection);
     }
 
-    pub fn on_mouse_move(&mut self, delta: Vector2<f32>, settings: &CameraSettings) {
-        if self.rotate != RotationMode::None {
-            self.yaw -= delta.x * 0.01;
-            self.pitch += delta.y * 0.01;
-            if self.pitch > 90.0f32.to_radians() {
-                self.pitch = 90.0f32.to_radians();
+    pub fn on_mouse_move(
+        &mut self,
+        graph: &mut Graph,
+        mouse_position: Vector2<f32>,
+        screen_size: Vector2<f32>,
+        delta: Vector2<f32>,
+    ) {
+        match self.mouse_control_mode {
+            MouseControlMode::None => {}
+            MouseControlMode::CenteredRotation { .. } | MouseControlMode::OrbitalRotation => {
+                self.yaw -= delta.x * 0.01;
+                self.pitch += delta.y * 0.01;
+                if self.pitch > 90.0f32.to_radians() {
+                    self.pitch = 90.0f32.to_radians();
+                }
+                if self.pitch < (-90.0f32).to_radians() {
+                    self.pitch = (-90.0f32).to_radians();
+                }
             }
-            if self.pitch < -90.0f32.to_radians() {
-                self.pitch = -90.0f32.to_radians();
+            MouseControlMode::Drag {
+                initial_position,
+                initial_mouse_position,
+            } => {
+                let camera = &graph[self.camera].as_camera();
+                let scale = match camera.projection() {
+                    Projection::Perspective(perspective) => 2.0 * perspective.fov.tan(),
+                    Projection::Orthographic(orthographic) => 2.0 * orthographic.vertical_size,
+                };
+                let side = camera
+                    .side_vector()
+                    .try_normalize(f32::EPSILON)
+                    .unwrap_or_default();
+                let up = camera
+                    .up_vector()
+                    .try_normalize(f32::EPSILON)
+                    .unwrap_or_default();
+                let delta = mouse_position - initial_mouse_position;
+                let offset = side.scale(scale * delta.x / screen_size.x)
+                    + up.scale(scale * delta.y / screen_size.y);
+                graph[self.pivot]
+                    .local_transform_mut()
+                    .set_position(initial_position + offset);
             }
-        }
-
-        if self.drag {
-            let sign = if settings.invert_dragging { 1.0 } else { -1.0 };
-            self.drag_side += sign * delta.x * settings.drag_speed;
-            self.drag_up += sign * delta.y * settings.drag_speed;
         }
     }
 
@@ -350,18 +391,20 @@ impl CameraController {
 
     pub fn on_mouse_button_up(&mut self, button: MouseButton, graph: &mut Graph) {
         match button {
-            MouseButton::Right => {
-                if let RotationMode::Center { prev_z_offset } = self.rotate {
+            MouseButton::Right => match self.mouse_control_mode {
+                MouseControlMode::CenteredRotation { prev_z_offset } => {
                     self.z_offset = prev_z_offset;
                     self.move_along_look_vector(-self.z_offset, graph);
 
-                    self.rotate = RotationMode::None;
-                } else {
-                    self.drag = false;
+                    self.mouse_control_mode = MouseControlMode::None;
                 }
-            }
+                MouseControlMode::Drag { .. } => {
+                    self.mouse_control_mode = MouseControlMode::None;
+                }
+                _ => {}
+            },
             MouseButton::Middle => {
-                self.rotate = RotationMode::None;
+                self.mouse_control_mode = MouseControlMode::None;
             }
             _ => (),
         }
@@ -369,16 +412,22 @@ impl CameraController {
 
     pub fn on_mouse_button_down(
         &mut self,
+        mouse_position: Vector2<f32>,
         button: MouseButton,
         modifiers: KeyboardModifiers,
         graph: &mut Graph,
     ) {
+        let is_perspective = graph[self.camera].as_camera().projection().is_perspective();
+
         match button {
             MouseButton::Right => {
-                if modifiers.shift {
-                    self.drag = true;
+                if modifiers.shift && is_perspective {
+                    self.mouse_control_mode = MouseControlMode::Drag {
+                        initial_position: self.position(graph),
+                        initial_mouse_position: mouse_position,
+                    };
                 } else {
-                    self.rotate = RotationMode::Center {
+                    self.mouse_control_mode = MouseControlMode::CenteredRotation {
                         prev_z_offset: self.z_offset,
                     };
                     self.move_along_look_vector(self.z_offset, graph);
@@ -386,7 +435,14 @@ impl CameraController {
                 }
             }
             MouseButton::Middle => {
-                self.rotate = RotationMode::Orbital;
+                if is_perspective {
+                    self.mouse_control_mode = MouseControlMode::OrbitalRotation;
+                } else {
+                    self.mouse_control_mode = MouseControlMode::Drag {
+                        initial_position: self.position(graph),
+                        initial_mouse_position: mouse_position,
+                    };
+                }
             }
             _ => (),
         }
@@ -422,7 +478,7 @@ impl CameraController {
 
     #[must_use]
     pub fn on_key_down(&mut self, key_bindings: &KeyBindings, key: KeyCode) -> bool {
-        if self.rotate == RotationMode::None || self.drag {
+        if self.mouse_control_mode == MouseControlMode::None {
             return false;
         }
 
@@ -487,7 +543,7 @@ impl CameraController {
 
                 let mut move_vec = Vector3::default();
 
-                if self.rotate != RotationMode::None {
+                if self.mouse_control_mode != MouseControlMode::None {
                     if self.move_forward {
                         move_vec += look;
                     }
@@ -512,9 +568,6 @@ impl CameraController {
                     move_vec = v.scale(self.speed_factor * settings.camera.speed * dt);
                 }
 
-                move_vec += side * self.drag_side;
-                move_vec.y += self.drag_up;
-
                 camera
                     .local_transform_mut()
                     .set_position(Vector3::new(0.0, 0.0, self.z_offset));
@@ -534,7 +587,7 @@ impl CameraController {
             Projection::Orthographic(_) => {
                 let mut move_vec = Vector2::<f32>::default();
 
-                if self.rotate != RotationMode::None {
+                if self.mouse_control_mode != MouseControlMode::None {
                     if self.move_left {
                         move_vec.x += 1.0;
                     }
@@ -548,9 +601,6 @@ impl CameraController {
                         move_vec.y -= 1.0;
                     }
                 }
-
-                move_vec.x += self.drag_side;
-                move_vec.y += self.drag_up;
 
                 if let Some(v) = move_vec.try_normalize(f32::EPSILON) {
                     move_vec = v.scale(self.speed_factor * settings.camera.speed * dt);
@@ -572,9 +622,6 @@ impl CameraController {
                     .set_position(new_position);
             }
         }
-
-        self.drag_side = 0.0;
-        self.drag_up = 0.0;
 
         if !self.is_interacting() && self.prev_interaction_state {
             self.on_interaction_ended(settings, scene_path, graph);

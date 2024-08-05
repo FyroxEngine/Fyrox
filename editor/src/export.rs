@@ -407,7 +407,7 @@ fn copy_binaries_pc(
     }
     for path in binary_paths {
         if let Some(file_name) = path.file_name() {
-            match fs::copy(&path, &destination_folder.join(file_name)) {
+            match fs::copy(&path, destination_folder.join(file_name)) {
                 Ok(_) => {
                     Log::info(format!(
                         "{} was successfully copied to the {} folder.",
@@ -454,7 +454,7 @@ fn copy_binaries_android(
     }
     for path in binary_paths {
         if let Some(file_name) = path.file_name() {
-            match fs::copy(&path, &destination_folder.join(file_name)) {
+            match fs::copy(&path, destination_folder.join(file_name)) {
                 Ok(_) => {
                     Log::info(format!(
                         "{} was successfully copied to the {} folder.",

@@ -2,21 +2,27 @@ use crate::{
     asset::item::AssetItem,
     command::{Command, CommandGroup, SetPropertyCommand},
     fyrox::{
+        asset::untyped::UntypedResource,
+        core::color::Color,
         core::{algebra::Vector2, pool::Handle, TypeUuidProvider, Uuid},
         fxhash::FxHashSet,
         graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
         gui::{
             border::BorderBuilder,
+            brush::Brush,
             button::{Button, ButtonBuilder, ButtonMessage},
-            decorator::DecoratorMessage,
+            decorator::{DecoratorBuilder, DecoratorMessage},
             dropdown_list::{DropdownListBuilder, DropdownListMessage},
             grid::{Column, GridBuilder, Row},
+            image::ImageBuilder,
             message::{MessageDirection, UiMessage},
+            utils::make_simple_tooltip,
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
             wrap_panel::WrapPanelBuilder,
             BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
-            VerticalAlignment,
+            VerticalAlignment, BRUSH_BRIGHT_BLUE, BRUSH_DARKER, BRUSH_LIGHT, BRUSH_LIGHTER,
+            BRUSH_LIGHTEST,
         },
         scene::{
             node::Node,
@@ -27,7 +33,7 @@ use crate::{
             },
         },
     },
-    gui::{make_dropdown_list_option, make_image_button_with_tooltip},
+    gui::make_dropdown_list_option,
     load_image,
     message::MessageSender,
     plugins::tilemap::{
@@ -50,11 +56,14 @@ pub struct TileMapPanel {
     pub palette: Handle<UiNode>,
     active_brush_selector: Handle<UiNode>,
     edit: Handle<UiNode>,
+    pub drawing_modes_panel: Handle<UiNode>,
     draw_button: Handle<UiNode>,
     erase_button: Handle<UiNode>,
     flood_fill_button: Handle<UiNode>,
     pick_button: Handle<UiNode>,
     rect_fill_button: Handle<UiNode>,
+    nine_slice_button: Handle<UiNode>,
+    line_button: Handle<UiNode>,
 }
 
 fn generate_tiles(
@@ -93,6 +102,47 @@ fn selected_brush_index(tile_map: &TileMap) -> Option<usize> {
         .position(|brush| brush == &tile_map.active_brush())
 }
 
+fn make_drawing_mode_button(
+    ctx: &mut BuildContext,
+    width: f32,
+    height: f32,
+    image: Option<UntypedResource>,
+    tooltip: &str,
+    tab_index: Option<usize>,
+) -> Handle<UiNode> {
+    ButtonBuilder::new(
+        WidgetBuilder::new()
+            .with_tab_index(tab_index)
+            .with_tooltip(make_simple_tooltip(ctx, tooltip))
+            .with_margin(Thickness::uniform(1.0)),
+    )
+    .with_back(
+        DecoratorBuilder::new(
+            BorderBuilder::new(WidgetBuilder::new().with_foreground(BRUSH_DARKER))
+                .with_pad_by_corner_radius(false)
+                .with_corner_radius(4.0)
+                .with_stroke_thickness(Thickness::uniform(1.0)),
+        )
+        .with_selected_brush(BRUSH_BRIGHT_BLUE)
+        .with_normal_brush(BRUSH_LIGHT)
+        .with_hover_brush(BRUSH_LIGHTER)
+        .with_pressed_brush(BRUSH_LIGHTEST)
+        .build(ctx),
+    )
+    .with_content(
+        ImageBuilder::new(
+            WidgetBuilder::new()
+                .with_background(Brush::Solid(Color::opaque(180, 180, 180)))
+                .with_margin(Thickness::uniform(2.0))
+                .with_width(width)
+                .with_height(height),
+        )
+        .with_opt_texture(image)
+        .build(ctx),
+    )
+    .build(ctx)
+}
+
 impl TileMapPanel {
     pub fn new(ctx: &mut BuildContext, scene_frame: Handle<UiNode>, tile_map: &TileMap) -> Self {
         let tiles = tile_map
@@ -120,7 +170,7 @@ impl TileMapPanel {
 
         let width = 20.0;
         let height = 20.0;
-        let draw_button = make_image_button_with_tooltip(
+        let draw_button = make_drawing_mode_button(
             ctx,
             width,
             height,
@@ -128,48 +178,74 @@ impl TileMapPanel {
             "Draw with active brush.",
             Some(0),
         );
-        let erase_button = make_image_button_with_tooltip(
+        let erase_button = make_drawing_mode_button(
             ctx,
             width,
             height,
             load_image(include_bytes!("../../../resources/eraser.png")),
             "Erase with active brush.",
-            Some(0),
+            Some(1),
         );
-        let flood_fill_button = make_image_button_with_tooltip(
+        let flood_fill_button = make_drawing_mode_button(
             ctx,
             width,
             height,
             load_image(include_bytes!("../../../resources/fill.png")),
             "Flood fill with random tiles from current brush.",
-            Some(0),
+            Some(2),
         );
-        let pick_button = make_image_button_with_tooltip(
+        let pick_button = make_drawing_mode_button(
             ctx,
             width,
             height,
             load_image(include_bytes!("../../../resources/pipette.png")),
             "Pick tiles for drawing from the tile map.",
-            Some(0),
+            Some(3),
         );
-        let rect_fill_button = make_image_button_with_tooltip(
+        let rect_fill_button = make_drawing_mode_button(
             ctx,
             width,
             height,
             load_image(include_bytes!("../../../resources/rect_fill.png")),
             "Fill the rectangle using the current brush.",
-            Some(0),
+            Some(4),
+        );
+        let nine_slice_button = make_drawing_mode_button(
+            ctx,
+            width,
+            height,
+            load_image(include_bytes!("../../../resources/nine_slice.png")),
+            "Draw rectangles with fixed corners, but stretchable sides.",
+            Some(5),
+        );
+        let line_button = make_drawing_mode_button(
+            ctx,
+            width,
+            height,
+            load_image(include_bytes!("../../../resources/line.png")),
+            "Draw a line using random tiles from the given brush.",
+            Some(6),
         );
 
-        let toolbar = WrapPanelBuilder::new(
+        let drawing_modes_panel = WrapPanelBuilder::new(
             WidgetBuilder::new()
-                .on_row(0)
-                .with_child(edit)
+                .with_enabled(false)
                 .with_child(draw_button)
                 .with_child(erase_button)
                 .with_child(flood_fill_button)
                 .with_child(pick_button)
                 .with_child(rect_fill_button)
+                .with_child(nine_slice_button)
+                .with_child(line_button),
+        )
+        .with_orientation(Orientation::Horizontal)
+        .build(ctx);
+
+        let toolbar = WrapPanelBuilder::new(
+            WidgetBuilder::new()
+                .on_row(0)
+                .with_child(edit)
+                .with_child(drawing_modes_panel)
                 .with_child(active_brush_selector),
         )
         .with_orientation(Orientation::Horizontal)
@@ -207,11 +283,14 @@ impl TileMapPanel {
             palette,
             active_brush_selector,
             edit,
+            drawing_modes_panel,
             draw_button,
             erase_button,
             flood_fill_button,
             pick_button,
             rect_fill_button,
+            nine_slice_button,
+            line_button,
         }
     }
 
@@ -375,10 +454,18 @@ impl TileMapPanel {
                     interaction_mode.drawing_mode = DrawingMode::Pick {
                         click_grid_position: Default::default(),
                     };
+                } else if message.destination() == self.nine_slice_button {
+                    interaction_mode.drawing_mode = DrawingMode::NineSlice {
+                        click_grid_position: Default::default(),
+                    };
                 } else if message.destination() == self.edit {
                     sender.send(Message::SetInteractionMode(
                         TileMapInteractionMode::type_uuid(),
                     ));
+                } else if message.destination() == self.line_button {
+                    interaction_mode.drawing_mode = DrawingMode::Line {
+                        click_grid_position: Default::default(),
+                    };
                 }
             }
         }
@@ -420,6 +507,8 @@ impl TileMapPanel {
                 self.erase_button,
                 self.flood_fill_button,
                 self.rect_fill_button,
+                self.nine_slice_button,
+                self.line_button,
             ];
 
             match interaction_mode.drawing_mode {
@@ -437,6 +526,12 @@ impl TileMapPanel {
                 }
                 DrawingMode::RectFill { .. } => {
                     highlight_all_except(self.rect_fill_button, &buttons, true, ui);
+                }
+                DrawingMode::NineSlice { .. } => {
+                    highlight_all_except(self.nine_slice_button, &buttons, true, ui);
+                }
+                DrawingMode::Line { .. } => {
+                    highlight_all_except(self.line_button, &buttons, true, ui);
                 }
             }
         }

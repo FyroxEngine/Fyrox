@@ -2,6 +2,7 @@
 //! See [`Animation`] docs for more info.
 
 #![warn(missing_docs)]
+#![allow(clippy::doc_lazy_continuation)]
 
 use crate::{
     core::{

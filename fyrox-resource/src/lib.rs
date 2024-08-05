@@ -2,6 +2,8 @@
 
 #![forbid(unsafe_code)]
 #![allow(missing_docs)]
+#![allow(clippy::doc_lazy_continuation)]
+#![allow(clippy::mutable_key_type)]
 
 use crate::{
     core::{

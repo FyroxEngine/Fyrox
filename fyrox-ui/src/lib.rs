@@ -178,6 +178,8 @@
 #![allow(clippy::new_without_default)]
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::type_complexity)]
+#![allow(clippy::doc_lazy_continuation)]
+#![allow(clippy::mutable_key_type)]
 
 pub use copypasta;
 pub use fyrox_core as core;
