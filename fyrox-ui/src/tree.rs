@@ -845,7 +845,7 @@ fn build_expander(
 ///         if message.destination() == tree_root
 ///             && message.direction() == MessageDirection::FromWidget
 ///         {
-///             println!("Selection has changed: {new_selection}");
+///             println!("Selection has changed: {new_selection:?}");
 ///         }
 ///     }
 /// }
