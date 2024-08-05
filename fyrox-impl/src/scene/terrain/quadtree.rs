@@ -4,6 +4,7 @@ use crate::{
     core::{
         algebra::{Matrix4, Vector2, Vector3},
         color::Color,
+        log::Log,
         math::{aabb::AxisAlignedBoundingBox, frustum::Frustum},
     },
     scene::debug::SceneDrawingContext,
@@ -145,7 +146,10 @@ impl QuadTreeNode {
             }
         }
 
-        let kind = if node_size.x < max_size.x || node_size.y < max_size.y {
+        let kind = if node_size.x < 3
+            || node_size.y < 3
+            || node_size.x <= max_size.x && node_size.y <= max_size.y
+        {
             QuadTreeNodeKind::Leaf
         } else {
             // Build children nodes recursively.
@@ -227,7 +231,19 @@ impl QuadTreeNode {
         height_map_size: Vector2<u32>,
         physical_size: Vector2<f32>,
     ) -> AxisAlignedBoundingBox {
-        // Convert sizes from pixel sizes to mesh sizes. Exclude the height map margines.
+        if self.size.x < 1 || self.size.y < 1 {
+            Log::err("Invalid Terrain quad tree node size");
+            return Default::default();
+        }
+        if height_map_size.x < 3 || height_map_size.y < 3 {
+            Log::err("Invalid Terrain height texture size");
+            return Default::default();
+        }
+        if self.position.x < 1 || self.position.y < 1 {
+            Log::err("Invalid Terrain quad tree node position");
+            return Default::default();
+        }
+        // Convert sizes from pixel sizes to mesh sizes.
         // For calculating AABB, we do not care about the number of vertices;
         // we care about the number of edges between vertices, which is one fewer.
         let real_map_size = height_map_size.map(|x| x - 3);
@@ -292,12 +308,16 @@ impl QuadTreeNode {
         level_ranges: &[f32],
         selection: &mut Vec<SelectedNode>,
     ) -> bool {
-        let aabb = self.aabb(transform, height_map_size, physical_size);
-
         let current_level = self.level as usize;
 
+        let Some(radius) = level_ranges.get(current_level).copied() else {
+            return false;
+        };
+
+        let aabb = self.aabb(transform, height_map_size, physical_size);
+
         if !frustum.map_or(true, |f| f.is_intersects_aabb(&aabb))
-            || !aabb.is_intersects_sphere(camera_position, level_ranges[current_level])
+            || !aabb.is_intersects_sphere(camera_position, radius)
         {
             // This node is out of range, so add nothing to `selection` and return.
             // If this node is rendered at all, it will need an active quadrant of the parent node.

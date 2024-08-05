@@ -642,6 +642,26 @@ impl SceneViewer {
             MessageDirection::ToWidget,
             index,
         ));
+        let debug_mode_index = new_scene
+            .as_ref()
+            .and_then(|s| s.controller.downcast_ref::<GameScene>())
+            .map(|s| {
+                engine.scenes[s.scene]
+                    .rendering_options
+                    .polygon_rasterization_mode
+            })
+            .map(|s| match s {
+                PolygonFillMode::Fill => 0,
+                PolygonFillMode::Line => 1,
+                _ => 0,
+            });
+        if let Some(debug_mode_index) = debug_mode_index {
+            ui.send_message(DropdownListMessage::selection(
+                self.debug_switches,
+                MessageDirection::ToWidget,
+                Some(debug_mode_index),
+            ));
+        }
         self.sync_interaction_modes(new_scene, ui)
     }
 
