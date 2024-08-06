@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use crate::{
     asset::{manager::ResourceManager, state::LoadError, untyped::ResourceKind, Resource},
-    core::{algebra::Vector4, color::Color, log::Log, sstorage::ImmutableString},
+    core::{algebra::Vector4, color::Color, log::Log},
     material::{
         shader::{SamplerFallback, Shader, ShaderResource},
         Material, MaterialResource, PropertyValue,
@@ -208,7 +208,7 @@ async fn import_material(
 
 fn set_material_scalar(material: &mut Material, name: &'static str, value: f32) -> Result<()> {
     let value: PropertyValue = PropertyValue::Float(value);
-    match material.set_property(&ImmutableString::new(name), value) {
+    match material.set_property(name, value) {
         Ok(()) => Ok(()),
         Err(err) => {
             Log::err(format!(
@@ -240,7 +240,7 @@ fn set_material_vector3(
     vector: [f32; 3],
 ) -> Result<()> {
     let value: PropertyValue = PropertyValue::Vector3(vector.into());
-    match material.set_property(&ImmutableString::new(name), value) {
+    match material.set_property(name, value) {
         Ok(()) => Ok(()),
         Err(err) => {
             Log::err(format!(
@@ -259,7 +259,7 @@ fn set_material_vector4(
     vector: [f32; 4],
 ) -> Result<()> {
     let value: PropertyValue = PropertyValue::Vector4(vector.into());
-    match material.set_property(&ImmutableString::new(name), value) {
+    match material.set_property(name, value) {
         Ok(()) => Ok(()),
         Err(err) => {
             Log::err(format!(
@@ -283,7 +283,7 @@ fn set_texture(
         .ok_or(GltfMaterialError::InvalidIndex)?
         .clone();
     match material.set_property(
-        &ImmutableString::new(name),
+        name,
         PropertyValue::Sampler {
             value: Some(tex),
             fallback,
