@@ -251,8 +251,8 @@ fn make_handle(scene: &mut Scene, root: Handle<Node>, visible: bool) -> Handle<N
     let mut material = Material::from_shader(GIZMO_SHADER.clone(), None);
 
     material
-        .set_texture(
-            &"diffuseTexture".into(),
+        .set_property(
+            "diffuseTexture",
             load_texture(include_bytes!("../../../resources/circle.png")),
         )
         .unwrap();

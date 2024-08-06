@@ -4,10 +4,9 @@ use crate::fyrox::{
         algebra::{Matrix4, UnitQuaternion, Vector2, Vector3},
         color::Color,
         pool::Handle,
-        sstorage::ImmutableString,
     },
     engine::Engine,
-    material::{Material, MaterialResource, PropertyValue},
+    material::{Material, MaterialResource},
     resource::texture::{TextureResource, TextureResourceExtension},
     scene::{
         base::BaseBuilder,
@@ -62,12 +61,7 @@ pub struct SceneGizmo {
 fn make_cone(transform: Matrix4<f32>, color: Color, graph: &mut Graph) -> Handle<Node> {
     let mut material = Material::standard();
 
-    material
-        .set_property(
-            &ImmutableString::new("diffuseColor"),
-            PropertyValue::Color(color),
-        )
-        .unwrap();
+    material.set_property("diffuseColor", color).unwrap();
 
     MeshBuilder::new(BaseBuilder::new().with_cast_shadows(false))
         .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_ok(
@@ -296,10 +290,7 @@ impl SceneGizmo {
                 graph[node].as_mesh().surfaces()[0]
                     .material()
                     .data_ref()
-                    .set_property(
-                        &ImmutableString::new("diffuseColor"),
-                        PropertyValue::Color(color),
-                    )
+                    .set_property("diffuseColor", color)
                     .unwrap();
             }
             for (node, default_color) in self.parts() {

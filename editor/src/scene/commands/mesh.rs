@@ -57,13 +57,7 @@ impl CommandTrait for SetMeshTextureCommand {
                 surface
                     .material()
                     .data_ref()
-                    .set_property(
-                        &ImmutableString::new("diffuseTexture"),
-                        PropertyValue::Sampler {
-                            value: Some(texture.clone()),
-                            fallback: SamplerFallback::White,
-                        },
-                    )
+                    .set_property("diffuseTexture", texture.clone())
                     .unwrap();
             }
             self.set = TextureSet::Multiple(old_set);
@@ -94,7 +88,7 @@ impl CommandTrait for SetMeshTextureCommand {
                     .material()
                     .data_ref()
                     .set_property(
-                        &ImmutableString::new("diffuseTexture"),
+                        "diffuseTexture",
                         PropertyValue::Sampler {
                             value: old_texture.clone(),
                             fallback: SamplerFallback::White,

@@ -20,7 +20,6 @@ use crate::{
         math::curve::{CurveKey, CurveKeyKind},
         math::{self, triangulator::triangulate, RotationOrder},
         pool::Handle,
-        sstorage::ImmutableString,
     },
     graph::BaseSceneGraph,
     material::{shader::SamplerFallback, PropertyValue},
@@ -296,10 +295,11 @@ async fn create_surfaces(
             ));
             surface.vertex_weights = data.skin_data;
             let material = fbx_scene.get(material_handle).as_material()?;
-            if let Err(e) = surface.material().data_ref().set_property(
-                &ImmutableString::new("diffuseColor"),
-                PropertyValue::Color(material.diffuse_color),
-            ) {
+            if let Err(e) = surface
+                .material()
+                .data_ref()
+                .set_property("diffuseColor", material.diffuse_color)
+            {
                 Log::writeln(
                     MessageKind::Error,
                     format!(
@@ -409,7 +409,7 @@ async fn create_surfaces(
 
                         if let Some((property_name, usage)) = name_usage {
                             if let Err(e) = surface.material().data_ref().set_property(
-                                &ImmutableString::new(property_name),
+                                property_name,
                                 PropertyValue::Sampler {
                                     value: Some(texture),
                                     fallback: usage,

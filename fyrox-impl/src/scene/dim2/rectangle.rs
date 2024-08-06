@@ -125,15 +125,9 @@ impl Hash for RectangleVertex {
 /// fn set_texture(rect: &mut Rectangle, texture: Option<TextureResource>) {
 ///     rect.material()
 ///         .data_ref()
-///         .set_property(
-///             &ImmutableString::new("diffuseTexture"),
-///             PropertyValue::Sampler {
-///                 value: texture,
-///                 fallback: SamplerFallback::White,
-///             },
-///         )
+///         .set_property("diffuseTexture", texture)
 ///         // This could fail, if you have a custom material without diffuseTexture property.
-///         // Otherwise it is safe to just unwrap.
+///         // Otherwise, it is safe to just unwrap.
 ///         .unwrap();
 /// }
 /// ```

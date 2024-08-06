@@ -66,7 +66,6 @@ use crate::{
             log::{Log, MessageKind},
             pool::Handle,
             scope_profile,
-            sstorage::ImmutableString,
             task::TaskPool,
             uuid::Uuid,
             watcher::FileSystemWatcher,
@@ -102,7 +101,7 @@ use crate::{
         },
         material::{
             shader::{ShaderResource, ShaderResourceExtension},
-            Material, MaterialResource, PropertyValue,
+            Material, MaterialResource,
         },
         plugin::{Plugin, PluginContainer},
         resource::texture::{
@@ -207,12 +206,7 @@ lazy_static! {
 
 pub fn make_color_material(color: Color) -> MaterialResource {
     let mut material = Material::from_shader(GIZMO_SHADER.clone(), None);
-    material
-        .set_property(
-            &ImmutableString::new("diffuseColor"),
-            PropertyValue::Color(color),
-        )
-        .unwrap();
+    material.set_property("diffuseColor", color).unwrap();
     MaterialResource::new_ok(Default::default(), material)
 }
 
@@ -221,10 +215,7 @@ pub fn set_mesh_diffuse_color(mesh: &mut Mesh, color: Color) {
         surface
             .material()
             .data_ref()
-            .set_property(
-                &ImmutableString::new("diffuseColor"),
-                PropertyValue::Color(color),
-            )
+            .set_property("diffuseColor", color)
             .unwrap();
     }
 }
@@ -232,10 +223,7 @@ pub fn set_mesh_diffuse_color(mesh: &mut Mesh, color: Color) {
 pub fn create_terrain_layer_material() -> MaterialResource {
     let mut material = Material::standard_terrain();
     material
-        .set_property(
-            &ImmutableString::new("texCoordScale"),
-            PropertyValue::Vector2(Vector2::new(10.0, 10.0)),
-        )
+        .set_property("texCoordScale", Vector2::new(10.0, 10.0))
         .unwrap();
     MaterialResource::new_ok(Default::default(), material)
 }

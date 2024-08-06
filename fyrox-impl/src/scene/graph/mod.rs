@@ -31,7 +31,6 @@ use crate::{
         math::{aabb::AxisAlignedBoundingBox, Matrix4Ext},
         pool::{ErasedHandle, Handle, MultiBorrowContext, Pool, Ticket},
         reflect::prelude::*,
-        sstorage::ImmutableString,
         visitor::{Visit, VisitResult, Visitor},
     },
     graph::{AbstractSceneGraph, AbstractSceneNode, BaseSceneGraph, NodeHandleMap, SceneGraph},
@@ -697,7 +696,7 @@ impl Graph {
                     let mut material_state = surface.material().state();
                     if let Some(material) = material_state.data() {
                         if let Err(e) = material.set_property(
-                            &ImmutableString::new("lightmapTexture"),
+                            "lightmapTexture",
                             PropertyValue::Sampler {
                                 value: Some(texture),
                                 fallback: SamplerFallback::Black,
@@ -761,7 +760,7 @@ impl Graph {
                         let mut material_state = surface.material().state();
                         if let Some(material) = material_state.data() {
                             if let Err(e) = material.set_property(
-                                &ImmutableString::new("lightmapTexture"),
+                                "lightmapTexture",
                                 PropertyValue::Sampler {
                                     value: entry.texture.clone(),
                                     fallback: SamplerFallback::Black,

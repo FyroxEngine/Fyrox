@@ -14,7 +14,6 @@ use crate::{
         parking_lot::Mutex,
         pool::Handle,
         reflect::prelude::*,
-        sstorage::ImmutableString,
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::{prelude::*, PodVecView},
@@ -1162,7 +1161,7 @@ impl Visit for Terrain {
                     let mut material_state = layer.material.state();
                     if let Some(material) = material_state.data() {
                         for (name, value) in material.properties() {
-                            Log::verify(new_material.set_property(name, value.clone()));
+                            Log::verify(new_material.set_property(name.clone(), value.clone()));
                         }
                     }
 
@@ -2451,23 +2450,14 @@ impl NodeTrait for Terrain {
 
                 Log::verify_message(
                     material.set_property(
-                        &ImmutableString::new(&layer.mask_property_name),
-                        PropertyValue::Sampler {
-                            value: Some(chunk.layer_masks[layer_index].clone()),
-                            fallback: Default::default(),
-                        },
+                        &layer.mask_property_name,
+                        chunk.layer_masks[layer_index].clone(),
                     ),
                     "Unable to set mask texture for terrain material.",
                 );
 
                 Log::verify_message(
-                    material.set_property(
-                        &ImmutableString::new(&layer.height_map_property_name),
-                        PropertyValue::Sampler {
-                            value: chunk.heightmap.clone(),
-                            fallback: Default::default(),
-                        },
-                    ),
+                    material.set_property(&layer.height_map_property_name, chunk.heightmap.clone()),
                     "Unable to set height map texture for terrain material.",
                 );
 
@@ -2484,7 +2474,7 @@ impl NodeTrait for Terrain {
 
                     Log::verify_message(
                         material.set_property(
-                            &ImmutableString::new(&layer.node_uv_offsets_property_name),
+                            &layer.node_uv_offsets_property_name,
                             PropertyValue::Vector4(Vector4::new(kx, kz, kw, kh)),
                         ),
                         "Unable to set node uv offsets for terrain material.",

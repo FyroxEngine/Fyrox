@@ -8,7 +8,6 @@ use crate::{
             color::Color,
             log::Log,
             pool::Handle,
-            sstorage::ImmutableString,
             uuid::Uuid,
             TypeUuidProvider,
         },
@@ -19,7 +18,7 @@ use crate::{
             font::Font, formatted_text::WrapMode, screen::ScreenBuilder, text::TextBuilder,
             widget::WidgetBuilder, HorizontalAlignment, UserInterface, VerticalAlignment,
         },
-        material::{shader::Shader, Material, MaterialResource, PropertyValue},
+        material::{shader::Shader, Material, MaterialResource},
         renderer::framework::gpu_texture::{GpuTextureKind, PixelKind},
         resource::{
             curve::CurveResourceState,
@@ -126,13 +125,7 @@ impl AssetPreviewGenerator for TexturePreview {
             };
 
             let mut material = Material::standard_two_sides();
-            Log::verify(material.set_property(
-                &ImmutableString::new("diffuseTexture"),
-                PropertyValue::Sampler {
-                    value: Some(texture),
-                    fallback: Default::default(),
-                },
-            ));
+            Log::verify(material.set_property("diffuseTexture", texture));
             let material = MaterialResource::new_ok(Default::default(), material);
 
             MeshBuilder::new(BaseBuilder::new())

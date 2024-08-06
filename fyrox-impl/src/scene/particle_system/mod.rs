@@ -11,13 +11,12 @@ use crate::{
         math::{aabb::AxisAlignedBoundingBox, TriangleDefinition},
         pool::Handle,
         reflect::prelude::*,
-        sstorage::ImmutableString,
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
         TypeUuidProvider,
     },
-    material::{self, Material, MaterialResource, PropertyValue},
+    material::{self, Material, MaterialResource},
     rand::{prelude::StdRng, Error, RngCore, SeedableRng},
     renderer::{self, bundle::RenderContext},
     scene::{
@@ -163,16 +162,7 @@ impl Visit for ParticleSystemRng {
 /// fn create_smoke(graph: &mut Graph, resource_manager: &mut ResourceManager, pos: Vector3<f32>) {
 ///     let mut material = Material::standard_particle_system();
 ///     material
-///         .set_property(
-///             &ImmutableString::new("diffuseTexture"),
-///             PropertyValue::Sampler {
-///                 value: Some(
-///                     resource_manager
-///                         .request::<Texture>(Path::new("data/particles/smoke_04.tga")),
-///                 ),
-///                 fallback: Default::default(),
-///             },
-///         )
+///         .set_property("diffuseTexture", resource_manager.request::<Texture>(Path::new("data/particles/smoke_04.tga")))
 ///         .unwrap();
 ///
 ///     ParticleSystemBuilder::new(
@@ -271,8 +261,8 @@ impl Visit for ParticleSystem {
             .is_ok()
         {
             Log::verify(self.material.data_ref().set_property(
-                &ImmutableString::new("softBoundarySharpnessFactor"),
-                PropertyValue::Float(soft_boundary_sharpness_factor),
+                "softBoundarySharpnessFactor",
+                soft_boundary_sharpness_factor,
             ));
         }
 

@@ -351,20 +351,15 @@ impl TypeUuidProvider for Shader {
 ///
 /// Fallback value is also helpful to catch missing textures, you'll definitely know the texture is
 /// missing by very specific value in the fallback texture.
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Copy, Visit, Eq, Reflect)]
+#[derive(Serialize, Deserialize, Default, Debug, PartialEq, Clone, Copy, Visit, Eq, Reflect)]
 pub enum SamplerFallback {
     /// A 1x1px white texture.
+    #[default]
     White,
     /// A 1x1px texture with (0, 1, 0) vector.
     Normal,
     /// A 1x1px black texture.
     Black,
-}
-
-impl Default for SamplerFallback {
-    fn default() -> Self {
-        Self::White
-    }
 }
 
 /// Shader property with default value.

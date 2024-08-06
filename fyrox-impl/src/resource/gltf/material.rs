@@ -222,7 +222,7 @@ fn set_material_scalar(material: &mut Material, name: &'static str, value: f32) 
 
 fn set_material_color(material: &mut Material, name: &'static str, color: Color) -> Result<()> {
     let value: PropertyValue = PropertyValue::Color(color);
-    match material.set_property(&ImmutableString::new(name), value) {
+    match material.set_property(name, value) {
         Ok(()) => Ok(()),
         Err(err) => {
             Log::err(format!(

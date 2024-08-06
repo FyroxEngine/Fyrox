@@ -36,7 +36,10 @@ impl SetMaterialPropertyValueCommand {
         let old_value = material.property_ref(&self.name).unwrap().clone();
 
         material
-            .set_property(&self.name, std::mem::replace(&mut self.value, old_value))
+            .set_property(
+                self.name.clone(),
+                std::mem::replace(&mut self.value, old_value),
+            )
             .unwrap();
 
         drop(material);

@@ -136,6 +136,55 @@ pub enum PropertyValue {
     },
 }
 
+macro_rules! impl_from {
+    ($variant:ident => $value_type:ty) => {
+        impl From<$value_type> for PropertyValue {
+            fn from(value: $value_type) -> Self {
+                Self::$variant(value)
+            }
+        }
+    };
+}
+
+impl_from!(Float => f32);
+impl_from!(FloatArray => Vec<f32>);
+impl_from!(Int => i32);
+impl_from!(IntArray => Vec<i32>);
+impl_from!(UInt => u32);
+impl_from!(UIntArray => Vec<u32>);
+impl_from!(Vector2 => Vector2<f32>);
+impl_from!(Vector2Array => Vec<Vector2<f32>>);
+impl_from!(Vector3 => Vector3<f32>);
+impl_from!(Vector3Array => Vec<Vector3<f32>>);
+impl_from!(Vector4 => Vector4<f32>);
+impl_from!(Vector4Array => Vec<Vector4<f32>>);
+impl_from!(Matrix2 => Matrix2<f32>);
+impl_from!(Matrix2Array => Vec<Matrix2<f32>>);
+impl_from!(Matrix3 => Matrix3<f32>);
+impl_from!(Matrix3Array => Vec<Matrix3<f32>>);
+impl_from!(Matrix4 => Matrix4<f32>);
+impl_from!(Matrix4Array => Vec<Matrix4<f32>>);
+impl_from!(Bool => bool);
+impl_from!(Color => Color);
+
+impl From<Option<TextureResource>> for PropertyValue {
+    fn from(value: Option<TextureResource>) -> Self {
+        Self::Sampler {
+            value,
+            fallback: Default::default(),
+        }
+    }
+}
+
+impl From<TextureResource> for PropertyValue {
+    fn from(value: TextureResource) -> Self {
+        Self::Sampler {
+            value: Some(value),
+            fallback: Default::default(),
+        }
+    }
+}
+
 macro_rules! define_as {
     ($(#[$meta:meta])* $name:ident = $variant:ident -> $ty:ty) => {
         $(#[$meta])*
@@ -348,12 +397,9 @@ impl Default for PropertyValue {
 ///     let mut material = Material::standard();
 ///
 ///     material.set_property(
-///         &ImmutableString::new("diffuseTexture"),
-///         PropertyValue::Sampler {
-///             value: Some(resource_manager.request::<Texture>("Brick_DiffuseTexture.jpg")),
-///             fallback: SamplerFallback::White
-///         })
-///         .unwrap();
+///         "diffuseTexture",
+///         resource_manager.request::<Texture>("Brick_DiffuseTexture.jpg")
+///     ).unwrap();
 ///
 ///     material
 /// }
@@ -383,11 +429,7 @@ impl Default for PropertyValue {
 ///     // Here we assume that the material really has the properties defined below.
 ///     let mut material = Material::from_shader(shader, Some(resource_manager));
 ///
-///     material.set_property(
-///         &ImmutableString::new("windDirection"),
-///         PropertyValue::Vector3(Vector3::new(1.0, 0.0, 0.5))
-///         )
-///         .unwrap();
+///     material.set_property("windDirection", Vector3::new(1.0, 0.0, 0.5)).unwrap();
 ///
 ///     material
 /// }
@@ -590,12 +632,9 @@ impl Material {
     ///     let mut material = Material::standard();
     ///
     ///     material.set_property(
-    ///         &ImmutableString::new("diffuseTexture"),
-    ///         PropertyValue::Sampler {
-    ///             value: Some(resource_manager.request::<Texture>("Brick_DiffuseTexture.jpg")),
-    ///             fallback: SamplerFallback::White
-    ///         })
-    ///         .unwrap();
+    ///         "diffuseTexture",
+    ///         resource_manager.request::<Texture>("Brick_DiffuseTexture.jpg")
+    ///     ).unwrap();
     ///
     ///     material
     /// }
@@ -653,11 +692,7 @@ impl Material {
     ///     // Here we assume that the material really has the properties defined below.
     ///     let mut material = Material::from_shader(shader, Some(resource_manager));
     ///
-    ///     material.set_property(
-    ///         &ImmutableString::new("windDirection"),
-    ///         PropertyValue::Vector3(Vector3::new(1.0, 0.0, 0.5))
-    ///         )
-    ///         .unwrap();
+    ///     material.set_property("windDirection", Vector3::new(1.0, 0.0, 0.5)).unwrap();
     ///
     ///     material
     /// }
@@ -740,14 +775,16 @@ impl Material {
     ///
     /// let mut material = Material::standard();
     ///
-    /// assert!(material.set_property(&ImmutableString::new("diffuseColor"), PropertyValue::Color(Color::WHITE)).is_ok());
+    /// assert!(material.set_property("diffuseColor", Color::WHITE).is_ok());
     /// ```
     pub fn set_property(
         &mut self,
-        name: &ImmutableString,
-        new_value: PropertyValue,
+        name: impl Into<ImmutableString>,
+        new_value: impl Into<PropertyValue>,
     ) -> Result<(), MaterialError> {
-        if let Some(value) = self.properties.get_mut(name) {
+        let name = name.into();
+        let new_value = new_value.into();
+        if let Some(value) = self.properties.get_mut(&name) {
             match (value, new_value) {
                 (
                     PropertyValue::Sampler {
@@ -834,22 +871,6 @@ impl Material {
                 property_name: name.deref().to_owned(),
             })
         }
-    }
-
-    /// Sets a value for sampler at the given name. It is a shortcut for [`Self::set_property`]
-    /// method with [`PropertyValue::Sampler`] and [`SamplerFallback::White`].
-    pub fn set_texture(
-        &mut self,
-        name: &ImmutableString,
-        texture: Option<TextureResource>,
-    ) -> Result<(), MaterialError> {
-        self.set_property(
-            name,
-            PropertyValue::Sampler {
-                value: texture,
-                fallback: SamplerFallback::White,
-            },
-        )
     }
 
     /// Adds missing properties with default values, removes non-existent properties. Does not modify any existing
@@ -1009,13 +1030,7 @@ where
     if let Ok(mut inner) = region.enter_region("Texture") {
         if old_texture.visit("Value", &mut inner).is_ok() {
             let mut material = make_default_material();
-            Log::verify(material.set_property(
-                &ImmutableString::new("diffuseTexture"),
-                PropertyValue::Sampler {
-                    value: old_texture,
-                    fallback: SamplerFallback::White,
-                },
-            ));
+            Log::verify(material.set_property("diffuseTexture", old_texture));
             return Some(MaterialResource::new_ok(Default::default(), material));
         }
     }
