@@ -167,6 +167,12 @@ impl From<String> for ImmutableString {
     }
 }
 
+impl From<&String> for ImmutableString {
+    fn from(value: &String) -> Self {
+        SSTORAGE.lock().insert(value)
+    }
+}
+
 impl Deref for ImmutableString {
     type Target = str;
 
