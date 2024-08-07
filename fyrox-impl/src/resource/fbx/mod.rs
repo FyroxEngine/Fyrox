@@ -377,23 +377,31 @@ async fn create_surfaces(
                             || name.contains("ambient_color")
                         {
                             Some(("aoTexture", SamplerFallback::White))
-                        } else if name.contains("DiffuseColor") || name.contains("diffuse_color") {
+                        } else if name.contains("DiffuseColor")
+                            || name.contains("diffuse_color")
+                            || name.contains("base_color_map")
+                            || name.contains("texmap_diffuse")
+                        {
                             Some(("diffuseTexture", SamplerFallback::White))
                         } else if name.contains("MetalnessMap")
                             || name.contains("metalness_map")
                             || name.contains("ReflectionFactor")
+                            || name.contains("texmap_reflection")
+                            || name.contains("texmap_metalness")
                         {
                             Some(("metallicTexture", SamplerFallback::Black))
                         } else if name.contains("RoughnessMap")
                             || name.contains("roughness_map")
                             || name.contains("Shininess")
                             || name.contains("ShininessExponent")
+                            || name.contains("texmap_roughness")
                         {
                             Some(("roughnessTexture", SamplerFallback::White))
                         } else if name.contains("Bump")
                             || name.contains("bump_map")
                             || name.contains("NormalMap")
                             || name.contains("normal_map")
+                            || name.contains("texmap_bump")
                         {
                             Some(("normalTexture", SamplerFallback::Normal))
                         } else if name.contains("DisplacementColor")
