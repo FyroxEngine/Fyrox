@@ -1,6 +1,6 @@
-//! Resource manager controls loading and lifetime of resource in the engine.
+//! Resource manager controls loading and lifetime of resource in the engine. See [`ResourceManager`]
+//! docs for more info.
 
-use crate::untyped::ResourceKind;
 use crate::{
     collect_used_resources,
     constructor::ResourceConstructorContainer,
@@ -21,6 +21,7 @@ use crate::{
     loader::{ResourceLoader, ResourceLoadersContainer},
     options::OPTIONS_EXTENSION,
     state::{LoadError, ResourceState},
+    untyped::ResourceKind,
     Resource, ResourceData, TypedResourceData, UntypedResource,
 };
 use fxhash::{FxHashMap, FxHashSet};
@@ -53,7 +54,7 @@ impl ResourceWaitContext {
     }
 }
 
-/// See module docs.
+/// Internal state of the resource manager.
 pub struct ResourceManagerState {
     /// A set of resource loaders. Use this field to register your own resource loader.
     pub loaders: ResourceLoadersContainer,
@@ -63,7 +64,7 @@ pub struct ResourceManagerState {
     pub constructors_container: ResourceConstructorContainer,
     /// A set of built-in resources, that will be used to resolve references on deserialization.
     pub built_in_resources: FxHashMap<PathBuf, UntypedResource>,
-    /// The resource acccess interface
+    /// File system abstraction interface. Could be used to support virtual file systems.
     pub resource_io: Arc<dyn ResourceIo>,
 
     resources: Vec<TimedEntry<UntypedResource>>,
@@ -71,7 +72,20 @@ pub struct ResourceManagerState {
     watcher: Option<FileSystemWatcher>,
 }
 
-/// See module docs.
+/// Resource manager controls loading and lifetime of resource in the engine. Resource manager can hold
+/// resources of arbitrary types via type erasure mechanism.
+///
+/// ## Built-in Resources
+///
+/// Built-in resources are special kinds of resources, whose data is packed in the executable (i.e. via
+/// [`include_bytes`] macro). Such resources reference the data that cannot be "loaded" from external
+/// source. To support such kind of resource the manager provides `built_in_resources` hash map where
+/// you can register your own built-in resource and access existing ones.
+///
+/// ## Internals
+///
+/// It is a simple wrapper over [`ResourceManagerState`] that can be shared (cloned). In other words,
+/// it is just a strong reference to the inner state.
 #[derive(Clone)]
 pub struct ResourceManager {
     state: Arc<Mutex<ResourceManagerState>>,

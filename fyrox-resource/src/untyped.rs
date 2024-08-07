@@ -1,7 +1,5 @@
 //! A module for untyped resources. See [`UntypedResource`] docs for more info.
 
-#![allow(missing_docs)]
-
 use crate::{
     core::{
         math::curve::Curve, parking_lot::Mutex, reflect::prelude::*, uuid, uuid::Uuid,
@@ -63,10 +61,22 @@ fn guess_uuid(region: &mut RegionGuard) -> Uuid {
     Default::default()
 }
 
+/// Kind of a resource. It defines how the resource manager will treat a resource content on serialization.
 #[derive(Default, Reflect, Debug, Visit, Clone, PartialEq, Eq, Hash)]
 pub enum ResourceKind {
+    /// The content of embedded resources will be fully serialized.
     #[default]
     Embedded,
+    /// The content of external resources will not be serialized, instead only the path to the content
+    /// will be serialized and the content will be loaded from it when needed.
+    ///
+    /// ## Built-in Resources
+    ///
+    /// This resource kind could also be used to create built-in resources (the data of which is
+    /// embedded directly in the executable using [`include_bytes`] macro). All that is needed is to
+    /// create a static resource variable and register it in built-in resources of the resource manager.
+    /// In this case, the path becomes an identifier and it must be unique. See [`ResourceManager`] docs
+    /// for more info about built-in resources.
     External(PathBuf),
 }
 
@@ -92,26 +102,31 @@ impl<'a> From<&'a str> for ResourceKind {
 }
 
 impl ResourceKind {
+    /// Switches the resource kind to [`Self::External`].
     #[inline]
     pub fn make_external(&mut self, path: PathBuf) {
         *self = ResourceKind::External(path);
     }
 
+    /// Switches the resource kind to [`Self::Embedded`]
     #[inline]
     pub fn make_embedded(&mut self) {
         *self = ResourceKind::Embedded;
     }
 
+    /// Checks, if the resource kind is [`Self::Embedded`]
     #[inline]
     pub fn is_embedded(&self) -> bool {
         matches!(self, Self::Embedded)
     }
 
+    /// Checks, if the resource kind is [`Self::External`]
     #[inline]
     pub fn is_external(&self) -> bool {
         !self.is_embedded()
     }
 
+    /// Tries to fetch a resource path, returns [`None`] for [`Self::Embedded`] resources.
     #[inline]
     pub fn path(&self) -> Option<&Path> {
         match self {
@@ -120,11 +135,14 @@ impl ResourceKind {
         }
     }
 
+    /// Tries to fetch a resource path, returns [`None`] for [`Self::Embedded`] resources.
     #[inline]
     pub fn path_owned(&self) -> Option<PathBuf> {
         self.path().map(|p| p.to_path_buf())
     }
 
+    /// Tries to convert the resource kind into its path, returns [`None`] for [`Self::Embedded`]
+    /// resources.
     #[inline]
     pub fn into_path(self) -> Option<PathBuf> {
         match self {
@@ -147,10 +165,15 @@ impl Display for ResourceKind {
     }
 }
 
+/// Header of a resource, it contains a common data about the resource, such as its data type uuid,
+/// its kind, etc.
 #[derive(Reflect, Debug)]
 pub struct ResourceHeader {
+    /// UUID of the internal data type.
     pub type_uuid: Uuid,
+    /// Kind of the resource. See [`ResourceKind`] for more info.
     pub kind: ResourceKind,
+    /// Actual state of the resource. See [`ResourceState`] for more info.
     pub state: ResourceState,
 }
 
@@ -232,8 +255,35 @@ impl Visit for ResourceHeader {
 /// Untyped resource is a universal way of storing arbitrary resource types. Internally it wraps
 /// [`ResourceState`] in a `Arc<Mutex<>` so the untyped resource becomes shareable. In most of the
 /// cases you don't need to deal with untyped resources, use typed [`Resource`] wrapper instead.
-/// Untyped resource could be useful in cases when you need to collect a set resources of different
+/// Untyped resource could be useful in cases when you need to collect a set of resources of different
 /// types in a single collection and do something with them.
+///
+/// ## Handle
+///
+/// Since untyped resources stores the actual data in a shared storage, the resource instance could
+/// be considered as a handle. Such "handles" have special behaviour on serialization and
+/// deserialization to keep pointing to the same storage.
+///
+/// ## Serialization and Deserialization
+///
+/// Every resource writes its own kind, type uuid of the data and optionally the data itself.
+///
+/// Serialization/deserialization of the data is different depending on the actual resource kind
+/// (see [`ResourceKind`]):
+///
+/// 1) [`ResourceKind::Embedded`] - the resource data will be serialized together with the resource
+/// handle. The data will be loaded back on deserialization stage from the backing storage.
+/// 2) [`ResourceKind::External`] - the resource data won't be serialized and will be reloaded from
+/// the external source.
+///
+/// When the resource is deserialized, the resource system at first looks for an already loaded
+/// resource with the same kind and if it is found, replaces current instance with the loaded one.
+/// If not - loads the resource and also replaces the instance. This step is crucial for uniqueness
+/// of the resource handles.
+///
+/// To put everything simple: when you save a resource handle, it writes only path to it, then when
+/// you load it you need to make sure that all references to a resource points to the same resource
+/// instance.
 ///
 /// ## Default state
 ///
@@ -402,7 +452,7 @@ impl UntypedResource {
     }
 
     /// Changes ResourceState::Pending state to ResourceState::Ok(data) with given `data`.
-    /// Additionally it wakes all futures.
+    /// Additionally, it wakes all futures.
     #[inline]
     pub fn commit(&self, state: ResourceState) {
         self.0.lock().state.commit(state);
