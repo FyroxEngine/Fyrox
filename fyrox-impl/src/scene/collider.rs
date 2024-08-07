@@ -868,19 +868,43 @@ impl NodeTrait for Collider {
     }
 
     fn validate(&self, scene: &Scene) -> Result<(), String> {
+        let mut message = String::new();
+
         if scene
             .graph
             .try_get(self.parent())
             .and_then(|p| p.query_component_ref::<RigidBody>())
             .is_none()
         {
-            Err(
-                "3D Collider must be a direct child of a 3D Rigid Body node, \
-            otherwise it will not have any effect!"
-                    .to_string(),
-            )
-        } else {
+            message += "3D Collider must be a direct child of a 3D Rigid Body node, \
+            otherwise it will not have any effect!";
+        }
+
+        match &*self.shape {
+            ColliderShape::Trimesh(trimesh) => {
+                for source in trimesh.sources.iter() {
+                    if !scene.graph.is_valid_handle(source.0) {
+                        message += "Trimesh {} data source handle is invalid!"
+                    }
+                }
+            }
+            ColliderShape::Heightfield(heightfield) => {
+                if !scene.graph.is_valid_handle(heightfield.geometry_source.0) {
+                    message += "Heightfield {} data source handle is invalid!"
+                }
+            }
+            ColliderShape::Polyhedron(polyhedron) => {
+                if !scene.graph.is_valid_handle(polyhedron.geometry_source.0) {
+                    message += "Polyhedron {} data source handle is invalid!"
+                }
+            }
+            _ => (),
+        }
+
+        if message.is_empty() {
             Ok(())
+        } else {
+            Err(message)
         }
     }
 }
