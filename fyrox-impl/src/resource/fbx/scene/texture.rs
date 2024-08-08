@@ -1,12 +1,17 @@
 use crate::{
-    core::pool::Handle,
-    resource::fbx::document::{FbxNode, FbxNodeContainer},
+    core::pool::{Handle, Pool},
+    resource::fbx::{
+        document::{FbxNode, FbxNodeContainer},
+        scene::FbxComponent,
+    },
 };
 use std::path::PathBuf;
 
+#[derive(Debug)]
 pub struct FbxTexture {
-    filename: PathBuf,
+    pub filename: PathBuf,
     pub content: Vec<u8>,
+    pub ancestor: Handle<FbxComponent>,
 }
 
 impl FbxTexture {
@@ -17,6 +22,7 @@ impl FbxTexture {
         let mut texture = FbxTexture {
             filename: PathBuf::new(),
             content: Default::default(),
+            ancestor: Default::default(),
         };
         if let Ok(relative_file_name_node) =
             nodes.get_by_name(texture_node_handle, "RelativeFilename")
@@ -32,7 +38,19 @@ impl FbxTexture {
         Ok(texture)
     }
 
-    pub(in crate::resource::fbx) fn get_file_path(&self) -> &PathBuf {
-        &self.filename
+    /// Tries to resolve the entire chain of material nodes and find texture path.
+    pub(in crate::resource::fbx) fn get_root_file_path(
+        &self,
+        components: &Pool<FbxComponent>,
+    ) -> PathBuf {
+        if self.filename == PathBuf::default() {
+            components
+                .try_borrow(self.ancestor)
+                .and_then(|parent| parent.as_texture().ok())
+                .map(|texture| texture.get_root_file_path(components))
+                .unwrap_or_default()
+        } else {
+            self.filename.clone()
+        }
     }
 }

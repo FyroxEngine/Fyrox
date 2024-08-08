@@ -313,7 +313,7 @@ async fn create_surfaces(
 
             for (name, texture_handle) in material.textures.iter() {
                 let texture = fbx_scene.get(*texture_handle).as_texture()?;
-                let path = texture.get_file_path();
+                let path = texture.get_root_file_path(&fbx_scene.components);
 
                 if let Some(filename) = path.file_name() {
                     let texture_path = if texture.content.is_empty() {

@@ -1,4 +1,3 @@
-use crate::resource::fbx::scene::video::FbxVideo;
 use crate::{
     core::{
         algebra::{Matrix4, Vector3},
@@ -15,6 +14,7 @@ use crate::{
             light::FbxLight,
             model::FbxModel,
             texture::FbxTexture,
+            video::FbxVideo,
         },
     },
 };
@@ -28,7 +28,7 @@ pub mod texture;
 pub mod video;
 
 pub struct FbxScene {
-    components: Pool<FbxComponent>,
+    pub components: Pool<FbxComponent>,
 }
 
 impl FbxScene {
@@ -185,6 +185,13 @@ fn link_child_with_parent_component(
                 material.textures.push((property, child_handle));
             }
         }
+        FbxComponent::Texture(texture) => {
+            if let FbxComponent::Texture(_) = child {
+                texture.ancestor = child_handle;
+            } else if let FbxComponent::Video(video) = child {
+                texture.content.clone_from(&video.content);
+            }
+        }
         // Link animation curve node with animation curve
         FbxComponent::AnimationCurveNode(anim_curve_node) => {
             if let FbxComponent::AnimationCurve(_) = child {
@@ -213,11 +220,6 @@ fn link_child_with_parent_component(
         FbxComponent::BlendShapeChannel(channel) => {
             if let FbxComponent::ShapeGeometry(_) = child {
                 channel.geometry = child_handle;
-            }
-        }
-        FbxComponent::Texture(texture) => {
-            if let FbxComponent::Video(video) = child {
-                texture.content.clone_from(&video.content);
             }
         }
         // Ignore rest
