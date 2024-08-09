@@ -884,18 +884,24 @@ impl NodeTrait for Collider {
             ColliderShape::Trimesh(trimesh) => {
                 for source in trimesh.sources.iter() {
                     if !scene.graph.is_valid_handle(source.0) {
-                        message += "Trimesh {} data source handle is invalid!"
+                        message += &format!("Trimesh data source {} handle is invalid!", source.0);
                     }
                 }
             }
             ColliderShape::Heightfield(heightfield) => {
                 if !scene.graph.is_valid_handle(heightfield.geometry_source.0) {
-                    message += "Heightfield {} data source handle is invalid!"
+                    message += &format!(
+                        "Heightfield data source {} handle is invalid!",
+                        heightfield.geometry_source.0
+                    );
                 }
             }
             ColliderShape::Polyhedron(polyhedron) => {
                 if !scene.graph.is_valid_handle(polyhedron.geometry_source.0) {
-                    message += "Polyhedron {} data source handle is invalid!"
+                    message += &format!(
+                        "Polyhedron data source {} handle is invalid!",
+                        polyhedron.geometry_source.0
+                    );
                 }
             }
             _ => (),

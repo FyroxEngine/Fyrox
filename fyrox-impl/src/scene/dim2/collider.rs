@@ -585,19 +585,49 @@ impl NodeTrait for Collider {
     }
 
     fn validate(&self, scene: &Scene) -> Result<(), String> {
+        let mut message = String::new();
+
         if scene
             .graph
             .try_get(self.parent())
             .and_then(|p| p.query_component_ref::<RigidBody>())
             .is_none()
         {
-            Err(
-                "2D Collider must be a direct child of a 3D Rigid Body node, \
-            otherwise it will not have any effect!"
-                    .to_string(),
-            )
-        } else {
+            message += "2D Collider must be a direct child of a 3D Rigid Body node, \
+            otherwise it will not have any effect!";
+        }
+
+        match &*self.shape {
+            ColliderShape::Trimesh(trimesh) => {
+                for source in trimesh.sources.iter() {
+                    if !scene.graph.is_valid_handle(source.0) {
+                        message += &format!("Trimesh shape data handle {} is invalid!", source.0);
+                    }
+                }
+            }
+            ColliderShape::Heightfield(heightfield) => {
+                if !scene.graph.is_valid_handle(heightfield.geometry_source.0) {
+                    message += &format!(
+                        "Heightfield shape data handle {} is invalid!",
+                        heightfield.geometry_source.0
+                    );
+                }
+            }
+            ColliderShape::TileMap(tile_map) => {
+                if !scene.graph.is_valid_handle(tile_map.tile_map.0) {
+                    message += &format!(
+                        "Tile map shape data handle {} is invalid!",
+                        tile_map.tile_map.0
+                    );
+                }
+            }
+            _ => (),
+        }
+
+        if message.is_empty() {
             Ok(())
+        } else {
+            Err(message)
         }
     }
 }
