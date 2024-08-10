@@ -54,6 +54,8 @@ use crate::{
     utils::window_content,
     Message, Mode,
 };
+use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::{
     ffi::OsStr,
     path::{Path, PathBuf},
@@ -456,10 +458,12 @@ pub struct AssetBrowser {
     inspector: AssetInspector,
     context_menu: ContextMenu,
     selected_path: PathBuf,
+    watcher: Option<RecommendedWatcher>,
     dependency_viewer: DependencyViewer,
     resource_creator: Option<ResourceCreator>,
     preview_cache: AssetPreviewCache,
     preview_sender: Sender<IconRequest>,
+    need_refresh: Arc<AtomicBool>,
     pub preview_generators: AssetPreviewGeneratorsCollection,
 }
 
@@ -613,6 +617,19 @@ impl AssetBrowser {
 
         let (preview_sender, preview_receiver) = mpsc::channel();
 
+        let need_refresh = Arc::new(AtomicBool::new(false));
+        let need_refresh_flag = need_refresh.clone();
+        let watcher = notify::recommended_watcher(move |event: notify::Result<notify::Event>| {
+            if let Ok(event) = event {
+                if let EventKind::Modify(_) | EventKind::Create(_) | EventKind::Remove(_) =
+                    event.kind
+                {
+                    need_refresh_flag.store(true, Ordering::Relaxed);
+                }
+            }
+        })
+        .ok();
+
         Self {
             dependency_viewer,
             window,
@@ -630,8 +647,10 @@ impl AssetBrowser {
             resource_creator: None,
             preview_cache: AssetPreviewCache::new(preview_receiver, 4),
             preview_sender,
+            need_refresh,
             preview_generators: AssetPreviewGeneratorsCollection::new(),
             refresh,
+            watcher,
         }
     }
 
@@ -730,6 +749,11 @@ impl AssetBrowser {
         resource_manager: &ResourceManager,
         message_sender: &MessageSender,
     ) {
+        if let Some(watcher) = self.watcher.as_mut() {
+            Log::verify(watcher.unwatch(&self.selected_path));
+            Log::verify(watcher.watch(path, RecursiveMode::NonRecursive));
+        }
+
         self.selected_path = path.to_path_buf();
         self.refresh(ui, resource_manager, message_sender);
     }
@@ -1020,10 +1044,18 @@ impl AssetBrowser {
         self.item_to_select = Some(path);
     }
 
-    pub fn update(&mut self, engine: &mut Engine) {
+    pub fn update(&mut self, engine: &mut Engine, sender: &MessageSender) {
         self.preview_cache
             .update(&mut self.preview_generators, engine);
-        self.preview.update(engine)
+        self.preview.update(engine);
+        if self.need_refresh.load(Ordering::Relaxed) {
+            self.refresh(
+                engine.user_interfaces.first_mut(),
+                &engine.resource_manager,
+                sender,
+            );
+            self.need_refresh.store(false, Ordering::Relaxed);
+        }
     }
 
     pub fn on_mode_changed(&mut self, ui: &UserInterface, mode: &Mode) {

@@ -2255,7 +2255,8 @@ impl Editor {
 
         self.log.update(&mut self.engine);
         self.material_editor.update(&mut self.engine);
-        self.asset_browser.update(&mut self.engine);
+        self.asset_browser
+            .update(&mut self.engine, &self.message_sender);
         if let Some(export_window) = self.export_window.as_mut() {
             export_window.update(self.engine.user_interfaces.first_mut());
         }
