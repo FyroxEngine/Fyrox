@@ -867,11 +867,11 @@ impl AssetBrowser {
             ));
         }
 
+        let mut folders = Vec::new();
+        let mut resources = Vec::new();
+
         // Get all supported assets from folder and generate previews for them.
         if let Ok(dir_iter) = std::fs::read_dir(&self.selected_path) {
-            let mut folders = Vec::new();
-            let mut resources = Vec::new();
-
             for entry in dir_iter.flatten() {
                 if let Ok(entry_path) = make_relative_path(entry.path()) {
                     if entry_path.is_dir() {
@@ -884,21 +884,9 @@ impl AssetBrowser {
                     }
                 }
             }
-
-            folders.sort();
-            resources.sort();
-
-            for path in folders.into_iter().chain(resources.into_iter()) {
-                let asset_item = self.add_asset(&path, ui, resource_manager, message_sender);
-
-                if let Some(item_to_select) = item_to_select.as_ref() {
-                    if item_to_select == &path {
-                        handle_to_select = asset_item;
-                    }
-                }
-            }
         }
 
+        // Collect built-in resource (only if the root folder is selected).
         if let Ok(path) = self.selected_path.canonicalize() {
             if let Ok(working_dir) = std::env::current_dir().and_then(|dir| dir.canonicalize()) {
                 if path == working_dir {
@@ -908,9 +896,22 @@ impl AssetBrowser {
                         .keys()
                         .cloned()
                         .collect::<Vec<_>>();
-                    for path in built_in_resources {
-                        self.add_asset(&path, ui, resource_manager, message_sender);
-                    }
+
+                    resources.extend_from_slice(&built_in_resources);
+                }
+            }
+        }
+
+        folders.sort();
+        resources.sort();
+
+        // Generate items.
+        for path in folders.into_iter().chain(resources.into_iter()) {
+            let asset_item = self.add_asset(&path, ui, resource_manager, message_sender);
+
+            if let Some(item_to_select) = item_to_select.as_ref() {
+                if item_to_select == &path {
+                    handle_to_select = asset_item;
                 }
             }
         }
