@@ -836,6 +836,37 @@ impl AssetBrowser {
         // Clean content panel first.
         self.clear_assets(ui);
 
+        // Add "return" item.
+        if let Some(mut parent_path) = make_relative_path(&self.selected_path)
+            .ok()
+            .and_then(|path| path.parent().map(|path| path.to_owned()))
+        {
+            if parent_path == PathBuf::default() {
+                parent_path = "./".into();
+            }
+
+            let asset_item = AssetItemBuilder::new(
+                WidgetBuilder::new().with_context_menu(self.context_menu.menu.clone()),
+            )
+            .with_icon(load_image(include_bytes!(
+                "../../resources/folder_return.png"
+            )))
+            .with_path(parent_path)
+            .build(
+                resource_manager.clone(),
+                message_sender.clone(),
+                &mut ui.build_ctx(),
+            );
+
+            self.items.push(asset_item);
+
+            ui.send_message(WidgetMessage::link(
+                asset_item,
+                MessageDirection::ToWidget,
+                self.content_panel,
+            ));
+        }
+
         // Get all supported assets from folder and generate previews for them.
         if let Ok(dir_iter) = std::fs::read_dir(&self.selected_path) {
             let mut folders = Vec::new();
