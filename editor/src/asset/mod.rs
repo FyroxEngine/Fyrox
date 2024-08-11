@@ -468,11 +468,45 @@ pub struct AssetBrowser {
 }
 
 fn is_supported_resource(ext: &OsStr, resource_manager: &ResourceManager) -> bool {
+    let Some(ext) = ext.to_str() else {
+        return false;
+    };
+
     resource_manager
         .state()
         .loaders
         .iter()
-        .any(|loader| loader.supports_extension(&ext.to_string_lossy()))
+        .any(|loader| loader.supports_extension(ext))
+}
+
+fn create_file_system_watcher(
+    resource_manager: ResourceManager,
+    need_refresh_flag: Arc<AtomicBool>,
+) -> Option<RecommendedWatcher> {
+    notify::recommended_watcher(move |event: notify::Result<notify::Event>| {
+        let Ok(event) = event else {
+            return;
+        };
+
+        if !matches!(
+            event.kind,
+            EventKind::Modify(_) | EventKind::Create(_) | EventKind::Remove(_)
+        ) {
+            return;
+        };
+
+        for path in event.paths.iter() {
+            let Some(extension) = path.extension() else {
+                continue;
+            };
+
+            if is_supported_resource(extension, &resource_manager) {
+                need_refresh_flag.store(true, Ordering::Relaxed);
+                break;
+            }
+        }
+    })
+    .ok()
 }
 
 impl AssetBrowser {
@@ -618,17 +652,8 @@ impl AssetBrowser {
         let (preview_sender, preview_receiver) = mpsc::channel();
 
         let need_refresh = Arc::new(AtomicBool::new(false));
-        let need_refresh_flag = need_refresh.clone();
-        let watcher = notify::recommended_watcher(move |event: notify::Result<notify::Event>| {
-            if let Ok(event) = event {
-                if let EventKind::Modify(_) | EventKind::Create(_) | EventKind::Remove(_) =
-                    event.kind
-                {
-                    need_refresh_flag.store(true, Ordering::Relaxed);
-                }
-            }
-        })
-        .ok();
+        let watcher =
+            create_file_system_watcher(engine.resource_manager.clone(), need_refresh.clone());
 
         Self {
             dependency_viewer,
