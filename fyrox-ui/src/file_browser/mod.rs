@@ -450,41 +450,42 @@ impl Control for FileBrowser {
                 && message.direction() == MessageDirection::FromWidget
             {
                 if let Some(&first_selected) = selection.first() {
-                    let mut path = ui
-                        .node(first_selected)
-                        .user_data_cloned::<PathBuf>()
-                        .unwrap()
-                        .clone();
+                    if let Some(first_selected_ref) = ui.try_get(first_selected) {
+                        let mut path = first_selected_ref
+                            .user_data_cloned::<PathBuf>()
+                            .unwrap()
+                            .clone();
 
-                    if let FileBrowserMode::Save { .. } = self.mode {
-                        if path.is_file() {
-                            ui.send_message(TextMessage::text(
-                                self.file_name,
-                                MessageDirection::ToWidget,
-                                path.file_name()
-                                    .map(|f| f.to_string_lossy().to_string())
-                                    .unwrap_or_default(),
-                            ));
-                        } else {
-                            path = path.join(&self.file_name_value);
+                        if let FileBrowserMode::Save { .. } = self.mode {
+                            if path.is_file() {
+                                ui.send_message(TextMessage::text(
+                                    self.file_name,
+                                    MessageDirection::ToWidget,
+                                    path.file_name()
+                                        .map(|f| f.to_string_lossy().to_string())
+                                        .unwrap_or_default(),
+                                ));
+                            } else {
+                                path = path.join(&self.file_name_value);
+                            }
                         }
-                    }
 
-                    if self.path != path {
-                        self.path.clone_from(&path);
+                        if self.path != path {
+                            self.path.clone_from(&path);
 
-                        ui.send_message(TextMessage::text(
-                            self.path_text,
-                            MessageDirection::ToWidget,
-                            path.to_string_lossy().to_string(),
-                        ));
+                            ui.send_message(TextMessage::text(
+                                self.path_text,
+                                MessageDirection::ToWidget,
+                                path.to_string_lossy().to_string(),
+                            ));
 
-                        // Do response.
-                        ui.send_message(FileBrowserMessage::path(
-                            self.handle,
-                            MessageDirection::FromWidget,
-                            path,
-                        ));
+                            // Do response.
+                            ui.send_message(FileBrowserMessage::path(
+                                self.handle,
+                                MessageDirection::FromWidget,
+                                path,
+                            ));
+                        }
                     }
                 }
             }
