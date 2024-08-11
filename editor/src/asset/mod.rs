@@ -744,9 +744,16 @@ impl AssetBrowser {
         resource_manager: &ResourceManager,
         message_sender: &MessageSender,
     ) -> Handle<UiNode> {
+        let is_dir = path.is_dir();
+
         let asset_item = AssetItemBuilder::new(
             WidgetBuilder::new().with_context_menu(self.context_menu.menu.clone()),
         )
+        .with_icon(if is_dir {
+            load_image(include_bytes!("../../resources/folder.png"))
+        } else {
+            None
+        })
         .with_path(path)
         .build(
             resource_manager.clone(),
@@ -754,21 +761,23 @@ impl AssetBrowser {
             &mut ui.build_ctx(),
         );
 
-        // Spawn async task, that will load the respective resource and generate preview for it in
-        // a separate thread. This prevents blocking the main thread and thus keeps the editor
-        // responsive.
-        let rm = resource_manager.clone();
-        let resource_path = path.to_path_buf();
-        let preview_sender = self.preview_sender.clone();
-        let task_pool = resource_manager.task_pool();
-        task_pool.spawn_task(async move {
-            if let Ok(resource) = rm.request_untyped(resource_path).await {
-                Log::verify(preview_sender.send(IconRequest {
-                    resource,
-                    asset_item,
-                }));
-            }
-        });
+        if !is_dir {
+            // Spawn async task, that will load the respective resource and generate preview for it in
+            // a separate thread. This prevents blocking the main thread and thus keeps the editor
+            // responsive.
+            let rm = resource_manager.clone();
+            let resource_path = path.to_path_buf();
+            let preview_sender = self.preview_sender.clone();
+            let task_pool = resource_manager.task_pool();
+            task_pool.spawn_task(async move {
+                if let Ok(resource) = rm.request_untyped(resource_path).await {
+                    Log::verify(preview_sender.send(IconRequest {
+                        resource,
+                        asset_item,
+                    }));
+                }
+            });
+        }
 
         self.items.push(asset_item);
 
@@ -785,6 +794,18 @@ impl AssetBrowser {
         for child in self.items.drain(..) {
             ui.send_message(WidgetMessage::remove(child, MessageDirection::ToWidget));
         }
+    }
+
+    pub fn request_current_path(&self, path: PathBuf, ui: &UserInterface) {
+        if !path.is_dir() {
+            return;
+        }
+
+        ui.send_message(FileBrowserMessage::path(
+            self.folder_browser,
+            MessageDirection::ToWidget,
+            path,
+        ));
     }
 
     fn set_path(
@@ -817,21 +838,31 @@ impl AssetBrowser {
 
         // Get all supported assets from folder and generate previews for them.
         if let Ok(dir_iter) = std::fs::read_dir(&self.selected_path) {
+            let mut folders = Vec::new();
+            let mut resources = Vec::new();
+
             for entry in dir_iter.flatten() {
                 if let Ok(entry_path) = make_relative_path(entry.path()) {
-                    if !entry_path.is_dir()
-                        && entry_path
-                            .extension()
-                            .map_or(false, |ext| is_supported_resource(ext, resource_manager))
+                    if entry_path.is_dir() {
+                        folders.push(entry_path);
+                    } else if entry_path
+                        .extension()
+                        .map_or(false, |ext| is_supported_resource(ext, resource_manager))
                     {
-                        let asset_item =
-                            self.add_asset(&entry_path, ui, resource_manager, message_sender);
+                        resources.push(entry_path);
+                    }
+                }
+            }
 
-                        if let Some(item_to_select) = item_to_select.as_ref() {
-                            if item_to_select == &entry_path {
-                                handle_to_select = asset_item;
-                            }
-                        }
+            folders.sort();
+            resources.sort();
+
+            for path in folders.into_iter().chain(resources.into_iter()) {
+                let asset_item = self.add_asset(&path, ui, resource_manager, message_sender);
+
+                if let Some(item_to_select) = item_to_select.as_ref() {
+                    if item_to_select == &path {
+                        handle_to_select = asset_item;
                     }
                 }
             }

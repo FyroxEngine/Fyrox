@@ -101,6 +101,7 @@ pub enum Message {
     LoadLayout,
     ViewSurfaceData(SurfaceResource),
     SyncInteractionModes,
+    SetAssetBrowserCurrentDir(PathBuf),
 }
 
 #[derive(Clone, Debug)]

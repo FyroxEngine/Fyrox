@@ -2468,6 +2468,10 @@ impl Editor {
                             }
                         }
                     }
+                    Message::SetAssetBrowserCurrentDir(path) => {
+                        self.asset_browser
+                            .request_current_path(path, self.engine.user_interfaces.first());
+                    }
                     Message::ShowInAssetBrowser(path) => {
                         self.asset_browser
                             .locate_path(self.engine.user_interfaces.first(), path);

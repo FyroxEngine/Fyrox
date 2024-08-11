@@ -137,6 +137,8 @@ impl AssetItem {
                     sender.send(Message::OpenTileSetEditor(tile_set));
                 }
             }
+        } else if self.path.is_dir() {
+            sender.send(Message::SetAssetBrowserCurrentDir(self.path.clone()));
         } else {
             open_in_explorer(&self.path)
         }
