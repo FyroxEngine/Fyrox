@@ -702,8 +702,14 @@ fn build_all(
 
     // There should be at least one component in the path. If the path is empty, this means that
     // it "points" to the current directory.
-    if dest_path == PathBuf::default() {
+    if dest_path.as_os_str().is_empty() {
         dest_path.push(".");
+    }
+
+    // Relative paths must always start from CurDir component (./), otherwise the root dir will be ignored
+    // and the tree will be incorrect.
+    if !dest_path.is_absolute() {
+        dest_path = Path::new(".").join(dest_path);
     }
 
     let dest_path_components = dest_path.components().collect::<Vec<Component>>();
