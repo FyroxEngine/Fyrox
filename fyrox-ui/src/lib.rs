@@ -2934,7 +2934,10 @@ impl UserInterface {
             }
         }
 
-        let node = self.nodes.borrow(node_handle);
+        let Some(node) = self.nodes.try_borrow(node_handle) else {
+            return Default::default();
+        };
+
         let mut cloned = UiNode(node.clone_boxed());
         cloned.id = Uuid::new_v4();
 
