@@ -967,18 +967,17 @@ impl Control for TreeRoot {
                     }
                     TreeRootMessage::Selected(selected) => {
                         if &self.selected != selected {
-                            let mut stack = self.children().to_vec();
-                            while let Some(handle) = stack.pop() {
-                                let node = ui.node(handle);
-                                stack.extend_from_slice(node.children());
+                            let mut items = self.items.clone();
+                            while let Some(handle) = items.pop() {
+                                if let Some(tree_ref) = ui.try_get_of_type::<Tree>(handle) {
+                                    items.extend_from_slice(&tree_ref.items);
 
-                                let new_selection_state = if selected.contains(&handle) {
-                                    SelectionState(true)
-                                } else {
-                                    SelectionState(false)
-                                };
+                                    let new_selection_state = if selected.contains(&handle) {
+                                        SelectionState(true)
+                                    } else {
+                                        SelectionState(false)
+                                    };
 
-                                if let Some(tree_ref) = node.query_component::<Tree>() {
                                     if tree_ref.is_selected != new_selection_state.0 {
                                         ui.send_message(TreeMessage::select(
                                             handle,
@@ -988,6 +987,7 @@ impl Control for TreeRoot {
                                     }
                                 }
                             }
+
                             self.selected.clone_from(selected);
                             ui.send_message(message.reverse());
                         }
