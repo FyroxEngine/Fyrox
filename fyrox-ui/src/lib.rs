@@ -2352,7 +2352,7 @@ impl UserInterface {
                 if !self.drag_context.is_dragging
                     && self.mouse_state.left == ButtonState::Pressed
                     && self.picked_node.is_some()
-                    && self.drag_context.drag_node.is_some()
+                    && self.nodes.is_valid_handle(self.drag_context.drag_node)
                     && (self.drag_context.click_pos - *position).norm() > 5.0
                 {
                     self.drag_context.drag_preview =
