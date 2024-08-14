@@ -1108,17 +1108,6 @@ impl PhysicsWorld {
                         });
                     }
 
-                    collider_node.shape.try_sync_model(|v| {
-                        let inv_global_transform = isometric_global_transform(nodes, handle)
-                            .try_inverse()
-                            .unwrap();
-
-                        if let Some(shape) =
-                            collider_shape_into_native_shape(&v, inv_global_transform, nodes)
-                        {
-                            native.set_shape(shape);
-                        }
-                    });
                     collider_node
                         .restitution
                         .try_sync_model(|v| native.set_restitution(v));
@@ -1146,6 +1135,24 @@ impl PhysicsWorld {
                     collider_node
                         .restitution_combine_rule
                         .try_sync_model(|v| native.set_restitution_combine_rule(v.into()));
+                    let mut remove_collider = false;
+                    collider_node.shape.try_sync_model(|v| {
+                        let inv_global_transform = isometric_global_transform(nodes, handle)
+                            .try_inverse()
+                            .unwrap_or_default();
+
+                        if let Some(shape) =
+                            collider_shape_into_native_shape(&v, inv_global_transform, nodes)
+                        {
+                            native.set_shape(shape);
+                        } else {
+                            remove_collider = true;
+                        }
+                    });
+                    if remove_collider {
+                        self.remove_collider(collider_node.native.get());
+                        collider_node.native.set(ColliderHandle::invalid());
+                    }
                 }
             }
         } else if let Some(parent_body) = nodes
