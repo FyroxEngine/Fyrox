@@ -49,9 +49,8 @@ use crate::{
             Mesh,
         },
         node::{Node, NodeTrait},
-        rigidbody,
-        rigidbody::ApplyAction,
-        terrain::Terrain,
+        rigidbody::{self, ApplyAction},
+        terrain::{Chunk, Terrain},
     },
     utils::raw_mesh::{RawMeshBuilder, RawVertex},
 };
@@ -61,14 +60,13 @@ use rapier3d::{
         IslandManager, JointAxesMask, MultibodyJointHandle, MultibodyJointSet, RigidBody,
         RigidBodyActivation, RigidBodyBuilder, RigidBodyHandle, RigidBodySet, RigidBodyType,
     },
-    geometry::DefaultBroadPhase,
     geometry::{
-        Collider, ColliderBuilder, ColliderHandle, ColliderSet, Cuboid, InteractionGroups,
-        NarrowPhase, Ray, SharedShape,
+        Collider, ColliderBuilder, ColliderHandle, ColliderSet, Cuboid, DefaultBroadPhase,
+        InteractionGroups, NarrowPhase, Ray, SharedShape,
     },
-    parry::query::ShapeCastOptions,
+    parry::{query::ShapeCastOptions, shape::HeightField},
     pipeline::{DebugRenderPipeline, EventHandler, PhysicsPipeline, QueryPipeline},
-    prelude::JointAxis,
+    prelude::{HeightFieldCellStatus, JointAxis},
 };
 use std::{
     cell::{Cell, RefCell},
@@ -640,7 +638,7 @@ fn make_polyhedron_shape(owner_inv_transform: Matrix4<f32>, mesh: &Mesh) -> Shar
 }
 
 /// Creates height field shape from given terrain.
-fn make_heightfield(terrain: &Terrain) -> SharedShape {
+fn make_heightfield(terrain: &Terrain) -> Option<SharedShape> {
     assert!(!terrain.chunks_ref().is_empty());
 
     // HACK: Temporary solution for https://github.com/FyroxEngine/Fyrox/issues/365
@@ -648,44 +646,79 @@ fn make_heightfield(terrain: &Terrain) -> SharedShape {
 
     // Count rows and columns.
     let height_map_size = terrain.height_map_size();
-    let nrows = height_map_size.y * terrain.length_chunks().len() as u32;
-    let ncols = height_map_size.x * terrain.width_chunks().len() as u32;
+    let chunk_size = height_map_size.map(|x| x - 3);
+    let chunk_min = terrain
+        .chunks_ref()
+        .iter()
+        .map(Chunk::grid_position)
+        .reduce(|a, b| a.inf(&b));
+    let chunk_max = terrain
+        .chunks_ref()
+        .iter()
+        .map(Chunk::grid_position)
+        .reduce(|a, b| a.sup(&b));
+    let (Some(chunk_min), Some(chunk_max)) = (chunk_min, chunk_max) else {
+        return None;
+    };
+    let row_range = chunk_max.y - chunk_min.y + 1;
+    let col_range = chunk_max.x - chunk_min.x + 1;
+    let nrows = chunk_size.y * row_range as u32 + 1;
+    let ncols = chunk_size.x * col_range as u32 + 1;
 
     // Combine height map of each chunk into bigger one.
-    let mut ox = 0;
-    let mut oz = 0;
     let mut data = vec![0.0; (nrows * ncols) as usize];
-    for cz in 0..terrain.length_chunks().len() {
-        for cx in 0..terrain.width_chunks().len() {
-            let chunk = &terrain.chunks_ref()[cz * terrain.width_chunks().len() + cx];
-            let texture = chunk.heightmap().data_ref();
-            let height_map = texture.data_of_type::<f32>().unwrap();
-            for iy in 0..height_map_size.y {
-                for ix in 0..height_map_size.x {
-                    let value = height_map[(iy * height_map_size.x + ix) as usize] * scale.y;
-                    data[((ox + ix) * nrows + oz + iy) as usize] = value;
-                }
+    for chunk in terrain.chunks_ref() {
+        let texture = chunk.heightmap().data_ref();
+        let height_map = texture.data_of_type::<f32>().unwrap();
+        let pos = (chunk.grid_position() - chunk_min).map(|x| x as u32);
+        let (ox, oy) = (pos.x * chunk_size.x, pos.y * chunk_size.y);
+        for iy in 0..height_map_size.y - 2 {
+            for ix in 0..height_map_size.x - 2 {
+                let (x, y) = (ix + 1, iy + 1);
+                let value = height_map[(y * height_map_size.x + x) as usize] * scale.y;
+                data[((ox + ix) * nrows + oy + iy) as usize] = value;
             }
-
-            ox += height_map_size.x;
         }
-
-        ox = 0;
-        oz += height_map_size.y;
     }
-
-    SharedShape::heightfield(
+    let x_scale = terrain.chunk_size().x * scale.x * col_range as f32;
+    let z_scale = terrain.chunk_size().y * scale.z * row_range as f32;
+    let x_pos = terrain.chunk_size().x * scale.x * chunk_min.x as f32;
+    let z_pos = terrain.chunk_size().y * scale.z * chunk_min.y as f32;
+    let mut hf = HeightField::new(
         DMatrix::from_data(VecStorage::new(
             Dyn(nrows as usize),
             Dyn(ncols as usize),
             data,
         )),
-        Vector3::new(
-            terrain.chunk_size().x * scale.x * terrain.width_chunks().len() as f32,
-            1.0,
-            terrain.chunk_size().y * scale.z * terrain.length_chunks().len() as f32,
-        ),
-    )
+        Vector3::new(x_scale, 1.0, z_scale),
+    );
+    hf.cells_statuses_mut()
+        .fill(HeightFieldCellStatus::CELL_REMOVED);
+    let hole_mask_size = terrain.hole_mask_size();
+    for chunk in terrain.chunks_ref() {
+        let Some(texture) = chunk.hole_mask().map(|t| t.data_ref()) else {
+            continue;
+        };
+        let hole_mask = texture.data_of_type::<u8>().unwrap();
+        let pos = (chunk.grid_position() - chunk_min).map(|x| x as u32);
+        let (ox, oy) = (pos.x * chunk_size.x, pos.y * chunk_size.y);
+
+        for iy in 0..hole_mask_size.y {
+            for ix in 0..hole_mask_size.x {
+                let is_hole = hole_mask[(iy * hole_mask_size.x + ix) as usize] < 128;
+                let (x, y) = (ox + ix, oy + iy);
+                if !is_hole {
+                    hf.set_cell_status(y as usize, x as usize, HeightFieldCellStatus::empty());
+                }
+            }
+        }
+    }
+    // HeightField colliders naturally have their origin at their centers,
+    // so to position the collider correctly we must add half of the size to x and z.
+    Some(SharedShape::compound(vec![(
+        Isometry3::translation(x_scale * 0.5 + x_pos, 0.0, z_scale * 0.5 + z_pos),
+        SharedShape::new(hf),
+    )]))
 }
 
 // Converts descriptor in a shared shape.
@@ -734,7 +767,7 @@ fn collider_shape_into_native_shape(
         ColliderShape::Heightfield(heightfield) => pool
             .try_borrow(heightfield.geometry_source.0)
             .and_then(|n| n.cast::<Terrain>())
-            .map(make_heightfield),
+            .and_then(make_heightfield),
         ColliderShape::Polyhedron(polyhedron) => pool
             .try_borrow(polyhedron.geometry_source.0)
             .and_then(|n| n.cast::<Mesh>())

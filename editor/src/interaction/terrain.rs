@@ -68,7 +68,9 @@ use crate::{
     make_color_material,
     message::MessageSender,
     scene::{
-        commands::terrain::{ModifyTerrainHeightCommand, ModifyTerrainLayerMaskCommand},
+        commands::terrain::{
+            ModifyTerrainHeightCommand, ModifyTerrainHolesCommand, ModifyTerrainLayerMaskCommand,
+        },
         GameScene, Selection,
     },
     settings::Settings,
@@ -85,6 +87,10 @@ fn modify_clamp(x: &mut f32, delta: f32, min: f32, max: f32) {
 fn handle_undo_chunks(undo_chunks: UndoData, sender: &MessageSender) {
     match undo_chunks.target {
         BrushTarget::HeightMap => sender.do_command(ModifyTerrainHeightCommand::new(
+            undo_chunks.node,
+            undo_chunks.chunks,
+        )),
+        BrushTarget::HoleMask => sender.do_command(ModifyTerrainHolesCommand::new(
             undo_chunks.node,
             undo_chunks.chunks,
         )),
@@ -199,10 +205,12 @@ impl TerrainInteractionMode {
         let position = match self.brush.target {
             BrushTarget::HeightMap => terrain.local_to_height_pixel(position),
             BrushTarget::LayerMask { .. } => terrain.local_to_mask_pixel(position),
+            BrushTarget::HoleMask { .. } => terrain.local_to_hole_pixel(position),
         };
         let scale = match self.brush.target {
             BrushTarget::HeightMap => terrain.height_grid_scale(),
             BrushTarget::LayerMask { .. } => terrain.mask_grid_scale(),
+            BrushTarget::HoleMask { .. } => terrain.hole_grid_scale(),
         };
         if let Some(sender) = &self.brush_sender {
             if let Some(start) = self.prev_brush_position.take() {
@@ -309,6 +317,10 @@ impl InteractionMode for TerrainInteractionMode {
                                 self.brush_value = 0.0;
                             }
                         }
+                    }
+                    if self.brush.target == BrushTarget::HoleMask && !terrain.holes_enabled() {
+                        Log::err("Invalid brush stroke. Holes are not enabled on terrain.");
+                        return;
                     }
                     self.start_stroke(terrain, handle, shift);
                     self.prev_brush_position = None;
@@ -586,13 +598,21 @@ fn make_brush_target_enum_property_editor_definition() -> EnumPropertyEditorDefi
         variant_generator: |i| match i {
             0 => BrushTarget::HeightMap,
             1 => BrushTarget::LayerMask { layer: 0 },
+            2 => BrushTarget::HoleMask,
             _ => unreachable!(),
         },
         index_generator: |v| match v {
             BrushTarget::HeightMap => 0,
             BrushTarget::LayerMask { .. } => 1,
+            BrushTarget::HoleMask => 2,
         },
-        names_generator: || vec!["Height Map".to_string(), "Layer Mask".to_string()],
+        names_generator: || {
+            vec![
+                "Height Map".to_string(),
+                "Layer Mask".to_string(),
+                "Holes".to_string(),
+            ]
+        },
     }
 }
 

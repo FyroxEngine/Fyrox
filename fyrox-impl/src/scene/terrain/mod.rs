@@ -22,7 +22,9 @@
 
 use crate::material::MaterialResourceExtension;
 use crate::renderer::bundle::PersistentIdentifier;
-use crate::resource::texture::TextureDataRefMut;
+use crate::resource::texture::{
+    TextureDataRefMut, TextureMagnificationFilter, TextureMinificationFilter,
+};
 use crate::scene::node::RdcControlFlow;
 use crate::{
     asset::{Resource, ResourceDataRef},
@@ -65,6 +67,7 @@ use fyrox_graph::BaseSceneGraph;
 use fyrox_resource::untyped::ResourceKind;
 use half::f16;
 use image::{imageops::FilterType, ImageBuffer, Luma};
+use lazy_static::lazy_static;
 use std::{
     cell::Cell,
     cmp::Ordering,
@@ -80,6 +83,17 @@ pub use brushstroke::*;
 
 /// Current implementation version marker.
 pub const VERSION: u8 = 2;
+
+lazy_static! {
+    /// Solid white texture
+    pub static ref WHITE_1X1: TextureResource = TextureResource::from_bytes(
+        TextureKind::Rectangle { width: 1, height: 1 },
+        TexturePixelKind::R8,
+        vec![255],
+        ResourceKind::External("__White_1x1".into()),
+    )
+    .unwrap();
+}
 
 /// Position of a single cell within terrain data.
 #[derive(Debug, Clone)]
@@ -234,6 +248,10 @@ pub struct Layer {
     #[visit(optional)]
     pub height_map_property_name: String,
 
+    /// Name of the hole mask sampler property in the material.
+    #[visit(optional)]
+    pub hole_mask_property_name: String,
+
     /// Name of the node uv offsets property in the material.
     #[visit(optional)]
     pub node_uv_offsets_property_name: String,
@@ -248,6 +266,7 @@ impl Default for Layer {
             mask_property_name: "maskTexture".to_string(),
             height_map_property_name: "heightMapTexture".to_string(),
             node_uv_offsets_property_name: "nodeUvOffsets".to_string(),
+            hole_mask_property_name: "holeMaskTexture".to_string(),
         }
     }
 }
@@ -287,6 +306,27 @@ fn make_height_map_texture_internal(
     Some(Resource::new_ok(Default::default(), data))
 }
 
+fn make_blank_hole_texture(size: Vector2<u32>) -> TextureResource {
+    make_hole_texture(vec![255; size.x as usize * size.y as usize], size)
+}
+
+fn make_hole_texture(mask_data: Vec<u8>, size: Vector2<u32>) -> TextureResource {
+    let mut data = Texture::from_bytes(
+        TextureKind::Rectangle {
+            width: size.x,
+            height: size.y,
+        },
+        TexturePixelKind::R8,
+        mask_data,
+    )
+    .unwrap();
+    data.set_t_wrap_mode(TextureWrapMode::ClampToEdge);
+    data.set_s_wrap_mode(TextureWrapMode::ClampToEdge);
+    data.set_magnification_filter(TextureMagnificationFilter::Nearest);
+    data.set_minification_filter(TextureMinificationFilter::Nearest);
+    Resource::new_ok(Default::default(), data)
+}
+
 /// Create an Ok texture resource of the given size from the given height values.
 /// `height_map` should have exactly `size.x * size.y` elements.
 /// **Panics** if the wrong number of height values are given to fill a height map
@@ -310,6 +350,8 @@ pub struct Chunk {
         for terrain needs."
     )]
     heightmap: Option<TextureResource>,
+    #[reflect(hidden)]
+    hole_mask: Option<TextureResource>,
     #[reflect(hidden)]
     position: Vector3<f32>,
     #[reflect(hidden)]
@@ -343,6 +385,7 @@ impl Clone for Chunk {
     fn clone(&self) -> Self {
         Self {
             heightmap: Some(self.heightmap.as_ref().unwrap().deep_clone()),
+            hole_mask: self.hole_mask.as_ref().map(Resource::deep_clone),
             position: self.position,
             physical_size: self.physical_size,
             height_map_size: self.height_map_size,
@@ -403,6 +446,7 @@ impl Visit for Chunk {
             }
             1 | VERSION => {
                 self.heightmap.visit("Heightmap", &mut region)?;
+                let _ = self.hole_mask.visit("HoleMask", &mut region);
                 // We do not need to visit position, since its value is implied by grid_position.
                 //self.position.visit("Position", &mut region)?;
                 self.physical_size.visit("PhysicalSize", &mut region)?;
@@ -437,6 +481,7 @@ impl Default for Chunk {
         Self {
             quad_tree: Default::default(),
             heightmap: Default::default(),
+            hole_mask: Default::default(),
             position: Default::default(),
             physical_size: Default::default(),
             height_map_size: Default::default(),
@@ -725,6 +770,11 @@ impl Chunk {
         Err(heightmap)
     }
 
+    /// Returns a reference to hole mask texture, if one exists.
+    pub fn hole_mask(&self) -> Option<&TextureResource> {
+        self.hole_mask.as_ref()
+    }
+
     /// Returns the size of the chunk in meters.
     pub fn physical_size(&self) -> Vector2<f32> {
         self.physical_size
@@ -733,6 +783,11 @@ impl Chunk {
     /// Returns amount of pixels in the height map along each dimension.
     pub fn height_map_size(&self) -> Vector2<u32> {
         self.height_map_size
+    }
+
+    /// Returns amount of pixels in the hole mask along each dimension.
+    pub fn hole_mask_size(&self) -> Vector2<u32> {
+        self.height_map_size.map(|x| x - 3)
     }
 
     /// Performs debug drawing of the chunk. It draws internal quad-tree structure for debugging purposes.
@@ -987,6 +1042,9 @@ impl BrushContext {
 pub struct Terrain {
     base: Base,
 
+    #[reflect(setter = "set_holes_enabled")]
+    holes_enabled: bool,
+
     #[reflect(setter = "set_layers")]
     layers: InheritableVariable<Vec<Layer>>,
 
@@ -1080,6 +1138,7 @@ impl Default for Terrain {
     fn default() -> Self {
         Self {
             base: Default::default(),
+            holes_enabled: false,
             layers: Default::default(),
             decal_layer_index: Default::default(),
             chunk_size: Vector2::new(16.0, 16.0).into(),
@@ -1197,6 +1256,7 @@ impl Visit for Terrain {
             1 | VERSION => {
                 // Current version
                 self.base.visit("Base", &mut region)?;
+                let _ = self.holes_enabled.visit("HolesEnabled", &mut region);
                 self.layers.visit("Layers", &mut region)?;
                 self.decal_layer_index
                     .visit("DecalLayerIndex", &mut region)?;
@@ -1287,6 +1347,15 @@ fn pixel_position_to_grid_position(
         y
     };
     Vector2::new(x, y)
+}
+
+fn resize_u8(data: Vec<u8>, data_size: Vector2<u32>, new_size: Vector2<u32>) -> Vec<u8> {
+    let image = ImageBuffer::<Luma<u8>, Vec<u8>>::from_vec(data_size.x, data_size.y, data).unwrap();
+
+    let resampled_image =
+        image::imageops::resize(&image, new_size.x, new_size.y, FilterType::Lanczos3);
+
+    resampled_image.into_raw()
 }
 
 fn resize_f32(mut data: Vec<f32>, data_size: Vector2<u32>, new_size: Vector2<u32>) -> Vec<f32> {
@@ -1503,6 +1572,14 @@ impl Terrain {
         *self.height_map_size
     }
 
+    /// Returns hole mask dimensions along each axis.
+    /// This is measured in *pixels* and gives the size of each chunk by
+    /// counting the faces between height map vertices.
+    /// Holes are cut into terrain by removing faces, so each pixel represents one face.
+    pub fn hole_mask_size(&self) -> Vector2<u32> {
+        self.height_map_size.map(|x| x - 3)
+    }
+
     /// Sets new size of the height map for every chunk. Heightmaps in every chunk will be resampled which may
     /// cause precision loss if the size was decreased. **Warning:** This method is very heavy and should not be
     /// used at every frame!
@@ -1529,6 +1606,29 @@ impl Terrain {
     /// Returns current block size of the terrain as measured by counting vertices along each axis of the block mesh.
     pub fn block_size(&self) -> Vector2<u32> {
         *self.block_size
+    }
+
+    /// Add or remove the hole masks from the chunks of this terrain.
+    pub fn set_holes_enabled(&mut self, enabled: bool) -> bool {
+        if self.holes_enabled == enabled {
+            return enabled;
+        }
+        let old = self.holes_enabled;
+        self.holes_enabled = enabled;
+        let size = self.hole_mask_size();
+        for chunk in self.chunks.iter_mut() {
+            if enabled {
+                chunk.hole_mask = Some(make_blank_hole_texture(size));
+            } else {
+                chunk.hole_mask = None;
+            }
+        }
+        old
+    }
+
+    /// True if hole masks have been added to chunks.
+    pub fn holes_enabled(&self) -> bool {
+        self.holes_enabled
     }
 
     /// Returns the number of pixels along each axis of the layer blending mask.
@@ -1583,6 +1683,8 @@ impl Terrain {
         let mut created_chunks = Vec::new();
         let mut preserved_chunks = Vec::new();
 
+        let hole_size = self.hole_mask_size();
+
         for z in (*self.length_chunks).clone() {
             for x in (*self.width_chunks).clone() {
                 let chunk = if let Some(existing_chunk) = chunks.remove(&Vector2::new(x, z)) {
@@ -1601,6 +1703,11 @@ impl Terrain {
                             0,
                         )),
                         heightmap: Some(make_height_map_texture(heightmap, self.height_map_size())),
+                        hole_mask: if self.holes_enabled {
+                            Some(make_blank_hole_texture(hole_size))
+                        } else {
+                            None
+                        },
                         height_map_modifications_count: 0,
                         position: Vector3::new(
                             x as f32 * self.chunk_size.x,
@@ -1706,8 +1813,25 @@ impl Terrain {
         Vector2::new(p.x / scale.x, p.y / scale.y)
     }
 
+    /// Convert from local 2D to hole pixel position.
+    pub fn local_to_hole_pixel(&self, p: Vector2<f32>) -> Vector2<f32> {
+        let scale = self.hole_grid_scale();
+        let half = scale * 0.5;
+        let p = p - half;
+        Vector2::new(p.x / scale.x, p.y / scale.y)
+    }
+
     /// The size of each cell of the height grid in local 2D units.
     pub fn height_grid_scale(&self) -> Vector2<f32> {
+        // Subtract 2 to exclude the margins which are not rendered.
+        // Subtract 1 to count the edges between pixels instead of the pixels.
+        let cell_width = self.chunk_size.x / (self.height_map_size.x - 3) as f32;
+        let cell_length = self.chunk_size.y / (self.height_map_size.y - 3) as f32;
+        Vector2::new(cell_width, cell_length)
+    }
+
+    /// The size of each cell of the height grid in local 2D units.
+    pub fn hole_grid_scale(&self) -> Vector2<f32> {
         // Subtract 2 to exclude the margins which are not rendered.
         // Subtract 1 to count the edges between pixels instead of the pixels.
         let cell_width = self.chunk_size.x / (self.height_map_size.x - 3) as f32;
@@ -1728,9 +1852,25 @@ impl Terrain {
     }
 
     /// Calculate which cell of the mask grid contains the given local 2D position.
+    /// Mask grid cells are shifted by a half-pixel in each dimension, so that the
+    /// origin of the (0,0) cell is at (0.5,0.5) as measured in pixels.
     pub fn get_mask_grid_square(&self, position: Vector2<f32>) -> TerrainRect {
         let cell_size = self.mask_grid_scale();
         let half_size = cell_size / 2.0;
+        // Translate by a half-pixel so that `from_local` will give us the right answer.
+        let position = position - half_size;
+        let mut rect = TerrainRect::from_local(position, cell_size);
+        rect.bounds.position += half_size;
+        rect
+    }
+
+    /// Calculate which cell of the hole grid contains the given local 2D position.
+    /// Mask grid cells are shifted by a half-pixel in each dimension, so that the
+    /// origin of the (0,0) cell is at (0.5,0.5) as measured in pixels.
+    pub fn get_hole_grid_square(&self, position: Vector2<f32>) -> TerrainRect {
+        let cell_size = self.height_grid_scale();
+        let half_size = cell_size / 2.0;
+        // Translate by a half-pixel so that `from_local` will give us the right answer.
         let position = position - half_size;
         let mut rect = TerrainRect::from_local(position, cell_size);
         rect.bounds.position += half_size;
@@ -1745,6 +1885,18 @@ impl Terrain {
         let pos = (position - origin).map(|x| x as usize);
         let index = pos.y * self.mask_size.x as usize + pos.x;
         let texture_data = chunk.layer_masks[layer].data_ref();
+        let mask_data = texture_data.data();
+        Some(mask_data[index])
+    }
+
+    /// Return the value of the layer mask at the given mask pixel position.
+    pub fn get_hole_mask(&self, position: Vector2<i32>) -> Option<u8> {
+        let chunk_pos = self.chunk_containing_hole_pos(position);
+        let chunk = self.find_chunk(chunk_pos)?;
+        let origin = self.chunk_hole_pos_origin(chunk_pos);
+        let pos = (position - origin).map(|x| x as usize);
+        let index = pos.y * (self.height_map_size.x - 3) as usize + pos.x;
+        let texture_data = chunk.hole_mask.as_ref().map(|r| r.data_ref())?;
         let mask_data = texture_data.data();
         Some(mask_data[index])
     }
@@ -1768,6 +1920,7 @@ impl Terrain {
         let grid_square = match target {
             BrushTarget::HeightMap => self.get_height_grid_square(position),
             BrushTarget::LayerMask { .. } => self.get_mask_grid_square(position),
+            BrushTarget::HoleMask => self.get_hole_grid_square(position),
         };
         let p = grid_square.grid_position;
         let b = grid_square.bounds;
@@ -1795,6 +1948,12 @@ impl Terrain {
                 self.get_layer_mask(p01, layer).unwrap_or(0) as f32 / 255.0,
                 self.get_layer_mask(p10, layer).unwrap_or(0) as f32 / 255.0,
                 self.get_layer_mask(p11, layer).unwrap_or(0) as f32 / 255.0,
+            ),
+            BrushTarget::HoleMask => (
+                self.get_hole_mask(p00).unwrap_or(0) as f32 / 255.0,
+                self.get_hole_mask(p01).unwrap_or(0) as f32 / 255.0,
+                self.get_hole_mask(p10).unwrap_or(0) as f32 / 255.0,
+                self.get_hole_mask(p11).unwrap_or(0) as f32 / 255.0,
             ),
         };
         let value = f00 * dx1 * dy1 + f10 * dx0 * dy1 + f01 * dx1 * dy0 + f11 * dx0 * dy0;
@@ -1880,11 +2039,26 @@ impl Terrain {
     pub fn chunk_containing_mask_pos(&self, position: Vector2<i32>) -> Vector2<i32> {
         pixel_position_to_grid_position(position, *self.mask_size)
     }
+    /// Determines the chunk containing the given hole pixel coordinate.
+    /// This method makes no guarantee that there is actually a chunk at the returned coordinates.
+    /// It returns the grid_position that the chunk would have if it existed.
+    pub fn chunk_containing_hole_pos(&self, position: Vector2<i32>) -> Vector2<i32> {
+        pixel_position_to_grid_position(position, self.hole_mask_size())
+    }
 
     /// Determines the position of the (0,0) coordinate of the given chunk
     /// as measured in mask pixel coordinates.
     pub fn chunk_mask_pos_origin(&self, chunk_grid_position: Vector2<i32>) -> Vector2<i32> {
         let chunk_size = *self.mask_size;
+        let x = chunk_grid_position.x * chunk_size.x as i32;
+        let y = chunk_grid_position.y * chunk_size.y as i32;
+        Vector2::new(x, y)
+    }
+
+    /// Determines the position of the (0,0) coordinate of the given chunk
+    /// as measured in hole pixel coordinates.
+    pub fn chunk_hole_pos_origin(&self, chunk_grid_position: Vector2<i32>) -> Vector2<i32> {
+        let chunk_size = self.hole_mask_size();
         let x = chunk_grid_position.x * chunk_size.x as i32;
         let y = chunk_grid_position.y * chunk_size.y as i32;
         Vector2::new(x, y)
@@ -2133,22 +2307,7 @@ impl Terrain {
         for chunk in self.chunks.iter_mut() {
             for mask in chunk.layer_masks.iter_mut() {
                 let data = mask.data_ref();
-
-                let mask_image = ImageBuffer::<Luma<u8>, Vec<u8>>::from_vec(
-                    self.mask_size.x,
-                    self.mask_size.y,
-                    data.data().to_vec(),
-                )
-                .unwrap();
-
-                let resampled_mask_image = image::imageops::resize(
-                    &mask_image,
-                    new_size.x,
-                    new_size.y,
-                    FilterType::Lanczos3,
-                );
-
-                let new_mask = resampled_mask_image.into_raw();
+                let new_mask = resize_u8(data.data().to_vec(), *self.mask_size, new_size);
                 let new_mask_texture = TextureResource::from_bytes(
                     TextureKind::Rectangle {
                         width: new_size.x,
@@ -2172,16 +2331,27 @@ impl Terrain {
         // Height map dimensions should be a 3 + a power of 2 and they should be at least 5x5,
         // since two pixels along each edge are duplicated from neighboring chunks.
         new_size = new_size.sup(&Vector2::repeat(5));
+        let hole_size = self.hole_mask_size();
+        let new_hole_size = new_size.map(|x| x - 3);
 
         for chunk in self.chunks.iter_mut() {
             let texture = chunk.heightmap.as_ref().unwrap().data_ref();
             let heightmap = texture.data_of_type::<f32>().unwrap().to_vec();
 
             let resampled_heightmap = resize_f32(heightmap, chunk.height_map_size, new_size);
-
             drop(texture);
-            chunk.height_map_size = new_size;
             chunk.heightmap = Some(make_height_map_texture(resampled_heightmap, new_size));
+            if self.holes_enabled {
+                let texture = chunk.hole_mask.as_ref().map(|t| t.data_ref());
+                let data = texture.and_then(|t| t.data_of_type::<u8>().map(|t| t.to_vec()));
+                if let Some(data) = data {
+                    let resampled = resize_u8(data, hole_size, new_hole_size);
+                    chunk.hole_mask = Some(make_hole_texture(resampled, new_hole_size));
+                } else {
+                    chunk.hole_mask = Some(make_blank_hole_texture(new_hole_size));
+                }
+            }
+            chunk.height_map_size = new_size;
         }
         self.height_map_size.set_value_and_mark_modified(new_size);
 
@@ -2206,20 +2376,36 @@ impl Terrain {
     }
     /// Create an object that specifies which TextureResources are being used by this terrain
     /// to hold the data for the given BrushTarget.
+    /// Panics if `target` is `HoleMask` and a chunk is missing its hole mask texture.
     pub fn texture_data(&self, target: BrushTarget) -> TerrainTextureData {
         let chunk_size = match target {
             BrushTarget::HeightMap => self.height_map_size(),
             BrushTarget::LayerMask { .. } => self.mask_size(),
+            BrushTarget::HoleMask => self.hole_mask_size(),
         };
         let kind = match target {
             BrushTarget::HeightMap => TerrainTextureKind::Height,
             BrushTarget::LayerMask { .. } => TerrainTextureKind::Mask,
+            BrushTarget::HoleMask => TerrainTextureKind::Mask,
         };
         let resources: FxHashMap<Vector2<i32>, TextureResource> = match target {
             BrushTarget::HeightMap => self
                 .chunks_ref()
                 .iter()
                 .map(|c| (c.grid_position(), c.heightmap().clone()))
+                .collect(),
+            BrushTarget::HoleMask => self
+                .chunks_ref()
+                .iter()
+                .map(|c| {
+                    (
+                        c.grid_position(),
+                        c.hole_mask
+                            .as_ref()
+                            .cloned()
+                            .expect("Missing hole mask texture"),
+                    )
+                })
                 .collect(),
             BrushTarget::LayerMask { layer } => self
                 .chunks_ref()
@@ -2240,6 +2426,10 @@ impl Terrain {
     /// - `stroke`: The BrushStroke object to be reset to start a new stroke.
     fn start_stroke(&self, brush: Brush, stroke: &mut BrushStroke) {
         let target = brush.target;
+        if brush.target == BrushTarget::HoleMask && !self.holes_enabled {
+            Log::err("Invalid brush stroke. Holes are not enabled on terrain.");
+            return;
+        }
         stroke.start_stroke(brush, self.self_handle, self.texture_data(target))
     }
     /// Modify the given BrushStroke to include a stamp of its brush at the given position.
@@ -2256,10 +2446,12 @@ impl Terrain {
         let position = match stroke.brush().target {
             BrushTarget::HeightMap => self.local_to_height_pixel(position),
             BrushTarget::LayerMask { .. } => self.local_to_mask_pixel(position),
+            BrushTarget::HoleMask => self.local_to_hole_pixel(position),
         };
         let scale = match stroke.brush().target {
             BrushTarget::HeightMap => self.height_grid_scale(),
             BrushTarget::LayerMask { .. } => self.mask_grid_scale(),
+            BrushTarget::HoleMask => self.hole_grid_scale(),
         };
         stroke.stamp(position, scale, value);
     }
@@ -2281,14 +2473,17 @@ impl Terrain {
         let start = match stroke.brush().target {
             BrushTarget::HeightMap => self.local_to_height_pixel(start),
             BrushTarget::LayerMask { .. } => self.local_to_mask_pixel(start),
+            BrushTarget::HoleMask => self.local_to_hole_pixel(start),
         };
         let end = match stroke.brush().target {
             BrushTarget::HeightMap => self.local_to_height_pixel(end),
             BrushTarget::LayerMask { .. } => self.local_to_mask_pixel(end),
+            BrushTarget::HoleMask => self.local_to_hole_pixel(end),
         };
         let scale = match stroke.brush().target {
             BrushTarget::HeightMap => self.height_grid_scale(),
             BrushTarget::LayerMask { .. } => self.mask_grid_scale(),
+            BrushTarget::HoleMask => self.hole_grid_scale(),
         };
         stroke.smear(start, end, scale, value);
     }
@@ -2481,6 +2676,17 @@ impl NodeTrait for Terrain {
                     "Unable to set height map texture for terrain material.",
                 );
 
+                Log::verify_message(
+                    material.set_property(
+                        &layer.hole_mask_property_name,
+                        PropertyValue::Sampler {
+                            value: chunk.hole_mask.clone(),
+                            fallback: Default::default(),
+                        },
+                    ),
+                    "Unable to set hole mask texture for terrain material.",
+                );
+
                 // The size of the chunk excluding the margins
                 let size = self.height_map_size.map(|x| (x - 3) as f32);
                 for node in selection {
@@ -2578,6 +2784,7 @@ impl NodeTrait for Terrain {
 /// Terrain builder allows you to quickly build a terrain with required features.
 pub struct TerrainBuilder {
     base_builder: BaseBuilder,
+    holes_enabled: bool,
     chunk_size: Vector2<f32>,
     mask_size: Vector2<u32>,
     width_chunks: Range<i32>,
@@ -2610,6 +2817,7 @@ impl TerrainBuilder {
     pub fn new(base_builder: BaseBuilder) -> Self {
         Self {
             base_builder,
+            holes_enabled: false,
             chunk_size: Vector2::new(16.0, 16.0),
             width_chunks: 0..2,
             length_chunks: 0..2,
@@ -2619,6 +2827,12 @@ impl TerrainBuilder {
             layers: Default::default(),
             decal_layer_index: 0,
         }
+    }
+
+    /// Enables or disables holes from the terrain.
+    pub fn with_holes(mut self, holes_enabled: bool) -> Self {
+        self.holes_enabled = holes_enabled;
+        self
     }
 
     /// Sets desired chunk size in meters.
@@ -2677,6 +2891,15 @@ impl TerrainBuilder {
             for x in self.width_chunks.clone() {
                 let heightmap =
                     vec![0.0; (self.height_map_size.x * self.height_map_size.y) as usize];
+                let hole_mask = if self.holes_enabled {
+                    Some(create_layer_mask(
+                        self.height_map_size.x - 3,
+                        self.height_map_size.y - 3,
+                        255,
+                    ))
+                } else {
+                    None
+                };
                 let chunk = Chunk {
                     quad_tree: Mutex::new(QuadTree::new(
                         &heightmap,
@@ -2686,6 +2909,7 @@ impl TerrainBuilder {
                     )),
                     height_map_size: self.height_map_size,
                     heightmap: Some(make_height_map_texture(heightmap, self.height_map_size)),
+                    hole_mask,
                     height_map_modifications_count: 0,
                     position: Vector3::new(
                         x as f32 * self.chunk_size.x,
@@ -2717,6 +2941,7 @@ impl TerrainBuilder {
         let terrain = Terrain {
             chunk_size: self.chunk_size.into(),
             base: self.base_builder.build_base(),
+            holes_enabled: self.holes_enabled,
             layers: self.layers.into(),
             chunks: chunks.into(),
             bounding_box_dirty: Cell::new(true),

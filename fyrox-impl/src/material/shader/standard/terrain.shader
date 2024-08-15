@@ -44,6 +44,10 @@
             kind: Sampler(default: None, fallback: White),
         ),
         (
+            name: "holeMaskTexture",
+            kind: Sampler(default: None, fallback: White),
+        ),
+        (
             name: "nodeUvOffsets",
             kind: Vector4((0.0, 0.0, 0.0, 0.0)),
         ),
@@ -180,6 +184,7 @@
                 uniform uint layerIndex;
                 uniform vec3 emissionStrength;
                 uniform sampler2D maskTexture;
+                uniform sampler2D holeMaskTexture;
                 uniform vec4 diffuseColor;
                 uniform float parallaxCenter;
                 uniform float parallaxScale;
@@ -198,6 +203,8 @@
 
                 void main()
                 {
+                    if (texture(holeMaskTexture, texCoord).r < 0.5) discard;
+
                     mat3 tangentSpace = mat3(tangent, binormal, normal);
                     vec3 toFragment = normalize(position - fyrox_cameraPosition);
 
@@ -304,6 +311,7 @@
                r#"
                 uniform sampler2D diffuseTexture;
                 uniform vec4 diffuseColor;
+                uniform sampler2D holeMaskTexture;
 
                 out vec4 FragColor;
 
@@ -311,6 +319,7 @@
 
                 void main()
                 {
+                    if (texture(holeMaskTexture, texCoord).r < 0.5) discard;
                     FragColor = diffuseColor * texture(diffuseTexture, texCoord);
                 }
                "#,
@@ -369,11 +378,13 @@
             fragment_shader:
                 r#"
                 uniform sampler2D diffuseTexture;
+                uniform sampler2D holeMaskTexture;
 
                 in vec2 texCoord;
 
                 void main()
                 {
+                    if (texture(holeMaskTexture, texCoord).r < 0.5) discard;
                     if (texture(diffuseTexture, texCoord).a < 0.2) discard;
                 }
                 "#,
@@ -432,11 +443,13 @@
             fragment_shader:
                 r#"
                 uniform sampler2D diffuseTexture;
+                uniform sampler2D holeMaskTexture;
 
                 in vec2 texCoord;
 
                 void main()
                 {
+                    if (texture(holeMaskTexture, texCoord).r < 0.5) discard;
                     if (texture(diffuseTexture, texCoord).a < 0.2) discard;
                 }
                 "#,
@@ -498,6 +511,7 @@
             fragment_shader:
                 r#"
                 uniform sampler2D diffuseTexture;
+                uniform sampler2D holeMaskTexture;
 
                 uniform vec3 fyrox_lightPosition;
 
@@ -508,6 +522,7 @@
 
                 void main()
                 {
+                    if (texture(holeMaskTexture, texCoord).r < 0.5) discard;
                     if (texture(diffuseTexture, texCoord).a < 0.2) discard;
                     depth = length(fyrox_lightPosition - worldPosition);
                 }
