@@ -772,6 +772,8 @@ pub enum BrushTarget {
         /// The number of the layer to modify
         layer: usize,
     },
+    /// Modifies the terrain's holes
+    HoleMask,
 }
 
 uuid_provider!(BrushTarget = "461c1be7-189e-44ee-b8fd-00b8fdbc668f");
@@ -990,6 +992,19 @@ impl ChunkData {
             std::mem::swap(a, b);
         }
     }
+    /// Swap the content of this data with the content of the given chunk's hole mask.
+    pub fn swap_holes(&mut self, chunk: &mut Chunk) {
+        let Some(mut data_ref) = chunk.hole_mask.as_ref().map(|t| t.data_ref()) else {
+            return;
+        };
+        if !self.verify_texture_size(&data_ref) {
+            return;
+        }
+        let mut modify = data_ref.modify();
+        for (a, b) in modify.data_mut().iter_mut().zip(self.content.iter_mut()) {
+            std::mem::swap(a, b);
+        }
+    }
     /// Swap the content of this data with the content of the given chunk's mask layer.
     pub fn swap_layer_mask(&mut self, chunk: &mut Chunk, layer: usize) {
         let mut data_ref = chunk.layer_masks[layer].data_ref();
@@ -1007,6 +1022,16 @@ impl ChunkData {
         for c in chunks {
             if c.grid_position == self.grid_position {
                 self.swap_height(c);
+                break;
+            }
+        }
+    }
+    /// Swap the hole data of the a chunk from the list with the hole data in this object.
+    /// The given list of chunks will be searched to find the chunk that matches `grid_position`.
+    pub fn swap_holes_from_list(&mut self, chunks: &mut [Chunk]) {
+        for c in chunks {
+            if c.grid_position == self.grid_position {
+                self.swap_holes(c);
                 break;
             }
         }

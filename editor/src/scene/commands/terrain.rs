@@ -161,6 +161,51 @@ impl CommandTrait for ModifyTerrainHeightCommand {
 }
 
 #[derive(Debug)]
+pub struct ModifyTerrainHolesCommand {
+    terrain: Handle<Node>,
+    masks: Vec<ChunkData>,
+    skip_first_execute: bool,
+}
+
+impl ModifyTerrainHolesCommand {
+    pub fn new(terrain: Handle<Node>, masks: Vec<ChunkData>) -> Self {
+        Self {
+            terrain,
+            masks,
+            skip_first_execute: true,
+        }
+    }
+
+    pub fn swap(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
+        let terrain = context.scene.graph[self.terrain].as_terrain_mut();
+        let current_chunks = terrain.chunks_mut();
+        for c in self.masks.iter_mut() {
+            c.swap_holes_from_list(current_chunks);
+        }
+        terrain.update_quad_trees();
+    }
+}
+
+impl CommandTrait for ModifyTerrainHolesCommand {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
+        "Modify Terrain Height".to_owned()
+    }
+
+    fn execute(&mut self, context: &mut dyn CommandContext) {
+        if self.skip_first_execute {
+            self.skip_first_execute = false;
+            return;
+        }
+        self.swap(context);
+    }
+
+    fn revert(&mut self, context: &mut dyn CommandContext) {
+        self.swap(context);
+    }
+}
+
+#[derive(Debug)]
 pub struct ModifyTerrainLayerMaskCommand {
     terrain: Handle<Node>,
     masks: Vec<ChunkData>,
