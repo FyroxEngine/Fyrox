@@ -95,7 +95,7 @@ pub struct Inspector {
     /// Allows you to register your property editors for custom types.
     pub property_editors: Arc<PropertyEditorDefinitionContainer>,
     pub(crate) window: Handle<UiNode>,
-    inspector: Handle<UiNode>,
+    pub inspector: Handle<UiNode>,
     warning_text: Handle<UiNode>,
     type_name_text: Handle<UiNode>,
     docs_button: Handle<UiNode>,
