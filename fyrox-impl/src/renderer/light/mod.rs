@@ -18,12 +18,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::LightingStatistics;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
         color::Color,
         math::{frustum::Frustum, Matrix4Ext, Rect, TriangleDefinition},
+        pool::Handle,
         scope_profile,
     },
     graph::SceneGraph,
@@ -54,7 +54,8 @@ use crate::{
         skybox_shader::SkyboxShader,
         ssao::ScreenSpaceAmbientOcclusionRenderer,
         storage::MatrixStorageCache,
-        GeometryCache, QualitySettings, RenderPassStatistics, TextureCache,
+        visibility::VisibilityCache,
+        GeometryCache, LightingStatistics, QualitySettings, RenderPassStatistics, TextureCache,
     },
     scene::{
         camera::Camera,
@@ -64,9 +65,11 @@ use crate::{
             surface::SurfaceData,
             vertex::SimpleVertex,
         },
+        node::Node,
         Scene,
     },
 };
+use fxhash::FxHashMap;
 use std::{cell::RefCell, rc::Rc};
 
 pub mod ambient;
@@ -89,12 +92,14 @@ pub struct DeferredLightRenderer {
     point_shadow_map_renderer: PointShadowMapRenderer,
     csm_renderer: CsmRenderer,
     light_volume: LightVolumeRenderer,
+    lights_visibility: FxHashMap<Handle<Node>, VisibilityCache>,
 }
 
 pub(crate) struct DeferredRendererContext<'a> {
     pub state: &'a PipelineState,
     pub scene: &'a Scene,
     pub camera: &'a Camera,
+    pub camera_handle: Handle<Node>,
     pub gbuffer: &'a mut GBuffer,
     pub ambient_color: Color,
     pub settings: &'a QualitySettings,
@@ -209,6 +214,7 @@ impl DeferredLightRenderer {
                 quality_defaults.csm_settings.size,
                 quality_defaults.csm_settings.precision,
             )?,
+            lights_visibility: Default::default(),
         })
     }
 
@@ -274,6 +280,7 @@ impl DeferredLightRenderer {
             state,
             scene,
             camera,
+            camera_handle,
             gbuffer,
             shader_cache,
             normal_dummy,
@@ -408,6 +415,11 @@ impl DeferredLightRenderer {
             },
         )?;
 
+        let visibility_cache = self
+            .lights_visibility
+            .entry(camera_handle)
+            .or_insert_with(|| VisibilityCache::new(Vector3::repeat(1)));
+
         for (light_handle, light) in scene.graph.pair_iter() {
             if !light.global_visibility() || !light.is_globally_enabled() {
                 continue;
@@ -480,6 +492,79 @@ impl DeferredLightRenderer {
             };
 
             let mut light_view_projection = Matrix4::identity();
+
+            // Mark lighted areas in stencil buffer to do light calculations only on them.
+            visibility_cache.begin_query(state, camera_global_position, light_handle)?;
+
+            let sphere = &self.sphere;
+
+            pass_stats += frame_buffer.draw(
+                sphere,
+                state,
+                viewport,
+                &self.flat_shader.program,
+                &DrawParameters {
+                    cull_face: Some(CullFace::Front),
+                    color_write: ColorMask::all(false),
+                    depth_write: false,
+                    stencil_test: Some(StencilFunc {
+                        func: CompareFunc::Always,
+                        ..Default::default()
+                    }),
+                    stencil_op: StencilOp {
+                        zfail: StencilAction::Incr,
+                        ..Default::default()
+                    },
+                    depth_test: true,
+                    blend: None,
+                },
+                ElementRange::Full,
+                |mut program_binding| {
+                    program_binding.set_matrix4(
+                        &self.flat_shader.wvp_matrix,
+                        &(view_projection
+                            * Matrix4::new_translation(&light_position)
+                            * Matrix4::new_nonuniform_scaling(&light_radius_vec)),
+                    );
+                },
+            )?;
+
+            pass_stats += frame_buffer.draw(
+                sphere,
+                state,
+                viewport,
+                &self.flat_shader.program,
+                &DrawParameters {
+                    cull_face: Some(CullFace::Back),
+                    color_write: ColorMask::all(false),
+                    depth_write: false,
+                    stencil_test: Some(StencilFunc {
+                        func: CompareFunc::Always,
+                        ..Default::default()
+                    }),
+                    stencil_op: StencilOp {
+                        zfail: StencilAction::Decr,
+                        ..Default::default()
+                    },
+                    depth_test: true,
+                    blend: None,
+                },
+                ElementRange::Full,
+                |mut program_binding| {
+                    program_binding.set_matrix4(
+                        &self.flat_shader.wvp_matrix,
+                        &(view_projection
+                            * Matrix4::new_translation(&light_position)
+                            * Matrix4::new_nonuniform_scaling(&light_radius_vec)),
+                    );
+                },
+            )?;
+
+            visibility_cache.end_query();
+
+            if !visibility_cache.is_visible(camera_global_position, light_handle) {
+                continue;
+            }
 
             if shadows_enabled {
                 if let Some(spot) = light.cast::<SpotLight>() {
@@ -563,72 +648,6 @@ impl DeferredLightRenderer {
                     light_stats.csm_rendered += 1;
                 };
             }
-
-            // Mark lighted areas in stencil buffer to do light calculations only on them.
-
-            let sphere = &self.sphere;
-
-            pass_stats += frame_buffer.draw(
-                sphere,
-                state,
-                viewport,
-                &self.flat_shader.program,
-                &DrawParameters {
-                    cull_face: Some(CullFace::Front),
-                    color_write: ColorMask::all(false),
-                    depth_write: false,
-                    stencil_test: Some(StencilFunc {
-                        func: CompareFunc::Always,
-                        ..Default::default()
-                    }),
-                    stencil_op: StencilOp {
-                        zfail: StencilAction::Incr,
-                        ..Default::default()
-                    },
-                    depth_test: true,
-                    blend: None,
-                },
-                ElementRange::Full,
-                |mut program_binding| {
-                    program_binding.set_matrix4(
-                        &self.flat_shader.wvp_matrix,
-                        &(view_projection
-                            * Matrix4::new_translation(&light_position)
-                            * Matrix4::new_nonuniform_scaling(&light_radius_vec)),
-                    );
-                },
-            )?;
-
-            pass_stats += frame_buffer.draw(
-                sphere,
-                state,
-                viewport,
-                &self.flat_shader.program,
-                &DrawParameters {
-                    cull_face: Some(CullFace::Back),
-                    color_write: ColorMask::all(false),
-                    depth_write: false,
-                    stencil_test: Some(StencilFunc {
-                        func: CompareFunc::Always,
-                        ..Default::default()
-                    }),
-                    stencil_op: StencilOp {
-                        zfail: StencilAction::Decr,
-                        ..Default::default()
-                    },
-                    depth_test: true,
-                    blend: None,
-                },
-                ElementRange::Full,
-                |mut program_binding| {
-                    program_binding.set_matrix4(
-                        &self.flat_shader.wvp_matrix,
-                        &(view_projection
-                            * Matrix4::new_translation(&light_position)
-                            * Matrix4::new_nonuniform_scaling(&light_radius_vec)),
-                    );
-                },
-            )?;
 
             let draw_params = DrawParameters {
                 cull_face: None,
@@ -857,6 +876,8 @@ impl DeferredLightRenderer {
                 )?;
             }
         }
+
+        visibility_cache.update();
 
         Ok((pass_stats, light_stats))
     }

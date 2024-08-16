@@ -51,6 +51,7 @@ mod shadow;
 mod skybox_shader;
 mod ssao;
 mod stats;
+mod visibility;
 
 use crate::renderer::cache::texture::TextureRenderData;
 
@@ -107,6 +108,7 @@ use crate::{
 use fxhash::FxHashMap;
 use fyrox_core::algebra::Vector4;
 use fyrox_core::uuid_provider;
+use fyrox_graph::SceneGraph;
 use glow::HasContext;
 #[cfg(not(target_arch = "wasm32"))]
 use glutin::{
@@ -116,13 +118,12 @@ use glutin::{
 };
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
+pub use stats::*;
 use std::any::TypeId;
 use std::{cell::RefCell, collections::hash_map::Entry, rc::Rc, sync::mpsc::Receiver};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 #[cfg(not(target_arch = "wasm32"))]
 use winit::window::Window;
-
-pub use stats::*;
 
 lazy_static! {
     static ref GBUFFER_PASS_NAME: ImmutableString = ImmutableString::new("GBuffer");
@@ -1614,11 +1615,16 @@ impl Renderer {
             );
         }
 
-        for camera in graph
-            .linear_iter()
-            .filter(|&node| node.is_globally_enabled())
-            .filter_map(|node| node.cast::<Camera>().filter(|c| c.is_enabled()))
-        {
+        for (camera_handle, camera) in graph.pair_iter().filter_map(|(handle, node)| {
+            if node.is_globally_enabled() {
+                if let Some(camera) = node.cast::<Camera>() {
+                    if camera.is_enabled() {
+                        return Some((handle, camera));
+                    }
+                }
+            }
+            None
+        }) {
             let viewport = camera.viewport_pixels(frame_size);
 
             let bundle_storage = RenderDataBundleStorage::from_graph(
@@ -1679,6 +1685,7 @@ impl Renderer {
                         state,
                         scene,
                         camera,
+                        camera_handle,
                         gbuffer: &mut scene_associated_data.gbuffer,
                         white_dummy: self.white_dummy.clone(),
                         ambient_color: scene.rendering_options.ambient_lighting_color,
