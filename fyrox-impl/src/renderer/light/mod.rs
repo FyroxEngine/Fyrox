@@ -85,6 +85,7 @@ pub struct DeferredLightRenderer {
     ambient_light_shader: AmbientLightShader,
     quad: GeometryBuffer,
     sphere: GeometryBuffer,
+    cone: GeometryBuffer,
     skybox: GeometryBuffer,
     flat_shader: FlatShader,
     skybox_shader: SkyboxShader,
@@ -193,6 +194,16 @@ impl DeferredLightRenderer {
             )?,
             sphere: GeometryBuffer::from_surface_data(
                 &SurfaceData::make_sphere(6, 6, 1.0, &Matrix4::identity()),
+                GeometryBufferKind::StaticDraw,
+                state,
+            )?,
+            cone: GeometryBuffer::from_surface_data(
+                &SurfaceData::make_cone(
+                    16,
+                    0.5,
+                    1.0,
+                    &Matrix4::new_translation(&Vector3::new(0.0, -1.0, 0.0)),
+                ),
                 GeometryBufferKind::StaticDraw,
                 state,
             )?,
@@ -427,43 +438,71 @@ impl DeferredLightRenderer {
 
             let distance_to_camera = (light.global_position() - camera.global_position()).norm();
 
-            let (raw_radius, shadows_distance, shadows_enabled, shadows_fade_out_range) =
-                if let Some(spot_light) = light.cast::<SpotLight>() {
-                    (
-                        spot_light.distance(),
-                        settings.spot_shadows_distance,
-                        spot_light.base_light_ref().is_cast_shadows()
-                            && distance_to_camera <= settings.spot_shadows_distance
-                            && settings.spot_shadows_enabled,
-                        settings.spot_shadows_fade_out_range,
-                    )
-                } else if let Some(point_light) = light.cast::<PointLight>() {
-                    (
-                        point_light.radius(),
-                        settings.point_shadows_distance,
-                        point_light.base_light_ref().is_cast_shadows()
-                            && distance_to_camera <= settings.point_shadows_distance
-                            && settings.point_shadows_enabled,
-                        settings.point_shadows_fade_out_range,
-                    )
-                } else if let Some(directional) = light.cast::<DirectionalLight>() {
-                    (
-                        f32::MAX,
-                        0.0,
-                        directional.base_light_ref().is_cast_shadows()
-                            && settings.csm_settings.enabled,
-                        0.0,
-                    )
-                } else {
-                    continue;
-                };
+            let (
+                raw_radius,
+                shadows_distance,
+                shadows_enabled,
+                shadows_fade_out_range,
+                bounding_shape,
+                shape_specific_matrix,
+            ) = if let Some(spot_light) = light.cast::<SpotLight>() {
+                let margin = 5.0f32.to_radians();
+                // Angle at the top vertex of the right triangle with vertecal side be 1.0 and horizontal
+                // side be 0.5.
+                let vertex_angle = 26.56f32.to_radians();
+                let k_angle = (spot_light.full_cone_angle() * 0.5 + vertex_angle + margin).tan();
+                (
+                    spot_light.distance(),
+                    settings.spot_shadows_distance,
+                    spot_light.base_light_ref().is_cast_shadows()
+                        && distance_to_camera <= settings.spot_shadows_distance
+                        && settings.spot_shadows_enabled,
+                    settings.spot_shadows_fade_out_range,
+                    &self.cone,
+                    Matrix4::new_nonuniform_scaling(&Vector3::new(
+                        spot_light.distance() * k_angle,
+                        spot_light.distance() * 1.05,
+                        spot_light.distance() * k_angle,
+                    )),
+                )
+            } else if let Some(point_light) = light.cast::<PointLight>() {
+                (
+                    point_light.radius(),
+                    settings.point_shadows_distance,
+                    point_light.base_light_ref().is_cast_shadows()
+                        && distance_to_camera <= settings.point_shadows_distance
+                        && settings.point_shadows_enabled,
+                    settings.point_shadows_fade_out_range,
+                    &self.sphere,
+                    Matrix4::new_scaling(point_light.radius() * 1.15),
+                )
+            } else if let Some(directional) = light.cast::<DirectionalLight>() {
+                (
+                    f32::MAX,
+                    0.0,
+                    directional.base_light_ref().is_cast_shadows() && settings.csm_settings.enabled,
+                    0.0,
+                    // Makes no sense, but whatever.
+                    &self.sphere,
+                    Matrix4::identity(),
+                )
+            } else {
+                continue;
+            };
 
             let light_position = light.global_position();
             let scl = light.local_transform().scale();
             let light_radius_scale = scl.x.max(scl.y).max(scl.z);
             let light_radius = light_radius_scale * raw_radius;
-            let light_r_inflate = 1.05 * light_radius;
-            let light_radius_vec = Vector3::new(light_r_inflate, light_r_inflate, light_r_inflate);
+            let light_rotation = light
+                .global_transform()
+                .basis()
+                .try_inverse()
+                .unwrap_or_default()
+                .transpose()
+                .to_homogeneous();
+            let bounding_shape_matrix =
+                Matrix4::new_translation(&light_position) * light_rotation * shape_specific_matrix;
             let emit_direction = light
                 .up_vector()
                 .try_normalize(f32::EPSILON)
@@ -494,10 +533,8 @@ impl DeferredLightRenderer {
             let mut light_view_projection = Matrix4::identity();
 
             // Mark lighted areas in stencil buffer to do light calculations only on them.
-            let sphere = &self.sphere;
-
             pass_stats += frame_buffer.draw(
-                sphere,
+                bounding_shape,
                 state,
                 viewport,
                 &self.flat_shader.program,
@@ -520,15 +557,13 @@ impl DeferredLightRenderer {
                 |mut program_binding| {
                     program_binding.set_matrix4(
                         &self.flat_shader.wvp_matrix,
-                        &(view_projection
-                            * Matrix4::new_translation(&light_position)
-                            * Matrix4::new_nonuniform_scaling(&light_radius_vec)),
+                        &(view_projection * bounding_shape_matrix),
                     );
                 },
             )?;
 
             pass_stats += frame_buffer.draw(
-                sphere,
+                bounding_shape,
                 state,
                 viewport,
                 &self.flat_shader.program,
@@ -551,9 +586,7 @@ impl DeferredLightRenderer {
                 |mut program_binding| {
                     program_binding.set_matrix4(
                         &self.flat_shader.wvp_matrix,
-                        &(view_projection
-                            * Matrix4::new_translation(&light_position)
-                            * Matrix4::new_nonuniform_scaling(&light_radius_vec)),
+                        &(view_projection * bounding_shape_matrix),
                     );
                 },
             )?;
