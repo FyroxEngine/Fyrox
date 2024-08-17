@@ -36,7 +36,14 @@ struct PendingQuery {
     node: Handle<Node>,
 }
 
-type NodeVisibilityMap = FxHashMap<Handle<Node>, Option<bool>>;
+#[derive(Debug)]
+enum Visibility {
+    Undefined,
+    Invisible,
+    Visible,
+}
+
+type NodeVisibilityMap = FxHashMap<Handle<Node>, Visibility>;
 
 /// Volumetric visibility cache based on occlusion query.
 pub struct VisibilityCache {
@@ -66,20 +73,59 @@ impl VisibilityCache {
         world_to_grid(world_position, self.granularity)
     }
 
-    pub fn is_visible(&self, observer_position: Vector3<f32>, node: Handle<Node>) -> bool {
+    fn visibility_info(
+        &self,
+        observer_position: Vector3<f32>,
+        node: Handle<Node>,
+    ) -> Option<&Visibility> {
         let grid_position = self.world_to_grid(observer_position);
 
-        let Some(cell) = self.cells.get(&grid_position) else {
+        self.cells
+            .get(&grid_position)
+            .and_then(|cell| cell.get(&node))
+    }
+
+    pub fn needs_occlusion_query(
+        &self,
+        observer_position: Vector3<f32>,
+        node: Handle<Node>,
+    ) -> bool {
+        let Some(visibility) = self.visibility_info(observer_position, node) else {
+            // There's no data about the visibility, so the occlusion query is needed.
+            return true;
+        };
+
+        match visibility {
+            Visibility::Undefined => {
+                // There's already an occlusion query on GPU.
+                false
+            }
+            Visibility::Invisible => {
+                // The object could be invisible from one angle at the observer position, but visible
+                // from another. Since we're using only position of the observer, we cannot be 100%
+                // sure, that the object is invisible even if a previous query told us so.
+                true
+            }
+            Visibility::Visible => {
+                // Some pixels of the object is visible from the given observer position, so we don't
+                // need a new occlusion query.
+                false
+            }
+        }
+    }
+
+    pub fn is_visible(&self, observer_position: Vector3<f32>, node: Handle<Node>) -> bool {
+        let Some(visibility_info) = self.visibility_info(observer_position, node) else {
             return false;
         };
 
-        let Some(visibility_info) = cell.get(&node) else {
-            return false;
-        };
-
-        // Undefined visibility is treated like the object is visible, this is needed because
-        // GPU queries are async.
-        visibility_info.unwrap_or(true)
+        match *visibility_info {
+            Visibility::Visible
+            // Undefined visibility is treated like the object is visible, this is needed because
+            // GPU queries are async, and we must still render the object to prevent popping light.
+            | Visibility::Undefined => true,
+            Visibility::Invisible => false,
+        }
     }
 
     pub fn begin_query(
@@ -101,7 +147,7 @@ impl VisibilityCache {
             .entry(grid_position)
             .or_default()
             .entry(node)
-            .or_default();
+            .or_insert(Visibility::Undefined);
 
         Ok(())
     }
@@ -130,15 +176,23 @@ impl VisibilityCache {
                     .expect("object visibility must be predefined!");
 
                 match visibility {
-                    None => {
-                        *visibility = Some(query_result);
-                    }
-                    Some(visibility) => {
-                        // Override "invisibility" - if any fragment of an object is visible, then
-                        // it will remain visible forever. This is ok for non-moving objects only.
-                        if !*visibility && query_result {
-                            *visibility = true;
+                    Visibility::Undefined => match query_result {
+                        true => {
+                            *visibility = Visibility::Visible;
                         }
+                        false => {
+                            *visibility = Visibility::Invisible;
+                        }
+                    },
+                    Visibility::Invisible => {
+                        if query_result {
+                            // Override "invisibility" - if any fragment of an object is visible, then
+                            // it will remain visible forever. This is ok for non-moving objects only.
+                            *visibility = Visibility::Visible;
+                        }
+                    }
+                    Visibility::Visible => {
+                        // Ignore the query result and keep the visibility.
                     }
                 }
 
