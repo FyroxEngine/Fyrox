@@ -27,7 +27,7 @@ use crate::{
     },
     scene::node::Node,
 };
-use fxhash::{FxHashMap, FxHashSet};
+use fxhash::FxHashMap;
 
 #[derive(Debug)]
 struct PendingQuery {
@@ -36,9 +36,11 @@ struct PendingQuery {
     node: Handle<Node>,
 }
 
+type NodeVisibilityMap = FxHashMap<Handle<Node>, Option<bool>>;
+
 /// Volumetric visibility cache based on occlusion query.
 pub struct VisibilityCache {
-    cells: FxHashMap<Vector3<i32>, FxHashSet<Handle<Node>>>,
+    cells: FxHashMap<Vector3<i32>, NodeVisibilityMap>,
     pending_queries: Vec<PendingQuery>,
     granularity: Vector3<u32>,
 }
@@ -66,10 +68,18 @@ impl VisibilityCache {
 
     pub fn is_visible(&self, observer_position: Vector3<f32>, node: Handle<Node>) -> bool {
         let grid_position = self.world_to_grid(observer_position);
-        self.cells
-            .get(&grid_position)
-            .map(|nodes| nodes.contains(&node))
-            .unwrap_or_default()
+
+        let Some(cell) = self.cells.get(&grid_position) else {
+            return false;
+        };
+
+        let Some(visibility_info) = cell.get(&node) else {
+            return false;
+        };
+
+        // Undefined visibility is treated like the object is visible, this is needed because
+        // GPU queries are async.
+        visibility_info.unwrap_or(true)
     }
 
     pub fn begin_query(
@@ -85,6 +95,14 @@ impl VisibilityCache {
             observer_position,
             node,
         });
+
+        let grid_position = self.world_to_grid(observer_position);
+        self.cells
+            .entry(grid_position)
+            .or_default()
+            .entry(node)
+            .or_default();
+
         Ok(())
     }
 
@@ -98,17 +116,32 @@ impl VisibilityCache {
 
     pub fn update(&mut self) {
         self.pending_queries.retain_mut(|pending_query| {
-            if let Some(QueryResult::AnySamplesPassed(passed)) =
+            if let Some(QueryResult::AnySamplesPassed(query_result)) =
                 pending_query.query.try_get_result()
             {
                 let grid_position =
                     world_to_grid(pending_query.observer_position, self.granularity);
-                if passed {
-                    self.cells
-                        .entry(grid_position)
-                        .or_default()
-                        .insert(pending_query.node);
+
+                let visibility = self
+                    .cells
+                    .get_mut(&grid_position)
+                    .expect("grid cell must exist!")
+                    .get_mut(&pending_query.node)
+                    .expect("object visibility must be predefined!");
+
+                match visibility {
+                    None => {
+                        *visibility = Some(query_result);
+                    }
+                    Some(visibility) => {
+                        // Override "invisibility" - if any fragment of an object is visible, then
+                        // it will remain visible forever. This is ok for non-moving objects only.
+                        if !*visibility && query_result {
+                            *visibility = true;
+                        }
+                    }
                 }
+
                 false
             } else {
                 true
