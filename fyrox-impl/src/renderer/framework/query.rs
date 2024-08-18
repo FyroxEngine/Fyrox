@@ -3,17 +3,19 @@ use glow::HasContext;
 use std::{cell::Cell, rc::Weak};
 
 #[repr(u32)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum QueryKind {
     SamplesPassed = glow::SAMPLES_PASSED,
     AnySamplesPassed = glow::ANY_SAMPLES_PASSED,
 }
 
+#[derive(Debug)]
 pub enum QueryResult {
     SamplesPassed(u32),
     AnySamplesPassed(bool),
 }
 
+#[derive(Debug)]
 pub struct Query {
     id: glow::Query,
     pipeline_state: Weak<PipelineState>,

@@ -18,12 +18,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::LightingStatistics;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
         color::Color,
         math::{frustum::Frustum, Matrix4Ext, Rect, TriangleDefinition},
+        pool::Handle,
         scope_profile,
     },
     graph::SceneGraph,
@@ -54,7 +54,8 @@ use crate::{
         skybox_shader::SkyboxShader,
         ssao::ScreenSpaceAmbientOcclusionRenderer,
         storage::MatrixStorageCache,
-        GeometryCache, QualitySettings, RenderPassStatistics, TextureCache,
+        visibility::VisibilityCache,
+        GeometryCache, LightingStatistics, QualitySettings, RenderPassStatistics, TextureCache,
     },
     scene::{
         camera::Camera,
@@ -64,9 +65,11 @@ use crate::{
             surface::SurfaceData,
             vertex::SimpleVertex,
         },
+        node::Node,
         Scene,
     },
 };
+use fxhash::FxHashMap;
 use std::{cell::RefCell, rc::Rc};
 
 pub mod ambient;
@@ -82,6 +85,7 @@ pub struct DeferredLightRenderer {
     ambient_light_shader: AmbientLightShader,
     quad: GeometryBuffer,
     sphere: GeometryBuffer,
+    cone: GeometryBuffer,
     skybox: GeometryBuffer,
     flat_shader: FlatShader,
     skybox_shader: SkyboxShader,
@@ -89,12 +93,14 @@ pub struct DeferredLightRenderer {
     point_shadow_map_renderer: PointShadowMapRenderer,
     csm_renderer: CsmRenderer,
     light_volume: LightVolumeRenderer,
+    lights_visibility: FxHashMap<Handle<Node>, VisibilityCache>,
 }
 
 pub(crate) struct DeferredRendererContext<'a> {
     pub state: &'a PipelineState,
     pub scene: &'a Scene,
     pub camera: &'a Camera,
+    pub camera_handle: Handle<Node>,
     pub gbuffer: &'a mut GBuffer,
     pub ambient_color: Color,
     pub settings: &'a QualitySettings,
@@ -191,6 +197,16 @@ impl DeferredLightRenderer {
                 GeometryBufferKind::StaticDraw,
                 state,
             )?,
+            cone: GeometryBuffer::from_surface_data(
+                &SurfaceData::make_cone(
+                    16,
+                    0.5,
+                    1.0,
+                    &Matrix4::new_translation(&Vector3::new(0.0, -1.0, 0.0)),
+                ),
+                GeometryBufferKind::StaticDraw,
+                state,
+            )?,
             flat_shader: FlatShader::new(state)?,
             skybox_shader: SkyboxShader::new(state)?,
             spot_shadow_map_renderer: SpotShadowMapRenderer::new(
@@ -209,6 +225,7 @@ impl DeferredLightRenderer {
                 quality_defaults.csm_settings.size,
                 quality_defaults.csm_settings.precision,
             )?,
+            lights_visibility: Default::default(),
         })
     }
 
@@ -274,6 +291,7 @@ impl DeferredLightRenderer {
             state,
             scene,
             camera,
+            camera_handle,
             gbuffer,
             shader_cache,
             normal_dummy,
@@ -408,6 +426,11 @@ impl DeferredLightRenderer {
             },
         )?;
 
+        let visibility_cache = self
+            .lights_visibility
+            .entry(camera_handle)
+            .or_insert_with(|| VisibilityCache::new(Vector3::repeat(2), 100.0));
+
         for (light_handle, light) in scene.graph.pair_iter() {
             if !light.global_visibility() || !light.is_globally_enabled() {
                 continue;
@@ -415,43 +438,72 @@ impl DeferredLightRenderer {
 
             let distance_to_camera = (light.global_position() - camera.global_position()).norm();
 
-            let (raw_radius, shadows_distance, shadows_enabled, shadows_fade_out_range) =
-                if let Some(spot_light) = light.cast::<SpotLight>() {
-                    (
-                        spot_light.distance(),
-                        settings.spot_shadows_distance,
-                        spot_light.base_light_ref().is_cast_shadows()
-                            && distance_to_camera <= settings.spot_shadows_distance
-                            && settings.spot_shadows_enabled,
-                        settings.spot_shadows_fade_out_range,
-                    )
-                } else if let Some(point_light) = light.cast::<PointLight>() {
-                    (
-                        point_light.radius(),
-                        settings.point_shadows_distance,
-                        point_light.base_light_ref().is_cast_shadows()
-                            && distance_to_camera <= settings.point_shadows_distance
-                            && settings.point_shadows_enabled,
-                        settings.point_shadows_fade_out_range,
-                    )
-                } else if let Some(directional) = light.cast::<DirectionalLight>() {
-                    (
-                        f32::MAX,
-                        0.0,
-                        directional.base_light_ref().is_cast_shadows()
-                            && settings.csm_settings.enabled,
-                        0.0,
-                    )
-                } else {
-                    continue;
-                };
+            let (
+                raw_radius,
+                shadows_distance,
+                shadows_enabled,
+                shadows_fade_out_range,
+                bounding_shape,
+                shape_specific_matrix,
+            ) = if let Some(spot_light) = light.cast::<SpotLight>() {
+                let margin = 2.0f32.to_radians();
+                // Angle at the top vertex of the right triangle with vertical side be 1.0 and horizontal
+                // side be 0.5.
+                let vertex_angle = 26.56f32.to_radians();
+                let k_angle =
+                    (spot_light.full_cone_angle() * 0.5 + margin).tan() / vertex_angle.tan();
+                (
+                    spot_light.distance(),
+                    settings.spot_shadows_distance,
+                    spot_light.base_light_ref().is_cast_shadows()
+                        && distance_to_camera <= settings.spot_shadows_distance
+                        && settings.spot_shadows_enabled,
+                    settings.spot_shadows_fade_out_range,
+                    &self.cone,
+                    Matrix4::new_nonuniform_scaling(&Vector3::new(
+                        spot_light.distance() * k_angle,
+                        spot_light.distance() * 1.05,
+                        spot_light.distance() * k_angle,
+                    )),
+                )
+            } else if let Some(point_light) = light.cast::<PointLight>() {
+                (
+                    point_light.radius(),
+                    settings.point_shadows_distance,
+                    point_light.base_light_ref().is_cast_shadows()
+                        && distance_to_camera <= settings.point_shadows_distance
+                        && settings.point_shadows_enabled,
+                    settings.point_shadows_fade_out_range,
+                    &self.sphere,
+                    Matrix4::new_scaling(point_light.radius() * 1.05),
+                )
+            } else if let Some(directional) = light.cast::<DirectionalLight>() {
+                (
+                    f32::MAX,
+                    0.0,
+                    directional.base_light_ref().is_cast_shadows() && settings.csm_settings.enabled,
+                    0.0,
+                    // Makes no sense, but whatever.
+                    &self.sphere,
+                    Matrix4::identity(),
+                )
+            } else {
+                continue;
+            };
 
             let light_position = light.global_position();
             let scl = light.local_transform().scale();
             let light_radius_scale = scl.x.max(scl.y).max(scl.z);
             let light_radius = light_radius_scale * raw_radius;
-            let light_r_inflate = 1.05 * light_radius;
-            let light_radius_vec = Vector3::new(light_r_inflate, light_r_inflate, light_r_inflate);
+            let light_rotation = light
+                .global_transform()
+                .basis()
+                .try_inverse()
+                .unwrap_or_default()
+                .transpose()
+                .to_homogeneous();
+            let bounding_shape_matrix =
+                Matrix4::new_translation(&light_position) * light_rotation * shape_specific_matrix;
             let emit_direction = light
                 .up_vector()
                 .try_normalize(f32::EPSILON)
@@ -480,6 +532,105 @@ impl DeferredLightRenderer {
             };
 
             let mut light_view_projection = Matrix4::identity();
+
+            // Mark lighted areas in stencil buffer to do light calculations only on them.
+            pass_stats += frame_buffer.draw(
+                bounding_shape,
+                state,
+                viewport,
+                &self.flat_shader.program,
+                &DrawParameters {
+                    cull_face: Some(CullFace::Front),
+                    color_write: ColorMask::all(false),
+                    depth_write: false,
+                    stencil_test: Some(StencilFunc {
+                        func: CompareFunc::Always,
+                        ..Default::default()
+                    }),
+                    stencil_op: StencilOp {
+                        zfail: StencilAction::Incr,
+                        ..Default::default()
+                    },
+                    depth_test: true,
+                    blend: None,
+                },
+                ElementRange::Full,
+                |mut program_binding| {
+                    program_binding.set_matrix4(
+                        &self.flat_shader.wvp_matrix,
+                        &(view_projection * bounding_shape_matrix),
+                    );
+                },
+            )?;
+
+            pass_stats += frame_buffer.draw(
+                bounding_shape,
+                state,
+                viewport,
+                &self.flat_shader.program,
+                &DrawParameters {
+                    cull_face: Some(CullFace::Back),
+                    color_write: ColorMask::all(false),
+                    depth_write: false,
+                    stencil_test: Some(StencilFunc {
+                        func: CompareFunc::Always,
+                        ..Default::default()
+                    }),
+                    stencil_op: StencilOp {
+                        zfail: StencilAction::Decr,
+                        ..Default::default()
+                    },
+                    depth_test: true,
+                    blend: None,
+                },
+                ElementRange::Full,
+                |mut program_binding| {
+                    program_binding.set_matrix4(
+                        &self.flat_shader.wvp_matrix,
+                        &(view_projection * bounding_shape_matrix),
+                    );
+                },
+            )?;
+
+            // Directional light sources cannot be optimized via occlusion culling, because they're
+            // usually cover the entire screen anyway. TODO: This might still be optimizable, but
+            // for now we'll skip it, since this optimization could be useful only for scenes with
+            // mixed indoor/outdoor environment.
+            if light.cast::<DirectionalLight>().is_none() {
+                if visibility_cache.needs_occlusion_query(camera_global_position, light_handle) {
+                    // Draw full screen quad, that will be used to count pixels that passed the stencil test
+                    // on the stencil buffer's content generated by two previous drawing commands.
+                    visibility_cache.begin_query(state, camera_global_position, light_handle)?;
+                    frame_buffer.draw(
+                        &self.quad,
+                        state,
+                        viewport,
+                        &self.flat_shader.program,
+                        &DrawParameters {
+                            cull_face: None,
+                            color_write: ColorMask::all(false),
+                            depth_write: false,
+                            stencil_test: Some(StencilFunc {
+                                func: CompareFunc::NotEqual,
+                                ..Default::default()
+                            }),
+                            depth_test: true,
+                            blend: None,
+                            stencil_op: Default::default(),
+                        },
+                        ElementRange::Full,
+                        |mut program_binding| {
+                            program_binding
+                                .set_matrix4(&self.flat_shader.wvp_matrix, &frame_matrix);
+                        },
+                    )?;
+                    visibility_cache.end_query();
+                }
+
+                if !visibility_cache.is_visible(camera_global_position, light_handle) {
+                    continue;
+                }
+            }
 
             if shadows_enabled {
                 if let Some(spot) = light.cast::<SpotLight>() {
@@ -563,72 +714,6 @@ impl DeferredLightRenderer {
                     light_stats.csm_rendered += 1;
                 };
             }
-
-            // Mark lighted areas in stencil buffer to do light calculations only on them.
-
-            let sphere = &self.sphere;
-
-            pass_stats += frame_buffer.draw(
-                sphere,
-                state,
-                viewport,
-                &self.flat_shader.program,
-                &DrawParameters {
-                    cull_face: Some(CullFace::Front),
-                    color_write: ColorMask::all(false),
-                    depth_write: false,
-                    stencil_test: Some(StencilFunc {
-                        func: CompareFunc::Always,
-                        ..Default::default()
-                    }),
-                    stencil_op: StencilOp {
-                        zfail: StencilAction::Incr,
-                        ..Default::default()
-                    },
-                    depth_test: true,
-                    blend: None,
-                },
-                ElementRange::Full,
-                |mut program_binding| {
-                    program_binding.set_matrix4(
-                        &self.flat_shader.wvp_matrix,
-                        &(view_projection
-                            * Matrix4::new_translation(&light_position)
-                            * Matrix4::new_nonuniform_scaling(&light_radius_vec)),
-                    );
-                },
-            )?;
-
-            pass_stats += frame_buffer.draw(
-                sphere,
-                state,
-                viewport,
-                &self.flat_shader.program,
-                &DrawParameters {
-                    cull_face: Some(CullFace::Back),
-                    color_write: ColorMask::all(false),
-                    depth_write: false,
-                    stencil_test: Some(StencilFunc {
-                        func: CompareFunc::Always,
-                        ..Default::default()
-                    }),
-                    stencil_op: StencilOp {
-                        zfail: StencilAction::Decr,
-                        ..Default::default()
-                    },
-                    depth_test: true,
-                    blend: None,
-                },
-                ElementRange::Full,
-                |mut program_binding| {
-                    program_binding.set_matrix4(
-                        &self.flat_shader.wvp_matrix,
-                        &(view_projection
-                            * Matrix4::new_translation(&light_position)
-                            * Matrix4::new_nonuniform_scaling(&light_radius_vec)),
-                    );
-                },
-            )?;
 
             let draw_params = DrawParameters {
                 cull_face: None,
@@ -857,6 +942,8 @@ impl DeferredLightRenderer {
                 )?;
             }
         }
+
+        visibility_cache.update(camera_global_position);
 
         Ok((pass_stats, light_stats))
     }
