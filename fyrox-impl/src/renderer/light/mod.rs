@@ -446,11 +446,12 @@ impl DeferredLightRenderer {
                 bounding_shape,
                 shape_specific_matrix,
             ) = if let Some(spot_light) = light.cast::<SpotLight>() {
-                let margin = 5.0f32.to_radians();
-                // Angle at the top vertex of the right triangle with vertecal side be 1.0 and horizontal
+                let margin = 2.0f32.to_radians();
+                // Angle at the top vertex of the right triangle with vertical side be 1.0 and horizontal
                 // side be 0.5.
                 let vertex_angle = 26.56f32.to_radians();
-                let k_angle = (spot_light.full_cone_angle() * 0.5 + vertex_angle + margin).tan();
+                let k_angle =
+                    (spot_light.full_cone_angle() * 0.5 + margin).tan() / vertex_angle.tan();
                 (
                     spot_light.distance(),
                     settings.spot_shadows_distance,
@@ -474,7 +475,7 @@ impl DeferredLightRenderer {
                         && settings.point_shadows_enabled,
                     settings.point_shadows_fade_out_range,
                     &self.sphere,
-                    Matrix4::new_scaling(point_light.radius() * 1.15),
+                    Matrix4::new_scaling(point_light.radius() * 1.05),
                 )
             } else if let Some(directional) = light.cast::<DirectionalLight>() {
                 (
