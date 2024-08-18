@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+//! Volumetric visibility cache based on occlusion query.
+
 use crate::{
     core::{algebra::Vector3, pool::Handle},
     renderer::framework::{
@@ -70,6 +72,10 @@ fn grid_to_world(grid_position: Vector3<i32>, granularity: Vector3<u32>) -> Vect
 }
 
 impl VisibilityCache {
+    /// Creates new visibility cache with the given granularity and distance discard threshold.
+    /// Granularity in means how much the cache should subdivide the world. For example 2 means that
+    /// 1 meter cell will be split into 8 blocks by 0.5 meters. Distance discard threshold means how
+    /// far an observer can without discarding visibility info about distant objects.
     pub fn new(granularity: Vector3<u32>, distance_discard_threshold: f32) -> Self {
         Self {
             cells: Default::default(),
@@ -79,10 +85,12 @@ impl VisibilityCache {
         }
     }
 
+    /// Transforms the given world-space position into internal grid-space position.
     pub fn world_to_grid(&self, world_position: Vector3<f32>) -> Vector3<i32> {
         world_to_grid(world_position, self.granularity)
     }
 
+    /// Transforms the given grid-space position into the world-space position.
     pub fn grid_to_world(&self, grid_position: Vector3<i32>) -> Vector3<f32> {
         grid_to_world(grid_position, self.granularity)
     }
@@ -99,6 +107,7 @@ impl VisibilityCache {
             .and_then(|cell| cell.get(&node))
     }
 
+    /// Checks whether the given object needs an occlusion query for the given observer position.
     pub fn needs_occlusion_query(
         &self,
         observer_position: Vector3<f32>,
@@ -128,6 +137,9 @@ impl VisibilityCache {
         }
     }
 
+    /// Checks whether the object at the given handle is visible from the given observer position.
+    /// This method returns `true` for non-completed occlusion queries, because occlusion query is
+    /// async operation.
     pub fn is_visible(&self, observer_position: Vector3<f32>, node: Handle<Node>) -> bool {
         let Some(visibility_info) = self.visibility_info(observer_position, node) else {
             return false;
@@ -142,6 +154,8 @@ impl VisibilityCache {
         }
     }
 
+    /// Begins a new visibility query (using occlusion query) for the object at the given handle from
+    /// the given observer position.
     pub fn begin_query(
         &mut self,
         pipeline_state: &PipelineState,
@@ -166,6 +180,7 @@ impl VisibilityCache {
         Ok(())
     }
 
+    /// Ends the last visibility query.
     pub fn end_query(&mut self) {
         let last_pending_query = self
             .pending_queries
@@ -174,6 +189,7 @@ impl VisibilityCache {
         last_pending_query.query.end();
     }
 
+    /// This method removes info about too distant objects and processes the pending visibility queries.
     pub fn update(&mut self, observer_position: Vector3<f32>) {
         self.pending_queries.retain_mut(|pending_query| {
             if let Some(QueryResult::AnySamplesPassed(query_result)) =
