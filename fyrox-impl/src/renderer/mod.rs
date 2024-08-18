@@ -38,6 +38,7 @@ pub mod cache;
 pub mod debug_renderer;
 pub mod storage;
 pub mod ui_renderer;
+pub mod visibility;
 
 mod bloom;
 mod flat_shader;
@@ -51,10 +52,8 @@ mod shadow;
 mod skybox_shader;
 mod ssao;
 mod stats;
-mod visibility;
 
 use crate::renderer::cache::texture::TextureRenderData;
-
 use crate::renderer::cache::TimeToLive;
 use crate::renderer::framework::state::SharedPipelineState;
 use crate::{
