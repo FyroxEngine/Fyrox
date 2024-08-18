@@ -429,7 +429,7 @@ impl DeferredLightRenderer {
         let visibility_cache = self
             .lights_visibility
             .entry(camera_handle)
-            .or_insert_with(|| VisibilityCache::new(Vector3::repeat(2)));
+            .or_insert_with(|| VisibilityCache::new(Vector3::repeat(2), 100.0));
 
         for (light_handle, light) in scene.graph.pair_iter() {
             if !light.global_visibility() || !light.is_globally_enabled() {
@@ -942,7 +942,7 @@ impl DeferredLightRenderer {
             }
         }
 
-        visibility_cache.update();
+        visibility_cache.update(camera_global_position);
 
         Ok((pass_stats, light_stats))
     }

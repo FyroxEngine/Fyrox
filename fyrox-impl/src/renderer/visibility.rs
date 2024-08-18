@@ -50,6 +50,7 @@ pub struct VisibilityCache {
     cells: FxHashMap<Vector3<i32>, NodeVisibilityMap>,
     pending_queries: Vec<PendingQuery>,
     granularity: Vector3<u32>,
+    distance_discard_threshold: f32,
 }
 
 fn world_to_grid(world_position: Vector3<f32>, granularity: Vector3<u32>) -> Vector3<i32> {
@@ -60,17 +61,30 @@ fn world_to_grid(world_position: Vector3<f32>, granularity: Vector3<u32>) -> Vec
     )
 }
 
+fn grid_to_world(grid_position: Vector3<i32>, granularity: Vector3<u32>) -> Vector3<f32> {
+    Vector3::new(
+        grid_position.x as f32 / (granularity.x as f32),
+        grid_position.y as f32 / (granularity.y as f32),
+        grid_position.z as f32 / (granularity.z as f32),
+    )
+}
+
 impl VisibilityCache {
-    pub fn new(granularity: Vector3<u32>) -> Self {
+    pub fn new(granularity: Vector3<u32>, distance_discard_threshold: f32) -> Self {
         Self {
             cells: Default::default(),
             pending_queries: Default::default(),
             granularity,
+            distance_discard_threshold,
         }
     }
 
     pub fn world_to_grid(&self, world_position: Vector3<f32>) -> Vector3<i32> {
         world_to_grid(world_position, self.granularity)
+    }
+
+    pub fn grid_to_world(&self, grid_position: Vector3<i32>) -> Vector3<f32> {
+        grid_to_world(grid_position, self.granularity)
     }
 
     fn visibility_info(
@@ -160,7 +174,7 @@ impl VisibilityCache {
         last_pending_query.query.end();
     }
 
-    pub fn update(&mut self) {
+    pub fn update(&mut self, observer_position: Vector3<f32>) {
         self.pending_queries.retain_mut(|pending_query| {
             if let Some(QueryResult::AnySamplesPassed(query_result)) =
                 pending_query.query.try_get_result()
@@ -200,6 +214,13 @@ impl VisibilityCache {
             } else {
                 true
             }
+        });
+
+        // Remove visibility info from the cache for distant cells.
+        self.cells.retain(|grid_position, _| {
+            let world_position = grid_to_world(*grid_position, self.granularity);
+
+            world_position.metric_distance(&observer_position) < self.distance_discard_threshold
         });
     }
 }
