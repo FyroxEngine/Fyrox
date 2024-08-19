@@ -23,7 +23,6 @@ use crate::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
         color::Color,
         math::{frustum::Frustum, Matrix4Ext, Rect, TriangleDefinition},
-        pool::Handle,
         scope_profile,
     },
     graph::SceneGraph,
@@ -54,7 +53,7 @@ use crate::{
         skybox_shader::SkyboxShader,
         ssao::ScreenSpaceAmbientOcclusionRenderer,
         storage::MatrixStorageCache,
-        visibility::VisibilityCache,
+        visibility::ObserverVisibilityCache,
         GeometryCache, LightingStatistics, QualitySettings, RenderPassStatistics, TextureCache,
     },
     scene::{
@@ -65,11 +64,9 @@ use crate::{
             surface::SurfaceData,
             vertex::SimpleVertex,
         },
-        node::Node,
         Scene,
     },
 };
-use fxhash::FxHashMap;
 use std::{cell::RefCell, rc::Rc};
 
 pub mod ambient;
@@ -93,14 +90,12 @@ pub struct DeferredLightRenderer {
     point_shadow_map_renderer: PointShadowMapRenderer,
     csm_renderer: CsmRenderer,
     light_volume: LightVolumeRenderer,
-    lights_visibility: FxHashMap<Handle<Node>, VisibilityCache>,
 }
 
 pub(crate) struct DeferredRendererContext<'a> {
     pub state: &'a PipelineState,
     pub scene: &'a Scene,
     pub camera: &'a Camera,
-    pub camera_handle: Handle<Node>,
     pub gbuffer: &'a mut GBuffer,
     pub ambient_color: Color,
     pub settings: &'a QualitySettings,
@@ -113,6 +108,7 @@ pub(crate) struct DeferredRendererContext<'a> {
     pub black_dummy: Rc<RefCell<GpuTexture>>,
     pub volume_dummy: Rc<RefCell<GpuTexture>>,
     pub matrix_storage: &'a mut MatrixStorageCache,
+    pub visibility_cache: &'a mut ObserverVisibilityCache,
 }
 
 impl DeferredLightRenderer {
@@ -225,7 +221,6 @@ impl DeferredLightRenderer {
                 quality_defaults.csm_settings.size,
                 quality_defaults.csm_settings.precision,
             )?,
-            lights_visibility: Default::default(),
         })
     }
 
@@ -291,7 +286,6 @@ impl DeferredLightRenderer {
             state,
             scene,
             camera,
-            camera_handle,
             gbuffer,
             shader_cache,
             normal_dummy,
@@ -304,6 +298,7 @@ impl DeferredLightRenderer {
             black_dummy,
             volume_dummy,
             matrix_storage,
+            visibility_cache,
         } = args;
 
         let viewport = Rect::new(0, 0, gbuffer.width, gbuffer.height);
@@ -425,11 +420,6 @@ impl DeferredLightRenderer {
                     );
             },
         )?;
-
-        let visibility_cache = self
-            .lights_visibility
-            .entry(camera_handle)
-            .or_insert_with(|| VisibilityCache::new(Vector3::repeat(2), 100.0));
 
         for (light_handle, light) in scene.graph.pair_iter() {
             if !light.global_visibility() || !light.is_globally_enabled() {
@@ -942,8 +932,6 @@ impl DeferredLightRenderer {
                 )?;
             }
         }
-
-        visibility_cache.update(camera_global_position);
 
         Ok((pass_stats, light_stats))
     }

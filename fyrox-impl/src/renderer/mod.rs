@@ -56,6 +56,7 @@ mod stats;
 use crate::renderer::cache::texture::TextureRenderData;
 use crate::renderer::cache::TimeToLive;
 use crate::renderer::framework::state::SharedPipelineState;
+use crate::renderer::visibility::VisibilityCache;
 use crate::{
     asset::{event::ResourceEvent, manager::ResourceManager},
     core::{
@@ -684,6 +685,8 @@ pub struct Renderer {
     // TextureId -> FrameBuffer mapping. This mapping is used for temporal frame buffers
     // like ones used to render UI instances.
     ui_frame_buffers: FxHashMap<u64, FrameBuffer>,
+    /// Visibility cache based on occlusion query.
+    pub visibility_cache: VisibilityCache,
     /// Pipeline state.
     pub state: SharedPipelineState,
 }
@@ -1301,6 +1304,7 @@ impl Renderer {
             scene_render_passes: Default::default(),
             matrix_storage: MatrixStorageCache::new(&state)?,
             state,
+            visibility_cache: Default::default(),
         })
     }
 
@@ -1624,6 +1628,8 @@ impl Renderer {
             }
             None
         }) {
+            let visibility_cache = self.visibility_cache.get_or_register(graph, camera_handle);
+
             let viewport = camera.viewport_pixels(frame_size);
 
             let bundle_storage = RenderDataBundleStorage::from_graph(
@@ -1684,7 +1690,6 @@ impl Renderer {
                         state,
                         scene,
                         camera,
-                        camera_handle,
                         gbuffer: &mut scene_associated_data.gbuffer,
                         white_dummy: self.white_dummy.clone(),
                         ambient_color: scene.rendering_options.ambient_lighting_color,
@@ -1697,6 +1702,7 @@ impl Renderer {
                         black_dummy: self.black_dummy.clone(),
                         volume_dummy: self.volume_dummy.clone(),
                         matrix_storage: &mut self.matrix_storage,
+                        visibility_cache,
                     })?;
 
             scene_associated_data.statistics += light_stats;
@@ -1839,6 +1845,8 @@ impl Renderer {
                         })?;
             }
         }
+
+        self.visibility_cache.update(graph);
 
         // Optionally render everything into back buffer.
         if scene.rendering_options.render_target.is_none() {

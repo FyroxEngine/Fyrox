@@ -22,12 +22,13 @@
 
 use crate::{
     core::{algebra::Vector3, pool::Handle},
+    graph::BaseSceneGraph,
     renderer::framework::{
         error::FrameworkError,
         query::{Query, QueryKind, QueryResult},
         state::PipelineState,
     },
-    scene::node::Node,
+    scene::{graph::Graph, node::Node},
 };
 use fxhash::FxHashMap;
 
@@ -48,7 +49,8 @@ enum Visibility {
 type NodeVisibilityMap = FxHashMap<Handle<Node>, Visibility>;
 
 /// Volumetric visibility cache based on occlusion query.
-pub struct VisibilityCache {
+#[derive(Debug)]
+pub struct ObserverVisibilityCache {
     cells: FxHashMap<Vector3<i32>, NodeVisibilityMap>,
     pending_queries: Vec<PendingQuery>,
     granularity: Vector3<u32>,
@@ -71,7 +73,7 @@ fn grid_to_world(grid_position: Vector3<i32>, granularity: Vector3<u32>) -> Vect
     )
 }
 
-impl VisibilityCache {
+impl ObserverVisibilityCache {
     /// Creates new visibility cache with the given granularity and distance discard threshold.
     /// Granularity in means how much the cache should subdivide the world. For example 2 means that
     /// 1 meter cell will be split into 8 blocks by 0.5 meters. Distance discard threshold means how
@@ -237,6 +239,51 @@ impl VisibilityCache {
             let world_position = grid_to_world(*grid_position, self.granularity);
 
             world_position.metric_distance(&observer_position) < self.distance_discard_threshold
+        });
+    }
+}
+
+#[derive(Debug)]
+struct ObserverData {
+    position: Vector3<f32>,
+    visibility_cache: ObserverVisibilityCache,
+}
+
+/// Visibility cache that caches visibility info for multiple cameras.
+#[derive(Default, Debug)]
+pub struct VisibilityCache {
+    observers: FxHashMap<Handle<Node>, ObserverData>,
+}
+
+impl VisibilityCache {
+    /// Gets or adds new storage for the given observer.
+    pub fn get_or_register(
+        &mut self,
+        graph: &Graph,
+        observer: Handle<Node>,
+    ) -> &mut ObserverVisibilityCache {
+        &mut self
+            .observers
+            .entry(observer)
+            .or_insert_with(|| ObserverData {
+                position: graph[observer].global_position(),
+                visibility_cache: ObserverVisibilityCache::new(Vector3::repeat(2), 100.0),
+            })
+            .visibility_cache
+    }
+
+    /// Updates the cache by removing unused data.
+    pub fn update(&mut self, graph: &Graph) {
+        self.observers.retain(|observer, data| {
+            let Some(observer_ref) = graph.try_get(*observer) else {
+                return false;
+            };
+
+            data.position = observer_ref.global_position();
+
+            data.visibility_cache.update(data.position);
+
+            true
         });
     }
 }
