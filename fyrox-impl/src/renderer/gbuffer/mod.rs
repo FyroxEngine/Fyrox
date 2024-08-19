@@ -33,14 +33,16 @@ use crate::{
     core::{
         algebra::{Matrix4, Vector2},
         color::Color,
-        math::Rect,
+        math::{Matrix4Ext, Rect},
         scope_profile,
         sstorage::ImmutableString,
     },
+    graph::BaseSceneGraph,
     renderer::{
         apply_material,
         bundle::RenderDataBundleStorage,
         cache::shader::ShaderCache,
+        flat_shader::FlatShader,
         framework::{
             error::FrameworkError,
             framebuffer::{
@@ -52,10 +54,11 @@ use crate::{
                 Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
                 PixelKind, WrapMode,
             },
-            state::{BlendFactor, BlendFunc, PipelineState},
+            state::{BlendFactor, BlendFunc, ColorMask, PipelineState},
         },
         gbuffer::decal::DecalShader,
         storage::MatrixStorageCache,
+        visibility::ObserverVisibilityCache,
         GeometryCache, MaterialContext, RenderPassStatistics, TextureCache,
     },
     scene::{
@@ -65,7 +68,7 @@ use crate::{
         mesh::{surface::SurfaceData, RenderPath},
     },
 };
-use fyrox_core::math::Matrix4Ext;
+use fxhash::FxHashSet;
 use std::{cell::RefCell, rc::Rc};
 
 mod decal;
@@ -87,8 +90,6 @@ pub(crate) struct GBufferRenderContext<'a, 'b> {
     pub bundle_storage: &'a RenderDataBundleStorage,
     pub texture_cache: &'a mut TextureCache,
     pub shader_cache: &'a mut ShaderCache,
-    #[allow(dead_code)]
-    pub environment_dummy: Rc<RefCell<GpuTexture>>,
     pub white_dummy: Rc<RefCell<GpuTexture>>,
     pub normal_dummy: Rc<RefCell<GpuTexture>>,
     pub black_dummy: Rc<RefCell<GpuTexture>>,
@@ -96,6 +97,8 @@ pub(crate) struct GBufferRenderContext<'a, 'b> {
     pub use_parallax_mapping: bool,
     pub graph: &'b Graph,
     pub matrix_storage: &'a mut MatrixStorageCache,
+    pub visibility_cache: &'a mut ObserverVisibilityCache,
+    pub flat_shader: &'a FlatShader,
 }
 
 impl GBuffer {
@@ -300,7 +303,8 @@ impl GBuffer {
             volume_dummy,
             graph,
             matrix_storage,
-            ..
+            visibility_cache,
+            flat_shader,
         } = args;
 
         let viewport = Rect::new(0, 0, self.width, self.height);
@@ -319,7 +323,8 @@ impl GBuffer {
         let camera_up = inv_view.up();
         let camera_side = inv_view.side();
 
-        for bundle in bundle_storage
+        let mut occlusion_test = FxHashSet::default();
+        'bundle_loop: for bundle in bundle_storage
             .bundles
             .iter()
             .filter(|b| b.render_path == RenderPath::Deferred)
@@ -327,11 +332,11 @@ impl GBuffer {
             let mut material_state = bundle.material.state();
 
             let Some(material) = material_state.data() else {
-                continue;
+                continue 'bundle_loop;
             };
 
             let Some(geometry) = geom_cache.get(state, &bundle.data, bundle.time_to_live) else {
-                continue;
+                continue 'bundle_loop;
             };
 
             let blend_shapes_storage = bundle
@@ -348,7 +353,18 @@ impl GBuffer {
                 continue;
             };
 
-            for instance in bundle.instances.iter() {
+            'instance_loop: for instance in bundle.instances.iter() {
+                occlusion_test.insert(instance.node_handle);
+
+                // Discard instances of occluded objects only if they have been tested.
+                if let Some(info) =
+                    visibility_cache.visibility_info(camera.global_position(), instance.node_handle)
+                {
+                    if !info.needs_rendering() {
+                        continue 'instance_loop;
+                    }
+                }
+
                 let apply_uniforms = |mut program_binding: GpuProgramBinding| {
                     let view_projection = if instance.depth_offset != 0.0 {
                         let mut projection = camera.projection_matrix();
@@ -397,6 +413,45 @@ impl GBuffer {
                     instance.element_range,
                     apply_uniforms,
                 )?;
+            }
+        }
+
+        // Once the objects are rendered in the buffer, we can run occlusion queries for objects.
+        // The actual visibility info will lag for at least 1 frame, but since we're caching it in
+        // spatial grid of some fixed granularity this _shouldn't_ be an issue.
+        for node in occlusion_test {
+            let Some(node_ref) = graph.try_get(node) else {
+                continue;
+            };
+            if visibility_cache.needs_occlusion_query(camera.global_position(), node) {
+                visibility_cache.begin_query(state, camera.global_position(), node)?;
+                let aabb = node_ref.world_bounding_box();
+                let s = aabb.max - aabb.min;
+                let matrix =
+                    Matrix4::new_translation(&aabb.center()) * Matrix4::new_nonuniform_scaling(&s);
+                let mvp_matrix = initial_view_projection * matrix;
+                self.framebuffer.draw(
+                    &self.cube,
+                    state,
+                    viewport,
+                    &flat_shader.program,
+                    &DrawParameters {
+                        cull_face: None,
+                        color_write: ColorMask::all(false),
+                        depth_write: false,
+                        stencil_test: None,
+                        depth_test: true,
+                        blend: None,
+                        stencil_op: Default::default(),
+                    },
+                    ElementRange::Full,
+                    |mut program_binding| {
+                        program_binding
+                            .set_matrix4(&flat_shader.wvp_matrix, &mvp_matrix)
+                            .set_texture(&flat_shader.diffuse_texture, &white_dummy);
+                    },
+                )?;
+                visibility_cache.end_query();
             }
         }
 

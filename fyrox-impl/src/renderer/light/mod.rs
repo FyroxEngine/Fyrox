@@ -611,7 +611,8 @@ impl DeferredLightRenderer {
                         ElementRange::Full,
                         |mut program_binding| {
                             program_binding
-                                .set_matrix4(&self.flat_shader.wvp_matrix, &frame_matrix);
+                                .set_matrix4(&self.flat_shader.wvp_matrix, &frame_matrix)
+                                .set_texture(&self.flat_shader.diffuse_texture, &white_dummy);
                         },
                     )?;
                     visibility_cache.end_query();

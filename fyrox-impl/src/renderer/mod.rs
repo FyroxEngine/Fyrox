@@ -1657,7 +1657,6 @@ impl Renderer {
                     bundle_storage: &bundle_storage,
                     texture_cache: &mut self.texture_cache,
                     shader_cache: &mut self.shader_cache,
-                    environment_dummy: self.environment_dummy.clone(),
                     use_parallax_mapping: self.quality_settings.use_parallax_mapping,
                     normal_dummy: self.normal_dummy.clone(),
                     white_dummy: self.white_dummy.clone(),
@@ -1665,6 +1664,8 @@ impl Renderer {
                     volume_dummy: self.volume_dummy.clone(),
                     graph,
                     matrix_storage: &mut self.matrix_storage,
+                    visibility_cache,
+                    flat_shader: &self.flat_shader,
                 })?;
 
             state.set_polygon_fill_mode(PolygonFace::FrontAndBack, PolygonFillMode::Fill);

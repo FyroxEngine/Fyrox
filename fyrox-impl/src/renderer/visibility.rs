@@ -39,11 +39,43 @@ struct PendingQuery {
     node: Handle<Node>,
 }
 
-#[derive(Debug)]
-enum Visibility {
+#[derive(Debug, Copy, Clone)]
+pub enum Visibility {
     Undefined,
     Invisible,
     Visible,
+}
+
+impl Visibility {
+    pub fn needs_occlusion_query(self) -> bool {
+        match self {
+            Visibility::Undefined => {
+                // There's already an occlusion query on GPU.
+                false
+            }
+            Visibility::Invisible => {
+                // The object could be invisible from one angle at the observer position, but visible
+                // from another. Since we're using only position of the observer, we cannot be 100%
+                // sure, that the object is invisible even if a previous query told us so.
+                true
+            }
+            Visibility::Visible => {
+                // Some pixels of the object is visible from the given observer position, so we don't
+                // need a new occlusion query.
+                false
+            }
+        }
+    }
+
+    pub fn needs_rendering(self) -> bool {
+        match self {
+            Visibility::Visible
+            // Undefined visibility is treated like the object is visible, this is needed because
+            // GPU queries are async, and we must still render the object to prevent popping light.
+            | Visibility::Undefined => true,
+            Visibility::Invisible => false,
+        }
+    }
 }
 
 type NodeVisibilityMap = FxHashMap<Handle<Node>, Visibility>;
@@ -97,7 +129,8 @@ impl ObserverVisibilityCache {
         grid_to_world(grid_position, self.granularity)
     }
 
-    fn visibility_info(
+    /// Tries to find visibility info about the object for the given observer position.
+    pub fn visibility_info(
         &self,
         observer_position: Vector3<f32>,
         node: Handle<Node>,
@@ -120,23 +153,7 @@ impl ObserverVisibilityCache {
             return true;
         };
 
-        match visibility {
-            Visibility::Undefined => {
-                // There's already an occlusion query on GPU.
-                false
-            }
-            Visibility::Invisible => {
-                // The object could be invisible from one angle at the observer position, but visible
-                // from another. Since we're using only position of the observer, we cannot be 100%
-                // sure, that the object is invisible even if a previous query told us so.
-                true
-            }
-            Visibility::Visible => {
-                // Some pixels of the object is visible from the given observer position, so we don't
-                // need a new occlusion query.
-                false
-            }
-        }
+        visibility.needs_occlusion_query()
     }
 
     /// Checks whether the object at the given handle is visible from the given observer position.
@@ -147,13 +164,7 @@ impl ObserverVisibilityCache {
             return false;
         };
 
-        match *visibility_info {
-            Visibility::Visible
-            // Undefined visibility is treated like the object is visible, this is needed because
-            // GPU queries are async, and we must still render the object to prevent popping light.
-            | Visibility::Undefined => true,
-            Visibility::Invisible => false,
-        }
+        visibility_info.needs_rendering()
     }
 
     /// Begins a new visibility query (using occlusion query) for the object at the given handle from
