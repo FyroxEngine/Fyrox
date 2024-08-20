@@ -31,7 +31,7 @@
 
 use crate::{
     core::{
-        algebra::{Matrix4, Vector2},
+        algebra::{Matrix4, Vector2, Vector3},
         color::Color,
         math::{Matrix4Ext, Rect},
         scope_profile,
@@ -423,9 +423,16 @@ impl GBuffer {
             let Some(node_ref) = graph.try_get(node) else {
                 continue;
             };
-            if visibility_cache.needs_occlusion_query(camera.global_position(), node) {
-                visibility_cache.begin_query(state, camera.global_position(), node)?;
-                let aabb = node_ref.world_bounding_box();
+            if visibility_cache.needs_occlusion_query(camera.global_position(), node)
+                && visibility_cache.begin_conditional_query(
+                    state,
+                    camera.global_position(),
+                    graph,
+                    node,
+                )?
+            {
+                let mut aabb = node_ref.world_bounding_box();
+                aabb.inflate(Vector3::repeat(0.05));
                 let s = aabb.max - aabb.min;
                 let matrix =
                     Matrix4::new_translation(&aabb.center()) * Matrix4::new_nonuniform_scaling(&s);

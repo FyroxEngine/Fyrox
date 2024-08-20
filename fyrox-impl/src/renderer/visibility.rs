@@ -167,9 +167,48 @@ impl ObserverVisibilityCache {
         visibility_info.needs_rendering()
     }
 
+    /// Tries to begin a new visibility query (using occlusion query) for the object at the given handle from
+    /// the given observer position. The query will not be started if the observer is inside the object's
+    /// bounding box, because this is an edge case where the object is always considered visible.
+    pub fn begin_conditional_query(
+        &mut self,
+        pipeline_state: &PipelineState,
+        observer_position: Vector3<f32>,
+        graph: &Graph,
+        node: Handle<Node>,
+    ) -> Result<bool, FrameworkError> {
+        let Some(node_ref) = graph.try_get(node) else {
+            return Ok(false);
+        };
+
+        let grid_position = self.world_to_grid(observer_position);
+        let cell = self.cells.entry(grid_position).or_default();
+
+        if node_ref
+            .world_bounding_box()
+            .is_contains_point(observer_position)
+        {
+            cell.entry(node).or_insert(Visibility::Visible);
+
+            Ok(false)
+        } else {
+            let query = Query::new(pipeline_state)?;
+            query.begin(QueryKind::AnySamplesPassed);
+            self.pending_queries.push(PendingQuery {
+                query,
+                observer_position,
+                node,
+            });
+
+            cell.entry(node).or_insert(Visibility::Undefined);
+
+            Ok(true)
+        }
+    }
+
     /// Begins a new visibility query (using occlusion query) for the object at the given handle from
     /// the given observer position.
-    pub fn begin_query(
+    pub fn begin_non_conditional_query(
         &mut self,
         pipeline_state: &PipelineState,
         observer_position: Vector3<f32>,
