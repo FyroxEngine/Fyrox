@@ -294,7 +294,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
             },
         )?;
 
-        self.blur.render(state, self.raw_ao_map())?;
+        stats += self.blur.render(state, self.raw_ao_map())?;
 
         Ok(stats)
     }

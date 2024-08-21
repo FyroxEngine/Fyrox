@@ -1691,6 +1691,7 @@ impl Renderer {
                         state,
                         scene,
                         camera,
+                        camera_handle,
                         gbuffer: &mut scene_associated_data.gbuffer,
                         white_dummy: self.white_dummy.clone(),
                         ambient_color: scene.rendering_options.ambient_lighting_color,
@@ -1703,7 +1704,7 @@ impl Renderer {
                         black_dummy: self.black_dummy.clone(),
                         volume_dummy: self.volume_dummy.clone(),
                         matrix_storage: &mut self.matrix_storage,
-                        visibility_cache,
+                        visibility_cache: &mut self.visibility_cache,
                     })?;
 
             scene_associated_data.statistics += light_stats;

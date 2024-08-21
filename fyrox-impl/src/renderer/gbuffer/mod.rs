@@ -31,13 +31,12 @@
 
 use crate::{
     core::{
-        algebra::{Matrix4, Vector2, Vector3},
+        algebra::{Matrix4, Vector2},
         color::Color,
         math::{Matrix4Ext, Rect},
         scope_profile,
         sstorage::ImmutableString,
     },
-    graph::BaseSceneGraph,
     renderer::{
         apply_material,
         bundle::RenderDataBundleStorage,
@@ -54,7 +53,7 @@ use crate::{
                 Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
                 PixelKind, WrapMode,
             },
-            state::{BlendFactor, BlendFunc, ColorMask, PipelineState},
+            state::{BlendFactor, BlendFunc, PipelineState},
         },
         gbuffer::decal::DecalShader,
         storage::MatrixStorageCache,
@@ -78,7 +77,7 @@ pub struct GBuffer {
     decal_framebuffer: FrameBuffer,
     pub width: i32,
     pub height: i32,
-    cube: GeometryBuffer,
+    pub cube: GeometryBuffer,
     decal_shader: DecalShader,
     render_pass_name: ImmutableString,
 }
@@ -420,46 +419,18 @@ impl GBuffer {
         // The actual visibility info will lag for at least 1 frame, but since we're caching it in
         // spatial grid of some fixed granularity this _shouldn't_ be an issue.
         for node in occlusion_test {
-            let Some(node_ref) = graph.try_get(node) else {
-                continue;
-            };
-            if visibility_cache.needs_occlusion_query(camera.global_position(), node)
-                && visibility_cache.begin_conditional_query(
-                    state,
-                    camera.global_position(),
-                    graph,
-                    node,
-                )?
-            {
-                let mut aabb = node_ref.world_bounding_box();
-                aabb.inflate(Vector3::repeat(0.05));
-                let s = aabb.max - aabb.min;
-                let matrix =
-                    Matrix4::new_translation(&aabb.center()) * Matrix4::new_nonuniform_scaling(&s);
-                let mvp_matrix = initial_view_projection * matrix;
-                self.framebuffer.draw(
-                    &self.cube,
-                    state,
-                    viewport,
-                    &flat_shader.program,
-                    &DrawParameters {
-                        cull_face: None,
-                        color_write: ColorMask::all(false),
-                        depth_write: false,
-                        stencil_test: None,
-                        depth_test: true,
-                        blend: None,
-                        stencil_op: Default::default(),
-                    },
-                    ElementRange::Full,
-                    |mut program_binding| {
-                        program_binding
-                            .set_matrix4(&flat_shader.wvp_matrix, &mvp_matrix)
-                            .set_texture(&flat_shader.diffuse_texture, &white_dummy);
-                    },
-                )?;
-                visibility_cache.end_query();
-            }
+            statistics += visibility_cache.run_query(
+                state,
+                graph,
+                &mut self.framebuffer,
+                viewport,
+                &self.cube,
+                flat_shader,
+                &white_dummy,
+                camera.global_position(),
+                initial_view_projection,
+                node,
+            )?;
         }
 
         let inv_view_proj = initial_view_projection.try_inverse().unwrap_or_default();

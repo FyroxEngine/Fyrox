@@ -237,6 +237,7 @@ impl Display for Statistics {
 
 /// GPU statistics for single frame.
 #[derive(Debug, Copy, Clone, Default)]
+#[must_use]
 pub struct RenderPassStatistics {
     /// Amount of draw calls per frame - lower the better.
     pub draw_calls: usize,

@@ -18,6 +18,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::renderer::flat_shader::FlatShader;
+use crate::renderer::framework::geometry_buffer::GeometryBuffer;
+use crate::renderer::visibility::VisibilityCache;
+use crate::scene::node::Node;
 use crate::{
     core::{
         algebra::{Matrix4, Vector3},
@@ -45,7 +49,9 @@ use crate::{
     },
     scene::graph::Graph,
 };
+use fxhash::FxHashSet;
 use fyrox_core::math::Matrix4Ext;
+use fyrox_core::pool::Handle;
 use std::{cell::RefCell, rc::Rc};
 
 pub struct SpotShadowMapRenderer {
@@ -140,6 +146,7 @@ impl SpotShadowMapRenderer {
         &mut self,
         state: &PipelineState,
         graph: &Graph,
+        light_handle: Handle<Node>,
         light_position: Vector3<f32>,
         light_view_matrix: Matrix4<f32>,
         z_near: f32,
@@ -154,8 +161,13 @@ impl SpotShadowMapRenderer {
         black_dummy: Rc<RefCell<GpuTexture>>,
         volume_dummy: Rc<RefCell<GpuTexture>>,
         matrix_storage: &mut MatrixStorageCache,
+        visibility_cache: &mut VisibilityCache,
+        flat_shader: &FlatShader,
+        cube: &GeometryBuffer,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         scope_profile!();
+
+        let light_visibility_cache = visibility_cache.get_or_register(graph, light_handle);
 
         let mut statistics = RenderPassStatistics::default();
 
@@ -183,6 +195,7 @@ impl SpotShadowMapRenderer {
         let camera_up = inv_view.up();
         let camera_side = inv_view.side();
 
+        let mut occlusion_test = FxHashSet::default();
         for bundle in bundle_storage.bundles.iter() {
             let mut material_state = bundle.material.state();
             let Some(material) = material_state.data() else {
@@ -207,7 +220,18 @@ impl SpotShadowMapRenderer {
                 continue;
             };
 
-            for instance in bundle.instances.iter() {
+            'instance_loop: for instance in bundle.instances.iter() {
+                occlusion_test.insert(instance.node_handle);
+
+                // Discard instances of occluded objects only if they have been tested.
+                if let Some(info) =
+                    light_visibility_cache.visibility_info(light_position, instance.node_handle)
+                {
+                    if !info.needs_rendering() {
+                        continue 'instance_loop;
+                    }
+                }
+
                 statistics += framebuffer.draw(
                     geometry,
                     state,
@@ -255,6 +279,24 @@ impl SpotShadowMapRenderer {
                     },
                 )?;
             }
+        }
+
+        // Once the objects are rendered in the buffer, we can run occlusion queries for objects.
+        // The actual visibility info will lag for at least 1 frame, but since we're caching it in
+        // spatial grid of some fixed granularity this _shouldn't_ be an issue.
+        for node in occlusion_test {
+            statistics += light_visibility_cache.run_query(
+                state,
+                graph,
+                framebuffer,
+                viewport,
+                cube,
+                flat_shader,
+                &white_dummy,
+                light_position,
+                light_view_projection,
+                node,
+            )?;
         }
 
         Ok(statistics)

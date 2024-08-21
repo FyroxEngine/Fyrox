@@ -21,16 +21,23 @@
 //! Volumetric visibility cache based on occlusion query.
 
 use crate::{
-    core::{algebra::Vector3, pool::Handle},
+    core::{algebra::Matrix4, algebra::Vector3, math::Rect, pool::Handle},
     graph::BaseSceneGraph,
-    renderer::framework::{
-        error::FrameworkError,
-        query::{Query, QueryKind, QueryResult},
-        state::PipelineState,
+    renderer::{
+        flat_shader::FlatShader,
+        framework::{
+            error::FrameworkError,
+            framebuffer::{DrawParameters, FrameBuffer},
+            geometry_buffer::{DrawCallStatistics, ElementRange, GeometryBuffer},
+            gpu_texture::GpuTexture,
+            query::{Query, QueryKind, QueryResult},
+            state::{ColorMask, PipelineState},
+        },
     },
     scene::{graph::Graph, node::Node},
 };
 use fxhash::FxHashMap;
+use std::{cell::RefCell, rc::Rc};
 
 #[derive(Debug)]
 struct PendingQuery {
@@ -290,6 +297,59 @@ impl ObserverVisibilityCache {
 
             world_position.metric_distance(&observer_position) < self.distance_discard_threshold
         });
+    }
+
+    pub fn run_query(
+        &mut self,
+        state: &PipelineState,
+        graph: &Graph,
+        frame_buffer: &mut FrameBuffer,
+        viewport: Rect<i32>,
+        unit_cube: &GeometryBuffer,
+        flat_shader: &FlatShader,
+        white_dummy: &Rc<RefCell<GpuTexture>>,
+        observer_position: Vector3<f32>,
+        view_projection_matrix: Matrix4<f32>,
+        node: Handle<Node>,
+    ) -> Result<DrawCallStatistics, FrameworkError> {
+        let Some(node_ref) = graph.try_get(node) else {
+            return Ok(Default::default());
+        };
+        if self.needs_occlusion_query(observer_position, node)
+            && self.begin_conditional_query(state, observer_position, graph, node)?
+        {
+            let mut aabb = node_ref.world_bounding_box();
+            aabb.inflate(Vector3::repeat(0.05));
+            let s = aabb.max - aabb.min;
+            let matrix =
+                Matrix4::new_translation(&aabb.center()) * Matrix4::new_nonuniform_scaling(&s);
+            let mvp_matrix = view_projection_matrix * matrix;
+            let stats = frame_buffer.draw(
+                unit_cube,
+                state,
+                viewport,
+                &flat_shader.program,
+                &DrawParameters {
+                    cull_face: None,
+                    color_write: ColorMask::all(false),
+                    depth_write: false,
+                    stencil_test: None,
+                    depth_test: true,
+                    blend: None,
+                    stencil_op: Default::default(),
+                },
+                ElementRange::Full,
+                |mut program_binding| {
+                    program_binding
+                        .set_matrix4(&flat_shader.wvp_matrix, &mvp_matrix)
+                        .set_texture(&flat_shader.diffuse_texture, white_dummy);
+                },
+            )?;
+            self.end_query();
+            Ok(stats)
+        } else {
+            Ok(Default::default())
+        }
     }
 }
 

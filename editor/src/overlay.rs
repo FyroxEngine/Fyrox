@@ -132,6 +132,8 @@ impl SceneRenderPass for OverlayRenderPass {
             .get(ctx.pipeline_state, &self.light_icon)
             .unwrap();
 
+        let mut stats = RenderPassStatistics::default();
+
         for node in ctx.scene.graph.linear_iter() {
             let icon =
                 if node.is_directional_light() || node.is_spot_light() || node.is_point_light() {
@@ -145,7 +147,7 @@ impl SceneRenderPass for OverlayRenderPass {
             let position = node.global_position();
             let world_matrix = Matrix4::new_translation(&position);
 
-            ctx.framebuffer.draw(
+            stats += ctx.framebuffer.draw(
                 &self.quad,
                 ctx.pipeline_state,
                 ctx.viewport,
@@ -175,7 +177,7 @@ impl SceneRenderPass for OverlayRenderPass {
             )?;
         }
 
-        Ok(Default::default())
+        Ok(stats)
     }
 
     fn source_type_id(&self) -> TypeId {

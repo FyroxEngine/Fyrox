@@ -205,6 +205,7 @@ pub struct GeometryBufferBinding<'a> {
 }
 
 #[derive(Debug, Copy, Clone, Default)]
+#[must_use]
 pub struct DrawCallStatistics {
     pub triangles: usize,
 }
