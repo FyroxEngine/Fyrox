@@ -273,6 +273,15 @@ impl Projection {
         }
     }
 
+    /// Returns field of view of the projection (if any, ortho projection does not have it).
+    #[inline]
+    pub fn fov(&self) -> Option<f32> {
+        match self {
+            Projection::Perspective(v) => Some(v.fov),
+            Projection::Orthographic(_) => None,
+        }
+    }
+
     /// Returns `true` if the current projection is perspective.
     #[inline]
     pub fn is_perspective(&self) -> bool {

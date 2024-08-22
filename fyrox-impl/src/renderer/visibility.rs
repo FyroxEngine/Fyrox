@@ -21,7 +21,10 @@
 //! Volumetric visibility cache based on occlusion query.
 
 use crate::{
-    core::{algebra::Matrix4, algebra::Vector3, math::Rect, pool::Handle},
+    core::{
+        algebra::Matrix4, algebra::Vector2, algebra::Vector3, math::wrap_angle, math::Rect,
+        pool::Handle,
+    },
     graph::BaseSceneGraph,
     renderer::{
         flat_shader::FlatShader,
@@ -42,7 +45,7 @@ use std::{cell::RefCell, rc::Rc};
 #[derive(Debug)]
 struct PendingQuery {
     query: Query,
-    observer_position: Vector3<f32>,
+    observer_info: ObserverInfo,
     node: Handle<Node>,
 }
 
@@ -54,26 +57,6 @@ pub enum Visibility {
 }
 
 impl Visibility {
-    pub fn needs_occlusion_query(self) -> bool {
-        match self {
-            Visibility::Undefined => {
-                // There's already an occlusion query on GPU.
-                false
-            }
-            Visibility::Invisible => {
-                // The object could be invisible from one angle at the observer position, but visible
-                // from another. Since we're using only position of the observer, we cannot be 100%
-                // sure, that the object is invisible even if a previous query told us so.
-                true
-            }
-            Visibility::Visible => {
-                // Some pixels of the object is visible from the given observer position, so we don't
-                // need a new occlusion query.
-                false
-            }
-        }
-    }
-
     pub fn needs_rendering(self) -> bool {
         match self {
             Visibility::Visible
@@ -87,10 +70,24 @@ impl Visibility {
 
 type NodeVisibilityMap = FxHashMap<Handle<Node>, Visibility>;
 
+fn dir_to_angles(dir: Vector3<f32>, fov: f32) -> Vector2<i32> {
+    let granularity = fov.to_degrees() / 2.0;
+    let dir = dir.try_normalize(f32::EPSILON).unwrap_or_default();
+    let theta =
+        wrap_angle((dir.x * dir.x + dir.z * dir.z).sqrt().atan2(dir.y)).to_degrees() / granularity;
+    let phi = wrap_angle(dir.x.atan2(dir.z)).to_degrees() / granularity;
+    Vector2::new(theta.round() as i32, phi.round() as i32)
+}
+
+#[derive(Debug, Default)]
+struct Cell {
+    angles: FxHashMap<Vector2<i32>, NodeVisibilityMap>,
+}
+
 /// Volumetric visibility cache based on occlusion query.
 #[derive(Debug)]
 pub struct ObserverVisibilityCache {
-    cells: FxHashMap<Vector3<i32>, NodeVisibilityMap>,
+    cells: FxHashMap<Vector3<i32>, Cell>,
     pending_queries: Vec<PendingQuery>,
     granularity: Vector3<u32>,
     distance_discard_threshold: f32,
@@ -110,6 +107,13 @@ fn grid_to_world(grid_position: Vector3<i32>, granularity: Vector3<u32>) -> Vect
         grid_position.y as f32 / (granularity.y as f32),
         grid_position.z as f32 / (granularity.z as f32),
     )
+}
+
+#[derive(Debug, Clone)]
+pub struct ObserverInfo {
+    position: Vector3<f32>,
+    grid_position: Vector3<i32>,
+    rotation: Vector2<i32>,
 }
 
 impl ObserverVisibilityCache {
@@ -136,38 +140,43 @@ impl ObserverVisibilityCache {
         grid_to_world(grid_position, self.granularity)
     }
 
+    pub fn observer_info(
+        &self,
+        position: Vector3<f32>,
+        look_dir: Vector3<f32>,
+        fov: f32,
+    ) -> ObserverInfo {
+        let grid_position = self.world_to_grid(position);
+        let rotation = dir_to_angles(look_dir, fov);
+        ObserverInfo {
+            position,
+            grid_position,
+            rotation,
+        }
+    }
+
     /// Tries to find visibility info about the object for the given observer position.
     pub fn visibility_info(
         &self,
-        observer_position: Vector3<f32>,
+        observer_info: &ObserverInfo,
         node: Handle<Node>,
     ) -> Option<&Visibility> {
-        let grid_position = self.world_to_grid(observer_position);
-
         self.cells
-            .get(&grid_position)
+            .get(&observer_info.grid_position)
+            .and_then(|cell| cell.angles.get(&observer_info.rotation))
             .and_then(|cell| cell.get(&node))
     }
 
     /// Checks whether the given object needs an occlusion query for the given observer position.
-    pub fn needs_occlusion_query(
-        &self,
-        observer_position: Vector3<f32>,
-        node: Handle<Node>,
-    ) -> bool {
-        let Some(visibility) = self.visibility_info(observer_position, node) else {
-            // There's no data about the visibility, so the occlusion query is needed.
-            return true;
-        };
-
-        visibility.needs_occlusion_query()
+    pub fn needs_occlusion_query(&self, observer_info: &ObserverInfo, node: Handle<Node>) -> bool {
+        self.visibility_info(observer_info, node).is_none()
     }
 
     /// Checks whether the object at the given handle is visible from the given observer position.
     /// This method returns `true` for non-completed occlusion queries, because occlusion query is
     /// async operation.
-    pub fn is_visible(&self, observer_position: Vector3<f32>, node: Handle<Node>) -> bool {
-        let Some(visibility_info) = self.visibility_info(observer_position, node) else {
+    pub fn is_visible(&self, observer_info: &ObserverInfo, node: Handle<Node>) -> bool {
+        let Some(visibility_info) = self.visibility_info(observer_info, node) else {
             return false;
         };
 
@@ -180,7 +189,7 @@ impl ObserverVisibilityCache {
     pub fn begin_conditional_query(
         &mut self,
         pipeline_state: &PipelineState,
-        observer_position: Vector3<f32>,
+        observer_info: &ObserverInfo,
         graph: &Graph,
         node: Handle<Node>,
     ) -> Result<bool, FrameworkError> {
@@ -188,12 +197,17 @@ impl ObserverVisibilityCache {
             return Ok(false);
         };
 
-        let grid_position = self.world_to_grid(observer_position);
-        let cell = self.cells.entry(grid_position).or_default();
+        let cell = self
+            .cells
+            .entry(observer_info.grid_position)
+            .or_default()
+            .angles
+            .entry(observer_info.rotation)
+            .or_default();
 
         if node_ref
             .world_bounding_box()
-            .is_contains_point(observer_position)
+            .is_contains_point(observer_info.position)
         {
             cell.entry(node).or_insert(Visibility::Visible);
 
@@ -203,7 +217,7 @@ impl ObserverVisibilityCache {
             query.begin(QueryKind::AnySamplesPassed);
             self.pending_queries.push(PendingQuery {
                 query,
-                observer_position,
+                observer_info: observer_info.clone(),
                 node,
             });
 
@@ -218,20 +232,22 @@ impl ObserverVisibilityCache {
     pub fn begin_non_conditional_query(
         &mut self,
         pipeline_state: &PipelineState,
-        observer_position: Vector3<f32>,
+        observer_info: &ObserverInfo,
         node: Handle<Node>,
     ) -> Result<(), FrameworkError> {
         let query = Query::new(pipeline_state)?;
         query.begin(QueryKind::AnySamplesPassed);
         self.pending_queries.push(PendingQuery {
             query,
-            observer_position,
+            observer_info: observer_info.clone(),
             node,
         });
 
-        let grid_position = self.world_to_grid(observer_position);
         self.cells
-            .entry(grid_position)
+            .entry(observer_info.grid_position)
+            .or_default()
+            .angles
+            .entry(observer_info.rotation)
             .or_default()
             .entry(node)
             .or_insert(Visibility::Undefined);
@@ -254,13 +270,13 @@ impl ObserverVisibilityCache {
             if let Some(QueryResult::AnySamplesPassed(query_result)) =
                 pending_query.query.try_get_result()
             {
-                let grid_position =
-                    world_to_grid(pending_query.observer_position, self.granularity);
-
                 let visibility = self
                     .cells
-                    .get_mut(&grid_position)
+                    .get_mut(&pending_query.observer_info.grid_position)
                     .expect("grid cell must exist!")
+                    .angles
+                    .get_mut(&pending_query.observer_info.rotation)
+                    .expect("angle must exist!")
                     .get_mut(&pending_query.node)
                     .expect("object visibility must be predefined!");
 
@@ -308,15 +324,15 @@ impl ObserverVisibilityCache {
         unit_cube: &GeometryBuffer,
         flat_shader: &FlatShader,
         white_dummy: &Rc<RefCell<GpuTexture>>,
-        observer_position: Vector3<f32>,
+        observer_info: &ObserverInfo,
         view_projection_matrix: Matrix4<f32>,
         node: Handle<Node>,
     ) -> Result<DrawCallStatistics, FrameworkError> {
         let Some(node_ref) = graph.try_get(node) else {
             return Ok(Default::default());
         };
-        if self.needs_occlusion_query(observer_position, node)
-            && self.begin_conditional_query(state, observer_position, graph, node)?
+        if self.needs_occlusion_query(observer_info, node)
+            && self.begin_conditional_query(state, observer_info, graph, node)?
         {
             let mut aabb = node_ref.world_bounding_box();
             aabb.inflate(Vector3::repeat(0.05));

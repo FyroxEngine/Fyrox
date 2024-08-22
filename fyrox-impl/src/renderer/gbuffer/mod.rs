@@ -321,6 +321,11 @@ impl GBuffer {
 
         let camera_up = inv_view.up();
         let camera_side = inv_view.side();
+        let observer_info = visibility_cache.observer_info(
+            camera.global_position(),
+            camera.look_vector(),
+            camera.projection().fov().unwrap_or(360.0),
+        );
 
         let mut occlusion_test = FxHashSet::default();
         'bundle_loop: for bundle in bundle_storage
@@ -357,7 +362,7 @@ impl GBuffer {
 
                 // Discard instances of occluded objects only if they have been tested.
                 if let Some(info) =
-                    visibility_cache.visibility_info(camera.global_position(), instance.node_handle)
+                    visibility_cache.visibility_info(&observer_info, instance.node_handle)
                 {
                     if !info.needs_rendering() {
                         continue 'instance_loop;
@@ -427,7 +432,7 @@ impl GBuffer {
                 &self.cube,
                 flat_shader,
                 &white_dummy,
-                camera.global_position(),
+                &observer_info,
                 initial_view_projection,
                 node,
             )?;

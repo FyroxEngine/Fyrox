@@ -168,6 +168,12 @@ impl SpotShadowMapRenderer {
         scope_profile!();
 
         let light_visibility_cache = visibility_cache.get_or_register(graph, light_handle);
+        let light = graph[light_handle].as_spot_light();
+        let observer_info = light_visibility_cache.observer_info(
+            light_position,
+            light.look_vector(),
+            light.full_cone_angle() * 0.5,
+        );
 
         let mut statistics = RenderPassStatistics::default();
 
@@ -225,7 +231,7 @@ impl SpotShadowMapRenderer {
 
                 // Discard instances of occluded objects only if they have been tested.
                 if let Some(info) =
-                    light_visibility_cache.visibility_info(light_position, instance.node_handle)
+                    light_visibility_cache.visibility_info(&observer_info, instance.node_handle)
                 {
                     if !info.needs_rendering() {
                         continue 'instance_loop;
@@ -293,7 +299,7 @@ impl SpotShadowMapRenderer {
                 cube,
                 flat_shader,
                 &white_dummy,
-                light_position,
+                &observer_info,
                 light_view_projection,
                 node,
             )?;
