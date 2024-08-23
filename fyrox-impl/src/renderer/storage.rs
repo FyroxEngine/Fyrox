@@ -74,14 +74,14 @@ impl MatrixStorage {
     }
 
     /// Updates contents of the internal texture with provided matrices.
-    fn upload(
+    pub fn upload(
         &mut self,
         state: &PipelineState,
-        matrices: &[Matrix4<f32>],
+        matrices: impl Iterator<Item = Matrix4<f32>>,
         sampler: u32,
     ) -> Result<(), FrameworkError> {
         self.matrices.clear();
-        self.matrices.extend_from_slice(matrices);
+        self.matrices.extend(matrices);
 
         // Select width for the texture by restricting width at 1024 pixels.
         let matrices_tex_size = 1024;
@@ -172,7 +172,7 @@ impl MatrixStorageCache {
                         MatrixStorage::new(state)?
                     };
 
-                    storage.upload(state, matrices, sampler)?;
+                    storage.upload(state, matrices.iter().cloned(), sampler)?;
 
                     Ok(entry.insert(storage))
                 }

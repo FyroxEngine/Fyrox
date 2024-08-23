@@ -160,8 +160,8 @@ impl Default for BlendMode {
     Reflect,
 )]
 pub struct BlendEquation {
-    rgb: BlendMode,
-    alpha: BlendMode,
+    pub rgb: BlendMode,
+    pub alpha: BlendMode,
 }
 
 #[derive(
