@@ -26,6 +26,7 @@ use crate::{
         TextureWrapMode,
     },
 };
+use bytemuck::Pod;
 use glow::{HasContext, PixelPackData, COMPRESSED_RED_RGTC1, COMPRESSED_RG_RGTC2};
 use std::marker::PhantomData;
 use std::rc::Weak;
@@ -1035,6 +1036,22 @@ impl<'a> TextureBinding<'a> {
                 Default::default()
             }
         }
+    }
+
+    pub fn read_pixels_of_type<T>(&self, state: &PipelineState) -> Vec<T>
+    where
+        T: Pod,
+    {
+        let mut bytes = self.read_pixels(state);
+        let typed = unsafe {
+            Vec::<T>::from_raw_parts(
+                bytes.as_mut_ptr() as *mut T,
+                bytes.len() / size_of::<T>(),
+                bytes.capacity() / size_of::<T>(),
+            )
+        };
+        std::mem::forget(bytes);
+        typed
     }
 }
 
