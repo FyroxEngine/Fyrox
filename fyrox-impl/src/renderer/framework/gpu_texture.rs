@@ -92,6 +92,7 @@ impl GpuTextureKind {
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum PixelKind {
     R32F,
+    R32UI,
     R16F,
     D32F,
     D16,
@@ -190,6 +191,7 @@ impl PixelKind {
             | Self::D24S8
             | Self::D32F
             | Self::R32F
+            | Self::R32UI
             | Self::RGB10A2 => Some(4),
             Self::RG8 | Self::LA8 | Self::D16 | Self::R16F | Self::L16 | Self::R16 => Some(2),
             Self::R8
@@ -233,6 +235,7 @@ impl PixelKind {
             | Self::D24S8
             | Self::D32F
             | Self::R32F
+            | Self::R32UI
             | Self::RG8
             | Self::D16
             | Self::R16F
@@ -284,13 +287,14 @@ impl PixelKind {
             | Self::L8
             | Self::LA16
             | Self::L16 => PixelElementKind::NormalizedUnsignedInteger,
-            Self::R8UI => PixelElementKind::UnsignedInteger,
+            Self::R8UI | Self::R32UI => PixelElementKind::UnsignedInteger,
         }
     }
 
     pub fn pixel_descriptor(self) -> PixelDescriptor {
         let (data_type, format, internal_format, swizzle_mask) = match self {
             PixelKind::R32F => (glow::FLOAT, glow::RED, glow::R32F, None),
+            PixelKind::R32UI => (glow::UNSIGNED_INT, glow::RED_INTEGER, glow::R32UI, None),
             PixelKind::R16F => (glow::FLOAT, glow::RED, glow::R16F, None),
             PixelKind::D32F => (
                 glow::FLOAT,
@@ -429,6 +433,7 @@ fn image_3d_size_bytes(pixel_kind: PixelKind, width: usize, height: usize, depth
         | PixelKind::D24S8
         | PixelKind::D32F
         | PixelKind::R32F
+        | PixelKind::R32UI
         | PixelKind::R11G11B10F
         | PixelKind::RGB10A2 => 4 * pixel_count,
         PixelKind::RGB8 | PixelKind::SRGB8 | PixelKind::BGR8 => 3 * pixel_count,
@@ -465,6 +470,7 @@ fn image_2d_size_bytes(pixel_kind: PixelKind, width: usize, height: usize) -> us
         | PixelKind::D24S8
         | PixelKind::D32F
         | PixelKind::R32F
+        | PixelKind::R32UI
         | PixelKind::R11G11B10F
         | PixelKind::RGB10A2 => 4 * pixel_count,
         PixelKind::RGB8 | PixelKind::SRGB8 | PixelKind::BGR8 => 3 * pixel_count,
@@ -500,6 +506,7 @@ fn image_1d_size_bytes(pixel_kind: PixelKind, length: usize) -> usize {
         | PixelKind::D24S8
         | PixelKind::D32F
         | PixelKind::R32F
+        | PixelKind::R32UI
         | PixelKind::R11G11B10F
         | PixelKind::RGB10A2 => 4 * length,
         PixelKind::RGB8 | PixelKind::SRGB8 | PixelKind::BGR8 => 3 * length,
