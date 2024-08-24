@@ -20,17 +20,42 @@
 
 //! Volumetric visibility cache based on occlusion query.
 
+#![allow(missing_docs)] // TODO
+
 use crate::{
-    core::{algebra::Vector3, pool::Handle},
-    graph::BaseSceneGraph,
-    renderer::framework::{
-        error::FrameworkError,
-        query::{Query, QueryKind, QueryResult},
-        state::PipelineState,
+    core::{
+        algebra::{Matrix4, Vector2, Vector3},
+        array_as_u8_slice,
+        arrayvec::ArrayVec,
+        math::{OptionRect, Rect},
+        pool::Handle,
+        ImmutableString,
     },
-    scene::{graph::Graph, node::Node},
+    graph::BaseSceneGraph,
+    renderer::{
+        framework::{
+            error::FrameworkError,
+            framebuffer::{
+                Attachment, AttachmentKind, BlendParameters, DrawParameters, FrameBuffer,
+            },
+            geometry_buffer::{GeometryBuffer, GeometryBufferKind},
+            gpu_program::{GpuProgram, UniformLocation},
+            gpu_texture::{
+                Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
+                PixelKind, WrapMode,
+            },
+            query::{Query, QueryKind, QueryResult},
+            state::{BlendEquation, BlendFactor, BlendFunc, BlendMode, ColorMask, PipelineState},
+        },
+        storage::MatrixStorage,
+    },
+    scene::{graph::Graph, mesh::surface::SurfaceData, node::Node},
 };
+use bytemuck::{Pod, Zeroable};
 use fxhash::FxHashMap;
+use fyrox_core::color::Color;
+use std::cmp::Ordering;
+use std::{cell::RefCell, rc::Rc};
 
 #[derive(Debug)]
 struct PendingQuery {
@@ -287,3 +312,376 @@ impl VisibilityCache {
         });
     }
 }
+
+struct Shader {
+    program: GpuProgram,
+    view_projection: UniformLocation,
+    tile_size: UniformLocation,
+    tile_buffer: UniformLocation,
+    instance_matrices: UniformLocation,
+    frame_buffer_height: UniformLocation,
+}
+
+impl Shader {
+    fn new(state: &PipelineState) -> Result<Self, FrameworkError> {
+        let fragment_source = include_str!("shaders/visibility_fs.glsl");
+        let vertex_source = include_str!("shaders/visibility_vs.glsl");
+        let program =
+            GpuProgram::from_source(state, "VisibilityShader", vertex_source, fragment_source)?;
+        Ok(Self {
+            view_projection: program
+                .uniform_location(state, &ImmutableString::new("viewProjection"))?,
+            tile_size: program.uniform_location(state, &ImmutableString::new("tileSize"))?,
+            frame_buffer_height: program
+                .uniform_location(state, &ImmutableString::new("frameBufferHeight"))?,
+            tile_buffer: program.uniform_location(state, &ImmutableString::new("tileBuffer"))?,
+            instance_matrices: program
+                .uniform_location(state, &ImmutableString::new("instanceMatrices"))?,
+            program,
+        })
+    }
+}
+
+pub struct OcclusionTester {
+    framebuffer: FrameBuffer,
+    visibility_mask: Rc<RefCell<GpuTexture>>,
+    instance_matrices_buffer: MatrixStorage,
+    tile_buffer: Rc<RefCell<GpuTexture>>,
+    frame_size: Vector2<usize>,
+    cube: GeometryBuffer,
+    shader: Shader,
+    tile_size: usize,
+    w_tiles: usize,
+    h_tiles: usize,
+}
+
+#[derive(Default, Pod, Zeroable, Copy, Clone)]
+#[repr(C)]
+struct GpuTile {
+    objects: [u32; 32],
+}
+
+#[derive(Clone)]
+struct Object {
+    index: u32,
+    depth: f32,
+}
+
+#[derive(Default, Clone)]
+struct Tile {
+    objects: Vec<Object>,
+}
+
+const MAX_BITS: usize = u32::BITS as usize;
+
+impl OcclusionTester {
+    pub fn new(
+        state: &PipelineState,
+        width: usize,
+        height: usize,
+        tile_size: usize,
+    ) -> Result<Self, FrameworkError> {
+        let mut depth_stencil_texture = GpuTexture::new(
+            state,
+            GpuTextureKind::Rectangle { width, height },
+            PixelKind::D24S8,
+            MinificationFilter::Nearest,
+            MagnificationFilter::Nearest,
+            1,
+            None,
+        )?;
+        depth_stencil_texture
+            .bind_mut(state, 0)
+            .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
+            .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
+
+        let visibility_mask = GpuTexture::new(
+            state,
+            GpuTextureKind::Rectangle { width, height },
+            PixelKind::R32F,
+            MinificationFilter::Nearest,
+            MagnificationFilter::Nearest,
+            1,
+            None,
+        )?;
+
+        let w_tiles = width / tile_size + 1;
+        let h_tiles = height / tile_size + 1;
+        let tile_buffer = GpuTexture::new(
+            state,
+            GpuTextureKind::Rectangle {
+                width: w_tiles * MAX_BITS,
+                height: h_tiles,
+            },
+            PixelKind::R32UI,
+            MinificationFilter::Nearest,
+            MagnificationFilter::Nearest,
+            1,
+            None,
+        )?;
+
+        let depth_stencil = Rc::new(RefCell::new(depth_stencil_texture));
+        let visibility_mask = Rc::new(RefCell::new(visibility_mask));
+        let tile_buffer = Rc::new(RefCell::new(tile_buffer));
+
+        Ok(Self {
+            framebuffer: FrameBuffer::new(
+                state,
+                Some(Attachment {
+                    kind: AttachmentKind::DepthStencil,
+                    texture: depth_stencil,
+                }),
+                vec![Attachment {
+                    kind: AttachmentKind::Color,
+                    texture: visibility_mask.clone(),
+                }],
+            )?,
+            visibility_mask,
+            frame_size: Vector2::new(width, height),
+            cube: GeometryBuffer::from_surface_data(
+                &SurfaceData::make_cube(Matrix4::identity()),
+                GeometryBufferKind::StaticDraw,
+                state,
+            )?,
+            instance_matrices_buffer: MatrixStorage::new(state)?,
+            shader: Shader::new(state)?,
+            tile_size,
+            w_tiles,
+            tile_buffer,
+            h_tiles,
+        })
+    }
+
+    fn read_visibility_mask(&self, state: &PipelineState) -> Vec<f32> {
+        // TODO: Replace with double buffering to prevent GPU stalls.
+        self.visibility_mask
+            .borrow_mut()
+            .bind_mut(state, 0)
+            .read_pixels_of_type(state)
+    }
+
+    fn visibility_map(
+        &self,
+        state: &PipelineState,
+        objects: &[Handle<Node>],
+        tiles: &[Tile],
+    ) -> FxHashMap<Handle<Node>, bool> {
+        // TODO: This must be done using compute shader, but it is not available on WebGL2 so this
+        // code should still be used on WASM targets.
+        let visibility_buffer = self.read_visibility_mask(state);
+        let mut visibility_map = FxHashMap::default();
+        for (index, pixel) in visibility_buffer.into_iter().enumerate() {
+            let x = index % self.frame_size.x;
+            let y = index / self.frame_size.y;
+            let tx = x / self.tile_size;
+            let ty = y / self.tile_size;
+            let bits = pixel as u32;
+            if let Some(tile) = tiles.get(ty * self.w_tiles + tx) {
+                'bit_loop: for bit in 0..u32::BITS {
+                    if let Some(object) = tile.objects.get(bit as usize) {
+                        let is_visible = (bits & bit) != 0;
+                        let visibility = visibility_map
+                            .entry(objects[object.index as usize])
+                            .or_insert(is_visible);
+                        if is_visible {
+                            *visibility = true;
+                        }
+                    } else {
+                        break 'bit_loop;
+                    }
+                }
+            }
+        }
+        visibility_map
+    }
+
+    fn screen_space_to_tile_space(
+        &self,
+        pos: Vector2<f32>,
+        viewport: &Rect<i32>,
+    ) -> Vector2<usize> {
+        let x = (pos.x.clamp(
+            viewport.position.x as f32,
+            (viewport.position.x + viewport.size.x) as f32,
+        ) / (self.tile_size as f32)) as usize;
+        let y = (pos.y.clamp(
+            viewport.position.y as f32,
+            (viewport.position.y + viewport.size.y) as f32,
+        ) / (self.tile_size as f32)) as usize;
+        Vector2::new(x, y)
+    }
+
+    fn prepare_tiles(
+        &self,
+        state: &PipelineState,
+        graph: &Graph,
+        observer_position: Vector3<f32>,
+        view_projection: &Matrix4<f32>,
+        viewport: Rect<i32>,
+        objects: &[Handle<Node>],
+    ) -> Result<Vec<Tile>, FrameworkError> {
+        let mut tiles = vec![Tile::default(); self.w_tiles * self.h_tiles];
+
+        for (object_index, object) in objects.iter().enumerate() {
+            let aabb = graph[*object].world_bounding_box();
+            let mut rect_builder = OptionRect::default();
+            for corner in aabb.corners() {
+                let ndc_space = view_projection.transform_point(&corner.into());
+                let screen_space_corner = Vector2::new(
+                    (ndc_space.x + 1.0) * (viewport.size.x as f32) / 2.0
+                        + viewport.position.x as f32,
+                    (ndc_space.y + 1.0) * (viewport.size.y as f32) / 2.0
+                        + viewport.position.y as f32,
+                );
+                rect_builder.push(screen_space_corner);
+            }
+            let rect = rect_builder.unwrap();
+
+            let average_depth = observer_position.metric_distance(&aabb.center());
+            let min = self.screen_space_to_tile_space(rect.left_top_corner(), &viewport);
+            let max = self.screen_space_to_tile_space(rect.right_bottom_corner(), &viewport);
+            let size = (max - min).sup(&Vector2::repeat(1));
+            for y in min.y..(min.y + size.y) {
+                for x in min.x..(min.x + size.x) {
+                    let tile = &mut tiles[y * self.w_tiles + x];
+                    tile.objects.push(Object {
+                        index: object_index as u32,
+                        depth: average_depth,
+                    });
+                }
+            }
+        }
+
+        let mut gpu_tiles = Vec::with_capacity(tiles.len());
+        for tile in tiles.iter_mut() {
+            tile.objects
+                .sort_by(|a, b| a.depth.partial_cmp(&b.depth).unwrap_or(Ordering::Less));
+
+            let mut gpu_tile = GpuTile {
+                objects: tile
+                    .objects
+                    .iter()
+                    .map(|obj| obj.index)
+                    .chain([u32::MAX; MAX_BITS])
+                    .take(MAX_BITS)
+                    .collect::<ArrayVec<u32, MAX_BITS>>()
+                    .into_inner()
+                    .unwrap(),
+            };
+
+            gpu_tile.objects.sort();
+
+            gpu_tiles.push(gpu_tile);
+        }
+
+        self.tile_buffer.borrow_mut().bind_mut(state, 0).set_data(
+            GpuTextureKind::Rectangle {
+                width: self.w_tiles * MAX_BITS,
+                height: self.h_tiles,
+            },
+            PixelKind::R32UI,
+            1,
+            Some(array_as_u8_slice(&gpu_tiles)),
+        )?;
+
+        Ok(tiles)
+    }
+
+    pub fn check(
+        &mut self,
+        observer_position: Vector3<f32>,
+        view_projection: &Matrix4<f32>,
+        state: &PipelineState,
+        prev_framebuffer: &FrameBuffer,
+        graph: &Graph,
+        objects: &[Handle<Node>],
+    ) -> Result<FxHashMap<Handle<Node>, bool>, FrameworkError> {
+        let w = self.frame_size.x as i32;
+        let h = self.frame_size.y as i32;
+        let viewport = Rect::new(0, 0, w, h);
+
+        self.framebuffer.clear(
+            state,
+            viewport,
+            Some(Color::TRANSPARENT),
+            Some(1.0),
+            Some(0),
+        );
+
+        state.blit_framebuffer(
+            prev_framebuffer.id(),
+            self.framebuffer.id(),
+            0,
+            0,
+            w,
+            h,
+            0,
+            0,
+            w,
+            h,
+            false,
+            true,
+            false,
+        );
+
+        let tiles = self.prepare_tiles(
+            state,
+            graph,
+            observer_position,
+            view_projection,
+            viewport,
+            objects,
+        )?;
+
+        self.instance_matrices_buffer.upload(
+            state,
+            objects.iter().map(|h| {
+                let mut aabb = graph[*h].world_bounding_box();
+                aabb.inflate(Vector3::repeat(0.01));
+                let s = aabb.max - aabb.min;
+                Matrix4::new_translation(&aabb.center()) * Matrix4::new_nonuniform_scaling(&s)
+            }),
+            0,
+        )?;
+
+        let shader = &self.shader;
+        self.framebuffer.draw_instances(
+            objects.len(),
+            &self.cube,
+            state,
+            viewport,
+            &self.shader.program,
+            &DrawParameters {
+                cull_face: None,
+                color_write: ColorMask::all(true),
+                depth_write: false,
+                stencil_test: None,
+                depth_test: true,
+                blend: Some(BlendParameters {
+                    func: BlendFunc::new(BlendFactor::One, BlendFactor::One),
+                    equation: BlendEquation {
+                        rgb: BlendMode::Add,
+                        alpha: BlendMode::Add,
+                    },
+                }),
+                stencil_op: Default::default(),
+            },
+            |mut program_binding| {
+                program_binding
+                    .set_texture(&shader.tile_buffer, &self.tile_buffer)
+                    .set_texture(
+                        &shader.instance_matrices,
+                        self.instance_matrices_buffer.texture(),
+                    )
+                    .set_i32(&shader.tile_size, self.tile_size as i32)
+                    .set_f32(&shader.frame_buffer_height, self.frame_size.y as f32)
+                    .set_matrix4(&shader.view_projection, view_projection);
+            },
+        );
+
+        Ok(self.visibility_map(state, objects, &tiles))
+    }
+}
+
+#[cfg(test)]
+mod tests {}

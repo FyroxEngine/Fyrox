@@ -29,6 +29,7 @@
 //! Every alpha channel is used for layer blending for terrains. This is inefficient, but for
 //! now I don't know better solution.
 
+use crate::renderer::visibility::OcclusionTester;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2},
@@ -65,6 +66,7 @@ use crate::{
         mesh::{surface::SurfaceData, RenderPath},
     },
 };
+use fxhash::FxHashSet;
 use fyrox_core::math::Matrix4Ext;
 use std::{cell::RefCell, rc::Rc};
 
@@ -78,6 +80,7 @@ pub struct GBuffer {
     cube: GeometryBuffer,
     decal_shader: DecalShader,
     render_pass_name: ImmutableString,
+    occlusion_tester: OcclusionTester,
 }
 
 pub(crate) struct GBufferRenderContext<'a, 'b> {
@@ -247,6 +250,7 @@ impl GBuffer {
             )?,
             decal_framebuffer,
             render_pass_name: ImmutableString::new("GBuffer"),
+            occlusion_tester: OcclusionTester::new(state, width, height, 512)?,
         })
     }
 
@@ -303,6 +307,24 @@ impl GBuffer {
             ..
         } = args;
 
+        let initial_view_projection = camera.view_projection_matrix();
+
+        let mut objects = FxHashSet::default();
+        for bundle in bundle_storage.bundles.iter() {
+            for instance in bundle.instances.iter() {
+                objects.insert(instance.node_handle);
+            }
+        }
+        let objects = objects.into_iter().collect::<Vec<_>>();
+        let visibility = self.occlusion_tester.check(
+            camera.global_position(),
+            &initial_view_projection,
+            state,
+            &self.framebuffer,
+            graph,
+            &objects,
+        )?;
+
         let viewport = Rect::new(0, 0, self.width, self.height);
         self.framebuffer.clear(
             state,
@@ -311,8 +333,6 @@ impl GBuffer {
             Some(1.0),
             Some(0),
         );
-
-        let initial_view_projection = camera.view_projection_matrix();
 
         let inv_view = camera.inv_view_matrix().unwrap();
 
@@ -349,6 +369,10 @@ impl GBuffer {
             };
 
             for instance in bundle.instances.iter() {
+                if !visibility.get(&instance.node_handle).map_or(true, |v| *v) {
+                    continue;
+                }
+
                 let apply_uniforms = |mut program_binding: GpuProgramBinding| {
                     let view_projection = if instance.depth_offset != 0.0 {
                         let mut projection = camera.projection_matrix();
