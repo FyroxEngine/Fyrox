@@ -1060,6 +1060,51 @@ impl<'a> TextureBinding<'a> {
         std::mem::forget(bytes);
         typed
     }
+
+    pub fn get_image<T: Pod>(&self, level: usize, state: &PipelineState) -> Vec<T> {
+        unsafe {
+            let desc = self.texture.pixel_kind.pixel_descriptor();
+            let (kind, buffer_size) = match self.texture.kind {
+                GpuTextureKind::Line { length } => (
+                    glow::TEXTURE_1D,
+                    image_1d_size_bytes(self.texture.pixel_kind, length),
+                ),
+                GpuTextureKind::Rectangle { width, height } => (
+                    glow::TEXTURE_2D,
+                    image_2d_size_bytes(self.texture.pixel_kind, width, height),
+                ),
+                GpuTextureKind::Cube { width, height } => (
+                    glow::TEXTURE_CUBE_MAP,
+                    6 * image_2d_size_bytes(self.texture.pixel_kind, width, height),
+                ),
+                GpuTextureKind::Volume {
+                    width,
+                    height,
+                    depth,
+                } => (
+                    glow::TEXTURE_3D,
+                    image_3d_size_bytes(self.texture.pixel_kind, width, height, depth),
+                ),
+            };
+
+            let mut bytes = vec![0; buffer_size];
+            state.gl.get_tex_image(
+                kind,
+                level as i32,
+                desc.format,
+                desc.data_type,
+                PixelPackData::Slice(bytes.as_mut_slice()),
+            );
+            let typed = Vec::<T>::from_raw_parts(
+                bytes.as_mut_ptr() as *mut T,
+                bytes.len() / size_of::<T>(),
+                bytes.capacity() / size_of::<T>(),
+            );
+
+            std::mem::forget(bytes);
+            typed
+        }
+    }
 }
 
 const GL_COMPRESSED_RGB_S3TC_DXT1_EXT: u32 = 0x83F0;
