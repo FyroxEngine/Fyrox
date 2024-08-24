@@ -24,10 +24,11 @@
 
 use crate::{
     core::{
-        algebra::{Matrix4, Vector2, Vector3},
+        algebra::{Matrix4, Vector2, Vector3, Vector4},
         array_as_u8_slice,
         arrayvec::ArrayVec,
-        math::{OptionRect, Rect},
+        color::Color,
+        math::{aabb::AxisAlignedBoundingBox, OptionRect, Rect},
         pool::Handle,
         ImmutableString,
     },
@@ -53,9 +54,7 @@ use crate::{
 };
 use bytemuck::{Pod, Zeroable};
 use fxhash::FxHashMap;
-use fyrox_core::color::Color;
-use std::cmp::Ordering;
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, cmp::Ordering, rc::Rc};
 
 #[derive(Debug)]
 struct PendingQuery {
@@ -355,24 +354,46 @@ pub struct OcclusionTester {
     h_tiles: usize,
 }
 
-#[derive(Default, Pod, Zeroable, Copy, Clone)]
+#[derive(Default, Pod, Zeroable, Copy, Clone, Debug)]
 #[repr(C)]
 struct GpuTile {
     objects: [u32; 32],
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct Object {
     index: u32,
     depth: f32,
 }
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug)]
 struct Tile {
     objects: Vec<Object>,
 }
 
 const MAX_BITS: usize = u32::BITS as usize;
+
+fn screen_space_rect(
+    aabb: AxisAlignedBoundingBox,
+    view_projection: &Matrix4<f32>,
+    viewport: &Rect<i32>,
+) -> Rect<f32> {
+    let mut rect_builder = OptionRect::default();
+    for corner in aabb.corners() {
+        let clip_space = view_projection * Vector4::new(corner.x, corner.y, corner.z, 1.0);
+        let ndc_space = if clip_space.w != 0.0 {
+            clip_space.xyz() / clip_space.w
+        } else {
+            clip_space.xyz()
+        };
+        let screen_space_corner = Vector2::new(
+            ((ndc_space.x + 1.0) / 2.0) * (viewport.size.x as f32) + viewport.position.x as f32,
+            ((1.0 - ndc_space.y) / 2.0) * (viewport.size.y as f32) + viewport.position.y as f32,
+        );
+        rect_builder.push(screen_space_corner);
+    }
+    rect_builder.unwrap()
+}
 
 impl OcclusionTester {
     pub fn new(
@@ -452,14 +473,18 @@ impl OcclusionTester {
         })
     }
 
+    #[inline(never)]
     fn read_visibility_mask(&self, state: &PipelineState) -> Vec<f32> {
         // TODO: Replace with double buffering to prevent GPU stalls.
+        state.finish();
+
         self.visibility_mask
             .borrow_mut()
             .bind_mut(state, 0)
-            .read_pixels_of_type(state)
+            .get_image(0, state)
     }
 
+    #[inline(never)]
     fn visibility_map(
         &self,
         state: &PipelineState,
@@ -469,20 +494,19 @@ impl OcclusionTester {
         // TODO: This must be done using compute shader, but it is not available on WebGL2 so this
         // code should still be used on WASM targets.
         let visibility_buffer = self.read_visibility_mask(state);
-        let mut visibility_map = FxHashMap::default();
-        for (index, pixel) in visibility_buffer.into_iter().enumerate() {
-            let x = index % self.frame_size.x;
-            let y = index / self.frame_size.y;
-            let tx = x / self.tile_size;
+        let mut objects_visibility = vec![false; objects.len()];
+        for y in 0..self.frame_size.y {
             let ty = y / self.tile_size;
-            let bits = pixel as u32;
-            if let Some(tile) = tiles.get(ty * self.w_tiles + tx) {
+            let offset = y * self.frame_size.x;
+            let tile_offset = ty * self.w_tiles;
+            for x in 0..self.frame_size.x {
+                let tx = x / self.tile_size;
+                let bits = visibility_buffer[offset + x] as u32;
+                let tile = &tiles[tile_offset + tx];
                 'bit_loop: for bit in 0..u32::BITS {
                     if let Some(object) = tile.objects.get(bit as usize) {
+                        let visibility = &mut objects_visibility[object.index as usize];
                         let is_visible = (bits & bit) != 0;
-                        let visibility = visibility_map
-                            .entry(objects[object.index as usize])
-                            .or_insert(is_visible);
                         if is_visible {
                             *visibility = true;
                         }
@@ -492,6 +516,11 @@ impl OcclusionTester {
                 }
             }
         }
+        let visibility_map = objects
+            .iter()
+            .cloned()
+            .zip(objects_visibility.iter().cloned())
+            .collect::<FxHashMap<Handle<Node>, bool>>();
         visibility_map
     }
 
@@ -517,29 +546,26 @@ impl OcclusionTester {
         graph: &Graph,
         observer_position: Vector3<f32>,
         view_projection: &Matrix4<f32>,
-        viewport: Rect<i32>,
+        viewport: &Rect<i32>,
         objects: &[Handle<Node>],
     ) -> Result<Vec<Tile>, FrameworkError> {
         let mut tiles = vec![Tile::default(); self.w_tiles * self.h_tiles];
 
         for (object_index, object) in objects.iter().enumerate() {
-            let aabb = graph[*object].world_bounding_box();
-            let mut rect_builder = OptionRect::default();
-            for corner in aabb.corners() {
-                let ndc_space = view_projection.transform_point(&corner.into());
-                let screen_space_corner = Vector2::new(
-                    (ndc_space.x + 1.0) * (viewport.size.x as f32) / 2.0
-                        + viewport.position.x as f32,
-                    (ndc_space.y + 1.0) * (viewport.size.y as f32) / 2.0
-                        + viewport.position.y as f32,
-                );
-                rect_builder.push(screen_space_corner);
-            }
-            let rect = rect_builder.unwrap();
+            let node_ref = &graph[*object];
+            let world_bounding_box = node_ref.world_bounding_box();
+            let aabb = if world_bounding_box.is_valid() {
+                world_bounding_box
+            } else {
+                node_ref
+                    .local_bounding_box()
+                    .transform(&node_ref.global_transform())
+            };
+            let rect = screen_space_rect(aabb, view_projection, viewport);
 
             let average_depth = observer_position.metric_distance(&aabb.center());
-            let min = self.screen_space_to_tile_space(rect.left_top_corner(), &viewport);
-            let max = self.screen_space_to_tile_space(rect.right_bottom_corner(), &viewport);
+            let min = self.screen_space_to_tile_space(rect.left_top_corner(), viewport);
+            let max = self.screen_space_to_tile_space(rect.right_bottom_corner(), viewport);
             let size = (max - min).sup(&Vector2::repeat(1));
             for y in min.y..(min.y + size.y) {
                 for x in min.x..(min.x + size.x) {
@@ -629,15 +655,14 @@ impl OcclusionTester {
             graph,
             observer_position,
             view_projection,
-            viewport,
+            &viewport,
             objects,
         )?;
 
         self.instance_matrices_buffer.upload(
             state,
             objects.iter().map(|h| {
-                let mut aabb = graph[*h].world_bounding_box();
-                aabb.inflate(Vector3::repeat(0.01));
+                let aabb = graph[*h].world_bounding_box();
                 let s = aabb.max - aabb.min;
                 Matrix4::new_translation(&aabb.center()) * Matrix4::new_nonuniform_scaling(&s)
             }),
@@ -682,6 +707,3 @@ impl OcclusionTester {
         Ok(self.visibility_map(state, objects, &tiles))
     }
 }
-
-#[cfg(test)]
-mod tests {}

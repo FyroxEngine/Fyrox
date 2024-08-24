@@ -1,5 +1,5 @@
 uniform int tileSize;
-uniform sampler2D tileBuffer;
+uniform usampler2D tileBuffer;
 uniform float frameBufferHeight;
 
 out vec4 FragColor;
@@ -12,20 +12,18 @@ void main()
     int y = int(frameBufferHeight - gl_FragCoord.y) / tileSize;
 
     // TODO: Replace with binary search.
-    // TODO: Handle empty pixels.
     int bitIndex = -1;
     for (int i = 0; i < 32; ++i) {
-        int objectIndex = int(texelFetch(tileBuffer, ivec2(x + i, y), 0).x);
-        if (objectIndex == instanceId) {
+        uint objectIndex = uint(texelFetch(tileBuffer, ivec2(x * tileSize + i, y), 0).x);
+        if (objectIndex == uint(instanceId)) {
             bitIndex = i;
             break;
         }
     }
 
     if (bitIndex < 0) {
-        discard;
+        FragColor = vec4(0.0, 0.0, 0.0, 0.0);
+    } else {
+        FragColor = vec4(float(1 << bitIndex), 0.0, 0.0, 0.0);
     }
-
-    float value = float(1 << bitIndex);
-    FragColor = vec4(value, 0, 0, 0);
 }
