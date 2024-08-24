@@ -929,6 +929,18 @@ impl PipelineState {
         }
     }
 
+    pub fn flush(&self) {
+        unsafe {
+            self.gl.flush();
+        }
+    }
+
+    pub fn finish(&self) {
+        unsafe {
+            self.gl.finish();
+        }
+    }
+
     pub fn blit_framebuffer(
         &self,
         source: Option<Framebuffer>,
