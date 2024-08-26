@@ -1669,6 +1669,7 @@ impl Renderer {
                     graph,
                     matrix_storage: &mut self.matrix_storage,
                     screen_space_debug_renderer: &mut self.screen_space_debug_renderer,
+                    unit_quad: &self.quad,
                 })?;
 
             state.set_polygon_fill_mode(PolygonFace::FrontAndBack, PolygonFillMode::Fill);

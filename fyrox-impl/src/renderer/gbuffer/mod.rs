@@ -100,6 +100,7 @@ pub(crate) struct GBufferRenderContext<'a, 'b> {
     pub matrix_storage: &'a mut MatrixStorageCache,
     #[allow(dead_code)]
     pub screen_space_debug_renderer: &'a mut DebugRenderer,
+    pub unit_quad: &'a GeometryBuffer,
 }
 
 impl GBuffer {
@@ -305,6 +306,7 @@ impl GBuffer {
             volume_dummy,
             graph,
             matrix_storage,
+            unit_quad,
             ..
         } = args;
 
@@ -325,6 +327,7 @@ impl GBuffer {
             graph,
             &objects,
             None,
+            unit_quad,
         )?;
 
         let viewport = Rect::new(0, 0, self.width, self.height);
