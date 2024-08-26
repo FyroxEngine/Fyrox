@@ -29,6 +29,7 @@
 //! Every alpha channel is used for layer blending for terrains. This is inefficient, but for
 //! now I don't know better solution.
 
+use crate::renderer::debug_renderer::DebugRenderer;
 use crate::renderer::visibility::OcclusionTester;
 use crate::{
     core::{
@@ -90,8 +91,6 @@ pub(crate) struct GBufferRenderContext<'a, 'b> {
     pub bundle_storage: &'a RenderDataBundleStorage,
     pub texture_cache: &'a mut TextureCache,
     pub shader_cache: &'a mut ShaderCache,
-    #[allow(dead_code)]
-    pub environment_dummy: Rc<RefCell<GpuTexture>>,
     pub white_dummy: Rc<RefCell<GpuTexture>>,
     pub normal_dummy: Rc<RefCell<GpuTexture>>,
     pub black_dummy: Rc<RefCell<GpuTexture>>,
@@ -99,6 +98,8 @@ pub(crate) struct GBufferRenderContext<'a, 'b> {
     pub use_parallax_mapping: bool,
     pub graph: &'b Graph,
     pub matrix_storage: &'a mut MatrixStorageCache,
+    #[allow(dead_code)]
+    pub screen_space_debug_renderer: &'a mut DebugRenderer,
 }
 
 impl GBuffer {
@@ -250,7 +251,7 @@ impl GBuffer {
             )?,
             decal_framebuffer,
             render_pass_name: ImmutableString::new("GBuffer"),
-            occlusion_tester: OcclusionTester::new(state, width, height, 32)?,
+            occlusion_tester: OcclusionTester::new(state, width, height, 64)?,
         })
     }
 
@@ -323,6 +324,7 @@ impl GBuffer {
             &self.framebuffer,
             graph,
             &objects,
+            None,
         )?;
 
         let viewport = Rect::new(0, 0, self.width, self.height);

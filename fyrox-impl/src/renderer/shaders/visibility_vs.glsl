@@ -1,12 +1,11 @@
-layout (location = 0) in vec3 vertexPosition;
+layout (location = 0) in vec4 vertexPosition;
 
 uniform mat4 viewProjection;
-uniform sampler2D instanceMatrices;
 
-flat out int instanceId;
+flat out uint objectIndex;
 
 void main()
 {
-    instanceId = gl_InstanceID;
-    gl_Position = (viewProjection * S_FetchMatrix(instanceMatrices, gl_InstanceID)) * vec4(vertexPosition, 1.0);
+    objectIndex = uint(vertexPosition.w);
+    gl_Position = viewProjection * vec4(vertexPosition.xyz, 1.0);
 }

@@ -4,18 +4,18 @@ uniform float frameBufferHeight;
 
 out vec4 FragColor;
 
-flat in int instanceId;
+flat in uint objectIndex;
 
 void main()
 {
-    int x = int(gl_FragCoord.x) / tileSize;
-    int y = int(frameBufferHeight - gl_FragCoord.y) / tileSize;
+    int x = int(gl_FragCoord.x - 0.5) / tileSize;
+    int y = int(frameBufferHeight - gl_FragCoord.y - 0.5) / tileSize;
 
     // TODO: Replace with binary search.
     int bitIndex = -1;
     for (int i = 0; i < 32; ++i) {
-        uint objectIndex = uint(texelFetch(tileBuffer, ivec2(x * tileSize + i, y), 0).x);
-        if (objectIndex == uint(instanceId)) {
+        uint pixelObjectIndex = uint(texelFetch(tileBuffer, ivec2(x * 32 + i, y), 0).x);
+        if (pixelObjectIndex == objectIndex) {
             bitIndex = i;
             break;
         }

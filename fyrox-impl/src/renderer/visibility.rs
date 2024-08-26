@@ -28,29 +28,35 @@ use crate::{
         array_as_u8_slice,
         arrayvec::ArrayVec,
         color::Color,
-        math::{aabb::AxisAlignedBoundingBox, OptionRect, Rect},
+        math::{aabb::AxisAlignedBoundingBox, OptionRect, Rect, TriangleDefinition},
         pool::Handle,
         ImmutableString,
     },
     graph::BaseSceneGraph,
     renderer::{
+        debug_renderer::{self, DebugRenderer},
         framework::{
             error::FrameworkError,
             framebuffer::{
-                Attachment, AttachmentKind, BlendParameters, DrawParameters, FrameBuffer,
+                Attachment, AttachmentKind, BlendParameters, CullFace, DrawParameters, FrameBuffer,
             },
-            geometry_buffer::{GeometryBuffer, GeometryBufferKind},
+            geometry_buffer::{
+                AttributeDefinition, AttributeKind, BufferBuilder, ElementKind, ElementRange,
+                GeometryBuffer, GeometryBufferBuilder, GeometryBufferKind,
+            },
             gpu_program::{GpuProgram, UniformLocation},
             gpu_texture::{
                 Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
                 PixelKind, WrapMode,
             },
             query::{Query, QueryKind, QueryResult},
-            state::{BlendEquation, BlendFactor, BlendFunc, BlendMode, ColorMask, PipelineState},
+            state::{
+                BlendEquation, BlendFactor, BlendFunc, BlendMode, ColorMask, CompareFunc,
+                PipelineState,
+            },
         },
-        storage::MatrixStorage,
     },
-    scene::{graph::Graph, mesh::surface::SurfaceData, node::Node},
+    scene::{graph::Graph, node::Node},
 };
 use bytemuck::{Pod, Zeroable};
 use fxhash::FxHashMap;
@@ -317,7 +323,6 @@ struct Shader {
     view_projection: UniformLocation,
     tile_size: UniformLocation,
     tile_buffer: UniformLocation,
-    instance_matrices: UniformLocation,
     frame_buffer_height: UniformLocation,
 }
 
@@ -334,8 +339,6 @@ impl Shader {
             frame_buffer_height: program
                 .uniform_location(state, &ImmutableString::new("frameBufferHeight"))?,
             tile_buffer: program.uniform_location(state, &ImmutableString::new("tileBuffer"))?,
-            instance_matrices: program
-                .uniform_location(state, &ImmutableString::new("instanceMatrices"))?,
             program,
         })
     }
@@ -344,14 +347,13 @@ impl Shader {
 pub struct OcclusionTester {
     framebuffer: FrameBuffer,
     visibility_mask: Rc<RefCell<GpuTexture>>,
-    instance_matrices_buffer: MatrixStorage,
     tile_buffer: Rc<RefCell<GpuTexture>>,
     frame_size: Vector2<usize>,
-    cube: GeometryBuffer,
     shader: Shader,
     tile_size: usize,
     w_tiles: usize,
     h_tiles: usize,
+    cubes: GeometryBuffer,
 }
 
 #[derive(Default, Pod, Zeroable, Copy, Clone, Debug)]
@@ -366,9 +368,10 @@ struct Object {
     depth: f32,
 }
 
-#[derive(Default, Clone, Debug)]
+#[derive(Clone, Debug)]
 struct Tile {
     objects: Vec<Object>,
+    bounds: Rect<f32>,
 }
 
 const MAX_BITS: usize = u32::BITS as usize;
@@ -393,6 +396,20 @@ fn screen_space_rect(
         rect_builder.push(screen_space_corner);
     }
     rect_builder.unwrap()
+}
+
+#[derive(Copy, Clone, Debug, Default, Pod, Zeroable)]
+#[repr(C)]
+struct Vertex {
+    pub position: Vector4<f32>,
+}
+
+impl Vertex {
+    fn new(x: f32, y: f32, z: f32, w: f32) -> Self {
+        Self {
+            position: Vector4::new(x, y, z, w),
+        }
+    }
 }
 
 impl OcclusionTester {
@@ -445,6 +462,19 @@ impl OcclusionTester {
         let visibility_mask = Rc::new(RefCell::new(visibility_mask));
         let tile_buffer = Rc::new(RefCell::new(tile_buffer));
 
+        let cubes = GeometryBufferBuilder::new(ElementKind::Triangle)
+            .with_buffer_builder(
+                BufferBuilder::new::<Vertex>(GeometryBufferKind::DynamicDraw, None).with_attribute(
+                    AttributeDefinition {
+                        location: 0,
+                        kind: AttributeKind::Float4,
+                        normalized: false,
+                        divisor: 0,
+                    },
+                ),
+            )
+            .build(state)?;
+
         Ok(Self {
             framebuffer: FrameBuffer::new(
                 state,
@@ -459,17 +489,12 @@ impl OcclusionTester {
             )?,
             visibility_mask,
             frame_size: Vector2::new(width, height),
-            cube: GeometryBuffer::from_surface_data(
-                &SurfaceData::make_cube(Matrix4::identity()),
-                GeometryBufferKind::StaticDraw,
-                state,
-            )?,
-            instance_matrices_buffer: MatrixStorage::new(state)?,
             shader: Shader::new(state)?,
             tile_size,
             w_tiles,
             tile_buffer,
             h_tiles,
+            cubes,
         })
     }
 
@@ -487,26 +512,30 @@ impl OcclusionTester {
     #[inline(never)]
     fn visibility_map(
         &self,
+        observer_position: Vector3<f32>,
         state: &PipelineState,
         objects: &[Handle<Node>],
         tiles: &[Tile],
+        graph: &Graph,
     ) -> FxHashMap<Handle<Node>, bool> {
         // TODO: This must be done using compute shader, but it is not available on WebGL2 so this
         // code should still be used on WASM targets.
         let visibility_buffer = self.read_visibility_mask(state);
         let mut objects_visibility = vec![false; objects.len()];
         for y in 0..self.frame_size.y {
-            let ty = y / self.tile_size;
-            let offset = y * self.frame_size.x;
-            let tile_offset = ty * self.w_tiles;
+            let img_y = self.frame_size.y.saturating_sub(1) - y;
+            let tile_y = y / self.tile_size;
+            let row_start_index = img_y * self.frame_size.x;
+            let tile_row_start_index = tile_y * self.w_tiles;
             for x in 0..self.frame_size.x {
-                let tx = x / self.tile_size;
-                let bits = visibility_buffer[offset + x] as u32;
-                let tile = &tiles[tile_offset + tx];
+                let tile_x = x / self.tile_size;
+                let bits = visibility_buffer[row_start_index + x] as u32;
+                let tile = &tiles[tile_row_start_index + tile_x];
                 'bit_loop: for bit in 0..u32::BITS {
                     if let Some(object) = tile.objects.get(bit as usize) {
                         let visibility = &mut objects_visibility[object.index as usize];
-                        let is_visible = (bits & bit) != 0;
+                        let mask = 1 << bit;
+                        let is_visible = (bits & mask) == mask;
                         if is_visible {
                             *visibility = true;
                         }
@@ -516,11 +545,23 @@ impl OcclusionTester {
                 }
             }
         }
-        let visibility_map = objects
+
+        let mut visibility_map = objects
             .iter()
             .cloned()
             .zip(objects_visibility.iter().cloned())
             .collect::<FxHashMap<Handle<Node>, bool>>();
+
+        for (object, visibility) in visibility_map.iter_mut() {
+            let object_ref = &graph[*object];
+            if object_ref
+                .world_bounding_box()
+                .is_contains_point(observer_position)
+            {
+                *visibility = true;
+            }
+        }
+
         visibility_map
     }
 
@@ -548,27 +589,38 @@ impl OcclusionTester {
         view_projection: &Matrix4<f32>,
         viewport: &Rect<i32>,
         objects: &[Handle<Node>],
+        debug_renderer: Option<&mut DebugRenderer>,
     ) -> Result<Vec<Tile>, FrameworkError> {
-        let mut tiles = vec![Tile::default(); self.w_tiles * self.h_tiles];
-
+        let mut tiles = Vec::with_capacity(self.w_tiles * self.h_tiles);
+        for y in 0..self.h_tiles {
+            for x in 0..self.w_tiles {
+                tiles.push(Tile {
+                    objects: vec![],
+                    bounds: Rect::new(
+                        (x * self.tile_size) as f32,
+                        (y * self.tile_size) as f32,
+                        self.tile_size as f32,
+                        self.tile_size as f32,
+                    ),
+                })
+            }
+        }
+        let mut lines = Vec::new();
         for (object_index, object) in objects.iter().enumerate() {
             let node_ref = &graph[*object];
-            let world_bounding_box = node_ref.world_bounding_box();
-            let aabb = if world_bounding_box.is_valid() {
-                world_bounding_box
-            } else {
-                node_ref
-                    .local_bounding_box()
-                    .transform(&node_ref.global_transform())
-            };
+            let aabb = node_ref.world_bounding_box();
             let rect = screen_space_rect(aabb, view_projection, viewport);
+
+            if debug_renderer.is_some() {
+                debug_renderer::draw_rect(&rect, &mut lines, Color::WHITE);
+            }
 
             let average_depth = observer_position.metric_distance(&aabb.center());
             let min = self.screen_space_to_tile_space(rect.left_top_corner(), viewport);
             let max = self.screen_space_to_tile_space(rect.right_bottom_corner(), viewport);
-            let size = (max - min).sup(&Vector2::repeat(1));
-            for y in min.y..(min.y + size.y) {
-                for x in min.x..(min.x + size.x) {
+            let size = max - min;
+            for y in min.y..=(min.y + size.y) {
+                for x in min.x..=(min.x + size.x) {
                     let tile = &mut tiles[y * self.w_tiles + x];
                     tile.objects.push(Object {
                         index: object_index as u32,
@@ -578,12 +630,24 @@ impl OcclusionTester {
             }
         }
 
+        if let Some(debug_renderer) = debug_renderer {
+            for tile in tiles.iter() {
+                debug_renderer::draw_rect(
+                    &tile.bounds,
+                    &mut lines,
+                    Color::COLORS[tile.objects.len() + 2],
+                );
+            }
+
+            debug_renderer.set_lines(state, &lines);
+        }
+
         let mut gpu_tiles = Vec::with_capacity(tiles.len());
         for tile in tiles.iter_mut() {
             tile.objects
                 .sort_by(|a, b| a.depth.partial_cmp(&b.depth).unwrap_or(Ordering::Less));
 
-            let mut gpu_tile = GpuTile {
+            gpu_tiles.push(GpuTile {
                 objects: tile
                     .objects
                     .iter()
@@ -593,11 +657,7 @@ impl OcclusionTester {
                     .collect::<ArrayVec<u32, MAX_BITS>>()
                     .into_inner()
                     .unwrap(),
-            };
-
-            gpu_tile.objects.sort();
-
-            gpu_tiles.push(gpu_tile);
+            });
         }
 
         self.tile_buffer.borrow_mut().bind_mut(state, 0).set_data(
@@ -621,6 +681,7 @@ impl OcclusionTester {
         prev_framebuffer: &FrameBuffer,
         graph: &Graph,
         objects: &[Handle<Node>],
+        debug_renderer: Option<&mut DebugRenderer>,
     ) -> Result<FxHashMap<Handle<Node>, bool>, FrameworkError> {
         let w = self.frame_size.x as i32;
         let h = self.frame_size.y as i32;
@@ -657,27 +718,67 @@ impl OcclusionTester {
             view_projection,
             &viewport,
             objects,
+            debug_renderer,
         )?;
 
-        self.instance_matrices_buffer.upload(
-            state,
-            objects.iter().map(|h| {
-                let aabb = graph[*h].world_bounding_box();
-                let s = aabb.max - aabb.min;
-                Matrix4::new_translation(&aabb.center()) * Matrix4::new_nonuniform_scaling(&s)
-            }),
-            0,
-        )?;
+        let mut vertex_buffer = Vec::with_capacity(objects.len() * 8);
+        let mut triangles = Vec::with_capacity(objects.len() * 12);
+        for (object_index, object) in objects.iter().enumerate() {
+            let object_index = object_index as f32;
+            let mut aabb = graph[*object].world_bounding_box();
+            aabb.inflate(Vector3::repeat(0.05));
+            let s = aabb.max - aabb.min;
+            let matrix =
+                Matrix4::new_translation(&aabb.center()) * Matrix4::new_nonuniform_scaling(&s);
+            let base_index = vertex_buffer.len();
+            let vertices = [
+                Vertex::new(0.5, 0.5, 0.5, object_index),
+                Vertex::new(0.5, -0.5, 0.5, object_index),
+                Vertex::new(-0.5, -0.5, 0.5, object_index),
+                Vertex::new(-0.5, 0.5, 0.5, object_index),
+                Vertex::new(0.5, 0.5, -0.5, object_index),
+                Vertex::new(0.5, -0.5, -0.5, object_index),
+                Vertex::new(-0.5, -0.5, -0.5, object_index),
+                Vertex::new(-0.5, 0.5, -0.5, object_index),
+            ];
+            for mut vertex in vertices {
+                let xyz = matrix.transform_point(&vertex.position.xyz().into()).coords;
+                vertex.position.x = xyz.x;
+                vertex.position.y = xyz.y;
+                vertex.position.z = xyz.z;
+                vertex_buffer.push(vertex);
+            }
 
+            let local_triangles = [
+                TriangleDefinition([0, 1, 3]),
+                TriangleDefinition([1, 2, 3]),
+                TriangleDefinition([7, 5, 4]),
+                TriangleDefinition([7, 6, 5]),
+                TriangleDefinition([4, 1, 0]),
+                TriangleDefinition([1, 4, 5]),
+                TriangleDefinition([7, 3, 2]),
+                TriangleDefinition([2, 6, 7]),
+                TriangleDefinition([0, 3, 4]),
+                TriangleDefinition([7, 4, 3]),
+                TriangleDefinition([5, 2, 1]),
+                TriangleDefinition([2, 5, 6]),
+            ];
+            for triangle in local_triangles {
+                triangles.push(triangle.add(base_index as u32));
+            }
+        }
+        self.cubes.set_buffer_data(state, 0, &vertex_buffer);
+        self.cubes.bind(state).set_triangles(&triangles);
+
+        state.set_depth_func(CompareFunc::LessOrEqual);
         let shader = &self.shader;
-        self.framebuffer.draw_instances(
-            objects.len(),
-            &self.cube,
+        self.framebuffer.draw(
+            &self.cubes,
             state,
             viewport,
             &self.shader.program,
             &DrawParameters {
-                cull_face: None,
+                cull_face: Some(CullFace::Front),
                 color_write: ColorMask::all(true),
                 depth_write: false,
                 stencil_test: None,
@@ -691,19 +792,16 @@ impl OcclusionTester {
                 }),
                 stencil_op: Default::default(),
             },
+            ElementRange::Full,
             |mut program_binding| {
                 program_binding
                     .set_texture(&shader.tile_buffer, &self.tile_buffer)
-                    .set_texture(
-                        &shader.instance_matrices,
-                        self.instance_matrices_buffer.texture(),
-                    )
                     .set_i32(&shader.tile_size, self.tile_size as i32)
                     .set_f32(&shader.frame_buffer_height, self.frame_size.y as f32)
                     .set_matrix4(&shader.view_projection, view_projection);
             },
-        );
+        )?;
 
-        Ok(self.visibility_map(state, objects, &tiles))
+        Ok(self.visibility_map(observer_position, state, objects, &tiles, graph))
     }
 }
