@@ -22,14 +22,13 @@
 
 #![allow(missing_docs)] // TODO
 
-use crate::renderer::make_viewport_matrix;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2, Vector3, Vector4},
         array_as_u8_slice,
         arrayvec::ArrayVec,
         color::Color,
-        math::{aabb::AxisAlignedBoundingBox, OptionRect, Rect, TriangleDefinition},
+        math::{aabb::AxisAlignedBoundingBox, OptionRect, Rect},
         pool::Handle,
         ImmutableString,
     },
@@ -41,10 +40,7 @@ use crate::{
             framebuffer::{
                 Attachment, AttachmentKind, BlendParameters, CullFace, DrawParameters, FrameBuffer,
             },
-            geometry_buffer::{
-                AttributeDefinition, AttributeKind, BufferBuilder, ElementKind, ElementRange,
-                GeometryBuffer, GeometryBufferBuilder, GeometryBufferKind,
-            },
+            geometry_buffer::{ElementRange, GeometryBuffer, GeometryBufferKind},
             gpu_program::{GpuProgram, UniformLocation},
             gpu_texture::{
                 Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
@@ -56,8 +52,10 @@ use crate::{
                 PipelineState,
             },
         },
+        make_viewport_matrix,
+        storage::MatrixStorage,
     },
-    scene::{graph::Graph, node::Node},
+    scene::{graph::Graph, mesh::surface::SurfaceData, node::Node},
 };
 use bytemuck::{Pod, Zeroable};
 use fxhash::FxHashMap;
@@ -325,6 +323,7 @@ struct Shader {
     tile_size: UniformLocation,
     tile_buffer: UniformLocation,
     frame_buffer_height: UniformLocation,
+    matrices: UniformLocation,
 }
 
 impl Shader {
@@ -340,6 +339,7 @@ impl Shader {
             frame_buffer_height: program
                 .uniform_location(state, &ImmutableString::new("frameBufferHeight"))?,
             tile_buffer: program.uniform_location(state, &ImmutableString::new("tileBuffer"))?,
+            matrices: program.uniform_location(state, &ImmutableString::new("matrices"))?,
             program,
         })
     }
@@ -471,8 +471,9 @@ pub struct OcclusionTester {
     tile_size: usize,
     w_tiles: usize,
     h_tiles: usize,
-    cubes: GeometryBuffer,
+    cube: GeometryBuffer,
     visibility_buffer_optimizer: VisibilityBufferOptimizer,
+    matrix_storage: MatrixStorage,
 }
 
 #[derive(Default, Pod, Zeroable, Copy, Clone, Debug)]
@@ -518,18 +519,10 @@ fn screen_space_rect(
     rect_builder.unwrap()
 }
 
-#[derive(Copy, Clone, Debug, Default, Pod, Zeroable)]
-#[repr(C)]
-struct Vertex {
-    pub position: Vector4<f32>,
-}
-
-impl Vertex {
-    fn new(x: f32, y: f32, z: f32, w: f32) -> Self {
-        Self {
-            position: Vector4::new(x, y, z, w),
-        }
-    }
+fn inflated_world_aabb(graph: &Graph, object: Handle<Node>) -> AxisAlignedBoundingBox {
+    let mut aabb = graph[object].world_bounding_box();
+    aabb.inflate(Vector3::repeat(0.05));
+    aabb
 }
 
 impl OcclusionTester {
@@ -582,19 +575,6 @@ impl OcclusionTester {
         let visibility_mask = Rc::new(RefCell::new(visibility_mask));
         let tile_buffer = Rc::new(RefCell::new(tile_buffer));
 
-        let cubes = GeometryBufferBuilder::new(ElementKind::Triangle)
-            .with_buffer_builder(
-                BufferBuilder::new::<Vertex>(GeometryBufferKind::DynamicDraw, None).with_attribute(
-                    AttributeDefinition {
-                        location: 0,
-                        kind: AttributeKind::Float4,
-                        normalized: false,
-                        divisor: 0,
-                    },
-                ),
-            )
-            .build(state)?;
-
         Ok(Self {
             framebuffer: FrameBuffer::new(
                 state,
@@ -614,8 +594,13 @@ impl OcclusionTester {
             w_tiles,
             tile_buffer,
             h_tiles,
-            cubes,
+            cube: GeometryBuffer::from_surface_data(
+                &SurfaceData::make_cube(Matrix4::identity()),
+                GeometryBufferKind::StaticDraw,
+                state,
+            )?,
             visibility_buffer_optimizer: VisibilityBufferOptimizer::new(state, w_tiles, h_tiles)?,
+            matrix_storage: MatrixStorage::new(state)?,
         })
     }
 
@@ -664,11 +649,7 @@ impl OcclusionTester {
             .collect::<FxHashMap<Handle<Node>, bool>>();
 
         for (object, visibility) in visibility_map.iter_mut() {
-            let object_ref = &graph[*object];
-            if object_ref
-                .world_bounding_box()
-                .is_contains_point(observer_position)
-            {
+            if inflated_world_aabb(graph, *object).is_contains_point(observer_position) {
                 *visibility = true;
             }
         }
@@ -833,64 +814,26 @@ impl OcclusionTester {
             debug_renderer,
         )?;
 
-        let mut vertex_buffer = Vec::with_capacity(objects.len() * 8);
-        let mut triangles = Vec::with_capacity(objects.len() * 12);
-        for (object_index, object) in objects.iter().enumerate() {
-            let object_index = object_index as f32;
-            let mut aabb = graph[*object].world_bounding_box();
-            aabb.inflate(Vector3::repeat(0.05));
-            let s = aabb.max - aabb.min;
-            let matrix =
-                Matrix4::new_translation(&aabb.center()) * Matrix4::new_nonuniform_scaling(&s);
-            let base_index = vertex_buffer.len();
-            let vertices = [
-                Vertex::new(0.5, 0.5, 0.5, object_index),
-                Vertex::new(0.5, -0.5, 0.5, object_index),
-                Vertex::new(-0.5, -0.5, 0.5, object_index),
-                Vertex::new(-0.5, 0.5, 0.5, object_index),
-                Vertex::new(0.5, 0.5, -0.5, object_index),
-                Vertex::new(0.5, -0.5, -0.5, object_index),
-                Vertex::new(-0.5, -0.5, -0.5, object_index),
-                Vertex::new(-0.5, 0.5, -0.5, object_index),
-            ];
-            for mut vertex in vertices {
-                let xyz = matrix.transform_point(&vertex.position.xyz().into()).coords;
-                vertex.position.x = xyz.x;
-                vertex.position.y = xyz.y;
-                vertex.position.z = xyz.z;
-                vertex_buffer.push(vertex);
-            }
-
-            let local_triangles = [
-                TriangleDefinition([0, 1, 3]),
-                TriangleDefinition([1, 2, 3]),
-                TriangleDefinition([7, 5, 4]),
-                TriangleDefinition([7, 6, 5]),
-                TriangleDefinition([4, 1, 0]),
-                TriangleDefinition([1, 4, 5]),
-                TriangleDefinition([7, 3, 2]),
-                TriangleDefinition([2, 6, 7]),
-                TriangleDefinition([0, 3, 4]),
-                TriangleDefinition([7, 4, 3]),
-                TriangleDefinition([5, 2, 1]),
-                TriangleDefinition([2, 5, 6]),
-            ];
-            for triangle in local_triangles {
-                triangles.push(triangle.add(base_index as u32));
-            }
-        }
-        self.cubes.set_buffer_data(state, 0, &vertex_buffer);
-        self.cubes.bind(state).set_triangles(&triangles);
+        self.matrix_storage.upload(
+            state,
+            objects.iter().map(|h| {
+                let aabb = inflated_world_aabb(graph, *h);
+                let s = aabb.max - aabb.min;
+                Matrix4::new_translation(&aabb.center()) * Matrix4::new_nonuniform_scaling(&s)
+            }),
+            0,
+        )?;
 
         state.set_depth_func(CompareFunc::LessOrEqual);
         let shader = &self.shader;
-        self.framebuffer.draw(
-            &self.cubes,
+        self.framebuffer.draw_instances(
+            objects.len(),
+            &self.cube,
             state,
             viewport,
             &self.shader.program,
             &DrawParameters {
-                cull_face: Some(CullFace::Front),
+                cull_face: Some(CullFace::Back),
                 color_write: ColorMask::all(true),
                 depth_write: false,
                 stencil_test: None,
@@ -904,15 +847,15 @@ impl OcclusionTester {
                 }),
                 stencil_op: Default::default(),
             },
-            ElementRange::Full,
             |mut program_binding| {
                 program_binding
                     .set_texture(&shader.tile_buffer, &self.tile_buffer)
+                    .set_texture(&shader.matrices, self.matrix_storage.texture())
                     .set_i32(&shader.tile_size, self.tile_size as i32)
                     .set_f32(&shader.frame_buffer_height, self.frame_size.y as f32)
                     .set_matrix4(&shader.view_projection, view_projection);
             },
-        )?;
+        );
 
         self.visibility_map(observer_position, state, objects, &tiles, graph, unit_quad)
     }
