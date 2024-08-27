@@ -254,6 +254,11 @@ pub struct QualitySettings {
 
     /// Whether to use bloom effect.
     pub use_bloom: bool,
+
+    /// Whether to use occlusion culling technique or not. Warning: this is experimental feature
+    /// that wasn't properly tested yet!
+    #[serde(default)]
+    pub use_occlusion_culling: bool,
 }
 
 impl Default for QualitySettings {
@@ -290,6 +295,7 @@ impl QualitySettings {
 
             use_bloom: true,
 
+            use_occlusion_culling: false,
             use_parallax_mapping: true,
 
             csm_settings: Default::default(),
@@ -323,6 +329,7 @@ impl QualitySettings {
 
             use_bloom: true,
 
+            use_occlusion_culling: false,
             use_parallax_mapping: true,
 
             csm_settings: CsmSettings {
@@ -361,6 +368,7 @@ impl QualitySettings {
 
             use_bloom: true,
 
+            use_occlusion_culling: false,
             use_parallax_mapping: false,
 
             csm_settings: CsmSettings {
@@ -399,6 +407,7 @@ impl QualitySettings {
 
             use_bloom: false,
 
+            use_occlusion_culling: false,
             use_parallax_mapping: false,
 
             csm_settings: CsmSettings {
@@ -1661,7 +1670,7 @@ impl Renderer {
                     bundle_storage: &bundle_storage,
                     texture_cache: &mut self.texture_cache,
                     shader_cache: &mut self.shader_cache,
-                    use_parallax_mapping: self.quality_settings.use_parallax_mapping,
+                    quality_settings: &self.quality_settings,
                     normal_dummy: self.normal_dummy.clone(),
                     white_dummy: self.white_dummy.clone(),
                     black_dummy: self.black_dummy.clone(),

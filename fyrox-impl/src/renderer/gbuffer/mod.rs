@@ -31,6 +31,7 @@
 
 use crate::renderer::debug_renderer::DebugRenderer;
 use crate::renderer::visibility::OcclusionTester;
+use crate::renderer::QualitySettings;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2},
@@ -95,7 +96,7 @@ pub(crate) struct GBufferRenderContext<'a, 'b> {
     pub normal_dummy: Rc<RefCell<GpuTexture>>,
     pub black_dummy: Rc<RefCell<GpuTexture>>,
     pub volume_dummy: Rc<RefCell<GpuTexture>>,
-    pub use_parallax_mapping: bool,
+    pub quality_settings: &'a QualitySettings,
     pub graph: &'b Graph,
     pub matrix_storage: &'a mut MatrixStorageCache,
     #[allow(dead_code)]
@@ -299,7 +300,7 @@ impl GBuffer {
             bundle_storage,
             texture_cache,
             shader_cache,
-            use_parallax_mapping,
+            quality_settings,
             white_dummy,
             normal_dummy,
             black_dummy,
@@ -312,23 +313,27 @@ impl GBuffer {
 
         let initial_view_projection = camera.view_projection_matrix();
 
-        let mut objects = FxHashSet::default();
-        for bundle in bundle_storage.bundles.iter() {
-            for instance in bundle.instances.iter() {
-                objects.insert(instance.node_handle);
+        let visibility = if quality_settings.use_occlusion_culling {
+            let mut objects = FxHashSet::default();
+            for bundle in bundle_storage.bundles.iter() {
+                for instance in bundle.instances.iter() {
+                    objects.insert(instance.node_handle);
+                }
             }
-        }
-        let objects = objects.into_iter().collect::<Vec<_>>();
-        let visibility = self.occlusion_tester.check(
-            camera.global_position(),
-            &initial_view_projection,
-            state,
-            &self.framebuffer,
-            graph,
-            &objects,
-            None,
-            unit_quad,
-        )?;
+            let objects = objects.into_iter().collect::<Vec<_>>();
+            self.occlusion_tester.check(
+                camera.global_position(),
+                &initial_view_projection,
+                state,
+                &self.framebuffer,
+                graph,
+                &objects,
+                None,
+                unit_quad,
+            )?
+        } else {
+            Default::default()
+        };
 
         let viewport = Rect::new(0, 0, self.width, self.height);
         self.framebuffer.clear(
@@ -374,7 +379,9 @@ impl GBuffer {
             };
 
             for instance in bundle.instances.iter() {
-                if !visibility.get(&instance.node_handle).map_or(true, |v| *v) {
+                if quality_settings.use_occlusion_culling
+                    && !visibility.get(&instance.node_handle).map_or(true, |v| *v)
+                {
                     continue;
                 }
 
@@ -401,7 +408,7 @@ impl GBuffer {
                         camera_up_vector: &camera_up,
                         camera_side_vector: &camera_side,
                         z_near: camera.projection().z_near(),
-                        use_pom: use_parallax_mapping,
+                        use_pom: quality_settings.use_parallax_mapping,
                         light_position: &Default::default(),
                         blend_shapes_storage: blend_shapes_storage.as_ref(),
                         blend_shapes_weights: &instance.blend_shapes_weights,
