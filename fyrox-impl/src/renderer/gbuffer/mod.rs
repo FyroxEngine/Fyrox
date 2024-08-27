@@ -253,7 +253,7 @@ impl GBuffer {
             )?,
             decal_framebuffer,
             render_pass_name: ImmutableString::new("GBuffer"),
-            occlusion_tester: OcclusionTester::new(state, width, height, 64)?,
+            occlusion_tester: OcclusionTester::new(state, width, height, 16)?,
         })
     }
 
