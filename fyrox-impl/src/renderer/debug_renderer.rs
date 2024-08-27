@@ -23,24 +23,26 @@
 //! shapes, contact information (normals, positions, etc.), paths build by navmesh and so
 //! on. It contains implementations to draw most common shapes (line, box, oob, frustum, etc).
 
-use crate::core::sstorage::ImmutableString;
-use crate::renderer::framework::geometry_buffer::ElementRange;
 use crate::{
-    core::{algebra::Vector3, math::Rect, scope_profile},
-    renderer::framework::{
-        error::FrameworkError,
-        framebuffer::{DrawParameters, FrameBuffer},
-        geometry_buffer::{
-            AttributeDefinition, AttributeKind, BufferBuilder, ElementKind, GeometryBuffer,
-            GeometryBufferBuilder, GeometryBufferKind,
+    core::{algebra::Vector3, math::Rect, scope_profile, sstorage::ImmutableString},
+    renderer::{
+        framework::{
+            error::FrameworkError,
+            framebuffer::{DrawParameters, FrameBuffer},
+            geometry_buffer::{
+                AttributeDefinition, AttributeKind, BufferBuilder, ElementKind, ElementRange,
+                GeometryBuffer, GeometryBufferBuilder, GeometryBufferKind,
+            },
+            gpu_program::{GpuProgram, UniformLocation},
+            state::PipelineState,
         },
-        gpu_program::{GpuProgram, UniformLocation},
-        state::PipelineState,
+        RenderPassStatistics,
     },
-    renderer::RenderPassStatistics,
-    scene::{camera::Camera, debug::SceneDrawingContext},
+    scene::debug::Line,
 };
 use bytemuck::{Pod, Zeroable};
+use fyrox_core::color::Color;
+use rapier2d::na::Matrix4;
 
 #[repr(C)]
 #[derive(Copy, Pod, Zeroable, Clone)]
@@ -60,6 +62,22 @@ pub struct DebugRenderer {
 pub(crate) struct DebugShader {
     program: GpuProgram,
     wvp_matrix: UniformLocation,
+}
+
+/// "Draws" a rectangle into a list of lines.
+pub fn draw_rect(rect: &Rect<f32>, lines: &mut Vec<Line>, color: Color) {
+    for (a, b) in [
+        (rect.left_top_corner(), rect.right_top_corner()),
+        (rect.right_top_corner(), rect.right_bottom_corner()),
+        (rect.right_bottom_corner(), rect.left_bottom_corner()),
+        (rect.left_bottom_corner(), rect.left_top_corner()),
+    ] {
+        lines.push(Line {
+            begin: a.to_homogeneous(),
+            end: b.to_homogeneous(),
+            color,
+        });
+    }
 }
 
 impl DebugShader {
@@ -104,23 +122,13 @@ impl DebugRenderer {
         })
     }
 
-    pub(crate) fn render(
-        &mut self,
-        state: &PipelineState,
-        viewport: Rect<i32>,
-        framebuffer: &mut FrameBuffer,
-        drawing_context: &SceneDrawingContext,
-        camera: &Camera,
-    ) -> Result<RenderPassStatistics, FrameworkError> {
-        scope_profile!();
-
-        let mut statistics = RenderPassStatistics::default();
-
+    /// Uploads the new set of lines to GPU.
+    pub fn set_lines(&mut self, state: &PipelineState, lines: &[Line]) {
         self.vertices.clear();
         self.line_indices.clear();
 
         let mut i = 0;
-        for line in drawing_context.lines.iter() {
+        for line in lines.iter() {
             let color = line.color.into();
             self.vertices.push(Vertex {
                 position: line.begin,
@@ -135,6 +143,18 @@ impl DebugRenderer {
         }
         self.geometry.set_buffer_data(state, 0, &self.vertices);
         self.geometry.bind(state).set_lines(&self.line_indices);
+    }
+
+    pub(crate) fn render(
+        &mut self,
+        state: &PipelineState,
+        viewport: Rect<i32>,
+        framebuffer: &mut FrameBuffer,
+        view_projection: Matrix4<f32>,
+    ) -> Result<RenderPassStatistics, FrameworkError> {
+        scope_profile!();
+
+        let mut statistics = RenderPassStatistics::default();
 
         statistics += framebuffer.draw(
             &self.geometry,
@@ -152,8 +172,7 @@ impl DebugRenderer {
             },
             ElementRange::Full,
             |mut program_binding| {
-                program_binding
-                    .set_matrix4(&self.shader.wvp_matrix, &camera.view_projection_matrix());
+                program_binding.set_matrix4(&self.shader.wvp_matrix, &view_projection);
             },
         )?;
 

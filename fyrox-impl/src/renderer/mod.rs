@@ -254,6 +254,11 @@ pub struct QualitySettings {
 
     /// Whether to use bloom effect.
     pub use_bloom: bool,
+
+    /// Whether to use occlusion culling technique or not. Warning: this is experimental feature
+    /// that wasn't properly tested yet!
+    #[serde(default)]
+    pub use_occlusion_culling: bool,
 }
 
 impl Default for QualitySettings {
@@ -290,6 +295,7 @@ impl QualitySettings {
 
             use_bloom: true,
 
+            use_occlusion_culling: false,
             use_parallax_mapping: true,
 
             csm_settings: Default::default(),
@@ -323,6 +329,7 @@ impl QualitySettings {
 
             use_bloom: true,
 
+            use_occlusion_culling: false,
             use_parallax_mapping: true,
 
             csm_settings: CsmSettings {
@@ -361,6 +368,7 @@ impl QualitySettings {
 
             use_bloom: true,
 
+            use_occlusion_culling: false,
             use_parallax_mapping: false,
 
             csm_settings: CsmSettings {
@@ -399,6 +407,7 @@ impl QualitySettings {
 
             use_bloom: false,
 
+            use_occlusion_culling: false,
             use_parallax_mapping: false,
 
             csm_settings: CsmSettings {
@@ -670,6 +679,9 @@ pub struct Renderer {
     quality_settings: QualitySettings,
     /// Debug renderer instance can be used for debugging purposes
     pub debug_renderer: DebugRenderer,
+    /// Screen space debug renderer instance can be used for debugging purposes to draw lines directly
+    /// on screen. It is useful to debug some rendering algorithms.
+    pub screen_space_debug_renderer: DebugRenderer,
     /// A set of associated data for each scene that was rendered.
     pub scene_data_map: FxHashMap<Handle<Scene>, AssociatedSceneData>,
     backbuffer_clear_color: Color,
@@ -1290,6 +1302,7 @@ impl Renderer {
             ui_renderer: UiRenderer::new(&state)?,
             quality_settings: settings,
             debug_renderer: DebugRenderer::new(&state)?,
+            screen_space_debug_renderer: DebugRenderer::new(&state)?,
             scene_data_map: Default::default(),
             backbuffer_clear_color: Color::BLACK,
             texture_cache: Default::default(),
@@ -1657,14 +1670,15 @@ impl Renderer {
                     bundle_storage: &bundle_storage,
                     texture_cache: &mut self.texture_cache,
                     shader_cache: &mut self.shader_cache,
-                    environment_dummy: self.environment_dummy.clone(),
-                    use_parallax_mapping: self.quality_settings.use_parallax_mapping,
+                    quality_settings: &self.quality_settings,
                     normal_dummy: self.normal_dummy.clone(),
                     white_dummy: self.white_dummy.clone(),
                     black_dummy: self.black_dummy.clone(),
                     volume_dummy: self.volume_dummy.clone(),
                     graph,
                     matrix_storage: &mut self.matrix_storage,
+                    screen_space_debug_renderer: &mut self.screen_space_debug_renderer,
+                    unit_quad: &self.quad,
                 })?;
 
             state.set_polygon_fill_mode(PolygonFace::FrontAndBack, PolygonFillMode::Fill);
@@ -1807,12 +1821,13 @@ impl Renderer {
             }
 
             // Render debug geometry in the LDR frame buffer.
+            self.debug_renderer
+                .set_lines(state, &scene.drawing_context.lines);
             scene_associated_data.statistics += self.debug_renderer.render(
                 state,
                 viewport,
                 &mut scene_associated_data.ldr_scene_framebuffer,
-                &scene.drawing_context,
-                camera,
+                camera.view_projection_matrix(),
             )?;
 
             for render_pass in self.scene_render_passes.iter() {
@@ -1924,6 +1939,15 @@ impl Renderer {
                 texture_cache: &mut self.texture_cache,
             })?;
         }
+
+        let screen_matrix =
+            Matrix4::new_orthographic(0.0, backbuffer_width, backbuffer_height, 0.0, -1.0, 1.0);
+        self.screen_space_debug_renderer.render(
+            &self.state,
+            window_viewport,
+            &mut self.backbuffer,
+            screen_matrix,
+        )?;
 
         Ok(())
     }

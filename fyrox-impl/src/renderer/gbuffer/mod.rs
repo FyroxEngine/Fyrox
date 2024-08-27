@@ -29,6 +29,9 @@
 //! Every alpha channel is used for layer blending for terrains. This is inefficient, but for
 //! now I don't know better solution.
 
+use crate::renderer::debug_renderer::DebugRenderer;
+use crate::renderer::visibility::OcclusionTester;
+use crate::renderer::QualitySettings;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2},
@@ -65,6 +68,7 @@ use crate::{
         mesh::{surface::SurfaceData, RenderPath},
     },
 };
+use fxhash::FxHashSet;
 use fyrox_core::math::Matrix4Ext;
 use std::{cell::RefCell, rc::Rc};
 
@@ -78,6 +82,7 @@ pub struct GBuffer {
     cube: GeometryBuffer,
     decal_shader: DecalShader,
     render_pass_name: ImmutableString,
+    occlusion_tester: OcclusionTester,
 }
 
 pub(crate) struct GBufferRenderContext<'a, 'b> {
@@ -87,15 +92,16 @@ pub(crate) struct GBufferRenderContext<'a, 'b> {
     pub bundle_storage: &'a RenderDataBundleStorage,
     pub texture_cache: &'a mut TextureCache,
     pub shader_cache: &'a mut ShaderCache,
-    #[allow(dead_code)]
-    pub environment_dummy: Rc<RefCell<GpuTexture>>,
     pub white_dummy: Rc<RefCell<GpuTexture>>,
     pub normal_dummy: Rc<RefCell<GpuTexture>>,
     pub black_dummy: Rc<RefCell<GpuTexture>>,
     pub volume_dummy: Rc<RefCell<GpuTexture>>,
-    pub use_parallax_mapping: bool,
+    pub quality_settings: &'a QualitySettings,
     pub graph: &'b Graph,
     pub matrix_storage: &'a mut MatrixStorageCache,
+    #[allow(dead_code)]
+    pub screen_space_debug_renderer: &'a mut DebugRenderer,
+    pub unit_quad: &'a GeometryBuffer,
 }
 
 impl GBuffer {
@@ -247,6 +253,7 @@ impl GBuffer {
             )?,
             decal_framebuffer,
             render_pass_name: ImmutableString::new("GBuffer"),
+            occlusion_tester: OcclusionTester::new(state, width, height, 64)?,
         })
     }
 
@@ -293,15 +300,40 @@ impl GBuffer {
             bundle_storage,
             texture_cache,
             shader_cache,
-            use_parallax_mapping,
+            quality_settings,
             white_dummy,
             normal_dummy,
             black_dummy,
             volume_dummy,
             graph,
             matrix_storage,
+            unit_quad,
             ..
         } = args;
+
+        let initial_view_projection = camera.view_projection_matrix();
+
+        let visibility = if quality_settings.use_occlusion_culling {
+            let mut objects = FxHashSet::default();
+            for bundle in bundle_storage.bundles.iter() {
+                for instance in bundle.instances.iter() {
+                    objects.insert(instance.node_handle);
+                }
+            }
+            let objects = objects.into_iter().collect::<Vec<_>>();
+            self.occlusion_tester.check(
+                camera.global_position(),
+                &initial_view_projection,
+                state,
+                &self.framebuffer,
+                graph,
+                &objects,
+                None,
+                unit_quad,
+            )?
+        } else {
+            Default::default()
+        };
 
         let viewport = Rect::new(0, 0, self.width, self.height);
         self.framebuffer.clear(
@@ -311,8 +343,6 @@ impl GBuffer {
             Some(1.0),
             Some(0),
         );
-
-        let initial_view_projection = camera.view_projection_matrix();
 
         let inv_view = camera.inv_view_matrix().unwrap();
 
@@ -349,6 +379,12 @@ impl GBuffer {
             };
 
             for instance in bundle.instances.iter() {
+                if quality_settings.use_occlusion_culling
+                    && !visibility.get(&instance.node_handle).map_or(true, |v| *v)
+                {
+                    continue;
+                }
+
                 let apply_uniforms = |mut program_binding: GpuProgramBinding| {
                     let view_projection = if instance.depth_offset != 0.0 {
                         let mut projection = camera.projection_matrix();
@@ -372,7 +408,7 @@ impl GBuffer {
                         camera_up_vector: &camera_up,
                         camera_side_vector: &camera_side,
                         z_near: camera.projection().z_near(),
-                        use_pom: use_parallax_mapping,
+                        use_pom: quality_settings.use_parallax_mapping,
                         light_position: &Default::default(),
                         blend_shapes_storage: blend_shapes_storage.as_ref(),
                         blend_shapes_weights: &instance.blend_shapes_weights,
