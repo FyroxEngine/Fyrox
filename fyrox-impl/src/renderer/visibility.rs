@@ -474,6 +474,10 @@ pub struct OcclusionTester {
     cube: GeometryBuffer,
     visibility_buffer_optimizer: VisibilityBufferOptimizer,
     matrix_storage: MatrixStorage,
+    objects_to_test: Vec<Handle<Node>>,
+    view_projection: Matrix4<f32>,
+    observer_position: Vector3<f32>,
+    visibility_map: FxHashMap<Handle<Node>, bool>,
 }
 
 #[derive(Default, Pod, Zeroable, Copy, Clone, Debug)]
@@ -601,19 +605,21 @@ impl OcclusionTester {
             )?,
             visibility_buffer_optimizer: VisibilityBufferOptimizer::new(state, w_tiles, h_tiles)?,
             matrix_storage: MatrixStorage::new(state)?,
+            objects_to_test: Default::default(),
+            view_projection: Default::default(),
+            observer_position: Default::default(),
+            visibility_map: Default::default(),
         })
     }
 
     #[inline(never)]
-    fn visibility_map(
+    fn prepare_visibility_map(
         &mut self,
-        observer_position: Vector3<f32>,
         state: &PipelineState,
-        objects: &[Handle<Node>],
         tiles: &[Tile],
         graph: &Graph,
         unit_quad: &GeometryBuffer,
-    ) -> Result<FxHashMap<Handle<Node>, bool>, FrameworkError> {
+    ) -> Result<(), FrameworkError> {
         let visibility_buffer = self.visibility_buffer_optimizer.optimize(
             state,
             &self.visibility_mask,
@@ -621,7 +627,7 @@ impl OcclusionTester {
             self.tile_size as i32,
         )?;
 
-        let mut objects_visibility = vec![false; objects.len()];
+        let mut objects_visibility = vec![false; self.objects_to_test.len()];
         for y in 0..self.h_tiles {
             let img_y = self.h_tiles.saturating_sub(1) - y;
             for x in 0..self.w_tiles {
@@ -642,19 +648,21 @@ impl OcclusionTester {
             }
         }
 
-        let mut visibility_map = objects
-            .iter()
-            .cloned()
-            .zip(objects_visibility.iter().cloned())
-            .collect::<FxHashMap<Handle<Node>, bool>>();
+        self.visibility_map.clear();
+        self.visibility_map.extend(
+            self.objects_to_test
+                .iter()
+                .cloned()
+                .zip(objects_visibility.iter().cloned()),
+        );
 
-        for (object, visibility) in visibility_map.iter_mut() {
-            if inflated_world_aabb(graph, *object).is_contains_point(observer_position) {
+        for (object, visibility) in self.visibility_map.iter_mut() {
+            if inflated_world_aabb(graph, *object).is_contains_point(self.observer_position) {
                 *visibility = true;
             }
         }
 
-        Ok(visibility_map)
+        Ok(())
     }
 
     fn screen_space_to_tile_space(
@@ -677,10 +685,7 @@ impl OcclusionTester {
         &self,
         state: &PipelineState,
         graph: &Graph,
-        observer_position: Vector3<f32>,
-        view_projection: &Matrix4<f32>,
         viewport: &Rect<i32>,
-        objects: &[Handle<Node>],
         debug_renderer: Option<&mut DebugRenderer>,
     ) -> Result<Vec<Tile>, FrameworkError> {
         let mut tiles = Vec::with_capacity(self.w_tiles * self.h_tiles);
@@ -698,16 +703,16 @@ impl OcclusionTester {
             }
         }
         let mut lines = Vec::new();
-        for (object_index, object) in objects.iter().enumerate() {
+        for (object_index, object) in self.objects_to_test.iter().enumerate() {
             let node_ref = &graph[*object];
             let aabb = node_ref.world_bounding_box();
-            let rect = screen_space_rect(aabb, view_projection, viewport);
+            let rect = screen_space_rect(aabb, &self.view_projection, viewport);
 
             if debug_renderer.is_some() {
                 debug_renderer::draw_rect(&rect, &mut lines, Color::WHITE);
             }
 
-            let average_depth = observer_position.metric_distance(&aabb.center());
+            let average_depth = self.observer_position.metric_distance(&aabb.center());
             let min = self.screen_space_to_tile_space(rect.left_top_corner(), viewport);
             let max = self.screen_space_to_tile_space(rect.right_bottom_corner(), viewport);
             let size = max - min;
@@ -765,29 +770,16 @@ impl OcclusionTester {
         Ok(tiles)
     }
 
-    pub fn check(
+    pub fn upload_data<'a>(
         &mut self,
-        observer_position: Vector3<f32>,
-        view_projection: &Matrix4<f32>,
         state: &PipelineState,
+        objects_to_test: impl Iterator<Item = &'a Handle<Node>>,
         prev_framebuffer: &FrameBuffer,
-        graph: &Graph,
-        objects: &[Handle<Node>],
-        debug_renderer: Option<&mut DebugRenderer>,
-        unit_quad: &GeometryBuffer,
-    ) -> Result<FxHashMap<Handle<Node>, bool>, FrameworkError> {
+        observer_position: Vector3<f32>,
+        view_projection: Matrix4<f32>,
+    ) {
         let w = self.frame_size.x as i32;
         let h = self.frame_size.y as i32;
-        let viewport = Rect::new(0, 0, w, h);
-
-        self.framebuffer.clear(
-            state,
-            viewport,
-            Some(Color::TRANSPARENT),
-            Some(1.0),
-            Some(0),
-        );
-
         state.blit_framebuffer(
             prev_framebuffer.id(),
             self.framebuffer.id(),
@@ -804,19 +796,36 @@ impl OcclusionTester {
             false,
         );
 
-        let tiles = self.prepare_tiles(
-            state,
-            graph,
-            observer_position,
-            view_projection,
-            &viewport,
-            objects,
-            debug_renderer,
-        )?;
+        self.objects_to_test.clear();
+        self.objects_to_test.extend(objects_to_test);
+
+        self.view_projection = view_projection;
+        self.observer_position = observer_position;
+    }
+
+    pub fn run_visibility_test(
+        &mut self,
+        state: &PipelineState,
+        graph: &Graph,
+        debug_renderer: Option<&mut DebugRenderer>,
+        unit_quad: &GeometryBuffer,
+    ) -> Result<(), FrameworkError> {
+        if self.objects_to_test.is_empty() {
+            return Ok(());
+        }
+
+        let w = self.frame_size.x as i32;
+        let h = self.frame_size.y as i32;
+        let viewport = Rect::new(0, 0, w, h);
+
+        self.framebuffer
+            .clear(state, viewport, Some(Color::TRANSPARENT), None, None);
+
+        let tiles = self.prepare_tiles(state, graph, &viewport, debug_renderer)?;
 
         self.matrix_storage.upload(
             state,
-            objects.iter().map(|h| {
+            self.objects_to_test.iter().map(|h| {
                 let aabb = inflated_world_aabb(graph, *h);
                 let s = aabb.max - aabb.min;
                 Matrix4::new_translation(&aabb.center()) * Matrix4::new_nonuniform_scaling(&s)
@@ -827,7 +836,7 @@ impl OcclusionTester {
         state.set_depth_func(CompareFunc::LessOrEqual);
         let shader = &self.shader;
         self.framebuffer.draw_instances(
-            objects.len(),
+            self.objects_to_test.len(),
             &self.cube,
             state,
             viewport,
@@ -853,10 +862,14 @@ impl OcclusionTester {
                     .set_texture(&shader.matrices, self.matrix_storage.texture())
                     .set_i32(&shader.tile_size, self.tile_size as i32)
                     .set_f32(&shader.frame_buffer_height, self.frame_size.y as f32)
-                    .set_matrix4(&shader.view_projection, view_projection);
+                    .set_matrix4(&shader.view_projection, &self.view_projection);
             },
         );
 
-        self.visibility_map(observer_position, state, objects, &tiles, graph, unit_quad)
+        self.prepare_visibility_map(state, &tiles, graph, unit_quad)
+    }
+
+    pub fn is_visible(&self, object: Handle<Node>) -> bool {
+        self.visibility_map.get(&object).cloned().unwrap_or(true)
     }
 }

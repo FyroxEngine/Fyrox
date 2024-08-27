@@ -313,26 +313,9 @@ impl GBuffer {
 
         let initial_view_projection = camera.view_projection_matrix();
 
-        let visibility = if quality_settings.use_occlusion_culling {
-            let mut objects = FxHashSet::default();
-            for bundle in bundle_storage.bundles.iter() {
-                for instance in bundle.instances.iter() {
-                    objects.insert(instance.node_handle);
-                }
-            }
-            let objects = objects.into_iter().collect::<Vec<_>>();
-            self.occlusion_tester.check(
-                camera.global_position(),
-                &initial_view_projection,
-                state,
-                &self.framebuffer,
-                graph,
-                &objects,
-                None,
-                unit_quad,
-            )?
-        } else {
-            Default::default()
+        if quality_settings.use_occlusion_culling {
+            self.occlusion_tester
+                .run_visibility_test(state, graph, None, unit_quad)?;
         };
 
         let viewport = Rect::new(0, 0, self.width, self.height);
@@ -380,7 +363,7 @@ impl GBuffer {
 
             for instance in bundle.instances.iter() {
                 if quality_settings.use_occlusion_culling
-                    && !visibility.get(&instance.node_handle).map_or(true, |v| *v)
+                    && !self.occlusion_tester.is_visible(instance.node_handle)
                 {
                     continue;
                 }
@@ -434,6 +417,22 @@ impl GBuffer {
                     apply_uniforms,
                 )?;
             }
+        }
+
+        if quality_settings.use_occlusion_culling {
+            let mut objects = FxHashSet::default();
+            for bundle in bundle_storage.bundles.iter() {
+                for instance in bundle.instances.iter() {
+                    objects.insert(instance.node_handle);
+                }
+            }
+            self.occlusion_tester.upload_data(
+                state,
+                objects.iter(),
+                &self.framebuffer,
+                camera.global_position(),
+                initial_view_projection,
+            );
         }
 
         let inv_view_proj = initial_view_projection.try_inverse().unwrap_or_default();
