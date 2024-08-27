@@ -478,6 +478,8 @@ pub struct OcclusionTester {
     view_projection: Matrix4<f32>,
     observer_position: Vector3<f32>,
     visibility_map: FxHashMap<Handle<Node>, bool>,
+    tiles: Vec<Tile>,
+    gpu_tiles: Vec<GpuTile>,
 }
 
 #[derive(Default, Pod, Zeroable, Copy, Clone, Debug)]
@@ -579,6 +581,23 @@ impl OcclusionTester {
         let visibility_mask = Rc::new(RefCell::new(visibility_mask));
         let tile_buffer = Rc::new(RefCell::new(tile_buffer));
 
+        let tile_count = w_tiles * h_tiles;
+        let gpu_tiles = vec![GpuTile::default(); tile_count];
+        let mut tiles = Vec::with_capacity(tile_count);
+        for y in 0..h_tiles {
+            for x in 0..w_tiles {
+                tiles.push(Tile {
+                    objects: vec![],
+                    bounds: Rect::new(
+                        (x * tile_size) as f32,
+                        (y * tile_size) as f32,
+                        tile_size as f32,
+                        tile_size as f32,
+                    ),
+                })
+            }
+        }
+
         Ok(Self {
             framebuffer: FrameBuffer::new(
                 state,
@@ -609,6 +628,8 @@ impl OcclusionTester {
             view_projection: Default::default(),
             observer_position: Default::default(),
             visibility_map: Default::default(),
+            tiles,
+            gpu_tiles,
         })
     }
 
@@ -616,7 +637,6 @@ impl OcclusionTester {
     fn prepare_visibility_map(
         &mut self,
         state: &PipelineState,
-        tiles: &[Tile],
         graph: &Graph,
         unit_quad: &GeometryBuffer,
     ) -> Result<(), FrameworkError> {
@@ -631,7 +651,7 @@ impl OcclusionTester {
         for y in 0..self.h_tiles {
             let img_y = self.h_tiles.saturating_sub(1) - y;
             for x in 0..self.w_tiles {
-                let tile = &tiles[y * self.w_tiles + x];
+                let tile = &self.tiles[y * self.w_tiles + x];
                 let bits = visibility_buffer[img_y * self.w_tiles + x];
                 for bit in 0..u32::BITS {
                     if let Some(object) = tile.objects.get(bit as usize) {
@@ -682,26 +702,16 @@ impl OcclusionTester {
     }
 
     fn prepare_tiles(
-        &self,
+        &mut self,
         state: &PipelineState,
         graph: &Graph,
         viewport: &Rect<i32>,
         debug_renderer: Option<&mut DebugRenderer>,
-    ) -> Result<Vec<Tile>, FrameworkError> {
-        let mut tiles = Vec::with_capacity(self.w_tiles * self.h_tiles);
-        for y in 0..self.h_tiles {
-            for x in 0..self.w_tiles {
-                tiles.push(Tile {
-                    objects: vec![],
-                    bounds: Rect::new(
-                        (x * self.tile_size) as f32,
-                        (y * self.tile_size) as f32,
-                        self.tile_size as f32,
-                        self.tile_size as f32,
-                    ),
-                })
-            }
+    ) -> Result<(), FrameworkError> {
+        for tile in self.tiles.iter_mut() {
+            tile.objects.clear();
         }
+
         let mut lines = Vec::new();
         for (object_index, object) in self.objects_to_test.iter().enumerate() {
             let node_ref = &graph[*object];
@@ -718,7 +728,7 @@ impl OcclusionTester {
             let size = max - min;
             for y in min.y..=(min.y + size.y) {
                 for x in min.x..=(min.x + size.x) {
-                    let tile = &mut tiles[y * self.w_tiles + x];
+                    let tile = &mut self.tiles[y * self.w_tiles + x];
                     tile.objects.push(Object {
                         index: object_index as u32,
                         depth: average_depth,
@@ -728,7 +738,7 @@ impl OcclusionTester {
         }
 
         if let Some(debug_renderer) = debug_renderer {
-            for tile in tiles.iter() {
+            for tile in self.tiles.iter() {
                 debug_renderer::draw_rect(
                     &tile.bounds,
                     &mut lines,
@@ -739,22 +749,19 @@ impl OcclusionTester {
             debug_renderer.set_lines(state, &lines);
         }
 
-        let mut gpu_tiles = Vec::with_capacity(tiles.len());
-        for tile in tiles.iter_mut() {
+        for (tile, gpu_tile) in self.tiles.iter_mut().zip(self.gpu_tiles.iter_mut()) {
             tile.objects
                 .sort_by(|a, b| a.depth.partial_cmp(&b.depth).unwrap_or(Ordering::Less));
 
-            gpu_tiles.push(GpuTile {
-                objects: tile
-                    .objects
-                    .iter()
-                    .map(|obj| obj.index)
-                    .chain([u32::MAX; MAX_BITS])
-                    .take(MAX_BITS)
-                    .collect::<ArrayVec<u32, MAX_BITS>>()
-                    .into_inner()
-                    .unwrap(),
-            });
+            gpu_tile.objects = tile
+                .objects
+                .iter()
+                .map(|obj| obj.index)
+                .chain([u32::MAX; MAX_BITS])
+                .take(MAX_BITS)
+                .collect::<ArrayVec<u32, MAX_BITS>>()
+                .into_inner()
+                .unwrap();
         }
 
         self.tile_buffer.borrow_mut().bind_mut(state, 0).set_data(
@@ -764,10 +771,10 @@ impl OcclusionTester {
             },
             PixelKind::R32UI,
             1,
-            Some(array_as_u8_slice(&gpu_tiles)),
+            Some(array_as_u8_slice(&self.gpu_tiles)),
         )?;
 
-        Ok(tiles)
+        Ok(())
     }
 
     pub fn upload_data<'a>(
@@ -821,7 +828,7 @@ impl OcclusionTester {
         self.framebuffer
             .clear(state, viewport, Some(Color::TRANSPARENT), None, None);
 
-        let tiles = self.prepare_tiles(state, graph, &viewport, debug_renderer)?;
+        self.prepare_tiles(state, graph, &viewport, debug_renderer)?;
 
         self.matrix_storage.upload(
             state,
@@ -866,7 +873,7 @@ impl OcclusionTester {
             },
         );
 
-        self.prepare_visibility_map(state, &tiles, graph, unit_quad)
+        self.prepare_visibility_map(state, graph, unit_quad)
     }
 
     pub fn is_visible(&self, object: Handle<Node>) -> bool {
