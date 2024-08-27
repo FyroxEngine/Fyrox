@@ -503,15 +503,16 @@ fn screen_space_rect(
     let mut rect_builder = OptionRect::default();
     for corner in aabb.corners() {
         let clip_space = view_projection * Vector4::new(corner.x, corner.y, corner.z, 1.0);
-        let ndc_space = if clip_space.w != 0.0 {
-            clip_space.xyz() / clip_space.w
-        } else {
-            clip_space.xyz()
-        };
+        let ndc_space = clip_space.xyz() / clip_space.w.abs();
+        let mut normalized_screen_space =
+            Vector2::new((ndc_space.x + 1.0) / 2.0, (1.0 - ndc_space.y) / 2.0);
+        normalized_screen_space.x = normalized_screen_space.x.clamp(0.0, 1.0);
+        normalized_screen_space.y = normalized_screen_space.y.clamp(0.0, 1.0);
         let screen_space_corner = Vector2::new(
-            ((ndc_space.x + 1.0) / 2.0) * (viewport.size.x as f32) + viewport.position.x as f32,
-            ((1.0 - ndc_space.y) / 2.0) * (viewport.size.y as f32) + viewport.position.y as f32,
+            (normalized_screen_space.x * viewport.size.x as f32) + viewport.position.x as f32,
+            (normalized_screen_space.y * viewport.size.y as f32) + viewport.position.y as f32,
         );
+
         rect_builder.push(screen_space_corner);
     }
     rect_builder.unwrap()
