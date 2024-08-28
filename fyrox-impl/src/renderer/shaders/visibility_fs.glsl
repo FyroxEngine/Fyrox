@@ -24,6 +24,11 @@ void main()
     if (bitIndex < 0) {
         FragColor = vec4(0.0, 0.0, 0.0, 0.0);
     } else {
-        FragColor = vec4(float(1 << bitIndex), 0.0, 0.0, 0.0);
+        uint outMask = uint(1 << bitIndex);
+        float r = float(outMask & 255u) / 255.0;
+        float g = float((outMask & 65280u) >> 8) / 255.0;
+        float b = float((outMask & 16711680u) >> 16) / 255.0;
+        float a = float((outMask & 4278190080u) >> 24) / 255.0;
+        FragColor = vec4(r, g, b, a);
     }
 }

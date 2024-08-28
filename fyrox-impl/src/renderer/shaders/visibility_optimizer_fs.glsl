@@ -17,7 +17,8 @@ void main()
     int visibilityMask = 0;
     for (int y = beginY; y < endY; ++y) {
         for (int x = beginX; x < endX; ++x) {
-            visibilityMask |= int(texelFetch(visibilityBuffer, ivec2(x, y), 0).r);
+            ivec4 mask = ivec4(texelFetch(visibilityBuffer, ivec2(x, y), 0) * 255.0);
+            visibilityMask |= (mask.a << 24) | (mask.b << 16) | (mask.g << 8) | mask.r;
         }
     }
     optimizedVisibilityMask = uint(visibilityMask);

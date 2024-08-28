@@ -527,7 +527,7 @@ fn screen_space_rect(
 
 fn inflated_world_aabb(graph: &Graph, object: Handle<Node>) -> AxisAlignedBoundingBox {
     let mut aabb = graph[object].world_bounding_box();
-    aabb.inflate(Vector3::repeat(0.05));
+    aabb.inflate(Vector3::repeat(0.01));
     aabb
 }
 
@@ -555,7 +555,7 @@ impl OcclusionTester {
         let visibility_mask = GpuTexture::new(
             state,
             GpuTextureKind::Rectangle { width, height },
-            PixelKind::R32F,
+            PixelKind::RGBA8,
             MinificationFilter::Nearest,
             MagnificationFilter::Nearest,
             1,
