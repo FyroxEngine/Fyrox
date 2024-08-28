@@ -61,6 +61,7 @@ use crate::{
         Scene,
     },
 };
+use fyrox_core::math::frustum::Frustum;
 use fyrox_core::{ComponentProvider, NameProvider};
 use fyrox_resource::Resource;
 use std::{
@@ -247,6 +248,29 @@ pub trait NodeTrait: BaseNodeTrait + Reflect + Visit {
         #[allow(unused_variables)] ctx: &mut RenderContext,
     ) -> RdcControlFlow {
         RdcControlFlow::Continue
+    }
+
+    /// Checks if the node should be rendered or not. A node should be rendered if it is enabled,
+    /// visible and (optionally) is inside some viewing frustum.
+    #[inline]
+    fn should_be_rendered(&self, frustum: Option<&Frustum>) -> bool {
+        if !self.global_visibility() {
+            return false;
+        }
+
+        if !self.is_globally_enabled() {
+            return false;
+        }
+
+        if self.frustum_culling() {
+            if let Some(frustum) = frustum {
+                if !frustum.is_intersects_aabb(&self.world_bounding_box()) {
+                    return false;
+                }
+            }
+        }
+
+        true
     }
 
     /// Allows the node to draw simple shapes to visualize internal data structures for debugging purposes.

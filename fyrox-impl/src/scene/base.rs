@@ -40,7 +40,6 @@ use crate::{
     scene::{node::Node, transform::Transform},
     script::{Script, ScriptTrait},
 };
-use fyrox_core::math::frustum::Frustum;
 use serde::{Deserialize, Serialize};
 use std::{
     any::Any,
@@ -1036,29 +1035,6 @@ impl Base {
             }
         }
         None
-    }
-
-    /// Checks if the node should be rendered or not. A node should be rendered if it is enabled,
-    /// visible and (optionally) is inside some viewing frustum.
-    #[inline]
-    pub fn should_be_rendered(&self, frustum: Option<&Frustum>) -> bool {
-        if !self.global_visibility() {
-            return false;
-        }
-
-        if !self.is_globally_enabled() {
-            return false;
-        }
-
-        if self.frustum_culling() {
-            if let Some(frustum) = frustum {
-                if !frustum.is_intersects_aabb(&self.world_bounding_box()) {
-                    return false;
-                }
-            }
-        }
-
-        true
     }
 }
 
