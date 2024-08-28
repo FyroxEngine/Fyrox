@@ -525,10 +525,12 @@ fn screen_space_rect(
     rect_builder.unwrap()
 }
 
-fn inflated_world_aabb(graph: &Graph, object: Handle<Node>) -> AxisAlignedBoundingBox {
-    let mut aabb = graph[object].world_bounding_box();
+fn inflated_world_aabb(graph: &Graph, object: Handle<Node>) -> Option<AxisAlignedBoundingBox> {
+    let mut aabb = graph
+        .try_get(object)
+        .map(|node_ref| node_ref.world_bounding_box())?;
     aabb.inflate(Vector3::repeat(0.01));
-    aabb
+    Some(aabb)
 }
 
 impl OcclusionTester {
@@ -677,7 +679,10 @@ impl OcclusionTester {
         );
 
         for (object, visibility) in self.visibility_map.iter_mut() {
-            if inflated_world_aabb(graph, *object).is_contains_point(self.observer_position) {
+            let Some(aabb) = inflated_world_aabb(graph, *object) else {
+                continue;
+            };
+            if aabb.is_contains_point(self.observer_position) {
                 *visibility = true;
             }
         }
@@ -714,7 +719,10 @@ impl OcclusionTester {
 
         let mut lines = Vec::new();
         for (object_index, object) in self.objects_to_test.iter().enumerate() {
-            let node_ref = &graph[*object];
+            let Some(node_ref) = graph.try_get(*object) else {
+                continue;
+            };
+
             let aabb = node_ref.world_bounding_box();
             let rect = screen_space_rect(aabb, &self.view_projection, viewport);
 
@@ -832,10 +840,10 @@ impl OcclusionTester {
 
         self.matrix_storage.upload(
             state,
-            self.objects_to_test.iter().map(|h| {
-                let aabb = inflated_world_aabb(graph, *h);
+            self.objects_to_test.iter().filter_map(|h| {
+                let aabb = inflated_world_aabb(graph, *h)?;
                 let s = aabb.max - aabb.min;
-                Matrix4::new_translation(&aabb.center()) * Matrix4::new_nonuniform_scaling(&s)
+                Some(Matrix4::new_translation(&aabb.center()) * Matrix4::new_nonuniform_scaling(&s))
             }),
             0,
         )?;
