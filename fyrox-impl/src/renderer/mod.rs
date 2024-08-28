@@ -255,8 +255,7 @@ pub struct QualitySettings {
     /// Whether to use bloom effect.
     pub use_bloom: bool,
 
-    /// Whether to use occlusion culling technique or not. Warning: this is experimental feature
-    /// that wasn't properly tested yet!
+    /// Whether to use occlusion culling technique or not.
     #[serde(default)]
     pub use_occlusion_culling: bool,
 }
@@ -295,7 +294,7 @@ impl QualitySettings {
 
             use_bloom: true,
 
-            use_occlusion_culling: false,
+            use_occlusion_culling: true,
             use_parallax_mapping: true,
 
             csm_settings: Default::default(),
@@ -329,7 +328,7 @@ impl QualitySettings {
 
             use_bloom: true,
 
-            use_occlusion_culling: false,
+            use_occlusion_culling: true,
             use_parallax_mapping: true,
 
             csm_settings: CsmSettings {
@@ -368,7 +367,7 @@ impl QualitySettings {
 
             use_bloom: true,
 
-            use_occlusion_culling: false,
+            use_occlusion_culling: true,
             use_parallax_mapping: false,
 
             csm_settings: CsmSettings {
@@ -407,7 +406,7 @@ impl QualitySettings {
 
             use_bloom: false,
 
-            use_occlusion_culling: false,
+            use_occlusion_culling: true,
             use_parallax_mapping: false,
 
             csm_settings: CsmSettings {
