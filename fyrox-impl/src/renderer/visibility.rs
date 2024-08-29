@@ -59,6 +59,7 @@ use crate::{
 };
 use bytemuck::{Pod, Zeroable};
 use fxhash::FxHashMap;
+use fyrox_core::math::Vector3Ext;
 use std::{cell::RefCell, cmp::Ordering, rc::Rc};
 
 #[derive(Debug)]
@@ -690,19 +691,9 @@ impl OcclusionTester {
         Ok(())
     }
 
-    fn screen_space_to_tile_space(
-        &self,
-        pos: Vector2<f32>,
-        viewport: &Rect<i32>,
-    ) -> Vector2<usize> {
-        let x = (pos.x.clamp(
-            viewport.position.x as f32,
-            (viewport.position.x + viewport.size.x) as f32,
-        ) / (self.tile_size as f32)) as usize;
-        let y = (pos.y.clamp(
-            viewport.position.y as f32,
-            (viewport.position.y + viewport.size.y) as f32,
-        ) / (self.tile_size as f32)) as usize;
+    fn screen_space_to_tile_space(&self, pos: Vector2<f32>) -> Vector2<usize> {
+        let x = (pos.x / (self.tile_size as f32)) as usize;
+        let y = (pos.y / (self.tile_size as f32)) as usize;
         Vector2::new(x, y)
     }
 
@@ -730,13 +721,13 @@ impl OcclusionTester {
                 debug_renderer::draw_rect(&rect, &mut lines, Color::WHITE);
             }
 
-            let average_depth = self.observer_position.metric_distance(&aabb.center());
-            let min = self.screen_space_to_tile_space(rect.left_top_corner(), viewport);
-            let max = self.screen_space_to_tile_space(rect.right_bottom_corner(), viewport);
-            let size = max - min;
-            for y in min.y..=(min.y + size.y) {
-                for x in min.x..=(min.x + size.x) {
-                    let tile = &mut self.tiles[y * self.w_tiles + x];
+            let average_depth = self.observer_position.sqr_distance(&aabb.center());
+            let min = self.screen_space_to_tile_space(rect.left_top_corner());
+            let max = self.screen_space_to_tile_space(rect.right_bottom_corner());
+            for y in min.y..=max.y {
+                let offset = y * self.w_tiles;
+                for x in min.x..=max.x {
+                    let tile = &mut self.tiles[offset + x];
                     tile.objects.push(Object {
                         index: object_index as u32,
                         depth: average_depth,
@@ -759,7 +750,7 @@ impl OcclusionTester {
 
         for (tile, gpu_tile) in self.tiles.iter_mut().zip(self.gpu_tiles.iter_mut()) {
             tile.objects
-                .sort_by(|a, b| a.depth.partial_cmp(&b.depth).unwrap_or(Ordering::Less));
+                .sort_unstable_by(|a, b| a.depth.partial_cmp(&b.depth).unwrap_or(Ordering::Less));
 
             gpu_tile.objects = tile
                 .objects
