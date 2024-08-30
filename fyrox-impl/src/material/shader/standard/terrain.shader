@@ -145,10 +145,10 @@
                     vec2 heightCoords = (actualTexCoords * innerSize + 1.5) * pixelSize;
                     float height = texture(heightMapTexture, heightCoords).r;
                     vec4 finalVertexPosition = vec4(vertexPosition.x, height, vertexPosition.z, 1.0);
-                    float hx0 = texture(heightMapTexture, heightCoords + ivec2(-1, 0) * pixelSize, 0).r;
-                    float hx1 = texture(heightMapTexture, heightCoords + ivec2(1, 0) * pixelSize, 0).r;
-                    float hy0 = texture(heightMapTexture, heightCoords + ivec2(0, -1) * pixelSize, 0).r;
-                    float hy1 = texture(heightMapTexture, heightCoords + ivec2(0, 1) * pixelSize, 0).r;
+                    float hx0 = texture(heightMapTexture, heightCoords + vec2(-1.0, 0.0) * pixelSize, 0).r;
+                    float hx1 = texture(heightMapTexture, heightCoords + vec2(1.0, 0.0) * pixelSize, 0).r;
+                    float hy0 = texture(heightMapTexture, heightCoords + vec2(0.0, -1.0) * pixelSize, 0).r;
+                    float hy1 = texture(heightMapTexture, heightCoords + vec2(0.0, 1.0) * pixelSize, 0).r;
                     vec2 pixelFactor = heightSize / nodeUvOffsets.zw;
                     vec3 n = vec3(hx0-hx1, 2.0, hy0-hy1) * vec3(pixelFactor.x, 1.0, pixelFactor.y);
                     vec3 tan = vec3(n.y, -n.x, 0.0);
