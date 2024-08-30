@@ -8,13 +8,15 @@ flat in uint objectIndex;
 
 void main()
 {
-    int x = int(gl_FragCoord.x - 0.5) / tileSize;
-    int y = int(frameBufferHeight - gl_FragCoord.y - 0.5) / tileSize;
+    int x = int(gl_FragCoord.x) / tileSize;
+    int y = int(frameBufferHeight - gl_FragCoord.y) / tileSize;
 
-    // TODO: Replace with binary search.
     int bitIndex = -1;
-    for (int i = 0; i < 32; ++i) {
-        uint pixelObjectIndex = uint(texelFetch(tileBuffer, ivec2(x * 32 + i, y), 0).x);
+    int tileDataIndex = x * 33;
+    int count = int(texelFetch(tileBuffer, ivec2(tileDataIndex, y), 0).x);
+    int objectsListStartIndex = tileDataIndex + 1;
+    for (int i = 0; i < count; ++i) {
+        uint pixelObjectIndex = uint(texelFetch(tileBuffer, ivec2(objectsListStartIndex + i, y), 0).x);
         if (pixelObjectIndex == objectIndex) {
             bitIndex = i;
             break;

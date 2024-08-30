@@ -478,23 +478,46 @@ pub struct OcclusionTester {
     view_projection: Matrix4<f32>,
     observer_position: Vector3<f32>,
     visibility_map: FxHashMap<Handle<Node>, bool>,
-    tiles: Vec<Tile>,
-    gpu_tiles: Vec<GpuTile>,
-}
-
-#[derive(Default, Pod, Zeroable, Copy, Clone, Debug)]
-#[repr(C)]
-struct GpuTile {
-    objects: [u32; 32],
-}
-
-#[derive(Clone, Debug)]
-struct Tile {
-    objects: Vec<u32>,
-    bounds: Rect<f32>,
+    tiles: TileBuffer,
 }
 
 const MAX_BITS: usize = u32::BITS as usize;
+
+#[derive(Default, Pod, Zeroable, Copy, Clone, Debug)]
+#[repr(C)]
+struct Tile {
+    count: u32,
+    objects: [u32; MAX_BITS],
+}
+
+impl Tile {
+    fn add(&mut self, index: u32) {
+        let count = self.count as usize;
+        if count < self.objects.len() {
+            self.objects[count] = index;
+            self.count += 1;
+        }
+    }
+}
+
+#[derive(Default, Debug)]
+struct TileBuffer {
+    tiles: Vec<Tile>,
+}
+
+impl TileBuffer {
+    fn new(width: usize, height: usize) -> Self {
+        Self {
+            tiles: vec![Default::default(); width * height],
+        }
+    }
+
+    fn clear(&mut self) {
+        for tile in self.tiles.iter_mut() {
+            tile.count = 0;
+        }
+    }
+}
 
 fn screen_space_rect(
     aabb: AxisAlignedBoundingBox,
@@ -563,7 +586,7 @@ impl OcclusionTester {
         let tile_buffer = GpuTexture::new(
             state,
             GpuTextureKind::Rectangle {
-                width: w_tiles * MAX_BITS,
+                width: w_tiles * (MAX_BITS + 1),
                 height: h_tiles,
             },
             PixelKind::R32UI,
@@ -576,23 +599,6 @@ impl OcclusionTester {
         let depth_stencil = Rc::new(RefCell::new(depth_stencil_texture));
         let visibility_mask = Rc::new(RefCell::new(visibility_mask));
         let tile_buffer = Rc::new(RefCell::new(tile_buffer));
-
-        let tile_count = w_tiles * h_tiles;
-        let gpu_tiles = vec![GpuTile::default(); tile_count];
-        let mut tiles = Vec::with_capacity(tile_count);
-        for y in 0..h_tiles {
-            for x in 0..w_tiles {
-                tiles.push(Tile {
-                    objects: Vec::with_capacity(MAX_BITS),
-                    bounds: Rect::new(
-                        (x * tile_size) as f32,
-                        (y * tile_size) as f32,
-                        tile_size as f32,
-                        tile_size as f32,
-                    ),
-                })
-            }
-        }
 
         Ok(Self {
             framebuffer: FrameBuffer::new(
@@ -624,8 +630,7 @@ impl OcclusionTester {
             view_projection: Default::default(),
             observer_position: Default::default(),
             visibility_map: Default::default(),
-            tiles,
-            gpu_tiles,
+            tiles: TileBuffer::new(w_tiles, h_tiles),
         })
     }
 
@@ -646,19 +651,19 @@ impl OcclusionTester {
         let mut objects_visibility = vec![false; self.objects_to_test.len()];
         for y in 0..self.h_tiles {
             let img_y = self.h_tiles.saturating_sub(1) - y;
+            let tile_offset = y * self.w_tiles;
+            let img_offset = img_y * self.w_tiles;
             for x in 0..self.w_tiles {
-                let tile = &self.tiles[y * self.w_tiles + x];
-                let bits = visibility_buffer[img_y * self.w_tiles + x];
-                for bit in 0..u32::BITS {
-                    if let Some(object_index) = tile.objects.get(bit as usize) {
-                        let visibility = &mut objects_visibility[*object_index as usize];
-                        let mask = 1 << bit;
-                        let is_visible = (bits & mask) == mask;
-                        if is_visible {
-                            *visibility = true;
-                        }
-                    } else {
-                        break;
+                let tile = &self.tiles.tiles[tile_offset + x];
+                let bits = visibility_buffer[img_offset + x];
+                let count = tile.count as usize;
+                for bit in 0..count {
+                    let object_index = tile.objects[bit];
+                    let visibility = &mut objects_visibility[object_index as usize];
+                    let mask = 1 << bit;
+                    let is_visible = (bits & mask) == mask;
+                    if is_visible {
+                        *visibility = true;
                     }
                 }
             }
@@ -697,9 +702,7 @@ impl OcclusionTester {
         viewport: &Rect<i32>,
         debug_renderer: Option<&mut DebugRenderer>,
     ) -> Result<(), FrameworkError> {
-        for tile in self.tiles.iter_mut() {
-            tile.objects.clear();
-        }
+        self.tiles.clear();
 
         let mut lines = Vec::new();
         for (object_index, object) in self.objects_to_test.iter().enumerate() {
@@ -720,15 +723,24 @@ impl OcclusionTester {
             for y in min.y..=max.y {
                 let offset = y * self.w_tiles;
                 for x in min.x..=max.x {
-                    self.tiles[offset + x].objects.push(object_index);
+                    self.tiles.tiles[offset + x].add(object_index);
                 }
             }
         }
 
         if let Some(debug_renderer) = debug_renderer {
-            for tile in self.tiles.iter() {
+            for (tile_index, tile) in self.tiles.tiles.iter().enumerate() {
+                let x = (tile_index % self.w_tiles) * self.tile_size;
+                let y = (tile_index / self.w_tiles) * self.tile_size;
+                let bounds = Rect::new(
+                    x as f32,
+                    y as f32,
+                    self.tile_size as f32,
+                    self.tile_size as f32,
+                );
+
                 debug_renderer::draw_rect(
-                    &tile.bounds,
+                    &bounds,
                     &mut lines,
                     Color::COLORS[tile.objects.len() + 2],
                 );
@@ -737,23 +749,14 @@ impl OcclusionTester {
             debug_renderer.set_lines(state, &lines);
         }
 
-        for (tile, gpu_tile) in self.tiles.iter_mut().zip(self.gpu_tiles.iter_mut()) {
-            for (object_index, gpu_index) in tile.objects.iter().zip(gpu_tile.objects.iter_mut()) {
-                *gpu_index = *object_index;
-            }
-            for i in tile.objects.len()..MAX_BITS {
-                gpu_tile.objects[i] = u32::MAX;
-            }
-        }
-
         self.tile_buffer.borrow_mut().bind_mut(state, 0).set_data(
             GpuTextureKind::Rectangle {
-                width: self.w_tiles * MAX_BITS,
+                width: self.w_tiles * (MAX_BITS + 1),
                 height: self.h_tiles,
             },
             PixelKind::R32UI,
             1,
-            Some(array_as_u8_slice(&self.gpu_tiles)),
+            Some(array_as_u8_slice(self.tiles.tiles.as_slice())),
         )?;
 
         Ok(())
