@@ -26,7 +26,6 @@ use crate::{
     core::{
         algebra::{Matrix4, Vector2, Vector3, Vector4},
         array_as_u8_slice,
-        arrayvec::ArrayVec,
         color::Color,
         math::{aabb::AxisAlignedBoundingBox, OptionRect, Rect},
         pool::Handle,
@@ -490,14 +489,8 @@ struct GpuTile {
 }
 
 #[derive(Clone, Debug)]
-struct Object {
-    index: u32,
-    depth: f32,
-}
-
-#[derive(Clone, Debug)]
 struct Tile {
-    objects: Vec<Object>,
+    objects: Vec<u32>,
     bounds: Rect<f32>,
 }
 
@@ -590,7 +583,7 @@ impl OcclusionTester {
         for y in 0..h_tiles {
             for x in 0..w_tiles {
                 tiles.push(Tile {
-                    objects: vec![],
+                    objects: Vec::with_capacity(MAX_BITS),
                     bounds: Rect::new(
                         (x * tile_size) as f32,
                         (y * tile_size) as f32,
@@ -657,8 +650,8 @@ impl OcclusionTester {
                 let tile = &self.tiles[y * self.w_tiles + x];
                 let bits = visibility_buffer[img_y * self.w_tiles + x];
                 for bit in 0..u32::BITS {
-                    if let Some(object) = tile.objects.get(bit as usize) {
-                        let visibility = &mut objects_visibility[object.index as usize];
+                    if let Some(object_index) = tile.objects.get(bit as usize) {
+                        let visibility = &mut objects_visibility[*object_index as usize];
                         let mask = 1 << bit;
                         let is_visible = (bits & mask) == mask;
                         if is_visible {
@@ -710,6 +703,7 @@ impl OcclusionTester {
 
         let mut lines = Vec::new();
         for (object_index, object) in self.objects_to_test.iter().enumerate() {
+            let object_index = object_index as u32;
             let Some(node_ref) = graph.try_get(*object) else {
                 continue;
             };
@@ -721,17 +715,12 @@ impl OcclusionTester {
                 debug_renderer::draw_rect(&rect, &mut lines, Color::WHITE);
             }
 
-            let average_depth = self.observer_position.sqr_distance(&aabb.center());
             let min = self.screen_space_to_tile_space(rect.left_top_corner());
             let max = self.screen_space_to_tile_space(rect.right_bottom_corner());
             for y in min.y..=max.y {
                 let offset = y * self.w_tiles;
                 for x in min.x..=max.x {
-                    let tile = &mut self.tiles[offset + x];
-                    tile.objects.push(Object {
-                        index: object_index as u32,
-                        depth: average_depth,
-                    });
+                    self.tiles[offset + x].objects.push(object_index);
                 }
             }
         }
@@ -749,18 +738,12 @@ impl OcclusionTester {
         }
 
         for (tile, gpu_tile) in self.tiles.iter_mut().zip(self.gpu_tiles.iter_mut()) {
-            tile.objects
-                .sort_unstable_by(|a, b| a.depth.partial_cmp(&b.depth).unwrap_or(Ordering::Less));
-
-            gpu_tile.objects = tile
-                .objects
-                .iter()
-                .map(|obj| obj.index)
-                .chain([u32::MAX; MAX_BITS])
-                .take(MAX_BITS)
-                .collect::<ArrayVec<u32, MAX_BITS>>()
-                .into_inner()
-                .unwrap();
+            for (object_index, gpu_index) in tile.objects.iter().zip(gpu_tile.objects.iter_mut()) {
+                *gpu_index = *object_index;
+            }
+            for i in tile.objects.len()..MAX_BITS {
+                gpu_tile.objects[i] = u32::MAX;
+            }
         }
 
         self.tile_buffer.borrow_mut().bind_mut(state, 0).set_data(
@@ -779,6 +762,7 @@ impl OcclusionTester {
     pub fn upload_data<'a>(
         &mut self,
         state: &PipelineState,
+        graph: &Graph,
         objects_to_test: impl Iterator<Item = &'a Handle<Node>>,
         prev_framebuffer: &FrameBuffer,
         observer_position: Vector3<f32>,
@@ -804,6 +788,11 @@ impl OcclusionTester {
 
         self.objects_to_test.clear();
         self.objects_to_test.extend(objects_to_test);
+        self.objects_to_test.sort_unstable_by(|a, b| {
+            let depth_a = graph[*a].global_position().sqr_distance(&observer_position);
+            let depth_b = graph[*b].global_position().sqr_distance(&observer_position);
+            depth_a.partial_cmp(&depth_b).unwrap_or(Ordering::Less)
+        });
 
         self.view_projection = view_projection;
         self.observer_position = observer_position;

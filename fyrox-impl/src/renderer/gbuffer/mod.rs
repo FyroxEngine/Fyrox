@@ -428,6 +428,7 @@ impl GBuffer {
             }
             self.occlusion_tester.upload_data(
                 state,
+                graph,
                 objects.iter(),
                 &self.framebuffer,
                 camera.global_position(),
