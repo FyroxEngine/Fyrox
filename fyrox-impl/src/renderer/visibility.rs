@@ -415,10 +415,11 @@ impl VisibilityBufferOptimizer {
     }
 
     fn read_visibility_mask(&self, state: &PipelineState) -> Vec<u32> {
+        state.set_framebuffer(self.framebuffer.id());
         self.optimized_visibility_buffer
             .borrow_mut()
             .bind_mut(state, 0)
-            .get_image(0, state)
+            .read_pixels_of_type(state)
     }
 
     fn optimize(
