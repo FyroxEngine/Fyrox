@@ -22,6 +22,7 @@
 
 #![allow(missing_docs)] // TODO
 
+use crate::renderer::framework::pixel_buffer::PixelBuffer;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2, Vector3, Vector4},
@@ -375,7 +376,7 @@ impl VisibilityOptimizerShader {
 
 struct VisibilityBufferOptimizer {
     framebuffer: FrameBuffer,
-    optimized_visibility_buffer: Rc<RefCell<GpuTexture>>,
+    pixel_buffer: PixelBuffer<u32>,
     shader: VisibilityOptimizerShader,
     w_tiles: usize,
     h_tiles: usize,
@@ -404,22 +405,18 @@ impl VisibilityBufferOptimizer {
                 None,
                 vec![Attachment {
                     kind: AttachmentKind::Color,
-                    texture: optimized_visibility_buffer.clone(),
+                    texture: optimized_visibility_buffer,
                 }],
             )?,
-            optimized_visibility_buffer,
+            pixel_buffer: PixelBuffer::new(state, w_tiles * h_tiles)?,
             shader: VisibilityOptimizerShader::new(state)?,
             w_tiles,
             h_tiles,
         })
     }
 
-    fn read_visibility_mask(&self, state: &PipelineState) -> Vec<u32> {
-        state.set_framebuffer(self.framebuffer.id());
-        self.optimized_visibility_buffer
-            .borrow_mut()
-            .bind_mut(state, 0)
-            .read_pixels_of_type(state)
+    fn read_visibility_mask(&mut self, state: &PipelineState) -> Option<Vec<u32>> {
+        self.pixel_buffer.try_read(state)
     }
 
     fn optimize(
@@ -428,7 +425,7 @@ impl VisibilityBufferOptimizer {
         visibility_buffer: &Rc<RefCell<GpuTexture>>,
         unit_quad: &GeometryBuffer,
         tile_size: i32,
-    ) -> Result<Vec<u32>, FrameworkError> {
+    ) -> Result<(), FrameworkError> {
         let viewport = Rect::new(0, 0, self.w_tiles as i32, self.h_tiles as i32);
 
         self.framebuffer
@@ -459,7 +456,10 @@ impl VisibilityBufferOptimizer {
             },
         )?;
 
-        Ok(self.read_visibility_mask(state))
+        self.pixel_buffer
+            .schedule_pixels_transfer(state, &self.framebuffer, 0, None)?;
+
+        Ok(())
     }
 }
 
@@ -636,18 +636,11 @@ impl OcclusionTester {
     }
 
     #[inline(never)]
-    fn prepare_visibility_map(
-        &mut self,
-        state: &PipelineState,
-        graph: &Graph,
-        unit_quad: &GeometryBuffer,
-    ) -> Result<(), FrameworkError> {
-        let visibility_buffer = self.visibility_buffer_optimizer.optimize(
-            state,
-            &self.visibility_mask,
-            unit_quad,
-            self.tile_size as i32,
-        )?;
+    pub fn try_query_visibility_results(&mut self, state: &PipelineState, graph: &Graph) {
+        let Some(visibility_buffer) = self.visibility_buffer_optimizer.read_visibility_mask(state)
+        else {
+            return;
+        };
 
         let mut objects_visibility = vec![false; self.objects_to_test.len()];
         for y in 0..self.h_tiles {
@@ -686,8 +679,6 @@ impl OcclusionTester {
                 *visibility = true;
             }
         }
-
-        Ok(())
     }
 
     fn screen_space_to_tile_space(&self, pos: Vector2<f32>) -> Vector2<usize> {
@@ -809,7 +800,12 @@ impl OcclusionTester {
         debug_renderer: Option<&mut DebugRenderer>,
         unit_quad: &GeometryBuffer,
     ) -> Result<(), FrameworkError> {
-        if self.objects_to_test.is_empty() {
+        if self.objects_to_test.is_empty()
+            || self
+                .visibility_buffer_optimizer
+                .pixel_buffer
+                .is_request_running()
+        {
             return Ok(());
         }
 
@@ -865,7 +861,14 @@ impl OcclusionTester {
             },
         );
 
-        self.prepare_visibility_map(state, graph, unit_quad)
+        self.visibility_buffer_optimizer.optimize(
+            state,
+            &self.visibility_mask,
+            unit_quad,
+            self.tile_size as i32,
+        )?;
+
+        Ok(())
     }
 
     pub fn is_visible(&self, object: Handle<Node>) -> bool {

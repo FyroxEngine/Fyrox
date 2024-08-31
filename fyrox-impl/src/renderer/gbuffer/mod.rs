@@ -315,7 +315,7 @@ impl GBuffer {
 
         if quality_settings.use_occlusion_culling {
             self.occlusion_tester
-                .run_visibility_test(state, graph, None, unit_quad)?;
+                .try_query_visibility_results(state, graph);
         };
 
         let viewport = Rect::new(0, 0, self.width, self.height);
@@ -426,6 +426,7 @@ impl GBuffer {
                     objects.insert(instance.node_handle);
                 }
             }
+
             self.occlusion_tester.upload_data(
                 state,
                 graph,
@@ -434,6 +435,9 @@ impl GBuffer {
                 camera.global_position(),
                 initial_view_projection,
             );
+
+            self.occlusion_tester
+                .run_visibility_test(state, graph, None, unit_quad)?;
         }
 
         let inv_view_proj = initial_view_projection.try_inverse().unwrap_or_default();
