@@ -754,7 +754,7 @@ impl OcclusionTester {
         Ok(())
     }
 
-    pub fn upload_data<'a>(
+    fn upload_data<'a>(
         &mut self,
         state: &PipelineState,
         graph: &Graph,
@@ -793,21 +793,33 @@ impl OcclusionTester {
         self.observer_position = observer_position;
     }
 
-    pub fn run_visibility_test(
+    pub fn try_run_visibility_test<'a>(
         &mut self,
         state: &PipelineState,
         graph: &Graph,
         debug_renderer: Option<&mut DebugRenderer>,
         unit_quad: &GeometryBuffer,
+        objects_to_test: impl Iterator<Item = &'a Handle<Node>>,
+        prev_framebuffer: &FrameBuffer,
+        observer_position: Vector3<f32>,
+        view_projection: Matrix4<f32>,
     ) -> Result<(), FrameworkError> {
-        if self.objects_to_test.is_empty()
-            || self
-                .visibility_buffer_optimizer
-                .pixel_buffer
-                .is_request_running()
+        if self
+            .visibility_buffer_optimizer
+            .pixel_buffer
+            .is_request_running()
         {
             return Ok(());
         }
+
+        self.upload_data(
+            state,
+            graph,
+            objects_to_test,
+            prev_framebuffer,
+            observer_position,
+            view_projection,
+        );
 
         let w = self.frame_size.x as i32;
         let h = self.frame_size.y as i32;

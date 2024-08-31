@@ -427,17 +427,16 @@ impl GBuffer {
                 }
             }
 
-            self.occlusion_tester.upload_data(
+            self.occlusion_tester.try_run_visibility_test(
                 state,
                 graph,
+                None,
+                unit_quad,
                 objects.iter(),
                 &self.framebuffer,
                 camera.global_position(),
                 initial_view_projection,
-            );
-
-            self.occlusion_tester
-                .run_visibility_test(state, graph, None, unit_quad)?;
+            )?;
         }
 
         let inv_view_proj = initial_view_projection.try_inverse().unwrap_or_default();
