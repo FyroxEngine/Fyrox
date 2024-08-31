@@ -418,7 +418,12 @@ fn ceil_div_4(x: usize) -> usize {
     (x + 3) / 4
 }
 
-fn image_3d_size_bytes(pixel_kind: PixelKind, width: usize, height: usize, depth: usize) -> usize {
+pub fn image_3d_size_bytes(
+    pixel_kind: PixelKind,
+    width: usize,
+    height: usize,
+    depth: usize,
+) -> usize {
     let pixel_count = width * height * depth;
     match pixel_kind {
         PixelKind::RGBA32F => 16 * pixel_count,
@@ -455,7 +460,7 @@ fn image_3d_size_bytes(pixel_kind: PixelKind, width: usize, height: usize, depth
     }
 }
 
-fn image_2d_size_bytes(pixel_kind: PixelKind, width: usize, height: usize) -> usize {
+pub fn image_2d_size_bytes(pixel_kind: PixelKind, width: usize, height: usize) -> usize {
     let pixel_count = width * height;
     match pixel_kind {
         PixelKind::RGBA32F => 16 * pixel_count,
@@ -492,7 +497,7 @@ fn image_2d_size_bytes(pixel_kind: PixelKind, width: usize, height: usize) -> us
     }
 }
 
-fn image_1d_size_bytes(pixel_kind: PixelKind, length: usize) -> usize {
+pub fn image_1d_size_bytes(pixel_kind: PixelKind, length: usize) -> usize {
     match pixel_kind {
         PixelKind::RGBA32F => 16 * length,
         PixelKind::RGB32F => 12 * length,
