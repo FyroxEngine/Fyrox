@@ -25,5 +25,6 @@ pub mod framebuffer;
 pub mod geometry_buffer;
 pub mod gpu_program;
 pub mod gpu_texture;
+pub mod pixel_buffer;
 pub mod query;
 pub mod state;

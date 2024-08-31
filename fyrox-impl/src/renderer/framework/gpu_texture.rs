@@ -168,10 +168,10 @@ pub enum PixelElementKind {
 }
 
 pub struct PixelDescriptor {
-    data_type: u32,
-    format: u32,
-    internal_format: u32,
-    swizzle_mask: Option<[i32; 4]>,
+    pub data_type: u32,
+    pub format: u32,
+    pub internal_format: u32,
+    pub swizzle_mask: Option<[i32; 4]>,
 }
 
 impl PixelKind {
