@@ -157,14 +157,14 @@ impl<T> PixelBuffer<T> {
                 PixelPackData::BufferOffset(0),
             );
 
+            state.gl.bind_buffer(glow::PIXEL_PACK_BUFFER, None);
+
             self.request = Some(ReadRequest {
                 fence: state
                     .gl
                     .fence_sync(glow::SYNC_GPU_COMMANDS_COMPLETE, 0)
                     .unwrap(),
             });
-
-            state.gl.bind_buffer(glow::PIXEL_PACK_BUFFER, None);
 
             Ok(())
         }
@@ -183,7 +183,10 @@ impl<T> PixelBuffer<T> {
         let mut buffer = vec![T::default(); self.pixel_count];
 
         unsafe {
-            if state.gl.get_sync_status(request.fence) == glow::SIGNALED {
+            // For some reason, glGetSynciv still blocks execution and produces GPU stall, ruining
+            // the performance. glClientWaitSync with timeout=0 does not have this issue.
+            let fence_state = state.gl.client_wait_sync(request.fence, 0, 0);
+            if fence_state != glow::TIMEOUT_EXPIRED && fence_state != glow::WAIT_FAILED {
                 self.read_internal(state, &mut buffer);
 
                 state.gl.delete_sync(request.fence);
