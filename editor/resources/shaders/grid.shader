@@ -97,8 +97,8 @@
                     vec2 derivative = fwidth(coord);
                     vec2 grid = abs(fract(coord - 0.5) - 0.5) / derivative;
                     float line = min(grid.x, grid.y);
-                    float minZ = 0.5 * min(derivative.y, 1);
-                    float minX = 0.5 * min(derivative.x, 1);
+                    float minZ = 0.5 * min(derivative.y, 1.0);
+                    float minX = 0.5 * min(derivative.x, 1.0);
 
                     vec4 color = diffuseColor;
                     float alpha = 1.0 - min(line, 1.0);
@@ -136,7 +136,7 @@
                     gl_FragDepth = ((gl_DepthRange.diff * depth) + gl_DepthRange.near + gl_DepthRange.far) / 2.0;
 
                     FragColor = grid(fragPos3D, 1.0);
-                    FragColor.a *= float(t > 0);
+                    FragColor.a *= float(t > 0.0);
 
                     // Alpha test to prevent blending issues.
                     if (FragColor.a < 0.01) {
