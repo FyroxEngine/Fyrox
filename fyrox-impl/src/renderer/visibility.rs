@@ -642,7 +642,13 @@ impl OcclusionTester {
             return;
         };
 
-        let mut objects_visibility = vec![false; self.objects_to_test.len()];
+        let mut objects_visibility = vec![true; self.objects_to_test.len()];
+        for tile in self.tiles.tiles.iter() {
+            for object_index in tile.objects.iter().take(tile.count as usize) {
+                objects_visibility[*object_index as usize] = false;
+            }
+        }
+
         for y in 0..self.h_tiles {
             let img_y = self.h_tiles.saturating_sub(1) - y;
             let tile_offset = y * self.w_tiles;
