@@ -62,7 +62,7 @@ impl<T> PixelBuffer<T> {
             state.gl.buffer_data_size(
                 glow::PIXEL_PACK_BUFFER,
                 size_bytes as i32,
-                glow::STREAM_COPY,
+                glow::STREAM_READ,
             );
             Ok(Self {
                 id,
