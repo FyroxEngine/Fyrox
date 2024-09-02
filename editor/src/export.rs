@@ -220,8 +220,12 @@ fn prepare_build_dir(path: &Path) -> Result<(), String> {
     Ok(())
 }
 
-fn is_wasm_pack_installed() -> bool {
-    if let Ok(mut handle) = std::process::Command::new("wasm-pack --version").spawn() {
+fn is_installed(program: &str) -> bool {
+    if let Ok(mut handle) = std::process::Command::new(program)
+        // Assuming that `help` command is always present.
+        .arg("--help")
+        .spawn()
+    {
         if let Ok(code) = handle.wait() {
             if code.code().unwrap_or(1) == 0 {
                 return true;
@@ -302,13 +306,15 @@ fn configure_build_environment(
         }
         TargetPlatform::WebAssembly => {
             // Check if the user have `wasm-pack` installed.
-            if !is_wasm_pack_installed() {
+            if !is_installed("wasm-pack") {
                 cargo_install("wasm-pack")?;
             }
             install_build_target(build_target)
         }
         TargetPlatform::Android => {
-            cargo_install("cargo-apk")?;
+            if !is_installed("cargo-apk") {
+                cargo_install("cargo-apk")?;
+            }
             install_build_target(build_target)
         }
     }
@@ -659,7 +665,9 @@ fn export(export_options: ExportOptions, cancel_flag: Arc<AtomicBool>) -> Result
                     Log::verify(open::that_detached(path))
                 }
                 TargetPlatform::WebAssembly => {
-                    Log::verify(cargo_install("basic-http-server"));
+                    if !is_installed("basic-http-server") {
+                        Log::verify(cargo_install("basic-http-server"));
+                    }
 
                     Log::verify(
                         std::process::Command::new("basic-http-server")
