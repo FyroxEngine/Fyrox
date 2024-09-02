@@ -29,14 +29,11 @@
 //! Every alpha channel is used for layer blending for terrains. This is inefficient, but for
 //! now I don't know better solution.
 
-use crate::renderer::debug_renderer::DebugRenderer;
-use crate::renderer::visibility::OcclusionTester;
-use crate::renderer::QualitySettings;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2},
         color::Color,
-        math::Rect,
+        math::{Matrix4Ext, Rect},
         scope_profile,
         sstorage::ImmutableString,
     },
@@ -44,6 +41,7 @@ use crate::{
         apply_material,
         bundle::RenderDataBundleStorage,
         cache::shader::ShaderCache,
+        debug_renderer::DebugRenderer,
         framework::{
             error::FrameworkError,
             framebuffer::{
@@ -58,8 +56,9 @@ use crate::{
             state::{BlendFactor, BlendFunc, PipelineState},
         },
         gbuffer::decal::DecalShader,
+        occlusion::OcclusionTester,
         storage::MatrixStorageCache,
-        GeometryCache, MaterialContext, RenderPassStatistics, TextureCache,
+        GeometryCache, MaterialContext, QualitySettings, RenderPassStatistics, TextureCache,
     },
     scene::{
         camera::Camera,
@@ -69,7 +68,6 @@ use crate::{
     },
 };
 use fxhash::FxHashSet;
-use fyrox_core::math::Matrix4Ext;
 use std::{cell::RefCell, rc::Rc};
 
 mod decal;
