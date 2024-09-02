@@ -1209,18 +1209,11 @@ impl GpuTexture {
     }
 
     pub fn bind(&self, state: &PipelineState, sampler_index: u32) {
-        for kind in [glow::TEXTURE_2D, glow::TEXTURE_3D, glow::TEXTURE_CUBE_MAP] {
-            state.set_texture(
-                sampler_index,
-                kind,
-                if kind == self.kind.gl_texture_target() {
-                    Some(self.texture)
-                } else {
-                    // Unbind everything else.
-                    None
-                },
-            );
-        }
+        state.set_texture(
+            sampler_index,
+            self.kind.gl_texture_target(),
+            Some(self.texture),
+        );
     }
 
     pub fn kind(&self) -> GpuTextureKind {

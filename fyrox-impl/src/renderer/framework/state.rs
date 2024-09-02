@@ -27,6 +27,7 @@ use fyrox_core::uuid_provider;
 use glow::{Framebuffer, HasContext};
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
+use std::ops::DerefMut;
 use std::rc::{Rc, Weak};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
@@ -243,7 +244,7 @@ struct InnerState {
     blend_equation: BlendEquation,
 
     program: Option<glow::Program>,
-    texture_units: [TextureUnit; 32],
+    texture_units_storage: TextureUnitsStorage,
 
     stencil_func: StencilFunc,
     stencil_op: StencilOp,
@@ -277,7 +278,10 @@ impl InnerState {
             blend_func: Default::default(),
             viewport: Rect::new(0, 0, 1, 1),
             program: Default::default(),
-            texture_units: [Default::default(); 32],
+            texture_units_storage: TextureUnitsStorage {
+                active_unit: 0,
+                units: Default::default(),
+            },
             stencil_func: Default::default(),
             stencil_op: Default::default(),
             vao: Default::default(),
@@ -298,18 +302,45 @@ pub struct PipelineState {
 }
 
 #[derive(Copy, Clone)]
-struct TextureUnit {
+struct TextureBinding {
     target: u32,
     texture: Option<glow::Texture>,
+}
+
+#[derive(Copy, Clone)]
+struct TextureUnit {
+    bindings: [TextureBinding; 4],
 }
 
 impl Default for TextureUnit {
     fn default() -> Self {
         Self {
-            target: glow::TEXTURE_2D,
-            texture: Default::default(),
+            bindings: [
+                TextureBinding {
+                    target: glow::TEXTURE_2D,
+                    texture: None,
+                },
+                TextureBinding {
+                    target: glow::TEXTURE_3D,
+                    texture: None,
+                },
+                TextureBinding {
+                    target: glow::TEXTURE_1D,
+                    texture: None,
+                },
+                TextureBinding {
+                    target: glow::TEXTURE_CUBE_MAP,
+                    texture: None,
+                },
+            ],
         }
     }
+}
+
+#[derive(Default)]
+struct TextureUnitsStorage {
+    active_unit: u32,
+    units: [TextureUnit; 32],
 }
 
 #[derive(
@@ -836,23 +867,40 @@ impl PipelineState {
         }
     }
 
-    pub fn set_texture(&self, sampler_index: u32, target: u32, texture: Option<glow::Texture>) {
-        let mut state = self.state.borrow_mut();
-
-        // We must set active texture no matter if it's texture is bound or not.
-        unsafe {
-            self.gl.active_texture(glow::TEXTURE0 + sampler_index);
+    pub fn set_texture(&self, unit_index: u32, target: u32, texture: Option<glow::Texture>) {
+        unsafe fn bind_texture(
+            gl: &glow::Context,
+            target: u32,
+            texture: Option<glow::Texture>,
+            unit_index: u32,
+            active_unit: &mut u32,
+        ) {
+            if *active_unit != unit_index {
+                *active_unit = unit_index;
+                gl.active_texture(glow::TEXTURE0 + unit_index);
+            }
+            gl.bind_texture(target, texture);
         }
 
-        let unit = &mut state.texture_units[sampler_index as usize];
-        if unit.target != target || unit.texture != texture {
-            unit.texture = texture;
-            unit.target = target;
+        unsafe {
+            let mut state_guard = self.state.borrow_mut();
+            let state = state_guard.deref_mut();
 
-            unsafe {
-                self.gl.bind_texture(target, unit.texture);
+            let unit = &mut state.texture_units_storage.units[unit_index as usize];
+            let active_unit = &mut state.texture_units_storage.active_unit;
+            for binding in unit.bindings.iter_mut() {
+                if binding.target == target {
+                    if binding.texture != texture {
+                        binding.texture = texture;
+                        bind_texture(&self.gl, binding.target, texture, unit_index, active_unit);
+                        state.frame_statistics.texture_binding_changes += 1;
+                    }
+                } else if binding.texture.is_some() {
+                    binding.texture = None;
+                    bind_texture(&self.gl, binding.target, None, unit_index, active_unit);
+                    state.frame_statistics.texture_binding_changes += 1;
+                }
             }
-            state.frame_statistics.texture_binding_changes += 1;
         }
     }
 
@@ -994,7 +1042,7 @@ impl PipelineState {
 
     pub fn invalidate_resource_bindings_cache(&self) {
         let mut state = self.state.borrow_mut();
-        state.texture_units = Default::default();
+        state.texture_units_storage = Default::default();
         state.program = Default::default();
         state.frame_statistics = Default::default();
     }
