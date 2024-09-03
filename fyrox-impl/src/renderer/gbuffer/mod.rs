@@ -330,6 +330,11 @@ impl GBuffer {
         let camera_up = inv_view.up();
         let camera_side = inv_view.side();
 
+        let grid_cell = self
+            .occlusion_tester
+            .grid_cache
+            .cell(camera.global_position());
+
         for bundle in bundle_storage
             .bundles
             .iter()
@@ -361,7 +366,7 @@ impl GBuffer {
 
             for instance in bundle.instances.iter() {
                 if quality_settings.use_occlusion_culling
-                    && !self.occlusion_tester.is_visible(instance.node_handle)
+                    && !grid_cell.map_or(true, |cell| cell.is_visible(instance.node_handle))
                 {
                     continue;
                 }

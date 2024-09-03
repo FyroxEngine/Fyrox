@@ -20,8 +20,10 @@
 
 //! Full algorithm explained - https://fyrox.rs/blog/post/tile-based-occlusion-culling/
 
+mod grid;
 mod optimizer;
 
+use crate::renderer::occlusion::grid::{GridCache, Visibility};
 use crate::{
     core::{
         algebra::{Matrix4, Vector2, Vector3, Vector4},
@@ -57,7 +59,6 @@ use crate::{
     scene::{graph::Graph, mesh::surface::SurfaceData, node::Node},
 };
 use bytemuck::{Pod, Zeroable};
-use fxhash::FxHashMap;
 use std::{cell::RefCell, cmp::Ordering, rc::Rc};
 
 struct Shader {
@@ -103,7 +104,7 @@ pub struct OcclusionTester {
     objects_to_test: Vec<Handle<Node>>,
     view_projection: Matrix4<f32>,
     observer_position: Vector3<f32>,
-    visibility_map: FxHashMap<Handle<Node>, bool>,
+    pub grid_cache: GridCache,
     tiles: TileBuffer,
 }
 
@@ -255,7 +256,7 @@ impl OcclusionTester {
             objects_to_test: Default::default(),
             view_projection: Default::default(),
             observer_position: Default::default(),
-            visibility_map: Default::default(),
+            grid_cache: GridCache::new(Vector3::repeat(1)),
             tiles: TileBuffer::new(w_tiles, h_tiles),
         })
     }
@@ -266,13 +267,7 @@ impl OcclusionTester {
             return;
         };
 
-        let mut objects_visibility = vec![true; self.objects_to_test.len()];
-        for tile in self.tiles.tiles.iter() {
-            for object_index in tile.objects.iter().take(tile.count as usize) {
-                objects_visibility[*object_index as usize] = false;
-            }
-        }
-
+        let mut objects_visibility = vec![false; self.objects_to_test.len()];
         for y in 0..self.h_tiles {
             let img_y = self.h_tiles.saturating_sub(1) - y;
             let tile_offset = y * self.w_tiles;
@@ -293,20 +288,17 @@ impl OcclusionTester {
             }
         }
 
-        self.visibility_map.clear();
-        self.visibility_map.extend(
-            self.objects_to_test
-                .iter()
-                .cloned()
-                .zip(objects_visibility.iter().cloned()),
-        );
+        let cell = self.grid_cache.get_or_insert_cell(self.observer_position);
+        for (obj, vis) in self.objects_to_test.iter().zip(objects_visibility.iter()) {
+            cell.mark(*obj, (*vis).into());
+        }
 
-        for (object, visibility) in self.visibility_map.iter_mut() {
+        for (object, visibility) in cell.iter_mut() {
             let Some(aabb) = inflated_world_aabb(graph, *object) else {
                 continue;
             };
             if aabb.is_contains_point(self.observer_position) {
-                *visibility = true;
+                *visibility = Visibility::Visible;
             }
         }
     }
@@ -393,6 +385,8 @@ impl OcclusionTester {
         observer_position: Vector3<f32>,
         view_projection: Matrix4<f32>,
     ) {
+        self.view_projection = view_projection;
+        self.observer_position = observer_position;
         let w = self.frame_size.x as i32;
         let h = self.frame_size.y as i32;
         state.blit_framebuffer(
@@ -412,15 +406,19 @@ impl OcclusionTester {
         );
 
         self.objects_to_test.clear();
-        self.objects_to_test.extend(objects_to_test);
+        if let Some(cell) = self.grid_cache.cell(self.observer_position) {
+            for object in objects_to_test {
+                if cell.needs_occlusion_query(*object) {
+                    self.objects_to_test.push(*object);
+                }
+            }
+        }
+
         self.objects_to_test.sort_unstable_by(|a, b| {
             let depth_a = graph[*a].global_position().sqr_distance(&observer_position);
             let depth_b = graph[*b].global_position().sqr_distance(&observer_position);
             depth_a.partial_cmp(&depth_b).unwrap_or(Ordering::Less)
         });
-
-        self.view_projection = view_projection;
-        self.observer_position = observer_position;
     }
 
     pub fn try_run_visibility_test<'a>(
@@ -507,9 +505,5 @@ impl OcclusionTester {
         )?;
 
         Ok(())
-    }
-
-    pub fn is_visible(&self, object: Handle<Node>) -> bool {
-        self.visibility_map.get(&object).cloned().unwrap_or(true)
     }
 }
