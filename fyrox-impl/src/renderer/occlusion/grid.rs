@@ -47,22 +47,6 @@ impl Visibility {
             Visibility::Invisible => false,
         }
     }
-
-    pub fn needs_occlusion_query(self) -> bool {
-        match self {
-            Visibility::Invisible => {
-                // The object could be invisible from one angle at the observer position, but visible
-                // from another. Since we're using only position of the observer, we cannot be 100%
-                // sure, that the object is invisible even if a previous query told us so.
-                true
-            }
-            Visibility::Visible => {
-                // Some pixels of the object is visible from the given observer position, so we don't
-                // need a new occlusion query.
-                false
-            }
-        }
-    }
 }
 
 #[derive(Debug, Default)]
@@ -117,14 +101,6 @@ fn world_to_grid(world_position: Vector3<f32>, granularity: Vector3<u32>) -> Vec
     )
 }
 
-fn grid_to_world(grid_position: Vector3<i32>, granularity: Vector3<u32>) -> Vector3<f32> {
-    Vector3::new(
-        grid_position.x as f32 / (granularity.x as f32),
-        grid_position.y as f32 / (granularity.y as f32),
-        grid_position.z as f32 / (granularity.z as f32),
-    )
-}
-
 impl GridCache {
     /// Creates new visibility cache with the given granularity and distance discard threshold.
     /// Granularity in means how much the cache should subdivide the world. For example 2 means that
@@ -140,11 +116,6 @@ impl GridCache {
     /// Transforms the given world-space position into internal grid-space position.
     pub fn world_to_grid(&self, world_position: Vector3<f32>) -> Vector3<i32> {
         world_to_grid(world_position, self.granularity)
-    }
-
-    /// Transforms the given grid-space position into the world-space position.
-    pub fn grid_to_world(&self, grid_position: Vector3<i32>) -> Vector3<f32> {
-        grid_to_world(grid_position, self.granularity)
     }
 
     pub fn cell(&self, observer_position: Vector3<f32>) -> Option<&NodeVisibilityMap> {
