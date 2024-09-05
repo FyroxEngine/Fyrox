@@ -64,6 +64,7 @@ impl<T> PixelBuffer<T> {
                 size_bytes as i32,
                 glow::STREAM_READ,
             );
+            state.gl.bind_buffer(glow::PIXEL_PACK_BUFFER, None);
             Ok(Self {
                 id,
                 state: state.weak(),
