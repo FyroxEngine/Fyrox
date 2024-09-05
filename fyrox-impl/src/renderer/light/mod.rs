@@ -485,13 +485,13 @@ impl DeferredLightRenderer {
             let scl = light.local_transform().scale();
             let light_radius_scale = scl.x.max(scl.y).max(scl.z);
             let light_radius = light_radius_scale * raw_radius;
-            let light_rotation = light
-                .global_transform()
-                .basis()
-                .try_inverse()
-                .unwrap_or_default()
-                .transpose()
-                .to_homogeneous();
+            let light_rotation = UnitQuaternion::from_matrix_eps(
+                &light.global_transform().basis(),
+                10.0 * f32::EPSILON,
+                16,
+                Default::default(),
+            )
+            .to_homogeneous();
             let bounding_shape_matrix =
                 Matrix4::new_translation(&light_position) * light_rotation * shape_specific_matrix;
             let emit_direction = light
