@@ -59,7 +59,7 @@ use crate::{
     scene::{graph::Graph, mesh::surface::SurfaceData, node::Node},
 };
 use bytemuck::{Pod, Zeroable};
-use std::{cell::RefCell, cmp::Ordering, rc::Rc};
+use std::{cell::RefCell, rc::Rc};
 
 struct Shader {
     program: GpuProgram,
@@ -414,10 +414,8 @@ impl OcclusionTester {
             }
         }
 
-        self.objects_to_test.sort_unstable_by(|a, b| {
-            let depth_a = graph[*a].global_position().sqr_distance(&observer_position);
-            let depth_b = graph[*b].global_position().sqr_distance(&observer_position);
-            depth_a.partial_cmp(&depth_b).unwrap_or(Ordering::Less)
+        self.objects_to_test.sort_unstable_by_key(|a| {
+            (graph[*a].global_position().sqr_distance(&observer_position) * 1000.0) as u64
         });
     }
 
