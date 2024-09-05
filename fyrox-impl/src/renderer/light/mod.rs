@@ -20,7 +20,7 @@
 
 use crate::{
     core::{
-        algebra::{Matrix4, Point3, Vector2, Vector3},
+        algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3},
         color::Color,
         math::{frustum::Frustum, Matrix4Ext, Rect, TriangleDefinition},
         scope_profile,
@@ -586,6 +586,7 @@ impl DeferredLightRenderer {
             // usually cover the entire screen anyway. TODO: This might still be optimizable, but
             // for now we'll skip it, since this optimization could be useful only for scenes with
             // mixed indoor/outdoor environment.
+            let mut needs_lighting = true;
             if light.cast::<DirectionalLight>().is_none() {
                 if visibility_cache.needs_occlusion_query(camera_global_position, light_handle) {
                     // Draw full screen quad, that will be used to count pixels that passed the stencil test
@@ -618,11 +619,11 @@ impl DeferredLightRenderer {
                 }
 
                 if !visibility_cache.is_visible(camera_global_position, light_handle) {
-                    continue;
+                    needs_lighting = false;
                 }
             }
 
-            if shadows_enabled {
+            if needs_lighting && shadows_enabled {
                 if let Some(spot) = light.cast::<SpotLight>() {
                     let z_near = 0.01;
                     let z_far = light_radius;
@@ -705,217 +706,221 @@ impl DeferredLightRenderer {
                 };
             }
 
-            let draw_params = DrawParameters {
-                cull_face: None,
-                color_write: Default::default(),
-                depth_write: false,
-                stencil_test: Some(StencilFunc {
-                    func: CompareFunc::NotEqual,
-                    ..Default::default()
-                }),
-                stencil_op: StencilOp {
-                    zpass: StencilAction::Zero,
-                    ..Default::default()
-                },
-                depth_test: false,
-                blend: Some(BlendParameters {
-                    func: BlendFunc::new(BlendFactor::One, BlendFactor::One),
-                    ..Default::default()
-                }),
-            };
+            if needs_lighting {
+                let draw_params = DrawParameters {
+                    cull_face: None,
+                    color_write: Default::default(),
+                    depth_write: false,
+                    stencil_test: Some(StencilFunc {
+                        func: CompareFunc::NotEqual,
+                        ..Default::default()
+                    }),
+                    stencil_op: StencilOp {
+                        zpass: StencilAction::Zero,
+                        ..Default::default()
+                    },
+                    depth_test: false,
+                    blend: Some(BlendParameters {
+                        func: BlendFunc::new(BlendFactor::One, BlendFactor::One),
+                        ..Default::default()
+                    }),
+                };
 
-            let quad = &self.quad;
+                let quad = &self.quad;
 
-            pass_stats += if let Some(spot_light) = light.cast::<SpotLight>() {
-                let shader = &self.spot_light_shader;
+                pass_stats += if let Some(spot_light) = light.cast::<SpotLight>() {
+                    let shader = &self.spot_light_shader;
 
-                let (cookie_enabled, cookie_texture) =
-                    if let Some(texture) = spot_light.cookie_texture_ref() {
-                        if let Some(cookie) = textures.get(state, texture) {
-                            (true, cookie)
+                    let (cookie_enabled, cookie_texture) =
+                        if let Some(texture) = spot_light.cookie_texture_ref() {
+                            if let Some(cookie) = textures.get(state, texture) {
+                                (true, cookie)
+                            } else {
+                                (false, &white_dummy)
+                            }
                         } else {
                             (false, &white_dummy)
-                        }
-                    } else {
-                        (false, &white_dummy)
-                    };
+                        };
 
-                light_stats.spot_lights_rendered += 1;
+                    light_stats.spot_lights_rendered += 1;
 
-                frame_buffer.draw(
-                    quad,
-                    state,
-                    viewport,
-                    &shader.program,
-                    &draw_params,
-                    ElementRange::Full,
-                    |mut program_binding| {
-                        program_binding
-                            .set_bool(&shader.shadows_enabled, shadows_enabled)
-                            .set_matrix4(&shader.light_view_proj_matrix, &light_view_projection)
-                            .set_bool(&shader.soft_shadows, settings.spot_soft_shadows)
-                            .set_vector3(&shader.light_position, &light_position)
-                            .set_vector3(&shader.light_direction, &emit_direction)
-                            .set_f32(&shader.light_radius, light_radius)
-                            .set_matrix4(&shader.inv_view_proj_matrix, &inv_view_projection)
-                            .set_linear_color(
-                                &shader.light_color,
-                                &spot_light.base_light_ref().color(),
-                            )
-                            .set_f32(
-                                &shader.half_hotspot_cone_angle_cos,
-                                (spot_light.hotspot_cone_angle() * 0.5).cos(),
-                            )
-                            .set_f32(
-                                &shader.half_cone_angle_cos,
-                                (spot_light.full_cone_angle() * 0.5).cos(),
-                            )
-                            .set_matrix4(&shader.wvp_matrix, &frame_matrix)
-                            .set_f32(
-                                &shader.shadow_map_inv_size,
-                                1.0 / (self.spot_shadow_map_renderer.cascade_size(cascade_index)
-                                    as f32),
-                            )
-                            .set_vector3(&shader.camera_position, &camera_global_position)
-                            .set_texture(&shader.depth_sampler, &gbuffer_depth_map)
-                            .set_texture(&shader.color_sampler, &gbuffer_diffuse_map)
-                            .set_texture(&shader.normal_sampler, &gbuffer_normal_map)
-                            .set_texture(&shader.material_sampler, &gbuffer_material_map)
-                            .set_texture(
-                                &shader.spot_shadow_texture,
-                                &self.spot_shadow_map_renderer.cascade_texture(cascade_index),
-                            )
-                            .set_texture(&shader.cookie_texture, cookie_texture)
-                            .set_bool(&shader.cookie_enabled, cookie_enabled)
-                            .set_f32(&shader.shadow_bias, spot_light.shadow_bias())
-                            .set_f32(
-                                &shader.light_intensity,
-                                spot_light.base_light_ref().intensity(),
-                            )
-                            .set_f32(&shader.shadow_alpha, shadows_alpha);
-                    },
-                )?
-            } else if let Some(point_light) = light.cast::<PointLight>() {
-                let shader = &self.point_light_shader;
+                    frame_buffer.draw(
+                        quad,
+                        state,
+                        viewport,
+                        &shader.program,
+                        &draw_params,
+                        ElementRange::Full,
+                        |mut program_binding| {
+                            program_binding
+                                .set_bool(&shader.shadows_enabled, shadows_enabled)
+                                .set_matrix4(&shader.light_view_proj_matrix, &light_view_projection)
+                                .set_bool(&shader.soft_shadows, settings.spot_soft_shadows)
+                                .set_vector3(&shader.light_position, &light_position)
+                                .set_vector3(&shader.light_direction, &emit_direction)
+                                .set_f32(&shader.light_radius, light_radius)
+                                .set_matrix4(&shader.inv_view_proj_matrix, &inv_view_projection)
+                                .set_linear_color(
+                                    &shader.light_color,
+                                    &spot_light.base_light_ref().color(),
+                                )
+                                .set_f32(
+                                    &shader.half_hotspot_cone_angle_cos,
+                                    (spot_light.hotspot_cone_angle() * 0.5).cos(),
+                                )
+                                .set_f32(
+                                    &shader.half_cone_angle_cos,
+                                    (spot_light.full_cone_angle() * 0.5).cos(),
+                                )
+                                .set_matrix4(&shader.wvp_matrix, &frame_matrix)
+                                .set_f32(
+                                    &shader.shadow_map_inv_size,
+                                    1.0 / (self.spot_shadow_map_renderer.cascade_size(cascade_index)
+                                        as f32),
+                                )
+                                .set_vector3(&shader.camera_position, &camera_global_position)
+                                .set_texture(&shader.depth_sampler, &gbuffer_depth_map)
+                                .set_texture(&shader.color_sampler, &gbuffer_diffuse_map)
+                                .set_texture(&shader.normal_sampler, &gbuffer_normal_map)
+                                .set_texture(&shader.material_sampler, &gbuffer_material_map)
+                                .set_texture(
+                                    &shader.spot_shadow_texture,
+                                    &self.spot_shadow_map_renderer.cascade_texture(cascade_index),
+                                )
+                                .set_texture(&shader.cookie_texture, cookie_texture)
+                                .set_bool(&shader.cookie_enabled, cookie_enabled)
+                                .set_f32(&shader.shadow_bias, spot_light.shadow_bias())
+                                .set_f32(
+                                    &shader.light_intensity,
+                                    spot_light.base_light_ref().intensity(),
+                                )
+                                .set_f32(&shader.shadow_alpha, shadows_alpha);
+                        },
+                    )?
+                } else if let Some(point_light) = light.cast::<PointLight>() {
+                    let shader = &self.point_light_shader;
 
-                light_stats.point_lights_rendered += 1;
+                    light_stats.point_lights_rendered += 1;
 
-                frame_buffer.draw(
-                    quad,
-                    state,
-                    viewport,
-                    &shader.program,
-                    &draw_params,
-                    ElementRange::Full,
-                    |mut program_binding| {
-                        program_binding
-                            .set_bool(&shader.shadows_enabled, shadows_enabled)
-                            .set_bool(&shader.soft_shadows, settings.point_soft_shadows)
-                            .set_vector3(&shader.light_position, &light_position)
-                            .set_f32(&shader.light_radius, light_radius)
-                            .set_matrix4(&shader.inv_view_proj_matrix, &inv_view_projection)
-                            .set_linear_color(
-                                &shader.light_color,
-                                &point_light.base_light_ref().color(),
-                            )
-                            .set_matrix4(&shader.wvp_matrix, &frame_matrix)
-                            .set_vector3(&shader.camera_position, &camera_global_position)
-                            .set_f32(&shader.shadow_bias, point_light.shadow_bias())
-                            .set_f32(
-                                &shader.light_intensity,
-                                point_light.base_light_ref().intensity(),
-                            )
-                            .set_texture(&shader.depth_sampler, &gbuffer_depth_map)
-                            .set_texture(&shader.color_sampler, &gbuffer_diffuse_map)
-                            .set_texture(&shader.normal_sampler, &gbuffer_normal_map)
-                            .set_texture(&shader.material_sampler, &gbuffer_material_map)
-                            .set_texture(
-                                &shader.point_shadow_texture,
-                                &self
-                                    .point_shadow_map_renderer
-                                    .cascade_texture(cascade_index),
-                            )
-                            .set_f32(&shader.shadow_alpha, shadows_alpha);
-                    },
-                )?
-            } else if let Some(directional) = light.cast::<DirectionalLight>() {
-                let shader = &self.directional_light_shader;
+                    frame_buffer.draw(
+                        quad,
+                        state,
+                        viewport,
+                        &shader.program,
+                        &draw_params,
+                        ElementRange::Full,
+                        |mut program_binding| {
+                            program_binding
+                                .set_bool(&shader.shadows_enabled, shadows_enabled)
+                                .set_bool(&shader.soft_shadows, settings.point_soft_shadows)
+                                .set_vector3(&shader.light_position, &light_position)
+                                .set_f32(&shader.light_radius, light_radius)
+                                .set_matrix4(&shader.inv_view_proj_matrix, &inv_view_projection)
+                                .set_linear_color(
+                                    &shader.light_color,
+                                    &point_light.base_light_ref().color(),
+                                )
+                                .set_matrix4(&shader.wvp_matrix, &frame_matrix)
+                                .set_vector3(&shader.camera_position, &camera_global_position)
+                                .set_f32(&shader.shadow_bias, point_light.shadow_bias())
+                                .set_f32(
+                                    &shader.light_intensity,
+                                    point_light.base_light_ref().intensity(),
+                                )
+                                .set_texture(&shader.depth_sampler, &gbuffer_depth_map)
+                                .set_texture(&shader.color_sampler, &gbuffer_diffuse_map)
+                                .set_texture(&shader.normal_sampler, &gbuffer_normal_map)
+                                .set_texture(&shader.material_sampler, &gbuffer_material_map)
+                                .set_texture(
+                                    &shader.point_shadow_texture,
+                                    &self
+                                        .point_shadow_map_renderer
+                                        .cascade_texture(cascade_index),
+                                )
+                                .set_f32(&shader.shadow_alpha, shadows_alpha);
+                        },
+                    )?
+                } else if let Some(directional) = light.cast::<DirectionalLight>() {
+                    let shader = &self.directional_light_shader;
 
-                light_stats.directional_lights_rendered += 1;
+                    light_stats.directional_lights_rendered += 1;
 
-                frame_buffer.draw(
-                    quad,
-                    state,
-                    viewport,
-                    &shader.program,
-                    &DrawParameters {
-                        cull_face: None,
-                        color_write: Default::default(),
-                        depth_write: false,
-                        stencil_test: None,
-                        depth_test: false,
-                        blend: Some(BlendParameters {
-                            func: BlendFunc::new(BlendFactor::One, BlendFactor::One),
-                            ..Default::default()
-                        }),
-                        stencil_op: Default::default(),
-                    },
-                    ElementRange::Full,
-                    |mut program_binding| {
-                        let distances = [
-                            self.csm_renderer.cascades()[0].z_far,
-                            self.csm_renderer.cascades()[1].z_far,
-                            self.csm_renderer.cascades()[2].z_far,
-                        ];
-                        let matrices = [
-                            self.csm_renderer.cascades()[0].view_proj_matrix,
-                            self.csm_renderer.cascades()[1].view_proj_matrix,
-                            self.csm_renderer.cascades()[2].view_proj_matrix,
-                        ];
-                        let csm_map_size = self.csm_renderer.size() as f32;
+                    frame_buffer.draw(
+                        quad,
+                        state,
+                        viewport,
+                        &shader.program,
+                        &DrawParameters {
+                            cull_face: None,
+                            color_write: Default::default(),
+                            depth_write: false,
+                            stencil_test: None,
+                            depth_test: false,
+                            blend: Some(BlendParameters {
+                                func: BlendFunc::new(BlendFactor::One, BlendFactor::One),
+                                ..Default::default()
+                            }),
+                            stencil_op: Default::default(),
+                        },
+                        ElementRange::Full,
+                        |mut program_binding| {
+                            let distances = [
+                                self.csm_renderer.cascades()[0].z_far,
+                                self.csm_renderer.cascades()[1].z_far,
+                                self.csm_renderer.cascades()[2].z_far,
+                            ];
+                            let matrices = [
+                                self.csm_renderer.cascades()[0].view_proj_matrix,
+                                self.csm_renderer.cascades()[1].view_proj_matrix,
+                                self.csm_renderer.cascades()[2].view_proj_matrix,
+                            ];
+                            let csm_map_size = self.csm_renderer.size() as f32;
 
-                        program_binding
-                            .set_vector3(&shader.light_direction, &emit_direction)
-                            .set_matrix4(&shader.inv_view_proj_matrix, &inv_view_projection)
-                            .set_linear_color(
-                                &shader.light_color,
-                                &directional.base_light_ref().color(),
-                            )
-                            .set_matrix4(&shader.wvp_matrix, &frame_matrix)
-                            .set_vector3(&shader.camera_position, &camera_global_position)
-                            .set_f32(
-                                &shader.light_intensity,
-                                directional.base_light_ref().intensity(),
-                            )
-                            .set_texture(&shader.depth_sampler, &gbuffer_depth_map)
-                            .set_texture(&shader.color_sampler, &gbuffer_diffuse_map)
-                            .set_texture(&shader.normal_sampler, &gbuffer_normal_map)
-                            .set_texture(&shader.material_sampler, &gbuffer_material_map)
-                            .set_matrix4_array(&shader.light_view_proj_matrices, &matrices)
-                            .set_texture(
-                                &shader.shadow_cascade0,
-                                &self.csm_renderer.cascades()[0].texture(),
-                            )
-                            .set_texture(
-                                &shader.shadow_cascade1,
-                                &self.csm_renderer.cascades()[1].texture(),
-                            )
-                            .set_texture(
-                                &shader.shadow_cascade2,
-                                &self.csm_renderer.cascades()[2].texture(),
-                            )
-                            .set_f32_slice(&shader.cascade_distances, &distances)
-                            .set_matrix4(&shader.view_matrix, &camera.view_matrix())
-                            .set_f32(&shader.shadow_bias, directional.csm_options.shadow_bias())
-                            .set_bool(&shader.shadows_enabled, shadows_enabled)
-                            .set_bool(&shader.soft_shadows, settings.csm_settings.pcf)
-                            .set_f32(&shader.shadow_map_inv_size, 1.0 / csm_map_size);
-                    },
-                )?
-            } else {
-                unreachable!()
-            };
+                            program_binding
+                                .set_vector3(&shader.light_direction, &emit_direction)
+                                .set_matrix4(&shader.inv_view_proj_matrix, &inv_view_projection)
+                                .set_linear_color(
+                                    &shader.light_color,
+                                    &directional.base_light_ref().color(),
+                                )
+                                .set_matrix4(&shader.wvp_matrix, &frame_matrix)
+                                .set_vector3(&shader.camera_position, &camera_global_position)
+                                .set_f32(
+                                    &shader.light_intensity,
+                                    directional.base_light_ref().intensity(),
+                                )
+                                .set_texture(&shader.depth_sampler, &gbuffer_depth_map)
+                                .set_texture(&shader.color_sampler, &gbuffer_diffuse_map)
+                                .set_texture(&shader.normal_sampler, &gbuffer_normal_map)
+                                .set_texture(&shader.material_sampler, &gbuffer_material_map)
+                                .set_matrix4_array(&shader.light_view_proj_matrices, &matrices)
+                                .set_texture(
+                                    &shader.shadow_cascade0,
+                                    &self.csm_renderer.cascades()[0].texture(),
+                                )
+                                .set_texture(
+                                    &shader.shadow_cascade1,
+                                    &self.csm_renderer.cascades()[1].texture(),
+                                )
+                                .set_texture(
+                                    &shader.shadow_cascade2,
+                                    &self.csm_renderer.cascades()[2].texture(),
+                                )
+                                .set_f32_slice(&shader.cascade_distances, &distances)
+                                .set_matrix4(&shader.view_matrix, &camera.view_matrix())
+                                .set_f32(&shader.shadow_bias, directional.csm_options.shadow_bias())
+                                .set_bool(&shader.shadows_enabled, shadows_enabled)
+                                .set_bool(&shader.soft_shadows, settings.csm_settings.pcf)
+                                .set_f32(&shader.shadow_map_inv_size, 1.0 / csm_map_size);
+                        },
+                    )?
+                } else {
+                    unreachable!()
+                };
+            }
 
+            // Light scattering should still be renderer no matter if there's no pixels lit by the
+            // light source.
             if settings.light_scatter_enabled {
                 pass_stats += self.light_volume.render_volume(
                     state,
