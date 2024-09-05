@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-//! Full algorithm explained - https://fyrox.rs/blog/post/tile-based-occlusion-culling/
+//! Full algorithm explained - <https://fyrox.rs/blog/post/tile-based-occlusion-culling/>
 
 mod grid;
 mod optimizer;

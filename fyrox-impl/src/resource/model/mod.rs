@@ -107,14 +107,14 @@ impl TypeUuidProvider for Model {
 }
 
 /// Instantiation context holds additional data that could be useful for a prefab instantiation.
-pub struct InstantiationContext<'a, 'b, 'c> {
+pub struct InstantiationContext<'a> {
     model: &'a ModelResource,
-    dest_scene: &'b mut Scene,
+    dest_scene: &'a mut Scene,
     local_transform: Option<Transform>,
-    ids: Option<&'c FxHashMap<Handle<Node>, SceneNodeId>>,
+    ids: Option<&'a FxHashMap<Handle<Node>, SceneNodeId>>,
 }
 
-impl<'a, 'b, 'c> InstantiationContext<'a, 'b, 'c> {
+impl<'a> InstantiationContext<'a> {
     /// Sets the desired local rotation for the instance.
     pub fn with_rotation(mut self, rotation: UnitQuaternion<f32>) -> Self {
         self.local_transform
@@ -153,7 +153,7 @@ impl<'a, 'b, 'c> InstantiationContext<'a, 'b, 'c> {
     /// This method should be used only if you need to instantiate an object on multiple clients in
     /// a multiplayer game with client-server model. This method ensures that the instances will
     /// have the same ids across all clients.
-    pub fn with_ids(mut self, ids: &'c FxHashMap<Handle<Node>, SceneNodeId>) -> Self {
+    pub fn with_ids(mut self, ids: &'a FxHashMap<Handle<Node>, SceneNodeId>) -> Self {
         self.ids = Some(ids);
         self
     }
@@ -351,10 +351,7 @@ pub trait ModelResourceExtension: Sized {
         Pre: FnMut(Handle<Node>, &mut Node);
 
     /// Begins instantiation of the model.
-    fn begin_instantiation<'a>(
-        &'a self,
-        dest_scene: &'a mut Scene,
-    ) -> InstantiationContext<'a, '_, '_>;
+    fn begin_instantiation<'a>(&'a self, dest_scene: &'a mut Scene) -> InstantiationContext<'a>;
 
     /// Tries to instantiate model from given resource.
     fn instantiate(&self, dest_scene: &mut Scene) -> Handle<Node>;
@@ -465,10 +462,7 @@ impl ModelResourceExtension for ModelResource {
         (root, old_to_new)
     }
 
-    fn begin_instantiation<'a>(
-        &'a self,
-        dest_scene: &'a mut Scene,
-    ) -> InstantiationContext<'a, '_, '_> {
+    fn begin_instantiation<'a>(&'a self, dest_scene: &'a mut Scene) -> InstantiationContext<'a> {
         InstantiationContext {
             model: self,
             dest_scene,
