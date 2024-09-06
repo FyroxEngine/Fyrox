@@ -158,47 +158,96 @@ impl TrackDataContainer {
         self.kind
     }
 
+    #[inline(always)]
+    fn fetch_vector2(&self, time: f32) -> Option<TrackValue> {
+        if self.curves.len() < 2 {
+            return None;
+        }
+
+        // SAFETY: The indices are guaranteed to be correct by the above check.
+        unsafe {
+            Some(TrackValue::Vector2(Vector2::new(
+                self.curves.get_unchecked(0).value_at(time),
+                self.curves.get_unchecked(1).value_at(time),
+            )))
+        }
+    }
+
+    #[inline(always)]
+    fn fetch_vector3(&self, time: f32) -> Option<TrackValue> {
+        if self.curves.len() < 3 {
+            return None;
+        }
+
+        unsafe {
+            Some(TrackValue::Vector3(Vector3::new(
+                self.curves.get_unchecked(0).value_at(time),
+                self.curves.get_unchecked(1).value_at(time),
+                self.curves.get_unchecked(2).value_at(time),
+            )))
+        }
+    }
+
+    #[inline(always)]
+    fn fetch_vector4(&self, time: f32) -> Option<TrackValue> {
+        if self.curves.len() < 4 {
+            return None;
+        }
+
+        // SAFETY: The indices are guaranteed to be correct by the above check.
+        unsafe {
+            Some(TrackValue::Vector4(Vector4::new(
+                self.curves.get_unchecked(0).value_at(time),
+                self.curves.get_unchecked(1).value_at(time),
+                self.curves.get_unchecked(2).value_at(time),
+                self.curves.get_unchecked(3).value_at(time),
+            )))
+        }
+    }
+
+    #[inline(always)]
+    fn fetch_quaternion(&self, time: f32) -> Option<TrackValue> {
+        if self.curves.len() < 3 {
+            return None;
+        }
+
+        // SAFETY: The indices are guaranteed to be correct by the above check.
+        unsafe {
+            let x_curve = self.curves.get_unchecked(0);
+            let y_curve = self.curves.get_unchecked(1);
+            let z_curve = self.curves.get_unchecked(2);
+
+            // Convert Euler angles to quaternion
+            let (x, y, z) = match self.mode {
+                InterpolationMode::Default => (
+                    x_curve.value_at(time),
+                    y_curve.value_at(time),
+                    z_curve.value_at(time),
+                ),
+                InterpolationMode::ShortPath => (
+                    x_curve.angle_at(time),
+                    y_curve.angle_at(time),
+                    z_curve.angle_at(time),
+                ),
+            };
+
+            Some(TrackValue::UnitQuaternion(quat_from_euler(
+                Vector3::new(x, y, z),
+                RotationOrder::XYZ,
+            )))
+        }
+    }
+
     /// Tries to get a value at a given time. The method could fail if the internal set of curves is malformed
     /// and cannot produce a desired value (for example, [`Vector3`] can be fetched only if the amount of curves
     /// is 3).
     pub fn fetch(&self, time: f32) -> Option<TrackValue> {
         match self.kind {
             TrackValueKind::Real => Some(TrackValue::Real(self.curves.first()?.value_at(time))),
-            TrackValueKind::Vector2 => Some(TrackValue::Vector2(Vector2::new(
-                self.curves.first()?.value_at(time),
-                self.curves.get(1)?.value_at(time),
-            ))),
-            TrackValueKind::Vector3 => Some(TrackValue::Vector3(Vector3::new(
-                self.curves.first()?.value_at(time),
-                self.curves.get(1)?.value_at(time),
-                self.curves.get(2)?.value_at(time),
-            ))),
-            TrackValueKind::Vector4 => Some(TrackValue::Vector4(Vector4::new(
-                self.curves.first()?.value_at(time),
-                self.curves.get(1)?.value_at(time),
-                self.curves.get(2)?.value_at(time),
-                self.curves.get(3)?.value_at(time),
-            ))),
-            TrackValueKind::UnitQuaternion => {
-                // Convert Euler angles to quaternion
-                let (x, y, z) = match self.mode {
-                    InterpolationMode::Default => (
-                        self.curves.first()?.value_at(time),
-                        self.curves.get(1)?.value_at(time),
-                        self.curves.get(2)?.value_at(time),
-                    ),
-                    InterpolationMode::ShortPath => (
-                        self.curves.first()?.angle_at(time),
-                        self.curves.get(1)?.angle_at(time),
-                        self.curves.get(2)?.angle_at(time),
-                    ),
-                };
-
-                Some(TrackValue::UnitQuaternion(quat_from_euler(
-                    Vector3::new(x, y, z),
-                    RotationOrder::XYZ,
-                )))
-            }
+            TrackValueKind::Vector2 => self.fetch_vector2(time),
+            TrackValueKind::Vector3 => self.fetch_vector3(time),
+            TrackValueKind::Vector4 => self.fetch_vector4(time),
+            TrackValueKind::UnitQuaternion => self.fetch_quaternion(time),
         }
     }
 
