@@ -505,14 +505,15 @@ impl DeferredLightRenderer {
 
             let b1 = shadows_distance * 0.2;
             let b2 = shadows_distance * 0.4;
-            let cascade_index =
-                if distance_to_camera < b1 || frustum.is_contains_point(camera.global_position()) {
-                    0
-                } else if distance_to_camera > b1 && distance_to_camera < b2 {
-                    1
-                } else {
-                    2
-                };
+            let cascade_index = if distance_to_camera < b1
+                || (camera.global_position().metric_distance(&light_position) <= light_radius)
+            {
+                0
+            } else if distance_to_camera > b1 && distance_to_camera < b2 {
+                1
+            } else {
+                2
+            };
 
             let left_boundary = (shadows_distance - shadows_fade_out_range).max(0.0);
             let shadows_alpha = if distance_to_camera <= left_boundary {
