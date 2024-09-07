@@ -34,6 +34,7 @@ use crate::{
     },
     Animation, AnimationContainer, AnimationEvent, AnimationPose, EntityId,
 };
+use fxhash::FxHashSet;
 use std::{
     cell::Ref,
     ops::{Deref, DerefMut},
@@ -106,6 +107,40 @@ impl<T: EntityId> PoseNode<T> {
             Self::BlendAnimations(blend_animations) => blend_animations.children(),
             Self::BlendAnimationsByIndex(blend_by_index) => blend_by_index.children(),
             Self::BlendSpace(blend_space) => blend_space.children(),
+        }
+    }
+
+    /// Collects all animation handles used by this node and its descendants.
+    pub fn collect_animations(
+        &self,
+        nodes: &Pool<PoseNode<T>>,
+        animations: &mut FxHashSet<Handle<Animation<T>>>,
+    ) {
+        match self {
+            PoseNode::PlayAnimation(play_animation) => {
+                animations.insert(play_animation.animation);
+            }
+            PoseNode::BlendAnimations(blend_animations) => {
+                for input in blend_animations.pose_sources.iter() {
+                    if let Some(source) = nodes.try_borrow(input.pose_source) {
+                        source.collect_animations(nodes, animations)
+                    }
+                }
+            }
+            PoseNode::BlendAnimationsByIndex(blend_animations_by_index) => {
+                for input in blend_animations_by_index.inputs.iter() {
+                    if let Some(source) = nodes.try_borrow(input.pose_source) {
+                        source.collect_animations(nodes, animations)
+                    }
+                }
+            }
+            PoseNode::BlendSpace(blend_space) => {
+                for point in blend_space.points() {
+                    if let Some(source) = nodes.try_borrow(point.pose_source) {
+                        source.collect_animations(nodes, animations)
+                    }
+                }
+            }
         }
     }
 }

@@ -75,16 +75,14 @@ pub mod prelude {
 pub trait AnimationContainerExt {
     /// Updates all animations in the container and applies their poses to respective nodes. This method is intended to
     /// be used only by the internals of the engine!
-    fn update_animations(&mut self, nodes: &mut NodePool, apply: bool, dt: f32);
+    fn update_animations(&mut self, nodes: &mut NodePool, dt: f32);
 }
 
 impl AnimationContainerExt for AnimationContainer {
-    fn update_animations(&mut self, nodes: &mut NodePool, apply: bool, dt: f32) {
+    fn update_animations(&mut self, nodes: &mut NodePool, dt: f32) {
         for animation in self.iter_mut().filter(|anim| anim.is_enabled()) {
             animation.tick(dt);
-            if apply {
-                animation.pose().apply_internal(nodes);
-            }
+            animation.pose().apply_internal(nodes);
         }
     }
 }
@@ -262,10 +260,15 @@ impl Default for AnimationPlayer {
 }
 
 impl AnimationPlayer {
-    /// Enables or disables automatic animation pose applying. Every animation in the node is updated first, and
-    /// then their output pose could be applied to the graph, so the animation takes effect. Automatic applying
-    /// is useful when you need your animations to be applied immediately to the graph, but in some cases (if you're
-    /// using animation blending state machines for example) this functionality is undesired.
+    /// Enables or disables automatic animations update and pose applying. If auto applying is enabled,
+    /// then every animation in this node is updated first, and then their output pose could be applied
+    /// to the graph, so the animation takes effect. Automatic applying is useful when you need your
+    /// animations to be applied immediately to the graph, but in some cases (if you're using animation
+    /// blending state machines for example) this functionality is undesired.
+    ///
+    /// Animation blending machines hijacks control over the animation container and updates only
+    /// active animations, instead of all available. This is much better for performance than updating
+    /// all at once.
     pub fn set_auto_apply(&mut self, auto_apply: bool) {
         self.auto_apply = auto_apply;
     }
@@ -332,11 +335,11 @@ impl NodeTrait for AnimationPlayer {
     }
 
     fn update(&mut self, context: &mut UpdateContext) {
-        self.animations.get_value_mut_silent().update_animations(
-            context.nodes,
-            self.auto_apply,
-            context.dt,
-        );
+        if self.auto_apply {
+            self.animations
+                .get_value_mut_silent()
+                .update_animations(context.nodes, context.dt);
+        }
     }
 }
 

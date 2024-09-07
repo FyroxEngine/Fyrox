@@ -30,10 +30,12 @@ use crate::{
         reflect::prelude::*,
         visitor::{Visit, VisitResult, Visitor},
     },
-    AnimationContainer, AnimationPose, EntityId,
+    Animation, AnimationContainer, AnimationPose, EntityId,
 };
+use fxhash::FxHashSet;
 
 pub use event::Event;
+use fyrox_core::pool::Handle;
 use fyrox_core::{find_by_name_mut, find_by_name_ref};
 pub use layer::MachineLayer;
 pub use mask::LayerMask;
@@ -197,6 +199,10 @@ pub struct Machine<T: EntityId> {
     #[visit(skip)]
     #[reflect(hidden)]
     final_pose: AnimationPose<T>,
+
+    #[visit(skip)]
+    #[reflect(hidden)]
+    animations_cache: FxHashSet<Handle<Animation<T>>>,
 }
 
 impl<T: EntityId> Machine<T> {
@@ -207,6 +213,7 @@ impl<T: EntityId> Machine<T> {
             parameters: Default::default(),
             layers: vec![MachineLayer::new()],
             final_pose: Default::default(),
+            animations_cache: Default::default(),
         }
     }
 
@@ -309,7 +316,11 @@ impl<T: EntityId> Machine<T> {
         &self.final_pose
     }
 
-    /// Computes final animation pose that could be then applied to a set of entities graph.
+    /// Computes final animation pose that could be then applied to a set of entities graph. This
+    /// method will update all the animations used by the machine automatically. Make sure to **not**
+    /// update the animations in the container before using this method. Otherwise your animations
+    /// will be updated more than once, and they'll play at higher speed and performance will also
+    /// be decreased.
     #[inline]
     pub fn evaluate_pose(
         &mut self,
@@ -317,6 +328,30 @@ impl<T: EntityId> Machine<T> {
         dt: f32,
     ) -> &AnimationPose<T> {
         self.final_pose.reset();
+
+        self.animations_cache.clear();
+        for layer in self.layers.iter_mut() {
+            let mut states_to_check = [Some(layer.active_state()), None, None];
+            if let Some(active_transition) =
+                layer.transitions().try_borrow(layer.active_transition())
+            {
+                states_to_check[1] = Some(active_transition.source);
+                states_to_check[2] = Some(active_transition.dest);
+            }
+            for state_to_check in states_to_check.iter().flatten() {
+                if let Some(state) = layer.states().try_borrow(*state_to_check) {
+                    state.collect_animations(layer.nodes(), &mut self.animations_cache);
+                }
+            }
+        }
+
+        for animation_handle in self.animations_cache.iter() {
+            if let Some(animation) = animations.try_get_mut(*animation_handle) {
+                if animation.is_enabled() {
+                    animation.tick(dt);
+                }
+            }
+        }
 
         for layer in self.layers.iter_mut() {
             let weight = layer.weight();

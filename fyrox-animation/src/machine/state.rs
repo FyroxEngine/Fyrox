@@ -31,6 +31,7 @@ use crate::{
     machine::{AnimationPoseSource, ParameterContainer, PoseNode},
     Animation, AnimationContainer, AnimationPose, EntityId,
 };
+use fxhash::FxHashSet;
 use fyrox_core::uuid::{uuid, Uuid};
 use fyrox_core::{NameProvider, TypeUuidProvider};
 use std::{
@@ -168,6 +169,17 @@ impl<T: EntityId> State<T> {
     /// Returns a final pose of the state.
     pub fn pose<'a>(&self, nodes: &'a Pool<PoseNode<T>>) -> Option<Ref<'a, AnimationPose<T>>> {
         nodes.try_borrow(self.root).map(|root| root.pose())
+    }
+
+    /// Collects all animation handles used by this state.
+    pub fn collect_animations(
+        &self,
+        nodes: &Pool<PoseNode<T>>,
+        animations: &mut FxHashSet<Handle<Animation<T>>>,
+    ) {
+        if let Some(root) = nodes.try_borrow(self.root) {
+            root.collect_animations(nodes, animations);
+        }
     }
 
     pub(super) fn update(
