@@ -29,6 +29,7 @@ use crate::core::{
     visitor::prelude::*,
 };
 use fyrox_core::log::Log;
+use fyrox_core::ImmutableString;
 use std::fmt::{Debug, Display, Formatter};
 
 /// An actual type of a property value.
@@ -292,7 +293,7 @@ pub enum ValueBinding {
     /// A binding to an arbitrary property of a scene node.
     Property {
         /// A path to a property (`foo.bar.baz[1].foobar@EnumVariant.stuff`)
-        name: String,
+        name: ImmutableString,
         /// Actual property type (only numeric properties are supported).
         value_type: ValueType,
     },

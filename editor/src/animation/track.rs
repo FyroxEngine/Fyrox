@@ -937,7 +937,7 @@ impl TrackList {
                                     let mut track = Track::new(
                                         TrackDataContainer::new(track_value_kind),
                                         ValueBinding::Property {
-                                            name: property_path.path.clone(),
+                                            name: property_path.path.clone().into(),
                                             value_type: actual_value_type,
                                         },
                                     );
@@ -1220,7 +1220,7 @@ impl TrackList {
                         animation_handle: selection.animation,
                         track: first_selected_track,
                         binding: ValueBinding::Property {
-                            name: desc.path.clone(),
+                            name: desc.path.clone().into(),
                             value_type: actual_value_type,
                         },
                     });

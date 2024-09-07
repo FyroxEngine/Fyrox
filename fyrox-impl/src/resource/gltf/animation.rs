@@ -88,7 +88,7 @@ impl ImportedBinding {
             ImportedBinding::Rotation => ValueBinding::Rotation,
             ImportedBinding::Scale => ValueBinding::Scale,
             ImportedBinding::Weight(i) => ValueBinding::Property {
-                name: format!("blend_shapes[{}].weight", i),
+                name: format!("blend_shapes[{}].weight", i).into(),
                 value_type: ValueType::F32,
             },
         }
