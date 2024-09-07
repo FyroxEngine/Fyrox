@@ -217,7 +217,7 @@ pub enum GlKind {
     OpenGLES,
 }
 
-struct InnerState {
+pub(crate) struct InnerState {
     blend: bool,
 
     depth_test: bool,
@@ -254,6 +254,8 @@ struct InnerState {
 
     frame_statistics: PipelineStatistics,
     gl_kind: GlKind,
+
+    pub(crate) queries: Vec<glow::Query>,
 }
 
 impl InnerState {
@@ -289,6 +291,7 @@ impl InnerState {
             frame_statistics: Default::default(),
             blend_equation: Default::default(),
             gl_kind,
+            queries: Default::default(),
         }
     }
 }
@@ -297,7 +300,7 @@ pub type SharedPipelineState = Rc<PipelineState>;
 
 pub struct PipelineState {
     pub gl: glow::Context,
-    state: RefCell<InnerState>,
+    pub(crate) state: RefCell<InnerState>,
     this: RefCell<Option<Weak<PipelineState>>>,
 }
 

@@ -24,8 +24,14 @@ pub struct Query {
 
 impl Query {
     pub fn new(state: &PipelineState) -> Result<Self, FrameworkError> {
+        let mut inner = state.state.borrow_mut();
+        let id = if let Some(existing) = inner.queries.pop() {
+            existing
+        } else {
+            unsafe { state.gl.create_query()? }
+        };
         Ok(Self {
-            id: unsafe { state.gl.create_query()? },
+            id,
             pipeline_state: state.weak(),
             active_query: Default::default(),
         })
@@ -78,10 +84,8 @@ impl Query {
 
 impl Drop for Query {
     fn drop(&mut self) {
-        unsafe {
-            if let Some(pipeline_state) = self.pipeline_state.upgrade() {
-                pipeline_state.gl.delete_query(self.id);
-            }
+        if let Some(pipeline_state) = self.pipeline_state.upgrade() {
+            pipeline_state.state.borrow_mut().queries.push(self.id);
         }
     }
 }
