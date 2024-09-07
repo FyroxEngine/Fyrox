@@ -206,9 +206,36 @@ impl<T> PixelBuffer<T> {
     {
         unsafe {
             state.gl.bind_buffer(glow::PIXEL_PACK_BUFFER, Some(self.id));
-            state
-                .gl
-                .get_buffer_sub_data(glow::PIXEL_PACK_BUFFER, 0, array_as_u8_slice_mut(buffer));
+
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                let dest_storage = array_as_u8_slice_mut(buffer);
+                let gl_storage = state.gl.map_buffer_range(
+                    glow::PIXEL_PACK_BUFFER,
+                    0,
+                    dest_storage.len() as i32,
+                    glow::MAP_READ_BIT,
+                );
+                assert_ne!(gl_storage, std::ptr::null_mut());
+                std::ptr::copy_nonoverlapping(
+                    gl_storage,
+                    dest_storage.as_mut_ptr(),
+                    dest_storage.len(),
+                );
+                state.gl.unmap_buffer(glow::PIXEL_PACK_BUFFER);
+            }
+
+            #[cfg(target_arch = "wasm32")]
+            {
+                // The only way to get buffer data on WebGL is to use glGetBufferSubData, there's
+                // no memory mapping in Web due to security reasons.
+                state.gl.get_buffer_sub_data(
+                    glow::PIXEL_PACK_BUFFER,
+                    0,
+                    array_as_u8_slice_mut(buffer),
+                );
+            }
+
             state.gl.bind_buffer(glow::PIXEL_PACK_BUFFER, None);
         }
     }
