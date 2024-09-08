@@ -18,21 +18,20 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::resource::texture::Texture;
 use crate::{
     core::{
         log::{Log, MessageKind},
         scope_profile,
     },
     renderer::{
-        cache::TemporaryCache,
+        cache::{TemporaryCache, TimeToLive},
         framework::{
             error::FrameworkError,
             gpu_texture::{Coordinate, GpuTexture, PixelKind},
             state::PipelineState,
         },
     },
-    resource::texture::TextureResource,
+    resource::texture::{Texture, TextureResource},
 };
 use std::{cell::RefCell, rc::Rc};
 
@@ -43,7 +42,7 @@ pub(crate) struct TextureRenderData {
 
 #[derive(Default)]
 pub struct TextureCache {
-    pub(crate) map: TemporaryCache<TextureRenderData>,
+    cache: TemporaryCache<TextureRenderData>,
 }
 
 fn create_gpu_texture(
@@ -75,7 +74,7 @@ impl TextureCache {
     ) -> Result<(), FrameworkError> {
         let mut texture = texture.state();
         if let Some(texture) = texture.data() {
-            self.map.get_entry_mut_or_insert_with(
+            self.cache.get_entry_mut_or_insert_with(
                 &texture.cache_index,
                 Default::default(),
                 || create_gpu_texture(state, texture),
@@ -98,11 +97,11 @@ impl TextureCache {
         let mut texture_data_guard = texture_resource.state();
 
         if let Some(texture) = texture_data_guard.data() {
-            match self
-                .map
-                .get_mut_or_insert_with(&texture.cache_index, Default::default(), || {
-                    create_gpu_texture(state, texture)
-                }) {
+            match self.cache.get_mut_or_insert_with(
+                &texture.cache_index,
+                Default::default(),
+                || create_gpu_texture(state, texture),
+            ) {
                 Ok(entry) => {
                     // Check if some value has changed in resource.
 
@@ -183,20 +182,43 @@ impl TextureCache {
     }
 
     pub fn update(&mut self, dt: f32) {
-        self.map.update(dt)
+        self.cache.update(dt)
     }
 
     pub fn clear(&mut self) {
-        self.map.clear();
+        self.cache.clear();
     }
 
     pub fn unload(&mut self, texture: TextureResource) {
         if let Some(texture) = texture.state().data() {
-            self.map.remove(&texture.cache_index);
+            self.cache.remove(&texture.cache_index);
         }
     }
 
     pub fn alive_count(&self) -> usize {
-        self.map.alive_count()
+        self.cache.alive_count()
+    }
+
+    /// Tries to bind existing GPU texture with a texture resource. If there's no such binding, then
+    /// a new binding is created, otherwise - only the TTL is updated to keep the GPU texture alive
+    /// for a certain time period (see [`TimeToLive`]).
+    pub fn try_register(
+        &mut self,
+        texture: &TextureResource,
+        gpu_texture: Rc<RefCell<GpuTexture>>,
+    ) {
+        let data = texture.data_ref();
+        let index = data.cache_index.clone();
+        let entry = self.cache.get_mut(&index);
+        if entry.is_none() {
+            self.cache.spawn(
+                TextureRenderData {
+                    gpu_texture,
+                    modifications_counter: data.modifications_count(),
+                },
+                index,
+                TimeToLive::default(),
+            );
+        }
     }
 }

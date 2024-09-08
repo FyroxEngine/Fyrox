@@ -54,14 +54,10 @@ mod skybox_shader;
 mod ssao;
 mod stats;
 
-use crate::renderer::cache::texture::TextureRenderData;
-use crate::renderer::cache::TimeToLive;
-use crate::renderer::framework::state::SharedPipelineState;
-use crate::renderer::visibility::VisibilityCache;
 use crate::{
     asset::{event::ResourceEvent, manager::ResourceManager},
     core::{
-        algebra::{Matrix4, Vector2, Vector3},
+        algebra::{Matrix4, Vector2, Vector3, Vector4},
         color::Color,
         instant,
         log::{Log, MessageKind},
@@ -70,7 +66,9 @@ use crate::{
         reflect::prelude::*,
         scope_profile,
         sstorage::ImmutableString,
+        uuid_provider,
     },
+    graph::SceneGraph,
     gui::draw::DrawingContext,
     material::{
         shader::{SamplerFallback, Shader, ShaderResource, ShaderResourceExtension},
@@ -94,7 +92,7 @@ use crate::{
                 Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
                 PixelKind, WrapMode,
             },
-            state::{GlKind, PipelineState, PolygonFace, PolygonFillMode},
+            state::{GlKind, PipelineState, PolygonFace, PolygonFillMode, SharedPipelineState},
         },
         fxaa::FxaaRenderer,
         gbuffer::{GBuffer, GBufferRenderContext},
@@ -102,14 +100,12 @@ use crate::{
         light::{DeferredLightRenderer, DeferredRendererContext},
         storage::MatrixStorageCache,
         ui_renderer::{UiRenderContext, UiRenderer},
+        visibility::VisibilityCache,
     },
     resource::texture::{Texture, TextureKind, TextureResource},
     scene::{camera::Camera, mesh::surface::SurfaceData, Scene, SceneContainer},
 };
 use fxhash::FxHashMap;
-use fyrox_core::algebra::Vector4;
-use fyrox_core::uuid_provider;
-use fyrox_graph::SceneGraph;
 use glow::HasContext;
 #[cfg(not(target_arch = "wasm32"))]
 use glutin::{
@@ -120,8 +116,7 @@ use glutin::{
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 pub use stats::*;
-use std::any::TypeId;
-use std::{cell::RefCell, collections::hash_map::Entry, rc::Rc, sync::mpsc::Receiver};
+use std::{any::TypeId, cell::RefCell, collections::hash_map::Entry, rc::Rc, sync::mpsc::Receiver};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 #[cfg(not(target_arch = "wasm32"))]
 use winit::window::Window;
@@ -1476,18 +1471,14 @@ impl Renderer {
 
         // Finally register texture in the cache so it will become available as texture in deferred/forward
         // renderer.
-        self.texture_cache.map.spawn(
-            TextureRenderData {
-                gpu_texture: frame_buffer
-                    .color_attachments()
-                    .first()
-                    .unwrap()
-                    .texture
-                    .clone(),
-                modifications_counter: 0,
-            },
-            render_target.data_ref().cache_index.clone(),
-            TimeToLive(f32::INFINITY),
+        self.texture_cache.try_register(
+            &render_target,
+            frame_buffer
+                .color_attachments()
+                .first()
+                .unwrap()
+                .texture
+                .clone(),
         );
 
         Ok(())
@@ -1621,17 +1612,9 @@ impl Renderer {
         // If we specified a texture to draw to, we have to register it in texture cache
         // so it can be used in later on as texture. This is useful in case if you need
         // to draw something on offscreen and then draw it on some mesh.
-        // TODO: However it can be dangerous to use frame texture as it may be bound to
-        //  pipeline.
         if let Some(rt) = scene.rendering_options.render_target.clone() {
-            self.texture_cache.map.spawn(
-                TextureRenderData {
-                    gpu_texture: scene_associated_data.ldr_scene_frame_texture(),
-                    modifications_counter: 0,
-                },
-                rt.data_ref().cache_index.clone(),
-                TimeToLive(f32::INFINITY),
-            );
+            self.texture_cache
+                .try_register(&rt, scene_associated_data.ldr_scene_frame_texture());
         }
 
         for (camera_handle, camera) in graph.pair_iter().filter_map(|(handle, node)| {
