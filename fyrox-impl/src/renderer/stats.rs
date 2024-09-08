@@ -202,6 +202,12 @@ pub struct Statistics {
     pub capped_frame_time: f32,
     /// Total amount of frames been rendered in one second.
     pub frames_per_second: usize,
+    /// Total amount of textures in the textures cache.
+    pub texture_cache_size: usize,
+    /// Total amount of vertex+index buffers pairs in the geometry cache.
+    pub geometry_cache_size: usize,
+    /// Total amount of shaders in the shaders cache.
+    pub shader_cache_size: usize,
     pub(super) frame_counter: usize,
     pub(super) frame_start_time: instant::Instant,
     pub(super) last_fps_commit_time: instant::Instant,
@@ -217,20 +223,26 @@ impl std::ops::AddAssign<SceneStatistics> for Statistics {
 
 impl Display for Statistics {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let fps = self.frames_per_second;
+        let pure_frame_time = self.pure_frame_time * 1000.0;
+        let capped_frame_time = self.capped_frame_time * 1000.0;
+        let geometry_stats = &self.geometry;
+        let lighting_stats = &self.lighting;
+        let pipeline_stats = &self.pipeline;
+        let texture_cache_size = self.texture_cache_size;
+        let geometry_cache_size = self.geometry_cache_size;
+        let shader_cache_size = self.shader_cache_size;
         write!(
             f,
-            "FPS: {}\n\
-            Pure Frame Time: {:.2} ms\n\
-            Capped Frame Time: {:.2} ms\n\
-            {}\n\
-            {}\n\
-            {}\n",
-            self.frames_per_second,
-            self.pure_frame_time * 1000.0,
-            self.capped_frame_time * 1000.0,
-            self.geometry,
-            self.lighting,
-            self.pipeline
+            "FPS: {fps}\n\
+            Pure Frame Time: {pure_frame_time:.2} ms\n\
+            Capped Frame Time: {capped_frame_time:.2} ms\n\
+            {geometry_stats}\n\
+            {lighting_stats}\n\
+            {pipeline_stats}\n\
+            Texture Cache Size: {texture_cache_size}\n\
+            Geometry Cache Size: {geometry_cache_size}\n\
+            Shader Cache Size: {shader_cache_size}",
         )
     }
 }

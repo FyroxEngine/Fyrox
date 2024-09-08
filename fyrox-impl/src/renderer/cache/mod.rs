@@ -200,6 +200,10 @@ impl<T> TemporaryCache<T> {
         self.buffer.clear();
     }
 
+    pub fn alive_count(&self) -> usize {
+        self.buffer.filled()
+    }
+
     pub fn remove(&mut self, index: &AtomicIndex) {
         self.buffer.free(index);
     }

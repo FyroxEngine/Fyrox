@@ -465,6 +465,9 @@ impl Default for Statistics {
             pure_frame_time: 0.0,
             capped_frame_time: 0.0,
             frames_per_second: 0,
+            texture_cache_size: 0,
+            geometry_cache_size: 0,
+            shader_cache_size: 0,
             frame_counter: 0,
             frame_start_time: instant::Instant::now(),
             last_fps_commit_time: instant::Instant::now(),
@@ -1948,6 +1951,10 @@ impl Renderer {
             &mut self.backbuffer,
             screen_matrix,
         )?;
+
+        self.statistics.geometry_cache_size = self.geometry_cache.alive_count();
+        self.statistics.texture_cache_size = self.texture_cache.alive_count();
+        self.statistics.shader_cache_size = self.shader_cache.alive_count();
 
         Ok(())
     }

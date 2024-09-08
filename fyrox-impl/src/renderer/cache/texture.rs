@@ -195,4 +195,8 @@ impl TextureCache {
             self.map.remove(&texture.cache_index);
         }
     }
+
+    pub fn alive_count(&self) -> usize {
+        self.map.alive_count()
+    }
 }

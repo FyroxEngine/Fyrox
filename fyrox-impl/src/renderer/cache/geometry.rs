@@ -115,4 +115,8 @@ impl GeometryCache {
     pub fn clear(&mut self) {
         self.buffer.clear();
     }
+
+    pub fn alive_count(&self) -> usize {
+        self.buffer.alive_count()
+    }
 }

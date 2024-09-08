@@ -116,4 +116,8 @@ impl ShaderCache {
     pub fn clear(&mut self) {
         self.cache.clear();
     }
+
+    pub fn alive_count(&self) -> usize {
+        self.cache.alive_count()
+    }
 }
