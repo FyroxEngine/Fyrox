@@ -133,8 +133,6 @@ pub struct SurfaceInstanceData {
     pub world_transform: Matrix4<f32>,
     /// A set of bone matrices.
     pub bone_matrices: Vec<Matrix4<f32>>,
-    /// A depth-hack value.
-    pub depth_offset: f32,
     /// A set of weights for each blend shape in the surface.
     pub blend_shapes_weights: Vec<f32>,
     /// A range of elements of the instance. Allows you to draw either the full range ([`ElementRange::Full`])
@@ -380,7 +378,6 @@ impl RenderDataBundleStorageTrait for RenderDataBundleStorage {
                     SurfaceInstanceData {
                         world_transform: Matrix4::identity(),
                         bone_matrices: Default::default(),
-                        depth_offset: Default::default(),
                         blend_shapes_weights: Default::default(),
                         element_range: Default::default(),
                         persistent_identifier,

@@ -625,7 +625,6 @@ impl NodeTrait for Mesh {
                     SurfaceInstanceData {
                         world_transform: Matrix4::identity(),
                         bone_matrices: Default::default(),
-                        depth_offset: self.depth_offset_factor(),
                         blend_shapes_weights: Default::default(),
                         element_range: ElementRange::Full,
                         persistent_identifier: PersistentIdentifier::new_combined(
@@ -686,7 +685,6 @@ impl NodeTrait for Mesh {
                                         }
                                     })
                                     .collect::<Vec<_>>(),
-                                depth_offset: self.depth_offset_factor(),
                                 blend_shapes_weights: self
                                     .blend_shapes()
                                     .iter()

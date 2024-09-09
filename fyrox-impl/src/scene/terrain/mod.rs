@@ -2709,7 +2709,6 @@ impl NodeTrait for Terrain {
                             SurfaceInstanceData {
                                 world_transform: node_transform,
                                 bone_matrices: Default::default(),
-                                depth_offset: self.depth_offset_factor(),
                                 blend_shapes_weights: Default::default(),
                                 element_range: ElementRange::Full,
                                 persistent_identifier: PersistentIdentifier::new_combined(
@@ -2731,7 +2730,6 @@ impl NodeTrait for Terrain {
                                     SurfaceInstanceData {
                                         world_transform: node_transform,
                                         bone_matrices: Default::default(),
-                                        depth_offset: self.depth_offset_factor(),
                                         blend_shapes_weights: Default::default(),
                                         element_range: self.geometry.quadrants[i],
                                         persistent_identifier: PersistentIdentifier::new_combined(

@@ -249,7 +249,7 @@ impl SceneRenderPass for HighlightRenderPass {
                 None,
             );
 
-            let initial_view_projection = ctx.camera.view_projection_matrix();
+            let view_projection = ctx.camera.view_projection_matrix();
             let inv_view = ctx.camera.inv_view_matrix().unwrap();
 
             let camera_up = inv_view.up();
@@ -285,14 +285,6 @@ impl SceneRenderPass for HighlightRenderPass {
                 };
 
                 for instance in bundle.instances.iter() {
-                    let view_projection = if instance.depth_offset != 0.0 {
-                        let mut projection = ctx.camera.projection_matrix();
-                        projection[14] -= instance.depth_offset;
-                        projection * ctx.camera.view_matrix()
-                    } else {
-                        initial_view_projection
-                    };
-
                     self.framebuffer.draw(
                         geometry,
                         ctx.pipeline_state,

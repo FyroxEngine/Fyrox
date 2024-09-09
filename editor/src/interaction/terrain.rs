@@ -239,7 +239,6 @@ impl BrushGizmo {
         let brush = MeshBuilder::new(
             BaseBuilder::new()
                 .with_cast_shadows(false)
-                .with_depth_offset(0.01)
                 .with_name("Brush")
                 .with_visibility(false),
         )

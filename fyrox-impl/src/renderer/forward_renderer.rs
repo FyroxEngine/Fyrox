@@ -114,7 +114,7 @@ impl ForwardRenderer {
             ambient_light,
         } = args;
 
-        let initial_view_projection = camera.view_projection_matrix();
+        let view_projection = camera.view_projection_matrix();
 
         let frustum = Frustum::from_view_projection_matrix(camera.view_projection_matrix())
             .unwrap_or_default();
@@ -200,14 +200,6 @@ impl ForwardRenderer {
             };
 
             for instance in bundle.instances.iter() {
-                let view_projection = if instance.depth_offset != 0.0 {
-                    let mut projection = camera.projection_matrix();
-                    projection[14] -= instance.depth_offset;
-                    projection * camera.view_matrix()
-                } else {
-                    initial_view_projection
-                };
-
                 statistics += framebuffer.draw(
                     geometry,
                     state,

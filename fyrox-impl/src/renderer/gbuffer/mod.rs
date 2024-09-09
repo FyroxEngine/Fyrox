@@ -309,7 +309,7 @@ impl GBuffer {
             ..
         } = args;
 
-        let initial_view_projection = camera.view_projection_matrix();
+        let view_projection = camera.view_projection_matrix();
 
         if quality_settings.use_occlusion_culling {
             self.occlusion_tester
@@ -372,14 +372,6 @@ impl GBuffer {
                 }
 
                 let apply_uniforms = |mut program_binding: GpuProgramBinding| {
-                    let view_projection = if instance.depth_offset != 0.0 {
-                        let mut projection = camera.projection_matrix();
-                        projection[14] -= instance.depth_offset;
-                        projection * camera.view_matrix()
-                    } else {
-                        initial_view_projection
-                    };
-
                     apply_material(MaterialContext {
                         material,
                         program_binding: &mut program_binding,
@@ -438,11 +430,11 @@ impl GBuffer {
                 objects.iter(),
                 &self.framebuffer,
                 camera.global_position(),
-                initial_view_projection,
+                view_projection,
             )?;
         }
 
-        let inv_view_proj = initial_view_projection.try_inverse().unwrap_or_default();
+        let inv_view_proj = view_projection.try_inverse().unwrap_or_default();
         let depth = self.depth();
         let decal_mask = self.decal_mask_texture();
         let resolution = Vector2::new(self.width as f32, self.height as f32);
@@ -455,7 +447,7 @@ impl GBuffer {
             let shader = &self.decal_shader;
             let program = &self.decal_shader.program;
 
-            let world_view_proj = initial_view_projection * decal.global_transform();
+            let world_view_proj = view_projection * decal.global_transform();
 
             statistics += self.decal_framebuffer.draw(
                 unit_cube,

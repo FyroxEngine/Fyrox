@@ -389,10 +389,6 @@ pub struct Base {
     )]
     pub(crate) lifetime: InheritableVariable<Option<f32>>,
 
-    #[reflect(min_value = 0.0, max_value = 1.0, step = 0.1)]
-    #[reflect(setter = "set_depth_offset_factor")]
-    depth_offset: InheritableVariable<f32>,
-
     #[reflect(setter = "set_lod_group")]
     lod_group: InheritableVariable<Option<LodGroup>>,
 
@@ -683,26 +679,6 @@ impl Base {
     #[inline]
     pub fn up_vector(&self) -> Vector3<f32> {
         self.global_transform.get().up()
-    }
-
-    /// Sets depth range offset factor. It allows you to move depth range by given value. This can be used
-    /// to draw weapons on top of other stuff in scene.
-    ///
-    /// # Details
-    ///
-    /// This value is used to modify projection matrix before render node. Element m\[4\]\[3\] of projection
-    /// matrix usually set to -1 to which makes w coordinate of in homogeneous space to be -z_fragment for
-    /// further perspective divide. We can abuse this to shift z of fragment by some value.
-    #[inline]
-    pub fn set_depth_offset_factor(&mut self, factor: f32) -> f32 {
-        self.depth_offset
-            .set_value_and_mark_modified(factor.abs().clamp(0.0, 1.0))
-    }
-
-    /// Returns depth offset factor.
-    #[inline]
-    pub fn depth_offset_factor(&self) -> f32 {
-        *self.depth_offset
     }
 
     /// Sets new lod group.
@@ -1105,7 +1081,6 @@ impl Visit for Base {
         self.is_resource_instance_root
             .visit("IsResourceInstance", &mut region)?;
         self.lifetime.visit("Lifetime", &mut region)?;
-        self.depth_offset.visit("DepthOffset", &mut region)?;
         self.lod_group.visit("LodGroup", &mut region)?;
         self.mobility.visit("Mobility", &mut region)?;
         self.original_handle_in_resource
@@ -1148,7 +1123,6 @@ pub struct BaseBuilder {
     local_transform: Transform,
     children: Vec<Handle<Node>>,
     lifetime: Option<f32>,
-    depth_offset: f32,
     lod_group: Option<LodGroup>,
     mobility: Mobility,
     inv_bind_pose_transform: Matrix4<f32>,
@@ -1176,7 +1150,6 @@ impl BaseBuilder {
             local_transform: Default::default(),
             children: Default::default(),
             lifetime: None,
-            depth_offset: 0.0,
             lod_group: None,
             mobility: Default::default(),
             inv_bind_pose_transform: Matrix4::identity(),
@@ -1251,13 +1224,6 @@ impl BaseBuilder {
         self
     }
 
-    /// Sets desired depth offset.
-    #[inline]
-    pub fn with_depth_offset(mut self, offset: f32) -> Self {
-        self.depth_offset = offset;
-        self
-    }
-
     /// Sets desired lod group.
     #[inline]
     pub fn with_lod_group(mut self, lod_group: LodGroup) -> Self {
@@ -1320,7 +1286,6 @@ impl BaseBuilder {
             resource: None,
             original_handle_in_resource: Handle::NONE,
             is_resource_instance_root: false,
-            depth_offset: self.depth_offset.into(),
             lod_group: self.lod_group.into(),
             mobility: self.mobility.into(),
             tag: self.tag.into(),
