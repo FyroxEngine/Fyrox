@@ -292,16 +292,24 @@ impl RenderDataBundleStorage {
             render_pass_name: &render_pass_name,
         };
 
-        let mut stack = Vec::with_capacity(capacity / 4);
-        stack.push(graph.root());
-        while let Some(handle) = stack.pop() {
-            if lod_filter[handle.index() as usize] {
-                let node = graph.node(handle);
-                if let RdcControlFlow::Continue = node.collect_render_data(&mut ctx) {
-                    stack.extend_from_slice(node.children());
+        #[inline(always)]
+        fn iterate_recursive(
+            node_handle: Handle<Node>,
+            graph: &Graph,
+            lod_filter: &[bool],
+            ctx: &mut RenderContext,
+        ) {
+            if lod_filter[node_handle.index() as usize] {
+                let node = graph.node(node_handle);
+                if let RdcControlFlow::Continue = node.collect_render_data(ctx) {
+                    for child in node.children() {
+                        iterate_recursive(*child, graph, lod_filter, ctx);
+                    }
                 }
             }
         }
+
+        iterate_recursive(graph.root(), graph, &lod_filter, &mut ctx);
 
         storage.sort();
 
