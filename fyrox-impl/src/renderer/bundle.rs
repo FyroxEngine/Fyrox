@@ -20,8 +20,8 @@
 
 //! The module responsible for bundle generation for rendering optimizations.
 
-use crate::scene::node::RdcControlFlow;
 use crate::{
+    asset::untyped::ResourceKind,
     core::{
         algebra::{Matrix4, Vector3},
         math::frustum::Frustum,
@@ -41,11 +41,10 @@ use crate::{
             surface::{SurfaceData, SurfaceResource},
             RenderPath,
         },
-        node::Node,
+        node::{Node, RdcControlFlow},
     },
 };
 use fxhash::{FxBuildHasher, FxHashMap, FxHasher};
-use fyrox_resource::untyped::ResourceKind;
 use std::{
     collections::hash_map::DefaultHasher,
     fmt::{Debug, Formatter},
@@ -183,11 +182,9 @@ pub trait RenderDataBundleStorageTrait {
     /// - Material
     /// - Vertex Type
     /// - Render Path
-    /// - Skinning
-    /// - Decal Layer Index
     ///
     /// If one of these parameters is different, then a new bundle will be created and used to store
-    /// the given vertices and indices. If an appropriate bundle exists, the the method will store
+    /// the given vertices and indices. If an appropriate bundle exists, the method will store
     /// the given vertices and the triangles in it.
     ///
     /// ## When to use
@@ -211,8 +208,8 @@ pub trait RenderDataBundleStorageTrait {
 
     /// Adds a new surface instance to the storage. The method will automatically put the instance
     /// in the appropriate bundle. Bundle selection is done using the material, surface data, render
-    /// path, decal layer index, skinning flag. If only one of these parameters is different, then
-    /// the surface instance will be put in a separate bundle.
+    /// path. If only one of these parameters is different, then the surface instance will be put
+    /// in a separate bundle.
     fn push(
         &mut self,
         data: &SurfaceResource,
@@ -322,12 +319,10 @@ impl RenderDataBundleStorageTrait for RenderDataBundleStorage {
     /// - Material
     /// - Vertex Type
     /// - Render Path
-    /// - Skinning
-    /// - Decal Layer Index
     ///
     /// If one of these parameters is different, then a new bundle will be created and used to store
-    /// the given vertices and indices. If an appropriate bundle exists, the the method will store
-    /// the given vertices and the triangles in it.
+    /// the given vertices and indices. If an appropriate bundle exists, the method will store the
+    /// given vertices and the triangles in it.
     ///
     /// ## When to use
     ///
@@ -410,8 +405,8 @@ impl RenderDataBundleStorageTrait for RenderDataBundleStorage {
     }
 
     /// Adds a new surface instance to the storage. The method will automatically put the instance in the appropriate
-    /// bundle. Bundle selection is done using the material, surface data, render path, decal layer index, skinning flag.
-    /// If only one of these parameters is different, then the surface instance will be put in a separate bundle.
+    /// bundle. Bundle selection is done using the material, surface data, render path. If only one
+    /// of these parameters is different, then the surface instance will be put in a separate bundle.
     fn push(
         &mut self,
         data: &SurfaceResource,
