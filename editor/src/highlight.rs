@@ -309,7 +309,7 @@ impl SceneRenderPass for HighlightRenderPass {
                                 view_projection_matrix: &view_projection,
                                 wvp_matrix: &(view_projection * instance.world_transform),
                                 bone_matrices: &instance.bone_matrices,
-                                use_skeletal_animation: bundle.is_skinned,
+                                use_skeletal_animation: !instance.bone_matrices.is_empty(),
                                 camera_position: &ctx.camera.global_position(),
                                 camera_up_vector: &camera_up,
                                 camera_side_vector: &camera_side,

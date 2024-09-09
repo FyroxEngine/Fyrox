@@ -348,7 +348,6 @@ impl NodeTrait for Rectangle {
             RenderPath::Forward,
             0,
             sort_index,
-            false,
             self.self_handle,
             &mut move |mut vertex_buffer, mut triangle_buffer| {
                 let start_vertex_index = vertex_buffer.vertex_count();

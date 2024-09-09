@@ -159,8 +159,6 @@ pub struct RenderDataBundle {
     pub instances: Vec<SurfaceInstanceData>,
     /// A material that is shared across all instances.
     pub material: MaterialResource,
-    /// Whether the bundle is using GPU skinning or not.
-    pub is_skinned: bool,
     /// A render path of the bundle.
     pub render_path: RenderPath,
     /// A decal layer index of the bundle.
@@ -210,7 +208,6 @@ pub trait RenderDataBundleStorageTrait {
         render_path: RenderPath,
         decal_layer_index: u8,
         sort_index: u64,
-        is_skinned: bool,
         node_handle: Handle<Node>,
         func: &mut dyn FnMut(VertexBufferRefMut, TriangleBufferRefMut),
     );
@@ -352,14 +349,12 @@ impl RenderDataBundleStorageTrait for RenderDataBundleStorage {
         render_path: RenderPath,
         decal_layer_index: u8,
         sort_index: u64,
-        is_skinned: bool,
         node_handle: Handle<Node>,
         func: &mut dyn FnMut(VertexBufferRefMut, TriangleBufferRefMut),
     ) {
         let mut hasher = FxHasher::default();
         hasher.write_u64(material.key());
         layout.hash(&mut hasher);
-        hasher.write_u8(if is_skinned { 1 } else { 0 });
         hasher.write_u8(decal_layer_index);
         hasher.write_u32(render_path as u32);
         let key = hasher.finish();
@@ -404,7 +399,6 @@ impl RenderDataBundleStorageTrait for RenderDataBundleStorage {
                     },
                 ],
                 material: material.clone(),
-                is_skinned,
                 render_path,
                 decal_layer_index,
                 // Temporary buffer lives one frame.
@@ -434,12 +428,9 @@ impl RenderDataBundleStorageTrait for RenderDataBundleStorage {
         sort_index: u64,
         instance_data: SurfaceInstanceData,
     ) {
-        let is_skinned = !instance_data.bone_matrices.is_empty();
-
         let mut hasher = FxHasher::default();
         hasher.write_u64(material.key());
         hasher.write_u64(data.key());
-        hasher.write_u8(if is_skinned { 1 } else { 0 });
         hasher.write_u8(decal_layer_index);
         hasher.write_u32(render_path as u32);
         let key = hasher.finish();
@@ -453,7 +444,6 @@ impl RenderDataBundleStorageTrait for RenderDataBundleStorage {
                 sort_index,
                 instances: Default::default(),
                 material: material.clone(),
-                is_skinned,
                 render_path,
                 decal_layer_index,
                 time_to_live: Default::default(),

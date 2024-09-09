@@ -316,7 +316,7 @@ impl PointShadowMapRenderer {
                                 wvp_matrix: &(light_view_projection_matrix
                                     * instance.world_transform),
                                 bone_matrices: &instance.bone_matrices,
-                                use_skeletal_animation: bundle.is_skinned,
+                                use_skeletal_animation: !instance.bone_matrices.is_empty(),
                                 camera_position: &Default::default(),
                                 camera_up_vector: &camera_up,
                                 camera_side_vector: &camera_side,

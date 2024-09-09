@@ -335,7 +335,7 @@ impl CsmRenderer {
                                 view_projection_matrix: &light_view_projection,
                                 wvp_matrix: &(light_view_projection * instance.world_transform),
                                 bone_matrices: &instance.bone_matrices,
-                                use_skeletal_animation: bundle.is_skinned,
+                                use_skeletal_animation: !instance.bone_matrices.is_empty(),
                                 camera_position: &camera.global_position(),
                                 camera_up_vector: &camera_up,
                                 camera_side_vector: &camera_side,

@@ -205,7 +205,6 @@ impl RenderDataBundleStorageTrait for BatchContainer {
         _render_path: RenderPath,
         _decal_layer_index: u8,
         _sort_index: u64,
-        _is_skinned: bool,
         _node_handle: Handle<Node>,
         func: &mut dyn FnMut(VertexBufferRefMut, TriangleBufferRefMut),
     ) {
@@ -735,7 +734,6 @@ impl NodeTrait for Mesh {
                             *self.render_path,
                             self.decal_layer_index(),
                             0,
-                            false,
                             self.self_handle,
                             &mut move |mut vertex_buffer, mut triangle_buffer| {
                                 let start_vertex_index = vertex_buffer.vertex_count();
