@@ -203,7 +203,6 @@ impl RenderDataBundleStorageTrait for BatchContainer {
         layout: &[VertexAttributeDescriptor],
         material: &MaterialResource,
         _render_path: RenderPath,
-        _decal_layer_index: u8,
         _sort_index: u64,
         _node_handle: Handle<Node>,
         func: &mut dyn FnMut(VertexBufferRefMut, TriangleBufferRefMut),
@@ -239,7 +238,6 @@ impl RenderDataBundleStorageTrait for BatchContainer {
         data: &SurfaceResource,
         material: &MaterialResource,
         _render_path: RenderPath,
-        _decal_layer_index: u8,
         _sort_index: u64,
         instance_data: SurfaceInstanceData,
     ) {
@@ -330,9 +328,6 @@ pub struct Mesh {
     #[reflect(setter = "set_render_path")]
     render_path: InheritableVariable<RenderPath>,
 
-    #[reflect(setter = "set_decal_layer_index")]
-    decal_layer_index: InheritableVariable<u8>,
-
     #[visit(optional)]
     #[reflect(
         setter = "set_batching_mode",
@@ -371,7 +366,6 @@ impl Default for Mesh {
             world_bounding_box: Default::default(),
             local_bounding_box_dirty: Cell::new(true),
             render_path: InheritableVariable::new_modified(RenderPath::Deferred),
-            decal_layer_index: InheritableVariable::new_modified(0),
             batching_mode: Default::default(),
             blend_shapes: Default::default(),
             batch_container: Default::default(),
@@ -512,18 +506,6 @@ impl Mesh {
         bounding_box
     }
 
-    /// Sets new decal layer index. It defines which decals will be applies to the mesh,
-    /// for example iff a decal has index == 0 and a mesh has index == 0, then decals will
-    /// be applied. This allows you to apply decals only on needed surfaces.
-    pub fn set_decal_layer_index(&mut self, index: u8) -> u8 {
-        self.decal_layer_index.set_value_and_mark_modified(index)
-    }
-
-    /// Returns current decal index.
-    pub fn decal_layer_index(&self) -> u8 {
-        *self.decal_layer_index
-    }
-
     /// Enable or disable dynamic batching. It could be useful to reduce amount of draw calls per
     /// frame if you have lots of meshes with small vertex count. Does not work with meshes, that
     /// have skin or blend shapes. Such meshes will be drawn in a separate draw call.
@@ -639,7 +621,6 @@ impl NodeTrait for Mesh {
                     &batch.data,
                     &batch.material,
                     self.render_path(),
-                    self.decal_layer_index(),
                     batch.material.key(),
                     SurfaceInstanceData {
                         world_transform: Matrix4::identity(),
@@ -690,7 +671,6 @@ impl NodeTrait for Mesh {
                             surface.data_ref(),
                             surface.material(),
                             self.render_path(),
-                            self.decal_layer_index(),
                             surface.material().key(),
                             SurfaceInstanceData {
                                 world_transform: world,
@@ -732,7 +712,6 @@ impl NodeTrait for Mesh {
                                 .collect::<Vec<_>>(),
                             surface.material(),
                             *self.render_path,
-                            self.decal_layer_index(),
                             0,
                             self.self_handle,
                             &mut move |mut vertex_buffer, mut triangle_buffer| {
@@ -820,7 +799,6 @@ pub struct MeshBuilder {
     base_builder: BaseBuilder,
     surfaces: Vec<Surface>,
     render_path: RenderPath,
-    decal_layer_index: u8,
     blend_shapes: Vec<BlendShape>,
     batching_mode: BatchingMode,
 }
@@ -832,7 +810,6 @@ impl MeshBuilder {
             base_builder,
             surfaces: Default::default(),
             render_path: RenderPath::Deferred,
-            decal_layer_index: 0,
             blend_shapes: Default::default(),
             batching_mode: BatchingMode::None,
         }
@@ -848,12 +825,6 @@ impl MeshBuilder {
     /// implemented and only used to render transparent objects!
     pub fn with_render_path(mut self, render_path: RenderPath) -> Self {
         self.render_path = render_path;
-        self
-    }
-
-    /// Sets desired decal layer index.
-    pub fn with_decal_layer_index(mut self, decal_layer_index: u8) -> Self {
-        self.decal_layer_index = decal_layer_index;
         self
     }
 
@@ -879,7 +850,6 @@ impl MeshBuilder {
             local_bounding_box: Default::default(),
             local_bounding_box_dirty: Cell::new(true),
             render_path: self.render_path.into(),
-            decal_layer_index: self.decal_layer_index.into(),
             world_bounding_box: Default::default(),
             batching_mode: self.batching_mode.into(),
             batch_container: Default::default(),

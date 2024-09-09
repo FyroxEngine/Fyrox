@@ -357,7 +357,6 @@ impl NodeTrait for Sprite {
             Vertex::layout(),
             &self.material,
             RenderPath::Forward,
-            0,
             sort_index,
             self.self_handle,
             &mut move |mut vertex_buffer, mut triangle_buffer| {

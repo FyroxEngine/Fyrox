@@ -713,7 +713,6 @@ impl NodeTrait for TileMap {
                     RectangleVertex::layout(),
                     &tile_definition.material,
                     RenderPath::Forward,
-                    0,
                     sort_index,
                     self.self_handle,
                     &mut move |mut vertex_buffer, mut triangle_buffer| {

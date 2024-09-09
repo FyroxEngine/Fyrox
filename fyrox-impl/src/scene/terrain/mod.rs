@@ -1048,9 +1048,6 @@ pub struct Terrain {
     #[reflect(setter = "set_layers")]
     layers: InheritableVariable<Vec<Layer>>,
 
-    #[reflect(setter = "set_decal_layer_index")]
-    decal_layer_index: InheritableVariable<u8>,
-
     /// Size of the chunk, in meters.
     /// This value becomes the [Chunk::physical_size] of newly created chunks.
     #[reflect(
@@ -1140,7 +1137,6 @@ impl Default for Terrain {
             base: Default::default(),
             holes_enabled: false,
             layers: Default::default(),
-            decal_layer_index: Default::default(),
             chunk_size: Vector2::new(16.0, 16.0).into(),
             width_chunks: Default::default(),
             length_chunks: Default::default(),
@@ -1183,8 +1179,6 @@ impl Visit for Terrain {
             0 => {
                 // Old version.
                 self.base.visit("Base", &mut region)?;
-                self.decal_layer_index
-                    .visit("DecalLayerIndex", &mut region)?;
 
                 let mut layers =
                     InheritableVariable::<Vec<OldLayer>>::new_modified(Default::default());
@@ -1258,8 +1252,6 @@ impl Visit for Terrain {
                 self.base.visit("Base", &mut region)?;
                 let _ = self.holes_enabled.visit("HolesEnabled", &mut region);
                 self.layers.visit("Layers", &mut region)?;
-                self.decal_layer_index
-                    .visit("DecalLayerIndex", &mut region)?;
                 self.chunk_size.visit("ChunkSize", &mut region)?;
                 self.width_chunks.visit("WidthChunks", &mut region)?;
                 self.length_chunks.visit("LengthChunks", &mut region)?;
@@ -1779,18 +1771,6 @@ impl Terrain {
         for c in self.chunks.iter_mut() {
             c.update_quad_tree();
         }
-    }
-
-    /// Sets new decal layer index. It defines which decals will be applies to the mesh,
-    /// for example iff a decal has index == 0 and a mesh has index == 0, then decals will
-    /// be applied. This allows you to apply decals only on needed surfaces.
-    pub fn set_decal_layer_index(&mut self, index: u8) -> u8 {
-        self.decal_layer_index.set_value_and_mark_modified(index)
-    }
-
-    /// Returns current decal index.
-    pub fn decal_layer_index(&self) -> u8 {
-        *self.decal_layer_index
     }
 
     /// Projects given 3D point on the surface of terrain and returns 2D vector
@@ -2725,7 +2705,6 @@ impl NodeTrait for Terrain {
                             &self.geometry.data,
                             &material,
                             RenderPath::Deferred,
-                            self.decal_layer_index(),
                             layer_index as u64,
                             SurfaceInstanceData {
                                 world_transform: node_transform,
@@ -2748,7 +2727,6 @@ impl NodeTrait for Terrain {
                                     &self.geometry.data,
                                     &material,
                                     RenderPath::Deferred,
-                                    self.decal_layer_index(),
                                     layer_index as u64,
                                     SurfaceInstanceData {
                                         world_transform: node_transform,
@@ -2792,7 +2770,6 @@ pub struct TerrainBuilder {
     height_map_size: Vector2<u32>,
     block_size: Vector2<u32>,
     layers: Vec<Layer>,
-    decal_layer_index: u8,
 }
 
 fn create_layer_mask(width: u32, height: u32, value: u8) -> TextureResource {
@@ -2825,7 +2802,6 @@ impl TerrainBuilder {
             height_map_size: Vector2::new(257, 257),
             block_size: Vector2::new(33, 33),
             layers: Default::default(),
-            decal_layer_index: 0,
         }
     }
 
@@ -2868,12 +2844,6 @@ impl TerrainBuilder {
     /// Sets desired layers that will be used for each chunk in the terrain.
     pub fn with_layers(mut self, layers: Vec<Layer>) -> Self {
         self.layers = layers;
-        self
-    }
-
-    /// Sets desired decal layer index.
-    pub fn with_decal_layer_index(mut self, decal_layer_index: u8) -> Self {
-        self.decal_layer_index = decal_layer_index;
         self
     }
 
@@ -2950,7 +2920,6 @@ impl TerrainBuilder {
             height_map_size: self.height_map_size.into(),
             width_chunks: self.width_chunks.into(),
             length_chunks: self.length_chunks.into(),
-            decal_layer_index: self.decal_layer_index.into(),
             geometry: TerrainGeometry::new(self.block_size),
             block_size: self.block_size.into(),
         };

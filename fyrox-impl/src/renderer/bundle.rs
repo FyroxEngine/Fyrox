@@ -161,8 +161,6 @@ pub struct RenderDataBundle {
     pub material: MaterialResource,
     /// A render path of the bundle.
     pub render_path: RenderPath,
-    /// A decal layer index of the bundle.
-    pub decal_layer_index: u8,
     sort_index: u64,
 }
 
@@ -206,7 +204,6 @@ pub trait RenderDataBundleStorageTrait {
         layout: &[VertexAttributeDescriptor],
         material: &MaterialResource,
         render_path: RenderPath,
-        decal_layer_index: u8,
         sort_index: u64,
         node_handle: Handle<Node>,
         func: &mut dyn FnMut(VertexBufferRefMut, TriangleBufferRefMut),
@@ -221,7 +218,6 @@ pub trait RenderDataBundleStorageTrait {
         data: &SurfaceResource,
         material: &MaterialResource,
         render_path: RenderPath,
-        decal_layer_index: u8,
         sort_index: u64,
         instance_data: SurfaceInstanceData,
     );
@@ -347,7 +343,6 @@ impl RenderDataBundleStorageTrait for RenderDataBundleStorage {
         layout: &[VertexAttributeDescriptor],
         material: &MaterialResource,
         render_path: RenderPath,
-        decal_layer_index: u8,
         sort_index: u64,
         node_handle: Handle<Node>,
         func: &mut dyn FnMut(VertexBufferRefMut, TriangleBufferRefMut),
@@ -355,7 +350,6 @@ impl RenderDataBundleStorageTrait for RenderDataBundleStorage {
         let mut hasher = FxHasher::default();
         hasher.write_u64(material.key());
         layout.hash(&mut hasher);
-        hasher.write_u8(decal_layer_index);
         hasher.write_u32(render_path as u32);
         let key = hasher.finish();
 
@@ -400,7 +394,6 @@ impl RenderDataBundleStorageTrait for RenderDataBundleStorage {
                 ],
                 material: material.clone(),
                 render_path,
-                decal_layer_index,
                 // Temporary buffer lives one frame.
                 time_to_live: TimeToLive(0.0),
             });
@@ -424,14 +417,12 @@ impl RenderDataBundleStorageTrait for RenderDataBundleStorage {
         data: &SurfaceResource,
         material: &MaterialResource,
         render_path: RenderPath,
-        decal_layer_index: u8,
         sort_index: u64,
         instance_data: SurfaceInstanceData,
     ) {
         let mut hasher = FxHasher::default();
         hasher.write_u64(material.key());
         hasher.write_u64(data.key());
-        hasher.write_u8(decal_layer_index);
         hasher.write_u32(render_path as u32);
         let key = hasher.finish();
 
@@ -445,7 +436,6 @@ impl RenderDataBundleStorageTrait for RenderDataBundleStorage {
                 instances: Default::default(),
                 material: material.clone(),
                 render_path,
-                decal_layer_index,
                 time_to_live: Default::default(),
             });
             self.bundles.last_mut().unwrap()
