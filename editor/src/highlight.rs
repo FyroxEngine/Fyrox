@@ -30,8 +30,7 @@ use crate::{
         fxhash::FxHashSet,
         graph::{BaseSceneGraph, SceneGraph},
         renderer::{
-            apply_material,
-            bundle::{RenderContext, RenderDataBundleStorage},
+            bundle::{BundleRenderContext, RenderContext, RenderDataBundleStorage},
             framework::{
                 error::FrameworkError,
                 framebuffer::{
@@ -45,7 +44,7 @@ use crate::{
                 },
                 state::{BlendFactor, BlendFunc, PipelineState},
             },
-            MaterialContext, RenderPassStatistics, SceneRenderPass, SceneRenderPassContext,
+            RenderPassStatistics, SceneRenderPass, SceneRenderPassContext,
         },
         scene::{mesh::surface::SurfaceData, node::Node, Scene},
     },
@@ -256,74 +255,34 @@ impl SceneRenderPass for HighlightRenderPass {
             let camera_side = inv_view.side();
 
             for bundle in render_bundle_storage.bundles.iter() {
-                let mut material_state = bundle.material.state();
-
-                let Some(material) = material_state.data() else {
-                    continue;
-                };
-
-                let Some(geometry) =
-                    ctx.geometry_cache
-                        .get(ctx.pipeline_state, &bundle.data, bundle.time_to_live)
-                else {
-                    continue;
-                };
-
-                let blend_shapes_storage = bundle
-                    .data
-                    .data_ref()
-                    .blend_shapes_container
-                    .as_ref()
-                    .and_then(|c| c.blend_shape_storage.clone());
-
-                let Some(render_pass) = ctx
-                    .shader_cache
-                    .get(ctx.pipeline_state, material.shader())
-                    .and_then(|shader_set| shader_set.render_passes.get(&render_pass_name))
-                else {
-                    continue;
-                };
-
-                for instance in bundle.instances.iter() {
-                    self.framebuffer.draw(
-                        geometry,
-                        ctx.pipeline_state,
-                        ctx.viewport,
-                        &render_pass.program,
-                        &render_pass.draw_params,
-                        instance.element_range,
-                        |mut program_binding| {
-                            apply_material(MaterialContext {
-                                material,
-                                program_binding: &mut program_binding,
-                                texture_cache: ctx.texture_cache,
-                                world_matrix: &instance.world_transform,
-                                view_projection_matrix: &view_projection,
-                                wvp_matrix: &(view_projection * instance.world_transform),
-                                bone_matrices: &instance.bone_matrices,
-                                use_skeletal_animation: !instance.bone_matrices.is_empty(),
-                                camera_position: &ctx.camera.global_position(),
-                                camera_up_vector: &camera_up,
-                                camera_side_vector: &camera_side,
-                                z_near: ctx.camera.projection().z_near(),
-                                z_far: ctx.camera.projection().z_far(),
-                                use_pom: false,
-                                light_position: &Default::default(),
-                                blend_shapes_storage: blend_shapes_storage.as_ref(),
-                                blend_shapes_weights: &instance.blend_shapes_weights,
-                                normal_dummy: &ctx.normal_dummy,
-                                white_dummy: &ctx.white_dummy,
-                                black_dummy: &ctx.black_dummy,
-                                volume_dummy: &ctx.volume_dummy,
-                                matrix_storage: ctx.matrix_storage,
-                                persistent_identifier: instance.persistent_identifier,
-                                light_data: None,
-                                ambient_light: Default::default(),
-                                scene_depth: Some(&ctx.depth_texture),
-                            });
-                        },
-                    )?;
-                }
+                bundle.render_to_frame_buffer(
+                    ctx.pipeline_state,
+                    ctx.geometry_cache,
+                    ctx.shader_cache,
+                    |_| true,
+                    BundleRenderContext {
+                        texture_cache: ctx.texture_cache,
+                        render_pass_name: &render_pass_name,
+                        frame_buffer: &self.framebuffer,
+                        view_projection_matrix: &view_projection,
+                        camera_position: &ctx.camera.global_position(),
+                        camera_up_vector: &camera_up,
+                        camera_side_vector: &camera_side,
+                        z_near: ctx.camera.projection().z_near(),
+                        z_far: ctx.camera.projection().z_far(),
+                        use_pom: false,
+                        light_position: &Default::default(),
+                        normal_dummy: &ctx.normal_dummy,
+                        white_dummy: &ctx.white_dummy,
+                        black_dummy: &ctx.black_dummy,
+                        volume_dummy: &ctx.volume_dummy,
+                        matrix_storage: ctx.matrix_storage,
+                        light_data: None,
+                        ambient_light: Default::default(),
+                        scene_depth: Some(&ctx.depth_texture),
+                        viewport: ctx.viewport,
+                    },
+                )?;
             }
         }
 

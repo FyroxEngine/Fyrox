@@ -38,8 +38,7 @@ use crate::{
         sstorage::ImmutableString,
     },
     renderer::{
-        apply_material,
-        bundle::RenderDataBundleStorage,
+        bundle::{BundleRenderContext, RenderDataBundleStorage, SurfaceInstanceData},
         cache::shader::ShaderCache,
         debug_renderer::DebugRenderer,
         framework::{
@@ -48,7 +47,6 @@ use crate::{
                 Attachment, AttachmentKind, BlendParameters, DrawParameters, FrameBuffer,
             },
             geometry_buffer::{ElementRange, GeometryBuffer, GeometryBufferKind},
-            gpu_program::GpuProgramBinding,
             gpu_texture::{
                 Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
                 PixelKind, WrapMode,
@@ -58,7 +56,7 @@ use crate::{
         gbuffer::decal::DecalShader,
         occlusion::OcclusionTester,
         storage::MatrixStorageCache,
-        GeometryCache, MaterialContext, QualitySettings, RenderPassStatistics, TextureCache,
+        GeometryCache, QualitySettings, RenderPassStatistics, TextureCache,
     },
     scene::{
         camera::Camera,
@@ -335,83 +333,44 @@ impl GBuffer {
             .grid_cache
             .cell(camera.global_position());
 
+        let instance_filter = |instance: &SurfaceInstanceData| {
+            !quality_settings.use_occlusion_culling
+                || grid_cell.map_or(true, |cell| cell.is_visible(instance.node_handle))
+        };
+
         for bundle in bundle_storage
             .bundles
             .iter()
             .filter(|b| b.render_path == RenderPath::Deferred)
         {
-            let mut material_state = bundle.material.state();
-
-            let Some(material) = material_state.data() else {
-                continue;
-            };
-
-            let Some(geometry) = geom_cache.get(state, &bundle.data, bundle.time_to_live) else {
-                continue;
-            };
-
-            let blend_shapes_storage = bundle
-                .data
-                .data_ref()
-                .blend_shapes_container
-                .as_ref()
-                .and_then(|c| c.blend_shape_storage.clone());
-
-            let Some(render_pass) = shader_cache
-                .get(state, material.shader())
-                .and_then(|shader_set| shader_set.render_passes.get(&self.render_pass_name))
-            else {
-                continue;
-            };
-
-            for instance in bundle.instances.iter() {
-                if quality_settings.use_occlusion_culling
-                    && !grid_cell.map_or(true, |cell| cell.is_visible(instance.node_handle))
-                {
-                    continue;
-                }
-
-                let apply_uniforms = |mut program_binding: GpuProgramBinding| {
-                    apply_material(MaterialContext {
-                        material,
-                        program_binding: &mut program_binding,
-                        texture_cache,
-                        matrix_storage,
-                        world_matrix: &instance.world_transform,
-                        view_projection_matrix: &view_projection,
-                        wvp_matrix: &(view_projection * instance.world_transform),
-                        bone_matrices: &instance.bone_matrices,
-                        use_skeletal_animation: !instance.bone_matrices.is_empty(),
-                        camera_position: &camera.global_position(),
-                        camera_up_vector: &camera_up,
-                        camera_side_vector: &camera_side,
-                        z_near: camera.projection().z_near(),
-                        use_pom: quality_settings.use_parallax_mapping,
-                        light_position: &Default::default(),
-                        blend_shapes_storage: blend_shapes_storage.as_ref(),
-                        blend_shapes_weights: &instance.blend_shapes_weights,
-                        normal_dummy: &normal_dummy,
-                        white_dummy: &white_dummy,
-                        black_dummy: &black_dummy,
-                        volume_dummy: &volume_dummy,
-                        persistent_identifier: instance.persistent_identifier,
-                        light_data: None,
-                        ambient_light: Color::WHITE, // TODO
-                        scene_depth: None,           // TODO. Add z-pre-pass.
-                        z_far: camera.projection().z_far(),
-                    });
-                };
-
-                statistics += self.framebuffer.draw(
-                    geometry,
-                    state,
+            statistics += bundle.render_to_frame_buffer(
+                state,
+                geom_cache,
+                shader_cache,
+                instance_filter,
+                BundleRenderContext {
+                    texture_cache,
+                    render_pass_name: &self.render_pass_name,
+                    frame_buffer: &mut self.framebuffer,
                     viewport,
-                    &render_pass.program,
-                    &render_pass.draw_params,
-                    instance.element_range,
-                    apply_uniforms,
-                )?;
-            }
+                    matrix_storage,
+                    view_projection_matrix: &view_projection,
+                    camera_position: &camera.global_position(),
+                    camera_up_vector: &camera_up,
+                    camera_side_vector: &camera_side,
+                    z_near: camera.projection().z_near(),
+                    use_pom: quality_settings.use_parallax_mapping,
+                    light_position: &Default::default(),
+                    normal_dummy: &normal_dummy,
+                    white_dummy: &white_dummy,
+                    black_dummy: &black_dummy,
+                    volume_dummy: &volume_dummy,
+                    light_data: None,
+                    ambient_light: Color::WHITE, // TODO
+                    scene_depth: None,           // TODO. Add z-pre-pass.
+                    z_far: camera.projection().z_far(),
+                },
+            )?;
         }
 
         if quality_settings.use_occlusion_culling {

@@ -175,6 +175,22 @@ impl<'a, 'b> GpuProgramBinding<'a, 'b> {
     }
 
     #[inline(always)]
+    pub fn set_texture_to_sampler(
+        &mut self,
+        location: &UniformLocation,
+        texture: &Rc<RefCell<GpuTexture>>,
+        sampler: u32,
+    ) -> &mut Self {
+        unsafe {
+            self.state
+                .gl
+                .uniform_1_i32(Some(&location.id), sampler as i32)
+        };
+        texture.borrow().bind(self.state, sampler);
+        self
+    }
+
+    #[inline(always)]
     pub fn set_bool(&mut self, location: &UniformLocation, value: bool) -> &mut Self {
         unsafe {
             self.state.gl.uniform_1_i32(

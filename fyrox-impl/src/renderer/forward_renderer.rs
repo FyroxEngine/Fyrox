@@ -26,16 +26,16 @@
 //! For now it is used **only** to render transparent meshes (or any other mesh that has Forward render
 //! path).
 
+use crate::renderer::bundle::BundleRenderContext;
 use crate::{
     core::{
         algebra::{Vector2, Vector4},
         color::Color,
-        math::{frustum::Frustum, Rect},
+        math::{frustum::Frustum, Matrix4Ext, Rect},
         scope_profile,
         sstorage::ImmutableString,
     },
     renderer::{
-        apply_material,
         bundle::RenderDataBundleStorage,
         cache::{shader::ShaderCache, texture::TextureCache},
         framework::{
@@ -43,7 +43,7 @@ use crate::{
             state::PipelineState,
         },
         storage::MatrixStorageCache,
-        GeometryCache, LightData, MaterialContext, QualitySettings, RenderPassStatistics,
+        GeometryCache, LightData, QualitySettings, RenderPassStatistics,
     },
     scene::{
         camera::Camera,
@@ -52,7 +52,6 @@ use crate::{
         mesh::RenderPath,
     },
 };
-use fyrox_core::math::Matrix4Ext;
 use std::{cell::RefCell, rc::Rc};
 
 pub(crate) struct ForwardRenderer {
@@ -175,70 +174,34 @@ impl ForwardRenderer {
             .iter()
             .filter(|b| b.render_path == RenderPath::Forward)
         {
-            let mut material_state = bundle.material.state();
-
-            let Some(material) = material_state.data() else {
-                continue;
-            };
-
-            let Some(geometry) = geom_cache.get(state, &bundle.data, bundle.time_to_live) else {
-                continue;
-            };
-
-            let blend_shapes_storage = bundle
-                .data
-                .data_ref()
-                .blend_shapes_container
-                .as_ref()
-                .and_then(|c| c.blend_shape_storage.clone());
-
-            let Some(render_pass) = shader_cache
-                .get(state, material.shader())
-                .and_then(|shader_set| shader_set.render_passes.get(&self.render_pass_name))
-            else {
-                continue;
-            };
-
-            for instance in bundle.instances.iter() {
-                statistics += framebuffer.draw(
-                    geometry,
-                    state,
+            statistics += bundle.render_to_frame_buffer(
+                state,
+                geom_cache,
+                shader_cache,
+                |_| true,
+                BundleRenderContext {
+                    texture_cache,
+                    render_pass_name: &self.render_pass_name,
+                    frame_buffer: framebuffer,
                     viewport,
-                    &render_pass.program,
-                    &render_pass.draw_params,
-                    instance.element_range,
-                    |mut program_binding| {
-                        apply_material(MaterialContext {
-                            material,
-                            program_binding: &mut program_binding,
-                            texture_cache,
-                            world_matrix: &instance.world_transform,
-                            view_projection_matrix: &view_projection,
-                            wvp_matrix: &(view_projection * instance.world_transform),
-                            bone_matrices: &instance.bone_matrices,
-                            use_skeletal_animation: !instance.bone_matrices.is_empty(),
-                            camera_position: &camera.global_position(),
-                            camera_up_vector: &camera_up,
-                            camera_side_vector: &camera_side,
-                            z_near: camera.projection().z_near(),
-                            z_far: camera.projection().z_far(),
-                            use_pom: quality_settings.use_parallax_mapping,
-                            light_position: &Default::default(),
-                            blend_shapes_storage: blend_shapes_storage.as_ref(),
-                            blend_shapes_weights: &instance.blend_shapes_weights,
-                            normal_dummy: &normal_dummy,
-                            white_dummy: &white_dummy,
-                            black_dummy: &black_dummy,
-                            volume_dummy: &volume_dummy,
-                            matrix_storage,
-                            persistent_identifier: instance.persistent_identifier,
-                            light_data: Some(&light_data),
-                            ambient_light,
-                            scene_depth: Some(&scene_depth),
-                        });
-                    },
-                )?;
-            }
+                    matrix_storage,
+                    view_projection_matrix: &view_projection,
+                    camera_position: &camera.global_position(),
+                    camera_up_vector: &camera_up,
+                    camera_side_vector: &camera_side,
+                    z_near: camera.projection().z_near(),
+                    z_far: camera.projection().z_far(),
+                    use_pom: quality_settings.use_parallax_mapping,
+                    light_position: &Default::default(),
+                    normal_dummy: &normal_dummy,
+                    white_dummy: &white_dummy,
+                    black_dummy: &black_dummy,
+                    volume_dummy: &volume_dummy,
+                    light_data: Some(&light_data),
+                    ambient_light,
+                    scene_depth: Some(&scene_depth),
+                },
+            )?;
         }
 
         Ok(statistics)
