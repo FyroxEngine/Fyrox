@@ -171,8 +171,20 @@ where
     Ok(())
 }
 
+fn make_command(program: &str) -> std::process::Command {
+    let mut command = std::process::Command::new(program);
+    // Remove the `RUSTFLAGS` environment variable, which could be added to the child process
+    // implicitly. It is very important if the editor is running in hot-reloading mode, which
+    // requires to have custom `RUSTFLAGS=-C prefer-dynamic=yes` environment variable set. This
+    // variable also forces any child `cargo` processes to generate binaries with dynamic
+    // linking to the standard library which is a major issue on some platforms. See this issue
+    // https://github.com/FyroxEngine/Fyrox/issues/679 for more info.
+    command.env_remove("RUSTFLAGS");
+    command
+}
+
 fn read_metadata() -> Result<Metadata, String> {
-    return match std::process::Command::new("cargo")
+    return match make_command("cargo")
         .arg("metadata")
         .stdout(Stdio::piped())
         .spawn()
@@ -221,7 +233,7 @@ fn prepare_build_dir(path: &Path) -> Result<(), String> {
 }
 
 fn is_installed(program: &str) -> bool {
-    if let Ok(mut handle) = std::process::Command::new(program)
+    if let Ok(mut handle) = make_command(program)
         // Assuming that `help` command is always present.
         .arg("--help")
         .spawn()
@@ -239,7 +251,7 @@ fn is_installed(program: &str) -> bool {
 fn cargo_install(crate_name: &str) -> Result<(), String> {
     Log::info(format!("Trying to install {crate_name}..."));
 
-    let mut process = std::process::Command::new("cargo");
+    let mut process = make_command("cargo");
     match process
         .stderr(Stdio::piped())
         .arg("install")
@@ -265,7 +277,7 @@ fn cargo_install(crate_name: &str) -> Result<(), String> {
 fn install_build_target(target: &str) -> Result<(), String> {
     Log::info(format!("Trying to install {} build target...", target));
 
-    let mut process = std::process::Command::new("rustup");
+    let mut process = make_command("rustup");
     match process
         .stderr(Stdio::piped())
         .arg("target")
@@ -331,7 +343,7 @@ fn build_package(
 
     let mut process = match target_platform {
         TargetPlatform::PC => {
-            let mut process = std::process::Command::new("cargo");
+            let mut process = make_command("cargo");
             process
                 .stderr(Stdio::piped())
                 .arg("build")
@@ -341,7 +353,7 @@ fn build_package(
             process
         }
         TargetPlatform::WebAssembly => {
-            let mut process = std::process::Command::new("wasm-pack");
+            let mut process = make_command("wasm-pack");
             process
                 .stderr(Stdio::piped())
                 .arg("build")
@@ -351,7 +363,7 @@ fn build_package(
             process
         }
         TargetPlatform::Android => {
-            let mut process = std::process::Command::new("cargo-apk");
+            let mut process = make_command("cargo-apk");
             process
                 .stderr(Stdio::piped())
                 .arg("apk")
@@ -670,7 +682,7 @@ fn export(export_options: ExportOptions, cancel_flag: Arc<AtomicBool>) -> Result
                     }
 
                     Log::verify(
-                        std::process::Command::new("basic-http-server")
+                        make_command("basic-http-server")
                             .arg("--addr")
                             .arg("127.0.0.1:4000")
                             .current_dir(&destination_folder)
@@ -680,7 +692,7 @@ fn export(export_options: ExportOptions, cancel_flag: Arc<AtomicBool>) -> Result
                     Log::verify(open::that_detached("http://127.0.0.1:4000"));
                 }
                 TargetPlatform::Android => {
-                    if let Ok(adb) = std::process::Command::new("adb")
+                    if let Ok(adb) = make_command("adb")
                         .current_dir(&destination_folder)
                         .arg("install")
                         .arg(format!("{package_name}.apk"))
@@ -690,7 +702,7 @@ fn export(export_options: ExportOptions, cancel_flag: Arc<AtomicBool>) -> Result
                             Ok(_) => {
                                 let compatible_package_name = package_name.replace('-', "_");
                                 Log::verify(
-                                    std::process::Command::new("adb")
+                                    make_command("adb")
                                         .arg("shell")
                                         .arg("am")
                                         .arg("start")
