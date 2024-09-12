@@ -43,7 +43,7 @@ impl Default for SoundEngine {
 /// Internal state of the sound engine.
 pub struct State {
     contexts: Vec<SoundContext>,
-    output_device: Option<Box<dyn tinyaudio::BaseAudioOutputDevice>>,
+    output_device: Option<tinyaudio::OutputDevice>,
 }
 
 impl SoundEngine {
