@@ -22,6 +22,7 @@ fyrox-ui = { path = "../fyrox-ui", version = "0.25.1" }
 fyrox-resource = { path = "../fyrox-resource", version = "0.12.0" }
 fyrox-animation = { path = "../fyrox-animation", version = "0.2.0" }
 fyrox-graph = { path = "../fyrox-graph", version = "0.1.0" }
+fyrox-gpu-hal = { path = "../fyrox-gpu-hal", version = "0.1.0" }
 rapier2d = { version = "0.20", features = ["debug-render"] }
 rapier3d = { version = "0.20", features = ["debug-render"] }
 image = { version = "0.25.1", default-features = false, features = ["gif", "jpeg", "png", "tga", "tiff", "bmp"] }
@@ -32,7 +33,7 @@ ddsfile = "0.5.0"
 rayon = "1.5.1"
 tbc = "0.3.0"
 bitflags = "2.2.1"
-glow = "0.13.1"
+glow = "0.14.0"
 walkdir = "2.3.2"
 ron = "0.8.0"
 fxhash = "0.2.1"
@@ -47,7 +48,7 @@ uvgen = "0.1.0"
 lightmap = "0.1.1"
 libloading = "0.8.1"
 gltf = { version = "1.4.0", optional = true, default-features = false, features = ["names", "utils"] }
-bytemuck = { version = "1.16.1", features = ["derive"]}
+bytemuck = { version = "1.16.1", features = ["derive"] }
 # These dependencies isn't actually used by the engine, but it is needed to prevent cargo from rebuilding
 # the engine lib on different packages.
 hashbrown = { version = "0.14.3", features = ["raw"] }

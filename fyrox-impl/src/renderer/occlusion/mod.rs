@@ -23,6 +23,7 @@
 mod grid;
 mod optimizer;
 
+use crate::renderer::framework::GeometryBufferExt;
 use crate::renderer::occlusion::grid::{GridCache, Visibility};
 use crate::{
     core::{

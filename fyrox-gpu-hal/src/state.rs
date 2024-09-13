@@ -18,18 +18,85 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::PipelineStatistics;
 use crate::{
     core::{color::Color, math::Rect, reflect::prelude::*, visitor::prelude::*},
-    renderer::framework::framebuffer::{CullFace, DrawParameters},
+    framebuffer::{CullFace, DrawParameters},
 };
 use fyrox_core::uuid_provider;
 use glow::{Framebuffer, HasContext};
 use serde::{Deserialize, Serialize};
-use std::cell::RefCell;
-use std::ops::DerefMut;
-use std::rc::{Rc, Weak};
+use std::{
+    cell::RefCell,
+    fmt::{Display, Formatter},
+    ops::DerefMut,
+    rc::{Rc, Weak},
+};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
+
+/// Graphics pipeline statistics.
+#[derive(Debug, Default, Copy, Clone)]
+pub struct PipelineStatistics {
+    /// Total amount of texture that was bound to the pipeline during the rendering.
+    pub texture_binding_changes: usize,
+    /// Total amount of VBOs was bound to the pipeline during the rendering.
+    pub vbo_binding_changes: usize,
+    /// Total amount of VAOs was bound to the pipeline during the rendering.
+    pub vao_binding_changes: usize,
+    /// Total amount of blending state changed in the pipeline during the rendering.
+    pub blend_state_changes: usize,
+    /// Total amount of frame buffers was used during the rendering.
+    pub framebuffer_binding_changes: usize,
+    /// Total amount of programs was used in the pipeline during the rendering.
+    pub program_binding_changes: usize,
+}
+
+impl std::ops::AddAssign for PipelineStatistics {
+    fn add_assign(&mut self, rhs: Self) {
+        self.texture_binding_changes += rhs.texture_binding_changes;
+        self.vbo_binding_changes += rhs.vbo_binding_changes;
+        self.vao_binding_changes += rhs.vao_binding_changes;
+        self.blend_state_changes += rhs.blend_state_changes;
+        self.framebuffer_binding_changes += rhs.framebuffer_binding_changes;
+        self.program_binding_changes += rhs.program_binding_changes;
+    }
+}
+
+impl std::ops::Sub for PipelineStatistics {
+    type Output = PipelineStatistics;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self {
+            texture_binding_changes: self.texture_binding_changes - rhs.texture_binding_changes,
+            vbo_binding_changes: self.vbo_binding_changes - rhs.vbo_binding_changes,
+            vao_binding_changes: self.vao_binding_changes - rhs.vao_binding_changes,
+            blend_state_changes: self.blend_state_changes - rhs.blend_state_changes,
+            framebuffer_binding_changes: self.framebuffer_binding_changes
+                - rhs.framebuffer_binding_changes,
+            program_binding_changes: self.program_binding_changes - rhs.program_binding_changes,
+        }
+    }
+}
+
+impl Display for PipelineStatistics {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Pipeline state changes:\n\
+            \tTextures: {},\n\
+            \tVBO: {},\n\
+            \tVAO: {},\n\
+            \tFBO: {},\n\
+            \tShaders: {},\n\
+            \tBlend: {}",
+            self.texture_binding_changes,
+            self.vbo_binding_changes,
+            self.vao_binding_changes,
+            self.framebuffer_binding_changes,
+            self.program_binding_changes,
+            self.blend_state_changes
+        )
+    }
+}
 
 #[derive(
     Copy,

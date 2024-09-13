@@ -29,8 +29,6 @@
 #![warn(missing_docs)]
 #![deny(unsafe_code)]
 
-// Framework is 100% unsafe internally due to FFI calls.
-#[allow(unsafe_code)]
 pub mod framework;
 
 pub mod bundle;
@@ -54,6 +52,7 @@ mod skybox_shader;
 mod ssao;
 mod stats;
 
+use crate::renderer::framework::GeometryBufferExt;
 use crate::{
     asset::{event::ResourceEvent, manager::ResourceManager},
     core::{
@@ -1709,7 +1708,9 @@ impl Renderer {
         self.render_frame(scenes, drawing_contexts)?;
         self.statistics.end_frame();
         window.pre_present_notify();
-        surface.swap_buffers(context)?;
+        surface
+            .swap_buffers(context)
+            .map_err(|err| FrameworkError::Custom(format!("{:?}", err)))?;
         self.statistics.finalize();
         self.statistics.pipeline = self.state.pipeline_statistics();
         Ok(())
