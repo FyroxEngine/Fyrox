@@ -78,7 +78,7 @@ impl FbxScene {
                 "Geometry" => match object.get_attrib(2)?.as_string().as_str() {
                     "Mesh" => {
                         component_handle = components.spawn(FbxComponent::MeshGeometry(Box::new(
-                            FbxMeshGeometry::read(*object_handle, nodes)?,
+                            FbxMeshGeometry::read(*object_handle, nodes),
                         )));
                     }
                     "Shape" => {

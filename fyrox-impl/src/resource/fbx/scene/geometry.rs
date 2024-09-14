@@ -18,20 +18,24 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::resource::fbx::scene::FbxBlendShapeChannel;
 use crate::{
     core::{
         algebra::{Vector2, Vector3},
+        log::Log,
         pool::Handle,
     },
     resource::fbx::{
         document::{FbxNode, FbxNodeContainer},
         error::FbxError,
-        scene::{self, attributes_to_vec3_array, FbxComponent, FbxLayerElement, FbxScene},
+        scene::{
+            self, attributes_to_vec3_array, FbxBlendShapeChannel, FbxComponent, FbxLayerElement,
+            FbxScene,
+        },
     },
     scene::mesh::surface::{VertexWeight, VertexWeightSet},
 };
 use fxhash::FxHashMap;
+use std::fmt::Debug;
 
 pub struct FbxMeshGeometry {
     // Only vertices and indices are required.
@@ -172,21 +176,40 @@ fn read_materials(
     }
 }
 
+fn warn_missing_element<T, E>(result: Result<T, E>) -> T
+where
+    T: Default,
+    E: Debug,
+{
+    result.unwrap_or_else(|err| {
+        Log::warn(format!(
+            "Unable to read FBX element, fallback to defaults. Reason: {err:?}"
+        ));
+        T::default()
+    })
+}
+
 impl FbxMeshGeometry {
     pub(in crate::resource::fbx) fn read(
         geom_node_handle: Handle<FbxNode>,
         nodes: &FbxNodeContainer,
-    ) -> Result<Self, FbxError> {
-        Ok(Self {
-            vertices: read_vertices(geom_node_handle, nodes)?,
-            indices: read_indices("PolygonVertexIndex", geom_node_handle, nodes)?,
-            normals: read_normals(geom_node_handle, nodes)?,
-            uvs: read_uvs(geom_node_handle, nodes)?,
-            materials: read_materials(geom_node_handle, nodes)?,
-            tangents: read_tangents(geom_node_handle, nodes)?,
-            binormals: read_binormals(geom_node_handle, nodes)?,
+    ) -> Self {
+        // Apparently, every attribute here could be optional, and thus we shouldn't throw an error
+        // if it is missing. It just means that this geometry has no surfaces in terms of the engine.
+        Self {
+            vertices: warn_missing_element(read_vertices(geom_node_handle, nodes)),
+            indices: warn_missing_element(read_indices(
+                "PolygonVertexIndex",
+                geom_node_handle,
+                nodes,
+            )),
+            normals: warn_missing_element(read_normals(geom_node_handle, nodes)),
+            uvs: warn_missing_element(read_uvs(geom_node_handle, nodes)),
+            materials: warn_missing_element(read_materials(geom_node_handle, nodes)),
+            tangents: warn_missing_element(read_tangents(geom_node_handle, nodes)),
+            binormals: warn_missing_element(read_binormals(geom_node_handle, nodes)),
             deformers: Vec::new(),
-        })
+        }
     }
 
     pub(in crate::resource::fbx) fn get_skin_data(
