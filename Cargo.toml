@@ -7,18 +7,16 @@ members = [
     "fyrox-resource",
     "fyrox-scripts",
     "fyrox-animation",
-    "editor",
+	"editor",
     "editor-standalone",
-    "template-core",
-    "template",
+	"template-core",
+	"template",
     "fyrox-graph",
     "fyrox-math",
     "fyrox-dylib",
     "fyrox",
-    "fyrox-impl",
-    "project-manager",
-    "fyrox-gpu-hal"
-]
+    "fyrox-impl"
+, "project-manager"]
 resolver = "2"
 
 [profile.dev]

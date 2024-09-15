@@ -20,11 +20,13 @@
 
 use crate::{
     core::{color::Color, math::Rect, reflect::prelude::*, scope_profile, visitor::prelude::*},
-    error::FrameworkError,
-    geometry_buffer::{DrawCallStatistics, ElementRange, GeometryBuffer},
-    gpu_program::{GpuProgram, GpuProgramBinding},
-    gpu_texture::{CubeMapFace, GpuTexture, GpuTextureKind, PixelElementKind},
-    state::{BlendEquation, BlendFunc, ColorMask, PipelineState, StencilFunc, StencilOp},
+    renderer::framework::{
+        error::FrameworkError,
+        geometry_buffer::{DrawCallStatistics, ElementRange, GeometryBuffer},
+        gpu_program::{GpuProgram, GpuProgramBinding},
+        gpu_texture::{CubeMapFace, GpuTexture, GpuTextureKind, PixelElementKind},
+        state::{BlendEquation, BlendFunc, ColorMask, PipelineState, StencilFunc, StencilOp},
+    },
 };
 use glow::HasContext;
 use serde::{Deserialize, Serialize};

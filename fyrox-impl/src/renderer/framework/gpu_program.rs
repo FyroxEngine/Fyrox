@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::state::GlKind;
+use crate::renderer::framework::state::GlKind;
 use crate::{
     core::{
         algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4},
@@ -26,9 +26,7 @@ use crate::{
         log::{Log, MessageKind},
         sstorage::ImmutableString,
     },
-    error::FrameworkError,
-    gpu_texture::GpuTexture,
-    state::PipelineState,
+    renderer::framework::{error::FrameworkError, gpu_texture::GpuTexture, state::PipelineState},
 };
 use fxhash::FxHashMap;
 use glow::HasContext;
@@ -41,7 +39,8 @@ pub struct GpuProgram {
     // Force compiler to not implement Send and Sync, because OpenGL is not thread-safe.
     thread_mark: PhantomData<*const u8>,
     uniform_locations: RefCell<FxHashMap<ImmutableString, Option<UniformLocation>>>,
-    pub built_in_uniform_locations: [Option<UniformLocation>; BuiltInUniform::Count as usize],
+    pub(crate) built_in_uniform_locations:
+        [Option<UniformLocation>; BuiltInUniform::Count as usize],
 }
 
 #[repr(usize)]
@@ -147,7 +146,7 @@ fn prepare_source_code(code: &str, gl_kind: GlKind) -> String {
 pub struct GpuProgramBinding<'a, 'b> {
     pub state: &'a PipelineState,
     active_sampler: u32,
-    pub program: &'b GpuProgram,
+    pub(crate) program: &'b GpuProgram,
 }
 
 impl<'a, 'b> GpuProgramBinding<'a, 'b> {

@@ -19,7 +19,6 @@
 // SOFTWARE.
 
 use crate::renderer::framework::geometry_buffer::ElementRange;
-use crate::renderer::framework::GeometryBufferExt;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2, Vector3},

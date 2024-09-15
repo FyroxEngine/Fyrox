@@ -18,7 +18,14 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::{core::color::Color, error::FrameworkError, state::PipelineState};
+use crate::{
+    core::color::Color,
+    renderer::framework::{error::FrameworkError, state::PipelineState},
+    resource::texture::{
+        TextureKind, TextureMagnificationFilter, TextureMinificationFilter, TexturePixelKind,
+        TextureWrapMode,
+    },
+};
 use bytemuck::Pod;
 use glow::{HasContext, PixelPackData, COMPRESSED_RED_RGTC1, COMPRESSED_RG_RGTC2};
 use std::marker::PhantomData;
@@ -42,6 +49,33 @@ pub enum GpuTextureKind {
         height: usize,
         depth: usize,
     },
+}
+
+impl From<TextureKind> for GpuTextureKind {
+    fn from(v: TextureKind) -> Self {
+        match v {
+            TextureKind::Line { length } => GpuTextureKind::Line {
+                length: length as usize,
+            },
+            TextureKind::Rectangle { width, height } => GpuTextureKind::Rectangle {
+                width: width as usize,
+                height: height as usize,
+            },
+            TextureKind::Cube { width, height } => GpuTextureKind::Cube {
+                width: width as usize,
+                height: height as usize,
+            },
+            TextureKind::Volume {
+                width,
+                height,
+                depth,
+            } => GpuTextureKind::Volume {
+                width: width as usize,
+                height: height as usize,
+                depth: depth as usize,
+            },
+        }
+    }
 }
 
 impl GpuTextureKind {
@@ -92,6 +126,38 @@ pub enum PixelKind {
     RG8RGTC,
     R11G11B10F,
     RGB10A2,
+}
+
+impl From<TexturePixelKind> for PixelKind {
+    fn from(texture_kind: TexturePixelKind) -> Self {
+        match texture_kind {
+            TexturePixelKind::R8 => Self::R8,
+            TexturePixelKind::RGB8 => Self::RGB8,
+            TexturePixelKind::RGBA8 => Self::RGBA8,
+            TexturePixelKind::RG8 => Self::RG8,
+            TexturePixelKind::R16 => Self::R16,
+            TexturePixelKind::RG16 => Self::RG16,
+            TexturePixelKind::BGR8 => Self::BGR8,
+            TexturePixelKind::BGRA8 => Self::BGRA8,
+            TexturePixelKind::RGB16 => Self::RGB16,
+            TexturePixelKind::RGBA16 => Self::RGBA16,
+            TexturePixelKind::RGB16F => Self::RGB16F,
+            TexturePixelKind::DXT1RGB => Self::DXT1RGB,
+            TexturePixelKind::DXT1RGBA => Self::DXT1RGBA,
+            TexturePixelKind::DXT3RGBA => Self::DXT3RGBA,
+            TexturePixelKind::DXT5RGBA => Self::DXT5RGBA,
+            TexturePixelKind::R8RGTC => Self::R8RGTC,
+            TexturePixelKind::RG8RGTC => Self::RG8RGTC,
+            TexturePixelKind::RGB32F => Self::RGB32F,
+            TexturePixelKind::RGBA32F => Self::RGBA32F,
+            TexturePixelKind::Luminance8 => Self::L8,
+            TexturePixelKind::LuminanceAlpha8 => Self::LA8,
+            TexturePixelKind::Luminance16 => Self::L16,
+            TexturePixelKind::LuminanceAlpha16 => Self::LA16,
+            TexturePixelKind::R32F => Self::R32F,
+            TexturePixelKind::R16F => Self::R16F,
+        }
+    }
 }
 
 pub enum PixelElementKind {
@@ -483,6 +549,15 @@ impl MagnificationFilter {
     }
 }
 
+impl From<TextureMagnificationFilter> for MagnificationFilter {
+    fn from(v: TextureMagnificationFilter) -> Self {
+        match v {
+            TextureMagnificationFilter::Nearest => Self::Nearest,
+            TextureMagnificationFilter::Linear => Self::Linear,
+        }
+    }
+}
+
 #[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Hash, Debug)]
 #[repr(u32)]
 pub enum MinificationFilter {
@@ -494,6 +569,18 @@ pub enum MinificationFilter {
     LinearMipMapLinear = glow::LINEAR_MIPMAP_LINEAR,
 }
 
+impl From<TextureMinificationFilter> for MinificationFilter {
+    fn from(v: TextureMinificationFilter) -> Self {
+        match v {
+            TextureMinificationFilter::Nearest => Self::Nearest,
+            TextureMinificationFilter::NearestMipMapNearest => Self::NearestMipMapNearest,
+            TextureMinificationFilter::NearestMipMapLinear => Self::NearestMipMapLinear,
+            TextureMinificationFilter::Linear => Self::Linear,
+            TextureMinificationFilter::LinearMipMapNearest => Self::LinearMipMapNearest,
+            TextureMinificationFilter::LinearMipMapLinear => Self::LinearMipMapLinear,
+        }
+    }
+}
 impl MinificationFilter {
     pub fn into_gl_value(self) -> i32 {
         self as i32
@@ -513,6 +600,18 @@ pub enum WrapMode {
 impl WrapMode {
     pub fn into_gl_value(self) -> i32 {
         self as i32
+    }
+}
+
+impl From<TextureWrapMode> for WrapMode {
+    fn from(v: TextureWrapMode) -> Self {
+        match v {
+            TextureWrapMode::Repeat => WrapMode::Repeat,
+            TextureWrapMode::ClampToEdge => WrapMode::ClampToEdge,
+            TextureWrapMode::ClampToBorder => WrapMode::ClampToBorder,
+            TextureWrapMode::MirroredRepeat => WrapMode::MirroredRepeat,
+            TextureWrapMode::MirrorClampToEdge => WrapMode::MirrorClampToEdge,
+        }
     }
 }
 

@@ -19,7 +19,6 @@
 // SOFTWARE.
 
 use crate::renderer::framework::geometry_buffer::{DrawCallStatistics, ElementRange};
-use crate::renderer::framework::GeometryBufferExt;
 use crate::{
     core::{math::Rect, scope_profile, sstorage::ImmutableString},
     renderer::{

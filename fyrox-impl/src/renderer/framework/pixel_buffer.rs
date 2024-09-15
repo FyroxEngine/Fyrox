@@ -20,10 +20,12 @@
 
 use crate::{
     core::{algebra::Vector2, array_as_u8_slice_mut, math::Rect},
-    error::FrameworkError,
-    framebuffer::FrameBuffer,
-    gpu_texture::{image_2d_size_bytes, GpuTextureKind},
-    state::PipelineState,
+    renderer::framework::{
+        error::FrameworkError,
+        framebuffer::FrameBuffer,
+        gpu_texture::{image_2d_size_bytes, GpuTextureKind},
+        state::PipelineState,
+    },
 };
 use bytemuck::Pod;
 use glow::{HasContext, PixelPackData};

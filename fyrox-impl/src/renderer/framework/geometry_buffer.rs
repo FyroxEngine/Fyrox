@@ -18,14 +18,16 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::scene::mesh::surface::SurfaceData;
 use crate::{
     core::array_as_u8_slice,
     core::{math::TriangleDefinition, scope_profile},
-    error::FrameworkError,
-    state::PipelineState,
+    renderer::framework::{error::FrameworkError, state::PipelineState},
+    scene::mesh::buffer::{VertexAttributeDataType, VertexBuffer},
 };
 use glow::HasContext;
-use std::{cell::Cell, marker::PhantomData, mem::size_of, rc::Weak};
+use std::rc::Weak;
+use std::{cell::Cell, marker::PhantomData, mem::size_of};
 
 struct NativeBuffer {
     state: Weak<PipelineState>,
@@ -311,6 +313,22 @@ impl<'a> GeometryBufferBinding<'a> {
 }
 
 impl GeometryBuffer {
+    pub fn from_surface_data(
+        data: &SurfaceData,
+        kind: GeometryBufferKind,
+        state: &PipelineState,
+    ) -> Result<Self, FrameworkError> {
+        let geometry_buffer = GeometryBufferBuilder::new(ElementKind::Triangle)
+            .with_buffer_builder(BufferBuilder::from_vertex_buffer(&data.vertex_buffer, kind))
+            .build(state)?;
+
+        geometry_buffer
+            .bind(state)
+            .set_triangles(data.geometry_buffer.triangles_ref());
+
+        Ok(geometry_buffer)
+    }
+
     pub fn set_buffer_data<T: bytemuck::Pod>(
         &mut self,
         state: &PipelineState,
@@ -381,11 +399,11 @@ impl Drop for GeometryBuffer {
 }
 
 pub struct BufferBuilder {
-    pub element_size: usize,
-    pub kind: GeometryBufferKind,
-    pub attributes: Vec<AttributeDefinition>,
-    pub data: *const u8,
-    pub data_size: usize,
+    element_size: usize,
+    kind: GeometryBufferKind,
+    attributes: Vec<AttributeDefinition>,
+    data: *const u8,
+    data_size: usize,
 }
 
 impl BufferBuilder {
@@ -402,6 +420,43 @@ impl BufferBuilder {
             element_size: size_of::<T>(),
             data,
             data_size,
+        }
+    }
+
+    pub fn from_vertex_buffer(buffer: &VertexBuffer, kind: GeometryBufferKind) -> Self {
+        Self {
+            element_size: buffer.vertex_size() as usize,
+            kind,
+            attributes: buffer
+                .layout()
+                .iter()
+                .map(|a| AttributeDefinition {
+                    location: a.shader_location as u32,
+                    kind: match (a.data_type, a.size) {
+                        (VertexAttributeDataType::F32, 1) => AttributeKind::Float,
+                        (VertexAttributeDataType::F32, 2) => AttributeKind::Float2,
+                        (VertexAttributeDataType::F32, 3) => AttributeKind::Float3,
+                        (VertexAttributeDataType::F32, 4) => AttributeKind::Float4,
+                        (VertexAttributeDataType::U32, 1) => AttributeKind::UnsignedInt,
+                        (VertexAttributeDataType::U32, 2) => AttributeKind::UnsignedInt2,
+                        (VertexAttributeDataType::U32, 3) => AttributeKind::UnsignedInt3,
+                        (VertexAttributeDataType::U32, 4) => AttributeKind::UnsignedInt4,
+                        (VertexAttributeDataType::U16, 1) => AttributeKind::UnsignedShort,
+                        (VertexAttributeDataType::U16, 2) => AttributeKind::UnsignedShort2,
+                        (VertexAttributeDataType::U16, 3) => AttributeKind::UnsignedShort3,
+                        (VertexAttributeDataType::U16, 4) => AttributeKind::UnsignedShort4,
+                        (VertexAttributeDataType::U8, 1) => AttributeKind::UnsignedByte,
+                        (VertexAttributeDataType::U8, 2) => AttributeKind::UnsignedByte2,
+                        (VertexAttributeDataType::U8, 3) => AttributeKind::UnsignedByte3,
+                        (VertexAttributeDataType::U8, 4) => AttributeKind::UnsignedByte4,
+                        _ => unreachable!(),
+                    },
+                    normalized: a.normalized,
+                    divisor: a.divisor as u32,
+                })
+                .collect(),
+            data: buffer.raw_data().as_ptr(),
+            data_size: buffer.raw_data().len(),
         }
     }
 
