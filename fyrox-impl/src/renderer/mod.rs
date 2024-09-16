@@ -64,7 +64,6 @@ use crate::{
         math::Rect,
         pool::Handle,
         reflect::prelude::*,
-        scope_profile,
         sstorage::ImmutableString,
         uuid_provider,
     },
@@ -1628,8 +1627,6 @@ impl Renderer {
         scenes: &SceneContainer,
         drawing_contexts: impl Iterator<Item = &'a DrawingContext>,
     ) -> Result<(), FrameworkError> {
-        scope_profile!();
-
         if self.frame_size.0 == 0 || self.frame_size.1 == 0 {
             return Ok(());
         }

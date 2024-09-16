@@ -20,7 +20,7 @@
 
 use crate::renderer::framework::geometry_buffer::{DrawCallStatistics, ElementRange};
 use crate::{
-    core::{math::Rect, scope_profile, sstorage::ImmutableString},
+    core::{math::Rect, sstorage::ImmutableString},
     renderer::{
         framework::{
             error::FrameworkError,
@@ -118,8 +118,6 @@ impl Blur {
         state: &PipelineState,
         input: Rc<RefCell<GpuTexture>>,
     ) -> Result<DrawCallStatistics, FrameworkError> {
-        scope_profile!();
-
         let viewport = Rect::new(0, 0, self.width as i32, self.height as i32);
 
         let shader = &self.shader;

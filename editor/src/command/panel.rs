@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 use crate::fyrox::{
-    core::{color::Color, pool::Handle, scope_profile},
+    core::{color::Color, pool::Handle},
     gui::{
         brush::Brush,
         button::ButtonMessage,
@@ -130,8 +130,6 @@ impl CommandStackViewer {
     }
 
     pub fn handle_ui_message(&self, message: &UiMessage) {
-        scope_profile!();
-
         if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
             if message.destination() == self.undo {
                 self.sender.send(Message::UndoCurrentSceneCommand);
@@ -149,8 +147,6 @@ impl CommandStackViewer {
         command_names: Vec<String>,
         ui: &mut UserInterface,
     ) {
-        scope_profile!();
-
         let items = command_names
             .into_iter()
             .enumerate()

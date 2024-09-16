@@ -22,7 +22,7 @@ use crate::{
     animation::AnimationEditor,
     export::ExportWindow,
     fyrox::{
-        core::{algebra::Vector2, pool::Handle, scope_profile},
+        core::{algebra::Vector2, pool::Handle},
         gui::{
             menu::{MenuBuilder, MenuItemBuilder, MenuItemContent},
             message::{MessageDirection, UiMessage},
@@ -172,8 +172,6 @@ impl Menu {
     }
 
     pub fn sync_to_model(&mut self, has_active_scene: bool, ui: &mut UserInterface) {
-        scope_profile!();
-
         for &widget in [
             self.file_menu.close_scene,
             self.file_menu.save,
@@ -192,8 +190,6 @@ impl Menu {
     }
 
     pub fn handle_ui_message(&mut self, message: &UiMessage, mut ctx: MenuContext) {
-        scope_profile!();
-
         if let Some(entry) = ctx.game_scene.as_mut() {
             self.edit_menu.handle_ui_message(
                 message,

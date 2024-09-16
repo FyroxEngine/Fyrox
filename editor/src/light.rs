@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 use crate::fyrox::{
-    core::{log::Log, pool::Handle, reflect::prelude::*, scope_profile},
+    core::{log::Log, pool::Handle, reflect::prelude::*},
     gui::{
         button::{ButtonBuilder, ButtonMessage},
         formatted_text::WrapMode,
@@ -297,8 +297,6 @@ impl LightPanel {
         game_scene: &GameScene,
         engine: &mut Engine,
     ) {
-        scope_profile!();
-
         if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
             if message.destination() == self.generate {
                 let scene = &mut engine.scenes[game_scene.scene];

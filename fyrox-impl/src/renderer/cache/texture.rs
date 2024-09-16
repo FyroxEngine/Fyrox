@@ -19,10 +19,7 @@
 // SOFTWARE.
 
 use crate::{
-    core::{
-        log::{Log, MessageKind},
-        scope_profile,
-    },
+    core::log::{Log, MessageKind},
     renderer::{
         cache::{TemporaryCache, TimeToLive},
         framework::{
@@ -92,8 +89,6 @@ impl TextureCache {
         state: &PipelineState,
         texture_resource: &TextureResource,
     ) -> Option<&Rc<RefCell<GpuTexture>>> {
-        scope_profile!();
-
         let mut texture_data_guard = texture_resource.state();
 
         if let Some(texture) = texture_data_guard.data() {

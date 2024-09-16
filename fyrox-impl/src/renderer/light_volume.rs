@@ -23,7 +23,6 @@ use crate::{
         algebra::{Isometry3, Matrix4, Point3, Translation, Vector3},
         math::Rect,
         pool::Handle,
-        scope_profile,
         sstorage::ImmutableString,
     },
     renderer::{
@@ -176,8 +175,6 @@ impl LightVolumeRenderer {
         graph: &Graph,
         frame_buffer: &mut FrameBuffer,
     ) -> Result<RenderPassStatistics, FrameworkError> {
-        scope_profile!();
-
         let mut stats = RenderPassStatistics::default();
 
         let frame_matrix = Matrix4::new_orthographic(

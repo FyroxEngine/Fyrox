@@ -23,7 +23,6 @@ use crate::{
         algebra::{Matrix4, Vector3},
         color::Color,
         math::{Matrix4Ext, Rect},
-        scope_profile,
     },
     renderer::{
         bundle::{BundleRenderContext, ObserverInfo, RenderDataBundleStorage},
@@ -152,8 +151,6 @@ impl SpotShadowMapRenderer {
         volume_dummy: Rc<RefCell<GpuTexture>>,
         matrix_storage: &mut MatrixStorageCache,
     ) -> Result<RenderPassStatistics, FrameworkError> {
-        scope_profile!();
-
         let mut statistics = RenderPassStatistics::default();
 
         let framebuffer = &mut self.cascades[cascade];

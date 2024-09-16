@@ -21,7 +21,7 @@
 use crate::core::sstorage::ImmutableString;
 use crate::renderer::framework::geometry_buffer::ElementRange;
 use crate::{
-    core::{algebra::Vector2, math::Rect, scope_profile},
+    core::{algebra::Vector2, math::Rect},
     renderer::{
         framework::{
             error::FrameworkError,
@@ -137,8 +137,6 @@ impl GaussianBlur {
         quad: &GeometryBuffer,
         input: Rc<RefCell<GpuTexture>>,
     ) -> Result<RenderPassStatistics, FrameworkError> {
-        scope_profile!();
-
         let mut stats = RenderPassStatistics::default();
 
         let viewport = Rect::new(0, 0, self.width as i32, self.height as i32);

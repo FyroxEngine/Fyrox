@@ -21,7 +21,7 @@
 use crate::scene::mesh::surface::SurfaceData;
 use crate::{
     core::array_as_u8_slice,
-    core::{math::TriangleDefinition, scope_profile},
+    core::math::TriangleDefinition,
     renderer::framework::{error::FrameworkError, state::PipelineState},
     scene::mesh::buffer::{VertexAttributeDataType, VertexBuffer},
 };
@@ -211,8 +211,6 @@ pub struct DrawCallStatistics {
 
 impl<'a> GeometryBufferBinding<'a> {
     pub fn set_triangles(self, triangles: &[TriangleDefinition]) -> Self {
-        scope_profile!();
-
         assert_eq!(self.buffer.element_kind, ElementKind::Triangle);
         self.buffer.element_count.set(triangles.len());
 
@@ -222,8 +220,6 @@ impl<'a> GeometryBufferBinding<'a> {
     }
 
     pub fn set_lines(self, lines: &[[u32; 2]]) -> Self {
-        scope_profile!();
-
         assert_eq!(self.buffer.element_kind, ElementKind::Line);
         self.buffer.element_count.set(lines.len());
 
@@ -235,16 +231,12 @@ impl<'a> GeometryBufferBinding<'a> {
     }
 
     unsafe fn set_elements(&self, data: &[u8]) {
-        scope_profile!();
-
         self.state
             .gl
             .buffer_data_u8_slice(glow::ELEMENT_ARRAY_BUFFER, data, glow::DYNAMIC_DRAW);
     }
 
     pub fn draw(&self, element_range: ElementRange) -> Result<DrawCallStatistics, FrameworkError> {
-        scope_profile!();
-
         let (offset, count) = match element_range {
             ElementRange::Full => (0, self.buffer.element_count.get()),
             ElementRange::Specific { offset, count } => (offset, count),
@@ -279,8 +271,6 @@ impl<'a> GeometryBufferBinding<'a> {
     }
 
     unsafe fn draw_internal(&self, start_index: usize, index_count: usize) {
-        scope_profile!();
-
         if index_count > 0 {
             let indices = (start_index * size_of::<u32>()) as i32;
             self.state.gl.draw_elements(
@@ -335,8 +325,6 @@ impl GeometryBuffer {
         buffer: usize,
         data: &[T],
     ) {
-        scope_profile!();
-
         let buffer = &mut self.buffers[buffer];
 
         assert_eq!(buffer.element_size % size_of::<T>(), 0);
@@ -362,8 +350,6 @@ impl GeometryBuffer {
     }
 
     pub fn bind<'a>(&'a self, state: &'a PipelineState) -> GeometryBufferBinding<'a> {
-        scope_profile!();
-
         state.set_vertex_array_object(Some(self.vertex_array_object));
 
         // Element buffer object binding is stored inside vertex array object, so
@@ -537,8 +523,6 @@ impl GeometryBufferBuilder {
     }
 
     pub fn build(self, state: &PipelineState) -> Result<GeometryBuffer, FrameworkError> {
-        scope_profile!();
-
         let vao = unsafe { state.gl.create_vertex_array()? };
         let ebo = unsafe { state.gl.create_buffer()? };
 

@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use fyrox_core::{scope_profile, uuid_provider};
+use fyrox_core::uuid_provider;
 
 use crate::{
     brush::Brush,
@@ -58,7 +58,6 @@ uuid_provider!(NinePatch = "c345033e-8c10-4186-b101-43f73b85981d");
 
 impl Control for NinePatch {
     fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
-        scope_profile!();
         let mut size: Vector2<f32> = available_size;
 
         let column1_width_pixels = *self.left_margin_pixel as f32;
@@ -83,8 +82,6 @@ impl Control for NinePatch {
     }
 
     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
-        scope_profile!();
-
         let column1_width_pixels = *self.left_margin_pixel as f32;
         let column3_width_pixels = *self.right_margin_pixel as f32;
 

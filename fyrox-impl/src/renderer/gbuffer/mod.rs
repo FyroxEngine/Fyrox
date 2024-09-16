@@ -34,7 +34,6 @@ use crate::{
         algebra::{Matrix4, Vector2},
         color::Color,
         math::{Matrix4Ext, Rect},
-        scope_profile,
         sstorage::ImmutableString,
     },
     renderer::{
@@ -102,8 +101,6 @@ pub(crate) struct GBufferRenderContext<'a, 'b> {
 
 impl GBuffer {
     pub fn new(state: &PipelineState, width: usize, height: usize) -> Result<Self, FrameworkError> {
-        scope_profile!();
-
         let mut depth_stencil_texture = GpuTexture::new(
             state,
             GpuTextureKind::Rectangle { width, height },
@@ -285,8 +282,6 @@ impl GBuffer {
         &mut self,
         args: GBufferRenderContext,
     ) -> Result<RenderPassStatistics, FrameworkError> {
-        scope_profile!();
-
         let mut statistics = RenderPassStatistics::default();
 
         let GBufferRenderContext {

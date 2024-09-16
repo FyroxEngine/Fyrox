@@ -21,7 +21,7 @@
 use crate::core::sstorage::ImmutableString;
 use crate::renderer::framework::geometry_buffer::ElementRange;
 use crate::{
-    core::{math::Rect, scope_profile},
+    core::math::Rect,
     renderer::{
         bloom::blur::GaussianBlur,
         framework::{
@@ -122,8 +122,6 @@ impl BloomRenderer {
         quad: &GeometryBuffer,
         hdr_scene_frame: Rc<RefCell<GpuTexture>>,
     ) -> Result<RenderPassStatistics, FrameworkError> {
-        scope_profile!();
-
         let mut stats = RenderPassStatistics::default();
 
         let viewport = Rect::new(0, 0, self.width as i32, self.height as i32);

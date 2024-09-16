@@ -24,7 +24,7 @@
 //! on. It contains implementations to draw most common shapes (line, box, oob, frustum, etc).
 
 use crate::{
-    core::{algebra::Vector3, math::Rect, scope_profile, sstorage::ImmutableString},
+    core::{algebra::Vector3, math::Rect, sstorage::ImmutableString},
     renderer::{
         framework::{
             error::FrameworkError,
@@ -152,8 +152,6 @@ impl DebugRenderer {
         framebuffer: &mut FrameBuffer,
         view_projection: Matrix4<f32>,
     ) -> Result<RenderPassStatistics, FrameworkError> {
-        scope_profile!();
-
         let mut statistics = RenderPassStatistics::default();
 
         statistics += framebuffer.draw(

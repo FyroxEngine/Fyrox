@@ -23,7 +23,6 @@ use crate::fyrox::{
     core::{
         log::{LogMessage, MessageKind},
         pool::Handle,
-        scope_profile,
     },
     gui::{
         border::BorderBuilder,
@@ -204,8 +203,6 @@ impl LogPanel {
     }
 
     pub fn handle_ui_message(&mut self, message: &UiMessage, engine: &mut Engine) {
-        scope_profile!();
-
         if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
             if message.destination() == self.clear {
                 engine

@@ -26,7 +26,6 @@ use crate::fyrox::{
         color::Color,
         math::{ray::CylinderKind, TriangleEdge},
         pool::Handle,
-        scope_profile,
         uuid::{uuid, Uuid},
         TypeUuidProvider,
     },
@@ -127,8 +126,6 @@ impl NavmeshPanel {
     }
 
     pub fn handle_message(&mut self, message: &UiMessage, editor_selection: &Selection) {
-        scope_profile!();
-
         if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
             if message.destination() == self.connect_edges {
                 if let Some(selection) = fetch_selection(editor_selection) {

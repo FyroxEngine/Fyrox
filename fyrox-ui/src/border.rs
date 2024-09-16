@@ -25,8 +25,8 @@
 
 use crate::{
     core::{
-        algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, scope_profile,
-        type_traits::prelude::*, variable::InheritableVariable, visitor::prelude::*,
+        algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
+        variable::InheritableVariable, visitor::prelude::*,
     },
     define_constructor,
     draw::{CommandTexture, Draw, DrawingContext},
@@ -150,8 +150,6 @@ fn corner_offset(radius: f32) -> f32 {
 
 impl Control for Border {
     fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
-        scope_profile!();
-
         let corner_offset = if *self.pad_by_corner_radius {
             corner_offset(*self.corner_radius)
         } else {
@@ -186,8 +184,6 @@ impl Control for Border {
     }
 
     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
-        scope_profile!();
-
         let corner_offset = if *self.pad_by_corner_radius {
             corner_offset(*self.corner_radius)
         } else {

@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 use crate::{
-    core::{color::Color, math::Rect, reflect::prelude::*, scope_profile, visitor::prelude::*},
+    core::{color::Color, math::Rect, reflect::prelude::*, visitor::prelude::*},
     renderer::framework::{
         error::FrameworkError,
         geometry_buffer::{DrawCallStatistics, ElementRange, GeometryBuffer},
@@ -250,8 +250,6 @@ impl FrameBuffer {
         depth: Option<f32>,
         stencil: Option<i32>,
     ) {
-        scope_profile!();
-
         state.set_viewport(viewport);
         state.set_framebuffer(self.id());
 
@@ -367,8 +365,6 @@ impl FrameBuffer {
         element_range: ElementRange,
         apply_uniforms: F,
     ) -> Result<DrawCallStatistics, FrameworkError> {
-        scope_profile!();
-
         pre_draw(self.id(), state, viewport, program, params, apply_uniforms);
 
         geometry.bind(state).draw(element_range)
@@ -384,8 +380,6 @@ impl FrameBuffer {
         params: &DrawParameters,
         apply_uniforms: F,
     ) -> DrawCallStatistics {
-        scope_profile!();
-
         pre_draw(self.id(), state, viewport, program, params, apply_uniforms);
         geometry.bind(state).draw_instances(count)
     }
@@ -399,8 +393,6 @@ fn pre_draw<F: FnOnce(GpuProgramBinding<'_, '_>)>(
     params: &DrawParameters,
     apply_uniforms: F,
 ) {
-    scope_profile!();
-
     state.set_framebuffer(fbo);
     state.set_viewport(viewport);
     state.apply_draw_parameters(params);

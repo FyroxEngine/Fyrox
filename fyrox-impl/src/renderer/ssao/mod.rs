@@ -24,7 +24,6 @@ use crate::{
         algebra::{Matrix3, Matrix4, Vector2, Vector3},
         color::Color,
         math::{lerpf, Rect},
-        scope_profile,
         sstorage::ImmutableString,
     },
     rand::Rng,
@@ -226,8 +225,6 @@ impl ScreenSpaceAmbientOcclusionRenderer {
         projection_matrix: Matrix4<f32>,
         view_matrix: Matrix3<f32>,
     ) -> Result<RenderPassStatistics, FrameworkError> {
-        scope_profile!();
-
         let mut stats = RenderPassStatistics::default();
 
         let viewport = Rect::new(0, 0, self.width, self.height);

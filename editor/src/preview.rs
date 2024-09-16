@@ -26,7 +26,6 @@ use crate::fyrox::{
         color::Color,
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
-        scope_profile,
     },
     gui::{
         button::{ButtonBuilder, ButtonMessage},
@@ -284,8 +283,6 @@ impl PreviewPanel {
     }
 
     pub fn handle_message(&mut self, message: &UiMessage, engine: &mut Engine) {
-        scope_profile!();
-
         let scene = &mut engine.scenes[self.scene];
 
         if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {

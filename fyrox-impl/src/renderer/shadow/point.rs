@@ -23,7 +23,6 @@ use crate::{
         algebra::{Matrix4, Point3, Vector3},
         color::Color,
         math::{Matrix4Ext, Rect},
-        scope_profile,
     },
     renderer::{
         bundle::{BundleRenderContext, ObserverInfo, RenderDataBundleStorage},
@@ -207,8 +206,6 @@ impl PointShadowMapRenderer {
         &mut self,
         args: PointShadowMapRenderContext,
     ) -> Result<RenderPassStatistics, FrameworkError> {
-        scope_profile!();
-
         let mut statistics = RenderPassStatistics::default();
 
         let PointShadowMapRenderContext {

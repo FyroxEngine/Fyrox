@@ -60,7 +60,6 @@ pub mod math;
 pub mod net;
 pub mod numeric_range;
 pub mod pool;
-pub mod profiler;
 pub mod quadtree;
 pub mod rectpack;
 pub mod reflect;

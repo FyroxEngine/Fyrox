@@ -25,8 +25,8 @@
 
 use crate::{
     core::{
-        algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, scope_profile,
-        type_traits::prelude::*, visitor::prelude::*,
+        algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
+        visitor::prelude::*,
     },
     define_constructor,
     message::{MessageDirection, UiMessage},
@@ -129,8 +129,6 @@ uuid_provider!(StackPanel = "d868f554-a2c5-4280-abfc-396d10a0e1ed");
 
 impl Control for StackPanel {
     fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
-        scope_profile!();
-
         let mut child_constraint = Vector2::new(f32::INFINITY, f32::INFINITY);
 
         match *self.orientation {
@@ -183,8 +181,6 @@ impl Control for StackPanel {
     }
 
     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
-        scope_profile!();
-
         let mut width = final_size.x;
         let mut height = final_size.y;
 

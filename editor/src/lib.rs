@@ -85,7 +85,6 @@ use crate::{
             futures::executor::block_on,
             log::{Log, MessageKind},
             pool::Handle,
-            scope_profile,
             task::TaskPool,
             uuid::Uuid,
             watcher::FileSystemWatcher,
@@ -1157,8 +1156,6 @@ impl Editor {
     }
 
     pub fn handle_ui_message(&mut self, message: &mut UiMessage) {
-        scope_profile!();
-
         // Prevent infinite message loops.
         if message.has_flags(MSG_SYNC_FLAG) {
             return;
@@ -1596,8 +1593,6 @@ impl Editor {
     }
 
     fn sync_to_model(&mut self) {
-        scope_profile!();
-
         for_each_plugin!(self.plugins => on_sync_to_model(self));
 
         let engine = &mut self.engine;
@@ -2156,8 +2151,6 @@ impl Editor {
     }
 
     fn poll_ui_messages(&mut self) -> usize {
-        scope_profile!();
-
         let mut processed = 0;
 
         while let Some(mut ui_message) = self.engine.user_interfaces.first_mut().poll_message() {
@@ -2267,8 +2260,6 @@ impl Editor {
     }
 
     fn update(&mut self, dt: f32) {
-        scope_profile!();
-
         for_each_plugin!(self.plugins => on_update(self));
 
         self.handle_modes();
@@ -2913,8 +2904,6 @@ fn set_ui_scaling(ui: &UserInterface, scale: f32) {
 }
 
 fn update(editor: &mut Editor, window_target: &EventLoopWindowTarget<()>) {
-    scope_profile!();
-
     let elapsed = editor.game_loop_data.clock.elapsed().as_secs_f32();
     editor.game_loop_data.clock = Instant::now();
     editor.game_loop_data.lag += elapsed;

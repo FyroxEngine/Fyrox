@@ -23,7 +23,6 @@ use crate::{
         algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3},
         color::Color,
         math::{frustum::Frustum, Matrix4Ext, Rect, TriangleDefinition},
-        scope_profile,
     },
     graph::SceneGraph,
     renderer::{
@@ -277,8 +276,6 @@ impl DeferredLightRenderer {
         &mut self,
         args: DeferredRendererContext,
     ) -> Result<(RenderPassStatistics, LightingStatistics), FrameworkError> {
-        scope_profile!();
-
         let mut pass_stats = RenderPassStatistics::default();
         let mut light_stats = LightingStatistics::default();
 

@@ -23,7 +23,6 @@ use crate::fyrox::{
     core::{
         algebra::Vector2,
         pool::Handle,
-        scope_profile,
         visitor::{Visit, VisitResult, Visitor},
     },
     gui::{
@@ -280,8 +279,6 @@ impl Configurator {
     }
 
     pub fn handle_ui_message(&mut self, message: &UiMessage, engine: &mut Engine) {
-        scope_profile!();
-
         if let Some(WindowMessage::Close) = message.data::<WindowMessage>() {
             if message.destination() == self.window {
                 // Save history for next editor runs.

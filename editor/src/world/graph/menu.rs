@@ -22,7 +22,7 @@ use crate::{
     command::{Command, CommandGroup},
     fyrox::{
         asset::untyped::UntypedResource,
-        core::{algebra::Vector2, algebra::Vector3, pool::Handle, reflect::Reflect, scope_profile},
+        core::{algebra::Vector2, algebra::Vector3, pool::Handle, reflect::Reflect},
         graph::BaseSceneGraph,
         gui::{
             file_browser::FileSelectorMessage,
@@ -205,8 +205,6 @@ impl SceneNodeContextMenu {
         sender: &MessageSender,
         settings: &Settings,
     ) {
-        scope_profile!();
-
         if let Some(node) = self.create_child_entity_menu.handle_ui_message(
             message,
             sender,

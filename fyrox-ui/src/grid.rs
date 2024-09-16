@@ -25,8 +25,8 @@
 
 use crate::{
     core::{
-        algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, scope_profile,
-        type_traits::prelude::*, uuid_provider, variable::InheritableVariable, visitor::prelude::*,
+        algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
+        uuid_provider, variable::InheritableVariable, visitor::prelude::*,
     },
     define_constructor,
     draw::{CommandTexture, Draw, DrawingContext},
@@ -385,8 +385,6 @@ uuid_provider!(Grid = "98ce15e2-bd62-497d-a37b-9b1cb4a1918c");
 
 impl Control for Grid {
     fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
-        scope_profile!();
-
         let mut rows = self.rows.borrow_mut();
         let mut columns = self.columns.borrow_mut();
         let mut groups = self.groups.borrow_mut();
@@ -489,8 +487,6 @@ impl Control for Grid {
     }
 
     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
-        scope_profile!();
-
         let mut columns = self.columns.borrow_mut();
         let mut rows = self.rows.borrow_mut();
 

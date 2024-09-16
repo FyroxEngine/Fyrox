@@ -26,8 +26,8 @@
 
 use crate::{
     core::{
-        algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, scope_profile,
-        type_traits::prelude::*, visitor::prelude::*,
+        algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
+        visitor::prelude::*,
     },
     message::UiMessage,
     widget::{Widget, WidgetBuilder},
@@ -79,8 +79,6 @@ crate::define_widget_deref!(Canvas);
 
 impl Control for Canvas {
     fn measure_override(&self, ui: &UserInterface, _available_size: Vector2<f32>) -> Vector2<f32> {
-        scope_profile!();
-
         let size_for_child = Vector2::new(f32::INFINITY, f32::INFINITY);
 
         for child_handle in self.widget.children() {
@@ -91,8 +89,6 @@ impl Control for Canvas {
     }
 
     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
-        scope_profile!();
-
         for &child_handle in self.widget.children() {
             let child = ui.nodes.borrow(child_handle);
             ui.arrange_node(

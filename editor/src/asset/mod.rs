@@ -36,7 +36,7 @@ use crate::{
         },
         core::{
             color::Color, futures::executor::block_on, log::Log, make_relative_path,
-            parking_lot::lock_api::Mutex, pool::Handle, scope_profile, TypeUuidProvider, Uuid,
+            parking_lot::lock_api::Mutex, pool::Handle, TypeUuidProvider, Uuid,
         },
         engine::Engine,
         graph::BaseSceneGraph,
@@ -937,8 +937,6 @@ impl AssetBrowser {
         engine: &mut Engine,
         sender: MessageSender,
     ) {
-        scope_profile!();
-
         self.inspector.handle_ui_message(message, engine);
         self.preview.handle_message(message, engine);
         if self.context_menu.handle_ui_message(message, engine) {

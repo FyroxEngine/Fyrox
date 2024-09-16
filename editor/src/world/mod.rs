@@ -25,7 +25,6 @@ use crate::{
         core::{
             color::Color,
             pool::{ErasedHandle, Handle},
-            scope_profile,
         },
         graph::{BaseSceneGraph, SceneGraph},
         gui::{
@@ -672,8 +671,6 @@ impl WorldViewer {
         ui: &UserInterface,
         settings: &mut Settings,
     ) {
-        scope_profile!();
-
         if let Some(TreeRootMessage::Selected(selection)) = message.data::<TreeRootMessage>() {
             if message.destination() == self.tree_root
                 && message.direction() == MessageDirection::FromWidget

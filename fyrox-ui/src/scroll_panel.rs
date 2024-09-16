@@ -28,7 +28,7 @@ use crate::{
     brush::Brush,
     core::{
         algebra::Vector2, color::Color, math::Rect, pool::Handle, reflect::prelude::*,
-        scope_profile, type_traits::prelude::*, visitor::prelude::*,
+        type_traits::prelude::*, visitor::prelude::*,
     },
     define_constructor,
     draw::{CommandTexture, Draw, DrawingContext},
@@ -241,8 +241,6 @@ impl ScrollPanel {
 
 impl Control for ScrollPanel {
     fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
-        scope_profile!();
-
         let size_for_child = Vector2::new(
             if self.horizontal_scroll_allowed {
                 f32::INFINITY
@@ -275,8 +273,6 @@ impl Control for ScrollPanel {
     }
 
     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
-        scope_profile!();
-
         let children_size = self.children_size(ui);
 
         let child_rect = Rect::new(

@@ -21,7 +21,7 @@
 use crate::settings::build::{BuildCommand, BuildProfile, EnvironmentVariable};
 use crate::{
     fyrox::{
-        core::{log::Log, pool::Handle, reflect::prelude::*, scope_profile},
+        core::{log::Log, pool::Handle, reflect::prelude::*},
         gui::{
             button::{ButtonBuilder, ButtonMessage},
             grid::{Column, GridBuilder, Row},
@@ -372,8 +372,6 @@ impl SettingsWindow {
         settings: &mut Settings,
         sender: &MessageSender,
     ) {
-        scope_profile!();
-
         if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
             if message.destination() == self.ok {
                 engine

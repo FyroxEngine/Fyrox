@@ -32,7 +32,6 @@ use crate::{
         algebra::{Vector2, Vector4},
         color::Color,
         math::{frustum::Frustum, Matrix4Ext, Rect},
-        scope_profile,
         sstorage::ImmutableString,
     },
     renderer::{
@@ -89,8 +88,6 @@ impl ForwardRenderer {
         &self,
         args: ForwardRenderContext,
     ) -> Result<RenderPassStatistics, FrameworkError> {
-        scope_profile!();
-
         let mut statistics = RenderPassStatistics::default();
 
         let ForwardRenderContext {

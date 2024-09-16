@@ -277,7 +277,6 @@ use crate::{
         math::Rect,
         pool::{Handle, Pool},
         reflect::prelude::*,
-        scope_profile,
         uuid::uuid,
         visitor::prelude::*,
     },
@@ -963,8 +962,6 @@ fn draw_node(
     node_handle: Handle<UiNode>,
     drawing_context: &mut DrawingContext,
 ) {
-    scope_profile!();
-
     let node = &nodes[node_handle];
     if !node.is_globally_visible() {
         return;
@@ -1142,8 +1139,6 @@ impl UserInterface {
     }
 
     fn update_global_visibility(&mut self, from: Handle<UiNode>) {
-        scope_profile!();
-
         self.stack.clear();
         self.stack.push(from);
         while let Some(node_handle) = self.stack.pop() {
@@ -1175,8 +1170,6 @@ impl UserInterface {
     }
 
     fn update_visual_transform(&mut self, from: Handle<UiNode>) {
-        scope_profile!();
-
         self.stack.clear();
         self.stack.push(from);
         while let Some(node_handle) = self.stack.pop() {
@@ -1323,8 +1316,6 @@ impl UserInterface {
     }
 
     pub fn draw(&mut self) -> &DrawingContext {
-        scope_profile!();
-
         self.drawing_context.clear();
 
         for node in self.nodes.iter_mut() {
@@ -1403,8 +1394,6 @@ impl UserInterface {
     }
 
     pub fn arrange_node(&self, handle: Handle<UiNode>, final_rect: &Rect<f32>) -> bool {
-        scope_profile!();
-
         let node = self.node(handle);
 
         if node.is_arrange_valid() && node.prev_arrange.get() == *final_rect {
@@ -1485,8 +1474,6 @@ impl UserInterface {
     }
 
     pub fn measure_node(&self, handle: Handle<UiNode>, available_size: Vector2<f32>) -> bool {
-        scope_profile!();
-
         let node = self.node(handle);
 
         if node.is_measure_valid() && node.prev_measure.get() == available_size {
@@ -1554,8 +1541,6 @@ impl UserInterface {
     }
 
     fn is_node_clipped(&self, node_handle: Handle<UiNode>, pt: Vector2<f32>) -> bool {
-        scope_profile!();
-
         let mut clipped = true;
 
         let widget = self.nodes.borrow(node_handle);
@@ -1586,8 +1571,6 @@ impl UserInterface {
     }
 
     fn is_node_contains_point(&self, node_handle: Handle<UiNode>, pt: Vector2<f32>) -> bool {
-        scope_profile!();
-
         let widget = self.nodes.borrow(node_handle);
 
         if !widget.is_globally_visible() {
@@ -1613,8 +1596,6 @@ impl UserInterface {
         pt: Vector2<f32>,
         level: &mut i32,
     ) -> Handle<UiNode> {
-        scope_profile!();
-
         let widget = self.nodes.borrow(node_handle);
 
         if !widget.is_hit_test_visible()
@@ -1657,8 +1638,6 @@ impl UserInterface {
     }
 
     pub fn hit_test(&self, pt: Vector2<f32>) -> Handle<UiNode> {
-        scope_profile!();
-
         if self.nodes.is_valid_handle(self.captured_node) {
             self.captured_node
         } else if self.picking_stack.is_empty() {
@@ -1753,8 +1732,6 @@ impl UserInterface {
     }
 
     fn bubble_message(&mut self, message: &mut UiMessage) {
-        scope_profile!();
-
         // Dispatch event using bubble strategy. Bubble routing means that message will go
         // from specified destination up on tree to tree root.
         // Gather chain of nodes from source to root.

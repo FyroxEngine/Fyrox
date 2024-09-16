@@ -26,7 +26,6 @@ use crate::{
         algebra::{Matrix4, Vector2, Vector4},
         color::Color,
         math::Rect,
-        scope_profile,
         sstorage::ImmutableString,
     },
     gui::{
@@ -190,8 +189,6 @@ impl UiRenderer {
         &mut self,
         args: UiRenderContext,
     ) -> Result<RenderPassStatistics, FrameworkError> {
-        scope_profile!();
-
         let UiRenderContext {
             state,
             viewport,
