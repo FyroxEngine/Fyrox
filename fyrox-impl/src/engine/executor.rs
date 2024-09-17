@@ -26,7 +26,6 @@ use crate::{
         instant::Instant,
         log::{Log, MessageKind},
         task::TaskPool,
-        watcher::FileSystemWatcher,
     },
     engine::{
         Engine, EngineInitParams, GraphicsContext, GraphicsContextParams, SerializationContext,
@@ -42,7 +41,6 @@ use clap::Parser;
 use std::{
     ops::{Deref, DerefMut},
     sync::Arc,
-    time::Duration,
 };
 
 #[derive(Parser, Debug, Default)]
@@ -224,8 +222,10 @@ impl Executor {
         let throttle_frame_interval = self.throttle_frame_interval;
 
         if self.resource_hot_reloading {
-            #[cfg(any(windows, unix))]
+            #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
             {
+                use crate::core::watcher::FileSystemWatcher;
+                use std::time::Duration;
                 match FileSystemWatcher::new(".", Duration::from_secs(1)) {
                     Ok(watcher) => {
                         engine.resource_manager.state().set_watcher(Some(watcher));
