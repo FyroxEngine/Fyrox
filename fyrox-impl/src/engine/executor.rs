@@ -136,6 +136,11 @@ impl Executor {
 
     /// Enables or disables hot reloading of changed resources (such as textures, shaders, scenes, etc.).
     /// Enabled by default.
+    ///
+    /// # Platform-specific
+    ///
+    /// Does nothing on Android and WebAssembly, because these OSes does not have rich file system
+    /// as PC.
     pub fn set_resource_hot_reloading_enabled(&mut self, enabled: bool) {
         self.resource_hot_reloading = enabled;
     }
@@ -217,15 +222,17 @@ impl Executor {
         let headless = self.headless;
         let throttle_threshold = self.throttle_threshold;
         let throttle_frame_interval = self.throttle_frame_interval;
-        let resource_hot_reloading = self.resource_hot_reloading;
 
-        if resource_hot_reloading {
-            match FileSystemWatcher::new(".", Duration::from_secs(1)) {
-                Ok(watcher) => {
-                    engine.resource_manager.state().set_watcher(Some(watcher));
-                }
-                Err(e) => {
-                    Log::err(format!("Unable to create resource watcher. Reason {:?}", e));
+        if self.resource_hot_reloading {
+            #[cfg(any(windows, unix))]
+            {
+                match FileSystemWatcher::new(".", Duration::from_secs(1)) {
+                    Ok(watcher) => {
+                        engine.resource_manager.state().set_watcher(Some(watcher));
+                    }
+                    Err(e) => {
+                        Log::err(format!("Unable to create resource watcher. Reason {:?}", e));
+                    }
                 }
             }
         }
