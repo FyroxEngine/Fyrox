@@ -59,6 +59,7 @@ use crate::{
 };
 use bytemuck::{Pod, Zeroable};
 use fxhash::{FxHashMap, FxHasher};
+use fyrox_resource::manager::BuiltInResource;
 use half::f16;
 use lazy_static::lazy_static;
 use std::{
@@ -1480,48 +1481,50 @@ impl ResourceLoader for SurfaceDataLoader {
 
 lazy_static! {
     /// Cube surface resource.
-    pub static ref CUBE: SurfaceResource = SurfaceResource::new_ok(
-        "__CubeSurface".into(),
-        SurfaceData::make_cube(Matrix4::identity()),
+    pub static ref CUBE: BuiltInResource<SurfaceData> = BuiltInResource::new_no_source(
+        SurfaceResource::new_ok(
+            "__CubeSurface".into(),
+            SurfaceData::make_cube(Matrix4::identity()),
+        )
     );
-}
 
-lazy_static! {
     /// Quad surface resource.
-    pub static ref QUAD: SurfaceResource = SurfaceResource::new_ok(
-        "__QuadSurface".into(),
-        SurfaceData::make_quad(&Matrix4::identity()),
+    pub static ref QUAD: BuiltInResource<SurfaceData> = BuiltInResource::new_no_source(
+        SurfaceResource::new_ok(
+            "__QuadSurface".into(),
+            SurfaceData::make_quad(&Matrix4::identity()),
+        )
     );
-}
 
-lazy_static! {
     /// Cylinder surface resource.
-    pub static ref CYLINDER: SurfaceResource = SurfaceResource::new_ok(
-        "__CylinderSurface".into(),
-        SurfaceData::make_cylinder(32, 1.0, 1.0, true, &Matrix4::identity()),
+    pub static ref CYLINDER: BuiltInResource<SurfaceData> = BuiltInResource::new_no_source(
+        SurfaceResource::new_ok(
+            "__CylinderSurface".into(),
+            SurfaceData::make_cylinder(32, 1.0, 1.0, true, &Matrix4::identity()),
+        )
     );
-}
 
-lazy_static! {
     /// Sphere surface resource.
-    pub static ref SPHERE: SurfaceResource = SurfaceResource::new_ok(
-        "__SphereSurface".into(),
-        SurfaceData::make_sphere(32, 32, 1.0, &Matrix4::identity()),
+    pub static ref SPHERE: BuiltInResource<SurfaceData> = BuiltInResource::new_no_source(
+        SurfaceResource::new_ok(
+            "__SphereSurface".into(),
+            SurfaceData::make_sphere(32, 32, 1.0, &Matrix4::identity()),
+        )
     );
-}
 
-lazy_static! {
     /// Cone surface resource.
-    pub static ref CONE: SurfaceResource = SurfaceResource::new_ok(
-        "__ConeSurface".into(),
-        SurfaceData::make_cone(32, 1.0, 1.0, &Matrix4::identity()),
+    pub static ref CONE: BuiltInResource<SurfaceData> = BuiltInResource::new_no_source(
+        SurfaceResource::new_ok(
+            "__ConeSurface".into(),
+            SurfaceData::make_cone(32, 1.0, 1.0, &Matrix4::identity()),
+        )
     );
-}
 
-lazy_static! {
     /// Torus surface resource.
-    pub static ref TORUS: SurfaceResource = SurfaceResource::new_ok(
-        "__TorusSurface".into(),
-        SurfaceData::make_torus(1.0, 0.25,32, 32,  &Matrix4::identity()),
+    pub static ref TORUS: BuiltInResource<SurfaceData> = BuiltInResource::new_no_source(
+        SurfaceResource::new_ok(
+            "__TorusSurface".into(),
+            SurfaceData::make_torus(1.0, 0.25,32, 32,  &Matrix4::identity()),
+        )
     );
 }

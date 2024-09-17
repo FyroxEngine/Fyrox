@@ -59,7 +59,9 @@ use fxhash::FxHasher;
 use fyrox_core::num_traits::Bounded;
 use fyrox_core::sparse::AtomicIndex;
 use fyrox_core::uuid_provider;
+use fyrox_resource::embedded_data_source;
 use fyrox_resource::io::ResourceIo;
+use fyrox_resource::manager::BuiltInResource;
 use fyrox_resource::untyped::ResourceKind;
 use image::{ColorType, DynamicImage, ImageError, ImageFormat, Pixel};
 use lazy_static::lazy_static;
@@ -575,12 +577,15 @@ impl TextureImportOptions {
 
 lazy_static! {
     /// Placeholder texture.
-    pub static ref PLACEHOLDER: TextureResource = TextureResource::load_from_memory(
-        ResourceKind::External("__PlaceholderTexture".into()),
-        include_bytes!("default.png"),
-        Default::default()
-    )
-    .unwrap();
+    pub static ref PLACEHOLDER: BuiltInResource<Texture> = BuiltInResource::new(embedded_data_source!("default.png"),
+        |data| {
+            TextureResource::load_from_memory(
+                ResourceKind::External("__PlaceholderTexture".into()),
+                data,
+                Default::default()
+            )
+            .unwrap()
+        });
 }
 
 /// Type alias for texture resources.

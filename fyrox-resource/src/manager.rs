@@ -46,6 +46,8 @@ use crate::{
 };
 use fxhash::{FxHashMap, FxHashSet};
 use rayon::prelude::*;
+use std::borrow::Cow;
+use std::ops::{Deref, DerefMut};
 use std::{
     fmt::{Debug, Display, Formatter},
     marker::PhantomData,
@@ -74,6 +76,129 @@ impl ResourceWaitContext {
     }
 }
 
+/// Data source of a built-in resource.
+#[derive(Clone)]
+pub struct DataSource {
+    /// File extension, associated with the data source.
+    pub extension: Cow<'static, str>,
+    /// The actual data.
+    pub bytes: Cow<'static, [u8]>,
+}
+
+impl DataSource {
+    pub fn new(path: &'static str, data: &'static [u8]) -> Self {
+        Self {
+            extension: Cow::Borrowed(
+                Path::new(path)
+                    .extension()
+                    .and_then(|ext| ext.to_str())
+                    .unwrap_or(""),
+            ),
+            bytes: Cow::Borrowed(data),
+        }
+    }
+}
+
+#[macro_export]
+macro_rules! embedded_data_source {
+    ($path:expr) => {
+        $crate::manager::DataSource::new($path, include_bytes!($path))
+    };
+}
+
+#[derive(Clone)]
+pub struct UntypedBuiltInResource {
+    /// Initial data, from which the resource is created from.
+    pub data_source: Option<DataSource>,
+    /// Ready-to-use ("loaded") resource.
+    pub resource: UntypedResource,
+}
+
+pub struct BuiltInResource<T>
+where
+    T: TypedResourceData,
+{
+    /// Initial data, from which the resource is created from.
+    pub data_source: Option<DataSource>,
+    /// Ready-to-use ("loaded") resource.
+    pub resource: Resource<T>,
+}
+
+impl<T: TypedResourceData> Clone for BuiltInResource<T> {
+    fn clone(&self) -> Self {
+        Self {
+            data_source: self.data_source.clone(),
+            resource: self.resource.clone(),
+        }
+    }
+}
+
+impl<T: TypedResourceData> BuiltInResource<T> {
+    pub fn new<F>(data_source: DataSource, make: F) -> Self
+    where
+        F: FnOnce(&[u8]) -> Resource<T>,
+    {
+        let resource = make(&data_source.bytes);
+        Self {
+            resource,
+            data_source: Some(data_source),
+        }
+    }
+
+    pub fn new_no_source(resource: Resource<T>) -> Self {
+        Self {
+            data_source: None,
+            resource,
+        }
+    }
+
+    pub fn resource(&self) -> Resource<T> {
+        self.resource.clone()
+    }
+}
+
+impl<T: TypedResourceData> From<BuiltInResource<T>> for UntypedBuiltInResource {
+    fn from(value: BuiltInResource<T>) -> Self {
+        Self {
+            data_source: value.data_source,
+            resource: value.resource.into(),
+        }
+    }
+}
+
+#[derive(Default, Clone)]
+pub struct BuiltInResourcesContainer {
+    inner: FxHashMap<PathBuf, UntypedBuiltInResource>,
+}
+
+impl BuiltInResourcesContainer {
+    pub fn add<T>(&mut self, resource: BuiltInResource<T>)
+    where
+        T: TypedResourceData,
+    {
+        self.add_untyped(resource.into())
+    }
+
+    pub fn add_untyped(&mut self, resource: UntypedBuiltInResource) {
+        self.inner
+            .insert(resource.resource.kind().path_owned().unwrap(), resource);
+    }
+}
+
+impl Deref for BuiltInResourcesContainer {
+    type Target = FxHashMap<PathBuf, UntypedBuiltInResource>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl DerefMut for BuiltInResourcesContainer {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.inner
+    }
+}
+
 /// Internal state of the resource manager.
 pub struct ResourceManagerState {
     /// A set of resource loaders. Use this field to register your own resource loader.
@@ -83,7 +208,7 @@ pub struct ResourceManagerState {
     /// A container for resource constructors.
     pub constructors_container: ResourceConstructorContainer,
     /// A set of built-in resources, that will be used to resolve references on deserialization.
-    pub built_in_resources: FxHashMap<PathBuf, UntypedResource>,
+    pub built_in_resources: BuiltInResourcesContainer,
     /// File system abstraction interface. Could be used to support virtual file systems.
     pub resource_io: Arc<dyn ResourceIo>,
 
@@ -585,7 +710,7 @@ impl ResourceManagerState {
         P: AsRef<Path>,
     {
         if let Some(built_in_resource) = self.built_in_resources.get(path.as_ref()) {
-            return built_in_resource.clone();
+            return built_in_resource.resource.clone();
         }
 
         match self.find(path.as_ref()) {

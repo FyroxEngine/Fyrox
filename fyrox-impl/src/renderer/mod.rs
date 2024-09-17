@@ -958,7 +958,7 @@ impl Renderer {
         let mut shader_cache = ShaderCache::default();
 
         for shader in ShaderResource::standard_shaders() {
-            shader_cache.get(&state, &shader);
+            shader_cache.get(&state, &shader.resource);
         }
 
         Ok(Self {

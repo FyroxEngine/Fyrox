@@ -25,8 +25,9 @@ use crate::core::{
     visitor::prelude::*, TypeUuidProvider,
 };
 use fxhash::FxHashMap;
+use fyrox_resource::manager::BuiltInResource;
 use fyrox_resource::untyped::UntypedResource;
-use fyrox_resource::{io::ResourceIo, Resource, ResourceData};
+use fyrox_resource::{embedded_data_source, io::ResourceIo, Resource, ResourceData};
 use lazy_static::lazy_static;
 use std::fmt::Formatter;
 use std::{
@@ -262,10 +263,13 @@ impl Hash for FontHeight {
 pub type FontResource = Resource<Font>;
 
 lazy_static! {
-    pub static ref BUILT_IN_FONT: FontResource = FontResource::new_ok(
-        "__BUILT_IN_FONT__".into(),
-        Font::from_memory(include_bytes!("./built_in_font.ttf").to_vec(), 1024).unwrap(),
-    );
+    pub static ref BUILT_IN_FONT: BuiltInResource<Font> =
+        BuiltInResource::new(embedded_data_source!("./built_in_font.ttf"), |data| {
+            FontResource::new_ok(
+                "__BUILT_IN_FONT__".into(),
+                Font::from_memory(data.to_vec(), 1024).unwrap(),
+            )
+        });
 }
 
 impl Font {

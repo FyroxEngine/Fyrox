@@ -1090,7 +1090,7 @@ impl UserInterface {
             layout_events_receiver,
             layout_events_sender,
             need_update_global_transform: Default::default(),
-            default_font: BUILT_IN_FONT.clone(),
+            default_font: BUILT_IN_FONT.resource(),
             double_click_entries: Default::default(),
             double_click_time_slice: 0.5, // 500 ms is standard in most operating systems.
         };

@@ -42,6 +42,7 @@ use crate::{
     resource::texture::{Texture, TextureResource},
 };
 use fxhash::FxHashMap;
+use fyrox_resource::manager::BuiltInResource;
 use fyrox_resource::state::ResourceState;
 use fyrox_resource::untyped::ResourceKind;
 use lazy_static::lazy_static;
@@ -582,54 +583,56 @@ impl Display for MaterialError {
 lazy_static! {
     /// Standard PBR material. Keep in mind that this material is global, any modification
     /// of it will reflect on every other usage of it.
-    pub static ref STANDARD: MaterialResource = MaterialResource::new_ok(
-        "__StandardMaterial".into(),
-    Material::from_shader(ShaderResource::standard(), None),
+    pub static ref STANDARD: BuiltInResource<Material> = BuiltInResource::new_no_source(
+        MaterialResource::new_ok(
+            "__StandardMaterial".into(),
+            Material::from_shader(ShaderResource::standard(), None),
+        )
     );
-}
 
-lazy_static! {
     /// Standard 2D material. Keep in mind that this material is global, any modification
     /// of it will reflect on every other usage of it.
-    pub static ref STANDARD_2D: MaterialResource = MaterialResource::new_ok(
-        "__Standard2DMaterial".into(),
-        Material::from_shader(ShaderResource::standard_2d(), None),
+    pub static ref STANDARD_2D: BuiltInResource<Material> = BuiltInResource::new_no_source(
+        MaterialResource::new_ok(
+            "__Standard2DMaterial".into(),
+            Material::from_shader(ShaderResource::standard_2d(), None),
+        )
     );
-}
 
-lazy_static! {
     /// Standard particle system material. Keep in mind that this material is global, any modification
     /// of it will reflect on every other usage of it.
-    pub static ref STANDARD_PARTICLE_SYSTEM: MaterialResource = MaterialResource::new_ok(
-        "__StandardParticleSystemMaterial".into(),
-        Material::from_shader(ShaderResource::standard_particle_system(), None),
+    pub static ref STANDARD_PARTICLE_SYSTEM: BuiltInResource<Material> = BuiltInResource::new_no_source(
+        MaterialResource::new_ok(
+            "__StandardParticleSystemMaterial".into(),
+            Material::from_shader(ShaderResource::standard_particle_system(), None),
+        )
     );
-}
 
-lazy_static! {
     /// Standard sprite material. Keep in mind that this material is global, any modification
     /// of it will reflect on every other usage of it.
-    pub static ref STANDARD_SPRITE: MaterialResource = MaterialResource::new_ok(
-        "__StandardSpriteMaterial".into(),
-        Material::from_shader(ShaderResource::standard_sprite(), None),
+    pub static ref STANDARD_SPRITE: BuiltInResource<Material> = BuiltInResource::new_no_source(
+        MaterialResource::new_ok(
+            "__StandardSpriteMaterial".into(),
+            Material::from_shader(ShaderResource::standard_sprite(), None),
+        )
     );
-}
 
-lazy_static! {
     /// Standard terrain material. Keep in mind that this material is global, any modification
     /// of it will reflect on every other usage of it.
-    pub static ref STANDARD_TERRAIN: MaterialResource = MaterialResource::new_ok(
-        "__StandardTerrainMaterial".into(),
-       Material::from_shader(ShaderResource::standard_terrain(), None),
+    pub static ref STANDARD_TERRAIN: BuiltInResource<Material> = BuiltInResource::new_no_source(
+        MaterialResource::new_ok(
+            "__StandardTerrainMaterial".into(),
+           Material::from_shader(ShaderResource::standard_terrain(), None),
+        )
     );
-}
 
-lazy_static! {
     /// Standard two-sided material. Keep in mind that this material is global, any modification
     /// of it will reflect on every other usage of it.
-    pub static ref STANDARD_TWOSIDES: MaterialResource = MaterialResource::new_ok(
-        "__StandardTwoSidesMaterial".into(),
-      Material::from_shader(ShaderResource::standard_twosides(), None),
+    pub static ref STANDARD_TWOSIDES: BuiltInResource<Material> = BuiltInResource::new_no_source(
+        MaterialResource::new_ok(
+            "__StandardTwoSidesMaterial".into(),
+          Material::from_shader(ShaderResource::standard_twosides(), None),
+        )
     );
 }
 

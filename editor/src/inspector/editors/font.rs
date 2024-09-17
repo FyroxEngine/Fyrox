@@ -149,7 +149,7 @@ fn make_name(font: &FontResource) -> String {
     match font.kind() {
         ResourceKind::Embedded => "Embedded - AaBbCcDd1234567890".to_string(),
         ResourceKind::External(path) => {
-            if font == &BUILT_IN_FONT.clone() {
+            if font == &BUILT_IN_FONT.resource.clone() {
                 "BuiltIn - AaBbCcDd1234567890".to_string()
             } else {
                 format!("{} - AaBbCcDd1234567890", path.display())
@@ -162,7 +162,7 @@ impl FontFieldBuilder {
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
-            font: BUILT_IN_FONT.clone(),
+            font: BUILT_IN_FONT.resource(),
         }
     }
 

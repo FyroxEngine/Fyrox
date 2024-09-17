@@ -1189,54 +1189,37 @@ pub(crate) fn initialize_resource_manager_loaders(
     }
 
     for shader in ShaderResource::standard_shaders() {
-        state
-            .built_in_resources
-            .insert(shader.kind().path_owned().unwrap(), shader.into_untyped());
+        state.built_in_resources.add((*shader).clone());
     }
 
     for texture in SkyBoxKind::built_in_skybox_textures() {
-        state.built_in_resources.insert(
-            texture.kind().path_owned().unwrap(),
-            texture.clone().into_untyped(),
-        );
+        state.built_in_resources.add(texture.clone());
     }
 
-    state.built_in_resources.insert(
-        BUILT_IN_FONT.kind().path_owned().unwrap(),
-        BUILT_IN_FONT.clone().into_untyped(),
-    );
+    state.built_in_resources.add(BUILT_IN_FONT.clone());
 
-    state.built_in_resources.insert(
-        texture::PLACEHOLDER.kind().path_owned().unwrap(),
-        texture::PLACEHOLDER.clone().into_untyped(),
-    );
+    state.built_in_resources.add(texture::PLACEHOLDER.clone());
 
     for material in [
-        material::STANDARD.clone(),
-        material::STANDARD_2D.clone(),
-        material::STANDARD_SPRITE.clone(),
-        material::STANDARD_TERRAIN.clone(),
-        material::STANDARD_TWOSIDES.clone(),
-        material::STANDARD_PARTICLE_SYSTEM.clone(),
+        &*material::STANDARD,
+        &*material::STANDARD_2D,
+        &*material::STANDARD_SPRITE,
+        &*material::STANDARD_TERRAIN,
+        &*material::STANDARD_TWOSIDES,
+        &*material::STANDARD_PARTICLE_SYSTEM,
     ] {
-        state.built_in_resources.insert(
-            material.kind().path_owned().unwrap(),
-            material.clone().into_untyped(),
-        );
+        state.built_in_resources.add(material.clone());
     }
 
-    for material in [
-        surface::CUBE.clone(),
-        surface::QUAD.clone(),
-        surface::CYLINDER.clone(),
-        surface::SPHERE.clone(),
-        surface::CONE.clone(),
-        surface::TORUS.clone(),
+    for surface in [
+        &*surface::CUBE,
+        &*surface::QUAD,
+        &*surface::CYLINDER,
+        &*surface::SPHERE,
+        &*surface::CONE,
+        &*surface::TORUS,
     ] {
-        state.built_in_resources.insert(
-            material.kind().path_owned().unwrap(),
-            material.clone().into_untyped(),
-        );
+        state.built_in_resources.add(surface.clone());
     }
 
     state.constructors_container.add::<Texture>();

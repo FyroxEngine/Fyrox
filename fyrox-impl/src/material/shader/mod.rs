@@ -262,6 +262,8 @@ use crate::{
     lazy_static::lazy_static,
     renderer::framework::framebuffer::DrawParameters,
 };
+use fyrox_resource::embedded_data_source;
+use fyrox_resource::manager::BuiltInResource;
 use ron::ser::PrettyConfig;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -543,6 +545,17 @@ impl Shader {
             cache_index: Default::default(),
         })
     }
+
+    /// Creates a shader from string represented as raw bytes. This function will fail if the `bytes`
+    /// does not contain Utf8-encoded string.
+    pub fn from_string_bytes(bytes: &[u8]) -> Result<Self, ShaderError> {
+        Ok(Self {
+            definition: ShaderDefinition::from_str(
+                std::str::from_utf8(bytes).map_err(|_| ShaderError::NotUtf8Source)?,
+            )?,
+            cache_index: Default::default(),
+        })
+    }
 }
 
 impl ResourceData for Shader {
@@ -579,6 +592,9 @@ pub enum ShaderError {
 
     /// A parsing error has occurred.
     ParseError(ron::error::SpannedError),
+
+    /// Bytes does not represent Utf8-encoded string.
+    NotUtf8Source,
 }
 
 impl Display for ShaderError {
@@ -589,6 +605,9 @@ impl Display for ShaderError {
             }
             ShaderError::ParseError(v) => {
                 write!(f, "A parsing error has occurred {v:?}")
+            }
+            ShaderError::NotUtf8Source => {
+                write!(f, "Bytes does not represent Utf8-encoded string.")
             }
         }
     }
@@ -634,7 +653,7 @@ pub trait ShaderResourceExtension: Sized {
     fn standard_twosides() -> Self;
 
     /// Returns a list of standard shader.
-    fn standard_shaders() -> Vec<ShaderResource>;
+    fn standard_shaders() -> [&'static BuiltInResource<Shader>; 6];
 }
 
 impl ShaderResourceExtension for ShaderResource {
@@ -643,80 +662,83 @@ impl ShaderResourceExtension for ShaderResource {
     }
 
     fn standard() -> Self {
-        STANDARD.clone()
+        STANDARD.resource()
     }
 
     fn standard_2d() -> Self {
-        STANDARD_2D.clone()
+        STANDARD_2D.resource()
     }
 
     fn standard_particle_system() -> Self {
-        STANDARD_PARTICLE_SYSTEM.clone()
+        STANDARD_PARTICLE_SYSTEM.resource()
     }
 
     fn standard_sprite() -> Self {
-        STANDARD_SPRITE.clone()
+        STANDARD_SPRITE.resource()
     }
 
     fn standard_terrain() -> Self {
-        STANDARD_TERRAIN.clone()
+        STANDARD_TERRAIN.resource()
     }
 
     fn standard_twosides() -> Self {
-        STANDARD_TWOSIDES.clone()
+        STANDARD_TWOSIDES.resource()
     }
 
-    fn standard_shaders() -> Vec<ShaderResource> {
-        vec![
-            Self::standard(),
-            Self::standard_2d(),
-            Self::standard_particle_system(),
-            Self::standard_sprite(),
-            Self::standard_terrain(),
-            Self::standard_twosides(),
+    fn standard_shaders() -> [&'static BuiltInResource<Shader>; 6] {
+        [
+            &STANDARD,
+            &STANDARD_2D,
+            &STANDARD_PARTICLE_SYSTEM,
+            &STANDARD_SPRITE,
+            &STANDARD_TERRAIN,
+            &STANDARD_TWOSIDES,
         ]
     }
 }
 
 lazy_static! {
-    static ref STANDARD: ShaderResource = ShaderResource::new_ok(
-        STANDARD_SHADER_NAME.into(),
-        Shader::from_string(STANDARD_SHADER_SRC).unwrap(),
+    static ref STANDARD: BuiltInResource<Shader> =
+        BuiltInResource::new(embedded_data_source!("standard/standard.shader"), |data| {
+            ShaderResource::new_ok(
+                STANDARD_SHADER_NAME.into(),
+                Shader::from_string_bytes(data).unwrap(),
+            )
+        });
+    static ref STANDARD_2D: BuiltInResource<Shader> = BuiltInResource::new(
+        embedded_data_source!("standard/standard2d.shader"),
+        |data| ShaderResource::new_ok(
+            STANDARD_2D_SHADER_NAME.into(),
+            Shader::from_string_bytes(data).unwrap(),
+        )
     );
-}
-
-lazy_static! {
-    static ref STANDARD_2D: ShaderResource = ShaderResource::new_ok(
-        STANDARD_2D_SHADER_NAME.into(),
-        Shader::from_string(STANDARD_2D_SHADER_SRC).unwrap(),
+    static ref STANDARD_PARTICLE_SYSTEM: BuiltInResource<Shader> = BuiltInResource::new(
+        embedded_data_source!("standard/standard_particle_system.shader"),
+        |data| ShaderResource::new_ok(
+            STANDARD_PARTICLE_SYSTEM_SHADER_NAME.into(),
+            Shader::from_string_bytes(data).unwrap(),
+        )
     );
-}
-
-lazy_static! {
-    static ref STANDARD_PARTICLE_SYSTEM: ShaderResource = ShaderResource::new_ok(
-        STANDARD_PARTICLE_SYSTEM_SHADER_NAME.into(),
-        Shader::from_string(STANDARD_PARTICLE_SYSTEM_SHADER_SRC).unwrap(),
+    static ref STANDARD_SPRITE: BuiltInResource<Shader> = BuiltInResource::new(
+        embedded_data_source!("standard/standard_sprite.shader"),
+        |data| ShaderResource::new_ok(
+            STANDARD_SPRITE_SHADER_NAME.into(),
+            Shader::from_string_bytes(data).unwrap(),
+        )
     );
-}
-
-lazy_static! {
-    static ref STANDARD_SPRITE: ShaderResource = ShaderResource::new_ok(
-        STANDARD_SPRITE_SHADER_NAME.into(),
-        Shader::from_string(STANDARD_SPRITE_SHADER_SRC).unwrap(),
-    );
-}
-
-lazy_static! {
-    static ref STANDARD_TERRAIN: ShaderResource = ShaderResource::new_ok(
-        STANDARD_TERRAIN_SHADER_NAME.into(),
-        Shader::from_string(STANDARD_TERRAIN_SHADER_SRC).unwrap(),
-    );
-}
-
-lazy_static! {
-    static ref STANDARD_TWOSIDES: ShaderResource = ShaderResource::new_ok(
-        STANDARD_TWOSIDES_SHADER_NAME.into(),
-        Shader::from_string(STANDARD_TWOSIDES_SHADER_SRC).unwrap(),
+    static ref STANDARD_TERRAIN: BuiltInResource<Shader> =
+        BuiltInResource::new(embedded_data_source!("standard/terrain.shader"), |data| {
+            ShaderResource::new_ok(
+                STANDARD_TERRAIN_SHADER_NAME.into(),
+                Shader::from_string_bytes(data).unwrap(),
+            )
+        });
+    static ref STANDARD_TWOSIDES: BuiltInResource<Shader> = BuiltInResource::new(
+        embedded_data_source!("standard/standard-two-sides.shader"),
+        |data| ShaderResource::new_ok(
+            STANDARD_TWOSIDES_SHADER_NAME.into(),
+            Shader::from_string_bytes(data).unwrap(),
+        )
     );
 }
 

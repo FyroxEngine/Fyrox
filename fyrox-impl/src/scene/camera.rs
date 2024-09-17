@@ -20,10 +20,10 @@
 
 //! Contains all methods and structures to create and manage cameras. See [`Camera`] docs for more info.
 
-use crate::resource::texture::{
-    CompressionOptions, TextureImportOptions, TextureMinificationFilter,
-};
 use crate::{
+    asset::{
+        embedded_data_source, manager::BuiltInResource, state::LoadError, untyped::ResourceKind,
+    },
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
         color::Color,
@@ -32,12 +32,15 @@ use crate::{
         pool::Handle,
         reflect::prelude::*,
         uuid::{uuid, Uuid},
+        uuid_provider,
         variable::InheritableVariable,
         visitor::{Visit, VisitResult, Visitor},
         TypeUuidProvider,
     },
+    graph::BaseSceneGraph,
     resource::texture::{
-        TextureKind, TexturePixelKind, TextureResource, TextureResourceExtension, TextureWrapMode,
+        CompressionOptions, Texture, TextureImportOptions, TextureKind, TextureMinificationFilter,
+        TexturePixelKind, TextureResource, TextureResourceExtension, TextureWrapMode,
     },
     scene::{
         base::{Base, BaseBuilder},
@@ -46,10 +49,6 @@ use crate::{
         node::{Node, NodeTrait, UpdateContext},
     },
 };
-use fyrox_core::uuid_provider;
-use fyrox_graph::BaseSceneGraph;
-use fyrox_resource::state::LoadError;
-use fyrox_resource::untyped::ResourceKind;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -984,35 +983,41 @@ fn load_texture(data: &[u8], id: &str) -> TextureResource {
 }
 
 lazy_static! {
-    static ref BUILT_IN_SKYBOX_FRONT: TextureResource = load_texture(
-        include_bytes!("skybox/front.png"),
-        "__BUILT_IN_SKYBOX_FRONT",
-    );
-    static ref BUILT_IN_SKYBOX_BACK: TextureResource =
-        load_texture(include_bytes!("skybox/back.png"), "__BUILT_IN_SKYBOX_BACK",);
-    static ref BUILT_IN_SKYBOX_TOP: TextureResource =
-        load_texture(include_bytes!("skybox/top.png"), "__BUILT_IN_SKYBOX_TOP",);
-    static ref BUILT_IN_SKYBOX_BOTTOM: TextureResource = load_texture(
-        include_bytes!("skybox/bottom.png"),
-        "__BUILT_IN_SKYBOX_BOTTOM",
-    );
-    static ref BUILT_IN_SKYBOX_LEFT: TextureResource =
-        load_texture(include_bytes!("skybox/left.png"), "__BUILT_IN_SKYBOX_LEFT",);
-    static ref BUILT_IN_SKYBOX_RIGHT: TextureResource = load_texture(
-        include_bytes!("skybox/right.png"),
-        "__BUILT_IN_SKYBOX_RIGHT",
-    );
+    static ref BUILT_IN_SKYBOX_FRONT: BuiltInResource<Texture> =
+        BuiltInResource::new(embedded_data_source!("skybox/front.png"), |data| {
+            load_texture(data, "__BUILT_IN_SKYBOX_FRONT")
+        });
+    static ref BUILT_IN_SKYBOX_BACK: BuiltInResource<Texture> =
+        BuiltInResource::new(embedded_data_source!("skybox/back.png"), |data| {
+            load_texture(data, "__BUILT_IN_SKYBOX_BACK")
+        });
+    static ref BUILT_IN_SKYBOX_TOP: BuiltInResource<Texture> =
+        BuiltInResource::new(embedded_data_source!("skybox/top.png"), |data| {
+            load_texture(data, "__BUILT_IN_SKYBOX_TOP")
+        });
+    static ref BUILT_IN_SKYBOX_BOTTOM: BuiltInResource<Texture> =
+        BuiltInResource::new(embedded_data_source!("skybox/bottom.png"), |data| {
+            load_texture(data, "__BUILT_IN_SKYBOX_BOTTOM")
+        });
+    static ref BUILT_IN_SKYBOX_LEFT: BuiltInResource<Texture> =
+        BuiltInResource::new(embedded_data_source!("skybox/left.png"), |data| {
+            load_texture(data, "__BUILT_IN_SKYBOX_LEFT")
+        });
+    static ref BUILT_IN_SKYBOX_RIGHT: BuiltInResource<Texture> =
+        BuiltInResource::new(embedded_data_source!("skybox/right.png"), |data| {
+            load_texture(data, "__BUILT_IN_SKYBOX_RIGHT")
+        });
     static ref BUILT_IN_SKYBOX: SkyBox = SkyBoxKind::make_built_in_skybox();
 }
 
 impl SkyBoxKind {
     fn make_built_in_skybox() -> SkyBox {
-        let front = BUILT_IN_SKYBOX_FRONT.clone();
-        let back = BUILT_IN_SKYBOX_BACK.clone();
-        let top = BUILT_IN_SKYBOX_TOP.clone();
-        let bottom = BUILT_IN_SKYBOX_BOTTOM.clone();
-        let left = BUILT_IN_SKYBOX_LEFT.clone();
-        let right = BUILT_IN_SKYBOX_RIGHT.clone();
+        let front = BUILT_IN_SKYBOX_FRONT.resource();
+        let back = BUILT_IN_SKYBOX_BACK.resource();
+        let top = BUILT_IN_SKYBOX_TOP.resource();
+        let bottom = BUILT_IN_SKYBOX_BOTTOM.resource();
+        let left = BUILT_IN_SKYBOX_LEFT.resource();
+        let right = BUILT_IN_SKYBOX_RIGHT.resource();
 
         SkyBoxBuilder {
             front: Some(front),
@@ -1033,7 +1038,7 @@ impl SkyBoxKind {
 
     /// Returns an array with references to the textures being used in built-in sky box. The order is:
     /// front, back, top, bottom, left, right.
-    pub fn built_in_skybox_textures() -> [&'static TextureResource; 6] {
+    pub fn built_in_skybox_textures() -> [&'static BuiltInResource<Texture>; 6] {
         [
             &BUILT_IN_SKYBOX_FRONT,
             &BUILT_IN_SKYBOX_BACK,
