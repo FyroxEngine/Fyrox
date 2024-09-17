@@ -94,6 +94,7 @@ pub mod preview;
 struct ContextMenu {
     menu: RcUiNodeHandle,
     open: Handle<UiNode>,
+    duplicate: Handle<UiNode>,
     copy_path: Handle<UiNode>,
     copy_file_name: Handle<UiNode>,
     show_in_explorer: Handle<UiNode>,
@@ -135,6 +136,7 @@ impl ContextMenu {
         let delete;
         let show_in_explorer;
         let open;
+        let duplicate;
         let copy_path;
         let copy_file_name;
         let dependencies;
@@ -147,6 +149,12 @@ impl ContextMenu {
                                 .with_content(MenuItemContent::text("Open"))
                                 .build(ctx);
                             open
+                        })
+                        .with_child({
+                            duplicate = MenuItemBuilder::new(WidgetBuilder::new())
+                                .with_content(MenuItemContent::text("Duplicate"))
+                                .build(ctx);
+                            duplicate
                         })
                         .with_child({
                             copy_path = MenuItemBuilder::new(WidgetBuilder::new())
@@ -188,6 +196,7 @@ impl ContextMenu {
         Self {
             menu,
             open,
+            duplicate,
             copy_path,
             delete,
             show_in_explorer,
@@ -218,6 +227,39 @@ impl ContextMenu {
                     }
                 } else if message.destination() == self.open {
                     item.open();
+                } else if message.destination() == self.duplicate {
+                    if let Some(resource) = item.untyped_resource() {
+                        match resource.kind() {
+                            ResourceKind::External(path) => {
+                                if let Ok(canonical_path) = path.canonicalize() {
+                                    if let (Some(parent), Some(stem), Some(ext)) = (
+                                        canonical_path.parent(),
+                                        canonical_path.file_stem(),
+                                        canonical_path.extension(),
+                                    ) {
+                                        let stem = stem.to_string_lossy().to_string();
+                                        let ext = ext.to_string_lossy().to_string();
+                                        let mut suffix = "_Copy".to_string();
+                                        let final_copy_path;
+                                        loop {
+                                            let trial_copy_path =
+                                                parent.join(format!("{stem}{suffix}.{ext}"));
+                                            if trial_copy_path.exists() {
+                                                suffix += "_Copy";
+                                            } else {
+                                                final_copy_path = trial_copy_path;
+                                                break;
+                                            }
+                                        }
+                                        Log::verify(std::fs::copy(canonical_path, final_copy_path));
+                                    }
+                                }
+                            }
+                            ResourceKind::Embedded => {
+                                // TODO: Support duplicating embedded resources.
+                            }
+                        }
+                    }
                 } else if message.destination() == self.copy_path {
                     if let Ok(canonical_path) = item.path.canonicalize() {
                         put_path_to_clipboard(engine, canonical_path.as_os_str())

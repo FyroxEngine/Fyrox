@@ -101,6 +101,14 @@ impl AssetItem {
         }
     }
 
+    pub fn untyped_resource(&self) -> Option<UntypedResource> {
+        let resource_manager = self.resource_manager.as_ref()?;
+
+        self.relative_path()
+            .ok()
+            .and_then(|path| block_on(resource_manager.request_untyped(path)).ok())
+    }
+
     pub fn resource<T: TypedResourceData>(&self) -> Option<Resource<T>> {
         let resource_manager = self.resource_manager.as_ref()?;
 
