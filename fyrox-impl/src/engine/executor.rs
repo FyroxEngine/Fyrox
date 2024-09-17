@@ -26,6 +26,7 @@ use crate::{
         instant::Instant,
         log::{Log, MessageKind},
         task::TaskPool,
+        watcher::FileSystemWatcher,
     },
     engine::{
         Engine, EngineInitParams, GraphicsContext, GraphicsContextParams, SerializationContext,
@@ -41,6 +42,7 @@ use clap::Parser;
 use std::{
     ops::{Deref, DerefMut},
     sync::Arc,
+    time::Duration,
 };
 
 #[derive(Parser, Debug, Default)]
@@ -58,6 +60,7 @@ pub struct Executor {
     headless: bool,
     throttle_threshold: f32,
     throttle_frame_interval: usize,
+    resource_hot_reloading: bool,
 }
 
 impl Deref for Executor {
@@ -110,6 +113,7 @@ impl Executor {
             headless: false,
             throttle_threshold: 2.0 * Self::DEFAULT_TIME_STEP,
             throttle_frame_interval: 5,
+            resource_hot_reloading: true,
         }
     }
 
@@ -128,6 +132,17 @@ impl Executor {
                 msaa_sample_count: None,
             },
         )
+    }
+
+    /// Enables or disables hot reloading of changed resources (such as textures, shaders, scenes, etc.).
+    /// Enabled by default.
+    pub fn set_resource_hot_reloading_enabled(&mut self, enabled: bool) {
+        self.resource_hot_reloading = enabled;
+    }
+
+    /// Returns `true` if hot reloading of changed resources is enabled, `false` - otherwise.
+    pub fn is_resource_hot_reloading_enabled(&self) -> bool {
+        self.resource_hot_reloading
     }
 
     /// Defines whether the executor should initialize graphics context or not. Headless mode could
@@ -202,6 +217,18 @@ impl Executor {
         let headless = self.headless;
         let throttle_threshold = self.throttle_threshold;
         let throttle_frame_interval = self.throttle_frame_interval;
+        let resource_hot_reloading = self.resource_hot_reloading;
+
+        if resource_hot_reloading {
+            match FileSystemWatcher::new(".", Duration::from_secs(1)) {
+                Ok(watcher) => {
+                    engine.resource_manager.state().set_watcher(Some(watcher));
+                }
+                Err(e) => {
+                    Log::err(format!("Unable to create resource watcher. Reason {:?}", e));
+                }
+            }
+        }
 
         let args = Args::try_parse().unwrap_or_default();
 
