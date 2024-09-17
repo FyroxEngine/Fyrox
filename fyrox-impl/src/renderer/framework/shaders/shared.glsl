@@ -152,8 +152,8 @@ float S_InScatter(vec3 start, vec3 dir, vec3 lightPos, float d)
     float c = dot(q, q);
 
     // evaluate integral
-    float s = 1.0 / sqrt(c - b*b);
-    float l = s * (atan((d + b) * s) - atan(b*s));
+    float s = 1.0 / sqrt(c - b * b);
+    float l = s * (atan((d + b) * s) - atan(b * s));
 
     return l;
 }
@@ -187,7 +187,7 @@ float S_PointShadow(
     float fragmentDistance,
     float shadowBias,
     vec3 toLight,
-    in samplerCube shadowMap)
+in samplerCube shadowMap)
 {
     if (shadowsEnabled)
     {
@@ -197,7 +197,7 @@ float S_PointShadow(
         {
             const int samples = 20;
 
-            const vec3 directions[samples] = vec3[samples] (
+            const vec3 directions[samples] = vec3[samples](
             vec3(1, 1, 1), vec3(1, -1, 1), vec3(-1, -1, 1), vec3(-1, 1, 1),
             vec3(1, 1, -1), vec3(1, -1, -1), vec3(-1, -1, -1), vec3(-1, 1, -1),
             vec3(1, 1, 0), vec3(1, -1, 0), vec3(-1, -1, 0), vec3(-1, 1, 0),
@@ -240,7 +240,7 @@ float S_SpotShadowFactor(
     vec3 fragmentPosition,
     mat4 lightViewProjMatrix,
     float shadowMapInvSize,
-    in sampler2D spotShadowTexture)
+in sampler2D spotShadowTexture)
 {
     if (shadowsEnabled)
     {
@@ -364,4 +364,12 @@ TBlendShapeOffsets S_FetchBlendShapeOffsets(in sampler3D storage, int vertexInde
     vec3 normal = texelFetch(storage, ivec3(pos.x + 1, pos.y, pos.z), 0).xyz;
     vec3 tangent = texelFetch(storage, ivec3(pos.x + 2, pos.y, pos.z), 0).xyz;
     return TBlendShapeOffsets(position, normal, tangent);
+}
+
+vec2 S_RotateVec2(vec2 v, float angle)
+{
+    float c = cos(angle);
+    float s = sin(angle);
+    mat2 m = mat2(c, -s, s, c);
+    return m * v;
 }

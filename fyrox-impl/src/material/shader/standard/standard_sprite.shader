@@ -56,14 +56,6 @@
                 out vec2 texCoord;
                 out vec4 color;
 
-                vec2 rotateVec2(vec2 v, float angle)
-                {
-                    float c = cos(angle);
-                    float s = sin(angle);
-                    mat2 m = mat2(c, -s, s, c);
-                    return m * v;
-                }
-
                 void main()
                 {
                     float size = vertexParams.x;
@@ -71,7 +63,7 @@
 
                     texCoord = vertexTexCoord;
                     color = vertexColor;
-                    vec2 vertexOffset = rotateVec2(vertexTexCoord * 2.0 - 1.0, rotation);
+                    vec2 vertexOffset = S_RotateVec2(vertexTexCoord * 2.0 - 1.0, rotation);
                     vec4 worldPosition = fyrox_worldMatrix * vec4(vertexPosition, 1.0);
                     vec3 offset = (vertexOffset.x * fyrox_cameraSideVector + vertexOffset.y * fyrox_cameraUpVector) * size;
                     gl_Position = fyrox_viewProjectionMatrix * (worldPosition + vec4(offset.x, offset.y, offset.z, 0.0));
