@@ -75,6 +75,8 @@ use crate::{
     Message, Mode,
 };
 use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
+use std::fs::File;
+use std::io::Write;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::{
     ffi::OsStr,
@@ -128,6 +130,18 @@ fn open_in_explorer<P: AsRef<Path>>(path: P) {
 fn put_path_to_clipboard(engine: &mut Engine, path: &OsStr) {
     if let Some(mut clipboard) = engine.user_interfaces.first_mut().clipboard_mut() {
         Log::verify(clipboard.set_contents(path.to_string_lossy().to_string()));
+    }
+}
+
+fn make_unique_path(parent: &Path, stem: &str, ext: &str) -> PathBuf {
+    let mut suffix = "_Copy".to_string();
+    loop {
+        let trial_copy_path = parent.join(format!("{stem}{suffix}.{ext}"));
+        if trial_copy_path.exists() {
+            suffix += "_Copy";
+        } else {
+            return trial_copy_path;
+        }
     }
 }
 
@@ -231,7 +245,32 @@ impl ContextMenu {
                     if let Some(resource) = item.untyped_resource() {
                         match resource.kind() {
                             ResourceKind::External(path) => {
-                                if let Ok(canonical_path) = path.canonicalize() {
+                                if let Some(built_in) = engine
+                                    .resource_manager
+                                    .state()
+                                    .built_in_resources
+                                    .get(&path)
+                                {
+                                    if let Some(data_source) = built_in.data_source.as_ref() {
+                                        let final_copy_path = make_unique_path(
+                                            Path::new("."),
+                                            path.to_str().unwrap(),
+                                            &data_source.extension,
+                                        );
+
+                                        match File::create(&final_copy_path) {
+                                            Ok(mut file) => {
+                                                Log::verify(file.write_all(&data_source.bytes));
+                                            }
+                                            Err(err) => {
+                                                Log::err(format!(
+                                                "Failed to create a file for resource at path {}. \
+                                                Reason: {:?}", final_copy_path.display(), err
+                                            ))
+                                            }
+                                        }
+                                    }
+                                } else if let Ok(canonical_path) = path.canonicalize() {
                                     if let (Some(parent), Some(stem), Some(ext)) = (
                                         canonical_path.parent(),
                                         canonical_path.file_stem(),
@@ -239,18 +278,7 @@ impl ContextMenu {
                                     ) {
                                         let stem = stem.to_string_lossy().to_string();
                                         let ext = ext.to_string_lossy().to_string();
-                                        let mut suffix = "_Copy".to_string();
-                                        let final_copy_path;
-                                        loop {
-                                            let trial_copy_path =
-                                                parent.join(format!("{stem}{suffix}.{ext}"));
-                                            if trial_copy_path.exists() {
-                                                suffix += "_Copy";
-                                            } else {
-                                                final_copy_path = trial_copy_path;
-                                                break;
-                                            }
-                                        }
+                                        let final_copy_path = make_unique_path(parent, &stem, &ext);
                                         Log::verify(std::fs::copy(canonical_path, final_copy_path));
                                     }
                                 }
