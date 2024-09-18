@@ -51,6 +51,7 @@ use crate::{
         },
     },
 };
+use fyrox_core::color::Color;
 use fyrox_core::value_as_u8_slice;
 use fyrox_graph::BaseSceneGraph;
 use std::{
@@ -244,6 +245,14 @@ pub struct ParticleSystem {
     #[reflect(hidden)]
     free_particles: Vec<u32>,
 
+    #[reflect(
+        description = "The maximum distance (in meters) from an observer to the particle system at \
+        which the particle system remains visible. If the distance is larger, then the particle \
+        system will fade out and eventually will be excluded from the rendering. Use this value to \
+        tweak performance. Default is 30.0"
+    )]
+    visible_distance: InheritableVariable<f32>,
+
     rng: ParticleSystemRng,
 }
 
@@ -260,6 +269,7 @@ impl Visit for ParticleSystem {
         self.particles.visit("Particles", &mut region)?;
         self.free_particles.visit("FreeParticles", &mut region)?;
         let _ = self.rng.visit("Rng", &mut region);
+        let _ = self.visible_distance.visit("VisibleDistance", &mut region);
 
         // Backward compatibility.
         if region.is_reading() {
@@ -311,6 +321,8 @@ impl TypeUuidProvider for ParticleSystem {
 }
 
 impl ParticleSystem {
+    const FADEOUT_MARGIN: f32 = 1.5;
+
     /// Returns current acceleration for particles in particle system.
     pub fn acceleration(&self) -> Vector3<f32> {
         *self.acceleration
@@ -442,6 +454,25 @@ impl ParticleSystem {
             t += dt;
         }
     }
+
+    /// Sets the maximum distance (in meters) from an observer to the particle system at which the
+    /// particle system remains visible. If the distance is larger, then the particle system will
+    /// fade out and eventually will be excluded from the rendering. Use this value to tweak
+    /// performance. The larger the particle system, the larger this value should be. Default is 10.0.
+    pub fn set_visible_distance(&mut self, distance: f32) {
+        self.visible_distance.set_value_and_mark_modified(distance);
+    }
+
+    /// Returns current visible distance of the particle system. See [`Self::set_visible_distance`]
+    /// for more info.
+    pub fn visible_distance(&self) -> f32 {
+        *self.visible_distance
+    }
+
+    fn is_distance_clipped(&self, point: &Vector3<f32>) -> bool {
+        point.metric_distance(&self.global_position())
+            > (*self.visible_distance + Self::FADEOUT_MARGIN)
+    }
 }
 
 impl Default for ParticleSystem {
@@ -475,13 +506,24 @@ impl NodeTrait for ParticleSystem {
     }
 
     fn collect_render_data(&self, ctx: &mut RenderContext) -> RdcControlFlow {
-        if !self.should_be_rendered(ctx.frustum) {
+        if !self.should_be_rendered(ctx.frustum) || self.is_distance_clipped(ctx.observer_position)
+        {
             return RdcControlFlow::Continue;
         }
 
         if renderer::is_shadow_pass(ctx.render_pass_name) && !self.cast_shadows() {
             return RdcControlFlow::Continue;
         }
+
+        let distance_to_observer = ctx
+            .observer_position
+            .metric_distance(&self.global_position());
+
+        let particle_alpha_factor = if distance_to_observer >= self.visible_distance() {
+            1.0 - (distance_to_observer - self.visible_distance()) / Self::FADEOUT_MARGIN
+        } else {
+            1.0
+        };
 
         let mut sorted_particles = Vec::new();
         for (i, particle) in self.particles.iter().enumerate() {
@@ -527,34 +569,42 @@ impl NodeTrait for ParticleSystem {
                         .transform_point(&Point3::from(particle.position))
                         .coords;
 
+                    let alpha = (particle.color.a as f32 * particle_alpha_factor) as u8;
+                    let color = Color::from_rgba(
+                        particle.color.r,
+                        particle.color.g,
+                        particle.color.b,
+                        alpha,
+                    );
+
                     [
                         Vertex {
                             position,
                             tex_coord: Vector2::default(),
                             size: particle.size,
                             rotation: particle.rotation,
-                            color: particle.color,
+                            color,
                         },
                         Vertex {
                             position,
                             tex_coord: Vector2::new(1.0, 0.0),
                             size: particle.size,
                             rotation: particle.rotation,
-                            color: particle.color,
+                            color,
                         },
                         Vertex {
                             position,
                             tex_coord: Vector2::new(1.0, 1.0),
                             size: particle.size,
                             rotation: particle.rotation,
-                            color: particle.color,
+                            color,
                         },
                         Vertex {
                             position,
                             tex_coord: Vector2::new(0.0, 1.0),
                             size: particle.size,
                             rotation: particle.rotation,
-                            color: particle.color,
+                            color,
                         },
                     ]
                 });
@@ -595,6 +645,7 @@ pub struct ParticleSystemBuilder {
     color_over_lifetime: ColorGradient,
     is_playing: bool,
     rng: ParticleSystemRng,
+    visible_distance: f32,
 }
 
 impl ParticleSystemBuilder {
@@ -612,6 +663,7 @@ impl ParticleSystemBuilder {
             color_over_lifetime: Default::default(),
             is_playing: true,
             rng: ParticleSystemRng::default(),
+            visible_distance: 30.0,
         }
     }
 
@@ -630,6 +682,13 @@ impl ParticleSystemBuilder {
     /// Sets desired acceleration for particle system.
     pub fn with_acceleration(mut self, acceleration: Vector3<f32>) -> Self {
         self.acceleration = acceleration;
+        self
+    }
+
+    /// Sets the desired visible distance for the particle system. See [`ParticleSystem::set_visible_distance`]
+    /// for more info.
+    pub fn with_visible_distance(mut self, distance: f32) -> Self {
+        self.visible_distance = distance;
         self
     }
 
@@ -669,6 +728,7 @@ impl ParticleSystemBuilder {
             color_over_lifetime: self.color_over_lifetime.into(),
             is_playing: self.is_playing.into(),
             rng: self.rng,
+            visible_distance: self.visible_distance.into(),
         }
     }
 
