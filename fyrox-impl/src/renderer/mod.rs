@@ -105,7 +105,6 @@ use glow::HasContext;
 #[cfg(not(target_arch = "wasm32"))]
 use glutin::{
     context::PossiblyCurrentContext,
-    prelude::GlSurface,
     surface::{Surface, WindowSurface},
 };
 use lazy_static::lazy_static;
@@ -113,7 +112,6 @@ use serde::{Deserialize, Serialize};
 pub use stats::*;
 use std::{any::TypeId, cell::RefCell, collections::hash_map::Entry, rc::Rc, sync::mpsc::Receiver};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
-#[cfg(not(target_arch = "wasm32"))]
 use winit::window::Window;
 
 lazy_static! {
@@ -930,6 +928,8 @@ impl Renderer {
         frame_size: (u32, u32),
         resource_manager: &ResourceManager,
         gl_kind: GlKind,
+        #[cfg(not(target_arch = "wasm32"))] gl_context: PossiblyCurrentContext,
+        #[cfg(not(target_arch = "wasm32"))] gl_surface: Surface<WindowSurface>,
     ) -> Result<Self, FrameworkError> {
         let settings = QualitySettings::default();
 
@@ -947,7 +947,14 @@ impl Renderer {
             .event_broadcaster
             .add(shader_event_sender);
 
-        let state = PipelineState::new(context, gl_kind);
+        let state = PipelineState::new(
+            context,
+            gl_kind,
+            #[cfg(not(target_arch = "wasm32"))]
+            gl_context,
+            #[cfg(not(target_arch = "wasm32"))]
+            gl_surface,
+        );
 
         // Dump available GL extensions to the log, this will help debugging graphical issues.
         Log::info(format!(
@@ -1133,6 +1140,8 @@ impl Renderer {
 
         self.deferred_light_renderer
             .set_frame_size(&self.state, new_size)?;
+
+        self.pipeline_state().set_frame_size(new_size);
 
         Ok(())
     }
@@ -1694,32 +1703,16 @@ impl Renderer {
         Ok(())
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn render_and_swap_buffers<'a>(
         &mut self,
         scenes: &SceneContainer,
         drawing_contexts: impl Iterator<Item = &'a DrawingContext>,
-        surface: &Surface<WindowSurface>,
-        context: &PossiblyCurrentContext,
         window: &Window,
     ) -> Result<(), FrameworkError> {
         self.render_frame(scenes, drawing_contexts)?;
         self.statistics.end_frame();
         window.pre_present_notify();
-        surface.swap_buffers(context)?;
-        self.statistics.finalize();
-        self.statistics.pipeline = self.state.pipeline_statistics();
-        Ok(())
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    pub(crate) fn render_and_swap_buffers<'a>(
-        &mut self,
-        scenes: &SceneContainer,
-        drawing_contexts: impl Iterator<Item = &'a DrawingContext>,
-    ) -> Result<(), FrameworkError> {
-        self.render_frame(scenes, drawing_contexts)?;
-        self.statistics.end_frame();
+        self.pipeline_state().swap_buffers()?;
         self.statistics.finalize();
         self.statistics.pipeline = self.state.pipeline_statistics();
         Ok(())

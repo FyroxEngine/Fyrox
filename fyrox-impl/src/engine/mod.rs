@@ -85,12 +85,9 @@ use fyrox_sound::{
 #[cfg(not(target_arch = "wasm32"))]
 use glutin::{
     config::ConfigTemplateBuilder,
-    context::{
-        ContextApi, ContextAttributesBuilder, GlProfile, NotCurrentGlContext,
-        PossiblyCurrentContext, Version,
-    },
+    context::{ContextApi, ContextAttributesBuilder, GlProfile, NotCurrentGlContext, Version},
     display::{GetGlDisplay, GlDisplay},
-    surface::{GlSurface, Surface, SwapInterval, WindowSurface},
+    surface::{GlSurface, SwapInterval},
 };
 #[cfg(not(target_arch = "wasm32"))]
 use glutin_winit::{DisplayBuilder, GlWindow};
@@ -192,10 +189,6 @@ pub struct InitializedGraphicsContext {
     pub renderer: Renderer,
 
     params: GraphicsContextParams,
-    #[cfg(not(target_arch = "wasm32"))]
-    gl_context: PossiblyCurrentContext,
-    #[cfg(not(target_arch = "wasm32"))]
-    gl_surface: Surface<WindowSurface>,
 }
 
 /// Graphics context of the engine, it could be in two main states:
@@ -1598,15 +1591,15 @@ impl Engine {
             );
 
             self.graphics_context = GraphicsContext::Initialized(InitializedGraphicsContext {
-                #[cfg(not(target_arch = "wasm32"))]
-                gl_context,
-                #[cfg(not(target_arch = "wasm32"))]
-                gl_surface,
                 renderer: Renderer::new(
                     glow_context,
                     (window.inner_size().width, window.inner_size().height),
                     &self.resource_manager,
                     gl_kind,
+                    #[cfg(not(target_arch = "wasm32"))]
+                    gl_context,
+                    #[cfg(not(target_arch = "wasm32"))]
+                    gl_surface,
                 )?,
                 window,
                 params: params.clone(),
@@ -1676,13 +1669,6 @@ impl Engine {
     pub fn set_frame_size(&mut self, new_size: (u32, u32)) -> Result<(), FrameworkError> {
         if let GraphicsContext::Initialized(ctx) = &mut self.graphics_context {
             ctx.renderer.set_frame_size(new_size)?;
-
-            #[cfg(not(target_arch = "wasm32"))]
-            ctx.gl_surface.resize(
-                &ctx.gl_context,
-                NonZeroU32::new(new_size.0).unwrap_or_else(|| NonZeroU32::new(1).unwrap()),
-                NonZeroU32::new(new_size.1).unwrap_or_else(|| NonZeroU32::new(1).unwrap()),
-            );
         }
 
         Ok(())
@@ -2389,27 +2375,13 @@ impl Engine {
         }
 
         if let GraphicsContext::Initialized(ref mut ctx) = self.graphics_context {
-            #[cfg(not(target_arch = "wasm32"))]
-            {
-                ctx.renderer.render_and_swap_buffers(
-                    &self.scenes,
-                    self.user_interfaces
-                        .iter()
-                        .map(|ui| ui.get_drawing_context()),
-                    &ctx.gl_surface,
-                    &ctx.gl_context,
-                    &ctx.window,
-                )?;
-            }
-            #[cfg(target_arch = "wasm32")]
-            {
-                ctx.renderer.render_and_swap_buffers(
-                    &self.scenes,
-                    self.user_interfaces
-                        .iter()
-                        .map(|ui| ui.get_drawing_context()),
-                )?;
-            }
+            ctx.renderer.render_and_swap_buffers(
+                &self.scenes,
+                self.user_interfaces
+                    .iter()
+                    .map(|ui| ui.get_drawing_context()),
+                &ctx.window,
+            )?;
         }
 
         Ok(())

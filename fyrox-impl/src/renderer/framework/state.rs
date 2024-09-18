@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::renderer::framework::error::FrameworkError;
 use crate::renderer::PipelineStatistics;
 use crate::{
     core::{color::Color, math::Rect, reflect::prelude::*, visitor::prelude::*},
@@ -25,6 +26,11 @@ use crate::{
 };
 use fyrox_core::uuid_provider;
 use glow::{Framebuffer, HasContext};
+#[cfg(not(target_arch = "wasm32"))]
+use glutin::{
+    context::PossiblyCurrentContext,
+    surface::{GlSurface, Surface, WindowSurface},
+};
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::ops::DerefMut;
@@ -256,10 +262,19 @@ pub(crate) struct InnerState {
     gl_kind: GlKind,
 
     pub(crate) queries: Vec<glow::Query>,
+
+    #[cfg(not(target_arch = "wasm32"))]
+    gl_context: PossiblyCurrentContext,
+    #[cfg(not(target_arch = "wasm32"))]
+    gl_surface: Surface<WindowSurface>,
 }
 
 impl InnerState {
-    fn new(gl_kind: GlKind) -> Self {
+    fn new(
+        gl_kind: GlKind,
+        #[cfg(not(target_arch = "wasm32"))] gl_context: PossiblyCurrentContext,
+        #[cfg(not(target_arch = "wasm32"))] gl_surface: Surface<WindowSurface>,
+    ) -> Self {
         Self {
             blend: false,
             depth_test: false,
@@ -292,6 +307,10 @@ impl InnerState {
             blend_equation: Default::default(),
             gl_kind,
             queries: Default::default(),
+            #[cfg(not(target_arch = "wasm32"))]
+            gl_context,
+            #[cfg(not(target_arch = "wasm32"))]
+            gl_surface,
         }
     }
 }
@@ -535,6 +554,8 @@ impl PipelineState {
     pub fn new(
         #[allow(unused_mut)] mut context: glow::Context,
         gl_kind: GlKind,
+        #[cfg(not(target_arch = "wasm32"))] gl_context: PossiblyCurrentContext,
+        #[cfg(not(target_arch = "wasm32"))] gl_surface: Surface<WindowSurface>,
     ) -> SharedPipelineState {
         unsafe {
             context.depth_func(CompareFunc::default() as u32);
@@ -607,7 +628,13 @@ impl PipelineState {
 
         let state = Self {
             gl: context,
-            state: RefCell::new(InnerState::new(gl_kind)),
+            state: RefCell::new(InnerState::new(
+                gl_kind,
+                #[cfg(not(target_arch = "wasm32"))]
+                gl_context,
+                #[cfg(not(target_arch = "wasm32"))]
+                gl_surface,
+            )),
             this: Default::default(),
         };
 
@@ -1081,5 +1108,31 @@ impl PipelineState {
 
     pub fn pipeline_statistics(&self) -> PipelineStatistics {
         self.state.borrow().frame_statistics
+    }
+
+    pub fn swap_buffers(&self) -> Result<(), FrameworkError> {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let state = self.state.borrow();
+            Ok(state.gl_surface.swap_buffers(&state.gl_context)?)
+        }
+
+        #[cfg(target_arch = "wasm32")]
+        {
+            Ok(())
+        }
+    }
+
+    pub fn set_frame_size(&self, #[allow(unused_variables)] new_size: (u32, u32)) {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            use std::num::NonZeroU32;
+            let state = self.state.borrow();
+            state.gl_surface.resize(
+                &state.gl_context,
+                NonZeroU32::new(new_size.0).unwrap_or_else(|| NonZeroU32::new(1).unwrap()),
+                NonZeroU32::new(new_size.1).unwrap_or_else(|| NonZeroU32::new(1).unwrap()),
+            );
+        }
     }
 }
