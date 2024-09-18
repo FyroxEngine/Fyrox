@@ -54,6 +54,8 @@ mod skybox_shader;
 mod ssao;
 mod stats;
 
+use crate::engine::error::EngineError;
+use crate::engine::GraphicsContextParams;
 use crate::{
     asset::{event::ResourceEvent, manager::ResourceManager},
     core::{
@@ -87,7 +89,7 @@ use crate::{
                 Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
                 PixelKind, WrapMode,
             },
-            state::{GlKind, PipelineState, PolygonFace, PolygonFillMode, SharedPipelineState},
+            state::{PipelineState, PolygonFace, PolygonFillMode, SharedPipelineState},
         },
         fxaa::FxaaRenderer,
         gbuffer::{GBuffer, GBufferRenderContext},
@@ -101,18 +103,13 @@ use crate::{
     scene::{camera::Camera, mesh::surface::SurfaceData, Scene, SceneContainer},
 };
 use fxhash::FxHashMap;
-use glow::HasContext;
-#[cfg(not(target_arch = "wasm32"))]
-use glutin::{
-    context::PossiblyCurrentContext,
-    surface::{Surface, WindowSurface},
-};
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 pub use stats::*;
 use std::{any::TypeId, cell::RefCell, collections::hash_map::Entry, rc::Rc, sync::mpsc::Receiver};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
-use winit::window::Window;
+use winit::event_loop::EventLoopWindowTarget;
+use winit::window::{Window, WindowBuilder};
 
 lazy_static! {
     static ref GBUFFER_PASS_NAME: ImmutableString = ImmutableString::new("GBuffer");
@@ -924,13 +921,11 @@ impl<const N: usize> Default for LightData<N> {
 
 impl Renderer {
     pub(crate) fn new(
-        context: glow::Context,
-        frame_size: (u32, u32),
         resource_manager: &ResourceManager,
-        gl_kind: GlKind,
-        #[cfg(not(target_arch = "wasm32"))] gl_context: PossiblyCurrentContext,
-        #[cfg(not(target_arch = "wasm32"))] gl_surface: Surface<WindowSurface>,
-    ) -> Result<Self, FrameworkError> {
+        params: &GraphicsContextParams,
+        window_target: &EventLoopWindowTarget<()>,
+        window_builder: WindowBuilder,
+    ) -> Result<(Window, Self), EngineError> {
         let settings = QualitySettings::default();
 
         let (texture_event_sender, texture_event_receiver) = std::sync::mpsc::channel();
@@ -947,20 +942,9 @@ impl Renderer {
             .event_broadcaster
             .add(shader_event_sender);
 
-        let state = PipelineState::new(
-            context,
-            gl_kind,
-            #[cfg(not(target_arch = "wasm32"))]
-            gl_context,
-            #[cfg(not(target_arch = "wasm32"))]
-            gl_surface,
-        );
+        let (window, state) = PipelineState::new(params, window_target, window_builder)?;
 
-        // Dump available GL extensions to the log, this will help debugging graphical issues.
-        Log::info(format!(
-            "Supported GL Extensions: {:?}",
-            state.gl.supported_extensions()
-        ));
+        let frame_size = (window.inner_size().width, window.inner_size().height);
 
         let mut shader_cache = ShaderCache::default();
 
@@ -968,7 +952,7 @@ impl Renderer {
             shader_cache.get(&state, &shader.resource);
         }
 
-        Ok(Self {
+        let renderer = Self {
             backbuffer: FrameBuffer::backbuffer(&state),
             frame_size,
             deferred_light_renderer: DeferredLightRenderer::new(&state, frame_size, &settings)?,
@@ -1077,7 +1061,9 @@ impl Renderer {
             matrix_storage: MatrixStorageCache::new(&state)?,
             state,
             visibility_cache: Default::default(),
-        })
+        };
+
+        Ok((window, renderer))
     }
 
     /// Adds a custom render pass.

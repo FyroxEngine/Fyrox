@@ -24,18 +24,35 @@ use crate::{
     core::{color::Color, math::Rect, reflect::prelude::*, visitor::prelude::*},
     renderer::framework::framebuffer::{CullFace, DrawParameters},
 };
+use fyrox_core::log::Log;
 use fyrox_core::uuid_provider;
 use glow::{Framebuffer, HasContext};
 #[cfg(not(target_arch = "wasm32"))]
 use glutin::{
+    config::ConfigTemplateBuilder,
     context::PossiblyCurrentContext,
-    surface::{GlSurface, Surface, WindowSurface},
+    context::{ContextApi, ContextAttributesBuilder, GlProfile, NotCurrentGlContext, Version},
+    display::{GetGlDisplay, GlDisplay},
+    surface::{GlSurface, SwapInterval},
+    surface::{Surface, WindowSurface},
 };
+#[cfg(not(target_arch = "wasm32"))]
+use glutin_winit::{DisplayBuilder, GlWindow};
+#[cfg(not(target_arch = "wasm32"))]
+use raw_window_handle::HasRawWindowHandle;
+#[cfg(not(target_arch = "wasm32"))]
+use std::{ffi::CString, num::NonZeroU32};
+
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::ops::DerefMut;
 use std::rc::{Rc, Weak};
+
+use crate::engine::error::EngineError;
+use crate::engine::GraphicsContextParams;
 use strum_macros::{AsRefStr, EnumString, VariantNames};
+use winit::event_loop::EventLoopWindowTarget;
+use winit::window::{Window, WindowBuilder};
 
 #[derive(
     Copy,
@@ -552,11 +569,183 @@ impl Default for PolygonFillMode {
 
 impl PipelineState {
     pub fn new(
-        #[allow(unused_mut)] mut context: glow::Context,
-        gl_kind: GlKind,
-        #[cfg(not(target_arch = "wasm32"))] gl_context: PossiblyCurrentContext,
-        #[cfg(not(target_arch = "wasm32"))] gl_surface: Surface<WindowSurface>,
-    ) -> SharedPipelineState {
+        #[allow(unused_variables)] params: &GraphicsContextParams,
+        window_target: &EventLoopWindowTarget<()>,
+        window_builder: WindowBuilder,
+    ) -> Result<(Window, SharedPipelineState), EngineError> {
+        #[cfg(not(target_arch = "wasm32"))]
+        let (window, gl_context, gl_surface, mut context, gl_kind) = {
+            let mut template = ConfigTemplateBuilder::new()
+                .prefer_hardware_accelerated(Some(true))
+                .with_stencil_size(8)
+                .with_depth_size(24);
+
+            if let Some(sample_count) = params.msaa_sample_count {
+                template = template.with_multisampling(sample_count);
+            }
+
+            let (opt_window, gl_config) = DisplayBuilder::new()
+                .with_window_builder(Some(window_builder))
+                .build(window_target, template, |mut configs| {
+                    configs.next().unwrap()
+                })?;
+
+            let window = opt_window.unwrap();
+
+            let raw_window_handle = window.raw_window_handle();
+
+            let gl_display = gl_config.display();
+
+            #[cfg(debug_assertions)]
+            let debug = true;
+
+            #[cfg(not(debug_assertions))]
+            let debug = true;
+
+            let gl3_3_core_context_attributes = ContextAttributesBuilder::new()
+                .with_debug(debug)
+                .with_profile(GlProfile::Core)
+                .with_context_api(ContextApi::OpenGl(Some(Version::new(3, 3))))
+                .build(Some(raw_window_handle));
+
+            let gles3_context_attributes = ContextAttributesBuilder::new()
+                .with_debug(debug)
+                .with_profile(GlProfile::Core)
+                .with_context_api(ContextApi::Gles(Some(Version::new(3, 0))))
+                .build(Some(raw_window_handle));
+
+            unsafe {
+                let attrs = window.build_surface_attributes(Default::default());
+
+                let gl_surface = gl_config
+                    .display()
+                    .create_window_surface(&gl_config, &attrs)?;
+
+                let (non_current_gl_context, gl_kind) = if let Ok(gl3_3_core_context) =
+                    gl_display.create_context(&gl_config, &gl3_3_core_context_attributes)
+                {
+                    (gl3_3_core_context, GlKind::OpenGL)
+                } else {
+                    (
+                        gl_display.create_context(&gl_config, &gles3_context_attributes)?,
+                        GlKind::OpenGLES,
+                    )
+                };
+
+                let gl_context = non_current_gl_context.make_current(&gl_surface)?;
+
+                if params.vsync {
+                    Log::verify(gl_surface.set_swap_interval(
+                        &gl_context,
+                        SwapInterval::Wait(NonZeroU32::new(1).unwrap()),
+                    ));
+                }
+
+                (
+                    window,
+                    gl_context,
+                    gl_surface,
+                    glow::Context::from_loader_function(|s| {
+                        gl_display.get_proc_address(&CString::new(s).unwrap())
+                    }),
+                    gl_kind,
+                )
+            }
+        };
+
+        #[cfg(target_arch = "wasm32")]
+        let (window, mut context, gl_kind) = {
+            use crate::{
+                core::wasm_bindgen::JsCast,
+                dpi::{LogicalSize, PhysicalSize},
+                platform::web::WindowExtWebSys,
+            };
+            use serde::{Deserialize, Serialize};
+
+            let inner_size = window_builder.window_attributes().inner_size;
+            let window = window_builder.build(window_target).unwrap();
+
+            let web_window = crate::core::web_sys::window().unwrap();
+            let scale_factor = web_window.device_pixel_ratio();
+
+            let canvas = window.canvas().unwrap();
+
+            // For some reason winit completely ignores the requested inner size. This is a quick-n-dirty fix
+            // that also handles HiDPI monitors. It has one issue - if user changes DPI, it won't be handled
+            // correctly.
+            if let Some(inner_size) = inner_size {
+                let physical_inner_size: PhysicalSize<u32> = inner_size.to_physical(scale_factor);
+
+                canvas.set_width(physical_inner_size.width);
+                canvas.set_height(physical_inner_size.height);
+
+                let logical_inner_size: LogicalSize<f64> = inner_size.to_logical(scale_factor);
+                Log::verify(
+                    canvas
+                        .style()
+                        .set_property("width", &format!("{}px", logical_inner_size.width)),
+                );
+                Log::verify(
+                    canvas
+                        .style()
+                        .set_property("height", &format!("{}px", logical_inner_size.height)),
+                );
+            }
+
+            let document = web_window.document().unwrap();
+            let body = document.body().unwrap();
+
+            body.append_child(&canvas)
+                .expect("Append canvas to HTML body");
+
+            #[derive(Serialize, Deserialize)]
+            #[allow(non_snake_case)]
+            struct ContextAttributes {
+                alpha: bool,
+                premultipliedAlpha: bool,
+                powerPreference: String,
+            }
+
+            let context_attributes = ContextAttributes {
+                // Prevent blending with the background of the canvas. Otherwise the background
+                // will "leak" and interfere with the pixels produced by the engine.
+                alpha: false,
+                premultipliedAlpha: false,
+                // Try to use high performance GPU.
+                powerPreference: "high-performance".to_string(),
+            };
+
+            let webgl2_context = canvas
+                .get_context_with_context_options(
+                    "webgl2",
+                    &serde_wasm_bindgen::to_value(&context_attributes).unwrap(),
+                )
+                .unwrap()
+                .unwrap()
+                .dyn_into::<crate::core::web_sys::WebGl2RenderingContext>()
+                .unwrap();
+            (
+                window,
+                glow::Context::from_webgl2_context(webgl2_context),
+                GlKind::OpenGLES,
+            )
+        };
+
+        #[cfg(not(target_arch = "wasm32"))]
+        gl_surface.resize(
+            &gl_context,
+            NonZeroU32::new(window.inner_size().width)
+                .unwrap_or_else(|| NonZeroU32::new(1).unwrap()),
+            NonZeroU32::new(window.inner_size().height)
+                .unwrap_or_else(|| NonZeroU32::new(1).unwrap()),
+        );
+
+        // Dump available GL extensions to the log, this will help debugging graphical issues.
+        Log::info(format!(
+            "Supported GL Extensions: {:?}",
+            context.supported_extensions()
+        ));
+
         unsafe {
             context.depth_func(CompareFunc::default() as u32);
 
@@ -642,7 +831,7 @@ impl PipelineState {
 
         *shared.this.borrow_mut() = Some(Rc::downgrade(&shared));
 
-        shared
+        Ok((window, shared))
     }
 
     pub fn weak(&self) -> Weak<Self> {
