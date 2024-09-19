@@ -59,13 +59,6 @@ impl From<FrameworkError> for EngineError {
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-impl From<glutin::error::Error> for EngineError {
-    fn from(e: glutin::error::Error) -> Self {
-        Self::Custom(format!("{:?}", e))
-    }
-}
-
 impl From<Box<dyn Error>> for EngineError {
     fn from(e: Box<dyn Error>) -> Self {
         Self::Custom(format!("{:?}", e))
