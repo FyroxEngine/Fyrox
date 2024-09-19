@@ -28,11 +28,12 @@ use crate::{
     renderer::{
         framework::{
             error::FrameworkError,
-            framebuffer::{DrawParameters, FrameBuffer},
+            framebuffer::FrameBuffer,
             geometry_buffer::{GeometryBuffer, GeometryBufferKind},
             gpu_program::{GpuProgram, UniformLocation},
             gpu_texture::GpuTexture,
             state::PipelineState,
+            DrawParameters,
         },
         RenderPassStatistics,
     },

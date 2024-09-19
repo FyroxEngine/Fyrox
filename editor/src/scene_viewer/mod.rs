@@ -50,7 +50,7 @@ use crate::{
             BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
             VerticalAlignment, BRUSH_BRIGHT_BLUE, BRUSH_DARKEST,
         },
-        renderer::framework::state::PolygonFillMode,
+        renderer::framework::PolygonFillMode,
         resource::texture::TextureResource,
         scene::camera::Projection,
     },

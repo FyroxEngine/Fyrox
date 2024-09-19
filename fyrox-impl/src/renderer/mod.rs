@@ -56,6 +56,7 @@ mod stats;
 
 use crate::engine::error::EngineError;
 use crate::engine::GraphicsContextParams;
+use crate::renderer::framework::PolygonFillMode;
 use crate::{
     asset::{event::ResourceEvent, manager::ResourceManager},
     core::{
@@ -81,7 +82,7 @@ use crate::{
         forward_renderer::{ForwardRenderContext, ForwardRenderer},
         framework::{
             error::FrameworkError,
-            framebuffer::{Attachment, AttachmentKind, DrawParameters, FrameBuffer},
+            framebuffer::{Attachment, AttachmentKind, FrameBuffer},
             geometry_buffer::{
                 DrawCallStatistics, ElementRange, GeometryBuffer, GeometryBufferKind,
             },
@@ -89,7 +90,8 @@ use crate::{
                 Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
                 PixelKind, WrapMode,
             },
-            state::{PipelineState, PolygonFace, PolygonFillMode, SharedPipelineState},
+            state::{PipelineState, SharedPipelineState},
+            DrawParameters, PolygonFace,
         },
         fxaa::FxaaRenderer,
         gbuffer::{GBuffer, GBufferRenderContext},

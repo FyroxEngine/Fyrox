@@ -23,14 +23,15 @@ use crate::{
     renderer::{
         framework::{
             error::FrameworkError,
-            framebuffer::{Attachment, AttachmentKind, DrawParameters, FrameBuffer},
+            framebuffer::{Attachment, AttachmentKind, FrameBuffer},
             geometry_buffer::{ElementRange, GeometryBuffer},
             gpu_program::{GpuProgram, UniformLocation},
             gpu_texture::{
                 GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind,
             },
             pixel_buffer::PixelBuffer,
-            state::{ColorMask, PipelineState},
+            state::PipelineState,
+            ColorMask, DrawParameters,
         },
         make_viewport_matrix,
     },

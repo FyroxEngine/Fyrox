@@ -39,19 +39,16 @@ use crate::{
         debug_renderer::DebugRenderer,
         framework::{
             error::FrameworkError,
-            framebuffer::{
-                Attachment, AttachmentKind, BlendParameters, CullFace, DrawParameters, FrameBuffer,
-            },
+            framebuffer::{Attachment, AttachmentKind, FrameBuffer},
             geometry_buffer::{GeometryBuffer, GeometryBufferKind},
             gpu_program::{GpuProgram, UniformLocation},
             gpu_texture::{
                 Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
                 PixelKind, WrapMode,
             },
-            state::{
-                BlendEquation, BlendFactor, BlendFunc, BlendMode, ColorMask, CompareFunc,
-                PipelineState,
-            },
+            state::PipelineState,
+            BlendEquation, BlendFactor, BlendFunc, BlendMode, BlendParameters, ColorMask,
+            CompareFunc, CullFace, DrawParameters,
         },
         occlusion::optimizer::VisibilityBufferOptimizer,
         storage::MatrixStorage,

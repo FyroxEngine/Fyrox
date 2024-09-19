@@ -24,10 +24,10 @@ use crate::{
         renderer::{
             framework::{
                 error::FrameworkError,
-                framebuffer::{BlendParameters, DrawParameters},
                 geometry_buffer::{ElementRange, GeometryBuffer, GeometryBufferKind},
                 gpu_program::{GpuProgram, UniformLocation},
-                state::{BlendFactor, BlendFunc, PipelineState},
+                state::PipelineState,
+                BlendFactor, BlendFunc, BlendParameters, DrawParameters,
             },
             RenderPassStatistics, SceneRenderPass, SceneRenderPassContext,
         },

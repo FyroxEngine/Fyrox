@@ -18,18 +18,19 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::renderer::framework::DrawParameters;
 use crate::{
-    core::{color::Color, math::Rect, reflect::prelude::*, visitor::prelude::*},
+    core::{color::Color, math::Rect},
     renderer::framework::{
         error::FrameworkError,
         geometry_buffer::{DrawCallStatistics, ElementRange, GeometryBuffer},
         gpu_program::{GpuProgram, GpuProgramBinding},
         gpu_texture::{CubeMapFace, GpuTexture, GpuTextureKind, PixelElementKind},
-        state::{BlendEquation, BlendFunc, ColorMask, PipelineState, StencilFunc, StencilOp},
+        state::PipelineState,
+        ColorMask,
     },
 };
 use glow::HasContext;
-use serde::{Deserialize, Serialize};
 use std::rc::Weak;
 use std::{cell::RefCell, rc::Rc};
 
@@ -50,52 +51,6 @@ pub struct FrameBuffer {
     fbo: Option<glow::Framebuffer>,
     depth_attachment: Option<Attachment>,
     color_attachments: Vec<Attachment>,
-}
-
-#[derive(
-    Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Serialize, Deserialize, Visit, Eq, Reflect,
-)]
-#[repr(u32)]
-pub enum CullFace {
-    Back = glow::BACK,
-    Front = glow::FRONT,
-}
-
-impl Default for CullFace {
-    fn default() -> Self {
-        Self::Back
-    }
-}
-
-#[derive(Serialize, Deserialize, Default, Visit, Debug, PartialEq, Clone, Eq, Reflect)]
-pub struct BlendParameters {
-    pub func: BlendFunc,
-    pub equation: BlendEquation,
-}
-
-#[derive(Serialize, Deserialize, Visit, Debug, PartialEq, Clone, Eq, Reflect)]
-pub struct DrawParameters {
-    pub cull_face: Option<CullFace>,
-    pub color_write: ColorMask,
-    pub depth_write: bool,
-    pub stencil_test: Option<StencilFunc>,
-    pub depth_test: bool,
-    pub blend: Option<BlendParameters>,
-    pub stencil_op: StencilOp,
-}
-
-impl Default for DrawParameters {
-    fn default() -> Self {
-        Self {
-            cull_face: Some(CullFace::Back),
-            color_write: Default::default(),
-            depth_write: true,
-            stencil_test: None,
-            depth_test: true,
-            blend: None,
-            stencil_op: Default::default(),
-        }
-    }
 }
 
 unsafe fn set_attachment(state: &PipelineState, gl_attachment_kind: u32, texture: &GpuTexture) {

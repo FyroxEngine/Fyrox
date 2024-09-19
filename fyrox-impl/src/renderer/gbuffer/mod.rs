@@ -42,15 +42,14 @@ use crate::{
         debug_renderer::DebugRenderer,
         framework::{
             error::FrameworkError,
-            framebuffer::{
-                Attachment, AttachmentKind, BlendParameters, DrawParameters, FrameBuffer,
-            },
+            framebuffer::{Attachment, AttachmentKind, FrameBuffer},
             geometry_buffer::{ElementRange, GeometryBuffer, GeometryBufferKind},
             gpu_texture::{
                 Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
                 PixelKind, WrapMode,
             },
-            state::{BlendFactor, BlendFunc, PipelineState},
+            state::PipelineState,
+            BlendFactor, BlendFunc, BlendParameters, DrawParameters,
         },
         gbuffer::decal::DecalShader,
         occlusion::OcclusionTester,

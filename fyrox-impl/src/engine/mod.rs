@@ -33,19 +33,30 @@ use crate::{
     asset::{
         event::ResourceEvent,
         manager::{ResourceManager, ResourceWaitContext},
+        state::ResourceState,
         untyped::{ResourceKind, UntypedResource},
         Resource,
     },
     core::{
-        algebra::Vector2, futures::executor::block_on, instant, log::Log, pool::Handle,
-        reflect::Reflect, task::TaskPool, variable::try_inherit_properties, visitor::VisitError,
+        algebra::Vector2,
+        futures::{executor::block_on, future::join_all},
+        instant,
+        log::Log,
+        notify,
+        notify::{EventKind, RecursiveMode, Watcher},
+        pool::Handle,
+        reflect::Reflect,
+        task::TaskPool,
+        variable::try_inherit_properties,
+        visitor::VisitError,
     },
     engine::{error::EngineError, task::TaskPoolHandler},
     event::Event,
     graph::{BaseSceneGraph, NodeMapping, SceneGraph},
     gui::{
-        font::loader::FontLoader, font::Font, font::BUILT_IN_FONT, loader::UserInterfaceLoader,
-        UiUpdateSwitches, UserInterface,
+        constructor::WidgetConstructorContainer, font::loader::FontLoader, font::Font,
+        font::BUILT_IN_FONT, loader::UserInterfaceLoader, UiContainer, UiUpdateSwitches,
+        UserInterface,
     },
     material::{
         self,
@@ -53,7 +64,10 @@ use crate::{
         shader::{loader::ShaderLoader, Shader, ShaderResource, ShaderResourceExtension},
         Material,
     },
-    plugin::{Plugin, PluginContext, PluginRegistrationContext},
+    plugin::{
+        dynamic::DynamicPlugin, DynamicPluginState, Plugin, PluginContainer, PluginContext,
+        PluginRegistrationContext,
+    },
     renderer::{framework::error::FrameworkError, Renderer},
     resource::{
         curve::{loader::CurveLoader, CurveResourceState},
@@ -64,9 +78,14 @@ use crate::{
         base::NodeScriptMessage,
         camera::SkyBoxKind,
         graph::{GraphUpdateSwitches, NodePool},
+        mesh::surface::{self, SurfaceData, SurfaceDataLoader},
         navmesh,
         node::{constructor::NodeConstructorContainer, Node},
         sound::SoundEngine,
+        tilemap::{
+            brush::{TileMapBrush, TileMapBrushLoader},
+            tileset::{TileSet, TileSetLoader},
+        },
         Scene, SceneContainer, SceneLoader,
     },
     script::{
@@ -82,36 +101,21 @@ use fyrox_sound::{
     buffer::{loader::SoundBufferLoader, SoundBuffer},
     renderer::hrtf::{HrirSphereLoader, HrirSphereResourceData},
 };
-
-use std::fs::File;
-use std::io::{Cursor, Read};
-use std::sync::atomic;
-use std::sync::atomic::AtomicBool;
 use std::{
     any::TypeId,
     collections::{HashSet, VecDeque},
     fmt::{Display, Formatter},
+    fs::File,
+    io::{Cursor, Read},
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
     sync::{
+        atomic::{self, AtomicBool},
         mpsc::{channel, Receiver, Sender},
         Arc,
     },
     time::Duration,
 };
-
-use crate::plugin::dynamic::DynamicPlugin;
-use crate::plugin::{DynamicPluginState, PluginContainer};
-use crate::scene::mesh::surface;
-use crate::scene::mesh::surface::{SurfaceData, SurfaceDataLoader};
-use crate::scene::tilemap::brush::{TileMapBrush, TileMapBrushLoader};
-use crate::scene::tilemap::tileset::{TileSet, TileSetLoader};
-use fyrox_core::futures::future::join_all;
-use fyrox_core::notify;
-use fyrox_core::notify::{EventKind, RecursiveMode, Watcher};
-use fyrox_resource::state::ResourceState;
-use fyrox_ui::constructor::WidgetConstructorContainer;
-use fyrox_ui::UiContainer;
 use winit::{
     dpi::{Position, Size},
     event_loop::EventLoopWindowTarget,

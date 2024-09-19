@@ -42,7 +42,7 @@ use crate::{
             shader::{Shader, ShaderResource},
             MaterialResource,
         },
-        renderer::framework::state::PolygonFillMode,
+        renderer::framework::PolygonFillMode,
         resource::{
             curve::{CurveResource, CurveResourceState},
             model::{MaterialSearchOptions, Model, ModelResource},

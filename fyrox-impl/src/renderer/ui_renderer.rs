@@ -35,17 +35,16 @@ use crate::{
     renderer::{
         framework::{
             error::FrameworkError,
-            framebuffer::{BlendParameters, DrawParameters, FrameBuffer},
+            framebuffer::FrameBuffer,
             geometry_buffer::{
                 AttributeDefinition, AttributeKind, BufferBuilder, ElementKind, ElementRange,
                 GeometryBuffer, GeometryBufferBuilder, GeometryBufferKind,
             },
             gpu_program::{GpuProgram, UniformLocation},
             gpu_texture::GpuTexture,
-            state::{
-                BlendFactor, BlendFunc, ColorMask, CompareFunc, PipelineState, StencilAction,
-                StencilFunc, StencilOp,
-            },
+            state::PipelineState,
+            BlendFactor, BlendFunc, BlendParameters, ColorMask, CompareFunc, DrawParameters,
+            StencilAction, StencilFunc, StencilOp,
         },
         RenderPassStatistics, TextureCache,
     },

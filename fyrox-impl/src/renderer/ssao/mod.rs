@@ -30,7 +30,7 @@ use crate::{
     renderer::{
         framework::{
             error::FrameworkError,
-            framebuffer::{Attachment, AttachmentKind, DrawParameters, FrameBuffer},
+            framebuffer::{Attachment, AttachmentKind, FrameBuffer},
             geometry_buffer::{GeometryBuffer, GeometryBufferKind},
             gpu_program::{GpuProgram, UniformLocation},
             gpu_texture::{
@@ -38,6 +38,7 @@ use crate::{
                 PixelKind, WrapMode,
             },
             state::PipelineState,
+            DrawParameters,
         },
         gbuffer::GBuffer,
         ssao::blur::Blur,

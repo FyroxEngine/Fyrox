@@ -260,7 +260,7 @@ use crate::{
         TypeUuidProvider,
     },
     lazy_static::lazy_static,
-    renderer::framework::framebuffer::DrawParameters,
+    renderer::framework::DrawParameters,
 };
 use fyrox_resource::embedded_data_source;
 use fyrox_resource::manager::BuiltInResource;

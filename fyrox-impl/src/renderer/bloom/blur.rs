@@ -25,7 +25,7 @@ use crate::{
     renderer::{
         framework::{
             error::FrameworkError,
-            framebuffer::{Attachment, AttachmentKind, DrawParameters, FrameBuffer},
+            framebuffer::{Attachment, AttachmentKind, FrameBuffer},
             geometry_buffer::GeometryBuffer,
             gpu_program::{GpuProgram, UniformLocation},
             gpu_texture::{
@@ -33,6 +33,7 @@ use crate::{
                 PixelKind, WrapMode,
             },
             state::PipelineState,
+            DrawParameters,
         },
         make_viewport_matrix, RenderPassStatistics,
     },

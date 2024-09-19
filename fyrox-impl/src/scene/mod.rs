@@ -48,6 +48,7 @@ pub mod terrain;
 pub mod tilemap;
 pub mod transform;
 
+use crate::renderer::framework::PolygonFillMode;
 use crate::{
     asset::{self, manager::ResourceManager, untyped::UntypedResource},
     core::{
@@ -61,7 +62,6 @@ use crate::{
     },
     engine::SerializationContext,
     graph::NodeHandleMap,
-    renderer::framework::state::PolygonFillMode,
     resource::texture::TextureResource,
     scene::{
         base::BaseBuilder,

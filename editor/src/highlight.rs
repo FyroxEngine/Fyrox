@@ -33,16 +33,15 @@ use crate::{
             bundle::{BundleRenderContext, RenderContext, RenderDataBundleStorage},
             framework::{
                 error::FrameworkError,
-                framebuffer::{
-                    Attachment, AttachmentKind, BlendParameters, DrawParameters, FrameBuffer,
-                },
+                framebuffer::{Attachment, AttachmentKind, FrameBuffer},
                 geometry_buffer::{ElementRange, GeometryBuffer, GeometryBufferKind},
                 gpu_program::{GpuProgram, UniformLocation},
                 gpu_texture::{
                     Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter,
                     MinificationFilter, PixelKind, WrapMode,
                 },
-                state::{BlendFactor, BlendFunc, PipelineState},
+                state::PipelineState,
+                BlendFactor, BlendFunc, BlendParameters, DrawParameters,
             },
             RenderPassStatistics, SceneRenderPass, SceneRenderPassContext,
         },

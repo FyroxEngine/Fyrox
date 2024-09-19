@@ -18,14 +18,18 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::framework::error::FrameworkError;
-use crate::renderer::PipelineStatistics;
+use crate::renderer::framework::{BlendFactor, BlendMode, StencilAction};
 use crate::{
-    core::{color::Color, math::Rect, reflect::prelude::*, visitor::prelude::*},
-    renderer::framework::framebuffer::{CullFace, DrawParameters},
+    core::{color::Color, log::Log, math::Rect},
+    engine::{error::EngineError, GraphicsContextParams},
+    renderer::{
+        framework::{
+            error::FrameworkError, BlendEquation, BlendFunc, ColorMask, CompareFunc, CullFace,
+            DrawParameters, PolygonFace, PolygonFillMode, StencilFunc, StencilOp,
+        },
+        PipelineStatistics,
+    },
 };
-use fyrox_core::log::Log;
-use fyrox_core::uuid_provider;
 use glow::{Framebuffer, HasContext};
 #[cfg(not(target_arch = "wasm32"))]
 use glutin::{
@@ -40,196 +44,113 @@ use glutin::{
 use glutin_winit::{DisplayBuilder, GlWindow};
 #[cfg(not(target_arch = "wasm32"))]
 use raw_window_handle::HasRawWindowHandle;
-#[cfg(not(target_arch = "wasm32"))]
-use std::{ffi::CString, num::NonZeroU32};
-
-use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::ops::DerefMut;
 use std::rc::{Rc, Weak};
+#[cfg(not(target_arch = "wasm32"))]
+use std::{ffi::CString, num::NonZeroU32};
+use winit::{
+    event_loop::EventLoopWindowTarget,
+    window::{Window, WindowBuilder},
+};
 
-use crate::engine::error::EngineError;
-use crate::engine::GraphicsContextParams;
-use strum_macros::{AsRefStr, EnumString, VariantNames};
-use winit::event_loop::EventLoopWindowTarget;
-use winit::window::{Window, WindowBuilder};
-
-#[derive(
-    Copy,
-    Clone,
-    PartialOrd,
-    PartialEq,
-    Eq,
-    Ord,
-    Hash,
-    Visit,
-    Serialize,
-    Deserialize,
-    Debug,
-    Reflect,
-    AsRefStr,
-    EnumString,
-    VariantNames,
-)]
-#[repr(u32)]
-pub enum CompareFunc {
-    /// Never passes.
-    Never = glow::NEVER,
-
-    /// Passes if the incoming value is less than the stored value.
-    Less = glow::LESS,
-
-    /// Passes if the incoming value is equal to the stored value.
-    Equal = glow::EQUAL,
-
-    /// Passes if the incoming value is less than or equal to the stored value.
-    LessOrEqual = glow::LEQUAL,
-
-    /// Passes if the incoming value is greater than the stored value.
-    Greater = glow::GREATER,
-
-    /// Passes if the incoming value is not equal to the stored value.
-    NotEqual = glow::NOTEQUAL,
-
-    /// Passes if the incoming value is greater than or equal to the stored value.
-    GreaterOrEqual = glow::GEQUAL,
-
-    /// Always passes.
-    Always = glow::ALWAYS,
+pub trait ToGlConstant {
+    fn into_gl(self) -> u32;
 }
 
-impl Default for CompareFunc {
-    fn default() -> Self {
-        Self::LessOrEqual
-    }
-}
-
-#[derive(
-    Copy,
-    Clone,
-    Hash,
-    PartialOrd,
-    PartialEq,
-    Eq,
-    Ord,
-    Serialize,
-    Deserialize,
-    Visit,
-    Debug,
-    Reflect,
-    AsRefStr,
-    EnumString,
-    VariantNames,
-)]
-#[repr(u32)]
-pub enum BlendFactor {
-    Zero = glow::ZERO,
-    One = glow::ONE,
-    SrcColor = glow::SRC_COLOR,
-    OneMinusSrcColor = glow::ONE_MINUS_SRC_COLOR,
-    DstColor = glow::DST_COLOR,
-    OneMinusDstColor = glow::ONE_MINUS_DST_COLOR,
-    SrcAlpha = glow::SRC_ALPHA,
-    OneMinusSrcAlpha = glow::ONE_MINUS_SRC_ALPHA,
-    DstAlpha = glow::DST_ALPHA,
-    OneMinusDstAlpha = glow::ONE_MINUS_DST_ALPHA,
-    ConstantColor = glow::CONSTANT_COLOR,
-    OneMinusConstantColor = glow::ONE_MINUS_CONSTANT_COLOR,
-    ConstantAlpha = glow::CONSTANT_ALPHA,
-    OneMinusConstantAlpha = glow::ONE_MINUS_CONSTANT_ALPHA,
-    SrcAlphaSaturate = glow::SRC_ALPHA_SATURATE,
-    Src1Color = glow::SRC1_COLOR,
-    OneMinusSrc1Color = glow::ONE_MINUS_SRC1_COLOR,
-    Src1Alpha = glow::SRC1_ALPHA,
-    OneMinusSrc1Alpha = glow::ONE_MINUS_SRC1_ALPHA,
-}
-
-impl Default for BlendFactor {
-    fn default() -> Self {
-        Self::Zero
-    }
-}
-
-#[derive(
-    Copy, Clone, Hash, PartialOrd, PartialEq, Eq, Ord, Serialize, Deserialize, Visit, Debug, Reflect,
-)]
-#[repr(u32)]
-pub enum BlendMode {
-    Add = glow::FUNC_ADD,
-    Subtract = glow::FUNC_SUBTRACT,
-    ReverseSubtract = glow::FUNC_REVERSE_SUBTRACT,
-    Min = glow::MIN,
-    Max = glow::MAX,
-}
-
-impl Default for BlendMode {
-    fn default() -> Self {
-        Self::Add
-    }
-}
-
-#[derive(
-    Copy,
-    Clone,
-    Default,
-    PartialOrd,
-    PartialEq,
-    Ord,
-    Eq,
-    Hash,
-    Serialize,
-    Deserialize,
-    Visit,
-    Debug,
-    Reflect,
-)]
-pub struct BlendEquation {
-    pub rgb: BlendMode,
-    pub alpha: BlendMode,
-}
-
-#[derive(
-    Copy, Clone, PartialOrd, PartialEq, Ord, Eq, Hash, Serialize, Deserialize, Visit, Debug, Reflect,
-)]
-pub struct BlendFunc {
-    pub sfactor: BlendFactor,
-    pub dfactor: BlendFactor,
-    pub alpha_sfactor: BlendFactor,
-    pub alpha_dfactor: BlendFactor,
-}
-
-impl BlendFunc {
-    pub fn new(sfactor: BlendFactor, dfactor: BlendFactor) -> Self {
-        Self {
-            sfactor,
-            dfactor,
-            alpha_sfactor: sfactor,
-            alpha_dfactor: dfactor,
-        }
-    }
-
-    pub fn new_separate(
-        sfactor: BlendFactor,
-        dfactor: BlendFactor,
-        alpha_sfactor: BlendFactor,
-        alpha_dfactor: BlendFactor,
-    ) -> Self {
-        Self {
-            sfactor,
-            dfactor,
-            alpha_sfactor,
-            alpha_dfactor,
+impl ToGlConstant for PolygonFace {
+    fn into_gl(self) -> u32 {
+        match self {
+            Self::Front => glow::FRONT,
+            Self::Back => glow::BACK,
+            Self::FrontAndBack => glow::FRONT_AND_BACK,
         }
     }
 }
 
-impl Default for BlendFunc {
-    fn default() -> Self {
-        Self {
-            sfactor: BlendFactor::One,
-            dfactor: BlendFactor::Zero,
-            alpha_sfactor: BlendFactor::One,
-            alpha_dfactor: BlendFactor::Zero,
+impl ToGlConstant for PolygonFillMode {
+    fn into_gl(self) -> u32 {
+        match self {
+            Self::Point => glow::POINT,
+            Self::Line => glow::LINE,
+            Self::Fill => glow::FILL,
+        }
+    }
+}
+
+impl ToGlConstant for StencilAction {
+    fn into_gl(self) -> u32 {
+        match self {
+            StencilAction::Keep => glow::KEEP,
+            StencilAction::Zero => glow::ZERO,
+            StencilAction::Replace => glow::REPLACE,
+            StencilAction::Incr => glow::INCR,
+            StencilAction::IncrWrap => glow::INCR_WRAP,
+            StencilAction::Decr => glow::DECR,
+            StencilAction::DecrWrap => glow::DECR_WRAP,
+            StencilAction::Invert => glow::INVERT,
+        }
+    }
+}
+
+impl ToGlConstant for BlendMode {
+    fn into_gl(self) -> u32 {
+        match self {
+            Self::Add => glow::FUNC_ADD,
+            Self::Subtract => glow::FUNC_SUBTRACT,
+            Self::ReverseSubtract => glow::FUNC_REVERSE_SUBTRACT,
+            Self::Min => glow::MIN,
+            Self::Max => glow::MAX,
+        }
+    }
+}
+
+impl ToGlConstant for BlendFactor {
+    fn into_gl(self) -> u32 {
+        match self {
+            Self::Zero => glow::ZERO,
+            Self::One => glow::ONE,
+            Self::SrcColor => glow::SRC_COLOR,
+            Self::OneMinusSrcColor => glow::ONE_MINUS_SRC_COLOR,
+            Self::DstColor => glow::DST_COLOR,
+            Self::OneMinusDstColor => glow::ONE_MINUS_DST_COLOR,
+            Self::SrcAlpha => glow::SRC_ALPHA,
+            Self::OneMinusSrcAlpha => glow::ONE_MINUS_SRC_ALPHA,
+            Self::DstAlpha => glow::DST_ALPHA,
+            Self::OneMinusDstAlpha => glow::ONE_MINUS_DST_ALPHA,
+            Self::ConstantColor => glow::CONSTANT_COLOR,
+            Self::OneMinusConstantColor => glow::ONE_MINUS_CONSTANT_COLOR,
+            Self::ConstantAlpha => glow::CONSTANT_ALPHA,
+            Self::OneMinusConstantAlpha => glow::ONE_MINUS_CONSTANT_ALPHA,
+            Self::SrcAlphaSaturate => glow::SRC_ALPHA_SATURATE,
+            Self::Src1Color => glow::SRC1_COLOR,
+            Self::OneMinusSrc1Color => glow::ONE_MINUS_SRC1_COLOR,
+            Self::Src1Alpha => glow::SRC1_ALPHA,
+            Self::OneMinusSrc1Alpha => glow::ONE_MINUS_SRC1_ALPHA,
+        }
+    }
+}
+
+impl ToGlConstant for CompareFunc {
+    fn into_gl(self) -> u32 {
+        match self {
+            Self::Never => glow::NEVER,
+            Self::Less => glow::LESS,
+            Self::Equal => glow::EQUAL,
+            Self::LessOrEqual => glow::LEQUAL,
+            Self::Greater => glow::GREATER,
+            Self::NotEqual => glow::NOTEQUAL,
+            Self::GreaterOrEqual => glow::GEQUAL,
+            Self::Always => glow::ALWAYS,
+        }
+    }
+}
+
+impl ToGlConstant for CullFace {
+    fn into_gl(self) -> u32 {
+        match self {
+            Self::Back => glow::BACK,
+            Self::Front => glow::FRONT,
         }
     }
 }
@@ -380,191 +301,6 @@ impl Default for TextureUnit {
 struct TextureUnitsStorage {
     active_unit: u32,
     units: [TextureUnit; 32],
-}
-
-#[derive(
-    Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Serialize, Deserialize, Visit, Eq, Reflect,
-)]
-pub struct ColorMask {
-    pub red: bool,
-    pub green: bool,
-    pub blue: bool,
-    pub alpha: bool,
-}
-
-impl Default for ColorMask {
-    fn default() -> Self {
-        Self {
-            red: true,
-            green: true,
-            blue: true,
-            alpha: true,
-        }
-    }
-}
-
-impl ColorMask {
-    pub fn all(value: bool) -> Self {
-        Self {
-            red: value,
-            green: value,
-            blue: value,
-            alpha: value,
-        }
-    }
-}
-
-#[derive(
-    Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Serialize, Deserialize, Visit, Eq, Reflect,
-)]
-pub struct StencilFunc {
-    pub func: CompareFunc,
-    pub ref_value: u32,
-    pub mask: u32,
-}
-
-impl Default for StencilFunc {
-    fn default() -> Self {
-        Self {
-            func: CompareFunc::Always,
-            ref_value: 0,
-            mask: 0xFFFF_FFFF,
-        }
-    }
-}
-
-#[derive(
-    Copy,
-    Clone,
-    PartialOrd,
-    PartialEq,
-    Hash,
-    Debug,
-    Serialize,
-    Deserialize,
-    Visit,
-    Eq,
-    Reflect,
-    AsRefStr,
-    EnumString,
-    VariantNames,
-)]
-#[repr(u32)]
-pub enum StencilAction {
-    /// Keeps the current value.
-    Keep = glow::KEEP,
-
-    /// Sets the stencil buffer value to 0.
-    Zero = glow::ZERO,
-
-    /// Sets the stencil buffer value to ref value.
-    Replace = glow::REPLACE,
-
-    /// Increments the current stencil buffer value.
-    /// Clamps to the maximum representable unsigned value.
-    Incr = glow::INCR,
-
-    /// Increments the current stencil buffer value.
-    /// Wraps stencil buffer value to zero when incrementing the maximum representable
-    /// unsigned value.
-    IncrWrap = glow::INCR_WRAP,
-
-    /// Decrements the current stencil buffer value.
-    /// Clamps to 0.
-    Decr = glow::DECR,
-
-    /// Decrements the current stencil buffer value.
-    /// Wraps stencil buffer value to the maximum representable unsigned value when
-    /// decrementing a stencil buffer value of zero.
-    DecrWrap = glow::DECR_WRAP,
-
-    /// Bitwise inverts the current stencil buffer value.
-    Invert = glow::INVERT,
-}
-
-impl Default for StencilAction {
-    fn default() -> Self {
-        Self::Keep
-    }
-}
-
-#[derive(
-    Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Serialize, Deserialize, Visit, Eq, Reflect,
-)]
-pub struct StencilOp {
-    pub fail: StencilAction,
-    pub zfail: StencilAction,
-    pub zpass: StencilAction,
-    pub write_mask: u32,
-}
-
-impl Default for StencilOp {
-    fn default() -> Self {
-        Self {
-            fail: Default::default(),
-            zfail: Default::default(),
-            zpass: Default::default(),
-            write_mask: 0xFFFF_FFFF,
-        }
-    }
-}
-
-#[derive(
-    Copy,
-    Clone,
-    PartialOrd,
-    PartialEq,
-    Hash,
-    Debug,
-    Deserialize,
-    Visit,
-    Eq,
-    Reflect,
-    AsRefStr,
-    EnumString,
-    VariantNames,
-)]
-#[repr(u32)]
-pub enum PolygonFace {
-    Front = glow::FRONT,
-    Back = glow::BACK,
-    FrontAndBack = glow::FRONT_AND_BACK,
-}
-
-impl Default for PolygonFace {
-    fn default() -> Self {
-        Self::FrontAndBack
-    }
-}
-
-#[derive(
-    Copy,
-    Clone,
-    PartialOrd,
-    PartialEq,
-    Hash,
-    Debug,
-    Deserialize,
-    Visit,
-    Eq,
-    Reflect,
-    AsRefStr,
-    EnumString,
-    VariantNames,
-)]
-#[repr(u32)]
-pub enum PolygonFillMode {
-    Point = glow::POINT,
-    Line = glow::LINE,
-    Fill = glow::FILL,
-}
-
-uuid_provider!(PolygonFillMode = "47aff01a-7daa-427c-874c-87464a7ffe28");
-
-impl Default for PolygonFillMode {
-    fn default() -> Self {
-        Self::Fill
-    }
 }
 
 impl PipelineState {
@@ -747,7 +483,7 @@ impl PipelineState {
         ));
 
         unsafe {
-            context.depth_func(CompareFunc::default() as u32);
+            context.depth_func(CompareFunc::default().into_gl());
 
             #[cfg(debug_assertions)]
             {
@@ -853,8 +589,10 @@ impl PipelineState {
             state.polygon_face = polygon_face;
 
             unsafe {
-                self.gl
-                    .polygon_mode(state.polygon_face as u32, state.polygon_fill_mode as u32)
+                self.gl.polygon_mode(
+                    state.polygon_face.into_gl(),
+                    state.polygon_fill_mode.into_gl(),
+                )
             }
         }
     }
@@ -968,7 +706,7 @@ impl PipelineState {
         if state.cull_face != cull_face {
             state.cull_face = cull_face;
 
-            unsafe { self.gl.cull_face(state.cull_face as u32) }
+            unsafe { self.gl.cull_face(state.cull_face.into_gl()) }
         }
     }
 
@@ -1039,10 +777,10 @@ impl PipelineState {
 
             unsafe {
                 self.gl.blend_func_separate(
-                    state.blend_func.sfactor as u32,
-                    state.blend_func.dfactor as u32,
-                    state.blend_func.alpha_sfactor as u32,
-                    state.blend_func.alpha_dfactor as u32,
+                    state.blend_func.sfactor.into_gl(),
+                    state.blend_func.dfactor.into_gl(),
+                    state.blend_func.alpha_sfactor.into_gl(),
+                    state.blend_func.alpha_dfactor.into_gl(),
                 );
             }
         }
@@ -1055,8 +793,8 @@ impl PipelineState {
 
             unsafe {
                 self.gl.blend_equation_separate(
-                    state.blend_equation.rgb as u32,
-                    state.blend_equation.alpha as u32,
+                    state.blend_equation.rgb.into_gl(),
+                    state.blend_equation.alpha.into_gl(),
                 );
             }
         }
@@ -1068,7 +806,7 @@ impl PipelineState {
             state.depth_func = depth_func;
 
             unsafe {
-                self.gl.depth_func(depth_func as u32);
+                self.gl.depth_func(depth_func.into_gl());
             }
         }
     }
@@ -1130,7 +868,7 @@ impl PipelineState {
 
             unsafe {
                 self.gl.stencil_func(
-                    state.stencil_func.func as u32,
+                    state.stencil_func.func.into_gl(),
                     state.stencil_func.ref_value as i32,
                     state.stencil_func.mask,
                 );
@@ -1145,9 +883,9 @@ impl PipelineState {
 
             unsafe {
                 self.gl.stencil_op(
-                    state.stencil_op.fail as u32,
-                    state.stencil_op.zfail as u32,
-                    state.stencil_op.zpass as u32,
+                    state.stencil_op.fail.into_gl(),
+                    state.stencil_op.zfail.into_gl(),
+                    state.stencil_op.zpass.into_gl(),
                 );
 
                 self.gl.stencil_mask(state.stencil_op.write_mask);

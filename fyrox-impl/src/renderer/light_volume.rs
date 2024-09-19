@@ -29,13 +29,12 @@ use crate::{
         flat_shader::FlatShader,
         framework::{
             error::FrameworkError,
-            framebuffer::{BlendParameters, DrawParameters, FrameBuffer},
+            framebuffer::FrameBuffer,
             geometry_buffer::{ElementRange, GeometryBuffer, GeometryBufferKind},
             gpu_program::{GpuProgram, UniformLocation},
-            state::{
-                BlendFactor, BlendFunc, ColorMask, CompareFunc, PipelineState, StencilAction,
-                StencilFunc, StencilOp,
-            },
+            state::PipelineState,
+            BlendFactor, BlendFunc, BlendParameters, ColorMask, CompareFunc, DrawParameters,
+            StencilAction, StencilFunc, StencilOp,
         },
         gbuffer::GBuffer,
         RenderPassStatistics,

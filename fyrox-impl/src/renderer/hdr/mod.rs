@@ -29,12 +29,13 @@ use crate::{
         cache::texture::TextureCache,
         framework::{
             error::FrameworkError,
-            framebuffer::{Attachment, AttachmentKind, DrawParameters, FrameBuffer},
+            framebuffer::{Attachment, AttachmentKind, FrameBuffer},
             geometry_buffer::{DrawCallStatistics, GeometryBuffer},
             gpu_texture::{
                 GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind,
             },
             state::PipelineState,
+            DrawParameters,
         },
         hdr::{
             adaptation::{AdaptationChain, AdaptationShader},
