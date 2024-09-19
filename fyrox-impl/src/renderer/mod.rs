@@ -29,8 +29,6 @@
 #![warn(missing_docs)]
 #![deny(unsafe_code)]
 
-// Framework is 100% unsafe internally due to FFI calls.
-#[allow(unsafe_code)]
 pub mod framework;
 
 pub mod bundle;
@@ -54,6 +52,7 @@ mod skybox_shader;
 mod ssao;
 mod stats;
 
+use crate::renderer::framework::GeometryBufferExt;
 use crate::{
     asset::{event::ResourceEvent, manager::ResourceManager},
     core::{
@@ -942,7 +941,12 @@ impl Renderer {
             .event_broadcaster
             .add(shader_event_sender);
 
-        let (window, state) = PipelineState::new(params, window_target, window_builder)?;
+        let (window, state) = PipelineState::new(
+            params.vsync,
+            params.msaa_sample_count,
+            window_target,
+            window_builder,
+        )?;
 
         let frame_size = (window.inner_size().width, window.inner_size().height);
 

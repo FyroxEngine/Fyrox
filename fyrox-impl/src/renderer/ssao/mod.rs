@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::renderer::framework::GeometryBufferExt;
 use crate::{
     core::{
         algebra::{Matrix3, Matrix4, Vector2, Vector3},

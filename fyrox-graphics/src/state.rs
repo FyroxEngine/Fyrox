@@ -18,17 +18,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::framework::{BlendFactor, BlendMode, StencilAction};
 use crate::{
     core::{color::Color, log::Log, math::Rect},
-    engine::{error::EngineError, GraphicsContextParams},
-    renderer::{
-        framework::{
-            error::FrameworkError, BlendEquation, BlendFunc, ColorMask, CompareFunc, CullFace,
-            DrawParameters, PolygonFace, PolygonFillMode, StencilFunc, StencilOp,
-        },
-        PipelineStatistics,
-    },
+    error::FrameworkError,
+    stats::PipelineStatistics,
+    BlendEquation, BlendFactor, BlendFunc, BlendMode, ColorMask, CompareFunc, CullFace,
+    DrawParameters, PolygonFace, PolygonFillMode, StencilAction, StencilFunc, StencilOp,
 };
 use glow::{Framebuffer, HasContext};
 #[cfg(not(target_arch = "wasm32"))]
@@ -305,10 +300,11 @@ struct TextureUnitsStorage {
 
 impl PipelineState {
     pub fn new(
-        #[allow(unused_variables)] params: &GraphicsContextParams,
+        #[allow(unused_variables)] vsync: bool,
+        #[allow(unused_variables)] msaa_sample_count: Option<u8>,
         window_target: &EventLoopWindowTarget<()>,
         window_builder: WindowBuilder,
-    ) -> Result<(Window, SharedPipelineState), EngineError> {
+    ) -> Result<(Window, SharedPipelineState), FrameworkError> {
         #[cfg(not(target_arch = "wasm32"))]
         let (window, gl_context, gl_surface, mut context, gl_kind) = {
             let mut template = ConfigTemplateBuilder::new()
@@ -316,7 +312,7 @@ impl PipelineState {
                 .with_stencil_size(8)
                 .with_depth_size(24);
 
-            if let Some(sample_count) = params.msaa_sample_count {
+            if let Some(sample_count) = msaa_sample_count {
                 template = template.with_multisampling(sample_count);
             }
 
@@ -370,7 +366,7 @@ impl PipelineState {
 
                 let gl_context = non_current_gl_context.make_current(&gl_surface)?;
 
-                if params.vsync {
+                if vsync {
                     Log::verify(gl_surface.set_swap_interval(
                         &gl_context,
                         SwapInterval::Wait(NonZeroU32::new(1).unwrap()),
@@ -391,12 +387,12 @@ impl PipelineState {
 
         #[cfg(target_arch = "wasm32")]
         let (window, mut context, gl_kind) = {
-            use crate::{
-                core::wasm_bindgen::JsCast,
+            use crate::core::wasm_bindgen::JsCast;
+            use serde::{Deserialize, Serialize};
+            use winit::{
                 dpi::{LogicalSize, PhysicalSize},
                 platform::web::WindowExtWebSys,
             };
-            use serde::{Deserialize, Serialize};
 
             let inner_size = window_builder.window_attributes().inner_size;
             let window = window_builder.build(window_target).unwrap();

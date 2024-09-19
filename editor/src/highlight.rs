@@ -49,6 +49,7 @@ use crate::{
     },
     Editor,
 };
+use fyrox::renderer::framework::GeometryBufferExt;
 use std::{any::TypeId, cell::RefCell, rc::Rc};
 
 struct EdgeDetectShader {

@@ -18,450 +18,191 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#![allow(missing_docs)] // TODO
+//! Rendering framework.
 
-use crate::core::{reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*};
-use serde::{Deserialize, Serialize};
-use strum_macros::{AsRefStr, EnumString, VariantNames};
+use crate::{
+    resource::texture::{
+        TextureKind, TextureMagnificationFilter, TextureMinificationFilter, TexturePixelKind,
+        TextureWrapMode,
+    },
+    scene::mesh::{
+        buffer::{VertexAttributeDataType, VertexBuffer},
+        surface::SurfaceData,
+    },
+};
+pub use fyrox_graphics::*;
+use fyrox_graphics::{
+    error::FrameworkError,
+    geometry_buffer::{
+        AttributeDefinition, AttributeKind, BufferBuilder, GeometryBuffer, GeometryBufferBuilder,
+        GeometryBufferKind,
+    },
+    gpu_texture::{GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind, WrapMode},
+    state::PipelineState,
+};
 
-pub mod error;
-pub mod framebuffer;
-pub mod geometry_buffer;
-pub mod gpu_program;
-pub mod gpu_texture;
-pub mod pixel_buffer;
-pub mod query;
-pub mod state;
-
-#[derive(
-    Copy,
-    Clone,
-    PartialOrd,
-    PartialEq,
-    Hash,
-    Debug,
-    Deserialize,
-    Visit,
-    Eq,
-    Reflect,
-    AsRefStr,
-    EnumString,
-    VariantNames,
-    TypeUuidProvider,
-)]
-#[type_uuid(id = "47aff01a-7daa-427c-874c-87464a7ffe28")]
-pub enum PolygonFillMode {
-    Point,
-    Line,
-    Fill,
-}
-
-impl Default for PolygonFillMode {
-    fn default() -> Self {
-        Self::Fill
+impl From<TextureKind> for GpuTextureKind {
+    fn from(v: TextureKind) -> Self {
+        match v {
+            TextureKind::Line { length } => GpuTextureKind::Line {
+                length: length as usize,
+            },
+            TextureKind::Rectangle { width, height } => GpuTextureKind::Rectangle {
+                width: width as usize,
+                height: height as usize,
+            },
+            TextureKind::Cube { width, height } => GpuTextureKind::Cube {
+                width: width as usize,
+                height: height as usize,
+            },
+            TextureKind::Volume {
+                width,
+                height,
+                depth,
+            } => GpuTextureKind::Volume {
+                width: width as usize,
+                height: height as usize,
+                depth: depth as usize,
+            },
+        }
     }
 }
 
-#[derive(
-    Copy,
-    Clone,
-    PartialOrd,
-    PartialEq,
-    Eq,
-    Ord,
-    Hash,
-    Visit,
-    Serialize,
-    Deserialize,
-    Debug,
-    Reflect,
-    AsRefStr,
-    EnumString,
-    VariantNames,
-)]
-pub enum CompareFunc {
-    /// Never passes.
-    Never,
-
-    /// Passes if the incoming value is less than the stored value.
-    Less,
-
-    /// Passes if the incoming value is equal to the stored value.
-    Equal,
-
-    /// Passes if the incoming value is less than or equal to the stored value.
-    LessOrEqual,
-
-    /// Passes if the incoming value is greater than the stored value.
-    Greater,
-
-    /// Passes if the incoming value is not equal to the stored value.
-    NotEqual,
-
-    /// Passes if the incoming value is greater than or equal to the stored value.
-    GreaterOrEqual,
-
-    /// Always passes.
-    Always,
-}
-
-impl Default for CompareFunc {
-    fn default() -> Self {
-        Self::LessOrEqual
+impl From<TexturePixelKind> for PixelKind {
+    fn from(texture_kind: TexturePixelKind) -> Self {
+        match texture_kind {
+            TexturePixelKind::R8 => Self::R8,
+            TexturePixelKind::RGB8 => Self::RGB8,
+            TexturePixelKind::RGBA8 => Self::RGBA8,
+            TexturePixelKind::RG8 => Self::RG8,
+            TexturePixelKind::R16 => Self::R16,
+            TexturePixelKind::RG16 => Self::RG16,
+            TexturePixelKind::BGR8 => Self::BGR8,
+            TexturePixelKind::BGRA8 => Self::BGRA8,
+            TexturePixelKind::RGB16 => Self::RGB16,
+            TexturePixelKind::RGBA16 => Self::RGBA16,
+            TexturePixelKind::RGB16F => Self::RGB16F,
+            TexturePixelKind::DXT1RGB => Self::DXT1RGB,
+            TexturePixelKind::DXT1RGBA => Self::DXT1RGBA,
+            TexturePixelKind::DXT3RGBA => Self::DXT3RGBA,
+            TexturePixelKind::DXT5RGBA => Self::DXT5RGBA,
+            TexturePixelKind::R8RGTC => Self::R8RGTC,
+            TexturePixelKind::RG8RGTC => Self::RG8RGTC,
+            TexturePixelKind::RGB32F => Self::RGB32F,
+            TexturePixelKind::RGBA32F => Self::RGBA32F,
+            TexturePixelKind::Luminance8 => Self::L8,
+            TexturePixelKind::LuminanceAlpha8 => Self::LA8,
+            TexturePixelKind::Luminance16 => Self::L16,
+            TexturePixelKind::LuminanceAlpha16 => Self::LA16,
+            TexturePixelKind::R32F => Self::R32F,
+            TexturePixelKind::R16F => Self::R16F,
+        }
     }
 }
 
-#[derive(
-    Copy,
-    Clone,
-    Hash,
-    PartialOrd,
-    PartialEq,
-    Eq,
-    Ord,
-    Serialize,
-    Deserialize,
-    Visit,
-    Debug,
-    Reflect,
-    AsRefStr,
-    EnumString,
-    VariantNames,
-)]
-pub enum BlendFactor {
-    Zero,
-    One,
-    SrcColor,
-    OneMinusSrcColor,
-    DstColor,
-    OneMinusDstColor,
-    SrcAlpha,
-    OneMinusSrcAlpha,
-    DstAlpha,
-    OneMinusDstAlpha,
-    ConstantColor,
-    OneMinusConstantColor,
-    ConstantAlpha,
-    OneMinusConstantAlpha,
-    SrcAlphaSaturate,
-    Src1Color,
-    OneMinusSrc1Color,
-    Src1Alpha,
-    OneMinusSrc1Alpha,
-}
-
-impl Default for BlendFactor {
-    fn default() -> Self {
-        Self::Zero
+impl From<TextureMagnificationFilter> for MagnificationFilter {
+    fn from(v: TextureMagnificationFilter) -> Self {
+        match v {
+            TextureMagnificationFilter::Nearest => Self::Nearest,
+            TextureMagnificationFilter::Linear => Self::Linear,
+        }
     }
 }
 
-#[derive(
-    Copy, Clone, Hash, PartialOrd, PartialEq, Eq, Ord, Serialize, Deserialize, Visit, Debug, Reflect,
-)]
-pub enum BlendMode {
-    Add,
-    Subtract,
-    ReverseSubtract,
-    Min,
-    Max,
-}
-
-impl Default for BlendMode {
-    fn default() -> Self {
-        Self::Add
+impl From<TextureMinificationFilter> for MinificationFilter {
+    fn from(v: TextureMinificationFilter) -> Self {
+        match v {
+            TextureMinificationFilter::Nearest => Self::Nearest,
+            TextureMinificationFilter::NearestMipMapNearest => Self::NearestMipMapNearest,
+            TextureMinificationFilter::NearestMipMapLinear => Self::NearestMipMapLinear,
+            TextureMinificationFilter::Linear => Self::Linear,
+            TextureMinificationFilter::LinearMipMapNearest => Self::LinearMipMapNearest,
+            TextureMinificationFilter::LinearMipMapLinear => Self::LinearMipMapLinear,
+        }
     }
 }
 
-#[derive(
-    Copy,
-    Clone,
-    Default,
-    PartialOrd,
-    PartialEq,
-    Ord,
-    Eq,
-    Hash,
-    Serialize,
-    Deserialize,
-    Visit,
-    Debug,
-    Reflect,
-)]
-pub struct BlendEquation {
-    pub rgb: BlendMode,
-    pub alpha: BlendMode,
+impl From<TextureWrapMode> for WrapMode {
+    fn from(v: TextureWrapMode) -> Self {
+        match v {
+            TextureWrapMode::Repeat => WrapMode::Repeat,
+            TextureWrapMode::ClampToEdge => WrapMode::ClampToEdge,
+            TextureWrapMode::ClampToBorder => WrapMode::ClampToBorder,
+            TextureWrapMode::MirroredRepeat => WrapMode::MirroredRepeat,
+            TextureWrapMode::MirrorClampToEdge => WrapMode::MirrorClampToEdge,
+        }
+    }
 }
 
-#[derive(
-    Copy, Clone, PartialOrd, PartialEq, Ord, Eq, Hash, Serialize, Deserialize, Visit, Debug, Reflect,
-)]
-pub struct BlendFunc {
-    pub sfactor: BlendFactor,
-    pub dfactor: BlendFactor,
-    pub alpha_sfactor: BlendFactor,
-    pub alpha_dfactor: BlendFactor,
+/// Extension trait for [`BufferBuilder`].
+pub trait BufferBuilderExt {
+    /// Creates [`BufferBuilder`] from a [`VertexBuffer`].
+    fn from_vertex_buffer(buffer: &VertexBuffer, kind: GeometryBufferKind) -> Self;
 }
 
-impl BlendFunc {
-    pub fn new(sfactor: BlendFactor, dfactor: BlendFactor) -> Self {
+impl BufferBuilderExt for BufferBuilder {
+    fn from_vertex_buffer(buffer: &VertexBuffer, kind: GeometryBufferKind) -> Self {
         Self {
-            sfactor,
-            dfactor,
-            alpha_sfactor: sfactor,
-            alpha_dfactor: dfactor,
-        }
-    }
-
-    pub fn new_separate(
-        sfactor: BlendFactor,
-        dfactor: BlendFactor,
-        alpha_sfactor: BlendFactor,
-        alpha_dfactor: BlendFactor,
-    ) -> Self {
-        Self {
-            sfactor,
-            dfactor,
-            alpha_sfactor,
-            alpha_dfactor,
-        }
-    }
-}
-
-impl Default for BlendFunc {
-    fn default() -> Self {
-        Self {
-            sfactor: BlendFactor::One,
-            dfactor: BlendFactor::Zero,
-            alpha_sfactor: BlendFactor::One,
-            alpha_dfactor: BlendFactor::Zero,
-        }
-    }
-}
-
-#[derive(
-    Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Serialize, Deserialize, Visit, Eq, Reflect,
-)]
-pub struct ColorMask {
-    pub red: bool,
-    pub green: bool,
-    pub blue: bool,
-    pub alpha: bool,
-}
-
-impl Default for ColorMask {
-    fn default() -> Self {
-        Self {
-            red: true,
-            green: true,
-            blue: true,
-            alpha: true,
+            element_size: buffer.vertex_size() as usize,
+            kind,
+            attributes: buffer
+                .layout()
+                .iter()
+                .map(|a| AttributeDefinition {
+                    location: a.shader_location as u32,
+                    kind: match (a.data_type, a.size) {
+                        (VertexAttributeDataType::F32, 1) => AttributeKind::Float,
+                        (VertexAttributeDataType::F32, 2) => AttributeKind::Float2,
+                        (VertexAttributeDataType::F32, 3) => AttributeKind::Float3,
+                        (VertexAttributeDataType::F32, 4) => AttributeKind::Float4,
+                        (VertexAttributeDataType::U32, 1) => AttributeKind::UnsignedInt,
+                        (VertexAttributeDataType::U32, 2) => AttributeKind::UnsignedInt2,
+                        (VertexAttributeDataType::U32, 3) => AttributeKind::UnsignedInt3,
+                        (VertexAttributeDataType::U32, 4) => AttributeKind::UnsignedInt4,
+                        (VertexAttributeDataType::U16, 1) => AttributeKind::UnsignedShort,
+                        (VertexAttributeDataType::U16, 2) => AttributeKind::UnsignedShort2,
+                        (VertexAttributeDataType::U16, 3) => AttributeKind::UnsignedShort3,
+                        (VertexAttributeDataType::U16, 4) => AttributeKind::UnsignedShort4,
+                        (VertexAttributeDataType::U8, 1) => AttributeKind::UnsignedByte,
+                        (VertexAttributeDataType::U8, 2) => AttributeKind::UnsignedByte2,
+                        (VertexAttributeDataType::U8, 3) => AttributeKind::UnsignedByte3,
+                        (VertexAttributeDataType::U8, 4) => AttributeKind::UnsignedByte4,
+                        _ => unreachable!(),
+                    },
+                    normalized: a.normalized,
+                    divisor: a.divisor as u32,
+                })
+                .collect(),
+            data: buffer.raw_data().as_ptr(),
+            data_size: buffer.raw_data().len(),
         }
     }
 }
 
-impl ColorMask {
-    pub fn all(value: bool) -> Self {
-        Self {
-            red: value,
-            green: value,
-            blue: value,
-            alpha: value,
-        }
-    }
+/// Extension trait for [`GeometryBuffer`].
+pub trait GeometryBufferExt: Sized {
+    /// Creates [`GeometryBuffer`] from [`SurfaceData`].
+    fn from_surface_data(
+        data: &SurfaceData,
+        kind: GeometryBufferKind,
+        state: &PipelineState,
+    ) -> Result<Self, FrameworkError>;
 }
 
-#[derive(
-    Copy,
-    Clone,
-    PartialOrd,
-    PartialEq,
-    Hash,
-    Debug,
-    Deserialize,
-    Visit,
-    Eq,
-    Reflect,
-    AsRefStr,
-    EnumString,
-    VariantNames,
-)]
-pub enum PolygonFace {
-    Front,
-    Back,
-    FrontAndBack,
-}
+impl GeometryBufferExt for GeometryBuffer {
+    fn from_surface_data(
+        data: &SurfaceData,
+        kind: GeometryBufferKind,
+        state: &PipelineState,
+    ) -> Result<Self, FrameworkError> {
+        let geometry_buffer = GeometryBufferBuilder::new(ElementKind::Triangle)
+            .with_buffer_builder(BufferBuilder::from_vertex_buffer(&data.vertex_buffer, kind))
+            .build(state)?;
 
-impl Default for PolygonFace {
-    fn default() -> Self {
-        Self::FrontAndBack
-    }
-}
+        geometry_buffer
+            .bind(state)
+            .set_triangles(data.geometry_buffer.triangles_ref());
 
-#[derive(
-    Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Serialize, Deserialize, Visit, Eq, Reflect,
-)]
-pub struct StencilFunc {
-    pub func: CompareFunc,
-    pub ref_value: u32,
-    pub mask: u32,
-}
-
-impl Default for StencilFunc {
-    fn default() -> Self {
-        Self {
-            func: CompareFunc::Always,
-            ref_value: 0,
-            mask: 0xFFFF_FFFF,
-        }
-    }
-}
-
-#[derive(
-    Copy,
-    Clone,
-    PartialOrd,
-    PartialEq,
-    Hash,
-    Debug,
-    Serialize,
-    Deserialize,
-    Visit,
-    Eq,
-    Reflect,
-    AsRefStr,
-    EnumString,
-    VariantNames,
-)]
-pub enum StencilAction {
-    /// Keeps the current value.
-    Keep,
-
-    /// Sets the stencil buffer value to 0.
-    Zero,
-
-    /// Sets the stencil buffer value to ref value.
-    Replace,
-
-    /// Increments the current stencil buffer value.
-    /// Clamps to the maximum representable unsigned value.
-    Incr,
-
-    /// Increments the current stencil buffer value.
-    /// Wraps stencil buffer value to zero when incrementing the maximum representable
-    /// unsigned value.
-    IncrWrap,
-
-    /// Decrements the current stencil buffer value.
-    /// Clamps to 0.
-    Decr,
-
-    /// Decrements the current stencil buffer value.
-    /// Wraps stencil buffer value to the maximum representable unsigned value when
-    /// decrementing a stencil buffer value of zero.
-    DecrWrap,
-
-    /// Bitwise inverts the current stencil buffer value.
-    Invert,
-}
-
-impl Default for StencilAction {
-    fn default() -> Self {
-        Self::Keep
-    }
-}
-
-#[derive(
-    Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Serialize, Deserialize, Visit, Eq, Reflect,
-)]
-pub struct StencilOp {
-    pub fail: StencilAction,
-    pub zfail: StencilAction,
-    pub zpass: StencilAction,
-    pub write_mask: u32,
-}
-
-impl Default for StencilOp {
-    fn default() -> Self {
-        Self {
-            fail: Default::default(),
-            zfail: Default::default(),
-            zpass: Default::default(),
-            write_mask: 0xFFFF_FFFF,
-        }
-    }
-}
-
-#[derive(
-    Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Serialize, Deserialize, Visit, Eq, Reflect,
-)]
-pub enum CullFace {
-    Back,
-    Front,
-}
-
-impl Default for CullFace {
-    fn default() -> Self {
-        Self::Back
-    }
-}
-
-#[derive(Serialize, Deserialize, Default, Visit, Debug, PartialEq, Clone, Eq, Reflect)]
-pub struct BlendParameters {
-    pub func: BlendFunc,
-    pub equation: BlendEquation,
-}
-
-#[derive(Serialize, Deserialize, Visit, Debug, PartialEq, Clone, Eq, Reflect)]
-pub struct DrawParameters {
-    pub cull_face: Option<CullFace>,
-    pub color_write: ColorMask,
-    pub depth_write: bool,
-    pub stencil_test: Option<StencilFunc>,
-    pub depth_test: bool,
-    pub blend: Option<BlendParameters>,
-    pub stencil_op: StencilOp,
-}
-
-impl Default for DrawParameters {
-    fn default() -> Self {
-        Self {
-            cull_face: Some(CullFace::Back),
-            color_write: Default::default(),
-            depth_write: true,
-            stencil_test: None,
-            depth_test: true,
-            blend: None,
-            stencil_op: Default::default(),
-        }
-    }
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub enum ElementRange {
-    Full,
-    Specific { offset: usize, count: usize },
-}
-
-impl Default for ElementRange {
-    fn default() -> Self {
-        Self::Full
-    }
-}
-
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
-pub enum ElementKind {
-    Triangle,
-    Line,
-    Point,
-}
-
-impl ElementKind {
-    fn index_per_element(self) -> usize {
-        match self {
-            ElementKind::Triangle => 3,
-            ElementKind::Line => 2,
-            ElementKind::Point => 1,
-        }
+        Ok(geometry_buffer)
     }
 }

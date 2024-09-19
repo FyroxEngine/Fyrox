@@ -18,21 +18,17 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::framework::DrawParameters;
 use crate::{
     core::{color::Color, math::Rect},
-    renderer::framework::{
-        error::FrameworkError,
-        geometry_buffer::{DrawCallStatistics, GeometryBuffer},
-        gpu_program::{GpuProgram, GpuProgramBinding},
-        gpu_texture::{CubeMapFace, GpuTexture, GpuTextureKind, PixelElementKind},
-        state::PipelineState,
-        ColorMask, ElementRange,
-    },
+    error::FrameworkError,
+    geometry_buffer::{DrawCallStatistics, GeometryBuffer},
+    gpu_program::{GpuProgram, GpuProgramBinding},
+    gpu_texture::{CubeMapFace, GpuTexture, GpuTextureKind, PixelElementKind},
+    state::PipelineState,
+    ColorMask, DrawParameters, ElementRange,
 };
 use glow::HasContext;
-use std::rc::Weak;
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, rc::Rc, rc::Weak};
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Eq)]
 pub enum AttachmentKind {

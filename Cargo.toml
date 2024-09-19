@@ -16,7 +16,7 @@ members = [
     "fyrox-dylib",
     "fyrox",
     "fyrox-impl"
-, "project-manager"]
+, "project-manager", "fyrox-graphics"]
 resolver = "2"
 
 [profile.dev]

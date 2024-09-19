@@ -1,4 +1,4 @@
-use crate::renderer::framework::{error::FrameworkError, state::PipelineState};
+use crate::{error::FrameworkError, state::PipelineState};
 use glow::HasContext;
 use std::{cell::Cell, rc::Weak};
 

@@ -21,6 +21,7 @@
 //! Contains all possible errors that may occur during rendering, initialization of
 //! renderer structures, or GAPI.
 
+use std::error::Error;
 use std::ffi::NulError;
 use std::fmt::{Display, Formatter};
 
@@ -164,5 +165,11 @@ impl From<glutin::error::Error> for FrameworkError {
 impl From<String> for FrameworkError {
     fn from(v: String) -> Self {
         Self::Custom(v)
+    }
+}
+
+impl From<Box<dyn Error>> for FrameworkError {
+    fn from(e: Box<dyn Error>) -> Self {
+        Self::Custom(format!("{:?}", e))
     }
 }
