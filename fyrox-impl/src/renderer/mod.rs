@@ -874,6 +874,7 @@ fn blit_pixels(
             depth_test: false,
             blend: None,
             stencil_op: Default::default(),
+            scissor_box: None,
         },
         ElementRange::Full,
         |mut program_binding| {

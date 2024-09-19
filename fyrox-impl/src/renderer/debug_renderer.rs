@@ -168,6 +168,7 @@ impl DebugRenderer {
                 depth_test: true,
                 blend: None,
                 stencil_op: Default::default(),
+                scissor_box: None,
             },
             ElementRange::Full,
             |mut program_binding| {

@@ -246,6 +246,7 @@ impl LightVolumeRenderer {
                         zpass: StencilAction::Replace,
                         write_mask: 0xFFFF_FFFF,
                     },
+                    scissor_box: None,
                 },
                 ElementRange::Full,
                 |mut program_binding| {
@@ -282,6 +283,7 @@ impl LightVolumeRenderer {
                         zpass: StencilAction::Zero,
                         ..Default::default()
                     },
+                    scissor_box: None,
                 },
                 ElementRange::Full,
                 |mut program_binding| {
@@ -337,6 +339,7 @@ impl LightVolumeRenderer {
                         zpass: StencilAction::Replace,
                         write_mask: 0xFFFF_FFFF,
                     },
+                    scissor_box: None,
                 },
                 ElementRange::Full,
                 |mut program_binding| {
@@ -373,6 +376,7 @@ impl LightVolumeRenderer {
                         zpass: StencilAction::Zero,
                         ..Default::default()
                     },
+                    scissor_box: None,
                 },
                 ElementRange::Full,
                 |mut program_binding| {

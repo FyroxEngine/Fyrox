@@ -48,6 +48,7 @@
                     zpass: Keep,
                     write_mask: 0xFFFF_FFFF,
                 ),
+                scissor_box: None
             ),
             vertex_shader:
                r#"

@@ -201,6 +201,7 @@ impl FrameBuffer {
         depth: Option<f32>,
         stencil: Option<i32>,
     ) {
+        state.set_scissor_test(false);
         state.set_viewport(viewport);
         state.set_framebuffer(self.id());
 

@@ -91,6 +91,14 @@
 //!                     zpass: Keep,
 //!                     write_mask: 0xFFFF_FFFF,
 //!                 ),
+//!
+//!                 // Scissor box
+//!                 scissor_box: Some(ScissorBox(
+//!                     x: 10,
+//!                     y: 20,
+//!                     width: 100,
+//!                     height: 30
+//!                 ))
 //!             ),
 //!
 //!             // Vertex shader code.
@@ -783,6 +791,7 @@ mod test {
                                 zpass: Keep,
                                 write_mask: 0xFFFF_FFFF,
                             ),
+                            scissor_box: None
                         ),
                         vertex_shader: "<CODE>",
                         fragment_shader: "<CODE>",

@@ -413,6 +413,14 @@ pub struct BlendParameters {
     pub equation: BlendEquation,
 }
 
+#[derive(Serialize, Deserialize, Default, Visit, Debug, PartialEq, Clone, Copy, Eq, Reflect)]
+pub struct ScissorBox {
+    pub x: i32,
+    pub y: i32,
+    pub width: i32,
+    pub height: i32,
+}
+
 #[derive(Serialize, Deserialize, Visit, Debug, PartialEq, Clone, Eq, Reflect)]
 pub struct DrawParameters {
     pub cull_face: Option<CullFace>,
@@ -422,6 +430,7 @@ pub struct DrawParameters {
     pub depth_test: bool,
     pub blend: Option<BlendParameters>,
     pub stencil_op: StencilOp,
+    pub scissor_box: Option<ScissorBox>,
 }
 
 impl Default for DrawParameters {
@@ -434,6 +443,7 @@ impl Default for DrawParameters {
             depth_test: true,
             blend: None,
             stencil_op: Default::default(),
+            scissor_box: None,
         }
     }
 }

@@ -482,6 +482,7 @@ impl OcclusionTester {
                     },
                 }),
                 stencil_op: Default::default(),
+                scissor_box: None,
             },
             |mut program_binding| {
                 program_binding

@@ -419,6 +419,7 @@ impl GBuffer {
                         ..Default::default()
                     }),
                     stencil_op: Default::default(),
+                    scissor_box: None,
                 },
                 ElementRange::Full,
                 |mut program_binding| {

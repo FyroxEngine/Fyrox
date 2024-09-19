@@ -355,6 +355,7 @@ impl DeferredLightRenderer {
                         depth_test: false,
                         blend: None,
                         stencil_op: Default::default(),
+                        scissor_box: None,
                     },
                     ElementRange::Specific {
                         offset: 0,
@@ -393,6 +394,7 @@ impl DeferredLightRenderer {
                     ..Default::default()
                 }),
                 stencil_op: Default::default(),
+                scissor_box: None,
             },
             ElementRange::Full,
             |mut program_binding| {
@@ -541,6 +543,7 @@ impl DeferredLightRenderer {
                     },
                     depth_test: true,
                     blend: None,
+                    scissor_box: None,
                 },
                 ElementRange::Full,
                 |mut program_binding| {
@@ -570,6 +573,7 @@ impl DeferredLightRenderer {
                     },
                     depth_test: true,
                     blend: None,
+                    scissor_box: None,
                 },
                 ElementRange::Full,
                 |mut program_binding| {
@@ -606,6 +610,7 @@ impl DeferredLightRenderer {
                             depth_test: true,
                             blend: None,
                             stencil_op: Default::default(),
+                            scissor_box: None,
                         },
                         ElementRange::Full,
                         |mut program_binding| {
@@ -722,6 +727,7 @@ impl DeferredLightRenderer {
                         func: BlendFunc::new(BlendFactor::One, BlendFactor::One),
                         ..Default::default()
                     }),
+                    scissor_box: None,
                 };
 
                 let quad = &self.quad;
@@ -859,6 +865,7 @@ impl DeferredLightRenderer {
                                 ..Default::default()
                             }),
                             stencil_op: Default::default(),
+                            scissor_box: None,
                         },
                         ElementRange::Full,
                         |mut program_binding| {

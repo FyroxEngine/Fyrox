@@ -53,6 +53,7 @@ use crate::{
         texture::{Texture, TextureKind, TexturePixelKind},
     },
 };
+use fyrox_graphics::ScissorBox;
 use std::{cell::RefCell, rc::Rc};
 
 struct UiShader {
@@ -210,8 +211,6 @@ impl UiRenderer {
         let ortho = Matrix4::new_orthographic(0.0, frame_width, frame_height, 0.0, -1.0, 1.0);
         let resolution = Vector2::new(frame_width, frame_height);
 
-        state.set_scissor_test(true);
-
         for cmd in drawing_context.get_commands() {
             let mut diffuse_texture = &white_dummy;
             let mut is_font_texture = false;
@@ -222,13 +221,13 @@ impl UiRenderer {
             clip_bounds.size.x = clip_bounds.size.x.ceil();
             clip_bounds.size.y = clip_bounds.size.y.ceil();
 
-            state.set_scissor_box(
-                clip_bounds.position.x as i32,
-                // Because OpenGL is was designed for mathematicians, it has origin at lower left corner.
-                viewport.size.y - (clip_bounds.position.y + clip_bounds.size.y) as i32,
-                clip_bounds.size.x as i32,
-                clip_bounds.size.y as i32,
-            );
+            let scissor_box = Some(ScissorBox {
+                x: clip_bounds.position.x as i32,
+                // Because OpenGL was designed for mathematicians, it has origin at lower left corner.
+                y: viewport.size.y - (clip_bounds.position.y + clip_bounds.size.y) as i32,
+                width: clip_bounds.size.x as i32,
+                height: clip_bounds.size.y as i32,
+            });
 
             let mut stencil_test = None;
 
@@ -263,6 +262,7 @@ impl UiRenderer {
                             zpass: StencilAction::Incr,
                             ..Default::default()
                         },
+                        scissor_box,
                     },
                     ElementRange::Full,
                     |mut program_binding| {
@@ -353,6 +353,7 @@ impl UiRenderer {
                     ..Default::default()
                 }),
                 stencil_op: Default::default(),
+                scissor_box,
             };
 
             let shader = &self.shader;
@@ -429,8 +430,6 @@ impl UiRenderer {
                 },
             )?;
         }
-
-        state.set_scissor_test(false);
 
         Ok(statistics)
     }

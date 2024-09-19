@@ -157,6 +157,7 @@ impl GaussianBlur {
                 depth_test: false,
                 blend: None,
                 stencil_op: Default::default(),
+                scissor_box: None,
             },
             ElementRange::Full,
             |mut program_binding| {
@@ -186,6 +187,7 @@ impl GaussianBlur {
                 depth_test: false,
                 blend: None,
                 stencil_op: Default::default(),
+                scissor_box: None,
             },
             ElementRange::Full,
             |mut program_binding| {

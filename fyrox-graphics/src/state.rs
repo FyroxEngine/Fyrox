@@ -23,7 +23,8 @@ use crate::{
     error::FrameworkError,
     stats::PipelineStatistics,
     BlendEquation, BlendFactor, BlendFunc, BlendMode, ColorMask, CompareFunc, CullFace,
-    DrawParameters, PolygonFace, PolygonFillMode, StencilAction, StencilFunc, StencilOp,
+    DrawParameters, PolygonFace, PolygonFillMode, ScissorBox, StencilAction, StencilFunc,
+    StencilOp,
 };
 use glow::{Framebuffer, HasContext};
 #[cfg(not(target_arch = "wasm32"))]
@@ -987,9 +988,14 @@ impl PipelineState {
         }
     }
 
-    pub fn set_scissor_box(&self, x: i32, y: i32, w: i32, h: i32) {
+    pub fn set_scissor_box(&self, scissor_box: &ScissorBox) {
         unsafe {
-            self.gl.scissor(x, y, w, h);
+            self.gl.scissor(
+                scissor_box.x,
+                scissor_box.y,
+                scissor_box.width,
+                scissor_box.height,
+            );
         }
     }
 
@@ -1001,31 +1007,49 @@ impl PipelineState {
     }
 
     pub fn apply_draw_parameters(&self, draw_params: &DrawParameters) {
-        if let Some(ref blend_params) = draw_params.blend {
+        let DrawParameters {
+            cull_face,
+            color_write,
+            depth_write,
+            stencil_test,
+            depth_test,
+            blend,
+            stencil_op,
+            scissor_box,
+        } = draw_params;
+
+        if let Some(ref blend_params) = blend {
             self.set_blend_func(blend_params.func);
             self.set_blend_equation(blend_params.equation);
             self.set_blend(true);
         } else {
             self.set_blend(false);
         }
-        self.set_depth_test(draw_params.depth_test);
-        self.set_depth_write(draw_params.depth_write);
-        self.set_color_write(draw_params.color_write);
+        self.set_depth_test(*depth_test);
+        self.set_depth_write(*depth_write);
+        self.set_color_write(*color_write);
 
-        if let Some(stencil_func) = draw_params.stencil_test {
+        if let Some(stencil_func) = stencil_test {
             self.set_stencil_test(true);
-            self.set_stencil_func(stencil_func);
+            self.set_stencil_func(*stencil_func);
         } else {
             self.set_stencil_test(false);
         }
 
-        self.set_stencil_op(draw_params.stencil_op);
+        self.set_stencil_op(*stencil_op);
 
-        if let Some(cull_face) = draw_params.cull_face {
-            self.set_cull_face(cull_face);
+        if let Some(cull_face) = cull_face {
+            self.set_cull_face(*cull_face);
             self.set_culling(true);
         } else {
             self.set_culling(false);
+        }
+
+        if let Some(scissor_box) = scissor_box {
+            self.set_scissor_test(true);
+            self.set_scissor_box(scissor_box);
+        } else {
+            self.set_scissor_test(false);
         }
     }
 
