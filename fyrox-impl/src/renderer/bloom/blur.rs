@@ -18,10 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::core::sstorage::ImmutableString;
-use crate::renderer::framework::geometry_buffer::ElementRange;
 use crate::{
-    core::{algebra::Vector2, math::Rect},
+    core::{algebra::Vector2, math::Rect, sstorage::ImmutableString},
     renderer::{
         framework::{
             error::FrameworkError,
@@ -33,7 +31,7 @@ use crate::{
                 PixelKind, WrapMode,
             },
             state::PipelineState,
-            DrawParameters,
+            DrawParameters, ElementRange,
         },
         make_viewport_matrix, RenderPassStatistics,
     },

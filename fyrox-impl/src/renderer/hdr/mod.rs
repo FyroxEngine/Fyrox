@@ -18,12 +18,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::framework::geometry_buffer::ElementRange;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2, Vector3},
         color::Color,
         math::Rect,
+        transmute_slice, value_as_u8_slice,
     },
     renderer::{
         cache::texture::TextureCache,
@@ -35,7 +35,7 @@ use crate::{
                 GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind,
             },
             state::PipelineState,
-            DrawParameters,
+            DrawParameters, ElementRange,
         },
         hdr::{
             adaptation::{AdaptationChain, AdaptationShader},
@@ -47,7 +47,6 @@ use crate::{
     },
     scene::camera::{ColorGradingLut, Exposure},
 };
-use fyrox_core::{transmute_slice, value_as_u8_slice};
 use std::{cell::RefCell, rc::Rc};
 
 mod adaptation;

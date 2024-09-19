@@ -18,10 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::core::sstorage::ImmutableString;
-use crate::renderer::framework::geometry_buffer::ElementRange;
 use crate::{
-    core::math::Rect,
+    core::{math::Rect, sstorage::ImmutableString},
     renderer::{
         bloom::blur::GaussianBlur,
         framework::{
@@ -34,7 +32,7 @@ use crate::{
                 PixelKind, WrapMode,
             },
             state::PipelineState,
-            DrawParameters,
+            DrawParameters, ElementRange,
         },
         make_viewport_matrix, RenderPassStatistics,
     },

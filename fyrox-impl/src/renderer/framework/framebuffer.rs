@@ -23,11 +23,11 @@ use crate::{
     core::{color::Color, math::Rect},
     renderer::framework::{
         error::FrameworkError,
-        geometry_buffer::{DrawCallStatistics, ElementRange, GeometryBuffer},
+        geometry_buffer::{DrawCallStatistics, GeometryBuffer},
         gpu_program::{GpuProgram, GpuProgramBinding},
         gpu_texture::{CubeMapFace, GpuTexture, GpuTextureKind, PixelElementKind},
         state::PipelineState,
-        ColorMask,
+        ColorMask, ElementRange,
     },
 };
 use glow::HasContext;

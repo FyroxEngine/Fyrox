@@ -18,7 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::framework::geometry_buffer::ElementRange;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2, Vector3},
@@ -33,7 +32,7 @@ use crate::{
             gpu_program::{GpuProgram, UniformLocation},
             gpu_texture::GpuTexture,
             state::PipelineState,
-            DrawParameters,
+            DrawParameters, ElementRange,
         },
         RenderPassStatistics,
     },

@@ -36,10 +36,10 @@ use crate::{
         framework::{
             error::FrameworkError,
             framebuffer::FrameBuffer,
-            geometry_buffer::ElementRange,
             gpu_program::{BuiltInUniform, GpuProgramBinding},
             gpu_texture::GpuTexture,
             state::PipelineState,
+            ElementRange,
         },
         storage::MatrixStorageCache,
         LightData, RenderPassStatistics,

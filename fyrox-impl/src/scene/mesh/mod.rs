@@ -41,7 +41,7 @@ use crate::{
         bundle::{
             PersistentIdentifier, RenderContext, RenderDataBundleStorageTrait, SurfaceInstanceData,
         },
-        framework::geometry_buffer::ElementRange,
+        framework::ElementRange,
     },
     scene::{
         base::{Base, BaseBuilder},

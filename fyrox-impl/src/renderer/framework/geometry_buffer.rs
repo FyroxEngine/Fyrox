@@ -18,16 +18,16 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::scene::mesh::surface::SurfaceData;
 use crate::{
-    core::array_as_u8_slice,
-    core::math::TriangleDefinition,
-    renderer::framework::{error::FrameworkError, state::PipelineState},
-    scene::mesh::buffer::{VertexAttributeDataType, VertexBuffer},
+    core::{array_as_u8_slice, math::TriangleDefinition},
+    renderer::framework::{error::FrameworkError, state::PipelineState, ElementKind, ElementRange},
+    scene::mesh::{
+        buffer::{VertexAttributeDataType, VertexBuffer},
+        surface::SurfaceData,
+    },
 };
 use glow::HasContext;
-use std::rc::Weak;
-use std::{cell::Cell, marker::PhantomData, mem::size_of};
+use std::{cell::Cell, marker::PhantomData, mem::size_of, rc::Weak};
 
 struct NativeBuffer {
     state: Weak<PipelineState>,
@@ -172,33 +172,6 @@ pub enum GeometryBufferKind {
     DynamicDraw = glow::DYNAMIC_DRAW,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
-pub enum ElementKind {
-    Triangle,
-    Line,
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub enum ElementRange {
-    Full,
-    Specific { offset: usize, count: usize },
-}
-
-impl Default for ElementRange {
-    fn default() -> Self {
-        Self::Full
-    }
-}
-
-impl ElementKind {
-    fn index_per_element(self) -> usize {
-        match self {
-            ElementKind::Triangle => 3,
-            ElementKind::Line => 2,
-        }
-    }
-}
-
 pub struct GeometryBufferBinding<'a> {
     state: &'a PipelineState,
     buffer: &'a GeometryBuffer,
@@ -267,6 +240,7 @@ impl<'a> GeometryBufferBinding<'a> {
         match self.buffer.element_kind {
             ElementKind::Triangle => glow::TRIANGLES,
             ElementKind::Line => glow::LINES,
+            ElementKind::Point => glow::POINTS,
         }
     }
 

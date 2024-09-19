@@ -436,3 +436,32 @@ impl Default for DrawParameters {
         }
     }
 }
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub enum ElementRange {
+    Full,
+    Specific { offset: usize, count: usize },
+}
+
+impl Default for ElementRange {
+    fn default() -> Self {
+        Self::Full
+    }
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+pub enum ElementKind {
+    Triangle,
+    Line,
+    Point,
+}
+
+impl ElementKind {
+    fn index_per_element(self) -> usize {
+        match self {
+            ElementKind::Triangle => 3,
+            ElementKind::Line => 2,
+            ElementKind::Point => 1,
+        }
+    }
+}

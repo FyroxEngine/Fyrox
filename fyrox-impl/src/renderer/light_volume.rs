@@ -30,11 +30,11 @@ use crate::{
         framework::{
             error::FrameworkError,
             framebuffer::FrameBuffer,
-            geometry_buffer::{ElementRange, GeometryBuffer, GeometryBufferKind},
+            geometry_buffer::{GeometryBuffer, GeometryBufferKind},
             gpu_program::{GpuProgram, UniformLocation},
             state::PipelineState,
             BlendFactor, BlendFunc, BlendParameters, ColorMask, CompareFunc, DrawParameters,
-            StencilAction, StencilFunc, StencilOp,
+            ElementRange, StencilAction, StencilFunc, StencilOp,
         },
         gbuffer::GBuffer,
         RenderPassStatistics,

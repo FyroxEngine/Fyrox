@@ -34,14 +34,14 @@ use crate::{
             framework::{
                 error::FrameworkError,
                 framebuffer::{Attachment, AttachmentKind, FrameBuffer},
-                geometry_buffer::{ElementRange, GeometryBuffer, GeometryBufferKind},
+                geometry_buffer::{GeometryBuffer, GeometryBufferKind},
                 gpu_program::{GpuProgram, UniformLocation},
                 gpu_texture::{
                     Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter,
                     MinificationFilter, PixelKind, WrapMode,
                 },
                 state::PipelineState,
-                BlendFactor, BlendFunc, BlendParameters, DrawParameters,
+                BlendFactor, BlendFunc, BlendParameters, DrawParameters, ElementRange,
             },
             RenderPassStatistics, SceneRenderPass, SceneRenderPassContext,
         },

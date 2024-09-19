@@ -45,7 +45,7 @@ use crate::{
     renderer::{
         self,
         bundle::{RenderContext, SurfaceInstanceData},
-        framework::geometry_buffer::ElementRange,
+        framework::ElementRange,
     },
     resource::texture::{
         Texture, TextureKind, TexturePixelKind, TextureResource, TextureResourceExtension,

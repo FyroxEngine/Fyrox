@@ -54,9 +54,6 @@ mod skybox_shader;
 mod ssao;
 mod stats;
 
-use crate::engine::error::EngineError;
-use crate::engine::GraphicsContextParams;
-use crate::renderer::framework::PolygonFillMode;
 use crate::{
     asset::{event::ResourceEvent, manager::ResourceManager},
     core::{
@@ -70,6 +67,7 @@ use crate::{
         sstorage::ImmutableString,
         uuid_provider,
     },
+    engine::{error::EngineError, GraphicsContextParams},
     graph::SceneGraph,
     gui::draw::DrawingContext,
     material::shader::{Shader, ShaderResource, ShaderResourceExtension},
@@ -83,15 +81,13 @@ use crate::{
         framework::{
             error::FrameworkError,
             framebuffer::{Attachment, AttachmentKind, FrameBuffer},
-            geometry_buffer::{
-                DrawCallStatistics, ElementRange, GeometryBuffer, GeometryBufferKind,
-            },
+            geometry_buffer::{DrawCallStatistics, GeometryBuffer, GeometryBufferKind},
             gpu_texture::{
                 Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
                 PixelKind, WrapMode,
             },
             state::{PipelineState, SharedPipelineState},
-            DrawParameters, PolygonFace,
+            DrawParameters, ElementRange, PolygonFace, PolygonFillMode,
         },
         fxaa::FxaaRenderer,
         gbuffer::{GBuffer, GBufferRenderContext},
@@ -110,8 +106,10 @@ use serde::{Deserialize, Serialize};
 pub use stats::*;
 use std::{any::TypeId, cell::RefCell, collections::hash_map::Entry, rc::Rc, sync::mpsc::Receiver};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
-use winit::event_loop::EventLoopWindowTarget;
-use winit::window::{Window, WindowBuilder};
+use winit::{
+    event_loop::EventLoopWindowTarget,
+    window::{Window, WindowBuilder},
+};
 
 lazy_static! {
     static ref GBUFFER_PASS_NAME: ImmutableString = ImmutableString::new("GBuffer");
