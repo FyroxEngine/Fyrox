@@ -352,7 +352,7 @@ impl DeferredLightRenderer {
                         color_write: Default::default(),
                         depth_write: false,
                         stencil_test: None,
-                        depth_test: false,
+                        depth_test: None,
                         blend: None,
                         stencil_op: Default::default(),
                         scissor_box: None,
@@ -388,7 +388,7 @@ impl DeferredLightRenderer {
                 color_write: Default::default(),
                 depth_write: false,
                 stencil_test: None,
-                depth_test: false,
+                depth_test: None,
                 blend: Some(BlendParameters {
                     func: BlendFunc::new(BlendFactor::SrcAlpha, BlendFactor::OneMinusSrcAlpha),
                     ..Default::default()
@@ -541,7 +541,7 @@ impl DeferredLightRenderer {
                         zfail: StencilAction::Incr,
                         ..Default::default()
                     },
-                    depth_test: true,
+                    depth_test: Some(CompareFunc::Less),
                     blend: None,
                     scissor_box: None,
                 },
@@ -571,7 +571,7 @@ impl DeferredLightRenderer {
                         zfail: StencilAction::Decr,
                         ..Default::default()
                     },
-                    depth_test: true,
+                    depth_test: Some(CompareFunc::Less),
                     blend: None,
                     scissor_box: None,
                 },
@@ -607,7 +607,7 @@ impl DeferredLightRenderer {
                                 func: CompareFunc::NotEqual,
                                 ..Default::default()
                             }),
-                            depth_test: true,
+                            depth_test: Some(CompareFunc::Less),
                             blend: None,
                             stencil_op: Default::default(),
                             scissor_box: None,
@@ -722,7 +722,7 @@ impl DeferredLightRenderer {
                         zpass: StencilAction::Zero,
                         ..Default::default()
                     },
-                    depth_test: false,
+                    depth_test: None,
                     blend: Some(BlendParameters {
                         func: BlendFunc::new(BlendFactor::One, BlendFactor::One),
                         ..Default::default()
@@ -859,7 +859,7 @@ impl DeferredLightRenderer {
                             color_write: Default::default(),
                             depth_write: false,
                             stencil_test: None,
-                            depth_test: false,
+                            depth_test: None,
                             blend: Some(BlendParameters {
                                 func: BlendFunc::new(BlendFactor::One, BlendFactor::One),
                                 ..Default::default()

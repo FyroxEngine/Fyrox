@@ -143,7 +143,7 @@ impl VisibilityBufferOptimizer {
                 color_write: ColorMask::all(true),
                 depth_write: false,
                 stencil_test: None,
-                depth_test: false,
+                depth_test: None,
                 blend: None,
                 stencil_op: Default::default(),
                 scissor_box: None,

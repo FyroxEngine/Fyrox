@@ -78,7 +78,7 @@
                 ),
                 depth_write: true,
                 stencil_test: None,
-                depth_test: true,
+                depth_test: Some(Less),
                 blend: None,
                 stencil_op: StencilOp(
                     fail: Keep,
@@ -269,7 +269,7 @@
                 ),
                 depth_write: true,
                 stencil_test: None,
-                depth_test: true,
+                depth_test: Some(Less),
                 blend: Some(BlendParameters(
                     func: BlendFunc(
                         sfactor: SrcAlpha,
@@ -373,7 +373,7 @@
                 ),
                 depth_write: true,
                 stencil_test: None,
-                depth_test: true,
+                depth_test: Some(Less),
                 blend: None,
                 stencil_op: StencilOp(
                     fail: Keep,
@@ -461,7 +461,7 @@
                 ),
                 depth_write: true,
                 stencil_test: None,
-                depth_test: true,
+                depth_test: Some(Less),
                 blend: None,
                 stencil_op: StencilOp(
                     fail: Keep,
@@ -549,7 +549,7 @@
                 ),
                 depth_write: true,
                 stencil_test: None,
-                depth_test: true,
+                depth_test: Some(Less),
                 blend: None,
                 stencil_op: StencilOp(
                     fail: Keep,

@@ -68,7 +68,7 @@
 //!                 stencil_test: None,
 //!
 //!                 // Whether to perform depth test when drawing.
-//!                 depth_test: true,
+//!                 depth_test: Some(Less),
 //!
 //!                 // Blending options.
 //!                 blend: Some(BlendParameters(
@@ -783,7 +783,7 @@ mod test {
                             ),
                             depth_write: true,
                             stencil_test: None,
-                            depth_test: true,
+                            depth_test: Some(Less),
                             blend: None,
                             stencil_op: StencilOp(
                                 fail: Keep,

@@ -871,7 +871,7 @@ fn blit_pixels(
             color_write: Default::default(),
             depth_write: true,
             stencil_test: None,
-            depth_test: false,
+            depth_test: None,
             blend: None,
             stencil_op: Default::default(),
             scissor_box: None,

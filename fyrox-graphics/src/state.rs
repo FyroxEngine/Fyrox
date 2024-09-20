@@ -1025,8 +1025,15 @@ impl PipelineState {
         } else {
             self.set_blend(false);
         }
-        self.set_depth_test(*depth_test);
+
+        if let Some(depth_func) = depth_test {
+            self.set_depth_func(*depth_func);
+            self.set_depth_test(true);
+        } else {
+            self.set_depth_test(false);
+        }
         self.set_depth_write(*depth_write);
+
         self.set_color_write(*color_write);
 
         if let Some(stencil_func) = stencil_test {

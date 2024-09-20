@@ -25,7 +25,7 @@
                 ),
                 depth_write: false,
                 stencil_test: None,
-                depth_test: true,
+                depth_test: Some(Less),
                 blend: Some(BlendParameters(
                     func: BlendFunc(
                         sfactor: SrcAlpha,

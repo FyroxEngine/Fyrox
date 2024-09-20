@@ -43,6 +43,7 @@ use crate::{
 };
 use bytemuck::{Pod, Zeroable};
 use fyrox_core::color::Color;
+use fyrox_graphics::CompareFunc;
 use rapier2d::na::Matrix4;
 
 #[repr(C)]
@@ -165,7 +166,7 @@ impl DebugRenderer {
                 color_write: Default::default(),
                 depth_write: false,
                 stencil_test: None,
-                depth_test: true,
+                depth_test: Some(CompareFunc::Less),
                 blend: None,
                 stencil_op: Default::default(),
                 scissor_box: None,

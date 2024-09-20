@@ -132,7 +132,7 @@ impl Blur {
                 color_write: Default::default(),
                 depth_write: false,
                 stencil_test: None,
-                depth_test: false,
+                depth_test: None,
                 blend: None,
                 stencil_op: Default::default(),
                 scissor_box: None,

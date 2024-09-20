@@ -238,7 +238,7 @@ impl LightVolumeRenderer {
                         ref_value: 0xFF,
                         mask: 0xFFFF_FFFF,
                     }),
-                    depth_test: true,
+                    depth_test: Some(CompareFunc::Less),
                     blend: None,
                     stencil_op: StencilOp {
                         fail: StencilAction::Replace,
@@ -273,7 +273,7 @@ impl LightVolumeRenderer {
                         ref_value: 0xFF,
                         mask: 0xFFFF_FFFF,
                     }),
-                    depth_test: false,
+                    depth_test: None,
                     blend: Some(BlendParameters {
                         func: BlendFunc::new(BlendFactor::One, BlendFactor::One),
                         ..Default::default()
@@ -331,7 +331,7 @@ impl LightVolumeRenderer {
                         ref_value: 0xFF,
                         mask: 0xFFFF_FFFF,
                     }),
-                    depth_test: true,
+                    depth_test: Some(CompareFunc::Less),
                     blend: None,
                     stencil_op: StencilOp {
                         fail: StencilAction::Replace,
@@ -366,7 +366,7 @@ impl LightVolumeRenderer {
                         ref_value: 0xFF,
                         mask: 0xFFFF_FFFF,
                     }),
-                    depth_test: false,
+                    depth_test: None,
                     blend: Some(BlendParameters {
                         func: BlendFunc::new(BlendFactor::One, BlendFactor::One),
                         ..Default::default()

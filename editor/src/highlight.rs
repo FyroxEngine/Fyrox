@@ -49,7 +49,7 @@ use crate::{
     },
     Editor,
 };
-use fyrox::renderer::framework::GeometryBufferExt;
+use fyrox::renderer::framework::{CompareFunc, GeometryBufferExt};
 use std::{any::TypeId, cell::RefCell, rc::Rc};
 
 struct EdgeDetectShader {
@@ -312,7 +312,7 @@ impl SceneRenderPass for HighlightRenderPass {
                     color_write: Default::default(),
                     depth_write: false,
                     stencil_test: None,
-                    depth_test: true,
+                    depth_test: Some(CompareFunc::Less),
                     blend: Some(BlendParameters {
                         func: BlendFunc::new(BlendFactor::SrcAlpha, BlendFactor::OneMinusSrcAlpha),
                         ..Default::default()

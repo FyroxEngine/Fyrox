@@ -460,7 +460,6 @@ impl OcclusionTester {
             0,
         )?;
 
-        state.set_depth_func(CompareFunc::LessOrEqual);
         let shader = &self.shader;
         self.framebuffer.draw_instances(
             self.objects_to_test.len(),
@@ -473,7 +472,7 @@ impl OcclusionTester {
                 color_write: ColorMask::all(true),
                 depth_write: false,
                 stencil_test: None,
-                depth_test: true,
+                depth_test: Some(CompareFunc::LessOrEqual),
                 blend: Some(BlendParameters {
                     func: BlendFunc::new(BlendFactor::One, BlendFactor::One),
                     equation: BlendEquation {

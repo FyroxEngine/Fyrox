@@ -413,7 +413,7 @@ impl GBuffer {
                     color_write: Default::default(),
                     depth_write: false,
                     stencil_test: None,
-                    depth_test: false,
+                    depth_test: None,
                     blend: Some(BlendParameters {
                         func: BlendFunc::new(BlendFactor::SrcAlpha, BlendFactor::OneMinusSrcAlpha),
                         ..Default::default()

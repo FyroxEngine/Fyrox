@@ -256,7 +256,7 @@ impl UiRenderer {
                         color_write: ColorMask::all(false),
                         depth_write: false,
                         stencil_test: None,
-                        depth_test: false,
+                        depth_test: None,
                         blend: None,
                         stencil_op: StencilOp {
                             zpass: StencilAction::Incr,
@@ -347,7 +347,7 @@ impl UiRenderer {
                 color_write: ColorMask::all(true),
                 depth_write: false,
                 stencil_test,
-                depth_test: false,
+                depth_test: None,
                 blend: Some(BlendParameters {
                     func: BlendFunc::new(BlendFactor::SrcAlpha, BlendFactor::OneMinusSrcAlpha),
                     ..Default::default()
