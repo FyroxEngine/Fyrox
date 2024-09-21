@@ -20,7 +20,10 @@
 
 pub use fyrox_core as core;
 
-use crate::core::{reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*};
+use crate::{
+    core::{reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
+    error::FrameworkError,
+};
 use serde::{Deserialize, Serialize};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
@@ -33,6 +36,7 @@ pub mod pixel_buffer;
 pub mod query;
 pub mod state;
 pub mod stats;
+pub mod uniform_buffer;
 
 #[derive(
     Copy,
@@ -475,4 +479,8 @@ impl ElementKind {
             ElementKind::Point => 1,
         }
     }
+}
+
+pub trait UniformBuffer {
+    fn write_data(&self, data: &[u8]) -> Result<(), FrameworkError>;
 }
