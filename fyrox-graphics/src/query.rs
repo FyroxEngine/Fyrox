@@ -1,4 +1,4 @@
-use crate::{error::FrameworkError, state::PipelineState};
+use crate::{error::FrameworkError, state::GlGraphicsServer};
 use glow::HasContext;
 use std::{cell::Cell, rc::Weak};
 
@@ -18,21 +18,21 @@ pub enum QueryResult {
 #[derive(Debug)]
 pub struct Query {
     id: glow::Query,
-    pipeline_state: Weak<PipelineState>,
+    pipeline_state: Weak<GlGraphicsServer>,
     active_query: Cell<Option<QueryKind>>,
 }
 
 impl Query {
-    pub fn new(state: &PipelineState) -> Result<Self, FrameworkError> {
-        let mut inner = state.state.borrow_mut();
+    pub fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
+        let mut inner = server.state.borrow_mut();
         let id = if let Some(existing) = inner.queries.pop() {
             existing
         } else {
-            unsafe { state.gl.create_query()? }
+            unsafe { server.gl.create_query()? }
         };
         Ok(Self {
             id,
-            pipeline_state: state.weak(),
+            pipeline_state: server.weak(),
             active_query: Default::default(),
         })
     }

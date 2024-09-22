@@ -26,7 +26,7 @@ use crate::{
                 error::FrameworkError,
                 geometry_buffer::{GeometryBuffer, GeometryBufferKind},
                 gpu_program::{GpuProgram, UniformLocation},
-                state::PipelineState,
+                state::GlGraphicsServer,
                 BlendFactor, BlendFunc, BlendParameters, DrawParameters, ElementRange,
             },
             RenderPassStatistics, SceneRenderPass, SceneRenderPassContext,
@@ -53,22 +53,22 @@ struct OverlayShader {
 }
 
 impl OverlayShader {
-    pub fn new(state: &PipelineState) -> Result<Self, FrameworkError> {
+    pub fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("../resources/shaders/overlay_fs.glsl");
         let vertex_source = include_str!("../resources/shaders/overlay_vs.glsl");
         let program =
-            GpuProgram::from_source(state, "OverlayShader", vertex_source, fragment_source)?;
+            GpuProgram::from_source(server, "OverlayShader", vertex_source, fragment_source)?;
         Ok(Self {
             view_projection_matrix: program
-                .uniform_location(state, &ImmutableString::new("viewProjectionMatrix"))?,
-            world_matrix: program.uniform_location(state, &ImmutableString::new("worldMatrix"))?,
+                .uniform_location(server, &ImmutableString::new("viewProjectionMatrix"))?,
+            world_matrix: program.uniform_location(server, &ImmutableString::new("worldMatrix"))?,
             camera_side_vector: program
-                .uniform_location(state, &ImmutableString::new("cameraSideVector"))?,
+                .uniform_location(server, &ImmutableString::new("cameraSideVector"))?,
             camera_up_vector: program
-                .uniform_location(state, &ImmutableString::new("cameraUpVector"))?,
-            size: program.uniform_location(state, &ImmutableString::new("size"))?,
+                .uniform_location(server, &ImmutableString::new("cameraUpVector"))?,
+            size: program.uniform_location(server, &ImmutableString::new("size"))?,
             diffuse_texture: program
-                .uniform_location(state, &ImmutableString::new("diffuseTexture"))?,
+                .uniform_location(server, &ImmutableString::new("diffuseTexture"))?,
             program,
         })
     }
@@ -83,15 +83,15 @@ pub struct OverlayRenderPass {
 }
 
 impl OverlayRenderPass {
-    pub fn new(state: &PipelineState) -> Rc<RefCell<Self>> {
+    pub fn new(server: &GlGraphicsServer) -> Rc<RefCell<Self>> {
         Rc::new(RefCell::new(Self {
             quad: GeometryBuffer::from_surface_data(
                 &SurfaceData::make_collapsed_xy_quad(),
                 GeometryBufferKind::StaticDraw,
-                state,
+                server,
             )
             .unwrap(),
-            shader: OverlayShader::new(state).unwrap(),
+            shader: OverlayShader::new(server).unwrap(),
             sound_icon: TextureResource::load_from_memory(
                 "../resources/sound_source.png".into(),
                 include_bytes!("../resources/sound_source.png"),

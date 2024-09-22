@@ -26,7 +26,7 @@ use crate::{
     renderer::framework::{
         error::FrameworkError,
         query::{Query, QueryKind, QueryResult},
-        state::PipelineState,
+        state::GlGraphicsServer,
     },
     scene::{graph::Graph, node::Node},
 };
@@ -160,11 +160,11 @@ impl ObserverVisibilityCache {
     /// the given observer position.
     pub fn begin_query(
         &mut self,
-        pipeline_state: &PipelineState,
+        server: &GlGraphicsServer,
         observer_position: Vector3<f32>,
         node: Handle<Node>,
     ) -> Result<(), FrameworkError> {
-        let query = Query::new(pipeline_state)?;
+        let query = Query::new(server)?;
         query.begin(QueryKind::AnySamplesPassed);
         self.pending_queries.push(PendingQuery {
             query,

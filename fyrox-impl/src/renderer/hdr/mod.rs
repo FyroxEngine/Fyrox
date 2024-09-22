@@ -34,7 +34,7 @@ use crate::{
             gpu_texture::{
                 GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind,
             },
-            state::PipelineState,
+            state::GlGraphicsServer,
             DrawParameters, ElementRange,
         },
         hdr::{
@@ -66,9 +66,9 @@ pub struct LumBuffer {
 }
 
 impl LumBuffer {
-    fn new(state: &PipelineState, size: usize) -> Result<Self, FrameworkError> {
+    fn new(server: &GlGraphicsServer, size: usize) -> Result<Self, FrameworkError> {
         let texture = GpuTexture::new(
-            state,
+            server,
             GpuTextureKind::Rectangle {
                 width: size,
                 height: size,
@@ -81,7 +81,7 @@ impl LumBuffer {
         )?;
         Ok(Self {
             framebuffer: FrameBuffer::new(
-                state,
+                server,
                 None,
                 vec![Attachment {
                     kind: AttachmentKind::Color,
@@ -92,9 +92,9 @@ impl LumBuffer {
         })
     }
 
-    fn clear(&mut self, state: &PipelineState) {
+    fn clear(&mut self, server: &GlGraphicsServer) {
         self.framebuffer.clear(
-            state,
+            server,
             Rect::new(0, 0, self.size as i32, self.size as i32),
             Some(Color::BLACK),
             None,
@@ -129,24 +129,24 @@ pub struct HighDynamicRangeRenderer {
 }
 
 impl HighDynamicRangeRenderer {
-    pub fn new(state: &PipelineState) -> Result<Self, FrameworkError> {
+    pub fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
         Ok(Self {
-            frame_luminance: LumBuffer::new(state, 64)?,
+            frame_luminance: LumBuffer::new(server, 64)?,
             downscale_chain: [
-                LumBuffer::new(state, 32)?,
-                LumBuffer::new(state, 16)?,
-                LumBuffer::new(state, 8)?,
-                LumBuffer::new(state, 4)?,
-                LumBuffer::new(state, 2)?,
-                LumBuffer::new(state, 1)?,
+                LumBuffer::new(server, 32)?,
+                LumBuffer::new(server, 16)?,
+                LumBuffer::new(server, 8)?,
+                LumBuffer::new(server, 4)?,
+                LumBuffer::new(server, 2)?,
+                LumBuffer::new(server, 1)?,
             ],
-            adaptation_chain: AdaptationChain::new(state)?,
-            adaptation_shader: AdaptationShader::new(state)?,
-            luminance_shader: LuminanceShader::new(state)?,
-            downscale_shader: DownscaleShader::new(state)?,
-            map_shader: MapShader::new(state)?,
+            adaptation_chain: AdaptationChain::new(server)?,
+            adaptation_shader: AdaptationShader::new(server)?,
+            luminance_shader: LuminanceShader::new(server)?,
+            downscale_shader: DownscaleShader::new(server)?,
+            map_shader: MapShader::new(server)?,
             stub_lut: Rc::new(RefCell::new(GpuTexture::new(
-                state,
+                server,
                 GpuTextureKind::Volume {
                     width: 1,
                     height: 1,
@@ -164,18 +164,18 @@ impl HighDynamicRangeRenderer {
 
     fn calculate_frame_luminance(
         &mut self,
-        state: &PipelineState,
+        server: &GlGraphicsServer,
         scene_frame: Rc<RefCell<GpuTexture>>,
         quad: &GeometryBuffer,
     ) -> Result<DrawCallStatistics, FrameworkError> {
-        self.frame_luminance.clear(state);
+        self.frame_luminance.clear(server);
         let frame_matrix = self.frame_luminance.matrix();
 
         let shader = &self.luminance_shader;
         let inv_size = 1.0 / self.frame_luminance.size as f32;
         self.frame_luminance.framebuffer.draw(
             quad,
-            state,
+            server,
             Rect::new(
                 0,
                 0,
@@ -205,7 +205,7 @@ impl HighDynamicRangeRenderer {
 
     fn calculate_avg_frame_luminance(
         &mut self,
-        state: &PipelineState,
+        server: &GlGraphicsServer,
         quad: &GeometryBuffer,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();
@@ -223,8 +223,8 @@ impl HighDynamicRangeRenderer {
                     .frame_luminance
                     .texture()
                     .borrow_mut()
-                    .bind_mut(state, 0)
-                    .read_pixels(state);
+                    .bind_mut(server, 0)
+                    .read_pixels(server);
 
                 let pixels = transmute_slice::<u8, f32>(&data);
 
@@ -256,7 +256,7 @@ impl HighDynamicRangeRenderer {
                     .unwrap()
                     .texture()
                     .borrow_mut()
-                    .bind_mut(state, 0)
+                    .bind_mut(server, 0)
                     .set_data(
                         GpuTextureKind::Rectangle {
                             width: 1,
@@ -275,7 +275,7 @@ impl HighDynamicRangeRenderer {
                     let matrix = lum_buffer.matrix();
                     stats += lum_buffer.framebuffer.draw(
                         quad,
-                        state,
+                        server,
                         Rect::new(0, 0, lum_buffer.size as i32, lum_buffer.size as i32),
                         &shader.program,
                         &DrawParameters {
@@ -307,7 +307,7 @@ impl HighDynamicRangeRenderer {
 
     fn adaptation(
         &mut self,
-        state: &PipelineState,
+        server: &GlGraphicsServer,
         quad: &GeometryBuffer,
         dt: f32,
     ) -> Result<DrawCallStatistics, FrameworkError> {
@@ -319,7 +319,7 @@ impl HighDynamicRangeRenderer {
         let prev_lum = ctx.prev_lum;
         ctx.lum_buffer.framebuffer.draw(
             quad,
-            state,
+            server,
             viewport,
             &shader.program,
             &DrawParameters {
@@ -346,7 +346,7 @@ impl HighDynamicRangeRenderer {
 
     fn map_hdr_to_ldr(
         &mut self,
-        state: &PipelineState,
+        server: &GlGraphicsServer,
         hdr_scene_frame: Rc<RefCell<GpuTexture>>,
         bloom_texture: Rc<RefCell<GpuTexture>>,
         ldr_framebuffer: &mut FrameBuffer,
@@ -362,12 +362,12 @@ impl HighDynamicRangeRenderer {
         let avg_lum = self.adaptation_chain.avg_lum_texture();
 
         let color_grading_lut_tex = color_grading_lut
-            .and_then(|l| texture_cache.get(state, l.lut_ref()))
+            .and_then(|l| texture_cache.get(server, l.lut_ref()))
             .unwrap_or(&self.stub_lut);
 
         ldr_framebuffer.draw(
             quad,
-            state,
+            server,
             viewport,
             &shader.program,
             &DrawParameters {
@@ -417,7 +417,7 @@ impl HighDynamicRangeRenderer {
 
     pub fn render(
         &mut self,
-        state: &PipelineState,
+        server: &GlGraphicsServer,
         hdr_scene_frame: Rc<RefCell<GpuTexture>>,
         bloom_texture: Rc<RefCell<GpuTexture>>,
         ldr_framebuffer: &mut FrameBuffer,
@@ -430,11 +430,11 @@ impl HighDynamicRangeRenderer {
         texture_cache: &mut TextureCache,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();
-        stats += self.calculate_frame_luminance(state, hdr_scene_frame.clone(), quad)?;
-        stats += self.calculate_avg_frame_luminance(state, quad)?;
-        stats += self.adaptation(state, quad, dt)?;
+        stats += self.calculate_frame_luminance(server, hdr_scene_frame.clone(), quad)?;
+        stats += self.calculate_avg_frame_luminance(server, quad)?;
+        stats += self.adaptation(server, quad, dt)?;
         stats += self.map_hdr_to_ldr(
-            state,
+            server,
             hdr_scene_frame,
             bloom_texture,
             ldr_framebuffer,

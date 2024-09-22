@@ -29,7 +29,7 @@ use crate::{
             gpu_texture::{
                 GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind,
             },
-            state::PipelineState,
+            state::GlGraphicsServer,
         },
     },
 };
@@ -49,11 +49,11 @@ pub struct MatrixStorage {
 
 impl MatrixStorage {
     /// Creates a new matrix storage.
-    pub fn new(state: &PipelineState) -> Result<Self, FrameworkError> {
+    pub fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
         let identity = [Matrix4::<f32>::identity()];
         Ok(Self {
             texture: Rc::new(RefCell::new(GpuTexture::new(
-                state,
+                server,
                 GpuTextureKind::Rectangle {
                     width: 4,
                     height: 1,
@@ -76,7 +76,7 @@ impl MatrixStorage {
     /// Updates contents of the internal texture with provided matrices.
     pub fn upload(
         &mut self,
-        state: &PipelineState,
+        server: &GlGraphicsServer,
         matrices: impl Iterator<Item = Matrix4<f32>>,
         sampler: u32,
     ) -> Result<(), FrameworkError> {
@@ -99,7 +99,7 @@ impl MatrixStorage {
         if matrices_w != 0 && matrices_h != 0 {
             self.texture
                 .borrow_mut()
-                .bind_mut(state, sampler)
+                .bind_mut(server, sampler)
                 .set_data(
                     GpuTextureKind::Rectangle {
                         width: matrices_w,
@@ -126,9 +126,9 @@ pub struct MatrixStorageCache {
 
 impl MatrixStorageCache {
     /// Creates new cache.
-    pub fn new(state: &PipelineState) -> Result<Self, FrameworkError> {
+    pub fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
         Ok(Self {
-            empty: MatrixStorage::new(state)?,
+            empty: MatrixStorage::new(server)?,
             active_set: Default::default(),
             cache: Default::default(),
         })
@@ -148,31 +148,31 @@ impl MatrixStorageCache {
     /// synchronization.  
     pub fn try_bind_and_upload(
         &mut self,
-        state: &PipelineState,
+        server: &GlGraphicsServer,
         id: PersistentIdentifier,
         matrices: &[Matrix4<f32>],
         sampler: u32,
     ) -> Result<&MatrixStorage, FrameworkError> {
         if matrices.is_empty() {
             // Bind empty storage if input matrices set is empty.
-            self.empty.texture().borrow().bind(state, sampler);
+            self.empty.texture().borrow().bind(server, sampler);
             Ok(&self.empty)
         } else {
             // Otherwise, try to fetch a storage using persistent id and use it (or create new if there's
             // no vacant storage in the cache).
             match self.active_set.entry(id) {
                 Entry::Occupied(existing) => {
-                    existing.get().texture.borrow().bind(state, sampler);
+                    existing.get().texture.borrow().bind(server, sampler);
                     Ok(existing.into_mut())
                 }
                 Entry::Vacant(entry) => {
                     let mut storage = if let Some(cached) = self.cache.pop() {
                         cached
                     } else {
-                        MatrixStorage::new(state)?
+                        MatrixStorage::new(server)?
                     };
 
-                    storage.upload(state, matrices.iter().cloned(), sampler)?;
+                    storage.upload(server, matrices.iter().cloned(), sampler)?;
 
                     Ok(entry.insert(storage))
                 }

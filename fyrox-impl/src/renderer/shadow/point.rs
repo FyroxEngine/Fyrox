@@ -34,7 +34,7 @@ use crate::{
                 Coordinate, CubeMapFace, GpuTexture, GpuTextureKind, MagnificationFilter,
                 MinificationFilter, PixelKind, WrapMode,
             },
-            state::PipelineState,
+            state::GlGraphicsServer,
         },
         shadow::cascade_size,
         storage::MatrixStorageCache,
@@ -58,7 +58,7 @@ struct PointShadowCubeMapFace {
 }
 
 pub(crate) struct PointShadowMapRenderContext<'a> {
-    pub state: &'a PipelineState,
+    pub state: &'a GlGraphicsServer,
     pub graph: &'a Graph,
     pub light_pos: Vector3<f32>,
     pub light_radius: f32,
@@ -75,12 +75,12 @@ pub(crate) struct PointShadowMapRenderContext<'a> {
 
 impl PointShadowMapRenderer {
     pub fn new(
-        state: &PipelineState,
+        server: &GlGraphicsServer,
         size: usize,
         precision: ShadowMapPrecision,
     ) -> Result<Self, FrameworkError> {
         fn make_cascade(
-            state: &PipelineState,
+            server: &GlGraphicsServer,
             size: usize,
             precision: ShadowMapPrecision,
         ) -> Result<FrameBuffer, FrameworkError> {
@@ -90,7 +90,7 @@ impl PointShadowMapRenderer {
                     height: size,
                 };
                 let mut texture = GpuTexture::new(
-                    state,
+                    server,
                     kind,
                     match precision {
                         ShadowMapPrecision::Full => PixelKind::D32F,
@@ -102,7 +102,7 @@ impl PointShadowMapRenderer {
                     None,
                 )?;
                 texture
-                    .bind_mut(state, 0)
+                    .bind_mut(server, 0)
                     .set_minification_filter(MinificationFilter::Nearest)
                     .set_magnification_filter(MagnificationFilter::Nearest)
                     .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
@@ -116,7 +116,7 @@ impl PointShadowMapRenderer {
                     height: size,
                 };
                 let mut texture = GpuTexture::new(
-                    state,
+                    server,
                     kind,
                     PixelKind::R16F,
                     MinificationFilter::Nearest,
@@ -125,7 +125,7 @@ impl PointShadowMapRenderer {
                     None,
                 )?;
                 texture
-                    .bind_mut(state, 0)
+                    .bind_mut(server, 0)
                     .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
                     .set_wrap(Coordinate::T, WrapMode::ClampToEdge)
                     .set_wrap(Coordinate::R, WrapMode::ClampToEdge);
@@ -133,7 +133,7 @@ impl PointShadowMapRenderer {
             };
 
             FrameBuffer::new(
-                state,
+                server,
                 Some(Attachment {
                     kind: AttachmentKind::Depth,
                     texture: Rc::new(RefCell::new(depth)),
@@ -148,9 +148,9 @@ impl PointShadowMapRenderer {
         Ok(Self {
             precision,
             cascades: [
-                make_cascade(state, cascade_size(size, 0), precision)?,
-                make_cascade(state, cascade_size(size, 1), precision)?,
-                make_cascade(state, cascade_size(size, 2), precision)?,
+                make_cascade(server, cascade_size(size, 0), precision)?,
+                make_cascade(server, cascade_size(size, 1), precision)?,
+                make_cascade(server, cascade_size(size, 2), precision)?,
             ],
             size,
             faces: [

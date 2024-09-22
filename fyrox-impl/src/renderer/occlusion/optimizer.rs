@@ -30,7 +30,7 @@ use crate::{
                 GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind,
             },
             pixel_buffer::PixelBuffer,
-            state::PipelineState,
+            state::GlGraphicsServer,
             ColorMask, DrawParameters, ElementRange,
         },
         make_viewport_matrix,
@@ -46,21 +46,21 @@ struct VisibilityOptimizerShader {
 }
 
 impl VisibilityOptimizerShader {
-    fn new(state: &PipelineState) -> Result<Self, FrameworkError> {
+    fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("../shaders/visibility_optimizer_fs.glsl");
         let vertex_source = include_str!("../shaders/visibility_optimizer_vs.glsl");
         let program = GpuProgram::from_source(
-            state,
+            server,
             "VisibilityOptimizerShader",
             vertex_source,
             fragment_source,
         )?;
         Ok(Self {
             view_projection: program
-                .uniform_location(state, &ImmutableString::new("viewProjection"))?,
-            tile_size: program.uniform_location(state, &ImmutableString::new("tileSize"))?,
+                .uniform_location(server, &ImmutableString::new("viewProjection"))?,
+            tile_size: program.uniform_location(server, &ImmutableString::new("tileSize"))?,
             visibility_buffer: program
-                .uniform_location(state, &ImmutableString::new("visibilityBuffer"))?,
+                .uniform_location(server, &ImmutableString::new("visibilityBuffer"))?,
             program,
         })
     }
@@ -76,12 +76,12 @@ pub struct VisibilityBufferOptimizer {
 
 impl VisibilityBufferOptimizer {
     pub fn new(
-        state: &PipelineState,
+        server: &GlGraphicsServer,
         w_tiles: usize,
         h_tiles: usize,
     ) -> Result<Self, FrameworkError> {
         let optimized_visibility_buffer = GpuTexture::new(
-            state,
+            server,
             GpuTextureKind::Rectangle {
                 width: w_tiles,
                 height: h_tiles,
@@ -97,15 +97,15 @@ impl VisibilityBufferOptimizer {
 
         Ok(Self {
             framebuffer: FrameBuffer::new(
-                state,
+                server,
                 None,
                 vec![Attachment {
                     kind: AttachmentKind::Color,
                     texture: optimized_visibility_buffer,
                 }],
             )?,
-            pixel_buffer: PixelBuffer::new(state, w_tiles * h_tiles)?,
-            shader: VisibilityOptimizerShader::new(state)?,
+            pixel_buffer: PixelBuffer::new(server, w_tiles * h_tiles)?,
+            shader: VisibilityOptimizerShader::new(server)?,
             w_tiles,
             h_tiles,
         })
@@ -115,13 +115,13 @@ impl VisibilityBufferOptimizer {
         self.pixel_buffer.is_request_running()
     }
 
-    pub fn read_visibility_mask(&mut self, state: &PipelineState) -> Option<Vec<u32>> {
-        self.pixel_buffer.try_read(state)
+    pub fn read_visibility_mask(&mut self, server: &GlGraphicsServer) -> Option<Vec<u32>> {
+        self.pixel_buffer.try_read(server)
     }
 
     pub fn optimize(
         &mut self,
-        state: &PipelineState,
+        server: &GlGraphicsServer,
         visibility_buffer: &Rc<RefCell<GpuTexture>>,
         unit_quad: &GeometryBuffer,
         tile_size: i32,
@@ -129,13 +129,13 @@ impl VisibilityBufferOptimizer {
         let viewport = Rect::new(0, 0, self.w_tiles as i32, self.h_tiles as i32);
 
         self.framebuffer
-            .clear(state, viewport, Some(Color::TRANSPARENT), None, None);
+            .clear(server, viewport, Some(Color::TRANSPARENT), None, None);
 
         let matrix = make_viewport_matrix(viewport);
 
         self.framebuffer.draw(
             unit_quad,
-            state,
+            server,
             viewport,
             &self.shader.program,
             &DrawParameters {
@@ -158,7 +158,7 @@ impl VisibilityBufferOptimizer {
         )?;
 
         self.pixel_buffer
-            .schedule_pixels_transfer(state, &self.framebuffer, 0, None)?;
+            .schedule_pixels_transfer(server, &self.framebuffer, 0, None)?;
 
         Ok(())
     }

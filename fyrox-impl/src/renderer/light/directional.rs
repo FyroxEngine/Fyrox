@@ -23,7 +23,7 @@ use crate::{
     renderer::framework::{
         error::FrameworkError,
         gpu_program::{GpuProgram, UniformLocation},
-        state::PipelineState,
+        state::GlGraphicsServer,
     },
 };
 
@@ -52,52 +52,52 @@ pub struct DirectionalLightShader {
 }
 
 impl DirectionalLightShader {
-    pub fn new(state: &PipelineState) -> Result<Self, FrameworkError> {
+    pub fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("../shaders/deferred_directional_light_fs.glsl");
         let vertex_source = include_str!("../shaders/deferred_light_vs.glsl");
         let program = GpuProgram::from_source(
-            state,
+            server,
             "DirectionalLightShader",
             vertex_source,
             fragment_source,
         )?;
         Ok(Self {
             wvp_matrix: program
-                .uniform_location(state, &ImmutableString::new("worldViewProjection"))?,
+                .uniform_location(server, &ImmutableString::new("worldViewProjection"))?,
             depth_sampler: program
-                .uniform_location(state, &ImmutableString::new("depthTexture"))?,
+                .uniform_location(server, &ImmutableString::new("depthTexture"))?,
             color_sampler: program
-                .uniform_location(state, &ImmutableString::new("colorTexture"))?,
+                .uniform_location(server, &ImmutableString::new("colorTexture"))?,
             normal_sampler: program
-                .uniform_location(state, &ImmutableString::new("normalTexture"))?,
+                .uniform_location(server, &ImmutableString::new("normalTexture"))?,
             material_sampler: program
-                .uniform_location(state, &ImmutableString::new("materialTexture"))?,
+                .uniform_location(server, &ImmutableString::new("materialTexture"))?,
             light_direction: program
-                .uniform_location(state, &ImmutableString::new("lightDirection"))?,
-            light_color: program.uniform_location(state, &ImmutableString::new("lightColor"))?,
+                .uniform_location(server, &ImmutableString::new("lightDirection"))?,
+            light_color: program.uniform_location(server, &ImmutableString::new("lightColor"))?,
             inv_view_proj_matrix: program
-                .uniform_location(state, &ImmutableString::new("invViewProj"))?,
+                .uniform_location(server, &ImmutableString::new("invViewProj"))?,
             camera_position: program
-                .uniform_location(state, &ImmutableString::new("cameraPosition"))?,
+                .uniform_location(server, &ImmutableString::new("cameraPosition"))?,
             light_intensity: program
-                .uniform_location(state, &ImmutableString::new("lightIntensity"))?,
+                .uniform_location(server, &ImmutableString::new("lightIntensity"))?,
             cascade_distances: program
-                .uniform_location(state, &ImmutableString::new("cascadeDistances"))?,
+                .uniform_location(server, &ImmutableString::new("cascadeDistances"))?,
             shadow_cascade0: program
-                .uniform_location(state, &ImmutableString::new("shadowCascade0"))?,
+                .uniform_location(server, &ImmutableString::new("shadowCascade0"))?,
             shadow_cascade1: program
-                .uniform_location(state, &ImmutableString::new("shadowCascade1"))?,
+                .uniform_location(server, &ImmutableString::new("shadowCascade1"))?,
             shadow_cascade2: program
-                .uniform_location(state, &ImmutableString::new("shadowCascade2"))?,
+                .uniform_location(server, &ImmutableString::new("shadowCascade2"))?,
             light_view_proj_matrices: program
-                .uniform_location(state, &ImmutableString::new("lightViewProjMatrices"))?,
-            view_matrix: program.uniform_location(state, &ImmutableString::new("viewMatrix"))?,
-            shadow_bias: program.uniform_location(state, &ImmutableString::new("shadowBias"))?,
+                .uniform_location(server, &ImmutableString::new("lightViewProjMatrices"))?,
+            view_matrix: program.uniform_location(server, &ImmutableString::new("viewMatrix"))?,
+            shadow_bias: program.uniform_location(server, &ImmutableString::new("shadowBias"))?,
             shadows_enabled: program
-                .uniform_location(state, &ImmutableString::new("shadowsEnabled"))?,
-            soft_shadows: program.uniform_location(state, &ImmutableString::new("softShadows"))?,
+                .uniform_location(server, &ImmutableString::new("shadowsEnabled"))?,
+            soft_shadows: program.uniform_location(server, &ImmutableString::new("softShadows"))?,
             shadow_map_inv_size: program
-                .uniform_location(state, &ImmutableString::new("shadowMapInvSize"))?,
+                .uniform_location(server, &ImmutableString::new("shadowMapInvSize"))?,
             program,
         })
     }

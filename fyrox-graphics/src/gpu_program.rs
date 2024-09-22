@@ -27,7 +27,7 @@ use crate::{
     },
     error::FrameworkError,
     gpu_texture::GpuTexture,
-    state::{GlKind, PipelineState},
+    state::{GlGraphicsServer, GlKind},
 };
 use fxhash::FxHashMap;
 use glow::HasContext;
@@ -39,7 +39,7 @@ use std::{
 };
 
 pub struct GpuProgram {
-    state: Weak<PipelineState>,
+    state: Weak<GlGraphicsServer>,
     id: glow::Program,
     // Force compiler to not implement Send and Sync, because OpenGL is not thread-safe.
     thread_mark: PhantomData<*const u8>,
@@ -83,7 +83,7 @@ pub struct UniformLocation {
 }
 
 unsafe fn create_shader(
-    state: &PipelineState,
+    server: &GlGraphicsServer,
     name: String,
     actual_type: u32,
     source: &str,
@@ -91,12 +91,12 @@ unsafe fn create_shader(
 ) -> Result<glow::Shader, FrameworkError> {
     let merged_source = prepare_source_code(source, gl_kind);
 
-    let shader = state.gl.create_shader(actual_type)?;
-    state.gl.shader_source(shader, &merged_source);
-    state.gl.compile_shader(shader);
+    let shader = server.gl.create_shader(actual_type)?;
+    server.gl.shader_source(shader, &merged_source);
+    server.gl.compile_shader(shader);
 
-    let status = state.gl.get_shader_compile_status(shader);
-    let compilation_message = state.gl.get_shader_info_log(shader);
+    let status = server.gl.get_shader_compile_status(shader);
+    let compilation_message = server.gl.get_shader_info_log(shader);
 
     if !status {
         Log::writeln(
@@ -148,7 +148,7 @@ fn prepare_source_code(code: &str, gl_kind: GlKind) -> String {
 }
 
 pub struct GpuProgramBinding<'a, 'b> {
-    pub state: &'a PipelineState,
+    pub state: &'a GlGraphicsServer,
     active_sampler: u32,
     pub program: &'b GpuProgram,
 }
@@ -449,12 +449,12 @@ impl<'a, 'b> GpuProgramBinding<'a, 'b> {
 
 #[inline]
 fn fetch_uniform_location(
-    state: &PipelineState,
+    server: &GlGraphicsServer,
     program: glow::Program,
     id: &str,
 ) -> Option<UniformLocation> {
     unsafe {
-        state
+        server
             .gl
             .get_uniform_location(program, id)
             .map(|id| UniformLocation {
@@ -465,95 +465,96 @@ fn fetch_uniform_location(
 }
 
 fn fetch_built_in_uniform_locations(
-    state: &PipelineState,
+    server: &GlGraphicsServer,
     program: glow::Program,
 ) -> [Option<UniformLocation>; BuiltInUniform::Count as usize] {
     const INIT: Option<UniformLocation> = None;
     let mut locations = [INIT; BuiltInUniform::Count as usize];
 
     locations[BuiltInUniform::WorldMatrix as usize] =
-        fetch_uniform_location(state, program, "fyrox_worldMatrix");
+        fetch_uniform_location(server, program, "fyrox_worldMatrix");
     locations[BuiltInUniform::ViewProjectionMatrix as usize] =
-        fetch_uniform_location(state, program, "fyrox_viewProjectionMatrix");
+        fetch_uniform_location(server, program, "fyrox_viewProjectionMatrix");
     locations[BuiltInUniform::WorldViewProjectionMatrix as usize] =
-        fetch_uniform_location(state, program, "fyrox_worldViewProjection");
+        fetch_uniform_location(server, program, "fyrox_worldViewProjection");
 
     locations[BuiltInUniform::BoneMatrices as usize] =
-        fetch_uniform_location(state, program, "fyrox_boneMatrices");
+        fetch_uniform_location(server, program, "fyrox_boneMatrices");
     locations[BuiltInUniform::UseSkeletalAnimation as usize] =
-        fetch_uniform_location(state, program, "fyrox_useSkeletalAnimation");
+        fetch_uniform_location(server, program, "fyrox_useSkeletalAnimation");
 
     locations[BuiltInUniform::CameraPosition as usize] =
-        fetch_uniform_location(state, program, "fyrox_cameraPosition");
+        fetch_uniform_location(server, program, "fyrox_cameraPosition");
     locations[BuiltInUniform::CameraUpVector as usize] =
-        fetch_uniform_location(state, program, "fyrox_cameraUpVector");
+        fetch_uniform_location(server, program, "fyrox_cameraUpVector");
     locations[BuiltInUniform::CameraSideVector as usize] =
-        fetch_uniform_location(state, program, "fyrox_cameraSideVector");
+        fetch_uniform_location(server, program, "fyrox_cameraSideVector");
     locations[BuiltInUniform::ZNear as usize] =
-        fetch_uniform_location(state, program, "fyrox_zNear");
-    locations[BuiltInUniform::ZFar as usize] = fetch_uniform_location(state, program, "fyrox_zFar");
+        fetch_uniform_location(server, program, "fyrox_zNear");
+    locations[BuiltInUniform::ZFar as usize] =
+        fetch_uniform_location(server, program, "fyrox_zFar");
 
     locations[BuiltInUniform::SceneDepth as usize] =
-        fetch_uniform_location(state, program, "fyrox_sceneDepth");
+        fetch_uniform_location(server, program, "fyrox_sceneDepth");
 
     locations[BuiltInUniform::UsePOM as usize] =
-        fetch_uniform_location(state, program, "fyrox_usePOM");
+        fetch_uniform_location(server, program, "fyrox_usePOM");
 
     locations[BuiltInUniform::BlendShapesStorage as usize] =
-        fetch_uniform_location(state, program, "fyrox_blendShapesStorage");
+        fetch_uniform_location(server, program, "fyrox_blendShapesStorage");
     locations[BuiltInUniform::BlendShapesWeights as usize] =
-        fetch_uniform_location(state, program, "fyrox_blendShapesWeights");
+        fetch_uniform_location(server, program, "fyrox_blendShapesWeights");
     locations[BuiltInUniform::BlendShapesCount as usize] =
-        fetch_uniform_location(state, program, "fyrox_blendShapesCount");
+        fetch_uniform_location(server, program, "fyrox_blendShapesCount");
 
     locations[BuiltInUniform::LightCount as usize] =
-        fetch_uniform_location(state, program, "fyrox_lightCount");
+        fetch_uniform_location(server, program, "fyrox_lightCount");
     locations[BuiltInUniform::LightsColorRadius as usize] =
-        fetch_uniform_location(state, program, "fyrox_lightsColorRadius");
+        fetch_uniform_location(server, program, "fyrox_lightsColorRadius");
     locations[BuiltInUniform::LightsPosition as usize] =
-        fetch_uniform_location(state, program, "fyrox_lightsPosition");
+        fetch_uniform_location(server, program, "fyrox_lightsPosition");
     locations[BuiltInUniform::LightsDirection as usize] =
-        fetch_uniform_location(state, program, "fyrox_lightsDirection");
+        fetch_uniform_location(server, program, "fyrox_lightsDirection");
     locations[BuiltInUniform::LightsParameters as usize] =
-        fetch_uniform_location(state, program, "fyrox_lightsParameters");
+        fetch_uniform_location(server, program, "fyrox_lightsParameters");
     locations[BuiltInUniform::AmbientLight as usize] =
-        fetch_uniform_location(state, program, "fyrox_ambientLightColor");
+        fetch_uniform_location(server, program, "fyrox_ambientLightColor");
     locations[BuiltInUniform::LightPosition as usize] =
-        fetch_uniform_location(state, program, "fyrox_lightPosition");
+        fetch_uniform_location(server, program, "fyrox_lightPosition");
 
     locations
 }
 
 impl GpuProgram {
     pub fn from_source(
-        state: &PipelineState,
+        server: &GlGraphicsServer,
         name: &str,
         vertex_source: &str,
         fragment_source: &str,
     ) -> Result<GpuProgram, FrameworkError> {
         unsafe {
             let vertex_shader = create_shader(
-                state,
+                server,
                 format!("{}_VertexShader", name),
                 glow::VERTEX_SHADER,
                 vertex_source,
-                state.gl_kind(),
+                server.gl_kind(),
             )?;
             let fragment_shader = create_shader(
-                state,
+                server,
                 format!("{}_FragmentShader", name),
                 glow::FRAGMENT_SHADER,
                 fragment_source,
-                state.gl_kind(),
+                server.gl_kind(),
             )?;
-            let program = state.gl.create_program()?;
-            state.gl.attach_shader(program, vertex_shader);
-            state.gl.delete_shader(vertex_shader);
-            state.gl.attach_shader(program, fragment_shader);
-            state.gl.delete_shader(fragment_shader);
-            state.gl.link_program(program);
-            let status = state.gl.get_program_link_status(program);
-            let link_message = state.gl.get_program_info_log(program);
+            let program = server.gl.create_program()?;
+            server.gl.attach_shader(program, vertex_shader);
+            server.gl.delete_shader(vertex_shader);
+            server.gl.attach_shader(program, fragment_shader);
+            server.gl.delete_shader(fragment_shader);
+            server.gl.link_program(program);
+            let status = server.gl.get_program_link_status(program);
+            let link_message = server.gl.get_program_info_log(program);
 
             if !status {
                 Log::writeln(
@@ -578,11 +579,11 @@ impl GpuProgram {
                 Log::writeln(MessageKind::Information, msg);
 
                 Ok(Self {
-                    state: state.weak(),
+                    state: server.weak(),
                     id: program,
                     thread_mark: PhantomData,
                     uniform_locations: Default::default(),
-                    built_in_uniform_locations: fetch_built_in_uniform_locations(state, program),
+                    built_in_uniform_locations: fetch_built_in_uniform_locations(server, program),
                 })
             }
         }
@@ -590,7 +591,7 @@ impl GpuProgram {
 
     pub fn uniform_location_internal(
         &self,
-        state: &PipelineState,
+        server: &GlGraphicsServer,
         name: &ImmutableString,
     ) -> Option<UniformLocation> {
         let mut locations = self.uniform_locations.borrow_mut();
@@ -598,7 +599,7 @@ impl GpuProgram {
         if let Some(cached_location) = locations.get(name) {
             cached_location.clone()
         } else {
-            let location = fetch_uniform_location(state, self.id, name.deref());
+            let location = fetch_uniform_location(server, self.id, name.deref());
 
             locations.insert(name.clone(), location.clone());
 
@@ -608,14 +609,14 @@ impl GpuProgram {
 
     pub fn uniform_location(
         &self,
-        state: &PipelineState,
+        server: &GlGraphicsServer,
         name: &ImmutableString,
     ) -> Result<UniformLocation, FrameworkError> {
-        self.uniform_location_internal(state, name)
+        self.uniform_location_internal(server, name)
             .ok_or_else(|| FrameworkError::UnableToFindShaderUniform(name.deref().to_owned()))
     }
 
-    pub fn bind<'a, 'b>(&'b self, state: &'a PipelineState) -> GpuProgramBinding<'a, 'b> {
+    pub fn bind<'a, 'b>(&'b self, state: &'a GlGraphicsServer) -> GpuProgramBinding<'a, 'b> {
         state.set_program(Some(self.id));
         GpuProgramBinding {
             state,

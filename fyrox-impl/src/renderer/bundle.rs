@@ -38,7 +38,7 @@ use crate::{
             framebuffer::FrameBuffer,
             gpu_program::{BuiltInUniform, GpuProgramBinding},
             gpu_texture::GpuTexture,
-            state::PipelineState,
+            state::GlGraphicsServer,
             ElementRange,
         },
         storage::MatrixStorageCache,
@@ -59,6 +59,7 @@ use crate::{
     },
 };
 use fxhash::{FxBuildHasher, FxHashMap, FxHasher};
+use fyrox_graphics::state::GraphicsServer;
 use std::{
     cell::RefCell,
     collections::hash_map::DefaultHasher,
@@ -452,7 +453,7 @@ impl RenderDataBundle {
     /// Draws the entire bundle to the specified frame buffer with the specified rendering environment.
     pub fn render_to_frame_buffer<F>(
         &self,
-        state: &PipelineState,
+        server: &GlGraphicsServer,
         geometry_cache: &mut GeometryCache,
         shader_cache: &mut ShaderCache,
         mut instance_filter: F,
@@ -469,7 +470,7 @@ impl RenderDataBundle {
             return Ok(stats);
         };
 
-        let Some(geometry) = geometry_cache.get(state, &self.data, self.time_to_live) else {
+        let Some(geometry) = geometry_cache.get(server, &self.data, self.time_to_live) else {
             return Ok(stats);
         };
 
@@ -480,25 +481,26 @@ impl RenderDataBundle {
             .as_ref()
             .and_then(|c| c.blend_shape_storage.clone());
 
-        let Some(render_pass) = shader_cache
-            .get(state, material.shader())
-            .and_then(|shader_set| {
-                shader_set
-                    .render_passes
-                    .get(render_context.render_pass_name)
-            })
+        let Some(render_pass) =
+            shader_cache
+                .get(server, material.shader())
+                .and_then(|shader_set| {
+                    shader_set
+                        .render_passes
+                        .get(render_context.render_pass_name)
+                })
         else {
             return Ok(stats);
         };
 
-        state.set_framebuffer(render_context.frame_buffer.id());
-        state.set_viewport(render_context.viewport);
-        state.apply_draw_parameters(&render_pass.draw_params);
+        server.set_framebuffer(render_context.frame_buffer.id());
+        server.set_viewport(render_context.viewport);
+        server.apply_draw_parameters(&render_pass.draw_params);
 
-        let mut program_binding = render_pass.program.bind(state);
+        let mut program_binding = render_pass.program.bind(server);
         render_context.apply_material(material, &mut program_binding, blend_shapes_storage);
 
-        let geometry_binding = geometry.bind(state);
+        let geometry_binding = geometry.bind(server);
 
         for instance in self.instances.iter() {
             if !instance_filter(instance) {

@@ -31,7 +31,7 @@ use crate::{
                 Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
                 PixelKind, WrapMode,
             },
-            state::PipelineState,
+            state::GlGraphicsServer,
             DrawParameters, ElementRange,
         },
         make_viewport_matrix,
@@ -47,16 +47,17 @@ struct Shader {
 }
 
 impl Shader {
-    fn new(state: &PipelineState) -> Result<Self, FrameworkError> {
+    fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("../shaders/blur_fs.glsl");
         let vertex_source = include_str!("../shaders/blur_vs.glsl");
 
-        let program = GpuProgram::from_source(state, "BlurShader", vertex_source, fragment_source)?;
+        let program =
+            GpuProgram::from_source(server, "BlurShader", vertex_source, fragment_source)?;
         Ok(Self {
             world_view_projection_matrix: program
-                .uniform_location(state, &ImmutableString::new("worldViewProjection"))?,
+                .uniform_location(server, &ImmutableString::new("worldViewProjection"))?,
             input_texture: program
-                .uniform_location(state, &ImmutableString::new("inputTexture"))?,
+                .uniform_location(server, &ImmutableString::new("inputTexture"))?,
             program,
         })
     }
@@ -71,11 +72,15 @@ pub struct Blur {
 }
 
 impl Blur {
-    pub fn new(state: &PipelineState, width: usize, height: usize) -> Result<Self, FrameworkError> {
+    pub fn new(
+        server: &GlGraphicsServer,
+        width: usize,
+        height: usize,
+    ) -> Result<Self, FrameworkError> {
         let frame = {
             let kind = GpuTextureKind::Rectangle { width, height };
             let mut texture = GpuTexture::new(
-                state,
+                server,
                 kind,
                 PixelKind::R32F,
                 MinificationFilter::Nearest,
@@ -84,16 +89,16 @@ impl Blur {
                 None,
             )?;
             texture
-                .bind_mut(state, 0)
+                .bind_mut(server, 0)
                 .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
                 .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
             texture
         };
 
         Ok(Self {
-            shader: Shader::new(state)?,
+            shader: Shader::new(server)?,
             framebuffer: FrameBuffer::new(
-                state,
+                server,
                 None,
                 vec![Attachment {
                     kind: AttachmentKind::Color,
@@ -103,7 +108,7 @@ impl Blur {
             quad: GeometryBuffer::from_surface_data(
                 &SurfaceData::make_unit_xy_quad(),
                 GeometryBufferKind::StaticDraw,
-                state,
+                server,
             )?,
             width,
             height,
@@ -116,7 +121,7 @@ impl Blur {
 
     pub(crate) fn render(
         &mut self,
-        state: &PipelineState,
+        server: &GlGraphicsServer,
         input: Rc<RefCell<GpuTexture>>,
     ) -> Result<DrawCallStatistics, FrameworkError> {
         let viewport = Rect::new(0, 0, self.width as i32, self.height as i32);
@@ -124,7 +129,7 @@ impl Blur {
         let shader = &self.shader;
         self.framebuffer.draw(
             &self.quad,
-            state,
+            server,
             viewport,
             &shader.program,
             &DrawParameters {

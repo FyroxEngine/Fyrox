@@ -32,7 +32,7 @@ use crate::{
             geometry_buffer::{GeometryBuffer, GeometryBufferKind},
             gpu_program::{GpuProgram, UniformLocation},
             gpu_texture::GpuTexture,
-            state::PipelineState,
+            state::GlGraphicsServer,
             DrawParameters, ElementRange,
         },
         RenderPassStatistics,
@@ -49,18 +49,19 @@ struct FxaaShader {
 }
 
 impl FxaaShader {
-    pub fn new(state: &PipelineState) -> Result<Self, FrameworkError> {
+    pub fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("shaders/fxaa_fs.glsl");
         let vertex_source = include_str!("shaders/flat_vs.glsl");
 
-        let program = GpuProgram::from_source(state, "FXAAShader", vertex_source, fragment_source)?;
+        let program =
+            GpuProgram::from_source(server, "FXAAShader", vertex_source, fragment_source)?;
         Ok(Self {
             wvp_matrix: program
-                .uniform_location(state, &ImmutableString::new("worldViewProjection"))?,
+                .uniform_location(server, &ImmutableString::new("worldViewProjection"))?,
             screen_texture: program
-                .uniform_location(state, &ImmutableString::new("screenTexture"))?,
+                .uniform_location(server, &ImmutableString::new("screenTexture"))?,
             inverse_screen_size: program
-                .uniform_location(state, &ImmutableString::new("inverseScreenSize"))?,
+                .uniform_location(server, &ImmutableString::new("inverseScreenSize"))?,
             program,
         })
     }
@@ -72,20 +73,20 @@ pub struct FxaaRenderer {
 }
 
 impl FxaaRenderer {
-    pub fn new(state: &PipelineState) -> Result<Self, FrameworkError> {
+    pub fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
         Ok(Self {
-            shader: FxaaShader::new(state)?,
+            shader: FxaaShader::new(server)?,
             quad: GeometryBuffer::from_surface_data(
                 &SurfaceData::make_unit_xy_quad(),
                 GeometryBufferKind::StaticDraw,
-                state,
+                server,
             )?,
         })
     }
 
     pub(crate) fn render(
         &self,
-        state: &PipelineState,
+        server: &GlGraphicsServer,
         viewport: Rect<i32>,
         frame_texture: Rc<RefCell<GpuTexture>>,
         frame_buffer: &mut FrameBuffer,
@@ -107,7 +108,7 @@ impl FxaaRenderer {
 
         statistics += frame_buffer.draw(
             &self.quad,
-            state,
+            server,
             viewport,
             &self.shader.program,
             &DrawParameters {

@@ -25,7 +25,7 @@ use crate::{
         framework::{
             error::FrameworkError,
             geometry_buffer::{GeometryBuffer, GeometryBufferKind},
-            state::PipelineState,
+            state::GlGraphicsServer,
         },
     },
     scene::mesh::surface::{SurfaceData, SurfaceResource},
@@ -46,10 +46,10 @@ pub struct GeometryCache {
 
 fn create_geometry_buffer(
     data: &SurfaceData,
-    state: &PipelineState,
+    server: &GlGraphicsServer,
 ) -> Result<SurfaceRenderData, FrameworkError> {
     let geometry_buffer =
-        GeometryBuffer::from_surface_data(data, GeometryBufferKind::StaticDraw, state)?;
+        GeometryBuffer::from_surface_data(data, GeometryBufferKind::StaticDraw, server)?;
 
     Ok(SurfaceRenderData {
         buffer: geometry_buffer,
@@ -62,7 +62,7 @@ fn create_geometry_buffer(
 impl GeometryCache {
     pub fn get<'a>(
         &'a mut self,
-        state: &PipelineState,
+        server: &GlGraphicsServer,
         data: &SurfaceResource,
         time_to_live: TimeToLive,
     ) -> Option<&'a mut GeometryBuffer> {
@@ -71,7 +71,7 @@ impl GeometryCache {
         match self
             .buffer
             .get_entry_mut_or_insert_with(&data.cache_index, time_to_live, || {
-                create_geometry_buffer(&data, state)
+                create_geometry_buffer(&data, server)
             }) {
             Ok(entry) => {
                 // We also must check if buffer's layout changed, and if so - recreate the entire
@@ -82,7 +82,7 @@ impl GeometryCache {
                         // Vertices has changed, upload the new content.
                         entry
                             .buffer
-                            .set_buffer_data(state, 0, data.vertex_buffer.raw_data());
+                            .set_buffer_data(server, 0, data.vertex_buffer.raw_data());
 
                         entry.vertex_modifications_count = data.vertex_buffer.modifications_count();
                     }
@@ -93,7 +93,7 @@ impl GeometryCache {
                         // Triangles has changed, upload the new content.
                         entry
                             .buffer
-                            .bind(state)
+                            .bind(server)
                             .set_triangles(data.geometry_buffer.triangles_ref());
 
                         entry.triangles_modifications_count =

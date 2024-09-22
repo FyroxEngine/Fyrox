@@ -40,7 +40,7 @@ use crate::{
                     Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter,
                     MinificationFilter, PixelKind, WrapMode,
                 },
-                state::PipelineState,
+                state::GlGraphicsServer,
                 BlendFactor, BlendFunc, BlendParameters, DrawParameters, ElementRange,
             },
             RenderPassStatistics, SceneRenderPass, SceneRenderPassContext,
@@ -60,7 +60,7 @@ struct EdgeDetectShader {
 }
 
 impl EdgeDetectShader {
-    pub fn new(state: &PipelineState) -> Result<Self, FrameworkError> {
+    pub fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
         let fragment_source = r#"
 layout (location = 0) out vec4 outColor;
 
@@ -108,13 +108,13 @@ void main()
 }"#;
 
         let program =
-            GpuProgram::from_source(state, "EdgeDetectShader", vertex_source, fragment_source)?;
+            GpuProgram::from_source(server, "EdgeDetectShader", vertex_source, fragment_source)?;
         Ok(Self {
             wvp_matrix: program
-                .uniform_location(state, &ImmutableString::new("worldViewProjection"))?,
+                .uniform_location(server, &ImmutableString::new("worldViewProjection"))?,
             frame_texture: program
-                .uniform_location(state, &ImmutableString::new("frameTexture"))?,
-            color: program.uniform_location(state, &ImmutableString::new("color"))?,
+                .uniform_location(server, &ImmutableString::new("frameTexture"))?,
+            color: program.uniform_location(server, &ImmutableString::new("color"))?,
             program,
         })
     }
@@ -129,9 +129,9 @@ pub struct HighlightRenderPass {
 }
 
 impl HighlightRenderPass {
-    fn create_frame_buffer(state: &PipelineState, width: usize, height: usize) -> FrameBuffer {
+    fn create_frame_buffer(server: &GlGraphicsServer, width: usize, height: usize) -> FrameBuffer {
         let mut depth_stencil_texture = GpuTexture::new(
-            state,
+            server,
             GpuTextureKind::Rectangle { width, height },
             PixelKind::D24S8,
             MinificationFilter::Nearest,
@@ -141,14 +141,14 @@ impl HighlightRenderPass {
         )
         .unwrap();
         depth_stencil_texture
-            .bind_mut(state, 0)
+            .bind_mut(server, 0)
             .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
             .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
 
         let depth_stencil = Rc::new(RefCell::new(depth_stencil_texture));
 
         let mut frame_texture = GpuTexture::new(
-            state,
+            server,
             GpuTextureKind::Rectangle { width, height },
             PixelKind::RGBA8,
             MinificationFilter::Linear,
@@ -158,12 +158,12 @@ impl HighlightRenderPass {
         )
         .unwrap();
         frame_texture
-            .bind_mut(state, 0)
+            .bind_mut(server, 0)
             .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
             .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
 
         FrameBuffer::new(
-            state,
+            server,
             Some(Attachment {
                 kind: AttachmentKind::DepthStencil,
                 texture: depth_stencil,
@@ -176,27 +176,27 @@ impl HighlightRenderPass {
         .unwrap()
     }
 
-    pub fn new_raw(state: &PipelineState, width: usize, height: usize) -> Self {
+    pub fn new_raw(server: &GlGraphicsServer, width: usize, height: usize) -> Self {
         Self {
-            framebuffer: Self::create_frame_buffer(state, width, height),
+            framebuffer: Self::create_frame_buffer(server, width, height),
             quad: GeometryBuffer::from_surface_data(
                 &SurfaceData::make_unit_xy_quad(),
                 GeometryBufferKind::StaticDraw,
-                state,
+                server,
             )
             .unwrap(),
-            edge_detect_shader: EdgeDetectShader::new(state).unwrap(),
+            edge_detect_shader: EdgeDetectShader::new(server).unwrap(),
             scene_handle: Default::default(),
             nodes_to_highlight: Default::default(),
         }
     }
 
-    pub fn new(state: &PipelineState, width: usize, height: usize) -> Rc<RefCell<Self>> {
-        Rc::new(RefCell::new(Self::new_raw(state, width, height)))
+    pub fn new(server: &GlGraphicsServer, width: usize, height: usize) -> Rc<RefCell<Self>> {
+        Rc::new(RefCell::new(Self::new_raw(server, width, height)))
     }
 
-    pub fn resize(&mut self, state: &PipelineState, width: usize, height: usize) {
-        self.framebuffer = Self::create_frame_buffer(state, width, height);
+    pub fn resize(&mut self, server: &GlGraphicsServer, width: usize, height: usize) {
+        self.framebuffer = Self::create_frame_buffer(server, width, height);
     }
 }
 

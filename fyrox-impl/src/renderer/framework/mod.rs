@@ -38,7 +38,7 @@ use fyrox_graphics::{
         GeometryBufferKind,
     },
     gpu_texture::{GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind, WrapMode},
-    state::PipelineState,
+    state::GlGraphicsServer,
 };
 
 impl From<TextureKind> for GpuTextureKind {
@@ -185,7 +185,7 @@ pub trait GeometryBufferExt: Sized {
     fn from_surface_data(
         data: &SurfaceData,
         kind: GeometryBufferKind,
-        state: &PipelineState,
+        server: &GlGraphicsServer,
     ) -> Result<Self, FrameworkError>;
 }
 
@@ -193,14 +193,14 @@ impl GeometryBufferExt for GeometryBuffer {
     fn from_surface_data(
         data: &SurfaceData,
         kind: GeometryBufferKind,
-        state: &PipelineState,
+        server: &GlGraphicsServer,
     ) -> Result<Self, FrameworkError> {
         let geometry_buffer = GeometryBufferBuilder::new(ElementKind::Triangle)
             .with_buffer_builder(BufferBuilder::from_vertex_buffer(&data.vertex_buffer, kind))
-            .build(state)?;
+            .build(server)?;
 
         geometry_buffer
-            .bind(state)
+            .bind(server)
             .set_triangles(data.geometry_buffer.triangles_ref());
 
         Ok(geometry_buffer)

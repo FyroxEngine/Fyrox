@@ -42,7 +42,7 @@ use crate::{
             },
             gpu_program::{GpuProgram, UniformLocation},
             gpu_texture::GpuTexture,
-            state::PipelineState,
+            state::GlGraphicsServer,
             BlendFactor, BlendFunc, BlendParameters, ColorMask, CompareFunc, DrawParameters,
             ElementKind, ElementRange, StencilAction, StencilFunc, StencilOp,
         },
@@ -75,31 +75,31 @@ struct UiShader {
 }
 
 impl UiShader {
-    pub fn new(state: &PipelineState) -> Result<Self, FrameworkError> {
+    pub fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("shaders/ui_fs.glsl");
         let vertex_source = include_str!("shaders/ui_vs.glsl");
-        let program = GpuProgram::from_source(state, "UIShader", vertex_source, fragment_source)?;
+        let program = GpuProgram::from_source(server, "UIShader", vertex_source, fragment_source)?;
         Ok(Self {
             wvp_matrix: program
-                .uniform_location(state, &ImmutableString::new("worldViewProjection"))?,
+                .uniform_location(server, &ImmutableString::new("worldViewProjection"))?,
             diffuse_texture: program
-                .uniform_location(state, &ImmutableString::new("diffuseTexture"))?,
-            is_font: program.uniform_location(state, &ImmutableString::new("isFont"))?,
-            solid_color: program.uniform_location(state, &ImmutableString::new("solidColor"))?,
-            brush_type: program.uniform_location(state, &ImmutableString::new("brushType"))?,
+                .uniform_location(server, &ImmutableString::new("diffuseTexture"))?,
+            is_font: program.uniform_location(server, &ImmutableString::new("isFont"))?,
+            solid_color: program.uniform_location(server, &ImmutableString::new("solidColor"))?,
+            brush_type: program.uniform_location(server, &ImmutableString::new("brushType"))?,
             gradient_point_count: program
-                .uniform_location(state, &ImmutableString::new("gradientPointCount"))?,
+                .uniform_location(server, &ImmutableString::new("gradientPointCount"))?,
             gradient_colors: program
-                .uniform_location(state, &ImmutableString::new("gradientColors"))?,
+                .uniform_location(server, &ImmutableString::new("gradientColors"))?,
             gradient_stops: program
-                .uniform_location(state, &ImmutableString::new("gradientStops"))?,
+                .uniform_location(server, &ImmutableString::new("gradientStops"))?,
             gradient_origin: program
-                .uniform_location(state, &ImmutableString::new("gradientOrigin"))?,
-            gradient_end: program.uniform_location(state, &ImmutableString::new("gradientEnd"))?,
-            bounds_min: program.uniform_location(state, &ImmutableString::new("boundsMin"))?,
-            bounds_max: program.uniform_location(state, &ImmutableString::new("boundsMax"))?,
-            resolution: program.uniform_location(state, &ImmutableString::new("resolution"))?,
-            opacity: program.uniform_location(state, &ImmutableString::new("opacity"))?,
+                .uniform_location(server, &ImmutableString::new("gradientOrigin"))?,
+            gradient_end: program.uniform_location(server, &ImmutableString::new("gradientEnd"))?,
+            bounds_min: program.uniform_location(server, &ImmutableString::new("boundsMin"))?,
+            bounds_max: program.uniform_location(server, &ImmutableString::new("boundsMax"))?,
+            resolution: program.uniform_location(server, &ImmutableString::new("resolution"))?,
+            opacity: program.uniform_location(server, &ImmutableString::new("opacity"))?,
             program,
         })
     }
@@ -115,7 +115,7 @@ pub struct UiRenderer {
 /// A set of parameters to render a specified user interface drawing context.
 pub struct UiRenderContext<'a, 'b, 'c> {
     /// Render pipeline state.
-    pub state: &'a PipelineState,
+    pub state: &'a GlGraphicsServer,
     /// Viewport to where render the user interface.
     pub viewport: Rect<i32>,
     /// Frame buffer to where render the user interface.
@@ -133,7 +133,7 @@ pub struct UiRenderContext<'a, 'b, 'c> {
 }
 
 impl UiRenderer {
-    pub(in crate::renderer) fn new(state: &PipelineState) -> Result<Self, FrameworkError> {
+    pub(in crate::renderer) fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
         let geometry_buffer = GeometryBufferBuilder::new(ElementKind::Triangle)
             .with_buffer_builder(
                 BufferBuilder::new::<crate::gui::draw::Vertex>(
@@ -159,7 +159,7 @@ impl UiRenderer {
                     divisor: 0,
                 }),
             )
-            .build(state)?;
+            .build(server)?;
 
         let clipping_geometry_buffer = GeometryBufferBuilder::new(ElementKind::Triangle)
             .with_buffer_builder(
@@ -175,12 +175,12 @@ impl UiRenderer {
                     divisor: 0,
                 }),
             )
-            .build(state)?;
+            .build(server)?;
 
         Ok(Self {
             geometry_buffer,
             clipping_geometry_buffer,
-            shader: UiShader::new(state)?,
+            shader: UiShader::new(server)?,
         })
     }
 

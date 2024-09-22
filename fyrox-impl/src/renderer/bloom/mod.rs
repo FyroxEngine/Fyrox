@@ -31,7 +31,7 @@ use crate::{
                 Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
                 PixelKind, WrapMode,
             },
-            state::PipelineState,
+            state::GlGraphicsServer,
             DrawParameters, ElementRange,
         },
         make_viewport_matrix, RenderPassStatistics,
@@ -48,16 +48,16 @@ struct Shader {
 }
 
 impl Shader {
-    fn new(state: &PipelineState) -> Result<Self, FrameworkError> {
+    fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("../shaders/bloom_fs.glsl");
         let vertex_source = include_str!("../shaders/flat_vs.glsl");
 
         let program =
-            GpuProgram::from_source(state, "BloomShader", vertex_source, fragment_source)?;
+            GpuProgram::from_source(server, "BloomShader", vertex_source, fragment_source)?;
         Ok(Self {
             world_view_projection_matrix: program
-                .uniform_location(state, &ImmutableString::new("worldViewProjection"))?,
-            hdr_sampler: program.uniform_location(state, &ImmutableString::new("hdrSampler"))?,
+                .uniform_location(server, &ImmutableString::new("worldViewProjection"))?,
+            hdr_sampler: program.uniform_location(server, &ImmutableString::new("hdrSampler"))?,
             program,
         })
     }
@@ -72,11 +72,15 @@ pub struct BloomRenderer {
 }
 
 impl BloomRenderer {
-    pub fn new(state: &PipelineState, width: usize, height: usize) -> Result<Self, FrameworkError> {
+    pub fn new(
+        server: &GlGraphicsServer,
+        width: usize,
+        height: usize,
+    ) -> Result<Self, FrameworkError> {
         let frame = {
             let kind = GpuTextureKind::Rectangle { width, height };
             let mut texture = GpuTexture::new(
-                state,
+                server,
                 kind,
                 PixelKind::RGBA16F,
                 MinificationFilter::Nearest,
@@ -85,17 +89,17 @@ impl BloomRenderer {
                 None,
             )?;
             texture
-                .bind_mut(state, 0)
+                .bind_mut(server, 0)
                 .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
                 .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
             texture
         };
 
         Ok(Self {
-            shader: Shader::new(state)?,
-            blur: GaussianBlur::new(state, width, height, PixelKind::RGBA16F)?,
+            shader: Shader::new(server)?,
+            blur: GaussianBlur::new(server, width, height, PixelKind::RGBA16F)?,
             framebuffer: FrameBuffer::new(
-                state,
+                server,
                 None,
                 vec![Attachment {
                     kind: AttachmentKind::Color,
@@ -117,7 +121,7 @@ impl BloomRenderer {
 
     pub(crate) fn render(
         &mut self,
-        state: &PipelineState,
+        server: &GlGraphicsServer,
         quad: &GeometryBuffer,
         hdr_scene_frame: Rc<RefCell<GpuTexture>>,
     ) -> Result<RenderPassStatistics, FrameworkError> {
@@ -128,7 +132,7 @@ impl BloomRenderer {
         let shader = &self.shader;
         stats += self.framebuffer.draw(
             quad,
-            state,
+            server,
             viewport,
             &shader.program,
             &DrawParameters {
@@ -152,7 +156,7 @@ impl BloomRenderer {
             },
         )?;
 
-        stats += self.blur.render(state, quad, self.glow_texture())?;
+        stats += self.blur.render(server, quad, self.glow_texture())?;
 
         Ok(stats)
     }

@@ -34,7 +34,7 @@ use crate::{
                 Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
                 PixelKind, WrapMode,
             },
-            state::PipelineState,
+            state::GlGraphicsServer,
         },
         storage::MatrixStorageCache,
         RenderPassStatistics, ShadowMapPrecision, DIRECTIONAL_SHADOW_PASS_NAME,
@@ -55,13 +55,13 @@ pub struct Cascade {
 
 impl Cascade {
     pub fn new(
-        state: &PipelineState,
+        server: &GlGraphicsServer,
         size: usize,
         precision: ShadowMapPrecision,
     ) -> Result<Self, FrameworkError> {
         let depth = {
             let mut texture = GpuTexture::new(
-                state,
+                server,
                 GpuTextureKind::Rectangle {
                     width: size,
                     height: size,
@@ -76,7 +76,7 @@ impl Cascade {
                 None,
             )?;
             texture
-                .bind_mut(state, 0)
+                .bind_mut(server, 0)
                 .set_wrap(Coordinate::T, WrapMode::ClampToEdge)
                 .set_wrap(Coordinate::S, WrapMode::ClampToEdge);
             texture
@@ -84,7 +84,7 @@ impl Cascade {
 
         Ok(Self {
             frame_buffer: FrameBuffer::new(
-                state,
+                server,
                 Some(Attachment {
                     kind: AttachmentKind::Depth,
                     texture: Rc::new(RefCell::new(depth)),
@@ -113,7 +113,7 @@ pub struct CsmRenderer {
 
 pub(crate) struct CsmRenderContext<'a, 'c> {
     pub frame_size: Vector2<f32>,
-    pub state: &'a PipelineState,
+    pub state: &'a GlGraphicsServer,
     pub graph: &'c Graph,
     pub light: &'c DirectionalLight,
     pub camera: &'c Camera,
@@ -129,7 +129,7 @@ pub(crate) struct CsmRenderContext<'a, 'c> {
 
 impl CsmRenderer {
     pub fn new(
-        state: &PipelineState,
+        server: &GlGraphicsServer,
         size: usize,
         precision: ShadowMapPrecision,
     ) -> Result<Self, FrameworkError> {
@@ -137,9 +137,9 @@ impl CsmRenderer {
             precision,
             size,
             cascades: [
-                Cascade::new(state, size, precision)?,
-                Cascade::new(state, size, precision)?,
-                Cascade::new(state, size, precision)?,
+                Cascade::new(server, size, precision)?,
+                Cascade::new(server, size, precision)?,
+                Cascade::new(server, size, precision)?,
             ],
         })
     }

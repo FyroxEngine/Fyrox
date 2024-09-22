@@ -39,7 +39,7 @@ use crate::{
         cache::{shader::ShaderCache, texture::TextureCache},
         framework::{
             error::FrameworkError, framebuffer::FrameBuffer, gpu_texture::GpuTexture,
-            state::PipelineState,
+            state::GlGraphicsServer,
         },
         storage::MatrixStorageCache,
         GeometryCache, LightData, QualitySettings, RenderPassStatistics,
@@ -58,7 +58,7 @@ pub(crate) struct ForwardRenderer {
 }
 
 pub(crate) struct ForwardRenderContext<'a, 'b> {
-    pub state: &'a PipelineState,
+    pub state: &'a GlGraphicsServer,
     pub graph: &'b Graph,
     pub camera: &'b Camera,
     pub geom_cache: &'a mut GeometryCache,

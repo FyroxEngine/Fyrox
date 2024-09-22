@@ -30,7 +30,7 @@ use crate::{
                 Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
                 PixelKind, WrapMode,
             },
-            state::PipelineState,
+            state::GlGraphicsServer,
             DrawParameters, ElementRange,
         },
         make_viewport_matrix, RenderPassStatistics,
@@ -47,18 +47,18 @@ struct Shader {
 }
 
 impl Shader {
-    fn new(state: &PipelineState) -> Result<Self, FrameworkError> {
+    fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("../shaders/gaussian_blur_fs.glsl");
         let vertex_source = include_str!("../shaders/flat_vs.glsl");
 
         let program =
-            GpuProgram::from_source(state, "GaussianBlurShader", vertex_source, fragment_source)?;
+            GpuProgram::from_source(server, "GaussianBlurShader", vertex_source, fragment_source)?;
         Ok(Self {
             world_view_projection_matrix: program
-                .uniform_location(state, &ImmutableString::new("worldViewProjection"))?,
-            image: program.uniform_location(state, &ImmutableString::new("image"))?,
-            pixel_size: program.uniform_location(state, &ImmutableString::new("pixelSize"))?,
-            horizontal: program.uniform_location(state, &ImmutableString::new("horizontal"))?,
+                .uniform_location(server, &ImmutableString::new("worldViewProjection"))?,
+            image: program.uniform_location(server, &ImmutableString::new("image"))?,
+            pixel_size: program.uniform_location(server, &ImmutableString::new("pixelSize"))?,
+            horizontal: program.uniform_location(server, &ImmutableString::new("horizontal"))?,
             program,
         })
     }
@@ -73,7 +73,7 @@ pub struct GaussianBlur {
 }
 
 fn create_framebuffer(
-    state: &PipelineState,
+    server: &GlGraphicsServer,
     width: usize,
     height: usize,
     pixel_kind: PixelKind,
@@ -81,7 +81,7 @@ fn create_framebuffer(
     let frame = {
         let kind = GpuTextureKind::Rectangle { width, height };
         let mut texture = GpuTexture::new(
-            state,
+            server,
             kind,
             pixel_kind,
             MinificationFilter::Nearest,
@@ -90,14 +90,14 @@ fn create_framebuffer(
             None,
         )?;
         texture
-            .bind_mut(state, 0)
+            .bind_mut(server, 0)
             .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
             .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
         texture
     };
 
     FrameBuffer::new(
-        state,
+        server,
         None,
         vec![Attachment {
             kind: AttachmentKind::Color,
@@ -108,15 +108,15 @@ fn create_framebuffer(
 
 impl GaussianBlur {
     pub fn new(
-        state: &PipelineState,
+        server: &GlGraphicsServer,
         width: usize,
         height: usize,
         pixel_kind: PixelKind,
     ) -> Result<Self, FrameworkError> {
         Ok(Self {
-            shader: Shader::new(state)?,
-            h_framebuffer: create_framebuffer(state, width, height, pixel_kind)?,
-            v_framebuffer: create_framebuffer(state, width, height, pixel_kind)?,
+            shader: Shader::new(server)?,
+            h_framebuffer: create_framebuffer(server, width, height, pixel_kind)?,
+            v_framebuffer: create_framebuffer(server, width, height, pixel_kind)?,
             width,
             height,
         })
@@ -132,7 +132,7 @@ impl GaussianBlur {
 
     pub(crate) fn render(
         &mut self,
-        state: &PipelineState,
+        server: &GlGraphicsServer,
         quad: &GeometryBuffer,
         input: Rc<RefCell<GpuTexture>>,
     ) -> Result<RenderPassStatistics, FrameworkError> {
@@ -146,7 +146,7 @@ impl GaussianBlur {
         // Blur horizontally first.
         stats += self.h_framebuffer.draw(
             quad,
-            state,
+            server,
             viewport,
             &shader.program,
             &DrawParameters {
@@ -176,7 +176,7 @@ impl GaussianBlur {
         let h_blurred_texture = self.h_blurred();
         stats += self.v_framebuffer.draw(
             quad,
-            state,
+            server,
             viewport,
             &shader.program,
             &DrawParameters {

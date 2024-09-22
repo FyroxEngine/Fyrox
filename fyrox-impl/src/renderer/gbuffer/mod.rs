@@ -49,7 +49,7 @@ use crate::{
                 Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
                 PixelKind, WrapMode,
             },
-            state::PipelineState,
+            state::GlGraphicsServer,
             BlendFactor, BlendFunc, BlendParameters, DrawParameters, ElementRange,
         },
         gbuffer::decal::DecalShader,
@@ -81,7 +81,7 @@ pub struct GBuffer {
 }
 
 pub(crate) struct GBufferRenderContext<'a, 'b> {
-    pub state: &'a PipelineState,
+    pub state: &'a GlGraphicsServer,
     pub camera: &'b Camera,
     pub geom_cache: &'a mut GeometryCache,
     pub bundle_storage: &'a RenderDataBundleStorage,
@@ -100,9 +100,13 @@ pub(crate) struct GBufferRenderContext<'a, 'b> {
 }
 
 impl GBuffer {
-    pub fn new(state: &PipelineState, width: usize, height: usize) -> Result<Self, FrameworkError> {
+    pub fn new(
+        server: &GlGraphicsServer,
+        width: usize,
+        height: usize,
+    ) -> Result<Self, FrameworkError> {
         let mut depth_stencil_texture = GpuTexture::new(
-            state,
+            server,
             GpuTextureKind::Rectangle { width, height },
             PixelKind::D24S8,
             MinificationFilter::Nearest,
@@ -111,14 +115,14 @@ impl GBuffer {
             None,
         )?;
         depth_stencil_texture
-            .bind_mut(state, 0)
+            .bind_mut(server, 0)
             .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
             .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
 
         let depth_stencil = Rc::new(RefCell::new(depth_stencil_texture));
 
         let mut diffuse_texture = GpuTexture::new(
-            state,
+            server,
             GpuTextureKind::Rectangle { width, height },
             PixelKind::RGBA8,
             MinificationFilter::Nearest,
@@ -127,13 +131,13 @@ impl GBuffer {
             None,
         )?;
         diffuse_texture
-            .bind_mut(state, 0)
+            .bind_mut(server, 0)
             .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
             .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
         let diffuse_texture = Rc::new(RefCell::new(diffuse_texture));
 
         let mut normal_texture = GpuTexture::new(
-            state,
+            server,
             GpuTextureKind::Rectangle { width, height },
             PixelKind::RGBA8,
             MinificationFilter::Nearest,
@@ -142,13 +146,13 @@ impl GBuffer {
             None,
         )?;
         normal_texture
-            .bind_mut(state, 0)
+            .bind_mut(server, 0)
             .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
             .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
         let normal_texture = Rc::new(RefCell::new(normal_texture));
 
         let mut ambient_texture = GpuTexture::new(
-            state,
+            server,
             GpuTextureKind::Rectangle { width, height },
             PixelKind::RGBA16F,
             MinificationFilter::Nearest,
@@ -157,12 +161,12 @@ impl GBuffer {
             None,
         )?;
         ambient_texture
-            .bind_mut(state, 0)
+            .bind_mut(server, 0)
             .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
             .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
 
         let mut decal_mask_texture = GpuTexture::new(
-            state,
+            server,
             GpuTextureKind::Rectangle { width, height },
             PixelKind::R8UI,
             MinificationFilter::Nearest,
@@ -171,12 +175,12 @@ impl GBuffer {
             None,
         )?;
         decal_mask_texture
-            .bind_mut(state, 0)
+            .bind_mut(server, 0)
             .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
             .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
 
         let mut material_texture = GpuTexture::new(
-            state,
+            server,
             GpuTextureKind::Rectangle { width, height },
             PixelKind::RGBA8,
             MinificationFilter::Nearest,
@@ -185,12 +189,12 @@ impl GBuffer {
             None,
         )?;
         material_texture
-            .bind_mut(state, 0)
+            .bind_mut(server, 0)
             .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
             .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
 
         let framebuffer = FrameBuffer::new(
-            state,
+            server,
             Some(Attachment {
                 kind: AttachmentKind::DepthStencil,
                 texture: depth_stencil,
@@ -220,7 +224,7 @@ impl GBuffer {
         )?;
 
         let decal_framebuffer = FrameBuffer::new(
-            state,
+            server,
             None,
             vec![
                 Attachment {
@@ -238,15 +242,15 @@ impl GBuffer {
             framebuffer,
             width: width as i32,
             height: height as i32,
-            decal_shader: DecalShader::new(state)?,
+            decal_shader: DecalShader::new(server)?,
             cube: GeometryBuffer::from_surface_data(
                 &SurfaceData::make_cube(Matrix4::identity()),
                 GeometryBufferKind::StaticDraw,
-                state,
+                server,
             )?,
             decal_framebuffer,
             render_pass_name: ImmutableString::new("GBuffer"),
-            occlusion_tester: OcclusionTester::new(state, width, height, 16)?,
+            occlusion_tester: OcclusionTester::new(server, width, height, 16)?,
         })
     }
 

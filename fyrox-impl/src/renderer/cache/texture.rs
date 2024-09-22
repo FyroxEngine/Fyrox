@@ -25,7 +25,7 @@ use crate::{
         framework::{
             error::FrameworkError,
             gpu_texture::{Coordinate, GpuTexture, PixelKind},
-            state::PipelineState,
+            state::GlGraphicsServer,
         },
     },
     resource::texture::{Texture, TextureResource},
@@ -43,11 +43,11 @@ pub struct TextureCache {
 }
 
 fn create_gpu_texture(
-    state: &PipelineState,
+    server: &GlGraphicsServer,
     texture: &Texture,
 ) -> Result<TextureRenderData, FrameworkError> {
     GpuTexture::new(
-        state,
+        server,
         texture.kind().into(),
         PixelKind::from(texture.pixel_kind()),
         texture.minification_filter().into(),
@@ -66,7 +66,7 @@ impl TextureCache {
     /// destroyed.
     pub fn upload(
         &mut self,
-        state: &PipelineState,
+        server: &GlGraphicsServer,
         texture: &TextureResource,
     ) -> Result<(), FrameworkError> {
         let mut texture = texture.state();
@@ -74,7 +74,7 @@ impl TextureCache {
             self.cache.get_entry_mut_or_insert_with(
                 &texture.cache_index,
                 Default::default(),
-                || create_gpu_texture(state, texture),
+                || create_gpu_texture(server, texture),
             )?;
             Ok(())
         } else {
@@ -86,7 +86,7 @@ impl TextureCache {
 
     pub fn get(
         &mut self,
-        state: &PipelineState,
+        server: &GlGraphicsServer,
         texture_resource: &TextureResource,
     ) -> Option<&Rc<RefCell<GpuTexture>>> {
         let mut texture_data_guard = texture_resource.state();
@@ -95,7 +95,7 @@ impl TextureCache {
             match self.cache.get_mut_or_insert_with(
                 &texture.cache_index,
                 Default::default(),
-                || create_gpu_texture(state, texture),
+                || create_gpu_texture(server, texture),
             ) {
                 Ok(entry) => {
                     // Check if some value has changed in resource.
@@ -104,7 +104,7 @@ impl TextureCache {
                     let modifications_count = texture.modifications_count();
                     if entry.modifications_counter != modifications_count {
                         let mut gpu_texture = entry.gpu_texture.borrow_mut();
-                        if let Err(e) = gpu_texture.bind_mut(state, 0).set_data(
+                        if let Err(e) = gpu_texture.bind_mut(server, 0).set_data(
                             texture.kind().into(),
                             texture.pixel_kind().into(),
                             texture.mip_count() as usize,
@@ -127,34 +127,34 @@ impl TextureCache {
                     let new_mag_filter = texture.magnification_filter().into();
                     if gpu_texture.magnification_filter() != new_mag_filter {
                         gpu_texture
-                            .bind_mut(state, 0)
+                            .bind_mut(server, 0)
                             .set_magnification_filter(new_mag_filter);
                     }
 
                     let new_min_filter = texture.minification_filter().into();
                     if gpu_texture.minification_filter() != new_min_filter {
                         gpu_texture
-                            .bind_mut(state, 0)
+                            .bind_mut(server, 0)
                             .set_minification_filter(new_min_filter);
                     }
 
                     if gpu_texture.anisotropy().ne(&texture.anisotropy_level()) {
                         gpu_texture
-                            .bind_mut(state, 0)
+                            .bind_mut(server, 0)
                             .set_anisotropy(texture.anisotropy_level());
                     }
 
                     let new_s_wrap_mode = texture.s_wrap_mode().into();
                     if gpu_texture.s_wrap_mode() != new_s_wrap_mode {
                         gpu_texture
-                            .bind_mut(state, 0)
+                            .bind_mut(server, 0)
                             .set_wrap(Coordinate::S, new_s_wrap_mode);
                     }
 
                     let new_t_wrap_mode = texture.t_wrap_mode().into();
                     if gpu_texture.t_wrap_mode() != new_t_wrap_mode {
                         gpu_texture
-                            .bind_mut(state, 0)
+                            .bind_mut(server, 0)
                             .set_wrap(Coordinate::T, new_t_wrap_mode);
                     }
 

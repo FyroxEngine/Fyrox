@@ -18,64 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::{error::FrameworkError, state::PipelineState, UniformBuffer};
-use glow::HasContext;
-use std::rc::Weak;
+use crate::error::FrameworkError;
 
-pub struct GlUniformBuffer {
-    state: Weak<PipelineState>,
-    id: glow::Buffer,
-    size: usize,
-}
-
-impl GlUniformBuffer {
-    pub fn new(state: &PipelineState, size_bytes: usize) -> Result<Self, FrameworkError> {
-        unsafe {
-            let id = state.gl.create_buffer()?;
-            state.gl.bind_buffer(glow::UNIFORM_BUFFER, Some(id));
-            state
-                .gl
-                .buffer_data_size(glow::UNIFORM_BUFFER, size_bytes as i32, glow::DYNAMIC_COPY);
-            state.gl.bind_buffer(glow::UNIFORM_BUFFER, None);
-            Ok(Self {
-                state: state.weak(),
-                id,
-                size: size_bytes,
-            })
-        }
-    }
-}
-
-impl Drop for GlUniformBuffer {
-    fn drop(&mut self) {
-        unsafe {
-            if let Some(state) = self.state.upgrade() {
-                state.gl.delete_buffer(self.id);
-            }
-        }
-    }
-}
-
-impl UniformBuffer for GlUniformBuffer {
-    fn write_data(&self, data: &[u8]) -> Result<(), FrameworkError> {
-        if data.len() != self.size {
-            return Err(FrameworkError::Custom(format!(
-                "Uniform buffer size {} does not match the data size {}",
-                self.size,
-                data.len()
-            )));
-        }
-
-        if let Some(state) = self.state.upgrade() {
-            unsafe {
-                state.gl.bind_buffer(glow::UNIFORM_BUFFER, Some(self.id));
-                state
-                    .gl
-                    .buffer_data_u8_slice(glow::UNIFORM_BUFFER, data, glow::DYNAMIC_COPY);
-                state.gl.bind_buffer(glow::UNIFORM_BUFFER, None);
-            }
-        }
-
-        Ok(())
-    }
+pub trait UniformBuffer {
+    fn write_data(&self, data: &[u8]) -> Result<(), FrameworkError>;
 }

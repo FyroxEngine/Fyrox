@@ -23,7 +23,7 @@ use crate::renderer::framework::error::FrameworkError;
 use crate::{
     core::sstorage::ImmutableString,
     material::shader::{Shader, ShaderResource},
-    renderer::framework::{gpu_program::GpuProgram, state::PipelineState, DrawParameters},
+    renderer::framework::{gpu_program::GpuProgram, state::GlGraphicsServer, DrawParameters},
 };
 use fxhash::FxHashMap;
 use fyrox_core::log::Log;
@@ -38,12 +38,12 @@ pub struct ShaderSet {
 }
 
 impl ShaderSet {
-    pub fn new(state: &PipelineState, shader: &Shader) -> Result<Self, FrameworkError> {
+    pub fn new(server: &GlGraphicsServer, shader: &Shader) -> Result<Self, FrameworkError> {
         let mut map = FxHashMap::default();
         for render_pass in shader.definition.passes.iter() {
             let program_name = format!("{}_{}", shader.definition.name, render_pass.name);
             match GpuProgram::from_source(
-                state,
+                server,
                 &program_name,
                 &render_pass.vertex_shader,
                 &render_pass.fragment_shader,
@@ -85,7 +85,7 @@ impl ShaderCache {
 
     pub fn get(
         &mut self,
-        pipeline_state: &PipelineState,
+        server: &GlGraphicsServer,
         shader: &ShaderResource,
     ) -> Option<&ShaderSet> {
         let mut shader_state = shader.state();
@@ -94,7 +94,7 @@ impl ShaderCache {
             match self.cache.get_or_insert_with(
                 &shader_state.cache_index,
                 Default::default(),
-                || ShaderSet::new(pipeline_state, shader_state),
+                || ShaderSet::new(server, shader_state),
             ) {
                 Ok(shader_set) => Some(shader_set),
                 Err(error) => {

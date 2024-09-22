@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::{core::color::Color, error::FrameworkError, state::PipelineState};
+use crate::{core::color::Color, error::FrameworkError, state::GlGraphicsServer};
 use bytemuck::Pod;
 use glow::{HasContext, PixelPackData, COMPRESSED_RED_RGTC1, COMPRESSED_RG_RGTC2};
 use std::marker::PhantomData;
@@ -334,7 +334,7 @@ impl PixelKind {
 }
 
 pub struct GpuTexture {
-    state: Weak<PipelineState>,
+    state: Weak<GlGraphicsServer>,
     texture: glow::Texture,
     kind: GpuTextureKind,
     min_filter: MinificationFilter,
@@ -531,7 +531,7 @@ impl Coordinate {
 }
 
 pub struct TextureBinding<'a> {
-    state: &'a PipelineState,
+    state: &'a GlGraphicsServer,
     texture: &'a mut GpuTexture,
     sampler_index: u32,
 }
@@ -929,13 +929,13 @@ impl<'a> TextureBinding<'a> {
         Ok(self)
     }
 
-    pub fn read_pixels(&self, state: &PipelineState) -> Vec<u8> {
+    pub fn read_pixels(&self, server: &GlGraphicsServer) -> Vec<u8> {
         unsafe {
             if let GpuTextureKind::Rectangle { width, height } = self.texture.kind {
                 let pixel_info = self.texture.pixel_kind.pixel_descriptor();
                 let mut buffer =
                     vec![0; image_2d_size_bytes(self.texture.pixel_kind, width, height)];
-                state.gl.read_pixels(
+                server.gl.read_pixels(
                     0,
                     0,
                     width as i32,
@@ -951,11 +951,11 @@ impl<'a> TextureBinding<'a> {
         }
     }
 
-    pub fn read_pixels_of_type<T>(&self, state: &PipelineState) -> Vec<T>
+    pub fn read_pixels_of_type<T>(&self, server: &GlGraphicsServer) -> Vec<T>
     where
         T: Pod,
     {
-        let mut bytes = self.read_pixels(state);
+        let mut bytes = self.read_pixels(server);
         let typed = unsafe {
             Vec::<T>::from_raw_parts(
                 bytes.as_mut_ptr() as *mut T,
@@ -967,7 +967,7 @@ impl<'a> TextureBinding<'a> {
         typed
     }
 
-    pub fn get_image<T: Pod>(&self, level: usize, state: &PipelineState) -> Vec<T> {
+    pub fn get_image<T: Pod>(&self, level: usize, server: &GlGraphicsServer) -> Vec<T> {
         unsafe {
             let desc = self.texture.pixel_kind.pixel_descriptor();
             let (kind, buffer_size) = match self.texture.kind {
@@ -994,7 +994,7 @@ impl<'a> TextureBinding<'a> {
             };
 
             let mut bytes = vec![0; buffer_size];
-            state.gl.get_tex_image(
+            server.gl.get_tex_image(
                 kind,
                 level as i32,
                 desc.format,
@@ -1035,7 +1035,7 @@ impl GpuTexture {
     /// For compressed textures data must contain all mips, where each mip must be 2 times
     /// smaller than previous.
     pub fn new(
-        state: &PipelineState,
+        server: &GlGraphicsServer,
         kind: GpuTextureKind,
         pixel_kind: PixelKind,
         min_filter: MinificationFilter,
@@ -1048,10 +1048,10 @@ impl GpuTexture {
         let target = kind.gl_texture_target();
 
         unsafe {
-            let texture = state.gl.create_texture()?;
+            let texture = server.gl.create_texture()?;
 
             let mut result = Self {
-                state: state.weak(),
+                state: server.weak(),
                 texture,
                 kind,
                 min_filter,
@@ -1065,28 +1065,28 @@ impl GpuTexture {
             };
 
             TextureBinding {
-                state,
+                state: server,
                 texture: &mut result,
                 sampler_index: 0,
             }
             .set_data(kind, pixel_kind, mip_count, data)?;
 
-            state.gl.tex_parameter_i32(
+            server.gl.tex_parameter_i32(
                 target,
                 glow::TEXTURE_MAG_FILTER,
                 mag_filter.into_gl_value(),
             );
-            state.gl.tex_parameter_i32(
+            server.gl.tex_parameter_i32(
                 target,
                 glow::TEXTURE_MIN_FILTER,
                 min_filter.into_gl_value(),
             );
 
-            state
+            server
                 .gl
                 .tex_parameter_i32(target, glow::TEXTURE_MAX_LEVEL, mip_count as i32 - 1);
 
-            state.set_texture(0, target, Default::default());
+            server.set_texture(0, target, Default::default());
 
             Ok(result)
         }
@@ -1094,7 +1094,7 @@ impl GpuTexture {
 
     pub fn bind_mut<'a>(
         &'a mut self,
-        state: &'a PipelineState,
+        state: &'a GlGraphicsServer,
         sampler_index: u32,
     ) -> TextureBinding<'a> {
         state.set_texture(
@@ -1109,8 +1109,8 @@ impl GpuTexture {
         }
     }
 
-    pub fn bind(&self, state: &PipelineState, sampler_index: u32) {
-        state.set_texture(
+    pub fn bind(&self, server: &GlGraphicsServer, sampler_index: u32) {
+        server.set_texture(
             sampler_index,
             self.kind.gl_texture_target(),
             Some(self.texture),

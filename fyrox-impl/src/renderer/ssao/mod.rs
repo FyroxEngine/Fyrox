@@ -37,7 +37,7 @@ use crate::{
                 Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
                 PixelKind, WrapMode,
             },
-            state::PipelineState,
+            state::GlGraphicsServer,
             DrawParameters, ElementRange,
         },
         gbuffer::GBuffer,
@@ -71,27 +71,28 @@ struct Shader {
 }
 
 impl Shader {
-    pub fn new(state: &PipelineState) -> Result<Self, FrameworkError> {
+    pub fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("../shaders/ssao_fs.glsl");
         let vertex_source = include_str!("../shaders/ssao_vs.glsl");
-        let program = GpuProgram::from_source(state, "SsaoShader", vertex_source, fragment_source)?;
+        let program =
+            GpuProgram::from_source(server, "SsaoShader", vertex_source, fragment_source)?;
         Ok(Self {
             depth_sampler: program
-                .uniform_location(state, &ImmutableString::new("depthSampler"))?,
+                .uniform_location(server, &ImmutableString::new("depthSampler"))?,
             normal_sampler: program
-                .uniform_location(state, &ImmutableString::new("normalSampler"))?,
+                .uniform_location(server, &ImmutableString::new("normalSampler"))?,
             noise_sampler: program
-                .uniform_location(state, &ImmutableString::new("noiseSampler"))?,
-            kernel: program.uniform_location(state, &ImmutableString::new("kernel"))?,
-            radius: program.uniform_location(state, &ImmutableString::new("radius"))?,
+                .uniform_location(server, &ImmutableString::new("noiseSampler"))?,
+            kernel: program.uniform_location(server, &ImmutableString::new("kernel"))?,
+            radius: program.uniform_location(server, &ImmutableString::new("radius"))?,
             projection_matrix: program
-                .uniform_location(state, &ImmutableString::new("projectionMatrix"))?,
+                .uniform_location(server, &ImmutableString::new("projectionMatrix"))?,
             inv_proj_matrix: program
-                .uniform_location(state, &ImmutableString::new("inverseProjectionMatrix"))?,
-            noise_scale: program.uniform_location(state, &ImmutableString::new("noiseScale"))?,
+                .uniform_location(server, &ImmutableString::new("inverseProjectionMatrix"))?,
+            noise_scale: program.uniform_location(server, &ImmutableString::new("noiseScale"))?,
             world_view_proj_matrix: program
-                .uniform_location(state, &ImmutableString::new("worldViewProjection"))?,
-            view_matrix: program.uniform_location(state, &ImmutableString::new("viewMatrix"))?,
+                .uniform_location(server, &ImmutableString::new("worldViewProjection"))?,
+            view_matrix: program.uniform_location(server, &ImmutableString::new("viewMatrix"))?,
             program,
         })
     }
@@ -111,7 +112,7 @@ pub struct ScreenSpaceAmbientOcclusionRenderer {
 
 impl ScreenSpaceAmbientOcclusionRenderer {
     pub fn new(
-        state: &PipelineState,
+        server: &GlGraphicsServer,
         frame_width: usize,
         frame_height: usize,
     ) -> Result<Self, FrameworkError> {
@@ -123,7 +124,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
         let occlusion = {
             let kind = GpuTextureKind::Rectangle { width, height };
             let mut texture = GpuTexture::new(
-                state,
+                server,
                 kind,
                 PixelKind::R32F,
                 MinificationFilter::Nearest,
@@ -132,7 +133,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
                 None,
             )?;
             texture
-                .bind_mut(state, 0)
+                .bind_mut(server, 0)
                 .set_minification_filter(MinificationFilter::Nearest)
                 .set_magnification_filter(MagnificationFilter::Nearest);
             texture
@@ -141,10 +142,10 @@ impl ScreenSpaceAmbientOcclusionRenderer {
         let mut rng = crate::rand::thread_rng();
 
         Ok(Self {
-            blur: Blur::new(state, width, height)?,
-            shader: Shader::new(state)?,
+            blur: Blur::new(server, width, height)?,
+            shader: Shader::new(server)?,
             framebuffer: FrameBuffer::new(
-                state,
+                server,
                 None,
                 vec![Attachment {
                     kind: AttachmentKind::Color,
@@ -154,7 +155,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
             quad: GeometryBuffer::from_surface_data(
                 &SurfaceData::make_unit_xy_quad(),
                 GeometryBufferKind::StaticDraw,
-                state,
+                server,
             )?,
             width: width as i32,
             height: height as i32,
@@ -189,7 +190,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
                     height: NOISE_SIZE,
                 };
                 let mut texture = GpuTexture::new(
-                    state,
+                    server,
                     kind,
                     PixelKind::RGB8,
                     MinificationFilter::Nearest,
@@ -198,7 +199,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
                     Some(&pixels),
                 )?;
                 texture
-                    .bind_mut(state, 0)
+                    .bind_mut(server, 0)
                     .set_wrap(Coordinate::S, WrapMode::Repeat)
                     .set_wrap(Coordinate::T, WrapMode::Repeat);
                 texture
@@ -221,7 +222,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
 
     pub(crate) fn render(
         &mut self,
-        state: &PipelineState,
+        server: &GlGraphicsServer,
         gbuffer: &GBuffer,
         projection_matrix: Matrix4<f32>,
         view_matrix: Matrix3<f32>,
@@ -244,7 +245,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
         ));
 
         self.framebuffer.clear(
-            state,
+            server,
             viewport,
             Some(Color::from_rgba(0, 0, 0, 0)),
             Some(1.0),
@@ -261,7 +262,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
         let radius = self.radius;
         stats += self.framebuffer.draw(
             &self.quad,
-            state,
+            server,
             viewport,
             &shader.program,
             &DrawParameters {
@@ -293,7 +294,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
             },
         )?;
 
-        self.blur.render(state, self.raw_ao_map())?;
+        self.blur.render(server, self.raw_ao_map())?;
 
         Ok(stats)
     }

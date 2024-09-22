@@ -33,7 +33,7 @@ use crate::{
             framebuffer::FrameBuffer,
             geometry_buffer::{GeometryBuffer, GeometryBufferKind},
             gpu_program::{GpuProgram, UniformLocation},
-            state::PipelineState,
+            state::GlGraphicsServer,
             BlendFactor, BlendFunc, BlendParameters, ColorMask, CompareFunc, DrawParameters,
             ElementRange, StencilAction, StencilFunc, StencilOp,
         },
@@ -62,27 +62,31 @@ struct SpotLightShader {
 }
 
 impl SpotLightShader {
-    fn new(state: &PipelineState) -> Result<Self, FrameworkError> {
+    fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("shaders/spot_volumetric_fs.glsl");
         let vertex_source = include_str!("shaders/flat_vs.glsl");
-        let program =
-            GpuProgram::from_source(state, "SpotVolumetricLight", vertex_source, fragment_source)?;
+        let program = GpuProgram::from_source(
+            server,
+            "SpotVolumetricLight",
+            vertex_source,
+            fragment_source,
+        )?;
         Ok(Self {
             world_view_proj_matrix: program
-                .uniform_location(state, &ImmutableString::new("worldViewProjection"))?,
+                .uniform_location(server, &ImmutableString::new("worldViewProjection"))?,
             depth_sampler: program
-                .uniform_location(state, &ImmutableString::new("depthSampler"))?,
+                .uniform_location(server, &ImmutableString::new("depthSampler"))?,
             light_position: program
-                .uniform_location(state, &ImmutableString::new("lightPosition"))?,
+                .uniform_location(server, &ImmutableString::new("lightPosition"))?,
             light_direction: program
-                .uniform_location(state, &ImmutableString::new("lightDirection"))?,
+                .uniform_location(server, &ImmutableString::new("lightDirection"))?,
             cone_angle_cos: program
-                .uniform_location(state, &ImmutableString::new("coneAngleCos"))?,
-            light_color: program.uniform_location(state, &ImmutableString::new("lightColor"))?,
+                .uniform_location(server, &ImmutableString::new("coneAngleCos"))?,
+            light_color: program.uniform_location(server, &ImmutableString::new("lightColor"))?,
             scatter_factor: program
-                .uniform_location(state, &ImmutableString::new("scatterFactor"))?,
-            inv_proj: program.uniform_location(state, &ImmutableString::new("invProj"))?,
-            intensity: program.uniform_location(state, &ImmutableString::new("intensity"))?,
+                .uniform_location(server, &ImmutableString::new("scatterFactor"))?,
+            inv_proj: program.uniform_location(server, &ImmutableString::new("invProj"))?,
+            intensity: program.uniform_location(server, &ImmutableString::new("intensity"))?,
             program,
         })
     }
@@ -101,28 +105,28 @@ struct PointLightShader {
 }
 
 impl PointLightShader {
-    fn new(state: &PipelineState) -> Result<Self, FrameworkError> {
+    fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("shaders/point_volumetric_fs.glsl");
         let vertex_source = include_str!("shaders/flat_vs.glsl");
         let program = GpuProgram::from_source(
-            state,
+            server,
             "PointVolumetricLight",
             vertex_source,
             fragment_source,
         )?;
         Ok(Self {
             world_view_proj_matrix: program
-                .uniform_location(state, &ImmutableString::new("worldViewProjection"))?,
+                .uniform_location(server, &ImmutableString::new("worldViewProjection"))?,
             depth_sampler: program
-                .uniform_location(state, &ImmutableString::new("depthSampler"))?,
+                .uniform_location(server, &ImmutableString::new("depthSampler"))?,
             light_position: program
-                .uniform_location(state, &ImmutableString::new("lightPosition"))?,
-            inv_proj: program.uniform_location(state, &ImmutableString::new("invProj"))?,
-            light_radius: program.uniform_location(state, &ImmutableString::new("lightRadius"))?,
-            light_color: program.uniform_location(state, &ImmutableString::new("lightColor"))?,
+                .uniform_location(server, &ImmutableString::new("lightPosition"))?,
+            inv_proj: program.uniform_location(server, &ImmutableString::new("invProj"))?,
+            light_radius: program.uniform_location(server, &ImmutableString::new("lightRadius"))?,
+            light_color: program.uniform_location(server, &ImmutableString::new("lightColor"))?,
             scatter_factor: program
-                .uniform_location(state, &ImmutableString::new("scatterFactor"))?,
-            intensity: program.uniform_location(state, &ImmutableString::new("intensity"))?,
+                .uniform_location(server, &ImmutableString::new("scatterFactor"))?,
+            intensity: program.uniform_location(server, &ImmutableString::new("intensity"))?,
             program,
         })
     }
@@ -137,11 +141,11 @@ pub struct LightVolumeRenderer {
 }
 
 impl LightVolumeRenderer {
-    pub fn new(state: &PipelineState) -> Result<Self, FrameworkError> {
+    pub fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
         Ok(Self {
-            spot_light_shader: SpotLightShader::new(state)?,
-            point_light_shader: PointLightShader::new(state)?,
-            flat_shader: FlatShader::new(state)?,
+            spot_light_shader: SpotLightShader::new(server)?,
+            point_light_shader: PointLightShader::new(server)?,
+            flat_shader: FlatShader::new(server)?,
             cone: GeometryBuffer::from_surface_data(
                 &SurfaceData::make_cone(
                     16,
@@ -150,12 +154,12 @@ impl LightVolumeRenderer {
                     &Matrix4::new_translation(&Vector3::new(0.0, -1.0, 0.0)),
                 ),
                 GeometryBufferKind::StaticDraw,
-                state,
+                server,
             )?,
             sphere: GeometryBuffer::from_surface_data(
                 &SurfaceData::make_sphere(8, 8, 1.0, &Matrix4::identity()),
                 GeometryBufferKind::StaticDraw,
-                state,
+                server,
             )?,
         })
     }
@@ -163,7 +167,7 @@ impl LightVolumeRenderer {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn render_volume(
         &mut self,
-        state: &PipelineState,
+        server: &GlGraphicsServer,
         light: &Node,
         light_handle: Handle<Node>,
         gbuffer: &mut GBuffer,
@@ -222,11 +226,11 @@ impl LightVolumeRenderer {
             let mvp = view_proj * light_shape_matrix;
 
             // Clear stencil only.
-            frame_buffer.clear(state, viewport, None, None, Some(0));
+            frame_buffer.clear(server, viewport, None, None, Some(0));
 
             stats += frame_buffer.draw(
                 &self.cone,
-                state,
+                server,
                 viewport,
                 &self.flat_shader.program,
                 &DrawParameters {
@@ -261,7 +265,7 @@ impl LightVolumeRenderer {
             let depth_map = gbuffer.depth();
             stats += frame_buffer.draw(
                 quad,
-                state,
+                server,
                 viewport,
                 &shader.program,
                 &DrawParameters {
@@ -307,7 +311,7 @@ impl LightVolumeRenderer {
                 return Ok(stats);
             }
 
-            frame_buffer.clear(state, viewport, None, None, Some(0));
+            frame_buffer.clear(server, viewport, None, None, Some(0));
 
             // Radius bias is used to to slightly increase sphere radius to add small margin
             // for fadeout effect. It is set to 5%.
@@ -319,7 +323,7 @@ impl LightVolumeRenderer {
 
             stats += frame_buffer.draw(
                 &self.sphere,
-                state,
+                server,
                 viewport,
                 &self.flat_shader.program,
                 &DrawParameters {
@@ -354,7 +358,7 @@ impl LightVolumeRenderer {
             let depth_map = gbuffer.depth();
             stats += frame_buffer.draw(
                 quad,
-                state,
+                server,
                 viewport,
                 &shader.program,
                 &DrawParameters {

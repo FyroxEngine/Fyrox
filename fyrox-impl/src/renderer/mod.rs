@@ -85,7 +85,7 @@ use crate::{
                 Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
                 PixelKind, WrapMode,
             },
-            state::{PipelineState, SharedPipelineState},
+            state::{GlGraphicsServer, SharedPipelineState},
             DrawParameters, ElementRange, PolygonFace, PolygonFillMode,
         },
         fxaa::FxaaRenderer,
@@ -100,6 +100,7 @@ use crate::{
     scene::{camera::Camera, mesh::surface::SurfaceData, Scene, SceneContainer},
 };
 use fxhash::FxHashMap;
+use fyrox_graphics::state::GraphicsServer;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 pub use stats::*;
@@ -487,9 +488,13 @@ pub struct AssociatedSceneData {
 
 impl AssociatedSceneData {
     /// Creates new scene data.
-    pub fn new(state: &PipelineState, width: usize, height: usize) -> Result<Self, FrameworkError> {
+    pub fn new(
+        server: &GlGraphicsServer,
+        width: usize,
+        height: usize,
+    ) -> Result<Self, FrameworkError> {
         let mut depth_stencil_texture = GpuTexture::new(
-            state,
+            server,
             GpuTextureKind::Rectangle { width, height },
             PixelKind::D24S8,
             MinificationFilter::Nearest,
@@ -498,14 +503,14 @@ impl AssociatedSceneData {
             None,
         )?;
         depth_stencil_texture
-            .bind_mut(state, 0)
+            .bind_mut(server, 0)
             .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
             .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
 
         let depth_stencil = Rc::new(RefCell::new(depth_stencil_texture));
 
         let hdr_frame_texture = GpuTexture::new(
-            state,
+            server,
             GpuTextureKind::Rectangle { width, height },
             // Intermediate scene frame will be rendered in HDR render target.
             PixelKind::RGBA16F,
@@ -516,7 +521,7 @@ impl AssociatedSceneData {
         )?;
 
         let hdr_scene_framebuffer = FrameBuffer::new(
-            state,
+            server,
             Some(Attachment {
                 kind: AttachmentKind::DepthStencil,
                 texture: depth_stencil.clone(),
@@ -528,7 +533,7 @@ impl AssociatedSceneData {
         )?;
 
         let ldr_frame_texture = GpuTexture::new(
-            state,
+            server,
             GpuTextureKind::Rectangle { width, height },
             // Final scene frame is in standard sRGB space.
             PixelKind::RGBA8,
@@ -539,7 +544,7 @@ impl AssociatedSceneData {
         )?;
 
         let ldr_scene_framebuffer = FrameBuffer::new(
-            state,
+            server,
             Some(Attachment {
                 kind: AttachmentKind::DepthStencil,
                 texture: depth_stencil.clone(),
@@ -551,7 +556,7 @@ impl AssociatedSceneData {
         )?;
 
         let ldr_temp_texture = GpuTexture::new(
-            state,
+            server,
             GpuTextureKind::Rectangle { width, height },
             // Final scene frame is in standard sRGB space.
             PixelKind::RGBA8,
@@ -562,7 +567,7 @@ impl AssociatedSceneData {
         )?;
 
         let ldr_temp_framebuffer = FrameBuffer::new(
-            state,
+            server,
             Some(Attachment {
                 kind: AttachmentKind::DepthStencil,
                 texture: depth_stencil,
@@ -574,9 +579,9 @@ impl AssociatedSceneData {
         )?;
 
         Ok(Self {
-            gbuffer: GBuffer::new(state, width, height)?,
-            hdr_renderer: HighDynamicRangeRenderer::new(state)?,
-            bloom_renderer: BloomRenderer::new(state, width, height)?,
+            gbuffer: GBuffer::new(server, width, height)?,
+            hdr_renderer: HighDynamicRangeRenderer::new(server)?,
+            bloom_renderer: BloomRenderer::new(server, width, height)?,
             hdr_scene_framebuffer,
             ldr_scene_framebuffer,
             ldr_temp_framebuffer,
@@ -584,8 +589,8 @@ impl AssociatedSceneData {
         })
     }
 
-    fn copy_depth_stencil_to_scene_framebuffer(&mut self, state: &PipelineState) {
-        state.blit_framebuffer(
+    fn copy_depth_stencil_to_scene_framebuffer(&mut self, server: &GlGraphicsServer) {
+        server.blit_framebuffer(
             self.gbuffer.framebuffer().id(),
             self.hdr_scene_framebuffer.id(),
             0,
@@ -692,11 +697,11 @@ pub struct Renderer {
 
 fn make_ui_frame_buffer(
     frame_size: Vector2<f32>,
-    state: &PipelineState,
+    server: &GlGraphicsServer,
     pixel_kind: PixelKind,
 ) -> Result<FrameBuffer, FrameworkError> {
     let color_texture = Rc::new(RefCell::new(GpuTexture::new(
-        state,
+        server,
         GpuTextureKind::Rectangle {
             width: frame_size.x as usize,
             height: frame_size.y as usize,
@@ -709,7 +714,7 @@ fn make_ui_frame_buffer(
     )?));
 
     let depth_stencil = Rc::new(RefCell::new(GpuTexture::new(
-        state,
+        server,
         GpuTextureKind::Rectangle {
             width: frame_size.x as usize,
             height: frame_size.y as usize,
@@ -722,7 +727,7 @@ fn make_ui_frame_buffer(
     )?));
 
     FrameBuffer::new(
-        state,
+        server,
         Some(Attachment {
             kind: AttachmentKind::DepthStencil,
             texture: depth_stencil,
@@ -737,7 +742,7 @@ fn make_ui_frame_buffer(
 /// A context for custom scene render passes.
 pub struct SceneRenderPassContext<'a, 'b> {
     /// A pipeline state that is used as a wrapper to underlying graphics API.
-    pub pipeline_state: &'a PipelineState,
+    pub pipeline_state: &'a GlGraphicsServer,
 
     /// A texture cache that uploads engine's `Texture` as internal `GpuTexture` to GPU.
     /// Use this to get a corresponding GPU texture by an instance of a `Texture`.
@@ -854,7 +859,7 @@ pub trait SceneRenderPass {
 }
 
 fn blit_pixels(
-    state: &PipelineState,
+    server: &GlGraphicsServer,
     framebuffer: &mut FrameBuffer,
     texture: Rc<RefCell<GpuTexture>>,
     shader: &FlatShader,
@@ -863,7 +868,7 @@ fn blit_pixels(
 ) -> Result<DrawCallStatistics, FrameworkError> {
     framebuffer.draw(
         quad,
-        state,
+        server,
         viewport,
         &shader.program,
         &DrawParameters {
@@ -942,7 +947,7 @@ impl Renderer {
             .event_broadcaster
             .add(shader_event_sender);
 
-        let (window, state) = PipelineState::new(
+        let (window, state) = GlGraphicsServer::new(
             params.vsync,
             params.msaa_sample_count,
             window_target,
@@ -1113,7 +1118,7 @@ impl Renderer {
     }
 
     /// Returns a reference to current pipeline state.
-    pub fn pipeline_state(&self) -> &PipelineState {
+    pub fn pipeline_state(&self) -> &GlGraphicsServer {
         &self.state
     }
 

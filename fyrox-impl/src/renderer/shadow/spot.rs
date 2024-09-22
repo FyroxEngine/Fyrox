@@ -34,7 +34,7 @@ use crate::{
                 Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
                 PixelKind, WrapMode,
             },
-            state::PipelineState,
+            state::GlGraphicsServer,
         },
         shadow::cascade_size,
         storage::MatrixStorageCache,
@@ -56,12 +56,12 @@ pub struct SpotShadowMapRenderer {
 
 impl SpotShadowMapRenderer {
     pub fn new(
-        state: &PipelineState,
+        server: &GlGraphicsServer,
         size: usize,
         precision: ShadowMapPrecision,
     ) -> Result<Self, FrameworkError> {
         fn make_cascade(
-            state: &PipelineState,
+            server: &GlGraphicsServer,
             size: usize,
             precision: ShadowMapPrecision,
         ) -> Result<FrameBuffer, FrameworkError> {
@@ -71,7 +71,7 @@ impl SpotShadowMapRenderer {
                     height: size,
                 };
                 let mut texture = GpuTexture::new(
-                    state,
+                    server,
                     kind,
                     match precision {
                         ShadowMapPrecision::Full => PixelKind::D32F,
@@ -83,7 +83,7 @@ impl SpotShadowMapRenderer {
                     None,
                 )?;
                 texture
-                    .bind_mut(state, 0)
+                    .bind_mut(server, 0)
                     .set_wrap(Coordinate::T, WrapMode::ClampToEdge)
                     .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
                     .set_border_color(Color::WHITE);
@@ -91,7 +91,7 @@ impl SpotShadowMapRenderer {
             };
 
             FrameBuffer::new(
-                state,
+                server,
                 Some(Attachment {
                     kind: AttachmentKind::Depth,
                     texture: Rc::new(RefCell::new(depth)),
@@ -104,9 +104,9 @@ impl SpotShadowMapRenderer {
             precision,
             size,
             cascades: [
-                make_cascade(state, cascade_size(size, 0), precision)?,
-                make_cascade(state, cascade_size(size, 1), precision)?,
-                make_cascade(state, cascade_size(size, 2), precision)?,
+                make_cascade(server, cascade_size(size, 0), precision)?,
+                make_cascade(server, cascade_size(size, 1), precision)?,
+                make_cascade(server, cascade_size(size, 2), precision)?,
             ],
         })
     }
@@ -134,7 +134,7 @@ impl SpotShadowMapRenderer {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn render(
         &mut self,
-        state: &PipelineState,
+        server: &GlGraphicsServer,
         graph: &Graph,
         light_position: Vector3<f32>,
         light_view_matrix: Matrix4<f32>,
@@ -158,7 +158,7 @@ impl SpotShadowMapRenderer {
 
         let viewport = Rect::new(0, 0, cascade_size as i32, cascade_size as i32);
 
-        framebuffer.clear(state, viewport, None, Some(1.0), None);
+        framebuffer.clear(server, viewport, None, Some(1.0), None);
 
         let light_view_projection = light_projection_matrix * light_view_matrix;
         let bundle_storage = RenderDataBundleStorage::from_graph(
@@ -179,7 +179,7 @@ impl SpotShadowMapRenderer {
 
         for bundle in bundle_storage.bundles.iter() {
             statistics += bundle.render_to_frame_buffer(
-                state,
+                server,
                 geom_cache,
                 shader_cache,
                 |_| true,

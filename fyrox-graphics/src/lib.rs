@@ -20,16 +20,14 @@
 
 pub use fyrox_core as core;
 
-use crate::{
-    core::{reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
-    error::FrameworkError,
-};
+use crate::core::{reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*};
 use serde::{Deserialize, Serialize};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 pub mod error;
 pub mod framebuffer;
 pub mod geometry_buffer;
+pub mod gl;
 pub mod gpu_program;
 pub mod gpu_texture;
 pub mod pixel_buffer;
@@ -479,8 +477,4 @@ impl ElementKind {
             ElementKind::Point => 1,
         }
     }
-}
-
-pub trait UniformBuffer {
-    fn write_data(&self, data: &[u8]) -> Result<(), FrameworkError>;
 }

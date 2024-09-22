@@ -40,6 +40,7 @@ use glutin::{
 use glutin_winit::{DisplayBuilder, GlWindow};
 #[cfg(not(target_arch = "wasm32"))]
 use raw_window_handle::HasRawWindowHandle;
+use std::any::Any;
 use std::cell::RefCell;
 use std::ops::DerefMut;
 use std::rc::{Rc, Weak};
@@ -249,12 +250,12 @@ impl InnerState {
     }
 }
 
-pub type SharedPipelineState = Rc<PipelineState>;
+pub type SharedPipelineState = Rc<GlGraphicsServer>;
 
-pub struct PipelineState {
+pub struct GlGraphicsServer {
     pub gl: glow::Context,
     pub(crate) state: RefCell<InnerState>,
-    this: RefCell<Option<Weak<PipelineState>>>,
+    this: RefCell<Option<Weak<GlGraphicsServer>>>,
 }
 
 #[derive(Copy, Clone)]
@@ -299,7 +300,7 @@ struct TextureUnitsStorage {
     units: [TextureUnit; 32],
 }
 
-impl PipelineState {
+impl GlGraphicsServer {
     pub fn new(
         #[allow(unused_variables)] vsync: bool,
         #[allow(unused_variables)] msaa_sample_count: Option<u8>,
@@ -624,7 +625,7 @@ impl PipelineState {
         }
     }
 
-    pub fn set_blend(&self, blend: bool) {
+    pub(crate) fn set_blend(&self, blend: bool) {
         let mut state = self.state.borrow_mut();
         if state.blend != blend {
             state.blend = blend;
@@ -641,7 +642,7 @@ impl PipelineState {
         }
     }
 
-    pub fn set_depth_test(&self, depth_test: bool) {
+    pub(crate) fn set_depth_test(&self, depth_test: bool) {
         let mut state = self.state.borrow_mut();
         if state.depth_test != depth_test {
             state.depth_test = depth_test;
@@ -656,7 +657,7 @@ impl PipelineState {
         }
     }
 
-    pub fn set_depth_write(&self, depth_write: bool) {
+    pub(crate) fn set_depth_write(&self, depth_write: bool) {
         let mut state = self.state.borrow_mut();
         if state.depth_write != depth_write {
             state.depth_write = depth_write;
@@ -667,7 +668,7 @@ impl PipelineState {
         }
     }
 
-    pub fn set_color_write(&self, color_write: ColorMask) {
+    pub(crate) fn set_color_write(&self, color_write: ColorMask) {
         let mut state = self.state.borrow_mut();
         if state.color_write != color_write {
             state.color_write = color_write;
@@ -683,7 +684,7 @@ impl PipelineState {
         }
     }
 
-    pub fn set_stencil_test(&self, stencil_test: bool) {
+    pub(crate) fn set_stencil_test(&self, stencil_test: bool) {
         let mut state = self.state.borrow_mut();
         if state.stencil_test != stencil_test {
             state.stencil_test = stencil_test;
@@ -698,7 +699,7 @@ impl PipelineState {
         }
     }
 
-    pub fn set_cull_face(&self, cull_face: CullFace) {
+    pub(crate) fn set_cull_face(&self, cull_face: CullFace) {
         let mut state = self.state.borrow_mut();
         if state.cull_face != cull_face {
             state.cull_face = cull_face;
@@ -707,7 +708,7 @@ impl PipelineState {
         }
     }
 
-    pub fn set_culling(&self, culling: bool) {
+    pub(crate) fn set_culling(&self, culling: bool) {
         let mut state = self.state.borrow_mut();
         if state.culling != culling {
             state.culling = culling;
@@ -722,7 +723,7 @@ impl PipelineState {
         }
     }
 
-    pub fn set_stencil_mask(&self, stencil_mask: u32) {
+    pub(crate) fn set_stencil_mask(&self, stencil_mask: u32) {
         let mut state = self.state.borrow_mut();
         if state.stencil_mask != stencil_mask {
             state.stencil_mask = stencil_mask;
@@ -733,7 +734,7 @@ impl PipelineState {
         }
     }
 
-    pub fn set_clear_color(&self, color: Color) {
+    pub(crate) fn set_clear_color(&self, color: Color) {
         let mut state = self.state.borrow_mut();
         if state.clear_color != color {
             state.clear_color = color;
@@ -745,7 +746,7 @@ impl PipelineState {
         }
     }
 
-    pub fn set_clear_depth(&self, depth: f32) {
+    pub(crate) fn set_clear_depth(&self, depth: f32) {
         let mut state = self.state.borrow_mut();
         if (state.clear_depth - depth).abs() > f32::EPSILON {
             state.clear_depth = depth;
@@ -756,7 +757,7 @@ impl PipelineState {
         }
     }
 
-    pub fn set_clear_stencil(&self, stencil: i32) {
+    pub(crate) fn set_clear_stencil(&self, stencil: i32) {
         let mut state = self.state.borrow_mut();
         if state.clear_stencil != stencil {
             state.clear_stencil = stencil;
@@ -767,7 +768,7 @@ impl PipelineState {
         }
     }
 
-    pub fn set_blend_func(&self, func: BlendFunc) {
+    pub(crate) fn set_blend_func(&self, func: BlendFunc) {
         let mut state = self.state.borrow_mut();
         if state.blend_func != func {
             state.blend_func = func;
@@ -783,7 +784,7 @@ impl PipelineState {
         }
     }
 
-    pub fn set_blend_equation(&self, equation: BlendEquation) {
+    pub(crate) fn set_blend_equation(&self, equation: BlendEquation) {
         let mut state = self.state.borrow_mut();
         if state.blend_equation != equation {
             state.blend_equation = equation;
@@ -797,7 +798,7 @@ impl PipelineState {
         }
     }
 
-    pub fn set_depth_func(&self, depth_func: CompareFunc) {
+    pub(crate) fn set_depth_func(&self, depth_func: CompareFunc) {
         let mut state = self.state.borrow_mut();
         if state.depth_func != depth_func {
             state.depth_func = depth_func;
@@ -808,7 +809,7 @@ impl PipelineState {
         }
     }
 
-    pub fn set_program(&self, program: Option<glow::Program>) {
+    pub(crate) fn set_program(&self, program: Option<glow::Program>) {
         let mut state = self.state.borrow_mut();
         if state.program != program {
             state.program = program;
@@ -821,7 +822,7 @@ impl PipelineState {
         }
     }
 
-    pub fn set_texture(&self, unit_index: u32, target: u32, texture: Option<glow::Texture>) {
+    pub(crate) fn set_texture(&self, unit_index: u32, target: u32, texture: Option<glow::Texture>) {
         unsafe fn bind_texture(
             gl: &glow::Context,
             target: u32,
@@ -858,7 +859,7 @@ impl PipelineState {
         }
     }
 
-    pub fn set_stencil_func(&self, func: StencilFunc) {
+    pub(crate) fn set_stencil_func(&self, func: StencilFunc) {
         let mut state = self.state.borrow_mut();
         if state.stencil_func != func {
             state.stencil_func = func;
@@ -873,7 +874,7 @@ impl PipelineState {
         }
     }
 
-    pub fn set_stencil_op(&self, op: StencilOp) {
+    pub(crate) fn set_stencil_op(&self, op: StencilOp) {
         let mut state = self.state.borrow_mut();
         if state.stencil_op != op {
             state.stencil_op = op;
@@ -890,7 +891,7 @@ impl PipelineState {
         }
     }
 
-    pub fn set_vertex_array_object(&self, vao: Option<glow::VertexArray>) {
+    pub(crate) fn set_vertex_array_object(&self, vao: Option<glow::VertexArray>) {
         let mut state = self.state.borrow_mut();
         if state.vao != vao {
             state.vao = vao;
@@ -903,7 +904,7 @@ impl PipelineState {
         }
     }
 
-    pub fn set_vertex_buffer_object(&self, vbo: Option<glow::Buffer>) {
+    pub(crate) fn set_vertex_buffer_object(&self, vbo: Option<glow::Buffer>) {
         let mut state = self.state.borrow_mut();
         if state.vbo != vbo {
             state.vbo = vbo;
@@ -916,7 +917,7 @@ impl PipelineState {
         }
     }
 
-    pub fn set_scissor_test(&self, scissor_test: bool) {
+    pub(crate) fn set_scissor_test(&self, scissor_test: bool) {
         let mut state = self.state.borrow_mut();
         if state.scissor_test != scissor_test {
             state.scissor_test = scissor_test;
@@ -928,18 +929,6 @@ impl PipelineState {
                     self.gl.disable(glow::SCISSOR_TEST);
                 }
             }
-        }
-    }
-
-    pub fn flush(&self) {
-        unsafe {
-            self.gl.flush();
-        }
-    }
-
-    pub fn finish(&self) {
-        unsafe {
-            self.gl.finish();
         }
     }
 
@@ -988,7 +977,7 @@ impl PipelineState {
         }
     }
 
-    pub fn set_scissor_box(&self, scissor_box: &ScissorBox) {
+    pub(crate) fn set_scissor_box(&self, scissor_box: &ScissorBox) {
         unsafe {
             self.gl.scissor(
                 scissor_box.x,
@@ -998,15 +987,54 @@ impl PipelineState {
             );
         }
     }
+}
 
-    pub fn invalidate_resource_bindings_cache(&self) {
+pub trait GraphicsServer: Any {
+    fn as_any(&self) -> &dyn Any;
+    fn as_any_mut(&mut self) -> &mut dyn Any;
+    fn weak(self: Rc<Self>) -> Weak<dyn GraphicsServer>;
+    fn flush(&self);
+    fn finish(&self);
+    fn invalidate_resource_bindings_cache(&self);
+    fn apply_draw_parameters(&self, draw_params: &DrawParameters);
+    fn pipeline_statistics(&self) -> PipelineStatistics;
+    fn swap_buffers(&self) -> Result<(), FrameworkError>;
+    fn set_frame_size(&self, new_size: (u32, u32));
+}
+
+impl GraphicsServer for GlGraphicsServer {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn weak(self: Rc<Self>) -> Weak<dyn GraphicsServer> {
+        self.this.borrow().as_ref().unwrap().clone()
+    }
+
+    fn flush(&self) {
+        unsafe {
+            self.gl.flush();
+        }
+    }
+
+    fn finish(&self) {
+        unsafe {
+            self.gl.finish();
+        }
+    }
+
+    fn invalidate_resource_bindings_cache(&self) {
         let mut state = self.state.borrow_mut();
         state.texture_units_storage = Default::default();
         state.program = Default::default();
         state.frame_statistics = Default::default();
     }
 
-    pub fn apply_draw_parameters(&self, draw_params: &DrawParameters) {
+    fn apply_draw_parameters(&self, draw_params: &DrawParameters) {
         let DrawParameters {
             cull_face,
             color_write,
@@ -1060,11 +1088,11 @@ impl PipelineState {
         }
     }
 
-    pub fn pipeline_statistics(&self) -> PipelineStatistics {
+    fn pipeline_statistics(&self) -> PipelineStatistics {
         self.state.borrow().frame_statistics
     }
 
-    pub fn swap_buffers(&self) -> Result<(), FrameworkError> {
+    fn swap_buffers(&self) -> Result<(), FrameworkError> {
         #[cfg(not(target_arch = "wasm32"))]
         {
             let state = self.state.borrow();
@@ -1077,7 +1105,7 @@ impl PipelineState {
         }
     }
 
-    pub fn set_frame_size(&self, #[allow(unused_variables)] new_size: (u32, u32)) {
+    fn set_frame_size(&self, #[allow(unused_variables)] new_size: (u32, u32)) {
         #[cfg(not(target_arch = "wasm32"))]
         {
             use std::num::NonZeroU32;

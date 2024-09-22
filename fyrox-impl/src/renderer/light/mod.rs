@@ -34,7 +34,7 @@ use crate::{
             framebuffer::FrameBuffer,
             geometry_buffer::{GeometryBuffer, GeometryBufferKind},
             gpu_texture::GpuTexture,
-            state::PipelineState,
+            state::GlGraphicsServer,
             BlendFactor, BlendFunc, BlendParameters, ColorMask, CompareFunc, CullFace,
             DrawParameters, ElementRange, StencilAction, StencilFunc, StencilOp,
         },
@@ -92,7 +92,7 @@ pub struct DeferredLightRenderer {
 }
 
 pub(crate) struct DeferredRendererContext<'a> {
-    pub state: &'a PipelineState,
+    pub state: &'a GlGraphicsServer,
     pub scene: &'a Scene,
     pub camera: &'a Camera,
     pub gbuffer: &'a mut GBuffer,
@@ -112,7 +112,7 @@ pub(crate) struct DeferredRendererContext<'a> {
 
 impl DeferredLightRenderer {
     pub fn new(
-        state: &PipelineState,
+        server: &GlGraphicsServer,
         frame_size: (u32, u32),
         settings: &QualitySettings,
     ) -> Result<Self, FrameworkError> {
@@ -153,18 +153,18 @@ impl DeferredLightRenderer {
 
         Ok(Self {
             ssao_renderer: ScreenSpaceAmbientOcclusionRenderer::new(
-                state,
+                server,
                 frame_size.0 as usize,
                 frame_size.1 as usize,
             )?,
-            spot_light_shader: SpotLightShader::new(state)?,
-            point_light_shader: PointLightShader::new(state)?,
-            directional_light_shader: DirectionalLightShader::new(state)?,
-            ambient_light_shader: AmbientLightShader::new(state)?,
+            spot_light_shader: SpotLightShader::new(server)?,
+            point_light_shader: PointLightShader::new(server)?,
+            directional_light_shader: DirectionalLightShader::new(server)?,
+            ambient_light_shader: AmbientLightShader::new(server)?,
             quad: GeometryBuffer::from_surface_data(
                 &SurfaceData::make_unit_xy_quad(),
                 GeometryBufferKind::StaticDraw,
-                state,
+                server,
             )?,
             skybox: GeometryBuffer::from_surface_data(
                 &SurfaceData::new(
@@ -185,12 +185,12 @@ impl DeferredLightRenderer {
                     ]),
                 ),
                 GeometryBufferKind::StaticDraw,
-                state,
+                server,
             )?,
             sphere: GeometryBuffer::from_surface_data(
                 &SurfaceData::make_sphere(6, 6, 1.0, &Matrix4::identity()),
                 GeometryBufferKind::StaticDraw,
-                state,
+                server,
             )?,
             cone: GeometryBuffer::from_surface_data(
                 &SurfaceData::make_cone(
@@ -200,23 +200,23 @@ impl DeferredLightRenderer {
                     &Matrix4::new_translation(&Vector3::new(0.0, -1.0, 0.0)),
                 ),
                 GeometryBufferKind::StaticDraw,
-                state,
+                server,
             )?,
-            flat_shader: FlatShader::new(state)?,
-            skybox_shader: SkyboxShader::new(state)?,
+            flat_shader: FlatShader::new(server)?,
+            skybox_shader: SkyboxShader::new(server)?,
             spot_shadow_map_renderer: SpotShadowMapRenderer::new(
-                state,
+                server,
                 settings.spot_shadow_map_size,
                 quality_defaults.spot_shadow_map_precision,
             )?,
             point_shadow_map_renderer: PointShadowMapRenderer::new(
-                state,
+                server,
                 settings.point_shadow_map_size,
                 quality_defaults.point_shadow_map_precision,
             )?,
-            light_volume: LightVolumeRenderer::new(state)?,
+            light_volume: LightVolumeRenderer::new(server)?,
             csm_renderer: CsmRenderer::new(
-                state,
+                server,
                 quality_defaults.csm_settings.size,
                 quality_defaults.csm_settings.precision,
             )?,
@@ -225,14 +225,14 @@ impl DeferredLightRenderer {
 
     pub fn set_quality_settings(
         &mut self,
-        state: &PipelineState,
+        server: &GlGraphicsServer,
         settings: &QualitySettings,
     ) -> Result<(), FrameworkError> {
         if settings.spot_shadow_map_size != self.spot_shadow_map_renderer.base_size()
             || settings.spot_shadow_map_precision != self.spot_shadow_map_renderer.precision()
         {
             self.spot_shadow_map_renderer = SpotShadowMapRenderer::new(
-                state,
+                server,
                 settings.spot_shadow_map_size,
                 settings.spot_shadow_map_precision,
             )?;
@@ -241,7 +241,7 @@ impl DeferredLightRenderer {
             || settings.point_shadow_map_precision != self.point_shadow_map_renderer.precision()
         {
             self.point_shadow_map_renderer = PointShadowMapRenderer::new(
-                state,
+                server,
                 settings.point_shadow_map_size,
                 settings.point_shadow_map_precision,
             )?;
@@ -250,7 +250,7 @@ impl DeferredLightRenderer {
             || settings.csm_settings.size != self.csm_renderer.size()
         {
             self.csm_renderer = CsmRenderer::new(
-                state,
+                server,
                 settings.csm_settings.size,
                 settings.csm_settings.precision,
             )?;
@@ -261,11 +261,11 @@ impl DeferredLightRenderer {
 
     pub fn set_frame_size(
         &mut self,
-        state: &PipelineState,
+        server: &GlGraphicsServer,
         frame_size: (u32, u32),
     ) -> Result<(), FrameworkError> {
         self.ssao_renderer = ScreenSpaceAmbientOcclusionRenderer::new(
-            state,
+            server,
             frame_size.0 as usize,
             frame_size.1 as usize,
         )?;

@@ -22,7 +22,7 @@ use crate::core::sstorage::ImmutableString;
 use crate::renderer::framework::{
     error::FrameworkError,
     gpu_program::{GpuProgram, UniformLocation},
-    state::PipelineState,
+    state::GlGraphicsServer,
 };
 
 pub struct SkyboxShader {
@@ -32,17 +32,17 @@ pub struct SkyboxShader {
 }
 
 impl SkyboxShader {
-    pub fn new(state: &PipelineState) -> Result<Self, FrameworkError> {
+    pub fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("shaders/skybox_fs.glsl");
         let vertex_source = include_str!("shaders/skybox_vs.glsl");
 
         let program =
-            GpuProgram::from_source(state, "SkyboxShader", vertex_source, fragment_source)?;
+            GpuProgram::from_source(server, "SkyboxShader", vertex_source, fragment_source)?;
         Ok(Self {
             wvp_matrix: program
-                .uniform_location(state, &ImmutableString::new("worldViewProjection"))?,
+                .uniform_location(server, &ImmutableString::new("worldViewProjection"))?,
             cubemap_texture: program
-                .uniform_location(state, &ImmutableString::new("cubemapTexture"))?,
+                .uniform_location(server, &ImmutableString::new("cubemapTexture"))?,
             program,
         })
     }

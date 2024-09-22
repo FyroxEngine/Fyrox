@@ -34,7 +34,7 @@ use crate::{
                 GeometryBufferBuilder, GeometryBufferKind,
             },
             gpu_program::{GpuProgram, UniformLocation},
-            state::PipelineState,
+            state::GlGraphicsServer,
             DrawParameters, ElementKind, ElementRange,
         },
         RenderPassStatistics,
@@ -83,21 +83,21 @@ pub fn draw_rect(rect: &Rect<f32>, lines: &mut Vec<Line>, color: Color) {
 }
 
 impl DebugShader {
-    fn new(state: &PipelineState) -> Result<Self, FrameworkError> {
+    fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("shaders/debug_fs.glsl");
         let vertex_source = include_str!("shaders/debug_vs.glsl");
         let program =
-            GpuProgram::from_source(state, "DebugShader", vertex_source, fragment_source)?;
+            GpuProgram::from_source(server, "DebugShader", vertex_source, fragment_source)?;
         Ok(Self {
             wvp_matrix: program
-                .uniform_location(state, &ImmutableString::new("worldViewProjection"))?,
+                .uniform_location(server, &ImmutableString::new("worldViewProjection"))?,
             program,
         })
     }
 }
 
 impl DebugRenderer {
-    pub(crate) fn new(state: &PipelineState) -> Result<Self, FrameworkError> {
+    pub(crate) fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
         let geometry = GeometryBufferBuilder::new(ElementKind::Line)
             .with_buffer_builder(
                 BufferBuilder::new::<Vertex>(GeometryBufferKind::DynamicDraw, None)
@@ -114,18 +114,18 @@ impl DebugRenderer {
                         divisor: 0,
                     }),
             )
-            .build(state)?;
+            .build(server)?;
 
         Ok(Self {
             geometry,
-            shader: DebugShader::new(state)?,
+            shader: DebugShader::new(server)?,
             vertices: Default::default(),
             line_indices: Default::default(),
         })
     }
 
     /// Uploads the new set of lines to GPU.
-    pub fn set_lines(&mut self, state: &PipelineState, lines: &[Line]) {
+    pub fn set_lines(&mut self, server: &GlGraphicsServer, lines: &[Line]) {
         self.vertices.clear();
         self.line_indices.clear();
 
@@ -143,13 +143,13 @@ impl DebugRenderer {
             self.line_indices.push([i, i + 1]);
             i += 2;
         }
-        self.geometry.set_buffer_data(state, 0, &self.vertices);
-        self.geometry.bind(state).set_lines(&self.line_indices);
+        self.geometry.set_buffer_data(server, 0, &self.vertices);
+        self.geometry.bind(server).set_lines(&self.line_indices);
     }
 
     pub(crate) fn render(
         &mut self,
-        state: &PipelineState,
+        server: &GlGraphicsServer,
         viewport: Rect<i32>,
         framebuffer: &mut FrameBuffer,
         view_projection: Matrix4<f32>,
@@ -158,7 +158,7 @@ impl DebugRenderer {
 
         statistics += framebuffer.draw(
             &self.geometry,
-            state,
+            server,
             viewport,
             &self.shader.program,
             &DrawParameters {

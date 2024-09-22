@@ -24,7 +24,7 @@ use crate::renderer::{
         error::FrameworkError,
         gpu_program::{GpuProgram, UniformLocation},
         gpu_texture::GpuTexture,
-        state::PipelineState,
+        state::GlGraphicsServer,
     },
     hdr::LumBuffer,
 };
@@ -39,21 +39,21 @@ pub struct AdaptationShader {
 }
 
 impl AdaptationShader {
-    pub fn new(state: &PipelineState) -> Result<Self, FrameworkError> {
+    pub fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("../shaders/hdr_adaptation_fs.glsl");
         let vertex_source = include_str!("../shaders/flat_vs.glsl");
 
         let program =
-            GpuProgram::from_source(state, "AdaptationShader", vertex_source, fragment_source)?;
+            GpuProgram::from_source(server, "AdaptationShader", vertex_source, fragment_source)?;
 
         Ok(Self {
             wvp_matrix: program
-                .uniform_location(state, &ImmutableString::new("worldViewProjection"))?,
+                .uniform_location(server, &ImmutableString::new("worldViewProjection"))?,
             old_lum_sampler: program
-                .uniform_location(state, &ImmutableString::new("oldLumSampler"))?,
+                .uniform_location(server, &ImmutableString::new("oldLumSampler"))?,
             new_lum_sampler: program
-                .uniform_location(state, &ImmutableString::new("newLumSampler"))?,
-            speed: program.uniform_location(state, &ImmutableString::new("speed"))?,
+                .uniform_location(server, &ImmutableString::new("newLumSampler"))?,
+            speed: program.uniform_location(server, &ImmutableString::new("speed"))?,
             program,
         })
     }
@@ -70,9 +70,9 @@ pub struct AdaptationContext<'a> {
 }
 
 impl AdaptationChain {
-    pub fn new(state: &PipelineState) -> Result<Self, FrameworkError> {
+    pub fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
         Ok(Self {
-            lum_framebuffers: [LumBuffer::new(state, 1)?, LumBuffer::new(state, 1)?],
+            lum_framebuffers: [LumBuffer::new(server, 1)?, LumBuffer::new(server, 1)?],
             swap: false,
         })
     }
