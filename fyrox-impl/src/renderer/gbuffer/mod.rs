@@ -66,6 +66,7 @@ use crate::{
 };
 use fxhash::FxHashSet;
 use fyrox_graphics::buffer::BufferUsage;
+use fyrox_graphics::state::GraphicsServer;
 use std::{cell::RefCell, rc::Rc};
 
 mod decal;
@@ -88,10 +89,10 @@ pub(crate) struct GBufferRenderContext<'a, 'b> {
     pub bundle_storage: &'a RenderDataBundleStorage,
     pub texture_cache: &'a mut TextureCache,
     pub shader_cache: &'a mut ShaderCache,
-    pub white_dummy: Rc<RefCell<GpuTexture>>,
-    pub normal_dummy: Rc<RefCell<GpuTexture>>,
-    pub black_dummy: Rc<RefCell<GpuTexture>>,
-    pub volume_dummy: Rc<RefCell<GpuTexture>>,
+    pub white_dummy: Rc<RefCell<dyn GpuTexture>>,
+    pub normal_dummy: Rc<RefCell<dyn GpuTexture>>,
+    pub black_dummy: Rc<RefCell<dyn GpuTexture>>,
+    pub volume_dummy: Rc<RefCell<dyn GpuTexture>>,
     pub quality_settings: &'a QualitySettings,
     pub graph: &'b Graph,
     pub matrix_storage: &'a mut MatrixStorageCache,
@@ -106,8 +107,7 @@ impl GBuffer {
         width: usize,
         height: usize,
     ) -> Result<Self, FrameworkError> {
-        let mut depth_stencil_texture = GpuTexture::new(
-            server,
+        let depth_stencil = server.create_texture(
             GpuTextureKind::Rectangle { width, height },
             PixelKind::D24S8,
             MinificationFilter::Nearest,
@@ -115,13 +115,14 @@ impl GBuffer {
             1,
             None,
         )?;
-        depth_stencil_texture.set_wrap(Coordinate::S, WrapMode::ClampToEdge);
-        depth_stencil_texture.set_wrap(Coordinate::T, WrapMode::ClampToEdge);
+        depth_stencil
+            .borrow_mut()
+            .set_wrap(Coordinate::S, WrapMode::ClampToEdge);
+        depth_stencil
+            .borrow_mut()
+            .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
 
-        let depth_stencil = Rc::new(RefCell::new(depth_stencil_texture));
-
-        let mut diffuse_texture = GpuTexture::new(
-            server,
+        let diffuse_texture = server.create_texture(
             GpuTextureKind::Rectangle { width, height },
             PixelKind::RGBA8,
             MinificationFilter::Nearest,
@@ -129,12 +130,14 @@ impl GBuffer {
             1,
             None,
         )?;
-        diffuse_texture.set_wrap(Coordinate::S, WrapMode::ClampToEdge);
-        diffuse_texture.set_wrap(Coordinate::T, WrapMode::ClampToEdge);
-        let diffuse_texture = Rc::new(RefCell::new(diffuse_texture));
+        diffuse_texture
+            .borrow_mut()
+            .set_wrap(Coordinate::S, WrapMode::ClampToEdge);
+        diffuse_texture
+            .borrow_mut()
+            .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
 
-        let mut normal_texture = GpuTexture::new(
-            server,
+        let normal_texture = server.create_texture(
             GpuTextureKind::Rectangle { width, height },
             PixelKind::RGBA8,
             MinificationFilter::Nearest,
@@ -142,12 +145,14 @@ impl GBuffer {
             1,
             None,
         )?;
-        normal_texture.set_wrap(Coordinate::S, WrapMode::ClampToEdge);
-        normal_texture.set_wrap(Coordinate::T, WrapMode::ClampToEdge);
-        let normal_texture = Rc::new(RefCell::new(normal_texture));
+        normal_texture
+            .borrow_mut()
+            .set_wrap(Coordinate::S, WrapMode::ClampToEdge);
+        normal_texture
+            .borrow_mut()
+            .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
 
-        let mut ambient_texture = GpuTexture::new(
-            server,
+        let ambient_texture = server.create_texture(
             GpuTextureKind::Rectangle { width, height },
             PixelKind::RGBA16F,
             MinificationFilter::Nearest,
@@ -155,11 +160,14 @@ impl GBuffer {
             1,
             None,
         )?;
-        ambient_texture.set_wrap(Coordinate::S, WrapMode::ClampToEdge);
-        ambient_texture.set_wrap(Coordinate::T, WrapMode::ClampToEdge);
+        ambient_texture
+            .borrow_mut()
+            .set_wrap(Coordinate::S, WrapMode::ClampToEdge);
+        ambient_texture
+            .borrow_mut()
+            .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
 
-        let mut decal_mask_texture = GpuTexture::new(
-            server,
+        let decal_mask_texture = server.create_texture(
             GpuTextureKind::Rectangle { width, height },
             PixelKind::R8UI,
             MinificationFilter::Nearest,
@@ -167,11 +175,14 @@ impl GBuffer {
             1,
             None,
         )?;
-        decal_mask_texture.set_wrap(Coordinate::S, WrapMode::ClampToEdge);
-        decal_mask_texture.set_wrap(Coordinate::T, WrapMode::ClampToEdge);
+        decal_mask_texture
+            .borrow_mut()
+            .set_wrap(Coordinate::S, WrapMode::ClampToEdge);
+        decal_mask_texture
+            .borrow_mut()
+            .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
 
-        let mut material_texture = GpuTexture::new(
-            server,
+        let material_texture = server.create_texture(
             GpuTextureKind::Rectangle { width, height },
             PixelKind::RGBA8,
             MinificationFilter::Nearest,
@@ -179,8 +190,12 @@ impl GBuffer {
             1,
             None,
         )?;
-        material_texture.set_wrap(Coordinate::S, WrapMode::ClampToEdge);
-        material_texture.set_wrap(Coordinate::T, WrapMode::ClampToEdge);
+        material_texture
+            .borrow_mut()
+            .set_wrap(Coordinate::S, WrapMode::ClampToEdge);
+        material_texture
+            .borrow_mut()
+            .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
 
         let framebuffer = FrameBuffer::new(
             server,
@@ -199,15 +214,15 @@ impl GBuffer {
                 },
                 Attachment {
                     kind: AttachmentKind::Color,
-                    texture: Rc::new(RefCell::new(ambient_texture)),
+                    texture: ambient_texture,
                 },
                 Attachment {
                     kind: AttachmentKind::Color,
-                    texture: Rc::new(RefCell::new(material_texture)),
+                    texture: material_texture,
                 },
                 Attachment {
                     kind: AttachmentKind::Color,
-                    texture: Rc::new(RefCell::new(decal_mask_texture)),
+                    texture: decal_mask_texture,
                 },
             ],
         )?;
@@ -247,27 +262,27 @@ impl GBuffer {
         &self.framebuffer
     }
 
-    pub fn depth(&self) -> Rc<RefCell<GpuTexture>> {
+    pub fn depth(&self) -> Rc<RefCell<dyn GpuTexture>> {
         self.framebuffer.depth_attachment().unwrap().texture.clone()
     }
 
-    pub fn diffuse_texture(&self) -> Rc<RefCell<GpuTexture>> {
+    pub fn diffuse_texture(&self) -> Rc<RefCell<dyn GpuTexture>> {
         self.framebuffer.color_attachments()[0].texture.clone()
     }
 
-    pub fn normal_texture(&self) -> Rc<RefCell<GpuTexture>> {
+    pub fn normal_texture(&self) -> Rc<RefCell<dyn GpuTexture>> {
         self.framebuffer.color_attachments()[1].texture.clone()
     }
 
-    pub fn ambient_texture(&self) -> Rc<RefCell<GpuTexture>> {
+    pub fn ambient_texture(&self) -> Rc<RefCell<dyn GpuTexture>> {
         self.framebuffer.color_attachments()[2].texture.clone()
     }
 
-    pub fn material_texture(&self) -> Rc<RefCell<GpuTexture>> {
+    pub fn material_texture(&self) -> Rc<RefCell<dyn GpuTexture>> {
         self.framebuffer.color_attachments()[3].texture.clone()
     }
 
-    pub fn decal_mask_texture(&self) -> Rc<RefCell<GpuTexture>> {
+    pub fn decal_mask_texture(&self) -> Rc<RefCell<dyn GpuTexture>> {
         self.framebuffer.color_attachments()[4].texture.clone()
     }
 

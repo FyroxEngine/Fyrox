@@ -30,10 +30,11 @@ use crate::{
     },
     resource::texture::{Texture, TextureResource},
 };
+use fyrox_graphics::state::GraphicsServer;
 use std::{cell::RefCell, rc::Rc};
 
 pub(crate) struct TextureRenderData {
-    pub gpu_texture: Rc<RefCell<GpuTexture>>,
+    pub gpu_texture: Rc<RefCell<dyn GpuTexture>>,
     pub modifications_counter: u64,
 }
 
@@ -46,19 +47,19 @@ fn create_gpu_texture(
     server: &GlGraphicsServer,
     texture: &Texture,
 ) -> Result<TextureRenderData, FrameworkError> {
-    GpuTexture::new(
-        server,
-        texture.kind().into(),
-        PixelKind::from(texture.pixel_kind()),
-        texture.minification_filter().into(),
-        texture.magnification_filter().into(),
-        texture.mip_count() as usize,
-        Some(texture.data()),
-    )
-    .map(|gpu_texture| TextureRenderData {
-        gpu_texture: Rc::new(RefCell::new(gpu_texture)),
-        modifications_counter: texture.modifications_count(),
-    })
+    server
+        .create_texture(
+            texture.kind().into(),
+            PixelKind::from(texture.pixel_kind()),
+            texture.minification_filter().into(),
+            texture.magnification_filter().into(),
+            texture.mip_count() as usize,
+            Some(texture.data()),
+        )
+        .map(|gpu_texture| TextureRenderData {
+            gpu_texture,
+            modifications_counter: texture.modifications_count(),
+        })
 }
 
 impl TextureCache {
@@ -88,7 +89,7 @@ impl TextureCache {
         &mut self,
         server: &GlGraphicsServer,
         texture_resource: &TextureResource,
-    ) -> Option<&Rc<RefCell<GpuTexture>>> {
+    ) -> Option<&Rc<RefCell<dyn GpuTexture>>> {
         let mut texture_data_guard = texture_resource.state();
 
         if let Some(texture) = texture_data_guard.data() {
@@ -190,7 +191,7 @@ impl TextureCache {
     pub fn try_register(
         &mut self,
         texture: &TextureResource,
-        gpu_texture: Rc<RefCell<GpuTexture>>,
+        gpu_texture: Rc<RefCell<dyn GpuTexture>>,
     ) {
         let data = texture.data_ref();
         let index = data.cache_index.clone();

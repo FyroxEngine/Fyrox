@@ -128,7 +128,7 @@ pub struct UiRenderContext<'a, 'b, 'c> {
     /// Drawing context of a user interface.
     pub drawing_context: &'c DrawingContext,
     /// A reference of white-pixel texture.
-    pub white_dummy: Rc<RefCell<GpuTexture>>,
+    pub white_dummy: Rc<RefCell<dyn GpuTexture>>,
     /// GPU texture cache.
     pub texture_cache: &'a mut TextureCache,
 }

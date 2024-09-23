@@ -47,6 +47,7 @@ use crate::{
     scene::mesh::surface::SurfaceData,
 };
 use fyrox_graphics::buffer::BufferUsage;
+use fyrox_graphics::state::GraphicsServer;
 use std::{cell::RefCell, rc::Rc};
 
 mod blur;
@@ -106,7 +107,7 @@ pub struct ScreenSpaceAmbientOcclusionRenderer {
     quad: GeometryBuffer,
     width: i32,
     height: i32,
-    noise: Rc<RefCell<GpuTexture>>,
+    noise: Rc<RefCell<dyn GpuTexture>>,
     kernel: [Vector3<f32>; KERNEL_SIZE],
     radius: f32,
 }
@@ -122,21 +123,14 @@ impl ScreenSpaceAmbientOcclusionRenderer {
         let width = (frame_width / 2).max(1);
         let height = (frame_height / 2).max(1);
 
-        let occlusion = {
-            let kind = GpuTextureKind::Rectangle { width, height };
-            let mut texture = GpuTexture::new(
-                server,
-                kind,
-                PixelKind::R32F,
-                MinificationFilter::Nearest,
-                MagnificationFilter::Nearest,
-                1,
-                None,
-            )?;
-            texture.set_minification_filter(MinificationFilter::Nearest);
-            texture.set_magnification_filter(MagnificationFilter::Nearest);
-            texture
-        };
+        let occlusion = server.create_texture(
+            GpuTextureKind::Rectangle { width, height },
+            PixelKind::R32F,
+            MinificationFilter::Nearest,
+            MagnificationFilter::Nearest,
+            1,
+            None,
+        )?;
 
         let mut rng = crate::rand::thread_rng();
 
@@ -148,7 +142,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
                 None,
                 vec![Attachment {
                     kind: AttachmentKind::Color,
-                    texture: Rc::new(RefCell::new(occlusion)),
+                    texture: occlusion,
                 }],
             )?,
             quad: GeometryBuffer::from_surface_data(
@@ -176,7 +170,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
                 }
                 kernel
             },
-            noise: Rc::new(RefCell::new({
+            noise: {
                 const RGB_PIXEL_SIZE: usize = 3;
                 let mut pixels = [0u8; RGB_PIXEL_SIZE * NOISE_SIZE * NOISE_SIZE];
                 for pixel in pixels.chunks_exact_mut(RGB_PIXEL_SIZE) {
@@ -188,8 +182,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
                     width: NOISE_SIZE,
                     height: NOISE_SIZE,
                 };
-                let mut texture = GpuTexture::new(
-                    server,
+                let texture = server.create_texture(
                     kind,
                     PixelKind::RGB8,
                     MinificationFilter::Nearest,
@@ -197,10 +190,14 @@ impl ScreenSpaceAmbientOcclusionRenderer {
                     1,
                     Some(&pixels),
                 )?;
-                texture.set_wrap(Coordinate::S, WrapMode::Repeat);
-                texture.set_wrap(Coordinate::T, WrapMode::Repeat);
                 texture
-            })),
+                    .borrow_mut()
+                    .set_wrap(Coordinate::S, WrapMode::Repeat);
+                texture
+                    .borrow_mut()
+                    .set_wrap(Coordinate::T, WrapMode::Repeat);
+                texture
+            },
             radius: 0.5,
         })
     }
@@ -209,11 +206,11 @@ impl ScreenSpaceAmbientOcclusionRenderer {
         self.radius = radius.abs();
     }
 
-    fn raw_ao_map(&self) -> Rc<RefCell<GpuTexture>> {
+    fn raw_ao_map(&self) -> Rc<RefCell<dyn GpuTexture>> {
         self.framebuffer.color_attachments()[0].texture.clone()
     }
 
-    pub fn ao_map(&self) -> Rc<RefCell<GpuTexture>> {
+    pub fn ao_map(&self) -> Rc<RefCell<dyn GpuTexture>> {
         self.blur.result()
     }
 

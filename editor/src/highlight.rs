@@ -32,16 +32,18 @@ use crate::{
         renderer::{
             bundle::{BundleRenderContext, RenderContext, RenderDataBundleStorage},
             framework::{
+                buffer::BufferUsage,
                 error::FrameworkError,
                 framebuffer::{Attachment, AttachmentKind, FrameBuffer},
                 geometry_buffer::GeometryBuffer,
                 gpu_program::{GpuProgram, UniformLocation},
                 gpu_texture::{
-                    Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter,
-                    MinificationFilter, PixelKind, WrapMode,
+                    Coordinate, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind,
+                    WrapMode,
                 },
-                state::GlGraphicsServer,
-                BlendFactor, BlendFunc, BlendParameters, DrawParameters, ElementRange,
+                state::{GlGraphicsServer, GraphicsServer},
+                BlendFactor, BlendFunc, BlendParameters, CompareFunc, DrawParameters, ElementRange,
+                GeometryBufferExt,
             },
             RenderPassStatistics, SceneRenderPass, SceneRenderPassContext,
         },
@@ -49,8 +51,6 @@ use crate::{
     },
     Editor,
 };
-use fyrox::renderer::framework::buffer::BufferUsage;
-use fyrox::renderer::framework::{CompareFunc, GeometryBufferExt};
 use std::{any::TypeId, cell::RefCell, rc::Rc};
 
 struct EdgeDetectShader {
@@ -131,33 +131,39 @@ pub struct HighlightRenderPass {
 
 impl HighlightRenderPass {
     fn create_frame_buffer(server: &GlGraphicsServer, width: usize, height: usize) -> FrameBuffer {
-        let mut depth_stencil_texture = GpuTexture::new(
-            server,
-            GpuTextureKind::Rectangle { width, height },
-            PixelKind::D24S8,
-            MinificationFilter::Nearest,
-            MagnificationFilter::Nearest,
-            1,
-            None,
-        )
-        .unwrap();
-        depth_stencil_texture.set_wrap(Coordinate::S, WrapMode::ClampToEdge);
-        depth_stencil_texture.set_wrap(Coordinate::T, WrapMode::ClampToEdge);
+        let depth_stencil = server
+            .create_texture(
+                GpuTextureKind::Rectangle { width, height },
+                PixelKind::D24S8,
+                MinificationFilter::Nearest,
+                MagnificationFilter::Nearest,
+                1,
+                None,
+            )
+            .unwrap();
+        depth_stencil
+            .borrow_mut()
+            .set_wrap(Coordinate::S, WrapMode::ClampToEdge);
+        depth_stencil
+            .borrow_mut()
+            .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
 
-        let depth_stencil = Rc::new(RefCell::new(depth_stencil_texture));
-
-        let mut frame_texture = GpuTexture::new(
-            server,
-            GpuTextureKind::Rectangle { width, height },
-            PixelKind::RGBA8,
-            MinificationFilter::Linear,
-            MagnificationFilter::Linear,
-            1,
-            None,
-        )
-        .unwrap();
-        frame_texture.set_wrap(Coordinate::S, WrapMode::ClampToEdge);
-        frame_texture.set_wrap(Coordinate::T, WrapMode::ClampToEdge);
+        let frame_texture = server
+            .create_texture(
+                GpuTextureKind::Rectangle { width, height },
+                PixelKind::RGBA8,
+                MinificationFilter::Linear,
+                MagnificationFilter::Linear,
+                1,
+                None,
+            )
+            .unwrap();
+        frame_texture
+            .borrow_mut()
+            .set_wrap(Coordinate::S, WrapMode::ClampToEdge);
+        frame_texture
+            .borrow_mut()
+            .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
 
         FrameBuffer::new(
             server,
@@ -167,7 +173,7 @@ impl HighlightRenderPass {
             }),
             vec![Attachment {
                 kind: AttachmentKind::Color,
-                texture: Rc::new(RefCell::new(frame_texture)),
+                texture: frame_texture,
             }],
         )
         .unwrap()

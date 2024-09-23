@@ -34,6 +34,7 @@ use crate::{
     },
 };
 use fxhash::FxHashMap;
+use fyrox_graphics::state::GraphicsServer;
 use std::{cell::RefCell, collections::hash_map::Entry, rc::Rc};
 
 /// Generic, texture-based, storage for matrices with somewhat unlimited capacity.
@@ -43,7 +44,7 @@ use std::{cell::RefCell, collections::hash_map::Entry, rc::Rc};
 /// Why it uses textures instead of SSBO? This could be done with SSBO, but it is not available on macOS because
 /// SSBO was added only in OpenGL 4.3, but macOS support up to OpenGL 4.1.
 pub struct MatrixStorage {
-    texture: Rc<RefCell<GpuTexture>>,
+    texture: Rc<RefCell<dyn GpuTexture>>,
     matrices: Vec<Matrix4<f32>>,
 }
 
@@ -52,8 +53,7 @@ impl MatrixStorage {
     pub fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
         let identity = [Matrix4::<f32>::identity()];
         Ok(Self {
-            texture: Rc::new(RefCell::new(GpuTexture::new(
-                server,
+            texture: server.create_texture(
                 GpuTextureKind::Rectangle {
                     width: 4,
                     height: 1,
@@ -63,13 +63,13 @@ impl MatrixStorage {
                 MagnificationFilter::Nearest,
                 1,
                 Some(crate::core::array_as_u8_slice(&identity)),
-            )?)),
+            )?,
             matrices: Default::default(),
         })
     }
 
     /// Returns matrix storage texture.
-    pub fn texture(&self) -> &Rc<RefCell<GpuTexture>> {
+    pub fn texture(&self) -> &Rc<RefCell<dyn GpuTexture>> {
         &self.texture
     }
 
@@ -141,25 +141,19 @@ impl MatrixStorageCache {
     /// storage which prevents implicit synchronization step in the video driver. Using a single texture
     /// and changing its content dozens of time per frame could be bad for performance, because of implicit
     /// synchronization.  
-    pub fn try_bind_and_upload(
+    pub fn try_upload(
         &mut self,
         server: &GlGraphicsServer,
         id: PersistentIdentifier,
         matrices: &[Matrix4<f32>],
-        sampler: u32,
     ) -> Result<&MatrixStorage, FrameworkError> {
         if matrices.is_empty() {
-            // Bind empty storage if input matrices set is empty.
-            self.empty.texture().borrow().bind(server, sampler);
             Ok(&self.empty)
         } else {
             // Otherwise, try to fetch a storage using persistent id and use it (or create new if there's
             // no vacant storage in the cache).
             match self.active_set.entry(id) {
-                Entry::Occupied(existing) => {
-                    existing.get().texture.borrow().bind(server, sampler);
-                    Ok(existing.into_mut())
-                }
+                Entry::Occupied(existing) => Ok(existing.into_mut()),
                 Entry::Vacant(entry) => {
                     let mut storage = if let Some(cached) = self.cache.pop() {
                         cached
@@ -168,7 +162,6 @@ impl MatrixStorageCache {
                     };
 
                     storage.upload(matrices.iter().cloned())?;
-                    storage.texture().borrow().bind(server, sampler);
 
                     Ok(entry.insert(storage))
                 }

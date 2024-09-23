@@ -26,6 +26,7 @@ use crate::{
         sstorage::ImmutableString,
     },
     error::FrameworkError,
+    gl::texture::GlTexture,
     gpu_texture::GpuTexture,
     state::{GlGraphicsServer, GlKind},
 };
@@ -166,14 +167,16 @@ impl<'a, 'b> GpuProgramBinding<'a, 'b> {
     pub fn set_texture(
         &mut self,
         location: &UniformLocation,
-        texture: &Rc<RefCell<GpuTexture>>,
+        texture: &Rc<RefCell<dyn GpuTexture>>,
     ) -> &mut Self {
+        let guard = texture.borrow();
+        let texture = guard.as_any().downcast_ref::<GlTexture>().unwrap();
         unsafe {
             self.state
                 .gl
                 .uniform_1_i32(Some(&location.id), self.active_sampler as i32)
         };
-        texture.borrow().bind(self.state, self.active_sampler);
+        texture.bind(self.state, self.active_sampler);
         self.active_sampler += 1;
         self
     }
@@ -182,15 +185,17 @@ impl<'a, 'b> GpuProgramBinding<'a, 'b> {
     pub fn set_texture_to_sampler(
         &mut self,
         location: &UniformLocation,
-        texture: &Rc<RefCell<GpuTexture>>,
+        texture: &Rc<RefCell<dyn GpuTexture>>,
         sampler: u32,
     ) -> &mut Self {
+        let guard = texture.borrow();
+        let texture = guard.as_any().downcast_ref::<GlTexture>().unwrap();
         unsafe {
             self.state
                 .gl
                 .uniform_1_i32(Some(&location.id), sampler as i32)
         };
-        texture.borrow().bind(self.state, sampler);
+        texture.bind(self.state, sampler);
         self
     }
 

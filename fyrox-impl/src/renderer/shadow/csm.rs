@@ -45,6 +45,7 @@ use crate::{
         light::directional::{DirectionalLight, FrustumSplitOptions, CSM_NUM_CASCADES},
     },
 };
+use fyrox_graphics::state::GraphicsServer;
 use std::{cell::RefCell, rc::Rc};
 
 pub struct Cascade {
@@ -60,8 +61,7 @@ impl Cascade {
         precision: ShadowMapPrecision,
     ) -> Result<Self, FrameworkError> {
         let depth = {
-            let mut texture = GpuTexture::new(
-                server,
+            let texture = server.create_texture(
                 GpuTextureKind::Rectangle {
                     width: size,
                     height: size,
@@ -75,8 +75,12 @@ impl Cascade {
                 1,
                 None,
             )?;
-            texture.set_wrap(Coordinate::T, WrapMode::ClampToEdge);
-            texture.set_wrap(Coordinate::S, WrapMode::ClampToEdge);
+            texture
+                .borrow_mut()
+                .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
+            texture
+                .borrow_mut()
+                .set_wrap(Coordinate::S, WrapMode::ClampToEdge);
             texture
         };
 
@@ -85,7 +89,7 @@ impl Cascade {
                 server,
                 Some(Attachment {
                     kind: AttachmentKind::Depth,
-                    texture: Rc::new(RefCell::new(depth)),
+                    texture: depth,
                 }),
                 Default::default(),
             )?,
@@ -94,7 +98,7 @@ impl Cascade {
         })
     }
 
-    pub fn texture(&self) -> Rc<RefCell<GpuTexture>> {
+    pub fn texture(&self) -> Rc<RefCell<dyn GpuTexture>> {
         self.frame_buffer
             .depth_attachment()
             .unwrap()
@@ -118,10 +122,10 @@ pub(crate) struct CsmRenderContext<'a, 'c> {
     pub geom_cache: &'a mut GeometryCache,
     pub shader_cache: &'a mut ShaderCache,
     pub texture_cache: &'a mut TextureCache,
-    pub normal_dummy: Rc<RefCell<GpuTexture>>,
-    pub white_dummy: Rc<RefCell<GpuTexture>>,
-    pub black_dummy: Rc<RefCell<GpuTexture>>,
-    pub volume_dummy: Rc<RefCell<GpuTexture>>,
+    pub normal_dummy: Rc<RefCell<dyn GpuTexture>>,
+    pub white_dummy: Rc<RefCell<dyn GpuTexture>>,
+    pub black_dummy: Rc<RefCell<dyn GpuTexture>>,
+    pub volume_dummy: Rc<RefCell<dyn GpuTexture>>,
     pub matrix_storage: &'a mut MatrixStorageCache,
 }
 

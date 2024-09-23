@@ -39,6 +39,7 @@ use crate::{
     scene::mesh::surface::SurfaceData,
 };
 use fyrox_graphics::buffer::BufferUsage;
+use fyrox_graphics::state::GraphicsServer;
 use std::{cell::RefCell, rc::Rc};
 
 struct Shader {
@@ -80,8 +81,7 @@ impl Blur {
     ) -> Result<Self, FrameworkError> {
         let frame = {
             let kind = GpuTextureKind::Rectangle { width, height };
-            let mut texture = GpuTexture::new(
-                server,
+            let texture = server.create_texture(
                 kind,
                 PixelKind::R32F,
                 MinificationFilter::Nearest,
@@ -89,8 +89,12 @@ impl Blur {
                 1,
                 None,
             )?;
-            texture.set_wrap(Coordinate::S, WrapMode::ClampToEdge);
-            texture.set_wrap(Coordinate::T, WrapMode::ClampToEdge);
+            texture
+                .borrow_mut()
+                .set_wrap(Coordinate::S, WrapMode::ClampToEdge);
+            texture
+                .borrow_mut()
+                .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
             texture
         };
 
@@ -101,7 +105,7 @@ impl Blur {
                 None,
                 vec![Attachment {
                     kind: AttachmentKind::Color,
-                    texture: Rc::new(RefCell::new(frame)),
+                    texture: frame,
                 }],
             )?,
             quad: GeometryBuffer::from_surface_data(
@@ -114,14 +118,14 @@ impl Blur {
         })
     }
 
-    pub fn result(&self) -> Rc<RefCell<GpuTexture>> {
+    pub fn result(&self) -> Rc<RefCell<dyn GpuTexture>> {
         self.framebuffer.color_attachments()[0].texture.clone()
     }
 
     pub(crate) fn render(
         &mut self,
         server: &GlGraphicsServer,
-        input: Rc<RefCell<GpuTexture>>,
+        input: Rc<RefCell<dyn GpuTexture>>,
     ) -> Result<DrawCallStatistics, FrameworkError> {
         let viewport = Rect::new(0, 0, self.width as i32, self.height as i32);
 

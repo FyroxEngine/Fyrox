@@ -42,6 +42,7 @@ use crate::{
     },
     scene::graph::Graph,
 };
+use fyrox_graphics::state::GraphicsServer;
 use std::{cell::RefCell, rc::Rc};
 
 pub struct SpotShadowMapRenderer {
@@ -70,8 +71,7 @@ impl SpotShadowMapRenderer {
                     width: size,
                     height: size,
                 };
-                let mut texture = GpuTexture::new(
-                    server,
+                let texture = server.create_texture(
                     kind,
                     match precision {
                         ShadowMapPrecision::Full => PixelKind::D32F,
@@ -82,9 +82,13 @@ impl SpotShadowMapRenderer {
                     1,
                     None,
                 )?;
-                texture.set_wrap(Coordinate::T, WrapMode::ClampToEdge);
-                texture.set_wrap(Coordinate::S, WrapMode::ClampToEdge);
-                texture.set_border_color(Color::WHITE);
+                texture
+                    .borrow_mut()
+                    .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
+                texture
+                    .borrow_mut()
+                    .set_wrap(Coordinate::S, WrapMode::ClampToEdge);
+                texture.borrow_mut().set_border_color(Color::WHITE);
                 texture
             };
 
@@ -92,7 +96,7 @@ impl SpotShadowMapRenderer {
                 server,
                 Some(Attachment {
                     kind: AttachmentKind::Depth,
-                    texture: Rc::new(RefCell::new(depth)),
+                    texture: depth,
                 }),
                 vec![],
             )
@@ -117,7 +121,7 @@ impl SpotShadowMapRenderer {
         self.precision
     }
 
-    pub fn cascade_texture(&self, cascade: usize) -> Rc<RefCell<GpuTexture>> {
+    pub fn cascade_texture(&self, cascade: usize) -> Rc<RefCell<dyn GpuTexture>> {
         self.cascades[cascade]
             .depth_attachment()
             .unwrap()
@@ -143,10 +147,10 @@ impl SpotShadowMapRenderer {
         cascade: usize,
         shader_cache: &mut ShaderCache,
         texture_cache: &mut TextureCache,
-        normal_dummy: Rc<RefCell<GpuTexture>>,
-        white_dummy: Rc<RefCell<GpuTexture>>,
-        black_dummy: Rc<RefCell<GpuTexture>>,
-        volume_dummy: Rc<RefCell<GpuTexture>>,
+        normal_dummy: Rc<RefCell<dyn GpuTexture>>,
+        white_dummy: Rc<RefCell<dyn GpuTexture>>,
+        black_dummy: Rc<RefCell<dyn GpuTexture>>,
+        volume_dummy: Rc<RefCell<dyn GpuTexture>>,
         matrix_storage: &mut MatrixStorageCache,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut statistics = RenderPassStatistics::default();

@@ -42,6 +42,7 @@ use crate::{
     },
     scene::graph::Graph,
 };
+use fyrox_graphics::state::GraphicsServer;
 use std::{cell::RefCell, rc::Rc};
 
 pub struct PointShadowMapRenderer {
@@ -66,10 +67,10 @@ pub(crate) struct PointShadowMapRenderContext<'a> {
     pub cascade: usize,
     pub shader_cache: &'a mut ShaderCache,
     pub texture_cache: &'a mut TextureCache,
-    pub normal_dummy: Rc<RefCell<GpuTexture>>,
-    pub white_dummy: Rc<RefCell<GpuTexture>>,
-    pub black_dummy: Rc<RefCell<GpuTexture>>,
-    pub volume_dummy: Rc<RefCell<GpuTexture>>,
+    pub normal_dummy: Rc<RefCell<dyn GpuTexture>>,
+    pub white_dummy: Rc<RefCell<dyn GpuTexture>>,
+    pub black_dummy: Rc<RefCell<dyn GpuTexture>>,
+    pub volume_dummy: Rc<RefCell<dyn GpuTexture>>,
     pub matrix_storage: &'a mut MatrixStorageCache,
 }
 
@@ -89,8 +90,7 @@ impl PointShadowMapRenderer {
                     width: size,
                     height: size,
                 };
-                let mut texture = GpuTexture::new(
-                    server,
+                let texture = server.create_texture(
                     kind,
                     match precision {
                         ShadowMapPrecision::Full => PixelKind::D32F,
@@ -101,10 +101,12 @@ impl PointShadowMapRenderer {
                     1,
                     None,
                 )?;
-                texture.set_minification_filter(MinificationFilter::Nearest);
-                texture.set_magnification_filter(MagnificationFilter::Nearest);
-                texture.set_wrap(Coordinate::S, WrapMode::ClampToEdge);
-                texture.set_wrap(Coordinate::T, WrapMode::ClampToEdge);
+                texture
+                    .borrow_mut()
+                    .set_wrap(Coordinate::S, WrapMode::ClampToEdge);
+                texture
+                    .borrow_mut()
+                    .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
                 texture
             };
 
@@ -113,8 +115,7 @@ impl PointShadowMapRenderer {
                     width: size,
                     height: size,
                 };
-                let mut texture = GpuTexture::new(
-                    server,
+                let texture = server.create_texture(
                     kind,
                     PixelKind::R16F,
                     MinificationFilter::Nearest,
@@ -122,9 +123,15 @@ impl PointShadowMapRenderer {
                     1,
                     None,
                 )?;
-                texture.set_wrap(Coordinate::S, WrapMode::ClampToEdge);
-                texture.set_wrap(Coordinate::T, WrapMode::ClampToEdge);
-                texture.set_wrap(Coordinate::R, WrapMode::ClampToEdge);
+                texture
+                    .borrow_mut()
+                    .set_wrap(Coordinate::S, WrapMode::ClampToEdge);
+                texture
+                    .borrow_mut()
+                    .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
+                texture
+                    .borrow_mut()
+                    .set_wrap(Coordinate::R, WrapMode::ClampToEdge);
                 texture
             };
 
@@ -132,11 +139,11 @@ impl PointShadowMapRenderer {
                 server,
                 Some(Attachment {
                     kind: AttachmentKind::Depth,
-                    texture: Rc::new(RefCell::new(depth)),
+                    texture: depth,
                 }),
                 vec![Attachment {
                     kind: AttachmentKind::Color,
-                    texture: Rc::new(RefCell::new(cube_map)),
+                    texture: cube_map,
                 }],
             )
         }
@@ -192,7 +199,7 @@ impl PointShadowMapRenderer {
         self.precision
     }
 
-    pub fn cascade_texture(&self, cascade: usize) -> Rc<RefCell<GpuTexture>> {
+    pub fn cascade_texture(&self, cascade: usize) -> Rc<RefCell<dyn GpuTexture>> {
         self.cascades[cascade].color_attachments()[0]
             .texture
             .clone()

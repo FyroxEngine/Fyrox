@@ -65,7 +65,7 @@ pub struct AdaptationChain {
 }
 
 pub struct AdaptationContext<'a> {
-    pub prev_lum: Rc<RefCell<GpuTexture>>,
+    pub prev_lum: Rc<RefCell<dyn GpuTexture>>,
     pub lum_buffer: &'a mut LumBuffer,
 }
 
@@ -99,7 +99,7 @@ impl AdaptationChain {
         out
     }
 
-    pub fn avg_lum_texture(&self) -> Rc<RefCell<GpuTexture>> {
+    pub fn avg_lum_texture(&self) -> Rc<RefCell<dyn GpuTexture>> {
         if self.swap {
             self.lum_framebuffers[0].framebuffer.color_attachments()[0]
                 .texture

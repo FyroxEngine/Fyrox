@@ -161,18 +161,11 @@ impl<'a> InstanceContext<'a> {
             program_binding.set_matrix4(location, wvp_matrix);
         }
         if let Some(location) = &built_in_uniforms[BuiltInUniform::BoneMatrices as usize] {
-            let active_sampler = program_binding.active_sampler();
-
             let storage = matrix_storage
-                .try_bind_and_upload(
-                    program_binding.state,
-                    persistent_identifier,
-                    bone_matrices,
-                    active_sampler,
-                )
+                .try_upload(program_binding.state, persistent_identifier, bone_matrices)
                 .expect("Failed to upload bone matrices!");
 
-            program_binding.set_texture_to_sampler(location, storage.texture(), active_sampler);
+            program_binding.set_texture(location, storage.texture());
         }
         if let Some(location) = &built_in_uniforms[BuiltInUniform::UseSkeletalAnimation as usize] {
             program_binding.set_bool(location, use_skeletal_animation);
@@ -203,7 +196,7 @@ pub struct BundleRenderContext<'a> {
     pub ambient_light: Color,
     // TODO: Add depth pre-pass to remove Option here. Current architecture allows only forward
     // renderer to have access to depth buffer that is available from G-Buffer.
-    pub scene_depth: Option<&'a Rc<RefCell<GpuTexture>>>,
+    pub scene_depth: Option<&'a Rc<RefCell<dyn GpuTexture>>>,
 
     pub camera_position: &'a Vector3<f32>,
     pub camera_up_vector: &'a Vector3<f32>,
@@ -212,10 +205,10 @@ pub struct BundleRenderContext<'a> {
     pub z_far: f32,
 
     // Fallback textures.
-    pub normal_dummy: &'a Rc<RefCell<GpuTexture>>,
-    pub white_dummy: &'a Rc<RefCell<GpuTexture>>,
-    pub black_dummy: &'a Rc<RefCell<GpuTexture>>,
-    pub volume_dummy: &'a Rc<RefCell<GpuTexture>>,
+    pub normal_dummy: &'a Rc<RefCell<dyn GpuTexture>>,
+    pub white_dummy: &'a Rc<RefCell<dyn GpuTexture>>,
+    pub black_dummy: &'a Rc<RefCell<dyn GpuTexture>>,
+    pub volume_dummy: &'a Rc<RefCell<dyn GpuTexture>>,
 }
 
 impl<'a> BundleRenderContext<'a> {

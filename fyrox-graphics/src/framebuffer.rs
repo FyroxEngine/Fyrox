@@ -18,14 +18,14 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::state::GraphicsServer;
 use crate::{
     core::{color::Color, math::Rect},
     error::FrameworkError,
     geometry_buffer::{DrawCallStatistics, GeometryBuffer},
+    gl::texture::GlTexture,
     gpu_program::{GpuProgram, GpuProgramBinding},
     gpu_texture::{CubeMapFace, GpuTexture, GpuTextureKind, PixelElementKind},
-    state::GlGraphicsServer,
+    state::{GlGraphicsServer, GraphicsServer, ToGlConstant},
     ColorMask, DrawParameters, ElementRange,
 };
 use glow::HasContext;
@@ -40,7 +40,7 @@ pub enum AttachmentKind {
 
 pub struct Attachment {
     pub kind: AttachmentKind,
-    pub texture: Rc<RefCell<GpuTexture>>,
+    pub texture: Rc<RefCell<dyn GpuTexture>>,
 }
 
 pub struct FrameBuffer {
@@ -50,7 +50,7 @@ pub struct FrameBuffer {
     color_attachments: Vec<Attachment>,
 }
 
-unsafe fn set_attachment(server: &GlGraphicsServer, gl_attachment_kind: u32, texture: &GpuTexture) {
+unsafe fn set_attachment(server: &GlGraphicsServer, gl_attachment_kind: u32, texture: &GlTexture) {
     match texture.kind() {
         GpuTextureKind::Line { .. } => {
             server.gl.framebuffer_texture(
@@ -110,22 +110,18 @@ impl FrameBuffer {
                     AttachmentKind::DepthStencil => glow::DEPTH_STENCIL_ATTACHMENT,
                     AttachmentKind::Depth => glow::DEPTH_ATTACHMENT,
                 };
-                set_attachment(
-                    server,
-                    depth_attachment_kind,
-                    &depth_attachment.texture.borrow(),
-                );
+                let guard = depth_attachment.texture.borrow();
+                let texture = guard.as_any().downcast_ref::<GlTexture>().unwrap();
+                set_attachment(server, depth_attachment_kind, texture);
             }
 
             let mut color_buffers = Vec::new();
             for (i, color_attachment) in color_attachments.iter().enumerate() {
                 assert_eq!(color_attachment.kind, AttachmentKind::Color);
                 let color_attachment_kind = glow::COLOR_ATTACHMENT0 + i as u32;
-                set_attachment(
-                    server,
-                    color_attachment_kind,
-                    &color_attachment.texture.borrow(),
-                );
+                let guard = color_attachment.texture.borrow();
+                let texture = guard.as_any().downcast_ref::<GlTexture>().unwrap();
+                set_attachment(server, color_attachment_kind, texture);
                 color_buffers.push(color_attachment_kind);
             }
 
@@ -177,11 +173,13 @@ impl FrameBuffer {
             server.set_framebuffer(self.fbo);
 
             let attachment = self.color_attachments.get(attachment_index).unwrap();
+            let guard = attachment.texture.borrow();
+            let texture = guard.as_any().downcast_ref::<GlTexture>().unwrap();
             server.gl.framebuffer_texture_2d(
                 glow::FRAMEBUFFER,
                 glow::COLOR_ATTACHMENT0 + attachment_index as u32,
-                face.into_gl_value(),
-                Some(attachment.texture.borrow().id()),
+                face.into_gl(),
+                Some(texture.id()),
                 0,
             );
         }

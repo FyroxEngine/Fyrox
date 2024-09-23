@@ -36,6 +36,7 @@ use crate::{
         make_viewport_matrix, RenderPassStatistics,
     },
 };
+use fyrox_graphics::state::GraphicsServer;
 use std::{cell::RefCell, rc::Rc};
 
 struct Shader {
@@ -80,8 +81,7 @@ fn create_framebuffer(
 ) -> Result<FrameBuffer, FrameworkError> {
     let frame = {
         let kind = GpuTextureKind::Rectangle { width, height };
-        let mut texture = GpuTexture::new(
-            server,
+        let texture = server.create_texture(
             kind,
             pixel_kind,
             MinificationFilter::Nearest,
@@ -89,8 +89,12 @@ fn create_framebuffer(
             1,
             None,
         )?;
-        texture.set_wrap(Coordinate::S, WrapMode::ClampToEdge);
-        texture.set_wrap(Coordinate::T, WrapMode::ClampToEdge);
+        texture
+            .borrow_mut()
+            .set_wrap(Coordinate::S, WrapMode::ClampToEdge);
+        texture
+            .borrow_mut()
+            .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
         texture
     };
 
@@ -99,7 +103,7 @@ fn create_framebuffer(
         None,
         vec![Attachment {
             kind: AttachmentKind::Color,
-            texture: Rc::new(RefCell::new(frame)),
+            texture: frame,
         }],
     )
 }
@@ -120,11 +124,11 @@ impl GaussianBlur {
         })
     }
 
-    fn h_blurred(&self) -> Rc<RefCell<GpuTexture>> {
+    fn h_blurred(&self) -> Rc<RefCell<dyn GpuTexture>> {
         self.h_framebuffer.color_attachments()[0].texture.clone()
     }
 
-    pub fn result(&self) -> Rc<RefCell<GpuTexture>> {
+    pub fn result(&self) -> Rc<RefCell<dyn GpuTexture>> {
         self.v_framebuffer.color_attachments()[0].texture.clone()
     }
 
@@ -132,7 +136,7 @@ impl GaussianBlur {
         &mut self,
         server: &GlGraphicsServer,
         quad: &GeometryBuffer,
-        input: Rc<RefCell<GpuTexture>>,
+        input: Rc<RefCell<dyn GpuTexture>>,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();
 

@@ -47,6 +47,7 @@ use crate::{
     },
     scene::camera::{ColorGradingLut, Exposure},
 };
+use fyrox_graphics::state::GraphicsServer;
 use std::{cell::RefCell, rc::Rc};
 
 mod adaptation;
@@ -67,8 +68,7 @@ pub struct LumBuffer {
 
 impl LumBuffer {
     fn new(server: &GlGraphicsServer, size: usize) -> Result<Self, FrameworkError> {
-        let texture = GpuTexture::new(
-            server,
+        let texture = server.create_texture(
             GpuTextureKind::Rectangle {
                 width: size,
                 height: size,
@@ -85,7 +85,7 @@ impl LumBuffer {
                 None,
                 vec![Attachment {
                     kind: AttachmentKind::Color,
-                    texture: Rc::new(RefCell::new(texture)),
+                    texture,
                 }],
             )?,
             size,
@@ -111,7 +111,7 @@ impl LumBuffer {
             ))
     }
 
-    fn texture(&self) -> Rc<RefCell<GpuTexture>> {
+    fn texture(&self) -> Rc<RefCell<dyn GpuTexture>> {
         self.framebuffer.color_attachments()[0].texture.clone()
     }
 }
@@ -124,7 +124,7 @@ pub struct HighDynamicRangeRenderer {
     luminance_shader: LuminanceShader,
     downscale_shader: DownscaleShader,
     map_shader: MapShader,
-    stub_lut: Rc<RefCell<GpuTexture>>,
+    stub_lut: Rc<RefCell<dyn GpuTexture>>,
     lum_calculation_method: LuminanceCalculationMethod,
 }
 
@@ -145,8 +145,7 @@ impl HighDynamicRangeRenderer {
             luminance_shader: LuminanceShader::new(server)?,
             downscale_shader: DownscaleShader::new(server)?,
             map_shader: MapShader::new(server)?,
-            stub_lut: Rc::new(RefCell::new(GpuTexture::new(
-                server,
+            stub_lut: server.create_texture(
                 GpuTextureKind::Volume {
                     width: 1,
                     height: 1,
@@ -157,7 +156,7 @@ impl HighDynamicRangeRenderer {
                 MagnificationFilter::Linear,
                 1,
                 Some(&[0, 0, 0]),
-            )?)),
+            )?,
             lum_calculation_method: LuminanceCalculationMethod::DownSampling,
         })
     }
@@ -165,7 +164,7 @@ impl HighDynamicRangeRenderer {
     fn calculate_frame_luminance(
         &mut self,
         server: &GlGraphicsServer,
-        scene_frame: Rc<RefCell<GpuTexture>>,
+        scene_frame: Rc<RefCell<dyn GpuTexture>>,
         quad: &GeometryBuffer,
     ) -> Result<DrawCallStatistics, FrameworkError> {
         self.frame_luminance.clear(server);
@@ -341,8 +340,8 @@ impl HighDynamicRangeRenderer {
     fn map_hdr_to_ldr(
         &mut self,
         server: &GlGraphicsServer,
-        hdr_scene_frame: Rc<RefCell<GpuTexture>>,
-        bloom_texture: Rc<RefCell<GpuTexture>>,
+        hdr_scene_frame: Rc<RefCell<dyn GpuTexture>>,
+        bloom_texture: Rc<RefCell<dyn GpuTexture>>,
         ldr_framebuffer: &mut FrameBuffer,
         viewport: Rect<i32>,
         quad: &GeometryBuffer,
@@ -412,8 +411,8 @@ impl HighDynamicRangeRenderer {
     pub fn render(
         &mut self,
         server: &GlGraphicsServer,
-        hdr_scene_frame: Rc<RefCell<GpuTexture>>,
-        bloom_texture: Rc<RefCell<GpuTexture>>,
+        hdr_scene_frame: Rc<RefCell<dyn GpuTexture>>,
+        bloom_texture: Rc<RefCell<dyn GpuTexture>>,
         ldr_framebuffer: &mut FrameBuffer,
         viewport: Rect<i32>,
         quad: &GeometryBuffer,

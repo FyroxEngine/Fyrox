@@ -494,8 +494,7 @@ impl AssociatedSceneData {
         width: usize,
         height: usize,
     ) -> Result<Self, FrameworkError> {
-        let mut depth_stencil_texture = GpuTexture::new(
-            server,
+        let depth_stencil = server.create_texture(
             GpuTextureKind::Rectangle { width, height },
             PixelKind::D24S8,
             MinificationFilter::Nearest,
@@ -503,13 +502,14 @@ impl AssociatedSceneData {
             1,
             None,
         )?;
-        depth_stencil_texture.set_wrap(Coordinate::S, WrapMode::ClampToEdge);
-        depth_stencil_texture.set_wrap(Coordinate::T, WrapMode::ClampToEdge);
+        depth_stencil
+            .borrow_mut()
+            .set_wrap(Coordinate::S, WrapMode::ClampToEdge);
+        depth_stencil
+            .borrow_mut()
+            .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
 
-        let depth_stencil = Rc::new(RefCell::new(depth_stencil_texture));
-
-        let hdr_frame_texture = GpuTexture::new(
-            server,
+        let hdr_frame_texture = server.create_texture(
             GpuTextureKind::Rectangle { width, height },
             // Intermediate scene frame will be rendered in HDR render target.
             PixelKind::RGBA16F,
@@ -527,12 +527,11 @@ impl AssociatedSceneData {
             }),
             vec![Attachment {
                 kind: AttachmentKind::Color,
-                texture: Rc::new(RefCell::new(hdr_frame_texture)),
+                texture: hdr_frame_texture,
             }],
         )?;
 
-        let ldr_frame_texture = GpuTexture::new(
-            server,
+        let ldr_frame_texture = server.create_texture(
             GpuTextureKind::Rectangle { width, height },
             // Final scene frame is in standard sRGB space.
             PixelKind::RGBA8,
@@ -550,12 +549,11 @@ impl AssociatedSceneData {
             }),
             vec![Attachment {
                 kind: AttachmentKind::Color,
-                texture: Rc::new(RefCell::new(ldr_frame_texture)),
+                texture: ldr_frame_texture,
             }],
         )?;
 
-        let ldr_temp_texture = GpuTexture::new(
-            server,
+        let ldr_temp_texture = server.create_texture(
             GpuTextureKind::Rectangle { width, height },
             // Final scene frame is in standard sRGB space.
             PixelKind::RGBA8,
@@ -573,7 +571,7 @@ impl AssociatedSceneData {
             }),
             vec![Attachment {
                 kind: AttachmentKind::Color,
-                texture: Rc::new(RefCell::new(ldr_temp_texture)),
+                texture: ldr_temp_texture,
             }],
         )?;
 
@@ -607,21 +605,21 @@ impl AssociatedSceneData {
     }
 
     /// Returns high-dynamic range frame buffer texture.
-    pub fn hdr_scene_frame_texture(&self) -> Rc<RefCell<GpuTexture>> {
+    pub fn hdr_scene_frame_texture(&self) -> Rc<RefCell<dyn GpuTexture>> {
         self.hdr_scene_framebuffer.color_attachments()[0]
             .texture
             .clone()
     }
 
     /// Returns low-dynamic range frame buffer texture (final frame).
-    pub fn ldr_scene_frame_texture(&self) -> Rc<RefCell<GpuTexture>> {
+    pub fn ldr_scene_frame_texture(&self) -> Rc<RefCell<dyn GpuTexture>> {
         self.ldr_scene_framebuffer.color_attachments()[0]
             .texture
             .clone()
     }
 
     /// Returns low-dynamic range frame buffer texture (accumulation frame).
-    pub fn ldr_temp_frame_texture(&self) -> Rc<RefCell<GpuTexture>> {
+    pub fn ldr_temp_frame_texture(&self) -> Rc<RefCell<dyn GpuTexture>> {
         self.ldr_temp_framebuffer.color_attachments()[0]
             .texture
             .clone()
@@ -651,17 +649,17 @@ pub struct Renderer {
     flat_shader: FlatShader,
     /// Dummy white one pixel texture which will be used as stub when rendering
     /// something without texture specified.
-    pub white_dummy: Rc<RefCell<GpuTexture>>,
-    black_dummy: Rc<RefCell<GpuTexture>>,
-    environment_dummy: Rc<RefCell<GpuTexture>>,
+    pub white_dummy: Rc<RefCell<dyn GpuTexture>>,
+    black_dummy: Rc<RefCell<dyn GpuTexture>>,
+    environment_dummy: Rc<RefCell<dyn GpuTexture>>,
     // Dummy one pixel texture with (0, 1, 0) vector is used as stub when rendering
     // something without normal map.
-    normal_dummy: Rc<RefCell<GpuTexture>>,
+    normal_dummy: Rc<RefCell<dyn GpuTexture>>,
     // Dummy one pixel texture used as stub when rendering something without a
     // metallic texture. Default metalness is 0.0
-    metallic_dummy: Rc<RefCell<GpuTexture>>,
+    metallic_dummy: Rc<RefCell<dyn GpuTexture>>,
     // Dummy, one pixel, volume texture.
-    volume_dummy: Rc<RefCell<GpuTexture>>,
+    volume_dummy: Rc<RefCell<dyn GpuTexture>>,
     /// User interface renderer.
     pub ui_renderer: UiRenderer,
     statistics: Statistics,
@@ -699,8 +697,7 @@ fn make_ui_frame_buffer(
     server: &GlGraphicsServer,
     pixel_kind: PixelKind,
 ) -> Result<FrameBuffer, FrameworkError> {
-    let color_texture = Rc::new(RefCell::new(GpuTexture::new(
-        server,
+    let color_texture = server.create_texture(
         GpuTextureKind::Rectangle {
             width: frame_size.x as usize,
             height: frame_size.y as usize,
@@ -710,10 +707,9 @@ fn make_ui_frame_buffer(
         MagnificationFilter::Linear,
         1,
         None,
-    )?));
+    )?;
 
-    let depth_stencil = Rc::new(RefCell::new(GpuTexture::new(
-        server,
+    let depth_stencil = server.create_texture(
         GpuTextureKind::Rectangle {
             width: frame_size.x as usize,
             height: frame_size.y as usize,
@@ -723,7 +719,7 @@ fn make_ui_frame_buffer(
         MagnificationFilter::Nearest,
         1,
         None,
-    )?));
+    )?;
 
     FrameBuffer::new(
         server,
@@ -779,25 +775,25 @@ pub struct SceneRenderPassContext<'a, 'b> {
     pub scene_handle: Handle<Scene>,
 
     /// An 1x1 white pixel texture that could be used a stub when there is no texture.
-    pub white_dummy: Rc<RefCell<GpuTexture>>,
+    pub white_dummy: Rc<RefCell<dyn GpuTexture>>,
 
     /// An 1x1 pixel texture with (0, 1, 0) vector that could be used a stub when
     /// there is no normal map.
-    pub normal_dummy: Rc<RefCell<GpuTexture>>,
+    pub normal_dummy: Rc<RefCell<dyn GpuTexture>>,
 
     /// An 1x1 pixel with 0.0 metalness factor texture that could be used a stub when
     /// there is no metallic map.
-    pub metallic_dummy: Rc<RefCell<GpuTexture>>,
+    pub metallic_dummy: Rc<RefCell<dyn GpuTexture>>,
 
     /// An 1x1 black cube map texture that could be used a stub when there is no environment
     /// texture.
-    pub environment_dummy: Rc<RefCell<GpuTexture>>,
+    pub environment_dummy: Rc<RefCell<dyn GpuTexture>>,
 
     /// An 1x1 black pixel texture that could be used a stub when there is no texture.
-    pub black_dummy: Rc<RefCell<GpuTexture>>,
+    pub black_dummy: Rc<RefCell<dyn GpuTexture>>,
 
     /// A dummy 1x1x1 pixel volume texture.
-    pub volume_dummy: Rc<RefCell<GpuTexture>>,
+    pub volume_dummy: Rc<RefCell<dyn GpuTexture>>,
 
     /// A texture with depth values from G-Buffer.
     ///
@@ -806,7 +802,7 @@ pub struct SceneRenderPassContext<'a, 'b> {
     /// Keep in mind that G-Buffer cannot be modified in custom render passes, so you don't
     /// have an ability to write to this texture. However you can still write to depth of
     /// the frame buffer as you'd normally do.
-    pub depth_texture: Rc<RefCell<GpuTexture>>,
+    pub depth_texture: Rc<RefCell<dyn GpuTexture>>,
 
     /// A texture with world-space normals from G-Buffer.
     ///
@@ -814,7 +810,7 @@ pub struct SceneRenderPassContext<'a, 'b> {
     ///
     /// Keep in mind that G-Buffer cannot be modified in custom render passes, so you don't
     /// have an ability to write to this texture.
-    pub normal_texture: Rc<RefCell<GpuTexture>>,
+    pub normal_texture: Rc<RefCell<dyn GpuTexture>>,
 
     /// A texture with ambient lighting values from G-Buffer.
     ///
@@ -822,7 +818,7 @@ pub struct SceneRenderPassContext<'a, 'b> {
     ///
     /// Keep in mind that G-Buffer cannot be modified in custom render passes, so you don't
     /// have an ability to write to this texture.
-    pub ambient_texture: Rc<RefCell<GpuTexture>>,
+    pub ambient_texture: Rc<RefCell<dyn GpuTexture>>,
 
     /// User interface renderer.
     pub ui_renderer: &'a mut UiRenderer,
@@ -860,7 +856,7 @@ pub trait SceneRenderPass {
 fn blit_pixels(
     server: &GlGraphicsServer,
     framebuffer: &mut FrameBuffer,
-    texture: Rc<RefCell<GpuTexture>>,
+    texture: Rc<RefCell<dyn GpuTexture>>,
     shader: &FlatShader,
     viewport: Rect<i32>,
     quad: &GeometryBuffer,
@@ -946,7 +942,7 @@ impl Renderer {
             .event_broadcaster
             .add(shader_event_sender);
 
-        let (window, state) = GlGraphicsServer::new(
+        let (window, server) = GlGraphicsServer::new(
             params.vsync,
             params.msaa_sample_count,
             window_target,
@@ -958,16 +954,15 @@ impl Renderer {
         let mut shader_cache = ShaderCache::default();
 
         for shader in ShaderResource::standard_shaders() {
-            shader_cache.get(&state, &shader.resource);
+            shader_cache.get(&server, &shader.resource);
         }
 
         let renderer = Self {
-            backbuffer: FrameBuffer::backbuffer(&state),
+            backbuffer: FrameBuffer::backbuffer(&server),
             frame_size,
-            deferred_light_renderer: DeferredLightRenderer::new(&state, frame_size, &settings)?,
-            flat_shader: FlatShader::new(&state)?,
-            white_dummy: Rc::new(RefCell::new(GpuTexture::new(
-                &state,
+            deferred_light_renderer: DeferredLightRenderer::new(&server, frame_size, &settings)?,
+            flat_shader: FlatShader::new(&server)?,
+            white_dummy: server.create_texture(
                 GpuTextureKind::Rectangle {
                     width: 1,
                     height: 1,
@@ -977,9 +972,8 @@ impl Renderer {
                 MagnificationFilter::Linear,
                 1,
                 Some(&[255u8, 255u8, 255u8, 255u8]),
-            )?)),
-            black_dummy: Rc::new(RefCell::new(GpuTexture::new(
-                &state,
+            )?,
+            black_dummy: server.create_texture(
                 GpuTextureKind::Rectangle {
                     width: 1,
                     height: 1,
@@ -989,9 +983,8 @@ impl Renderer {
                 MagnificationFilter::Linear,
                 1,
                 Some(&[0u8, 0u8, 0u8, 255u8]),
-            )?)),
-            environment_dummy: Rc::new(RefCell::new(GpuTexture::new(
-                &state,
+            )?,
+            environment_dummy: server.create_texture(
                 GpuTextureKind::Cube {
                     width: 1,
                     height: 1,
@@ -1008,9 +1001,8 @@ impl Renderer {
                     0u8, 0u8, 0u8, 255u8, // pos-z
                     0u8, 0u8, 0u8, 255u8, // neg-z
                 ]),
-            )?)),
-            normal_dummy: Rc::new(RefCell::new(GpuTexture::new(
-                &state,
+            )?,
+            normal_dummy: server.create_texture(
                 GpuTextureKind::Rectangle {
                     width: 1,
                     height: 1,
@@ -1020,9 +1012,8 @@ impl Renderer {
                 MagnificationFilter::Linear,
                 1,
                 Some(&[128u8, 128u8, 255u8, 255u8]),
-            )?)),
-            metallic_dummy: Rc::new(RefCell::new(GpuTexture::new(
-                &state,
+            )?,
+            metallic_dummy: server.create_texture(
                 GpuTextureKind::Rectangle {
                     width: 1,
                     height: 1,
@@ -1032,9 +1023,8 @@ impl Renderer {
                 MagnificationFilter::Linear,
                 1,
                 Some(&[0u8, 0u8, 0u8, 0u8]),
-            )?)),
-            volume_dummy: Rc::new(RefCell::new(GpuTexture::new(
-                &state,
+            )?,
+            volume_dummy: server.create_texture(
                 GpuTextureKind::Volume {
                     width: 1,
                     height: 1,
@@ -1045,30 +1035,30 @@ impl Renderer {
                 MagnificationFilter::Linear,
                 1,
                 Some(&[0u8, 0u8, 0u8, 0u8]),
-            )?)),
+            )?,
             quad: GeometryBuffer::from_surface_data(
                 &SurfaceData::make_unit_xy_quad(),
                 BufferUsage::StaticDraw,
-                &state,
+                &server,
             )?,
-            ui_renderer: UiRenderer::new(&state)?,
+            ui_renderer: UiRenderer::new(&server)?,
             quality_settings: settings,
-            debug_renderer: DebugRenderer::new(&state)?,
-            screen_space_debug_renderer: DebugRenderer::new(&state)?,
+            debug_renderer: DebugRenderer::new(&server)?,
+            screen_space_debug_renderer: DebugRenderer::new(&server)?,
             scene_data_map: Default::default(),
             backbuffer_clear_color: Color::BLACK,
             texture_cache: Default::default(),
             geometry_cache: Default::default(),
             forward_renderer: ForwardRenderer::new(),
             ui_frame_buffers: Default::default(),
-            fxaa_renderer: FxaaRenderer::new(&state)?,
+            fxaa_renderer: FxaaRenderer::new(&server)?,
             statistics: Statistics::default(),
             shader_event_receiver,
             texture_event_receiver,
             shader_cache,
             scene_render_passes: Default::default(),
-            matrix_storage: MatrixStorageCache::new(&state)?,
-            state,
+            matrix_storage: MatrixStorageCache::new(&server)?,
+            state: server,
             visibility_cache: Default::default(),
         };
 

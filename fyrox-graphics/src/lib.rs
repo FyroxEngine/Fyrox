@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#![allow(clippy::too_many_arguments)]
+
 pub use fyrox_core as core;
 
 use crate::core::{reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*};

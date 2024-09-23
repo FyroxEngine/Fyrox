@@ -18,11 +18,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::buffer::{Buffer, BufferKind, BufferUsage};
 use crate::{
+    buffer::{Buffer, BufferKind, BufferUsage},
     core::{color::Color, log::Log, math::Rect},
     error::FrameworkError,
-    gl,
+    gl::{self, texture::GlTexture},
+    gpu_texture::{GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind},
     stats::PipelineStatistics,
     BlendEquation, BlendFactor, BlendFunc, BlendMode, ColorMask, CompareFunc, CullFace,
     DrawParameters, PolygonFace, PolygonFillMode, ScissorBox, StencilAction, StencilFunc,
@@ -301,6 +302,7 @@ struct TextureUnitsStorage {
 }
 
 impl GlGraphicsServer {
+    #[allow(unused_mut)]
     pub fn new(
         #[allow(unused_variables)] vsync: bool,
         #[allow(unused_variables)] msaa_sample_count: Option<u8>,
@@ -577,7 +579,7 @@ impl GlGraphicsServer {
     }
 
     pub fn free_texture_unit(&self) -> Option<u32> {
-        let mut state = self.state.borrow();
+        let state = self.state.borrow();
         for (index, unit) in state.texture_units_storage.units.iter().enumerate() {
             if unit
                 .bindings
@@ -997,6 +999,15 @@ pub trait GraphicsServer: Any {
         buffer_kind: BufferKind,
         buffer_usage: BufferUsage,
     ) -> Result<Box<dyn Buffer>, FrameworkError>;
+    fn create_texture(
+        &self,
+        kind: GpuTextureKind,
+        pixel_kind: PixelKind,
+        min_filter: MinificationFilter,
+        mag_filter: MagnificationFilter,
+        mip_count: usize,
+        data: Option<&[u8]>,
+    ) -> Result<Rc<RefCell<dyn GpuTexture>>, FrameworkError>;
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
     fn weak(self: Rc<Self>) -> Weak<dyn GraphicsServer>;
@@ -1010,6 +1021,20 @@ pub trait GraphicsServer: Any {
 }
 
 impl GraphicsServer for GlGraphicsServer {
+    fn create_texture(
+        &self,
+        kind: GpuTextureKind,
+        pixel_kind: PixelKind,
+        min_filter: MinificationFilter,
+        mag_filter: MagnificationFilter,
+        mip_count: usize,
+        data: Option<&[u8]>,
+    ) -> Result<Rc<RefCell<dyn GpuTexture>>, FrameworkError> {
+        Ok(Rc::new(RefCell::new(GlTexture::new(
+            self, kind, pixel_kind, min_filter, mag_filter, mip_count, data,
+        )?)))
+    }
+
     fn create_buffer(
         &self,
         size: usize,

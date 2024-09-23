@@ -37,6 +37,7 @@ use crate::{
         make_viewport_matrix, RenderPassStatistics,
     },
 };
+use fyrox_graphics::state::GraphicsServer;
 use std::{cell::RefCell, rc::Rc};
 
 mod blur;
@@ -79,8 +80,7 @@ impl BloomRenderer {
     ) -> Result<Self, FrameworkError> {
         let frame = {
             let kind = GpuTextureKind::Rectangle { width, height };
-            let mut texture = GpuTexture::new(
-                server,
+            let texture = server.create_texture(
                 kind,
                 PixelKind::RGBA16F,
                 MinificationFilter::Nearest,
@@ -88,8 +88,12 @@ impl BloomRenderer {
                 1,
                 None,
             )?;
-            texture.set_wrap(Coordinate::S, WrapMode::ClampToEdge);
-            texture.set_wrap(Coordinate::T, WrapMode::ClampToEdge);
+            texture
+                .borrow_mut()
+                .set_wrap(Coordinate::S, WrapMode::ClampToEdge);
+            texture
+                .borrow_mut()
+                .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
             texture
         };
 
@@ -101,7 +105,7 @@ impl BloomRenderer {
                 None,
                 vec![Attachment {
                     kind: AttachmentKind::Color,
-                    texture: Rc::new(RefCell::new(frame)),
+                    texture: frame,
                 }],
             )?,
             width,
@@ -109,11 +113,11 @@ impl BloomRenderer {
         })
     }
 
-    fn glow_texture(&self) -> Rc<RefCell<GpuTexture>> {
+    fn glow_texture(&self) -> Rc<RefCell<dyn GpuTexture>> {
         self.framebuffer.color_attachments()[0].texture.clone()
     }
 
-    pub fn result(&self) -> Rc<RefCell<GpuTexture>> {
+    pub fn result(&self) -> Rc<RefCell<dyn GpuTexture>> {
         self.blur.result()
     }
 
@@ -121,7 +125,7 @@ impl BloomRenderer {
         &mut self,
         server: &GlGraphicsServer,
         quad: &GeometryBuffer,
-        hdr_scene_frame: Rc<RefCell<GpuTexture>>,
+        hdr_scene_frame: Rc<RefCell<dyn GpuTexture>>,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();
 

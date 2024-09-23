@@ -36,6 +36,7 @@ use crate::{
         make_viewport_matrix,
     },
 };
+use fyrox_graphics::state::GraphicsServer;
 use std::{cell::RefCell, rc::Rc};
 
 struct VisibilityOptimizerShader {
@@ -80,8 +81,7 @@ impl VisibilityBufferOptimizer {
         w_tiles: usize,
         h_tiles: usize,
     ) -> Result<Self, FrameworkError> {
-        let optimized_visibility_buffer = GpuTexture::new(
-            server,
+        let optimized_visibility_buffer = server.create_texture(
             GpuTextureKind::Rectangle {
                 width: w_tiles,
                 height: h_tiles,
@@ -92,8 +92,6 @@ impl VisibilityBufferOptimizer {
             1,
             None,
         )?;
-
-        let optimized_visibility_buffer = Rc::new(RefCell::new(optimized_visibility_buffer));
 
         Ok(Self {
             framebuffer: FrameBuffer::new(
@@ -122,7 +120,7 @@ impl VisibilityBufferOptimizer {
     pub fn optimize(
         &mut self,
         server: &GlGraphicsServer,
-        visibility_buffer: &Rc<RefCell<GpuTexture>>,
+        visibility_buffer: &Rc<RefCell<dyn GpuTexture>>,
         unit_quad: &GeometryBuffer,
         tile_size: i32,
     ) -> Result<(), FrameworkError> {

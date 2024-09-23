@@ -58,6 +58,7 @@ use crate::{
 };
 use bytemuck::{Pod, Zeroable};
 use fyrox_graphics::buffer::BufferUsage;
+use fyrox_graphics::state::GraphicsServer;
 use std::{cell::RefCell, rc::Rc};
 
 struct Shader {
@@ -90,8 +91,8 @@ impl Shader {
 
 pub struct OcclusionTester {
     framebuffer: FrameBuffer,
-    visibility_mask: Rc<RefCell<GpuTexture>>,
-    tile_buffer: Rc<RefCell<GpuTexture>>,
+    visibility_mask: Rc<RefCell<dyn GpuTexture>>,
+    tile_buffer: Rc<RefCell<dyn GpuTexture>>,
     frame_size: Vector2<usize>,
     shader: Shader,
     tile_size: usize,
@@ -183,8 +184,7 @@ impl OcclusionTester {
         height: usize,
         tile_size: usize,
     ) -> Result<Self, FrameworkError> {
-        let mut depth_stencil_texture = GpuTexture::new(
-            server,
+        let depth_stencil = server.create_texture(
             GpuTextureKind::Rectangle { width, height },
             PixelKind::D24S8,
             MinificationFilter::Nearest,
@@ -192,11 +192,14 @@ impl OcclusionTester {
             1,
             None,
         )?;
-        depth_stencil_texture.set_wrap(Coordinate::S, WrapMode::ClampToEdge);
-        depth_stencil_texture.set_wrap(Coordinate::T, WrapMode::ClampToEdge);
+        depth_stencil
+            .borrow_mut()
+            .set_wrap(Coordinate::S, WrapMode::ClampToEdge);
+        depth_stencil
+            .borrow_mut()
+            .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
 
-        let visibility_mask = GpuTexture::new(
-            server,
+        let visibility_mask = server.create_texture(
             GpuTextureKind::Rectangle { width, height },
             PixelKind::RGBA8,
             MinificationFilter::Nearest,
@@ -207,8 +210,7 @@ impl OcclusionTester {
 
         let w_tiles = width / tile_size + 1;
         let h_tiles = height / tile_size + 1;
-        let tile_buffer = GpuTexture::new(
-            server,
+        let tile_buffer = server.create_texture(
             GpuTextureKind::Rectangle {
                 width: w_tiles * (MAX_BITS + 1),
                 height: h_tiles,
@@ -219,10 +221,6 @@ impl OcclusionTester {
             1,
             None,
         )?;
-
-        let depth_stencil = Rc::new(RefCell::new(depth_stencil_texture));
-        let visibility_mask = Rc::new(RefCell::new(visibility_mask));
-        let tile_buffer = Rc::new(RefCell::new(tile_buffer));
 
         Ok(Self {
             framebuffer: FrameBuffer::new(
