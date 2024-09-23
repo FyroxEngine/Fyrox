@@ -76,9 +76,7 @@ impl MatrixStorage {
     /// Updates contents of the internal texture with provided matrices.
     pub fn upload(
         &mut self,
-        server: &GlGraphicsServer,
         matrices: impl Iterator<Item = Matrix4<f32>>,
-        sampler: u32,
     ) -> Result<(), FrameworkError> {
         self.matrices.clear();
         self.matrices.extend(matrices);
@@ -97,18 +95,15 @@ impl MatrixStorage {
 
         // Upload to GPU.
         if matrices_w != 0 && matrices_h != 0 {
-            self.texture
-                .borrow_mut()
-                .bind_mut(server, sampler)
-                .set_data(
-                    GpuTextureKind::Rectangle {
-                        width: matrices_w,
-                        height: matrices_h,
-                    },
-                    PixelKind::RGBA32F,
-                    1,
-                    Some(crate::core::array_as_u8_slice(&self.matrices)),
-                )?;
+            self.texture.borrow_mut().set_data(
+                GpuTextureKind::Rectangle {
+                    width: matrices_w,
+                    height: matrices_h,
+                },
+                PixelKind::RGBA32F,
+                1,
+                Some(crate::core::array_as_u8_slice(&self.matrices)),
+            )?;
         }
 
         Ok(())
@@ -172,7 +167,8 @@ impl MatrixStorageCache {
                         MatrixStorage::new(server)?
                     };
 
-                    storage.upload(server, matrices.iter().cloned(), sampler)?;
+                    storage.upload(matrices.iter().cloned())?;
+                    storage.texture().borrow().bind(server, sampler);
 
                     Ok(entry.insert(storage))
                 }

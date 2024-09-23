@@ -75,10 +75,8 @@ impl Cascade {
                 1,
                 None,
             )?;
-            texture
-                .bind_mut(server, 0)
-                .set_wrap(Coordinate::T, WrapMode::ClampToEdge)
-                .set_wrap(Coordinate::S, WrapMode::ClampToEdge);
+            texture.set_wrap(Coordinate::T, WrapMode::ClampToEdge);
+            texture.set_wrap(Coordinate::S, WrapMode::ClampToEdge);
             texture
         };
 

@@ -192,10 +192,8 @@ impl OcclusionTester {
             1,
             None,
         )?;
-        depth_stencil_texture
-            .bind_mut(server, 0)
-            .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
-            .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
+        depth_stencil_texture.set_wrap(Coordinate::S, WrapMode::ClampToEdge);
+        depth_stencil_texture.set_wrap(Coordinate::T, WrapMode::ClampToEdge);
 
         let visibility_mask = GpuTexture::new(
             server,
@@ -364,7 +362,7 @@ impl OcclusionTester {
             debug_renderer.set_lines(server, &lines);
         }
 
-        self.tile_buffer.borrow_mut().bind_mut(server, 0).set_data(
+        self.tile_buffer.borrow_mut().set_data(
             GpuTextureKind::Rectangle {
                 width: self.w_tiles * (MAX_BITS + 1),
                 height: self.h_tiles,
@@ -453,15 +451,12 @@ impl OcclusionTester {
 
         self.prepare_tiles(server, graph, &viewport, debug_renderer)?;
 
-        self.matrix_storage.upload(
-            server,
-            self.objects_to_test.iter().filter_map(|h| {
+        self.matrix_storage
+            .upload(self.objects_to_test.iter().filter_map(|h| {
                 let aabb = inflated_world_aabb(graph, *h)?;
                 let s = aabb.max - aabb.min;
                 Some(Matrix4::new_translation(&aabb.center()) * Matrix4::new_nonuniform_scaling(&s))
-            }),
-            0,
-        )?;
+            }))?;
 
         let shader = &self.shader;
         self.framebuffer.draw_instances(

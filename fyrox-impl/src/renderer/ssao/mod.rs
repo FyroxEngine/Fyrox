@@ -133,10 +133,8 @@ impl ScreenSpaceAmbientOcclusionRenderer {
                 1,
                 None,
             )?;
-            texture
-                .bind_mut(server, 0)
-                .set_minification_filter(MinificationFilter::Nearest)
-                .set_magnification_filter(MagnificationFilter::Nearest);
+            texture.set_minification_filter(MinificationFilter::Nearest);
+            texture.set_magnification_filter(MagnificationFilter::Nearest);
             texture
         };
 
@@ -199,10 +197,8 @@ impl ScreenSpaceAmbientOcclusionRenderer {
                     1,
                     Some(&pixels),
                 )?;
-                texture
-                    .bind_mut(server, 0)
-                    .set_wrap(Coordinate::S, WrapMode::Repeat)
-                    .set_wrap(Coordinate::T, WrapMode::Repeat);
+                texture.set_wrap(Coordinate::S, WrapMode::Repeat);
+                texture.set_wrap(Coordinate::T, WrapMode::Repeat);
                 texture
             })),
             radius: 0.5,

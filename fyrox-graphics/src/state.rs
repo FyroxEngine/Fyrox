@@ -576,6 +576,20 @@ impl GlGraphicsServer {
         self.state.borrow().gl_kind
     }
 
+    pub fn free_texture_unit(&self) -> Option<u32> {
+        let mut state = self.state.borrow();
+        for (index, unit) in state.texture_units_storage.units.iter().enumerate() {
+            if unit
+                .bindings
+                .iter()
+                .all(|binding| binding.texture.is_none())
+            {
+                return Some(index as u32);
+            }
+        }
+        None
+    }
+
     pub fn set_polygon_fill_mode(
         &self,
         polygon_face: PolygonFace,
@@ -1036,7 +1050,14 @@ impl GraphicsServer for GlGraphicsServer {
 
     fn invalidate_resource_bindings_cache(&self) {
         let mut state = self.state.borrow_mut();
+
+        for unit in state.texture_units_storage.units.iter() {
+            for binding in unit.bindings.iter() {
+                unsafe { self.gl.bind_texture(binding.target, None) };
+            }
+        }
         state.texture_units_storage = Default::default();
+
         state.program = Default::default();
         state.frame_statistics = Default::default();
     }

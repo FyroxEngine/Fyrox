@@ -115,10 +115,8 @@ impl GBuffer {
             1,
             None,
         )?;
-        depth_stencil_texture
-            .bind_mut(server, 0)
-            .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
-            .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
+        depth_stencil_texture.set_wrap(Coordinate::S, WrapMode::ClampToEdge);
+        depth_stencil_texture.set_wrap(Coordinate::T, WrapMode::ClampToEdge);
 
         let depth_stencil = Rc::new(RefCell::new(depth_stencil_texture));
 
@@ -131,10 +129,8 @@ impl GBuffer {
             1,
             None,
         )?;
-        diffuse_texture
-            .bind_mut(server, 0)
-            .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
-            .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
+        diffuse_texture.set_wrap(Coordinate::S, WrapMode::ClampToEdge);
+        diffuse_texture.set_wrap(Coordinate::T, WrapMode::ClampToEdge);
         let diffuse_texture = Rc::new(RefCell::new(diffuse_texture));
 
         let mut normal_texture = GpuTexture::new(
@@ -146,10 +142,8 @@ impl GBuffer {
             1,
             None,
         )?;
-        normal_texture
-            .bind_mut(server, 0)
-            .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
-            .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
+        normal_texture.set_wrap(Coordinate::S, WrapMode::ClampToEdge);
+        normal_texture.set_wrap(Coordinate::T, WrapMode::ClampToEdge);
         let normal_texture = Rc::new(RefCell::new(normal_texture));
 
         let mut ambient_texture = GpuTexture::new(
@@ -161,10 +155,8 @@ impl GBuffer {
             1,
             None,
         )?;
-        ambient_texture
-            .bind_mut(server, 0)
-            .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
-            .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
+        ambient_texture.set_wrap(Coordinate::S, WrapMode::ClampToEdge);
+        ambient_texture.set_wrap(Coordinate::T, WrapMode::ClampToEdge);
 
         let mut decal_mask_texture = GpuTexture::new(
             server,
@@ -175,10 +167,8 @@ impl GBuffer {
             1,
             None,
         )?;
-        decal_mask_texture
-            .bind_mut(server, 0)
-            .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
-            .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
+        decal_mask_texture.set_wrap(Coordinate::S, WrapMode::ClampToEdge);
+        decal_mask_texture.set_wrap(Coordinate::T, WrapMode::ClampToEdge);
 
         let mut material_texture = GpuTexture::new(
             server,
@@ -189,10 +179,8 @@ impl GBuffer {
             1,
             None,
         )?;
-        material_texture
-            .bind_mut(server, 0)
-            .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
-            .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
+        material_texture.set_wrap(Coordinate::S, WrapMode::ClampToEdge);
+        material_texture.set_wrap(Coordinate::T, WrapMode::ClampToEdge);
 
         let framebuffer = FrameBuffer::new(
             server,

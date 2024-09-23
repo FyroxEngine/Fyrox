@@ -219,12 +219,7 @@ impl HighDynamicRangeRenderer {
                 // TODO: Cloning memory from GPU to CPU is slow, but since the engine is limited
                 // by macOS's OpenGL 4.1 support and lack of compute shaders we'll build histogram
                 // manually on CPU anyway. Replace this with compute shaders whenever possible.
-                let data = self
-                    .frame_luminance
-                    .texture()
-                    .borrow_mut()
-                    .bind_mut(server, 0)
-                    .read_pixels(server);
+                let data = self.frame_luminance.texture().borrow_mut().read_pixels();
 
                 let pixels = transmute_slice::<u8, f32>(&data);
 
@@ -256,7 +251,6 @@ impl HighDynamicRangeRenderer {
                     .unwrap()
                     .texture()
                     .borrow_mut()
-                    .bind_mut(server, 0)
                     .set_data(
                         GpuTextureKind::Rectangle {
                             width: 1,

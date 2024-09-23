@@ -101,12 +101,10 @@ impl PointShadowMapRenderer {
                     1,
                     None,
                 )?;
-                texture
-                    .bind_mut(server, 0)
-                    .set_minification_filter(MinificationFilter::Nearest)
-                    .set_magnification_filter(MagnificationFilter::Nearest)
-                    .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
-                    .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
+                texture.set_minification_filter(MinificationFilter::Nearest);
+                texture.set_magnification_filter(MagnificationFilter::Nearest);
+                texture.set_wrap(Coordinate::S, WrapMode::ClampToEdge);
+                texture.set_wrap(Coordinate::T, WrapMode::ClampToEdge);
                 texture
             };
 
@@ -124,11 +122,9 @@ impl PointShadowMapRenderer {
                     1,
                     None,
                 )?;
-                texture
-                    .bind_mut(server, 0)
-                    .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
-                    .set_wrap(Coordinate::T, WrapMode::ClampToEdge)
-                    .set_wrap(Coordinate::R, WrapMode::ClampToEdge);
+                texture.set_wrap(Coordinate::S, WrapMode::ClampToEdge);
+                texture.set_wrap(Coordinate::T, WrapMode::ClampToEdge);
+                texture.set_wrap(Coordinate::R, WrapMode::ClampToEdge);
                 texture
             };
 

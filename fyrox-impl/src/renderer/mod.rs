@@ -503,10 +503,8 @@ impl AssociatedSceneData {
             1,
             None,
         )?;
-        depth_stencil_texture
-            .bind_mut(server, 0)
-            .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
-            .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
+        depth_stencil_texture.set_wrap(Coordinate::S, WrapMode::ClampToEdge);
+        depth_stencil_texture.set_wrap(Coordinate::T, WrapMode::ClampToEdge);
 
         let depth_stencil = Rc::new(RefCell::new(depth_stencil_texture));
 

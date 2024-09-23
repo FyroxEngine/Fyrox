@@ -82,11 +82,9 @@ impl SpotShadowMapRenderer {
                     1,
                     None,
                 )?;
-                texture
-                    .bind_mut(server, 0)
-                    .set_wrap(Coordinate::T, WrapMode::ClampToEdge)
-                    .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
-                    .set_border_color(Color::WHITE);
+                texture.set_wrap(Coordinate::T, WrapMode::ClampToEdge);
+                texture.set_wrap(Coordinate::S, WrapMode::ClampToEdge);
+                texture.set_border_color(Color::WHITE);
                 texture
             };
 

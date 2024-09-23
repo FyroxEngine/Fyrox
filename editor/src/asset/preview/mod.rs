@@ -343,16 +343,13 @@ fn render_scene_to_texture(
                 .map(|a| a.texture.clone())
         })
     {
-        let mut ldr_texture = ldr_texture.borrow_mut();
+        let ldr_texture = ldr_texture.borrow_mut();
         let (width, height) = match ldr_texture.kind() {
             GpuTextureKind::Rectangle { width, height } => (width, height),
             _ => unreachable!(),
         };
 
-        let pipeline_state = graphics_context.renderer.pipeline_state();
-        let pixels = ldr_texture
-            .bind_mut(pipeline_state, 0)
-            .read_pixels(pipeline_state);
+        let pixels = ldr_texture.read_pixels();
 
         // TODO: This is a hack, refactor `render_scene` method to accept render data from
         // outside, instead of messing around with these temporary handles.

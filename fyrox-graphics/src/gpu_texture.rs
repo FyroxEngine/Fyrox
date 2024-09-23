@@ -22,7 +22,7 @@ use crate::{core::color::Color, error::FrameworkError, state::GlGraphicsServer};
 use bytemuck::Pod;
 use glow::{HasContext, PixelPackData, COMPRESSED_RED_RGTC1, COMPRESSED_RG_RGTC2};
 use std::marker::PhantomData;
-use std::rc::Weak;
+use std::rc::{Rc, Weak};
 
 #[derive(Copy, Clone)]
 pub enum GpuTextureKind {
@@ -530,12 +530,6 @@ impl Coordinate {
     }
 }
 
-pub struct TextureBinding<'a> {
-    state: &'a GlGraphicsServer,
-    texture: &'a mut GpuTexture,
-    sampler_index: u32,
-}
-
 #[derive(Copy, Clone)]
 pub enum CubeMapFace {
     PositiveX,
@@ -559,14 +553,129 @@ impl CubeMapFace {
     }
 }
 
-impl<'a> TextureBinding<'a> {
-    pub fn set_anisotropy(self, anisotropy: f32) -> Self {
+const GL_COMPRESSED_RGB_S3TC_DXT1_EXT: u32 = 0x83F0;
+const GL_COMPRESSED_RGBA_S3TC_DXT1_EXT: u32 = 0x83F1;
+const GL_COMPRESSED_RGBA_S3TC_DXT3_EXT: u32 = 0x83F2;
+const GL_COMPRESSED_RGBA_S3TC_DXT5_EXT: u32 = 0x83F3;
+
+struct TempBinding {
+    server: Rc<GlGraphicsServer>,
+    unit: u32,
+    target: u32,
+}
+
+impl TempBinding {
+    fn new(server: Rc<GlGraphicsServer>, texture: &GpuTexture) -> Self {
+        let unit = server
+            .free_texture_unit()
+            .expect("Texture units limit exceeded!");
+        let target = texture.kind.gl_texture_target();
+        server.set_texture(unit, target, Some(texture.texture));
+        Self {
+            server,
+            unit,
+            target,
+        }
+    }
+}
+
+impl Drop for TempBinding {
+    fn drop(&mut self) {
+        self.server.set_texture(self.unit, self.target, None);
+    }
+}
+
+impl GpuTexture {
+    /// Creates new GPU texture of specified kind. Mip count must be at least 1, it means
+    /// that there is only main level of detail.
+    ///
+    /// # Data layout
+    ///
+    /// In case of Cube texture, `bytes` should contain all 6 cube faces ordered like so,
+    /// +X, -X, +Y, -Y, +Z, -Z. Cube mips must follow one after another.
+    ///
+    /// Produced texture can be used as render target for framebuffer, in this case `data`
+    /// parameter can be None.
+    ///
+    /// # Compressed textures
+    ///
+    /// For compressed textures data must contain all mips, where each mip must be 2 times
+    /// smaller than previous.
+    pub fn new(
+        server: &GlGraphicsServer,
+        kind: GpuTextureKind,
+        pixel_kind: PixelKind,
+        min_filter: MinificationFilter,
+        mag_filter: MagnificationFilter,
+        mip_count: usize,
+        data: Option<&[u8]>,
+    ) -> Result<Self, FrameworkError> {
+        let mip_count = mip_count.max(1);
+
+        let target = kind.gl_texture_target();
+
         unsafe {
-            let max = self
-                .state
+            let texture = server.gl.create_texture()?;
+
+            let mut result = Self {
+                state: server.weak(),
+                texture,
+                kind,
+                min_filter,
+                mag_filter,
+                s_wrap_mode: WrapMode::Repeat,
+                t_wrap_mode: WrapMode::Repeat,
+                r_wrap_mode: WrapMode::Repeat,
+                anisotropy: 1.0,
+                pixel_kind,
+                thread_mark: PhantomData,
+            };
+
+            result.set_data(kind, pixel_kind, mip_count, data)?;
+
+            server.gl.tex_parameter_i32(
+                target,
+                glow::TEXTURE_MAG_FILTER,
+                mag_filter.into_gl_value(),
+            );
+            server.gl.tex_parameter_i32(
+                target,
+                glow::TEXTURE_MIN_FILTER,
+                min_filter.into_gl_value(),
+            );
+
+            server
+                .gl
+                .tex_parameter_i32(target, glow::TEXTURE_MAX_LEVEL, mip_count as i32 - 1);
+
+            server.set_texture(0, target, Default::default());
+
+            Ok(result)
+        }
+    }
+
+    pub fn bind(&self, server: &GlGraphicsServer, sampler_index: u32) {
+        server.set_texture(
+            sampler_index,
+            self.kind.gl_texture_target(),
+            Some(self.texture),
+        );
+    }
+
+    fn make_temp_binding(&self) -> TempBinding {
+        let server = self.state.upgrade().unwrap();
+        TempBinding::new(server, self)
+    }
+
+    pub fn set_anisotropy(&mut self, anisotropy: f32) {
+        let temp_binding = self.make_temp_binding();
+
+        unsafe {
+            let max = temp_binding
+                .server
                 .gl
                 .get_parameter_f32(glow::MAX_TEXTURE_MAX_ANISOTROPY_EXT);
-            self.state.gl.tex_parameter_f32(
+            temp_binding.server.gl.tex_parameter_f32(
                 glow::TEXTURE_2D,
                 glow::TEXTURE_MAX_ANISOTROPY_EXT,
                 anisotropy.clamp(0.0, max),
@@ -574,78 +683,80 @@ impl<'a> TextureBinding<'a> {
 
             // Set it to requested value, instead of hardware-limited. This will allow
             // us to check if anisotropy needs to be changed.
-            self.texture.anisotropy = anisotropy;
+            self.anisotropy = anisotropy;
         }
-        self
     }
 
-    pub fn set_minification_filter(self, min_filter: MinificationFilter) -> Self {
-        unsafe {
-            let target = self.texture.kind.gl_texture_target();
+    pub fn set_minification_filter(&mut self, min_filter: MinificationFilter) {
+        let temp_binding = self.make_temp_binding();
 
-            self.state.gl.tex_parameter_i32(
+        unsafe {
+            let target = self.kind.gl_texture_target();
+
+            temp_binding.server.gl.tex_parameter_i32(
                 target,
                 glow::TEXTURE_MIN_FILTER,
                 min_filter.into_gl_value(),
             );
 
-            self.texture.min_filter = min_filter;
+            self.min_filter = min_filter;
         }
-        self
     }
 
-    pub fn set_magnification_filter(self, mag_filter: MagnificationFilter) -> Self {
+    pub fn set_magnification_filter(&mut self, mag_filter: MagnificationFilter) {
+        let temp_binding = self.make_temp_binding();
+
         unsafe {
-            self.state.gl.tex_parameter_i32(
-                self.texture.kind.gl_texture_target(),
+            temp_binding.server.gl.tex_parameter_i32(
+                self.kind.gl_texture_target(),
                 glow::TEXTURE_MAG_FILTER,
                 mag_filter.into_gl_value(),
             );
 
-            self.texture.mag_filter = mag_filter;
+            self.mag_filter = mag_filter;
         }
-        self
     }
 
-    pub fn set_wrap(self, coordinate: Coordinate, wrap: WrapMode) -> Self {
+    pub fn set_wrap(&mut self, coordinate: Coordinate, wrap: WrapMode) {
+        let temp_binding = self.make_temp_binding();
+
         unsafe {
-            self.state.gl.tex_parameter_i32(
-                self.texture.kind.gl_texture_target(),
+            temp_binding.server.gl.tex_parameter_i32(
+                self.kind.gl_texture_target(),
                 coordinate.into_gl_value(),
                 wrap.into_gl_value(),
             );
 
             match coordinate {
-                Coordinate::S => self.texture.s_wrap_mode = wrap,
-                Coordinate::T => self.texture.t_wrap_mode = wrap,
-                Coordinate::R => self.texture.r_wrap_mode = wrap,
+                Coordinate::S => self.s_wrap_mode = wrap,
+                Coordinate::T => self.t_wrap_mode = wrap,
+                Coordinate::R => self.r_wrap_mode = wrap,
             }
         }
-        self
     }
 
-    pub fn set_border_color(self, #[allow(unused_variables)] color: Color) -> Self {
+    pub fn set_border_color(&mut self, #[allow(unused_variables)] color: Color) {
         #[cfg(not(target_arch = "wasm32"))]
         unsafe {
+            let temp_binding = self.make_temp_binding();
             let color = color.as_frgba();
             let color = [color.x, color.y, color.z, color.w];
 
-            self.state.gl.tex_parameter_f32_slice(
-                self.texture.kind.gl_texture_target(),
+            temp_binding.server.gl.tex_parameter_f32_slice(
+                self.kind.gl_texture_target(),
                 glow::TEXTURE_BORDER_COLOR,
                 &color,
             );
         }
-        self
     }
 
     pub fn set_data(
-        self,
+        &mut self,
         kind: GpuTextureKind,
         pixel_kind: PixelKind,
         mip_count: usize,
         data: Option<&[u8]>,
-    ) -> Result<Self, FrameworkError> {
+    ) -> Result<(), FrameworkError> {
         let mip_count = mip_count.max(1);
 
         let mut desired_byte_count = 0;
@@ -707,18 +818,18 @@ impl<'a> TextureBinding<'a> {
             }
         }
 
-        self.texture.kind = kind;
-        self.texture.pixel_kind = pixel_kind;
+        self.kind = kind;
+        self.pixel_kind = pixel_kind;
 
+        let temp_binding = self.make_temp_binding();
         let target = kind.gl_texture_target();
 
         unsafe {
-            self.state
-                .set_texture(self.sampler_index, target, Some(self.texture.texture));
-
-            self.state
-                .gl
-                .tex_parameter_i32(target, glow::TEXTURE_MAX_LEVEL, mip_count as i32 - 1);
+            temp_binding.server.gl.tex_parameter_i32(
+                target,
+                glow::TEXTURE_MAX_LEVEL,
+                mip_count as i32 - 1,
+            );
 
             let PixelDescriptor {
                 data_type,
@@ -730,19 +841,20 @@ impl<'a> TextureBinding<'a> {
             let is_compressed = pixel_kind.is_compressed();
 
             if let Some(alignment) = pixel_kind.unpack_alignment() {
-                self.state
+                temp_binding
+                    .server
                     .gl
                     .pixel_store_i32(glow::UNPACK_ALIGNMENT, alignment);
             }
 
             if let Some(swizzle_mask) = swizzle_mask {
-                if self
-                    .state
+                if temp_binding
+                    .server
                     .gl
                     .supported_extensions()
                     .contains("GL_ARB_texture_swizzle")
                 {
-                    self.state.gl.tex_parameter_i32_slice(
+                    temp_binding.server.gl.tex_parameter_i32_slice(
                         target,
                         glow::TEXTURE_SWIZZLE_RGBA,
                         &swizzle_mask,
@@ -761,7 +873,7 @@ impl<'a> TextureBinding<'a> {
                             });
 
                             if is_compressed {
-                                self.state.gl.compressed_tex_image_1d(
+                                temp_binding.server.gl.compressed_tex_image_1d(
                                     glow::TEXTURE_1D,
                                     mip as i32,
                                     internal_format as i32,
@@ -771,7 +883,7 @@ impl<'a> TextureBinding<'a> {
                                     pixels.ok_or(FrameworkError::EmptyTextureData)?,
                                 );
                             } else {
-                                self.state.gl.tex_image_1d(
+                                temp_binding.server.gl.tex_image_1d(
                                     glow::TEXTURE_1D,
                                     mip as i32,
                                     internal_format as i32,
@@ -800,7 +912,7 @@ impl<'a> TextureBinding<'a> {
                             });
 
                             if is_compressed {
-                                self.state.gl.compressed_tex_image_2d(
+                                temp_binding.server.gl.compressed_tex_image_2d(
                                     glow::TEXTURE_2D,
                                     mip as i32,
                                     internal_format as i32,
@@ -811,7 +923,7 @@ impl<'a> TextureBinding<'a> {
                                     pixels.ok_or(FrameworkError::EmptyTextureData)?,
                                 );
                             } else {
-                                self.state.gl.tex_image_2d(
+                                temp_binding.server.gl.tex_image_2d(
                                     glow::TEXTURE_2D,
                                     mip as i32,
                                     internal_format as i32,
@@ -843,7 +955,7 @@ impl<'a> TextureBinding<'a> {
                                 let face_pixels = data.map(|data| &data[begin..end]);
 
                                 if is_compressed {
-                                    self.state.gl.compressed_tex_image_2d(
+                                    temp_binding.server.gl.compressed_tex_image_2d(
                                         glow::TEXTURE_CUBE_MAP_POSITIVE_X + face as u32,
                                         mip as i32,
                                         internal_format as i32,
@@ -854,7 +966,7 @@ impl<'a> TextureBinding<'a> {
                                         face_pixels.ok_or(FrameworkError::EmptyTextureData)?,
                                     );
                                 } else {
-                                    self.state.gl.tex_image_2d(
+                                    temp_binding.server.gl.tex_image_2d(
                                         glow::TEXTURE_CUBE_MAP_POSITIVE_X + face as u32,
                                         mip as i32,
                                         internal_format as i32,
@@ -890,7 +1002,7 @@ impl<'a> TextureBinding<'a> {
                             });
 
                             if is_compressed {
-                                self.state.gl.compressed_tex_image_3d(
+                                temp_binding.server.gl.compressed_tex_image_3d(
                                     glow::TEXTURE_3D,
                                     mip as i32,
                                     internal_format as i32,
@@ -902,7 +1014,7 @@ impl<'a> TextureBinding<'a> {
                                     pixels.ok_or(FrameworkError::EmptyTextureData)?,
                                 );
                             } else {
-                                self.state.gl.tex_image_3d(
+                                temp_binding.server.gl.tex_image_3d(
                                     glow::TEXTURE_3D,
                                     mip as i32,
                                     internal_format as i32,
@@ -926,16 +1038,16 @@ impl<'a> TextureBinding<'a> {
             }
         }
 
-        Ok(self)
+        Ok(())
     }
 
-    pub fn read_pixels(&self, server: &GlGraphicsServer) -> Vec<u8> {
+    pub fn read_pixels(&self) -> Vec<u8> {
+        let temp_binding = self.make_temp_binding();
         unsafe {
-            if let GpuTextureKind::Rectangle { width, height } = self.texture.kind {
-                let pixel_info = self.texture.pixel_kind.pixel_descriptor();
-                let mut buffer =
-                    vec![0; image_2d_size_bytes(self.texture.pixel_kind, width, height)];
-                server.gl.read_pixels(
+            if let GpuTextureKind::Rectangle { width, height } = self.kind {
+                let pixel_info = self.pixel_kind.pixel_descriptor();
+                let mut buffer = vec![0; image_2d_size_bytes(self.pixel_kind, width, height)];
+                temp_binding.server.gl.read_pixels(
                     0,
                     0,
                     width as i32,
@@ -951,11 +1063,11 @@ impl<'a> TextureBinding<'a> {
         }
     }
 
-    pub fn read_pixels_of_type<T>(&self, server: &GlGraphicsServer) -> Vec<T>
+    pub fn read_pixels_of_type<T>(&self) -> Vec<T>
     where
         T: Pod,
     {
-        let mut bytes = self.read_pixels(server);
+        let mut bytes = self.read_pixels();
         let typed = unsafe {
             Vec::<T>::from_raw_parts(
                 bytes.as_mut_ptr() as *mut T,
@@ -967,21 +1079,22 @@ impl<'a> TextureBinding<'a> {
         typed
     }
 
-    pub fn get_image<T: Pod>(&self, level: usize, server: &GlGraphicsServer) -> Vec<T> {
+    pub fn get_image<T: Pod>(&self, level: usize) -> Vec<T> {
+        let temp_binding = self.make_temp_binding();
         unsafe {
-            let desc = self.texture.pixel_kind.pixel_descriptor();
-            let (kind, buffer_size) = match self.texture.kind {
+            let desc = self.pixel_kind.pixel_descriptor();
+            let (kind, buffer_size) = match self.kind {
                 GpuTextureKind::Line { length } => (
                     glow::TEXTURE_1D,
-                    image_1d_size_bytes(self.texture.pixel_kind, length),
+                    image_1d_size_bytes(self.pixel_kind, length),
                 ),
                 GpuTextureKind::Rectangle { width, height } => (
                     glow::TEXTURE_2D,
-                    image_2d_size_bytes(self.texture.pixel_kind, width, height),
+                    image_2d_size_bytes(self.pixel_kind, width, height),
                 ),
                 GpuTextureKind::Cube { width, height } => (
                     glow::TEXTURE_CUBE_MAP,
-                    6 * image_2d_size_bytes(self.texture.pixel_kind, width, height),
+                    6 * image_2d_size_bytes(self.pixel_kind, width, height),
                 ),
                 GpuTextureKind::Volume {
                     width,
@@ -989,12 +1102,12 @@ impl<'a> TextureBinding<'a> {
                     depth,
                 } => (
                     glow::TEXTURE_3D,
-                    image_3d_size_bytes(self.texture.pixel_kind, width, height, depth),
+                    image_3d_size_bytes(self.pixel_kind, width, height, depth),
                 ),
             };
 
             let mut bytes = vec![0; buffer_size];
-            server.gl.get_tex_image(
+            temp_binding.server.gl.get_tex_image(
                 kind,
                 level as i32,
                 desc.format,
@@ -1010,111 +1123,6 @@ impl<'a> TextureBinding<'a> {
             std::mem::forget(bytes);
             typed
         }
-    }
-}
-
-const GL_COMPRESSED_RGB_S3TC_DXT1_EXT: u32 = 0x83F0;
-const GL_COMPRESSED_RGBA_S3TC_DXT1_EXT: u32 = 0x83F1;
-const GL_COMPRESSED_RGBA_S3TC_DXT3_EXT: u32 = 0x83F2;
-const GL_COMPRESSED_RGBA_S3TC_DXT5_EXT: u32 = 0x83F3;
-
-impl GpuTexture {
-    /// Creates new GPU texture of specified kind. Mip count must be at least 1, it means
-    /// that there is only main level of detail.
-    ///
-    /// # Data layout
-    ///
-    /// In case of Cube texture, `bytes` should contain all 6 cube faces ordered like so,
-    /// +X, -X, +Y, -Y, +Z, -Z. Cube mips must follow one after another.
-    ///
-    /// Produced texture can be used as render target for framebuffer, in this case `data`
-    /// parameter can be None.
-    ///
-    /// # Compressed textures
-    ///
-    /// For compressed textures data must contain all mips, where each mip must be 2 times
-    /// smaller than previous.
-    pub fn new(
-        server: &GlGraphicsServer,
-        kind: GpuTextureKind,
-        pixel_kind: PixelKind,
-        min_filter: MinificationFilter,
-        mag_filter: MagnificationFilter,
-        mip_count: usize,
-        data: Option<&[u8]>,
-    ) -> Result<Self, FrameworkError> {
-        let mip_count = mip_count.max(1);
-
-        let target = kind.gl_texture_target();
-
-        unsafe {
-            let texture = server.gl.create_texture()?;
-
-            let mut result = Self {
-                state: server.weak(),
-                texture,
-                kind,
-                min_filter,
-                mag_filter,
-                s_wrap_mode: WrapMode::Repeat,
-                t_wrap_mode: WrapMode::Repeat,
-                r_wrap_mode: WrapMode::Repeat,
-                anisotropy: 1.0,
-                pixel_kind,
-                thread_mark: PhantomData,
-            };
-
-            TextureBinding {
-                state: server,
-                texture: &mut result,
-                sampler_index: 0,
-            }
-            .set_data(kind, pixel_kind, mip_count, data)?;
-
-            server.gl.tex_parameter_i32(
-                target,
-                glow::TEXTURE_MAG_FILTER,
-                mag_filter.into_gl_value(),
-            );
-            server.gl.tex_parameter_i32(
-                target,
-                glow::TEXTURE_MIN_FILTER,
-                min_filter.into_gl_value(),
-            );
-
-            server
-                .gl
-                .tex_parameter_i32(target, glow::TEXTURE_MAX_LEVEL, mip_count as i32 - 1);
-
-            server.set_texture(0, target, Default::default());
-
-            Ok(result)
-        }
-    }
-
-    pub fn bind_mut<'a>(
-        &'a mut self,
-        state: &'a GlGraphicsServer,
-        sampler_index: u32,
-    ) -> TextureBinding<'a> {
-        state.set_texture(
-            sampler_index,
-            self.kind.gl_texture_target(),
-            Some(self.texture),
-        );
-        TextureBinding {
-            state,
-            texture: self,
-            sampler_index,
-        }
-    }
-
-    pub fn bind(&self, server: &GlGraphicsServer, sampler_index: u32) {
-        server.set_texture(
-            sampler_index,
-            self.kind.gl_texture_target(),
-            Some(self.texture),
-        );
     }
 
     pub fn kind(&self) -> GpuTextureKind {
