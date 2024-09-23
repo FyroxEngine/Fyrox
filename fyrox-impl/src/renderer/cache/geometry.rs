@@ -23,14 +23,13 @@ use crate::{
     renderer::{
         cache::{TemporaryCache, TimeToLive},
         framework::{
-            error::FrameworkError,
-            geometry_buffer::{GeometryBuffer, GeometryBufferKind},
-            state::GlGraphicsServer,
+            error::FrameworkError, geometry_buffer::GeometryBuffer, state::GlGraphicsServer,
         },
     },
     scene::mesh::surface::{SurfaceData, SurfaceResource},
 };
 use fyrox_core::log::Log;
+use fyrox_graphics::buffer::BufferUsage;
 
 struct SurfaceRenderData {
     buffer: GeometryBuffer,
@@ -48,8 +47,7 @@ fn create_geometry_buffer(
     data: &SurfaceData,
     server: &GlGraphicsServer,
 ) -> Result<SurfaceRenderData, FrameworkError> {
-    let geometry_buffer =
-        GeometryBuffer::from_surface_data(data, GeometryBufferKind::StaticDraw, server)?;
+    let geometry_buffer = GeometryBuffer::from_surface_data(data, BufferUsage::StaticDraw, server)?;
 
     Ok(SurfaceRenderData {
         buffer: geometry_buffer,
@@ -82,7 +80,7 @@ impl GeometryCache {
                         // Vertices has changed, upload the new content.
                         entry
                             .buffer
-                            .set_buffer_data(server, 0, data.vertex_buffer.raw_data());
+                            .set_buffer_data(0, data.vertex_buffer.raw_data());
 
                         entry.vertex_modifications_count = data.vertex_buffer.modifications_count();
                     }

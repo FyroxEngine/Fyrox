@@ -41,7 +41,7 @@ use crate::{
         framework::{
             error::FrameworkError,
             framebuffer::{Attachment, AttachmentKind, FrameBuffer},
-            geometry_buffer::{GeometryBuffer, GeometryBufferKind},
+            geometry_buffer::GeometryBuffer,
             gpu_program::{GpuProgram, UniformLocation},
             gpu_texture::{
                 Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
@@ -57,6 +57,7 @@ use crate::{
     scene::{graph::Graph, mesh::surface::SurfaceData, node::Node},
 };
 use bytemuck::{Pod, Zeroable};
+use fyrox_graphics::buffer::BufferUsage;
 use std::{cell::RefCell, rc::Rc};
 
 struct Shader {
@@ -246,7 +247,7 @@ impl OcclusionTester {
             h_tiles,
             cube: GeometryBuffer::from_surface_data(
                 &SurfaceData::make_cube(Matrix4::identity()),
-                GeometryBufferKind::StaticDraw,
+                BufferUsage::StaticDraw,
                 server,
             )?,
             visibility_buffer_optimizer: VisibilityBufferOptimizer::new(server, w_tiles, h_tiles)?,

@@ -29,7 +29,7 @@ use crate::{
         framework::{
             error::FrameworkError,
             framebuffer::FrameBuffer,
-            geometry_buffer::{GeometryBuffer, GeometryBufferKind},
+            geometry_buffer::GeometryBuffer,
             gpu_program::{GpuProgram, UniformLocation},
             gpu_texture::GpuTexture,
             state::GlGraphicsServer,
@@ -39,6 +39,7 @@ use crate::{
     },
     scene::mesh::surface::SurfaceData,
 };
+use fyrox_graphics::buffer::BufferUsage;
 use std::{cell::RefCell, rc::Rc};
 
 struct FxaaShader {
@@ -78,7 +79,7 @@ impl FxaaRenderer {
             shader: FxaaShader::new(server)?,
             quad: GeometryBuffer::from_surface_data(
                 &SurfaceData::make_unit_xy_quad(),
-                GeometryBufferKind::StaticDraw,
+                BufferUsage::StaticDraw,
                 server,
             )?,
         })

@@ -31,7 +31,7 @@ use crate::{
         framework::{
             error::FrameworkError,
             framebuffer::{Attachment, AttachmentKind, FrameBuffer},
-            geometry_buffer::{GeometryBuffer, GeometryBufferKind},
+            geometry_buffer::GeometryBuffer,
             gpu_program::{GpuProgram, UniformLocation},
             gpu_texture::{
                 Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
@@ -46,6 +46,7 @@ use crate::{
     },
     scene::mesh::surface::SurfaceData,
 };
+use fyrox_graphics::buffer::BufferUsage;
 use std::{cell::RefCell, rc::Rc};
 
 mod blur;
@@ -154,7 +155,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
             )?,
             quad: GeometryBuffer::from_surface_data(
                 &SurfaceData::make_unit_xy_quad(),
-                GeometryBufferKind::StaticDraw,
+                BufferUsage::StaticDraw,
                 server,
             )?,
             width: width as i32,

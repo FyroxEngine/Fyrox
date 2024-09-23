@@ -24,6 +24,7 @@ use crate::core::{reflect::prelude::*, type_traits::prelude::*, visitor::prelude
 use serde::{Deserialize, Serialize};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
+pub mod buffer;
 pub mod error;
 pub mod framebuffer;
 pub mod geometry_buffer;
@@ -34,7 +35,6 @@ pub mod pixel_buffer;
 pub mod query;
 pub mod state;
 pub mod stats;
-pub mod uniform_buffer;
 
 #[derive(
     Copy,

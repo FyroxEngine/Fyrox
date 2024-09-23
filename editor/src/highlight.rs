@@ -34,7 +34,7 @@ use crate::{
             framework::{
                 error::FrameworkError,
                 framebuffer::{Attachment, AttachmentKind, FrameBuffer},
-                geometry_buffer::{GeometryBuffer, GeometryBufferKind},
+                geometry_buffer::GeometryBuffer,
                 gpu_program::{GpuProgram, UniformLocation},
                 gpu_texture::{
                     Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter,
@@ -49,6 +49,7 @@ use crate::{
     },
     Editor,
 };
+use fyrox::renderer::framework::buffer::BufferUsage;
 use fyrox::renderer::framework::{CompareFunc, GeometryBufferExt};
 use std::{any::TypeId, cell::RefCell, rc::Rc};
 
@@ -181,7 +182,7 @@ impl HighlightRenderPass {
             framebuffer: Self::create_frame_buffer(server, width, height),
             quad: GeometryBuffer::from_surface_data(
                 &SurfaceData::make_unit_xy_quad(),
-                GeometryBufferKind::StaticDraw,
+                BufferUsage::StaticDraw,
                 server,
             )
             .unwrap(),

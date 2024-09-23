@@ -77,6 +77,8 @@ pub enum FrameworkError {
     FailedToConstructFBO,
     /// Custom error. Usually used for internal errors.
     Custom(String),
+    /// Graphics server disconnected.
+    GraphicsServerUnavailable,
 }
 
 impl Display for FrameworkError {
@@ -144,6 +146,9 @@ impl Display for FrameworkError {
             }
             FrameworkError::Custom(v) => {
                 write!(f, "Custom error: {v}")
+            }
+            FrameworkError::GraphicsServerUnavailable => {
+                write!(f, "Graphics server disconnected.")
             }
         }
     }

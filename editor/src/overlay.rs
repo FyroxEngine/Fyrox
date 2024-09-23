@@ -24,7 +24,7 @@ use crate::{
         renderer::{
             framework::{
                 error::FrameworkError,
-                geometry_buffer::{GeometryBuffer, GeometryBufferKind},
+                geometry_buffer::GeometryBuffer,
                 gpu_program::{GpuProgram, UniformLocation},
                 state::GlGraphicsServer,
                 BlendFactor, BlendFunc, BlendParameters, DrawParameters, ElementRange,
@@ -39,6 +39,7 @@ use crate::{
     },
     Editor,
 };
+use fyrox::renderer::framework::buffer::BufferUsage;
 use fyrox::renderer::framework::{CompareFunc, GeometryBufferExt};
 use std::{any::TypeId, cell::RefCell, rc::Rc};
 
@@ -87,7 +88,7 @@ impl OverlayRenderPass {
         Rc::new(RefCell::new(Self {
             quad: GeometryBuffer::from_surface_data(
                 &SurfaceData::make_collapsed_xy_quad(),
-                GeometryBufferKind::StaticDraw,
+                BufferUsage::StaticDraw,
                 server,
             )
             .unwrap(),

@@ -19,39 +19,21 @@
 // SOFTWARE.
 
 use crate::{
+    buffer::{Buffer, BufferKind, BufferUsage},
     core::{array_as_u8_slice, math::TriangleDefinition},
     error::FrameworkError,
-    state::GlGraphicsServer,
+    gl::buffer::GlBuffer,
+    state::{GlGraphicsServer, ToGlConstant},
     ElementKind, ElementRange,
 };
 use glow::HasContext;
 use std::{cell::Cell, marker::PhantomData, mem::size_of, rc::Weak};
 
-struct NativeBuffer {
-    state: Weak<GlGraphicsServer>,
-    id: glow::Buffer,
-    kind: GeometryBufferKind,
-    element_size: usize,
-    size_bytes: usize,
-    // Force compiler to not implement Send and Sync, because OpenGL is not thread-safe.
-    thread_mark: PhantomData<*const u8>,
-}
-
-impl Drop for NativeBuffer {
-    fn drop(&mut self) {
-        if let Some(state) = self.state.upgrade() {
-            unsafe {
-                state.gl.delete_buffer(self.id);
-            }
-        }
-    }
-}
-
 pub struct GeometryBuffer {
     state: Weak<GlGraphicsServer>,
     vertex_array_object: glow::VertexArray,
-    buffers: Vec<NativeBuffer>,
-    element_buffer_object: glow::Buffer,
+    buffers: Vec<GlBuffer>,
+    element_buffer: GlBuffer,
     element_count: Cell<usize>,
     element_kind: ElementKind,
     // Force compiler to not implement Send and Sync, because OpenGL is not thread-safe.
@@ -163,13 +145,6 @@ impl AttributeKind {
     }
 }
 
-#[derive(Copy, Clone)]
-#[repr(u32)]
-pub enum GeometryBufferKind {
-    StaticDraw = glow::STATIC_DRAW,
-    DynamicDraw = glow::DYNAMIC_DRAW,
-}
-
 pub struct GeometryBufferBinding<'a> {
     state: &'a GlGraphicsServer,
     buffer: &'a GeometryBuffer,
@@ -184,27 +159,19 @@ impl<'a> GeometryBufferBinding<'a> {
     pub fn set_triangles(self, triangles: &[TriangleDefinition]) -> Self {
         assert_eq!(self.buffer.element_kind, ElementKind::Triangle);
         self.buffer.element_count.set(triangles.len());
-
-        unsafe { self.set_elements(array_as_u8_slice(triangles)) }
-
+        self.set_elements(array_as_u8_slice(triangles));
         self
     }
 
     pub fn set_lines(self, lines: &[[u32; 2]]) -> Self {
         assert_eq!(self.buffer.element_kind, ElementKind::Line);
         self.buffer.element_count.set(lines.len());
-
-        unsafe {
-            self.set_elements(array_as_u8_slice(lines));
-        }
-
+        self.set_elements(array_as_u8_slice(lines));
         self
     }
 
-    unsafe fn set_elements(&self, data: &[u8]) {
-        self.state
-            .gl
-            .buffer_data_u8_slice(glow::ELEMENT_ARRAY_BUFFER, data, glow::DYNAMIC_DRAW);
+    fn set_elements(&self, data: &[u8]) {
+        self.buffer.element_buffer.write_data(data).unwrap()
     }
 
     pub fn draw(&self, element_range: ElementRange) -> Result<DrawCallStatistics, FrameworkError> {
@@ -275,34 +242,10 @@ impl<'a> GeometryBufferBinding<'a> {
 }
 
 impl GeometryBuffer {
-    pub fn set_buffer_data<T: bytemuck::Pod>(
-        &mut self,
-        server: &GlGraphicsServer,
-        buffer: usize,
-        data: &[T],
-    ) {
-        let buffer = &mut self.buffers[buffer];
-
-        assert_eq!(buffer.element_size % size_of::<T>(), 0);
-
-        server.set_vertex_buffer_object(Some(buffer.id));
-
-        let size = std::mem::size_of_val(data);
-        let usage = buffer.kind as u32;
-
-        unsafe {
-            if buffer.size_bytes < size || size == 0 {
-                server
-                    .gl
-                    .buffer_data_u8_slice(glow::ARRAY_BUFFER, array_as_u8_slice(data), usage);
-            } else {
-                server
-                    .gl
-                    .buffer_sub_data_u8_slice(glow::ARRAY_BUFFER, 0, array_as_u8_slice(data));
-            }
-        }
-
-        buffer.size_bytes = size;
+    pub fn set_buffer_data<T: bytemuck::Pod>(&mut self, buffer: usize, data: &[T]) {
+        self.buffers[buffer]
+            .write_data(array_as_u8_slice(data))
+            .unwrap();
     }
 
     pub fn bind<'a>(&'a self, state: &'a GlGraphicsServer) -> GeometryBufferBinding<'a> {
@@ -313,7 +256,7 @@ impl GeometryBuffer {
         unsafe {
             state
                 .gl
-                .bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(self.element_buffer_object));
+                .bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(self.element_buffer.id));
         }
 
         GeometryBufferBinding {
@@ -332,8 +275,6 @@ impl Drop for GeometryBuffer {
         if let Some(state) = self.state.upgrade() {
             unsafe {
                 self.buffers.clear();
-
-                state.gl.delete_buffer(self.element_buffer_object);
                 state.gl.delete_vertex_array(self.vertex_array_object);
             }
         }
@@ -342,14 +283,14 @@ impl Drop for GeometryBuffer {
 
 pub struct BufferBuilder {
     pub element_size: usize,
-    pub kind: GeometryBufferKind,
+    pub usage: BufferUsage,
     pub attributes: Vec<AttributeDefinition>,
     pub data: *const u8,
     pub data_size: usize,
 }
 
 impl BufferBuilder {
-    pub fn new<T: Sized>(kind: GeometryBufferKind, data: Option<&[T]>) -> Self {
+    pub fn new<T: Sized>(usage: BufferUsage, data: Option<&[T]>) -> Self {
         let (data, data_size) = if let Some(data) = data {
             (data as *const _ as *const u8, std::mem::size_of_val(data))
         } else {
@@ -357,7 +298,7 @@ impl BufferBuilder {
         };
 
         Self {
-            kind,
+            usage,
             attributes: Default::default(),
             element_size: size_of::<T>(),
             data,
@@ -370,33 +311,20 @@ impl BufferBuilder {
         self
     }
 
-    fn build(self, server: &GlGraphicsServer) -> Result<NativeBuffer, FrameworkError> {
-        let vbo = unsafe { server.gl.create_buffer()? };
-
-        server.set_vertex_buffer_object(Some(vbo));
-
-        if self.data_size > 0 {
-            unsafe {
-                server.gl.buffer_data_u8_slice(
-                    glow::ARRAY_BUFFER,
-                    std::slice::from_raw_parts(self.data, self.data_size),
-                    self.kind as u32,
-                );
+    fn build(self, server: &GlGraphicsServer) -> Result<GlBuffer, FrameworkError> {
+        unsafe {
+            let native_buffer =
+                GlBuffer::new(server, self.data_size, BufferKind::Vertex, self.usage)?;
+            if self.data_size > 0 {
+                let data = std::slice::from_raw_parts(self.data, self.data_size);
+                native_buffer.write_data(data)?;
             }
-        }
 
-        let native_buffer = NativeBuffer {
-            state: server.weak(),
-            id: vbo,
-            kind: self.kind,
-            element_size: self.element_size,
-            size_bytes: self.data_size,
-            thread_mark: Default::default(),
-        };
+            let target = native_buffer.kind.into_gl();
+            server.gl.bind_buffer(target, Some(native_buffer.id));
 
-        let mut offset = 0usize;
-        for definition in self.attributes {
-            unsafe {
+            let mut offset = 0usize;
+            for definition in self.attributes {
                 server.gl.vertex_attrib_pointer_f32(
                     definition.location,
                     definition.kind.length() as i32,
@@ -413,13 +341,15 @@ impl BufferBuilder {
                 offset += definition.kind.size_bytes();
 
                 if offset > self.element_size {
-                    server.set_vertex_buffer_object(Default::default());
+                    server.gl.bind_buffer(target, Some(native_buffer.id));
                     return Err(FrameworkError::InvalidAttributeDescriptor);
                 }
             }
-        }
 
-        Ok(native_buffer)
+            server.gl.bind_buffer(target, None);
+
+            Ok(native_buffer)
+        }
     }
 }
 
@@ -443,7 +373,7 @@ impl GeometryBufferBuilder {
 
     pub fn build(self, server: &GlGraphicsServer) -> Result<GeometryBuffer, FrameworkError> {
         let vao = unsafe { server.gl.create_vertex_array()? };
-        let ebo = unsafe { server.gl.create_buffer()? };
+        let element_buffer = GlBuffer::new(server, 0, BufferKind::Index, BufferUsage::StaticDraw)?;
 
         server.set_vertex_array_object(Some(vao));
 
@@ -456,7 +386,7 @@ impl GeometryBufferBuilder {
             state: server.weak(),
             vertex_array_object: vao,
             buffers,
-            element_buffer_object: ebo,
+            element_buffer,
             element_count: Cell::new(0),
             element_kind: self.element_kind,
             thread_mark: PhantomData,

@@ -31,7 +31,7 @@ use crate::{
         framework::{
             error::FrameworkError,
             framebuffer::FrameBuffer,
-            geometry_buffer::{GeometryBuffer, GeometryBufferKind},
+            geometry_buffer::GeometryBuffer,
             gpu_program::{GpuProgram, UniformLocation},
             state::GlGraphicsServer,
             BlendFactor, BlendFunc, BlendParameters, ColorMask, CompareFunc, DrawParameters,
@@ -47,6 +47,7 @@ use crate::{
         node::Node,
     },
 };
+use fyrox_graphics::buffer::BufferUsage;
 
 struct SpotLightShader {
     program: GpuProgram,
@@ -153,12 +154,12 @@ impl LightVolumeRenderer {
                     1.0,
                     &Matrix4::new_translation(&Vector3::new(0.0, -1.0, 0.0)),
                 ),
-                GeometryBufferKind::StaticDraw,
+                BufferUsage::StaticDraw,
                 server,
             )?,
             sphere: GeometryBuffer::from_surface_data(
                 &SurfaceData::make_sphere(8, 8, 1.0, &Matrix4::identity()),
-                GeometryBufferKind::StaticDraw,
+                BufferUsage::StaticDraw,
                 server,
             )?,
         })

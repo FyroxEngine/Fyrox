@@ -19,7 +19,45 @@
 // SOFTWARE.
 
 use crate::error::FrameworkError;
+use bytemuck::Pod;
+use fyrox_core::{array_as_u8_slice, array_as_u8_slice_mut};
 
-pub trait UniformBuffer {
+#[derive(Copy, Clone, Eq, PartialEq, Hash)]
+pub enum BufferKind {
+    Vertex,
+    Index,
+    Uniform,
+    PixelRead,
+    PixelWrite,
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Hash)]
+pub enum BufferUsage {
+    StreamDraw,
+    StreamRead,
+    StreamCopy,
+    StaticDraw,
+    StaticRead,
+    StaticCopy,
+    DynamicDraw,
+    DynamicRead,
+    DynamicCopy,
+}
+
+pub trait Buffer {
+    fn size(&self) -> usize;
     fn write_data(&self, data: &[u8]) -> Result<(), FrameworkError>;
+    fn read_data(&self, data: &mut [u8]) -> Result<(), FrameworkError>;
+}
+
+impl dyn Buffer {
+    pub fn write_data_of_type<T: Pod>(&self, data: &[T]) -> Result<(), FrameworkError> {
+        let data = array_as_u8_slice(data);
+        Buffer::write_data(self, data)
+    }
+
+    pub fn read_data_of_type<T: Pod>(&self, data: &mut [T]) -> Result<(), FrameworkError> {
+        let data = array_as_u8_slice_mut(data);
+        Buffer::read_data(self, data)
+    }
 }

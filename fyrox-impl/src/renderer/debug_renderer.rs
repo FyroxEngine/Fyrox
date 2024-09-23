@@ -31,7 +31,7 @@ use crate::{
             framebuffer::FrameBuffer,
             geometry_buffer::{
                 AttributeDefinition, AttributeKind, BufferBuilder, GeometryBuffer,
-                GeometryBufferBuilder, GeometryBufferKind,
+                GeometryBufferBuilder,
             },
             gpu_program::{GpuProgram, UniformLocation},
             state::GlGraphicsServer,
@@ -43,6 +43,7 @@ use crate::{
 };
 use bytemuck::{Pod, Zeroable};
 use fyrox_core::color::Color;
+use fyrox_graphics::buffer::BufferUsage;
 use fyrox_graphics::CompareFunc;
 use rapier2d::na::Matrix4;
 
@@ -100,7 +101,7 @@ impl DebugRenderer {
     pub(crate) fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
         let geometry = GeometryBufferBuilder::new(ElementKind::Line)
             .with_buffer_builder(
-                BufferBuilder::new::<Vertex>(GeometryBufferKind::DynamicDraw, None)
+                BufferBuilder::new::<Vertex>(BufferUsage::DynamicDraw, None)
                     .with_attribute(AttributeDefinition {
                         location: 0,
                         divisor: 0,
@@ -143,7 +144,7 @@ impl DebugRenderer {
             self.line_indices.push([i, i + 1]);
             i += 2;
         }
-        self.geometry.set_buffer_data(server, 0, &self.vertices);
+        self.geometry.set_buffer_data(0, &self.vertices);
         self.geometry.bind(server).set_lines(&self.line_indices);
     }
 

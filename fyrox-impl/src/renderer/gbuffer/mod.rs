@@ -44,7 +44,7 @@ use crate::{
         framework::{
             error::FrameworkError,
             framebuffer::{Attachment, AttachmentKind, FrameBuffer},
-            geometry_buffer::{GeometryBuffer, GeometryBufferKind},
+            geometry_buffer::GeometryBuffer,
             gpu_texture::{
                 Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
                 PixelKind, WrapMode,
@@ -65,6 +65,7 @@ use crate::{
     },
 };
 use fxhash::FxHashSet;
+use fyrox_graphics::buffer::BufferUsage;
 use std::{cell::RefCell, rc::Rc};
 
 mod decal;
@@ -245,7 +246,7 @@ impl GBuffer {
             decal_shader: DecalShader::new(server)?,
             cube: GeometryBuffer::from_surface_data(
                 &SurfaceData::make_cube(Matrix4::identity()),
-                GeometryBufferKind::StaticDraw,
+                BufferUsage::StaticDraw,
                 server,
             )?,
             decal_framebuffer,

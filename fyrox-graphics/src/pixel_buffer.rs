@@ -19,58 +19,44 @@
 // SOFTWARE.
 
 use crate::{
-    core::{algebra::Vector2, array_as_u8_slice_mut, math::Rect},
+    buffer::{Buffer, BufferKind, BufferUsage},
+    core::{algebra::Vector2, math::Rect},
     error::FrameworkError,
     framebuffer::FrameBuffer,
+    gl::buffer::GlBuffer,
     gpu_texture::{image_2d_size_bytes, GpuTextureKind},
-    state::GlGraphicsServer,
+    state::{GlGraphicsServer, ToGlConstant},
 };
 use bytemuck::Pod;
 use glow::{HasContext, PixelPackData};
-use std::{marker::PhantomData, rc::Weak};
+use std::marker::PhantomData;
 
 struct ReadRequest {
     fence: glow::Fence,
 }
 
 pub struct PixelBuffer<T> {
-    id: glow::Buffer,
-    state: Weak<GlGraphicsServer>,
+    buffer: GlBuffer,
     request: Option<ReadRequest>,
     pixel_count: usize,
     phantom_data: PhantomData<T>,
 }
 
-impl<T> Drop for PixelBuffer<T> {
-    fn drop(&mut self) {
-        if let Some(state) = self.state.upgrade() {
-            unsafe {
-                state.gl.delete_buffer(self.id);
-            }
-        }
-    }
-}
-
 impl<T> PixelBuffer<T> {
     pub fn new(server: &GlGraphicsServer, pixel_count: usize) -> Result<Self, FrameworkError> {
-        unsafe {
-            let id = server.gl.create_buffer()?;
-            server.gl.bind_buffer(glow::PIXEL_PACK_BUFFER, Some(id));
-            let size_bytes = pixel_count * size_of::<T>();
-            server.gl.buffer_data_size(
-                glow::PIXEL_PACK_BUFFER,
-                size_bytes as i32,
-                glow::STREAM_READ,
-            );
-            server.gl.bind_buffer(glow::PIXEL_PACK_BUFFER, None);
-            Ok(Self {
-                id,
-                state: server.weak(),
-                request: None,
-                pixel_count,
-                phantom_data: Default::default(),
-            })
-        }
+        let size_bytes = pixel_count * size_of::<T>();
+        let buffer = GlBuffer::new(
+            server,
+            size_bytes,
+            BufferKind::PixelRead,
+            BufferUsage::StreamRead,
+        )?;
+        Ok(Self {
+            buffer,
+            request: None,
+            pixel_count,
+            phantom_data: Default::default(),
+        })
     }
 
     pub fn schedule_pixels_transfer(
@@ -136,9 +122,9 @@ impl<T> PixelBuffer<T> {
         };
 
         unsafe {
-            server
-                .gl
-                .bind_buffer(glow::PIXEL_PACK_BUFFER, Some(self.id));
+            let buffer_gl_usage = self.buffer.kind.into_gl();
+
+            server.gl.bind_buffer(buffer_gl_usage, Some(self.buffer.id));
 
             server
                 .gl
@@ -158,7 +144,7 @@ impl<T> PixelBuffer<T> {
                 PixelPackData::BufferOffset(0),
             );
 
-            server.gl.bind_buffer(glow::PIXEL_PACK_BUFFER, None);
+            server.gl.bind_buffer(buffer_gl_usage, None);
 
             self.request = Some(ReadRequest {
                 fence: server
@@ -188,7 +174,7 @@ impl<T> PixelBuffer<T> {
             // the performance. glClientWaitSync with timeout=0 does not have this issue.
             let fence_state = server.gl.client_wait_sync(request.fence, 0, 0);
             if fence_state != glow::TIMEOUT_EXPIRED && fence_state != glow::WAIT_FAILED {
-                self.read_internal(server, &mut buffer);
+                self.read_internal(&mut buffer);
 
                 server.gl.delete_sync(request.fence);
                 self.request = None;
@@ -200,45 +186,11 @@ impl<T> PixelBuffer<T> {
         }
     }
 
-    fn read_internal(&self, server: &GlGraphicsServer, buffer: &mut [T])
+    fn read_internal(&self, buffer: &mut [T])
     where
         T: Pod,
     {
-        unsafe {
-            server
-                .gl
-                .bind_buffer(glow::PIXEL_PACK_BUFFER, Some(self.id));
-
-            #[cfg(not(target_arch = "wasm32"))]
-            {
-                let dest_storage = array_as_u8_slice_mut(buffer);
-                let gl_storage = server.gl.map_buffer_range(
-                    glow::PIXEL_PACK_BUFFER,
-                    0,
-                    dest_storage.len() as i32,
-                    glow::MAP_READ_BIT,
-                );
-                assert_ne!(gl_storage, std::ptr::null_mut());
-                std::ptr::copy_nonoverlapping(
-                    gl_storage,
-                    dest_storage.as_mut_ptr(),
-                    dest_storage.len(),
-                );
-                server.gl.unmap_buffer(glow::PIXEL_PACK_BUFFER);
-            }
-
-            #[cfg(target_arch = "wasm32")]
-            {
-                // The only way to get buffer data on WebGL is to use glGetBufferSubData, there's
-                // no memory mapping in Web due to security reasons.
-                server.gl.get_buffer_sub_data(
-                    glow::PIXEL_PACK_BUFFER,
-                    0,
-                    array_as_u8_slice_mut(buffer),
-                );
-            }
-
-            server.gl.bind_buffer(glow::PIXEL_PACK_BUFFER, None);
-        }
+        let gl_buffer = &self.buffer as &dyn Buffer;
+        gl_buffer.read_data_of_type(buffer).unwrap()
     }
 }

@@ -30,13 +30,10 @@ use crate::{
         cache::shader::ShaderCache,
         flat_shader::FlatShader,
         framework::{
-            error::FrameworkError,
-            framebuffer::FrameBuffer,
-            geometry_buffer::{GeometryBuffer, GeometryBufferKind},
-            gpu_texture::GpuTexture,
-            state::GlGraphicsServer,
-            BlendFactor, BlendFunc, BlendParameters, ColorMask, CompareFunc, CullFace,
-            DrawParameters, ElementRange, StencilAction, StencilFunc, StencilOp,
+            error::FrameworkError, framebuffer::FrameBuffer, geometry_buffer::GeometryBuffer,
+            gpu_texture::GpuTexture, state::GlGraphicsServer, BlendFactor, BlendFunc,
+            BlendParameters, ColorMask, CompareFunc, CullFace, DrawParameters, ElementRange,
+            StencilAction, StencilFunc, StencilOp,
         },
         gbuffer::GBuffer,
         light::{
@@ -66,6 +63,7 @@ use crate::{
         Scene,
     },
 };
+use fyrox_graphics::buffer::BufferUsage;
 use std::{cell::RefCell, rc::Rc};
 
 pub mod ambient;
@@ -163,7 +161,7 @@ impl DeferredLightRenderer {
             ambient_light_shader: AmbientLightShader::new(server)?,
             quad: GeometryBuffer::from_surface_data(
                 &SurfaceData::make_unit_xy_quad(),
-                GeometryBufferKind::StaticDraw,
+                BufferUsage::StaticDraw,
                 server,
             )?,
             skybox: GeometryBuffer::from_surface_data(
@@ -184,12 +182,12 @@ impl DeferredLightRenderer {
                         TriangleDefinition([20, 22, 23]),
                     ]),
                 ),
-                GeometryBufferKind::StaticDraw,
+                BufferUsage::StaticDraw,
                 server,
             )?,
             sphere: GeometryBuffer::from_surface_data(
                 &SurfaceData::make_sphere(6, 6, 1.0, &Matrix4::identity()),
-                GeometryBufferKind::StaticDraw,
+                BufferUsage::StaticDraw,
                 server,
             )?,
             cone: GeometryBuffer::from_surface_data(
@@ -199,7 +197,7 @@ impl DeferredLightRenderer {
                     1.0,
                     &Matrix4::new_translation(&Vector3::new(0.0, -1.0, 0.0)),
                 ),
-                GeometryBufferKind::StaticDraw,
+                BufferUsage::StaticDraw,
                 server,
             )?,
             flat_shader: FlatShader::new(server)?,

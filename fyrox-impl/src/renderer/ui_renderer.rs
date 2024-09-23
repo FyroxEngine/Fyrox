@@ -38,7 +38,7 @@ use crate::{
             framebuffer::FrameBuffer,
             geometry_buffer::{
                 AttributeDefinition, AttributeKind, BufferBuilder, GeometryBuffer,
-                GeometryBufferBuilder, GeometryBufferKind,
+                GeometryBufferBuilder,
             },
             gpu_program::{GpuProgram, UniformLocation},
             gpu_texture::GpuTexture,
@@ -53,6 +53,7 @@ use crate::{
         texture::{Texture, TextureKind, TexturePixelKind},
     },
 };
+use fyrox_graphics::buffer::BufferUsage;
 use fyrox_graphics::ScissorBox;
 use std::{cell::RefCell, rc::Rc};
 
@@ -136,44 +137,38 @@ impl UiRenderer {
     pub(in crate::renderer) fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
         let geometry_buffer = GeometryBufferBuilder::new(ElementKind::Triangle)
             .with_buffer_builder(
-                BufferBuilder::new::<crate::gui::draw::Vertex>(
-                    GeometryBufferKind::DynamicDraw,
-                    None,
-                )
-                .with_attribute(AttributeDefinition {
-                    location: 0,
-                    kind: AttributeKind::Float2,
-                    normalized: false,
-                    divisor: 0,
-                })
-                .with_attribute(AttributeDefinition {
-                    location: 1,
-                    kind: AttributeKind::Float2,
-                    normalized: false,
-                    divisor: 0,
-                })
-                .with_attribute(AttributeDefinition {
-                    location: 2,
-                    kind: AttributeKind::UnsignedByte4,
-                    normalized: true, // Make sure [0; 255] -> [0; 1]
-                    divisor: 0,
-                }),
+                BufferBuilder::new::<crate::gui::draw::Vertex>(BufferUsage::DynamicDraw, None)
+                    .with_attribute(AttributeDefinition {
+                        location: 0,
+                        kind: AttributeKind::Float2,
+                        normalized: false,
+                        divisor: 0,
+                    })
+                    .with_attribute(AttributeDefinition {
+                        location: 1,
+                        kind: AttributeKind::Float2,
+                        normalized: false,
+                        divisor: 0,
+                    })
+                    .with_attribute(AttributeDefinition {
+                        location: 2,
+                        kind: AttributeKind::UnsignedByte4,
+                        normalized: true, // Make sure [0; 255] -> [0; 1]
+                        divisor: 0,
+                    }),
             )
             .build(server)?;
 
         let clipping_geometry_buffer = GeometryBufferBuilder::new(ElementKind::Triangle)
             .with_buffer_builder(
-                BufferBuilder::new::<crate::gui::draw::Vertex>(
-                    GeometryBufferKind::DynamicDraw,
-                    None,
-                )
-                // We're interested only in position. Fragment shader won't run for clipping geometry anyway.
-                .with_attribute(AttributeDefinition {
-                    location: 0,
-                    kind: AttributeKind::Float2,
-                    normalized: false,
-                    divisor: 0,
-                }),
+                BufferBuilder::new::<crate::gui::draw::Vertex>(BufferUsage::DynamicDraw, None)
+                    // We're interested only in position. Fragment shader won't run for clipping geometry anyway.
+                    .with_attribute(AttributeDefinition {
+                        location: 0,
+                        kind: AttributeKind::Float2,
+                        normalized: false,
+                        divisor: 0,
+                    }),
             )
             .build(server)?;
 
@@ -190,7 +185,7 @@ impl UiRenderer {
         args: UiRenderContext,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let UiRenderContext {
-            state,
+            state: server,
             viewport,
             frame_buffer,
             frame_width,
@@ -203,9 +198,9 @@ impl UiRenderer {
         let mut statistics = RenderPassStatistics::default();
 
         self.geometry_buffer
-            .set_buffer_data(state, 0, drawing_context.get_vertices());
+            .set_buffer_data(0, drawing_context.get_vertices());
 
-        let geometry_buffer = self.geometry_buffer.bind(state);
+        let geometry_buffer = self.geometry_buffer.bind(server);
         geometry_buffer.set_triangles(drawing_context.get_triangles());
 
         let ortho = Matrix4::new_orthographic(0.0, frame_width, frame_height, 0.0, -1.0, 1.0);
@@ -234,21 +229,18 @@ impl UiRenderer {
             // Draw clipping geometry first if we have any. This is optional, because complex
             // clipping is very rare and in most cases scissor test will do the job.
             if let Some(clipping_geometry) = cmd.clipping_geometry.as_ref() {
-                frame_buffer.clear(state, viewport, None, None, Some(0));
+                frame_buffer.clear(server, viewport, None, None, Some(0));
 
-                self.clipping_geometry_buffer.set_buffer_data(
-                    state,
-                    0,
-                    &clipping_geometry.vertex_buffer,
-                );
                 self.clipping_geometry_buffer
-                    .bind(state)
+                    .set_buffer_data(0, &clipping_geometry.vertex_buffer);
+                self.clipping_geometry_buffer
+                    .bind(server)
                     .set_triangles(&clipping_geometry.triangle_buffer);
 
                 // Draw
                 statistics += frame_buffer.draw(
                     &self.clipping_geometry_buffer,
-                    state,
+                    server,
                     viewport,
                     &self.shader.program,
                     &DrawParameters {
@@ -308,7 +300,7 @@ impl UiRenderer {
                                 }
                             }
                             if let Some(texture) = texture_cache.get(
-                                state,
+                                server,
                                 &page
                                     .texture
                                     .as_ref()
@@ -324,7 +316,7 @@ impl UiRenderer {
                 }
                 CommandTexture::Texture(texture) => {
                     if let Some(resource) = texture.try_cast::<Texture>() {
-                        if let Some(texture) = texture_cache.get(state, &resource) {
+                        if let Some(texture) = texture_cache.get(server, &resource) {
                             diffuse_texture = texture;
                         }
                     }
@@ -359,7 +351,7 @@ impl UiRenderer {
             let shader = &self.shader;
             statistics += frame_buffer.draw(
                 &self.geometry_buffer,
-                state,
+                server,
                 viewport,
                 &self.shader.program,
                 &params,

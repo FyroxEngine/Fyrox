@@ -18,9 +18,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::buffer::{Buffer, BufferKind, BufferUsage};
 use crate::{
     core::{color::Color, log::Log, math::Rect},
     error::FrameworkError,
+    gl,
     stats::PipelineStatistics,
     BlendEquation, BlendFactor, BlendFunc, BlendMode, ColorMask, CompareFunc, CullFace,
     DrawParameters, PolygonFace, PolygonFillMode, ScissorBox, StencilAction, StencilFunc,
@@ -191,7 +193,6 @@ pub(crate) struct InnerState {
     stencil_op: StencilOp,
 
     vao: Option<glow::VertexArray>,
-    vbo: Option<glow::Buffer>,
 
     frame_statistics: PipelineStatistics,
     gl_kind: GlKind,
@@ -237,7 +238,6 @@ impl InnerState {
             stencil_func: Default::default(),
             stencil_op: Default::default(),
             vao: Default::default(),
-            vbo: Default::default(),
             frame_statistics: Default::default(),
             blend_equation: Default::default(),
             gl_kind,
@@ -904,19 +904,6 @@ impl GlGraphicsServer {
         }
     }
 
-    pub(crate) fn set_vertex_buffer_object(&self, vbo: Option<glow::Buffer>) {
-        let mut state = self.state.borrow_mut();
-        if state.vbo != vbo {
-            state.vbo = vbo;
-
-            state.frame_statistics.vbo_binding_changes += 1;
-
-            unsafe {
-                self.gl.bind_buffer(glow::ARRAY_BUFFER, state.vbo);
-            }
-        }
-    }
-
     pub(crate) fn set_scissor_test(&self, scissor_test: bool) {
         let mut state = self.state.borrow_mut();
         if state.scissor_test != scissor_test {
@@ -990,6 +977,12 @@ impl GlGraphicsServer {
 }
 
 pub trait GraphicsServer: Any {
+    fn create_buffer(
+        &self,
+        size: usize,
+        buffer_kind: BufferKind,
+        buffer_usage: BufferUsage,
+    ) -> Result<Box<dyn Buffer>, FrameworkError>;
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
     fn weak(self: Rc<Self>) -> Weak<dyn GraphicsServer>;
@@ -1003,6 +996,20 @@ pub trait GraphicsServer: Any {
 }
 
 impl GraphicsServer for GlGraphicsServer {
+    fn create_buffer(
+        &self,
+        size: usize,
+        buffer_kind: BufferKind,
+        buffer_usage: BufferUsage,
+    ) -> Result<Box<dyn Buffer>, FrameworkError> {
+        Ok(Box::new(gl::buffer::GlBuffer::new(
+            self,
+            size,
+            buffer_kind,
+            buffer_usage,
+        )?))
+    }
+
     fn as_any(&self) -> &dyn Any {
         self
     }

@@ -80,7 +80,7 @@ use crate::{
         framework::{
             error::FrameworkError,
             framebuffer::{Attachment, AttachmentKind, FrameBuffer},
-            geometry_buffer::{DrawCallStatistics, GeometryBuffer, GeometryBufferKind},
+            geometry_buffer::{DrawCallStatistics, GeometryBuffer},
             gpu_texture::{
                 Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
                 PixelKind, WrapMode,
@@ -100,6 +100,7 @@ use crate::{
     scene::{camera::Camera, mesh::surface::SurfaceData, Scene, SceneContainer},
 };
 use fxhash::FxHashMap;
+use fyrox_graphics::buffer::BufferUsage;
 use fyrox_graphics::state::GraphicsServer;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
@@ -1049,7 +1050,7 @@ impl Renderer {
             )?)),
             quad: GeometryBuffer::from_surface_data(
                 &SurfaceData::make_unit_xy_quad(),
-                GeometryBufferKind::StaticDraw,
+                BufferUsage::StaticDraw,
                 &state,
             )?,
             ui_renderer: UiRenderer::new(&state)?,

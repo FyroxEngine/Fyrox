@@ -30,12 +30,12 @@ use crate::{
         surface::SurfaceData,
     },
 };
+use fyrox_graphics::buffer::BufferUsage;
 pub use fyrox_graphics::*;
 use fyrox_graphics::{
     error::FrameworkError,
     geometry_buffer::{
         AttributeDefinition, AttributeKind, BufferBuilder, GeometryBuffer, GeometryBufferBuilder,
-        GeometryBufferKind,
     },
     gpu_texture::{GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind, WrapMode},
     state::GlGraphicsServer,
@@ -137,14 +137,14 @@ impl From<TextureWrapMode> for WrapMode {
 /// Extension trait for [`BufferBuilder`].
 pub trait BufferBuilderExt {
     /// Creates [`BufferBuilder`] from a [`VertexBuffer`].
-    fn from_vertex_buffer(buffer: &VertexBuffer, kind: GeometryBufferKind) -> Self;
+    fn from_vertex_buffer(buffer: &VertexBuffer, usage: BufferUsage) -> Self;
 }
 
 impl BufferBuilderExt for BufferBuilder {
-    fn from_vertex_buffer(buffer: &VertexBuffer, kind: GeometryBufferKind) -> Self {
+    fn from_vertex_buffer(buffer: &VertexBuffer, usage: BufferUsage) -> Self {
         Self {
             element_size: buffer.vertex_size() as usize,
-            kind,
+            usage,
             attributes: buffer
                 .layout()
                 .iter()
@@ -184,7 +184,7 @@ pub trait GeometryBufferExt: Sized {
     /// Creates [`GeometryBuffer`] from [`SurfaceData`].
     fn from_surface_data(
         data: &SurfaceData,
-        kind: GeometryBufferKind,
+        usage: BufferUsage,
         server: &GlGraphicsServer,
     ) -> Result<Self, FrameworkError>;
 }
@@ -192,11 +192,14 @@ pub trait GeometryBufferExt: Sized {
 impl GeometryBufferExt for GeometryBuffer {
     fn from_surface_data(
         data: &SurfaceData,
-        kind: GeometryBufferKind,
+        usage: BufferUsage,
         server: &GlGraphicsServer,
     ) -> Result<Self, FrameworkError> {
         let geometry_buffer = GeometryBufferBuilder::new(ElementKind::Triangle)
-            .with_buffer_builder(BufferBuilder::from_vertex_buffer(&data.vertex_buffer, kind))
+            .with_buffer_builder(BufferBuilder::from_vertex_buffer(
+                &data.vertex_buffer,
+                usage,
+            ))
             .build(server)?;
 
         geometry_buffer
