@@ -336,6 +336,7 @@ impl TileSetEditor {
                                 collider: Default::default(),
                                 color: Default::default(),
                                 position,
+                                properties: Default::default(),
                             }),
                             handle: Default::default(),
                         });
@@ -354,6 +355,7 @@ impl TileSetEditor {
                                 collider: Default::default(),
                                 color: Default::default(),
                                 position,
+                                properties: Default::default(),
                             }),
                             handle: Default::default(),
                         });
@@ -454,21 +456,25 @@ impl TileSetEditor {
                 }
             }
         } else if let Some(InspectorMessage::PropertyChanged(args)) = message.data() {
-            if let Some(selection) = self.selection {
-                let tile_set = self.tile_set.clone();
-                sender.send(Message::DoCommand(
-                    make_command(args, move |_| {
-                        // FIXME: HACK!
-                        let tile_set = unsafe {
-                            std::mem::transmute::<&'_ mut TileSet, &'static mut TileSet>(
-                                &mut *tile_set.data_ref(),
-                            )
-                        };
+            if message.destination() == self.inspector
+                && message.direction() == MessageDirection::FromWidget
+            {
+                if let Some(selection) = self.selection {
+                    let tile_set = self.tile_set.clone();
+                    sender.send(Message::DoCommand(
+                        make_command(args, move |_| {
+                            // FIXME: HACK!
+                            let tile_set = unsafe {
+                                std::mem::transmute::<&'_ mut TileSet, &'static mut TileSet>(
+                                    &mut *tile_set.data_ref(),
+                                )
+                            };
 
-                        &mut tile_set.tiles[selection]
-                    })
-                    .unwrap(),
-                ));
+                            &mut tile_set.tiles[selection]
+                        })
+                        .unwrap(),
+                    ));
+                }
             }
         }
 

@@ -211,6 +211,7 @@ impl TileSetImporter {
                         collider: Default::default(),
                         color: Default::default(),
                         position: Vector2::new(x as i32, y as i32),
+                        properties: Default::default(),
                     });
                 }
             }

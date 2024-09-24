@@ -21,6 +21,7 @@
 //! Tile set is a special storage for tile descriptions. It is a sort of database, that contains
 //! descriptions (definitions) for tiles. See [`TileSet`] docs for more info and usage examples.
 
+use crate::scene::base::Property;
 use crate::{
     asset::{
         io::ResourceIo,
@@ -130,6 +131,10 @@ pub struct TileDefinition {
     pub color: Color,
     /// Position of the tile, it is used **only** to be able to construct brushes from tile sets.
     pub position: Vector2<i32>,
+    /// A custom set of properties. Properties could be used to assign additional information for
+    /// tiles, such surface type (for example, lava, ice, dirt, etc.), physics properties and so
+    /// on.
+    pub properties: Vec<Property>,
 }
 
 /// An alias for `Handle<TileDefinition>`.
