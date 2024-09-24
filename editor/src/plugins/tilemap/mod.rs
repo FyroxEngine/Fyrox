@@ -135,7 +135,6 @@ impl TileMapInteractionMode {
     ) -> Option<Vector2<i32>> {
         let tile_map = scene.graph.try_get_of_type::<TileMap>(self.tile_map)?;
         let global_transform = tile_map.global_transform();
-        let inv_global_transform = global_transform.try_inverse().unwrap_or_default();
 
         let camera = scene.graph[game_scene.camera_controller.camera].as_camera();
         let ray = camera.make_ray(mouse_position, frame_size);
@@ -144,13 +143,8 @@ impl TileMapInteractionMode {
             Plane::from_normal_and_point(&global_transform.look(), &global_transform.position())
                 .unwrap_or_default();
 
-        ray.plane_intersection_point(&plane).map(|intersection| {
-            let local_intersection = inv_global_transform.transform_point(&intersection.into());
-            Vector2::new(
-                local_intersection.x.round() as i32,
-                local_intersection.y.round() as i32,
-            )
-        })
+        ray.plane_intersection_point(&plane)
+            .map(|intersection| tile_map.world_to_grid(intersection))
     }
 }
 

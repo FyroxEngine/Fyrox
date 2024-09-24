@@ -597,6 +597,26 @@ impl TileMap {
     pub fn bounding_rect(&self) -> Rect<i32> {
         self.tiles.bounding_rect()
     }
+
+    /// Calculates grid-space position (tile coordinates) from world-space. Could be used to find
+    /// tile coordinates from arbitrary point in world space. It is especially useful, if the tile
+    /// map is rotated or shifted.
+    #[inline]
+    pub fn world_to_grid(&self, world_position: Vector3<f32>) -> Vector2<i32> {
+        let inv_global_transform = self.global_transform().try_inverse().unwrap_or_default();
+        let local_space_position = inv_global_transform.transform_point(&world_position.into());
+        Vector2::new(
+            local_space_position.x.round() as i32,
+            local_space_position.y.round() as i32,
+        )
+    }
+
+    /// Calculates world-space position from grid-space position (tile coordinates).
+    #[inline]
+    pub fn grid_to_world(&self, grid_position: Vector2<i32>) -> Vector3<f32> {
+        let v3 = grid_position.cast::<f32>().to_homogeneous();
+        self.global_transform().transform_point(&v3.into()).coords
+    }
 }
 
 impl Default for TileMap {
