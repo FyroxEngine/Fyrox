@@ -461,12 +461,16 @@ impl Tiles {
 ///         uv_rect: Rect::new(0.0, 0.0, 1.0, 1.0),
 ///         collider: TileCollider::Rectangle,
 ///         color: Color::BROWN,
+///         position: Default::default(),
+///         properties: vec![],
 ///     });
 ///     let grass_tile = tile_set.add_tile(TileDefinition {
 ///         material,
 ///         uv_rect: Rect::new(0.0, 0.0, 1.0, 1.0),
 ///         collider: TileCollider::Rectangle,
 ///         color: Color::GREEN,
+///         position: Default::default(),
+///         properties: vec![],
 ///     });
 ///     let tile_set = TileSetResource::new_ok(ResourceKind::Embedded, tile_set);
 ///
