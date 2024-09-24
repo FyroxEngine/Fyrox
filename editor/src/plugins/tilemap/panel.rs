@@ -24,7 +24,7 @@ use crate::{
     fyrox::{
         asset::untyped::UntypedResource,
         core::color::Color,
-        core::{algebra::Vector2, pool::Handle, TypeUuidProvider, Uuid},
+        core::{pool::Handle, TypeUuidProvider, Uuid},
         fxhash::FxHashSet,
         graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
         gui::{
@@ -345,18 +345,10 @@ impl TileMapPanel {
                                 let tiles = tile_set
                                     .tiles
                                     .pair_iter()
-                                    .enumerate()
-                                    .map(|(index, (tile_handle, _))| {
-                                        let side_size = 11;
-
-                                        BrushTile {
-                                            definition_handle: tile_handle,
-                                            local_position: Vector2::new(
-                                                index as i32 % side_size,
-                                                index as i32 / side_size,
-                                            ),
-                                            id: Uuid::new_v4(),
-                                        }
+                                    .map(|(tile_handle, tile)| BrushTile {
+                                        definition_handle: tile_handle,
+                                        local_position: tile.position,
+                                        id: Uuid::new_v4(),
                                     })
                                     .collect::<Vec<_>>();
 

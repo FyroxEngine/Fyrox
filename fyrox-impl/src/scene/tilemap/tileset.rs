@@ -30,6 +30,7 @@ use crate::{
         Resource, ResourceData,
     },
     core::{
+        algebra::Vector2,
         color::Color,
         io::FileLoadError,
         math::Rect,
@@ -40,6 +41,7 @@ use crate::{
     },
     material::MaterialResource,
 };
+use fxhash::FxHashSet;
 use std::{
     any::Any,
     error::Error,
@@ -116,6 +118,7 @@ pub enum TileCollider {
 
 /// Definition of a tile.
 #[derive(Clone, Default, Debug, Reflect, Visit)]
+#[visit(optional)]
 pub struct TileDefinition {
     /// Material of the tile.
     pub material: MaterialResource,
@@ -125,6 +128,8 @@ pub struct TileDefinition {
     pub collider: TileCollider,
     /// Color of the tile.
     pub color: Color,
+    /// Position of the tile, it is used **only** to be able to construct brushes from tile sets.
+    pub position: Vector2<i32>,
 }
 
 /// An alias for `Handle<TileDefinition>`.
@@ -158,6 +163,44 @@ impl TileSet {
         let mut tile_set = TileSet::default();
         tile_set.visit("TileSet", &mut visitor)?;
         Ok(tile_set)
+    }
+
+    /// Tries to find a tile definition with the given position.
+    pub fn find_tile_at_position(&self, position: Vector2<i32>) -> Option<TileDefinitionHandle> {
+        for (handle, tile) in self.tiles.pair_iter() {
+            if tile.position == position {
+                return Some(handle);
+            }
+        }
+        None
+    }
+
+    /// Tries to find free location at the given position. It uses brute-force searching algorithm
+    /// and could be slow if called dozens of time per frame or on a large tile set.
+    pub fn find_free_location(&self, position: Vector2<i32>) -> Vector2<i32> {
+        let mut visited = FxHashSet::default();
+        let mut stack = vec![position];
+        while let Some(pos) = stack.pop() {
+            if visited.contains(&pos) {
+                continue;
+            }
+            visited.insert(pos);
+            if self.find_tile_at_position(pos).is_none() {
+                return pos;
+            } else {
+                stack.extend_from_slice(&[
+                    Vector2::new(pos.x + 1, pos.y),
+                    Vector2::new(pos.x + 1, pos.y + 1),
+                    Vector2::new(pos.x, pos.y + 1),
+                    Vector2::new(pos.x - 1, pos.y + 1),
+                    Vector2::new(pos.x - 1, pos.y),
+                    Vector2::new(pos.x - 1, pos.y - 1),
+                    Vector2::new(pos.x, pos.y - 1),
+                    Vector2::new(pos.x + 1, pos.y - 1),
+                ]);
+            }
+        }
+        Default::default()
     }
 }
 

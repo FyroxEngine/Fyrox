@@ -64,6 +64,7 @@ use crate::{
     },
     Message,
 };
+use fyrox::core::algebra::Vector2;
 use fyrox::graph::SceneGraph;
 use fyrox::scene::tilemap::tileset::TileDefinitionHandle;
 use std::{
@@ -322,6 +323,10 @@ impl TileSetEditor {
         } else if let Some(WidgetMessage::Drop(dropped)) = message.data() {
             if message.destination() == self.tiles {
                 if let Some(item) = ui.node(*dropped).cast::<AssetItem>() {
+                    let position = self
+                        .tile_set
+                        .data_ref()
+                        .find_free_location(Vector2::repeat(0));
                     if let Some(material) = item.resource::<Material>() {
                         sender.do_command(AddTileCommand {
                             tile_set: self.tile_set.clone(),
@@ -330,6 +335,7 @@ impl TileSetEditor {
                                 uv_rect: Rect::new(0.0, 0.0, 1.0, 1.0),
                                 collider: Default::default(),
                                 color: Default::default(),
+                                position,
                             }),
                             handle: Default::default(),
                         });
@@ -347,6 +353,7 @@ impl TileSetEditor {
                                 uv_rect: Rect::new(0.0, 0.0, 1.0, 1.0),
                                 collider: Default::default(),
                                 color: Default::default(),
+                                position,
                             }),
                             handle: Default::default(),
                         });
