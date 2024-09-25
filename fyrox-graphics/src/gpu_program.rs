@@ -18,10 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::buffer::{Buffer, BufferKind};
-use crate::gl::buffer::GlBuffer;
-use crate::state::ToGlConstant;
 use crate::{
+    buffer::{Buffer, BufferKind},
     core::{
         algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4},
         color::Color,
@@ -29,9 +27,9 @@ use crate::{
         sstorage::ImmutableString,
     },
     error::FrameworkError,
-    gl::texture::GlTexture,
+    gl::{buffer::GlBuffer, texture::GlTexture},
     gpu_texture::GpuTexture,
-    state::{GlGraphicsServer, GlKind},
+    state::{GlGraphicsServer, GlKind, ToGlConstant},
 };
 use fxhash::FxHashMap;
 use glow::HasContext;
@@ -660,7 +658,9 @@ impl GpuProgram {
                 .gl
                 .get_uniform_block_index(self.id, name)
                 .map(|index| index as usize)
-                .ok_or_else(|| FrameworkError::UnableToFindShaderUniform(name.deref().to_owned()))
+                .ok_or_else(|| {
+                    FrameworkError::UnableToFindShaderUniformBlock(name.deref().to_owned())
+                })
         }
     }
 

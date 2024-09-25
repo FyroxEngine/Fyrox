@@ -21,9 +21,11 @@
 //! Contains all possible errors that may occur during rendering, initialization of
 //! renderer structures, or GAPI.
 
-use std::error::Error;
-use std::ffi::NulError;
-use std::fmt::{Display, Formatter};
+use std::{
+    error::Error,
+    ffi::NulError,
+    fmt::{Display, Formatter},
+};
 
 /// Set of possible renderer errors.
 #[derive(Debug)]
@@ -46,6 +48,8 @@ pub enum FrameworkError {
     FaultyShaderSource,
     /// There is no such shader uniform (could be optimized out).
     UnableToFindShaderUniform(String),
+    /// There is no such shader uniform block.
+    UnableToFindShaderUniformBlock(String),
     /// Texture has invalid data - insufficient size.
     InvalidTextureData {
         /// Expected data size in bytes.
@@ -107,6 +111,9 @@ impl Display for FrameworkError {
             }
             FrameworkError::UnableToFindShaderUniform(v) => {
                 write!(f, "There is no such shader uniform: {v}")
+            }
+            FrameworkError::UnableToFindShaderUniformBlock(v) => {
+                write!(f, "There is no such shader uniform block: {v}")
             }
             FrameworkError::InvalidTextureData {
                 expected_data_size,
