@@ -19,7 +19,8 @@
 // SOFTWARE.
 
 use crate::core::{
-    algebra::{Vector2, Vector3, Vector4},
+    algebra::{Matrix3, Matrix4, Vector2, Vector3, Vector4},
+    array_as_u8_slice,
     arrayvec::ArrayVec,
     value_as_u8_slice,
 };
@@ -113,14 +114,35 @@ impl Std140 for [f32; 3] {
     }
 }
 
+impl Std140 for Matrix4<f32> {
+    const ALIGNMENT: usize = 16;
+}
+
+impl Std140 for Matrix3<f32> {
+    const ALIGNMENT: usize = 16;
+
+    fn write<T: ByteStorage>(&self, dest: &mut T) {
+        for row in self.as_ref() {
+            dest.write_bytes(array_as_u8_slice(row));
+            dest.write_bytes(&[0; size_of::<f32>()]);
+        }
+    }
+}
+
 impl Std140 for [f32; 4] {
     const ALIGNMENT: usize = 16;
 }
 
 impl<S> UniformBuffer<S>
 where
-    S: ByteStorage,
+    S: ByteStorage + Default,
 {
+    pub fn new() -> Self {
+        Self {
+            storage: S::default(),
+        }
+    }
+
     pub fn len(&self) -> usize {
         self.storage.bytes_count()
     }
@@ -136,15 +158,16 @@ where
         }
     }
 
-    pub fn push<T>(&mut self, value: &T)
+    pub fn push<T>(&mut self, value: &T) -> &mut Self
     where
         T: Std140,
     {
         self.push_padding(T::ALIGNMENT);
         value.write(&mut self.storage);
+        self
     }
 
-    pub fn push_slice<T>(&mut self, slice: &[T])
+    pub fn push_slice<T>(&mut self, slice: &[T]) -> &mut Self
     where
         T: Std140,
     {
@@ -152,6 +175,7 @@ where
             self.push_padding(16);
             item.write(&mut self.storage);
         }
+        self
     }
 
     pub fn finish(mut self) -> S {
@@ -162,8 +186,10 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::uniform::DynamicUniformBuffer;
-    use fyrox_core::algebra::{Matrix3, Vector3, Vector4};
+    use crate::{
+        core::algebra::{Matrix3, Vector3, Vector4},
+        uniform::DynamicUniformBuffer,
+    };
 
     #[test]
     fn test_uniform_buffer() {
@@ -174,7 +200,7 @@ mod test {
         assert_eq!(buffer.len(), 32);
         buffer.push(&Vector4::new(1.0, 2.0, 3.0, 4.0));
         assert_eq!(buffer.len(), 48);
-        buffer.push_slice(Matrix3::default().as_ref());
+        buffer.push(&Matrix3::default());
         assert_eq!(buffer.len(), 96);
         buffer.push(&123.0);
         assert_eq!(buffer.len(), 100);
