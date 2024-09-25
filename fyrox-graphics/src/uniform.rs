@@ -67,26 +67,55 @@ pub struct UniformBuffer<S: ByteStorage> {
 pub type StaticUniformBuffer<const N: usize> = UniformBuffer<ArrayVec<u8, N>>;
 pub type DynamicUniformBuffer = UniformBuffer<Vec<u8>>;
 
-pub trait AlignmentProvider: Pod {
+pub trait Std140: Pod {
     const ALIGNMENT: usize;
+
+    fn write<T: ByteStorage>(&self, dest: &mut T) {
+        dest.write_bytes(value_as_u8_slice(self))
+    }
 }
 
-macro_rules! define_alignment {
-    ($inner_type:ty = $alignment:expr) => {
-        impl AlignmentProvider for $inner_type {
-            const ALIGNMENT: usize = $alignment;
-        }
-    };
+impl Std140 for f32 {
+    const ALIGNMENT: usize = 4;
 }
 
-define_alignment!(u32 = 4);
-define_alignment!(f32 = 4);
-define_alignment!(Vector2<f32> = 8);
-define_alignment!(Vector3<f32> = 16);
-define_alignment!(Vector4<f32> = 16);
-define_alignment!([f32; 2] = 8);
-define_alignment!([f32; 3] = 16);
-define_alignment!([f32; 4] = 16);
+impl Std140 for u32 {
+    const ALIGNMENT: usize = 4;
+}
+
+impl Std140 for Vector2<f32> {
+    const ALIGNMENT: usize = 8;
+}
+
+impl Std140 for Vector3<f32> {
+    const ALIGNMENT: usize = 16;
+
+    fn write<T: ByteStorage>(&self, dest: &mut T) {
+        dest.write_bytes(value_as_u8_slice(self));
+        dest.write_bytes(&[0; size_of::<f32>()]);
+    }
+}
+
+impl Std140 for Vector4<f32> {
+    const ALIGNMENT: usize = 16;
+}
+
+impl Std140 for [f32; 2] {
+    const ALIGNMENT: usize = 8;
+}
+
+impl Std140 for [f32; 3] {
+    const ALIGNMENT: usize = 16;
+
+    fn write<T: ByteStorage>(&self, dest: &mut T) {
+        dest.write_bytes(value_as_u8_slice(self));
+        dest.write_bytes(&[0; size_of::<f32>()]);
+    }
+}
+
+impl Std140 for [f32; 4] {
+    const ALIGNMENT: usize = 16;
+}
 
 impl<S> UniformBuffer<S>
 where
@@ -107,33 +136,27 @@ where
         }
     }
 
-    fn push_raw<T>(&mut self, value: &T)
-    where
-        T: Pod,
-    {
-        self.storage.write_bytes(value_as_u8_slice(value))
-    }
-
     pub fn push<T>(&mut self, value: &T)
     where
-        T: AlignmentProvider,
+        T: Std140,
     {
         self.push_padding(T::ALIGNMENT);
-        self.push_raw(value)
+        value.write(&mut self.storage);
     }
 
     pub fn push_slice<T>(&mut self, slice: &[T])
     where
-        T: AlignmentProvider,
+        T: Std140,
     {
         for item in slice {
             self.push_padding(16);
-            self.push_raw(item);
+            item.write(&mut self.storage);
         }
     }
 
-    pub fn bytes(&self) -> &[u8] {
-        self.storage.bytes()
+    pub fn finish(mut self) -> S {
+        self.push_padding(16);
+        self.storage
     }
 }
 
@@ -148,9 +171,14 @@ mod test {
         buffer.push(&123.321);
         assert_eq!(buffer.len(), 4);
         buffer.push(&Vector3::new(1.0, 2.0, 3.0));
-        assert_eq!(buffer.len(), 28);
+        assert_eq!(buffer.len(), 32);
         buffer.push(&Vector4::new(1.0, 2.0, 3.0, 4.0));
         assert_eq!(buffer.len(), 48);
         buffer.push_slice(Matrix3::default().as_ref());
+        assert_eq!(buffer.len(), 96);
+        buffer.push(&123.0);
+        assert_eq!(buffer.len(), 100);
+        let bytes = buffer.finish();
+        assert_eq!(bytes.len(), 112);
     }
 }
