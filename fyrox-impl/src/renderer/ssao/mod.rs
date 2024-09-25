@@ -18,7 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::framework::GeometryBufferExt;
 use crate::{
     core::{
         algebra::{Matrix3, Matrix4, Vector2, Vector3},
@@ -29,6 +28,7 @@ use crate::{
     rand::Rng,
     renderer::{
         framework::{
+            buffer::{Buffer, BufferKind, BufferUsage},
             error::FrameworkError,
             framebuffer::{Attachment, AttachmentKind, FrameBuffer},
             geometry_buffer::GeometryBuffer,
@@ -37,8 +37,9 @@ use crate::{
                 Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
                 PixelKind, WrapMode,
             },
-            state::GlGraphicsServer,
-            DrawParameters, ElementRange,
+            state::{GlGraphicsServer, GraphicsServer},
+            uniform::StaticUniformBuffer,
+            DrawParameters, ElementRange, GeometryBufferExt,
         },
         gbuffer::GBuffer,
         ssao::blur::Blur,
@@ -46,8 +47,6 @@ use crate::{
     },
     scene::mesh::surface::SurfaceData,
 };
-use fyrox_graphics::buffer::BufferUsage;
-use fyrox_graphics::state::GraphicsServer;
 use std::{cell::RefCell, rc::Rc};
 
 mod blur;
@@ -63,13 +62,7 @@ struct Shader {
     depth_sampler: UniformLocation,
     normal_sampler: UniformLocation,
     noise_sampler: UniformLocation,
-    radius: UniformLocation,
-    kernel: UniformLocation,
-    projection_matrix: UniformLocation,
-    noise_scale: UniformLocation,
-    inv_proj_matrix: UniformLocation,
-    world_view_proj_matrix: UniformLocation,
-    view_matrix: UniformLocation,
+    uniform_block_index: usize,
 }
 
 impl Shader {
@@ -85,16 +78,8 @@ impl Shader {
                 .uniform_location(server, &ImmutableString::new("normalSampler"))?,
             noise_sampler: program
                 .uniform_location(server, &ImmutableString::new("noiseSampler"))?,
-            kernel: program.uniform_location(server, &ImmutableString::new("kernel"))?,
-            radius: program.uniform_location(server, &ImmutableString::new("radius"))?,
-            projection_matrix: program
-                .uniform_location(server, &ImmutableString::new("projectionMatrix"))?,
-            inv_proj_matrix: program
-                .uniform_location(server, &ImmutableString::new("inverseProjectionMatrix"))?,
-            noise_scale: program.uniform_location(server, &ImmutableString::new("noiseScale"))?,
-            world_view_proj_matrix: program
-                .uniform_location(server, &ImmutableString::new("worldViewProjection"))?,
-            view_matrix: program.uniform_location(server, &ImmutableString::new("viewMatrix"))?,
+            uniform_block_index: program
+                .uniform_block_index(server, &ImmutableString::new("Uniforms"))?,
             program,
         })
     }
@@ -105,6 +90,7 @@ pub struct ScreenSpaceAmbientOcclusionRenderer {
     shader: Shader,
     framebuffer: FrameBuffer,
     quad: GeometryBuffer,
+    uniform_buffer: Box<dyn Buffer>,
     width: i32,
     height: i32,
     noise: Rc<RefCell<dyn GpuTexture>>,
@@ -135,6 +121,11 @@ impl ScreenSpaceAmbientOcclusionRenderer {
         let mut rng = crate::rand::thread_rng();
 
         Ok(Self {
+            uniform_buffer: server.create_buffer(
+                1024,
+                BufferKind::Uniform,
+                BufferUsage::StreamCopy,
+            )?,
             blur: Blur::new(server, width, height)?,
             shader: Shader::new(server)?,
             framebuffer: FrameBuffer::new(
@@ -246,19 +237,27 @@ impl ScreenSpaceAmbientOcclusionRenderer {
             None,
         );
 
-        let shader = &self.shader;
-        let noise = &self.noise;
-        let kernel = &self.kernel;
         let noise_scale = Vector2::new(
             self.width as f32 / NOISE_SIZE as f32,
             self.height as f32 / NOISE_SIZE as f32,
         );
-        let radius = self.radius;
+
+        let mut uniforms = StaticUniformBuffer::<1024>::new();
+        uniforms
+            .push(&frame_matrix)
+            .push(&projection_matrix.try_inverse().unwrap_or_default())
+            .push(&projection_matrix)
+            .push_slice(&self.kernel)
+            .push(&noise_scale)
+            .push(&view_matrix)
+            .push(&self.radius);
+        self.uniform_buffer.write_data(uniforms.finish().as_ref())?;
+
         stats += self.framebuffer.draw(
             &self.quad,
             server,
             viewport,
-            &shader.program,
+            &self.shader.program,
             &DrawParameters {
                 cull_face: None,
                 color_write: Default::default(),
@@ -272,19 +271,14 @@ impl ScreenSpaceAmbientOcclusionRenderer {
             ElementRange::Full,
             |mut program_binding| {
                 program_binding
-                    .set_texture(&shader.depth_sampler, &gbuffer.depth())
-                    .set_texture(&shader.normal_sampler, &gbuffer.normal_texture())
-                    .set_texture(&shader.noise_sampler, noise)
-                    .set_vector3_slice(&shader.kernel, kernel)
-                    .set_vector2(&shader.noise_scale, &noise_scale)
-                    .set_f32(&shader.radius, radius)
-                    .set_matrix4(&shader.world_view_proj_matrix, &frame_matrix)
-                    .set_matrix4(&shader.projection_matrix, &projection_matrix)
-                    .set_matrix4(
-                        &shader.inv_proj_matrix,
-                        &projection_matrix.try_inverse().unwrap_or_default(),
-                    )
-                    .set_matrix3(&shader.view_matrix, &view_matrix);
+                    .set_texture(&self.shader.depth_sampler, &gbuffer.depth())
+                    .set_texture(&self.shader.normal_sampler, &gbuffer.normal_texture())
+                    .set_texture(&self.shader.noise_sampler, &self.noise)
+                    .bind_uniform_buffer(
+                        &*self.uniform_buffer,
+                        self.shader.uniform_block_index as u32,
+                        0,
+                    );
             },
         )?;
 

@@ -4,12 +4,15 @@ uniform sampler2D depthSampler;
 uniform sampler2D normalSampler;
 uniform sampler2D noiseSampler;
 
-uniform float radius;
-uniform mat4 inverseProjectionMatrix;
-uniform mat4 projectionMatrix;
-uniform vec3 kernel[KERNEL_SIZE];
-uniform vec2 noiseScale;
-uniform mat3 viewMatrix;
+layout (std140) uniform Uniforms {
+    mat4 worldViewProjection;
+    mat4 inverseProjectionMatrix;
+    mat4 projectionMatrix;
+    vec3 kernel[KERNEL_SIZE];
+    vec2 noiseScale;
+    mat3 viewMatrix;
+    float radius;
+};
 
 out float finalOcclusion;
 
