@@ -18,6 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::buffer::{Buffer, BufferKind};
+use crate::gl::buffer::GlBuffer;
+use crate::state::ToGlConstant;
 use crate::{
     core::{
         algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4},
@@ -450,6 +453,32 @@ impl<'a, 'b> GpuProgramBinding<'a, 'b> {
         }
         self
     }
+
+    #[inline(always)]
+    pub fn bind_uniform_buffer(
+        &mut self,
+        buffer: &dyn Buffer,
+        uniform_buffer_location: u32,
+        binding_point: u32,
+    ) -> &mut Self {
+        unsafe {
+            let gl_buffer = buffer
+                .as_any()
+                .downcast_ref::<GlBuffer>()
+                .expect("Must be OpenGL buffer");
+            let kind = buffer.kind();
+            assert_eq!(kind, BufferKind::Uniform);
+            self.state
+                .gl
+                .bind_buffer_base(kind.into_gl(), binding_point, Some(gl_buffer.id));
+            self.state.gl.uniform_block_binding(
+                self.program.id,
+                uniform_buffer_location,
+                binding_point,
+            )
+        }
+        self
+    }
 }
 
 #[inline]
@@ -619,6 +648,20 @@ impl GpuProgram {
     ) -> Result<UniformLocation, FrameworkError> {
         self.uniform_location_internal(server, name)
             .ok_or_else(|| FrameworkError::UnableToFindShaderUniform(name.deref().to_owned()))
+    }
+
+    pub fn uniform_block_index(
+        &self,
+        server: &GlGraphicsServer,
+        name: &ImmutableString,
+    ) -> Result<usize, FrameworkError> {
+        unsafe {
+            server
+                .gl
+                .get_uniform_block_index(self.id, name)
+                .map(|index| index as usize)
+                .ok_or_else(|| FrameworkError::UnableToFindShaderUniform(name.deref().to_owned()))
+        }
     }
 
     pub fn bind<'a, 'b>(&'b self, state: &'a GlGraphicsServer) -> GpuProgramBinding<'a, 'b> {

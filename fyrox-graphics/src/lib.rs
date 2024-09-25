@@ -37,6 +37,7 @@ pub mod pixel_buffer;
 pub mod query;
 pub mod state;
 pub mod stats;
+pub mod uniform;
 
 #[derive(
     Copy,

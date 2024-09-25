@@ -24,6 +24,7 @@ use crate::{
     state::{GlGraphicsServer, ToGlConstant},
 };
 use glow::HasContext;
+use std::any::Any;
 use std::{cell::Cell, rc::Weak};
 
 impl ToGlConstant for BufferKind {
@@ -102,6 +103,22 @@ impl Drop for GlBuffer {
 }
 
 impl Buffer for GlBuffer {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn usage(&self) -> BufferUsage {
+        self.usage
+    }
+
+    fn kind(&self) -> BufferKind {
+        self.kind
+    }
+
     fn size(&self) -> usize {
         self.size.get()
     }

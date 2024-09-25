@@ -21,8 +21,9 @@
 use crate::error::FrameworkError;
 use bytemuck::Pod;
 use fyrox_core::{array_as_u8_slice, array_as_u8_slice_mut};
+use std::any::Any;
 
-#[derive(Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub enum BufferKind {
     Vertex,
     Index,
@@ -31,7 +32,7 @@ pub enum BufferKind {
     PixelWrite,
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub enum BufferUsage {
     StreamDraw,
     StreamRead,
@@ -44,7 +45,11 @@ pub enum BufferUsage {
     DynamicCopy,
 }
 
-pub trait Buffer {
+pub trait Buffer: Any {
+    fn as_any(&self) -> &dyn Any;
+    fn as_any_mut(&mut self) -> &mut dyn Any;
+    fn usage(&self) -> BufferUsage;
+    fn kind(&self) -> BufferKind;
     fn size(&self) -> usize;
     fn write_data(&self, data: &[u8]) -> Result<(), FrameworkError>;
     fn read_data(&self, data: &mut [u8]) -> Result<(), FrameworkError>;
