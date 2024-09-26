@@ -52,6 +52,7 @@ mod skybox_shader;
 mod ssao;
 mod stats;
 
+use crate::renderer::cache::uniform::UniformBufferCache;
 use crate::renderer::framework::GeometryBufferExt;
 use crate::{
     asset::{event::ResourceEvent, manager::ResourceManager},
@@ -676,6 +677,8 @@ pub struct Renderer {
     backbuffer_clear_color: Color,
     /// Texture cache with GPU textures.
     pub texture_cache: TextureCache,
+    /// Uniform buffer cache.
+    pub uniform_buffer_cache: UniformBufferCache,
     shader_cache: ShaderCache,
     geometry_cache: GeometryCache,
     forward_renderer: ForwardRenderer,
@@ -1060,6 +1063,7 @@ impl Renderer {
             matrix_storage: MatrixStorageCache::new(&server)?,
             state: server,
             visibility_cache: Default::default(),
+            uniform_buffer_cache: Default::default(),
         };
 
         Ok((window, renderer))
@@ -1626,6 +1630,7 @@ impl Renderer {
         }
 
         self.matrix_storage.begin_frame();
+        self.uniform_buffer_cache.mark_all_unused();
 
         // Make sure to drop associated data for destroyed scenes.
         self.scene_data_map

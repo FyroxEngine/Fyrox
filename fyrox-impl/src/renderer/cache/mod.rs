@@ -32,6 +32,7 @@ use std::{
 pub mod geometry;
 pub mod shader;
 pub mod texture;
+pub mod uniform;
 
 #[derive(Copy, Clone, PartialEq)]
 pub struct TimeToLive(pub f32);
