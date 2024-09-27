@@ -161,11 +161,13 @@ impl<'a> InstanceContext<'a> {
             program_binding.set_matrix4(location, wvp_matrix);
         }
         if let Some(location) = &built_in_uniforms[BuiltInUniform::BoneMatrices as usize] {
+            let active_sampler = program_binding.active_sampler();
+
             let storage = matrix_storage
                 .try_upload(program_binding.state, persistent_identifier, bone_matrices)
                 .expect("Failed to upload bone matrices!");
 
-            program_binding.set_texture(location, storage.texture());
+            program_binding.set_texture_to_sampler(location, storage.texture(), active_sampler);
         }
         if let Some(location) = &built_in_uniforms[BuiltInUniform::UseSkeletalAnimation as usize] {
             program_binding.set_bool(location, use_skeletal_animation);
