@@ -134,7 +134,6 @@ impl GaussianBlur {
 
     pub(crate) fn render(
         &mut self,
-        server: &GlGraphicsServer,
         quad: &GeometryBuffer,
         input: Rc<RefCell<dyn GpuTexture>>,
     ) -> Result<RenderPassStatistics, FrameworkError> {
@@ -148,7 +147,6 @@ impl GaussianBlur {
         // Blur horizontally first.
         stats += self.h_framebuffer.draw(
             quad,
-            server,
             viewport,
             &shader.program,
             &DrawParameters {
@@ -162,7 +160,7 @@ impl GaussianBlur {
                 scissor_box: None,
             },
             ElementRange::Full,
-            |mut program_binding| {
+            &mut |mut program_binding| {
                 program_binding
                     .set_matrix4(
                         &shader.world_view_projection_matrix,
@@ -178,7 +176,6 @@ impl GaussianBlur {
         let h_blurred_texture = self.h_blurred();
         stats += self.v_framebuffer.draw(
             quad,
-            server,
             viewport,
             &shader.program,
             &DrawParameters {
@@ -192,7 +189,7 @@ impl GaussianBlur {
                 scissor_box: None,
             },
             ElementRange::Full,
-            |mut program_binding| {
+            &mut |mut program_binding| {
                 program_binding
                     .set_matrix4(
                         &shader.world_view_projection_matrix,

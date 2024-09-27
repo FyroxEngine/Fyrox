@@ -126,13 +126,10 @@ impl SceneRenderPass for OverlayRenderPass {
         let camera_side = inv_view.side();
         let sound_icon = ctx
             .texture_cache
-            .get(ctx.pipeline_state, &self.sound_icon)
+            .get(ctx.server, &self.sound_icon)
             .cloned()
             .unwrap();
-        let light_icon = ctx
-            .texture_cache
-            .get(ctx.pipeline_state, &self.light_icon)
-            .unwrap();
+        let light_icon = ctx.texture_cache.get(ctx.server, &self.light_icon).unwrap();
 
         for node in ctx.scene.graph.linear_iter() {
             let icon =
@@ -149,7 +146,6 @@ impl SceneRenderPass for OverlayRenderPass {
 
             ctx.framebuffer.draw(
                 &self.quad,
-                ctx.pipeline_state,
                 ctx.viewport,
                 &shader.program,
                 &DrawParameters {
@@ -166,7 +162,7 @@ impl SceneRenderPass for OverlayRenderPass {
                     scissor_box: None,
                 },
                 ElementRange::Full,
-                |mut program_binding| {
+                &mut |mut program_binding| {
                     program_binding
                         .set_matrix4(&shader.view_projection_matrix, &view_projection)
                         .set_matrix4(&shader.world_matrix, &world_matrix)

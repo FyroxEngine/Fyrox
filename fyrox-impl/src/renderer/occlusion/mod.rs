@@ -445,7 +445,7 @@ impl OcclusionTester {
         let viewport = Rect::new(0, 0, w, h);
 
         self.framebuffer
-            .clear(server, viewport, Some(Color::TRANSPARENT), None, None);
+            .clear(viewport, Some(Color::TRANSPARENT), None, None);
 
         self.prepare_tiles(server, graph, &viewport, debug_renderer)?;
 
@@ -460,7 +460,6 @@ impl OcclusionTester {
         self.framebuffer.draw_instances(
             self.objects_to_test.len(),
             &self.cube,
-            server,
             viewport,
             &self.shader.program,
             &DrawParameters {
@@ -479,7 +478,7 @@ impl OcclusionTester {
                 stencil_op: Default::default(),
                 scissor_box: None,
             },
-            |mut program_binding| {
+            &mut |mut program_binding| {
                 program_binding
                     .set_texture(&shader.tile_buffer, &self.tile_buffer)
                     .set_texture(&shader.matrices, self.matrix_storage.texture())

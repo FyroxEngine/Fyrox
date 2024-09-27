@@ -168,7 +168,6 @@ impl LightVolumeRenderer {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn render_volume(
         &mut self,
-        server: &GlGraphicsServer,
         light: &Node,
         light_handle: Handle<Node>,
         gbuffer: &mut GBuffer,
@@ -227,11 +226,10 @@ impl LightVolumeRenderer {
             let mvp = view_proj * light_shape_matrix;
 
             // Clear stencil only.
-            frame_buffer.clear(server, viewport, None, None, Some(0));
+            frame_buffer.clear(viewport, None, None, Some(0));
 
             stats += frame_buffer.draw(
                 &self.cone,
-                server,
                 viewport,
                 &self.flat_shader.program,
                 &DrawParameters {
@@ -254,7 +252,7 @@ impl LightVolumeRenderer {
                     scissor_box: None,
                 },
                 ElementRange::Full,
-                |mut program_binding| {
+                &mut |mut program_binding| {
                     program_binding.set_matrix4(&self.flat_shader.wvp_matrix, &mvp);
                 },
             )?;
@@ -266,7 +264,6 @@ impl LightVolumeRenderer {
             let depth_map = gbuffer.depth();
             stats += frame_buffer.draw(
                 quad,
-                server,
                 viewport,
                 &shader.program,
                 &DrawParameters {
@@ -291,7 +288,7 @@ impl LightVolumeRenderer {
                     scissor_box: None,
                 },
                 ElementRange::Full,
-                |mut program_binding| {
+                &mut |mut program_binding| {
                     program_binding
                         .set_matrix4(&shader.world_view_proj_matrix, &frame_matrix)
                         .set_matrix4(&shader.inv_proj, &inv_proj)
@@ -312,7 +309,7 @@ impl LightVolumeRenderer {
                 return Ok(stats);
             }
 
-            frame_buffer.clear(server, viewport, None, None, Some(0));
+            frame_buffer.clear(viewport, None, None, Some(0));
 
             // Radius bias is used to to slightly increase sphere radius to add small margin
             // for fadeout effect. It is set to 5%.
@@ -324,7 +321,6 @@ impl LightVolumeRenderer {
 
             stats += frame_buffer.draw(
                 &self.sphere,
-                server,
                 viewport,
                 &self.flat_shader.program,
                 &DrawParameters {
@@ -347,7 +343,7 @@ impl LightVolumeRenderer {
                     scissor_box: None,
                 },
                 ElementRange::Full,
-                |mut program_binding| {
+                &mut |mut program_binding| {
                     program_binding.set_matrix4(&self.flat_shader.wvp_matrix, &mvp);
                 },
             )?;
@@ -359,7 +355,6 @@ impl LightVolumeRenderer {
             let depth_map = gbuffer.depth();
             stats += frame_buffer.draw(
                 quad,
-                server,
                 viewport,
                 &shader.program,
                 &DrawParameters {
@@ -384,7 +379,7 @@ impl LightVolumeRenderer {
                     scissor_box: None,
                 },
                 ElementRange::Full,
-                |mut program_binding| {
+                &mut |mut program_binding| {
                     program_binding
                         .set_matrix4(&shader.world_view_proj_matrix, &frame_matrix)
                         .set_matrix4(&shader.inv_proj, &inv_proj)

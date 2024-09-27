@@ -319,7 +319,6 @@ impl GBuffer {
 
         let viewport = Rect::new(0, 0, self.width, self.height);
         self.framebuffer.clear(
-            state,
             viewport,
             Some(Color::from_rgba(0, 0, 0, 0)),
             Some(1.0),
@@ -413,7 +412,6 @@ impl GBuffer {
 
             statistics += self.decal_framebuffer.draw(
                 unit_cube,
-                state,
                 viewport,
                 program,
                 &DrawParameters {
@@ -430,7 +428,7 @@ impl GBuffer {
                     scissor_box: None,
                 },
                 ElementRange::Full,
-                |mut program_binding| {
+                &mut |mut program_binding| {
                     program_binding
                         .set_matrix4(&shader.world_view_projection, &world_view_proj)
                         .set_matrix4(&shader.inv_view_proj, &inv_view_proj)

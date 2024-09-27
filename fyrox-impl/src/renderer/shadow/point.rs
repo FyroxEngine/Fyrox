@@ -238,8 +238,7 @@ impl PointShadowMapRenderer {
             Matrix4::new_perspective(1.0, std::f32::consts::FRAC_PI_2, z_near, z_far);
 
         for face in self.faces.iter() {
-            framebuffer.set_cubemap_face(state, 0, face.face).clear(
-                state,
+            framebuffer.set_cubemap_face(0, face.face).clear(
                 viewport,
                 Some(Color::WHITE),
                 Some(1.0),

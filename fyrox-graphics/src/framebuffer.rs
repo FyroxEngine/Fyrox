@@ -163,12 +163,9 @@ impl FrameBuffer {
         self.depth_attachment.as_ref()
     }
 
-    pub fn set_cubemap_face(
-        &mut self,
-        server: &GlGraphicsServer,
-        attachment_index: usize,
-        face: CubeMapFace,
-    ) -> &mut Self {
+    pub fn set_cubemap_face(&mut self, attachment_index: usize, face: CubeMapFace) -> &mut Self {
+        let server = self.state.upgrade().unwrap();
+
         unsafe {
             server.set_framebuffer(self.fbo);
 
@@ -194,12 +191,13 @@ impl FrameBuffer {
 
     pub fn clear(
         &mut self,
-        server: &GlGraphicsServer,
         viewport: Rect<i32>,
         color: Option<Color>,
         depth: Option<f32>,
         stencil: Option<i32>,
     ) {
+        let server = self.state.upgrade().unwrap();
+
         server.set_scissor_test(false);
         server.set_viewport(viewport);
         server.set_framebuffer(self.id());
@@ -306,43 +304,60 @@ impl FrameBuffer {
         }
     }
 
-    pub fn draw<F: FnOnce(GpuProgramBinding<'_, '_>)>(
+    pub fn draw(
         &mut self,
         geometry: &GeometryBuffer,
-        server: &GlGraphicsServer,
         viewport: Rect<i32>,
         program: &GpuProgram,
         params: &DrawParameters,
         element_range: ElementRange,
-        apply_uniforms: F,
+        apply_uniforms: &mut dyn FnMut(GpuProgramBinding<'_, '_>),
     ) -> Result<DrawCallStatistics, FrameworkError> {
-        pre_draw(self.id(), server, viewport, program, params, apply_uniforms);
+        let server = self.state.upgrade().unwrap();
 
-        geometry.bind(server).draw(element_range)
+        pre_draw(
+            self.id(),
+            &server,
+            viewport,
+            program,
+            params,
+            apply_uniforms,
+        );
+
+        geometry.bind(&server).draw(element_range)
     }
 
-    pub fn draw_instances<F: FnOnce(GpuProgramBinding<'_, '_>)>(
+    pub fn draw_instances(
         &mut self,
         count: usize,
         geometry: &GeometryBuffer,
-        server: &GlGraphicsServer,
         viewport: Rect<i32>,
         program: &GpuProgram,
         params: &DrawParameters,
-        apply_uniforms: F,
+        apply_uniforms: &mut dyn FnMut(GpuProgramBinding<'_, '_>),
     ) -> DrawCallStatistics {
-        pre_draw(self.id(), server, viewport, program, params, apply_uniforms);
-        geometry.bind(server).draw_instances(count)
+        let server = self.state.upgrade().unwrap();
+
+        pre_draw(
+            self.id(),
+            &server,
+            viewport,
+            program,
+            params,
+            apply_uniforms,
+        );
+
+        geometry.bind(&server).draw_instances(count)
     }
 }
 
-fn pre_draw<F: FnOnce(GpuProgramBinding<'_, '_>)>(
+fn pre_draw(
     fbo: Option<glow::Framebuffer>,
     server: &GlGraphicsServer,
     viewport: Rect<i32>,
     program: &GpuProgram,
     params: &DrawParameters,
-    apply_uniforms: F,
+    apply_uniforms: &mut dyn FnMut(GpuProgramBinding<'_, '_>),
 ) {
     server.set_framebuffer(fbo);
     server.set_viewport(viewport);

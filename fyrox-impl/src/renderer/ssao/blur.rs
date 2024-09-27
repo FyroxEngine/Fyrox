@@ -124,7 +124,6 @@ impl Blur {
 
     pub(crate) fn render(
         &mut self,
-        server: &GlGraphicsServer,
         input: Rc<RefCell<dyn GpuTexture>>,
     ) -> Result<DrawCallStatistics, FrameworkError> {
         let viewport = Rect::new(0, 0, self.width as i32, self.height as i32);
@@ -132,7 +131,6 @@ impl Blur {
         let shader = &self.shader;
         self.framebuffer.draw(
             &self.quad,
-            server,
             viewport,
             &shader.program,
             &DrawParameters {
@@ -146,7 +144,7 @@ impl Blur {
                 scissor_box: None,
             },
             ElementRange::Full,
-            |mut program_binding| {
+            &mut |mut program_binding| {
                 program_binding
                     .set_matrix4(
                         &shader.world_view_projection_matrix,

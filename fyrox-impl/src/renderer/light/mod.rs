@@ -322,7 +322,6 @@ impl DeferredLightRenderer {
         // Fill SSAO map.
         if settings.use_ssao {
             pass_stats += self.ssao_renderer.render(
-                state,
                 gbuffer,
                 projection_matrix,
                 camera.view_matrix().basis(),
@@ -342,7 +341,6 @@ impl DeferredLightRenderer {
                 let shader = &self.skybox_shader;
                 pass_stats += frame_buffer.draw(
                     &self.skybox,
-                    state,
                     viewport,
                     &shader.program,
                     &DrawParameters {
@@ -359,7 +357,7 @@ impl DeferredLightRenderer {
                         offset: 0,
                         count: 12,
                     },
-                    |mut program_binding| {
+                    &mut |mut program_binding| {
                         program_binding
                             .set_texture(&shader.cubemap_texture, gpu_texture)
                             .set_matrix4(&shader.wvp_matrix, &(view_projection * wvp));
@@ -378,7 +376,6 @@ impl DeferredLightRenderer {
 
         pass_stats += frame_buffer.draw(
             &self.quad,
-            state,
             viewport,
             &self.ambient_light_shader.program,
             &DrawParameters {
@@ -395,7 +392,7 @@ impl DeferredLightRenderer {
                 scissor_box: None,
             },
             ElementRange::Full,
-            |mut program_binding| {
+            &mut |mut program_binding| {
                 program_binding
                     .set_matrix4(&self.ambient_light_shader.wvp_matrix, &frame_matrix)
                     .set_linear_color(&self.ambient_light_shader.ambient_color, &ambient_color)
@@ -524,7 +521,6 @@ impl DeferredLightRenderer {
             // Mark lighted areas in stencil buffer to do light calculations only on them.
             pass_stats += frame_buffer.draw(
                 bounding_shape,
-                state,
                 viewport,
                 &self.flat_shader.program,
                 &DrawParameters {
@@ -544,7 +540,7 @@ impl DeferredLightRenderer {
                     scissor_box: None,
                 },
                 ElementRange::Full,
-                |mut program_binding| {
+                &mut |mut program_binding| {
                     program_binding.set_matrix4(
                         &self.flat_shader.wvp_matrix,
                         &(view_projection * bounding_shape_matrix),
@@ -554,7 +550,6 @@ impl DeferredLightRenderer {
 
             pass_stats += frame_buffer.draw(
                 bounding_shape,
-                state,
                 viewport,
                 &self.flat_shader.program,
                 &DrawParameters {
@@ -574,7 +569,7 @@ impl DeferredLightRenderer {
                     scissor_box: None,
                 },
                 ElementRange::Full,
-                |mut program_binding| {
+                &mut |mut program_binding| {
                     program_binding.set_matrix4(
                         &self.flat_shader.wvp_matrix,
                         &(view_projection * bounding_shape_matrix),
@@ -594,7 +589,6 @@ impl DeferredLightRenderer {
                     visibility_cache.begin_query(state, camera_global_position, light_handle)?;
                     frame_buffer.draw(
                         &self.quad,
-                        state,
                         viewport,
                         &self.flat_shader.program,
                         &DrawParameters {
@@ -611,7 +605,7 @@ impl DeferredLightRenderer {
                             scissor_box: None,
                         },
                         ElementRange::Full,
-                        |mut program_binding| {
+                        &mut |mut program_binding| {
                             program_binding
                                 .set_matrix4(&self.flat_shader.wvp_matrix, &frame_matrix);
                         },
@@ -748,12 +742,11 @@ impl DeferredLightRenderer {
 
                     frame_buffer.draw(
                         quad,
-                        state,
                         viewport,
                         &shader.program,
                         &draw_params,
                         ElementRange::Full,
-                        |mut program_binding| {
+                        &mut |mut program_binding| {
                             program_binding
                                 .set_bool(&shader.shadows_enabled, shadows_enabled)
                                 .set_matrix4(&shader.light_view_proj_matrix, &light_view_projection)
@@ -806,12 +799,11 @@ impl DeferredLightRenderer {
 
                     frame_buffer.draw(
                         quad,
-                        state,
                         viewport,
                         &shader.program,
                         &draw_params,
                         ElementRange::Full,
-                        |mut program_binding| {
+                        &mut |mut program_binding| {
                             program_binding
                                 .set_bool(&shader.shadows_enabled, shadows_enabled)
                                 .set_bool(&shader.soft_shadows, settings.point_soft_shadows)
@@ -849,7 +841,6 @@ impl DeferredLightRenderer {
 
                     frame_buffer.draw(
                         quad,
-                        state,
                         viewport,
                         &shader.program,
                         &DrawParameters {
@@ -866,7 +857,7 @@ impl DeferredLightRenderer {
                             scissor_box: None,
                         },
                         ElementRange::Full,
-                        |mut program_binding| {
+                        &mut |mut program_binding| {
                             let distances = [
                                 self.csm_renderer.cascades()[0].z_far,
                                 self.csm_renderer.cascades()[1].z_far,
@@ -926,7 +917,6 @@ impl DeferredLightRenderer {
             // light source.
             if settings.light_scatter_enabled {
                 pass_stats += self.light_volume.render_volume(
-                    state,
                     light,
                     light_handle,
                     gbuffer,

@@ -206,7 +206,7 @@ impl UiRenderer {
             // Draw clipping geometry first if we have any. This is optional, because complex
             // clipping is very rare and in most cases scissor test will do the job.
             if let Some(clipping_geometry) = cmd.clipping_geometry.as_ref() {
-                frame_buffer.clear(server, viewport, None, None, Some(0));
+                frame_buffer.clear(viewport, None, None, Some(0));
 
                 self.clipping_geometry_buffer
                     .set_buffer_data(0, &clipping_geometry.vertex_buffer);
@@ -217,7 +217,6 @@ impl UiRenderer {
                 // Draw
                 statistics += frame_buffer.draw(
                     &self.clipping_geometry_buffer,
-                    server,
                     viewport,
                     &flat_shader.program,
                     &DrawParameters {
@@ -234,7 +233,7 @@ impl UiRenderer {
                         scissor_box,
                     },
                     ElementRange::Full,
-                    |mut program_binding| {
+                    &mut |mut program_binding| {
                         program_binding.set_matrix4(&flat_shader.wvp_matrix, &ortho);
                     },
                 )?;
@@ -383,7 +382,6 @@ impl UiRenderer {
             let shader = &self.shader;
             statistics += frame_buffer.draw(
                 &self.geometry_buffer,
-                server,
                 viewport,
                 &self.shader.program,
                 &params,
@@ -391,7 +389,7 @@ impl UiRenderer {
                     offset: cmd.triangles.start,
                     count: cmd.triangles.end - cmd.triangles.start,
                 },
-                |mut program_binding| {
+                &mut |mut program_binding| {
                     program_binding
                         .set_texture(&shader.diffuse_texture, diffuse_texture)
                         .bind_uniform_buffer(

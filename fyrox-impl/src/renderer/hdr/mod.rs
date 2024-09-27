@@ -92,9 +92,8 @@ impl LumBuffer {
         })
     }
 
-    fn clear(&mut self, server: &GlGraphicsServer) {
+    fn clear(&mut self) {
         self.framebuffer.clear(
-            server,
             Rect::new(0, 0, self.size as i32, self.size as i32),
             Some(Color::BLACK),
             None,
@@ -163,18 +162,16 @@ impl HighDynamicRangeRenderer {
 
     fn calculate_frame_luminance(
         &mut self,
-        server: &GlGraphicsServer,
         scene_frame: Rc<RefCell<dyn GpuTexture>>,
         quad: &GeometryBuffer,
     ) -> Result<DrawCallStatistics, FrameworkError> {
-        self.frame_luminance.clear(server);
+        self.frame_luminance.clear();
         let frame_matrix = self.frame_luminance.matrix();
 
         let shader = &self.luminance_shader;
         let inv_size = 1.0 / self.frame_luminance.size as f32;
         self.frame_luminance.framebuffer.draw(
             quad,
-            server,
             Rect::new(
                 0,
                 0,
@@ -193,7 +190,7 @@ impl HighDynamicRangeRenderer {
                 scissor_box: None,
             },
             ElementRange::Full,
-            |mut program_binding| {
+            &mut |mut program_binding| {
                 program_binding
                     .set_matrix4(&shader.wvp_matrix, &frame_matrix)
                     .set_vector2(&shader.inv_size, &Vector2::new(inv_size, inv_size))
@@ -204,7 +201,6 @@ impl HighDynamicRangeRenderer {
 
     fn calculate_avg_frame_luminance(
         &mut self,
-        server: &GlGraphicsServer,
         quad: &GeometryBuffer,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();
@@ -268,7 +264,6 @@ impl HighDynamicRangeRenderer {
                     let matrix = lum_buffer.matrix();
                     stats += lum_buffer.framebuffer.draw(
                         quad,
-                        server,
                         Rect::new(0, 0, lum_buffer.size as i32, lum_buffer.size as i32),
                         &shader.program,
                         &DrawParameters {
@@ -282,7 +277,7 @@ impl HighDynamicRangeRenderer {
                             scissor_box: None,
                         },
                         ElementRange::Full,
-                        |mut program_binding| {
+                        &mut |mut program_binding| {
                             program_binding
                                 .set_matrix4(&shader.wvp_matrix, &matrix)
                                 .set_vector2(&shader.inv_size, &Vector2::new(inv_size, inv_size))
@@ -300,7 +295,6 @@ impl HighDynamicRangeRenderer {
 
     fn adaptation(
         &mut self,
-        server: &GlGraphicsServer,
         quad: &GeometryBuffer,
         dt: f32,
     ) -> Result<DrawCallStatistics, FrameworkError> {
@@ -312,7 +306,6 @@ impl HighDynamicRangeRenderer {
         let prev_lum = ctx.prev_lum;
         ctx.lum_buffer.framebuffer.draw(
             quad,
-            server,
             viewport,
             &shader.program,
             &DrawParameters {
@@ -326,7 +319,7 @@ impl HighDynamicRangeRenderer {
                 scissor_box: None,
             },
             ElementRange::Full,
-            |mut program_binding| {
+            &mut |mut program_binding| {
                 program_binding
                     .set_matrix4(&shader.wvp_matrix, &matrix)
                     .set_texture(&shader.old_lum_sampler, &prev_lum)
@@ -360,7 +353,6 @@ impl HighDynamicRangeRenderer {
 
         ldr_framebuffer.draw(
             quad,
-            server,
             viewport,
             &shader.program,
             &DrawParameters {
@@ -374,7 +366,7 @@ impl HighDynamicRangeRenderer {
                 scissor_box: None,
             },
             ElementRange::Full,
-            |mut program_binding| {
+            &mut |mut program_binding| {
                 let program_binding = program_binding
                     .set_matrix4(&shader.wvp_matrix, &frame_matrix)
                     .set_texture(&shader.lum_sampler, &avg_lum)
@@ -423,9 +415,9 @@ impl HighDynamicRangeRenderer {
         texture_cache: &mut TextureCache,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();
-        stats += self.calculate_frame_luminance(server, hdr_scene_frame.clone(), quad)?;
-        stats += self.calculate_avg_frame_luminance(server, quad)?;
-        stats += self.adaptation(server, quad, dt)?;
+        stats += self.calculate_frame_luminance(hdr_scene_frame.clone(), quad)?;
+        stats += self.calculate_avg_frame_luminance(quad)?;
+        stats += self.adaptation(quad, dt)?;
         stats += self.map_hdr_to_ldr(
             server,
             hdr_scene_frame,

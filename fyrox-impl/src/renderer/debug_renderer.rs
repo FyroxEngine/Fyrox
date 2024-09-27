@@ -150,7 +150,6 @@ impl DebugRenderer {
 
     pub(crate) fn render(
         &mut self,
-        server: &GlGraphicsServer,
         viewport: Rect<i32>,
         framebuffer: &mut FrameBuffer,
         view_projection: Matrix4<f32>,
@@ -159,7 +158,6 @@ impl DebugRenderer {
 
         statistics += framebuffer.draw(
             &self.geometry,
-            server,
             viewport,
             &self.shader.program,
             &DrawParameters {
@@ -173,7 +171,7 @@ impl DebugRenderer {
                 scissor_box: None,
             },
             ElementRange::Full,
-            |mut program_binding| {
+            &mut |mut program_binding| {
                 program_binding.set_matrix4(&self.shader.wvp_matrix, &view_projection);
             },
         )?;

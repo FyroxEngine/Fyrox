@@ -160,7 +160,7 @@ impl SpotShadowMapRenderer {
 
         let viewport = Rect::new(0, 0, cascade_size as i32, cascade_size as i32);
 
-        framebuffer.clear(server, viewport, None, Some(1.0), None);
+        framebuffer.clear(viewport, None, Some(1.0), None);
 
         let light_view_projection = light_projection_matrix * light_view_matrix;
         let bundle_storage = RenderDataBundleStorage::from_graph(

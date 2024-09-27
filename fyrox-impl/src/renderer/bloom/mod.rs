@@ -123,7 +123,6 @@ impl BloomRenderer {
 
     pub(crate) fn render(
         &mut self,
-        server: &GlGraphicsServer,
         quad: &GeometryBuffer,
         hdr_scene_frame: Rc<RefCell<dyn GpuTexture>>,
     ) -> Result<RenderPassStatistics, FrameworkError> {
@@ -134,7 +133,6 @@ impl BloomRenderer {
         let shader = &self.shader;
         stats += self.framebuffer.draw(
             quad,
-            server,
             viewport,
             &shader.program,
             &DrawParameters {
@@ -148,7 +146,7 @@ impl BloomRenderer {
                 scissor_box: None,
             },
             ElementRange::Full,
-            |mut program_binding| {
+            &mut |mut program_binding| {
                 program_binding
                     .set_matrix4(
                         &shader.world_view_projection_matrix,
@@ -158,7 +156,7 @@ impl BloomRenderer {
             },
         )?;
 
-        stats += self.blur.render(server, quad, self.glow_texture())?;
+        stats += self.blur.render(quad, self.glow_texture())?;
 
         Ok(stats)
     }

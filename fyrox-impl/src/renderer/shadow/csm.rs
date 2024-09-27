@@ -267,7 +267,7 @@ impl CsmRenderer {
 
             let viewport = Rect::new(0, 0, self.size as i32, self.size as i32);
             let framebuffer = &mut self.cascades[i].frame_buffer;
-            framebuffer.clear(state, viewport, None, Some(1.0), None);
+            framebuffer.clear(viewport, None, Some(1.0), None);
 
             let bundle_storage = RenderDataBundleStorage::from_graph(
                 graph,

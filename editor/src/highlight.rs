@@ -243,13 +243,8 @@ impl SceneRenderPass for HighlightRenderPass {
 
             render_bundle_storage.sort();
 
-            self.framebuffer.clear(
-                ctx.pipeline_state,
-                ctx.viewport,
-                Some(Color::TRANSPARENT),
-                Some(1.0),
-                None,
-            );
+            self.framebuffer
+                .clear(ctx.viewport, Some(Color::TRANSPARENT), Some(1.0), None);
 
             let view_projection = ctx.camera.view_projection_matrix();
             let inv_view = ctx.camera.inv_view_matrix().unwrap();
@@ -259,7 +254,7 @@ impl SceneRenderPass for HighlightRenderPass {
 
             for bundle in render_bundle_storage.bundles.iter() {
                 bundle.render_to_frame_buffer(
-                    ctx.pipeline_state,
+                    ctx.server,
                     ctx.geometry_cache,
                     ctx.shader_cache,
                     |_| true,
@@ -307,7 +302,6 @@ impl SceneRenderPass for HighlightRenderPass {
             let frame_texture = self.framebuffer.color_attachments()[0].texture.clone();
             ctx.framebuffer.draw(
                 &self.quad,
-                ctx.pipeline_state,
                 ctx.viewport,
                 &shader.program,
                 &DrawParameters {
@@ -324,7 +318,7 @@ impl SceneRenderPass for HighlightRenderPass {
                     scissor_box: None,
                 },
                 ElementRange::Full,
-                |mut program_binding| {
+                &mut |mut program_binding| {
                     program_binding
                         .set_matrix4(&shader.wvp_matrix, &frame_matrix)
                         .set_texture(&shader.frame_texture, &frame_texture)

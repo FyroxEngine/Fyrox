@@ -87,7 +87,6 @@ impl FxaaRenderer {
 
     pub(crate) fn render(
         &self,
-        server: &GlGraphicsServer,
         viewport: Rect<i32>,
         frame_texture: Rc<RefCell<dyn GpuTexture>>,
         frame_buffer: &mut FrameBuffer,
@@ -109,7 +108,6 @@ impl FxaaRenderer {
 
         statistics += frame_buffer.draw(
             &self.quad,
-            server,
             viewport,
             &self.shader.program,
             &DrawParameters {
@@ -123,7 +121,7 @@ impl FxaaRenderer {
                 scissor_box: None,
             },
             ElementRange::Full,
-            |mut program_binding| {
+            &mut |mut program_binding| {
                 program_binding
                     .set_matrix4(&self.shader.wvp_matrix, &frame_matrix)
                     .set_vector2(

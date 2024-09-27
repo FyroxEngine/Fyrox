@@ -739,8 +739,8 @@ fn make_ui_frame_buffer(
 
 /// A context for custom scene render passes.
 pub struct SceneRenderPassContext<'a, 'b> {
-    /// A pipeline state that is used as a wrapper to underlying graphics API.
-    pub pipeline_state: &'a GlGraphicsServer,
+    /// A graphics server that is used as a wrapper to underlying graphics API.
+    pub server: &'a GlGraphicsServer,
 
     /// A texture cache that uploads engine's `Texture` as internal `GpuTexture` to GPU.
     /// Use this to get a corresponding GPU texture by an instance of a `Texture`.
@@ -857,7 +857,6 @@ pub trait SceneRenderPass {
 }
 
 fn blit_pixels(
-    server: &GlGraphicsServer,
     framebuffer: &mut FrameBuffer,
     texture: Rc<RefCell<dyn GpuTexture>>,
     shader: &FlatShader,
@@ -866,7 +865,6 @@ fn blit_pixels(
 ) -> Result<DrawCallStatistics, FrameworkError> {
     framebuffer.draw(
         quad,
-        server,
         viewport,
         &shader.program,
         &DrawParameters {
@@ -880,7 +878,7 @@ fn blit_pixels(
             scissor_box: None,
         },
         ElementRange::Full,
-        |mut program_binding| {
+        &mut |mut program_binding| {
             program_binding
                 .set_matrix4(&shader.wvp_matrix, &{
                     Matrix4::new_orthographic(
@@ -1208,7 +1206,7 @@ impl Renderer {
 
         let viewport = Rect::new(0, 0, new_width as i32, new_height as i32);
 
-        frame_buffer.clear(&self.state, viewport, Some(clear_color), Some(0.0), Some(0));
+        frame_buffer.clear(viewport, Some(clear_color), Some(0.0), Some(0));
 
         self.statistics += self.ui_renderer.render(UiRenderContext {
             state: &mut self.state,
@@ -1327,7 +1325,7 @@ impl Renderer {
             // Clamp to [1.0; infinity] range.
             .sup(&Vector2::new(1.0, 1.0));
 
-        let state = &mut self.state;
+        let server = &mut self.state;
 
         let scene_associated_data = self
             .scene_data_map
@@ -1345,7 +1343,7 @@ impl Renderer {
                         data.gbuffer.width,data.gbuffer.height,width,height
                     ));
 
-                    *data = AssociatedSceneData::new(state, width, height).unwrap();
+                    *data = AssociatedSceneData::new(server, width, height).unwrap();
                 }
             })
             .or_insert_with(|| {
@@ -1357,10 +1355,10 @@ impl Renderer {
                     scene_handle
                 ));
 
-                AssociatedSceneData::new(state, width, height).unwrap()
+                AssociatedSceneData::new(server, width, height).unwrap()
             });
 
-        let pipeline_stats = state.pipeline_statistics();
+        let pipeline_stats = server.pipeline_statistics();
         scene_associated_data.statistics = Default::default();
 
         // If we specified a texture to draw to, we have to register it in texture cache
@@ -1397,14 +1395,14 @@ impl Renderer {
                 GBUFFER_PASS_NAME.clone(),
             );
 
-            state.set_polygon_fill_mode(
+            server.set_polygon_fill_mode(
                 PolygonFace::FrontAndBack,
                 scene.rendering_options.polygon_rasterization_mode,
             );
 
             scene_associated_data.statistics +=
                 scene_associated_data.gbuffer.fill(GBufferRenderContext {
-                    state,
+                    state: server,
                     camera,
                     geom_cache: &mut self.geometry_cache,
                     bundle_storage: &bundle_storage,
@@ -1421,12 +1419,11 @@ impl Renderer {
                     unit_quad: &self.quad,
                 })?;
 
-            state.set_polygon_fill_mode(PolygonFace::FrontAndBack, PolygonFillMode::Fill);
+            server.set_polygon_fill_mode(PolygonFace::FrontAndBack, PolygonFillMode::Fill);
 
-            scene_associated_data.copy_depth_stencil_to_scene_framebuffer(state);
+            scene_associated_data.copy_depth_stencil_to_scene_framebuffer(server);
 
             scene_associated_data.hdr_scene_framebuffer.clear(
-                state,
                 viewport,
                 Some(
                     scene
@@ -1441,7 +1438,7 @@ impl Renderer {
             let (pass_stats, light_stats) =
                 self.deferred_light_renderer
                     .render(DeferredRendererContext {
-                        state,
+                        state: server,
                         scene,
                         camera,
                         gbuffer: &mut scene_associated_data.gbuffer,
@@ -1466,7 +1463,7 @@ impl Renderer {
 
             scene_associated_data.statistics +=
                 self.forward_renderer.render(ForwardRenderContext {
-                    state,
+                    state: server,
                     graph,
                     camera,
                     geom_cache: &mut self.geometry_cache,
@@ -1490,7 +1487,7 @@ impl Renderer {
                     render_pass
                         .borrow_mut()
                         .on_hdr_render(SceneRenderPassContext {
-                            pipeline_state: state,
+                            server,
                             texture_cache: &mut self.texture_cache,
                             geometry_cache: &mut self.geometry_cache,
                             shader_cache: &mut self.shader_cache,
@@ -1518,15 +1515,13 @@ impl Renderer {
             let quad = &self.quad;
 
             // Prepare glow map.
-            scene_associated_data.statistics += scene_associated_data.bloom_renderer.render(
-                state,
-                quad,
-                scene_associated_data.hdr_scene_frame_texture(),
-            )?;
+            scene_associated_data.statistics += scene_associated_data
+                .bloom_renderer
+                .render(quad, scene_associated_data.hdr_scene_frame_texture())?;
 
             // Convert high dynamic range frame to low dynamic range (sRGB) with tone mapping and gamma correction.
             scene_associated_data.statistics += scene_associated_data.hdr_renderer.render(
-                state,
+                server,
                 scene_associated_data.hdr_scene_frame_texture(),
                 scene_associated_data.bloom_renderer.result(),
                 &mut scene_associated_data.ldr_scene_framebuffer,
@@ -1542,7 +1537,6 @@ impl Renderer {
             // Apply FXAA if needed.
             if self.quality_settings.fxaa {
                 scene_associated_data.statistics += self.fxaa_renderer.render(
-                    state,
                     viewport,
                     scene_associated_data.ldr_scene_frame_texture(),
                     &mut scene_associated_data.ldr_temp_framebuffer,
@@ -1551,7 +1545,6 @@ impl Renderer {
                 let quad = &self.quad;
                 let temp_frame_texture = scene_associated_data.ldr_temp_frame_texture();
                 scene_associated_data.statistics += blit_pixels(
-                    state,
                     &mut scene_associated_data.ldr_scene_framebuffer,
                     temp_frame_texture,
                     &self.flat_shader,
@@ -1562,9 +1555,8 @@ impl Renderer {
 
             // Render debug geometry in the LDR frame buffer.
             self.debug_renderer
-                .set_lines(state, &scene.drawing_context.lines);
+                .set_lines(server, &scene.drawing_context.lines);
             scene_associated_data.statistics += self.debug_renderer.render(
-                state,
                 viewport,
                 &mut scene_associated_data.ldr_scene_framebuffer,
                 camera.view_projection_matrix(),
@@ -1575,7 +1567,7 @@ impl Renderer {
                     render_pass
                         .borrow_mut()
                         .on_ldr_render(SceneRenderPassContext {
-                            pipeline_state: state,
+                            server,
                             texture_cache: &mut self.texture_cache,
                             geometry_cache: &mut self.geometry_cache,
                             shader_cache: &mut self.shader_cache,
@@ -1607,7 +1599,6 @@ impl Renderer {
         if scene.rendering_options.render_target.is_none() {
             let quad = &self.quad;
             scene_associated_data.statistics += blit_pixels(
-                state,
                 &mut self.backbuffer,
                 scene_associated_data.ldr_scene_frame_texture(),
                 &self.flat_shader,
@@ -1617,7 +1608,7 @@ impl Renderer {
         }
 
         self.statistics += scene_associated_data.statistics;
-        scene_associated_data.statistics.pipeline = state.pipeline_statistics() - pipeline_stats;
+        scene_associated_data.statistics.pipeline = server.pipeline_statistics() - pipeline_stats;
 
         Ok(scene_associated_data)
     }
@@ -1648,7 +1639,6 @@ impl Renderer {
 
         let window_viewport = Rect::new(0, 0, self.frame_size.0 as i32, self.frame_size.1 as i32);
         self.backbuffer.clear(
-            &self.state,
             window_viewport,
             Some(self.backbuffer_clear_color),
             Some(1.0),
@@ -1684,7 +1674,6 @@ impl Renderer {
         let screen_matrix =
             Matrix4::new_orthographic(0.0, backbuffer_width, backbuffer_height, 0.0, -1.0, 1.0);
         self.screen_space_debug_renderer.render(
-            &self.state,
             window_viewport,
             &mut self.backbuffer,
             screen_matrix,

@@ -127,13 +127,12 @@ impl VisibilityBufferOptimizer {
         let viewport = Rect::new(0, 0, self.w_tiles as i32, self.h_tiles as i32);
 
         self.framebuffer
-            .clear(server, viewport, Some(Color::TRANSPARENT), None, None);
+            .clear(viewport, Some(Color::TRANSPARENT), None, None);
 
         let matrix = make_viewport_matrix(viewport);
 
         self.framebuffer.draw(
             unit_quad,
-            server,
             viewport,
             &self.shader.program,
             &DrawParameters {
@@ -147,7 +146,7 @@ impl VisibilityBufferOptimizer {
                 scissor_box: None,
             },
             ElementRange::Full,
-            |mut program_binding| {
+            &mut |mut program_binding| {
                 program_binding
                     .set_matrix4(&self.shader.view_projection, &matrix)
                     .set_texture(&self.shader.visibility_buffer, visibility_buffer)

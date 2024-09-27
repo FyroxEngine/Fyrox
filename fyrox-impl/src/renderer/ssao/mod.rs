@@ -207,7 +207,6 @@ impl ScreenSpaceAmbientOcclusionRenderer {
 
     pub(crate) fn render(
         &mut self,
-        server: &GlGraphicsServer,
         gbuffer: &GBuffer,
         projection_matrix: Matrix4<f32>,
         view_matrix: Matrix3<f32>,
@@ -230,7 +229,6 @@ impl ScreenSpaceAmbientOcclusionRenderer {
         ));
 
         self.framebuffer.clear(
-            server,
             viewport,
             Some(Color::from_rgba(0, 0, 0, 0)),
             Some(1.0),
@@ -255,7 +253,6 @@ impl ScreenSpaceAmbientOcclusionRenderer {
 
         stats += self.framebuffer.draw(
             &self.quad,
-            server,
             viewport,
             &self.shader.program,
             &DrawParameters {
@@ -269,7 +266,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
                 scissor_box: None,
             },
             ElementRange::Full,
-            |mut program_binding| {
+            &mut |mut program_binding| {
                 program_binding
                     .set_texture(&self.shader.depth_sampler, &gbuffer.depth())
                     .set_texture(&self.shader.normal_sampler, &gbuffer.normal_texture())
@@ -282,7 +279,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
             },
         )?;
 
-        self.blur.render(server, self.raw_ao_map())?;
+        self.blur.render(self.raw_ao_map())?;
 
         Ok(stats)
     }
