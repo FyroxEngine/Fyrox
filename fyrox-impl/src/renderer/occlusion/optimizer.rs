@@ -68,7 +68,7 @@ impl VisibilityOptimizerShader {
 }
 
 pub struct VisibilityBufferOptimizer {
-    framebuffer: FrameBuffer,
+    framebuffer: Box<dyn FrameBuffer>,
     pixel_buffer: PixelBuffer<u32>,
     shader: VisibilityOptimizerShader,
     w_tiles: usize,
@@ -94,8 +94,7 @@ impl VisibilityBufferOptimizer {
         )?;
 
         Ok(Self {
-            framebuffer: FrameBuffer::new(
-                server,
+            framebuffer: server.create_frame_buffer(
                 None,
                 vec![Attachment {
                     kind: AttachmentKind::Color,
@@ -155,7 +154,7 @@ impl VisibilityBufferOptimizer {
         )?;
 
         self.pixel_buffer
-            .schedule_pixels_transfer(server, &self.framebuffer, 0, None)?;
+            .schedule_pixels_transfer(server, &*self.framebuffer, 0, None)?;
 
         Ok(())
     }

@@ -59,6 +59,7 @@ use crate::{
     },
 };
 use fxhash::{FxBuildHasher, FxHashMap, FxHasher};
+use fyrox_graphics::gl::framebuffer::GlFrameBuffer;
 use fyrox_graphics::state::GraphicsServer;
 use std::{
     cell::RefCell,
@@ -186,7 +187,7 @@ impl<'a> InstanceContext<'a> {
 pub struct BundleRenderContext<'a> {
     pub texture_cache: &'a mut TextureCache,
     pub render_pass_name: &'a ImmutableString,
-    pub frame_buffer: &'a FrameBuffer,
+    pub frame_buffer: &'a dyn FrameBuffer,
     pub viewport: Rect<i32>,
     pub matrix_storage: &'a mut MatrixStorageCache,
 
@@ -488,7 +489,13 @@ impl RenderDataBundle {
             return Ok(stats);
         };
 
-        server.set_framebuffer(render_context.frame_buffer.id());
+        // TODO: Replace with abstraction.
+        let frame_buffer = render_context
+            .frame_buffer
+            .as_any()
+            .downcast_ref::<GlFrameBuffer>()
+            .unwrap();
+        server.set_framebuffer(frame_buffer.id());
         server.set_viewport(render_context.viewport);
         server.apply_draw_parameters(&render_pass.draw_params);
 

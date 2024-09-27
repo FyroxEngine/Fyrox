@@ -65,7 +65,7 @@ pub(crate) struct ForwardRenderContext<'a, 'b> {
     pub texture_cache: &'a mut TextureCache,
     pub shader_cache: &'a mut ShaderCache,
     pub bundle_storage: &'a RenderDataBundleStorage,
-    pub framebuffer: &'a mut FrameBuffer,
+    pub framebuffer: &'a mut dyn FrameBuffer,
     pub viewport: Rect<i32>,
     pub quality_settings: &'a QualitySettings,
     pub white_dummy: Rc<RefCell<dyn GpuTexture>>,

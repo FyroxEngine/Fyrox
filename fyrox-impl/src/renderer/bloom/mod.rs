@@ -66,7 +66,7 @@ impl Shader {
 
 pub struct BloomRenderer {
     shader: Shader,
-    framebuffer: FrameBuffer,
+    framebuffer: Box<dyn FrameBuffer>,
     blur: GaussianBlur,
     width: usize,
     height: usize,
@@ -100,8 +100,7 @@ impl BloomRenderer {
         Ok(Self {
             shader: Shader::new(server)?,
             blur: GaussianBlur::new(server, width, height, PixelKind::RGBA16F)?,
-            framebuffer: FrameBuffer::new(
-                server,
+            framebuffer: server.create_frame_buffer(
                 None,
                 vec![Attachment {
                     kind: AttachmentKind::Color,

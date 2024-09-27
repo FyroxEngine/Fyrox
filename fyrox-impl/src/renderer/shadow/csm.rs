@@ -49,7 +49,7 @@ use fyrox_graphics::state::GraphicsServer;
 use std::{cell::RefCell, rc::Rc};
 
 pub struct Cascade {
-    pub frame_buffer: FrameBuffer,
+    pub frame_buffer: Box<dyn FrameBuffer>,
     pub view_proj_matrix: Matrix4<f32>,
     pub z_far: f32,
 }
@@ -85,8 +85,7 @@ impl Cascade {
         };
 
         Ok(Self {
-            frame_buffer: FrameBuffer::new(
-                server,
+            frame_buffer: server.create_frame_buffer(
                 Some(Attachment {
                     kind: AttachmentKind::Depth,
                     texture: depth,
@@ -266,7 +265,7 @@ impl CsmRenderer {
             self.cascades[i].z_far = z_far;
 
             let viewport = Rect::new(0, 0, self.size as i32, self.size as i32);
-            let framebuffer = &mut self.cascades[i].frame_buffer;
+            let framebuffer = &mut *self.cascades[i].frame_buffer;
             framebuffer.clear(viewport, None, Some(1.0), None);
 
             let bundle_storage = RenderDataBundleStorage::from_graph(

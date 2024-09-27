@@ -67,8 +67,8 @@ impl Shader {
 
 pub struct GaussianBlur {
     shader: Shader,
-    h_framebuffer: FrameBuffer,
-    v_framebuffer: FrameBuffer,
+    h_framebuffer: Box<dyn FrameBuffer>,
+    v_framebuffer: Box<dyn FrameBuffer>,
     width: usize,
     height: usize,
 }
@@ -78,7 +78,7 @@ fn create_framebuffer(
     width: usize,
     height: usize,
     pixel_kind: PixelKind,
-) -> Result<FrameBuffer, FrameworkError> {
+) -> Result<Box<dyn FrameBuffer>, FrameworkError> {
     let frame = {
         let kind = GpuTextureKind::Rectangle { width, height };
         let texture = server.create_texture(
@@ -98,8 +98,7 @@ fn create_framebuffer(
         texture
     };
 
-    FrameBuffer::new(
-        server,
+    server.create_frame_buffer(
         None,
         vec![Attachment {
             kind: AttachmentKind::Color,

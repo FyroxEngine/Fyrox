@@ -67,7 +67,7 @@ impl Shader {
 
 pub struct Blur {
     shader: Shader,
-    framebuffer: FrameBuffer,
+    framebuffer: Box<dyn FrameBuffer>,
     quad: GeometryBuffer,
     width: usize,
     height: usize,
@@ -100,8 +100,7 @@ impl Blur {
 
         Ok(Self {
             shader: Shader::new(server)?,
-            framebuffer: FrameBuffer::new(
-                server,
+            framebuffer: server.create_frame_buffer(
                 None,
                 vec![Attachment {
                     kind: AttachmentKind::Color,

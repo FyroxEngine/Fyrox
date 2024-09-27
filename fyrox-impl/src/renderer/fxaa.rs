@@ -89,7 +89,7 @@ impl FxaaRenderer {
         &self,
         viewport: Rect<i32>,
         frame_texture: Rc<RefCell<dyn GpuTexture>>,
-        frame_buffer: &mut FrameBuffer,
+        frame_buffer: &mut dyn FrameBuffer,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut statistics = RenderPassStatistics::default();
 

@@ -177,7 +177,7 @@ impl LightVolumeRenderer {
         view_proj: Matrix4<f32>,
         viewport: Rect<i32>,
         graph: &Graph,
-        frame_buffer: &mut FrameBuffer,
+        frame_buffer: &mut dyn FrameBuffer,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();
 

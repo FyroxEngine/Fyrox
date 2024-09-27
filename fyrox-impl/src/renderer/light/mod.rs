@@ -98,7 +98,7 @@ pub(crate) struct DeferredRendererContext<'a> {
     pub settings: &'a QualitySettings,
     pub textures: &'a mut TextureCache,
     pub geometry_cache: &'a mut GeometryCache,
-    pub frame_buffer: &'a mut FrameBuffer,
+    pub frame_buffer: &'a mut dyn FrameBuffer,
     pub shader_cache: &'a mut ShaderCache,
     pub normal_dummy: Rc<RefCell<dyn GpuTexture>>,
     pub white_dummy: Rc<RefCell<dyn GpuTexture>>,

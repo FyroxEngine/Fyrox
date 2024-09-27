@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::gl::framebuffer::GlFrameBuffer;
 use crate::{
     buffer::{Buffer, BufferKind, BufferUsage},
     core::{algebra::Vector2, math::Rect},
@@ -62,13 +63,18 @@ impl<T> PixelBuffer<T> {
     pub fn schedule_pixels_transfer(
         &mut self,
         server: &GlGraphicsServer,
-        framebuffer: &FrameBuffer,
+        framebuffer: &dyn FrameBuffer,
         color_buffer_index: u32,
         rect: Option<Rect<i32>>,
     ) -> Result<(), FrameworkError> {
         if self.request.is_some() {
             return Ok(());
         }
+
+        let framebuffer = framebuffer
+            .as_any()
+            .downcast_ref::<GlFrameBuffer>()
+            .unwrap();
 
         let color_attachment = &framebuffer
             .color_attachments()

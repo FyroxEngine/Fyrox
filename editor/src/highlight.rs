@@ -122,7 +122,7 @@ void main()
 }
 
 pub struct HighlightRenderPass {
-    framebuffer: FrameBuffer,
+    framebuffer: Box<dyn FrameBuffer>,
     quad: GeometryBuffer,
     edge_detect_shader: EdgeDetectShader,
     pub scene_handle: Handle<Scene>,
@@ -130,7 +130,11 @@ pub struct HighlightRenderPass {
 }
 
 impl HighlightRenderPass {
-    fn create_frame_buffer(server: &GlGraphicsServer, width: usize, height: usize) -> FrameBuffer {
+    fn create_frame_buffer(
+        server: &GlGraphicsServer,
+        width: usize,
+        height: usize,
+    ) -> Box<dyn FrameBuffer> {
         let depth_stencil = server
             .create_texture(
                 GpuTextureKind::Rectangle { width, height },
@@ -165,18 +169,18 @@ impl HighlightRenderPass {
             .borrow_mut()
             .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
 
-        FrameBuffer::new(
-            server,
-            Some(Attachment {
-                kind: AttachmentKind::DepthStencil,
-                texture: depth_stencil,
-            }),
-            vec![Attachment {
-                kind: AttachmentKind::Color,
-                texture: frame_texture,
-            }],
-        )
-        .unwrap()
+        server
+            .create_frame_buffer(
+                Some(Attachment {
+                    kind: AttachmentKind::DepthStencil,
+                    texture: depth_stencil,
+                }),
+                vec![Attachment {
+                    kind: AttachmentKind::Color,
+                    texture: frame_texture,
+                }],
+            )
+            .unwrap()
     }
 
     pub fn new_raw(server: &GlGraphicsServer, width: usize, height: usize) -> Self {
@@ -261,7 +265,7 @@ impl SceneRenderPass for HighlightRenderPass {
                     BundleRenderContext {
                         texture_cache: ctx.texture_cache,
                         render_pass_name: &render_pass_name,
-                        frame_buffer: &self.framebuffer,
+                        frame_buffer: &*self.framebuffer,
                         view_projection_matrix: &view_projection,
                         camera_position: &ctx.camera.global_position(),
                         camera_up_vector: &camera_up,

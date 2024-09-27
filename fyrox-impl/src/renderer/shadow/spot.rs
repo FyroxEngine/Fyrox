@@ -51,7 +51,7 @@ pub struct SpotShadowMapRenderer {
     //  0 - largest, for lights close to camera.
     //  1 - medium, for lights with medium distance to camera.
     //  2 - small, for farthest lights.
-    cascades: [FrameBuffer; 3],
+    cascades: [Box<dyn FrameBuffer>; 3],
     size: usize,
 }
 
@@ -65,7 +65,7 @@ impl SpotShadowMapRenderer {
             server: &GlGraphicsServer,
             size: usize,
             precision: ShadowMapPrecision,
-        ) -> Result<FrameBuffer, FrameworkError> {
+        ) -> Result<Box<dyn FrameBuffer>, FrameworkError> {
             let depth = {
                 let kind = GpuTextureKind::Rectangle {
                     width: size,
@@ -92,8 +92,7 @@ impl SpotShadowMapRenderer {
                 texture
             };
 
-            FrameBuffer::new(
-                server,
+            server.create_frame_buffer(
                 Some(Attachment {
                     kind: AttachmentKind::Depth,
                     texture: depth,
@@ -155,7 +154,7 @@ impl SpotShadowMapRenderer {
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut statistics = RenderPassStatistics::default();
 
-        let framebuffer = &mut self.cascades[cascade];
+        let framebuffer = &mut *self.cascades[cascade];
         let cascade_size = cascade_size(self.size, cascade);
 
         let viewport = Rect::new(0, 0, cascade_size as i32, cascade_size as i32);

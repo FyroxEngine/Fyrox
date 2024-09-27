@@ -88,7 +88,7 @@ impl Shader {
 pub struct ScreenSpaceAmbientOcclusionRenderer {
     blur: Blur,
     shader: Shader,
-    framebuffer: FrameBuffer,
+    framebuffer: Box<dyn FrameBuffer>,
     quad: GeometryBuffer,
     uniform_buffer: Box<dyn Buffer>,
     width: i32,
@@ -128,8 +128,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
             )?,
             blur: Blur::new(server, width, height)?,
             shader: Shader::new(server)?,
-            framebuffer: FrameBuffer::new(
-                server,
+            framebuffer: server.create_frame_buffer(
                 None,
                 vec![Attachment {
                     kind: AttachmentKind::Color,

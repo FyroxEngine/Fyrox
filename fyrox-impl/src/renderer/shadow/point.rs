@@ -47,7 +47,7 @@ use std::{cell::RefCell, rc::Rc};
 
 pub struct PointShadowMapRenderer {
     precision: ShadowMapPrecision,
-    cascades: [FrameBuffer; 3],
+    cascades: [Box<dyn FrameBuffer>; 3],
     size: usize,
     faces: [PointShadowCubeMapFace; 6],
 }
@@ -84,7 +84,7 @@ impl PointShadowMapRenderer {
             server: &GlGraphicsServer,
             size: usize,
             precision: ShadowMapPrecision,
-        ) -> Result<FrameBuffer, FrameworkError> {
+        ) -> Result<Box<dyn FrameBuffer>, FrameworkError> {
             let depth = {
                 let kind = GpuTextureKind::Rectangle {
                     width: size,
@@ -135,8 +135,7 @@ impl PointShadowMapRenderer {
                 texture
             };
 
-            FrameBuffer::new(
-                server,
+            server.create_frame_buffer(
                 Some(Attachment {
                     kind: AttachmentKind::Depth,
                     texture: depth,
@@ -227,7 +226,7 @@ impl PointShadowMapRenderer {
             matrix_storage,
         } = args;
 
-        let framebuffer = &mut self.cascades[cascade];
+        let framebuffer = &mut *self.cascades[cascade];
         let cascade_size = cascade_size(self.size, cascade);
 
         let viewport = Rect::new(0, 0, cascade_size as i32, cascade_size as i32);
@@ -238,12 +237,8 @@ impl PointShadowMapRenderer {
             Matrix4::new_perspective(1.0, std::f32::consts::FRAC_PI_2, z_near, z_far);
 
         for face in self.faces.iter() {
-            framebuffer.set_cubemap_face(0, face.face).clear(
-                viewport,
-                Some(Color::WHITE),
-                Some(1.0),
-                None,
-            );
+            framebuffer.set_cubemap_face(0, face.face);
+            framebuffer.clear(viewport, Some(Color::WHITE), Some(1.0), None);
 
             let light_look_at = light_pos + face.look;
             let light_view_matrix = Matrix4::look_at_rh(

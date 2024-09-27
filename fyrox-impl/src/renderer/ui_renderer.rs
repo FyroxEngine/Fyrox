@@ -91,7 +91,7 @@ pub struct UiRenderContext<'a, 'b, 'c> {
     /// Viewport to where render the user interface.
     pub viewport: Rect<i32>,
     /// Frame buffer to where render the user interface.
-    pub frame_buffer: &'b mut FrameBuffer,
+    pub frame_buffer: &'b mut dyn FrameBuffer,
     /// Width of the frame buffer to where render the user interface.
     pub frame_width: f32,
     /// Height of the frame buffer to where render the user interface.

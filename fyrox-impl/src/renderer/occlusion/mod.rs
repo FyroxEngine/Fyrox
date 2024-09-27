@@ -90,7 +90,7 @@ impl Shader {
 }
 
 pub struct OcclusionTester {
-    framebuffer: FrameBuffer,
+    framebuffer: Box<dyn FrameBuffer>,
     visibility_mask: Rc<RefCell<dyn GpuTexture>>,
     tile_buffer: Rc<RefCell<dyn GpuTexture>>,
     frame_size: Vector2<usize>,
@@ -223,8 +223,7 @@ impl OcclusionTester {
         )?;
 
         Ok(Self {
-            framebuffer: FrameBuffer::new(
-                server,
+            framebuffer: server.create_frame_buffer(
                 Some(Attachment {
                     kind: AttachmentKind::DepthStencil,
                     texture: depth_stencil,
@@ -378,7 +377,7 @@ impl OcclusionTester {
         server: &GlGraphicsServer,
         graph: &Graph,
         objects_to_test: impl Iterator<Item = &'a Handle<Node>>,
-        prev_framebuffer: &FrameBuffer,
+        prev_framebuffer: &dyn FrameBuffer,
         observer_position: Vector3<f32>,
         view_projection: Matrix4<f32>,
     ) {
@@ -387,8 +386,8 @@ impl OcclusionTester {
         let w = self.frame_size.x as i32;
         let h = self.frame_size.y as i32;
         server.blit_framebuffer(
-            prev_framebuffer.id(),
-            self.framebuffer.id(),
+            prev_framebuffer,
+            &*self.framebuffer,
             0,
             0,
             w,
@@ -423,7 +422,7 @@ impl OcclusionTester {
         debug_renderer: Option<&mut DebugRenderer>,
         unit_quad: &GeometryBuffer,
         objects_to_test: impl Iterator<Item = &'a Handle<Node>>,
-        prev_framebuffer: &FrameBuffer,
+        prev_framebuffer: &dyn FrameBuffer,
         observer_position: Vector3<f32>,
         view_projection: Matrix4<f32>,
     ) -> Result<(), FrameworkError> {

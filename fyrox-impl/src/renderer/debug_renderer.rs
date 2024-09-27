@@ -151,7 +151,7 @@ impl DebugRenderer {
     pub(crate) fn render(
         &mut self,
         viewport: Rect<i32>,
-        framebuffer: &mut FrameBuffer,
+        framebuffer: &mut dyn FrameBuffer,
         view_projection: Matrix4<f32>,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut statistics = RenderPassStatistics::default();

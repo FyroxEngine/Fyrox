@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::framebuffer::{Attachment, FrameBuffer};
+use crate::gl::framebuffer::GlFrameBuffer;
 use crate::{
     buffer::{Buffer, BufferKind, BufferUsage},
     core::{color::Color, log::Log, math::Rect},
@@ -29,7 +31,7 @@ use crate::{
     DrawParameters, PolygonFace, PolygonFillMode, ScissorBox, StencilAction, StencilFunc,
     StencilOp,
 };
-use glow::{Framebuffer, HasContext};
+use glow::HasContext;
 #[cfg(not(target_arch = "wasm32"))]
 use glutin::{
     config::ConfigTemplateBuilder,
@@ -937,8 +939,8 @@ impl GlGraphicsServer {
 
     pub fn blit_framebuffer(
         &self,
-        source: Option<Framebuffer>,
-        dest: Option<Framebuffer>,
+        source: &dyn FrameBuffer,
+        dest: &dyn FrameBuffer,
         src_x0: i32,
         src_y0: i32,
         src_x1: i32,
@@ -951,6 +953,9 @@ impl GlGraphicsServer {
         copy_depth: bool,
         copy_stencil: bool,
     ) {
+        let source = source.as_any().downcast_ref::<GlFrameBuffer>().unwrap();
+        let dest = dest.as_any().downcast_ref::<GlFrameBuffer>().unwrap();
+
         let mut mask = 0;
         if copy_color {
             mask |= glow::COLOR_BUFFER_BIT;
@@ -963,8 +968,9 @@ impl GlGraphicsServer {
         }
 
         unsafe {
-            self.gl.bind_framebuffer(glow::READ_FRAMEBUFFER, source);
-            self.gl.bind_framebuffer(glow::DRAW_FRAMEBUFFER, dest);
+            self.gl
+                .bind_framebuffer(glow::READ_FRAMEBUFFER, source.id());
+            self.gl.bind_framebuffer(glow::DRAW_FRAMEBUFFER, dest.id());
             self.gl.blit_framebuffer(
                 src_x0,
                 src_y0,
@@ -1008,6 +1014,12 @@ pub trait GraphicsServer: Any {
         mip_count: usize,
         data: Option<&[u8]>,
     ) -> Result<Rc<RefCell<dyn GpuTexture>>, FrameworkError>;
+    fn create_frame_buffer(
+        &self,
+        depth_attachment: Option<Attachment>,
+        color_attachments: Vec<Attachment>,
+    ) -> Result<Box<dyn FrameBuffer>, FrameworkError>;
+    fn back_buffer(&self) -> Box<dyn FrameBuffer>;
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
     fn weak(self: Rc<Self>) -> Weak<dyn GraphicsServer>;
@@ -1047,6 +1059,22 @@ impl GraphicsServer for GlGraphicsServer {
             buffer_kind,
             buffer_usage,
         )?))
+    }
+
+    fn create_frame_buffer(
+        &self,
+        depth_attachment: Option<Attachment>,
+        color_attachments: Vec<Attachment>,
+    ) -> Result<Box<dyn FrameBuffer>, FrameworkError> {
+        Ok(Box::new(GlFrameBuffer::new(
+            self,
+            depth_attachment,
+            color_attachments,
+        )?))
+    }
+
+    fn back_buffer(&self) -> Box<dyn FrameBuffer> {
+        Box::new(GlFrameBuffer::backbuffer(self))
     }
 
     fn as_any(&self) -> &dyn Any {

@@ -468,13 +468,13 @@ pub struct AssociatedSceneData {
     pub gbuffer: GBuffer,
 
     /// Intermediate high dynamic range frame buffer.
-    pub hdr_scene_framebuffer: FrameBuffer,
+    pub hdr_scene_framebuffer: Box<dyn FrameBuffer>,
 
     /// Final frame of the scene. Tone mapped + gamma corrected.
-    pub ldr_scene_framebuffer: FrameBuffer,
+    pub ldr_scene_framebuffer: Box<dyn FrameBuffer>,
 
     /// Additional frame buffer for post processing.
-    pub ldr_temp_framebuffer: FrameBuffer,
+    pub ldr_temp_framebuffer: Box<dyn FrameBuffer>,
 
     /// HDR renderer has be created per scene, because it contains
     /// scene luminance.
@@ -520,8 +520,7 @@ impl AssociatedSceneData {
             None,
         )?;
 
-        let hdr_scene_framebuffer = FrameBuffer::new(
-            server,
+        let hdr_scene_framebuffer = server.create_frame_buffer(
             Some(Attachment {
                 kind: AttachmentKind::DepthStencil,
                 texture: depth_stencil.clone(),
@@ -542,8 +541,7 @@ impl AssociatedSceneData {
             None,
         )?;
 
-        let ldr_scene_framebuffer = FrameBuffer::new(
-            server,
+        let ldr_scene_framebuffer = server.create_frame_buffer(
             Some(Attachment {
                 kind: AttachmentKind::DepthStencil,
                 texture: depth_stencil.clone(),
@@ -564,8 +562,7 @@ impl AssociatedSceneData {
             None,
         )?;
 
-        let ldr_temp_framebuffer = FrameBuffer::new(
-            server,
+        let ldr_temp_framebuffer = server.create_frame_buffer(
             Some(Attachment {
                 kind: AttachmentKind::DepthStencil,
                 texture: depth_stencil,
@@ -589,8 +586,8 @@ impl AssociatedSceneData {
 
     fn copy_depth_stencil_to_scene_framebuffer(&mut self, server: &GlGraphicsServer) {
         server.blit_framebuffer(
-            self.gbuffer.framebuffer().id(),
-            self.hdr_scene_framebuffer.id(),
+            self.gbuffer.framebuffer(),
+            &*self.hdr_scene_framebuffer,
             0,
             0,
             self.gbuffer.width,
@@ -644,7 +641,7 @@ pub(crate) fn make_viewport_matrix(viewport: Rect<i32>) -> Matrix4<f32> {
 
 /// See module docs.
 pub struct Renderer {
-    backbuffer: FrameBuffer,
+    backbuffer: Box<dyn FrameBuffer>,
     scene_render_passes: Vec<Rc<RefCell<dyn SceneRenderPass>>>,
     deferred_light_renderer: DeferredLightRenderer,
     flat_shader: FlatShader,
@@ -688,7 +685,7 @@ pub struct Renderer {
     matrix_storage: MatrixStorageCache,
     // TextureId -> FrameBuffer mapping. This mapping is used for temporal frame buffers
     // like ones used to render UI instances.
-    ui_frame_buffers: FxHashMap<u64, FrameBuffer>,
+    ui_frame_buffers: FxHashMap<u64, Box<dyn FrameBuffer>>,
     /// Visibility cache based on occlusion query.
     pub visibility_cache: VisibilityCache,
     /// Pipeline state.
@@ -699,7 +696,7 @@ fn make_ui_frame_buffer(
     frame_size: Vector2<f32>,
     server: &GlGraphicsServer,
     pixel_kind: PixelKind,
-) -> Result<FrameBuffer, FrameworkError> {
+) -> Result<Box<dyn FrameBuffer>, FrameworkError> {
     let color_texture = server.create_texture(
         GpuTextureKind::Rectangle {
             width: frame_size.x as usize,
@@ -724,8 +721,7 @@ fn make_ui_frame_buffer(
         None,
     )?;
 
-    FrameBuffer::new(
-        server,
+    server.create_frame_buffer(
         Some(Attachment {
             kind: AttachmentKind::DepthStencil,
             texture: depth_stencil,
@@ -763,7 +759,7 @@ pub struct SceneRenderPassContext<'a, 'b> {
     pub quality_settings: &'a QualitySettings,
 
     /// Current framebuffer to which scene is being rendered to.
-    pub framebuffer: &'a mut FrameBuffer,
+    pub framebuffer: &'a mut dyn FrameBuffer,
 
     /// A scene being rendered.
     pub scene: &'b Scene,
@@ -857,7 +853,7 @@ pub trait SceneRenderPass {
 }
 
 fn blit_pixels(
-    framebuffer: &mut FrameBuffer,
+    framebuffer: &mut dyn FrameBuffer,
     texture: Rc<RefCell<dyn GpuTexture>>,
     shader: &FlatShader,
     viewport: Rect<i32>,
@@ -959,7 +955,7 @@ impl Renderer {
         }
 
         let renderer = Self {
-            backbuffer: FrameBuffer::backbuffer(&server),
+            backbuffer: server.back_buffer(),
             frame_size,
             deferred_light_renderer: DeferredLightRenderer::new(&server, frame_size, &settings)?,
             flat_shader: FlatShader::new(&server)?,
@@ -1203,6 +1199,7 @@ impl Renderer {
                 entry.insert(make_ui_frame_buffer(screen_size, &self.state, pixel_kind)?)
             }
         };
+        let frame_buffer = &mut **frame_buffer;
 
         let viewport = Rect::new(0, 0, new_width as i32, new_height as i32);
 
@@ -1447,7 +1444,7 @@ impl Renderer {
                         settings: &self.quality_settings,
                         textures: &mut self.texture_cache,
                         geometry_cache: &mut self.geometry_cache,
-                        frame_buffer: &mut scene_associated_data.hdr_scene_framebuffer,
+                        frame_buffer: &mut *scene_associated_data.hdr_scene_framebuffer,
                         shader_cache: &mut self.shader_cache,
                         normal_dummy: self.normal_dummy.clone(),
                         black_dummy: self.black_dummy.clone(),
@@ -1470,7 +1467,7 @@ impl Renderer {
                     texture_cache: &mut self.texture_cache,
                     shader_cache: &mut self.shader_cache,
                     bundle_storage: &bundle_storage,
-                    framebuffer: &mut scene_associated_data.hdr_scene_framebuffer,
+                    framebuffer: &mut *scene_associated_data.hdr_scene_framebuffer,
                     viewport,
                     quality_settings: &self.quality_settings,
                     white_dummy: self.white_dummy.clone(),
@@ -1506,7 +1503,7 @@ impl Renderer {
                             depth_texture: scene_associated_data.gbuffer.depth(),
                             normal_texture: scene_associated_data.gbuffer.normal_texture(),
                             ambient_texture: scene_associated_data.gbuffer.ambient_texture(),
-                            framebuffer: &mut scene_associated_data.hdr_scene_framebuffer,
+                            framebuffer: &mut *scene_associated_data.hdr_scene_framebuffer,
                             ui_renderer: &mut self.ui_renderer,
                             matrix_storage: &mut self.matrix_storage,
                         })?;
@@ -1524,7 +1521,7 @@ impl Renderer {
                 server,
                 scene_associated_data.hdr_scene_frame_texture(),
                 scene_associated_data.bloom_renderer.result(),
-                &mut scene_associated_data.ldr_scene_framebuffer,
+                &mut *scene_associated_data.ldr_scene_framebuffer,
                 viewport,
                 quad,
                 dt,
@@ -1539,13 +1536,13 @@ impl Renderer {
                 scene_associated_data.statistics += self.fxaa_renderer.render(
                     viewport,
                     scene_associated_data.ldr_scene_frame_texture(),
-                    &mut scene_associated_data.ldr_temp_framebuffer,
+                    &mut *scene_associated_data.ldr_temp_framebuffer,
                 )?;
 
                 let quad = &self.quad;
                 let temp_frame_texture = scene_associated_data.ldr_temp_frame_texture();
                 scene_associated_data.statistics += blit_pixels(
-                    &mut scene_associated_data.ldr_scene_framebuffer,
+                    &mut *scene_associated_data.ldr_scene_framebuffer,
                     temp_frame_texture,
                     &self.flat_shader,
                     viewport,
@@ -1558,7 +1555,7 @@ impl Renderer {
                 .set_lines(server, &scene.drawing_context.lines);
             scene_associated_data.statistics += self.debug_renderer.render(
                 viewport,
-                &mut scene_associated_data.ldr_scene_framebuffer,
+                &mut *scene_associated_data.ldr_scene_framebuffer,
                 camera.view_projection_matrix(),
             )?;
 
@@ -1586,7 +1583,7 @@ impl Renderer {
                             depth_texture: scene_associated_data.gbuffer.depth(),
                             normal_texture: scene_associated_data.gbuffer.normal_texture(),
                             ambient_texture: scene_associated_data.gbuffer.ambient_texture(),
-                            framebuffer: &mut scene_associated_data.ldr_scene_framebuffer,
+                            framebuffer: &mut *scene_associated_data.ldr_scene_framebuffer,
                             ui_renderer: &mut self.ui_renderer,
                             matrix_storage: &mut self.matrix_storage,
                         })?;
@@ -1599,7 +1596,7 @@ impl Renderer {
         if scene.rendering_options.render_target.is_none() {
             let quad = &self.quad;
             scene_associated_data.statistics += blit_pixels(
-                &mut self.backbuffer,
+                &mut *self.backbuffer,
                 scene_associated_data.ldr_scene_frame_texture(),
                 &self.flat_shader,
                 window_viewport,
@@ -1660,7 +1657,7 @@ impl Renderer {
             self.statistics += self.ui_renderer.render(UiRenderContext {
                 state: &mut self.state,
                 viewport: window_viewport,
-                frame_buffer: &mut self.backbuffer,
+                frame_buffer: &mut *self.backbuffer,
                 frame_width: backbuffer_width,
                 frame_height: backbuffer_height,
                 drawing_context,
@@ -1675,7 +1672,7 @@ impl Renderer {
             Matrix4::new_orthographic(0.0, backbuffer_width, backbuffer_height, 0.0, -1.0, 1.0);
         self.screen_space_debug_renderer.render(
             window_viewport,
-            &mut self.backbuffer,
+            &mut *self.backbuffer,
             screen_matrix,
         )?;
 

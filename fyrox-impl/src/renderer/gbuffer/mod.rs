@@ -72,8 +72,8 @@ use std::{cell::RefCell, rc::Rc};
 mod decal;
 
 pub struct GBuffer {
-    framebuffer: FrameBuffer,
-    decal_framebuffer: FrameBuffer,
+    framebuffer: Box<dyn FrameBuffer>,
+    decal_framebuffer: Box<dyn FrameBuffer>,
     pub width: i32,
     pub height: i32,
     cube: GeometryBuffer,
@@ -197,8 +197,7 @@ impl GBuffer {
             .borrow_mut()
             .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
 
-        let framebuffer = FrameBuffer::new(
-            server,
+        let framebuffer = server.create_frame_buffer(
             Some(Attachment {
                 kind: AttachmentKind::DepthStencil,
                 texture: depth_stencil,
@@ -227,8 +226,7 @@ impl GBuffer {
             ],
         )?;
 
-        let decal_framebuffer = FrameBuffer::new(
-            server,
+        let decal_framebuffer = server.create_frame_buffer(
             None,
             vec![
                 Attachment {
@@ -258,8 +256,8 @@ impl GBuffer {
         })
     }
 
-    pub fn framebuffer(&self) -> &FrameBuffer {
-        &self.framebuffer
+    pub fn framebuffer(&self) -> &dyn FrameBuffer {
+        &*self.framebuffer
     }
 
     pub fn depth(&self) -> Rc<RefCell<dyn GpuTexture>> {
@@ -353,7 +351,7 @@ impl GBuffer {
                 BundleRenderContext {
                     texture_cache,
                     render_pass_name: &self.render_pass_name,
-                    frame_buffer: &mut self.framebuffer,
+                    frame_buffer: &mut *self.framebuffer,
                     viewport,
                     matrix_storage,
                     view_projection_matrix: &view_projection,
@@ -389,7 +387,7 @@ impl GBuffer {
                 None,
                 unit_quad,
                 objects.iter(),
-                &self.framebuffer,
+                &*self.framebuffer,
                 camera.global_position(),
                 view_projection,
             )?;

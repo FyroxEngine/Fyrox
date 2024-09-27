@@ -62,7 +62,7 @@ pub enum LuminanceCalculationMethod {
 }
 
 pub struct LumBuffer {
-    framebuffer: FrameBuffer,
+    framebuffer: Box<dyn FrameBuffer>,
     size: usize,
 }
 
@@ -80,8 +80,7 @@ impl LumBuffer {
             None,
         )?;
         Ok(Self {
-            framebuffer: FrameBuffer::new(
-                server,
+            framebuffer: server.create_frame_buffer(
                 None,
                 vec![Attachment {
                     kind: AttachmentKind::Color,
@@ -335,7 +334,7 @@ impl HighDynamicRangeRenderer {
         server: &GlGraphicsServer,
         hdr_scene_frame: Rc<RefCell<dyn GpuTexture>>,
         bloom_texture: Rc<RefCell<dyn GpuTexture>>,
-        ldr_framebuffer: &mut FrameBuffer,
+        ldr_framebuffer: &mut dyn FrameBuffer,
         viewport: Rect<i32>,
         quad: &GeometryBuffer,
         exposure: Exposure,
@@ -405,7 +404,7 @@ impl HighDynamicRangeRenderer {
         server: &GlGraphicsServer,
         hdr_scene_frame: Rc<RefCell<dyn GpuTexture>>,
         bloom_texture: Rc<RefCell<dyn GpuTexture>>,
-        ldr_framebuffer: &mut FrameBuffer,
+        ldr_framebuffer: &mut dyn FrameBuffer,
         viewport: Rect<i32>,
         quad: &GeometryBuffer,
         dt: f32,
