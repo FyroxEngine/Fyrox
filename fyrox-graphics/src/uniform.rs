@@ -183,13 +183,27 @@ where
         self.storage.bytes_count()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     fn push_padding(&mut self, alignment: usize) {
+        debug_assert!(alignment.is_power_of_two());
         let bytes_count = self.storage.bytes_count();
-        let remainder = bytes_count % alignment;
+        let remainder = (alignment - 1) & bytes_count;
         if remainder > 0 {
             let padding = alignment - remainder;
-            for _ in 0..padding {
-                self.storage.write_bytes(&[0]);
+            match padding {
+                2 => self.storage.write_bytes(&[0; 2]),
+                4 => self.storage.write_bytes(&[0; 4]),
+                8 => self.storage.write_bytes(&[0; 8]),
+                12 => self.storage.write_bytes(&[0; 12]),
+                16 => self.storage.write_bytes(&[0; 16]),
+                _ => {
+                    for _ in 0..padding {
+                        self.storage.write_bytes(&[0]);
+                    }
+                }
             }
         }
     }
