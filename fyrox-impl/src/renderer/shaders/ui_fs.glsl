@@ -2,26 +2,24 @@
 
 uniform sampler2D diffuseTexture;
 
-uniform bool isFont;
-uniform vec4 solidColor;
-uniform float opacity;
+layout (std140) uniform Uniforms {
+    mat4 worldViewProjection;
+    vec4 solidColor;
+    vec4 gradientColors[16];
+    float gradientStops[16];
+    // Begin point of linear gradient *or* center of radial gradient in normalized coordinates.
+    vec2 gradientOrigin;
+    // End point of linear gradient in normalized coordinates.
+    vec2 gradientEnd;
+    vec2 resolution;
+    vec2 boundsMin;
+    vec2 boundsMax;
 
-uniform int brushType;
-
-uniform int gradientPointCount;
-uniform vec4 gradientColors[16];
-uniform float gradientStops[16];
-
-// Begin point of linear gradient *or* center of radial gradient
-// in normalized coordinates
-uniform vec2 gradientOrigin;
-
-// End point of linear gradient in normalized coordinates.
-uniform vec2 gradientEnd;
-
-uniform vec2 resolution;
-uniform vec2 boundsMin;
-uniform vec2 boundsMax;
+    bool isFont;
+    float opacity;
+    int brushType;
+    int gradientPointCount;
+};
 
 out vec4 fragColor;
 
@@ -36,7 +34,7 @@ float project_point(vec2 a, vec2 b, vec2 p) {
 int find_stop_index(float t) {
     int idx = 0;
 
-    for(int i = 0; i < gradientPointCount; ++i) {
+    for (int i = 0; i < gradientPointCount; ++i) {
         if (t > gradientStops[i]) {
             idx = i;
         }

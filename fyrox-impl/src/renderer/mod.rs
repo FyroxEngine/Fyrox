@@ -1219,6 +1219,7 @@ impl Renderer {
             drawing_context,
             white_dummy: self.white_dummy.clone(),
             texture_cache: &mut self.texture_cache,
+            uniform_buffer_cache: &mut self.uniform_buffer_cache,
         })?;
 
         // Finally register texture in the cache so it will become available as texture in deferred/forward
@@ -1674,6 +1675,7 @@ impl Renderer {
                 drawing_context,
                 white_dummy: self.white_dummy.clone(),
                 texture_cache: &mut self.texture_cache,
+                uniform_buffer_cache: &mut self.uniform_buffer_cache,
             })?;
         }
 

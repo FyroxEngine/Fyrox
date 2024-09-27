@@ -33,7 +33,9 @@ use crate::{
         draw::{CommandTexture, DrawingContext},
     },
     renderer::{
+        cache::uniform::UniformBufferCache,
         framework::{
+            buffer::BufferUsage,
             error::FrameworkError,
             framebuffer::FrameBuffer,
             geometry_buffer::{
@@ -44,35 +46,19 @@ use crate::{
             gpu_texture::GpuTexture,
             state::GlGraphicsServer,
             BlendFactor, BlendFunc, BlendParameters, ColorMask, CompareFunc, DrawParameters,
-            ElementKind, ElementRange, StencilAction, StencilFunc, StencilOp,
+            ElementKind, ElementRange, ScissorBox, StencilAction, StencilFunc, StencilOp,
         },
         RenderPassStatistics, TextureCache,
     },
-    resource::{
-        texture::TextureResource,
-        texture::{Texture, TextureKind, TexturePixelKind},
-    },
+    resource::texture::{Texture, TextureKind, TexturePixelKind, TextureResource},
 };
-use fyrox_graphics::buffer::BufferUsage;
-use fyrox_graphics::ScissorBox;
+use fyrox_graphics::uniform::StaticUniformBuffer;
 use std::{cell::RefCell, rc::Rc};
 
 struct UiShader {
     program: GpuProgram,
-    wvp_matrix: UniformLocation,
     diffuse_texture: UniformLocation,
-    is_font: UniformLocation,
-    solid_color: UniformLocation,
-    brush_type: UniformLocation,
-    gradient_point_count: UniformLocation,
-    gradient_colors: UniformLocation,
-    gradient_stops: UniformLocation,
-    gradient_origin: UniformLocation,
-    gradient_end: UniformLocation,
-    resolution: UniformLocation,
-    bounds_min: UniformLocation,
-    bounds_max: UniformLocation,
-    opacity: UniformLocation,
+    uniform_block_index: usize,
 }
 
 impl UiShader {
@@ -81,26 +67,10 @@ impl UiShader {
         let vertex_source = include_str!("shaders/ui_vs.glsl");
         let program = GpuProgram::from_source(server, "UIShader", vertex_source, fragment_source)?;
         Ok(Self {
-            wvp_matrix: program
-                .uniform_location(server, &ImmutableString::new("worldViewProjection"))?,
             diffuse_texture: program
                 .uniform_location(server, &ImmutableString::new("diffuseTexture"))?,
-            is_font: program.uniform_location(server, &ImmutableString::new("isFont"))?,
-            solid_color: program.uniform_location(server, &ImmutableString::new("solidColor"))?,
-            brush_type: program.uniform_location(server, &ImmutableString::new("brushType"))?,
-            gradient_point_count: program
-                .uniform_location(server, &ImmutableString::new("gradientPointCount"))?,
-            gradient_colors: program
-                .uniform_location(server, &ImmutableString::new("gradientColors"))?,
-            gradient_stops: program
-                .uniform_location(server, &ImmutableString::new("gradientStops"))?,
-            gradient_origin: program
-                .uniform_location(server, &ImmutableString::new("gradientOrigin"))?,
-            gradient_end: program.uniform_location(server, &ImmutableString::new("gradientEnd"))?,
-            bounds_min: program.uniform_location(server, &ImmutableString::new("boundsMin"))?,
-            bounds_max: program.uniform_location(server, &ImmutableString::new("boundsMax"))?,
-            resolution: program.uniform_location(server, &ImmutableString::new("resolution"))?,
-            opacity: program.uniform_location(server, &ImmutableString::new("opacity"))?,
+            uniform_block_index: program
+                .uniform_block_index(server, &ImmutableString::new("Uniforms"))?,
             program,
         })
     }
@@ -131,6 +101,8 @@ pub struct UiRenderContext<'a, 'b, 'c> {
     pub white_dummy: Rc<RefCell<dyn GpuTexture>>,
     /// GPU texture cache.
     pub texture_cache: &'a mut TextureCache,
+    /// A reference to the cache of uniform buffers.
+    pub uniform_buffer_cache: &'a mut UniformBufferCache,
 }
 
 impl UiRenderer {
@@ -193,6 +165,7 @@ impl UiRenderer {
             drawing_context,
             white_dummy,
             texture_cache,
+            uniform_buffer_cache,
         } = args;
 
         let mut statistics = RenderPassStatistics::default();
@@ -258,7 +231,7 @@ impl UiRenderer {
                     },
                     ElementRange::Full,
                     |mut program_binding| {
-                        program_binding.set_matrix4(&self.shader.wvp_matrix, &ortho);
+                        // program_binding.set_matrix4(&self.shader.wvp_matrix, &ortho);
                     },
                 )?;
 
@@ -348,6 +321,61 @@ impl UiRenderer {
                 scissor_box,
             };
 
+            let solid_color = match cmd.brush {
+                Brush::Solid(color) => color,
+                _ => Color::WHITE,
+            };
+            let gradient_colors = match cmd.brush {
+                Brush::Solid(_) => &raw_colors,
+                Brush::LinearGradient { ref stops, .. }
+                | Brush::RadialGradient { ref stops, .. } => {
+                    for (i, point) in stops.iter().enumerate() {
+                        raw_colors[i] = point.color.as_frgba();
+                    }
+                    &raw_colors
+                }
+            };
+            let gradient_stops = match cmd.brush {
+                Brush::Solid(_) => &raw_stops,
+                Brush::LinearGradient { ref stops, .. }
+                | Brush::RadialGradient { ref stops, .. } => {
+                    for (i, point) in stops.iter().enumerate() {
+                        raw_stops[i] = point.stop;
+                    }
+                    &raw_stops
+                }
+            };
+            let brush_type = match cmd.brush {
+                Brush::Solid(_) => 0,
+                Brush::LinearGradient { .. } => 1,
+                Brush::RadialGradient { .. } => 2,
+            };
+            let gradient_point_count = match cmd.brush {
+                Brush::Solid(_) => 0,
+                Brush::LinearGradient { ref stops, .. }
+                | Brush::RadialGradient { ref stops, .. } => stops.len() as i32,
+            };
+
+            let mut uniforms = StaticUniformBuffer::<1024>::new();
+            uniforms
+                .push(&ortho)
+                .push(&solid_color)
+                .push_slice(gradient_colors)
+                .push_slice(gradient_stops)
+                .push(&gradient_origin)
+                .push(&gradient_end)
+                .push(&resolution)
+                .push(&cmd.bounds.position)
+                .push(&bounds_max)
+                .push(&is_font_texture)
+                .push(&cmd.opacity)
+                .push(&brush_type)
+                .push(&gradient_point_count);
+            let uniforms_bytes = uniforms.finish();
+            let uniform_buffer =
+                uniform_buffer_cache.get_or_create(server, uniforms_bytes.len())?;
+            uniform_buffer.write_data(&uniforms_bytes)?;
+
             let shader = &self.shader;
             statistics += frame_buffer.draw(
                 &self.geometry_buffer,
@@ -362,63 +390,11 @@ impl UiRenderer {
                 |mut program_binding| {
                     program_binding
                         .set_texture(&shader.diffuse_texture, diffuse_texture)
-                        .set_matrix4(&shader.wvp_matrix, &ortho)
-                        .set_vector2(&shader.resolution, &resolution)
-                        .set_vector2(&shader.bounds_min, &cmd.bounds.position)
-                        .set_vector2(&shader.bounds_max, &bounds_max)
-                        .set_bool(&shader.is_font, is_font_texture)
-                        .set_i32(
-                            &shader.brush_type,
-                            match cmd.brush {
-                                Brush::Solid(_) => 0,
-                                Brush::LinearGradient { .. } => 1,
-                                Brush::RadialGradient { .. } => 2,
-                            },
-                        )
-                        .set_srgb_color(
-                            &shader.solid_color,
-                            &match cmd.brush {
-                                Brush::Solid(color) => color,
-                                _ => Color::WHITE,
-                            },
-                        )
-                        .set_vector2(&shader.gradient_origin, &gradient_origin)
-                        .set_vector2(&shader.gradient_end, &gradient_end)
-                        .set_i32(
-                            &shader.gradient_point_count,
-                            match &cmd.brush {
-                                Brush::Solid(_) => 0,
-                                Brush::LinearGradient { stops, .. }
-                                | Brush::RadialGradient { stops, .. } => stops.len() as i32,
-                            },
-                        )
-                        .set_f32_slice(
-                            &shader.gradient_stops,
-                            match &cmd.brush {
-                                Brush::Solid(_) => &raw_stops,
-                                Brush::LinearGradient { stops, .. }
-                                | Brush::RadialGradient { stops, .. } => {
-                                    for (i, point) in stops.iter().enumerate() {
-                                        raw_stops[i] = point.stop;
-                                    }
-                                    &raw_stops
-                                }
-                            },
-                        )
-                        .set_vector4_slice(
-                            &shader.gradient_colors,
-                            match &cmd.brush {
-                                Brush::Solid(_) => &raw_colors,
-                                Brush::LinearGradient { stops, .. }
-                                | Brush::RadialGradient { stops, .. } => {
-                                    for (i, point) in stops.iter().enumerate() {
-                                        raw_colors[i] = point.color.as_frgba();
-                                    }
-                                    &raw_colors
-                                }
-                            },
-                        )
-                        .set_f32(&shader.opacity, cmd.opacity);
+                        .bind_uniform_buffer(
+                            uniform_buffer,
+                            self.shader.uniform_block_index as u32,
+                            0,
+                        );
                 },
             )?;
         }
