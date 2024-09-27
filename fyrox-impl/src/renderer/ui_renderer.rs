@@ -20,6 +20,7 @@
 
 //! See [`UiRenderer`] docs.
 
+use crate::renderer::flat_shader::FlatShader;
 use crate::{
     asset::untyped::ResourceKind,
     core::{
@@ -103,6 +104,8 @@ pub struct UiRenderContext<'a, 'b, 'c> {
     pub texture_cache: &'a mut TextureCache,
     /// A reference to the cache of uniform buffers.
     pub uniform_buffer_cache: &'a mut UniformBufferCache,
+    /// A reference to the shader that will be used to draw clipping geometry.
+    pub flat_shader: &'a FlatShader,
 }
 
 impl UiRenderer {
@@ -166,6 +169,7 @@ impl UiRenderer {
             white_dummy,
             texture_cache,
             uniform_buffer_cache,
+            flat_shader,
         } = args;
 
         let mut statistics = RenderPassStatistics::default();
@@ -215,7 +219,7 @@ impl UiRenderer {
                     &self.clipping_geometry_buffer,
                     server,
                     viewport,
-                    &self.shader.program,
+                    &flat_shader.program,
                     &DrawParameters {
                         cull_face: None,
                         color_write: ColorMask::all(false),
@@ -231,7 +235,7 @@ impl UiRenderer {
                     },
                     ElementRange::Full,
                     |mut program_binding| {
-                        // program_binding.set_matrix4(&self.shader.wvp_matrix, &ortho);
+                        program_binding.set_matrix4(&flat_shader.wvp_matrix, &ortho);
                     },
                 )?;
 

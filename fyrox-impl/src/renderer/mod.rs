@@ -1220,6 +1220,7 @@ impl Renderer {
             white_dummy: self.white_dummy.clone(),
             texture_cache: &mut self.texture_cache,
             uniform_buffer_cache: &mut self.uniform_buffer_cache,
+            flat_shader: &self.flat_shader,
         })?;
 
         // Finally register texture in the cache so it will become available as texture in deferred/forward
@@ -1676,6 +1677,7 @@ impl Renderer {
                 white_dummy: self.white_dummy.clone(),
                 texture_cache: &mut self.texture_cache,
                 uniform_buffer_cache: &mut self.uniform_buffer_cache,
+                flat_shader: &self.flat_shader,
             })?;
         }
 

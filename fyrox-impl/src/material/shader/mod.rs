@@ -212,11 +212,11 @@
 //!
 //! - cull_face
 //!     - Defines which side of polygon should be culled.
-//!     - **Possible values:** `None`, [Some(CullFace::XXX)](crate::renderer::framework::framebuffer::CullFace)
+//!     - **Possible values:** `None`, [Some(CullFace::XXX)](crate::renderer::framework::CullFace)
 //!
 //! - color_write:
 //!     - Defines which components of color should be written to a render target
-//!     - **Possible values:** [ColorMask](crate::renderer::framework::state::ColorMask)(...)
+//!     - **Possible values:** [ColorMask](crate::renderer::framework::ColorMask)(...)
 //!
 //!  - depth_write:
 //!     - Whether to modify depth buffer or not.
@@ -226,7 +226,7 @@
 //!     - Whether to use stencil test or not.
 //!     - **Possible values:**
 //!         - `None`
-//!         - Some([StencilFunc](crate::renderer::framework::state::StencilFunc))
+//!         - Some([StencilFunc](crate::renderer::framework::StencilFunc))
 //!
 //!  - depth_test:
 //!      - Whether to perform depth test when drawing.
@@ -236,11 +236,11 @@
 //!      - Blending options.
 //!      - **Possible values:**
 //!         - `None`
-//!         - Some([BlendFunc](crate::renderer::framework::state::BlendFunc))
+//!         - Some([BlendFunc](crate::renderer::framework::BlendFunc))
 //!
 //!   - stencil_op:
 //!      - Stencil options.
-//!      - **Possible values:** [StencilOp](crate::renderer::framework::state::StencilOp)
+//!      - **Possible values:** [StencilOp](crate::renderer::framework::StencilOp)
 //!
 //! # Standard shader
 //!
