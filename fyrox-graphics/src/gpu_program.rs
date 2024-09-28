@@ -53,6 +53,7 @@ pub struct GpuProgram {
 #[repr(usize)]
 pub enum BuiltInUniformBlock {
     BoneMatrices,
+    InstanceData,
     Count,
 }
 
@@ -517,6 +518,8 @@ fn fetch_built_in_uniform_blocks(
     let mut locations = [None; BuiltInUniformBlock::Count as usize];
     locations[BuiltInUniformBlock::BoneMatrices as usize] =
         fetch_uniform_block_index(server, program, "FyroxBoneMatrices");
+    locations[BuiltInUniformBlock::InstanceData as usize] =
+        fetch_uniform_block_index(server, program, "FyroxInstanceData");
     locations
 }
 

@@ -140,7 +140,7 @@ pub struct InstanceContext<'a> {
 
 impl<'a> InstanceContext<'a> {
     #[allow(missing_docs)] // TODO
-    pub fn apply_to(self, program_binding: &mut GpuProgramBinding) {
+    pub fn apply_to(self, program_binding: &mut GpuProgramBinding) -> Result<(), FrameworkError> {
         let InstanceContext {
             uniform_buffer_cache,
             world_matrix,
@@ -157,35 +157,27 @@ impl<'a> InstanceContext<'a> {
             let mut uniform_buffer = StaticUniformBuffer::<16384>::new();
             uniform_buffer.push_slice(bone_matrices);
             let bytes = uniform_buffer.finish();
-            let buffer = uniform_buffer_cache
-                .get_or_create(program_binding.state, 16384)
-                .unwrap();
-            buffer.write_data(&bytes).unwrap();
+            let buffer = uniform_buffer_cache.get_or_create(program_binding.state, 16384)?;
+            buffer.write_data(&bytes)?;
             program_binding.bind_uniform_buffer(buffer, *location, 0);
         }
 
-        let built_in_uniforms = &program_binding.program.built_in_uniform_locations;
-
-        // Apply values for built-in uniforms.
-        if let Some(location) = &built_in_uniforms[BuiltInUniform::WorldMatrix as usize] {
-            program_binding.set_matrix4(location, world_matrix);
-        }
-        if let Some(location) =
-            &built_in_uniforms[BuiltInUniform::WorldViewProjectionMatrix as usize]
+        if let Some(location) = &built_in_uniform_blocks[BuiltInUniformBlock::InstanceData as usize]
         {
-            program_binding.set_matrix4(location, wvp_matrix);
+            let mut uniform_buffer = StaticUniformBuffer::<4096>::new();
+            uniform_buffer
+                .push(world_matrix)
+                .push(wvp_matrix)
+                .push(&(blend_shapes_weights.len() as i32))
+                .push(&use_skeletal_animation)
+                .push_slice(blend_shapes_weights);
+            let bytes = uniform_buffer.finish();
+            let buffer = uniform_buffer_cache.get_or_create(program_binding.state, 4096)?;
+            buffer.write_data(&bytes)?;
+            program_binding.bind_uniform_buffer(buffer, *location, 1);
         }
 
-        if let Some(location) = &built_in_uniforms[BuiltInUniform::UseSkeletalAnimation as usize] {
-            program_binding.set_bool(location, use_skeletal_animation);
-        }
-
-        if let Some(location) = &built_in_uniforms[BuiltInUniform::BlendShapesWeights as usize] {
-            program_binding.set_f32_slice(location, blend_shapes_weights);
-        }
-        if let Some(location) = &built_in_uniforms[BuiltInUniform::BlendShapesCount as usize] {
-            program_binding.set_i32(location, blend_shapes_weights.len() as i32);
-        }
+        Ok(())
     }
 }
 
@@ -523,7 +515,7 @@ impl RenderDataBundle {
                 use_skeletal_animation: !instance.bone_matrices.is_empty(),
                 blend_shapes_weights: &instance.blend_shapes_weights,
             }
-            .apply_to(&mut program_binding);
+            .apply_to(&mut program_binding)?;
 
             stats += geometry_binding.draw(instance.element_range)?;
         }

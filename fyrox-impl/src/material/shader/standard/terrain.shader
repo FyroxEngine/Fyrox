@@ -123,10 +123,9 @@
                 uniform sampler2D heightMapTexture;
                 uniform vec4 nodeUvOffsets;
 
-                // Define uniforms with reserved names. Fyrox will automatically provide
-                // required data to these uniforms.
-                uniform mat4 fyrox_worldMatrix;
-                uniform mat4 fyrox_worldViewProjection;
+                layout(std140) uniform FyroxInstanceData {
+                    TInstanceData fyrox_instanceData;
+                };
 
                 out vec3 position;
                 out vec3 normal;
@@ -154,14 +153,14 @@
                     vec3 n = vec3(hx0-hx1, 2.0, hy0-hy1) * vec3(pixelFactor.x, 1.0, pixelFactor.y);
                     vec3 tan = vec3(n.y, -n.x, 0.0);
 
-                    mat3 nm = mat3(fyrox_worldMatrix);
+                    mat3 nm = mat3(fyrox_instanceData.worldMatrix);
                     normal = normalize(nm * n);
                     tangent = normalize(nm * tan);
                     binormal = normalize(-1.0 * cross(normal, tangent));
                     texCoord = actualTexCoords;
-                    position = vec3(fyrox_worldMatrix * finalVertexPosition);
+                    position = vec3(fyrox_instanceData.worldMatrix * finalVertexPosition);
                     secondTexCoord = vertexSecondTexCoord;
-                    gl_Position = fyrox_worldViewProjection * finalVertexPosition;
+                    gl_Position = fyrox_instanceData.worldViewProjection * finalVertexPosition;
                 }
                 "#,
             fragment_shader:
@@ -289,7 +288,9 @@
                 uniform sampler2D heightMapTexture;
                 uniform vec4 nodeUvOffsets;
 
-                uniform mat4 fyrox_worldViewProjection;
+                layout(std140) uniform FyroxInstanceData {
+                    TInstanceData fyrox_instanceData;
+                };
 
                 out vec3 position;
                 out vec2 texCoord;
@@ -304,7 +305,7 @@
                     float height = texture(heightMapTexture, heightCoords).r;
                     vec4 finalVertexPosition = vec4(vertexPosition.x, height, vertexPosition.z, 1.0);
 
-                    gl_Position = fyrox_worldViewProjection * finalVertexPosition;
+                    gl_Position = fyrox_instanceData.worldViewProjection * finalVertexPosition;
                     texCoord = actualTexCoords;
                 }
                "#,
@@ -359,7 +360,9 @@
                 uniform sampler2D heightMapTexture;
                 uniform vec4 nodeUvOffsets;
 
-                uniform mat4 fyrox_worldViewProjection;
+                layout(std140) uniform FyroxInstanceData {
+                    TInstanceData fyrox_instanceData;
+                };
 
                 out vec2 texCoord;
 
@@ -373,7 +376,7 @@
                     float height = texture(heightMapTexture, heightCoords).r;
                     vec4 finalVertexPosition = vec4(vertexPosition.x, height, vertexPosition.z, 1.0);
 
-                    gl_Position = fyrox_worldViewProjection * finalVertexPosition;
+                    gl_Position = fyrox_instanceData.worldViewProjection * finalVertexPosition;
                     texCoord = actualTexCoords;
                 }
                 "#,
@@ -425,7 +428,9 @@
                 uniform sampler2D heightMapTexture;
                 uniform vec4 nodeUvOffsets;
 
-                uniform mat4 fyrox_worldViewProjection;
+                layout(std140) uniform FyroxInstanceData {
+                    TInstanceData fyrox_instanceData;
+                };
 
                 out vec2 texCoord;
 
@@ -439,7 +444,7 @@
                     float height = texture(heightMapTexture, heightCoords).r;
                     vec4 finalVertexPosition = vec4(vertexPosition.x, height, vertexPosition.z, 1.0);
 
-                    gl_Position = fyrox_worldViewProjection * finalVertexPosition;
+                    gl_Position = fyrox_instanceData.worldViewProjection * finalVertexPosition;
                     texCoord = actualTexCoords;
                 }
                 "#,
@@ -491,8 +496,9 @@
                 uniform sampler2D heightMapTexture;
                 uniform vec4 nodeUvOffsets;
 
-                uniform mat4 fyrox_worldMatrix;
-                uniform mat4 fyrox_worldViewProjection;
+                layout(std140) uniform FyroxInstanceData {
+                    TInstanceData fyrox_instanceData;
+                };
 
                 out vec2 texCoord;
                 out vec3 worldPosition;
@@ -507,8 +513,8 @@
                     float height = texture(heightMapTexture, heightCoords).r;
                     vec4 finalVertexPosition = vec4(vertexPosition.x, height, vertexPosition.z, 1.0);
 
-                    gl_Position = fyrox_worldViewProjection * finalVertexPosition;
-                    worldPosition = (fyrox_worldMatrix * finalVertexPosition).xyz;
+                    gl_Position = fyrox_instanceData.worldViewProjection * finalVertexPosition;
+                    worldPosition = (fyrox_instanceData.worldMatrix * finalVertexPosition).xyz;
                     texCoord = actualTexCoords;
                 }
                 "#,

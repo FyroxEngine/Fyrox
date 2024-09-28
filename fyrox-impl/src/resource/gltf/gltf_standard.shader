@@ -98,15 +98,15 @@
                 layout(location = 5) in vec4 boneIndices;
                 layout(location = 6) in vec2 vertexSecondTexCoord;
 
-                // Define uniforms with reserved names. Fyrox will automatically provide
-                // required data to these uniforms.
-                uniform mat4 fyrox_worldMatrix;
-                uniform mat4 fyrox_worldViewProjection;
-                uniform bool fyrox_useSkeletalAnimation;
-                uniform sampler2D fyrox_boneMatrices;
                 uniform sampler3D fyrox_blendShapesStorage;
-                uniform float fyrox_blendShapesWeights[128];
-                uniform int fyrox_blendShapesCount;
+
+                layout(std140) uniform FyroxInstanceData {
+                    TInstanceData fyrox_instanceData;
+                };
+
+                layout(std140) uniform FyroxBoneMatrices {
+                    mat4 fyrox_boneMatrices[256];
+                };
 
                 out vec3 position;
                 out vec3 normal;
@@ -125,25 +125,25 @@
                     vec3 inputNormal = vertexNormal;
                     vec3 inputTangent = vertexTangent.xyz;
 
-                    for (int i = 0; i < fyrox_blendShapesCount; ++i) {
+                    for (int i = 0; i < fyrox_instanceData.blendShapesCount; ++i) {
                         TBlendShapeOffsets offsets = S_FetchBlendShapeOffsets(fyrox_blendShapesStorage, gl_VertexID, i);
-                        float weight = fyrox_blendShapesWeights[i];
+                        float weight = fyrox_instanceData.blendShapesWeights[i];
                         inputPosition.xyz += offsets.position * weight;
                         inputNormal += offsets.normal * weight;
                         inputTangent += offsets.tangent * weight;
                     }
 
-                    if (fyrox_useSkeletalAnimation)
+                    if (fyrox_instanceData.useSkeletalAnimation)
                     {
                         int i0 = int(boneIndices.x);
                         int i1 = int(boneIndices.y);
                         int i2 = int(boneIndices.z);
                         int i3 = int(boneIndices.w);
 
-                        mat4 m0 = S_FetchMatrix(fyrox_boneMatrices, i0);
-                        mat4 m1 = S_FetchMatrix(fyrox_boneMatrices, i1);
-                        mat4 m2 = S_FetchMatrix(fyrox_boneMatrices, i2);
-                        mat4 m3 = S_FetchMatrix(fyrox_boneMatrices, i3);
+                        mat4 m0 = fyrox_boneMatrices[i0];
+                        mat4 m1 = fyrox_boneMatrices[i1];
+                        mat4 m2 = fyrox_boneMatrices[i2];
+                        mat4 m3 = fyrox_boneMatrices[i3];
 
                         localPosition += m0 * inputPosition * boneWeights.x;
                         localPosition += m1 * inputPosition * boneWeights.y;
@@ -167,15 +167,15 @@
                         localTangent = inputTangent;
                     }
 
-                    mat3 nm = mat3(fyrox_worldMatrix);
+                    mat3 nm = mat3(fyrox_instanceData.worldMatrix);
                     normal = normalize(nm * localNormal);
                     tangent = normalize(nm * localTangent);
                     binormal = normalize(vertexTangent.w * cross(normal, tangent));
                     texCoord = vertexTexCoord;
-                    position = vec3(fyrox_worldMatrix * localPosition);
+                    position = vec3(fyrox_instanceData.worldMatrix * localPosition);
                     secondTexCoord = vertexSecondTexCoord;
 
-                    gl_Position = fyrox_worldViewProjection * localPosition;
+                    gl_Position = fyrox_instanceData.worldViewProjection * localPosition;
                 }
                 "#,
             fragment_shader:
@@ -297,12 +297,15 @@
                 layout(location = 4) in vec4 boneWeights;
                 layout(location = 5) in vec4 boneIndices;
 
-                uniform mat4 fyrox_worldViewProjection;
-                uniform bool fyrox_useSkeletalAnimation;
-                uniform sampler2D fyrox_boneMatrices;
                 uniform sampler3D fyrox_blendShapesStorage;
-                uniform float fyrox_blendShapesWeights[128];
-                uniform int fyrox_blendShapesCount;
+
+                layout(std140) uniform FyroxInstanceData {
+                    TInstanceData fyrox_instanceData;
+                };
+
+                layout(std140) uniform FyroxBoneMatrices {
+                    mat4 fyrox_boneMatrices[256];
+                };
 
                 out vec3 position;
                 out vec2 texCoord;
@@ -313,23 +316,23 @@
 
                     vec4 inputPosition = vec4(vertexPosition, 1.0);
 
-                    for (int i = 0; i < fyrox_blendShapesCount; ++i) {
+                    for (int i = 0; i < fyrox_instanceData.blendShapesCount; ++i) {
                         TBlendShapeOffsets offsets = S_FetchBlendShapeOffsets(fyrox_blendShapesStorage, gl_VertexID, i);
-                        float weight = fyrox_blendShapesWeights[i];
+                        float weight = fyrox_instanceData.blendShapesWeights[i];
                         inputPosition.xyz += offsets.position * weight;
                     }
 
-                    if (fyrox_useSkeletalAnimation)
+                    if (fyrox_instanceData.useSkeletalAnimation)
                     {
                         int i0 = int(boneIndices.x);
                         int i1 = int(boneIndices.y);
                         int i2 = int(boneIndices.z);
                         int i3 = int(boneIndices.w);
 
-                        mat4 m0 = S_FetchMatrix(fyrox_boneMatrices, i0);
-                        mat4 m1 = S_FetchMatrix(fyrox_boneMatrices, i1);
-                        mat4 m2 = S_FetchMatrix(fyrox_boneMatrices, i2);
-                        mat4 m3 = S_FetchMatrix(fyrox_boneMatrices, i3);
+                        mat4 m0 = fyrox_boneMatrices[i0];
+                        mat4 m1 = fyrox_boneMatrices[i1];
+                        mat4 m2 = fyrox_boneMatrices[i2];
+                        mat4 m3 = fyrox_boneMatrices[i3];
 
                         localPosition += m0 * inputPosition * boneWeights.x;
                         localPosition += m1 * inputPosition * boneWeights.y;
@@ -340,7 +343,7 @@
                     {
                         localPosition = inputPosition;
                     }
-                    gl_Position = fyrox_worldViewProjection * localPosition;
+                    gl_Position = fyrox_instanceData.worldViewProjection * localPosition;
                     texCoord = vertexTexCoord;
                 }
                "#,
@@ -391,12 +394,15 @@
                 layout(location = 4) in vec4 boneWeights;
                 layout(location = 5) in vec4 boneIndices;
 
-                uniform mat4 fyrox_worldViewProjection;
-                uniform bool fyrox_useSkeletalAnimation;
-                uniform sampler2D fyrox_boneMatrices;
                 uniform sampler3D fyrox_blendShapesStorage;
-                uniform float fyrox_blendShapesWeights[128];
-                uniform int fyrox_blendShapesCount;
+
+                layout(std140) uniform FyroxInstanceData {
+                    TInstanceData fyrox_instanceData;
+                };
+
+                layout(std140) uniform FyroxBoneMatrices {
+                    mat4 fyrox_boneMatrices[256];
+                };
 
                 out vec2 texCoord;
 
@@ -406,20 +412,20 @@
 
                     vec4 inputPosition = vec4(vertexPosition, 1.0);
 
-                    for (int i = 0; i < fyrox_blendShapesCount; ++i) {
+                    for (int i = 0; i < fyrox_instanceData.blendShapesCount; ++i) {
                         TBlendShapeOffsets offsets = S_FetchBlendShapeOffsets(fyrox_blendShapesStorage, gl_VertexID, i);
-                        float weight = fyrox_blendShapesWeights[i];
+                        float weight = fyrox_instanceData.blendShapesWeights[i];
                         inputPosition.xyz += offsets.position * weight;
                     }
 
-                    if (fyrox_useSkeletalAnimation)
+                    if (fyrox_instanceData.useSkeletalAnimation)
                     {
                         vec4 vertex = vec4(vertexPosition, 1.0);
 
-                        mat4 m0 = S_FetchMatrix(fyrox_boneMatrices, int(boneIndices.x));
-                        mat4 m1 = S_FetchMatrix(fyrox_boneMatrices, int(boneIndices.y));
-                        mat4 m2 = S_FetchMatrix(fyrox_boneMatrices, int(boneIndices.z));
-                        mat4 m3 = S_FetchMatrix(fyrox_boneMatrices, int(boneIndices.w));
+                        mat4 m0 = fyrox_boneMatrices[int(boneIndices.x)];
+                        mat4 m1 = fyrox_boneMatrices[int(boneIndices.y)];
+                        mat4 m2 = fyrox_boneMatrices[int(boneIndices.z)];
+                        mat4 m3 = fyrox_boneMatrices[int(boneIndices.w)];
 
                         localPosition += m0 * inputPosition * boneWeights.x;
                         localPosition += m1 * inputPosition * boneWeights.y;
@@ -431,7 +437,7 @@
                         localPosition = inputPosition;
                     }
 
-                    gl_Position = fyrox_worldViewProjection * localPosition;
+                    gl_Position = fyrox_instanceData.worldViewProjection * localPosition;
                     texCoord = vertexTexCoord;
                 }
                 "#,
@@ -479,12 +485,15 @@
                 layout(location = 4) in vec4 boneWeights;
                 layout(location = 5) in vec4 boneIndices;
 
-                uniform mat4 fyrox_worldViewProjection;
-                uniform bool fyrox_useSkeletalAnimation;
-                uniform sampler2D fyrox_boneMatrices;
                 uniform sampler3D fyrox_blendShapesStorage;
-                uniform float fyrox_blendShapesWeights[128];
-                uniform int fyrox_blendShapesCount;
+
+                layout(std140) uniform FyroxInstanceData {
+                    TInstanceData fyrox_instanceData;
+                };
+
+                layout(std140) uniform FyroxBoneMatrices {
+                    mat4 fyrox_boneMatrices[256];
+                };
 
                 out vec2 texCoord;
 
@@ -494,20 +503,20 @@
 
                     vec4 inputPosition = vec4(vertexPosition, 1.0);
 
-                    for (int i = 0; i < fyrox_blendShapesCount; ++i) {
+                    for (int i = 0; i < fyrox_instanceData.blendShapesCount; ++i) {
                         TBlendShapeOffsets offsets = S_FetchBlendShapeOffsets(fyrox_blendShapesStorage, gl_VertexID, i);
-                        float weight = fyrox_blendShapesWeights[i];
+                        float weight = fyrox_instanceData.blendShapesWeights[i];
                         inputPosition.xyz += offsets.position * weight;
                     }
 
-                    if (fyrox_useSkeletalAnimation)
+                    if (fyrox_instanceData.useSkeletalAnimation)
                     {
                         vec4 vertex = vec4(vertexPosition, 1.0);
 
-                        mat4 m0 = S_FetchMatrix(fyrox_boneMatrices, int(boneIndices.x));
-                        mat4 m1 = S_FetchMatrix(fyrox_boneMatrices, int(boneIndices.y));
-                        mat4 m2 = S_FetchMatrix(fyrox_boneMatrices, int(boneIndices.z));
-                        mat4 m3 = S_FetchMatrix(fyrox_boneMatrices, int(boneIndices.w));
+                        mat4 m0 = fyrox_boneMatrices[int(boneIndices.x)];
+                        mat4 m1 = fyrox_boneMatrices[int(boneIndices.y)];
+                        mat4 m2 = fyrox_boneMatrices[int(boneIndices.z)];
+                        mat4 m3 = fyrox_boneMatrices[int(boneIndices.w)];
 
                         localPosition += m0 * inputPosition * boneWeights.x;
                         localPosition += m1 * inputPosition * boneWeights.y;
@@ -519,7 +528,7 @@
                         localPosition = inputPosition;
                     }
 
-                    gl_Position = fyrox_worldViewProjection * localPosition;
+                    gl_Position = fyrox_instanceData.worldViewProjection * localPosition;
                     texCoord = vertexTexCoord;
                 }
                 "#,
@@ -567,13 +576,15 @@
                 layout(location = 4) in vec4 boneWeights;
                 layout(location = 5) in vec4 boneIndices;
 
-                uniform mat4 fyrox_worldMatrix;
-                uniform mat4 fyrox_worldViewProjection;
-                uniform bool fyrox_useSkeletalAnimation;
-                uniform sampler2D fyrox_boneMatrices;
                 uniform sampler3D fyrox_blendShapesStorage;
-                uniform float fyrox_blendShapesWeights[128];
-                uniform int fyrox_blendShapesCount;
+
+                layout(std140) uniform FyroxInstanceData {
+                    TInstanceData fyrox_instanceData;
+                };
+
+                layout(std140) uniform FyroxBoneMatrices {
+                    mat4 fyrox_boneMatrices[256];
+                };
 
                 out vec2 texCoord;
                 out vec3 worldPosition;
@@ -584,20 +595,20 @@
 
                     vec4 inputPosition = vec4(vertexPosition, 1.0);
 
-                    for (int i = 0; i < fyrox_blendShapesCount; ++i) {
+                    for (int i = 0; i < fyrox_instanceData.blendShapesCount; ++i) {
                         TBlendShapeOffsets offsets = S_FetchBlendShapeOffsets(fyrox_blendShapesStorage, gl_VertexID, i);
-                        float weight = fyrox_blendShapesWeights[i];
+                        float weight = fyrox_instanceData.blendShapesWeights[i];
                         inputPosition.xyz += offsets.position * weight;
                     }
 
-                    if (fyrox_useSkeletalAnimation)
+                    if (fyrox_instanceData.useSkeletalAnimation)
                     {
                         vec4 vertex = vec4(vertexPosition, 1.0);
 
-                        mat4 m0 = S_FetchMatrix(fyrox_boneMatrices, int(boneIndices.x));
-                        mat4 m1 = S_FetchMatrix(fyrox_boneMatrices, int(boneIndices.y));
-                        mat4 m2 = S_FetchMatrix(fyrox_boneMatrices, int(boneIndices.z));
-                        mat4 m3 = S_FetchMatrix(fyrox_boneMatrices, int(boneIndices.w));
+                        mat4 m0 = fyrox_boneMatrices[int(boneIndices.x)];
+                        mat4 m1 = fyrox_boneMatrices[int(boneIndices.y)];
+                        mat4 m2 = fyrox_boneMatrices[int(boneIndices.z)];
+                        mat4 m3 = fyrox_boneMatrices[int(boneIndices.w)];
 
                         localPosition += m0 * inputPosition * boneWeights.x;
                         localPosition += m1 * inputPosition * boneWeights.y;
@@ -609,8 +620,8 @@
                         localPosition = inputPosition;
                     }
 
-                    gl_Position = fyrox_worldViewProjection * localPosition;
-                    worldPosition = (fyrox_worldMatrix * localPosition).xyz;
+                    gl_Position = fyrox_instanceData.worldViewProjection * localPosition;
+                    worldPosition = (fyrox_instanceData.worldMatrix * localPosition).xyz;
                     texCoord = vertexTexCoord;
                 }
                 "#,

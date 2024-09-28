@@ -373,3 +373,11 @@ vec2 S_RotateVec2(vec2 v, float angle)
     mat2 m = mat2(c, -s, s, c);
     return m * v;
 }
+
+struct TInstanceData {
+    mat4 worldMatrix;
+    mat4 worldViewProjection;
+    int blendShapesCount;
+    bool useSkeletalAnimation;
+    float blendShapesWeights[128];
+};
