@@ -31,10 +31,11 @@ use crate::{
     scene::{graph::Graph, node::Node},
 };
 use fxhash::FxHashMap;
+use fyrox_graphics::state::GraphicsServer;
 
 #[derive(Debug)]
 struct PendingQuery {
-    query: Query,
+    query: Box<dyn Query>,
     observer_position: Vector3<f32>,
     node: Handle<Node>,
 }
@@ -164,7 +165,7 @@ impl ObserverVisibilityCache {
         observer_position: Vector3<f32>,
         node: Handle<Node>,
     ) -> Result<(), FrameworkError> {
-        let query = Query::new(server)?;
+        let query = server.create_query()?;
         query.begin(QueryKind::AnySamplesPassed);
         self.pending_queries.push(PendingQuery {
             query,

@@ -18,14 +18,14 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::framebuffer::{Attachment, FrameBuffer};
-use crate::gl::framebuffer::GlFrameBuffer;
 use crate::{
     buffer::{Buffer, BufferKind, BufferUsage},
     core::{color::Color, log::Log, math::Rect},
     error::FrameworkError,
-    gl::{self, texture::GlTexture},
+    framebuffer::{Attachment, FrameBuffer},
+    gl::{self, framebuffer::GlFrameBuffer, query::GlQuery, texture::GlTexture},
     gpu_texture::{GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind},
+    query::Query,
     stats::PipelineStatistics,
     BlendEquation, BlendFactor, BlendFunc, BlendMode, ColorMask, CompareFunc, CullFace,
     DrawParameters, PolygonFace, PolygonFillMode, ScissorBox, StencilAction, StencilFunc,
@@ -1020,6 +1020,7 @@ pub trait GraphicsServer: Any {
         color_attachments: Vec<Attachment>,
     ) -> Result<Box<dyn FrameBuffer>, FrameworkError>;
     fn back_buffer(&self) -> Box<dyn FrameBuffer>;
+    fn create_query(&self) -> Result<Box<dyn Query>, FrameworkError>;
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
     fn weak(self: Rc<Self>) -> Weak<dyn GraphicsServer>;
@@ -1033,20 +1034,6 @@ pub trait GraphicsServer: Any {
 }
 
 impl GraphicsServer for GlGraphicsServer {
-    fn create_texture(
-        &self,
-        kind: GpuTextureKind,
-        pixel_kind: PixelKind,
-        min_filter: MinificationFilter,
-        mag_filter: MagnificationFilter,
-        mip_count: usize,
-        data: Option<&[u8]>,
-    ) -> Result<Rc<RefCell<dyn GpuTexture>>, FrameworkError> {
-        Ok(Rc::new(RefCell::new(GlTexture::new(
-            self, kind, pixel_kind, min_filter, mag_filter, mip_count, data,
-        )?)))
-    }
-
     fn create_buffer(
         &self,
         size: usize,
@@ -1059,6 +1046,20 @@ impl GraphicsServer for GlGraphicsServer {
             buffer_kind,
             buffer_usage,
         )?))
+    }
+
+    fn create_texture(
+        &self,
+        kind: GpuTextureKind,
+        pixel_kind: PixelKind,
+        min_filter: MinificationFilter,
+        mag_filter: MagnificationFilter,
+        mip_count: usize,
+        data: Option<&[u8]>,
+    ) -> Result<Rc<RefCell<dyn GpuTexture>>, FrameworkError> {
+        Ok(Rc::new(RefCell::new(GlTexture::new(
+            self, kind, pixel_kind, min_filter, mag_filter, mip_count, data,
+        )?)))
     }
 
     fn create_frame_buffer(
@@ -1075,6 +1076,10 @@ impl GraphicsServer for GlGraphicsServer {
 
     fn back_buffer(&self) -> Box<dyn FrameBuffer> {
         Box::new(GlFrameBuffer::backbuffer(self))
+    }
+
+    fn create_query(&self) -> Result<Box<dyn Query>, FrameworkError> {
+        Ok(Box::new(GlQuery::new(self)?))
     }
 
     fn as_any(&self) -> &dyn Any {
