@@ -133,7 +133,7 @@ impl Buffer for GlBuffer {
 
         unsafe {
             server.gl.bind_buffer(gl_kind, Some(self.id));
-            if data.len() == self.size.get() {
+            if data.len() <= self.size.get() {
                 // Update the data.
                 server.gl.buffer_sub_data_u8_slice(gl_kind, 0, data);
             } else {
