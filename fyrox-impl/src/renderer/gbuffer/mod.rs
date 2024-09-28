@@ -29,6 +29,7 @@
 //! Every alpha channel is used for layer blending for terrains. This is inefficient, but for
 //! now I don't know better solution.
 
+use crate::renderer::cache::uniform::UniformBufferCache;
 use crate::renderer::framework::GeometryBufferExt;
 use crate::{
     core::{
@@ -54,7 +55,6 @@ use crate::{
         },
         gbuffer::decal::DecalShader,
         occlusion::OcclusionTester,
-        storage::MatrixStorageCache,
         GeometryCache, QualitySettings, RenderPassStatistics, TextureCache,
     },
     scene::{
@@ -95,7 +95,7 @@ pub(crate) struct GBufferRenderContext<'a, 'b> {
     pub volume_dummy: Rc<RefCell<dyn GpuTexture>>,
     pub quality_settings: &'a QualitySettings,
     pub graph: &'b Graph,
-    pub matrix_storage: &'a mut MatrixStorageCache,
+    pub uniform_buffer_cache: &'a mut UniformBufferCache,
     #[allow(dead_code)]
     pub screen_space_debug_renderer: &'a mut DebugRenderer,
     pub unit_quad: &'a GeometryBuffer,
@@ -303,7 +303,7 @@ impl GBuffer {
             black_dummy,
             volume_dummy,
             graph,
-            matrix_storage,
+            uniform_buffer_cache,
             unit_quad,
             ..
         } = args;
@@ -353,7 +353,7 @@ impl GBuffer {
                     render_pass_name: &self.render_pass_name,
                     frame_buffer: &mut *self.framebuffer,
                     viewport,
-                    matrix_storage,
+                    uniform_buffer_cache,
                     view_projection_matrix: &view_projection,
                     camera_position: &camera.global_position(),
                     camera_up_vector: &camera_up,

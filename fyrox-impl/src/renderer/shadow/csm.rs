@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::renderer::cache::uniform::UniformBufferCache;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
@@ -36,7 +37,6 @@ use crate::{
             },
             state::GlGraphicsServer,
         },
-        storage::MatrixStorageCache,
         RenderPassStatistics, ShadowMapPrecision, DIRECTIONAL_SHADOW_PASS_NAME,
     },
     scene::{
@@ -125,7 +125,7 @@ pub(crate) struct CsmRenderContext<'a, 'c> {
     pub white_dummy: Rc<RefCell<dyn GpuTexture>>,
     pub black_dummy: Rc<RefCell<dyn GpuTexture>>,
     pub volume_dummy: Rc<RefCell<dyn GpuTexture>>,
-    pub matrix_storage: &'a mut MatrixStorageCache,
+    pub uniform_buffer_cache: &'a mut UniformBufferCache,
 }
 
 impl CsmRenderer {
@@ -176,7 +176,7 @@ impl CsmRenderer {
             white_dummy,
             black_dummy,
             volume_dummy,
-            matrix_storage,
+            uniform_buffer_cache,
         } = ctx;
 
         let light_direction = -light
@@ -291,7 +291,7 @@ impl CsmRenderer {
                         render_pass_name: &DIRECTIONAL_SHADOW_PASS_NAME,
                         frame_buffer: framebuffer,
                         viewport,
-                        matrix_storage,
+                        uniform_buffer_cache,
                         view_projection_matrix: &light_view_projection,
                         camera_position: &camera.global_position(),
                         camera_up_vector: &camera_up,

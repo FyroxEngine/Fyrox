@@ -32,16 +32,20 @@ use crate::{
     graph::BaseSceneGraph,
     material::{shader::SamplerFallback, Material, MaterialResource, PropertyValue},
     renderer::{
-        cache::{geometry::GeometryCache, shader::ShaderCache, texture::TextureCache, TimeToLive},
+        cache::{
+            geometry::GeometryCache, shader::ShaderCache, texture::TextureCache,
+            uniform::UniformBufferCache, TimeToLive,
+        },
         framework::{
             error::FrameworkError,
             framebuffer::FrameBuffer,
-            gpu_program::{BuiltInUniform, GpuProgramBinding},
+            gl::framebuffer::GlFrameBuffer,
+            gpu_program::{BuiltInUniform, BuiltInUniformBlock, GpuProgramBinding},
             gpu_texture::GpuTexture,
-            state::GlGraphicsServer,
+            state::{GlGraphicsServer, GraphicsServer},
+            uniform::StaticUniformBuffer,
             ElementRange,
         },
-        storage::MatrixStorageCache,
         LightData, RenderPassStatistics,
     },
     resource::texture::TextureResource,
@@ -59,8 +63,6 @@ use crate::{
     },
 };
 use fxhash::{FxBuildHasher, FxHashMap, FxHasher};
-use fyrox_graphics::gl::framebuffer::GlFrameBuffer;
-use fyrox_graphics::state::GraphicsServer;
 use std::{
     cell::RefCell,
     collections::hash_map::DefaultHasher,
@@ -127,8 +129,7 @@ impl<'a> RenderContext<'a> {
 
 #[allow(missing_docs)] // TODO
 pub struct InstanceContext<'a> {
-    pub matrix_storage: &'a mut MatrixStorageCache,
-    pub persistent_identifier: PersistentIdentifier,
+    pub uniform_buffer_cache: &'a mut UniformBufferCache,
 
     pub world_matrix: &'a Matrix4<f32>,
     pub wvp_matrix: &'a Matrix4<f32>,
@@ -141,14 +142,27 @@ impl<'a> InstanceContext<'a> {
     #[allow(missing_docs)] // TODO
     pub fn apply_to(self, program_binding: &mut GpuProgramBinding) {
         let InstanceContext {
-            matrix_storage,
-            persistent_identifier,
+            uniform_buffer_cache,
             world_matrix,
             wvp_matrix,
             bone_matrices,
             use_skeletal_animation,
             blend_shapes_weights,
         } = self;
+
+        let built_in_uniform_blocks = &program_binding.program.built_in_uniform_blocks;
+
+        if let Some(location) = &built_in_uniform_blocks[BuiltInUniformBlock::BoneMatrices as usize]
+        {
+            let mut uniform_buffer = StaticUniformBuffer::<16384>::new();
+            uniform_buffer.push_slice(bone_matrices);
+            let bytes = uniform_buffer.finish();
+            let buffer = uniform_buffer_cache
+                .get_or_create(program_binding.state, 16384)
+                .unwrap();
+            buffer.write_data(&bytes).unwrap();
+            program_binding.bind_uniform_buffer(buffer, *location, 0);
+        }
 
         let built_in_uniforms = &program_binding.program.built_in_uniform_locations;
 
@@ -161,15 +175,7 @@ impl<'a> InstanceContext<'a> {
         {
             program_binding.set_matrix4(location, wvp_matrix);
         }
-        if let Some(location) = &built_in_uniforms[BuiltInUniform::BoneMatrices as usize] {
-            let active_sampler = program_binding.active_sampler();
 
-            let storage = matrix_storage
-                .try_upload(program_binding.state, persistent_identifier, bone_matrices)
-                .expect("Failed to upload bone matrices!");
-
-            program_binding.set_texture_to_sampler(location, storage.texture(), active_sampler);
-        }
         if let Some(location) = &built_in_uniforms[BuiltInUniform::UseSkeletalAnimation as usize] {
             program_binding.set_bool(location, use_skeletal_animation);
         }
@@ -189,7 +195,7 @@ pub struct BundleRenderContext<'a> {
     pub render_pass_name: &'a ImmutableString,
     pub frame_buffer: &'a dyn FrameBuffer,
     pub viewport: Rect<i32>,
-    pub matrix_storage: &'a mut MatrixStorageCache,
+    pub uniform_buffer_cache: &'a mut UniformBufferCache,
 
     // Built-in uniforms.
     pub view_projection_matrix: &'a Matrix4<f32>,
@@ -510,13 +516,12 @@ impl RenderDataBundle {
             }
 
             InstanceContext {
+                uniform_buffer_cache: render_context.uniform_buffer_cache,
                 world_matrix: &instance.world_transform,
                 wvp_matrix: &(render_context.view_projection_matrix * instance.world_transform),
                 bone_matrices: &instance.bone_matrices,
                 use_skeletal_animation: !instance.bone_matrices.is_empty(),
                 blend_shapes_weights: &instance.blend_shapes_weights,
-                matrix_storage: render_context.matrix_storage,
-                persistent_identifier: instance.persistent_identifier,
             }
             .apply_to(&mut program_binding);
 

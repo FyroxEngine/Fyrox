@@ -47,6 +47,13 @@ pub struct GpuProgram {
     thread_mark: PhantomData<*const u8>,
     uniform_locations: RefCell<FxHashMap<ImmutableString, Option<UniformLocation>>>,
     pub built_in_uniform_locations: [Option<UniformLocation>; BuiltInUniform::Count as usize],
+    pub built_in_uniform_blocks: [Option<u32>; BuiltInUniformBlock::Count as usize],
+}
+
+#[repr(usize)]
+pub enum BuiltInUniformBlock {
+    BoneMatrices,
+    Count,
 }
 
 #[repr(usize)]
@@ -54,7 +61,6 @@ pub enum BuiltInUniform {
     WorldMatrix,
     ViewProjectionMatrix,
     WorldViewProjectionMatrix,
-    BoneMatrices,
     UseSkeletalAnimation,
     CameraPosition,
     CameraUpVector,
@@ -496,6 +502,24 @@ fn fetch_uniform_location(
     }
 }
 
+pub fn fetch_uniform_block_index(
+    server: &GlGraphicsServer,
+    program: glow::Program,
+    name: &str,
+) -> Option<u32> {
+    unsafe { server.gl.get_uniform_block_index(program, name) }
+}
+
+fn fetch_built_in_uniform_blocks(
+    server: &GlGraphicsServer,
+    program: glow::Program,
+) -> [Option<u32>; BuiltInUniformBlock::Count as usize] {
+    let mut locations = [None; BuiltInUniformBlock::Count as usize];
+    locations[BuiltInUniformBlock::BoneMatrices as usize] =
+        fetch_uniform_block_index(server, program, "FyroxBoneMatrices");
+    locations
+}
+
 fn fetch_built_in_uniform_locations(
     server: &GlGraphicsServer,
     program: glow::Program,
@@ -510,8 +534,6 @@ fn fetch_built_in_uniform_locations(
     locations[BuiltInUniform::WorldViewProjectionMatrix as usize] =
         fetch_uniform_location(server, program, "fyrox_worldViewProjection");
 
-    locations[BuiltInUniform::BoneMatrices as usize] =
-        fetch_uniform_location(server, program, "fyrox_boneMatrices");
     locations[BuiltInUniform::UseSkeletalAnimation as usize] =
         fetch_uniform_location(server, program, "fyrox_useSkeletalAnimation");
 
@@ -616,6 +638,7 @@ impl GpuProgram {
                     thread_mark: PhantomData,
                     uniform_locations: Default::default(),
                     built_in_uniform_locations: fetch_built_in_uniform_locations(server, program),
+                    built_in_uniform_blocks: fetch_built_in_uniform_blocks(server, program),
                 })
             }
         }

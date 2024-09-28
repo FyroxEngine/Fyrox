@@ -799,7 +799,7 @@ pub struct SceneRenderPassContext<'a, 'b> {
     /// # Important notes
     ///
     /// Keep in mind that G-Buffer cannot be modified in custom render passes, so you don't
-    /// have an ability to write to this texture. However you can still write to depth of
+    /// have an ability to write to this texture. However, you can still write to depth of
     /// the frame buffer as you'd normally do.
     pub depth_texture: Rc<RefCell<dyn GpuTexture>>,
 
@@ -822,8 +822,8 @@ pub struct SceneRenderPassContext<'a, 'b> {
     /// User interface renderer.
     pub ui_renderer: &'a mut UiRenderer,
 
-    /// Matrix storage is container of procedural textures that stores matrices for bones.
-    pub matrix_storage: &'a mut MatrixStorageCache,
+    /// A cache of uniform buffers.
+    pub uniform_buffer_cache: &'a mut UniformBufferCache,
 }
 
 /// A trait for custom scene rendering pass. It could be used to add your own rendering techniques.
@@ -1411,7 +1411,7 @@ impl Renderer {
                     black_dummy: self.black_dummy.clone(),
                     volume_dummy: self.volume_dummy.clone(),
                     graph,
-                    matrix_storage: &mut self.matrix_storage,
+                    uniform_buffer_cache: &mut self.uniform_buffer_cache,
                     screen_space_debug_renderer: &mut self.screen_space_debug_renderer,
                     unit_quad: &self.quad,
                 })?;
@@ -1449,7 +1449,7 @@ impl Renderer {
                         normal_dummy: self.normal_dummy.clone(),
                         black_dummy: self.black_dummy.clone(),
                         volume_dummy: self.volume_dummy.clone(),
-                        matrix_storage: &mut self.matrix_storage,
+                        uniform_buffer_cache: &mut self.uniform_buffer_cache,
                         visibility_cache,
                     })?;
 
@@ -1475,7 +1475,7 @@ impl Renderer {
                     black_dummy: self.black_dummy.clone(),
                     volume_dummy: self.volume_dummy.clone(),
                     scene_depth: depth,
-                    matrix_storage: &mut self.matrix_storage,
+                    uniform_buffer_cache: &mut self.uniform_buffer_cache,
                     ambient_light: scene.rendering_options.ambient_lighting_color,
                 })?;
 
@@ -1505,7 +1505,7 @@ impl Renderer {
                             ambient_texture: scene_associated_data.gbuffer.ambient_texture(),
                             framebuffer: &mut *scene_associated_data.hdr_scene_framebuffer,
                             ui_renderer: &mut self.ui_renderer,
-                            matrix_storage: &mut self.matrix_storage,
+                            uniform_buffer_cache: &mut self.uniform_buffer_cache,
                         })?;
             }
 
@@ -1585,7 +1585,7 @@ impl Renderer {
                             ambient_texture: scene_associated_data.gbuffer.ambient_texture(),
                             framebuffer: &mut *scene_associated_data.ldr_scene_framebuffer,
                             ui_renderer: &mut self.ui_renderer,
-                            matrix_storage: &mut self.matrix_storage,
+                            uniform_buffer_cache: &mut self.uniform_buffer_cache,
                         })?;
             }
         }

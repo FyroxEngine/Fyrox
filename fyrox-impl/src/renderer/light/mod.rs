@@ -18,7 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::framework::GeometryBufferExt;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3},
@@ -27,13 +26,13 @@ use crate::{
     },
     graph::SceneGraph,
     renderer::{
-        cache::shader::ShaderCache,
+        cache::{shader::ShaderCache, uniform::UniformBufferCache},
         flat_shader::FlatShader,
         framework::{
-            error::FrameworkError, framebuffer::FrameBuffer, geometry_buffer::GeometryBuffer,
-            gpu_texture::GpuTexture, state::GlGraphicsServer, BlendFactor, BlendFunc,
-            BlendParameters, ColorMask, CompareFunc, CullFace, DrawParameters, ElementRange,
-            StencilAction, StencilFunc, StencilOp,
+            buffer::BufferUsage, error::FrameworkError, framebuffer::FrameBuffer,
+            geometry_buffer::GeometryBuffer, gpu_texture::GpuTexture, state::GlGraphicsServer,
+            BlendFactor, BlendFunc, BlendParameters, ColorMask, CompareFunc, CullFace,
+            DrawParameters, ElementRange, GeometryBufferExt, StencilAction, StencilFunc, StencilOp,
         },
         gbuffer::GBuffer,
         light::{
@@ -48,7 +47,6 @@ use crate::{
         },
         skybox_shader::SkyboxShader,
         ssao::ScreenSpaceAmbientOcclusionRenderer,
-        storage::MatrixStorageCache,
         visibility::ObserverVisibilityCache,
         GeometryCache, LightingStatistics, QualitySettings, RenderPassStatistics, TextureCache,
     },
@@ -63,7 +61,6 @@ use crate::{
         Scene,
     },
 };
-use fyrox_graphics::buffer::BufferUsage;
 use std::{cell::RefCell, rc::Rc};
 
 pub mod ambient;
@@ -104,7 +101,7 @@ pub(crate) struct DeferredRendererContext<'a> {
     pub white_dummy: Rc<RefCell<dyn GpuTexture>>,
     pub black_dummy: Rc<RefCell<dyn GpuTexture>>,
     pub volume_dummy: Rc<RefCell<dyn GpuTexture>>,
-    pub matrix_storage: &'a mut MatrixStorageCache,
+    pub uniform_buffer_cache: &'a mut UniformBufferCache,
     pub visibility_cache: &'a mut ObserverVisibilityCache,
 }
 
@@ -292,7 +289,7 @@ impl DeferredLightRenderer {
             frame_buffer,
             black_dummy,
             volume_dummy,
-            matrix_storage,
+            uniform_buffer_cache,
             visibility_cache,
         } = args;
 
@@ -656,7 +653,7 @@ impl DeferredLightRenderer {
                         white_dummy.clone(),
                         black_dummy.clone(),
                         volume_dummy.clone(),
-                        matrix_storage,
+                        uniform_buffer_cache,
                     )?;
 
                     light_stats.spot_shadow_maps_rendered += 1;
@@ -676,7 +673,7 @@ impl DeferredLightRenderer {
                                 white_dummy: white_dummy.clone(),
                                 black_dummy: black_dummy.clone(),
                                 volume_dummy: volume_dummy.clone(),
-                                matrix_storage,
+                                uniform_buffer_cache,
                             })?;
 
                     light_stats.point_shadow_maps_rendered += 1;
@@ -694,7 +691,7 @@ impl DeferredLightRenderer {
                         white_dummy: white_dummy.clone(),
                         black_dummy: black_dummy.clone(),
                         volume_dummy: volume_dummy.clone(),
-                        matrix_storage,
+                        uniform_buffer_cache,
                     })?;
 
                     light_stats.csm_rendered += 1;

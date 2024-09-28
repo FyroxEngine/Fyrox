@@ -278,7 +278,7 @@ impl SceneRenderPass for HighlightRenderPass {
                         white_dummy: &ctx.white_dummy,
                         black_dummy: &ctx.black_dummy,
                         volume_dummy: &ctx.volume_dummy,
-                        matrix_storage: ctx.matrix_storage,
+                        uniform_buffer_cache: ctx.uniform_buffer_cache,
                         light_data: None,
                         ambient_light: Default::default(),
                         scene_depth: Some(&ctx.depth_texture),

@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::renderer::cache::uniform::UniformBufferCache;
 use crate::{
     core::{
         algebra::{Matrix4, Vector3},
@@ -37,7 +38,6 @@ use crate::{
             state::GlGraphicsServer,
         },
         shadow::cascade_size,
-        storage::MatrixStorageCache,
         GeometryCache, RenderPassStatistics, ShadowMapPrecision, SPOT_SHADOW_PASS_NAME,
     },
     scene::graph::Graph,
@@ -150,7 +150,7 @@ impl SpotShadowMapRenderer {
         white_dummy: Rc<RefCell<dyn GpuTexture>>,
         black_dummy: Rc<RefCell<dyn GpuTexture>>,
         volume_dummy: Rc<RefCell<dyn GpuTexture>>,
-        matrix_storage: &mut MatrixStorageCache,
+        uniform_buffer_cache: &mut UniformBufferCache,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut statistics = RenderPassStatistics::default();
 
@@ -189,7 +189,7 @@ impl SpotShadowMapRenderer {
                     render_pass_name: &SPOT_SHADOW_PASS_NAME,
                     frame_buffer: framebuffer,
                     viewport,
-                    matrix_storage,
+                    uniform_buffer_cache,
                     view_projection_matrix: &light_view_projection,
                     camera_position: &Default::default(),
                     camera_up_vector: &camera_up,

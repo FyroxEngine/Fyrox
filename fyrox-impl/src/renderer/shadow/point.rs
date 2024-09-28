@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::renderer::cache::uniform::UniformBufferCache;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector3},
@@ -37,7 +38,6 @@ use crate::{
             state::GlGraphicsServer,
         },
         shadow::cascade_size,
-        storage::MatrixStorageCache,
         GeometryCache, RenderPassStatistics, ShadowMapPrecision, POINT_SHADOW_PASS_NAME,
     },
     scene::graph::Graph,
@@ -71,7 +71,7 @@ pub(crate) struct PointShadowMapRenderContext<'a> {
     pub white_dummy: Rc<RefCell<dyn GpuTexture>>,
     pub black_dummy: Rc<RefCell<dyn GpuTexture>>,
     pub volume_dummy: Rc<RefCell<dyn GpuTexture>>,
-    pub matrix_storage: &'a mut MatrixStorageCache,
+    pub uniform_buffer_cache: &'a mut UniformBufferCache,
 }
 
 impl PointShadowMapRenderer {
@@ -223,7 +223,7 @@ impl PointShadowMapRenderer {
             white_dummy,
             black_dummy,
             volume_dummy,
-            matrix_storage,
+            uniform_buffer_cache,
         } = args;
 
         let framebuffer = &mut *self.cascades[cascade];
@@ -275,7 +275,7 @@ impl PointShadowMapRenderer {
                         render_pass_name: &POINT_SHADOW_PASS_NAME,
                         frame_buffer: framebuffer,
                         viewport,
-                        matrix_storage,
+                        uniform_buffer_cache,
                         view_projection_matrix: &light_view_projection_matrix,
                         camera_position: &Default::default(),
                         camera_up_vector: &camera_up,

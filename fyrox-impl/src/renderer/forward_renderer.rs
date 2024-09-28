@@ -27,6 +27,7 @@
 //! path).
 
 use crate::renderer::bundle::BundleRenderContext;
+use crate::renderer::cache::uniform::UniformBufferCache;
 use crate::{
     core::{
         algebra::{Vector2, Vector4},
@@ -41,7 +42,6 @@ use crate::{
             error::FrameworkError, framebuffer::FrameBuffer, gpu_texture::GpuTexture,
             state::GlGraphicsServer,
         },
-        storage::MatrixStorageCache,
         GeometryCache, LightData, QualitySettings, RenderPassStatistics,
     },
     scene::{
@@ -73,7 +73,7 @@ pub(crate) struct ForwardRenderContext<'a, 'b> {
     pub black_dummy: Rc<RefCell<dyn GpuTexture>>,
     pub volume_dummy: Rc<RefCell<dyn GpuTexture>>,
     pub scene_depth: Rc<RefCell<dyn GpuTexture>>,
-    pub matrix_storage: &'a mut MatrixStorageCache,
+    pub uniform_buffer_cache: &'a mut UniformBufferCache,
     pub ambient_light: Color,
 }
 
@@ -106,7 +106,7 @@ impl ForwardRenderer {
             black_dummy,
             volume_dummy,
             scene_depth,
-            matrix_storage,
+            uniform_buffer_cache,
             ambient_light,
         } = args;
 
@@ -181,7 +181,7 @@ impl ForwardRenderer {
                     render_pass_name: &self.render_pass_name,
                     frame_buffer: framebuffer,
                     viewport,
-                    matrix_storage,
+                    uniform_buffer_cache,
                     view_projection_matrix: &view_projection,
                     camera_position: &camera.global_position(),
                     camera_up_vector: &camera_up,
