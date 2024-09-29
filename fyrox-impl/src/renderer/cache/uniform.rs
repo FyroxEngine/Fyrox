@@ -27,6 +27,7 @@ use crate::renderer::framework::{
     state::GraphicsServer,
 };
 use fxhash::FxHashMap;
+use std::cell::RefCell;
 
 #[derive(Default)]
 struct UniformBufferSet {
@@ -65,25 +66,30 @@ impl UniformBufferSet {
 /// of a GPU for very fast access.
 #[derive(Default)]
 pub struct UniformBufferCache {
-    cache: FxHashMap<usize, UniformBufferSet>,
+    cache: RefCell<FxHashMap<usize, UniformBufferSet>>,
 }
 
 impl UniformBufferCache {
     /// Reserves one of the existing uniform buffers of the given size. If there's no such free buffer,
     /// this method creates a new one and reserves it for further use.
-    pub fn get_or_create(
-        &mut self,
+    pub fn get_or_create<'a>(
+        &'a self,
         server: &dyn GraphicsServer,
         size: usize,
-    ) -> Result<&dyn Buffer, FrameworkError> {
-        let set = self.cache.entry(size).or_default();
-        set.get_or_create(size, server)
+    ) -> Result<&'a dyn Buffer, FrameworkError> {
+        let mut cache = self.cache.borrow_mut();
+        let set = cache.entry(size).or_default();
+        let buffer = set.get_or_create(size, server)?;
+        // SAFETY: GPU buffer "lives" in memory heap, so any potential memory reallocation of the
+        // hash map won't affect the returned reference. Also, buffers cannot be deleted so the
+        // reference is also valid. These reasons allows to extend lifetime to the lifetime of self.
+        Ok(unsafe { std::mem::transmute::<&'_ dyn Buffer, &'a dyn Buffer>(buffer) })
     }
 
     /// Marks all reserved buffers as unused. Must be called at least once per frame to prevent
     /// uncontrollable growth of the cache.
     pub fn mark_all_unused(&mut self) {
-        for set in self.cache.values_mut() {
+        for set in self.cache.borrow_mut().values_mut() {
             set.mark_unused();
         }
     }

@@ -251,6 +251,7 @@ impl LightVolumeRenderer {
                     },
                     scissor_box: None,
                 },
+                &[], // TODO
                 ElementRange::Full,
                 &mut |mut program_binding| {
                     program_binding.set_matrix4(&self.flat_shader.wvp_matrix, &mvp);
@@ -287,6 +288,7 @@ impl LightVolumeRenderer {
                     },
                     scissor_box: None,
                 },
+                &[], // TODO
                 ElementRange::Full,
                 &mut |mut program_binding| {
                     program_binding
@@ -342,6 +344,7 @@ impl LightVolumeRenderer {
                     },
                     scissor_box: None,
                 },
+                &[], // TODO
                 ElementRange::Full,
                 &mut |mut program_binding| {
                     program_binding.set_matrix4(&self.flat_shader.wvp_matrix, &mvp);
@@ -378,6 +381,7 @@ impl LightVolumeRenderer {
                     },
                     scissor_box: None,
                 },
+                &[], // TODO
                 ElementRange::Full,
                 &mut |mut program_binding| {
                     program_binding

@@ -265,7 +265,7 @@ impl SceneRenderPass for HighlightRenderPass {
                     BundleRenderContext {
                         texture_cache: ctx.texture_cache,
                         render_pass_name: &render_pass_name,
-                        frame_buffer: &*self.framebuffer,
+                        frame_buffer: &mut *self.framebuffer,
                         view_projection_matrix: &view_projection,
                         camera_position: &ctx.camera.global_position(),
                         camera_up_vector: &camera_up,
@@ -321,6 +321,7 @@ impl SceneRenderPass for HighlightRenderPass {
                     stencil_op: Default::default(),
                     scissor_box: None,
                 },
+                &[], // TODO
                 ElementRange::Full,
                 &mut |mut program_binding| {
                     program_binding

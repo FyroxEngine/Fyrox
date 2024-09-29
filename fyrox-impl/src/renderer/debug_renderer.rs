@@ -170,6 +170,7 @@ impl DebugRenderer {
                 stencil_op: Default::default(),
                 scissor_box: None,
             },
+            &[], // TODO
             ElementRange::Full,
             &mut |mut program_binding| {
                 program_binding.set_matrix4(&self.shader.wvp_matrix, &view_projection);

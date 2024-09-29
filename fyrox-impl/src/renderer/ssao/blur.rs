@@ -142,6 +142,7 @@ impl Blur {
                 stencil_op: Default::default(),
                 scissor_box: None,
             },
+            &[], // TODO
             ElementRange::Full,
             &mut |mut program_binding| {
                 program_binding

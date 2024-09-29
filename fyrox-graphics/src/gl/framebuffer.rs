@@ -19,14 +19,15 @@
 // SOFTWARE.
 
 use crate::{
+    buffer::{Buffer, BufferKind},
     core::{color::Color, math::Rect},
     error::FrameworkError,
-    framebuffer::{Attachment, AttachmentKind, FrameBuffer},
+    framebuffer::{Attachment, AttachmentKind, FrameBuffer, ResourceBinding},
     geometry_buffer::{DrawCallStatistics, GeometryBuffer},
-    gl::texture::GlTexture,
+    gl::{buffer::GlBuffer, texture::GlTexture},
     gpu_program::{GpuProgram, GpuProgramBinding},
     gpu_texture::{CubeMapFace, GpuTexture, GpuTextureKind, PixelElementKind},
-    state::{GlGraphicsServer, GraphicsServer, ToGlConstant},
+    state::{GlGraphicsServer, ToGlConstant},
     ColorMask, DrawParameters, ElementRange,
 };
 use glow::HasContext;
@@ -307,6 +308,7 @@ impl FrameBuffer for GlFrameBuffer {
         viewport: Rect<i32>,
         program: &GpuProgram,
         params: &DrawParameters,
+        resources: &[ResourceBinding],
         element_range: ElementRange,
         apply_uniforms: &mut dyn FnMut(GpuProgramBinding<'_, '_>),
     ) -> Result<DrawCallStatistics, FrameworkError> {
@@ -318,6 +320,7 @@ impl FrameBuffer for GlFrameBuffer {
             viewport,
             program,
             params,
+            resources,
             apply_uniforms,
         );
 
@@ -331,6 +334,7 @@ impl FrameBuffer for GlFrameBuffer {
         viewport: Rect<i32>,
         program: &GpuProgram,
         params: &DrawParameters,
+        resources: &[ResourceBinding],
         apply_uniforms: &mut dyn FnMut(GpuProgramBinding<'_, '_>),
     ) -> DrawCallStatistics {
         let server = self.state.upgrade().unwrap();
@@ -341,6 +345,7 @@ impl FrameBuffer for GlFrameBuffer {
             viewport,
             program,
             params,
+            resources,
             apply_uniforms,
         );
 
@@ -354,6 +359,7 @@ fn pre_draw(
     viewport: Rect<i32>,
     program: &GpuProgram,
     params: &DrawParameters,
+    resources: &[ResourceBinding],
     apply_uniforms: &mut dyn FnMut(GpuProgramBinding<'_, '_>),
 ) {
     server.set_framebuffer(fbo);
@@ -361,6 +367,58 @@ fn pre_draw(
     server.apply_draw_parameters(params);
 
     let program_binding = program.bind(server);
+
+    let mut texture_unit = 0;
+    let mut buffer_binding = 0;
+    for binding in resources {
+        match binding {
+            ResourceBinding::Texture {
+                texture,
+                shader_location,
+            } => {
+                let texture = texture.as_any().downcast_ref::<GlTexture>().unwrap();
+                unsafe {
+                    server
+                        .gl
+                        .uniform_1_i32(Some(&shader_location.id), texture_unit)
+                };
+                texture.bind(server, texture_unit as u32);
+                texture_unit += 1;
+            }
+            ResourceBinding::Buffer {
+                buffer,
+                shader_location,
+            } => {
+                let gl_buffer = buffer
+                    .as_any()
+                    .downcast_ref::<GlBuffer>()
+                    .expect("Must be OpenGL buffer");
+
+                unsafe {
+                    server.gl.bind_buffer_base(
+                        gl_buffer.kind().into_gl(),
+                        buffer_binding,
+                        Some(gl_buffer.id),
+                    );
+
+                    match gl_buffer.kind() {
+                        BufferKind::Uniform => server.gl.uniform_block_binding(
+                            program_binding.program.id,
+                            *shader_location,
+                            buffer_binding,
+                        ),
+                        BufferKind::Vertex
+                        | BufferKind::Index
+                        | BufferKind::PixelRead
+                        | BufferKind::PixelWrite => {}
+                    }
+
+                    buffer_binding += 1;
+                }
+            }
+        }
+    }
+
     apply_uniforms(program_binding);
 }
 

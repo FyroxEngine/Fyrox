@@ -39,10 +39,9 @@ use crate::{
         framework::{
             error::FrameworkError,
             framebuffer::FrameBuffer,
-            gl::framebuffer::GlFrameBuffer,
             gpu_program::{BuiltInUniform, BuiltInUniformBlock, GpuProgramBinding},
             gpu_texture::GpuTexture,
-            state::{GlGraphicsServer, GraphicsServer},
+            state::GlGraphicsServer,
             uniform::StaticUniformBuffer,
             ElementRange,
         },
@@ -63,6 +62,8 @@ use crate::{
     },
 };
 use fxhash::{FxBuildHasher, FxHashMap, FxHasher};
+use fyrox_core::arrayvec::ArrayVec;
+use fyrox_graphics::framebuffer::ResourceBinding;
 use std::{
     cell::RefCell,
     collections::hash_map::DefaultHasher,
@@ -128,64 +129,10 @@ impl<'a> RenderContext<'a> {
 }
 
 #[allow(missing_docs)] // TODO
-pub struct InstanceContext<'a> {
-    pub uniform_buffer_cache: &'a mut UniformBufferCache,
-
-    pub world_matrix: &'a Matrix4<f32>,
-    pub wvp_matrix: &'a Matrix4<f32>,
-    pub bone_matrices: &'a [Matrix4<f32>],
-    pub use_skeletal_animation: bool,
-    pub blend_shapes_weights: &'a [f32],
-}
-
-impl<'a> InstanceContext<'a> {
-    #[allow(missing_docs)] // TODO
-    pub fn apply_to(self, program_binding: &mut GpuProgramBinding) -> Result<(), FrameworkError> {
-        let InstanceContext {
-            uniform_buffer_cache,
-            world_matrix,
-            wvp_matrix,
-            bone_matrices,
-            use_skeletal_animation,
-            blend_shapes_weights,
-        } = self;
-
-        let built_in_uniform_blocks = &program_binding.program.built_in_uniform_blocks;
-
-        if let Some(location) = &built_in_uniform_blocks[BuiltInUniformBlock::BoneMatrices as usize]
-        {
-            let mut uniform_buffer = StaticUniformBuffer::<16384>::new();
-            uniform_buffer.push_slice(bone_matrices);
-            let bytes = uniform_buffer.finish();
-            let buffer = uniform_buffer_cache.get_or_create(program_binding.state, 16384)?;
-            buffer.write_data(&bytes)?;
-            program_binding.bind_uniform_buffer(buffer, *location, 0);
-        }
-
-        if let Some(location) = &built_in_uniform_blocks[BuiltInUniformBlock::InstanceData as usize]
-        {
-            let mut uniform_buffer = StaticUniformBuffer::<4096>::new();
-            uniform_buffer
-                .push(world_matrix)
-                .push(wvp_matrix)
-                .push(&(blend_shapes_weights.len() as i32))
-                .push(&use_skeletal_animation)
-                .push_slice(blend_shapes_weights);
-            let bytes = uniform_buffer.finish();
-            let buffer = uniform_buffer_cache.get_or_create(program_binding.state, 4096)?;
-            buffer.write_data(&bytes)?;
-            program_binding.bind_uniform_buffer(buffer, *location, 1);
-        }
-
-        Ok(())
-    }
-}
-
-#[allow(missing_docs)] // TODO
 pub struct BundleRenderContext<'a> {
     pub texture_cache: &'a mut TextureCache,
     pub render_pass_name: &'a ImmutableString,
-    pub frame_buffer: &'a dyn FrameBuffer,
+    pub frame_buffer: &'a mut dyn FrameBuffer,
     pub viewport: Rect<i32>,
     pub uniform_buffer_cache: &'a mut UniformBufferCache,
 
@@ -487,37 +434,63 @@ impl RenderDataBundle {
             return Ok(stats);
         };
 
-        // TODO: Replace with abstraction.
-        let frame_buffer = render_context
-            .frame_buffer
-            .as_any()
-            .downcast_ref::<GlFrameBuffer>()
-            .unwrap();
-        server.set_framebuffer(frame_buffer.id());
-        server.set_viewport(render_context.viewport);
-        server.apply_draw_parameters(&render_pass.draw_params);
-
         let mut program_binding = render_pass.program.bind(server);
         render_context.apply_material(material, &mut program_binding, blend_shapes_storage);
-
-        let geometry_binding = geometry.bind(server);
 
         for instance in self.instances.iter() {
             if !instance_filter(instance) {
                 continue;
             }
+            let mut resource_bindings = ArrayVec::<ResourceBinding, 32>::new();
 
-            InstanceContext {
-                uniform_buffer_cache: render_context.uniform_buffer_cache,
-                world_matrix: &instance.world_transform,
-                wvp_matrix: &(render_context.view_projection_matrix * instance.world_transform),
-                bone_matrices: &instance.bone_matrices,
-                use_skeletal_animation: !instance.bone_matrices.is_empty(),
-                blend_shapes_weights: &instance.blend_shapes_weights,
+            let built_in_uniform_blocks = &program_binding.program.built_in_uniform_blocks;
+
+            if let Some(location) =
+                &built_in_uniform_blocks[BuiltInUniformBlock::BoneMatrices as usize]
+            {
+                let mut uniform_buffer = StaticUniformBuffer::<16384>::new();
+                uniform_buffer.push_slice(&instance.bone_matrices);
+                let bytes = uniform_buffer.finish();
+                let buffer = render_context
+                    .uniform_buffer_cache
+                    .get_or_create(program_binding.state, 16384)?;
+                buffer.write_data(&bytes)?;
+                resource_bindings.push(ResourceBinding::Buffer {
+                    buffer,
+                    shader_location: *location,
+                })
             }
-            .apply_to(&mut program_binding)?;
 
-            stats += geometry_binding.draw(instance.element_range)?;
+            if let Some(location) =
+                &built_in_uniform_blocks[BuiltInUniformBlock::InstanceData as usize]
+            {
+                let mut uniform_buffer = StaticUniformBuffer::<4096>::new();
+                uniform_buffer
+                    .push(&instance.world_transform)
+                    .push(&(render_context.view_projection_matrix * instance.world_transform))
+                    .push(&(instance.blend_shapes_weights.len() as i32))
+                    .push(&(!instance.bone_matrices.is_empty()))
+                    .push_slice(&instance.blend_shapes_weights);
+                let bytes = uniform_buffer.finish();
+                let buffer = render_context
+                    .uniform_buffer_cache
+                    .get_or_create(program_binding.state, 4096)?;
+                buffer.write_data(&bytes)?;
+                resource_bindings.push(ResourceBinding::Buffer {
+                    buffer,
+                    shader_location: *location,
+                })
+            }
+
+            stats += render_context.frame_buffer.draw(
+                geometry,
+                render_context.viewport,
+                &render_pass.program,
+                &render_pass.draw_params,
+                &resource_bindings,
+                instance.element_range,
+                &mut |_| {},
+            )?;
         }
 
         Ok(stats)

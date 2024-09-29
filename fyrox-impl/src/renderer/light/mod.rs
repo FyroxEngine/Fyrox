@@ -350,6 +350,7 @@ impl DeferredLightRenderer {
                         stencil_op: Default::default(),
                         scissor_box: None,
                     },
+                    &[], // TODO
                     ElementRange::Specific {
                         offset: 0,
                         count: 12,
@@ -388,6 +389,7 @@ impl DeferredLightRenderer {
                 stencil_op: Default::default(),
                 scissor_box: None,
             },
+            &[], // TODO
             ElementRange::Full,
             &mut |mut program_binding| {
                 program_binding
@@ -536,6 +538,7 @@ impl DeferredLightRenderer {
                     blend: None,
                     scissor_box: None,
                 },
+                &[], // TODO
                 ElementRange::Full,
                 &mut |mut program_binding| {
                     program_binding.set_matrix4(
@@ -565,6 +568,7 @@ impl DeferredLightRenderer {
                     blend: None,
                     scissor_box: None,
                 },
+                &[], // TODO
                 ElementRange::Full,
                 &mut |mut program_binding| {
                     program_binding.set_matrix4(
@@ -601,6 +605,7 @@ impl DeferredLightRenderer {
                             stencil_op: Default::default(),
                             scissor_box: None,
                         },
+                        &[], // TODO
                         ElementRange::Full,
                         &mut |mut program_binding| {
                             program_binding
@@ -742,6 +747,7 @@ impl DeferredLightRenderer {
                         viewport,
                         &shader.program,
                         &draw_params,
+                        &[], // TODO
                         ElementRange::Full,
                         &mut |mut program_binding| {
                             program_binding
@@ -799,6 +805,7 @@ impl DeferredLightRenderer {
                         viewport,
                         &shader.program,
                         &draw_params,
+                        &[], // TODO
                         ElementRange::Full,
                         &mut |mut program_binding| {
                             program_binding
@@ -853,6 +860,7 @@ impl DeferredLightRenderer {
                             stencil_op: Default::default(),
                             scissor_box: None,
                         },
+                        &[], // TODO
                         ElementRange::Full,
                         &mut |mut program_binding| {
                             let distances = [

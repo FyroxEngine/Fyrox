@@ -21,6 +21,7 @@
 #![allow(clippy::too_many_arguments)]
 
 pub use fyrox_core as core;
+use std::fmt::Debug;
 
 use crate::core::{reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*};
 use serde::{Deserialize, Serialize};

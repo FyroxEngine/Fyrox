@@ -19,10 +19,11 @@
 // SOFTWARE.
 
 use crate::{
+    buffer::Buffer,
     core::{color::Color, math::Rect},
     error::FrameworkError,
     geometry_buffer::{DrawCallStatistics, GeometryBuffer},
-    gpu_program::{GpuProgram, GpuProgramBinding},
+    gpu_program::{GpuProgram, GpuProgramBinding, UniformLocation},
     gpu_texture::{CubeMapFace, GpuTexture},
     DrawParameters, ElementRange,
 };
@@ -39,6 +40,17 @@ pub enum AttachmentKind {
 pub struct Attachment {
     pub kind: AttachmentKind,
     pub texture: Rc<RefCell<dyn GpuTexture>>,
+}
+
+pub enum ResourceBinding<'a> {
+    Texture {
+        texture: &'a dyn GpuTexture,
+        shader_location: &'a UniformLocation,
+    },
+    Buffer {
+        buffer: &'a dyn Buffer,
+        shader_location: u32,
+    },
 }
 
 pub trait FrameBuffer: Any {
@@ -60,6 +72,7 @@ pub trait FrameBuffer: Any {
         viewport: Rect<i32>,
         program: &GpuProgram,
         params: &DrawParameters,
+        resources: &[ResourceBinding],
         element_range: ElementRange,
         apply_uniforms: &mut dyn FnMut(GpuProgramBinding<'_, '_>),
     ) -> Result<DrawCallStatistics, FrameworkError>;
@@ -70,6 +83,7 @@ pub trait FrameBuffer: Any {
         viewport: Rect<i32>,
         program: &GpuProgram,
         params: &DrawParameters,
+        resources: &[ResourceBinding],
         apply_uniforms: &mut dyn FnMut(GpuProgramBinding<'_, '_>),
     ) -> DrawCallStatistics;
 }

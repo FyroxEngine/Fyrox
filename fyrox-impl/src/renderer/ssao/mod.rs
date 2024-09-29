@@ -47,6 +47,7 @@ use crate::{
     },
     scene::mesh::surface::SurfaceData,
 };
+use fyrox_graphics::framebuffer::ResourceBinding;
 use std::{cell::RefCell, rc::Rc};
 
 mod blur;
@@ -264,18 +265,26 @@ impl ScreenSpaceAmbientOcclusionRenderer {
                 stencil_op: Default::default(),
                 scissor_box: None,
             },
+            &[
+                ResourceBinding::Texture {
+                    texture: &*gbuffer.depth().borrow(),
+                    shader_location: &self.shader.depth_sampler,
+                },
+                ResourceBinding::Texture {
+                    texture: &*gbuffer.normal_texture().borrow(),
+                    shader_location: &self.shader.normal_sampler,
+                },
+                ResourceBinding::Texture {
+                    texture: &*self.noise.borrow(),
+                    shader_location: &self.shader.noise_sampler,
+                },
+                ResourceBinding::Buffer {
+                    buffer: &*self.uniform_buffer,
+                    shader_location: self.shader.uniform_block_index as u32,
+                },
+            ],
             ElementRange::Full,
-            &mut |mut program_binding| {
-                program_binding
-                    .set_texture(&self.shader.depth_sampler, &gbuffer.depth())
-                    .set_texture(&self.shader.normal_sampler, &gbuffer.normal_texture())
-                    .set_texture(&self.shader.noise_sampler, &self.noise)
-                    .bind_uniform_buffer(
-                        &*self.uniform_buffer,
-                        self.shader.uniform_block_index as u32,
-                        0,
-                    );
-            },
+            &mut |_| {},
         )?;
 
         self.blur.render(self.raw_ao_map())?;

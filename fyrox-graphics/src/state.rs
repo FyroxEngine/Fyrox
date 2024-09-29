@@ -613,7 +613,7 @@ impl GlGraphicsServer {
         }
     }
 
-    pub fn set_framebuffer(&self, framebuffer: Option<glow::Framebuffer>) {
+    pub(crate) fn set_framebuffer(&self, framebuffer: Option<glow::Framebuffer>) {
         let mut state = self.state.borrow_mut();
         if state.framebuffer != framebuffer {
             state.framebuffer = framebuffer;
@@ -627,7 +627,7 @@ impl GlGraphicsServer {
         }
     }
 
-    pub fn set_viewport(&self, viewport: Rect<i32>) {
+    pub(crate) fn set_viewport(&self, viewport: Rect<i32>) {
         let mut state = self.state.borrow_mut();
         if state.viewport != viewport {
             state.viewport = viewport;
@@ -996,6 +996,60 @@ impl GlGraphicsServer {
             );
         }
     }
+
+    pub(crate) fn apply_draw_parameters(&self, draw_params: &DrawParameters) {
+        let DrawParameters {
+            cull_face,
+            color_write,
+            depth_write,
+            stencil_test,
+            depth_test,
+            blend,
+            stencil_op,
+            scissor_box,
+        } = draw_params;
+
+        if let Some(ref blend_params) = blend {
+            self.set_blend_func(blend_params.func);
+            self.set_blend_equation(blend_params.equation);
+            self.set_blend(true);
+        } else {
+            self.set_blend(false);
+        }
+
+        if let Some(depth_func) = depth_test {
+            self.set_depth_func(*depth_func);
+            self.set_depth_test(true);
+        } else {
+            self.set_depth_test(false);
+        }
+        self.set_depth_write(*depth_write);
+
+        self.set_color_write(*color_write);
+
+        if let Some(stencil_func) = stencil_test {
+            self.set_stencil_test(true);
+            self.set_stencil_func(*stencil_func);
+        } else {
+            self.set_stencil_test(false);
+        }
+
+        self.set_stencil_op(*stencil_op);
+
+        if let Some(cull_face) = cull_face {
+            self.set_cull_face(*cull_face);
+            self.set_culling(true);
+        } else {
+            self.set_culling(false);
+        }
+
+        if let Some(scissor_box) = scissor_box {
+            self.set_scissor_test(true);
+            self.set_scissor_box(scissor_box);
+        } else {
+            self.set_scissor_test(false);
+        }
+    }
 }
 
 pub trait GraphicsServer: Any {
@@ -1027,7 +1081,6 @@ pub trait GraphicsServer: Any {
     fn flush(&self);
     fn finish(&self);
     fn invalidate_resource_bindings_cache(&self);
-    fn apply_draw_parameters(&self, draw_params: &DrawParameters);
     fn pipeline_statistics(&self) -> PipelineStatistics;
     fn swap_buffers(&self) -> Result<(), FrameworkError>;
     fn set_frame_size(&self, new_size: (u32, u32));
@@ -1118,60 +1171,6 @@ impl GraphicsServer for GlGraphicsServer {
 
         state.program = Default::default();
         state.frame_statistics = Default::default();
-    }
-
-    fn apply_draw_parameters(&self, draw_params: &DrawParameters) {
-        let DrawParameters {
-            cull_face,
-            color_write,
-            depth_write,
-            stencil_test,
-            depth_test,
-            blend,
-            stencil_op,
-            scissor_box,
-        } = draw_params;
-
-        if let Some(ref blend_params) = blend {
-            self.set_blend_func(blend_params.func);
-            self.set_blend_equation(blend_params.equation);
-            self.set_blend(true);
-        } else {
-            self.set_blend(false);
-        }
-
-        if let Some(depth_func) = depth_test {
-            self.set_depth_func(*depth_func);
-            self.set_depth_test(true);
-        } else {
-            self.set_depth_test(false);
-        }
-        self.set_depth_write(*depth_write);
-
-        self.set_color_write(*color_write);
-
-        if let Some(stencil_func) = stencil_test {
-            self.set_stencil_test(true);
-            self.set_stencil_func(*stencil_func);
-        } else {
-            self.set_stencil_test(false);
-        }
-
-        self.set_stencil_op(*stencil_op);
-
-        if let Some(cull_face) = cull_face {
-            self.set_cull_face(*cull_face);
-            self.set_culling(true);
-        } else {
-            self.set_culling(false);
-        }
-
-        if let Some(scissor_box) = scissor_box {
-            self.set_scissor_test(true);
-            self.set_scissor_box(scissor_box);
-        } else {
-            self.set_scissor_test(false);
-        }
     }
 
     fn pipeline_statistics(&self) -> PipelineStatistics {

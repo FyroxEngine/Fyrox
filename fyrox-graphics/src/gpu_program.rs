@@ -19,7 +19,6 @@
 // SOFTWARE.
 
 use crate::{
-    buffer::{Buffer, BufferKind},
     core::{
         algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4},
         color::Color,
@@ -27,9 +26,9 @@ use crate::{
         sstorage::ImmutableString,
     },
     error::FrameworkError,
-    gl::{buffer::GlBuffer, texture::GlTexture},
+    gl::texture::GlTexture,
     gpu_texture::GpuTexture,
-    state::{GlGraphicsServer, GlKind, ToGlConstant},
+    state::{GlGraphicsServer, GlKind},
 };
 use fxhash::FxHashMap;
 use glow::HasContext;
@@ -42,7 +41,7 @@ use std::{
 
 pub struct GpuProgram {
     state: Weak<GlGraphicsServer>,
-    id: glow::Program,
+    pub id: glow::Program,
     // Force compiler to not implement Send and Sync, because OpenGL is not thread-safe.
     thread_mark: PhantomData<*const u8>,
     uniform_locations: RefCell<FxHashMap<ImmutableString, Option<UniformLocation>>>,
@@ -86,7 +85,7 @@ pub enum BuiltInUniform {
 
 #[derive(Clone, Debug)]
 pub struct UniformLocation {
-    id: glow::UniformLocation,
+    pub id: glow::UniformLocation,
     // Force compiler to not implement Send and Sync, because OpenGL is not thread-safe.
     thread_mark: PhantomData<*const u8>,
 }
@@ -455,32 +454,6 @@ impl<'a, 'b> GpuProgramBinding<'a, 'b> {
             self.state
                 .gl
                 .uniform_4_f32(Some(&location.id), rgba.x, rgba.y, rgba.z, rgba.w);
-        }
-        self
-    }
-
-    #[inline(always)]
-    pub fn bind_uniform_buffer(
-        &mut self,
-        buffer: &dyn Buffer,
-        uniform_buffer_location: u32,
-        binding_point: u32,
-    ) -> &mut Self {
-        unsafe {
-            let gl_buffer = buffer
-                .as_any()
-                .downcast_ref::<GlBuffer>()
-                .expect("Must be OpenGL buffer");
-            let kind = buffer.kind();
-            assert_eq!(kind, BufferKind::Uniform);
-            self.state
-                .gl
-                .bind_buffer_base(kind.into_gl(), binding_point, Some(gl_buffer.id));
-            self.state.gl.uniform_block_binding(
-                self.program.id,
-                uniform_buffer_location,
-                binding_point,
-            )
         }
         self
     }

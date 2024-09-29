@@ -477,6 +477,7 @@ impl OcclusionTester {
                 stencil_op: Default::default(),
                 scissor_box: None,
             },
+            &[], // TODO
             &mut |mut program_binding| {
                 program_binding
                     .set_texture(&shader.tile_buffer, &self.tile_buffer)
