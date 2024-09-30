@@ -314,22 +314,22 @@ impl GlTexture {
 
             result.set_data(kind, pixel_kind, mip_count, data)?;
 
-            server.gl.tex_parameter_i32(
+            let mut binding = result.make_temp_binding();
+            binding.server.gl.tex_parameter_i32(
                 target,
                 glow::TEXTURE_MAG_FILTER,
                 mag_filter.into_gl() as i32,
             );
-            server.gl.tex_parameter_i32(
+            binding.server.gl.tex_parameter_i32(
                 target,
                 glow::TEXTURE_MIN_FILTER,
                 min_filter.into_gl() as i32,
             );
-
-            server
-                .gl
-                .tex_parameter_i32(target, glow::TEXTURE_MAX_LEVEL, mip_count as i32 - 1);
-
-            server.set_texture(0, target, Default::default());
+            binding.server.gl.tex_parameter_i32(
+                target,
+                glow::TEXTURE_MAX_LEVEL,
+                mip_count as i32 - 1,
+            );
 
             Ok(result)
         }
