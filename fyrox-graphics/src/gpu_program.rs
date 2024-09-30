@@ -132,8 +132,13 @@ fn prepare_source_code(code: &str, gl_kind: GlKind) -> String {
     if gl_kind == GlKind::OpenGLES {
         full_source_code += r#"    
             precision highp float;
-            precision lowp usampler2D;
-            precision lowp sampler3D;
+            precision highp int;
+            precision highp usampler2D;
+            precision highp usampler3D;
+            precision highp usamplerCube;
+            precision highp sampler2D;
+            precision highp sampler3D;
+            precision highp samplerCube;
         "#;
     }
 
