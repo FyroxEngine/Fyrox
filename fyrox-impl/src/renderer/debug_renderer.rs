@@ -24,28 +24,33 @@
 //! on. It contains implementations to draw most common shapes (line, box, oob, frustum, etc).
 
 use crate::{
-    core::{algebra::Vector3, math::Rect, sstorage::ImmutableString},
+    core::color::Color,
+    core::{
+        algebra::{Matrix4, Vector3},
+        math::Rect,
+        sstorage::ImmutableString,
+    },
     renderer::{
+        cache::uniform::UniformBufferCache,
         framework::{
+            buffer::BufferUsage,
             error::FrameworkError,
-            framebuffer::FrameBuffer,
+            framebuffer::{FrameBuffer, ResourceBindGroup, ResourceBinding},
             geometry_buffer::{
                 AttributeDefinition, AttributeKind, BufferBuilder, GeometryBuffer,
                 GeometryBufferBuilder,
             },
-            gpu_program::{GpuProgram, UniformLocation},
+            gpu_program::GpuProgram,
             state::GlGraphicsServer,
-            DrawParameters, ElementKind, ElementRange,
+            state::GraphicsServer,
+            uniform::StaticUniformBuffer,
+            CompareFunc, DrawParameters, ElementKind, ElementRange,
         },
         RenderPassStatistics,
     },
     scene::debug::Line,
 };
 use bytemuck::{Pod, Zeroable};
-use fyrox_core::color::Color;
-use fyrox_graphics::buffer::BufferUsage;
-use fyrox_graphics::CompareFunc;
-use rapier2d::na::Matrix4;
 
 #[repr(C)]
 #[derive(Copy, Pod, Zeroable, Clone)]
@@ -64,7 +69,7 @@ pub struct DebugRenderer {
 
 pub(crate) struct DebugShader {
     program: GpuProgram,
-    wvp_matrix: UniformLocation,
+    pub uniform_buffer_binding: usize,
 }
 
 /// "Draws" a rectangle into a list of lines.
@@ -90,8 +95,8 @@ impl DebugShader {
         let program =
             GpuProgram::from_source(server, "DebugShader", vertex_source, fragment_source)?;
         Ok(Self {
-            wvp_matrix: program
-                .uniform_location(server, &ImmutableString::new("worldViewProjection"))?,
+            uniform_buffer_binding: program
+                .uniform_block_index(server, &ImmutableString::new("Uniforms"))?,
             program,
         })
     }
@@ -150,11 +155,18 @@ impl DebugRenderer {
 
     pub(crate) fn render(
         &mut self,
+        server: &dyn GraphicsServer,
+        uniform_buffer_cache: &mut UniformBufferCache,
         viewport: Rect<i32>,
         framebuffer: &mut dyn FrameBuffer,
         view_projection: Matrix4<f32>,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut statistics = RenderPassStatistics::default();
+
+        let uniform_buffer = uniform_buffer_cache.write(
+            server,
+            StaticUniformBuffer::<256>::new().with(&view_projection),
+        )?;
 
         statistics += framebuffer.draw(
             &self.geometry,
@@ -170,11 +182,14 @@ impl DebugRenderer {
                 stencil_op: Default::default(),
                 scissor_box: None,
             },
-            &[], // TODO
+            &[ResourceBindGroup {
+                bindings: &[ResourceBinding::Buffer {
+                    buffer: uniform_buffer,
+                    shader_location: self.shader.uniform_buffer_binding,
+                }],
+            }],
             ElementRange::Full,
-            &mut |mut program_binding| {
-                program_binding.set_matrix4(&self.shader.wvp_matrix, &view_projection);
-            },
+            &mut |_| {},
         )?;
 
         statistics.draw_calls += 1;

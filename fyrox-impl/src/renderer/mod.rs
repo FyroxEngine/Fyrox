@@ -1565,6 +1565,8 @@ impl Renderer {
             self.debug_renderer
                 .set_lines(server, &scene.drawing_context.lines);
             scene_associated_data.statistics += self.debug_renderer.render(
+                &**server,
+                &mut self.uniform_buffer_cache,
                 viewport,
                 &mut *scene_associated_data.ldr_scene_framebuffer,
                 camera.view_projection_matrix(),
@@ -1684,6 +1686,8 @@ impl Renderer {
         let screen_matrix =
             Matrix4::new_orthographic(0.0, backbuffer_width, backbuffer_height, 0.0, -1.0, 1.0);
         self.screen_space_debug_renderer.render(
+            &*self.state,
+            &mut self.uniform_buffer_cache,
             window_viewport,
             &mut *self.backbuffer,
             screen_matrix,
