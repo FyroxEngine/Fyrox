@@ -47,6 +47,7 @@ use crate::{
     },
     scene::camera::{ColorGradingLut, Exposure},
 };
+use fyrox_graphics::framebuffer::{ResourceBindGroup, ResourceBinding};
 use fyrox_graphics::state::GraphicsServer;
 use std::{cell::RefCell, rc::Rc};
 
@@ -188,13 +189,17 @@ impl HighDynamicRangeRenderer {
                 stencil_op: Default::default(),
                 scissor_box: None,
             },
-            &[], // TODO
+            &[ResourceBindGroup {
+                bindings: &[ResourceBinding::texture(
+                    &scene_frame,
+                    &shader.frame_sampler,
+                )],
+            }],
             ElementRange::Full,
             &mut |mut program_binding| {
                 program_binding
                     .set_matrix4(&shader.wvp_matrix, &frame_matrix)
-                    .set_vector2(&shader.inv_size, &Vector2::new(inv_size, inv_size))
-                    .set_texture(&shader.frame_sampler, &scene_frame);
+                    .set_vector2(&shader.inv_size, &Vector2::new(inv_size, inv_size));
             },
         )
     }
@@ -276,13 +281,17 @@ impl HighDynamicRangeRenderer {
                             stencil_op: Default::default(),
                             scissor_box: None,
                         },
-                        &[], // TODO
+                        &[ResourceBindGroup {
+                            bindings: &[ResourceBinding::texture(
+                                &prev_luminance,
+                                &shader.lum_sampler,
+                            )],
+                        }],
                         ElementRange::Full,
                         &mut |mut program_binding| {
                             program_binding
                                 .set_matrix4(&shader.wvp_matrix, &matrix)
-                                .set_vector2(&shader.inv_size, &Vector2::new(inv_size, inv_size))
-                                .set_texture(&shader.lum_sampler, &prev_luminance);
+                                .set_vector2(&shader.inv_size, &Vector2::new(inv_size, inv_size));
                         },
                     )?;
 
@@ -299,12 +308,10 @@ impl HighDynamicRangeRenderer {
         quad: &GeometryBuffer,
         dt: f32,
     ) -> Result<DrawCallStatistics, FrameworkError> {
-        let new_lum = self.downscale_chain.last().unwrap().texture();
         let ctx = self.adaptation_chain.begin();
         let viewport = Rect::new(0, 0, ctx.lum_buffer.size as i32, ctx.lum_buffer.size as i32);
         let shader = &self.adaptation_shader;
         let matrix = ctx.lum_buffer.matrix();
-        let prev_lum = ctx.prev_lum;
         ctx.lum_buffer.framebuffer.draw(
             quad,
             viewport,
@@ -319,13 +326,19 @@ impl HighDynamicRangeRenderer {
                 stencil_op: Default::default(),
                 scissor_box: None,
             },
-            &[], // TODO
+            &[ResourceBindGroup {
+                bindings: &[
+                    ResourceBinding::texture(&ctx.prev_lum, &shader.old_lum_sampler),
+                    ResourceBinding::texture(
+                        &self.downscale_chain.last().unwrap().texture(),
+                        &shader.new_lum_sampler,
+                    ),
+                ],
+            }],
             ElementRange::Full,
             &mut |mut program_binding| {
                 program_binding
                     .set_matrix4(&shader.wvp_matrix, &matrix)
-                    .set_texture(&shader.old_lum_sampler, &prev_lum)
-                    .set_texture(&shader.new_lum_sampler, &new_lum)
                     .set_f32(&shader.speed, 0.3 * dt) // TODO: Make configurable
                 ;
             },
@@ -347,7 +360,6 @@ impl HighDynamicRangeRenderer {
     ) -> Result<DrawCallStatistics, FrameworkError> {
         let shader = &self.map_shader;
         let frame_matrix = make_viewport_matrix(viewport);
-        let avg_lum = self.adaptation_chain.avg_lum_texture();
 
         let color_grading_lut_tex = color_grading_lut
             .and_then(|l| texture_cache.get(server, l.lut_ref()))
@@ -367,19 +379,25 @@ impl HighDynamicRangeRenderer {
                 stencil_op: Default::default(),
                 scissor_box: None,
             },
-            &[], // TODO
+            &[ResourceBindGroup {
+                bindings: &[
+                    ResourceBinding::texture(
+                        &self.adaptation_chain.avg_lum_texture(),
+                        &shader.lum_sampler,
+                    ),
+                    ResourceBinding::texture(&bloom_texture, &shader.bloom_sampler),
+                    ResourceBinding::texture(&hdr_scene_frame, &shader.hdr_sampler),
+                    ResourceBinding::texture(color_grading_lut_tex, &shader.color_map_sampler),
+                ],
+            }],
             ElementRange::Full,
             &mut |mut program_binding| {
                 let program_binding = program_binding
                     .set_matrix4(&shader.wvp_matrix, &frame_matrix)
-                    .set_texture(&shader.lum_sampler, &avg_lum)
-                    .set_texture(&shader.bloom_sampler, &bloom_texture)
-                    .set_texture(&shader.hdr_sampler, &hdr_scene_frame)
                     .set_bool(
                         &shader.use_color_grading,
                         use_color_grading && color_grading_lut.is_some(),
-                    )
-                    .set_texture(&shader.color_map_sampler, color_grading_lut_tex);
+                    );
 
                 match exposure {
                     Exposure::Auto {

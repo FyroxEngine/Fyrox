@@ -26,18 +26,11 @@ use crate::{
         sstorage::ImmutableString,
     },
     error::FrameworkError,
-    gl::texture::GlTexture,
-    gpu_texture::GpuTexture,
     state::{GlGraphicsServer, GlKind},
 };
 use fxhash::FxHashMap;
 use glow::HasContext;
-use std::{
-    cell::RefCell,
-    marker::PhantomData,
-    ops::Deref,
-    rc::{Rc, Weak},
-};
+use std::{cell::RefCell, marker::PhantomData, ops::Deref, rc::Weak};
 
 pub struct GpuProgram {
     state: Weak<GlGraphicsServer>,
@@ -168,42 +161,6 @@ impl<'a, 'b> GpuProgramBinding<'a, 'b> {
 
     pub fn active_sampler(&self) -> u32 {
         self.active_sampler
-    }
-
-    #[inline(always)]
-    pub fn set_texture(
-        &mut self,
-        location: &UniformLocation,
-        texture: &Rc<RefCell<dyn GpuTexture>>,
-    ) -> &mut Self {
-        let guard = texture.borrow();
-        let texture = guard.as_any().downcast_ref::<GlTexture>().unwrap();
-        unsafe {
-            self.state
-                .gl
-                .uniform_1_i32(Some(&location.id), self.active_sampler as i32)
-        };
-        texture.bind(self.state, self.active_sampler);
-        self.active_sampler += 1;
-        self
-    }
-
-    #[inline(always)]
-    pub fn set_texture_to_sampler(
-        &mut self,
-        location: &UniformLocation,
-        texture: &Rc<RefCell<dyn GpuTexture>>,
-        sampler: u32,
-    ) -> &mut Self {
-        let guard = texture.borrow();
-        let texture = guard.as_any().downcast_ref::<GlTexture>().unwrap();
-        unsafe {
-            self.state
-                .gl
-                .uniform_1_i32(Some(&location.id), sampler as i32)
-        };
-        texture.bind(self.state, sampler);
-        self
     }
 
     #[inline(always)]

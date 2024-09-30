@@ -51,6 +51,7 @@ use crate::{
     },
     Editor,
 };
+use fyrox::renderer::framework::framebuffer::{ResourceBindGroup, ResourceBinding};
 use std::{any::TypeId, cell::RefCell, rc::Rc};
 
 struct EdgeDetectShader {
@@ -321,12 +322,16 @@ impl SceneRenderPass for HighlightRenderPass {
                     stencil_op: Default::default(),
                     scissor_box: None,
                 },
-                &[], // TODO
+                &[ResourceBindGroup {
+                    bindings: &[ResourceBinding::texture(
+                        &frame_texture,
+                        &shader.frame_texture,
+                    )],
+                }],
                 ElementRange::Full,
                 &mut |mut program_binding| {
                     program_binding
                         .set_matrix4(&shader.wvp_matrix, &frame_matrix)
-                        .set_texture(&shader.frame_texture, &frame_texture)
                         .set_srgb_color(&shader.color, &Color::ORANGE);
                 },
             )?;

@@ -58,6 +58,7 @@ use crate::{
 };
 use bytemuck::{Pod, Zeroable};
 use fyrox_graphics::buffer::BufferUsage;
+use fyrox_graphics::framebuffer::{ResourceBindGroup, ResourceBinding};
 use fyrox_graphics::state::GraphicsServer;
 use std::{cell::RefCell, rc::Rc};
 
@@ -477,11 +478,14 @@ impl OcclusionTester {
                 stencil_op: Default::default(),
                 scissor_box: None,
             },
-            &[], // TODO
+            &[ResourceBindGroup {
+                bindings: &[
+                    ResourceBinding::texture(&self.tile_buffer, &shader.tile_buffer),
+                    ResourceBinding::texture(self.matrix_storage.texture(), &shader.matrices),
+                ],
+            }],
             &mut |mut program_binding| {
                 program_binding
-                    .set_texture(&shader.tile_buffer, &self.tile_buffer)
-                    .set_texture(&shader.matrices, self.matrix_storage.texture())
                     .set_i32(&shader.tile_size, self.tile_size as i32)
                     .set_f32(&shader.frame_buffer_height, self.frame_size.y as f32)
                     .set_matrix4(&shader.view_projection, &self.view_projection);

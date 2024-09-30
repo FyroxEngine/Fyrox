@@ -61,6 +61,7 @@ use crate::{
         Scene,
     },
 };
+use fyrox_graphics::framebuffer::{ResourceBindGroup, ResourceBinding};
 use std::{cell::RefCell, rc::Rc};
 
 pub mod ambient;
@@ -350,15 +351,18 @@ impl DeferredLightRenderer {
                         stencil_op: Default::default(),
                         scissor_box: None,
                     },
-                    &[], // TODO
+                    &[ResourceBindGroup {
+                        bindings: &[ResourceBinding::texture(
+                            gpu_texture,
+                            &shader.cubemap_texture,
+                        )],
+                    }],
                     ElementRange::Specific {
                         offset: 0,
                         count: 12,
                     },
                     &mut |mut program_binding| {
-                        program_binding
-                            .set_texture(&shader.cubemap_texture, gpu_texture)
-                            .set_matrix4(&shader.wvp_matrix, &(view_projection * wvp));
+                        program_binding.set_matrix4(&shader.wvp_matrix, &(view_projection * wvp));
                     },
                 )?;
             }
@@ -389,28 +393,31 @@ impl DeferredLightRenderer {
                 stencil_op: Default::default(),
                 scissor_box: None,
             },
-            &[], // TODO
-            ElementRange::Full,
-            &mut |mut program_binding| {
-                program_binding
-                    .set_matrix4(&self.ambient_light_shader.wvp_matrix, &frame_matrix)
-                    .set_linear_color(&self.ambient_light_shader.ambient_color, &ambient_color)
-                    .set_texture(
-                        &self.ambient_light_shader.diffuse_texture,
+            &[ResourceBindGroup {
+                bindings: &[
+                    ResourceBinding::texture(
                         &gbuffer_diffuse_map,
-                    )
-                    .set_texture(
-                        &self.ambient_light_shader.ao_sampler,
+                        &self.ambient_light_shader.diffuse_texture,
+                    ),
+                    ResourceBinding::texture(
                         if settings.use_ssao {
                             &ao_map
                         } else {
                             &white_dummy
                         },
-                    )
-                    .set_texture(
-                        &self.ambient_light_shader.ambient_texture,
+                        &self.ambient_light_shader.ao_sampler,
+                    ),
+                    ResourceBinding::texture(
                         &gbuffer_ambient_map,
-                    );
+                        &self.ambient_light_shader.ambient_texture,
+                    ),
+                ],
+            }],
+            ElementRange::Full,
+            &mut |mut program_binding| {
+                program_binding
+                    .set_matrix4(&self.ambient_light_shader.wvp_matrix, &frame_matrix)
+                    .set_linear_color(&self.ambient_light_shader.ambient_color, &ambient_color);
             },
         )?;
 
@@ -747,7 +754,28 @@ impl DeferredLightRenderer {
                         viewport,
                         &shader.program,
                         &draw_params,
-                        &[], // TODO
+                        &[ResourceBindGroup {
+                            bindings: &[
+                                ResourceBinding::texture(&gbuffer_depth_map, &shader.depth_sampler),
+                                ResourceBinding::texture(
+                                    &gbuffer_diffuse_map,
+                                    &shader.color_sampler,
+                                ),
+                                ResourceBinding::texture(
+                                    &gbuffer_normal_map,
+                                    &shader.normal_sampler,
+                                ),
+                                ResourceBinding::texture(
+                                    &gbuffer_material_map,
+                                    &shader.material_sampler,
+                                ),
+                                ResourceBinding::texture(
+                                    &self.spot_shadow_map_renderer.cascade_texture(cascade_index),
+                                    &shader.spot_shadow_texture,
+                                ),
+                                ResourceBinding::texture(cookie_texture, &shader.cookie_texture),
+                            ],
+                        }],
                         ElementRange::Full,
                         &mut |mut program_binding| {
                             program_binding
@@ -777,15 +805,6 @@ impl DeferredLightRenderer {
                                         as f32),
                                 )
                                 .set_vector3(&shader.camera_position, &camera_global_position)
-                                .set_texture(&shader.depth_sampler, &gbuffer_depth_map)
-                                .set_texture(&shader.color_sampler, &gbuffer_diffuse_map)
-                                .set_texture(&shader.normal_sampler, &gbuffer_normal_map)
-                                .set_texture(&shader.material_sampler, &gbuffer_material_map)
-                                .set_texture(
-                                    &shader.spot_shadow_texture,
-                                    &self.spot_shadow_map_renderer.cascade_texture(cascade_index),
-                                )
-                                .set_texture(&shader.cookie_texture, cookie_texture)
                                 .set_bool(&shader.cookie_enabled, cookie_enabled)
                                 .set_f32(&shader.shadow_bias, spot_light.shadow_bias())
                                 .set_f32(
@@ -805,7 +824,29 @@ impl DeferredLightRenderer {
                         viewport,
                         &shader.program,
                         &draw_params,
-                        &[], // TODO
+                        &[ResourceBindGroup {
+                            bindings: &[
+                                ResourceBinding::texture(&gbuffer_depth_map, &shader.depth_sampler),
+                                ResourceBinding::texture(
+                                    &gbuffer_diffuse_map,
+                                    &shader.color_sampler,
+                                ),
+                                ResourceBinding::texture(
+                                    &gbuffer_normal_map,
+                                    &shader.normal_sampler,
+                                ),
+                                ResourceBinding::texture(
+                                    &gbuffer_material_map,
+                                    &shader.material_sampler,
+                                ),
+                                ResourceBinding::texture(
+                                    &self
+                                        .point_shadow_map_renderer
+                                        .cascade_texture(cascade_index),
+                                    &shader.point_shadow_texture,
+                                ),
+                            ],
+                        }],
                         ElementRange::Full,
                         &mut |mut program_binding| {
                             program_binding
@@ -824,16 +865,6 @@ impl DeferredLightRenderer {
                                 .set_f32(
                                     &shader.light_intensity,
                                     point_light.base_light_ref().intensity(),
-                                )
-                                .set_texture(&shader.depth_sampler, &gbuffer_depth_map)
-                                .set_texture(&shader.color_sampler, &gbuffer_diffuse_map)
-                                .set_texture(&shader.normal_sampler, &gbuffer_normal_map)
-                                .set_texture(&shader.material_sampler, &gbuffer_material_map)
-                                .set_texture(
-                                    &shader.point_shadow_texture,
-                                    &self
-                                        .point_shadow_map_renderer
-                                        .cascade_texture(cascade_index),
                                 )
                                 .set_f32(&shader.shadow_alpha, shadows_alpha);
                         },
@@ -860,7 +891,35 @@ impl DeferredLightRenderer {
                             stencil_op: Default::default(),
                             scissor_box: None,
                         },
-                        &[], // TODO
+                        &[ResourceBindGroup {
+                            bindings: &[
+                                ResourceBinding::texture(&gbuffer_depth_map, &shader.depth_sampler),
+                                ResourceBinding::texture(
+                                    &gbuffer_diffuse_map,
+                                    &shader.color_sampler,
+                                ),
+                                ResourceBinding::texture(
+                                    &gbuffer_normal_map,
+                                    &shader.normal_sampler,
+                                ),
+                                ResourceBinding::texture(
+                                    &gbuffer_material_map,
+                                    &shader.material_sampler,
+                                ),
+                                ResourceBinding::texture(
+                                    &self.csm_renderer.cascades()[0].texture(),
+                                    &shader.shadow_cascade0,
+                                ),
+                                ResourceBinding::texture(
+                                    &self.csm_renderer.cascades()[1].texture(),
+                                    &shader.shadow_cascade1,
+                                ),
+                                ResourceBinding::texture(
+                                    &self.csm_renderer.cascades()[2].texture(),
+                                    &shader.shadow_cascade2,
+                                ),
+                            ],
+                        }],
                         ElementRange::Full,
                         &mut |mut program_binding| {
                             let distances = [
@@ -888,23 +947,7 @@ impl DeferredLightRenderer {
                                     &shader.light_intensity,
                                     directional.base_light_ref().intensity(),
                                 )
-                                .set_texture(&shader.depth_sampler, &gbuffer_depth_map)
-                                .set_texture(&shader.color_sampler, &gbuffer_diffuse_map)
-                                .set_texture(&shader.normal_sampler, &gbuffer_normal_map)
-                                .set_texture(&shader.material_sampler, &gbuffer_material_map)
                                 .set_matrix4_array(&shader.light_view_proj_matrices, &matrices)
-                                .set_texture(
-                                    &shader.shadow_cascade0,
-                                    &self.csm_renderer.cascades()[0].texture(),
-                                )
-                                .set_texture(
-                                    &shader.shadow_cascade1,
-                                    &self.csm_renderer.cascades()[1].texture(),
-                                )
-                                .set_texture(
-                                    &shader.shadow_cascade2,
-                                    &self.csm_renderer.cascades()[2].texture(),
-                                )
                                 .set_f32_slice(&shader.cascade_distances, &distances)
                                 .set_matrix4(&shader.view_matrix, &camera.view_matrix())
                                 .set_f32(&shader.shadow_bias, directional.csm_options.shadow_bias())

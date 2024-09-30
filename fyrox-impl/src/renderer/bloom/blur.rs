@@ -36,6 +36,7 @@ use crate::{
         make_viewport_matrix, RenderPassStatistics,
     },
 };
+use fyrox_graphics::framebuffer::{ResourceBindGroup, ResourceBinding};
 use fyrox_graphics::state::GraphicsServer;
 use std::{cell::RefCell, rc::Rc};
 
@@ -158,7 +159,9 @@ impl GaussianBlur {
                 stencil_op: Default::default(),
                 scissor_box: None,
             },
-            &[], // TODO
+            &[ResourceBindGroup {
+                bindings: &[ResourceBinding::texture(&input, &shader.image)],
+            }],
             ElementRange::Full,
             &mut |mut program_binding| {
                 program_binding
@@ -167,8 +170,7 @@ impl GaussianBlur {
                         &(make_viewport_matrix(viewport)),
                     )
                     .set_vector2(&shader.pixel_size, &inv_size)
-                    .set_bool(&shader.horizontal, true)
-                    .set_texture(&shader.image, &input);
+                    .set_bool(&shader.horizontal, true);
             },
         )?;
 
@@ -188,7 +190,9 @@ impl GaussianBlur {
                 stencil_op: Default::default(),
                 scissor_box: None,
             },
-            &[], // TODO
+            &[ResourceBindGroup {
+                bindings: &[ResourceBinding::texture(&h_blurred_texture, &shader.image)],
+            }],
             ElementRange::Full,
             &mut |mut program_binding| {
                 program_binding
@@ -197,8 +201,7 @@ impl GaussianBlur {
                         &(make_viewport_matrix(viewport)),
                     )
                     .set_vector2(&shader.pixel_size, &inv_size)
-                    .set_bool(&shader.horizontal, false)
-                    .set_texture(&shader.image, &h_blurred_texture);
+                    .set_bool(&shader.horizontal, false);
             },
         )?;
 

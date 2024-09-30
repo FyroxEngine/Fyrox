@@ -66,6 +66,7 @@ use crate::{
 };
 use fxhash::FxHashSet;
 use fyrox_graphics::buffer::BufferUsage;
+use fyrox_graphics::framebuffer::{ResourceBindGroup, ResourceBinding};
 use fyrox_graphics::state::GraphicsServer;
 use std::{cell::RefCell, rc::Rc};
 
@@ -408,6 +409,18 @@ impl GBuffer {
 
             let world_view_proj = view_projection * decal.global_transform();
 
+            let diffuse_texture = decal
+                .diffuse_texture()
+                .and_then(|t| texture_cache.get(state, t))
+                .unwrap_or(&white_dummy)
+                .clone();
+
+            let normal_texture = decal
+                .normal_texture()
+                .and_then(|t| texture_cache.get(state, t))
+                .unwrap_or(&normal_dummy)
+                .clone();
+
             statistics += self.decal_framebuffer.draw(
                 unit_cube,
                 viewport,
@@ -425,7 +438,14 @@ impl GBuffer {
                     stencil_op: Default::default(),
                     scissor_box: None,
                 },
-                &[], // TODO
+                &[ResourceBindGroup {
+                    bindings: &[
+                        ResourceBinding::texture(&depth, &shader.scene_depth),
+                        ResourceBinding::texture(&diffuse_texture, &shader.diffuse_texture),
+                        ResourceBinding::texture(&normal_texture, &shader.normal_texture),
+                        ResourceBinding::texture(&decal_mask, &shader.decal_mask),
+                    ],
+                }],
                 ElementRange::Full,
                 &mut |mut program_binding| {
                     program_binding
@@ -436,22 +456,6 @@ impl GBuffer {
                             &decal.global_transform().try_inverse().unwrap_or_default(),
                         )
                         .set_vector2(&shader.resolution, &resolution)
-                        .set_texture(&shader.scene_depth, &depth)
-                        .set_texture(
-                            &shader.diffuse_texture,
-                            decal
-                                .diffuse_texture()
-                                .and_then(|t| texture_cache.get(state, t))
-                                .unwrap_or(&white_dummy),
-                        )
-                        .set_texture(
-                            &shader.normal_texture,
-                            decal
-                                .normal_texture()
-                                .and_then(|t| texture_cache.get(state, t))
-                                .unwrap_or(&normal_dummy),
-                        )
-                        .set_texture(&shader.decal_mask, &decal_mask)
                         .set_u32(&shader.layer_index, decal.layer() as u32)
                         .set_linear_color(&shader.color, &decal.color());
                 },

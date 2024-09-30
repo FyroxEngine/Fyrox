@@ -39,6 +39,7 @@ use crate::{
     scene::mesh::surface::SurfaceData,
 };
 use fyrox_graphics::buffer::BufferUsage;
+use fyrox_graphics::framebuffer::{ResourceBindGroup, ResourceBinding};
 use fyrox_graphics::state::GraphicsServer;
 use std::{cell::RefCell, rc::Rc};
 
@@ -142,15 +143,15 @@ impl Blur {
                 stencil_op: Default::default(),
                 scissor_box: None,
             },
-            &[], // TODO
+            &[ResourceBindGroup {
+                bindings: &[ResourceBinding::texture(&input, &shader.input_texture)],
+            }],
             ElementRange::Full,
             &mut |mut program_binding| {
-                program_binding
-                    .set_matrix4(
-                        &shader.world_view_projection_matrix,
-                        &(make_viewport_matrix(viewport)),
-                    )
-                    .set_texture(&shader.input_texture, &input);
+                program_binding.set_matrix4(
+                    &shader.world_view_projection_matrix,
+                    &(make_viewport_matrix(viewport)),
+                );
             },
         )
     }

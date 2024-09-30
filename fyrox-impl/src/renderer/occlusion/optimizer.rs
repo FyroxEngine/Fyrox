@@ -36,6 +36,7 @@ use crate::{
         make_viewport_matrix,
     },
 };
+use fyrox_graphics::framebuffer::{ResourceBindGroup, ResourceBinding};
 use fyrox_graphics::state::GraphicsServer;
 use std::{cell::RefCell, rc::Rc};
 
@@ -144,12 +145,16 @@ impl VisibilityBufferOptimizer {
                 stencil_op: Default::default(),
                 scissor_box: None,
             },
-            &[], // TODO
+            &[ResourceBindGroup {
+                bindings: &[ResourceBinding::texture(
+                    &visibility_buffer.clone(),
+                    &self.shader.visibility_buffer,
+                )],
+            }],
             ElementRange::Full,
             &mut |mut program_binding| {
                 program_binding
                     .set_matrix4(&self.shader.view_projection, &matrix)
-                    .set_texture(&self.shader.visibility_buffer, visibility_buffer)
                     .set_i32(&self.shader.tile_size, tile_size);
             },
         )?;

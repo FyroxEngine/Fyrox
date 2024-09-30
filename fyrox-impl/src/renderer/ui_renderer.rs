@@ -53,7 +53,7 @@ use crate::{
     },
     resource::texture::{Texture, TextureKind, TexturePixelKind, TextureResource},
 };
-use fyrox_graphics::framebuffer::ResourceBinding;
+use fyrox_graphics::framebuffer::{ResourceBindGroup, ResourceBinding};
 use fyrox_graphics::uniform::StaticUniformBuffer;
 use std::{cell::RefCell, rc::Rc};
 
@@ -387,16 +387,15 @@ impl UiRenderer {
                 viewport,
                 &self.shader.program,
                 &params,
-                &[
-                    ResourceBinding::Texture {
-                        texture: &*diffuse_texture.borrow(),
-                        shader_location: &shader.diffuse_texture,
-                    },
-                    ResourceBinding::Buffer {
-                        buffer: uniform_buffer,
-                        shader_location: self.shader.uniform_block_index as u32,
-                    },
-                ],
+                &[ResourceBindGroup {
+                    bindings: &[
+                        ResourceBinding::texture(diffuse_texture, &shader.diffuse_texture),
+                        ResourceBinding::Buffer {
+                            buffer: uniform_buffer,
+                            shader_location: self.shader.uniform_block_index as u32,
+                        },
+                    ],
+                }],
                 ElementRange::Specific {
                     offset: cmd.triangles.start,
                     count: cmd.triangles.end - cmd.triangles.start,

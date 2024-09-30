@@ -37,6 +37,7 @@ use crate::{
         make_viewport_matrix, RenderPassStatistics,
     },
 };
+use fyrox_graphics::framebuffer::{ResourceBindGroup, ResourceBinding};
 use fyrox_graphics::state::GraphicsServer;
 use std::{cell::RefCell, rc::Rc};
 
@@ -144,15 +145,18 @@ impl BloomRenderer {
                 stencil_op: Default::default(),
                 scissor_box: None,
             },
-            &[], // TODO
+            &[ResourceBindGroup {
+                bindings: &[ResourceBinding::texture(
+                    &hdr_scene_frame,
+                    &shader.hdr_sampler,
+                )],
+            }],
             ElementRange::Full,
             &mut |mut program_binding| {
-                program_binding
-                    .set_matrix4(
-                        &shader.world_view_projection_matrix,
-                        &(make_viewport_matrix(viewport)),
-                    )
-                    .set_texture(&shader.hdr_sampler, &hdr_scene_frame);
+                program_binding.set_matrix4(
+                    &shader.world_view_projection_matrix,
+                    &(make_viewport_matrix(viewport)),
+                );
             },
         )?;
 

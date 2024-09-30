@@ -20,6 +20,7 @@
 
 //! The module responsible for bundle generation for rendering optimizations.
 
+use crate::resource::texture::TextureResource;
 use crate::{
     asset::untyped::ResourceKind,
     core::{
@@ -47,7 +48,6 @@ use crate::{
         },
         LightData, RenderPassStatistics,
     },
-    resource::texture::TextureResource,
     scene::{
         graph::Graph,
         mesh::{
@@ -63,7 +63,7 @@ use crate::{
 };
 use fxhash::{FxBuildHasher, FxHashMap, FxHasher};
 use fyrox_core::arrayvec::ArrayVec;
-use fyrox_graphics::framebuffer::ResourceBinding;
+use fyrox_graphics::framebuffer::{ResourceBindGroup, ResourceBinding};
 use std::{
     cell::RefCell,
     collections::hash_map::DefaultHasher,
@@ -166,8 +166,29 @@ impl<'a> BundleRenderContext<'a> {
         material: &Material,
         program_binding: &mut GpuProgramBinding,
         blend_shapes_storage: Option<TextureResource>,
+        material_bindings: &mut ArrayVec<ResourceBinding, 32>,
     ) {
         let built_in_uniforms = &program_binding.program.built_in_uniform_locations;
+
+        if let Some(location) = &built_in_uniforms[BuiltInUniform::SceneDepth as usize] {
+            if let Some(scene_depth) = self.scene_depth.as_ref() {
+                material_bindings.push(ResourceBinding::texture(scene_depth, location));
+            }
+        }
+
+        if let Some(location) = &built_in_uniforms[BuiltInUniform::BlendShapesStorage as usize] {
+            if let Some(texture) = blend_shapes_storage
+                .as_ref()
+                .and_then(|blend_shapes_storage| {
+                    self.texture_cache
+                        .get(program_binding.state, blend_shapes_storage)
+                })
+            {
+                material_bindings.push(ResourceBinding::texture(texture, location));
+            } else {
+                material_bindings.push(ResourceBinding::texture(self.volume_dummy, location));
+            }
+        }
 
         // Apply values for built-in uniforms.
         if let Some(location) = &built_in_uniforms[BuiltInUniform::ViewProjectionMatrix as usize] {
@@ -188,12 +209,6 @@ impl<'a> BundleRenderContext<'a> {
         }
         if let Some(location) = &built_in_uniforms[BuiltInUniform::ZFar as usize] {
             program_binding.set_f32(location, self.z_far);
-        }
-
-        if let Some(location) = &built_in_uniforms[BuiltInUniform::SceneDepth as usize] {
-            if let Some(scene_depth) = self.scene_depth.as_ref() {
-                program_binding.set_texture(location, scene_depth);
-            }
         }
 
         if let Some(location) = &built_in_uniforms[BuiltInUniform::UsePOM as usize] {
@@ -227,20 +242,6 @@ impl<'a> BundleRenderContext<'a> {
 
         if let Some(location) = &built_in_uniforms[BuiltInUniform::AmbientLight as usize] {
             program_binding.set_srgb_color(location, &self.ambient_light);
-        }
-
-        if let Some(location) = &built_in_uniforms[BuiltInUniform::BlendShapesStorage as usize] {
-            if let Some(texture) = blend_shapes_storage
-                .as_ref()
-                .and_then(|blend_shapes_storage| {
-                    self.texture_cache
-                        .get(program_binding.state, blend_shapes_storage)
-                })
-            {
-                program_binding.set_texture(location, texture);
-            } else {
-                program_binding.set_texture(location, self.volume_dummy);
-            }
         }
 
         // Apply material properties.
@@ -290,7 +291,7 @@ impl<'a> BundleRenderContext<'a> {
                                 SamplerFallback::Black => self.black_dummy,
                             });
 
-                        program_binding.set_texture(&uniform, texture);
+                        material_bindings.push(ResourceBinding::texture(texture, &uniform));
                     }
                     PropertyValue::FloatArray(v) => {
                         program_binding.set_f32_slice(&uniform, v);
@@ -435,13 +436,19 @@ impl RenderDataBundle {
         };
 
         let mut program_binding = render_pass.program.bind(server);
-        render_context.apply_material(material, &mut program_binding, blend_shapes_storage);
+        let mut material_bindings = ArrayVec::<ResourceBinding, 32>::new();
+        render_context.apply_material(
+            material,
+            &mut program_binding,
+            blend_shapes_storage,
+            &mut material_bindings,
+        );
 
         for instance in self.instances.iter() {
             if !instance_filter(instance) {
                 continue;
             }
-            let mut resource_bindings = ArrayVec::<ResourceBinding, 32>::new();
+            let mut instance_bindings = ArrayVec::<ResourceBinding, 32>::new();
 
             let built_in_uniform_blocks = &program_binding.program.built_in_uniform_blocks;
 
@@ -455,7 +462,7 @@ impl RenderDataBundle {
                     .uniform_buffer_cache
                     .get_or_create(program_binding.state, 16384)?;
                 buffer.write_data(&bytes)?;
-                resource_bindings.push(ResourceBinding::Buffer {
+                instance_bindings.push(ResourceBinding::Buffer {
                     buffer,
                     shader_location: *location,
                 })
@@ -476,7 +483,7 @@ impl RenderDataBundle {
                     .uniform_buffer_cache
                     .get_or_create(program_binding.state, 4096)?;
                 buffer.write_data(&bytes)?;
-                resource_bindings.push(ResourceBinding::Buffer {
+                instance_bindings.push(ResourceBinding::Buffer {
                     buffer,
                     shader_location: *location,
                 })
@@ -487,7 +494,14 @@ impl RenderDataBundle {
                 render_context.viewport,
                 &render_pass.program,
                 &render_pass.draw_params,
-                &resource_bindings,
+                &[
+                    ResourceBindGroup {
+                        bindings: &material_bindings,
+                    },
+                    ResourceBindGroup {
+                        bindings: &instance_bindings,
+                    },
+                ],
                 instance.element_range,
                 &mut |_| {},
             )?;

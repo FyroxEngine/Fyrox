@@ -40,6 +40,7 @@ use crate::{
     scene::mesh::surface::SurfaceData,
 };
 use fyrox_graphics::buffer::BufferUsage;
+use fyrox_graphics::framebuffer::{ResourceBindGroup, ResourceBinding};
 use std::{cell::RefCell, rc::Rc};
 
 struct FxaaShader {
@@ -120,7 +121,12 @@ impl FxaaRenderer {
                 stencil_op: Default::default(),
                 scissor_box: None,
             },
-            &[], // TODO
+            &[ResourceBindGroup {
+                bindings: &[ResourceBinding::texture(
+                    &frame_texture,
+                    &self.shader.screen_texture,
+                )],
+            }],
             ElementRange::Full,
             &mut |mut program_binding| {
                 program_binding
@@ -128,8 +134,7 @@ impl FxaaRenderer {
                     .set_vector2(
                         &self.shader.inverse_screen_size,
                         &Vector2::new(1.0 / viewport.w() as f32, 1.0 / viewport.h() as f32),
-                    )
-                    .set_texture(&self.shader.screen_texture, &frame_texture);
+                    );
             },
         )?;
 

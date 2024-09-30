@@ -48,6 +48,7 @@ use crate::{
     },
 };
 use fyrox_graphics::buffer::BufferUsage;
+use fyrox_graphics::framebuffer::{ResourceBindGroup, ResourceBinding};
 
 struct SpotLightShader {
     program: GpuProgram,
@@ -262,7 +263,6 @@ impl LightVolumeRenderer {
             // marked in stencil buffer. For distant lights it will be very low amount of pixels and
             // so distant lights won't impact performance.
             let shader = &self.spot_light_shader;
-            let depth_map = gbuffer.depth();
             stats += frame_buffer.draw(
                 quad,
                 viewport,
@@ -288,7 +288,12 @@ impl LightVolumeRenderer {
                     },
                     scissor_box: None,
                 },
-                &[], // TODO
+                &[ResourceBindGroup {
+                    bindings: &[ResourceBinding::texture(
+                        &gbuffer.depth(),
+                        &shader.depth_sampler,
+                    )],
+                }],
                 ElementRange::Full,
                 &mut |mut program_binding| {
                     program_binding
@@ -297,7 +302,6 @@ impl LightVolumeRenderer {
                         .set_f32(&shader.cone_angle_cos, (spot.full_cone_angle() * 0.5).cos())
                         .set_vector3(&shader.light_position, &position)
                         .set_vector3(&shader.light_direction, &direction)
-                        .set_texture(&shader.depth_sampler, &depth_map)
                         .set_vector3(
                             &shader.light_color,
                             &spot.base_light_ref().color().srgb_to_linear_f32().xyz(),
@@ -355,7 +359,6 @@ impl LightVolumeRenderer {
             // marked in stencil buffer. For distant lights it will be very low amount of pixels and
             // so distant lights won't impact performance.
             let shader = &self.point_light_shader;
-            let depth_map = gbuffer.depth();
             stats += frame_buffer.draw(
                 quad,
                 viewport,
@@ -381,14 +384,18 @@ impl LightVolumeRenderer {
                     },
                     scissor_box: None,
                 },
-                &[], // TODO
+                &[ResourceBindGroup {
+                    bindings: &[ResourceBinding::texture(
+                        &gbuffer.depth(),
+                        &shader.depth_sampler,
+                    )],
+                }],
                 ElementRange::Full,
                 &mut |mut program_binding| {
                     program_binding
                         .set_matrix4(&shader.world_view_proj_matrix, &frame_matrix)
                         .set_matrix4(&shader.inv_proj, &inv_proj)
                         .set_vector3(&shader.light_position, &position)
-                        .set_texture(&shader.depth_sampler, &depth_map)
                         .set_f32(&shader.light_radius, point.radius())
                         .set_vector3(
                             &shader.light_color,

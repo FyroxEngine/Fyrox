@@ -40,6 +40,7 @@ use crate::{
     Editor,
 };
 use fyrox::renderer::framework::buffer::BufferUsage;
+use fyrox::renderer::framework::framebuffer::{ResourceBindGroup, ResourceBinding};
 use fyrox::renderer::framework::{CompareFunc, GeometryBufferExt};
 use std::{any::TypeId, cell::RefCell, rc::Rc};
 
@@ -161,7 +162,9 @@ impl SceneRenderPass for OverlayRenderPass {
                     stencil_op: Default::default(),
                     scissor_box: None,
                 },
-                &[], // TODO
+                &[ResourceBindGroup {
+                    bindings: &[ResourceBinding::texture(&icon, &shader.diffuse_texture)],
+                }],
                 ElementRange::Full,
                 &mut |mut program_binding| {
                     program_binding
@@ -169,8 +172,7 @@ impl SceneRenderPass for OverlayRenderPass {
                         .set_matrix4(&shader.world_matrix, &world_matrix)
                         .set_vector3(&shader.camera_side_vector, &camera_side)
                         .set_vector3(&shader.camera_up_vector, &camera_up)
-                        .set_f32(&shader.size, self.pictogram_size)
-                        .set_texture(&shader.diffuse_texture, &icon);
+                        .set_f32(&shader.size, self.pictogram_size);
                 },
             )?;
         }

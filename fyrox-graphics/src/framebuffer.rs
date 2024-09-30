@@ -44,13 +44,29 @@ pub struct Attachment {
 
 pub enum ResourceBinding<'a> {
     Texture {
-        texture: &'a dyn GpuTexture,
-        shader_location: &'a UniformLocation,
+        texture: Rc<RefCell<dyn GpuTexture>>,
+        shader_location: UniformLocation,
     },
     Buffer {
         buffer: &'a dyn Buffer,
         shader_location: u32,
     },
+}
+
+impl<'a> ResourceBinding<'a> {
+    pub fn texture(
+        texture: &Rc<RefCell<dyn GpuTexture>>,
+        shader_location: &UniformLocation,
+    ) -> Self {
+        Self::Texture {
+            texture: texture.clone(),
+            shader_location: shader_location.clone(),
+        }
+    }
+}
+
+pub struct ResourceBindGroup<'a> {
+    pub bindings: &'a [ResourceBinding<'a>],
 }
 
 pub trait FrameBuffer: Any {
@@ -72,7 +88,7 @@ pub trait FrameBuffer: Any {
         viewport: Rect<i32>,
         program: &GpuProgram,
         params: &DrawParameters,
-        resources: &[ResourceBinding],
+        resources: &[ResourceBindGroup],
         element_range: ElementRange,
         apply_uniforms: &mut dyn FnMut(GpuProgramBinding<'_, '_>),
     ) -> Result<DrawCallStatistics, FrameworkError>;
@@ -83,7 +99,7 @@ pub trait FrameBuffer: Any {
         viewport: Rect<i32>,
         program: &GpuProgram,
         params: &DrawParameters,
-        resources: &[ResourceBinding],
+        resources: &[ResourceBindGroup],
         apply_uniforms: &mut dyn FnMut(GpuProgramBinding<'_, '_>),
     ) -> DrawCallStatistics;
 }

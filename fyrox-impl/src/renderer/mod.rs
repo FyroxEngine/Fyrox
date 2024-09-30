@@ -101,6 +101,7 @@ use crate::{
 };
 use fxhash::FxHashMap;
 use fyrox_graphics::buffer::BufferUsage;
+use fyrox_graphics::framebuffer::{ResourceBindGroup, ResourceBinding};
 use fyrox_graphics::state::GraphicsServer;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
@@ -872,25 +873,25 @@ fn blit_pixels(
             stencil_op: Default::default(),
             scissor_box: None,
         },
-        &[], // TODO
+        &[ResourceBindGroup {
+            bindings: &[ResourceBinding::texture(&texture, &shader.diffuse_texture)],
+        }],
         ElementRange::Full,
         &mut |mut program_binding| {
-            program_binding
-                .set_matrix4(&shader.wvp_matrix, &{
-                    Matrix4::new_orthographic(
-                        0.0,
-                        viewport.w() as f32,
-                        viewport.h() as f32,
-                        0.0,
-                        -1.0,
-                        1.0,
-                    ) * Matrix4::new_nonuniform_scaling(&Vector3::new(
-                        viewport.w() as f32,
-                        viewport.h() as f32,
-                        0.0,
-                    ))
-                })
-                .set_texture(&shader.diffuse_texture, &texture);
+            program_binding.set_matrix4(&shader.wvp_matrix, &{
+                Matrix4::new_orthographic(
+                    0.0,
+                    viewport.w() as f32,
+                    viewport.h() as f32,
+                    0.0,
+                    -1.0,
+                    1.0,
+                ) * Matrix4::new_nonuniform_scaling(&Vector3::new(
+                    viewport.w() as f32,
+                    viewport.h() as f32,
+                    0.0,
+                ))
+            });
         },
     )
 }
