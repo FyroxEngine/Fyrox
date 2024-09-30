@@ -124,6 +124,10 @@ impl Buffer for GlBuffer {
     }
 
     fn write_data(&self, data: &[u8]) -> Result<(), FrameworkError> {
+        if data.is_empty() {
+            return Ok(());
+        }
+
         let Some(server) = self.state.upgrade() else {
             return Err(FrameworkError::GraphicsServerUnavailable);
         };
