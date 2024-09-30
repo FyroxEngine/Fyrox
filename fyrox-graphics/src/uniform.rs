@@ -217,6 +217,14 @@ where
         self
     }
 
+    pub fn with<T>(mut self, value: &T) -> Self
+    where
+        T: Std140,
+    {
+        self.push(value);
+        self
+    }
+
     pub fn push_slice<T>(&mut self, slice: &[T]) -> &mut Self
     where
         T: Std140,
@@ -226,6 +234,14 @@ where
             item.write(&mut self.storage);
             self.push_padding(16);
         }
+        self
+    }
+
+    pub fn with_slice<T>(mut self, slice: &[T]) -> Self
+    where
+        T: Std140,
+    {
+        self.push_slice(slice);
         self
     }
 

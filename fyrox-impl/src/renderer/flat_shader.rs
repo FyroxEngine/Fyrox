@@ -18,16 +18,18 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::core::sstorage::ImmutableString;
-use crate::renderer::framework::{
-    error::FrameworkError,
-    gpu_program::{GpuProgram, UniformLocation},
-    state::GlGraphicsServer,
+use crate::{
+    core::sstorage::ImmutableString,
+    renderer::framework::{
+        error::FrameworkError,
+        gpu_program::{GpuProgram, UniformLocation},
+        state::GlGraphicsServer,
+    },
 };
 
 pub struct FlatShader {
     pub program: GpuProgram,
-    pub wvp_matrix: UniformLocation,
+    pub uniform_buffer_binding: usize,
     pub diffuse_texture: UniformLocation,
 }
 
@@ -39,8 +41,8 @@ impl FlatShader {
         let program =
             GpuProgram::from_source(server, "FlatShader", vertex_source, fragment_source)?;
         Ok(Self {
-            wvp_matrix: program
-                .uniform_location(server, &ImmutableString::new("worldViewProjection"))?,
+            uniform_buffer_binding: program
+                .uniform_block_index(server, &ImmutableString::new("Uniforms"))?,
             diffuse_texture: program
                 .uniform_location(server, &ImmutableString::new("diffuseTexture"))?,
             program,

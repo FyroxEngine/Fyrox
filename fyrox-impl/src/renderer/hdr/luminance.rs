@@ -35,7 +35,7 @@ pub struct LuminanceShader {
 impl LuminanceShader {
     pub fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("../shaders/hdr_luminance_fs.glsl");
-        let vertex_source = include_str!("../shaders/flat_vs.glsl");
+        let vertex_source = include_str!("../shaders/simple_vs.glsl");
 
         let program =
             GpuProgram::from_source(server, "LuminanceShader", vertex_source, fragment_source)?;

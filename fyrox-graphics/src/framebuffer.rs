@@ -49,7 +49,7 @@ pub enum ResourceBinding<'a> {
     },
     Buffer {
         buffer: &'a dyn Buffer,
-        shader_location: u32,
+        shader_location: usize,
     },
 }
 

@@ -181,7 +181,7 @@ impl<'a> BundleRenderContext<'a> {
                 .as_ref()
                 .and_then(|blend_shapes_storage| {
                     self.texture_cache
-                        .get(program_binding.state, blend_shapes_storage)
+                        .get(program_binding.server, blend_shapes_storage)
                 })
             {
                 material_bindings.push(ResourceBinding::texture(texture, location));
@@ -284,7 +284,7 @@ impl<'a> BundleRenderContext<'a> {
                     PropertyValue::Sampler { value, fallback } => {
                         let texture = value
                             .as_ref()
-                            .and_then(|t| self.texture_cache.get(program_binding.state, t))
+                            .and_then(|t| self.texture_cache.get(program_binding.server, t))
                             .unwrap_or(match fallback {
                                 SamplerFallback::White => self.white_dummy,
                                 SamplerFallback::Normal => self.normal_dummy,
@@ -455,13 +455,10 @@ impl RenderDataBundle {
             if let Some(location) =
                 &built_in_uniform_blocks[BuiltInUniformBlock::BoneMatrices as usize]
             {
-                let mut uniform_buffer = StaticUniformBuffer::<16384>::new();
-                uniform_buffer.push_slice(&instance.bone_matrices);
-                let bytes = uniform_buffer.finish();
-                let buffer = render_context
-                    .uniform_buffer_cache
-                    .get_or_create(program_binding.state, 16384)?;
-                buffer.write_data(&bytes)?;
+                let buffer = render_context.uniform_buffer_cache.write(
+                    program_binding.server,
+                    StaticUniformBuffer::<16384>::new().with_slice(&instance.bone_matrices),
+                )?;
                 instance_bindings.push(ResourceBinding::Buffer {
                     buffer,
                     shader_location: *location,
@@ -471,18 +468,15 @@ impl RenderDataBundle {
             if let Some(location) =
                 &built_in_uniform_blocks[BuiltInUniformBlock::InstanceData as usize]
             {
-                let mut uniform_buffer = StaticUniformBuffer::<4096>::new();
-                uniform_buffer
-                    .push(&instance.world_transform)
-                    .push(&(render_context.view_projection_matrix * instance.world_transform))
-                    .push(&(instance.blend_shapes_weights.len() as i32))
-                    .push(&(!instance.bone_matrices.is_empty()))
-                    .push_slice(&instance.blend_shapes_weights);
-                let bytes = uniform_buffer.finish();
-                let buffer = render_context
-                    .uniform_buffer_cache
-                    .get_or_create(program_binding.state, 4096)?;
-                buffer.write_data(&bytes)?;
+                let buffer = render_context.uniform_buffer_cache.write(
+                    program_binding.server,
+                    StaticUniformBuffer::<4096>::new()
+                        .with(&instance.world_transform)
+                        .with(&(render_context.view_projection_matrix * instance.world_transform))
+                        .with(&(instance.blend_shapes_weights.len() as i32))
+                        .with(&(!instance.bone_matrices.is_empty()))
+                        .with_slice(&instance.blend_shapes_weights),
+                )?;
                 instance_bindings.push(ResourceBinding::Buffer {
                     buffer,
                     shader_location: *location,

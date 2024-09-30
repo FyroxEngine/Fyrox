@@ -39,7 +39,7 @@ pub struct GpuProgram {
     thread_mark: PhantomData<*const u8>,
     uniform_locations: RefCell<FxHashMap<ImmutableString, Option<UniformLocation>>>,
     pub built_in_uniform_locations: [Option<UniformLocation>; BuiltInUniform::Count as usize],
-    pub built_in_uniform_blocks: [Option<u32>; BuiltInUniformBlock::Count as usize],
+    pub built_in_uniform_blocks: [Option<usize>; BuiltInUniformBlock::Count as usize],
 }
 
 #[repr(usize)]
@@ -154,14 +154,14 @@ fn prepare_source_code(code: &str, gl_kind: GlKind) -> String {
 }
 
 pub struct GpuProgramBinding<'a, 'b> {
-    pub state: &'a GlGraphicsServer,
+    pub server: &'a GlGraphicsServer,
     active_sampler: u32,
     pub program: &'b GpuProgram,
 }
 
 impl<'a, 'b> GpuProgramBinding<'a, 'b> {
     pub fn uniform_location(&self, name: &ImmutableString) -> Option<UniformLocation> {
-        self.program.uniform_location_internal(self.state, name)
+        self.program.uniform_location_internal(self.server, name)
     }
 
     pub fn active_sampler(&self) -> u32 {
@@ -171,7 +171,7 @@ impl<'a, 'b> GpuProgramBinding<'a, 'b> {
     #[inline(always)]
     pub fn set_bool(&mut self, location: &UniformLocation, value: bool) -> &mut Self {
         unsafe {
-            self.state.gl.uniform_1_i32(
+            self.server.gl.uniform_1_i32(
                 Some(&location.id),
                 if value { glow::TRUE } else { glow::FALSE } as i32,
             );
@@ -182,7 +182,7 @@ impl<'a, 'b> GpuProgramBinding<'a, 'b> {
     #[inline(always)]
     pub fn set_i32(&mut self, location: &UniformLocation, value: i32) -> &mut Self {
         unsafe {
-            self.state.gl.uniform_1_i32(Some(&location.id), value);
+            self.server.gl.uniform_1_i32(Some(&location.id), value);
         }
         self
     }
@@ -190,7 +190,7 @@ impl<'a, 'b> GpuProgramBinding<'a, 'b> {
     #[inline(always)]
     pub fn set_u32(&mut self, location: &UniformLocation, value: u32) -> &mut Self {
         unsafe {
-            self.state.gl.uniform_1_u32(Some(&location.id), value);
+            self.server.gl.uniform_1_u32(Some(&location.id), value);
         }
         self
     }
@@ -198,7 +198,7 @@ impl<'a, 'b> GpuProgramBinding<'a, 'b> {
     #[inline(always)]
     pub fn set_f32(&mut self, location: &UniformLocation, value: f32) -> &mut Self {
         unsafe {
-            self.state.gl.uniform_1_f32(Some(&location.id), value);
+            self.server.gl.uniform_1_f32(Some(&location.id), value);
         }
         self
     }
@@ -206,7 +206,7 @@ impl<'a, 'b> GpuProgramBinding<'a, 'b> {
     #[inline(always)]
     pub fn set_vector2(&mut self, location: &UniformLocation, value: &Vector2<f32>) -> &mut Self {
         unsafe {
-            self.state
+            self.server
                 .gl
                 .uniform_2_f32(Some(&location.id), value.x, value.y);
         }
@@ -216,7 +216,7 @@ impl<'a, 'b> GpuProgramBinding<'a, 'b> {
     #[inline(always)]
     pub fn set_vector3(&mut self, location: &UniformLocation, value: &Vector3<f32>) -> &mut Self {
         unsafe {
-            self.state
+            self.server
                 .gl
                 .uniform_3_f32(Some(&location.id), value.x, value.y, value.z);
         }
@@ -226,7 +226,7 @@ impl<'a, 'b> GpuProgramBinding<'a, 'b> {
     #[inline(always)]
     pub fn set_vector4(&mut self, location: &UniformLocation, value: &Vector4<f32>) -> &mut Self {
         unsafe {
-            self.state
+            self.server
                 .gl
                 .uniform_4_f32(Some(&location.id), value.x, value.y, value.z, value.w);
         }
@@ -237,7 +237,9 @@ impl<'a, 'b> GpuProgramBinding<'a, 'b> {
     pub fn set_i32_slice(&mut self, location: &UniformLocation, value: &[i32]) -> &mut Self {
         unsafe {
             if !value.is_empty() {
-                self.state.gl.uniform_1_i32_slice(Some(&location.id), value);
+                self.server
+                    .gl
+                    .uniform_1_i32_slice(Some(&location.id), value);
             }
         }
         self
@@ -247,7 +249,9 @@ impl<'a, 'b> GpuProgramBinding<'a, 'b> {
     pub fn set_u32_slice(&mut self, location: &UniformLocation, value: &[u32]) -> &mut Self {
         unsafe {
             if !value.is_empty() {
-                self.state.gl.uniform_1_u32_slice(Some(&location.id), value);
+                self.server
+                    .gl
+                    .uniform_1_u32_slice(Some(&location.id), value);
             }
         }
         self
@@ -257,7 +261,9 @@ impl<'a, 'b> GpuProgramBinding<'a, 'b> {
     pub fn set_f32_slice(&mut self, location: &UniformLocation, value: &[f32]) -> &mut Self {
         unsafe {
             if !value.is_empty() {
-                self.state.gl.uniform_1_f32_slice(Some(&location.id), value);
+                self.server
+                    .gl
+                    .uniform_1_f32_slice(Some(&location.id), value);
             }
         }
         self
@@ -271,7 +277,7 @@ impl<'a, 'b> GpuProgramBinding<'a, 'b> {
     ) -> &mut Self {
         unsafe {
             if !value.is_empty() {
-                self.state.gl.uniform_2_f32_slice(
+                self.server.gl.uniform_2_f32_slice(
                     Some(&location.id),
                     std::slice::from_raw_parts(value.as_ptr() as *const f32, value.len() * 2),
                 );
@@ -288,7 +294,7 @@ impl<'a, 'b> GpuProgramBinding<'a, 'b> {
     ) -> &mut Self {
         unsafe {
             if !value.is_empty() {
-                self.state.gl.uniform_3_f32_slice(
+                self.server.gl.uniform_3_f32_slice(
                     Some(&location.id),
                     std::slice::from_raw_parts(value.as_ptr() as *const f32, value.len() * 3),
                 );
@@ -305,7 +311,7 @@ impl<'a, 'b> GpuProgramBinding<'a, 'b> {
     ) -> &mut Self {
         unsafe {
             if !value.is_empty() {
-                self.state.gl.uniform_4_f32_slice(
+                self.server.gl.uniform_4_f32_slice(
                     Some(&location.id),
                     std::slice::from_raw_parts(value.as_ptr() as *const f32, value.len() * 4),
                 );
@@ -317,7 +323,7 @@ impl<'a, 'b> GpuProgramBinding<'a, 'b> {
     #[inline(always)]
     pub fn set_matrix2(&mut self, location: &UniformLocation, value: &Matrix2<f32>) -> &mut Self {
         unsafe {
-            self.state
+            self.server
                 .gl
                 .uniform_matrix_2_f32_slice(Some(&location.id), false, value.as_slice());
         }
@@ -332,7 +338,7 @@ impl<'a, 'b> GpuProgramBinding<'a, 'b> {
     ) -> &mut Self {
         unsafe {
             if !value.is_empty() {
-                self.state.gl.uniform_matrix_2_f32_slice(
+                self.server.gl.uniform_matrix_2_f32_slice(
                     Some(&location.id),
                     false,
                     std::slice::from_raw_parts(value.as_ptr() as *const f32, value.len() * 4),
@@ -345,7 +351,7 @@ impl<'a, 'b> GpuProgramBinding<'a, 'b> {
     #[inline(always)]
     pub fn set_matrix3(&mut self, location: &UniformLocation, value: &Matrix3<f32>) -> &mut Self {
         unsafe {
-            self.state
+            self.server
                 .gl
                 .uniform_matrix_3_f32_slice(Some(&location.id), false, value.as_slice());
         }
@@ -360,7 +366,7 @@ impl<'a, 'b> GpuProgramBinding<'a, 'b> {
     ) -> &mut Self {
         unsafe {
             if !value.is_empty() {
-                self.state.gl.uniform_matrix_3_f32_slice(
+                self.server.gl.uniform_matrix_3_f32_slice(
                     Some(&location.id),
                     false,
                     std::slice::from_raw_parts(value.as_ptr() as *const f32, value.len() * 9),
@@ -373,7 +379,7 @@ impl<'a, 'b> GpuProgramBinding<'a, 'b> {
     #[inline(always)]
     pub fn set_matrix4(&mut self, location: &UniformLocation, value: &Matrix4<f32>) -> &mut Self {
         unsafe {
-            self.state
+            self.server
                 .gl
                 .uniform_matrix_4_f32_slice(Some(&location.id), false, value.as_slice());
         }
@@ -388,7 +394,7 @@ impl<'a, 'b> GpuProgramBinding<'a, 'b> {
     ) -> &mut Self {
         unsafe {
             if !value.is_empty() {
-                self.state.gl.uniform_matrix_4_f32_slice(
+                self.server.gl.uniform_matrix_4_f32_slice(
                     Some(&location.id),
                     false,
                     std::slice::from_raw_parts(value.as_ptr() as *const f32, value.len() * 16),
@@ -402,9 +408,13 @@ impl<'a, 'b> GpuProgramBinding<'a, 'b> {
     pub fn set_linear_color(&mut self, location: &UniformLocation, value: &Color) -> &mut Self {
         unsafe {
             let srgb_a = value.srgb_to_linear_f32();
-            self.state
-                .gl
-                .uniform_4_f32(Some(&location.id), srgb_a.x, srgb_a.y, srgb_a.z, srgb_a.w);
+            self.server.gl.uniform_4_f32(
+                Some(&location.id),
+                srgb_a.x,
+                srgb_a.y,
+                srgb_a.z,
+                srgb_a.w,
+            );
         }
         self
     }
@@ -413,7 +423,7 @@ impl<'a, 'b> GpuProgramBinding<'a, 'b> {
     pub fn set_srgb_color(&mut self, location: &UniformLocation, value: &Color) -> &mut Self {
         unsafe {
             let rgba = value.as_frgba();
-            self.state
+            self.server
                 .gl
                 .uniform_4_f32(Some(&location.id), rgba.x, rgba.y, rgba.z, rgba.w);
         }
@@ -442,14 +452,19 @@ pub fn fetch_uniform_block_index(
     server: &GlGraphicsServer,
     program: glow::Program,
     name: &str,
-) -> Option<u32> {
-    unsafe { server.gl.get_uniform_block_index(program, name) }
+) -> Option<usize> {
+    unsafe {
+        server
+            .gl
+            .get_uniform_block_index(program, name)
+            .map(|index| index as usize)
+    }
 }
 
 fn fetch_built_in_uniform_blocks(
     server: &GlGraphicsServer,
     program: glow::Program,
-) -> [Option<u32>; BuiltInUniformBlock::Count as usize] {
+) -> [Option<usize>; BuiltInUniformBlock::Count as usize] {
     let mut locations = [None; BuiltInUniformBlock::Count as usize];
     locations[BuiltInUniformBlock::BoneMatrices as usize] =
         fetch_uniform_block_index(server, program, "FyroxBoneMatrices");
@@ -628,7 +643,7 @@ impl GpuProgram {
     pub fn bind<'a, 'b>(&'b self, state: &'a GlGraphicsServer) -> GpuProgramBinding<'a, 'b> {
         state.set_program(Some(self.id));
         GpuProgramBinding {
-            state,
+            server: state,
             active_sampler: 0,
             program: self,
         }

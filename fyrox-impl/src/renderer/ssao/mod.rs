@@ -275,7 +275,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
                     ResourceBinding::texture(&self.noise, &self.shader.noise_sampler),
                     ResourceBinding::Buffer {
                         buffer: &*self.uniform_buffer,
-                        shader_location: self.shader.uniform_block_index as u32,
+                        shader_location: self.shader.uniform_block_index,
                     },
                 ],
             }],

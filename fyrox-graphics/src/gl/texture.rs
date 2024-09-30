@@ -314,7 +314,7 @@ impl GlTexture {
 
             result.set_data(kind, pixel_kind, mip_count, data)?;
 
-            let mut binding = result.make_temp_binding();
+            let binding = result.make_temp_binding();
             binding.server.gl.tex_parameter_i32(
                 target,
                 glow::TEXTURE_MAG_FILTER,

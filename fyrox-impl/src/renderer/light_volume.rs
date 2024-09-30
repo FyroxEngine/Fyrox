@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::renderer::cache::uniform::UniformBufferCache;
 use crate::renderer::framework::GeometryBufferExt;
 use crate::{
     core::{
@@ -49,6 +50,8 @@ use crate::{
 };
 use fyrox_graphics::buffer::BufferUsage;
 use fyrox_graphics::framebuffer::{ResourceBindGroup, ResourceBinding};
+use fyrox_graphics::state::GraphicsServer;
+use fyrox_graphics::uniform::StaticUniformBuffer;
 
 struct SpotLightShader {
     program: GpuProgram,
@@ -66,7 +69,7 @@ struct SpotLightShader {
 impl SpotLightShader {
     fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("shaders/spot_volumetric_fs.glsl");
-        let vertex_source = include_str!("shaders/flat_vs.glsl");
+        let vertex_source = include_str!("shaders/simple_vs.glsl");
         let program = GpuProgram::from_source(
             server,
             "SpotVolumetricLight",
@@ -109,7 +112,7 @@ struct PointLightShader {
 impl PointLightShader {
     fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("shaders/point_volumetric_fs.glsl");
-        let vertex_source = include_str!("shaders/flat_vs.glsl");
+        let vertex_source = include_str!("shaders/simple_vs.glsl");
         let program = GpuProgram::from_source(
             server,
             "PointVolumetricLight",
@@ -169,6 +172,7 @@ impl LightVolumeRenderer {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn render_volume(
         &mut self,
+        server: &dyn GraphicsServer,
         light: &Node,
         light_handle: Handle<Node>,
         gbuffer: &mut GBuffer,
@@ -179,6 +183,7 @@ impl LightVolumeRenderer {
         viewport: Rect<i32>,
         graph: &Graph,
         frame_buffer: &mut dyn FrameBuffer,
+        uniform_buffer_cache: &mut UniformBufferCache,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();
 
@@ -229,6 +234,9 @@ impl LightVolumeRenderer {
             // Clear stencil only.
             frame_buffer.clear(viewport, None, None, Some(0));
 
+            let uniform_buffer =
+                uniform_buffer_cache.write(server, StaticUniformBuffer::<256>::new().with(&mvp))?;
+
             stats += frame_buffer.draw(
                 &self.cone,
                 viewport,
@@ -252,11 +260,14 @@ impl LightVolumeRenderer {
                     },
                     scissor_box: None,
                 },
-                &[], // TODO
+                &[ResourceBindGroup {
+                    bindings: &[ResourceBinding::Buffer {
+                        buffer: uniform_buffer,
+                        shader_location: self.flat_shader.uniform_buffer_binding,
+                    }],
+                }],
                 ElementRange::Full,
-                &mut |mut program_binding| {
-                    program_binding.set_matrix4(&self.flat_shader.wvp_matrix, &mvp);
-                },
+                &mut |_| {},
             )?;
 
             // Finally draw fullscreen quad, GPU will calculate scattering only on pixels that were
@@ -317,13 +328,16 @@ impl LightVolumeRenderer {
 
             frame_buffer.clear(viewport, None, None, Some(0));
 
-            // Radius bias is used to to slightly increase sphere radius to add small margin
+            // Radius bias is used to slightly increase sphere radius to add small margin
             // for fadeout effect. It is set to 5%.
             let bias = 1.05;
             let k = bias * point.radius();
             let light_shape_matrix = Matrix4::new_translation(&light.global_position())
                 * Matrix4::new_nonuniform_scaling(&Vector3::new(k, k, k));
             let mvp = view_proj * light_shape_matrix;
+
+            let uniform_buffer =
+                uniform_buffer_cache.write(server, StaticUniformBuffer::<256>::new().with(&mvp))?;
 
             stats += frame_buffer.draw(
                 &self.sphere,
@@ -348,11 +362,14 @@ impl LightVolumeRenderer {
                     },
                     scissor_box: None,
                 },
-                &[], // TODO
+                &[ResourceBindGroup {
+                    bindings: &[ResourceBinding::Buffer {
+                        buffer: uniform_buffer,
+                        shader_location: self.flat_shader.uniform_buffer_binding,
+                    }],
+                }],
                 ElementRange::Full,
-                &mut |mut program_binding| {
-                    program_binding.set_matrix4(&self.flat_shader.wvp_matrix, &mvp);
-                },
+                &mut |_| {},
             )?;
 
             // Finally draw fullscreen quad, GPU will calculate scattering only on pixels that were

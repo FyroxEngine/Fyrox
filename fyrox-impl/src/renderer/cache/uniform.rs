@@ -27,6 +27,7 @@ use crate::renderer::framework::{
     state::GraphicsServer,
 };
 use fxhash::FxHashMap;
+use fyrox_graphics::uniform::{ByteStorage, UniformBuffer};
 use std::cell::RefCell;
 
 #[derive(Default)]
@@ -84,6 +85,22 @@ impl UniformBufferCache {
         // hash map won't affect the returned reference. Also, buffers cannot be deleted so the
         // reference is also valid. These reasons allows to extend lifetime to the lifetime of self.
         Ok(unsafe { std::mem::transmute::<&'_ dyn Buffer, &'a dyn Buffer>(buffer) })
+    }
+
+    /// Fetches a suitable (or creates new one) GPU uniform buffer for the given CPU uniform buffer
+    /// and writes the data to it, returns a reference to the buffer.
+    pub fn write<T>(
+        &self,
+        server: &dyn GraphicsServer,
+        uniform_buffer: UniformBuffer<T>,
+    ) -> Result<&dyn Buffer, FrameworkError>
+    where
+        T: ByteStorage,
+    {
+        let data = uniform_buffer.finish();
+        let buffer = self.get_or_create(server, data.bytes_count())?;
+        buffer.write_data(data.bytes())?;
+        Ok(buffer)
     }
 
     /// Marks all reserved buffers as unused. Must be called at least once per frame to prevent

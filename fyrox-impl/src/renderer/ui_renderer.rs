@@ -215,6 +215,9 @@ impl UiRenderer {
                     .bind(server)
                     .set_triangles(&clipping_geometry.triangle_buffer);
 
+                let uniform_buffer = uniform_buffer_cache
+                    .write(server, StaticUniformBuffer::<256>::new().with(&ortho))?;
+
                 // Draw
                 statistics += frame_buffer.draw(
                     &self.clipping_geometry_buffer,
@@ -233,11 +236,14 @@ impl UiRenderer {
                         },
                         scissor_box,
                     },
-                    &[], // TODO
+                    &[ResourceBindGroup {
+                        bindings: &[ResourceBinding::Buffer {
+                            buffer: uniform_buffer,
+                            shader_location: flat_shader.uniform_buffer_binding,
+                        }],
+                    }],
                     ElementRange::Full,
-                    &mut |mut program_binding| {
-                        program_binding.set_matrix4(&flat_shader.wvp_matrix, &ortho);
-                    },
+                    &mut |_| {},
                 )?;
 
                 // Make sure main geometry will be drawn only on marked pixels.
@@ -361,25 +367,23 @@ impl UiRenderer {
                 | Brush::RadialGradient { ref stops, .. } => stops.len() as i32,
             };
 
-            let mut uniforms = StaticUniformBuffer::<1024>::new();
-            uniforms
-                .push(&ortho)
-                .push(&solid_color)
-                .push_slice(gradient_colors)
-                .push_slice(gradient_stops)
-                .push(&gradient_origin)
-                .push(&gradient_end)
-                .push(&resolution)
-                .push(&cmd.bounds.position)
-                .push(&bounds_max)
-                .push(&is_font_texture)
-                .push(&cmd.opacity)
-                .push(&brush_type)
-                .push(&gradient_point_count);
-            let uniforms_bytes = uniforms.finish();
-            let uniform_buffer =
-                uniform_buffer_cache.get_or_create(server, uniforms_bytes.len())?;
-            uniform_buffer.write_data(&uniforms_bytes)?;
+            let uniform_buffer = uniform_buffer_cache.write(
+                server,
+                StaticUniformBuffer::<1024>::new()
+                    .with(&ortho)
+                    .with(&solid_color)
+                    .with_slice(gradient_colors)
+                    .with_slice(gradient_stops)
+                    .with(&gradient_origin)
+                    .with(&gradient_end)
+                    .with(&resolution)
+                    .with(&cmd.bounds.position)
+                    .with(&bounds_max)
+                    .with(&is_font_texture)
+                    .with(&cmd.opacity)
+                    .with(&brush_type)
+                    .with(&gradient_point_count),
+            )?;
 
             let shader = &self.shader;
             statistics += frame_buffer.draw(
@@ -392,7 +396,7 @@ impl UiRenderer {
                         ResourceBinding::texture(diffuse_texture, &shader.diffuse_texture),
                         ResourceBinding::Buffer {
                             buffer: uniform_buffer,
-                            shader_location: self.shader.uniform_block_index as u32,
+                            shader_location: self.shader.uniform_block_index,
                         },
                     ],
                 }],

@@ -407,7 +407,7 @@ fn pre_draw(
                         match gl_buffer.kind() {
                             BufferKind::Uniform => server.gl.uniform_block_binding(
                                 program_binding.program.id,
-                                *shader_location,
+                                *shader_location as u32,
                                 buffer_binding,
                             ),
                             BufferKind::Vertex

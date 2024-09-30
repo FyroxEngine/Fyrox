@@ -103,6 +103,7 @@ use fxhash::FxHashMap;
 use fyrox_graphics::buffer::BufferUsage;
 use fyrox_graphics::framebuffer::{ResourceBindGroup, ResourceBinding};
 use fyrox_graphics::state::GraphicsServer;
+use fyrox_graphics::uniform::StaticUniformBuffer;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 pub use stats::*;
@@ -853,12 +854,28 @@ pub trait SceneRenderPass {
 }
 
 fn blit_pixels(
+    server: &dyn GraphicsServer,
+    uniform_buffer_cache: &mut UniformBufferCache,
     framebuffer: &mut dyn FrameBuffer,
     texture: Rc<RefCell<dyn GpuTexture>>,
     shader: &FlatShader,
     viewport: Rect<i32>,
     quad: &GeometryBuffer,
 ) -> Result<DrawCallStatistics, FrameworkError> {
+    let matrix = Matrix4::new_orthographic(
+        0.0,
+        viewport.w() as f32,
+        viewport.h() as f32,
+        0.0,
+        -1.0,
+        1.0,
+    ) * Matrix4::new_nonuniform_scaling(&Vector3::new(
+        viewport.w() as f32,
+        viewport.h() as f32,
+        0.0,
+    ));
+    let uniform_buffer =
+        uniform_buffer_cache.write(server, StaticUniformBuffer::<256>::new().with(&matrix))?;
     framebuffer.draw(
         quad,
         viewport,
@@ -874,25 +891,16 @@ fn blit_pixels(
             scissor_box: None,
         },
         &[ResourceBindGroup {
-            bindings: &[ResourceBinding::texture(&texture, &shader.diffuse_texture)],
+            bindings: &[
+                ResourceBinding::texture(&texture, &shader.diffuse_texture),
+                ResourceBinding::Buffer {
+                    buffer: uniform_buffer,
+                    shader_location: shader.uniform_buffer_binding,
+                },
+            ],
         }],
         ElementRange::Full,
-        &mut |mut program_binding| {
-            program_binding.set_matrix4(&shader.wvp_matrix, &{
-                Matrix4::new_orthographic(
-                    0.0,
-                    viewport.w() as f32,
-                    viewport.h() as f32,
-                    0.0,
-                    -1.0,
-                    1.0,
-                ) * Matrix4::new_nonuniform_scaling(&Vector3::new(
-                    viewport.w() as f32,
-                    viewport.h() as f32,
-                    0.0,
-                ))
-            });
-        },
+        &mut |_| {},
     )
 }
 
@@ -1543,6 +1551,8 @@ impl Renderer {
                 let quad = &self.quad;
                 let temp_frame_texture = scene_associated_data.ldr_temp_frame_texture();
                 scene_associated_data.statistics += blit_pixels(
+                    &**server,
+                    &mut self.uniform_buffer_cache,
                     &mut *scene_associated_data.ldr_scene_framebuffer,
                     temp_frame_texture,
                     &self.flat_shader,
@@ -1597,6 +1607,8 @@ impl Renderer {
         if scene.rendering_options.render_target.is_none() {
             let quad = &self.quad;
             scene_associated_data.statistics += blit_pixels(
+                &**server,
+                &mut self.uniform_buffer_cache,
                 &mut *self.backbuffer,
                 scene_associated_data.ldr_scene_frame_texture(),
                 &self.flat_shader,
