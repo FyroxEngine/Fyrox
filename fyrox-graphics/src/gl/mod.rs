@@ -20,5 +20,5 @@
 
 pub mod buffer;
 pub mod framebuffer;
-pub mod texture;
 pub mod query;
+pub mod texture;
