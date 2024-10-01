@@ -1,12 +1,16 @@
 uniform sampler2D depthSampler;
-// Warning! All coordinates are given in *view* space.
-uniform vec3 lightPosition;
-uniform vec3 lightDirection;
-uniform float coneAngleCos;
-uniform mat4 invProj;
-uniform vec3 lightColor;
-uniform vec3 scatterFactor;
-uniform float intensity;
+
+layout (std140) uniform Uniforms {
+    mat4 worldViewProjection;
+    mat4 invProj;
+    // Warning! All coordinates are given in *view* space.
+    vec3 lightPosition;
+    vec3 lightDirection;
+    vec3 lightColor;
+    vec3 scatterFactor;
+    float intensity;
+    float coneAngleCos;
+};
 
 out vec4 FragColor;
 
@@ -20,7 +24,7 @@ void main()
 
     // Ray-cone intersection
     float sqrConeAngleCos = coneAngleCos * coneAngleCos;
-    vec3  CO = -lightPosition;
+    vec3 CO = -lightPosition;
     float DdotV = dot(viewDirection, lightDirection);
     float COdotV = dot(CO, lightDirection);
     float a = DdotV * DdotV - sqrConeAngleCos;

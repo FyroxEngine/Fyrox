@@ -18,8 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::cache::uniform::UniformBufferCache;
-use crate::renderer::framework::GeometryBufferExt;
 use crate::{
     core::{
         algebra::{Isometry3, Matrix4, Point3, Translation, Vector3},
@@ -28,15 +26,18 @@ use crate::{
         sstorage::ImmutableString,
     },
     renderer::{
+        cache::uniform::UniformBufferCache,
         flat_shader::FlatShader,
         framework::{
+            buffer::BufferUsage,
             error::FrameworkError,
-            framebuffer::FrameBuffer,
+            framebuffer::{FrameBuffer, ResourceBindGroup, ResourceBinding},
             geometry_buffer::GeometryBuffer,
             gpu_program::{GpuProgram, UniformLocation},
-            state::GlGraphicsServer,
+            state::{GlGraphicsServer, GraphicsServer},
+            uniform::StaticUniformBuffer,
             BlendFactor, BlendFunc, BlendParameters, ColorMask, CompareFunc, DrawParameters,
-            ElementRange, StencilAction, StencilFunc, StencilOp,
+            ElementRange, GeometryBufferExt, StencilAction, StencilFunc, StencilOp,
         },
         gbuffer::GBuffer,
         RenderPassStatistics,
@@ -48,28 +49,17 @@ use crate::{
         node::Node,
     },
 };
-use fyrox_graphics::buffer::BufferUsage;
-use fyrox_graphics::framebuffer::{ResourceBindGroup, ResourceBinding};
-use fyrox_graphics::state::GraphicsServer;
-use fyrox_graphics::uniform::StaticUniformBuffer;
 
 struct SpotLightShader {
     program: GpuProgram,
     depth_sampler: UniformLocation,
-    world_view_proj_matrix: UniformLocation,
-    light_position: UniformLocation,
-    light_direction: UniformLocation,
-    cone_angle_cos: UniformLocation,
-    light_color: UniformLocation,
-    scatter_factor: UniformLocation,
-    inv_proj: UniformLocation,
-    intensity: UniformLocation,
+    uniform_block_binding: usize,
 }
 
 impl SpotLightShader {
     fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("shaders/spot_volumetric_fs.glsl");
-        let vertex_source = include_str!("shaders/simple_vs.glsl");
+        let vertex_source = include_str!("shaders/spot_volumetric_vs.glsl");
         let program = GpuProgram::from_source(
             server,
             "SpotVolumetricLight",
@@ -77,21 +67,10 @@ impl SpotLightShader {
             fragment_source,
         )?;
         Ok(Self {
-            world_view_proj_matrix: program
-                .uniform_location(server, &ImmutableString::new("worldViewProjection"))?,
             depth_sampler: program
                 .uniform_location(server, &ImmutableString::new("depthSampler"))?,
-            light_position: program
-                .uniform_location(server, &ImmutableString::new("lightPosition"))?,
-            light_direction: program
-                .uniform_location(server, &ImmutableString::new("lightDirection"))?,
-            cone_angle_cos: program
-                .uniform_location(server, &ImmutableString::new("coneAngleCos"))?,
-            light_color: program.uniform_location(server, &ImmutableString::new("lightColor"))?,
-            scatter_factor: program
-                .uniform_location(server, &ImmutableString::new("scatterFactor"))?,
-            inv_proj: program.uniform_location(server, &ImmutableString::new("invProj"))?,
-            intensity: program.uniform_location(server, &ImmutableString::new("intensity"))?,
+            uniform_block_binding: program
+                .uniform_block_index(server, &ImmutableString::new("Uniforms"))?,
             program,
         })
     }
@@ -100,19 +79,13 @@ impl SpotLightShader {
 struct PointLightShader {
     program: GpuProgram,
     depth_sampler: UniformLocation,
-    world_view_proj_matrix: UniformLocation,
-    light_position: UniformLocation,
-    light_radius: UniformLocation,
-    light_color: UniformLocation,
-    scatter_factor: UniformLocation,
-    inv_proj: UniformLocation,
-    intensity: UniformLocation,
+    uniform_block_binding: usize,
 }
 
 impl PointLightShader {
     fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("shaders/point_volumetric_fs.glsl");
-        let vertex_source = include_str!("shaders/simple_vs.glsl");
+        let vertex_source = include_str!("shaders/point_volumetric_vs.glsl");
         let program = GpuProgram::from_source(
             server,
             "PointVolumetricLight",
@@ -120,18 +93,10 @@ impl PointLightShader {
             fragment_source,
         )?;
         Ok(Self {
-            world_view_proj_matrix: program
-                .uniform_location(server, &ImmutableString::new("worldViewProjection"))?,
             depth_sampler: program
                 .uniform_location(server, &ImmutableString::new("depthSampler"))?,
-            light_position: program
-                .uniform_location(server, &ImmutableString::new("lightPosition"))?,
-            inv_proj: program.uniform_location(server, &ImmutableString::new("invProj"))?,
-            light_radius: program.uniform_location(server, &ImmutableString::new("lightRadius"))?,
-            light_color: program.uniform_location(server, &ImmutableString::new("lightColor"))?,
-            scatter_factor: program
-                .uniform_location(server, &ImmutableString::new("scatterFactor"))?,
-            intensity: program.uniform_location(server, &ImmutableString::new("intensity"))?,
+            uniform_block_binding: program
+                .uniform_block_index(server, &ImmutableString::new("Uniforms"))?,
             program,
         })
     }
@@ -234,9 +199,6 @@ impl LightVolumeRenderer {
             // Clear stencil only.
             frame_buffer.clear(viewport, None, None, Some(0));
 
-            let uniform_buffer =
-                uniform_buffer_cache.write(server, StaticUniformBuffer::<256>::new().with(&mvp))?;
-
             stats += frame_buffer.draw(
                 &self.cone,
                 viewport,
@@ -262,7 +224,8 @@ impl LightVolumeRenderer {
                 },
                 &[ResourceBindGroup {
                     bindings: &[ResourceBinding::Buffer {
-                        buffer: uniform_buffer,
+                        buffer: uniform_buffer_cache
+                            .write(server, StaticUniformBuffer::<256>::new().with(&mvp))?,
                         shader_location: self.flat_shader.uniform_buffer_binding,
                     }],
                 }],
@@ -300,26 +263,27 @@ impl LightVolumeRenderer {
                     scissor_box: None,
                 },
                 &[ResourceBindGroup {
-                    bindings: &[ResourceBinding::texture(
-                        &gbuffer.depth(),
-                        &shader.depth_sampler,
-                    )],
+                    bindings: &[
+                        ResourceBinding::texture(&gbuffer.depth(), &shader.depth_sampler),
+                        ResourceBinding::Buffer {
+                            buffer: uniform_buffer_cache.write(
+                                server,
+                                StaticUniformBuffer::<256>::new()
+                                    .with(&frame_matrix)
+                                    .with(&inv_proj)
+                                    .with(&position)
+                                    .with(&direction)
+                                    .with(&spot.base_light_ref().color().srgb_to_linear_f32().xyz())
+                                    .with(&spot.base_light_ref().scatter())
+                                    .with(&spot.base_light_ref().intensity())
+                                    .with(&((spot.full_cone_angle() * 0.5).cos())),
+                            )?,
+                            shader_location: shader.uniform_block_binding,
+                        },
+                    ],
                 }],
                 ElementRange::Full,
-                &mut |mut program_binding| {
-                    program_binding
-                        .set_matrix4(&shader.world_view_proj_matrix, &frame_matrix)
-                        .set_matrix4(&shader.inv_proj, &inv_proj)
-                        .set_f32(&shader.cone_angle_cos, (spot.full_cone_angle() * 0.5).cos())
-                        .set_vector3(&shader.light_position, &position)
-                        .set_vector3(&shader.light_direction, &direction)
-                        .set_vector3(
-                            &shader.light_color,
-                            &spot.base_light_ref().color().srgb_to_linear_f32().xyz(),
-                        )
-                        .set_vector3(&shader.scatter_factor, &spot.base_light_ref().scatter())
-                        .set_f32(&shader.intensity, spot.base_light_ref().intensity());
-                },
+                &mut |_| {},
             )?
         } else if let Some(point) = light.cast::<PointLight>() {
             if !point.base_light_ref().is_scatter_enabled() {
@@ -402,25 +366,28 @@ impl LightVolumeRenderer {
                     scissor_box: None,
                 },
                 &[ResourceBindGroup {
-                    bindings: &[ResourceBinding::texture(
-                        &gbuffer.depth(),
-                        &shader.depth_sampler,
-                    )],
+                    bindings: &[
+                        ResourceBinding::texture(&gbuffer.depth(), &shader.depth_sampler),
+                        ResourceBinding::Buffer {
+                            buffer: uniform_buffer_cache.write(
+                                server,
+                                StaticUniformBuffer::<256>::new()
+                                    .with(&frame_matrix)
+                                    .with(&inv_proj)
+                                    .with(&position)
+                                    .with(
+                                        &point.base_light_ref().color().srgb_to_linear_f32().xyz(),
+                                    )
+                                    .with(&point.base_light_ref().scatter())
+                                    .with(&point.base_light_ref().intensity())
+                                    .with(&point.radius()),
+                            )?,
+                            shader_location: shader.uniform_block_binding,
+                        },
+                    ],
                 }],
                 ElementRange::Full,
-                &mut |mut program_binding| {
-                    program_binding
-                        .set_matrix4(&shader.world_view_proj_matrix, &frame_matrix)
-                        .set_matrix4(&shader.inv_proj, &inv_proj)
-                        .set_vector3(&shader.light_position, &position)
-                        .set_f32(&shader.light_radius, point.radius())
-                        .set_vector3(
-                            &shader.light_color,
-                            &point.base_light_ref().color().srgb_to_linear_f32().xyz(),
-                        )
-                        .set_vector3(&shader.scatter_factor, &point.base_light_ref().scatter())
-                        .set_f32(&shader.intensity, point.base_light_ref().intensity());
-                },
+                &mut |_| {},
             )?
         }
 

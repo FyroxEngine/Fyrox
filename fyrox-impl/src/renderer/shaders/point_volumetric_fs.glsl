@@ -1,11 +1,15 @@
 uniform sampler2D depthSampler;
-// Warning! All coordinates are given in *view* space.
-uniform vec3 lightPosition;
-uniform mat4 invProj;
-uniform float lightRadius;
-uniform vec3 lightColor;
-uniform vec3 scatterFactor;
-uniform float intensity;
+
+layout (std140) uniform Uniforms {
+    mat4 worldViewProjection;
+    mat4 invProj;
+    // Warning! All coordinates are given in *view* space.
+    vec3 lightPosition;
+    vec3 lightColor;
+    vec3 scatterFactor;
+    float intensity;
+    float lightRadius;
+};
 
 out vec4 FragColor;
 
