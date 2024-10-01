@@ -49,10 +49,13 @@
                 layout(location = 2) in vec2 vertexParams;
                 layout(location = 3) in vec4 vertexColor;
 
-                uniform mat4 fyrox_viewProjectionMatrix;
-                uniform mat4 fyrox_worldMatrix;
-                uniform vec3 fyrox_cameraUpVector;
-                uniform vec3 fyrox_cameraSideVector;
+                layout(std140) uniform FyroxInstanceData {
+                    TInstanceData instanceData;
+                };
+
+                layout(std140) uniform FyroxCameraData {
+                     TCameraData cameraData;
+                };
 
                 out vec2 texCoord;
                 out vec4 color;
@@ -73,9 +76,9 @@
                     texCoord = vertexTexCoord;
                     color = vertexColor;
                     vec2 vertexOffset = rotateVec2(vertexTexCoord * 2.0 - 1.0, rotation);
-                    vec4 worldPosition = fyrox_worldMatrix * vec4(vertexPosition, 1.0);
-                    vec3 offset = (vertexOffset.x * fyrox_cameraSideVector + vertexOffset.y * fyrox_cameraUpVector) * size;
-                    gl_Position = fyrox_viewProjectionMatrix * (worldPosition + vec4(offset.x, offset.y, offset.z, 0.0));
+                    vec4 worldPosition = instanceData.worldMatrix * vec4(vertexPosition, 1.0);
+                    vec3 offset = (vertexOffset.x * cameraData.sideVector + vertexOffset.y * cameraData.upVector) * size;
+                    gl_Position = cameraData.viewProjectionMatrix * (worldPosition + vec4(offset.x, offset.y, offset.z, 0.0));
                 }
                "#,
 

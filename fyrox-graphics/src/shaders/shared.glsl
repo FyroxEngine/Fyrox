@@ -381,3 +381,13 @@ struct TInstanceData {
     bool useSkeletalAnimation;
     float blendShapesWeights[128];
 };
+
+struct TCameraData {
+    mat4 viewProjectionMatrix;
+    vec3 position;
+    vec3 upVector;
+    vec3 sideVector;
+    float zNear;
+    float zFar;
+    float zRange;
+};

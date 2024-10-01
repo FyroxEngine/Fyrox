@@ -189,10 +189,11 @@
                 uniform float parallaxCenter;
                 uniform float parallaxScale;
 
-                // Define uniforms with reserved names. Fyrox will automatically provide
-                // required data to these uniforms.
-                uniform vec3 fyrox_cameraPosition;
                 uniform bool fyrox_usePOM;
+
+                layout(std140) uniform FyroxCameraData {
+                     TCameraData cameraData;
+                };
 
                 in vec3 position;
                 in vec3 normal;
@@ -206,7 +207,7 @@
                     if (texture(holeMaskTexture, texCoord).r < 0.5) discard;
 
                     mat3 tangentSpace = mat3(tangent, binormal, normal);
-                    vec3 toFragment = normalize(position - fyrox_cameraPosition);
+                    vec3 toFragment = normalize(position - cameraData.position);
 
                     vec2 tc;
                     if (fyrox_usePOM) {

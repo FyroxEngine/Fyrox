@@ -58,29 +58,21 @@
                    TInstanceData fyrox_instanceData;
                };
 
-               uniform mat4 fyrox_viewProjectionMatrix;
-               uniform vec3 fyrox_cameraUpVector;
-               uniform vec3 fyrox_cameraSideVector;
+               layout(std140) uniform FyroxCameraData {
+                    TCameraData cameraData;
+               };
 
                out vec2 texCoord;
                out vec4 color;
-
-               vec2 rotateVec2(vec2 v, float angle)
-               {
-                   float c = cos(angle);
-                   float s = sin(angle);
-                   mat2 m = mat2(c, -s, s, c);
-                   return m * v;
-               }
 
                void main()
                {
                    color = S_SRGBToLinear(vertexColor);
                    texCoord = vertexTexCoord;
-                   vec2 vertexOffset = rotateVec2(vertexTexCoord * 2.0 - 1.0, particleRotation);
+                   vec2 vertexOffset = S_RotateVec2(vertexTexCoord * 2.0 - 1.0, particleRotation);
                    vec4 worldPosition = fyrox_instanceData.worldMatrix * vec4(vertexPosition, 1.0);
-                   vec3 offset = (vertexOffset.x * fyrox_cameraSideVector + vertexOffset.y * fyrox_cameraUpVector) * particleSize;
-                   gl_Position = fyrox_viewProjectionMatrix * (worldPosition + vec4(offset.x, offset.y, offset.z, 0.0));
+                   vec3 offset = (vertexOffset.x * cameraData.sideVector + vertexOffset.y * cameraData.upVector) * particleSize;
+                   gl_Position = cameraData.viewProjectionMatrix * (worldPosition + vec4(offset.x, offset.y, offset.z, 0.0));
                }
                "#,
 
@@ -90,8 +82,10 @@
                uniform float softBoundarySharpnessFactor;
 
                uniform sampler2D fyrox_sceneDepth;
-               uniform float fyrox_zNear;
-               uniform float fyrox_zFar;
+
+               layout(std140) uniform FyroxCameraData {
+                    TCameraData cameraData;
+               };
 
                out vec4 FragColor;
                in vec2 texCoord;
@@ -99,7 +93,7 @@
 
                float toProjSpace(float z)
                {
-                   return (fyrox_zFar * fyrox_zNear) / (fyrox_zFar - z * (fyrox_zFar - fyrox_zNear));
+                   return (cameraData.zFar * cameraData.zNear) / (cameraData.zFar - z * cameraData.zRange);
                }
 
                void main()

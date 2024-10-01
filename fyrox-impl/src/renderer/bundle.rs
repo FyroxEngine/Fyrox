@@ -191,25 +191,6 @@ impl<'a> BundleRenderContext<'a> {
         }
 
         // Apply values for built-in uniforms.
-        if let Some(location) = &built_in_uniforms[BuiltInUniform::ViewProjectionMatrix as usize] {
-            program_binding.set_matrix4(location, self.view_projection_matrix);
-        }
-        if let Some(location) = &built_in_uniforms[BuiltInUniform::CameraPosition as usize] {
-            program_binding.set_vector3(location, self.camera_position);
-        }
-
-        if let Some(location) = &built_in_uniforms[BuiltInUniform::CameraUpVector as usize] {
-            program_binding.set_vector3(location, self.camera_up_vector);
-        }
-        if let Some(location) = &built_in_uniforms[BuiltInUniform::CameraSideVector as usize] {
-            program_binding.set_vector3(location, self.camera_side_vector);
-        }
-        if let Some(location) = &built_in_uniforms[BuiltInUniform::ZNear as usize] {
-            program_binding.set_f32(location, self.z_near);
-        }
-        if let Some(location) = &built_in_uniforms[BuiltInUniform::ZFar as usize] {
-            program_binding.set_f32(location, self.z_far);
-        }
 
         if let Some(location) = &built_in_uniforms[BuiltInUniform::UsePOM as usize] {
             program_binding.set_bool(location, self.use_pom);
@@ -444,13 +425,31 @@ impl RenderDataBundle {
             &mut material_bindings,
         );
 
+        let built_in_uniform_blocks = &program_binding.program.built_in_uniform_blocks;
+
+        if let Some(location) = &built_in_uniform_blocks[BuiltInUniformBlock::CameraData as usize] {
+            let buffer = render_context.uniform_buffer_cache.write(
+                program_binding.server,
+                StaticUniformBuffer::<512>::new()
+                    .with(render_context.view_projection_matrix)
+                    .with(render_context.camera_position)
+                    .with(render_context.camera_up_vector)
+                    .with(render_context.camera_side_vector)
+                    .with(&render_context.z_near)
+                    .with(&render_context.z_far)
+                    .with(&(render_context.z_far - render_context.z_near)),
+            )?;
+            material_bindings.push(ResourceBinding::Buffer {
+                buffer,
+                shader_location: *location,
+            })
+        }
+
         for instance in self.instances.iter() {
             if !instance_filter(instance) {
                 continue;
             }
             let mut instance_bindings = ArrayVec::<ResourceBinding, 32>::new();
-
-            let built_in_uniform_blocks = &program_binding.program.built_in_uniform_blocks;
 
             if let Some(location) =
                 &built_in_uniform_blocks[BuiltInUniformBlock::BoneMatrices as usize]

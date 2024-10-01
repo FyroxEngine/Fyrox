@@ -54,7 +54,9 @@
                r#"
                 layout(location = 0) in vec3 vertexPosition;
 
-                uniform mat4 fyrox_viewProjectionMatrix;
+                layout(std140) uniform FyroxCameraData {
+                     TCameraData cameraData;
+                };
 
                 out vec3 nearPoint;
                 out vec3 farPoint;
@@ -67,7 +69,7 @@
 
                 void main()
                 {
-                    mat4 invViewProj = inverse(fyrox_viewProjectionMatrix);
+                    mat4 invViewProj = inverse(cameraData.viewProjectionMatrix);
                     nearPoint = Unproject(vertexPosition.x, vertexPosition.y, 0.0, invViewProj);
                     farPoint = Unproject(vertexPosition.x, vertexPosition.y, 1.0, invViewProj);
                     gl_Position = vec4(vertexPosition, 1.0);
@@ -83,10 +85,9 @@
                 uniform vec4 xAxisColor;
                 uniform vec4 zAxisColor;
 
-                uniform mat4 fyrox_viewProjectionMatrix;
-                uniform float fyrox_zNear;
-                uniform float fyrox_zFar;
-                uniform vec3 fyrox_cameraPosition;
+                layout(std140) uniform FyroxCameraData {
+                     TCameraData cameraData;
+                };
 
                 out vec4 FragColor;
 
@@ -113,7 +114,7 @@
                         // x axis
                         color.xyz = xAxisColor.xyz;
                     } else {
-                        vec3 viewDir = fragPos3D - fyrox_cameraPosition;
+                        vec3 viewDir = fragPos3D - cameraData.position;
                         // This helps to negate moire pattern at large distances.
                         float cosAngle = abs(dot(vec3(0.0, 1.0, 0.0), normalize(viewDir)));
                         color.a *= cosAngle;
@@ -123,7 +124,7 @@
                 }
 
                 float computeDepth(vec3 pos) {
-                    vec4 clip_space_pos = fyrox_viewProjectionMatrix * vec4(pos.xyz, 1.0);
+                    vec4 clip_space_pos = cameraData.viewProjectionMatrix * vec4(pos.xyz, 1.0);
                     return (clip_space_pos.z / clip_space_pos.w);
                 }
 
