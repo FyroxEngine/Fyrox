@@ -104,11 +104,7 @@ impl Std140 for Vector2<f32> {
 
 impl Std140 for Vector3<f32> {
     const ALIGNMENT: usize = 16;
-
-    fn write<T: ByteStorage>(&self, dest: &mut T) {
-        dest.write_bytes(value_as_u8_slice(self));
-        dest.write_bytes(&[0; size_of::<f32>()]);
-    }
+    default_write_impl!();
 }
 
 impl Std140 for Vector4<f32> {
@@ -264,7 +260,7 @@ mod test {
         buffer.push(&123.321);
         assert_eq!(buffer.len(), 4);
         buffer.push(&Vector3::new(1.0, 2.0, 3.0));
-        assert_eq!(buffer.len(), 32);
+        assert_eq!(buffer.len(), 28);
         buffer.push(&Vector4::new(1.0, 2.0, 3.0, 4.0));
         assert_eq!(buffer.len(), 48);
         buffer.push(&Matrix3::default());
@@ -275,5 +271,14 @@ mod test {
         assert_eq!(buffer.len(), 176);
         let bytes = buffer.finish();
         assert_eq!(bytes.len(), 176);
+    }
+
+    #[test]
+    fn test_uniform_buffer_mixed_alignment() {
+        let mut buffer = DynamicUniformBuffer::default();
+        buffer.push(&Vector3::repeat(1.0));
+        assert_eq!(buffer.len(), 12);
+        buffer.push(&1.0);
+        assert_eq!(buffer.len(), 16);
     }
 }
