@@ -2,27 +2,27 @@ uniform sampler2D depthTexture;
 uniform sampler2D colorTexture;
 uniform sampler2D normalTexture;
 uniform sampler2D materialTexture;
-
-uniform vec3 lightDirection;
-uniform vec4 lightColor;
-uniform mat4 invViewProj;
-uniform vec3 cameraPosition;
-uniform float lightIntensity;
-uniform mat4 viewMatrix;
-
-#define NUM_CASCADES 3
-
-uniform float cascadeDistances[NUM_CASCADES];
-uniform mat4 lightViewProjMatrices[NUM_CASCADES];
-
 uniform sampler2D shadowCascade0;
 uniform sampler2D shadowCascade1;
 uniform sampler2D shadowCascade2;
 
-uniform bool shadowsEnabled;
-uniform float shadowBias;
-uniform bool softShadows;
-uniform float shadowMapInvSize;
+#define NUM_CASCADES 3
+
+layout(std140) uniform Uniforms {
+    mat4 worldViewProjection;
+    mat4 viewMatrix;
+    mat4 invViewProj;
+    mat4 lightViewProjMatrices[NUM_CASCADES];
+    vec4 lightColor;
+    vec3 lightDirection;
+    vec3 cameraPosition;
+    float lightIntensity;
+    bool shadowsEnabled;
+    float shadowBias;
+    bool softShadows;
+    float shadowMapInvSize;
+    float cascadeDistances[NUM_CASCADES];
+};
 
 in vec2 texCoord;
 out vec4 FragColor;

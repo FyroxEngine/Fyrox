@@ -5,22 +5,25 @@ uniform sampler2D materialTexture;
 uniform sampler2D spotShadowTexture;
 uniform sampler2D cookieTexture;
 
-uniform mat4 lightViewProjMatrix;
-uniform vec3 lightPos;
-uniform float lightRadius;
-uniform vec4 lightColor;
-uniform vec3 lightDirection;
-uniform float halfHotspotConeAngleCos;
-uniform float halfConeAngleCos;
-uniform mat4 invViewProj;
-uniform vec3 cameraPosition;
-uniform bool shadowsEnabled;
-uniform bool softShadows;
-uniform float shadowMapInvSize;
-uniform float shadowBias;
-uniform bool cookieEnabled;
-uniform float lightIntensity;
-uniform float shadowAlpha;
+layout (std140) uniform Uniforms {
+    mat4 worldViewProjection;
+    mat4 lightViewProjMatrix;
+    mat4 invViewProj;
+    vec3 lightPos;
+    vec4 lightColor;
+    vec3 cameraPosition;
+    vec3 lightDirection;
+    float lightRadius;
+    float halfHotspotConeAngleCos;
+    float halfConeAngleCos;
+    float shadowMapInvSize;
+    float shadowBias;
+    float lightIntensity;
+    float shadowAlpha;
+    bool cookieEnabled;
+    bool shadowsEnabled;
+    bool softShadows;
+};
 
 in vec2 texCoord;
 out vec4 FragColor;
@@ -52,7 +55,7 @@ void main()
 
     float shadow = S_SpotShadowFactor(
         shadowsEnabled, softShadows, shadowBias, fragmentPosition,
-            lightViewProjMatrix, shadowMapInvSize, spotShadowTexture);
+        lightViewProjMatrix, shadowMapInvSize, spotShadowTexture);
     float finalShadow = mix(1.0, shadow, shadowAlpha);
 
     vec4 cookieAttenuation = vec4(1.0);

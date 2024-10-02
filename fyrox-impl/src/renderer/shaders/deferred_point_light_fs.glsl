@@ -4,16 +4,19 @@ uniform sampler2D normalTexture;
 uniform sampler2D materialTexture;
 uniform samplerCube pointShadowTexture;
 
-uniform vec3 lightPos;
-uniform float lightRadius;
-uniform vec4 lightColor;
-uniform mat4 invViewProj;
-uniform vec3 cameraPosition;
-uniform bool softShadows;
-uniform bool shadowsEnabled;
-uniform float shadowBias;
-uniform float lightIntensity;
-uniform float shadowAlpha;
+layout (std140) uniform Uniforms {
+    mat4 worldViewProjection;
+    mat4 invViewProj;
+    vec4 lightColor;
+    vec3 lightPos;
+    vec3 cameraPosition;
+    float lightRadius;
+    float shadowBias;
+    float lightIntensity;
+    float shadowAlpha;
+    bool softShadows;
+    bool shadowsEnabled;
+};
 
 in vec2 texCoord;
 out vec4 FragColor;

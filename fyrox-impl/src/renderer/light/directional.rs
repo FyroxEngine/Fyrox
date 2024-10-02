@@ -29,32 +29,20 @@ use crate::{
 
 pub struct DirectionalLightShader {
     pub program: GpuProgram,
-    pub wvp_matrix: UniformLocation,
     pub depth_sampler: UniformLocation,
     pub color_sampler: UniformLocation,
     pub normal_sampler: UniformLocation,
     pub material_sampler: UniformLocation,
-    pub light_direction: UniformLocation,
-    pub light_color: UniformLocation,
-    pub inv_view_proj_matrix: UniformLocation,
-    pub camera_position: UniformLocation,
-    pub light_intensity: UniformLocation,
-    pub cascade_distances: UniformLocation,
     pub shadow_cascade0: UniformLocation,
     pub shadow_cascade1: UniformLocation,
     pub shadow_cascade2: UniformLocation,
-    pub light_view_proj_matrices: UniformLocation,
-    pub view_matrix: UniformLocation,
-    pub shadow_bias: UniformLocation,
-    pub shadows_enabled: UniformLocation,
-    pub soft_shadows: UniformLocation,
-    pub shadow_map_inv_size: UniformLocation,
+    pub uniform_buffer_binding: usize,
 }
 
 impl DirectionalLightShader {
     pub fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("../shaders/deferred_directional_light_fs.glsl");
-        let vertex_source = include_str!("../shaders/deferred_light_vs.glsl");
+        let vertex_source = include_str!("../shaders/deferred_directional_light_vs.glsl");
         let program = GpuProgram::from_source(
             server,
             "DirectionalLightShader",
@@ -62,8 +50,6 @@ impl DirectionalLightShader {
             fragment_source,
         )?;
         Ok(Self {
-            wvp_matrix: program
-                .uniform_location(server, &ImmutableString::new("worldViewProjection"))?,
             depth_sampler: program
                 .uniform_location(server, &ImmutableString::new("depthTexture"))?,
             color_sampler: program
@@ -72,32 +58,14 @@ impl DirectionalLightShader {
                 .uniform_location(server, &ImmutableString::new("normalTexture"))?,
             material_sampler: program
                 .uniform_location(server, &ImmutableString::new("materialTexture"))?,
-            light_direction: program
-                .uniform_location(server, &ImmutableString::new("lightDirection"))?,
-            light_color: program.uniform_location(server, &ImmutableString::new("lightColor"))?,
-            inv_view_proj_matrix: program
-                .uniform_location(server, &ImmutableString::new("invViewProj"))?,
-            camera_position: program
-                .uniform_location(server, &ImmutableString::new("cameraPosition"))?,
-            light_intensity: program
-                .uniform_location(server, &ImmutableString::new("lightIntensity"))?,
-            cascade_distances: program
-                .uniform_location(server, &ImmutableString::new("cascadeDistances"))?,
             shadow_cascade0: program
                 .uniform_location(server, &ImmutableString::new("shadowCascade0"))?,
             shadow_cascade1: program
                 .uniform_location(server, &ImmutableString::new("shadowCascade1"))?,
             shadow_cascade2: program
                 .uniform_location(server, &ImmutableString::new("shadowCascade2"))?,
-            light_view_proj_matrices: program
-                .uniform_location(server, &ImmutableString::new("lightViewProjMatrices"))?,
-            view_matrix: program.uniform_location(server, &ImmutableString::new("viewMatrix"))?,
-            shadow_bias: program.uniform_location(server, &ImmutableString::new("shadowBias"))?,
-            shadows_enabled: program
-                .uniform_location(server, &ImmutableString::new("shadowsEnabled"))?,
-            soft_shadows: program.uniform_location(server, &ImmutableString::new("softShadows"))?,
-            shadow_map_inv_size: program
-                .uniform_location(server, &ImmutableString::new("shadowMapInvSize"))?,
+            uniform_buffer_binding: program
+                .uniform_block_index(server, &ImmutableString::new("Uniforms"))?,
             program,
         })
     }
