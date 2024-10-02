@@ -23,11 +23,15 @@ use crate::{
         core::{algebra::Matrix4, math::Matrix4Ext, sstorage::ImmutableString},
         renderer::{
             framework::{
+                buffer::BufferUsage,
                 error::FrameworkError,
+                framebuffer::{ResourceBindGroup, ResourceBinding},
                 geometry_buffer::GeometryBuffer,
                 gpu_program::{GpuProgram, UniformLocation},
                 state::GlGraphicsServer,
-                BlendFactor, BlendFunc, BlendParameters, DrawParameters, ElementRange,
+                uniform::StaticUniformBuffer,
+                BlendFactor, BlendFunc, BlendParameters, CompareFunc, DrawParameters, ElementRange,
+                GeometryBufferExt,
             },
             RenderPassStatistics, SceneRenderPass, SceneRenderPassContext,
         },
@@ -39,19 +43,12 @@ use crate::{
     },
     Editor,
 };
-use fyrox::renderer::framework::buffer::BufferUsage;
-use fyrox::renderer::framework::framebuffer::{ResourceBindGroup, ResourceBinding};
-use fyrox::renderer::framework::{CompareFunc, GeometryBufferExt};
 use std::{any::TypeId, cell::RefCell, rc::Rc};
 
 struct OverlayShader {
     program: GpuProgram,
-    view_projection_matrix: UniformLocation,
-    world_matrix: UniformLocation,
-    camera_side_vector: UniformLocation,
-    camera_up_vector: UniformLocation,
     diffuse_texture: UniformLocation,
-    size: UniformLocation,
+    uniform_buffer_binding: usize,
 }
 
 impl OverlayShader {
@@ -61,14 +58,8 @@ impl OverlayShader {
         let program =
             GpuProgram::from_source(server, "OverlayShader", vertex_source, fragment_source)?;
         Ok(Self {
-            view_projection_matrix: program
-                .uniform_location(server, &ImmutableString::new("viewProjectionMatrix"))?,
-            world_matrix: program.uniform_location(server, &ImmutableString::new("worldMatrix"))?,
-            camera_side_vector: program
-                .uniform_location(server, &ImmutableString::new("cameraSideVector"))?,
-            camera_up_vector: program
-                .uniform_location(server, &ImmutableString::new("cameraUpVector"))?,
-            size: program.uniform_location(server, &ImmutableString::new("size"))?,
+            uniform_buffer_binding: program
+                .uniform_block_index(server, &ImmutableString::new("Uniforms"))?,
             diffuse_texture: program
                 .uniform_location(server, &ImmutableString::new("diffuseTexture"))?,
             program,
@@ -163,17 +154,24 @@ impl SceneRenderPass for OverlayRenderPass {
                     scissor_box: None,
                 },
                 &[ResourceBindGroup {
-                    bindings: &[ResourceBinding::texture(&icon, &shader.diffuse_texture)],
+                    bindings: &[
+                        ResourceBinding::texture(&icon, &shader.diffuse_texture),
+                        ResourceBinding::Buffer {
+                            buffer: ctx.uniform_buffer_cache.write(
+                                ctx.server,
+                                StaticUniformBuffer::<256>::new()
+                                    .with(&view_projection)
+                                    .with(&world_matrix)
+                                    .with(&camera_side)
+                                    .with(&camera_up)
+                                    .with(&self.pictogram_size),
+                            )?,
+                            shader_location: shader.uniform_buffer_binding,
+                        },
+                    ],
                 }],
                 ElementRange::Full,
-                &mut |mut program_binding| {
-                    program_binding
-                        .set_matrix4(&shader.view_projection_matrix, &view_projection)
-                        .set_matrix4(&shader.world_matrix, &world_matrix)
-                        .set_vector3(&shader.camera_side_vector, &camera_side)
-                        .set_vector3(&shader.camera_up_vector, &camera_up)
-                        .set_f32(&shader.size, self.pictogram_size);
-                },
+                &mut |_| {},
             )?;
         }
 

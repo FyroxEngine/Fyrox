@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::renderer::cache::uniform::UniformBufferCache;
 use crate::{
     core::{
         algebra::{Matrix3, Matrix4, Vector2, Vector3},
@@ -28,7 +29,7 @@ use crate::{
     rand::Rng,
     renderer::{
         framework::{
-            buffer::{Buffer, BufferKind, BufferUsage},
+            buffer::BufferUsage,
             error::FrameworkError,
             framebuffer::{Attachment, AttachmentKind, FrameBuffer},
             geometry_buffer::GeometryBuffer,
@@ -91,7 +92,6 @@ pub struct ScreenSpaceAmbientOcclusionRenderer {
     shader: Shader,
     framebuffer: Box<dyn FrameBuffer>,
     quad: GeometryBuffer,
-    uniform_buffer: Box<dyn Buffer>,
     width: i32,
     height: i32,
     noise: Rc<RefCell<dyn GpuTexture>>,
@@ -122,11 +122,6 @@ impl ScreenSpaceAmbientOcclusionRenderer {
         let mut rng = crate::rand::thread_rng();
 
         Ok(Self {
-            uniform_buffer: server.create_buffer(
-                1024,
-                BufferKind::Uniform,
-                BufferUsage::StreamCopy,
-            )?,
             blur: Blur::new(server, width, height)?,
             shader: Shader::new(server)?,
             framebuffer: server.create_frame_buffer(
@@ -207,9 +202,11 @@ impl ScreenSpaceAmbientOcclusionRenderer {
 
     pub(crate) fn render(
         &mut self,
+        server: &dyn GraphicsServer,
         gbuffer: &GBuffer,
         projection_matrix: Matrix4<f32>,
         view_matrix: Matrix3<f32>,
+        uniform_buffer_cache: &mut UniformBufferCache,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();
 
@@ -240,16 +237,17 @@ impl ScreenSpaceAmbientOcclusionRenderer {
             self.height as f32 / NOISE_SIZE as f32,
         );
 
-        let mut uniforms = StaticUniformBuffer::<1024>::new();
-        uniforms
-            .push(&frame_matrix)
-            .push(&projection_matrix.try_inverse().unwrap_or_default())
-            .push(&projection_matrix)
-            .push_slice(&self.kernel)
-            .push(&noise_scale)
-            .push(&view_matrix)
-            .push(&self.radius);
-        self.uniform_buffer.write_data(uniforms.finish().as_ref())?;
+        let uniform_buffer = uniform_buffer_cache.write(
+            server,
+            StaticUniformBuffer::<1024>::new()
+                .with(&frame_matrix)
+                .with(&projection_matrix.try_inverse().unwrap_or_default())
+                .with(&projection_matrix)
+                .with_slice(&self.kernel)
+                .with(&noise_scale)
+                .with(&view_matrix)
+                .with(&self.radius),
+        )?;
 
         stats += self.framebuffer.draw(
             &self.quad,
@@ -274,7 +272,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
                     ),
                     ResourceBinding::texture(&self.noise, &self.shader.noise_sampler),
                     ResourceBinding::Buffer {
-                        buffer: &*self.uniform_buffer,
+                        buffer: uniform_buffer,
                         shader_location: self.shader.uniform_block_index,
                     },
                 ],
@@ -283,7 +281,8 @@ impl ScreenSpaceAmbientOcclusionRenderer {
             &mut |_| {},
         )?;
 
-        self.blur.render(self.raw_ao_map())?;
+        self.blur
+            .render(server, self.raw_ao_map(), uniform_buffer_cache)?;
 
         Ok(stats)
     }

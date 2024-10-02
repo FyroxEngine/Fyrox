@@ -1,11 +1,13 @@
-layout(location = 0) in vec3 vertexPosition;
-layout(location = 1) in vec2 vertexTexCoord;
+layout (location = 0) in vec3 vertexPosition;
+layout (location = 1) in vec2 vertexTexCoord;
 
-uniform mat4 viewProjectionMatrix;
-uniform mat4 worldMatrix;
-uniform vec3 cameraUpVector;
-uniform vec3 cameraSideVector;
-uniform float size;
+layout (std140) uniform Uniforms {
+    mat4 viewProjectionMatrix;
+    mat4 worldMatrix;
+    vec3 cameraSideVector;
+    vec3 cameraUpVector;
+    float size;
+};
 
 out vec2 texCoord;
 

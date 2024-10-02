@@ -18,35 +18,36 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::framework::GeometryBufferExt;
 use crate::{
     core::{math::Rect, sstorage::ImmutableString},
     renderer::{
+        cache::uniform::UniformBufferCache,
         framework::{
+            buffer::BufferUsage,
             error::FrameworkError,
-            framebuffer::{Attachment, AttachmentKind, FrameBuffer},
+            framebuffer::{
+                Attachment, AttachmentKind, FrameBuffer, ResourceBindGroup, ResourceBinding,
+            },
             geometry_buffer::{DrawCallStatistics, GeometryBuffer},
             gpu_program::{GpuProgram, UniformLocation},
             gpu_texture::{
                 Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
                 PixelKind, WrapMode,
             },
-            state::GlGraphicsServer,
-            DrawParameters, ElementRange,
+            state::{GlGraphicsServer, GraphicsServer},
+            uniform::StaticUniformBuffer,
+            DrawParameters, ElementRange, GeometryBufferExt,
         },
         make_viewport_matrix,
     },
     scene::mesh::surface::SurfaceData,
 };
-use fyrox_graphics::buffer::BufferUsage;
-use fyrox_graphics::framebuffer::{ResourceBindGroup, ResourceBinding};
-use fyrox_graphics::state::GraphicsServer;
 use std::{cell::RefCell, rc::Rc};
 
 struct Shader {
     program: GpuProgram,
-    world_view_projection_matrix: UniformLocation,
     input_texture: UniformLocation,
+    uniform_buffer_binding: usize,
 }
 
 impl Shader {
@@ -57,8 +58,8 @@ impl Shader {
         let program =
             GpuProgram::from_source(server, "BlurShader", vertex_source, fragment_source)?;
         Ok(Self {
-            world_view_projection_matrix: program
-                .uniform_location(server, &ImmutableString::new("worldViewProjection"))?,
+            uniform_buffer_binding: program
+                .uniform_block_index(server, &ImmutableString::new("Uniforms"))?,
             input_texture: program
                 .uniform_location(server, &ImmutableString::new("inputTexture"))?,
             program,
@@ -124,7 +125,9 @@ impl Blur {
 
     pub(crate) fn render(
         &mut self,
+        server: &dyn GraphicsServer,
         input: Rc<RefCell<dyn GpuTexture>>,
+        uniform_buffer_cache: &mut UniformBufferCache,
     ) -> Result<DrawCallStatistics, FrameworkError> {
         let viewport = Rect::new(0, 0, self.width as i32, self.height as i32);
 
@@ -144,15 +147,19 @@ impl Blur {
                 scissor_box: None,
             },
             &[ResourceBindGroup {
-                bindings: &[ResourceBinding::texture(&input, &shader.input_texture)],
+                bindings: &[
+                    ResourceBinding::texture(&input, &shader.input_texture),
+                    ResourceBinding::Buffer {
+                        buffer: uniform_buffer_cache.write(
+                            server,
+                            StaticUniformBuffer::<256>::new().with(&make_viewport_matrix(viewport)),
+                        )?,
+                        shader_location: shader.uniform_buffer_binding,
+                    },
+                ],
             }],
             ElementRange::Full,
-            &mut |mut program_binding| {
-                program_binding.set_matrix4(
-                    &shader.world_view_projection_matrix,
-                    &(make_viewport_matrix(viewport)),
-                );
-            },
+            &mut |_| {},
         )
     }
 }

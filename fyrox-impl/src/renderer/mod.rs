@@ -1444,7 +1444,7 @@ impl Renderer {
             let (pass_stats, light_stats) =
                 self.deferred_light_renderer
                     .render(DeferredRendererContext {
-                        state: server,
+                        server: server,
                         scene,
                         camera,
                         gbuffer: &mut scene_associated_data.gbuffer,
