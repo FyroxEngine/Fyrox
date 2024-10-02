@@ -21,46 +21,44 @@
 use crate::{
     core::{algebra::Vector2, math::Rect, sstorage::ImmutableString},
     renderer::{
+        cache::uniform::UniformBufferCache,
         framework::{
             error::FrameworkError,
-            framebuffer::{Attachment, AttachmentKind, FrameBuffer},
+            framebuffer::{
+                Attachment, AttachmentKind, FrameBuffer, ResourceBindGroup, ResourceBinding,
+            },
             geometry_buffer::GeometryBuffer,
             gpu_program::{GpuProgram, UniformLocation},
             gpu_texture::{
                 Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
                 PixelKind, WrapMode,
             },
-            state::GlGraphicsServer,
+            state::{GlGraphicsServer, GraphicsServer},
+            uniform::StaticUniformBuffer,
             DrawParameters, ElementRange,
         },
         make_viewport_matrix, RenderPassStatistics,
     },
 };
-use fyrox_graphics::framebuffer::{ResourceBindGroup, ResourceBinding};
-use fyrox_graphics::state::GraphicsServer;
 use std::{cell::RefCell, rc::Rc};
 
 struct Shader {
     program: GpuProgram,
-    world_view_projection_matrix: UniformLocation,
     image: UniformLocation,
-    pixel_size: UniformLocation,
-    horizontal: UniformLocation,
+    uniform_block_binding: usize,
 }
 
 impl Shader {
     fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("../shaders/gaussian_blur_fs.glsl");
-        let vertex_source = include_str!("../shaders/simple_vs.glsl");
+        let vertex_source = include_str!("../shaders/gaussian_blur_vs.glsl");
 
         let program =
             GpuProgram::from_source(server, "GaussianBlurShader", vertex_source, fragment_source)?;
         Ok(Self {
-            world_view_projection_matrix: program
-                .uniform_location(server, &ImmutableString::new("worldViewProjection"))?,
             image: program.uniform_location(server, &ImmutableString::new("image"))?,
-            pixel_size: program.uniform_location(server, &ImmutableString::new("pixelSize"))?,
-            horizontal: program.uniform_location(server, &ImmutableString::new("horizontal"))?,
+            uniform_block_binding: program
+                .uniform_block_index(server, &ImmutableString::new("Uniforms"))?,
             program,
         })
     }
@@ -134,8 +132,10 @@ impl GaussianBlur {
 
     pub(crate) fn render(
         &mut self,
+        server: &dyn GraphicsServer,
         quad: &GeometryBuffer,
         input: Rc<RefCell<dyn GpuTexture>>,
+        uniform_buffer_cache: &mut UniformBufferCache,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();
 
@@ -160,18 +160,22 @@ impl GaussianBlur {
                 scissor_box: None,
             },
             &[ResourceBindGroup {
-                bindings: &[ResourceBinding::texture(&input, &shader.image)],
+                bindings: &[
+                    ResourceBinding::texture(&input, &shader.image),
+                    ResourceBinding::Buffer {
+                        buffer: uniform_buffer_cache.write(
+                            server,
+                            StaticUniformBuffer::<256>::new()
+                                .with(&make_viewport_matrix(viewport))
+                                .with(&inv_size)
+                                .with(&true),
+                        )?,
+                        shader_location: shader.uniform_block_binding,
+                    },
+                ],
             }],
             ElementRange::Full,
-            &mut |mut program_binding| {
-                program_binding
-                    .set_matrix4(
-                        &shader.world_view_projection_matrix,
-                        &(make_viewport_matrix(viewport)),
-                    )
-                    .set_vector2(&shader.pixel_size, &inv_size)
-                    .set_bool(&shader.horizontal, true);
-            },
+            &mut |_| {},
         )?;
 
         // Then blur vertically.
@@ -191,18 +195,22 @@ impl GaussianBlur {
                 scissor_box: None,
             },
             &[ResourceBindGroup {
-                bindings: &[ResourceBinding::texture(&h_blurred_texture, &shader.image)],
+                bindings: &[
+                    ResourceBinding::texture(&h_blurred_texture, &shader.image),
+                    ResourceBinding::Buffer {
+                        buffer: uniform_buffer_cache.write(
+                            server,
+                            StaticUniformBuffer::<256>::new()
+                                .with(&make_viewport_matrix(viewport))
+                                .with(&inv_size)
+                                .with(&false),
+                        )?,
+                        shader_location: shader.uniform_block_binding,
+                    },
+                ],
             }],
             ElementRange::Full,
-            &mut |mut program_binding| {
-                program_binding
-                    .set_matrix4(
-                        &shader.world_view_projection_matrix,
-                        &(make_viewport_matrix(viewport)),
-                    )
-                    .set_vector2(&shader.pixel_size, &inv_size)
-                    .set_bool(&shader.horizontal, false);
-            },
+            &mut |_| {},
         )?;
 
         Ok(stats)

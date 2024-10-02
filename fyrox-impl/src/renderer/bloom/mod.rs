@@ -22,43 +22,45 @@ use crate::{
     core::{math::Rect, sstorage::ImmutableString},
     renderer::{
         bloom::blur::GaussianBlur,
+        cache::uniform::UniformBufferCache,
         framework::{
             error::FrameworkError,
-            framebuffer::{Attachment, AttachmentKind, FrameBuffer},
+            framebuffer::{
+                Attachment, AttachmentKind, FrameBuffer, ResourceBindGroup, ResourceBinding,
+            },
             geometry_buffer::GeometryBuffer,
             gpu_program::{GpuProgram, UniformLocation},
             gpu_texture::{
                 Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
                 PixelKind, WrapMode,
             },
-            state::GlGraphicsServer,
+            state::{GlGraphicsServer, GraphicsServer},
+            uniform::StaticUniformBuffer,
             DrawParameters, ElementRange,
         },
         make_viewport_matrix, RenderPassStatistics,
     },
 };
-use fyrox_graphics::framebuffer::{ResourceBindGroup, ResourceBinding};
-use fyrox_graphics::state::GraphicsServer;
 use std::{cell::RefCell, rc::Rc};
 
 mod blur;
 
 struct Shader {
     program: GpuProgram,
-    world_view_projection_matrix: UniformLocation,
+    uniform_block_binding: usize,
     hdr_sampler: UniformLocation,
 }
 
 impl Shader {
     fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("../shaders/bloom_fs.glsl");
-        let vertex_source = include_str!("../shaders/simple_vs.glsl");
+        let vertex_source = include_str!("../shaders/bloom_vs.glsl");
 
         let program =
             GpuProgram::from_source(server, "BloomShader", vertex_source, fragment_source)?;
         Ok(Self {
-            world_view_projection_matrix: program
-                .uniform_location(server, &ImmutableString::new("worldViewProjection"))?,
+            uniform_block_binding: program
+                .uniform_block_index(server, &ImmutableString::new("Uniforms"))?,
             hdr_sampler: program.uniform_location(server, &ImmutableString::new("hdrSampler"))?,
             program,
         })
@@ -123,8 +125,10 @@ impl BloomRenderer {
 
     pub(crate) fn render(
         &mut self,
+        server: &dyn GraphicsServer,
         quad: &GeometryBuffer,
         hdr_scene_frame: Rc<RefCell<dyn GpuTexture>>,
+        uniform_buffer_cache: &mut UniformBufferCache,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();
 
@@ -146,21 +150,24 @@ impl BloomRenderer {
                 scissor_box: None,
             },
             &[ResourceBindGroup {
-                bindings: &[ResourceBinding::texture(
-                    &hdr_scene_frame,
-                    &shader.hdr_sampler,
-                )],
+                bindings: &[
+                    ResourceBinding::texture(&hdr_scene_frame, &shader.hdr_sampler),
+                    ResourceBinding::Buffer {
+                        buffer: uniform_buffer_cache.write(
+                            server,
+                            StaticUniformBuffer::<256>::new().with(&make_viewport_matrix(viewport)),
+                        )?,
+                        shader_location: shader.uniform_block_binding,
+                    },
+                ],
             }],
             ElementRange::Full,
-            &mut |mut program_binding| {
-                program_binding.set_matrix4(
-                    &shader.world_view_projection_matrix,
-                    &(make_viewport_matrix(viewport)),
-                );
-            },
+            &mut |_| {},
         )?;
 
-        stats += self.blur.render(quad, self.glow_texture())?;
+        stats += self
+            .blur
+            .render(server, quad, self.glow_texture(), uniform_buffer_cache)?;
 
         Ok(stats)
     }

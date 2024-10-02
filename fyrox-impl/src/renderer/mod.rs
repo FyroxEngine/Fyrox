@@ -1521,9 +1521,12 @@ impl Renderer {
             let quad = &self.quad;
 
             // Prepare glow map.
-            scene_associated_data.statistics += scene_associated_data
-                .bloom_renderer
-                .render(quad, scene_associated_data.hdr_scene_frame_texture())?;
+            scene_associated_data.statistics += scene_associated_data.bloom_renderer.render(
+                &**server,
+                quad,
+                scene_associated_data.hdr_scene_frame_texture(),
+                &mut self.uniform_buffer_cache,
+            )?;
 
             // Convert high dynamic range frame to low dynamic range (sRGB) with tone mapping and gamma correction.
             scene_associated_data.statistics += scene_associated_data.hdr_renderer.render(
