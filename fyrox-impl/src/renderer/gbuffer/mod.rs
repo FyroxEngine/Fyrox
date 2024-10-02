@@ -84,7 +84,7 @@ pub struct GBuffer {
 }
 
 pub(crate) struct GBufferRenderContext<'a, 'b> {
-    pub state: &'a GlGraphicsServer,
+    pub server: &'a GlGraphicsServer,
     pub camera: &'b Camera,
     pub geom_cache: &'a mut GeometryCache,
     pub bundle_storage: &'a RenderDataBundleStorage,
@@ -292,7 +292,7 @@ impl GBuffer {
         let mut statistics = RenderPassStatistics::default();
 
         let GBufferRenderContext {
-            state,
+            server,
             camera,
             geom_cache,
             bundle_storage,
@@ -313,7 +313,7 @@ impl GBuffer {
 
         if quality_settings.use_occlusion_culling {
             self.occlusion_tester
-                .try_query_visibility_results(state, graph);
+                .try_query_visibility_results(server, graph);
         };
 
         let viewport = Rect::new(0, 0, self.width, self.height);
@@ -345,7 +345,7 @@ impl GBuffer {
             .filter(|b| b.render_path == RenderPath::Deferred)
         {
             statistics += bundle.render_to_frame_buffer(
-                state,
+                server,
                 geom_cache,
                 shader_cache,
                 instance_filter,
@@ -383,7 +383,7 @@ impl GBuffer {
             }
 
             self.occlusion_tester.try_run_visibility_test(
-                state,
+                server,
                 graph,
                 None,
                 unit_quad,
@@ -391,6 +391,7 @@ impl GBuffer {
                 &*self.framebuffer,
                 camera.global_position(),
                 view_projection,
+                uniform_buffer_cache,
             )?;
         }
 
@@ -411,13 +412,13 @@ impl GBuffer {
 
             let diffuse_texture = decal
                 .diffuse_texture()
-                .and_then(|t| texture_cache.get(state, t))
+                .and_then(|t| texture_cache.get(server, t))
                 .unwrap_or(&white_dummy)
                 .clone();
 
             let normal_texture = decal
                 .normal_texture()
-                .and_then(|t| texture_cache.get(state, t))
+                .and_then(|t| texture_cache.get(server, t))
                 .unwrap_or(&normal_dummy)
                 .clone();
 

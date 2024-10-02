@@ -23,8 +23,6 @@
 mod grid;
 mod optimizer;
 
-use crate::renderer::framework::GeometryBufferExt;
-use crate::renderer::occlusion::grid::{GridCache, Visibility};
 use crate::{
     core::{
         algebra::{Matrix4, Vector2, Vector3, Vector4},
@@ -36,39 +34,41 @@ use crate::{
     },
     graph::BaseSceneGraph,
     renderer::{
-        debug_renderer,
-        debug_renderer::DebugRenderer,
+        cache::uniform::UniformBufferCache,
+        debug_renderer::{self, DebugRenderer},
         framework::{
+            buffer::BufferUsage,
             error::FrameworkError,
-            framebuffer::{Attachment, AttachmentKind, FrameBuffer},
+            framebuffer::{
+                Attachment, AttachmentKind, FrameBuffer, ResourceBindGroup, ResourceBinding,
+            },
             geometry_buffer::GeometryBuffer,
             gpu_program::{GpuProgram, UniformLocation},
             gpu_texture::{
                 Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
                 PixelKind, WrapMode,
             },
-            state::GlGraphicsServer,
+            state::{GlGraphicsServer, GraphicsServer},
+            uniform::StaticUniformBuffer,
             BlendEquation, BlendFactor, BlendFunc, BlendMode, BlendParameters, ColorMask,
-            CompareFunc, CullFace, DrawParameters,
+            CompareFunc, CullFace, DrawParameters, GeometryBufferExt,
         },
-        occlusion::optimizer::VisibilityBufferOptimizer,
+        occlusion::{
+            grid::{GridCache, Visibility},
+            optimizer::VisibilityBufferOptimizer,
+        },
         storage::MatrixStorage,
     },
     scene::{graph::Graph, mesh::surface::SurfaceData, node::Node},
 };
 use bytemuck::{Pod, Zeroable};
-use fyrox_graphics::buffer::BufferUsage;
-use fyrox_graphics::framebuffer::{ResourceBindGroup, ResourceBinding};
-use fyrox_graphics::state::GraphicsServer;
 use std::{cell::RefCell, rc::Rc};
 
 struct Shader {
     program: GpuProgram,
-    view_projection: UniformLocation,
-    tile_size: UniformLocation,
     tile_buffer: UniformLocation,
-    frame_buffer_height: UniformLocation,
     matrices: UniformLocation,
+    uniform_buffer_binding: usize,
 }
 
 impl Shader {
@@ -78,11 +78,8 @@ impl Shader {
         let program =
             GpuProgram::from_source(server, "VisibilityShader", vertex_source, fragment_source)?;
         Ok(Self {
-            view_projection: program
-                .uniform_location(server, &ImmutableString::new("viewProjection"))?,
-            tile_size: program.uniform_location(server, &ImmutableString::new("tileSize"))?,
-            frame_buffer_height: program
-                .uniform_location(server, &ImmutableString::new("frameBufferHeight"))?,
+            uniform_buffer_binding: program
+                .uniform_block_index(server, &ImmutableString::new("Uniforms"))?,
             tile_buffer: program.uniform_location(server, &ImmutableString::new("tileBuffer"))?,
             matrices: program.uniform_location(server, &ImmutableString::new("matrices"))?,
             program,
@@ -426,6 +423,7 @@ impl OcclusionTester {
         prev_framebuffer: &dyn FrameBuffer,
         observer_position: Vector3<f32>,
         view_projection: Matrix4<f32>,
+        uniform_buffer_cache: &mut UniformBufferCache,
     ) -> Result<(), FrameworkError> {
         if self.visibility_buffer_optimizer.is_reading_from_gpu() {
             return Ok(());
@@ -482,14 +480,19 @@ impl OcclusionTester {
                 bindings: &[
                     ResourceBinding::texture(&self.tile_buffer, &shader.tile_buffer),
                     ResourceBinding::texture(self.matrix_storage.texture(), &shader.matrices),
+                    ResourceBinding::Buffer {
+                        buffer: uniform_buffer_cache.write(
+                            server,
+                            StaticUniformBuffer::<256>::new()
+                                .with(&self.view_projection)
+                                .with(&(self.tile_size as i32))
+                                .with(&(self.frame_size.y as f32)),
+                        )?,
+                        shader_location: self.shader.uniform_buffer_binding,
+                    },
                 ],
             }],
-            &mut |mut program_binding| {
-                program_binding
-                    .set_i32(&shader.tile_size, self.tile_size as i32)
-                    .set_f32(&shader.frame_buffer_height, self.frame_size.y as f32)
-                    .set_matrix4(&shader.view_projection, &self.view_projection);
-            },
+            &mut |_| {},
         );
 
         self.visibility_buffer_optimizer.optimize(
@@ -497,6 +500,7 @@ impl OcclusionTester {
             &self.visibility_mask,
             unit_quad,
             self.tile_size as i32,
+            uniform_buffer_cache,
         )?;
 
         Ok(())

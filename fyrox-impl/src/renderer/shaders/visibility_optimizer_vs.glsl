@@ -1,6 +1,9 @@
 layout (location = 0) in vec3 vertexPosition;
 
-uniform mat4 viewProjection;
+layout (std140) uniform Uniforms {
+    mat4 viewProjection;
+    int tileSize;
+};
 
 void main()
 {

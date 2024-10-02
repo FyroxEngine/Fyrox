@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::renderer::cache::uniform::UniformBufferCache;
 use crate::{
     core::{color::Color, math::Rect, ImmutableString},
     renderer::{
@@ -38,12 +39,12 @@ use crate::{
 };
 use fyrox_graphics::framebuffer::{ResourceBindGroup, ResourceBinding};
 use fyrox_graphics::state::GraphicsServer;
+use fyrox_graphics::uniform::StaticUniformBuffer;
 use std::{cell::RefCell, rc::Rc};
 
 struct VisibilityOptimizerShader {
     program: GpuProgram,
-    view_projection: UniformLocation,
-    tile_size: UniformLocation,
+    uniform_buffer_binding: usize,
     visibility_buffer: UniformLocation,
 }
 
@@ -58,9 +59,8 @@ impl VisibilityOptimizerShader {
             fragment_source,
         )?;
         Ok(Self {
-            view_projection: program
-                .uniform_location(server, &ImmutableString::new("viewProjection"))?,
-            tile_size: program.uniform_location(server, &ImmutableString::new("tileSize"))?,
+            uniform_buffer_binding: program
+                .uniform_block_index(server, &ImmutableString::new("Uniforms"))?,
             visibility_buffer: program
                 .uniform_location(server, &ImmutableString::new("visibilityBuffer"))?,
             program,
@@ -123,6 +123,7 @@ impl VisibilityBufferOptimizer {
         visibility_buffer: &Rc<RefCell<dyn GpuTexture>>,
         unit_quad: &GeometryBuffer,
         tile_size: i32,
+        uniform_buffer_cache: &mut UniformBufferCache,
     ) -> Result<(), FrameworkError> {
         let viewport = Rect::new(0, 0, self.w_tiles as i32, self.h_tiles as i32);
 
@@ -146,17 +147,24 @@ impl VisibilityBufferOptimizer {
                 scissor_box: None,
             },
             &[ResourceBindGroup {
-                bindings: &[ResourceBinding::texture(
-                    &visibility_buffer.clone(),
-                    &self.shader.visibility_buffer,
-                )],
+                bindings: &[
+                    ResourceBinding::texture(
+                        &visibility_buffer.clone(),
+                        &self.shader.visibility_buffer,
+                    ),
+                    ResourceBinding::Buffer {
+                        buffer: uniform_buffer_cache.write(
+                            server,
+                            StaticUniformBuffer::<256>::new()
+                                .with(&matrix)
+                                .with(&tile_size),
+                        )?,
+                        shader_location: self.shader.uniform_buffer_binding,
+                    },
+                ],
             }],
             ElementRange::Full,
-            &mut |mut program_binding| {
-                program_binding
-                    .set_matrix4(&self.shader.view_projection, &matrix)
-                    .set_i32(&self.shader.tile_size, tile_size);
-            },
+            &mut |_| {},
         )?;
 
         self.pixel_buffer

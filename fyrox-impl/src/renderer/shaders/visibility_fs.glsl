@@ -1,6 +1,10 @@
-uniform int tileSize;
 uniform usampler2D tileBuffer;
-uniform float frameBufferHeight;
+
+layout (std140) uniform Uniforms {
+    mat4 viewProjection;
+    int tileSize;
+    float frameBufferHeight;
+};
 
 out vec4 FragColor;
 

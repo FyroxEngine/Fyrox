@@ -1408,7 +1408,7 @@ impl Renderer {
 
             scene_associated_data.statistics +=
                 scene_associated_data.gbuffer.fill(GBufferRenderContext {
-                    state: server,
+                    server,
                     camera,
                     geom_cache: &mut self.geometry_cache,
                     bundle_storage: &bundle_storage,
@@ -1444,7 +1444,7 @@ impl Renderer {
             let (pass_stats, light_stats) =
                 self.deferred_light_renderer
                     .render(DeferredRendererContext {
-                        server: server,
+                        server,
                         scene,
                         camera,
                         gbuffer: &mut scene_associated_data.gbuffer,
@@ -1546,9 +1546,11 @@ impl Renderer {
             // Apply FXAA if needed.
             if self.quality_settings.fxaa {
                 scene_associated_data.statistics += self.fxaa_renderer.render(
+                    &**server,
                     viewport,
                     scene_associated_data.ldr_scene_frame_texture(),
                     &mut *scene_associated_data.ldr_temp_framebuffer,
+                    &mut self.uniform_buffer_cache,
                 )?;
 
                 let quad = &self.quad;

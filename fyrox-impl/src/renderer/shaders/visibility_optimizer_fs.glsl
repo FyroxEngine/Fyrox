@@ -1,5 +1,9 @@
-uniform int tileSize;
 uniform sampler2D visibilityBuffer;
+
+layout (std140) uniform Uniforms {
+    mat4 viewProjection;
+    int tileSize;
+};
 
 out uint optimizedVisibilityMask;
 

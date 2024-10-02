@@ -34,7 +34,9 @@ use crate::{
             framework::{
                 buffer::BufferUsage,
                 error::FrameworkError,
-                framebuffer::{Attachment, AttachmentKind, FrameBuffer},
+                framebuffer::{
+                    Attachment, AttachmentKind, FrameBuffer, ResourceBindGroup, ResourceBinding,
+                },
                 geometry_buffer::GeometryBuffer,
                 gpu_program::{GpuProgram, UniformLocation},
                 gpu_texture::{
@@ -42,6 +44,7 @@ use crate::{
                     WrapMode,
                 },
                 state::{GlGraphicsServer, GraphicsServer},
+                uniform::StaticUniformBuffer,
                 BlendFactor, BlendFunc, BlendParameters, CompareFunc, DrawParameters, ElementRange,
                 GeometryBufferExt,
             },
@@ -51,14 +54,12 @@ use crate::{
     },
     Editor,
 };
-use fyrox::renderer::framework::framebuffer::{ResourceBindGroup, ResourceBinding};
 use std::{any::TypeId, cell::RefCell, rc::Rc};
 
 struct EdgeDetectShader {
     program: GpuProgram,
-    wvp_matrix: UniformLocation,
+    uniform_buffer_binding: usize,
     frame_texture: UniformLocation,
-    color: UniformLocation,
 }
 
 impl EdgeDetectShader {
@@ -67,7 +68,11 @@ impl EdgeDetectShader {
 layout (location = 0) out vec4 outColor;
 
 uniform sampler2D frameTexture;
-uniform vec4 color;
+
+layout(std140) uniform Uniforms {
+    mat4 worldViewProjection;
+    vec4 color;
+};
 
 in vec2 texCoord;
 
@@ -99,7 +104,10 @@ void main() {
 layout(location = 0) in vec3 vertexPosition;
 layout(location = 1) in vec2 vertexTexCoord;
 
-uniform mat4 worldViewProjection;
+layout(std140) uniform Uniforms {
+    mat4 worldViewProjection;
+    vec4 color;
+};
 
 out vec2 texCoord;
 
@@ -112,11 +120,10 @@ void main()
         let program =
             GpuProgram::from_source(server, "EdgeDetectShader", vertex_source, fragment_source)?;
         Ok(Self {
-            wvp_matrix: program
-                .uniform_location(server, &ImmutableString::new("worldViewProjection"))?,
+            uniform_buffer_binding: program
+                .uniform_block_index(server, &ImmutableString::new("Uniforms"))?,
             frame_texture: program
                 .uniform_location(server, &ImmutableString::new("frameTexture"))?,
-            color: program.uniform_location(server, &ImmutableString::new("color"))?,
             program,
         })
     }
@@ -323,17 +330,21 @@ impl SceneRenderPass for HighlightRenderPass {
                     scissor_box: None,
                 },
                 &[ResourceBindGroup {
-                    bindings: &[ResourceBinding::texture(
-                        &frame_texture,
-                        &shader.frame_texture,
-                    )],
+                    bindings: &[
+                        ResourceBinding::texture(&frame_texture, &shader.frame_texture),
+                        ResourceBinding::Buffer {
+                            buffer: ctx.uniform_buffer_cache.write(
+                                ctx.server,
+                                StaticUniformBuffer::<256>::new()
+                                    .with(&frame_matrix)
+                                    .with(&Color::ORANGE),
+                            )?,
+                            shader_location: shader.uniform_buffer_binding,
+                        },
+                    ],
                 }],
                 ElementRange::Full,
-                &mut |mut program_binding| {
-                    program_binding
-                        .set_matrix4(&shader.wvp_matrix, &frame_matrix)
-                        .set_srgb_color(&shader.color, &Color::ORANGE);
-                },
+                &mut |_| {},
             )?;
         }
 

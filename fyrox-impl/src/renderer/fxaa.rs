@@ -18,7 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::framework::GeometryBufferExt;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2, Vector3},
@@ -26,44 +25,42 @@ use crate::{
         sstorage::ImmutableString,
     },
     renderer::{
+        cache::uniform::UniformBufferCache,
         framework::{
+            buffer::BufferUsage,
             error::FrameworkError,
-            framebuffer::FrameBuffer,
+            framebuffer::{FrameBuffer, ResourceBindGroup, ResourceBinding},
             geometry_buffer::GeometryBuffer,
             gpu_program::{GpuProgram, UniformLocation},
             gpu_texture::GpuTexture,
-            state::GlGraphicsServer,
-            DrawParameters, ElementRange,
+            state::{GlGraphicsServer, GraphicsServer},
+            uniform::StaticUniformBuffer,
+            DrawParameters, ElementRange, GeometryBufferExt,
         },
         RenderPassStatistics,
     },
     scene::mesh::surface::SurfaceData,
 };
-use fyrox_graphics::buffer::BufferUsage;
-use fyrox_graphics::framebuffer::{ResourceBindGroup, ResourceBinding};
 use std::{cell::RefCell, rc::Rc};
 
 struct FxaaShader {
     pub program: GpuProgram,
-    pub wvp_matrix: UniformLocation,
+    pub uniform_buffer_binding: usize,
     pub screen_texture: UniformLocation,
-    pub inverse_screen_size: UniformLocation,
 }
 
 impl FxaaShader {
     pub fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("shaders/fxaa_fs.glsl");
-        let vertex_source = include_str!("shaders/simple_vs.glsl");
+        let vertex_source = include_str!("shaders/fxaa_vs.glsl");
 
         let program =
             GpuProgram::from_source(server, "FXAAShader", vertex_source, fragment_source)?;
         Ok(Self {
-            wvp_matrix: program
-                .uniform_location(server, &ImmutableString::new("worldViewProjection"))?,
+            uniform_buffer_binding: program
+                .uniform_block_index(server, &ImmutableString::new("Uniforms"))?,
             screen_texture: program
                 .uniform_location(server, &ImmutableString::new("screenTexture"))?,
-            inverse_screen_size: program
-                .uniform_location(server, &ImmutableString::new("inverseScreenSize"))?,
             program,
         })
     }
@@ -88,9 +85,11 @@ impl FxaaRenderer {
 
     pub(crate) fn render(
         &self,
+        server: &dyn GraphicsServer,
         viewport: Rect<i32>,
         frame_texture: Rc<RefCell<dyn GpuTexture>>,
         frame_buffer: &mut dyn FrameBuffer,
+        uniform_buffer_cache: &mut UniformBufferCache,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut statistics = RenderPassStatistics::default();
 
@@ -122,20 +121,21 @@ impl FxaaRenderer {
                 scissor_box: None,
             },
             &[ResourceBindGroup {
-                bindings: &[ResourceBinding::texture(
-                    &frame_texture,
-                    &self.shader.screen_texture,
-                )],
+                bindings: &[
+                    ResourceBinding::texture(&frame_texture, &self.shader.screen_texture),
+                    ResourceBinding::Buffer {
+                        buffer: uniform_buffer_cache.write(
+                            server,
+                            StaticUniformBuffer::<256>::new().with(&frame_matrix).with(
+                                &Vector2::new(1.0 / viewport.w() as f32, 1.0 / viewport.h() as f32),
+                            ),
+                        )?,
+                        shader_location: self.shader.uniform_buffer_binding,
+                    },
+                ],
             }],
             ElementRange::Full,
-            &mut |mut program_binding| {
-                program_binding
-                    .set_matrix4(&self.shader.wvp_matrix, &frame_matrix)
-                    .set_vector2(
-                        &self.shader.inverse_screen_size,
-                        &Vector2::new(1.0 / viewport.w() as f32, 1.0 / viewport.h() as f32),
-                    );
-            },
+            &mut |_| {},
         )?;
 
         Ok(statistics)

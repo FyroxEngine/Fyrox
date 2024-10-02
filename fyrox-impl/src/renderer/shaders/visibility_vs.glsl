@@ -1,7 +1,12 @@
 layout (location = 0) in vec3 vertexPosition;
 
-uniform mat4 viewProjection;
 uniform sampler2D matrices;
+
+layout (std140) uniform Uniforms {
+    mat4 viewProjection;
+    int tileSize;
+    float frameBufferHeight;
+};
 
 flat out uint objectIndex;
 
