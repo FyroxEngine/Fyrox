@@ -27,7 +27,7 @@ use crate::renderer::framework::{
 
 pub struct SkyboxShader {
     pub program: GpuProgram,
-    pub wvp_matrix: UniformLocation,
+    pub uniform_buffer_binding: usize,
     pub cubemap_texture: UniformLocation,
 }
 
@@ -39,8 +39,8 @@ impl SkyboxShader {
         let program =
             GpuProgram::from_source(server, "SkyboxShader", vertex_source, fragment_source)?;
         Ok(Self {
-            wvp_matrix: program
-                .uniform_location(server, &ImmutableString::new("worldViewProjection"))?,
+            uniform_buffer_binding: program
+                .uniform_block_index(server, &ImmutableString::new("Uniforms"))?,
             cubemap_texture: program
                 .uniform_location(server, &ImmutableString::new("cubemapTexture"))?,
             program,

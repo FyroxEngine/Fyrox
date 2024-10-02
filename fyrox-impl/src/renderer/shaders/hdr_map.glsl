@@ -2,12 +2,16 @@ uniform sampler2D hdrSampler;
 uniform sampler2D lumSampler;
 uniform sampler2D bloomSampler;
 uniform sampler3D colorMapSampler;
-uniform bool useColorGrading;
-uniform float keyValue;
-uniform float minLuminance;
-uniform float maxLuminance;
-uniform bool autoExposure;
-uniform float fixedExposure;
+
+layout (std140) uniform Uniforms {
+    mat4 worldViewProjection;
+    bool useColorGrading;
+    float keyValue;
+    float minLuminance;
+    float maxLuminance;
+    bool autoExposure;
+    float fixedExposure;
+};
 
 in vec2 texCoord;
 

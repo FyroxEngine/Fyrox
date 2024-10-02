@@ -3,8 +3,14 @@ layout (location = 1) in vec2 vertexTexCoord;
 
 layout (std140) uniform Uniforms {
     mat4 worldViewProjection;
-    vec4 ambientColor;
+    bool useColorGrading;
+    float keyValue;
+    float minLuminance;
+    float maxLuminance;
+    bool autoExposure;
+    float fixedExposure;
 };
+
 
 out vec2 texCoord;
 

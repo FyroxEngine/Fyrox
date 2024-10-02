@@ -1,7 +1,10 @@
 layout (location = 0) in vec3 vertexPosition;
 layout (location = 1) in vec2 vertexTexCoord;
 
-uniform mat4 worldViewProjection;
+layout (std140) uniform Uniforms {
+    mat4 worldViewProjection;
+    float speed;
+};
 
 out vec2 texCoord;
 

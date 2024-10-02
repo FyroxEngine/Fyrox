@@ -1,6 +1,10 @@
 uniform sampler2D oldLumSampler;
 uniform sampler2D newLumSampler;
-uniform float speed;
+
+layout (std140) uniform Uniforms {
+    mat4 worldViewProjection;
+    float speed;
+};
 
 out float outLum;
 

@@ -27,9 +27,8 @@ use crate::renderer::framework::{
 
 pub struct AmbientLightShader {
     pub program: GpuProgram,
-    pub wvp_matrix: UniformLocation,
+    pub uniform_buffer_binding: usize,
     pub diffuse_texture: UniformLocation,
-    pub ambient_color: UniformLocation,
     pub ao_sampler: UniformLocation,
     pub ambient_texture: UniformLocation,
 }
@@ -41,12 +40,10 @@ impl AmbientLightShader {
         let program =
             GpuProgram::from_source(server, "AmbientLightShader", vertex_source, fragment_source)?;
         Ok(Self {
-            wvp_matrix: program
-                .uniform_location(server, &ImmutableString::new("worldViewProjection"))?,
+            uniform_buffer_binding: program
+                .uniform_block_index(server, &ImmutableString::new("Uniforms"))?,
             diffuse_texture: program
                 .uniform_location(server, &ImmutableString::new("diffuseTexture"))?,
-            ambient_color: program
-                .uniform_location(server, &ImmutableString::new("ambientColor"))?,
             ao_sampler: program.uniform_location(server, &ImmutableString::new("aoSampler"))?,
             ambient_texture: program
                 .uniform_location(server, &ImmutableString::new("ambientTexture"))?,

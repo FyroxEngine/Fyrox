@@ -34,26 +34,24 @@ pub struct AdaptationShader {
     pub program: GpuProgram,
     pub old_lum_sampler: UniformLocation,
     pub new_lum_sampler: UniformLocation,
-    pub wvp_matrix: UniformLocation,
-    pub speed: UniformLocation,
+    pub uniform_buffer_binding: usize,
 }
 
 impl AdaptationShader {
     pub fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("../shaders/hdr_adaptation_fs.glsl");
-        let vertex_source = include_str!("../shaders/simple_vs.glsl");
+        let vertex_source = include_str!("../shaders/hdr_adaptation_vs.glsl");
 
         let program =
             GpuProgram::from_source(server, "AdaptationShader", vertex_source, fragment_source)?;
 
         Ok(Self {
-            wvp_matrix: program
-                .uniform_location(server, &ImmutableString::new("worldViewProjection"))?,
+            uniform_buffer_binding: program
+                .uniform_block_index(server, &ImmutableString::new("Uniforms"))?,
             old_lum_sampler: program
                 .uniform_location(server, &ImmutableString::new("oldLumSampler"))?,
             new_lum_sampler: program
                 .uniform_location(server, &ImmutableString::new("newLumSampler"))?,
-            speed: program.uniform_location(server, &ImmutableString::new("speed"))?,
             program,
         })
     }

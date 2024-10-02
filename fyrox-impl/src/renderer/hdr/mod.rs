@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::renderer::cache::uniform::UniformBufferCache;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2, Vector3},
@@ -49,6 +50,7 @@ use crate::{
 };
 use fyrox_graphics::framebuffer::{ResourceBindGroup, ResourceBinding};
 use fyrox_graphics::state::GraphicsServer;
+use fyrox_graphics::uniform::StaticUniformBuffer;
 use std::{cell::RefCell, rc::Rc};
 
 mod adaptation;
@@ -162,8 +164,10 @@ impl HighDynamicRangeRenderer {
 
     fn calculate_frame_luminance(
         &mut self,
+        server: &dyn GraphicsServer,
         scene_frame: Rc<RefCell<dyn GpuTexture>>,
         quad: &GeometryBuffer,
+        uniform_buffer_cache: &mut UniformBufferCache,
     ) -> Result<DrawCallStatistics, FrameworkError> {
         self.frame_luminance.clear();
         let frame_matrix = self.frame_luminance.matrix();
@@ -190,23 +194,29 @@ impl HighDynamicRangeRenderer {
                 scissor_box: None,
             },
             &[ResourceBindGroup {
-                bindings: &[ResourceBinding::texture(
-                    &scene_frame,
-                    &shader.frame_sampler,
-                )],
+                bindings: &[
+                    ResourceBinding::texture(&scene_frame, &shader.frame_sampler),
+                    ResourceBinding::Buffer {
+                        buffer: uniform_buffer_cache.write(
+                            server,
+                            StaticUniformBuffer::<256>::new()
+                                .with(&frame_matrix)
+                                .with(&Vector2::new(inv_size, inv_size)),
+                        )?,
+                        shader_location: shader.uniform_buffer_binding,
+                    },
+                ],
             }],
             ElementRange::Full,
-            &mut |mut program_binding| {
-                program_binding
-                    .set_matrix4(&shader.wvp_matrix, &frame_matrix)
-                    .set_vector2(&shader.inv_size, &Vector2::new(inv_size, inv_size));
-            },
+            &mut |_| {},
         )
     }
 
     fn calculate_avg_frame_luminance(
         &mut self,
+        server: &dyn GraphicsServer,
         quad: &GeometryBuffer,
+        uniform_buffer_cache: &mut UniformBufferCache,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();
 
@@ -282,17 +292,21 @@ impl HighDynamicRangeRenderer {
                             scissor_box: None,
                         },
                         &[ResourceBindGroup {
-                            bindings: &[ResourceBinding::texture(
-                                &prev_luminance,
-                                &shader.lum_sampler,
-                            )],
+                            bindings: &[
+                                ResourceBinding::texture(&prev_luminance, &shader.lum_sampler),
+                                ResourceBinding::Buffer {
+                                    buffer: uniform_buffer_cache.write(
+                                        server,
+                                        StaticUniformBuffer::<256>::new()
+                                            .with(&matrix)
+                                            .with(&Vector2::new(inv_size, inv_size)),
+                                    )?,
+                                    shader_location: shader.uniform_buffer_binding,
+                                },
+                            ],
                         }],
                         ElementRange::Full,
-                        &mut |mut program_binding| {
-                            program_binding
-                                .set_matrix4(&shader.wvp_matrix, &matrix)
-                                .set_vector2(&shader.inv_size, &Vector2::new(inv_size, inv_size));
-                        },
+                        &mut |_| {},
                     )?;
 
                     prev_luminance = lum_buffer.texture();
@@ -305,8 +319,10 @@ impl HighDynamicRangeRenderer {
 
     fn adaptation(
         &mut self,
+        server: &dyn GraphicsServer,
         quad: &GeometryBuffer,
         dt: f32,
+        uniform_buffer_cache: &mut UniformBufferCache,
     ) -> Result<DrawCallStatistics, FrameworkError> {
         let ctx = self.adaptation_chain.begin();
         let viewport = Rect::new(0, 0, ctx.lum_buffer.size as i32, ctx.lum_buffer.size as i32);
@@ -333,15 +349,20 @@ impl HighDynamicRangeRenderer {
                         &self.downscale_chain.last().unwrap().texture(),
                         &shader.new_lum_sampler,
                     ),
+                    ResourceBinding::Buffer {
+                        buffer: uniform_buffer_cache.write(
+                            server,
+                            StaticUniformBuffer::<256>::new()
+                                .with(&matrix)
+                                // TODO: Make configurable
+                                .with(&(0.3 * dt)),
+                        )?,
+                        shader_location: shader.uniform_buffer_binding,
+                    },
                 ],
             }],
             ElementRange::Full,
-            &mut |mut program_binding| {
-                program_binding
-                    .set_matrix4(&shader.wvp_matrix, &matrix)
-                    .set_f32(&shader.speed, 0.3 * dt) // TODO: Make configurable
-                ;
-            },
+            &mut |_| {},
         )
     }
 
@@ -357,6 +378,7 @@ impl HighDynamicRangeRenderer {
         color_grading_lut: Option<&ColorGradingLut>,
         use_color_grading: bool,
         texture_cache: &mut TextureCache,
+        uniform_buffer_cache: &mut UniformBufferCache,
     ) -> Result<DrawCallStatistics, FrameworkError> {
         let shader = &self.map_shader;
         let frame_matrix = make_viewport_matrix(viewport);
@@ -364,6 +386,27 @@ impl HighDynamicRangeRenderer {
         let color_grading_lut_tex = color_grading_lut
             .and_then(|l| texture_cache.get(server, l.lut_ref()))
             .unwrap_or(&self.stub_lut);
+
+        let (is_auto, key_value, min_luminance, max_luminance, fixed_exposure) = match exposure {
+            Exposure::Auto {
+                key_value,
+                min_luminance,
+                max_luminance,
+            } => (true, key_value, min_luminance, max_luminance, 0.0),
+            Exposure::Manual(fixed_exposure) => (false, 0.0, 0.0, 0.0, fixed_exposure),
+        };
+
+        let uniform_buffer = uniform_buffer_cache.write(
+            server,
+            StaticUniformBuffer::<256>::new()
+                .with(&frame_matrix)
+                .with(&(use_color_grading && color_grading_lut.is_some()))
+                .with(&key_value)
+                .with(&min_luminance)
+                .with(&max_luminance)
+                .with(&is_auto)
+                .with(&fixed_exposure),
+        )?;
 
         ldr_framebuffer.draw(
             quad,
@@ -388,36 +431,14 @@ impl HighDynamicRangeRenderer {
                     ResourceBinding::texture(&bloom_texture, &shader.bloom_sampler),
                     ResourceBinding::texture(&hdr_scene_frame, &shader.hdr_sampler),
                     ResourceBinding::texture(color_grading_lut_tex, &shader.color_map_sampler),
+                    ResourceBinding::Buffer {
+                        buffer: uniform_buffer,
+                        shader_location: shader.uniform_buffer_binding,
+                    },
                 ],
             }],
             ElementRange::Full,
-            &mut |mut program_binding| {
-                let program_binding = program_binding
-                    .set_matrix4(&shader.wvp_matrix, &frame_matrix)
-                    .set_bool(
-                        &shader.use_color_grading,
-                        use_color_grading && color_grading_lut.is_some(),
-                    );
-
-                match exposure {
-                    Exposure::Auto {
-                        key_value,
-                        min_luminance,
-                        max_luminance,
-                    } => {
-                        program_binding
-                            .set_bool(&shader.auto_exposure, true)
-                            .set_f32(&shader.key_value, key_value)
-                            .set_f32(&shader.min_luminance, min_luminance)
-                            .set_f32(&shader.max_luminance, max_luminance);
-                    }
-                    Exposure::Manual(fixed_exposure) => {
-                        program_binding
-                            .set_bool(&shader.auto_exposure, false)
-                            .set_f32(&shader.fixed_exposure, fixed_exposure);
-                    }
-                }
-            },
+            &mut |_| {},
         )
     }
 
@@ -434,11 +455,17 @@ impl HighDynamicRangeRenderer {
         color_grading_lut: Option<&ColorGradingLut>,
         use_color_grading: bool,
         texture_cache: &mut TextureCache,
+        uniform_buffer_cache: &mut UniformBufferCache,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();
-        stats += self.calculate_frame_luminance(hdr_scene_frame.clone(), quad)?;
-        stats += self.calculate_avg_frame_luminance(quad)?;
-        stats += self.adaptation(quad, dt)?;
+        stats += self.calculate_frame_luminance(
+            server,
+            hdr_scene_frame.clone(),
+            quad,
+            uniform_buffer_cache,
+        )?;
+        stats += self.calculate_avg_frame_luminance(server, quad, uniform_buffer_cache)?;
+        stats += self.adaptation(server, quad, dt, uniform_buffer_cache)?;
         stats += self.map_hdr_to_ldr(
             server,
             hdr_scene_frame,
@@ -450,6 +477,7 @@ impl HighDynamicRangeRenderer {
             color_grading_lut,
             use_color_grading,
             texture_cache,
+            uniform_buffer_cache,
         )?;
         Ok(stats)
     }

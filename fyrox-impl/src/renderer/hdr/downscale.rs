@@ -28,23 +28,21 @@ use crate::renderer::framework::{
 pub struct DownscaleShader {
     pub program: GpuProgram,
     pub lum_sampler: UniformLocation,
-    pub inv_size: UniformLocation,
-    pub wvp_matrix: UniformLocation,
+    pub uniform_buffer_binding: usize,
 }
 
 impl DownscaleShader {
     pub fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("../shaders/hdr_downscale_fs.glsl");
-        let vertex_source = include_str!("../shaders/simple_vs.glsl");
+        let vertex_source = include_str!("../shaders/hdr_downscale_vs.glsl");
 
         let program =
             GpuProgram::from_source(server, "DownscaleShader", vertex_source, fragment_source)?;
 
         Ok(Self {
-            wvp_matrix: program
-                .uniform_location(server, &ImmutableString::new("worldViewProjection"))?,
+            uniform_buffer_binding: program
+                .uniform_block_index(server, &ImmutableString::new("Uniforms"))?,
             lum_sampler: program.uniform_location(server, &ImmutableString::new("lumSampler"))?,
-            inv_size: program.uniform_location(server, &ImmutableString::new("invSize"))?,
             program,
         })
     }

@@ -1541,6 +1541,7 @@ impl Renderer {
                 camera.color_grading_lut_ref(),
                 camera.color_grading_enabled(),
                 &mut self.texture_cache,
+                &mut self.uniform_buffer_cache,
             )?;
 
             // Apply FXAA if needed.

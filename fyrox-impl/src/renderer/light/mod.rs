@@ -355,18 +355,23 @@ impl DeferredLightRenderer {
                         scissor_box: None,
                     },
                     &[ResourceBindGroup {
-                        bindings: &[ResourceBinding::texture(
-                            gpu_texture,
-                            &shader.cubemap_texture,
-                        )],
+                        bindings: &[
+                            ResourceBinding::texture(gpu_texture, &shader.cubemap_texture),
+                            ResourceBinding::Buffer {
+                                buffer: uniform_buffer_cache.write(
+                                    server,
+                                    StaticUniformBuffer::<256>::new()
+                                        .with(&(view_projection * wvp)),
+                                )?,
+                                shader_location: shader.uniform_buffer_binding,
+                            },
+                        ],
                     }],
                     ElementRange::Specific {
                         offset: 0,
                         count: 12,
                     },
-                    &mut |mut program_binding| {
-                        program_binding.set_matrix4(&shader.wvp_matrix, &(view_projection * wvp));
-                    },
+                    &mut |_| {},
                 )?;
             }
         }
@@ -414,14 +419,19 @@ impl DeferredLightRenderer {
                         &gbuffer_ambient_map,
                         &self.ambient_light_shader.ambient_texture,
                     ),
+                    ResourceBinding::Buffer {
+                        buffer: uniform_buffer_cache.write(
+                            server,
+                            StaticUniformBuffer::<256>::new()
+                                .with(&frame_matrix)
+                                .with(&ambient_color.srgb_to_linear_f32()),
+                        )?,
+                        shader_location: self.ambient_light_shader.uniform_buffer_binding,
+                    },
                 ],
             }],
             ElementRange::Full,
-            &mut |mut program_binding| {
-                program_binding
-                    .set_matrix4(&self.ambient_light_shader.wvp_matrix, &frame_matrix)
-                    .set_linear_color(&self.ambient_light_shader.ambient_color, &ambient_color);
-            },
+            &mut |_| {},
         )?;
 
         for (light_handle, light) in scene.graph.pair_iter() {

@@ -1,7 +1,11 @@
 uniform sampler2D diffuseTexture;
 uniform sampler2D aoSampler;
 uniform sampler2D ambientTexture;
-uniform vec4 ambientColor;
+
+layout (std140) uniform Uniforms {
+    mat4 worldViewProjection;
+    vec4 ambientColor;
+};
 
 out vec4 FragColor;
 in vec2 texCoord;

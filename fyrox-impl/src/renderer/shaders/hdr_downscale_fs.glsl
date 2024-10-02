@@ -1,5 +1,9 @@
 uniform sampler2D lumSampler;
-uniform vec2 invSize;
+
+layout (std140) uniform Uniforms {
+    mat4 worldViewProjection;
+    vec2 invSize;
+};
 
 in vec2 texCoord;
 
