@@ -46,11 +46,13 @@
                r#"
                 layout(location = 0) in vec3 vertexPosition;
 
-                uniform mat4 fyrox_worldViewProjection;
+                layout(std140) uniform FyroxInstanceData {
+                    TInstanceData fyrox_instanceData;
+                };
 
                 void main()
                 {
-                    gl_Position = fyrox_worldViewProjection * vec4(vertexPosition, 1.0);
+                    gl_Position = fyrox_instanceData.worldViewProjection * vec4(vertexPosition, 1.0);
                 }
                "#,
 

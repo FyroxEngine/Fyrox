@@ -48,8 +48,9 @@
                 layout(location = 1) in vec2 vertexTexCoord;
                 layout(location = 2) in vec4 vertexColor;
 
-                uniform mat4 fyrox_worldViewProjection;
-                uniform mat4 fyrox_worldMatrix;
+                layout(std140) uniform FyroxInstanceData {
+                    TInstanceData fyrox_instanceData;
+                };
 
                 out vec2 texCoord;
                 out vec4 color;
@@ -58,8 +59,8 @@
                 void main()
                 {
                     texCoord = vertexTexCoord;
-                    fragmentPosition = (fyrox_worldMatrix * vec4(vertexPosition, 1.0)).xyz;
-                    gl_Position = fyrox_worldViewProjection * vec4(vertexPosition, 1.0);
+                    fragmentPosition = (fyrox_instanceData.worldMatrix * vec4(vertexPosition, 1.0)).xyz;
+                    gl_Position = fyrox_instanceData.worldViewProjection * vec4(vertexPosition, 1.0);
                     color = vertexColor;
                 }
                "#,
