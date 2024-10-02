@@ -2,14 +2,18 @@ uniform sampler2D sceneDepth;
 uniform sampler2D diffuseTexture;
 uniform sampler2D normalTexture;
 uniform usampler2D decalMask;
-uniform mat4 invViewProj;
-uniform mat4 invWorldDecal;
-uniform vec2 resolution;
-uniform vec4 color;
-uniform uint layerIndex;
 
-layout(location = 0) out vec4 outDiffuseMap;
-layout(location = 1) out vec4 outNormalMap;
+layout (std140) uniform Uniforms {
+    mat4 worldViewProjection;
+    mat4 invViewProj;
+    mat4 invWorldDecal;
+    vec2 resolution;
+    vec4 color;
+    uint layerIndex;
+};
+
+layout (location = 0) out vec4 outDiffuseMap;
+layout (location = 1) out vec4 outNormalMap;
 
 in vec4 clipSpacePosition;
 
@@ -18,8 +22,8 @@ void main()
     vec2 screenPos = clipSpacePosition.xy / clipSpacePosition.w;
 
     vec2 texCoord = vec2(
-        (1.0 + screenPos.x) / 2.0 + (0.5 / resolution.x),
-        (1.0 + screenPos.y) / 2.0 + (0.5 / resolution.y)
+    (1.0 + screenPos.x) / 2.0 + (0.5 / resolution.x),
+    (1.0 + screenPos.y) / 2.0 + (0.5 / resolution.y)
     );
 
     uvec4 maskIndex = texture(decalMask, texCoord);

@@ -26,17 +26,12 @@ use crate::renderer::framework::{
 };
 
 pub struct DecalShader {
-    pub world_view_projection: UniformLocation,
     pub scene_depth: UniformLocation,
     pub diffuse_texture: UniformLocation,
     pub normal_texture: UniformLocation,
-    pub inv_view_proj: UniformLocation,
-    pub inv_world_decal: UniformLocation,
-    pub resolution: UniformLocation,
-    pub color: UniformLocation,
-    pub layer_index: UniformLocation,
     pub decal_mask: UniformLocation,
     pub program: GpuProgram,
+    pub uniform_buffer_binding: usize,
 }
 
 impl DecalShader {
@@ -47,20 +42,13 @@ impl DecalShader {
         let program =
             GpuProgram::from_source(server, "DecalShader", vertex_source, fragment_source)?;
         Ok(Self {
-            world_view_projection: program
-                .uniform_location(server, &ImmutableString::new("worldViewProjection"))?,
+            uniform_buffer_binding: program
+                .uniform_block_index(server, &ImmutableString::new("Uniforms"))?,
             scene_depth: program.uniform_location(server, &ImmutableString::new("sceneDepth"))?,
             diffuse_texture: program
                 .uniform_location(server, &ImmutableString::new("diffuseTexture"))?,
             normal_texture: program
                 .uniform_location(server, &ImmutableString::new("normalTexture"))?,
-            inv_view_proj: program
-                .uniform_location(server, &ImmutableString::new("invViewProj"))?,
-            inv_world_decal: program
-                .uniform_location(server, &ImmutableString::new("invWorldDecal"))?,
-            resolution: program.uniform_location(server, &ImmutableString::new("resolution"))?,
-            color: program.uniform_location(server, &ImmutableString::new("color"))?,
-            layer_index: program.uniform_location(server, &ImmutableString::new("layerIndex"))?,
             decal_mask: program.uniform_location(server, &ImmutableString::new("decalMask"))?,
             program,
         })

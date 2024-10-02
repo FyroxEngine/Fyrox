@@ -68,6 +68,7 @@ use fxhash::FxHashSet;
 use fyrox_graphics::buffer::BufferUsage;
 use fyrox_graphics::framebuffer::{ResourceBindGroup, ResourceBinding};
 use fyrox_graphics::state::GraphicsServer;
+use fyrox_graphics::uniform::StaticUniformBuffer;
 use std::{cell::RefCell, rc::Rc};
 
 mod decal;
@@ -445,21 +446,25 @@ impl GBuffer {
                         ResourceBinding::texture(&diffuse_texture, &shader.diffuse_texture),
                         ResourceBinding::texture(&normal_texture, &shader.normal_texture),
                         ResourceBinding::texture(&decal_mask, &shader.decal_mask),
+                        ResourceBinding::Buffer {
+                            buffer: uniform_buffer_cache.write(
+                                server,
+                                StaticUniformBuffer::<256>::new()
+                                    .with(&world_view_proj)
+                                    .with(&inv_view_proj)
+                                    .with(
+                                        &decal.global_transform().try_inverse().unwrap_or_default(),
+                                    )
+                                    .with(&resolution)
+                                    .with(&decal.color().srgb_to_linear_f32())
+                                    .with(&(decal.layer() as u32)),
+                            )?,
+                            shader_location: shader.uniform_buffer_binding,
+                        },
                     ],
                 }],
                 ElementRange::Full,
-                &mut |mut program_binding| {
-                    program_binding
-                        .set_matrix4(&shader.world_view_projection, &world_view_proj)
-                        .set_matrix4(&shader.inv_view_proj, &inv_view_proj)
-                        .set_matrix4(
-                            &shader.inv_world_decal,
-                            &decal.global_transform().try_inverse().unwrap_or_default(),
-                        )
-                        .set_vector2(&shader.resolution, &resolution)
-                        .set_u32(&shader.layer_index, decal.layer() as u32)
-                        .set_linear_color(&shader.color, &decal.color());
-                },
+                &mut |_| {},
             )?;
         }
 
