@@ -290,7 +290,7 @@ impl<'a> BundleRenderContext<'a> {
                         uniforms.push(value);
                     }
                     PropertyValue::Color(color) => {
-                        uniforms.push(&color.srgb_to_linear_f32());
+                        uniforms.push(color);
                     }
                     PropertyValue::Sampler { value, fallback } => {
                         let texture = value
