@@ -58,13 +58,11 @@
 
            fragment_shader:
                r#"
-                uniform vec4 diffuseColor;
-
                 out vec4 FragColor;
 
                 void main()
                 {
-                    FragColor = diffuseColor;
+                    FragColor = properties.diffuseColor;
 
                     // Pull depth towards near clipping plane so the gizmo will be drawn on top
                     // of everything, but its parts will be correctly handled by depth test.

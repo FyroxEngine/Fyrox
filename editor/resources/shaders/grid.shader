@@ -81,10 +81,6 @@
                 // Original code: https://asliceofrendering.com/scene%20helper/2020/01/05/InfiniteGrid/
                 // Fixed and adapted for Fyrox.
 
-                uniform vec4 diffuseColor;
-                uniform vec4 xAxisColor;
-                uniform vec4 zAxisColor;
-
                 layout(std140) uniform FyroxCameraData {
                      TCameraData cameraData;
                 };
@@ -102,17 +98,17 @@
                     float minZ = 0.5 * min(derivative.y, 1.0);
                     float minX = 0.5 * min(derivative.x, 1.0);
 
-                    vec4 color = diffuseColor;
+                    vec4 color = properties.diffuseColor;
                     float alpha = 1.0 - min(line, 1.0);
                     // Sharpen lines a bit.
                     color.a = alpha >= 0.5 ? 1.0 : 0.0;
 
                     if (fragPos3D.x > -minX && fragPos3D.x < minX) {
                         // z axis
-                        color.xyz = zAxisColor.xyz;
+                        color.xyz = properties.zAxisColor.xyz;
                     } else if (fragPos3D.z > -minZ && fragPos3D.z < minZ) {
                         // x axis
-                        color.xyz = xAxisColor.xyz;
+                        color.xyz = properties.xAxisColor.xyz;
                     } else {
                         vec3 viewDir = fragPos3D - cameraData.position;
                         // This helps to negate moire pattern at large distances.
