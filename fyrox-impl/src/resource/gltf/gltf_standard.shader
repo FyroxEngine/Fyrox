@@ -4,38 +4,31 @@
     properties: [
         (
             name: "diffuseTexture",
-            kind: Sampler2D,
-            kind: Sampler(default: None, fallback: White),
+            kind: Sampler(default: None, kind: Sampler2D, fallback: White),
         ),
         (
             name: "normalTexture",
-            kind: Sampler2D,
-            kind: Sampler(default: None, fallback: Normal),
+            kind: Sampler(default: None, kind: Sampler2D, fallback: Normal),
         ),
         (
             name: "metallicRoughnessTexture",
-            kind: Sampler2D,
-            kind: Sampler(default: None, fallback: White),
+            kind: Sampler(default: None, kind: Sampler2D, fallback: White),
         ),
         (
             name: "heightTexture",
-            kind: Sampler2D,
-            kind: Sampler(default: None, fallback: Black),
+            kind: Sampler(default: None, kind: Sampler2D, fallback: Black),
         ),
         (
             name: "emissionTexture",
-            kind: Sampler2D,
-            kind: Sampler(default: None, fallback: Black),
+            kind: Sampler(default: None, kind: Sampler2D, fallback: Black),
         ),
         (
             name: "lightmapTexture",
-            kind: Sampler2D,
-            kind: Sampler(default: None, fallback: Black),
+            kind: Sampler(default: None, kind: Sampler2D, fallback: Black),
         ),
         (
             name: "aoTexture",
-            kind: Sampler2D,
-            kind: Sampler(default: None, fallback: White),
+            kind: Sampler(default: None, kind: Sampler2D, fallback: White),
         ),
         (
             name: "texCoordScale",
@@ -52,14 +45,6 @@
         (
             name: "diffuseColor",
             kind: Color(r: 255, g: 255, b: 255, a: 255),
-        ),
-        (
-            name: "metallicFactor",
-            kind: Float(0.0),
-        ),
-        (
-            name: "roughnessFactor",
-            kind: Float(0.0),
         ),
         (
             name: "parallaxCenter",
@@ -346,7 +331,7 @@
 
                 void main()
                 {
-                    FragColor = diffuseColor * texture(diffuseTexture, texCoord);
+                    FragColor = properties.diffuseColor * texture(diffuseTexture, texCoord);
                 }
                "#,
         ),
