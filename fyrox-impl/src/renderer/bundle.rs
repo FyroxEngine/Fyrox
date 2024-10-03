@@ -474,9 +474,14 @@ impl RenderDataBundle {
             if let Some(location) =
                 &built_in_uniform_blocks[BuiltInUniformBlock::BoneMatrices as usize]
             {
+                const INIT: Matrix4<f32> = Matrix4::new(
+                    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                );
+                let mut matrices = [INIT; 256];
+                matrices[0..instance.bone_matrices.len()].copy_from_slice(&instance.bone_matrices);
                 let buffer = render_context.uniform_buffer_cache.write(
                     program_binding.server,
-                    StaticUniformBuffer::<16384>::new().with_slice(&instance.bone_matrices),
+                    StaticUniformBuffer::<16384>::new().with_slice(&matrices),
                 )?;
                 instance_bindings.push(ResourceBinding::Buffer {
                     buffer,
@@ -487,6 +492,9 @@ impl RenderDataBundle {
             if let Some(location) =
                 &built_in_uniform_blocks[BuiltInUniformBlock::InstanceData as usize]
             {
+                let mut blend_shapes_weights = [0.0; 128];
+                blend_shapes_weights[0..instance.blend_shapes_weights.len()]
+                    .copy_from_slice(&instance.blend_shapes_weights);
                 let buffer = render_context.uniform_buffer_cache.write(
                     program_binding.server,
                     StaticUniformBuffer::<4096>::new()
@@ -494,7 +502,7 @@ impl RenderDataBundle {
                         .with(&(render_context.view_projection_matrix * instance.world_transform))
                         .with(&(instance.blend_shapes_weights.len() as i32))
                         .with(&(!instance.bone_matrices.is_empty()))
-                        .with_slice(&instance.blend_shapes_weights),
+                        .with_slice(&blend_shapes_weights),
                 )?;
                 instance_bindings.push(ResourceBinding::Buffer {
                     buffer,
