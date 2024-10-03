@@ -4,7 +4,7 @@
     properties: [
         (
             name: "diffuseTexture",
-            kind: Sampler(default: None, fallback: White),
+            kind: Sampler(default: None, kind: Sampler2D, fallback: White),
         ),
     ],
 
@@ -76,8 +76,6 @@
 
            fragment_shader:
                r#"
-                uniform sampler2D diffuseTexture;
-
                 out vec4 FragColor;
 
                 in vec2 texCoord;

@@ -4,7 +4,7 @@
     properties: [
         (
             name: "diffuseTexture",
-            kind: Sampler(default: None, fallback: White),
+            kind: Sampler(default: None, kind: Sampler2D, fallback: White),
         ),
     ],
 
@@ -67,8 +67,6 @@
 
            fragment_shader:
                r#"
-                uniform sampler2D diffuseTexture;
-
                 uniform int fyrox_lightCount;
                 uniform vec4 fyrox_lightsColorRadius[16]; // xyz - color, w = radius
                 uniform vec3 fyrox_lightsPosition[16];

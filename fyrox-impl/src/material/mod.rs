@@ -255,21 +255,22 @@ impl PropertyValue {
             PropertyKind::Sampler {
                 default,
                 fallback: usage,
+                ..
             } => PropertyValue::Sampler {
                 value: default
                     .as_ref()
                     .and_then(|path| resource_manager.map(|rm| rm.request::<Texture>(path))),
                 fallback: *usage,
             },
-            PropertyKind::FloatArray(value) => PropertyValue::FloatArray(value.clone()),
-            PropertyKind::IntArray(value) => PropertyValue::IntArray(value.clone()),
-            PropertyKind::UIntArray(value) => PropertyValue::UIntArray(value.clone()),
-            PropertyKind::Vector2Array(value) => PropertyValue::Vector2Array(value.clone()),
-            PropertyKind::Vector3Array(value) => PropertyValue::Vector3Array(value.clone()),
-            PropertyKind::Vector4Array(value) => PropertyValue::Vector4Array(value.clone()),
-            PropertyKind::Matrix2Array(value) => PropertyValue::Matrix2Array(value.clone()),
-            PropertyKind::Matrix3Array(value) => PropertyValue::Matrix3Array(value.clone()),
-            PropertyKind::Matrix4Array(value) => PropertyValue::Matrix4Array(value.clone()),
+            PropertyKind::FloatArray { value, .. } => PropertyValue::FloatArray(value.clone()),
+            PropertyKind::IntArray { value, .. } => PropertyValue::IntArray(value.clone()),
+            PropertyKind::UIntArray { value, .. } => PropertyValue::UIntArray(value.clone()),
+            PropertyKind::Vector2Array { value, .. } => PropertyValue::Vector2Array(value.clone()),
+            PropertyKind::Vector3Array { value, .. } => PropertyValue::Vector3Array(value.clone()),
+            PropertyKind::Vector4Array { value, .. } => PropertyValue::Vector4Array(value.clone()),
+            PropertyKind::Matrix2Array { value, .. } => PropertyValue::Matrix2Array(value.clone()),
+            PropertyKind::Matrix3Array { value, .. } => PropertyValue::Matrix3Array(value.clone()),
+            PropertyKind::Matrix4Array { value, .. } => PropertyValue::Matrix4Array(value.clone()),
         }
     }
 
@@ -457,7 +458,7 @@ impl Default for PropertyValue {
 /// ```
 ///
 /// As you can see it is only a bit more hard that with the standard shader. The main difference here is
-/// that we using resource manager to get shader instance and the we just use the instance to create
+/// that we using resource manager to get shader instance, and then we just use the instance to create
 /// material instance. Then we populate properties as usual.
 #[derive(Debug, Clone, Reflect)]
 pub struct Material {
@@ -930,7 +931,7 @@ impl Material {
                         .definition
                         .properties
                         .iter()
-                        .all(|p| p.name != property_name.as_ref())
+                        .all(|p| p.name != property_name)
                     {
                         self.properties.remove(&property_name);
 

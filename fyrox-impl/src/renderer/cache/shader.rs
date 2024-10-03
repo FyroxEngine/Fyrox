@@ -42,11 +42,12 @@ impl ShaderSet {
         let mut map = FxHashMap::default();
         for render_pass in shader.definition.passes.iter() {
             let program_name = format!("{}_{}", shader.definition.name, render_pass.name);
-            match GpuProgram::from_source(
+            match GpuProgram::from_source_and_properties(
                 server,
                 &program_name,
                 &render_pass.vertex_shader,
                 &render_pass.fragment_shader,
+                &shader.definition.properties,
             ) {
                 Ok(gpu_program) => {
                     map.insert(

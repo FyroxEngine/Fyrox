@@ -4,7 +4,7 @@
     properties: [
         (
             name: "diffuseTexture",
-            kind: Sampler(default: None, fallback: White),
+            kind: Sampler(default: None, kind: Sampler2D, fallback: White),
         ),
         (
             name: "softBoundarySharpnessFactor",
@@ -78,9 +78,6 @@
 
            fragment_shader:
                r#"
-               uniform sampler2D diffuseTexture;
-               uniform float softBoundarySharpnessFactor;
-
                uniform sampler2D fyrox_sceneDepth;
 
                layout(std140) uniform FyroxCameraData {
@@ -102,7 +99,7 @@
                    vec2 pixelSize = vec2(1.0 / float(depthTextureSize.x), 1.0 / float(depthTextureSize.y));
                    float sceneDepth = toProjSpace(texture(fyrox_sceneDepth, gl_FragCoord.xy * pixelSize).r);
                    float fragmentDepth = toProjSpace(gl_FragCoord.z);
-                   float depthOpacity = smoothstep((sceneDepth - fragmentDepth) * softBoundarySharpnessFactor, 0.0, 1.0);
+                   float depthOpacity = smoothstep((sceneDepth - fragmentDepth) * properties.softBoundarySharpnessFactor, 0.0, 1.0);
                    FragColor = color * S_SRGBToLinear(texture(diffuseTexture, texCoord)).r;
                    FragColor.a *= depthOpacity;
                }

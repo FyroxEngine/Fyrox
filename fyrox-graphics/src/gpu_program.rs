@@ -23,14 +23,17 @@ use crate::{
         algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4},
         color::Color,
         log::{Log, MessageKind},
+        reflect::prelude::*,
         sstorage::ImmutableString,
+        visitor::prelude::*,
     },
     error::FrameworkError,
     state::{GlGraphicsServer, GlKind},
 };
 use fxhash::FxHashMap;
 use glow::HasContext;
-use std::{cell::RefCell, marker::PhantomData, ops::Deref, rc::Weak};
+use serde::{Deserialize, Serialize};
+use std::{cell::RefCell, marker::PhantomData, ops::Deref, path::PathBuf, rc::Weak};
 
 pub struct GpuProgram {
     state: Weak<GlGraphicsServer>,
@@ -47,6 +50,7 @@ pub enum BuiltInUniformBlock {
     BoneMatrices,
     InstanceData,
     CameraData,
+    MaterialProperties,
     Count,
 }
 
@@ -462,6 +466,8 @@ fn fetch_built_in_uniform_blocks(
         fetch_uniform_block_index(server, program, "FyroxInstanceData");
     locations[BuiltInUniformBlock::CameraData as usize] =
         fetch_uniform_block_index(server, program, "FyroxCameraData");
+    locations[BuiltInUniformBlock::MaterialProperties as usize] =
+        fetch_uniform_block_index(server, program, "FyroxMaterialProperties");
     locations
 }
 
@@ -500,6 +506,103 @@ fn fetch_built_in_uniform_locations(
 }
 
 impl GpuProgram {
+    pub fn from_source_and_properties(
+        server: &GlGraphicsServer,
+        name: &str,
+        vertex_source: &str,
+        fragment_source: &str,
+        properties: &[PropertyDefinition],
+    ) -> Result<GpuProgram, FrameworkError> {
+        let mut vertex_source = vertex_source.to_string();
+        let mut fragment_source = fragment_source.to_string();
+
+        // Generate appropriate texture binding points and uniform blocks for the specified properties.
+        for initial_source in [&mut vertex_source, &mut fragment_source] {
+            let mut texture_bindings = String::new();
+            let mut uniform_block = "struct TProperties {\n".to_string();
+            let mut sampler_count = 0;
+            for property in properties {
+                let name = &property.name;
+                match property.kind {
+                    PropertyKind::Float(_) => {
+                        uniform_block += &format!("\tfloat {name};\n");
+                    }
+                    PropertyKind::FloatArray { max_len, .. } => {
+                        uniform_block += &format!("\tfloat {name}[{max_len}];\n");
+                    }
+                    PropertyKind::Int(_) => {
+                        uniform_block += &format!("\tint {name};\n");
+                    }
+                    PropertyKind::IntArray { max_len, .. } => {
+                        uniform_block += &format!("\tint {name}[{max_len}];\n");
+                    }
+                    PropertyKind::UInt(_) => {
+                        uniform_block += &format!("\tuint {name};\n");
+                    }
+                    PropertyKind::UIntArray { max_len, .. } => {
+                        uniform_block += &format!("\tuint {name}[{max_len}];\n");
+                    }
+                    PropertyKind::Bool(_) => {
+                        uniform_block += &format!("\tbool {name};\n");
+                    }
+                    PropertyKind::Vector2(_) => {
+                        uniform_block += &format!("\tvec2 {name};\n");
+                    }
+                    PropertyKind::Vector2Array { max_len, .. } => {
+                        uniform_block += &format!("\tvec2 {name}[{max_len}];\n");
+                    }
+                    PropertyKind::Vector3(_) => {
+                        uniform_block += &format!("\tvec3 {name};\n");
+                    }
+                    PropertyKind::Vector3Array { max_len, .. } => {
+                        uniform_block += &format!("\tvec3 {name}[{max_len}];\n");
+                    }
+                    PropertyKind::Vector4(_) => {
+                        uniform_block += &format!("\tvec4 {name};\n");
+                    }
+                    PropertyKind::Vector4Array { max_len, .. } => {
+                        uniform_block += &format!("\tvec4 {name}[{max_len}];\n");
+                    }
+                    PropertyKind::Matrix2(_) => {
+                        uniform_block += &format!("\tmat2 {name};\n");
+                    }
+                    PropertyKind::Matrix2Array { max_len, .. } => {
+                        uniform_block += &format!("\tmat2 {name}[{max_len}];\n");
+                    }
+                    PropertyKind::Matrix3(_) => {
+                        uniform_block += &format!("\tmat3 {name};\n");
+                    }
+                    PropertyKind::Matrix3Array { max_len, .. } => {
+                        uniform_block += &format!("\tmat3 {name}[{max_len}];\n");
+                    }
+                    PropertyKind::Matrix4(_) => {
+                        uniform_block += &format!("\tmat4 {name};\n");
+                    }
+                    PropertyKind::Matrix4Array { max_len, .. } => {
+                        uniform_block += &format!("\tmat4 {name}[{max_len}];\n");
+                    }
+                    PropertyKind::Color { .. } => {
+                        uniform_block += &format!("\tvec4 {name};\n");
+                    }
+                    PropertyKind::Sampler { kind, .. } => {
+                        let glsl_name = kind.glsl_name();
+                        texture_bindings += &format!("uniform {glsl_name} {name};\n");
+                        sampler_count += 1;
+                    }
+                }
+            }
+
+            uniform_block += "\n};\nlayout(std140) uniform FyroxMaterialProperties { TProperties properties; };\n";
+
+            if (properties.len() - sampler_count) != 0 {
+                initial_source.insert_str(0, &uniform_block);
+            }
+            initial_source.insert_str(0, &texture_bindings);
+        }
+
+        Self::from_source(server, name, &vertex_source, &fragment_source)
+    }
+
     pub fn from_source(
         server: &GlGraphicsServer,
         name: &str,
@@ -625,4 +728,203 @@ impl Drop for GpuProgram {
             }
         }
     }
+}
+
+/// A fallback value for the sampler.
+///
+/// # Notes
+///
+/// Sometimes you don't want to set a value to a sampler, or you even don't have the appropriate
+/// one. There is fallback value that helps you with such situations, it defines a values that
+/// will be fetched from a sampler when there is no texture.
+///
+/// For example, standard shader has a lot of samplers defined: diffuse, normal, height, emission,
+/// mask, metallic, roughness, etc. In some situations you may not have all the textures, you have
+/// only diffuse texture, to keep rendering correct, each other property has appropriate fallback
+/// value. Normal sampler - a normal vector pointing up (+Y), height - zero, emission - zero, etc.
+///
+/// Fallback value is also helpful to catch missing textures, you'll definitely know the texture is
+/// missing by very specific value in the fallback texture.
+#[derive(Serialize, Deserialize, Default, Debug, PartialEq, Clone, Copy, Visit, Eq, Reflect)]
+pub enum SamplerFallback {
+    /// A 1x1px white texture.
+    #[default]
+    White,
+    /// A 1x1px texture with (0, 1, 0) vector.
+    Normal,
+    /// A 1x1px black texture.
+    Black,
+}
+
+#[derive(Serialize, Deserialize, Default, Debug, PartialEq, Clone, Copy, Visit, Eq, Reflect)]
+pub enum SamplerKind {
+    Sampler1D,
+    #[default]
+    Sampler2D,
+    Sampler3D,
+    SamplerCube,
+    USampler1D,
+    USampler2D,
+    USampler3D,
+    USamplerCube,
+}
+
+impl SamplerKind {
+    fn glsl_name(&self) -> &str {
+        match self {
+            SamplerKind::Sampler1D => "sampler1D",
+            SamplerKind::Sampler2D => "sampler2D",
+            SamplerKind::Sampler3D => "sampler3D",
+            SamplerKind::SamplerCube => "samplerCube",
+            SamplerKind::USampler1D => "usampler1D",
+            SamplerKind::USampler2D => "usampler2D",
+            SamplerKind::USampler3D => "usampler3D",
+            SamplerKind::USamplerCube => "usamplerCube",
+        }
+    }
+}
+
+/// Shader property with default value.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Reflect, Visit)]
+pub enum PropertyKind {
+    /// Real number.
+    Float(f32),
+
+    /// Real number array.
+    FloatArray {
+        value: Vec<f32>,
+        /// `max_len` defines the maximum number of elements in the shader.
+        max_len: usize,
+    },
+
+    /// Integer number.
+    Int(i32),
+
+    /// Integer number array.
+    IntArray {
+        value: Vec<i32>,
+        /// `max_len` defines the maximum number of elements in the shader.
+        max_len: usize,
+    },
+
+    /// Natural number.
+    UInt(u32),
+
+    /// Natural number array.
+    UIntArray {
+        value: Vec<u32>,
+        /// `max_len` defines the maximum number of elements in the shader.
+        max_len: usize,
+    },
+
+    /// Boolean value.
+    Bool(bool),
+
+    /// Two-dimensional vector.
+    Vector2(Vector2<f32>),
+
+    /// Two-dimensional vector array.
+    Vector2Array {
+        value: Vec<Vector2<f32>>,
+        /// `max_len` defines the maximum number of elements in the shader.
+        max_len: usize,
+    },
+
+    /// Three-dimensional vector.
+    Vector3(Vector3<f32>),
+
+    /// Three-dimensional vector array.
+    Vector3Array {
+        value: Vec<Vector3<f32>>,
+        /// `max_len` defines the maximum number of elements in the shader.
+        max_len: usize,
+    },
+
+    /// Four-dimensional vector.
+    Vector4(Vector4<f32>),
+
+    /// Four-dimensional vector array.
+    Vector4Array {
+        value: Vec<Vector4<f32>>,
+        /// `max_len` defines the maximum number of elements in the shader.
+        max_len: usize,
+    },
+
+    /// 2x2 Matrix.
+    Matrix2(Matrix2<f32>),
+
+    /// 2x2 Matrix array.
+    Matrix2Array {
+        value: Vec<Matrix2<f32>>,
+        /// `max_len` defines the maximum number of elements in the shader.
+        max_len: usize,
+    },
+
+    /// 3x3 Matrix.
+    Matrix3(Matrix3<f32>),
+
+    /// 3x3 Matrix array.
+    Matrix3Array {
+        value: Vec<Matrix3<f32>>,
+        /// `max_len` defines the maximum number of elements in the shader.
+        max_len: usize,
+    },
+
+    /// 4x4 Matrix.
+    Matrix4(Matrix4<f32>),
+
+    /// 4x4 Matrix array.
+    Matrix4Array {
+        value: Vec<Matrix4<f32>>,
+        /// `max_len` defines the maximum number of elements in the shader.
+        max_len: usize,
+    },
+
+    /// An sRGB color.
+    ///
+    /// # Conversion
+    ///
+    /// The colors you see on your monitor are in sRGB color space, this is fine for simple cases
+    /// of rendering, but not for complex things like lighting. Such things require color to be
+    /// linear. Value of this variant will be automatically **converted to linear color space**
+    /// before it passed to shader.
+    Color {
+        /// Default Red.
+        r: u8,
+
+        /// Default Green.
+        g: u8,
+
+        /// Default Blue.
+        b: u8,
+
+        /// Default Alpha.
+        a: u8,
+    },
+
+    /// A texture.
+    Sampler {
+        kind: SamplerKind,
+
+        /// Optional path to default texture.
+        default: Option<PathBuf>,
+
+        /// Default fallback value. See [`SamplerFallback`] for more info.
+        fallback: SamplerFallback,
+    },
+}
+
+impl Default for PropertyKind {
+    fn default() -> Self {
+        Self::Float(0.0)
+    }
+}
+
+/// Shader property definition.
+#[derive(Default, Serialize, Deserialize, Debug, PartialEq, Reflect, Visit)]
+pub struct PropertyDefinition {
+    /// A name of the property.
+    pub name: ImmutableString,
+    /// A kind of property with default value.
+    pub kind: PropertyKind,
 }

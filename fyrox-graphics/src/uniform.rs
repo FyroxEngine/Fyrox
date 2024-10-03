@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 use crate::core::{
-    algebra::{Matrix3, Matrix4, Vector2, Vector3, Vector4},
+    algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4},
     array_as_u8_slice,
     arrayvec::ArrayVec,
     color::Color,
@@ -138,6 +138,17 @@ impl Std140 for Matrix3<f32> {
         for row in self.as_ref() {
             dest.write_bytes(array_as_u8_slice(row));
             dest.write_bytes(&[0; size_of::<f32>()]);
+        }
+    }
+}
+
+impl Std140 for Matrix2<f32> {
+    const ALIGNMENT: usize = 16;
+
+    fn write<T: ByteStorage>(&self, dest: &mut T) {
+        for row in self.as_ref() {
+            dest.write_bytes(array_as_u8_slice(row));
+            dest.write_bytes(&[0; 2 * size_of::<f32>()]);
         }
     }
 }

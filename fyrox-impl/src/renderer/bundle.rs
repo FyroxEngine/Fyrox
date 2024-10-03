@@ -167,7 +167,7 @@ impl<'a> BundleRenderContext<'a> {
         program_binding: &mut GpuProgramBinding,
         blend_shapes_storage: Option<TextureResource>,
         material_bindings: &mut ArrayVec<ResourceBinding, 32>,
-    ) {
+    ) -> Result<StaticUniformBuffer<16384>, FrameworkError> {
         let built_in_uniforms = &program_binding.program.built_in_uniform_locations;
 
         if let Some(location) = &built_in_uniforms[BuiltInUniform::SceneDepth as usize] {
@@ -226,41 +226,71 @@ impl<'a> BundleRenderContext<'a> {
         }
 
         // Apply material properties.
-        for (name, value) in material.properties() {
-            if let Some(uniform) = program_binding.uniform_location(name) {
+        let mut uniforms = StaticUniformBuffer::<16384>::new();
+        let shader = material.shader().data_ref();
+
+        for property in shader.definition.properties.iter() {
+            if let Some(value) = material.properties().get(&property.name) {
                 match value {
-                    PropertyValue::Float(v) => {
-                        program_binding.set_f32(&uniform, *v);
+                    PropertyValue::Float(value) => {
+                        uniforms.push(value);
                     }
-                    PropertyValue::Int(v) => {
-                        program_binding.set_i32(&uniform, *v);
+                    PropertyValue::FloatArray(array) => {
+                        uniforms.push_slice(array);
                     }
-                    PropertyValue::UInt(v) => {
-                        program_binding.set_u32(&uniform, *v);
+                    PropertyValue::Int(value) => {
+                        uniforms.push(value);
                     }
-                    PropertyValue::Vector2(v) => {
-                        program_binding.set_vector2(&uniform, v);
+                    PropertyValue::IntArray(array) => {
+                        uniforms.push_slice(array);
                     }
-                    PropertyValue::Vector3(v) => {
-                        program_binding.set_vector3(&uniform, v);
+                    PropertyValue::UInt(value) => {
+                        uniforms.push(value);
                     }
-                    PropertyValue::Vector4(v) => {
-                        program_binding.set_vector4(&uniform, v);
+                    PropertyValue::UIntArray(array) => {
+                        uniforms.push_slice(array);
                     }
-                    PropertyValue::Matrix2(v) => {
-                        program_binding.set_matrix2(&uniform, v);
+                    PropertyValue::Vector2(value) => {
+                        uniforms.push(value);
                     }
-                    PropertyValue::Matrix3(v) => {
-                        program_binding.set_matrix3(&uniform, v);
+                    PropertyValue::Vector2Array(array) => {
+                        uniforms.push_slice(array);
                     }
-                    PropertyValue::Matrix4(v) => {
-                        program_binding.set_matrix4(&uniform, v);
+                    PropertyValue::Vector3(value) => {
+                        uniforms.push(value);
                     }
-                    PropertyValue::Color(v) => {
-                        program_binding.set_srgb_color(&uniform, v);
+                    PropertyValue::Vector3Array(array) => {
+                        uniforms.push_slice(array);
                     }
-                    PropertyValue::Bool(v) => {
-                        program_binding.set_bool(&uniform, *v);
+                    PropertyValue::Vector4(value) => {
+                        uniforms.push(value);
+                    }
+                    PropertyValue::Vector4Array(array) => {
+                        uniforms.push_slice(array);
+                    }
+                    PropertyValue::Matrix2(value) => {
+                        uniforms.push(value);
+                    }
+                    PropertyValue::Matrix2Array(array) => {
+                        uniforms.push_slice(array);
+                    }
+                    PropertyValue::Matrix3(value) => {
+                        uniforms.push(value);
+                    }
+                    PropertyValue::Matrix3Array(array) => {
+                        uniforms.push_slice(array);
+                    }
+                    PropertyValue::Matrix4(value) => {
+                        uniforms.push(value);
+                    }
+                    PropertyValue::Matrix4Array(array) => {
+                        uniforms.push_slice(array);
+                    }
+                    PropertyValue::Bool(value) => {
+                        uniforms.push(value);
+                    }
+                    PropertyValue::Color(color) => {
+                        uniforms.push(&color.srgb_to_linear_f32());
                     }
                     PropertyValue::Sampler { value, fallback } => {
                         let texture = value
@@ -272,38 +302,17 @@ impl<'a> BundleRenderContext<'a> {
                                 SamplerFallback::Black => self.black_dummy,
                             });
 
-                        material_bindings.push(ResourceBinding::texture(texture, &uniform));
-                    }
-                    PropertyValue::FloatArray(v) => {
-                        program_binding.set_f32_slice(&uniform, v);
-                    }
-                    PropertyValue::IntArray(v) => {
-                        program_binding.set_i32_slice(&uniform, v);
-                    }
-                    PropertyValue::UIntArray(v) => {
-                        program_binding.set_u32_slice(&uniform, v);
-                    }
-                    PropertyValue::Vector2Array(v) => {
-                        program_binding.set_vector2_slice(&uniform, v);
-                    }
-                    PropertyValue::Vector3Array(v) => {
-                        program_binding.set_vector3_slice(&uniform, v);
-                    }
-                    PropertyValue::Vector4Array(v) => {
-                        program_binding.set_vector4_slice(&uniform, v);
-                    }
-                    PropertyValue::Matrix2Array(v) => {
-                        program_binding.set_matrix2_array(&uniform, v);
-                    }
-                    PropertyValue::Matrix3Array(v) => {
-                        program_binding.set_matrix3_array(&uniform, v);
-                    }
-                    PropertyValue::Matrix4Array(v) => {
-                        program_binding.set_matrix4_array(&uniform, v);
+                        if let Some(uniform) = program_binding.uniform_location(&property.name) {
+                            material_bindings.push(ResourceBinding::texture(texture, &uniform));
+                        }
                     }
                 }
+            } else {
+                // TODO: Fallback to shader's defaults.
             }
         }
+
+        Ok(uniforms)
     }
 }
 
@@ -418,14 +427,25 @@ impl RenderDataBundle {
 
         let mut program_binding = render_pass.program.bind(server);
         let mut material_bindings = ArrayVec::<ResourceBinding, 32>::new();
-        render_context.apply_material(
+        let uniforms = render_context.apply_material(
             material,
             &mut program_binding,
             blend_shapes_storage,
             &mut material_bindings,
-        );
+        )?;
 
         let built_in_uniform_blocks = &program_binding.program.built_in_uniform_blocks;
+
+        if let Some(location) =
+            &built_in_uniform_blocks[BuiltInUniformBlock::MaterialProperties as usize]
+        {
+            material_bindings.push(ResourceBinding::Buffer {
+                buffer: render_context
+                    .uniform_buffer_cache
+                    .write(server, uniforms)?,
+                shader_location: *location,
+            });
+        }
 
         if let Some(location) = &built_in_uniform_blocks[BuiltInUniformBlock::CameraData as usize] {
             let buffer = render_context.uniform_buffer_cache.write(

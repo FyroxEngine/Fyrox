@@ -1,34 +1,40 @@
 (
     name: "GLTFShader",
 
-    // Each property's name must match respective uniform name.
     properties: [
         (
             name: "diffuseTexture",
+            kind: Sampler2D,
             kind: Sampler(default: None, fallback: White),
         ),
         (
             name: "normalTexture",
+            kind: Sampler2D,
             kind: Sampler(default: None, fallback: Normal),
         ),
         (
             name: "metallicRoughnessTexture",
+            kind: Sampler2D,
             kind: Sampler(default: None, fallback: White),
         ),
         (
             name: "heightTexture",
+            kind: Sampler2D,
             kind: Sampler(default: None, fallback: Black),
         ),
         (
             name: "emissionTexture",
+            kind: Sampler2D,
             kind: Sampler(default: None, fallback: Black),
         ),
         (
             name: "lightmapTexture",
+            kind: Sampler2D,
             kind: Sampler(default: None, fallback: Black),
         ),
         (
             name: "aoTexture",
+            kind: Sampler2D,
             kind: Sampler(default: None, fallback: White),
         ),
         (
@@ -186,23 +192,6 @@
                 layout(location = 3) out vec4 outMaterial;
                 layout(location = 4) out uint outDecalMask;
 
-                // Properties.
-                uniform sampler2D diffuseTexture;
-                uniform sampler2D normalTexture;
-                uniform sampler2D metallicRoughnessTexture; // B for metallness, G for roughness
-                uniform sampler2D heightTexture;
-                uniform sampler2D emissionTexture;
-                uniform sampler2D lightmapTexture;
-                uniform sampler2D aoTexture;
-                uniform vec2 texCoordScale;
-                uniform uint layerIndex;
-                uniform vec3 emissionStrength;
-                uniform vec4 diffuseColor;
-                uniform float metallicFactor;
-                uniform float roughnessFactor;
-                uniform float parallaxCenter;
-                uniform float parallaxScale;
-
                 uniform bool fyrox_usePOM;
 
                 layout(std140) uniform FyroxCameraData {
@@ -227,15 +216,15 @@
                         tc = S_ComputeParallaxTextureCoordinates(
                             heightTexture,
                             toFragmentTangentSpace,
-                            texCoord * texCoordScale,
-                            parallaxCenter,
-                            parallaxScale
+                            texCoord * properties.texCoordScale,
+                            properties.parallaxCenter,
+                            properties.parallaxScale
                         );
                     } else {
-                        tc = texCoord * texCoordScale;
+                        tc = texCoord * properties.texCoordScale;
                     }
 
-                    outColor = diffuseColor * texture(diffuseTexture, tc);
+                    outColor = properties.diffuseColor * texture(diffuseTexture, tc);
 
                     // Alpha test.
                     if (outColor.a < 0.5) {
@@ -246,15 +235,15 @@
                     vec4 n = normalize(texture(normalTexture, tc) * 2.0 - 1.0);
                     outNormal = vec4(normalize(tangentSpace * n.xyz) * 0.5 + 0.5, 1.0);
 
-                    outMaterial.x = metallicFactor * texture(metallicRoughnessTexture, tc).b; // Metallic
-                    outMaterial.y = roughnessFactor * texture(metallicRoughnessTexture, tc).g; // Roughness
+                    outMaterial.x = properties.metallicFactor * texture(metallicRoughnessTexture, tc).b; // Metallic
+                    outMaterial.y = properties.roughnessFactor * texture(metallicRoughnessTexture, tc).g; // Roughness
                     outMaterial.z = texture(aoTexture, tc).r;
                     outMaterial.a = 1.0;
 
-                    outAmbient.xyz = emissionStrength * texture(emissionTexture, tc).rgb + texture(lightmapTexture, secondTexCoord).rgb;
+                    outAmbient.xyz = properties.emissionStrength * texture(emissionTexture, tc).rgb + texture(lightmapTexture, secondTexCoord).rgb;
                     outAmbient.a = 1.0;
 
-                    outDecalMask = layerIndex;
+                    outDecalMask = properties.layerIndex;
                 }
                 "#,
         ),
@@ -351,9 +340,6 @@
 
            fragment_shader:
                r#"
-                uniform sampler2D diffuseTexture;
-                uniform vec4 diffuseColor;
-
                 out vec4 FragColor;
 
                 in vec2 texCoord;
@@ -445,8 +431,6 @@
 
             fragment_shader:
                 r#"
-                uniform sampler2D diffuseTexture;
-
                 in vec2 texCoord;
 
                 void main()
@@ -536,8 +520,6 @@
 
             fragment_shader:
                 r#"
-                uniform sampler2D diffuseTexture;
-
                 in vec2 texCoord;
 
                 void main()
@@ -629,8 +611,6 @@
 
             fragment_shader:
                 r#"
-                uniform sampler2D diffuseTexture;
-
                 uniform vec3 fyrox_lightPosition;
 
                 in vec2 texCoord;

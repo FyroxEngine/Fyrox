@@ -1,51 +1,50 @@
 (
     name: "StandardTerrainShader",
 
-    // Each property's name must match respective uniform name.
     properties: [
         (
             name: "diffuseTexture",
-            kind: Sampler(default: None, fallback: White),
+            kind: Sampler(default: None, kind: Sampler2D, fallback: White),
         ),
         (
             name: "normalTexture",
-            kind: Sampler(default: None, fallback: Normal),
+            kind: Sampler(default: None, kind: Sampler2D, fallback: Normal),
         ),
         (
             name: "metallicTexture",
-            kind: Sampler(default: None, fallback: Black),
+            kind: Sampler(default: None, kind: Sampler2D, fallback: Black),
         ),
         (
             name: "roughnessTexture",
-            kind: Sampler(default: None, fallback: White),
+            kind: Sampler(default: None, kind: Sampler2D, fallback: White),
         ),
         (
             name: "heightTexture",
-            kind: Sampler(default: None, fallback: Black),
+            kind: Sampler(default: None, kind: Sampler2D, fallback: Black),
         ),
         (
             name: "emissionTexture",
-            kind: Sampler(default: None, fallback: Black),
+            kind: Sampler(default: None, kind: Sampler2D, fallback: Black),
         ),
         (
             name: "lightmapTexture",
-            kind: Sampler(default: None, fallback: Black),
+            kind: Sampler(default: None, kind: Sampler2D, fallback: Black),
         ),
         (
             name: "aoTexture",
-            kind: Sampler(default: None, fallback: White),
+            kind: Sampler(default: None, kind: Sampler2D, fallback: White),
         ),
         (
             name: "maskTexture",
-            kind: Sampler(default: None, fallback: White),
+            kind: Sampler(default: None, kind: Sampler2D, fallback: White),
         ),
         (
             name: "heightMapTexture",
-            kind: Sampler(default: None, fallback: White),
+            kind: Sampler(default: None, kind: Sampler2D, fallback: White),
         ),
         (
             name: "holeMaskTexture",
-            kind: Sampler(default: None, fallback: White),
+            kind: Sampler(default: None, kind: Sampler2D, fallback: White),
         ),
         (
             name: "nodeUvOffsets",
@@ -119,10 +118,6 @@
                 layout(location = 3) in vec4 vertexTangent;
                 layout(location = 6) in vec2 vertexSecondTexCoord;
 
-                // Properties
-                uniform sampler2D heightMapTexture;
-                uniform vec4 nodeUvOffsets;
-
                 layout(std140) uniform FyroxInstanceData {
                     TInstanceData fyrox_instanceData;
                 };
@@ -138,7 +133,7 @@
                 {
                     // Each node has tex coords in [0; 1] range, here we must scale and offset it
                     // to match the actual position.
-                    vec2 actualTexCoords = vec2(vertexTexCoord * nodeUvOffsets.zw + nodeUvOffsets.xy);
+                    vec2 actualTexCoords = vec2(vertexTexCoord * properties.nodeUvOffsets.zw + properties.nodeUvOffsets.xy);
                     vec2 heightSize = vec2(textureSize(heightMapTexture, 0));
                     vec2 innerSize = heightSize - 3.0;
                     vec2 pixelSize = 1.0 / heightSize;
@@ -149,7 +144,7 @@
                     float hx1 = texture(heightMapTexture, heightCoords + vec2(1.0, 0.0) * pixelSize).r;
                     float hy0 = texture(heightMapTexture, heightCoords + vec2(0.0, -1.0) * pixelSize).r;
                     float hy1 = texture(heightMapTexture, heightCoords + vec2(0.0, 1.0) * pixelSize).r;
-                    vec2 pixelFactor = heightSize / nodeUvOffsets.zw;
+                    vec2 pixelFactor = heightSize / properties.nodeUvOffsets.zw;
                     vec3 n = vec3(hx0-hx1, 2.0, hy0-hy1) * vec3(pixelFactor.x, 1.0, pixelFactor.y);
                     vec3 tan = vec3(n.y, -n.x, 0.0);
 
@@ -170,24 +165,6 @@
                 layout(location = 2) out vec4 outAmbient;
                 layout(location = 3) out vec4 outMaterial;
                 layout(location = 4) out uint outDecalMask;
-
-                // Properties.
-                uniform sampler2D diffuseTexture;
-                uniform sampler2D normalTexture;
-                uniform sampler2D metallicTexture;
-                uniform sampler2D roughnessTexture;
-                uniform sampler2D heightTexture;
-                uniform sampler2D emissionTexture;
-                uniform sampler2D lightmapTexture;
-                uniform sampler2D aoTexture;
-                uniform vec2 texCoordScale;
-                uniform uint layerIndex;
-                uniform vec3 emissionStrength;
-                uniform sampler2D maskTexture;
-                uniform sampler2D holeMaskTexture;
-                uniform vec4 diffuseColor;
-                uniform float parallaxCenter;
-                uniform float parallaxScale;
 
                 uniform bool fyrox_usePOM;
 
@@ -215,15 +192,15 @@
                         tc = S_ComputeParallaxTextureCoordinates(
                             heightTexture,
                             toFragmentTangentSpace,
-                            texCoord * texCoordScale,
-                            parallaxCenter,
-                            parallaxScale
+                            texCoord * properties.texCoordScale,
+                            properties.parallaxCenter,
+                            properties.parallaxScale
                         );
                     } else {
-                        tc = texCoord * texCoordScale;
+                        tc = texCoord * properties.texCoordScale;
                     }
 
-                    outColor = diffuseColor * texture(diffuseTexture, tc);
+                    outColor = properties.diffuseColor * texture(diffuseTexture, tc);
 
                     vec3 n = normalize(texture(normalTexture, tc).xyz * 2.0 - 1.0);
                     outNormal = vec4(normalize(tangentSpace * n) * 0.5 + 0.5, 1.0);
@@ -233,10 +210,10 @@
                     outMaterial.z = texture(aoTexture, tc).r;
                     outMaterial.a = 1.0;
 
-                    outAmbient.xyz = emissionStrength * texture(emissionTexture, tc).rgb + texture(lightmapTexture, secondTexCoord).rgb;
+                    outAmbient.xyz = properties.emissionStrength * texture(emissionTexture, tc).rgb + texture(lightmapTexture, secondTexCoord).rgb;
                     outAmbient.a = 1.0;
 
-                    outDecalMask = layerIndex;
+                    outDecalMask = properties.layerIndex;
 
                     float mask = texture(maskTexture, texCoord).r;
 
@@ -285,10 +262,6 @@
                 layout(location = 0) in vec3 vertexPosition;
                 layout(location = 1) in vec2 vertexTexCoord;
 
-                // Properties
-                uniform sampler2D heightMapTexture;
-                uniform vec4 nodeUvOffsets;
-
                 layout(std140) uniform FyroxInstanceData {
                     TInstanceData fyrox_instanceData;
                 };
@@ -298,7 +271,7 @@
 
                 void main()
                 {
-                    vec2 actualTexCoords = vec2(vertexTexCoord * nodeUvOffsets.zw + nodeUvOffsets.xy);
+                    vec2 actualTexCoords = vec2(vertexTexCoord * properties.nodeUvOffsets.zw + properties.nodeUvOffsets.xy);
                     vec2 heightSize = vec2(textureSize(heightMapTexture, 0));
                     vec2 innerSize = heightSize - 3.0;
                     vec2 pixelSize = 1.0 / heightSize;
@@ -313,9 +286,7 @@
 
            fragment_shader:
                r#"
-                uniform sampler2D diffuseTexture;
                 uniform vec4 diffuseColor;
-                uniform sampler2D holeMaskTexture;
 
                 out vec4 FragColor;
 
@@ -324,7 +295,7 @@
                 void main()
                 {
                     if (texture(holeMaskTexture, texCoord).r < 0.5) discard;
-                    FragColor = diffuseColor * texture(diffuseTexture, texCoord);
+                    FragColor = properties.diffuseColor * texture(diffuseTexture, texCoord);
                 }
                "#,
         ),
@@ -357,10 +328,6 @@
                 layout(location = 0) in vec3 vertexPosition;
                 layout(location = 1) in vec2 vertexTexCoord;
 
-                // Properties
-                uniform sampler2D heightMapTexture;
-                uniform vec4 nodeUvOffsets;
-
                 layout(std140) uniform FyroxInstanceData {
                     TInstanceData fyrox_instanceData;
                 };
@@ -369,7 +336,7 @@
 
                 void main()
                 {
-                    vec2 actualTexCoords = vec2(vertexTexCoord * nodeUvOffsets.zw + nodeUvOffsets.xy);
+                    vec2 actualTexCoords = vec2(vertexTexCoord * properties.nodeUvOffsets.zw + properties.nodeUvOffsets.xy);
                     vec2 heightSize = vec2(textureSize(heightMapTexture, 0));
                     vec2 innerSize = heightSize - 3.0;
                     vec2 pixelSize = 1.0 / heightSize;
@@ -384,9 +351,6 @@
 
             fragment_shader:
                 r#"
-                uniform sampler2D diffuseTexture;
-                uniform sampler2D holeMaskTexture;
-
                 in vec2 texCoord;
 
                 void main()
@@ -425,10 +389,6 @@
                 layout(location = 0) in vec3 vertexPosition;
                 layout(location = 1) in vec2 vertexTexCoord;
 
-                // Properties
-                uniform sampler2D heightMapTexture;
-                uniform vec4 nodeUvOffsets;
-
                 layout(std140) uniform FyroxInstanceData {
                     TInstanceData fyrox_instanceData;
                 };
@@ -437,7 +397,7 @@
 
                 void main()
                 {
-                    vec2 actualTexCoords = vec2(vertexTexCoord * nodeUvOffsets.zw + nodeUvOffsets.xy);
+                    vec2 actualTexCoords = vec2(vertexTexCoord * properties.nodeUvOffsets.zw + properties.nodeUvOffsets.xy);
                     vec2 heightSize = vec2(textureSize(heightMapTexture, 0));
                     vec2 innerSize = heightSize - 3.0;
                     vec2 pixelSize = 1.0 / heightSize;
@@ -452,9 +412,6 @@
 
             fragment_shader:
                 r#"
-                uniform sampler2D diffuseTexture;
-                uniform sampler2D holeMaskTexture;
-
                 in vec2 texCoord;
 
                 void main()
@@ -493,10 +450,6 @@
                 layout(location = 0) in vec3 vertexPosition;
                 layout(location = 1) in vec2 vertexTexCoord;
 
-                // Properties
-                uniform sampler2D heightMapTexture;
-                uniform vec4 nodeUvOffsets;
-
                 layout(std140) uniform FyroxInstanceData {
                     TInstanceData fyrox_instanceData;
                 };
@@ -506,7 +459,7 @@
 
                 void main()
                 {
-                    vec2 actualTexCoords = vec2(vertexTexCoord * nodeUvOffsets.zw + nodeUvOffsets.xy);
+                    vec2 actualTexCoords = vec2(vertexTexCoord * properties.nodeUvOffsets.zw + properties.nodeUvOffsets.xy);
                     vec2 heightSize = vec2(textureSize(heightMapTexture, 0));
                     vec2 innerSize = heightSize - 3.0;
                     vec2 pixelSize = 1.0 / heightSize;
@@ -522,9 +475,6 @@
 
             fragment_shader:
                 r#"
-                uniform sampler2D diffuseTexture;
-                uniform sampler2D holeMaskTexture;
-
                 uniform vec3 fyrox_lightPosition;
 
                 in vec2 texCoord;
