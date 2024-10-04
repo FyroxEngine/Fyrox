@@ -20,6 +20,7 @@
 
 //! The module responsible for bundle generation for rendering optimizations.
 
+use crate::renderer::MAX_BONE_MATRICES;
 use crate::resource::texture::TextureResource;
 use crate::{
     asset::untyped::ResourceKind,
@@ -63,6 +64,7 @@ use crate::{
 };
 use fxhash::{FxBuildHasher, FxHashMap, FxHasher};
 use fyrox_core::arrayvec::ArrayVec;
+use fyrox_graphics::buffer::Buffer;
 use fyrox_graphics::framebuffer::{ResourceBindGroup, ResourceBinding};
 use std::{
     cell::RefCell,
@@ -135,6 +137,7 @@ pub struct BundleRenderContext<'a> {
     pub frame_buffer: &'a mut dyn FrameBuffer,
     pub viewport: Rect<i32>,
     pub uniform_buffer_cache: &'a mut UniformBufferCache,
+    pub bone_matrices_stub_uniform_buffer: &'a dyn Buffer,
 
     // Built-in uniforms.
     pub view_projection_matrix: &'a Matrix4<f32>,
@@ -474,19 +477,31 @@ impl RenderDataBundle {
             if let Some(location) =
                 &built_in_uniform_blocks[BuiltInUniformBlock::BoneMatrices as usize]
             {
-                const INIT: Matrix4<f32> = Matrix4::new(
-                    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                );
-                let mut matrices = [INIT; 256];
-                matrices[0..instance.bone_matrices.len()].copy_from_slice(&instance.bone_matrices);
-                let buffer = render_context.uniform_buffer_cache.write(
-                    program_binding.server,
-                    StaticUniformBuffer::<16384>::new().with_slice(&matrices),
-                )?;
-                instance_bindings.push(ResourceBinding::Buffer {
-                    buffer,
-                    shader_location: *location,
-                })
+                if instance.bone_matrices.is_empty() {
+                    // Bind stub buffer, instead of creating and uploading 16kb with zeros per draw
+                    // call.
+                    instance_bindings.push(ResourceBinding::Buffer {
+                        buffer: render_context.bone_matrices_stub_uniform_buffer,
+                        shader_location: *location,
+                    });
+                } else {
+                    const INIT: Matrix4<f32> = Matrix4::new(
+                        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                        0.0,
+                    );
+                    let mut matrices = [INIT; MAX_BONE_MATRICES];
+                    const SIZE: usize = MAX_BONE_MATRICES * size_of::<Matrix4<f32>>();
+                    matrices[0..instance.bone_matrices.len()]
+                        .copy_from_slice(&instance.bone_matrices);
+                    let buffer = render_context.uniform_buffer_cache.write(
+                        program_binding.server,
+                        StaticUniformBuffer::<SIZE>::new().with_slice(&matrices),
+                    )?;
+                    instance_bindings.push(ResourceBinding::Buffer {
+                        buffer,
+                        shader_location: *location,
+                    });
+                }
             }
 
             if let Some(location) =

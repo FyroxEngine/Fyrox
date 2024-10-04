@@ -51,6 +51,7 @@ use crate::{
         mesh::RenderPath,
     },
 };
+use fyrox_graphics::buffer::Buffer;
 use std::{cell::RefCell, rc::Rc};
 
 pub(crate) struct ForwardRenderer {
@@ -75,6 +76,7 @@ pub(crate) struct ForwardRenderContext<'a, 'b> {
     pub scene_depth: Rc<RefCell<dyn GpuTexture>>,
     pub uniform_buffer_cache: &'a mut UniformBufferCache,
     pub ambient_light: Color,
+    pub bone_matrices_stub_uniform_buffer: &'a dyn Buffer,
 }
 
 impl ForwardRenderer {
@@ -108,6 +110,7 @@ impl ForwardRenderer {
             scene_depth,
             uniform_buffer_cache,
             ambient_light,
+            bone_matrices_stub_uniform_buffer,
         } = args;
 
         let view_projection = camera.view_projection_matrix();
@@ -182,6 +185,7 @@ impl ForwardRenderer {
                     frame_buffer: framebuffer,
                     viewport,
                     uniform_buffer_cache,
+                    bone_matrices_stub_uniform_buffer,
                     view_projection_matrix: &view_projection,
                     camera_position: &camera.global_position(),
                     camera_up_vector: &camera_up,

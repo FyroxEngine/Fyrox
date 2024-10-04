@@ -42,6 +42,7 @@ use crate::{
     },
     scene::graph::Graph,
 };
+use fyrox_graphics::buffer::Buffer;
 use fyrox_graphics::state::GraphicsServer;
 use std::{cell::RefCell, rc::Rc};
 
@@ -151,6 +152,7 @@ impl SpotShadowMapRenderer {
         black_dummy: Rc<RefCell<dyn GpuTexture>>,
         volume_dummy: Rc<RefCell<dyn GpuTexture>>,
         uniform_buffer_cache: &mut UniformBufferCache,
+        bone_matrices_stub_uniform_buffer: &dyn Buffer,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut statistics = RenderPassStatistics::default();
 
@@ -190,6 +192,7 @@ impl SpotShadowMapRenderer {
                     frame_buffer: framebuffer,
                     viewport,
                     uniform_buffer_cache,
+                    bone_matrices_stub_uniform_buffer,
                     view_projection_matrix: &light_view_projection,
                     camera_position: &Default::default(),
                     camera_up_vector: &camera_up,

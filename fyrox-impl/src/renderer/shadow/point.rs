@@ -42,6 +42,7 @@ use crate::{
     },
     scene::graph::Graph,
 };
+use fyrox_graphics::buffer::Buffer;
 use fyrox_graphics::state::GraphicsServer;
 use std::{cell::RefCell, rc::Rc};
 
@@ -72,6 +73,7 @@ pub(crate) struct PointShadowMapRenderContext<'a> {
     pub black_dummy: Rc<RefCell<dyn GpuTexture>>,
     pub volume_dummy: Rc<RefCell<dyn GpuTexture>>,
     pub uniform_buffer_cache: &'a mut UniformBufferCache,
+    pub bone_matrices_stub_uniform_buffer: &'a dyn Buffer,
 }
 
 impl PointShadowMapRenderer {
@@ -224,6 +226,7 @@ impl PointShadowMapRenderer {
             black_dummy,
             volume_dummy,
             uniform_buffer_cache,
+            bone_matrices_stub_uniform_buffer,
         } = args;
 
         let framebuffer = &mut *self.cascades[cascade];
@@ -276,6 +279,7 @@ impl PointShadowMapRenderer {
                         frame_buffer: framebuffer,
                         viewport,
                         uniform_buffer_cache,
+                        bone_matrices_stub_uniform_buffer,
                         view_projection_matrix: &light_view_projection_matrix,
                         camera_position: &Default::default(),
                         camera_up_vector: &camera_up,

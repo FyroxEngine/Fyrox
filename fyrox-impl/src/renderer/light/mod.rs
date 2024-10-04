@@ -61,6 +61,7 @@ use crate::{
         Scene,
     },
 };
+use fyrox_graphics::buffer::Buffer;
 use fyrox_graphics::framebuffer::{ResourceBindGroup, ResourceBinding};
 use fyrox_graphics::uniform::StaticUniformBuffer;
 use std::{cell::RefCell, rc::Rc};
@@ -105,6 +106,7 @@ pub(crate) struct DeferredRendererContext<'a> {
     pub volume_dummy: Rc<RefCell<dyn GpuTexture>>,
     pub uniform_buffer_cache: &'a mut UniformBufferCache,
     pub visibility_cache: &'a mut ObserverVisibilityCache,
+    pub bone_matrices_stub_uniform_buffer: &'a dyn Buffer,
 }
 
 impl DeferredLightRenderer {
@@ -293,6 +295,7 @@ impl DeferredLightRenderer {
             volume_dummy,
             uniform_buffer_cache,
             visibility_cache,
+            bone_matrices_stub_uniform_buffer,
         } = args;
 
         let viewport = Rect::new(0, 0, gbuffer.width, gbuffer.height);
@@ -691,6 +694,7 @@ impl DeferredLightRenderer {
                         black_dummy.clone(),
                         volume_dummy.clone(),
                         uniform_buffer_cache,
+                        bone_matrices_stub_uniform_buffer,
                     )?;
 
                     light_stats.spot_shadow_maps_rendered += 1;
@@ -711,6 +715,7 @@ impl DeferredLightRenderer {
                                 black_dummy: black_dummy.clone(),
                                 volume_dummy: volume_dummy.clone(),
                                 uniform_buffer_cache,
+                                bone_matrices_stub_uniform_buffer,
                             })?;
 
                     light_stats.point_shadow_maps_rendered += 1;
@@ -729,6 +734,7 @@ impl DeferredLightRenderer {
                         black_dummy: black_dummy.clone(),
                         volume_dummy: volume_dummy.clone(),
                         uniform_buffer_cache,
+                        bone_matrices_stub_uniform_buffer,
                     })?;
 
                     light_stats.csm_rendered += 1;

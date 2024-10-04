@@ -45,6 +45,7 @@ use crate::{
         light::directional::{DirectionalLight, FrustumSplitOptions, CSM_NUM_CASCADES},
     },
 };
+use fyrox_graphics::buffer::Buffer;
 use fyrox_graphics::state::GraphicsServer;
 use std::{cell::RefCell, rc::Rc};
 
@@ -126,6 +127,7 @@ pub(crate) struct CsmRenderContext<'a, 'c> {
     pub black_dummy: Rc<RefCell<dyn GpuTexture>>,
     pub volume_dummy: Rc<RefCell<dyn GpuTexture>>,
     pub uniform_buffer_cache: &'a mut UniformBufferCache,
+    pub bone_matrices_stub_uniform_buffer: &'a dyn Buffer,
 }
 
 impl CsmRenderer {
@@ -177,6 +179,7 @@ impl CsmRenderer {
             black_dummy,
             volume_dummy,
             uniform_buffer_cache,
+            bone_matrices_stub_uniform_buffer,
         } = ctx;
 
         let light_direction = -light
@@ -292,6 +295,7 @@ impl CsmRenderer {
                         frame_buffer: framebuffer,
                         viewport,
                         uniform_buffer_cache,
+                        bone_matrices_stub_uniform_buffer,
                         view_projection_matrix: &light_view_projection,
                         camera_position: &camera.global_position(),
                         camera_up_vector: &camera_up,

@@ -51,12 +51,11 @@ mod skybox_shader;
 mod ssao;
 mod stats;
 
-use crate::renderer::cache::uniform::UniformBufferCache;
-use crate::renderer::framework::GeometryBufferExt;
 use crate::{
     asset::{event::ResourceEvent, manager::ResourceManager},
     core::{
         algebra::{Matrix4, Vector2, Vector3, Vector4},
+        array_as_u8_slice,
         color::Color,
         instant,
         log::{Log, MessageKind},
@@ -73,20 +72,28 @@ use crate::{
     renderer::{
         bloom::BloomRenderer,
         bundle::{ObserverInfo, RenderDataBundleStorage},
-        cache::{geometry::GeometryCache, shader::ShaderCache, texture::TextureCache},
+        cache::{
+            geometry::GeometryCache, shader::ShaderCache, texture::TextureCache,
+            uniform::UniformBufferCache,
+        },
         debug_renderer::DebugRenderer,
         flat_shader::FlatShader,
         forward_renderer::{ForwardRenderContext, ForwardRenderer},
         framework::{
+            buffer::{Buffer, BufferKind, BufferUsage},
             error::FrameworkError,
-            framebuffer::{Attachment, AttachmentKind, FrameBuffer},
+            framebuffer::{
+                Attachment, AttachmentKind, FrameBuffer, ResourceBindGroup, ResourceBinding,
+            },
             geometry_buffer::{DrawCallStatistics, GeometryBuffer},
             gpu_texture::{
                 Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
                 PixelKind, WrapMode,
             },
+            state::GraphicsServer,
             state::{GlGraphicsServer, SharedPipelineState},
-            DrawParameters, ElementRange, PolygonFace, PolygonFillMode,
+            uniform::StaticUniformBuffer,
+            DrawParameters, ElementRange, GeometryBufferExt, PolygonFace, PolygonFillMode,
         },
         fxaa::FxaaRenderer,
         gbuffer::{GBuffer, GBufferRenderContext},
@@ -100,10 +107,6 @@ use crate::{
     scene::{camera::Camera, mesh::surface::SurfaceData, Scene, SceneContainer},
 };
 use fxhash::FxHashMap;
-use fyrox_graphics::buffer::BufferUsage;
-use fyrox_graphics::framebuffer::{ResourceBindGroup, ResourceBinding};
-use fyrox_graphics::state::GraphicsServer;
-use fyrox_graphics::uniform::StaticUniformBuffer;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 pub use stats::*;
@@ -113,6 +116,8 @@ use winit::{
     event_loop::EventLoopWindowTarget,
     window::{Window, WindowBuilder},
 };
+
+pub const MAX_BONE_MATRICES: usize = 256;
 
 lazy_static! {
     static ref GBUFFER_PASS_NAME: ImmutableString = ImmutableString::new("GBuffer");
@@ -687,6 +692,7 @@ pub struct Renderer {
     // TextureId -> FrameBuffer mapping. This mapping is used for temporal frame buffers
     // like ones used to render UI instances.
     ui_frame_buffers: FxHashMap<u64, Box<dyn FrameBuffer>>,
+    pub bone_matrices_stub_uniform_buffer: Box<dyn Buffer>,
     /// Visibility cache based on occlusion query.
     pub visibility_cache: VisibilityCache,
     /// Pipeline state.
@@ -825,6 +831,9 @@ pub struct SceneRenderPassContext<'a, 'b> {
 
     /// A cache of uniform buffers.
     pub uniform_buffer_cache: &'a mut UniformBufferCache,
+
+    /// A stub uniform buffer with bone matrices.
+    pub bone_matrices_stub_uniform_buffer: &'a dyn Buffer,
 }
 
 /// A trait for custom scene rendering pass. It could be used to add your own rendering techniques.
@@ -1047,6 +1056,17 @@ impl Renderer {
                 BufferUsage::StaticDraw,
                 &server,
             )?,
+            bone_matrices_stub_uniform_buffer: {
+                let buffer = server.create_buffer(
+                    MAX_BONE_MATRICES * size_of::<Matrix4<f32>>(),
+                    BufferKind::Uniform,
+                    BufferUsage::StaticDraw,
+                )?;
+                const SIZE: usize = MAX_BONE_MATRICES * size_of::<Matrix4<f32>>();
+                let zeros = [0.0; SIZE];
+                buffer.write_data(array_as_u8_slice(&zeros))?;
+                buffer
+            },
             ui_renderer: UiRenderer::new(&server)?,
             quality_settings: settings,
             debug_renderer: DebugRenderer::new(&server)?,
@@ -1421,6 +1441,7 @@ impl Renderer {
                     volume_dummy: self.volume_dummy.clone(),
                     graph,
                     uniform_buffer_cache: &mut self.uniform_buffer_cache,
+                    bone_matrices_stub_uniform_buffer: &*self.bone_matrices_stub_uniform_buffer,
                     screen_space_debug_renderer: &mut self.screen_space_debug_renderer,
                     unit_quad: &self.quad,
                 })?;
@@ -1459,6 +1480,7 @@ impl Renderer {
                         black_dummy: self.black_dummy.clone(),
                         volume_dummy: self.volume_dummy.clone(),
                         uniform_buffer_cache: &mut self.uniform_buffer_cache,
+                        bone_matrices_stub_uniform_buffer: &*self.bone_matrices_stub_uniform_buffer,
                         visibility_cache,
                     })?;
 
@@ -1486,6 +1508,7 @@ impl Renderer {
                     scene_depth: depth,
                     uniform_buffer_cache: &mut self.uniform_buffer_cache,
                     ambient_light: scene.rendering_options.ambient_lighting_color,
+                    bone_matrices_stub_uniform_buffer: &*self.bone_matrices_stub_uniform_buffer,
                 })?;
 
             for render_pass in self.scene_render_passes.iter() {
@@ -1515,6 +1538,8 @@ impl Renderer {
                             framebuffer: &mut *scene_associated_data.hdr_scene_framebuffer,
                             ui_renderer: &mut self.ui_renderer,
                             uniform_buffer_cache: &mut self.uniform_buffer_cache,
+                            bone_matrices_stub_uniform_buffer: &*self
+                                .bone_matrices_stub_uniform_buffer,
                         })?;
             }
 
@@ -1605,6 +1630,8 @@ impl Renderer {
                             framebuffer: &mut *scene_associated_data.ldr_scene_framebuffer,
                             ui_renderer: &mut self.ui_renderer,
                             uniform_buffer_cache: &mut self.uniform_buffer_cache,
+                            bone_matrices_stub_uniform_buffer: &*self
+                                .bone_matrices_stub_uniform_buffer,
                         })?;
             }
         }

@@ -65,7 +65,7 @@ use crate::{
     },
 };
 use fxhash::FxHashSet;
-use fyrox_graphics::buffer::BufferUsage;
+use fyrox_graphics::buffer::{Buffer, BufferUsage};
 use fyrox_graphics::framebuffer::{ResourceBindGroup, ResourceBinding};
 use fyrox_graphics::state::GraphicsServer;
 use fyrox_graphics::uniform::StaticUniformBuffer;
@@ -98,6 +98,7 @@ pub(crate) struct GBufferRenderContext<'a, 'b> {
     pub quality_settings: &'a QualitySettings,
     pub graph: &'b Graph,
     pub uniform_buffer_cache: &'a mut UniformBufferCache,
+    pub bone_matrices_stub_uniform_buffer: &'a dyn Buffer,
     #[allow(dead_code)]
     pub screen_space_debug_renderer: &'a mut DebugRenderer,
     pub unit_quad: &'a GeometryBuffer,
@@ -307,6 +308,7 @@ impl GBuffer {
             graph,
             uniform_buffer_cache,
             unit_quad,
+            bone_matrices_stub_uniform_buffer,
             ..
         } = args;
 
@@ -356,6 +358,7 @@ impl GBuffer {
                     frame_buffer: &mut *self.framebuffer,
                     viewport,
                     uniform_buffer_cache,
+                    bone_matrices_stub_uniform_buffer,
                     view_projection_matrix: &view_projection,
                     camera_position: &camera.global_position(),
                     camera_up_vector: &camera_up,

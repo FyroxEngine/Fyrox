@@ -291,6 +291,7 @@ impl SceneRenderPass for HighlightRenderPass {
                         ambient_light: Default::default(),
                         scene_depth: Some(&ctx.depth_texture),
                         viewport: ctx.viewport,
+                        bone_matrices_stub_uniform_buffer: ctx.bone_matrices_stub_uniform_buffer,
                     },
                 )?;
             }
