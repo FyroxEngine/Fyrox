@@ -47,6 +47,7 @@ use glutin_winit::{DisplayBuilder, GlWindow};
 use raw_window_handle::HasRawWindowHandle;
 use std::any::Any;
 use std::cell::RefCell;
+use std::fmt::{Display, Formatter};
 use std::ops::DerefMut;
 use std::rc::{Rc, Weak};
 #[cfg(not(target_arch = "wasm32"))]
@@ -1052,6 +1053,27 @@ impl GlGraphicsServer {
     }
 }
 
+pub struct ServerCapabilities {
+    pub max_uniform_block_size: usize,
+    pub uniform_buffer_offset_alignment: usize,
+}
+
+impl Display for ServerCapabilities {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        writeln!(
+            f,
+            "\tMax Uniform Block Size: {}",
+            self.max_uniform_block_size
+        )?;
+        writeln!(
+            f,
+            "\tUniform Block Offset Alignment: {}",
+            self.uniform_buffer_offset_alignment
+        )?;
+        Ok(())
+    }
+}
+
 pub trait GraphicsServer: Any {
     fn create_buffer(
         &self,
@@ -1084,6 +1106,7 @@ pub trait GraphicsServer: Any {
     fn pipeline_statistics(&self) -> PipelineStatistics;
     fn swap_buffers(&self) -> Result<(), FrameworkError>;
     fn set_frame_size(&self, new_size: (u32, u32));
+    fn capabilities(&self) -> ServerCapabilities;
 }
 
 impl GraphicsServer for GlGraphicsServer {
@@ -1200,6 +1223,19 @@ impl GraphicsServer for GlGraphicsServer {
                 NonZeroU32::new(new_size.0).unwrap_or_else(|| NonZeroU32::new(1).unwrap()),
                 NonZeroU32::new(new_size.1).unwrap_or_else(|| NonZeroU32::new(1).unwrap()),
             );
+        }
+    }
+
+    fn capabilities(&self) -> ServerCapabilities {
+        unsafe {
+            ServerCapabilities {
+                max_uniform_block_size: self.gl.get_parameter_i32(glow::MAX_UNIFORM_BLOCK_SIZE)
+                    as usize,
+                uniform_buffer_offset_alignment: self
+                    .gl
+                    .get_parameter_i32(glow::UNIFORM_BUFFER_OFFSET_ALIGNMENT)
+                    as usize,
+            }
         }
     }
 }

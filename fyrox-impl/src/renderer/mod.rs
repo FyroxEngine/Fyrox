@@ -117,6 +117,7 @@ use winit::{
     window::{Window, WindowBuilder},
 };
 
+/// Maximum amount of bone matrices per shader.
 pub const MAX_BONE_MATRICES: usize = 256;
 
 lazy_static! {
@@ -692,6 +693,7 @@ pub struct Renderer {
     // TextureId -> FrameBuffer mapping. This mapping is used for temporal frame buffers
     // like ones used to render UI instances.
     ui_frame_buffers: FxHashMap<u64, Box<dyn FrameBuffer>>,
+    /// A stub uniform buffer for situation when there's no actual bone matrices.
     pub bone_matrices_stub_uniform_buffer: Box<dyn Buffer>,
     /// Visibility cache based on occlusion query.
     pub visibility_cache: VisibilityCache,
@@ -963,6 +965,11 @@ impl Renderer {
             window_target,
             window_builder,
         )?;
+
+        Log::info(format!(
+            "Graphics Server Capabilities\n{}",
+            server.capabilities()
+        ));
 
         let frame_size = (window.inner_size().width, window.inner_size().height);
 

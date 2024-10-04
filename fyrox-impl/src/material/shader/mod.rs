@@ -620,6 +620,7 @@ mod test {
         PropertyDefinition, PropertyKind, RenderPassDefinition, SamplerFallback, ShaderDefinition,
         ShaderResource, ShaderResourceExtension,
     };
+    use fyrox_graphics::gpu_program::SamplerKind;
 
     #[test]
     fn test_shader_load() {
@@ -670,9 +671,10 @@ mod test {
         let reference_definition = ShaderDefinition {
             name: "TestShader".to_owned(),
             properties: vec![PropertyDefinition {
-                name: "diffuseTexture".to_string(),
+                name: "diffuseTexture".into(),
                 kind: PropertyKind::Sampler {
                     default: None,
+                    kind: SamplerKind::Sampler2D,
                     fallback: SamplerFallback::White,
                 },
             }],
