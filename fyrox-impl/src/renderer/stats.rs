@@ -144,6 +144,8 @@ pub struct Statistics {
     pub geometry_cache_size: usize,
     /// Total amount of shaders in the shaders cache.
     pub shader_cache_size: usize,
+    /// Total amount of uniform buffers in the cache.
+    pub uniform_buffer_cache_size: usize,
     pub(super) frame_counter: usize,
     pub(super) frame_start_time: instant::Instant,
     pub(super) last_fps_commit_time: instant::Instant,
@@ -168,6 +170,7 @@ impl Display for Statistics {
         let texture_cache_size = self.texture_cache_size;
         let geometry_cache_size = self.geometry_cache_size;
         let shader_cache_size = self.shader_cache_size;
+        let uniform_buffer_cache_size = self.uniform_buffer_cache_size;
         write!(
             f,
             "FPS: {fps}\n\
@@ -178,7 +181,8 @@ impl Display for Statistics {
             {pipeline_stats}\n\
             Texture Cache Size: {texture_cache_size}\n\
             Geometry Cache Size: {geometry_cache_size}\n\
-            Shader Cache Size: {shader_cache_size}",
+            Shader Cache Size: {shader_cache_size}\n
+            Uniform Buffer Cache Size: {uniform_buffer_cache_size}\n",
         )
     }
 }
