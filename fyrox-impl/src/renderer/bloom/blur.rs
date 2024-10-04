@@ -44,7 +44,7 @@ use crate::{
 use std::{cell::RefCell, rc::Rc};
 
 struct Shader {
-    program: GpuProgram,
+    program: Box<dyn GpuProgram>,
     image: UniformLocation,
     uniform_block_binding: usize,
 }
@@ -55,11 +55,11 @@ impl Shader {
         let vertex_source = include_str!("../shaders/gaussian_blur_vs.glsl");
 
         let program =
-            GpuProgram::from_source(server, "GaussianBlurShader", vertex_source, fragment_source)?;
+            server.create_program("GaussianBlurShader", vertex_source, fragment_source)?;
         Ok(Self {
-            image: program.uniform_location(server, &ImmutableString::new("image"))?,
+            image: program.uniform_location(&ImmutableString::new("image"))?,
             uniform_block_binding: program
-                .uniform_block_index(server, &ImmutableString::new("Uniforms"))?,
+                .uniform_block_index(&ImmutableString::new("Uniforms"))?,
             program,
         })
     }
@@ -149,7 +149,7 @@ impl GaussianBlur {
         stats += self.h_framebuffer.draw(
             quad,
             viewport,
-            &shader.program,
+            &*shader.program,
             &DrawParameters {
                 cull_face: None,
                 color_write: Default::default(),
@@ -176,7 +176,6 @@ impl GaussianBlur {
                 ],
             }],
             ElementRange::Full,
-            &mut |_| {},
         )?;
 
         // Then blur vertically.
@@ -184,7 +183,7 @@ impl GaussianBlur {
         stats += self.v_framebuffer.draw(
             quad,
             viewport,
-            &shader.program,
+            &*shader.program,
             &DrawParameters {
                 cull_face: None,
                 color_write: Default::default(),
@@ -211,7 +210,6 @@ impl GaussianBlur {
                 ],
             }],
             ElementRange::Full,
-            &mut |_| {},
         )?;
 
         Ok(stats)

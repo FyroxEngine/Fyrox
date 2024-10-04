@@ -26,9 +26,10 @@ use crate::{
         gpu_program::{GpuProgram, UniformLocation},
     },
 };
+use fyrox_graphics::server::GraphicsServer;
 
 pub struct FlatShader {
-    pub program: GpuProgram,
+    pub program: Box<dyn GpuProgram>,
     pub uniform_buffer_binding: usize,
     pub diffuse_texture: UniformLocation,
 }
@@ -38,13 +39,11 @@ impl FlatShader {
         let fragment_source = include_str!("shaders/flat_fs.glsl");
         let vertex_source = include_str!("shaders/flat_vs.glsl");
 
-        let program =
-            GpuProgram::from_source(server, "FlatShader", vertex_source, fragment_source)?;
+        let program = server.create_program("FlatShader", vertex_source, fragment_source)?;
         Ok(Self {
             uniform_buffer_binding: program
-                .uniform_block_index(server, &ImmutableString::new("Uniforms"))?,
-            diffuse_texture: program
-                .uniform_location(server, &ImmutableString::new("diffuseTexture"))?,
+                .uniform_block_index(&ImmutableString::new("Uniforms"))?,
+            diffuse_texture: program.uniform_location(&ImmutableString::new("diffuseTexture"))?,
             program,
         })
     }

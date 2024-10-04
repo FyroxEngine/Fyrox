@@ -346,7 +346,7 @@ impl DeferredLightRenderer {
                 pass_stats += frame_buffer.draw(
                     &self.skybox,
                     viewport,
-                    &shader.program,
+                    &*shader.program,
                     &DrawParameters {
                         cull_face: None,
                         color_write: Default::default(),
@@ -374,7 +374,6 @@ impl DeferredLightRenderer {
                         offset: 0,
                         count: 12,
                     },
-                    &mut |_| {},
                 )?;
             }
         }
@@ -390,7 +389,7 @@ impl DeferredLightRenderer {
         pass_stats += frame_buffer.draw(
             &self.quad,
             viewport,
-            &self.ambient_light_shader.program,
+            &*self.ambient_light_shader.program,
             &DrawParameters {
                 cull_face: None,
                 color_write: Default::default(),
@@ -434,7 +433,6 @@ impl DeferredLightRenderer {
                 ],
             }],
             ElementRange::Full,
-            &mut |_| {},
         )?;
 
         for (light_handle, light) in scene.graph.pair_iter() {
@@ -549,7 +547,7 @@ impl DeferredLightRenderer {
             pass_stats += frame_buffer.draw(
                 bounding_shape,
                 viewport,
-                &self.flat_shader.program,
+                &*self.flat_shader.program,
                 &DrawParameters {
                     cull_face: Some(CullFace::Front),
                     color_write: ColorMask::all(false),
@@ -573,13 +571,12 @@ impl DeferredLightRenderer {
                     }],
                 }],
                 ElementRange::Full,
-                &mut |_| {},
             )?;
 
             pass_stats += frame_buffer.draw(
                 bounding_shape,
                 viewport,
-                &self.flat_shader.program,
+                &*self.flat_shader.program,
                 &DrawParameters {
                     cull_face: Some(CullFace::Back),
                     color_write: ColorMask::all(false),
@@ -603,7 +600,6 @@ impl DeferredLightRenderer {
                     }],
                 }],
                 ElementRange::Full,
-                &mut |_| {},
             )?;
 
             // Directional light sources cannot be optimized via occlusion culling, because they're
@@ -624,7 +620,7 @@ impl DeferredLightRenderer {
                     frame_buffer.draw(
                         &self.quad,
                         viewport,
-                        &self.flat_shader.program,
+                        &*self.flat_shader.program,
                         &DrawParameters {
                             cull_face: None,
                             color_write: ColorMask::all(false),
@@ -645,7 +641,6 @@ impl DeferredLightRenderer {
                             }],
                         }],
                         ElementRange::Full,
-                        &mut |_| {},
                     )?;
                     visibility_cache.end_query();
                 }
@@ -807,7 +802,7 @@ impl DeferredLightRenderer {
                     frame_buffer.draw(
                         quad,
                         viewport,
-                        &shader.program,
+                        &*shader.program,
                         &draw_params,
                         &[ResourceBindGroup {
                             bindings: &[
@@ -836,7 +831,6 @@ impl DeferredLightRenderer {
                             ],
                         }],
                         ElementRange::Full,
-                        &mut |_| {},
                     )?
                 } else if let Some(point_light) = light.cast::<PointLight>() {
                     let shader = &self.point_light_shader;
@@ -862,7 +856,7 @@ impl DeferredLightRenderer {
                     frame_buffer.draw(
                         quad,
                         viewport,
-                        &shader.program,
+                        &*shader.program,
                         &draw_params,
                         &[ResourceBindGroup {
                             bindings: &[
@@ -892,7 +886,6 @@ impl DeferredLightRenderer {
                             ],
                         }],
                         ElementRange::Full,
-                        &mut |_| {},
                     )?
                 } else if let Some(directional) = light.cast::<DirectionalLight>() {
                     let shader = &self.directional_light_shader;
@@ -931,7 +924,7 @@ impl DeferredLightRenderer {
                     frame_buffer.draw(
                         quad,
                         viewport,
-                        &shader.program,
+                        &*shader.program,
                         &DrawParameters {
                             cull_face: None,
                             color_write: Default::default(),
@@ -979,7 +972,6 @@ impl DeferredLightRenderer {
                             ],
                         }],
                         ElementRange::Full,
-                        &mut |_| {},
                     )?
                 } else {
                     unreachable!()

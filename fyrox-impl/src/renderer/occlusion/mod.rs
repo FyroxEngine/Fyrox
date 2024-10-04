@@ -66,7 +66,7 @@ use bytemuck::{Pod, Zeroable};
 use std::{cell::RefCell, rc::Rc};
 
 struct Shader {
-    program: GpuProgram,
+    program: Box<dyn GpuProgram>,
     tile_buffer: UniformLocation,
     matrices: UniformLocation,
     uniform_buffer_binding: usize,
@@ -76,13 +76,12 @@ impl Shader {
     fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("../shaders/visibility_fs.glsl");
         let vertex_source = include_str!("../shaders/visibility_vs.glsl");
-        let program =
-            GpuProgram::from_source(server, "VisibilityShader", vertex_source, fragment_source)?;
+        let program = server.create_program("VisibilityShader", vertex_source, fragment_source)?;
         Ok(Self {
             uniform_buffer_binding: program
-                .uniform_block_index(server, &ImmutableString::new("Uniforms"))?,
-            tile_buffer: program.uniform_location(server, &ImmutableString::new("tileBuffer"))?,
-            matrices: program.uniform_location(server, &ImmutableString::new("matrices"))?,
+                .uniform_block_index(&ImmutableString::new("Uniforms"))?,
+            tile_buffer: program.uniform_location(&ImmutableString::new("tileBuffer"))?,
+            matrices: program.uniform_location(&ImmutableString::new("matrices"))?,
             program,
         })
     }
@@ -460,7 +459,7 @@ impl OcclusionTester {
             self.objects_to_test.len(),
             &self.cube,
             viewport,
-            &self.shader.program,
+            &*self.shader.program,
             &DrawParameters {
                 cull_face: Some(CullFace::Back),
                 color_write: ColorMask::all(true),
@@ -493,7 +492,6 @@ impl OcclusionTester {
                     },
                 ],
             }],
-            &mut |_| {},
         );
 
         self.visibility_buffer_optimizer.optimize(

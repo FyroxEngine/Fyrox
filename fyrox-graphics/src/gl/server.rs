@@ -18,7 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::gl::program::GlProgram;
 use crate::gl::ToGlConstant;
+use crate::gpu_program::{GpuProgram, PropertyDefinition};
 use crate::server::{GraphicsServer, ServerCapabilities};
 use crate::{
     buffer::{Buffer, BufferKind, BufferUsage},
@@ -1097,6 +1099,36 @@ impl GraphicsServer for GlGraphicsServer {
 
     fn create_query(&self) -> Result<Box<dyn Query>, FrameworkError> {
         Ok(Box::new(GlQuery::new(self)?))
+    }
+
+    fn create_program(
+        &self,
+        name: &str,
+        vertex_source: &str,
+        fragment_source: &str,
+    ) -> Result<Box<dyn GpuProgram>, FrameworkError> {
+        Ok(Box::new(GlProgram::from_source(
+            self,
+            name,
+            vertex_source,
+            fragment_source,
+        )?))
+    }
+
+    fn create_program_with_properties(
+        &self,
+        name: &str,
+        vertex_source: &str,
+        fragment_source: &str,
+        properties: &[PropertyDefinition],
+    ) -> Result<Box<dyn GpuProgram>, FrameworkError> {
+        Ok(Box::new(GlProgram::from_source_and_properties(
+            self,
+            name,
+            vertex_source,
+            fragment_source,
+            properties,
+        )?))
     }
 
     fn as_any(&self) -> &dyn Any {

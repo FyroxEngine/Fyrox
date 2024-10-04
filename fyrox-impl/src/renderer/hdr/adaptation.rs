@@ -28,10 +28,11 @@ use crate::renderer::{
     },
     hdr::LumBuffer,
 };
+use fyrox_graphics::server::GraphicsServer;
 use std::{cell::RefCell, rc::Rc};
 
 pub struct AdaptationShader {
-    pub program: GpuProgram,
+    pub program: Box<dyn GpuProgram>,
     pub old_lum_sampler: UniformLocation,
     pub new_lum_sampler: UniformLocation,
     pub uniform_buffer_binding: usize,
@@ -42,16 +43,13 @@ impl AdaptationShader {
         let fragment_source = include_str!("../shaders/hdr_adaptation_fs.glsl");
         let vertex_source = include_str!("../shaders/hdr_adaptation_vs.glsl");
 
-        let program =
-            GpuProgram::from_source(server, "AdaptationShader", vertex_source, fragment_source)?;
+        let program = server.create_program("AdaptationShader", vertex_source, fragment_source)?;
 
         Ok(Self {
             uniform_buffer_binding: program
-                .uniform_block_index(server, &ImmutableString::new("Uniforms"))?,
-            old_lum_sampler: program
-                .uniform_location(server, &ImmutableString::new("oldLumSampler"))?,
-            new_lum_sampler: program
-                .uniform_location(server, &ImmutableString::new("newLumSampler"))?,
+                .uniform_block_index(&ImmutableString::new("Uniforms"))?,
+            old_lum_sampler: program.uniform_location(&ImmutableString::new("oldLumSampler"))?,
+            new_lum_sampler: program.uniform_location(&ImmutableString::new("newLumSampler"))?,
             program,
         })
     }

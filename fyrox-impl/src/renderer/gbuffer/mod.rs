@@ -410,7 +410,7 @@ impl GBuffer {
         let unit_cube = &self.cube;
         for decal in graph.linear_iter().filter_map(|n| n.cast::<Decal>()) {
             let shader = &self.decal_shader;
-            let program = &self.decal_shader.program;
+            let program = &*self.decal_shader.program;
 
             let world_view_proj = view_projection * decal.global_transform();
 
@@ -467,7 +467,6 @@ impl GBuffer {
                     ],
                 }],
                 ElementRange::Full,
-                &mut |_| {},
             )?;
         }
 

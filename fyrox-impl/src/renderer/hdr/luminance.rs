@@ -24,9 +24,10 @@ use crate::renderer::framework::{
     gl::server::GlGraphicsServer,
     gpu_program::{GpuProgram, UniformLocation},
 };
+use fyrox_graphics::server::GraphicsServer;
 
 pub struct LuminanceShader {
-    pub program: GpuProgram,
+    pub program: Box<dyn GpuProgram>,
     pub frame_sampler: UniformLocation,
     pub uniform_buffer_binding: usize,
 }
@@ -36,14 +37,12 @@ impl LuminanceShader {
         let fragment_source = include_str!("../shaders/hdr_luminance_fs.glsl");
         let vertex_source = include_str!("../shaders/hdr_luminance_vs.glsl");
 
-        let program =
-            GpuProgram::from_source(server, "LuminanceShader", vertex_source, fragment_source)?;
+        let program = server.create_program("LuminanceShader", vertex_source, fragment_source)?;
 
         Ok(Self {
             uniform_buffer_binding: program
-                .uniform_block_index(server, &ImmutableString::new("Uniforms"))?,
-            frame_sampler: program
-                .uniform_location(server, &ImmutableString::new("frameSampler"))?,
+                .uniform_block_index(&ImmutableString::new("Uniforms"))?,
+            frame_sampler: program.uniform_location(&ImmutableString::new("frameSampler"))?,
             program,
         })
     }

@@ -68,7 +68,7 @@ pub struct DebugRenderer {
 }
 
 pub(crate) struct DebugShader {
-    program: GpuProgram,
+    program: Box<dyn GpuProgram>,
     pub uniform_buffer_binding: usize,
 }
 
@@ -92,11 +92,10 @@ impl DebugShader {
     fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("shaders/debug_fs.glsl");
         let vertex_source = include_str!("shaders/debug_vs.glsl");
-        let program =
-            GpuProgram::from_source(server, "DebugShader", vertex_source, fragment_source)?;
+        let program = server.create_program("DebugShader", vertex_source, fragment_source)?;
         Ok(Self {
             uniform_buffer_binding: program
-                .uniform_block_index(server, &ImmutableString::new("Uniforms"))?,
+                .uniform_block_index(&ImmutableString::new("Uniforms"))?,
             program,
         })
     }
@@ -171,7 +170,7 @@ impl DebugRenderer {
         statistics += framebuffer.draw(
             &self.geometry,
             viewport,
-            &self.shader.program,
+            &*self.shader.program,
             &DrawParameters {
                 cull_face: None,
                 color_write: Default::default(),
@@ -189,7 +188,6 @@ impl DebugRenderer {
                 }],
             }],
             ElementRange::Full,
-            &mut |_| {},
         )?;
 
         statistics.draw_calls += 1;

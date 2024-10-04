@@ -23,7 +23,7 @@ use crate::{
     core::{color::Color, math::Rect},
     error::FrameworkError,
     geometry_buffer::{DrawCallStatistics, GeometryBuffer},
-    gpu_program::{GpuProgram, GpuProgramBinding, UniformLocation},
+    gpu_program::{GpuProgram, UniformLocation},
     gpu_texture::{CubeMapFace, GpuTexture},
     DrawParameters, ElementRange,
 };
@@ -86,20 +86,18 @@ pub trait FrameBuffer: Any {
         &mut self,
         geometry: &GeometryBuffer,
         viewport: Rect<i32>,
-        program: &GpuProgram,
+        program: &dyn GpuProgram,
         params: &DrawParameters,
         resources: &[ResourceBindGroup],
         element_range: ElementRange,
-        apply_uniforms: &mut dyn FnMut(GpuProgramBinding<'_, '_>),
     ) -> Result<DrawCallStatistics, FrameworkError>;
     fn draw_instances(
         &mut self,
         count: usize,
         geometry: &GeometryBuffer,
         viewport: Rect<i32>,
-        program: &GpuProgram,
+        program: &dyn GpuProgram,
         params: &DrawParameters,
         resources: &[ResourceBindGroup],
-        apply_uniforms: &mut dyn FnMut(GpuProgramBinding<'_, '_>),
     ) -> DrawCallStatistics;
 }

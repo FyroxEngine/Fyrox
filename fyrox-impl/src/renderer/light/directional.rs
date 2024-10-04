@@ -26,9 +26,10 @@ use crate::{
         gpu_program::{GpuProgram, UniformLocation},
     },
 };
+use fyrox_graphics::server::GraphicsServer;
 
 pub struct DirectionalLightShader {
-    pub program: GpuProgram,
+    pub program: Box<dyn GpuProgram>,
     pub depth_sampler: UniformLocation,
     pub color_sampler: UniformLocation,
     pub normal_sampler: UniformLocation,
@@ -43,29 +44,18 @@ impl DirectionalLightShader {
     pub fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("../shaders/deferred_directional_light_fs.glsl");
         let vertex_source = include_str!("../shaders/deferred_directional_light_vs.glsl");
-        let program = GpuProgram::from_source(
-            server,
-            "DirectionalLightShader",
-            vertex_source,
-            fragment_source,
-        )?;
+        let program =
+            server.create_program("DirectionalLightShader", vertex_source, fragment_source)?;
         Ok(Self {
-            depth_sampler: program
-                .uniform_location(server, &ImmutableString::new("depthTexture"))?,
-            color_sampler: program
-                .uniform_location(server, &ImmutableString::new("colorTexture"))?,
-            normal_sampler: program
-                .uniform_location(server, &ImmutableString::new("normalTexture"))?,
-            material_sampler: program
-                .uniform_location(server, &ImmutableString::new("materialTexture"))?,
-            shadow_cascade0: program
-                .uniform_location(server, &ImmutableString::new("shadowCascade0"))?,
-            shadow_cascade1: program
-                .uniform_location(server, &ImmutableString::new("shadowCascade1"))?,
-            shadow_cascade2: program
-                .uniform_location(server, &ImmutableString::new("shadowCascade2"))?,
+            depth_sampler: program.uniform_location(&ImmutableString::new("depthTexture"))?,
+            color_sampler: program.uniform_location(&ImmutableString::new("colorTexture"))?,
+            normal_sampler: program.uniform_location(&ImmutableString::new("normalTexture"))?,
+            material_sampler: program.uniform_location(&ImmutableString::new("materialTexture"))?,
+            shadow_cascade0: program.uniform_location(&ImmutableString::new("shadowCascade0"))?,
+            shadow_cascade1: program.uniform_location(&ImmutableString::new("shadowCascade1"))?,
+            shadow_cascade2: program.uniform_location(&ImmutableString::new("shadowCascade2"))?,
             uniform_buffer_binding: program
-                .uniform_block_index(server, &ImmutableString::new("Uniforms"))?,
+                .uniform_block_index(&ImmutableString::new("Uniforms"))?,
             program,
         })
     }

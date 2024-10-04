@@ -45,7 +45,7 @@ use crate::{
 use std::{cell::RefCell, rc::Rc};
 
 struct FxaaShader {
-    pub program: GpuProgram,
+    pub program: Box<dyn GpuProgram>,
     pub uniform_buffer_binding: usize,
     pub screen_texture: UniformLocation,
 }
@@ -55,13 +55,11 @@ impl FxaaShader {
         let fragment_source = include_str!("shaders/fxaa_fs.glsl");
         let vertex_source = include_str!("shaders/fxaa_vs.glsl");
 
-        let program =
-            GpuProgram::from_source(server, "FXAAShader", vertex_source, fragment_source)?;
+        let program = server.create_program("FXAAShader", vertex_source, fragment_source)?;
         Ok(Self {
             uniform_buffer_binding: program
-                .uniform_block_index(server, &ImmutableString::new("Uniforms"))?,
-            screen_texture: program
-                .uniform_location(server, &ImmutableString::new("screenTexture"))?,
+                .uniform_block_index(&ImmutableString::new("Uniforms"))?,
+            screen_texture: program.uniform_location(&ImmutableString::new("screenTexture"))?,
             program,
         })
     }
@@ -110,7 +108,7 @@ impl FxaaRenderer {
         statistics += frame_buffer.draw(
             &self.quad,
             viewport,
-            &self.shader.program,
+            &*self.shader.program,
             &DrawParameters {
                 cull_face: None,
                 color_write: Default::default(),
@@ -136,7 +134,6 @@ impl FxaaRenderer {
                 ],
             }],
             ElementRange::Full,
-            &mut |_| {},
         )?;
 
         Ok(statistics)

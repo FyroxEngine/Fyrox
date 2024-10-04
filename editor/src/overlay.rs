@@ -43,10 +43,11 @@ use crate::{
     },
     Editor,
 };
+use fyrox::renderer::framework::server::GraphicsServer;
 use std::{any::TypeId, cell::RefCell, rc::Rc};
 
 struct OverlayShader {
-    program: GpuProgram,
+    program: Box<dyn GpuProgram>,
     diffuse_texture: UniformLocation,
     uniform_buffer_binding: usize,
 }
@@ -55,13 +56,11 @@ impl OverlayShader {
     pub fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("../resources/shaders/overlay_fs.glsl");
         let vertex_source = include_str!("../resources/shaders/overlay_vs.glsl");
-        let program =
-            GpuProgram::from_source(server, "OverlayShader", vertex_source, fragment_source)?;
+        let program = server.create_program("OverlayShader", vertex_source, fragment_source)?;
         Ok(Self {
             uniform_buffer_binding: program
-                .uniform_block_index(server, &ImmutableString::new("Uniforms"))?,
-            diffuse_texture: program
-                .uniform_location(server, &ImmutableString::new("diffuseTexture"))?,
+                .uniform_block_index(&ImmutableString::new("Uniforms"))?,
+            diffuse_texture: program.uniform_location(&ImmutableString::new("diffuseTexture"))?,
             program,
         })
     }
@@ -139,7 +138,7 @@ impl SceneRenderPass for OverlayRenderPass {
             ctx.framebuffer.draw(
                 &self.quad,
                 ctx.viewport,
-                &shader.program,
+                &*shader.program,
                 &DrawParameters {
                     cull_face: None,
                     color_write: Default::default(),
@@ -171,7 +170,6 @@ impl SceneRenderPass for OverlayRenderPass {
                     ],
                 }],
                 ElementRange::Full,
-                &mut |_| {},
             )?;
         }
 

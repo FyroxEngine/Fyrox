@@ -54,11 +54,12 @@ use crate::{
     resource::texture::{Texture, TextureKind, TexturePixelKind, TextureResource},
 };
 use fyrox_graphics::framebuffer::{ResourceBindGroup, ResourceBinding};
+use fyrox_graphics::server::GraphicsServer;
 use fyrox_graphics::uniform::StaticUniformBuffer;
 use std::{cell::RefCell, rc::Rc};
 
 struct UiShader {
-    program: GpuProgram,
+    program: Box<dyn GpuProgram>,
     diffuse_texture: UniformLocation,
     uniform_block_index: usize,
 }
@@ -67,12 +68,10 @@ impl UiShader {
     pub fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("shaders/ui_fs.glsl");
         let vertex_source = include_str!("shaders/ui_vs.glsl");
-        let program = GpuProgram::from_source(server, "UIShader", vertex_source, fragment_source)?;
+        let program = server.create_program("UIShader", vertex_source, fragment_source)?;
         Ok(Self {
-            diffuse_texture: program
-                .uniform_location(server, &ImmutableString::new("diffuseTexture"))?,
-            uniform_block_index: program
-                .uniform_block_index(server, &ImmutableString::new("Uniforms"))?,
+            diffuse_texture: program.uniform_location(&ImmutableString::new("diffuseTexture"))?,
+            uniform_block_index: program.uniform_block_index(&ImmutableString::new("Uniforms"))?,
             program,
         })
     }
@@ -222,7 +221,7 @@ impl UiRenderer {
                 statistics += frame_buffer.draw(
                     &self.clipping_geometry_buffer,
                     viewport,
-                    &flat_shader.program,
+                    &*flat_shader.program,
                     &DrawParameters {
                         cull_face: None,
                         color_write: ColorMask::all(false),
@@ -243,7 +242,6 @@ impl UiRenderer {
                         }],
                     }],
                     ElementRange::Full,
-                    &mut |_| {},
                 )?;
 
                 // Make sure main geometry will be drawn only on marked pixels.
@@ -389,7 +387,7 @@ impl UiRenderer {
             statistics += frame_buffer.draw(
                 &self.geometry_buffer,
                 viewport,
-                &self.shader.program,
+                &*self.shader.program,
                 &params,
                 &[ResourceBindGroup {
                     bindings: &[
@@ -404,7 +402,6 @@ impl UiRenderer {
                     offset: cmd.triangles.start,
                     count: cmd.triangles.end - cmd.triangles.start,
                 },
-                &mut |_| {},
             )?;
         }
 

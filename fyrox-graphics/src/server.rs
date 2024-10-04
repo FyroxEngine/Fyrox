@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::gpu_program::{GpuProgram, PropertyDefinition};
 use crate::{
     buffer::{Buffer, BufferKind, BufferUsage},
     error::FrameworkError,
@@ -77,6 +78,19 @@ pub trait GraphicsServer: Any {
     ) -> Result<Box<dyn FrameBuffer>, FrameworkError>;
     fn back_buffer(&self) -> Box<dyn FrameBuffer>;
     fn create_query(&self) -> Result<Box<dyn Query>, FrameworkError>;
+    fn create_program(
+        &self,
+        name: &str,
+        vertex_source: &str,
+        fragment_source: &str,
+    ) -> Result<Box<dyn GpuProgram>, FrameworkError>;
+    fn create_program_with_properties(
+        &self,
+        name: &str,
+        vertex_source: &str,
+        fragment_source: &str,
+        properties: &[PropertyDefinition],
+    ) -> Result<Box<dyn GpuProgram>, FrameworkError>;
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
     fn weak(self: Rc<Self>) -> Weak<dyn GraphicsServer>;

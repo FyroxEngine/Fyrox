@@ -24,9 +24,10 @@ use crate::renderer::framework::{
     gl::server::GlGraphicsServer,
     gpu_program::{GpuProgram, UniformLocation},
 };
+use fyrox_graphics::server::GraphicsServer;
 
 pub struct MapShader {
-    pub program: GpuProgram,
+    pub program: Box<dyn GpuProgram>,
     pub hdr_sampler: UniformLocation,
     pub lum_sampler: UniformLocation,
     pub bloom_sampler: UniformLocation,
@@ -39,18 +40,16 @@ impl MapShader {
         let fragment_source = include_str!("../shaders/hdr_map.glsl");
         let vertex_source = include_str!("../shaders/hdr_map_vs.glsl");
 
-        let program =
-            GpuProgram::from_source(server, "HdrToLdrShader", vertex_source, fragment_source)?;
+        let program = server.create_program("HdrToLdrShader", vertex_source, fragment_source)?;
 
         Ok(Self {
-            hdr_sampler: program.uniform_location(server, &ImmutableString::new("hdrSampler"))?,
-            lum_sampler: program.uniform_location(server, &ImmutableString::new("lumSampler"))?,
-            bloom_sampler: program
-                .uniform_location(server, &ImmutableString::new("bloomSampler"))?,
+            hdr_sampler: program.uniform_location(&ImmutableString::new("hdrSampler"))?,
+            lum_sampler: program.uniform_location(&ImmutableString::new("lumSampler"))?,
+            bloom_sampler: program.uniform_location(&ImmutableString::new("bloomSampler"))?,
             color_map_sampler: program
-                .uniform_location(server, &ImmutableString::new("colorMapSampler"))?,
+                .uniform_location(&ImmutableString::new("colorMapSampler"))?,
             uniform_buffer_binding: program
-                .uniform_block_index(server, &ImmutableString::new("Uniforms"))?,
+                .uniform_block_index(&ImmutableString::new("Uniforms"))?,
             program,
         })
     }

@@ -47,7 +47,7 @@ use std::{cell::RefCell, rc::Rc};
 mod blur;
 
 struct Shader {
-    program: GpuProgram,
+    program: Box<dyn GpuProgram>,
     uniform_block_binding: usize,
     hdr_sampler: UniformLocation,
 }
@@ -57,12 +57,11 @@ impl Shader {
         let fragment_source = include_str!("../shaders/bloom_fs.glsl");
         let vertex_source = include_str!("../shaders/bloom_vs.glsl");
 
-        let program =
-            GpuProgram::from_source(server, "BloomShader", vertex_source, fragment_source)?;
+        let program = server.create_program("BloomShader", vertex_source, fragment_source)?;
         Ok(Self {
             uniform_block_binding: program
-                .uniform_block_index(server, &ImmutableString::new("Uniforms"))?,
-            hdr_sampler: program.uniform_location(server, &ImmutableString::new("hdrSampler"))?,
+                .uniform_block_index(&ImmutableString::new("Uniforms"))?,
+            hdr_sampler: program.uniform_location(&ImmutableString::new("hdrSampler"))?,
             program,
         })
     }
@@ -139,7 +138,7 @@ impl BloomRenderer {
         stats += self.framebuffer.draw(
             quad,
             viewport,
-            &shader.program,
+            &*shader.program,
             &DrawParameters {
                 cull_face: None,
                 color_write: Default::default(),
@@ -163,7 +162,6 @@ impl BloomRenderer {
                 ],
             }],
             ElementRange::Full,
-            &mut |_| {},
         )?;
 
         stats += self

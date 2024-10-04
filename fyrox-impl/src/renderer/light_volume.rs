@@ -52,7 +52,7 @@ use crate::{
 };
 
 struct SpotLightShader {
-    program: GpuProgram,
+    program: Box<dyn GpuProgram>,
     depth_sampler: UniformLocation,
     uniform_block_binding: usize,
 }
@@ -61,24 +61,19 @@ impl SpotLightShader {
     fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("shaders/spot_volumetric_fs.glsl");
         let vertex_source = include_str!("shaders/spot_volumetric_vs.glsl");
-        let program = GpuProgram::from_source(
-            server,
-            "SpotVolumetricLight",
-            vertex_source,
-            fragment_source,
-        )?;
+        let program =
+            server.create_program("SpotVolumetricLight", vertex_source, fragment_source)?;
         Ok(Self {
-            depth_sampler: program
-                .uniform_location(server, &ImmutableString::new("depthSampler"))?,
+            depth_sampler: program.uniform_location(&ImmutableString::new("depthSampler"))?,
             uniform_block_binding: program
-                .uniform_block_index(server, &ImmutableString::new("Uniforms"))?,
+                .uniform_block_index(&ImmutableString::new("Uniforms"))?,
             program,
         })
     }
 }
 
 struct PointLightShader {
-    program: GpuProgram,
+    program: Box<dyn GpuProgram>,
     depth_sampler: UniformLocation,
     uniform_block_binding: usize,
 }
@@ -87,17 +82,12 @@ impl PointLightShader {
     fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("shaders/point_volumetric_fs.glsl");
         let vertex_source = include_str!("shaders/point_volumetric_vs.glsl");
-        let program = GpuProgram::from_source(
-            server,
-            "PointVolumetricLight",
-            vertex_source,
-            fragment_source,
-        )?;
+        let program =
+            server.create_program("PointVolumetricLight", vertex_source, fragment_source)?;
         Ok(Self {
-            depth_sampler: program
-                .uniform_location(server, &ImmutableString::new("depthSampler"))?,
+            depth_sampler: program.uniform_location(&ImmutableString::new("depthSampler"))?,
             uniform_block_binding: program
-                .uniform_block_index(server, &ImmutableString::new("Uniforms"))?,
+                .uniform_block_index(&ImmutableString::new("Uniforms"))?,
             program,
         })
     }
@@ -203,7 +193,7 @@ impl LightVolumeRenderer {
             stats += frame_buffer.draw(
                 &self.cone,
                 viewport,
-                &self.flat_shader.program,
+                &*self.flat_shader.program,
                 &DrawParameters {
                     cull_face: None,
                     color_write: ColorMask::all(false),
@@ -231,7 +221,6 @@ impl LightVolumeRenderer {
                     }],
                 }],
                 ElementRange::Full,
-                &mut |_| {},
             )?;
 
             // Finally draw fullscreen quad, GPU will calculate scattering only on pixels that were
@@ -241,7 +230,7 @@ impl LightVolumeRenderer {
             stats += frame_buffer.draw(
                 quad,
                 viewport,
-                &shader.program,
+                &*shader.program,
                 &DrawParameters {
                     cull_face: None,
                     color_write: Default::default(),
@@ -284,7 +273,6 @@ impl LightVolumeRenderer {
                     ],
                 }],
                 ElementRange::Full,
-                &mut |_| {},
             )?
         } else if let Some(point) = light.cast::<PointLight>() {
             if !point.base_light_ref().is_scatter_enabled() {
@@ -307,7 +295,7 @@ impl LightVolumeRenderer {
             stats += frame_buffer.draw(
                 &self.sphere,
                 viewport,
-                &self.flat_shader.program,
+                &*self.flat_shader.program,
                 &DrawParameters {
                     cull_face: None,
                     color_write: ColorMask::all(false),
@@ -334,7 +322,6 @@ impl LightVolumeRenderer {
                     }],
                 }],
                 ElementRange::Full,
-                &mut |_| {},
             )?;
 
             // Finally draw fullscreen quad, GPU will calculate scattering only on pixels that were
@@ -344,7 +331,7 @@ impl LightVolumeRenderer {
             stats += frame_buffer.draw(
                 quad,
                 viewport,
-                &shader.program,
+                &*shader.program,
                 &DrawParameters {
                     cull_face: None,
                     color_write: Default::default(),
@@ -388,7 +375,6 @@ impl LightVolumeRenderer {
                     ],
                 }],
                 ElementRange::Full,
-                &mut |_| {},
             )?
         }
 

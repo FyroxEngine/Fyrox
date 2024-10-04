@@ -891,7 +891,7 @@ fn blit_pixels(
     framebuffer.draw(
         quad,
         viewport,
-        &shader.program,
+        &*shader.program,
         &DrawParameters {
             cull_face: None,
             color_write: Default::default(),
@@ -912,7 +912,6 @@ fn blit_pixels(
             ],
         }],
         ElementRange::Full,
-        &mut |_| {},
     )
 }
 

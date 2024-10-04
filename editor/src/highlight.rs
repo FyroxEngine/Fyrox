@@ -58,7 +58,7 @@ use crate::{
 use std::{any::TypeId, cell::RefCell, rc::Rc};
 
 struct EdgeDetectShader {
-    program: GpuProgram,
+    program: Box<dyn GpuProgram>,
     uniform_buffer_binding: usize,
     frame_texture: UniformLocation,
 }
@@ -118,13 +118,11 @@ void main()
     gl_Position = worldViewProjection * vec4(vertexPosition, 1.0);
 }"#;
 
-        let program =
-            GpuProgram::from_source(server, "EdgeDetectShader", vertex_source, fragment_source)?;
+        let program = server.create_program("EdgeDetectShader", vertex_source, fragment_source)?;
         Ok(Self {
             uniform_buffer_binding: program
-                .uniform_block_index(server, &ImmutableString::new("Uniforms"))?,
-            frame_texture: program
-                .uniform_location(server, &ImmutableString::new("frameTexture"))?,
+                .uniform_block_index(&ImmutableString::new("Uniforms"))?,
+            frame_texture: program.uniform_location(&ImmutableString::new("frameTexture"))?,
             program,
         })
     }
@@ -317,7 +315,7 @@ impl SceneRenderPass for HighlightRenderPass {
             ctx.framebuffer.draw(
                 &self.quad,
                 ctx.viewport,
-                &shader.program,
+                &*shader.program,
                 &DrawParameters {
                     cull_face: None,
                     color_write: Default::default(),
@@ -346,7 +344,6 @@ impl SceneRenderPass for HighlightRenderPass {
                     ],
                 }],
                 ElementRange::Full,
-                &mut |_| {},
             )?;
         }
 

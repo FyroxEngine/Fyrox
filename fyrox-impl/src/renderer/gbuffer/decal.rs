@@ -24,13 +24,14 @@ use crate::renderer::framework::{
     gl::server::GlGraphicsServer,
     gpu_program::{GpuProgram, UniformLocation},
 };
+use fyrox_graphics::server::GraphicsServer;
 
 pub struct DecalShader {
     pub scene_depth: UniformLocation,
     pub diffuse_texture: UniformLocation,
     pub normal_texture: UniformLocation,
     pub decal_mask: UniformLocation,
-    pub program: GpuProgram,
+    pub program: Box<dyn GpuProgram>,
     pub uniform_buffer_binding: usize,
 }
 
@@ -39,17 +40,14 @@ impl DecalShader {
         let fragment_source = include_str!("../shaders/decal_fs.glsl");
         let vertex_source = include_str!("../shaders/decal_vs.glsl");
 
-        let program =
-            GpuProgram::from_source(server, "DecalShader", vertex_source, fragment_source)?;
+        let program = server.create_program("DecalShader", vertex_source, fragment_source)?;
         Ok(Self {
             uniform_buffer_binding: program
-                .uniform_block_index(server, &ImmutableString::new("Uniforms"))?,
-            scene_depth: program.uniform_location(server, &ImmutableString::new("sceneDepth"))?,
-            diffuse_texture: program
-                .uniform_location(server, &ImmutableString::new("diffuseTexture"))?,
-            normal_texture: program
-                .uniform_location(server, &ImmutableString::new("normalTexture"))?,
-            decal_mask: program.uniform_location(server, &ImmutableString::new("decalMask"))?,
+                .uniform_block_index(&ImmutableString::new("Uniforms"))?,
+            scene_depth: program.uniform_location(&ImmutableString::new("sceneDepth"))?,
+            diffuse_texture: program.uniform_location(&ImmutableString::new("diffuseTexture"))?,
+            normal_texture: program.uniform_location(&ImmutableString::new("normalTexture"))?,
+            decal_mask: program.uniform_location(&ImmutableString::new("decalMask"))?,
             program,
         })
     }

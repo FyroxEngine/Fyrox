@@ -24,9 +24,10 @@ use crate::renderer::framework::{
     gl::server::GlGraphicsServer,
     gpu_program::{GpuProgram, UniformLocation},
 };
+use fyrox_graphics::server::GraphicsServer;
 
 pub struct AmbientLightShader {
-    pub program: GpuProgram,
+    pub program: Box<dyn GpuProgram>,
     pub uniform_buffer_binding: usize,
     pub diffuse_texture: UniformLocation,
     pub ao_sampler: UniformLocation,
@@ -38,15 +39,13 @@ impl AmbientLightShader {
         let fragment_source = include_str!("../shaders/ambient_light_fs.glsl");
         let vertex_source = include_str!("../shaders/ambient_light_vs.glsl");
         let program =
-            GpuProgram::from_source(server, "AmbientLightShader", vertex_source, fragment_source)?;
+            server.create_program("AmbientLightShader", vertex_source, fragment_source)?;
         Ok(Self {
             uniform_buffer_binding: program
-                .uniform_block_index(server, &ImmutableString::new("Uniforms"))?,
-            diffuse_texture: program
-                .uniform_location(server, &ImmutableString::new("diffuseTexture"))?,
-            ao_sampler: program.uniform_location(server, &ImmutableString::new("aoSampler"))?,
-            ambient_texture: program
-                .uniform_location(server, &ImmutableString::new("ambientTexture"))?,
+                .uniform_block_index(&ImmutableString::new("Uniforms"))?,
+            diffuse_texture: program.uniform_location(&ImmutableString::new("diffuseTexture"))?,
+            ao_sampler: program.uniform_location(&ImmutableString::new("aoSampler"))?,
+            ambient_texture: program.uniform_location(&ImmutableString::new("ambientTexture"))?,
             program,
         })
     }

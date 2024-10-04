@@ -18,17 +18,17 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::framebuffer::ResourceBindGroup;
-use crate::gl::server::GlGraphicsServer;
-use crate::gl::ToGlConstant;
 use crate::{
     buffer::{Buffer, BufferKind},
     core::{color::Color, math::Rect},
     error::FrameworkError,
-    framebuffer::{Attachment, AttachmentKind, FrameBuffer, ResourceBinding},
+    framebuffer::{Attachment, AttachmentKind, FrameBuffer, ResourceBindGroup, ResourceBinding},
     geometry_buffer::{DrawCallStatistics, GeometryBuffer},
-    gl::{buffer::GlBuffer, texture::GlTexture},
-    gpu_program::{GpuProgram, GpuProgramBinding},
+    gl::{
+        buffer::GlBuffer, program::GlProgram, server::GlGraphicsServer, texture::GlTexture,
+        ToGlConstant,
+    },
+    gpu_program::GpuProgram,
     gpu_texture::{CubeMapFace, GpuTexture, GpuTextureKind, PixelElementKind},
     ColorMask, DrawParameters, ElementRange,
 };
@@ -308,23 +308,14 @@ impl FrameBuffer for GlFrameBuffer {
         &mut self,
         geometry: &GeometryBuffer,
         viewport: Rect<i32>,
-        program: &GpuProgram,
+        program: &dyn GpuProgram,
         params: &DrawParameters,
         resources: &[ResourceBindGroup],
         element_range: ElementRange,
-        apply_uniforms: &mut dyn FnMut(GpuProgramBinding<'_, '_>),
     ) -> Result<DrawCallStatistics, FrameworkError> {
         let server = self.state.upgrade().unwrap();
 
-        pre_draw(
-            self.id(),
-            &server,
-            viewport,
-            program,
-            params,
-            resources,
-            apply_uniforms,
-        );
+        pre_draw(self.id(), &server, viewport, program, params, resources);
 
         geometry.bind(&server).draw(element_range)
     }
@@ -334,22 +325,13 @@ impl FrameBuffer for GlFrameBuffer {
         count: usize,
         geometry: &GeometryBuffer,
         viewport: Rect<i32>,
-        program: &GpuProgram,
+        program: &dyn GpuProgram,
         params: &DrawParameters,
         resources: &[ResourceBindGroup],
-        apply_uniforms: &mut dyn FnMut(GpuProgramBinding<'_, '_>),
     ) -> DrawCallStatistics {
         let server = self.state.upgrade().unwrap();
 
-        pre_draw(
-            self.id(),
-            &server,
-            viewport,
-            program,
-            params,
-            resources,
-            apply_uniforms,
-        );
+        pre_draw(self.id(), &server, viewport, program, params, resources);
 
         geometry.bind(&server).draw_instances(count)
     }
@@ -359,16 +341,15 @@ fn pre_draw(
     fbo: Option<glow::Framebuffer>,
     server: &GlGraphicsServer,
     viewport: Rect<i32>,
-    program: &GpuProgram,
+    program: &dyn GpuProgram,
     params: &DrawParameters,
     resources: &[ResourceBindGroup],
-    apply_uniforms: &mut dyn FnMut(GpuProgramBinding<'_, '_>),
 ) {
     server.set_framebuffer(fbo);
     server.set_viewport(viewport);
     server.apply_draw_parameters(params);
-
-    let program_binding = program.bind(server);
+    let program = program.as_any().downcast_ref::<GlProgram>().unwrap();
+    server.set_program(Some(program.id));
 
     let mut texture_unit = 0;
     let mut buffer_binding = 0;
@@ -407,7 +388,7 @@ fn pre_draw(
 
                         match gl_buffer.kind() {
                             BufferKind::Uniform => server.gl.uniform_block_binding(
-                                program_binding.program.id,
+                                program.id,
                                 *shader_location as u32,
                                 buffer_binding,
                             ),
@@ -423,8 +404,6 @@ fn pre_draw(
             }
         }
     }
-
-    apply_uniforms(program_binding);
 }
 
 impl Drop for GlFrameBuffer {

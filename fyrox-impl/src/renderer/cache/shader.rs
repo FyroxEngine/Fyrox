@@ -27,9 +27,10 @@ use crate::{
 };
 use fxhash::FxHashMap;
 use fyrox_core::log::Log;
+use fyrox_graphics::server::GraphicsServer;
 
 pub struct RenderPassData {
-    pub program: GpuProgram,
+    pub program: Box<dyn GpuProgram>,
     pub draw_params: DrawParameters,
 }
 
@@ -42,8 +43,7 @@ impl ShaderSet {
         let mut map = FxHashMap::default();
         for render_pass in shader.definition.passes.iter() {
             let program_name = format!("{}_{}", shader.definition.name, render_pass.name);
-            match GpuProgram::from_source_and_properties(
-                server,
+            match server.create_program_with_properties(
                 &program_name,
                 &render_pass.vertex_shader,
                 &render_pass.fragment_shader,

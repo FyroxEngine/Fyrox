@@ -182,7 +182,7 @@ impl HighDynamicRangeRenderer {
                 self.frame_luminance.size as i32,
                 self.frame_luminance.size as i32,
             ),
-            &shader.program,
+            &*shader.program,
             &DrawParameters {
                 cull_face: None,
                 color_write: Default::default(),
@@ -208,7 +208,6 @@ impl HighDynamicRangeRenderer {
                 ],
             }],
             ElementRange::Full,
-            &mut |_| {},
         )
     }
 
@@ -280,7 +279,7 @@ impl HighDynamicRangeRenderer {
                     stats += lum_buffer.framebuffer.draw(
                         quad,
                         Rect::new(0, 0, lum_buffer.size as i32, lum_buffer.size as i32),
-                        &shader.program,
+                        &*shader.program,
                         &DrawParameters {
                             cull_face: None,
                             color_write: Default::default(),
@@ -306,7 +305,6 @@ impl HighDynamicRangeRenderer {
                             ],
                         }],
                         ElementRange::Full,
-                        &mut |_| {},
                     )?;
 
                     prev_luminance = lum_buffer.texture();
@@ -331,7 +329,7 @@ impl HighDynamicRangeRenderer {
         ctx.lum_buffer.framebuffer.draw(
             quad,
             viewport,
-            &shader.program,
+            &*shader.program,
             &DrawParameters {
                 cull_face: None,
                 color_write: Default::default(),
@@ -362,7 +360,6 @@ impl HighDynamicRangeRenderer {
                 ],
             }],
             ElementRange::Full,
-            &mut |_| {},
         )
     }
 
@@ -411,7 +408,7 @@ impl HighDynamicRangeRenderer {
         ldr_framebuffer.draw(
             quad,
             viewport,
-            &shader.program,
+            &*shader.program,
             &DrawParameters {
                 cull_face: None,
                 color_write: Default::default(),
@@ -438,7 +435,6 @@ impl HighDynamicRangeRenderer {
                 ],
             }],
             ElementRange::Full,
-            &mut |_| {},
         )
     }
 

@@ -24,9 +24,10 @@ use crate::renderer::framework::{
     gl::server::GlGraphicsServer,
     gpu_program::{GpuProgram, UniformLocation},
 };
+use fyrox_graphics::server::GraphicsServer;
 
 pub struct SpotLightShader {
-    pub program: GpuProgram,
+    pub program: Box<dyn GpuProgram>,
     pub depth_sampler: UniformLocation,
     pub color_sampler: UniformLocation,
     pub normal_sampler: UniformLocation,
@@ -40,23 +41,17 @@ impl SpotLightShader {
     pub fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("../shaders/deferred_spot_light_fs.glsl");
         let vertex_source = include_str!("../shaders/deferred_spot_light_vs.glsl");
-        let program =
-            GpuProgram::from_source(server, "SpotLightShader", vertex_source, fragment_source)?;
+        let program = server.create_program("SpotLightShader", vertex_source, fragment_source)?;
         Ok(Self {
-            depth_sampler: program
-                .uniform_location(server, &ImmutableString::new("depthTexture"))?,
-            color_sampler: program
-                .uniform_location(server, &ImmutableString::new("colorTexture"))?,
-            normal_sampler: program
-                .uniform_location(server, &ImmutableString::new("normalTexture"))?,
-            material_sampler: program
-                .uniform_location(server, &ImmutableString::new("materialTexture"))?,
+            depth_sampler: program.uniform_location(&ImmutableString::new("depthTexture"))?,
+            color_sampler: program.uniform_location(&ImmutableString::new("colorTexture"))?,
+            normal_sampler: program.uniform_location(&ImmutableString::new("normalTexture"))?,
+            material_sampler: program.uniform_location(&ImmutableString::new("materialTexture"))?,
             spot_shadow_texture: program
-                .uniform_location(server, &ImmutableString::new("spotShadowTexture"))?,
-            cookie_texture: program
-                .uniform_location(server, &ImmutableString::new("cookieTexture"))?,
+                .uniform_location(&ImmutableString::new("spotShadowTexture"))?,
+            cookie_texture: program.uniform_location(&ImmutableString::new("cookieTexture"))?,
             uniform_buffer_binding: program
-                .uniform_block_index(server, &ImmutableString::new("Uniforms"))?,
+                .uniform_block_index(&ImmutableString::new("Uniforms"))?,
             program,
         })
     }

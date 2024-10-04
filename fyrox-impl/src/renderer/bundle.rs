@@ -20,12 +20,12 @@
 
 //! The module responsible for bundle generation for rendering optimizations.
 
-use crate::renderer::MAX_BONE_MATRICES;
-use crate::resource::texture::TextureResource;
 use crate::{
     asset::untyped::ResourceKind,
     core::{
+        algebra::Vector4,
         algebra::{Matrix4, Vector3},
+        arrayvec::ArrayVec,
         color::Color,
         math::{frustum::Frustum, Rect},
         pool::Handle,
@@ -39,16 +39,18 @@ use crate::{
             uniform::UniformBufferCache, TimeToLive,
         },
         framework::{
+            buffer::Buffer,
             error::FrameworkError,
-            framebuffer::FrameBuffer,
+            framebuffer::{FrameBuffer, ResourceBindGroup, ResourceBinding},
             gl::server::GlGraphicsServer,
-            gpu_program::{BuiltInUniform, BuiltInUniformBlock, GpuProgramBinding},
+            gpu_program::{BuiltInUniform, BuiltInUniformBlock, GpuProgram},
             gpu_texture::GpuTexture,
             uniform::StaticUniformBuffer,
             ElementRange,
         },
-        LightData, RenderPassStatistics,
+        LightData, RenderPassStatistics, MAX_BONE_MATRICES,
     },
+    resource::texture::TextureResource,
     scene::{
         graph::Graph,
         mesh::{
@@ -63,10 +65,6 @@ use crate::{
     },
 };
 use fxhash::{FxBuildHasher, FxHashMap, FxHasher};
-use fyrox_core::algebra::Vector4;
-use fyrox_core::arrayvec::ArrayVec;
-use fyrox_graphics::buffer::Buffer;
-use fyrox_graphics::framebuffer::{ResourceBindGroup, ResourceBinding};
 use std::{
     cell::RefCell,
     collections::hash_map::DefaultHasher,
@@ -167,12 +165,13 @@ impl<'a> BundleRenderContext<'a> {
     #[allow(missing_docs)] // TODO
     pub fn apply_material(
         &mut self,
+        server: &GlGraphicsServer,
         material: &Material,
-        program_binding: &mut GpuProgramBinding,
+        program: &dyn GpuProgram,
         blend_shapes_storage: Option<TextureResource>,
         material_bindings: &mut ArrayVec<ResourceBinding, 32>,
     ) -> Result<StaticUniformBuffer<16384>, FrameworkError> {
-        let built_in_uniforms = &program_binding.program.built_in_uniform_locations;
+        let built_in_uniforms = program.built_in_uniform_locations();
 
         if let Some(location) = &built_in_uniforms[BuiltInUniform::SceneDepth as usize] {
             if let Some(scene_depth) = self.scene_depth.as_ref() {
@@ -184,8 +183,7 @@ impl<'a> BundleRenderContext<'a> {
             if let Some(texture) = blend_shapes_storage
                 .as_ref()
                 .and_then(|blend_shapes_storage| {
-                    self.texture_cache
-                        .get(program_binding.server, blend_shapes_storage)
+                    self.texture_cache.get(server, blend_shapes_storage)
                 })
             {
                 material_bindings.push(ResourceBinding::texture(texture, location));
@@ -197,36 +195,36 @@ impl<'a> BundleRenderContext<'a> {
         // Apply values for built-in uniforms.
 
         if let Some(location) = &built_in_uniforms[BuiltInUniform::UsePOM as usize] {
-            program_binding.set_bool(location, self.use_pom);
+            program.set_bool(location, self.use_pom);
         }
         if let Some(location) = &built_in_uniforms[BuiltInUniform::LightPosition as usize] {
-            program_binding.set_vector3(location, self.light_position);
+            program.set_vector3(location, self.light_position);
         }
 
         if let Some(light_data) = self.light_data {
             if let Some(location) = &built_in_uniforms[BuiltInUniform::LightCount as usize] {
-                program_binding.set_i32(location, light_data.count as i32);
+                program.set_i32(location, light_data.count as i32);
             }
 
             if let Some(location) = &built_in_uniforms[BuiltInUniform::LightsColorRadius as usize] {
-                program_binding.set_vector4_slice(location, &light_data.color_radius);
+                program.set_vector4_slice(location, &light_data.color_radius);
             }
 
             if let Some(location) = &built_in_uniforms[BuiltInUniform::LightsPosition as usize] {
-                program_binding.set_vector3_slice(location, &light_data.position);
+                program.set_vector3_slice(location, &light_data.position);
             }
 
             if let Some(location) = &built_in_uniforms[BuiltInUniform::LightsDirection as usize] {
-                program_binding.set_vector3_slice(location, &light_data.direction);
+                program.set_vector3_slice(location, &light_data.direction);
             }
 
             if let Some(location) = &built_in_uniforms[BuiltInUniform::LightsParameters as usize] {
-                program_binding.set_vector2_slice(location, &light_data.parameters);
+                program.set_vector2_slice(location, &light_data.parameters);
             }
         }
 
         if let Some(location) = &built_in_uniforms[BuiltInUniform::AmbientLight as usize] {
-            program_binding.set_srgb_color(location, &self.ambient_light);
+            program.set_srgb_color(location, &self.ambient_light);
         }
 
         // Apply material properties.
@@ -299,14 +297,14 @@ impl<'a> BundleRenderContext<'a> {
                     PropertyValue::Sampler { value, fallback } => {
                         let texture = value
                             .as_ref()
-                            .and_then(|t| self.texture_cache.get(program_binding.server, t))
+                            .and_then(|t| self.texture_cache.get(server, t))
                             .unwrap_or(match fallback {
                                 SamplerFallback::White => self.white_dummy,
                                 SamplerFallback::Normal => self.normal_dummy,
                                 SamplerFallback::Black => self.black_dummy,
                             });
 
-                        if let Some(uniform) = program_binding.uniform_location(&property.name) {
+                        if let Ok(uniform) = program.uniform_location(&property.name) {
                             material_bindings.push(ResourceBinding::texture(texture, &uniform));
                         }
                     }
@@ -429,16 +427,16 @@ impl RenderDataBundle {
             return Ok(stats);
         };
 
-        let mut program_binding = render_pass.program.bind(server);
         let mut material_bindings = ArrayVec::<ResourceBinding, 32>::new();
         let uniforms = render_context.apply_material(
+            server,
             material,
-            &mut program_binding,
+            &*render_pass.program,
             blend_shapes_storage,
             &mut material_bindings,
         )?;
 
-        let built_in_uniform_blocks = &program_binding.program.built_in_uniform_blocks;
+        let built_in_uniform_blocks = render_pass.program.built_in_uniform_blocks();
 
         if let Some(location) =
             &built_in_uniform_blocks[BuiltInUniformBlock::MaterialProperties as usize]
@@ -453,7 +451,7 @@ impl RenderDataBundle {
 
         if let Some(location) = &built_in_uniform_blocks[BuiltInUniformBlock::CameraData as usize] {
             let buffer = render_context.uniform_buffer_cache.write(
-                program_binding.server,
+                server,
                 StaticUniformBuffer::<512>::new()
                     .with(render_context.view_projection_matrix)
                     .with(render_context.camera_position)
@@ -495,7 +493,7 @@ impl RenderDataBundle {
                     matrices[0..instance.bone_matrices.len()]
                         .copy_from_slice(&instance.bone_matrices);
                     let buffer = render_context.uniform_buffer_cache.write(
-                        program_binding.server,
+                        server,
                         StaticUniformBuffer::<SIZE>::new().with_slice(&matrices),
                     )?;
                     instance_bindings.push(ResourceBinding::Buffer {
@@ -522,7 +520,7 @@ impl RenderDataBundle {
                     );
                 }
                 let buffer = render_context.uniform_buffer_cache.write(
-                    program_binding.server,
+                    server,
                     StaticUniformBuffer::<1024>::new()
                         .with(&instance.world_transform)
                         .with(&(render_context.view_projection_matrix * instance.world_transform))
@@ -539,7 +537,7 @@ impl RenderDataBundle {
             stats += render_context.frame_buffer.draw(
                 geometry,
                 render_context.viewport,
-                &render_pass.program,
+                &*render_pass.program,
                 &render_pass.draw_params,
                 &[
                     ResourceBindGroup {
@@ -550,7 +548,6 @@ impl RenderDataBundle {
                     },
                 ],
                 instance.element_range,
-                &mut |_| {},
             )?;
         }
 

@@ -24,9 +24,10 @@ use crate::renderer::framework::{
     gl::server::GlGraphicsServer,
     gpu_program::{GpuProgram, UniformLocation},
 };
+use fyrox_graphics::server::GraphicsServer;
 
 pub struct SkyboxShader {
-    pub program: GpuProgram,
+    pub program: Box<dyn GpuProgram>,
     pub uniform_buffer_binding: usize,
     pub cubemap_texture: UniformLocation,
 }
@@ -36,13 +37,11 @@ impl SkyboxShader {
         let fragment_source = include_str!("shaders/skybox_fs.glsl");
         let vertex_source = include_str!("shaders/skybox_vs.glsl");
 
-        let program =
-            GpuProgram::from_source(server, "SkyboxShader", vertex_source, fragment_source)?;
+        let program = server.create_program("SkyboxShader", vertex_source, fragment_source)?;
         Ok(Self {
             uniform_buffer_binding: program
-                .uniform_block_index(server, &ImmutableString::new("Uniforms"))?,
-            cubemap_texture: program
-                .uniform_location(server, &ImmutableString::new("cubemapTexture"))?,
+                .uniform_block_index(&ImmutableString::new("Uniforms"))?,
+            cubemap_texture: program.uniform_location(&ImmutableString::new("cubemapTexture"))?,
             program,
         })
     }

@@ -61,7 +61,7 @@ const KERNEL_SIZE: usize = 32;
 const NOISE_SIZE: usize = 4;
 
 struct Shader {
-    program: GpuProgram,
+    program: Box<dyn GpuProgram>,
     depth_sampler: UniformLocation,
     normal_sampler: UniformLocation,
     noise_sampler: UniformLocation,
@@ -72,17 +72,12 @@ impl Shader {
     pub fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("../shaders/ssao_fs.glsl");
         let vertex_source = include_str!("../shaders/ssao_vs.glsl");
-        let program =
-            GpuProgram::from_source(server, "SsaoShader", vertex_source, fragment_source)?;
+        let program = server.create_program("SsaoShader", vertex_source, fragment_source)?;
         Ok(Self {
-            depth_sampler: program
-                .uniform_location(server, &ImmutableString::new("depthSampler"))?,
-            normal_sampler: program
-                .uniform_location(server, &ImmutableString::new("normalSampler"))?,
-            noise_sampler: program
-                .uniform_location(server, &ImmutableString::new("noiseSampler"))?,
-            uniform_block_index: program
-                .uniform_block_index(server, &ImmutableString::new("Uniforms"))?,
+            depth_sampler: program.uniform_location(&ImmutableString::new("depthSampler"))?,
+            normal_sampler: program.uniform_location(&ImmutableString::new("normalSampler"))?,
+            noise_sampler: program.uniform_location(&ImmutableString::new("noiseSampler"))?,
+            uniform_block_index: program.uniform_block_index(&ImmutableString::new("Uniforms"))?,
             program,
         })
     }
@@ -253,7 +248,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
         stats += self.framebuffer.draw(
             &self.quad,
             viewport,
-            &self.shader.program,
+            &*self.shader.program,
             &DrawParameters {
                 cull_face: None,
                 color_write: Default::default(),
@@ -279,7 +274,6 @@ impl ScreenSpaceAmbientOcclusionRenderer {
                 ],
             }],
             ElementRange::Full,
-            &mut |_| {},
         )?;
 
         self.blur

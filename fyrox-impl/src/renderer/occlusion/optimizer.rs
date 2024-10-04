@@ -43,7 +43,7 @@ use fyrox_graphics::uniform::StaticUniformBuffer;
 use std::{cell::RefCell, rc::Rc};
 
 struct VisibilityOptimizerShader {
-    program: GpuProgram,
+    program: Box<dyn GpuProgram>,
     uniform_buffer_binding: usize,
     visibility_buffer: UniformLocation,
 }
@@ -52,17 +52,13 @@ impl VisibilityOptimizerShader {
     fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("../shaders/visibility_optimizer_fs.glsl");
         let vertex_source = include_str!("../shaders/visibility_optimizer_vs.glsl");
-        let program = GpuProgram::from_source(
-            server,
-            "VisibilityOptimizerShader",
-            vertex_source,
-            fragment_source,
-        )?;
+        let program =
+            server.create_program("VisibilityOptimizerShader", vertex_source, fragment_source)?;
         Ok(Self {
             uniform_buffer_binding: program
-                .uniform_block_index(server, &ImmutableString::new("Uniforms"))?,
+                .uniform_block_index(&ImmutableString::new("Uniforms"))?,
             visibility_buffer: program
-                .uniform_location(server, &ImmutableString::new("visibilityBuffer"))?,
+                .uniform_location(&ImmutableString::new("visibilityBuffer"))?,
             program,
         })
     }
@@ -135,7 +131,7 @@ impl VisibilityBufferOptimizer {
         self.framebuffer.draw(
             unit_quad,
             viewport,
-            &self.shader.program,
+            &*self.shader.program,
             &DrawParameters {
                 cull_face: None,
                 color_write: ColorMask::all(true),
@@ -164,7 +160,6 @@ impl VisibilityBufferOptimizer {
                 ],
             }],
             ElementRange::Full,
-            &mut |_| {},
         )?;
 
         self.pixel_buffer

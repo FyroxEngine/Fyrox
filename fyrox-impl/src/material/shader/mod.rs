@@ -631,7 +631,7 @@ mod test {
                 properties: [
                     (
                         name: "diffuseTexture",
-                        kind: Sampler(value: None, fallback: White),
+                        kind: Sampler(value: None, kind: Sampler2D, fallback: White),
                     ),
                 ],
 

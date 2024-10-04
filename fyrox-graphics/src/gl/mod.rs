@@ -20,6 +20,7 @@
 
 pub mod buffer;
 pub mod framebuffer;
+pub mod program;
 pub mod query;
 pub mod server;
 pub mod texture;

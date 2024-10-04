@@ -46,7 +46,7 @@ use crate::{
 use std::{cell::RefCell, rc::Rc};
 
 struct Shader {
-    program: GpuProgram,
+    program: Box<dyn GpuProgram>,
     input_texture: UniformLocation,
     uniform_buffer_binding: usize,
 }
@@ -56,13 +56,11 @@ impl Shader {
         let fragment_source = include_str!("../shaders/blur_fs.glsl");
         let vertex_source = include_str!("../shaders/blur_vs.glsl");
 
-        let program =
-            GpuProgram::from_source(server, "BlurShader", vertex_source, fragment_source)?;
+        let program = server.create_program("BlurShader", vertex_source, fragment_source)?;
         Ok(Self {
             uniform_buffer_binding: program
-                .uniform_block_index(server, &ImmutableString::new("Uniforms"))?,
-            input_texture: program
-                .uniform_location(server, &ImmutableString::new("inputTexture"))?,
+                .uniform_block_index(&ImmutableString::new("Uniforms"))?,
+            input_texture: program.uniform_location(&ImmutableString::new("inputTexture"))?,
             program,
         })
     }
@@ -136,7 +134,7 @@ impl Blur {
         self.framebuffer.draw(
             &self.quad,
             viewport,
-            &shader.program,
+            &*shader.program,
             &DrawParameters {
                 cull_face: None,
                 color_write: Default::default(),
@@ -160,7 +158,6 @@ impl Blur {
                 ],
             }],
             ElementRange::Full,
-            &mut |_| {},
         )
     }
 }
