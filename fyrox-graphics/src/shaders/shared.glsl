@@ -379,7 +379,7 @@ struct TInstanceData {
     mat4 worldViewProjection;
     int blendShapesCount;
     bool useSkeletalAnimation;
-    float blendShapesWeights[128];
+    vec4 blendShapesWeights[32];
 };
 
 struct TCameraData {

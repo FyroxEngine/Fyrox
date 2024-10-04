@@ -122,7 +122,7 @@
 
                     for (int i = 0; i < fyrox_instanceData.blendShapesCount; ++i) {
                         TBlendShapeOffsets offsets = S_FetchBlendShapeOffsets(fyrox_blendShapesStorage, gl_VertexID, i);
-                        float weight = fyrox_instanceData.blendShapesWeights[i];
+                        float weight = fyrox_instanceData.blendShapesWeights[i / 4][i % 4];
                         inputPosition.xyz += offsets.position * weight;
                         inputNormal += offsets.normal * weight;
                         inputTangent += offsets.tangent * weight;
@@ -297,7 +297,7 @@
 
                     for (int i = 0; i < fyrox_instanceData.blendShapesCount; ++i) {
                         TBlendShapeOffsets offsets = S_FetchBlendShapeOffsets(fyrox_blendShapesStorage, gl_VertexID, i);
-                        float weight = fyrox_instanceData.blendShapesWeights[i];
+                        float weight = fyrox_instanceData.blendShapesWeights[i / 4][i % 4];
                         inputPosition.xyz += offsets.position * weight;
                     }
 
@@ -390,7 +390,7 @@
 
                     for (int i = 0; i < fyrox_instanceData.blendShapesCount; ++i) {
                         TBlendShapeOffsets offsets = S_FetchBlendShapeOffsets(fyrox_blendShapesStorage, gl_VertexID, i);
-                        float weight = fyrox_instanceData.blendShapesWeights[i];
+                        float weight = fyrox_instanceData.blendShapesWeights[i / 4][i % 4];
                         inputPosition.xyz += offsets.position * weight;
                     }
 
@@ -479,7 +479,7 @@
 
                     for (int i = 0; i < fyrox_instanceData.blendShapesCount; ++i) {
                         TBlendShapeOffsets offsets = S_FetchBlendShapeOffsets(fyrox_blendShapesStorage, gl_VertexID, i);
-                        float weight = fyrox_instanceData.blendShapesWeights[i];
+                        float weight = fyrox_instanceData.blendShapesWeights[i / 4][i % 4];
                         inputPosition.xyz += offsets.position * weight;
                     }
 
@@ -569,7 +569,7 @@
 
                     for (int i = 0; i < fyrox_instanceData.blendShapesCount; ++i) {
                         TBlendShapeOffsets offsets = S_FetchBlendShapeOffsets(fyrox_blendShapesStorage, gl_VertexID, i);
-                        float weight = fyrox_instanceData.blendShapesWeights[i];
+                        float weight = fyrox_instanceData.blendShapesWeights[i / 4][i % 4];
                         inputPosition.xyz += offsets.position * weight;
                     }
 

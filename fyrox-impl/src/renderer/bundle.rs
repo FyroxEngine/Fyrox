@@ -63,6 +63,7 @@ use crate::{
     },
 };
 use fxhash::{FxBuildHasher, FxHashMap, FxHasher};
+use fyrox_core::algebra::Vector4;
 use fyrox_core::arrayvec::ArrayVec;
 use fyrox_graphics::buffer::Buffer;
 use fyrox_graphics::framebuffer::{ResourceBindGroup, ResourceBinding};
@@ -507,12 +508,22 @@ impl RenderDataBundle {
             if let Some(location) =
                 &built_in_uniform_blocks[BuiltInUniformBlock::InstanceData as usize]
             {
-                let mut blend_shapes_weights = [0.0; 128];
-                blend_shapes_weights[0..instance.blend_shapes_weights.len()]
-                    .copy_from_slice(&instance.blend_shapes_weights);
+                let mut blend_shapes_weights = [Vector4::new(0.0, 0.0, 0.0, 0.0); 32];
+                // SAFETY: This is safe to copy PODs from one array to another with type erasure.
+                unsafe {
+                    std::ptr::copy_nonoverlapping(
+                        instance.blend_shapes_weights.as_ptr(),
+                        blend_shapes_weights.as_mut_ptr() as *mut _,
+                        // Copy at max the amount of blend shape weights supported by the shader.
+                        instance
+                            .blend_shapes_weights
+                            .len()
+                            .max(blend_shapes_weights.len() * 4),
+                    );
+                }
                 let buffer = render_context.uniform_buffer_cache.write(
                     program_binding.server,
-                    StaticUniformBuffer::<4096>::new()
+                    StaticUniformBuffer::<1024>::new()
                         .with(&instance.world_transform)
                         .with(&(render_context.view_projection_matrix * instance.world_transform))
                         .with(&(instance.blend_shapes_weights.len() as i32))
