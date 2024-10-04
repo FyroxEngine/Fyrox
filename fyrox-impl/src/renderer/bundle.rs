@@ -518,7 +518,7 @@ impl RenderDataBundle {
                         instance
                             .blend_shapes_weights
                             .len()
-                            .max(blend_shapes_weights.len() * 4),
+                            .min(blend_shapes_weights.len() * 4),
                     );
                 }
                 let buffer = render_context.uniform_buffer_cache.write(
