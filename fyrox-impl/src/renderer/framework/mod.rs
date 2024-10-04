@@ -37,8 +37,8 @@ use fyrox_graphics::{
     geometry_buffer::{
         AttributeDefinition, AttributeKind, BufferBuilder, GeometryBuffer, GeometryBufferBuilder,
     },
+    gl::server::GlGraphicsServer,
     gpu_texture::{GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind, WrapMode},
-    state::GlGraphicsServer,
 };
 
 impl From<TextureKind> for GpuTextureKind {

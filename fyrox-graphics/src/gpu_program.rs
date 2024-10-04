@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::gl::server::{GlGraphicsServer, GlKind};
 use crate::{
     core::{
         algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4},
@@ -28,7 +29,6 @@ use crate::{
         visitor::prelude::*,
     },
     error::FrameworkError,
-    state::{GlGraphicsServer, GlKind},
 };
 use fxhash::FxHashMap;
 use glow::HasContext;

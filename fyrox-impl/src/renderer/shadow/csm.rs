@@ -31,11 +31,11 @@ use crate::{
         framework::{
             error::FrameworkError,
             framebuffer::{Attachment, AttachmentKind, FrameBuffer},
+            gl::server::GlGraphicsServer,
             gpu_texture::{
                 Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
                 PixelKind, WrapMode,
             },
-            state::GlGraphicsServer,
         },
         RenderPassStatistics, ShadowMapPrecision, DIRECTIONAL_SHADOW_PASS_NAME,
     },
@@ -46,7 +46,7 @@ use crate::{
     },
 };
 use fyrox_graphics::buffer::Buffer;
-use fyrox_graphics::state::GraphicsServer;
+use fyrox_graphics::server::GraphicsServer;
 use std::{cell::RefCell, rc::Rc};
 
 pub struct Cascade {

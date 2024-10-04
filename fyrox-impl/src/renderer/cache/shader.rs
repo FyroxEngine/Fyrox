@@ -23,7 +23,7 @@ use crate::renderer::framework::error::FrameworkError;
 use crate::{
     core::sstorage::ImmutableString,
     material::shader::{Shader, ShaderResource},
-    renderer::framework::{gpu_program::GpuProgram, state::GlGraphicsServer, DrawParameters},
+    renderer::framework::{gl::server::GlGraphicsServer, gpu_program::GpuProgram, DrawParameters},
 };
 use fxhash::FxHashMap;
 use fyrox_core::log::Log;

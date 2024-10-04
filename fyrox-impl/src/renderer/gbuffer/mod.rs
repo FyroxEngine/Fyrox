@@ -46,11 +46,11 @@ use crate::{
             error::FrameworkError,
             framebuffer::{Attachment, AttachmentKind, FrameBuffer},
             geometry_buffer::GeometryBuffer,
+            gl::server::GlGraphicsServer,
             gpu_texture::{
                 Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
                 PixelKind, WrapMode,
             },
-            state::GlGraphicsServer,
             BlendFactor, BlendFunc, BlendParameters, DrawParameters, ElementRange,
         },
         gbuffer::decal::DecalShader,
@@ -67,7 +67,7 @@ use crate::{
 use fxhash::FxHashSet;
 use fyrox_graphics::buffer::{Buffer, BufferUsage};
 use fyrox_graphics::framebuffer::{ResourceBindGroup, ResourceBinding};
-use fyrox_graphics::state::GraphicsServer;
+use fyrox_graphics::server::GraphicsServer;
 use fyrox_graphics::uniform::StaticUniformBuffer;
 use std::{cell::RefCell, rc::Rc};
 

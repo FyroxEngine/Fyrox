@@ -18,12 +18,13 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::gl::server::GlGraphicsServer;
+use crate::gl::ToGlConstant;
 use crate::{
     buffer::{Buffer, BufferKind, BufferUsage},
     core::{array_as_u8_slice, math::TriangleDefinition},
     error::FrameworkError,
     gl::buffer::GlBuffer,
-    state::{GlGraphicsServer, ToGlConstant},
     ElementKind, ElementRange,
 };
 use glow::HasContext;

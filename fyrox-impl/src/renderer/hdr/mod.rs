@@ -32,10 +32,10 @@ use crate::{
             error::FrameworkError,
             framebuffer::{Attachment, AttachmentKind, FrameBuffer},
             geometry_buffer::{DrawCallStatistics, GeometryBuffer},
+            gl::server::GlGraphicsServer,
             gpu_texture::{
                 GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind,
             },
-            state::GlGraphicsServer,
             DrawParameters, ElementRange,
         },
         hdr::{
@@ -49,7 +49,7 @@ use crate::{
     scene::camera::{ColorGradingLut, Exposure},
 };
 use fyrox_graphics::framebuffer::{ResourceBindGroup, ResourceBinding};
-use fyrox_graphics::state::GraphicsServer;
+use fyrox_graphics::server::GraphicsServer;
 use fyrox_graphics::uniform::StaticUniformBuffer;
 use std::{cell::RefCell, rc::Rc};
 

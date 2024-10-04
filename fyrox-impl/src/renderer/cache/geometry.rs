@@ -23,7 +23,7 @@ use crate::{
     renderer::{
         cache::{TemporaryCache, TimeToLive},
         framework::{
-            error::FrameworkError, geometry_buffer::GeometryBuffer, state::GlGraphicsServer,
+            error::FrameworkError, geometry_buffer::GeometryBuffer, gl::server::GlGraphicsServer,
         },
     },
     scene::mesh::surface::{SurfaceData, SurfaceResource},

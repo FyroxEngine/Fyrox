@@ -25,13 +25,13 @@ use crate::{
     graph::BaseSceneGraph,
     renderer::framework::{
         error::FrameworkError,
+        gl::server::GlGraphicsServer,
         query::{Query, QueryKind, QueryResult},
-        state::GlGraphicsServer,
     },
     scene::{graph::Graph, node::Node},
 };
 use fxhash::FxHashMap;
-use fyrox_graphics::state::GraphicsServer;
+use fyrox_graphics::server::GraphicsServer;
 
 #[derive(Debug)]
 struct PendingQuery {

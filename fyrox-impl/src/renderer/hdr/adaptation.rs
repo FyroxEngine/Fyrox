@@ -22,9 +22,9 @@ use crate::core::sstorage::ImmutableString;
 use crate::renderer::{
     framework::{
         error::FrameworkError,
+        gl::server::GlGraphicsServer,
         gpu_program::{GpuProgram, UniformLocation},
         gpu_texture::GpuTexture,
-        state::GlGraphicsServer,
     },
     hdr::LumBuffer,
 };

@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::gl::ToGlConstant;
+use crate::server::{GraphicsServer, ServerCapabilities};
 use crate::{
     buffer::{Buffer, BufferKind, BufferUsage},
     core::{color::Color, log::Log, math::Rect},
@@ -47,7 +49,6 @@ use glutin_winit::{DisplayBuilder, GlWindow};
 use raw_window_handle::HasRawWindowHandle;
 use std::any::Any;
 use std::cell::RefCell;
-use std::fmt::{Display, Formatter};
 use std::ops::DerefMut;
 use std::rc::{Rc, Weak};
 #[cfg(not(target_arch = "wasm32"))]
@@ -56,10 +57,6 @@ use winit::{
     event_loop::EventLoopWindowTarget,
     window::{Window, WindowBuilder},
 };
-
-pub trait ToGlConstant {
-    fn into_gl(self) -> u32;
-}
 
 impl ToGlConstant for PolygonFace {
     fn into_gl(self) -> u32 {
@@ -1051,62 +1048,6 @@ impl GlGraphicsServer {
             self.set_scissor_test(false);
         }
     }
-}
-
-pub struct ServerCapabilities {
-    pub max_uniform_block_size: usize,
-    pub uniform_buffer_offset_alignment: usize,
-}
-
-impl Display for ServerCapabilities {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        writeln!(
-            f,
-            "\tMax Uniform Block Size: {}",
-            self.max_uniform_block_size
-        )?;
-        writeln!(
-            f,
-            "\tUniform Block Offset Alignment: {}",
-            self.uniform_buffer_offset_alignment
-        )?;
-        Ok(())
-    }
-}
-
-pub trait GraphicsServer: Any {
-    fn create_buffer(
-        &self,
-        size: usize,
-        buffer_kind: BufferKind,
-        buffer_usage: BufferUsage,
-    ) -> Result<Box<dyn Buffer>, FrameworkError>;
-    fn create_texture(
-        &self,
-        kind: GpuTextureKind,
-        pixel_kind: PixelKind,
-        min_filter: MinificationFilter,
-        mag_filter: MagnificationFilter,
-        mip_count: usize,
-        data: Option<&[u8]>,
-    ) -> Result<Rc<RefCell<dyn GpuTexture>>, FrameworkError>;
-    fn create_frame_buffer(
-        &self,
-        depth_attachment: Option<Attachment>,
-        color_attachments: Vec<Attachment>,
-    ) -> Result<Box<dyn FrameBuffer>, FrameworkError>;
-    fn back_buffer(&self) -> Box<dyn FrameBuffer>;
-    fn create_query(&self) -> Result<Box<dyn Query>, FrameworkError>;
-    fn as_any(&self) -> &dyn Any;
-    fn as_any_mut(&mut self) -> &mut dyn Any;
-    fn weak(self: Rc<Self>) -> Weak<dyn GraphicsServer>;
-    fn flush(&self);
-    fn finish(&self);
-    fn invalidate_resource_bindings_cache(&self);
-    fn pipeline_statistics(&self) -> PipelineStatistics;
-    fn swap_buffers(&self) -> Result<(), FrameworkError>;
-    fn set_frame_size(&self, new_size: (u32, u32));
-    fn capabilities(&self) -> ServerCapabilities;
 }
 
 impl GraphicsServer for GlGraphicsServer {

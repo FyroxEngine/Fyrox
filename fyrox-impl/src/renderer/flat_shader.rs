@@ -22,8 +22,8 @@ use crate::{
     core::sstorage::ImmutableString,
     renderer::framework::{
         error::FrameworkError,
+        gl::server::GlGraphicsServer,
         gpu_program::{GpuProgram, UniformLocation},
-        state::GlGraphicsServer,
     },
 };
 

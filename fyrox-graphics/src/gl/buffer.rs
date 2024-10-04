@@ -18,10 +18,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::gl::server::GlGraphicsServer;
+use crate::gl::ToGlConstant;
 use crate::{
     buffer::{Buffer, BufferKind, BufferUsage},
     error::FrameworkError,
-    state::{GlGraphicsServer, ToGlConstant},
 };
 use glow::HasContext;
 use std::any::Any;

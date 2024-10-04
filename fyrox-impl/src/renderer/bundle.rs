@@ -41,9 +41,9 @@ use crate::{
         framework::{
             error::FrameworkError,
             framebuffer::FrameBuffer,
+            gl::server::GlGraphicsServer,
             gpu_program::{BuiltInUniform, BuiltInUniformBlock, GpuProgramBinding},
             gpu_texture::GpuTexture,
-            state::GlGraphicsServer,
             uniform::StaticUniformBuffer,
             ElementRange,
         },

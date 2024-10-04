@@ -26,15 +26,15 @@ use crate::{
         bundle::PersistentIdentifier,
         framework::{
             error::FrameworkError,
+            gl::server::GlGraphicsServer,
             gpu_texture::{
                 GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind,
             },
-            state::GlGraphicsServer,
         },
     },
 };
 use fxhash::FxHashMap;
-use fyrox_graphics::state::GraphicsServer;
+use fyrox_graphics::server::GraphicsServer;
 use std::{cell::RefCell, collections::hash_map::Entry, rc::Rc};
 
 /// Generic, texture-based, storage for matrices with somewhat unlimited capacity.

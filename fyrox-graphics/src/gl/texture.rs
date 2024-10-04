@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::gl::server::GlGraphicsServer;
+use crate::gl::ToGlConstant;
 use crate::gpu_texture::CubeMapFace;
 use crate::{
     core::color::Color,
@@ -26,7 +28,6 @@ use crate::{
         image_1d_size_bytes, image_2d_size_bytes, image_3d_size_bytes, Coordinate, GpuTexture,
         GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind, WrapMode,
     },
-    state::{GlGraphicsServer, ToGlConstant},
 };
 use glow::{HasContext, PixelPackData, COMPRESSED_RED_RGTC1, COMPRESSED_RG_RGTC2};
 use std::any::Any;

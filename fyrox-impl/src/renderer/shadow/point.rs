@@ -31,11 +31,11 @@ use crate::{
         framework::{
             error::FrameworkError,
             framebuffer::{Attachment, AttachmentKind, FrameBuffer},
+            gl::server::GlGraphicsServer,
             gpu_texture::{
                 Coordinate, CubeMapFace, GpuTexture, GpuTextureKind, MagnificationFilter,
                 MinificationFilter, PixelKind, WrapMode,
             },
-            state::GlGraphicsServer,
         },
         shadow::cascade_size,
         GeometryCache, RenderPassStatistics, ShadowMapPrecision, POINT_SHADOW_PASS_NAME,
@@ -43,7 +43,7 @@ use crate::{
     scene::graph::Graph,
 };
 use fyrox_graphics::buffer::Buffer;
-use fyrox_graphics::state::GraphicsServer;
+use fyrox_graphics::server::GraphicsServer;
 use std::{cell::RefCell, rc::Rc};
 
 pub struct PointShadowMapRenderer {

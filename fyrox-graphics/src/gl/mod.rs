@@ -21,4 +21,9 @@
 pub mod buffer;
 pub mod framebuffer;
 pub mod query;
+pub mod server;
 pub mod texture;
+
+pub trait ToGlConstant {
+    fn into_gl(self) -> u32;
+}

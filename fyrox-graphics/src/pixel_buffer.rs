@@ -19,6 +19,8 @@
 // SOFTWARE.
 
 use crate::gl::framebuffer::GlFrameBuffer;
+use crate::gl::server::GlGraphicsServer;
+use crate::gl::ToGlConstant;
 use crate::{
     buffer::{Buffer, BufferKind, BufferUsage},
     core::{algebra::Vector2, math::Rect},
@@ -26,7 +28,6 @@ use crate::{
     framebuffer::FrameBuffer,
     gl::buffer::GlBuffer,
     gpu_texture::{image_2d_size_bytes, GpuTextureKind},
-    state::{GlGraphicsServer, ToGlConstant},
 };
 use bytemuck::Pod;
 use glow::{HasContext, PixelPackData};

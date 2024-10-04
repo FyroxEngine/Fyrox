@@ -19,6 +19,8 @@
 // SOFTWARE.
 
 use crate::framebuffer::ResourceBindGroup;
+use crate::gl::server::GlGraphicsServer;
+use crate::gl::ToGlConstant;
 use crate::{
     buffer::{Buffer, BufferKind},
     core::{color::Color, math::Rect},
@@ -28,7 +30,6 @@ use crate::{
     gl::{buffer::GlBuffer, texture::GlTexture},
     gpu_program::{GpuProgram, GpuProgramBinding},
     gpu_texture::{CubeMapFace, GpuTexture, GpuTextureKind, PixelElementKind},
-    state::{GlGraphicsServer, ToGlConstant},
     ColorMask, DrawParameters, ElementRange,
 };
 use glow::HasContext;

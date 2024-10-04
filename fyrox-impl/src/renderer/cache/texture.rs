@@ -24,13 +24,13 @@ use crate::{
         cache::{TemporaryCache, TimeToLive},
         framework::{
             error::FrameworkError,
+            gl::server::GlGraphicsServer,
             gpu_texture::{Coordinate, GpuTexture, PixelKind},
-            state::GlGraphicsServer,
         },
     },
     resource::texture::{Texture, TextureResource},
 };
-use fyrox_graphics::state::GraphicsServer;
+use fyrox_graphics::server::GraphicsServer;
 use std::{cell::RefCell, rc::Rc};
 
 pub(crate) struct TextureRenderData {

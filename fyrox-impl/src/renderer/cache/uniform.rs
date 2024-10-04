@@ -24,7 +24,7 @@
 use crate::renderer::framework::{
     buffer::{Buffer, BufferKind, BufferUsage},
     error::FrameworkError,
-    state::GraphicsServer,
+    server::GraphicsServer,
 };
 use fxhash::FxHashMap;
 use fyrox_graphics::uniform::{ByteStorage, UniformBuffer};

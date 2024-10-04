@@ -39,8 +39,8 @@ use crate::{
         bundle::RenderDataBundleStorage,
         cache::{shader::ShaderCache, texture::TextureCache},
         framework::{
-            error::FrameworkError, framebuffer::FrameBuffer, gpu_texture::GpuTexture,
-            state::GlGraphicsServer,
+            error::FrameworkError, framebuffer::FrameBuffer, gl::server::GlGraphicsServer,
+            gpu_texture::GpuTexture,
         },
         GeometryCache, LightData, QualitySettings, RenderPassStatistics,
     },

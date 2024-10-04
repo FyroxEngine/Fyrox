@@ -26,19 +26,19 @@ use crate::{
             error::FrameworkError,
             framebuffer::{Attachment, AttachmentKind, FrameBuffer},
             geometry_buffer::GeometryBuffer,
+            gl::server::GlGraphicsServer,
             gpu_program::{GpuProgram, UniformLocation},
             gpu_texture::{
                 GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind,
             },
             pixel_buffer::PixelBuffer,
-            state::GlGraphicsServer,
             ColorMask, DrawParameters, ElementRange,
         },
         make_viewport_matrix,
     },
 };
 use fyrox_graphics::framebuffer::{ResourceBindGroup, ResourceBinding};
-use fyrox_graphics::state::GraphicsServer;
+use fyrox_graphics::server::GraphicsServer;
 use fyrox_graphics::uniform::StaticUniformBuffer;
 use std::{cell::RefCell, rc::Rc};
 

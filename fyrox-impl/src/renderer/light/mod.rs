@@ -30,7 +30,7 @@ use crate::{
         flat_shader::FlatShader,
         framework::{
             buffer::BufferUsage, error::FrameworkError, framebuffer::FrameBuffer,
-            geometry_buffer::GeometryBuffer, gpu_texture::GpuTexture, state::GlGraphicsServer,
+            geometry_buffer::GeometryBuffer, gl::server::GlGraphicsServer, gpu_texture::GpuTexture,
             BlendFactor, BlendFunc, BlendParameters, ColorMask, CompareFunc, CullFace,
             DrawParameters, ElementRange, GeometryBufferExt, StencilAction, StencilFunc, StencilOp,
         },
