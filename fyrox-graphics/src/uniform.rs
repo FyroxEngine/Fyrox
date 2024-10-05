@@ -27,12 +27,17 @@ use crate::core::{
 };
 
 pub trait ByteStorage: Default {
+    fn reset(&mut self);
     fn bytes(&self) -> &[u8];
     fn bytes_count(&self) -> usize;
     fn write_bytes(&mut self, bytes: &[u8]);
 }
 
 impl<const N: usize> ByteStorage for ArrayVec<u8, N> {
+    fn reset(&mut self) {
+        self.clear();
+    }
+
     fn bytes(&self) -> &[u8] {
         self.as_slice()
     }
@@ -47,6 +52,10 @@ impl<const N: usize> ByteStorage for ArrayVec<u8, N> {
 }
 
 impl ByteStorage for Vec<u8> {
+    fn reset(&mut self) {
+        self.clear();
+    }
+
     fn bytes(&self) -> &[u8] {
         self.as_slice()
     }
@@ -186,6 +195,14 @@ where
         }
     }
 
+    pub fn with_storage(storage: S) -> Self {
+        Self { storage }
+    }
+
+    pub fn clear(&mut self) {
+        self.storage.reset();
+    }
+
     pub fn len(&self) -> usize {
         self.storage.bytes_count()
     }
@@ -194,7 +211,7 @@ where
         self.len() == 0
     }
 
-    fn push_padding(&mut self, alignment: usize) {
+    pub fn push_padding(&mut self, alignment: usize) {
         debug_assert!(alignment.is_power_of_two());
         let bytes_count = self.storage.bytes_count();
         let remainder = (alignment - 1) & bytes_count;
@@ -252,9 +269,20 @@ where
         self
     }
 
+    pub fn storage(&self) -> &S {
+        &self.storage
+    }
+
     pub fn finish(mut self) -> S {
         self.push_padding(16);
         self.storage
+    }
+
+    pub fn write_bytes_with_alignment(&mut self, bytes: &[u8], alignment: usize) -> usize {
+        self.push_padding(alignment);
+        let data_location = self.storage.bytes_count();
+        self.storage.write_bytes(bytes);
+        data_location
     }
 }
 
