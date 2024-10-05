@@ -25,9 +25,9 @@ use crate::renderer::framework::{
     buffer::{Buffer, BufferKind, BufferUsage},
     error::FrameworkError,
     server::GraphicsServer,
+    uniform::{ByteStorage, DynamicUniformBuffer, UniformBuffer},
 };
 use fxhash::FxHashMap;
-use fyrox_graphics::uniform::{ByteStorage, UniformBuffer};
 use std::cell::RefCell;
 
 #[derive(Default)]
@@ -118,5 +118,111 @@ impl UniformBufferCache {
             count += set.buffers.len();
         }
         count
+    }
+}
+
+pub struct UniformDataLocation<'a> {
+    pub buffer: &'a dyn Buffer,
+    pub offset: usize,
+    pub size: usize,
+}
+
+struct Page {
+    dynamic: DynamicUniformBuffer,
+}
+
+struct Block {
+    page: usize,
+    offset: usize,
+    size: usize,
+}
+
+pub struct UniformMemoryAllocator {
+    gpu_buffers: Vec<Box<dyn Buffer>>,
+    block_alignment: usize,
+    max_uniform_buffer_size: usize,
+    pages: Vec<Page>,
+    blocks: Vec<Block>,
+}
+
+impl UniformMemoryAllocator {
+    pub fn new(max_uniform_buffer_size: usize, block_alignment: usize) -> Self {
+        Self {
+            gpu_buffers: Default::default(),
+            block_alignment,
+            max_uniform_buffer_size,
+            pages: Default::default(),
+            blocks: Default::default(),
+        }
+    }
+
+    pub fn clear(&mut self) {
+        self.pages.clear();
+        self.blocks.clear();
+    }
+
+    pub fn allocate<T>(&mut self, buffer: UniformBuffer<T>)
+    where
+        T: ByteStorage,
+    {
+        let data = buffer.finish();
+        assert!(data.bytes_count() < self.max_uniform_buffer_size);
+
+        let page_index = match self.pages.iter().position(|page| {
+            self.max_uniform_buffer_size - page.dynamic.len() >= data.bytes_count()
+        }) {
+            Some(page_index) => page_index,
+            None => {
+                let page_index = self.pages.len();
+                self.pages.push(Page {
+                    dynamic: UniformBuffer::with_storage(Vec::with_capacity(
+                        self.max_uniform_buffer_size,
+                    )),
+                });
+                page_index
+            }
+        };
+
+        let offset = self.pages[page_index]
+            .dynamic
+            .write_bytes_with_alignment(data.bytes(), self.block_alignment);
+
+        self.blocks.push(Block {
+            page: page_index,
+            offset,
+            size: data.bytes_count(),
+        })
+    }
+
+    pub fn submit<'a>(
+        &'a mut self,
+        server: &dyn GraphicsServer,
+    ) -> Result<Vec<UniformDataLocation<'a>>, FrameworkError> {
+        if self.pages.len() < self.gpu_buffers.len() {
+            for _ in 0..(self.gpu_buffers.len() - self.pages.len()) {
+                let buffer = server.create_buffer(
+                    self.max_uniform_buffer_size,
+                    BufferKind::Uniform,
+                    BufferUsage::StreamCopy,
+                )?;
+                self.gpu_buffers.push(buffer);
+            }
+        }
+
+        for (page, gpu_buffer) in self.pages.iter().zip(self.gpu_buffers.iter()) {
+            gpu_buffer.write_data(page.dynamic.storage().bytes())?;
+        }
+
+        let mut locations = Vec::with_capacity(self.blocks.len());
+
+        for block in self.blocks.iter() {
+            locations.push(UniformDataLocation {
+                buffer: &*self.gpu_buffers[block.page],
+                offset: block.offset,
+                size: block.size,
+            })
+        }
+
+        Ok(locations)
     }
 }
