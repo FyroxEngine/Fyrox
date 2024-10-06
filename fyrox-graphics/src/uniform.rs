@@ -31,6 +31,7 @@ pub trait ByteStorage: Default {
     fn bytes(&self) -> &[u8];
     fn bytes_count(&self) -> usize;
     fn write_bytes(&mut self, bytes: &[u8]);
+    fn write_zeros(&mut self, count: usize);
 }
 
 impl<const N: usize> ByteStorage for ArrayVec<u8, N> {
@@ -49,6 +50,17 @@ impl<const N: usize> ByteStorage for ArrayVec<u8, N> {
     fn write_bytes(&mut self, bytes: &[u8]) {
         self.try_extend_from_slice(bytes).unwrap()
     }
+
+    fn write_zeros(&mut self, count: usize) {
+        let old_len = self.len();
+        let new_len = old_len + count;
+        assert!(new_len <= self.capacity());
+        // SAFETY: Out-of-bounds writes prevented by the above assert.
+        unsafe {
+            self.set_len(new_len);
+            std::ptr::write_bytes(self.as_mut_ptr().add(old_len), 0, count)
+        }
+    }
 }
 
 impl ByteStorage for Vec<u8> {
@@ -66,6 +78,17 @@ impl ByteStorage for Vec<u8> {
 
     fn write_bytes(&mut self, bytes: &[u8]) {
         self.extend_from_slice(bytes)
+    }
+
+    fn write_zeros(&mut self, count: usize) {
+        let old_len = self.len();
+        let new_len = old_len + count;
+        self.reserve(count);
+        // SAFETY: Out-of-bounds writes prevented by the `reserve` call.
+        unsafe {
+            self.set_len(new_len);
+            std::ptr::write_bytes(self.as_mut_ptr().add(old_len), 0, count)
+        }
     }
 }
 
@@ -217,18 +240,7 @@ where
         let remainder = (alignment - 1) & bytes_count;
         if remainder > 0 {
             let padding = alignment - remainder;
-            match padding {
-                2 => self.storage.write_bytes(&[0; 2]),
-                4 => self.storage.write_bytes(&[0; 4]),
-                8 => self.storage.write_bytes(&[0; 8]),
-                12 => self.storage.write_bytes(&[0; 12]),
-                16 => self.storage.write_bytes(&[0; 16]),
-                _ => {
-                    for _ in 0..padding {
-                        self.storage.write_bytes(&[0]);
-                    }
-                }
-            }
+            self.storage.write_zeros(padding);
         }
     }
 
