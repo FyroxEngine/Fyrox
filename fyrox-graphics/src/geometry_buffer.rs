@@ -252,14 +252,6 @@ impl GeometryBuffer {
     pub fn bind<'a>(&'a self, state: &'a GlGraphicsServer) -> GeometryBufferBinding<'a> {
         state.set_vertex_array_object(Some(self.vertex_array_object));
 
-        // Element buffer object binding is stored inside vertex array object, so
-        // it does not modifies state.
-        unsafe {
-            state
-                .gl
-                .bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(self.element_buffer.id));
-        }
-
         GeometryBufferBinding {
             state,
             buffer: self,
@@ -342,12 +334,9 @@ impl BufferBuilder {
                 offset += definition.kind.size_bytes();
 
                 if offset > self.element_size {
-                    server.gl.bind_buffer(target, Some(native_buffer.id));
                     return Err(FrameworkError::InvalidAttributeDescriptor);
                 }
             }
-
-            server.gl.bind_buffer(target, None);
 
             Ok(native_buffer)
         }
@@ -374,14 +363,17 @@ impl GeometryBufferBuilder {
 
     pub fn build(self, server: &GlGraphicsServer) -> Result<GeometryBuffer, FrameworkError> {
         let vao = unsafe { server.gl.create_vertex_array()? };
-        let element_buffer = GlBuffer::new(server, 0, BufferKind::Index, BufferUsage::StaticDraw)?;
 
         server.set_vertex_array_object(Some(vao));
+
+        let element_buffer = GlBuffer::new(server, 0, BufferKind::Index, BufferUsage::StaticDraw)?;
 
         let mut buffers = Vec::new();
         for builder in self.buffers {
             buffers.push(builder.build(server)?);
         }
+
+        server.set_vertex_array_object(None);
 
         Ok(GeometryBuffer {
             state: server.weak(),

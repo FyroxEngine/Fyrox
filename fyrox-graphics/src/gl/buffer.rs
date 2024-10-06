@@ -81,7 +81,6 @@ impl GlBuffer {
                     .gl
                     .buffer_data_size(gl_kind, size_bytes as i32, gl_usage);
             }
-            server.gl.bind_buffer(gl_kind, None);
             Ok(Self {
                 state: server.weak(),
                 id,
@@ -146,7 +145,6 @@ impl Buffer for GlBuffer {
                 server.gl.buffer_data_u8_slice(gl_kind, data, gl_usage);
                 self.size.set(data.len());
             }
-            server.gl.bind_buffer(gl_kind, None);
         }
 
         Ok(())
@@ -179,8 +177,6 @@ impl Buffer for GlBuffer {
                 // no memory mapping in Web due to security reasons.
                 server.gl.get_buffer_sub_data(gl_kind, 0, data);
             }
-
-            server.gl.bind_buffer(gl_kind, None);
         }
 
         Ok(())
