@@ -200,7 +200,7 @@ impl UniformMemoryAllocator {
         block
     }
 
-    pub fn upload<'a>(&'a mut self, server: &dyn GraphicsServer) -> Result<(), FrameworkError> {
+    pub fn upload(&mut self, server: &dyn GraphicsServer) -> Result<(), FrameworkError> {
         if self.gpu_buffers.len() < self.pages.len() {
             for _ in 0..(self.pages.len() - self.gpu_buffers.len()) {
                 let buffer = server.create_buffer(

@@ -80,6 +80,9 @@ impl ByteStorage for Vec<u8> {
         self.extend_from_slice(bytes)
     }
 
+    // clippy is not smart enough here. In reality there's no uninitialized content in the vec,
+    // because we do `write_bytes` right after.
+    #[allow(clippy::uninit_vec)]
     fn write_zeros(&mut self, count: usize) {
         let old_len = self.len();
         let new_len = old_len + count;

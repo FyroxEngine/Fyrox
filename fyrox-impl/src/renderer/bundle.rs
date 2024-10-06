@@ -197,20 +197,20 @@ impl<'a> BundleRenderContext<'a> {
 
         let shader = material.shader().data_ref();
         for property in shader.definition.properties.iter() {
-            if let Some(value) = material.properties().get(&property.name) {
-                if let PropertyValue::Sampler { value, fallback } = value {
-                    let texture = value
-                        .as_ref()
-                        .and_then(|t| self.texture_cache.get(server, t))
-                        .unwrap_or(match fallback {
-                            SamplerFallback::White => self.white_dummy,
-                            SamplerFallback::Normal => self.normal_dummy,
-                            SamplerFallback::Black => self.black_dummy,
-                        });
+            if let Some(PropertyValue::Sampler { value, fallback }) =
+                material.properties().get(&property.name)
+            {
+                let texture = value
+                    .as_ref()
+                    .and_then(|t| self.texture_cache.get(server, t))
+                    .unwrap_or(match fallback {
+                        SamplerFallback::White => self.white_dummy,
+                        SamplerFallback::Normal => self.normal_dummy,
+                        SamplerFallback::Black => self.black_dummy,
+                    });
 
-                    if let Ok(uniform) = program.uniform_location(&property.name) {
-                        material_bindings.push(ResourceBinding::texture(texture, &uniform));
-                    }
+                if let Ok(uniform) = program.uniform_location(&property.name) {
+                    material_bindings.push(ResourceBinding::texture(texture, &uniform));
                 }
             }
         }
@@ -346,9 +346,7 @@ impl RenderDataBundle {
     ) -> Option<BundleUniformData> {
         let mut material_state = self.material.state();
 
-        let Some(material) = material_state.data() else {
-            return None;
-        };
+        let material = material_state.data()?;
 
         // Upload material uniforms.
         let mut material_uniforms = StaticUniformBuffer::<16384>::new();
@@ -756,7 +754,7 @@ impl RenderDataBundleStorage {
         for (bundle, bundle_uniform_data) in self
             .bundles
             .iter()
-            .filter(|bundle| bundle_filter(*bundle))
+            .filter(|bundle| bundle_filter(bundle))
             .zip(bundle_uniform_data_set)
         {
             if let Some(bundle_uniform_data) = bundle_uniform_data {

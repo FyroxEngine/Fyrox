@@ -370,7 +370,7 @@ impl GlProgram {
         if let Some(cached_location) = locations.get(name) {
             cached_location.clone()
         } else {
-            let location = fetch_uniform_location(&*server, self.id, name.deref());
+            let location = fetch_uniform_location(&server, self.id, name.deref());
 
             locations.insert(name.clone(), location.clone());
 
