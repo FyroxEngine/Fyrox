@@ -290,6 +290,17 @@ where
         self.storage
     }
 
+    pub fn next_write_aligned_position(&self, alignment: usize) -> usize {
+        let position = self.storage.bytes_count();
+        let remainder = (alignment - 1) & position;
+        if remainder > 0 {
+            let padding = alignment - remainder;
+            position + padding
+        } else {
+            position
+        }
+    }
+
     pub fn write_bytes_with_alignment(&mut self, bytes: &[u8], alignment: usize) -> usize {
         self.push_padding(alignment);
         let data_location = self.storage.bytes_count();

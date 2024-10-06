@@ -156,6 +156,7 @@ impl VisibilityBufferOptimizer {
                                 .with(&tile_size),
                         )?,
                         shader_location: self.shader.uniform_buffer_binding,
+                        data_usage: Default::default(),
                     },
                 ],
             }],

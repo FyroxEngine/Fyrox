@@ -24,6 +24,7 @@
 use crate::renderer::framework::{
     buffer::{Buffer, BufferKind, BufferUsage},
     error::FrameworkError,
+    framebuffer::{BufferDataUsage, ResourceBinding},
     server::GraphicsServer,
     uniform::{ByteStorage, DynamicUniformBuffer, UniformBuffer},
 };
@@ -121,20 +122,16 @@ impl UniformBufferCache {
     }
 }
 
-pub struct UniformDataLocation<'a> {
-    pub buffer: &'a dyn Buffer,
-    pub offset: usize,
-    pub size: usize,
-}
-
 struct Page {
     dynamic: DynamicUniformBuffer,
+    is_submitted: bool,
 }
 
-struct Block {
-    page: usize,
-    offset: usize,
-    size: usize,
+#[derive(Clone, Debug)]
+pub struct UniformBlockLocation {
+    pub page: usize,
+    pub offset: usize,
+    pub size: usize,
 }
 
 pub struct UniformMemoryAllocator {
@@ -142,7 +139,7 @@ pub struct UniformMemoryAllocator {
     block_alignment: usize,
     max_uniform_buffer_size: usize,
     pages: Vec<Page>,
-    blocks: Vec<Block>,
+    blocks: Vec<UniformBlockLocation>,
 }
 
 impl UniformMemoryAllocator {
@@ -161,15 +158,19 @@ impl UniformMemoryAllocator {
         self.blocks.clear();
     }
 
-    pub fn allocate<T>(&mut self, buffer: UniformBuffer<T>)
+    pub fn allocate<T>(&mut self, buffer: UniformBuffer<T>) -> UniformBlockLocation
     where
         T: ByteStorage,
     {
         let data = buffer.finish();
+        assert!(data.bytes_count() > 0);
         assert!(data.bytes_count() < self.max_uniform_buffer_size);
 
         let page_index = match self.pages.iter().position(|page| {
-            self.max_uniform_buffer_size - page.dynamic.len() >= data.bytes_count()
+            let write_position = page
+                .dynamic
+                .next_write_aligned_position(self.block_alignment);
+            self.max_uniform_buffer_size - write_position >= data.bytes_count()
         }) {
             Some(page_index) => page_index,
             None => {
@@ -178,28 +179,30 @@ impl UniformMemoryAllocator {
                     dynamic: UniformBuffer::with_storage(Vec::with_capacity(
                         self.max_uniform_buffer_size,
                     )),
+                    is_submitted: false,
                 });
                 page_index
             }
         };
 
-        let offset = self.pages[page_index]
+        let page = &mut self.pages[page_index];
+        page.is_submitted = false;
+        let offset = page
             .dynamic
             .write_bytes_with_alignment(data.bytes(), self.block_alignment);
 
-        self.blocks.push(Block {
+        let block = UniformBlockLocation {
             page: page_index,
             offset,
             size: data.bytes_count(),
-        })
+        };
+        self.blocks.push(block.clone());
+        block
     }
 
-    pub fn submit<'a>(
-        &'a mut self,
-        server: &dyn GraphicsServer,
-    ) -> Result<Vec<UniformDataLocation<'a>>, FrameworkError> {
-        if self.pages.len() < self.gpu_buffers.len() {
-            for _ in 0..(self.gpu_buffers.len() - self.pages.len()) {
+    pub fn upload<'a>(&'a mut self, server: &dyn GraphicsServer) -> Result<(), FrameworkError> {
+        if self.gpu_buffers.len() < self.pages.len() {
+            for _ in 0..(self.pages.len() - self.gpu_buffers.len()) {
                 let buffer = server.create_buffer(
                     self.max_uniform_buffer_size,
                     BufferKind::Uniform,
@@ -209,20 +212,28 @@ impl UniformMemoryAllocator {
             }
         }
 
-        for (page, gpu_buffer) in self.pages.iter().zip(self.gpu_buffers.iter()) {
-            gpu_buffer.write_data(page.dynamic.storage().bytes())?;
+        for (page, gpu_buffer) in self.pages.iter_mut().zip(self.gpu_buffers.iter()) {
+            if !page.is_submitted {
+                gpu_buffer.write_data(page.dynamic.storage().bytes())?;
+                page.is_submitted = true;
+            }
         }
 
-        let mut locations = Vec::with_capacity(self.blocks.len());
+        Ok(())
+    }
 
-        for block in self.blocks.iter() {
-            locations.push(UniformDataLocation {
-                buffer: &*self.gpu_buffers[block.page],
+    pub fn block_to_binding(
+        &self,
+        block: UniformBlockLocation,
+        shader_location: usize,
+    ) -> ResourceBinding {
+        ResourceBinding::Buffer {
+            buffer: &*self.gpu_buffers[block.page],
+            shader_location,
+            data_usage: BufferDataUsage::UseSegment {
                 offset: block.offset,
                 size: block.size,
-            })
+            },
         }
-
-        Ok(locations)
     }
 }

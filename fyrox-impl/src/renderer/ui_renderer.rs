@@ -239,6 +239,7 @@ impl UiRenderer {
                         bindings: &[ResourceBinding::Buffer {
                             buffer: uniform_buffer,
                             shader_location: flat_shader.uniform_buffer_binding,
+                            data_usage: Default::default(),
                         }],
                     }],
                     ElementRange::Full,
@@ -395,6 +396,7 @@ impl UiRenderer {
                         ResourceBinding::Buffer {
                             buffer: uniform_buffer,
                             shader_location: self.shader.uniform_block_index,
+                            data_usage: Default::default(),
                         },
                     ],
                 }],

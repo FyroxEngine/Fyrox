@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::cache::uniform::UniformBufferCache;
+use crate::renderer::cache::uniform::{UniformBufferCache, UniformMemoryAllocator};
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
@@ -128,6 +128,7 @@ pub(crate) struct CsmRenderContext<'a, 'c> {
     pub volume_dummy: Rc<RefCell<dyn GpuTexture>>,
     pub uniform_buffer_cache: &'a mut UniformBufferCache,
     pub bone_matrices_stub_uniform_buffer: &'a dyn Buffer,
+    pub uniform_memory_allocator: &'a mut UniformMemoryAllocator,
 }
 
 impl CsmRenderer {
@@ -180,6 +181,7 @@ impl CsmRenderer {
             volume_dummy,
             uniform_buffer_cache,
             bone_matrices_stub_uniform_buffer,
+            uniform_memory_allocator,
         } = ctx;
 
         let light_direction = -light
@@ -283,37 +285,37 @@ impl CsmRenderer {
                 DIRECTIONAL_SHADOW_PASS_NAME.clone(),
             );
 
-            for bundle in bundle_storage.bundles.iter() {
-                stats += bundle.render_to_frame_buffer(
-                    state,
-                    geom_cache,
-                    shader_cache,
-                    |_| true,
-                    BundleRenderContext {
-                        texture_cache,
-                        render_pass_name: &DIRECTIONAL_SHADOW_PASS_NAME,
-                        frame_buffer: framebuffer,
-                        viewport,
-                        uniform_buffer_cache,
-                        bone_matrices_stub_uniform_buffer,
-                        view_projection_matrix: &light_view_projection,
-                        camera_position: &camera.global_position(),
-                        camera_up_vector: &camera_up,
-                        camera_side_vector: &camera_side,
-                        z_near,
-                        use_pom: false,
-                        light_position: &Default::default(),
-                        normal_dummy: &normal_dummy,
-                        white_dummy: &white_dummy,
-                        black_dummy: &black_dummy,
-                        volume_dummy: &volume_dummy,
-                        light_data: None,            // TODO
-                        ambient_light: Color::WHITE, // TODO
-                        scene_depth: None,
-                        z_far,
-                    },
-                )?;
-            }
+            stats += bundle_storage.render_to_frame_buffer(
+                state,
+                geom_cache,
+                shader_cache,
+                |_| true,
+                |_| true,
+                BundleRenderContext {
+                    texture_cache,
+                    render_pass_name: &DIRECTIONAL_SHADOW_PASS_NAME,
+                    frame_buffer: framebuffer,
+                    viewport,
+                    uniform_buffer_cache,
+                    bone_matrices_stub_uniform_buffer,
+                    uniform_memory_allocator,
+                    view_projection_matrix: &light_view_projection,
+                    camera_position: &camera.global_position(),
+                    camera_up_vector: &camera_up,
+                    camera_side_vector: &camera_side,
+                    z_near,
+                    use_pom: false,
+                    light_position: &Default::default(),
+                    normal_dummy: &normal_dummy,
+                    white_dummy: &white_dummy,
+                    black_dummy: &black_dummy,
+                    volume_dummy: &volume_dummy,
+                    light_data: None,            // TODO
+                    ambient_light: Color::WHITE, // TODO
+                    scene_depth: None,
+                    z_far,
+                },
+            )?;
         }
 
         Ok(stats)

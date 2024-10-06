@@ -185,6 +185,7 @@ impl DebugRenderer {
                 bindings: &[ResourceBinding::Buffer {
                     buffer: uniform_buffer,
                     shader_location: self.shader.uniform_buffer_binding,
+                    data_usage: Default::default(),
                 }],
             }],
             ElementRange::Full,

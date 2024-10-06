@@ -130,6 +130,7 @@ impl FxaaRenderer {
                             ),
                         )?,
                         shader_location: self.shader.uniform_buffer_binding,
+                        data_usage: Default::default(),
                     },
                 ],
             }],

@@ -270,6 +270,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
                     ResourceBinding::Buffer {
                         buffer: uniform_buffer,
                         shader_location: self.shader.uniform_block_index,
+                        data_usage: Default::default(),
                     },
                 ],
             }],

@@ -489,6 +489,7 @@ impl OcclusionTester {
                                 .with(&(self.frame_size.y as f32)),
                         )?,
                         shader_location: self.shader.uniform_buffer_binding,
+                        data_usage: Default::default(),
                     },
                 ],
             }],

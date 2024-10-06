@@ -219,6 +219,8 @@ impl SceneRenderPass for HighlightRenderPass {
         &mut self,
         ctx: SceneRenderPassContext,
     ) -> Result<RenderPassStatistics, FrameworkError> {
+        let mut stats = RenderPassStatistics::default();
+
         if self.scene_handle != ctx.scene_handle {
             return Ok(Default::default());
         }
@@ -263,37 +265,37 @@ impl SceneRenderPass for HighlightRenderPass {
             let camera_up = inv_view.up();
             let camera_side = inv_view.side();
 
-            for bundle in render_bundle_storage.bundles.iter() {
-                bundle.render_to_frame_buffer(
-                    ctx.server,
-                    ctx.geometry_cache,
-                    ctx.shader_cache,
-                    |_| true,
-                    BundleRenderContext {
-                        texture_cache: ctx.texture_cache,
-                        render_pass_name: &render_pass_name,
-                        frame_buffer: &mut *self.framebuffer,
-                        view_projection_matrix: &view_projection,
-                        camera_position: &ctx.camera.global_position(),
-                        camera_up_vector: &camera_up,
-                        camera_side_vector: &camera_side,
-                        z_near: ctx.camera.projection().z_near(),
-                        z_far: ctx.camera.projection().z_far(),
-                        use_pom: false,
-                        light_position: &Default::default(),
-                        normal_dummy: &ctx.normal_dummy,
-                        white_dummy: &ctx.white_dummy,
-                        black_dummy: &ctx.black_dummy,
-                        volume_dummy: &ctx.volume_dummy,
-                        uniform_buffer_cache: ctx.uniform_buffer_cache,
-                        light_data: None,
-                        ambient_light: Default::default(),
-                        scene_depth: Some(&ctx.depth_texture),
-                        viewport: ctx.viewport,
-                        bone_matrices_stub_uniform_buffer: ctx.bone_matrices_stub_uniform_buffer,
-                    },
-                )?;
-            }
+            stats += render_bundle_storage.render_to_frame_buffer(
+                ctx.server,
+                ctx.geometry_cache,
+                ctx.shader_cache,
+                |_| true,
+                |_| true,
+                BundleRenderContext {
+                    texture_cache: ctx.texture_cache,
+                    render_pass_name: &render_pass_name,
+                    frame_buffer: &mut *self.framebuffer,
+                    view_projection_matrix: &view_projection,
+                    camera_position: &ctx.camera.global_position(),
+                    camera_up_vector: &camera_up,
+                    camera_side_vector: &camera_side,
+                    z_near: ctx.camera.projection().z_near(),
+                    z_far: ctx.camera.projection().z_far(),
+                    use_pom: false,
+                    light_position: &Default::default(),
+                    normal_dummy: &ctx.normal_dummy,
+                    white_dummy: &ctx.white_dummy,
+                    black_dummy: &ctx.black_dummy,
+                    volume_dummy: &ctx.volume_dummy,
+                    uniform_buffer_cache: ctx.uniform_buffer_cache,
+                    light_data: None,
+                    ambient_light: Default::default(),
+                    scene_depth: Some(&ctx.depth_texture),
+                    viewport: ctx.viewport,
+                    bone_matrices_stub_uniform_buffer: ctx.bone_matrices_stub_uniform_buffer,
+                    uniform_memory_allocator: ctx.uniform_memory_allocator,
+                },
+            )?;
         }
 
         // Render full screen quad with edge detect shader to draw outline of selected objects.
@@ -340,6 +342,7 @@ impl SceneRenderPass for HighlightRenderPass {
                                     .with(&Color::ORANGE),
                             )?,
                             shader_location: shader.uniform_buffer_binding,
+                            data_usage: Default::default(),
                         },
                     ],
                 }],

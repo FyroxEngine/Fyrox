@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::renderer::cache::uniform::UniformMemoryAllocator;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3},
@@ -107,6 +108,7 @@ pub(crate) struct DeferredRendererContext<'a> {
     pub uniform_buffer_cache: &'a mut UniformBufferCache,
     pub visibility_cache: &'a mut ObserverVisibilityCache,
     pub bone_matrices_stub_uniform_buffer: &'a dyn Buffer,
+    pub uniform_memory_allocator: &'a mut UniformMemoryAllocator,
 }
 
 impl DeferredLightRenderer {
@@ -296,6 +298,7 @@ impl DeferredLightRenderer {
             uniform_buffer_cache,
             visibility_cache,
             bone_matrices_stub_uniform_buffer,
+            uniform_memory_allocator,
         } = args;
 
         let viewport = Rect::new(0, 0, gbuffer.width, gbuffer.height);
@@ -367,6 +370,7 @@ impl DeferredLightRenderer {
                                         .with(&(view_projection * wvp)),
                                 )?,
                                 shader_location: shader.uniform_buffer_binding,
+                                data_usage: Default::default(),
                             },
                         ],
                     }],
@@ -429,6 +433,7 @@ impl DeferredLightRenderer {
                                 .with(&ambient_color.srgb_to_linear_f32()),
                         )?,
                         shader_location: self.ambient_light_shader.uniform_buffer_binding,
+                        data_usage: Default::default(),
                     },
                 ],
             }],
@@ -568,6 +573,7 @@ impl DeferredLightRenderer {
                     bindings: &[ResourceBinding::Buffer {
                         buffer: uniform_buffer,
                         shader_location: self.flat_shader.uniform_buffer_binding,
+                        data_usage: Default::default(),
                     }],
                 }],
                 ElementRange::Full,
@@ -597,6 +603,7 @@ impl DeferredLightRenderer {
                     bindings: &[ResourceBinding::Buffer {
                         buffer: uniform_buffer,
                         shader_location: self.flat_shader.uniform_buffer_binding,
+                        data_usage: Default::default(),
                     }],
                 }],
                 ElementRange::Full,
@@ -638,6 +645,7 @@ impl DeferredLightRenderer {
                             bindings: &[ResourceBinding::Buffer {
                                 buffer: uniform_buffer,
                                 shader_location: self.flat_shader.uniform_buffer_binding,
+                                data_usage: Default::default(),
                             }],
                         }],
                         ElementRange::Full,
@@ -690,6 +698,7 @@ impl DeferredLightRenderer {
                         volume_dummy.clone(),
                         uniform_buffer_cache,
                         bone_matrices_stub_uniform_buffer,
+                        uniform_memory_allocator,
                     )?;
 
                     light_stats.spot_shadow_maps_rendered += 1;
@@ -711,6 +720,7 @@ impl DeferredLightRenderer {
                                 volume_dummy: volume_dummy.clone(),
                                 uniform_buffer_cache,
                                 bone_matrices_stub_uniform_buffer,
+                                uniform_memory_allocator,
                             })?;
 
                     light_stats.point_shadow_maps_rendered += 1;
@@ -730,6 +740,7 @@ impl DeferredLightRenderer {
                         volume_dummy: volume_dummy.clone(),
                         uniform_buffer_cache,
                         bone_matrices_stub_uniform_buffer,
+                        uniform_memory_allocator,
                     })?;
 
                     light_stats.csm_rendered += 1;
@@ -827,6 +838,7 @@ impl DeferredLightRenderer {
                                 ResourceBinding::Buffer {
                                     buffer: uniform_buffer,
                                     shader_location: shader.uniform_buffer_binding,
+                                    data_usage: Default::default(),
                                 },
                             ],
                         }],
@@ -882,6 +894,7 @@ impl DeferredLightRenderer {
                                 ResourceBinding::Buffer {
                                     buffer: uniform_buffer,
                                     shader_location: shader.uniform_buffer_binding,
+                                    data_usage: Default::default(),
                                 },
                             ],
                         }],
@@ -968,6 +981,7 @@ impl DeferredLightRenderer {
                                 ResourceBinding::Buffer {
                                     buffer: uniform_buffer,
                                     shader_location: shader.uniform_buffer_binding,
+                                    data_usage: Default::default(),
                                 },
                             ],
                         }],

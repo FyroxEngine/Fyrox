@@ -218,6 +218,7 @@ impl LightVolumeRenderer {
                         buffer: uniform_buffer_cache
                             .write(server, StaticUniformBuffer::<256>::new().with(&mvp))?,
                         shader_location: self.flat_shader.uniform_buffer_binding,
+                        data_usage: Default::default(),
                     }],
                 }],
                 ElementRange::Full,
@@ -269,6 +270,7 @@ impl LightVolumeRenderer {
                                     .with(&((spot.full_cone_angle() * 0.5).cos())),
                             )?,
                             shader_location: shader.uniform_block_binding,
+                            data_usage: Default::default(),
                         },
                     ],
                 }],
@@ -319,6 +321,7 @@ impl LightVolumeRenderer {
                     bindings: &[ResourceBinding::Buffer {
                         buffer: uniform_buffer,
                         shader_location: self.flat_shader.uniform_buffer_binding,
+                        data_usage: Default::default(),
                     }],
                 }],
                 ElementRange::Full,
@@ -371,6 +374,7 @@ impl LightVolumeRenderer {
                                     .with(&point.radius()),
                             )?,
                             shader_location: shader.uniform_block_binding,
+                            data_usage: Default::default(),
                         },
                     ],
                 }],

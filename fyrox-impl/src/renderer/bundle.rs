@@ -20,6 +20,7 @@
 
 //! The module responsible for bundle generation for rendering optimizations.
 
+use crate::renderer::cache::uniform::{UniformBlockLocation, UniformMemoryAllocator};
 use crate::{
     asset::untyped::ResourceKind,
     core::{
@@ -137,6 +138,7 @@ pub struct BundleRenderContext<'a> {
     pub viewport: Rect<i32>,
     pub uniform_buffer_cache: &'a mut UniformBufferCache,
     pub bone_matrices_stub_uniform_buffer: &'a dyn Buffer,
+    pub uniform_memory_allocator: &'a mut UniformMemoryAllocator,
 
     // Built-in uniforms.
     pub view_projection_matrix: &'a Matrix4<f32>,
@@ -170,9 +172,10 @@ impl<'a> BundleRenderContext<'a> {
         program: &dyn GpuProgram,
         blend_shapes_storage: Option<TextureResource>,
         material_bindings: &mut ArrayVec<ResourceBinding, 32>,
-    ) -> Result<StaticUniformBuffer<16384>, FrameworkError> {
+    ) -> Result<(), FrameworkError> {
         let built_in_uniforms = program.built_in_uniform_locations();
 
+        // Collect texture bindings.
         if let Some(location) = &built_in_uniforms[BuiltInUniform::SceneDepth as usize] {
             if let Some(scene_depth) = self.scene_depth.as_ref() {
                 material_bindings.push(ResourceBinding::texture(scene_depth, location));
@@ -192,8 +195,27 @@ impl<'a> BundleRenderContext<'a> {
             }
         }
 
-        // Apply values for built-in uniforms.
+        let shader = material.shader().data_ref();
+        for property in shader.definition.properties.iter() {
+            if let Some(value) = material.properties().get(&property.name) {
+                if let PropertyValue::Sampler { value, fallback } = value {
+                    let texture = value
+                        .as_ref()
+                        .and_then(|t| self.texture_cache.get(server, t))
+                        .unwrap_or(match fallback {
+                            SamplerFallback::White => self.white_dummy,
+                            SamplerFallback::Normal => self.normal_dummy,
+                            SamplerFallback::Black => self.black_dummy,
+                        });
 
+                    if let Ok(uniform) = program.uniform_location(&property.name) {
+                        material_bindings.push(ResourceBinding::texture(texture, &uniform));
+                    }
+                }
+            }
+        }
+
+        // Apply values for built-in uniforms. TODO: Replace with uniform buffers.
         if let Some(location) = &built_in_uniforms[BuiltInUniform::UsePOM as usize] {
             program.set_bool(location, self.use_pom);
         }
@@ -227,94 +249,7 @@ impl<'a> BundleRenderContext<'a> {
             program.set_srgb_color(location, &self.ambient_light);
         }
 
-        // Apply material properties.
-        let mut uniforms = StaticUniformBuffer::<16384>::new();
-        let shader = material.shader().data_ref();
-
-        for property in shader.definition.properties.iter() {
-            if let Some(value) = material.properties().get(&property.name) {
-                match value {
-                    PropertyValue::Float(value) => {
-                        uniforms.push(value);
-                    }
-                    PropertyValue::FloatArray(array) => {
-                        uniforms.push_slice(array);
-                    }
-                    PropertyValue::Int(value) => {
-                        uniforms.push(value);
-                    }
-                    PropertyValue::IntArray(array) => {
-                        uniforms.push_slice(array);
-                    }
-                    PropertyValue::UInt(value) => {
-                        uniforms.push(value);
-                    }
-                    PropertyValue::UIntArray(array) => {
-                        uniforms.push_slice(array);
-                    }
-                    PropertyValue::Vector2(value) => {
-                        uniforms.push(value);
-                    }
-                    PropertyValue::Vector2Array(array) => {
-                        uniforms.push_slice(array);
-                    }
-                    PropertyValue::Vector3(value) => {
-                        uniforms.push(value);
-                    }
-                    PropertyValue::Vector3Array(array) => {
-                        uniforms.push_slice(array);
-                    }
-                    PropertyValue::Vector4(value) => {
-                        uniforms.push(value);
-                    }
-                    PropertyValue::Vector4Array(array) => {
-                        uniforms.push_slice(array);
-                    }
-                    PropertyValue::Matrix2(value) => {
-                        uniforms.push(value);
-                    }
-                    PropertyValue::Matrix2Array(array) => {
-                        uniforms.push_slice(array);
-                    }
-                    PropertyValue::Matrix3(value) => {
-                        uniforms.push(value);
-                    }
-                    PropertyValue::Matrix3Array(array) => {
-                        uniforms.push_slice(array);
-                    }
-                    PropertyValue::Matrix4(value) => {
-                        uniforms.push(value);
-                    }
-                    PropertyValue::Matrix4Array(array) => {
-                        uniforms.push_slice(array);
-                    }
-                    PropertyValue::Bool(value) => {
-                        uniforms.push(value);
-                    }
-                    PropertyValue::Color(color) => {
-                        uniforms.push(color);
-                    }
-                    PropertyValue::Sampler { value, fallback } => {
-                        let texture = value
-                            .as_ref()
-                            .and_then(|t| self.texture_cache.get(server, t))
-                            .unwrap_or(match fallback {
-                                SamplerFallback::White => self.white_dummy,
-                                SamplerFallback::Normal => self.normal_dummy,
-                                SamplerFallback::Black => self.black_dummy,
-                            });
-
-                        if let Ok(uniform) = program.uniform_location(&property.name) {
-                            material_bindings.push(ResourceBinding::texture(texture, &uniform));
-                        }
-                    }
-                }
-            } else {
-                // TODO: Fallback to shader's defaults.
-            }
-        }
-
-        Ok(uniforms)
+        Ok(())
     }
 }
 
@@ -383,15 +318,156 @@ impl Debug for RenderDataBundle {
     }
 }
 
+/// Describes where to the actual uniform data is located in the memory backed by the uniform
+/// memory allocator on per-instance basis.
+pub struct InstanceUniformData {
+    /// Instance info block location.
+    pub instance_block: UniformBlockLocation,
+    /// Bone matrices block location. Could be [`None`], if there's no bone matrices.
+    pub bone_matrices_block: Option<UniformBlockLocation>,
+}
+
+/// Describes where to the actual uniform data is located in the memory backed by the uniform
+/// memory allocator on per-bundle basis.
+pub struct BundleUniformData {
+    /// Material info block location. Optional, because material properties could be empty.
+    pub material_block: Option<UniformBlockLocation>,
+    /// Camera info block location.
+    pub camera_block: UniformBlockLocation,
+    /// Block locations for each instance in a bundle.
+    pub instance_blocks: Vec<InstanceUniformData>,
+}
+
 impl RenderDataBundle {
+    /// Writes all the required uniform data of the bundle to uniform memory allocator.
+    pub fn write_uniforms(
+        &self,
+        render_context: &mut BundleRenderContext,
+    ) -> Option<BundleUniformData> {
+        let mut material_state = self.material.state();
+
+        let Some(material) = material_state.data() else {
+            return None;
+        };
+
+        // Upload material uniforms.
+        let mut material_uniforms = StaticUniformBuffer::<16384>::new();
+        let shader = material.shader().data_ref();
+        for property in shader.definition.properties.iter() {
+            if let Some(value) = material.properties().get(&property.name) {
+                match value {
+                    PropertyValue::Float(value) => material_uniforms.push(value),
+                    PropertyValue::FloatArray(array) => material_uniforms.push_slice(array),
+                    PropertyValue::Int(value) => material_uniforms.push(value),
+                    PropertyValue::IntArray(array) => material_uniforms.push_slice(array),
+                    PropertyValue::UInt(value) => material_uniforms.push(value),
+                    PropertyValue::UIntArray(array) => material_uniforms.push_slice(array),
+                    PropertyValue::Vector2(value) => material_uniforms.push(value),
+                    PropertyValue::Vector2Array(array) => material_uniforms.push_slice(array),
+                    PropertyValue::Vector3(value) => material_uniforms.push(value),
+                    PropertyValue::Vector3Array(array) => material_uniforms.push_slice(array),
+                    PropertyValue::Vector4(value) => material_uniforms.push(value),
+                    PropertyValue::Vector4Array(array) => material_uniforms.push_slice(array),
+                    PropertyValue::Matrix2(value) => material_uniforms.push(value),
+                    PropertyValue::Matrix2Array(array) => material_uniforms.push_slice(array),
+                    PropertyValue::Matrix3(value) => material_uniforms.push(value),
+                    PropertyValue::Matrix3Array(array) => material_uniforms.push_slice(array),
+                    PropertyValue::Matrix4(value) => material_uniforms.push(value),
+                    PropertyValue::Matrix4Array(array) => material_uniforms.push_slice(array),
+                    PropertyValue::Bool(value) => material_uniforms.push(value),
+                    PropertyValue::Color(color) => material_uniforms.push(color),
+                    PropertyValue::Sampler { .. } => &mut material_uniforms,
+                };
+            } else {
+                // TODO: Fallback to shader's defaults.
+            }
+        }
+        let material_block = if material_uniforms.is_empty() {
+            None
+        } else {
+            Some(
+                render_context
+                    .uniform_memory_allocator
+                    .allocate(material_uniforms),
+            )
+        };
+
+        // Upload camera uniforms.
+        let camera_uniforms = StaticUniformBuffer::<512>::new()
+            .with(render_context.view_projection_matrix)
+            .with(render_context.camera_position)
+            .with(render_context.camera_up_vector)
+            .with(render_context.camera_side_vector)
+            .with(&render_context.z_near)
+            .with(&render_context.z_far)
+            .with(&(render_context.z_far - render_context.z_near));
+        let camera_block = render_context
+            .uniform_memory_allocator
+            .allocate(camera_uniforms);
+
+        // Upload instance uniforms.
+        let mut instance_blocks = Vec::with_capacity(self.instances.len());
+        for instance in self.instances.iter() {
+            let mut blend_shapes_weights = [Vector4::new(0.0, 0.0, 0.0, 0.0); 32];
+            // SAFETY: This is safe to copy PODs from one array to another with type erasure.
+            unsafe {
+                std::ptr::copy_nonoverlapping(
+                    instance.blend_shapes_weights.as_ptr(),
+                    blend_shapes_weights.as_mut_ptr() as *mut _,
+                    // Copy at max the amount of blend shape weights supported by the shader.
+                    instance
+                        .blend_shapes_weights
+                        .len()
+                        .min(blend_shapes_weights.len() * 4),
+                );
+            }
+            let instance_buffer = StaticUniformBuffer::<1024>::new()
+                .with(&instance.world_transform)
+                .with(&(render_context.view_projection_matrix * instance.world_transform))
+                .with(&(instance.blend_shapes_weights.len() as i32))
+                .with(&(!instance.bone_matrices.is_empty()))
+                .with_slice(&blend_shapes_weights);
+
+            let mut instance_uniform_data = InstanceUniformData {
+                instance_block: render_context
+                    .uniform_memory_allocator
+                    .allocate(instance_buffer),
+                bone_matrices_block: None,
+            };
+
+            if !instance.bone_matrices.is_empty() {
+                const INIT: Matrix4<f32> = Matrix4::new(
+                    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                );
+                let mut matrices = [INIT; MAX_BONE_MATRICES];
+                const SIZE: usize = MAX_BONE_MATRICES * size_of::<Matrix4<f32>>();
+                matrices[0..instance.bone_matrices.len()].copy_from_slice(&instance.bone_matrices);
+
+                let bone_matrices_block = render_context
+                    .uniform_memory_allocator
+                    .allocate(StaticUniformBuffer::<SIZE>::new().with_slice(&matrices));
+                instance_uniform_data.bone_matrices_block = Some(bone_matrices_block);
+            }
+
+            instance_blocks.push(instance_uniform_data);
+        }
+
+        Some(BundleUniformData {
+            material_block,
+            camera_block,
+            instance_blocks,
+        })
+    }
+
     /// Draws the entire bundle to the specified frame buffer with the specified rendering environment.
     pub fn render_to_frame_buffer<F>(
         &self,
         server: &GlGraphicsServer,
         geometry_cache: &mut GeometryCache,
         shader_cache: &mut ShaderCache,
-        mut instance_filter: F,
-        mut render_context: BundleRenderContext,
+        instance_filter: &mut F,
+        render_context: &mut BundleRenderContext,
+        bundle_uniform_data: BundleUniformData,
     ) -> Result<RenderPassStatistics, FrameworkError>
     where
         F: FnMut(&SurfaceInstanceData) -> bool,
@@ -428,7 +504,7 @@ impl RenderDataBundle {
         };
 
         let mut material_bindings = ArrayVec::<ResourceBinding, 32>::new();
-        let uniforms = render_context.apply_material(
+        render_context.apply_material(
             server,
             material,
             &*render_pass.program,
@@ -436,102 +512,63 @@ impl RenderDataBundle {
             &mut material_bindings,
         )?;
 
-        let built_in_uniform_blocks = render_pass.program.built_in_uniform_blocks();
+        let block_locations = render_pass.program.built_in_uniform_blocks();
 
-        if let Some(location) =
-            &built_in_uniform_blocks[BuiltInUniformBlock::MaterialProperties as usize]
+        if let Some(location) = &block_locations[BuiltInUniformBlock::MaterialProperties as usize] {
+            if let Some(material_block) = bundle_uniform_data.material_block {
+                material_bindings.push(
+                    render_context
+                        .uniform_memory_allocator
+                        .block_to_binding(material_block, *location),
+                );
+            }
+        }
+
+        if let Some(location) = &block_locations[BuiltInUniformBlock::CameraData as usize] {
+            material_bindings.push(
+                render_context
+                    .uniform_memory_allocator
+                    .block_to_binding(bundle_uniform_data.camera_block, *location),
+            );
+        }
+
+        for (instance, uniform_data) in self
+            .instances
+            .iter()
+            .zip(bundle_uniform_data.instance_blocks)
         {
-            material_bindings.push(ResourceBinding::Buffer {
-                buffer: render_context
-                    .uniform_buffer_cache
-                    .write(server, uniforms)?,
-                shader_location: *location,
-            });
-        }
-
-        if let Some(location) = &built_in_uniform_blocks[BuiltInUniformBlock::CameraData as usize] {
-            let buffer = render_context.uniform_buffer_cache.write(
-                server,
-                StaticUniformBuffer::<512>::new()
-                    .with(render_context.view_projection_matrix)
-                    .with(render_context.camera_position)
-                    .with(render_context.camera_up_vector)
-                    .with(render_context.camera_side_vector)
-                    .with(&render_context.z_near)
-                    .with(&render_context.z_far)
-                    .with(&(render_context.z_far - render_context.z_near)),
-            )?;
-            material_bindings.push(ResourceBinding::Buffer {
-                buffer,
-                shader_location: *location,
-            })
-        }
-
-        for instance in self.instances.iter() {
             if !instance_filter(instance) {
                 continue;
             }
             let mut instance_bindings = ArrayVec::<ResourceBinding, 32>::new();
 
-            if let Some(location) =
-                &built_in_uniform_blocks[BuiltInUniformBlock::BoneMatrices as usize]
-            {
-                if instance.bone_matrices.is_empty() {
-                    // Bind stub buffer, instead of creating and uploading 16kb with zeros per draw
-                    // call.
-                    instance_bindings.push(ResourceBinding::Buffer {
-                        buffer: render_context.bone_matrices_stub_uniform_buffer,
-                        shader_location: *location,
-                    });
-                } else {
-                    const INIT: Matrix4<f32> = Matrix4::new(
-                        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                        0.0,
-                    );
-                    let mut matrices = [INIT; MAX_BONE_MATRICES];
-                    const SIZE: usize = MAX_BONE_MATRICES * size_of::<Matrix4<f32>>();
-                    matrices[0..instance.bone_matrices.len()]
-                        .copy_from_slice(&instance.bone_matrices);
-                    let buffer = render_context.uniform_buffer_cache.write(
-                        server,
-                        StaticUniformBuffer::<SIZE>::new().with_slice(&matrices),
-                    )?;
-                    instance_bindings.push(ResourceBinding::Buffer {
-                        buffer,
-                        shader_location: *location,
-                    });
+            if let Some(location) = &block_locations[BuiltInUniformBlock::BoneMatrices as usize] {
+                match uniform_data.bone_matrices_block {
+                    Some(block) => {
+                        instance_bindings.push(
+                            render_context
+                                .uniform_memory_allocator
+                                .block_to_binding(block, *location),
+                        );
+                    }
+                    None => {
+                        // Bind stub buffer, instead of creating and uploading 16kb with zeros per draw
+                        // call.
+                        instance_bindings.push(ResourceBinding::Buffer {
+                            buffer: render_context.bone_matrices_stub_uniform_buffer,
+                            shader_location: *location,
+                            data_usage: Default::default(),
+                        });
+                    }
                 }
             }
 
-            if let Some(location) =
-                &built_in_uniform_blocks[BuiltInUniformBlock::InstanceData as usize]
-            {
-                let mut blend_shapes_weights = [Vector4::new(0.0, 0.0, 0.0, 0.0); 32];
-                // SAFETY: This is safe to copy PODs from one array to another with type erasure.
-                unsafe {
-                    std::ptr::copy_nonoverlapping(
-                        instance.blend_shapes_weights.as_ptr(),
-                        blend_shapes_weights.as_mut_ptr() as *mut _,
-                        // Copy at max the amount of blend shape weights supported by the shader.
-                        instance
-                            .blend_shapes_weights
-                            .len()
-                            .min(blend_shapes_weights.len() * 4),
-                    );
-                }
-                let buffer = render_context.uniform_buffer_cache.write(
-                    server,
-                    StaticUniformBuffer::<1024>::new()
-                        .with(&instance.world_transform)
-                        .with(&(render_context.view_projection_matrix * instance.world_transform))
-                        .with(&(instance.blend_shapes_weights.len() as i32))
-                        .with(&(!instance.bone_matrices.is_empty()))
-                        .with_slice(&blend_shapes_weights),
-                )?;
-                instance_bindings.push(ResourceBinding::Buffer {
-                    buffer,
-                    shader_location: *location,
-                })
+            if let Some(location) = &block_locations[BuiltInUniformBlock::InstanceData as usize] {
+                instance_bindings.push(
+                    render_context
+                        .uniform_memory_allocator
+                        .block_to_binding(uniform_data.instance_block, *location),
+                );
             }
 
             stats += render_context.frame_buffer.draw(
@@ -690,6 +727,50 @@ impl RenderDataBundleStorage {
     /// Sorts the bundles by their respective sort index.
     pub fn sort(&mut self) {
         self.bundles.sort_unstable_by_key(|b| b.sort_index);
+    }
+
+    /// Draws the entire bundle set to the specified frame buffer with the specified rendering environment.
+    pub fn render_to_frame_buffer<BundleFilter, InstanceFilter>(
+        &self,
+        server: &GlGraphicsServer,
+        geometry_cache: &mut GeometryCache,
+        shader_cache: &mut ShaderCache,
+        mut bundle_filter: BundleFilter,
+        mut instance_filter: InstanceFilter,
+        mut render_context: BundleRenderContext,
+    ) -> Result<RenderPassStatistics, FrameworkError>
+    where
+        BundleFilter: FnMut(&RenderDataBundle) -> bool,
+        InstanceFilter: FnMut(&SurfaceInstanceData) -> bool,
+    {
+        let mut bundle_uniform_data_set = Vec::with_capacity(self.bundles.len());
+        for bundle in self.bundles.iter() {
+            if !bundle_filter(bundle) {
+                continue;
+            }
+            bundle_uniform_data_set.push(bundle.write_uniforms(&mut render_context));
+        }
+        render_context.uniform_memory_allocator.upload(server)?;
+
+        let mut stats = RenderPassStatistics::default();
+        for (bundle, bundle_uniform_data) in self
+            .bundles
+            .iter()
+            .filter(|bundle| bundle_filter(*bundle))
+            .zip(bundle_uniform_data_set)
+        {
+            if let Some(bundle_uniform_data) = bundle_uniform_data {
+                stats += bundle.render_to_frame_buffer(
+                    server,
+                    geometry_cache,
+                    shader_cache,
+                    &mut instance_filter,
+                    &mut render_context,
+                    bundle_uniform_data,
+                )?
+            }
+        }
+        Ok(stats)
     }
 }
 

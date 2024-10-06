@@ -27,7 +27,7 @@
 //! path).
 
 use crate::renderer::bundle::BundleRenderContext;
-use crate::renderer::cache::uniform::UniformBufferCache;
+use crate::renderer::cache::uniform::{UniformBufferCache, UniformMemoryAllocator};
 use crate::{
     core::{
         algebra::{Vector2, Vector4},
@@ -77,6 +77,7 @@ pub(crate) struct ForwardRenderContext<'a, 'b> {
     pub uniform_buffer_cache: &'a mut UniformBufferCache,
     pub ambient_light: Color,
     pub bone_matrices_stub_uniform_buffer: &'a dyn Buffer,
+    pub uniform_memory_allocator: &'a mut UniformMemoryAllocator,
 }
 
 impl ForwardRenderer {
@@ -111,6 +112,7 @@ impl ForwardRenderer {
             uniform_buffer_cache,
             ambient_light,
             bone_matrices_stub_uniform_buffer,
+            uniform_memory_allocator,
         } = args;
 
         let view_projection = camera.view_projection_matrix();
@@ -169,41 +171,37 @@ impl ForwardRenderer {
             }
         }
 
-        for bundle in bundle_storage
-            .bundles
-            .iter()
-            .filter(|b| b.render_path == RenderPath::Forward)
-        {
-            statistics += bundle.render_to_frame_buffer(
-                state,
-                geom_cache,
-                shader_cache,
-                |_| true,
-                BundleRenderContext {
-                    texture_cache,
-                    render_pass_name: &self.render_pass_name,
-                    frame_buffer: framebuffer,
-                    viewport,
-                    uniform_buffer_cache,
-                    bone_matrices_stub_uniform_buffer,
-                    view_projection_matrix: &view_projection,
-                    camera_position: &camera.global_position(),
-                    camera_up_vector: &camera_up,
-                    camera_side_vector: &camera_side,
-                    z_near: camera.projection().z_near(),
-                    z_far: camera.projection().z_far(),
-                    use_pom: quality_settings.use_parallax_mapping,
-                    light_position: &Default::default(),
-                    normal_dummy: &normal_dummy,
-                    white_dummy: &white_dummy,
-                    black_dummy: &black_dummy,
-                    volume_dummy: &volume_dummy,
-                    light_data: Some(&light_data),
-                    ambient_light,
-                    scene_depth: Some(&scene_depth),
-                },
-            )?;
-        }
+        statistics += bundle_storage.render_to_frame_buffer(
+            state,
+            geom_cache,
+            shader_cache,
+            |bundle| bundle.render_path == RenderPath::Forward,
+            |_| true,
+            BundleRenderContext {
+                texture_cache,
+                render_pass_name: &self.render_pass_name,
+                frame_buffer: framebuffer,
+                viewport,
+                uniform_buffer_cache,
+                bone_matrices_stub_uniform_buffer,
+                uniform_memory_allocator,
+                view_projection_matrix: &view_projection,
+                camera_position: &camera.global_position(),
+                camera_up_vector: &camera_up,
+                camera_side_vector: &camera_side,
+                z_near: camera.projection().z_near(),
+                z_far: camera.projection().z_far(),
+                use_pom: quality_settings.use_parallax_mapping,
+                light_position: &Default::default(),
+                normal_dummy: &normal_dummy,
+                white_dummy: &white_dummy,
+                black_dummy: &black_dummy,
+                volume_dummy: &volume_dummy,
+                light_data: Some(&light_data),
+                ambient_light,
+                scene_depth: Some(&scene_depth),
+            },
+        )?;
 
         Ok(statistics)
     }

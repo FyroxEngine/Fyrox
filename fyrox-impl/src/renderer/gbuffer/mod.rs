@@ -29,7 +29,7 @@
 //! Every alpha channel is used for layer blending for terrains. This is inefficient, but for
 //! now I don't know better solution.
 
-use crate::renderer::cache::uniform::UniformBufferCache;
+use crate::renderer::cache::uniform::{UniformBufferCache, UniformMemoryAllocator};
 use crate::renderer::framework::GeometryBufferExt;
 use crate::{
     core::{
@@ -99,6 +99,7 @@ pub(crate) struct GBufferRenderContext<'a, 'b> {
     pub graph: &'b Graph,
     pub uniform_buffer_cache: &'a mut UniformBufferCache,
     pub bone_matrices_stub_uniform_buffer: &'a dyn Buffer,
+    pub uniform_memory_allocator: &'a mut UniformMemoryAllocator,
     #[allow(dead_code)]
     pub screen_space_debug_renderer: &'a mut DebugRenderer,
     pub unit_quad: &'a GeometryBuffer,
@@ -309,6 +310,7 @@ impl GBuffer {
             uniform_buffer_cache,
             unit_quad,
             bone_matrices_stub_uniform_buffer,
+            uniform_memory_allocator,
             ..
         } = args;
 
@@ -342,41 +344,37 @@ impl GBuffer {
                 || grid_cell.map_or(true, |cell| cell.is_visible(instance.node_handle))
         };
 
-        for bundle in bundle_storage
-            .bundles
-            .iter()
-            .filter(|b| b.render_path == RenderPath::Deferred)
-        {
-            statistics += bundle.render_to_frame_buffer(
-                server,
-                geom_cache,
-                shader_cache,
-                instance_filter,
-                BundleRenderContext {
-                    texture_cache,
-                    render_pass_name: &self.render_pass_name,
-                    frame_buffer: &mut *self.framebuffer,
-                    viewport,
-                    uniform_buffer_cache,
-                    bone_matrices_stub_uniform_buffer,
-                    view_projection_matrix: &view_projection,
-                    camera_position: &camera.global_position(),
-                    camera_up_vector: &camera_up,
-                    camera_side_vector: &camera_side,
-                    z_near: camera.projection().z_near(),
-                    use_pom: quality_settings.use_parallax_mapping,
-                    light_position: &Default::default(),
-                    normal_dummy: &normal_dummy,
-                    white_dummy: &white_dummy,
-                    black_dummy: &black_dummy,
-                    volume_dummy: &volume_dummy,
-                    light_data: None,
-                    ambient_light: Color::WHITE, // TODO
-                    scene_depth: None,           // TODO. Add z-pre-pass.
-                    z_far: camera.projection().z_far(),
-                },
-            )?;
-        }
+        statistics += bundle_storage.render_to_frame_buffer(
+            server,
+            geom_cache,
+            shader_cache,
+            |bundle| bundle.render_path == RenderPath::Deferred,
+            instance_filter,
+            BundleRenderContext {
+                texture_cache,
+                render_pass_name: &self.render_pass_name,
+                frame_buffer: &mut *self.framebuffer,
+                viewport,
+                uniform_buffer_cache,
+                bone_matrices_stub_uniform_buffer,
+                uniform_memory_allocator,
+                view_projection_matrix: &view_projection,
+                camera_position: &camera.global_position(),
+                camera_up_vector: &camera_up,
+                camera_side_vector: &camera_side,
+                z_near: camera.projection().z_near(),
+                use_pom: quality_settings.use_parallax_mapping,
+                light_position: &Default::default(),
+                normal_dummy: &normal_dummy,
+                white_dummy: &white_dummy,
+                black_dummy: &black_dummy,
+                volume_dummy: &volume_dummy,
+                light_data: None,
+                ambient_light: Color::WHITE, // TODO
+                scene_depth: None,           // TODO. Add z-pre-pass.
+                z_far: camera.projection().z_far(),
+            },
+        )?;
 
         if quality_settings.use_occlusion_culling {
             let mut objects = FxHashSet::default();
@@ -463,6 +461,7 @@ impl GBuffer {
                                     .with(&(decal.layer() as u32)),
                             )?,
                             shader_location: shader.uniform_buffer_binding,
+                            data_usage: Default::default(),
                         },
                     ],
                 }],

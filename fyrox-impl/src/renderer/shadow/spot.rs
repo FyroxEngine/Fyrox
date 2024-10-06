@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::cache::uniform::UniformBufferCache;
+use crate::renderer::cache::uniform::{UniformBufferCache, UniformMemoryAllocator};
 use crate::{
     core::{
         algebra::{Matrix4, Vector3},
@@ -153,6 +153,7 @@ impl SpotShadowMapRenderer {
         volume_dummy: Rc<RefCell<dyn GpuTexture>>,
         uniform_buffer_cache: &mut UniformBufferCache,
         bone_matrices_stub_uniform_buffer: &dyn Buffer,
+        uniform_memory_allocator: &mut UniformMemoryAllocator,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut statistics = RenderPassStatistics::default();
 
@@ -180,37 +181,37 @@ impl SpotShadowMapRenderer {
         let camera_up = inv_view.up();
         let camera_side = inv_view.side();
 
-        for bundle in bundle_storage.bundles.iter() {
-            statistics += bundle.render_to_frame_buffer(
-                server,
-                geom_cache,
-                shader_cache,
-                |_| true,
-                BundleRenderContext {
-                    texture_cache,
-                    render_pass_name: &SPOT_SHADOW_PASS_NAME,
-                    frame_buffer: framebuffer,
-                    viewport,
-                    uniform_buffer_cache,
-                    bone_matrices_stub_uniform_buffer,
-                    view_projection_matrix: &light_view_projection,
-                    camera_position: &Default::default(),
-                    camera_up_vector: &camera_up,
-                    camera_side_vector: &camera_side,
-                    z_near,
-                    use_pom: false,
-                    light_position: &Default::default(),
-                    normal_dummy: &normal_dummy,
-                    white_dummy: &white_dummy,
-                    black_dummy: &black_dummy,
-                    volume_dummy: &volume_dummy,
-                    light_data: None,            // TODO
-                    ambient_light: Color::WHITE, // TODO
-                    scene_depth: None,
-                    z_far,
-                },
-            )?;
-        }
+        statistics += bundle_storage.render_to_frame_buffer(
+            server,
+            geom_cache,
+            shader_cache,
+            |_| true,
+            |_| true,
+            BundleRenderContext {
+                texture_cache,
+                render_pass_name: &SPOT_SHADOW_PASS_NAME,
+                frame_buffer: framebuffer,
+                viewport,
+                uniform_buffer_cache,
+                bone_matrices_stub_uniform_buffer,
+                uniform_memory_allocator,
+                view_projection_matrix: &light_view_projection,
+                camera_position: &Default::default(),
+                camera_up_vector: &camera_up,
+                camera_side_vector: &camera_side,
+                z_near,
+                use_pom: false,
+                light_position: &Default::default(),
+                normal_dummy: &normal_dummy,
+                white_dummy: &white_dummy,
+                black_dummy: &black_dummy,
+                volume_dummy: &volume_dummy,
+                light_data: None,            // TODO
+                ambient_light: Color::WHITE, // TODO
+                scene_depth: None,
+                z_far,
+            },
+        )?;
 
         Ok(statistics)
     }

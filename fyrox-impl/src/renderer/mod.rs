@@ -51,6 +51,7 @@ mod skybox_shader;
 mod ssao;
 mod stats;
 
+use crate::renderer::cache::uniform::UniformMemoryAllocator;
 use crate::{
     asset::{event::ResourceEvent, manager::ResourceManager},
     core::{
@@ -694,6 +695,7 @@ pub struct Renderer {
     // TextureId -> FrameBuffer mapping. This mapping is used for temporal frame buffers
     // like ones used to render UI instances.
     ui_frame_buffers: FxHashMap<u64, Box<dyn FrameBuffer>>,
+    uniform_memory_allocator: UniformMemoryAllocator,
     /// A stub uniform buffer for situation when there's no actual bone matrices.
     pub bone_matrices_stub_uniform_buffer: Box<dyn Buffer>,
     /// Visibility cache based on occlusion query.
@@ -837,6 +839,10 @@ pub struct SceneRenderPassContext<'a, 'b> {
 
     /// A stub uniform buffer with bone matrices.
     pub bone_matrices_stub_uniform_buffer: &'a dyn Buffer,
+
+    /// Memory allocator for uniform buffers that tries to pack uniforms densely into large uniform
+    /// buffers, giving you offsets to the data.
+    pub uniform_memory_allocator: &'a mut UniformMemoryAllocator,
 }
 
 /// A trait for custom scene rendering pass. It could be used to add your own rendering techniques.
@@ -908,6 +914,7 @@ fn blit_pixels(
                 ResourceBinding::Buffer {
                     buffer: uniform_buffer,
                     shader_location: shader.uniform_buffer_binding,
+                    data_usage: Default::default(),
                 },
             ],
         }],
@@ -966,10 +973,8 @@ impl Renderer {
             window_builder,
         )?;
 
-        Log::info(format!(
-            "Graphics Server Capabilities\n{}",
-            server.capabilities()
-        ));
+        let caps = server.capabilities();
+        Log::info(format!("Graphics Server Capabilities\n{caps}",));
 
         let frame_size = (window.inner_size().width, window.inner_size().height);
 
@@ -978,6 +983,11 @@ impl Renderer {
         for shader in ShaderResource::standard_shaders() {
             shader_cache.get(&server, &shader.resource);
         }
+
+        let uniform_memory_allocator = UniformMemoryAllocator::new(
+            caps.max_uniform_block_size,
+            caps.uniform_buffer_offset_alignment,
+        );
 
         let renderer = Self {
             backbuffer: server.back_buffer(),
@@ -1094,6 +1104,7 @@ impl Renderer {
             state: server,
             visibility_cache: Default::default(),
             uniform_buffer_cache: Default::default(),
+            uniform_memory_allocator,
         };
 
         Ok((window, renderer))
@@ -1449,6 +1460,7 @@ impl Renderer {
                     graph,
                     uniform_buffer_cache: &mut self.uniform_buffer_cache,
                     bone_matrices_stub_uniform_buffer: &*self.bone_matrices_stub_uniform_buffer,
+                    uniform_memory_allocator: &mut self.uniform_memory_allocator,
                     screen_space_debug_renderer: &mut self.screen_space_debug_renderer,
                     unit_quad: &self.quad,
                 })?;
@@ -1489,6 +1501,7 @@ impl Renderer {
                         uniform_buffer_cache: &mut self.uniform_buffer_cache,
                         bone_matrices_stub_uniform_buffer: &*self.bone_matrices_stub_uniform_buffer,
                         visibility_cache,
+                        uniform_memory_allocator: &mut self.uniform_memory_allocator,
                     })?;
 
             scene_associated_data.statistics += light_stats;
@@ -1516,6 +1529,7 @@ impl Renderer {
                     uniform_buffer_cache: &mut self.uniform_buffer_cache,
                     ambient_light: scene.rendering_options.ambient_lighting_color,
                     bone_matrices_stub_uniform_buffer: &*self.bone_matrices_stub_uniform_buffer,
+                    uniform_memory_allocator: &mut self.uniform_memory_allocator,
                 })?;
 
             for render_pass in self.scene_render_passes.iter() {
@@ -1547,6 +1561,7 @@ impl Renderer {
                             uniform_buffer_cache: &mut self.uniform_buffer_cache,
                             bone_matrices_stub_uniform_buffer: &*self
                                 .bone_matrices_stub_uniform_buffer,
+                            uniform_memory_allocator: &mut self.uniform_memory_allocator,
                         })?;
             }
 
@@ -1639,6 +1654,7 @@ impl Renderer {
                             uniform_buffer_cache: &mut self.uniform_buffer_cache,
                             bone_matrices_stub_uniform_buffer: &*self
                                 .bone_matrices_stub_uniform_buffer,
+                            uniform_memory_allocator: &mut self.uniform_memory_allocator,
                         })?;
             }
         }
@@ -1676,6 +1692,7 @@ impl Renderer {
 
         self.matrix_storage.begin_frame();
         self.uniform_buffer_cache.mark_all_unused();
+        self.uniform_memory_allocator.clear();
 
         // Make sure to drop associated data for destroyed scenes.
         self.scene_data_map

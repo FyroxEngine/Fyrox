@@ -158,6 +158,7 @@ impl BloomRenderer {
                             StaticUniformBuffer::<256>::new().with(&make_viewport_matrix(viewport)),
                         )?,
                         shader_location: shader.uniform_block_binding,
+                        data_usage: Default::default(),
                     },
                 ],
             }],

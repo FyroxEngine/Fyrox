@@ -42,6 +42,16 @@ pub struct Attachment {
     pub texture: Rc<RefCell<dyn GpuTexture>>,
 }
 
+#[derive(Default)]
+pub enum BufferDataUsage {
+    #[default]
+    UseEverything,
+    UseSegment {
+        offset: usize,
+        size: usize,
+    },
+}
+
 pub enum ResourceBinding<'a> {
     Texture {
         texture: Rc<RefCell<dyn GpuTexture>>,
@@ -50,6 +60,7 @@ pub enum ResourceBinding<'a> {
     Buffer {
         buffer: &'a dyn Buffer,
         shader_location: usize,
+        data_usage: BufferDataUsage,
     },
 }
 

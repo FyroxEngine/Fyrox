@@ -154,6 +154,7 @@ impl Blur {
                             StaticUniformBuffer::<256>::new().with(&make_viewport_matrix(viewport)),
                         )?,
                         shader_location: shader.uniform_buffer_binding,
+                        data_usage: Default::default(),
                     },
                 ],
             }],

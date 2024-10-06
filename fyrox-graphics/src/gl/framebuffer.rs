@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::framebuffer::BufferDataUsage;
 use crate::{
     buffer::{Buffer, BufferKind},
     core::{color::Color, math::Rect},
@@ -373,6 +374,7 @@ fn pre_draw(
                 ResourceBinding::Buffer {
                     buffer,
                     shader_location,
+                    data_usage: data_location,
                 } => {
                     let gl_buffer = buffer
                         .as_any()
@@ -380,11 +382,25 @@ fn pre_draw(
                         .expect("Must be OpenGL buffer");
 
                     unsafe {
-                        server.gl.bind_buffer_base(
-                            gl_buffer.kind().into_gl(),
-                            buffer_binding,
-                            Some(gl_buffer.id),
-                        );
+                        match data_location {
+                            BufferDataUsage::UseSegment { offset, size } => {
+                                assert_ne!(*size, 0);
+                                server.gl.bind_buffer_range(
+                                    gl_buffer.kind().into_gl(),
+                                    buffer_binding,
+                                    Some(gl_buffer.id),
+                                    *offset as i32,
+                                    *size as i32,
+                                );
+                            }
+                            BufferDataUsage::UseEverything => {
+                                server.gl.bind_buffer_base(
+                                    gl_buffer.kind().into_gl(),
+                                    buffer_binding,
+                                    Some(gl_buffer.id),
+                                );
+                            }
+                        }
 
                         match gl_buffer.kind() {
                             BufferKind::Uniform => server.gl.uniform_block_binding(

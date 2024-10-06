@@ -166,6 +166,7 @@ impl SceneRenderPass for OverlayRenderPass {
                                     .with(&self.pictogram_size),
                             )?,
                             shader_location: shader.uniform_buffer_binding,
+                            data_usage: Default::default(),
                         },
                     ],
                 }],
