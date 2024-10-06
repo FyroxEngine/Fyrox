@@ -253,10 +253,8 @@ impl OcclusionTester {
         })
     }
 
-    pub fn try_query_visibility_results(&mut self, server: &GlGraphicsServer, graph: &Graph) {
-        let Some(visibility_buffer) = self
-            .visibility_buffer_optimizer
-            .read_visibility_mask(server)
+    pub fn try_query_visibility_results(&mut self, graph: &Graph) {
+        let Some(visibility_buffer) = self.visibility_buffer_optimizer.read_visibility_mask()
         else {
             return;
         };

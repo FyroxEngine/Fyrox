@@ -133,21 +133,6 @@ pub enum SamplerKind {
     USamplerCube,
 }
 
-impl SamplerKind {
-    pub fn glsl_name(&self) -> &str {
-        match self {
-            SamplerKind::Sampler1D => "sampler1D",
-            SamplerKind::Sampler2D => "sampler2D",
-            SamplerKind::Sampler3D => "sampler3D",
-            SamplerKind::SamplerCube => "samplerCube",
-            SamplerKind::USampler1D => "usampler1D",
-            SamplerKind::USampler2D => "usampler2D",
-            SamplerKind::USampler3D => "usampler3D",
-            SamplerKind::USamplerCube => "usamplerCube",
-        }
-    }
-}
-
 /// Shader property with default value.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Reflect, Visit)]
 pub enum PropertyKind {

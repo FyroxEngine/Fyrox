@@ -317,8 +317,7 @@ impl GBuffer {
         let view_projection = camera.view_projection_matrix();
 
         if quality_settings.use_occlusion_culling {
-            self.occlusion_tester
-                .try_query_visibility_results(server, graph);
+            self.occlusion_tester.try_query_visibility_results(graph);
         };
 
         let viewport = Rect::new(0, 0, self.width, self.height);

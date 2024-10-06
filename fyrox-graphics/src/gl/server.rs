@@ -19,8 +19,10 @@
 // SOFTWARE.
 
 use crate::gl::program::GlProgram;
+use crate::gl::read_buffer::GlAsyncReadBuffer;
 use crate::gl::ToGlConstant;
 use crate::gpu_program::{GpuProgram, PropertyDefinition};
+use crate::read_buffer::AsyncReadBuffer;
 use crate::server::{GraphicsServer, ServerCapabilities};
 use crate::{
     buffer::{Buffer, BufferKind, BufferUsage},
@@ -1128,6 +1130,18 @@ impl GraphicsServer for GlGraphicsServer {
             vertex_source,
             fragment_source,
             properties,
+        )?))
+    }
+
+    fn create_async_read_buffer(
+        &self,
+        pixel_size: usize,
+        pixel_count: usize,
+    ) -> Result<Box<dyn AsyncReadBuffer>, FrameworkError> {
+        Ok(Box::new(GlAsyncReadBuffer::new(
+            self,
+            pixel_size,
+            pixel_count,
         )?))
     }
 

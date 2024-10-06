@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::gpu_program::SamplerKind;
 use crate::{
     core::{
         algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4},
@@ -41,6 +42,21 @@ use std::{
     ops::Deref,
     rc::{Rc, Weak},
 };
+
+impl SamplerKind {
+    pub fn glsl_name(&self) -> &str {
+        match self {
+            SamplerKind::Sampler1D => "sampler1D",
+            SamplerKind::Sampler2D => "sampler2D",
+            SamplerKind::Sampler3D => "sampler3D",
+            SamplerKind::SamplerCube => "samplerCube",
+            SamplerKind::USampler1D => "usampler1D",
+            SamplerKind::USampler2D => "usampler2D",
+            SamplerKind::USampler3D => "usampler3D",
+            SamplerKind::USamplerCube => "usamplerCube",
+        }
+    }
+}
 
 unsafe fn create_shader(
     server: &GlGraphicsServer,

@@ -18,13 +18,14 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::gpu_program::{GpuProgram, PropertyDefinition};
 use crate::{
     buffer::{Buffer, BufferKind, BufferUsage},
     error::FrameworkError,
     framebuffer::{Attachment, FrameBuffer},
+    gpu_program::{GpuProgram, PropertyDefinition},
     gpu_texture::{GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind},
     query::Query,
+    read_buffer::AsyncReadBuffer,
     stats::PipelineStatistics,
 };
 use std::{
@@ -91,6 +92,11 @@ pub trait GraphicsServer: Any {
         fragment_source: &str,
         properties: &[PropertyDefinition],
     ) -> Result<Box<dyn GpuProgram>, FrameworkError>;
+    fn create_async_read_buffer(
+        &self,
+        pixel_size: usize,
+        pixel_count: usize,
+    ) -> Result<Box<dyn AsyncReadBuffer>, FrameworkError>;
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
     fn weak(self: Rc<Self>) -> Weak<dyn GraphicsServer>;

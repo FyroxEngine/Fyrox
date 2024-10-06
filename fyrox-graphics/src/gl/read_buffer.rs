@@ -18,35 +18,37 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::gl::framebuffer::GlFrameBuffer;
-use crate::gl::server::GlGraphicsServer;
-use crate::gl::ToGlConstant;
 use crate::{
     buffer::{Buffer, BufferKind, BufferUsage},
     core::{algebra::Vector2, math::Rect},
     error::FrameworkError,
     framebuffer::FrameBuffer,
-    gl::buffer::GlBuffer,
+    gl::{buffer::GlBuffer, framebuffer::GlFrameBuffer, server::GlGraphicsServer, ToGlConstant},
     gpu_texture::{image_2d_size_bytes, GpuTextureKind},
+    read_buffer::AsyncReadBuffer,
 };
-use bytemuck::Pod;
 use glow::{HasContext, PixelPackData};
-use std::marker::PhantomData;
+use std::rc::Weak;
 
 struct ReadRequest {
     fence: glow::Fence,
 }
 
-pub struct PixelBuffer<T> {
+pub struct GlAsyncReadBuffer {
+    server: Weak<GlGraphicsServer>,
     buffer: GlBuffer,
     request: Option<ReadRequest>,
     pixel_count: usize,
-    phantom_data: PhantomData<T>,
+    pixel_size: usize,
 }
 
-impl<T> PixelBuffer<T> {
-    pub fn new(server: &GlGraphicsServer, pixel_count: usize) -> Result<Self, FrameworkError> {
-        let size_bytes = pixel_count * size_of::<T>();
+impl GlAsyncReadBuffer {
+    pub fn new(
+        server: &GlGraphicsServer,
+        pixel_size: usize,
+        pixel_count: usize,
+    ) -> Result<Self, FrameworkError> {
+        let size_bytes = pixel_count * pixel_size;
         let buffer = GlBuffer::new(
             server,
             size_bytes,
@@ -54,16 +56,18 @@ impl<T> PixelBuffer<T> {
             BufferUsage::StreamRead,
         )?;
         Ok(Self {
+            server: server.weak(),
             buffer,
             request: None,
             pixel_count,
-            phantom_data: Default::default(),
+            pixel_size,
         })
     }
+}
 
-    pub fn schedule_pixels_transfer(
+impl AsyncReadBuffer for GlAsyncReadBuffer {
+    fn schedule_pixels_transfer(
         &mut self,
-        server: &GlGraphicsServer,
         framebuffer: &dyn FrameBuffer,
         color_buffer_index: u32,
         rect: Option<Rect<i32>>,
@@ -71,6 +75,8 @@ impl<T> PixelBuffer<T> {
         if self.request.is_some() {
             return Ok(());
         }
+
+        let server = self.server.upgrade().unwrap();
 
         let framebuffer = framebuffer
             .as_any()
@@ -106,7 +112,7 @@ impl<T> PixelBuffer<T> {
             color_attachment_size.x,
             color_attachment_size.y,
         );
-        let self_bytes_count = self.pixel_count * size_of::<T>();
+        let self_bytes_count = self.pixel_count * self.pixel_size;
         if actual_size != self_bytes_count {
             return Err(FrameworkError::Custom(format!(
                 "Pixel buffer size {} does not match the size {} of the color \
@@ -164,24 +170,23 @@ impl<T> PixelBuffer<T> {
         }
     }
 
-    pub fn is_request_running(&self) -> bool {
+    fn is_request_running(&self) -> bool {
         self.request.is_some()
     }
 
-    pub fn try_read(&mut self, server: &GlGraphicsServer) -> Option<Vec<T>>
-    where
-        T: Pod + Default + Copy,
-    {
+    fn try_read(&mut self) -> Option<Vec<u8>> {
+        let server = self.server.upgrade()?;
+
         let request = self.request.as_ref()?;
 
-        let mut buffer = vec![T::default(); self.pixel_count];
+        let mut buffer = vec![0; self.pixel_count * self.pixel_size];
 
         unsafe {
             // For some reason, glGetSynciv still blocks execution and produces GPU stall, ruining
             // the performance. glClientWaitSync with timeout=0 does not have this issue.
             let fence_state = server.gl.client_wait_sync(request.fence, 0, 0);
             if fence_state != glow::TIMEOUT_EXPIRED && fence_state != glow::WAIT_FAILED {
-                self.read_internal(&mut buffer);
+                self.buffer.read_data(&mut buffer).unwrap();
 
                 server.gl.delete_sync(request.fence);
                 self.request = None;
@@ -191,13 +196,5 @@ impl<T> PixelBuffer<T> {
                 None
             }
         }
-    }
-
-    fn read_internal(&self, buffer: &mut [T])
-    where
-        T: Pod,
-    {
-        let gl_buffer = &self.buffer as &dyn Buffer;
-        gl_buffer.read_data_of_type(buffer).unwrap()
     }
 }
