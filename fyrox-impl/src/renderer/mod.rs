@@ -1615,8 +1615,7 @@ impl Renderer {
             }
 
             // Render debug geometry in the LDR frame buffer.
-            self.debug_renderer
-                .set_lines(server, &scene.drawing_context.lines);
+            self.debug_renderer.set_lines(&scene.drawing_context.lines);
             scene_associated_data.statistics += self.debug_renderer.render(
                 &**server,
                 &mut self.uniform_buffer_cache,

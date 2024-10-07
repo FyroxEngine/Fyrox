@@ -318,7 +318,7 @@ impl FrameBuffer for GlFrameBuffer {
 
         pre_draw(self.id(), &server, viewport, program, params, resources);
 
-        geometry.bind(&server).draw(element_range)
+        geometry.draw(element_range)
     }
 
     fn draw_instances(
@@ -334,7 +334,7 @@ impl FrameBuffer for GlFrameBuffer {
 
         pre_draw(self.id(), &server, viewport, program, params, resources);
 
-        geometry.bind(&server).draw_instances(count)
+        geometry.draw_instances(count)
     }
 }
 

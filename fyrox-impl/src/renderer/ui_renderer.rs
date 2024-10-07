@@ -176,9 +176,8 @@ impl UiRenderer {
 
         self.geometry_buffer
             .set_buffer_data(0, drawing_context.get_vertices());
-
-        let geometry_buffer = self.geometry_buffer.bind(server);
-        geometry_buffer.set_triangles(drawing_context.get_triangles());
+        self.geometry_buffer
+            .set_triangles(drawing_context.get_triangles());
 
         let ortho = Matrix4::new_orthographic(0.0, frame_width, frame_height, 0.0, -1.0, 1.0);
         let resolution = Vector2::new(frame_width, frame_height);
@@ -211,7 +210,6 @@ impl UiRenderer {
                 self.clipping_geometry_buffer
                     .set_buffer_data(0, &clipping_geometry.vertex_buffer);
                 self.clipping_geometry_buffer
-                    .bind(server)
                     .set_triangles(&clipping_geometry.triangle_buffer);
 
                 let uniform_buffer = uniform_buffer_cache

@@ -91,7 +91,6 @@ impl GeometryCache {
                         // Triangles has changed, upload the new content.
                         entry
                             .buffer
-                            .bind(server)
                             .set_triangles(data.geometry_buffer.triangles_ref());
 
                         entry.triangles_modifications_count =

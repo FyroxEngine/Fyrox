@@ -130,7 +130,7 @@ impl DebugRenderer {
     }
 
     /// Uploads the new set of lines to GPU.
-    pub fn set_lines(&mut self, server: &GlGraphicsServer, lines: &[Line]) {
+    pub fn set_lines(&mut self, lines: &[Line]) {
         self.vertices.clear();
         self.line_indices.clear();
 
@@ -149,7 +149,7 @@ impl DebugRenderer {
             i += 2;
         }
         self.geometry.set_buffer_data(0, &self.vertices);
-        self.geometry.bind(server).set_lines(&self.line_indices);
+        self.geometry.set_lines(&self.line_indices);
     }
 
     pub(crate) fn render(

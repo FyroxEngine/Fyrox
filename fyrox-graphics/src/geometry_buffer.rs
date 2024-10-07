@@ -18,13 +18,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::gl::server::GlGraphicsServer;
-use crate::gl::ToGlConstant;
 use crate::{
     buffer::{Buffer, BufferKind, BufferUsage},
     core::{array_as_u8_slice, math::TriangleDefinition},
     error::FrameworkError,
-    gl::buffer::GlBuffer,
+    gl::{buffer::GlBuffer, server::GlGraphicsServer, ToGlConstant},
     ElementKind, ElementRange,
 };
 use glow::HasContext;
@@ -146,56 +144,79 @@ impl AttributeKind {
     }
 }
 
-pub struct GeometryBufferBinding<'a> {
-    state: &'a GlGraphicsServer,
-    buffer: &'a GeometryBuffer,
-}
-
 #[derive(Debug, Copy, Clone, Default)]
 pub struct DrawCallStatistics {
     pub triangles: usize,
 }
 
-impl<'a> GeometryBufferBinding<'a> {
-    pub fn set_triangles(self, triangles: &[TriangleDefinition]) -> Self {
-        assert_eq!(self.buffer.element_kind, ElementKind::Triangle);
-        self.buffer.element_count.set(triangles.len());
-        self.set_elements(array_as_u8_slice(triangles));
-        self
+impl GeometryBuffer {
+    pub fn set_buffer_data<T: bytemuck::Pod>(&mut self, buffer: usize, data: &[T]) {
+        self.state
+            .upgrade()
+            .unwrap()
+            .set_vertex_array_object(Some(self.vertex_array_object));
+        self.buffers[buffer]
+            .write_data(array_as_u8_slice(data))
+            .unwrap();
     }
 
-    pub fn set_lines(self, lines: &[[u32; 2]]) -> Self {
-        assert_eq!(self.buffer.element_kind, ElementKind::Line);
-        self.buffer.element_count.set(lines.len());
+    pub fn element_count(&self) -> usize {
+        self.element_count.get()
+    }
+
+    pub fn set_triangles(&self, triangles: &[TriangleDefinition]) {
+        assert_eq!(self.element_kind, ElementKind::Triangle);
+        self.element_count.set(triangles.len());
+        self.set_elements(array_as_u8_slice(triangles));
+    }
+
+    pub fn set_lines(&self, lines: &[[u32; 2]]) {
+        assert_eq!(self.element_kind, ElementKind::Line);
+        self.element_count.set(lines.len());
         self.set_elements(array_as_u8_slice(lines));
-        self
     }
 
     fn set_elements(&self, data: &[u8]) {
-        self.buffer.element_buffer.write_data(data).unwrap()
+        self.state
+            .upgrade()
+            .unwrap()
+            .set_vertex_array_object(Some(self.vertex_array_object));
+        self.element_buffer.write_data(data).unwrap()
     }
 
     pub fn draw(&self, element_range: ElementRange) -> Result<DrawCallStatistics, FrameworkError> {
+        let server = self.state.upgrade().unwrap();
+
         let (offset, count) = match element_range {
-            ElementRange::Full => (0, self.buffer.element_count.get()),
+            ElementRange::Full => (0, self.element_count.get()),
             ElementRange::Specific { offset, count } => (offset, count),
         };
 
         let last_triangle_index = offset + count;
 
-        if last_triangle_index > self.buffer.element_count.get() {
+        if last_triangle_index > self.element_count.get() {
             Err(FrameworkError::InvalidElementRange {
                 start: offset,
                 end: last_triangle_index,
-                total: self.buffer.element_count.get(),
+                total: self.element_count.get(),
             })
         } else {
-            let index_per_element = self.buffer.element_kind.index_per_element();
+            let index_per_element = self.element_kind.index_per_element();
             let start_index = offset * index_per_element;
             let index_count = count * index_per_element;
 
             unsafe {
-                self.draw_internal(start_index, index_count);
+                if index_count > 0 {
+                    server.set_vertex_array_object(Some(self.vertex_array_object));
+
+                    let indices = (start_index * size_of::<u32>()) as i32;
+                    server.gl.draw_elements(
+                        self.mode(),
+                        index_count as i32,
+                        glow::UNSIGNED_INT,
+                        indices,
+                    );
+                }
             }
 
             Ok(DrawCallStatistics { triangles: count })
@@ -203,31 +224,23 @@ impl<'a> GeometryBufferBinding<'a> {
     }
 
     fn mode(&self) -> u32 {
-        match self.buffer.element_kind {
+        match self.element_kind {
             ElementKind::Triangle => glow::TRIANGLES,
             ElementKind::Line => glow::LINES,
             ElementKind::Point => glow::POINTS,
         }
     }
 
-    unsafe fn draw_internal(&self, start_index: usize, index_count: usize) {
-        if index_count > 0 {
-            let indices = (start_index * size_of::<u32>()) as i32;
-            self.state.gl.draw_elements(
-                self.mode(),
-                index_count as i32,
-                glow::UNSIGNED_INT,
-                indices,
-            );
-        }
-    }
-
     pub fn draw_instances(&self, count: usize) -> DrawCallStatistics {
-        let index_per_element = self.buffer.element_kind.index_per_element();
-        let index_count = self.buffer.element_count.get() * index_per_element;
+        let server = self.state.upgrade().unwrap();
+
+        let index_per_element = self.element_kind.index_per_element();
+        let index_count = self.element_count.get() * index_per_element;
         if index_count > 0 {
             unsafe {
-                self.state.gl.draw_elements_instanced(
+                server.set_vertex_array_object(Some(self.vertex_array_object));
+
+                server.gl.draw_elements_instanced(
                     self.mode(),
                     index_count as i32,
                     glow::UNSIGNED_INT,
@@ -237,29 +250,8 @@ impl<'a> GeometryBufferBinding<'a> {
             }
         }
         DrawCallStatistics {
-            triangles: self.buffer.element_count.get() * count,
+            triangles: self.element_count.get() * count,
         }
-    }
-}
-
-impl GeometryBuffer {
-    pub fn set_buffer_data<T: bytemuck::Pod>(&mut self, buffer: usize, data: &[T]) {
-        self.buffers[buffer]
-            .write_data(array_as_u8_slice(data))
-            .unwrap();
-    }
-
-    pub fn bind<'a>(&'a self, state: &'a GlGraphicsServer) -> GeometryBufferBinding<'a> {
-        state.set_vertex_array_object(Some(self.vertex_array_object));
-
-        GeometryBufferBinding {
-            state,
-            buffer: self,
-        }
-    }
-
-    pub fn element_count(&self) -> usize {
-        self.element_count.get()
     }
 }
 

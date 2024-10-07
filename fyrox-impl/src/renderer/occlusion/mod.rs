@@ -303,7 +303,6 @@ impl OcclusionTester {
 
     fn prepare_tiles(
         &mut self,
-        server: &GlGraphicsServer,
         graph: &Graph,
         viewport: &Rect<i32>,
         debug_renderer: Option<&mut DebugRenderer>,
@@ -352,7 +351,7 @@ impl OcclusionTester {
                 );
             }
 
-            debug_renderer.set_lines(server, &lines);
+            debug_renderer.set_lines(&lines);
         }
 
         self.tile_buffer.borrow_mut().set_data(
@@ -443,7 +442,7 @@ impl OcclusionTester {
         self.framebuffer
             .clear(viewport, Some(Color::TRANSPARENT), None, None);
 
-        self.prepare_tiles(server, graph, &viewport, debug_renderer)?;
+        self.prepare_tiles(graph, &viewport, debug_renderer)?;
 
         self.matrix_storage
             .upload(self.objects_to_test.iter().filter_map(|h| {

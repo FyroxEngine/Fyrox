@@ -202,9 +202,7 @@ impl GeometryBufferExt for GeometryBuffer {
             ))
             .build(server)?;
 
-        geometry_buffer
-            .bind(server)
-            .set_triangles(data.geometry_buffer.triangles_ref());
+        geometry_buffer.set_triangles(data.geometry_buffer.triangles_ref());
 
         Ok(geometry_buffer)
     }
