@@ -90,7 +90,7 @@ use crate::{
             watcher::FileSystemWatcher,
             TypeUuidProvider,
         },
-        dpi::{LogicalSize, PhysicalPosition},
+        dpi::{PhysicalPosition, PhysicalSize},
         engine::{Engine, EngineInitParams, GraphicsContextParams, SerializationContext},
         event::{Event, WindowEvent},
         event_loop::{EventLoop, EventLoopWindowTarget},
@@ -561,7 +561,7 @@ impl Editor {
             )),
         }
 
-        let inner_size = LogicalSize::new(
+        let inner_size = PhysicalSize::new(
             settings.windows.window_size.x,
             settings.windows.window_size.y,
         );
