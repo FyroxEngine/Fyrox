@@ -44,103 +44,35 @@ pub struct GeometryBuffer {
 #[allow(dead_code)]
 pub enum AttributeKind {
     Float,
-    Float2,
-    Float3,
-    Float4,
-
     UnsignedByte,
-    UnsignedByte2,
-    UnsignedByte3,
-    UnsignedByte4,
-
     UnsignedShort,
-    UnsignedShort2,
-    UnsignedShort3,
-    UnsignedShort4,
-
     UnsignedInt,
-    UnsignedInt2,
-    UnsignedInt3,
-    UnsignedInt4,
 }
 
 pub struct AttributeDefinition {
     pub location: u32,
     pub kind: AttributeKind,
+    pub component_count: usize,
     pub normalized: bool,
     pub divisor: u32,
 }
 
 impl AttributeKind {
-    pub fn size_bytes(self) -> usize {
+    pub fn size(self) -> usize {
         match self {
             AttributeKind::Float => size_of::<f32>(),
-            AttributeKind::Float2 => size_of::<f32>() * 2,
-            AttributeKind::Float3 => size_of::<f32>() * 3,
-            AttributeKind::Float4 => size_of::<f32>() * 4,
-
             AttributeKind::UnsignedByte => size_of::<u8>(),
-            AttributeKind::UnsignedByte2 => size_of::<u8>() * 2,
-            AttributeKind::UnsignedByte3 => size_of::<u8>() * 3,
-            AttributeKind::UnsignedByte4 => size_of::<u8>() * 4,
-
             AttributeKind::UnsignedShort => size_of::<u16>(),
-            AttributeKind::UnsignedShort2 => size_of::<u16>() * 2,
-            AttributeKind::UnsignedShort3 => size_of::<u16>() * 3,
-            AttributeKind::UnsignedShort4 => size_of::<u16>() * 4,
-
             AttributeKind::UnsignedInt => size_of::<u32>(),
-            AttributeKind::UnsignedInt2 => size_of::<u32>() * 2,
-            AttributeKind::UnsignedInt3 => size_of::<u32>() * 3,
-            AttributeKind::UnsignedInt4 => size_of::<u32>() * 4,
         }
     }
 
-    fn get_type(self) -> u32 {
+    fn gl_type(self) -> u32 {
         match self {
-            AttributeKind::Float
-            | AttributeKind::Float2
-            | AttributeKind::Float3
-            | AttributeKind::Float4 => glow::FLOAT,
-
-            AttributeKind::UnsignedByte
-            | AttributeKind::UnsignedByte2
-            | AttributeKind::UnsignedByte3
-            | AttributeKind::UnsignedByte4 => glow::UNSIGNED_BYTE,
-
-            AttributeKind::UnsignedShort
-            | AttributeKind::UnsignedShort2
-            | AttributeKind::UnsignedShort3
-            | AttributeKind::UnsignedShort4 => glow::UNSIGNED_SHORT,
-
-            AttributeKind::UnsignedInt
-            | AttributeKind::UnsignedInt2
-            | AttributeKind::UnsignedInt3
-            | AttributeKind::UnsignedInt4 => glow::UNSIGNED_INT,
-        }
-    }
-
-    fn length(self) -> usize {
-        match self {
-            AttributeKind::Float
-            | AttributeKind::UnsignedByte
-            | AttributeKind::UnsignedShort
-            | AttributeKind::UnsignedInt => 1,
-
-            AttributeKind::Float2
-            | AttributeKind::UnsignedByte2
-            | AttributeKind::UnsignedShort2
-            | AttributeKind::UnsignedInt2 => 2,
-
-            AttributeKind::Float3
-            | AttributeKind::UnsignedByte3
-            | AttributeKind::UnsignedShort3
-            | AttributeKind::UnsignedInt3 => 3,
-
-            AttributeKind::Float4
-            | AttributeKind::UnsignedByte4
-            | AttributeKind::UnsignedShort4
-            | AttributeKind::UnsignedInt4 => 4,
+            AttributeKind::Float => glow::FLOAT,
+            AttributeKind::UnsignedByte => glow::UNSIGNED_BYTE,
+            AttributeKind::UnsignedShort => glow::UNSIGNED_SHORT,
+            AttributeKind::UnsignedInt => glow::UNSIGNED_INT,
         }
     }
 }
@@ -205,8 +137,8 @@ impl GeometryBuffer {
                 for definition in buffer.attributes {
                     server.gl.vertex_attrib_pointer_f32(
                         definition.location,
-                        definition.kind.length() as i32,
-                        definition.kind.get_type(),
+                        definition.component_count as i32,
+                        definition.kind.gl_type(),
                         definition.normalized,
                         buffer.data.element_size as i32,
                         offset as i32,
@@ -216,7 +148,7 @@ impl GeometryBuffer {
                         .vertex_attrib_divisor(definition.location, definition.divisor);
                     server.gl.enable_vertex_attrib_array(definition.location);
 
-                    offset += definition.kind.size_bytes();
+                    offset += definition.kind.size() * definition.component_count;
 
                     if offset > buffer.data.element_size {
                         return Err(FrameworkError::InvalidAttributeDescriptor);

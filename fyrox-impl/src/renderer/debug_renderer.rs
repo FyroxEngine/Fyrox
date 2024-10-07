@@ -111,12 +111,14 @@ impl DebugRenderer {
                     AttributeDefinition {
                         location: 0,
                         divisor: 0,
-                        kind: AttributeKind::Float3,
+                        kind: AttributeKind::Float,
+                        component_count: 3,
                         normalized: false,
                     },
                     AttributeDefinition {
                         location: 1,
-                        kind: AttributeKind::UnsignedByte4,
+                        kind: AttributeKind::UnsignedByte,
+                        component_count: 4,
                         normalized: true,
                         divisor: 0,
                     },

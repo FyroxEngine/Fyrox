@@ -116,19 +116,22 @@ impl UiRenderer {
                 attributes: &[
                     AttributeDefinition {
                         location: 0,
-                        kind: AttributeKind::Float2,
+                        kind: AttributeKind::Float,
+                        component_count: 2,
                         normalized: false,
                         divisor: 0,
                     },
                     AttributeDefinition {
                         location: 1,
-                        kind: AttributeKind::Float2,
+                        kind: AttributeKind::Float,
+                        component_count: 2,
                         normalized: false,
                         divisor: 0,
                     },
                     AttributeDefinition {
                         location: 2,
-                        kind: AttributeKind::UnsignedByte4,
+                        kind: AttributeKind::UnsignedByte,
+                        component_count: 4,
                         normalized: true, // Make sure [0; 255] -> [0; 1]
                         divisor: 0,
                     },
@@ -145,7 +148,8 @@ impl UiRenderer {
                     // We're interested only in position. Fragment shader won't run for clipping geometry anyway.
                     AttributeDefinition {
                         location: 0,
-                        kind: AttributeKind::Float2,
+                        kind: AttributeKind::Float,
+                        component_count: 2,
                         normalized: false,
                         divisor: 0,
                     },
