@@ -20,7 +20,6 @@
 
 //! See [`UiRenderer`] docs.
 
-use crate::renderer::flat_shader::FlatShader;
 use crate::{
     asset::untyped::ResourceKind,
     core::{
@@ -35,17 +34,17 @@ use crate::{
     },
     renderer::{
         cache::uniform::UniformBufferCache,
+        flat_shader::FlatShader,
         framework::{
             buffer::BufferUsage,
             error::FrameworkError,
-            framebuffer::FrameBuffer,
-            geometry_buffer::{
-                AttributeDefinition, AttributeKind, BufferBuilder, GeometryBuffer,
-                GeometryBufferBuilder,
-            },
+            framebuffer::{FrameBuffer, ResourceBindGroup, ResourceBinding},
+            geometry_buffer::{AttributeDefinition, AttributeKind, GeometryBuffer},
             gl::server::GlGraphicsServer,
             gpu_program::{GpuProgram, UniformLocation},
             gpu_texture::GpuTexture,
+            server::GraphicsServer,
+            uniform::StaticUniformBuffer,
             BlendFactor, BlendFunc, BlendParameters, ColorMask, CompareFunc, DrawParameters,
             ElementKind, ElementRange, ScissorBox, StencilAction, StencilFunc, StencilOp,
         },
@@ -53,9 +52,9 @@ use crate::{
     },
     resource::texture::{Texture, TextureKind, TexturePixelKind, TextureResource},
 };
-use fyrox_graphics::framebuffer::{ResourceBindGroup, ResourceBinding};
-use fyrox_graphics::server::GraphicsServer;
-use fyrox_graphics::uniform::StaticUniformBuffer;
+use fyrox_graphics::geometry_buffer::{
+    GeometryBufferDescriptor, VertexBufferData, VertexBufferDescriptor,
+};
 use std::{cell::RefCell, rc::Rc};
 
 struct UiShader {
@@ -110,46 +109,54 @@ pub struct UiRenderContext<'a, 'b, 'c> {
 
 impl UiRenderer {
     pub(in crate::renderer) fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
-        let geometry_buffer = GeometryBufferBuilder::new(ElementKind::Triangle)
-            .with_buffer_builder(
-                BufferBuilder::new::<crate::gui::draw::Vertex>(BufferUsage::DynamicDraw, None)
-                    .with_attribute(AttributeDefinition {
+        let geometry_buffer_desc = GeometryBufferDescriptor {
+            element_kind: ElementKind::Triangle,
+            buffers: &[VertexBufferDescriptor {
+                usage: BufferUsage::DynamicDraw,
+                attributes: &[
+                    AttributeDefinition {
                         location: 0,
                         kind: AttributeKind::Float2,
                         normalized: false,
                         divisor: 0,
-                    })
-                    .with_attribute(AttributeDefinition {
+                    },
+                    AttributeDefinition {
                         location: 1,
                         kind: AttributeKind::Float2,
                         normalized: false,
                         divisor: 0,
-                    })
-                    .with_attribute(AttributeDefinition {
+                    },
+                    AttributeDefinition {
                         location: 2,
                         kind: AttributeKind::UnsignedByte4,
                         normalized: true, // Make sure [0; 255] -> [0; 1]
                         divisor: 0,
-                    }),
-            )
-            .build(server)?;
+                    },
+                ],
+                data: VertexBufferData::new::<crate::gui::draw::Vertex>(None),
+            }],
+        };
 
-        let clipping_geometry_buffer = GeometryBufferBuilder::new(ElementKind::Triangle)
-            .with_buffer_builder(
-                BufferBuilder::new::<crate::gui::draw::Vertex>(BufferUsage::DynamicDraw, None)
+        let clipping_geometry_buffer_desc = GeometryBufferDescriptor {
+            element_kind: ElementKind::Triangle,
+            buffers: &[VertexBufferDescriptor {
+                usage: BufferUsage::DynamicDraw,
+                attributes: &[
                     // We're interested only in position. Fragment shader won't run for clipping geometry anyway.
-                    .with_attribute(AttributeDefinition {
+                    AttributeDefinition {
                         location: 0,
                         kind: AttributeKind::Float2,
                         normalized: false,
                         divisor: 0,
-                    }),
-            )
-            .build(server)?;
+                    },
+                ],
+                data: VertexBufferData::new::<crate::gui::draw::Vertex>(None),
+            }],
+        };
 
         Ok(Self {
-            geometry_buffer,
-            clipping_geometry_buffer,
+            geometry_buffer: GeometryBuffer::new(server, geometry_buffer_desc)?,
+            clipping_geometry_buffer: GeometryBuffer::new(server, clipping_geometry_buffer_desc)?,
             shader: UiShader::new(server)?,
         })
     }

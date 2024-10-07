@@ -25,6 +25,7 @@ use crate::{
     gl::{buffer::GlBuffer, server::GlGraphicsServer, ToGlConstant},
     ElementKind, ElementRange,
 };
+use bytemuck::Pod;
 use glow::HasContext;
 use std::{cell::Cell, marker::PhantomData, mem::size_of, rc::Weak};
 
@@ -149,7 +150,96 @@ pub struct DrawCallStatistics {
     pub triangles: usize,
 }
 
+pub struct VertexBufferData<'a> {
+    pub element_size: usize,
+    pub bytes: Option<&'a [u8]>,
+}
+
+impl<'a> VertexBufferData<'a> {
+    pub fn new<T: Pod>(vertices: Option<&'a [T]>) -> Self {
+        Self {
+            element_size: size_of::<T>(),
+            bytes: vertices.map(|v| array_as_u8_slice(v)),
+        }
+    }
+}
+
+pub struct VertexBufferDescriptor<'a> {
+    pub usage: BufferUsage,
+    pub attributes: &'a [AttributeDefinition],
+    pub data: VertexBufferData<'a>,
+}
+
+pub struct GeometryBufferDescriptor<'a> {
+    pub element_kind: ElementKind,
+    pub buffers: &'a [VertexBufferDescriptor<'a>],
+}
+
 impl GeometryBuffer {
+    pub fn new(
+        server: &GlGraphicsServer,
+        desc: GeometryBufferDescriptor,
+    ) -> Result<Self, FrameworkError> {
+        let vao = unsafe { server.gl.create_vertex_array()? };
+
+        server.set_vertex_array_object(Some(vao));
+
+        let element_buffer = GlBuffer::new(server, 0, BufferKind::Index, BufferUsage::StaticDraw)?;
+
+        let mut buffers = Vec::new();
+        for buffer in desc.buffers {
+            unsafe {
+                let data_size = buffer.data.bytes.map(|bytes| bytes.len()).unwrap_or(0);
+
+                let native_buffer =
+                    GlBuffer::new(server, data_size, BufferKind::Vertex, buffer.usage)?;
+
+                if let Some(data) = buffer.data.bytes {
+                    native_buffer.write_data(data)?;
+                }
+
+                let target = native_buffer.kind.into_gl();
+                server.gl.bind_buffer(target, Some(native_buffer.id));
+
+                let mut offset = 0usize;
+                for definition in buffer.attributes {
+                    server.gl.vertex_attrib_pointer_f32(
+                        definition.location,
+                        definition.kind.length() as i32,
+                        definition.kind.get_type(),
+                        definition.normalized,
+                        buffer.data.element_size as i32,
+                        offset as i32,
+                    );
+                    server
+                        .gl
+                        .vertex_attrib_divisor(definition.location, definition.divisor);
+                    server.gl.enable_vertex_attrib_array(definition.location);
+
+                    offset += definition.kind.size_bytes();
+
+                    if offset > buffer.data.element_size {
+                        return Err(FrameworkError::InvalidAttributeDescriptor);
+                    }
+                }
+
+                buffers.push(native_buffer);
+            }
+        }
+
+        server.set_vertex_array_object(None);
+
+        Ok(GeometryBuffer {
+            state: server.weak(),
+            vertex_array_object: vao,
+            buffers,
+            element_buffer,
+            element_count: Cell::new(0),
+            element_kind: desc.element_kind,
+            thread_mark: PhantomData,
+        })
+    }
+
     pub fn set_buffer_data<T: bytemuck::Pod>(&mut self, buffer: usize, data: &[T]) {
         self.state
             .upgrade()
@@ -263,118 +353,5 @@ impl Drop for GeometryBuffer {
                 state.gl.delete_vertex_array(self.vertex_array_object);
             }
         }
-    }
-}
-
-pub struct BufferBuilder {
-    pub element_size: usize,
-    pub usage: BufferUsage,
-    pub attributes: Vec<AttributeDefinition>,
-    pub data: *const u8,
-    pub data_size: usize,
-}
-
-impl BufferBuilder {
-    pub fn new<T: Sized>(usage: BufferUsage, data: Option<&[T]>) -> Self {
-        let (data, data_size) = if let Some(data) = data {
-            (data as *const _ as *const u8, std::mem::size_of_val(data))
-        } else {
-            (std::ptr::null(), 0)
-        };
-
-        Self {
-            usage,
-            attributes: Default::default(),
-            element_size: size_of::<T>(),
-            data,
-            data_size,
-        }
-    }
-
-    pub fn with_attribute(mut self, attribute: AttributeDefinition) -> Self {
-        self.attributes.push(attribute);
-        self
-    }
-
-    fn build(self, server: &GlGraphicsServer) -> Result<GlBuffer, FrameworkError> {
-        unsafe {
-            let native_buffer =
-                GlBuffer::new(server, self.data_size, BufferKind::Vertex, self.usage)?;
-            if self.data_size > 0 {
-                let data = std::slice::from_raw_parts(self.data, self.data_size);
-                native_buffer.write_data(data)?;
-            }
-
-            let target = native_buffer.kind.into_gl();
-            server.gl.bind_buffer(target, Some(native_buffer.id));
-
-            let mut offset = 0usize;
-            for definition in self.attributes {
-                server.gl.vertex_attrib_pointer_f32(
-                    definition.location,
-                    definition.kind.length() as i32,
-                    definition.kind.get_type(),
-                    definition.normalized,
-                    self.element_size as i32,
-                    offset as i32,
-                );
-                server
-                    .gl
-                    .vertex_attrib_divisor(definition.location, definition.divisor);
-                server.gl.enable_vertex_attrib_array(definition.location);
-
-                offset += definition.kind.size_bytes();
-
-                if offset > self.element_size {
-                    return Err(FrameworkError::InvalidAttributeDescriptor);
-                }
-            }
-
-            Ok(native_buffer)
-        }
-    }
-}
-
-pub struct GeometryBufferBuilder {
-    element_kind: ElementKind,
-    buffers: Vec<BufferBuilder>,
-}
-
-impl GeometryBufferBuilder {
-    pub fn new(element_kind: ElementKind) -> Self {
-        Self {
-            element_kind,
-            buffers: Default::default(),
-        }
-    }
-
-    pub fn with_buffer_builder(mut self, builder: BufferBuilder) -> Self {
-        self.buffers.push(builder);
-        self
-    }
-
-    pub fn build(self, server: &GlGraphicsServer) -> Result<GeometryBuffer, FrameworkError> {
-        let vao = unsafe { server.gl.create_vertex_array()? };
-
-        server.set_vertex_array_object(Some(vao));
-
-        let element_buffer = GlBuffer::new(server, 0, BufferKind::Index, BufferUsage::StaticDraw)?;
-
-        let mut buffers = Vec::new();
-        for builder in self.buffers {
-            buffers.push(builder.build(server)?);
-        }
-
-        server.set_vertex_array_object(None);
-
-        Ok(GeometryBuffer {
-            state: server.weak(),
-            vertex_array_object: vao,
-            buffers,
-            element_buffer,
-            element_count: Cell::new(0),
-            element_kind: self.element_kind,
-            thread_mark: PhantomData,
-        })
     }
 }

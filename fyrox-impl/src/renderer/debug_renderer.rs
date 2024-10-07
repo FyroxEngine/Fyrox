@@ -36,10 +36,7 @@ use crate::{
             buffer::BufferUsage,
             error::FrameworkError,
             framebuffer::{FrameBuffer, ResourceBindGroup, ResourceBinding},
-            geometry_buffer::{
-                AttributeDefinition, AttributeKind, BufferBuilder, GeometryBuffer,
-                GeometryBufferBuilder,
-            },
+            geometry_buffer::{AttributeDefinition, AttributeKind, GeometryBuffer},
             gl::server::GlGraphicsServer,
             gpu_program::GpuProgram,
             server::GraphicsServer,
@@ -51,6 +48,9 @@ use crate::{
     scene::debug::Line,
 };
 use bytemuck::{Pod, Zeroable};
+use fyrox_graphics::geometry_buffer::{
+    GeometryBufferDescriptor, VertexBufferData, VertexBufferDescriptor,
+};
 
 #[repr(C)]
 #[derive(Copy, Pod, Zeroable, Clone)]
@@ -103,26 +103,30 @@ impl DebugShader {
 
 impl DebugRenderer {
     pub(crate) fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
-        let geometry = GeometryBufferBuilder::new(ElementKind::Line)
-            .with_buffer_builder(
-                BufferBuilder::new::<Vertex>(BufferUsage::DynamicDraw, None)
-                    .with_attribute(AttributeDefinition {
+        let desc = GeometryBufferDescriptor {
+            element_kind: ElementKind::Line,
+            buffers: &[VertexBufferDescriptor {
+                usage: BufferUsage::DynamicDraw,
+                attributes: &[
+                    AttributeDefinition {
                         location: 0,
                         divisor: 0,
                         kind: AttributeKind::Float3,
                         normalized: false,
-                    })
-                    .with_attribute(AttributeDefinition {
+                    },
+                    AttributeDefinition {
                         location: 1,
                         kind: AttributeKind::UnsignedByte4,
                         normalized: true,
                         divisor: 0,
-                    }),
-            )
-            .build(server)?;
+                    },
+                ],
+                data: VertexBufferData::new::<Vertex>(None),
+            }],
+        };
 
         Ok(Self {
-            geometry,
+            geometry: GeometryBuffer::new(server, desc)?,
             shader: DebugShader::new(server)?,
             vertices: Default::default(),
             line_indices: Default::default(),
