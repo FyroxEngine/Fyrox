@@ -86,6 +86,8 @@ pub fn make_arrow_non_uniform_size(
     VectorImageBuilder::new(
         WidgetBuilder::new()
             .with_foreground(BRUSH_BRIGHT)
+            .with_width(width)
+            .with_height(height)
             .with_horizontal_alignment(HorizontalAlignment::Center)
             .with_vertical_alignment(VerticalAlignment::Center),
     )
@@ -125,6 +127,8 @@ pub fn make_cross(ctx: &mut BuildContext, size: f32, thickness: f32) -> Handle<U
         WidgetBuilder::new()
             .with_horizontal_alignment(HorizontalAlignment::Center)
             .with_vertical_alignment(VerticalAlignment::Center)
+            .with_width(size)
+            .with_height(size)
             .with_foreground(BRUSH_BRIGHT),
     )
     .with_primitives(make_cross_primitive(size, thickness))

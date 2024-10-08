@@ -955,6 +955,8 @@ impl<'a, 'b> MenuItemBuilder<'a, 'b> {
                                 .with_visibility(!self.items.is_empty())
                                 .on_row(1)
                                 .on_column(3)
+                                .with_width(8.0)
+                                .with_height(8.0)
                                 .with_foreground(BRUSH_BRIGHT)
                                 .with_horizontal_alignment(HorizontalAlignment::Center)
                                 .with_vertical_alignment(VerticalAlignment::Center),

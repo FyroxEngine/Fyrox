@@ -331,20 +331,23 @@ impl CheckBoxBuilder {
     /// Finishes check box building and adds it to the user interface.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let check_mark = self.check_mark.unwrap_or_else(|| {
+            let size = 7.0;
+            let half_size = size * 0.5;
+
             BorderBuilder::new(
                 WidgetBuilder::new()
                     .with_background(BRUSH_BRIGHT_BLUE)
                     .with_child(
                         VectorImageBuilder::new(
                             WidgetBuilder::new()
-                                .with_margin(Thickness::uniform(3.0))
                                 .with_vertical_alignment(VerticalAlignment::Center)
                                 .with_horizontal_alignment(HorizontalAlignment::Center)
+                                // Give some padding to ensure primitives don't get too cut off
+                                .with_width(size + 1.0)
+                                .with_height(size + 1.0)
                                 .with_foreground(BRUSH_TEXT),
                         )
                         .with_primitives({
-                            let size = 8.0;
-                            let half_size = size * 0.5;
                             vec![
                                 Primitive::Line {
                                     begin: Vector2::new(0.0, half_size),
