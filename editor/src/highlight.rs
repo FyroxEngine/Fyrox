@@ -130,7 +130,7 @@ void main()
 
 pub struct HighlightRenderPass {
     framebuffer: Box<dyn FrameBuffer>,
-    quad: GeometryBuffer,
+    quad: Box<dyn GeometryBuffer>,
     edge_detect_shader: EdgeDetectShader,
     pub scene_handle: Handle<Scene>,
     pub nodes_to_highlight: FxHashSet<Handle<Node>>,
@@ -193,7 +193,7 @@ impl HighlightRenderPass {
     pub fn new_raw(server: &GlGraphicsServer, width: usize, height: usize) -> Self {
         Self {
             framebuffer: Self::create_frame_buffer(server, width, height),
-            quad: GeometryBuffer::from_surface_data(
+            quad: <dyn GeometryBuffer>::from_surface_data(
                 &SurfaceData::make_unit_xy_quad(),
                 BufferUsage::StaticDraw,
                 server,
@@ -315,7 +315,7 @@ impl SceneRenderPass for HighlightRenderPass {
             let shader = &self.edge_detect_shader;
             let frame_texture = self.framebuffer.color_attachments()[0].texture.clone();
             ctx.framebuffer.draw(
-                &self.quad,
+                &*self.quad,
                 ctx.viewport,
                 &*shader.program,
                 &DrawParameters {

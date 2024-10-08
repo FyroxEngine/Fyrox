@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::geometry_buffer::{GeometryBuffer, GeometryBufferDescriptor};
+use crate::gl::geometry_buffer::GlGeometryBuffer;
 use crate::gl::program::GlProgram;
 use crate::gl::read_buffer::GlAsyncReadBuffer;
 use crate::gl::ToGlConstant;
@@ -1143,6 +1145,13 @@ impl GraphicsServer for GlGraphicsServer {
             pixel_size,
             pixel_count,
         )?))
+    }
+
+    fn create_geometry_buffer(
+        &self,
+        desc: GeometryBufferDescriptor,
+    ) -> Result<Box<dyn GeometryBuffer>, FrameworkError> {
+        Ok(Box::new(GlGeometryBuffer::new(self, desc)?))
     }
 
     fn as_any(&self) -> &dyn Any {

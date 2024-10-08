@@ -95,7 +95,7 @@ pub trait FrameBuffer: Any {
     );
     fn draw(
         &mut self,
-        geometry: &GeometryBuffer,
+        geometry: &dyn GeometryBuffer,
         viewport: Rect<i32>,
         program: &dyn GpuProgram,
         params: &DrawParameters,
@@ -105,7 +105,7 @@ pub trait FrameBuffer: Any {
     fn draw_instances(
         &mut self,
         count: usize,
-        geometry: &GeometryBuffer,
+        geometry: &dyn GeometryBuffer,
         viewport: Rect<i32>,
         program: &dyn GpuProgram,
         params: &DrawParameters,

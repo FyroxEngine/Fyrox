@@ -79,8 +79,8 @@ impl UiShader {
 /// User interface renderer allows you to render drawing context in specified render target.
 pub struct UiRenderer {
     shader: UiShader,
-    geometry_buffer: GeometryBuffer,
-    clipping_geometry_buffer: GeometryBuffer,
+    geometry_buffer: Box<dyn GeometryBuffer>,
+    clipping_geometry_buffer: Box<dyn GeometryBuffer>,
 }
 
 /// A set of parameters to render a specified user interface drawing context.
@@ -159,8 +159,9 @@ impl UiRenderer {
         };
 
         Ok(Self {
-            geometry_buffer: GeometryBuffer::new(server, geometry_buffer_desc)?,
-            clipping_geometry_buffer: GeometryBuffer::new(server, clipping_geometry_buffer_desc)?,
+            geometry_buffer: server.create_geometry_buffer(geometry_buffer_desc)?,
+            clipping_geometry_buffer: server
+                .create_geometry_buffer(clipping_geometry_buffer_desc)?,
             shader: UiShader::new(server)?,
         })
     }
@@ -186,7 +187,7 @@ impl UiRenderer {
         let mut statistics = RenderPassStatistics::default();
 
         self.geometry_buffer
-            .set_buffer_data(0, drawing_context.get_vertices());
+            .set_buffer_data_of_type(0, drawing_context.get_vertices());
         self.geometry_buffer
             .set_triangles(drawing_context.get_triangles());
 
@@ -219,7 +220,7 @@ impl UiRenderer {
                 frame_buffer.clear(viewport, None, None, Some(0));
 
                 self.clipping_geometry_buffer
-                    .set_buffer_data(0, &clipping_geometry.vertex_buffer);
+                    .set_buffer_data_of_type(0, &clipping_geometry.vertex_buffer);
                 self.clipping_geometry_buffer
                     .set_triangles(&clipping_geometry.triangle_buffer);
 
@@ -228,7 +229,7 @@ impl UiRenderer {
 
                 // Draw
                 statistics += frame_buffer.draw(
-                    &self.clipping_geometry_buffer,
+                    &*self.clipping_geometry_buffer,
                     viewport,
                     &*flat_shader.program,
                     &DrawParameters {
@@ -395,7 +396,7 @@ impl UiRenderer {
 
             let shader = &self.shader;
             statistics += frame_buffer.draw(
-                &self.geometry_buffer,
+                &*self.geometry_buffer,
                 viewport,
                 &*self.shader.program,
                 &params,

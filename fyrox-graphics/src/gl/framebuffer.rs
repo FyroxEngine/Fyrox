@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::framebuffer::BufferDataUsage;
+use crate::gl::geometry_buffer::GlGeometryBuffer;
 use crate::{
     buffer::{Buffer, BufferKind},
     core::{color::Color, math::Rect},
@@ -307,7 +308,7 @@ impl FrameBuffer for GlFrameBuffer {
 
     fn draw(
         &mut self,
-        geometry: &GeometryBuffer,
+        geometry: &dyn GeometryBuffer,
         viewport: Rect<i32>,
         program: &dyn GpuProgram,
         params: &DrawParameters,
@@ -315,6 +316,10 @@ impl FrameBuffer for GlFrameBuffer {
         element_range: ElementRange,
     ) -> Result<DrawCallStatistics, FrameworkError> {
         let server = self.state.upgrade().unwrap();
+        let geometry = geometry
+            .as_any()
+            .downcast_ref::<GlGeometryBuffer>()
+            .unwrap();
 
         pre_draw(self.id(), &server, viewport, program, params, resources);
 
@@ -357,13 +362,17 @@ impl FrameBuffer for GlFrameBuffer {
     fn draw_instances(
         &mut self,
         count: usize,
-        geometry: &GeometryBuffer,
+        geometry: &dyn GeometryBuffer,
         viewport: Rect<i32>,
         program: &dyn GpuProgram,
         params: &DrawParameters,
         resources: &[ResourceBindGroup],
     ) -> DrawCallStatistics {
         let server = self.state.upgrade().unwrap();
+        let geometry = geometry
+            .as_any()
+            .downcast_ref::<GlGeometryBuffer>()
+            .unwrap();
 
         pre_draw(self.id(), &server, viewport, program, params, resources);
 

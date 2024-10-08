@@ -78,10 +78,10 @@ pub struct DeferredLightRenderer {
     point_light_shader: PointLightShader,
     directional_light_shader: DirectionalLightShader,
     ambient_light_shader: AmbientLightShader,
-    quad: GeometryBuffer,
-    sphere: GeometryBuffer,
-    cone: GeometryBuffer,
-    skybox: GeometryBuffer,
+    quad: Box<dyn GeometryBuffer>,
+    sphere: Box<dyn GeometryBuffer>,
+    cone: Box<dyn GeometryBuffer>,
+    skybox: Box<dyn GeometryBuffer>,
     flat_shader: FlatShader,
     skybox_shader: SkyboxShader,
     spot_shadow_map_renderer: SpotShadowMapRenderer,
@@ -162,12 +162,12 @@ impl DeferredLightRenderer {
             point_light_shader: PointLightShader::new(server)?,
             directional_light_shader: DirectionalLightShader::new(server)?,
             ambient_light_shader: AmbientLightShader::new(server)?,
-            quad: GeometryBuffer::from_surface_data(
+            quad: <dyn GeometryBuffer>::from_surface_data(
                 &SurfaceData::make_unit_xy_quad(),
                 BufferUsage::StaticDraw,
                 server,
             )?,
-            skybox: GeometryBuffer::from_surface_data(
+            skybox: <dyn GeometryBuffer>::from_surface_data(
                 &SurfaceData::new(
                     VertexBuffer::new(vertices.len(), vertices).unwrap(),
                     TriangleBuffer::new(vec![
@@ -188,12 +188,12 @@ impl DeferredLightRenderer {
                 BufferUsage::StaticDraw,
                 server,
             )?,
-            sphere: GeometryBuffer::from_surface_data(
+            sphere: <dyn GeometryBuffer>::from_surface_data(
                 &SurfaceData::make_sphere(6, 6, 1.0, &Matrix4::identity()),
                 BufferUsage::StaticDraw,
                 server,
             )?,
-            cone: GeometryBuffer::from_surface_data(
+            cone: <dyn GeometryBuffer>::from_surface_data(
                 &SurfaceData::make_cone(
                     16,
                     0.5,
@@ -347,7 +347,7 @@ impl DeferredLightRenderer {
             {
                 let shader = &self.skybox_shader;
                 pass_stats += frame_buffer.draw(
-                    &self.skybox,
+                    &*self.skybox,
                     viewport,
                     &*shader.program,
                     &DrawParameters {
@@ -391,7 +391,7 @@ impl DeferredLightRenderer {
         let ao_map = self.ssao_renderer.ao_map();
 
         pass_stats += frame_buffer.draw(
-            &self.quad,
+            &*self.quad,
             viewport,
             &*self.ambient_light_shader.program,
             &DrawParameters {
@@ -550,7 +550,7 @@ impl DeferredLightRenderer {
             )?;
 
             pass_stats += frame_buffer.draw(
-                bounding_shape,
+                &**bounding_shape,
                 viewport,
                 &*self.flat_shader.program,
                 &DrawParameters {
@@ -580,7 +580,7 @@ impl DeferredLightRenderer {
             )?;
 
             pass_stats += frame_buffer.draw(
-                bounding_shape,
+                &**bounding_shape,
                 viewport,
                 &*self.flat_shader.program,
                 &DrawParameters {
@@ -625,7 +625,7 @@ impl DeferredLightRenderer {
 
                     visibility_cache.begin_query(server, camera_global_position, light_handle)?;
                     frame_buffer.draw(
-                        &self.quad,
+                        &*self.quad,
                         viewport,
                         &*self.flat_shader.program,
                         &DrawParameters {
@@ -811,7 +811,7 @@ impl DeferredLightRenderer {
                     )?;
 
                     frame_buffer.draw(
-                        quad,
+                        &**quad,
                         viewport,
                         &*shader.program,
                         &draw_params,
@@ -866,7 +866,7 @@ impl DeferredLightRenderer {
                     )?;
 
                     frame_buffer.draw(
-                        quad,
+                        &**quad,
                         viewport,
                         &*shader.program,
                         &draw_params,
@@ -935,7 +935,7 @@ impl DeferredLightRenderer {
                     )?;
 
                     frame_buffer.draw(
-                        quad,
+                        &**quad,
                         viewport,
                         &*shader.program,
                         &DrawParameters {
@@ -1000,7 +1000,7 @@ impl DeferredLightRenderer {
                     light,
                     light_handle,
                     gbuffer,
-                    &self.quad,
+                    &*self.quad,
                     camera.view_matrix(),
                     inv_projection,
                     view_projection,

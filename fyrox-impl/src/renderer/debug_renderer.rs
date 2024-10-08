@@ -61,7 +61,7 @@ struct Vertex {
 
 /// See module docs.
 pub struct DebugRenderer {
-    geometry: GeometryBuffer,
+    geometry: Box<dyn GeometryBuffer>,
     vertices: Vec<Vertex>,
     line_indices: Vec<[u32; 2]>,
     shader: DebugShader,
@@ -128,7 +128,7 @@ impl DebugRenderer {
         };
 
         Ok(Self {
-            geometry: GeometryBuffer::new(server, desc)?,
+            geometry: server.create_geometry_buffer(desc)?,
             shader: DebugShader::new(server)?,
             vertices: Default::default(),
             line_indices: Default::default(),
@@ -154,7 +154,7 @@ impl DebugRenderer {
             self.line_indices.push([i, i + 1]);
             i += 2;
         }
-        self.geometry.set_buffer_data(0, &self.vertices);
+        self.geometry.set_buffer_data_of_type(0, &self.vertices);
         self.geometry.set_lines(&self.line_indices);
     }
 
@@ -174,7 +174,7 @@ impl DebugRenderer {
         )?;
 
         statistics += framebuffer.draw(
-            &self.geometry,
+            &*self.geometry,
             viewport,
             &*self.shader.program,
             &DrawParameters {

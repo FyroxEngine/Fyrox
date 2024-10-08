@@ -670,7 +670,7 @@ pub struct Renderer {
     /// User interface renderer.
     pub ui_renderer: UiRenderer,
     statistics: Statistics,
-    quad: GeometryBuffer,
+    quad: Box<dyn GeometryBuffer>,
     frame_size: (u32, u32),
     quality_settings: QualitySettings,
     /// Debug renderer instance can be used for debugging purposes
@@ -878,7 +878,7 @@ fn blit_pixels(
     texture: Rc<RefCell<dyn GpuTexture>>,
     shader: &FlatShader,
     viewport: Rect<i32>,
-    quad: &GeometryBuffer,
+    quad: &dyn GeometryBuffer,
 ) -> Result<DrawCallStatistics, FrameworkError> {
     let matrix = Matrix4::new_orthographic(
         0.0,
@@ -1068,7 +1068,7 @@ impl Renderer {
                 1,
                 Some(&[0u8, 0u8, 0u8, 0u8]),
             )?,
-            quad: GeometryBuffer::from_surface_data(
+            quad: <dyn GeometryBuffer>::from_surface_data(
                 &SurfaceData::make_unit_xy_quad(),
                 BufferUsage::StaticDraw,
                 &server,
@@ -1462,7 +1462,7 @@ impl Renderer {
                     bone_matrices_stub_uniform_buffer: &*self.bone_matrices_stub_uniform_buffer,
                     uniform_memory_allocator: &mut self.uniform_memory_allocator,
                     screen_space_debug_renderer: &mut self.screen_space_debug_renderer,
-                    unit_quad: &self.quad,
+                    unit_quad: &*self.quad,
                 })?;
 
             server.set_polygon_fill_mode(PolygonFace::FrontAndBack, PolygonFillMode::Fill);
@@ -1570,7 +1570,7 @@ impl Renderer {
             // Prepare glow map.
             scene_associated_data.statistics += scene_associated_data.bloom_renderer.render(
                 &**server,
-                quad,
+                &**quad,
                 scene_associated_data.hdr_scene_frame_texture(),
                 &mut self.uniform_buffer_cache,
             )?;
@@ -1582,7 +1582,7 @@ impl Renderer {
                 scene_associated_data.bloom_renderer.result(),
                 &mut *scene_associated_data.ldr_scene_framebuffer,
                 viewport,
-                quad,
+                &**quad,
                 dt,
                 camera.exposure(),
                 camera.color_grading_lut_ref(),
@@ -1610,7 +1610,7 @@ impl Renderer {
                     temp_frame_texture,
                     &self.flat_shader,
                     viewport,
-                    quad,
+                    &**quad,
                 )?;
             }
 
@@ -1670,7 +1670,7 @@ impl Renderer {
                 scene_associated_data.ldr_scene_frame_texture(),
                 &self.flat_shader,
                 window_viewport,
-                quad,
+                &**quad,
             )?;
         }
 

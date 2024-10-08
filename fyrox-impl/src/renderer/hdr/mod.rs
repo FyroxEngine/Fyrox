@@ -166,7 +166,7 @@ impl HighDynamicRangeRenderer {
         &mut self,
         server: &dyn GraphicsServer,
         scene_frame: Rc<RefCell<dyn GpuTexture>>,
-        quad: &GeometryBuffer,
+        quad: &dyn GeometryBuffer,
         uniform_buffer_cache: &mut UniformBufferCache,
     ) -> Result<DrawCallStatistics, FrameworkError> {
         self.frame_luminance.clear();
@@ -215,7 +215,7 @@ impl HighDynamicRangeRenderer {
     fn calculate_avg_frame_luminance(
         &mut self,
         server: &dyn GraphicsServer,
-        quad: &GeometryBuffer,
+        quad: &dyn GeometryBuffer,
         uniform_buffer_cache: &mut UniformBufferCache,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();
@@ -320,7 +320,7 @@ impl HighDynamicRangeRenderer {
     fn adaptation(
         &mut self,
         server: &dyn GraphicsServer,
-        quad: &GeometryBuffer,
+        quad: &dyn GeometryBuffer,
         dt: f32,
         uniform_buffer_cache: &mut UniformBufferCache,
     ) -> Result<DrawCallStatistics, FrameworkError> {
@@ -373,7 +373,7 @@ impl HighDynamicRangeRenderer {
         bloom_texture: Rc<RefCell<dyn GpuTexture>>,
         ldr_framebuffer: &mut dyn FrameBuffer,
         viewport: Rect<i32>,
-        quad: &GeometryBuffer,
+        quad: &dyn GeometryBuffer,
         exposure: Exposure,
         color_grading_lut: Option<&ColorGradingLut>,
         use_color_grading: bool,
@@ -449,7 +449,7 @@ impl HighDynamicRangeRenderer {
         bloom_texture: Rc<RefCell<dyn GpuTexture>>,
         ldr_framebuffer: &mut dyn FrameBuffer,
         viewport: Rect<i32>,
-        quad: &GeometryBuffer,
+        quad: &dyn GeometryBuffer,
         dt: f32,
         exposure: Exposure,
         color_grading_lut: Option<&ColorGradingLut>,

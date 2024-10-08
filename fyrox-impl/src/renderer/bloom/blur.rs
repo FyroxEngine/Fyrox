@@ -134,7 +134,7 @@ impl GaussianBlur {
     pub(crate) fn render(
         &mut self,
         server: &dyn GraphicsServer,
-        quad: &GeometryBuffer,
+        quad: &dyn GeometryBuffer,
         input: Rc<RefCell<dyn GpuTexture>>,
         uniform_buffer_cache: &mut UniformBufferCache,
     ) -> Result<RenderPassStatistics, FrameworkError> {

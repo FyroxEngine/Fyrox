@@ -87,7 +87,7 @@ pub struct ScreenSpaceAmbientOcclusionRenderer {
     blur: Blur,
     shader: Shader,
     framebuffer: Box<dyn FrameBuffer>,
-    quad: GeometryBuffer,
+    quad: Box<dyn GeometryBuffer>,
     width: i32,
     height: i32,
     noise: Rc<RefCell<dyn GpuTexture>>,
@@ -127,7 +127,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
                     texture: occlusion,
                 }],
             )?,
-            quad: GeometryBuffer::from_surface_data(
+            quad: <dyn GeometryBuffer>::from_surface_data(
                 &SurfaceData::make_unit_xy_quad(),
                 BufferUsage::StaticDraw,
                 server,
@@ -246,7 +246,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
         )?;
 
         stats += self.framebuffer.draw(
-            &self.quad,
+            &*self.quad,
             viewport,
             &*self.shader.program,
             &DrawParameters {

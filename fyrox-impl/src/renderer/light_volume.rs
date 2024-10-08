@@ -97,8 +97,8 @@ pub struct LightVolumeRenderer {
     spot_light_shader: SpotLightShader,
     point_light_shader: PointLightShader,
     flat_shader: FlatShader,
-    cone: GeometryBuffer,
-    sphere: GeometryBuffer,
+    cone: Box<dyn GeometryBuffer>,
+    sphere: Box<dyn GeometryBuffer>,
 }
 
 impl LightVolumeRenderer {
@@ -107,7 +107,7 @@ impl LightVolumeRenderer {
             spot_light_shader: SpotLightShader::new(server)?,
             point_light_shader: PointLightShader::new(server)?,
             flat_shader: FlatShader::new(server)?,
-            cone: GeometryBuffer::from_surface_data(
+            cone: <dyn GeometryBuffer>::from_surface_data(
                 &SurfaceData::make_cone(
                     16,
                     1.0,
@@ -117,7 +117,7 @@ impl LightVolumeRenderer {
                 BufferUsage::StaticDraw,
                 server,
             )?,
-            sphere: GeometryBuffer::from_surface_data(
+            sphere: <dyn GeometryBuffer>::from_surface_data(
                 &SurfaceData::make_sphere(8, 8, 1.0, &Matrix4::identity()),
                 BufferUsage::StaticDraw,
                 server,
@@ -132,7 +132,7 @@ impl LightVolumeRenderer {
         light: &Node,
         light_handle: Handle<Node>,
         gbuffer: &mut GBuffer,
-        quad: &GeometryBuffer,
+        quad: &dyn GeometryBuffer,
         view: Matrix4<f32>,
         inv_proj: Matrix4<f32>,
         view_proj: Matrix4<f32>,
@@ -191,7 +191,7 @@ impl LightVolumeRenderer {
             frame_buffer.clear(viewport, None, None, Some(0));
 
             stats += frame_buffer.draw(
-                &self.cone,
+                &*self.cone,
                 viewport,
                 &*self.flat_shader.program,
                 &DrawParameters {
@@ -295,7 +295,7 @@ impl LightVolumeRenderer {
                 uniform_buffer_cache.write(server, StaticUniformBuffer::<256>::new().with(&mvp))?;
 
             stats += frame_buffer.draw(
-                &self.sphere,
+                &*self.sphere,
                 viewport,
                 &*self.flat_shader.program,
                 &DrawParameters {

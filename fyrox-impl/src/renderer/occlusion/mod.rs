@@ -96,7 +96,7 @@ pub struct OcclusionTester {
     tile_size: usize,
     w_tiles: usize,
     h_tiles: usize,
-    cube: GeometryBuffer,
+    cube: Box<dyn GeometryBuffer>,
     visibility_buffer_optimizer: VisibilityBufferOptimizer,
     matrix_storage: MatrixStorage,
     objects_to_test: Vec<Handle<Node>>,
@@ -238,7 +238,7 @@ impl OcclusionTester {
             w_tiles,
             tile_buffer,
             h_tiles,
-            cube: GeometryBuffer::from_surface_data(
+            cube: <dyn GeometryBuffer>::from_surface_data(
                 &SurfaceData::make_cube(Matrix4::identity()),
                 BufferUsage::StaticDraw,
                 server,
@@ -415,7 +415,7 @@ impl OcclusionTester {
         server: &GlGraphicsServer,
         graph: &Graph,
         debug_renderer: Option<&mut DebugRenderer>,
-        unit_quad: &GeometryBuffer,
+        unit_quad: &dyn GeometryBuffer,
         objects_to_test: impl Iterator<Item = &'a Handle<Node>>,
         prev_framebuffer: &dyn FrameBuffer,
         observer_position: Vector3<f32>,
@@ -454,7 +454,7 @@ impl OcclusionTester {
         let shader = &self.shader;
         self.framebuffer.draw_instances(
             self.objects_to_test.len(),
-            &self.cube,
+            &*self.cube,
             viewport,
             &*self.shader.program,
             &DrawParameters {

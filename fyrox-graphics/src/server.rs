@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::geometry_buffer::{GeometryBuffer, GeometryBufferDescriptor};
 use crate::{
     buffer::{Buffer, BufferKind, BufferUsage},
     error::FrameworkError,
@@ -97,6 +98,10 @@ pub trait GraphicsServer: Any {
         pixel_size: usize,
         pixel_count: usize,
     ) -> Result<Box<dyn AsyncReadBuffer>, FrameworkError>;
+    fn create_geometry_buffer(
+        &self,
+        desc: GeometryBufferDescriptor,
+    ) -> Result<Box<dyn GeometryBuffer>, FrameworkError>;
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
     fn weak(self: Rc<Self>) -> Weak<dyn GraphicsServer>;

@@ -69,7 +69,7 @@ impl Shader {
 pub struct Blur {
     shader: Shader,
     framebuffer: Box<dyn FrameBuffer>,
-    quad: GeometryBuffer,
+    quad: Box<dyn GeometryBuffer>,
     width: usize,
     height: usize,
 }
@@ -108,7 +108,7 @@ impl Blur {
                     texture: frame,
                 }],
             )?,
-            quad: GeometryBuffer::from_surface_data(
+            quad: <dyn GeometryBuffer>::from_surface_data(
                 &SurfaceData::make_unit_xy_quad(),
                 BufferUsage::StaticDraw,
                 server,
@@ -132,7 +132,7 @@ impl Blur {
 
         let shader = &self.shader;
         self.framebuffer.draw(
-            &self.quad,
+            &*self.quad,
             viewport,
             &*shader.program,
             &DrawParameters {

@@ -78,7 +78,7 @@ pub struct GBuffer {
     decal_framebuffer: Box<dyn FrameBuffer>,
     pub width: i32,
     pub height: i32,
-    cube: GeometryBuffer,
+    cube: Box<dyn GeometryBuffer>,
     decal_shader: DecalShader,
     render_pass_name: ImmutableString,
     occlusion_tester: OcclusionTester,
@@ -102,7 +102,7 @@ pub(crate) struct GBufferRenderContext<'a, 'b> {
     pub uniform_memory_allocator: &'a mut UniformMemoryAllocator,
     #[allow(dead_code)]
     pub screen_space_debug_renderer: &'a mut DebugRenderer,
-    pub unit_quad: &'a GeometryBuffer,
+    pub unit_quad: &'a dyn GeometryBuffer,
 }
 
 impl GBuffer {
@@ -249,7 +249,7 @@ impl GBuffer {
             width: width as i32,
             height: height as i32,
             decal_shader: DecalShader::new(server)?,
-            cube: GeometryBuffer::from_surface_data(
+            cube: <dyn GeometryBuffer>::from_surface_data(
                 &SurfaceData::make_cube(Matrix4::identity()),
                 BufferUsage::StaticDraw,
                 server,
@@ -424,7 +424,7 @@ impl GBuffer {
                 .clone();
 
             statistics += self.decal_framebuffer.draw(
-                unit_cube,
+                &**unit_cube,
                 viewport,
                 program,
                 &DrawParameters {

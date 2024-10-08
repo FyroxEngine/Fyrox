@@ -67,14 +67,14 @@ impl FxaaShader {
 
 pub struct FxaaRenderer {
     shader: FxaaShader,
-    quad: GeometryBuffer,
+    quad: Box<dyn GeometryBuffer>,
 }
 
 impl FxaaRenderer {
     pub fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
         Ok(Self {
             shader: FxaaShader::new(server)?,
-            quad: GeometryBuffer::from_surface_data(
+            quad: <dyn GeometryBuffer>::from_surface_data(
                 &SurfaceData::make_unit_xy_quad(),
                 BufferUsage::StaticDraw,
                 server,
@@ -106,7 +106,7 @@ impl FxaaRenderer {
         ));
 
         statistics += frame_buffer.draw(
-            &self.quad,
+            &*self.quad,
             viewport,
             &*self.shader.program,
             &DrawParameters {

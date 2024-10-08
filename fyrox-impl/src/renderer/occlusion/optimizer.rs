@@ -118,7 +118,7 @@ impl VisibilityBufferOptimizer {
         &mut self,
         server: &GlGraphicsServer,
         visibility_buffer: &Rc<RefCell<dyn GpuTexture>>,
-        unit_quad: &GeometryBuffer,
+        unit_quad: &dyn GeometryBuffer,
         tile_size: i32,
         uniform_buffer_cache: &mut UniformBufferCache,
     ) -> Result<(), FrameworkError> {

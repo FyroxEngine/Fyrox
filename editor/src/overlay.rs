@@ -67,7 +67,7 @@ impl OverlayShader {
 }
 
 pub struct OverlayRenderPass {
-    quad: GeometryBuffer,
+    quad: Box<dyn GeometryBuffer>,
     shader: OverlayShader,
     sound_icon: TextureResource,
     light_icon: TextureResource,
@@ -77,7 +77,7 @@ pub struct OverlayRenderPass {
 impl OverlayRenderPass {
     pub fn new(server: &GlGraphicsServer) -> Rc<RefCell<Self>> {
         Rc::new(RefCell::new(Self {
-            quad: GeometryBuffer::from_surface_data(
+            quad: <dyn GeometryBuffer>::from_surface_data(
                 &SurfaceData::make_collapsed_xy_quad(),
                 BufferUsage::StaticDraw,
                 server,
@@ -136,7 +136,7 @@ impl SceneRenderPass for OverlayRenderPass {
             let world_matrix = Matrix4::new_translation(&position);
 
             ctx.framebuffer.draw(
-                &self.quad,
+                &*self.quad,
                 ctx.viewport,
                 &*shader.program,
                 &DrawParameters {

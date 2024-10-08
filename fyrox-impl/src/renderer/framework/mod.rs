@@ -39,6 +39,7 @@ use crate::{
     },
     scene::mesh::{buffer::VertexAttributeDataType, surface::SurfaceData},
 };
+use fyrox_graphics::server::GraphicsServer;
 pub use fyrox_graphics::*;
 
 impl From<TextureKind> for GpuTextureKind {
@@ -135,21 +136,21 @@ impl From<TextureWrapMode> for WrapMode {
 }
 
 /// Extension trait for [`GeometryBuffer`].
-pub trait GeometryBufferExt: Sized {
+pub trait GeometryBufferExt {
     /// Creates [`GeometryBuffer`] from [`SurfaceData`].
     fn from_surface_data(
         data: &SurfaceData,
         usage: BufferUsage,
         server: &GlGraphicsServer,
-    ) -> Result<Self, FrameworkError>;
+    ) -> Result<Box<dyn GeometryBuffer>, FrameworkError>;
 }
 
-impl GeometryBufferExt for GeometryBuffer {
+impl GeometryBufferExt for dyn GeometryBuffer {
     fn from_surface_data(
         data: &SurfaceData,
         usage: BufferUsage,
         server: &GlGraphicsServer,
-    ) -> Result<Self, FrameworkError> {
+    ) -> Result<Box<dyn GeometryBuffer>, FrameworkError> {
         let attributes = data
             .vertex_buffer
             .layout()
@@ -180,7 +181,7 @@ impl GeometryBufferExt for GeometryBuffer {
             }],
         };
 
-        let geometry_buffer = GeometryBuffer::new(server, geometry_buffer_desc)?;
+        let geometry_buffer = server.create_geometry_buffer(geometry_buffer_desc)?;
 
         geometry_buffer.set_triangles(data.geometry_buffer.triangles_ref());
 

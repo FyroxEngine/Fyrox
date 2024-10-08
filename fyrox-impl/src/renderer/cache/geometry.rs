@@ -32,7 +32,7 @@ use fyrox_core::log::Log;
 use fyrox_graphics::buffer::BufferUsage;
 
 struct SurfaceRenderData {
-    buffer: GeometryBuffer,
+    buffer: Box<dyn GeometryBuffer>,
     vertex_modifications_count: u64,
     triangles_modifications_count: u64,
     layout_hash: u64,
@@ -47,7 +47,8 @@ fn create_geometry_buffer(
     data: &SurfaceData,
     server: &GlGraphicsServer,
 ) -> Result<SurfaceRenderData, FrameworkError> {
-    let geometry_buffer = GeometryBuffer::from_surface_data(data, BufferUsage::StaticDraw, server)?;
+    let geometry_buffer =
+        <dyn GeometryBuffer>::from_surface_data(data, BufferUsage::StaticDraw, server)?;
 
     Ok(SurfaceRenderData {
         buffer: geometry_buffer,
@@ -63,7 +64,7 @@ impl GeometryCache {
         server: &GlGraphicsServer,
         data: &SurfaceResource,
         time_to_live: TimeToLive,
-    ) -> Option<&'a mut GeometryBuffer> {
+    ) -> Option<&'a dyn GeometryBuffer> {
         let data = data.data_ref();
 
         match self
@@ -97,7 +98,7 @@ impl GeometryCache {
                             data.geometry_buffer.modifications_count();
                     }
                 }
-                Some(&mut entry.buffer)
+                Some(&*entry.buffer)
             }
             Err(err) => {
                 Log::err(err.to_string());
