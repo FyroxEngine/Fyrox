@@ -23,19 +23,19 @@ use crate::{
     core::{array_as_u8_slice, math::TriangleDefinition},
     error::FrameworkError,
     gl::{buffer::GlBuffer, server::GlGraphicsServer, ToGlConstant},
-    ElementKind, ElementRange,
+    ElementKind,
 };
 use bytemuck::Pod;
 use glow::HasContext;
 use std::{cell::Cell, marker::PhantomData, mem::size_of, rc::Weak};
 
 pub struct GeometryBuffer {
-    state: Weak<GlGraphicsServer>,
-    vertex_array_object: glow::VertexArray,
-    buffers: Vec<GlBuffer>,
-    element_buffer: GlBuffer,
-    element_count: Cell<usize>,
-    element_kind: ElementKind,
+    pub state: Weak<GlGraphicsServer>,
+    pub vertex_array_object: glow::VertexArray,
+    pub buffers: Vec<GlBuffer>,
+    pub element_buffer: GlBuffer,
+    pub element_count: Cell<usize>,
+    pub element_kind: ElementKind,
     // Force compiler to not implement Send and Sync, because OpenGL is not thread-safe.
     thread_mark: PhantomData<*const u8>,
 }
@@ -206,73 +206,11 @@ impl GeometryBuffer {
         self.element_buffer.write_data(data).unwrap()
     }
 
-    pub fn draw(&self, element_range: ElementRange) -> Result<DrawCallStatistics, FrameworkError> {
-        let server = self.state.upgrade().unwrap();
-
-        let (offset, count) = match element_range {
-            ElementRange::Full => (0, self.element_count.get()),
-            ElementRange::Specific { offset, count } => (offset, count),
-        };
-
-        let last_triangle_index = offset + count;
-
-        if last_triangle_index > self.element_count.get() {
-            Err(FrameworkError::InvalidElementRange {
-                start: offset,
-                end: last_triangle_index,
-                total: self.element_count.get(),
-            })
-        } else {
-            let index_per_element = self.element_kind.index_per_element();
-            let start_index = offset * index_per_element;
-            let index_count = count * index_per_element;
-
-            unsafe {
-                if index_count > 0 {
-                    server.set_vertex_array_object(Some(self.vertex_array_object));
-
-                    let indices = (start_index * size_of::<u32>()) as i32;
-                    server.gl.draw_elements(
-                        self.mode(),
-                        index_count as i32,
-                        glow::UNSIGNED_INT,
-                        indices,
-                    );
-                }
-            }
-
-            Ok(DrawCallStatistics { triangles: count })
-        }
-    }
-
-    fn mode(&self) -> u32 {
+    pub fn mode(&self) -> u32 {
         match self.element_kind {
             ElementKind::Triangle => glow::TRIANGLES,
             ElementKind::Line => glow::LINES,
             ElementKind::Point => glow::POINTS,
-        }
-    }
-
-    pub fn draw_instances(&self, count: usize) -> DrawCallStatistics {
-        let server = self.state.upgrade().unwrap();
-
-        let index_per_element = self.element_kind.index_per_element();
-        let index_count = self.element_count.get() * index_per_element;
-        if index_count > 0 {
-            unsafe {
-                server.set_vertex_array_object(Some(self.vertex_array_object));
-
-                server.gl.draw_elements_instanced(
-                    self.mode(),
-                    index_count as i32,
-                    glow::UNSIGNED_INT,
-                    0,
-                    count as i32,
-                )
-            }
-        }
-        DrawCallStatistics {
-            triangles: self.element_count.get() * count,
         }
     }
 }

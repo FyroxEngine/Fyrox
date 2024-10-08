@@ -318,7 +318,40 @@ impl FrameBuffer for GlFrameBuffer {
 
         pre_draw(self.id(), &server, viewport, program, params, resources);
 
-        geometry.draw(element_range)
+        let (offset, count) = match element_range {
+            ElementRange::Full => (0, geometry.element_count.get()),
+            ElementRange::Specific { offset, count } => (offset, count),
+        };
+
+        let last_triangle_index = offset + count;
+
+        if last_triangle_index > geometry.element_count.get() {
+            Err(FrameworkError::InvalidElementRange {
+                start: offset,
+                end: last_triangle_index,
+                total: geometry.element_count.get(),
+            })
+        } else {
+            let index_per_element = geometry.element_kind.index_per_element();
+            let start_index = offset * index_per_element;
+            let index_count = count * index_per_element;
+
+            unsafe {
+                if index_count > 0 {
+                    server.set_vertex_array_object(Some(geometry.vertex_array_object));
+
+                    let indices = (start_index * size_of::<u32>()) as i32;
+                    server.gl.draw_elements(
+                        geometry.mode(),
+                        index_count as i32,
+                        glow::UNSIGNED_INT,
+                        indices,
+                    );
+                }
+            }
+
+            Ok(DrawCallStatistics { triangles: count })
+        }
     }
 
     fn draw_instances(
@@ -334,7 +367,24 @@ impl FrameBuffer for GlFrameBuffer {
 
         pre_draw(self.id(), &server, viewport, program, params, resources);
 
-        geometry.draw_instances(count)
+        let index_per_element = geometry.element_kind.index_per_element();
+        let index_count = geometry.element_count.get() * index_per_element;
+        if index_count > 0 {
+            unsafe {
+                server.set_vertex_array_object(Some(geometry.vertex_array_object));
+
+                server.gl.draw_elements_instanced(
+                    geometry.mode(),
+                    index_count as i32,
+                    glow::UNSIGNED_INT,
+                    0,
+                    count as i32,
+                )
+            }
+        }
+        DrawCallStatistics {
+            triangles: geometry.element_count.get() * count,
+        }
     }
 }
 
