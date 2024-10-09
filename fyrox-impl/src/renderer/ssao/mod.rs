@@ -198,7 +198,6 @@ impl ScreenSpaceAmbientOcclusionRenderer {
 
     pub(crate) fn render(
         &mut self,
-        server: &dyn GraphicsServer,
         gbuffer: &GBuffer,
         projection_matrix: Matrix4<f32>,
         view_matrix: Matrix3<f32>,
@@ -234,7 +233,6 @@ impl ScreenSpaceAmbientOcclusionRenderer {
         );
 
         let uniform_buffer = uniform_buffer_cache.write(
-            server,
             StaticUniformBuffer::<1024>::new()
                 .with(&frame_matrix)
                 .with(&projection_matrix.try_inverse().unwrap_or_default())
@@ -277,8 +275,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
             ElementRange::Full,
         )?;
 
-        self.blur
-            .render(server, self.raw_ao_map(), uniform_buffer_cache)?;
+        self.blur.render(self.raw_ao_map(), uniform_buffer_cache)?;
 
         Ok(stats)
     }

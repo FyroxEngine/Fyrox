@@ -386,7 +386,6 @@ impl GBuffer {
             }
 
             self.occlusion_tester.try_run_visibility_test(
-                server,
                 graph,
                 None,
                 unit_quad,
@@ -450,7 +449,6 @@ impl GBuffer {
                         ResourceBinding::texture(&decal_mask, &shader.decal_mask),
                         ResourceBinding::Buffer {
                             buffer: uniform_buffer_cache.write(
-                                server,
                                 StaticUniformBuffer::<256>::new()
                                     .with(&world_view_proj)
                                     .with(&inv_view_proj)

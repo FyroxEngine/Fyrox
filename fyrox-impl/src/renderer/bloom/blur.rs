@@ -132,7 +132,6 @@ impl GaussianBlur {
 
     pub(crate) fn render(
         &mut self,
-        server: &dyn GraphicsServer,
         quad: &dyn GeometryBuffer,
         input: Rc<RefCell<dyn GpuTexture>>,
         uniform_buffer_cache: &mut UniformBufferCache,
@@ -164,7 +163,6 @@ impl GaussianBlur {
                     ResourceBinding::texture(&input, &shader.image),
                     ResourceBinding::Buffer {
                         buffer: uniform_buffer_cache.write(
-                            server,
                             StaticUniformBuffer::<256>::new()
                                 .with(&make_viewport_matrix(viewport))
                                 .with(&inv_size)
@@ -199,7 +197,6 @@ impl GaussianBlur {
                     ResourceBinding::texture(&h_blurred_texture, &shader.image),
                     ResourceBinding::Buffer {
                         buffer: uniform_buffer_cache.write(
-                            server,
                             StaticUniformBuffer::<256>::new()
                                 .with(&make_viewport_matrix(viewport))
                                 .with(&inv_size)

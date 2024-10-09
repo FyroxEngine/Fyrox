@@ -115,7 +115,6 @@ impl VisibilityBufferOptimizer {
 
     pub fn optimize(
         &mut self,
-        server: &dyn GraphicsServer,
         visibility_buffer: &Rc<RefCell<dyn GpuTexture>>,
         unit_quad: &dyn GeometryBuffer,
         tile_size: i32,
@@ -150,7 +149,6 @@ impl VisibilityBufferOptimizer {
                     ),
                     ResourceBinding::Buffer {
                         buffer: uniform_buffer_cache.write(
-                            server,
                             StaticUniformBuffer::<256>::new()
                                 .with(&matrix)
                                 .with(&tile_size),

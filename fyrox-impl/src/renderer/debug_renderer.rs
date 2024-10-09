@@ -159,7 +159,6 @@ impl DebugRenderer {
 
     pub(crate) fn render(
         &mut self,
-        server: &dyn GraphicsServer,
         uniform_buffer_cache: &mut UniformBufferCache,
         viewport: Rect<i32>,
         framebuffer: &mut dyn FrameBuffer,
@@ -167,10 +166,8 @@ impl DebugRenderer {
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut statistics = RenderPassStatistics::default();
 
-        let uniform_buffer = uniform_buffer_cache.write(
-            server,
-            StaticUniformBuffer::<256>::new().with(&view_projection),
-        )?;
+        let uniform_buffer =
+            uniform_buffer_cache.write(StaticUniformBuffer::<256>::new().with(&view_projection))?;
 
         statistics += framebuffer.draw(
             &*self.geometry,

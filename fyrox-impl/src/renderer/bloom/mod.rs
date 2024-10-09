@@ -124,7 +124,6 @@ impl BloomRenderer {
 
     pub(crate) fn render(
         &mut self,
-        server: &dyn GraphicsServer,
         quad: &dyn GeometryBuffer,
         hdr_scene_frame: Rc<RefCell<dyn GpuTexture>>,
         uniform_buffer_cache: &mut UniformBufferCache,
@@ -153,7 +152,6 @@ impl BloomRenderer {
                     ResourceBinding::texture(&hdr_scene_frame, &shader.hdr_sampler),
                     ResourceBinding::Buffer {
                         buffer: uniform_buffer_cache.write(
-                            server,
                             StaticUniformBuffer::<256>::new().with(&make_viewport_matrix(viewport)),
                         )?,
                         shader_location: shader.uniform_block_binding,
@@ -166,7 +164,7 @@ impl BloomRenderer {
 
         stats += self
             .blur
-            .render(server, quad, self.glow_texture(), uniform_buffer_cache)?;
+            .render(quad, self.glow_texture(), uniform_buffer_cache)?;
 
         Ok(stats)
     }

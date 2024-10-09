@@ -409,7 +409,6 @@ impl OcclusionTester {
 
     pub fn try_run_visibility_test<'a>(
         &mut self,
-        server: &dyn GraphicsServer,
         graph: &Graph,
         debug_renderer: Option<&mut DebugRenderer>,
         unit_quad: &dyn GeometryBuffer,
@@ -475,7 +474,6 @@ impl OcclusionTester {
                     ResourceBinding::texture(self.matrix_storage.texture(), &shader.matrices),
                     ResourceBinding::Buffer {
                         buffer: uniform_buffer_cache.write(
-                            server,
                             StaticUniformBuffer::<256>::new()
                                 .with(&self.view_projection)
                                 .with(&(self.tile_size as i32))
@@ -489,7 +487,6 @@ impl OcclusionTester {
         );
 
         self.visibility_buffer_optimizer.optimize(
-            server,
             &self.visibility_mask,
             unit_quad,
             self.tile_size as i32,

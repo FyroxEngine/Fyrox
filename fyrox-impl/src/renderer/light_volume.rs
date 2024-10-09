@@ -127,7 +127,6 @@ impl LightVolumeRenderer {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn render_volume(
         &mut self,
-        server: &dyn GraphicsServer,
         light: &Node,
         light_handle: Handle<Node>,
         gbuffer: &mut GBuffer,
@@ -215,7 +214,7 @@ impl LightVolumeRenderer {
                 &[ResourceBindGroup {
                     bindings: &[ResourceBinding::Buffer {
                         buffer: uniform_buffer_cache
-                            .write(server, StaticUniformBuffer::<256>::new().with(&mvp))?,
+                            .write(StaticUniformBuffer::<256>::new().with(&mvp))?,
                         shader_location: self.flat_shader.uniform_buffer_binding,
                         data_usage: Default::default(),
                     }],
@@ -257,7 +256,6 @@ impl LightVolumeRenderer {
                         ResourceBinding::texture(&gbuffer.depth(), &shader.depth_sampler),
                         ResourceBinding::Buffer {
                             buffer: uniform_buffer_cache.write(
-                                server,
                                 StaticUniformBuffer::<256>::new()
                                     .with(&frame_matrix)
                                     .with(&inv_proj)
@@ -291,7 +289,7 @@ impl LightVolumeRenderer {
             let mvp = view_proj * light_shape_matrix;
 
             let uniform_buffer =
-                uniform_buffer_cache.write(server, StaticUniformBuffer::<256>::new().with(&mvp))?;
+                uniform_buffer_cache.write(StaticUniformBuffer::<256>::new().with(&mvp))?;
 
             stats += frame_buffer.draw(
                 &*self.sphere,
@@ -360,7 +358,6 @@ impl LightVolumeRenderer {
                         ResourceBinding::texture(&gbuffer.depth(), &shader.depth_sampler),
                         ResourceBinding::Buffer {
                             buffer: uniform_buffer_cache.write(
-                                server,
                                 StaticUniformBuffer::<256>::new()
                                     .with(&frame_matrix)
                                     .with(&inv_proj)

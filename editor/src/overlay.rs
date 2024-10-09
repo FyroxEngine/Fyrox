@@ -156,7 +156,6 @@ impl SceneRenderPass for OverlayRenderPass {
                         ResourceBinding::texture(&icon, &shader.diffuse_texture),
                         ResourceBinding::Buffer {
                             buffer: ctx.uniform_buffer_cache.write(
-                                ctx.server,
                                 StaticUniformBuffer::<256>::new()
                                     .with(&view_projection)
                                     .with(&world_matrix)

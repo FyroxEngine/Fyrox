@@ -29,6 +29,7 @@ use crate::renderer::framework::{
     uniform::{ByteStorage, DynamicUniformBuffer, UniformBuffer},
 };
 use fxhash::FxHashMap;
+use fyrox_graphics::server::SharedGraphicsServer;
 use std::cell::RefCell;
 
 #[derive(Default)]
@@ -66,22 +67,25 @@ impl UniformBufferSet {
 /// (guaranteed to be at least 16kb and on vast majority of GPUs the upper limit is 65kb) and they
 /// are intended to be used as a storage for relatively small set of data that can fit into L1 cache
 /// of a GPU for very fast access.
-#[derive(Default)]
 pub struct UniformBufferCache {
+    server: SharedGraphicsServer,
     cache: RefCell<FxHashMap<usize, UniformBufferSet>>,
 }
 
 impl UniformBufferCache {
+    pub fn new(server: SharedGraphicsServer) -> Self {
+        Self {
+            server,
+            cache: Default::default(),
+        }
+    }
+
     /// Reserves one of the existing uniform buffers of the given size. If there's no such free buffer,
     /// this method creates a new one and reserves it for further use.
-    pub fn get_or_create<'a>(
-        &'a self,
-        server: &dyn GraphicsServer,
-        size: usize,
-    ) -> Result<&'a dyn Buffer, FrameworkError> {
+    pub fn get_or_create<'a>(&'a self, size: usize) -> Result<&'a dyn Buffer, FrameworkError> {
         let mut cache = self.cache.borrow_mut();
         let set = cache.entry(size).or_default();
-        let buffer = set.get_or_create(size, server)?;
+        let buffer = set.get_or_create(size, &*self.server)?;
         // SAFETY: GPU buffer "lives" in memory heap, so any potential memory reallocation of the
         // hash map won't affect the returned reference. Also, buffers cannot be deleted so the
         // reference is also valid. These reasons allows to extend lifetime to the lifetime of self.
@@ -90,16 +94,12 @@ impl UniformBufferCache {
 
     /// Fetches a suitable (or creates new one) GPU uniform buffer for the given CPU uniform buffer
     /// and writes the data to it, returns a reference to the buffer.
-    pub fn write<T>(
-        &self,
-        server: &dyn GraphicsServer,
-        uniform_buffer: UniformBuffer<T>,
-    ) -> Result<&dyn Buffer, FrameworkError>
+    pub fn write<T>(&self, uniform_buffer: UniformBuffer<T>) -> Result<&dyn Buffer, FrameworkError>
     where
         T: ByteStorage,
     {
         let data = uniform_buffer.finish();
-        let buffer = self.get_or_create(server, data.bytes_count())?;
+        let buffer = self.get_or_create(data.bytes_count())?;
         buffer.write_data(data.bytes())?;
         Ok(buffer)
     }

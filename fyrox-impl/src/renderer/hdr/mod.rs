@@ -163,7 +163,6 @@ impl HighDynamicRangeRenderer {
 
     fn calculate_frame_luminance(
         &mut self,
-        server: &dyn GraphicsServer,
         scene_frame: Rc<RefCell<dyn GpuTexture>>,
         quad: &dyn GeometryBuffer,
         uniform_buffer_cache: &mut UniformBufferCache,
@@ -197,7 +196,6 @@ impl HighDynamicRangeRenderer {
                     ResourceBinding::texture(&scene_frame, &shader.frame_sampler),
                     ResourceBinding::Buffer {
                         buffer: uniform_buffer_cache.write(
-                            server,
                             StaticUniformBuffer::<256>::new()
                                 .with(&frame_matrix)
                                 .with(&Vector2::new(inv_size, inv_size)),
@@ -213,7 +211,6 @@ impl HighDynamicRangeRenderer {
 
     fn calculate_avg_frame_luminance(
         &mut self,
-        server: &dyn GraphicsServer,
         quad: &dyn GeometryBuffer,
         uniform_buffer_cache: &mut UniformBufferCache,
     ) -> Result<RenderPassStatistics, FrameworkError> {
@@ -295,7 +292,6 @@ impl HighDynamicRangeRenderer {
                                 ResourceBinding::texture(&prev_luminance, &shader.lum_sampler),
                                 ResourceBinding::Buffer {
                                     buffer: uniform_buffer_cache.write(
-                                        server,
                                         StaticUniformBuffer::<256>::new()
                                             .with(&matrix)
                                             .with(&Vector2::new(inv_size, inv_size)),
@@ -318,7 +314,6 @@ impl HighDynamicRangeRenderer {
 
     fn adaptation(
         &mut self,
-        server: &dyn GraphicsServer,
         quad: &dyn GeometryBuffer,
         dt: f32,
         uniform_buffer_cache: &mut UniformBufferCache,
@@ -350,7 +345,6 @@ impl HighDynamicRangeRenderer {
                     ),
                     ResourceBinding::Buffer {
                         buffer: uniform_buffer_cache.write(
-                            server,
                             StaticUniformBuffer::<256>::new()
                                 .with(&matrix)
                                 // TODO: Make configurable
@@ -396,7 +390,6 @@ impl HighDynamicRangeRenderer {
         };
 
         let uniform_buffer = uniform_buffer_cache.write(
-            server,
             StaticUniformBuffer::<256>::new()
                 .with(&frame_matrix)
                 .with(&(use_color_grading && color_grading_lut.is_some()))
@@ -457,14 +450,10 @@ impl HighDynamicRangeRenderer {
         uniform_buffer_cache: &mut UniformBufferCache,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();
-        stats += self.calculate_frame_luminance(
-            server,
-            hdr_scene_frame.clone(),
-            quad,
-            uniform_buffer_cache,
-        )?;
-        stats += self.calculate_avg_frame_luminance(server, quad, uniform_buffer_cache)?;
-        stats += self.adaptation(server, quad, dt, uniform_buffer_cache)?;
+        stats +=
+            self.calculate_frame_luminance(hdr_scene_frame.clone(), quad, uniform_buffer_cache)?;
+        stats += self.calculate_avg_frame_luminance(quad, uniform_buffer_cache)?;
+        stats += self.adaptation(quad, dt, uniform_buffer_cache)?;
         stats += self.map_hdr_to_ldr(
             server,
             hdr_scene_frame,

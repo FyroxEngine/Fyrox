@@ -335,7 +335,6 @@ impl SceneRenderPass for HighlightRenderPass {
                         ResourceBinding::texture(&frame_texture, &shader.frame_texture),
                         ResourceBinding::Buffer {
                             buffer: ctx.uniform_buffer_cache.write(
-                                ctx.server,
                                 StaticUniformBuffer::<256>::new()
                                     .with(&frame_matrix)
                                     .with(&Color::ORANGE),

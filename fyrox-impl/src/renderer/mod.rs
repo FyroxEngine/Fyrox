@@ -872,7 +872,6 @@ pub trait SceneRenderPass {
 }
 
 fn blit_pixels(
-    server: &dyn GraphicsServer,
     uniform_buffer_cache: &mut UniformBufferCache,
     framebuffer: &mut dyn FrameBuffer,
     texture: Rc<RefCell<dyn GpuTexture>>,
@@ -893,7 +892,7 @@ fn blit_pixels(
         0.0,
     ));
     let uniform_buffer =
-        uniform_buffer_cache.write(server, StaticUniformBuffer::<256>::new().with(&matrix))?;
+        uniform_buffer_cache.write(StaticUniformBuffer::<256>::new().with(&matrix))?;
     framebuffer.draw(
         quad,
         viewport,
@@ -1101,9 +1100,9 @@ impl Renderer {
             shader_cache,
             scene_render_passes: Default::default(),
             matrix_storage: MatrixStorageCache::new(&*server)?,
+            uniform_buffer_cache: UniformBufferCache::new(server.clone()),
             server,
             visibility_cache: Default::default(),
-            uniform_buffer_cache: Default::default(),
             uniform_memory_allocator,
         };
 
@@ -1572,7 +1571,6 @@ impl Renderer {
 
             // Prepare glow map.
             scene_associated_data.statistics += scene_associated_data.bloom_renderer.render(
-                server,
                 &**quad,
                 scene_associated_data.hdr_scene_frame_texture(),
                 &mut self.uniform_buffer_cache,
@@ -1597,7 +1595,6 @@ impl Renderer {
             // Apply FXAA if needed.
             if self.quality_settings.fxaa {
                 scene_associated_data.statistics += self.fxaa_renderer.render(
-                    server,
                     viewport,
                     scene_associated_data.ldr_scene_frame_texture(),
                     &mut *scene_associated_data.ldr_temp_framebuffer,
@@ -1607,7 +1604,6 @@ impl Renderer {
                 let quad = &self.quad;
                 let temp_frame_texture = scene_associated_data.ldr_temp_frame_texture();
                 scene_associated_data.statistics += blit_pixels(
-                    server,
                     &mut self.uniform_buffer_cache,
                     &mut *scene_associated_data.ldr_scene_framebuffer,
                     temp_frame_texture,
@@ -1620,7 +1616,6 @@ impl Renderer {
             // Render debug geometry in the LDR frame buffer.
             self.debug_renderer.set_lines(&scene.drawing_context.lines);
             scene_associated_data.statistics += self.debug_renderer.render(
-                server,
                 &mut self.uniform_buffer_cache,
                 viewport,
                 &mut *scene_associated_data.ldr_scene_framebuffer,
@@ -1667,7 +1662,6 @@ impl Renderer {
         if scene.rendering_options.render_target.is_none() {
             let quad = &self.quad;
             scene_associated_data.statistics += blit_pixels(
-                server,
                 &mut self.uniform_buffer_cache,
                 &mut *self.backbuffer,
                 scene_associated_data.ldr_scene_frame_texture(),
@@ -1745,7 +1739,6 @@ impl Renderer {
         let screen_matrix =
             Matrix4::new_orthographic(0.0, backbuffer_width, backbuffer_height, 0.0, -1.0, 1.0);
         self.screen_space_debug_renderer.render(
-            &*self.server,
             &mut self.uniform_buffer_cache,
             window_viewport,
             &mut *self.backbuffer,

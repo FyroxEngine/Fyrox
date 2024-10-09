@@ -123,7 +123,6 @@ impl Blur {
 
     pub(crate) fn render(
         &mut self,
-        server: &dyn GraphicsServer,
         input: Rc<RefCell<dyn GpuTexture>>,
         uniform_buffer_cache: &mut UniformBufferCache,
     ) -> Result<DrawCallStatistics, FrameworkError> {
@@ -149,7 +148,6 @@ impl Blur {
                     ResourceBinding::texture(&input, &shader.input_texture),
                     ResourceBinding::Buffer {
                         buffer: uniform_buffer_cache.write(
-                            server,
                             StaticUniformBuffer::<256>::new().with(&make_viewport_matrix(viewport)),
                         )?,
                         shader_location: shader.uniform_buffer_binding,

@@ -83,7 +83,6 @@ impl FxaaRenderer {
 
     pub(crate) fn render(
         &self,
-        server: &dyn GraphicsServer,
         viewport: Rect<i32>,
         frame_texture: Rc<RefCell<dyn GpuTexture>>,
         frame_buffer: &mut dyn FrameBuffer,
@@ -123,7 +122,6 @@ impl FxaaRenderer {
                     ResourceBinding::texture(&frame_texture, &self.shader.screen_texture),
                     ResourceBinding::Buffer {
                         buffer: uniform_buffer_cache.write(
-                            server,
                             StaticUniformBuffer::<256>::new().with(&frame_matrix).with(
                                 &Vector2::new(1.0 / viewport.w() as f32, 1.0 / viewport.h() as f32),
                             ),

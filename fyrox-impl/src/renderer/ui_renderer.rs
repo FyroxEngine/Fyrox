@@ -223,8 +223,8 @@ impl UiRenderer {
                 self.clipping_geometry_buffer
                     .set_triangles(&clipping_geometry.triangle_buffer);
 
-                let uniform_buffer = uniform_buffer_cache
-                    .write(server, StaticUniformBuffer::<256>::new().with(&ortho))?;
+                let uniform_buffer =
+                    uniform_buffer_cache.write(StaticUniformBuffer::<256>::new().with(&ortho))?;
 
                 // Draw
                 statistics += frame_buffer.draw(
@@ -376,7 +376,6 @@ impl UiRenderer {
             };
 
             let uniform_buffer = uniform_buffer_cache.write(
-                server,
                 StaticUniformBuffer::<1024>::new()
                     .with(&ortho)
                     .with(&solid_color)
