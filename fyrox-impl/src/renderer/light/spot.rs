@@ -18,13 +18,14 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::core::sstorage::ImmutableString;
-use crate::renderer::framework::{
-    error::FrameworkError,
-    gl::server::GlGraphicsServer,
-    gpu_program::{GpuProgram, UniformLocation},
+use crate::{
+    core::sstorage::ImmutableString,
+    renderer::framework::{
+        error::FrameworkError,
+        gpu_program::{GpuProgram, UniformLocation},
+        server::GraphicsServer,
+    },
 };
-use fyrox_graphics::server::GraphicsServer;
 
 pub struct SpotLightShader {
     pub program: Box<dyn GpuProgram>,
@@ -38,7 +39,7 @@ pub struct SpotLightShader {
 }
 
 impl SpotLightShader {
-    pub fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
+    pub fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("../shaders/deferred_spot_light_fs.glsl");
         let vertex_source = include_str!("../shaders/deferred_spot_light_vs.glsl");
         let program = server.create_program("SpotLightShader", vertex_source, fragment_source)?;

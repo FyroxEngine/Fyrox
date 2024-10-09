@@ -909,7 +909,7 @@ impl SceneController for GameScene {
 
                 if let Some(highlighter) = self.highlighter.as_ref() {
                     highlighter.borrow_mut().resize(
-                        &gc.renderer.state,
+                        &*gc.renderer.server,
                         frame_size.x as usize,
                         frame_size.y as usize,
                     );

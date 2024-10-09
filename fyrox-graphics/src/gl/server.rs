@@ -18,22 +18,21 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::geometry_buffer::{GeometryBuffer, GeometryBufferDescriptor};
-use crate::gl::geometry_buffer::GlGeometryBuffer;
-use crate::gl::program::GlProgram;
-use crate::gl::read_buffer::GlAsyncReadBuffer;
-use crate::gl::ToGlConstant;
-use crate::gpu_program::{GpuProgram, PropertyDefinition};
-use crate::read_buffer::AsyncReadBuffer;
-use crate::server::{GraphicsServer, ServerCapabilities};
 use crate::{
     buffer::{Buffer, BufferKind, BufferUsage},
     core::{color::Color, log::Log, math::Rect},
     error::FrameworkError,
     framebuffer::{Attachment, FrameBuffer},
-    gl::{self, framebuffer::GlFrameBuffer, query::GlQuery, texture::GlTexture},
+    geometry_buffer::{GeometryBuffer, GeometryBufferDescriptor},
+    gl::{
+        self, framebuffer::GlFrameBuffer, geometry_buffer::GlGeometryBuffer, program::GlProgram,
+        query::GlQuery, read_buffer::GlAsyncReadBuffer, texture::GlTexture, ToGlConstant,
+    },
+    gpu_program::{GpuProgram, PropertyDefinition},
     gpu_texture::{GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind},
     query::Query,
+    read_buffer::AsyncReadBuffer,
+    server::{GraphicsServer, ServerCapabilities, SharedGraphicsServer},
     stats::PipelineStatistics,
     BlendEquation, BlendFactor, BlendFunc, BlendMode, ColorMask, CompareFunc, CullFace,
     DrawParameters, PolygonFace, PolygonFillMode, ScissorBox, StencilAction, StencilFunc,
@@ -43,11 +42,12 @@ use glow::HasContext;
 #[cfg(not(target_arch = "wasm32"))]
 use glutin::{
     config::ConfigTemplateBuilder,
-    context::PossiblyCurrentContext,
-    context::{ContextApi, ContextAttributesBuilder, GlProfile, NotCurrentGlContext, Version},
+    context::{
+        ContextApi, ContextAttributesBuilder, GlProfile, NotCurrentGlContext,
+        PossiblyCurrentContext, Version,
+    },
     display::{GetGlDisplay, GlDisplay},
-    surface::{GlSurface, SwapInterval},
-    surface::{Surface, WindowSurface},
+    surface::{GlSurface, Surface, SwapInterval, WindowSurface},
 };
 #[cfg(not(target_arch = "wasm32"))]
 use glutin_winit::{DisplayBuilder, GlWindow};
@@ -257,8 +257,6 @@ impl InnerState {
     }
 }
 
-pub type SharedPipelineState = Rc<GlGraphicsServer>;
-
 pub struct GlGraphicsServer {
     pub gl: glow::Context,
     pub(crate) state: RefCell<InnerState>,
@@ -308,13 +306,14 @@ struct TextureUnitsStorage {
 }
 
 impl GlGraphicsServer {
+    #[allow(clippy::new_ret_no_self)]
     #[allow(unused_mut)]
     pub fn new(
         #[allow(unused_variables)] vsync: bool,
         #[allow(unused_variables)] msaa_sample_count: Option<u8>,
         window_target: &EventLoopWindowTarget<()>,
         window_builder: WindowBuilder,
-    ) -> Result<(Window, SharedPipelineState), FrameworkError> {
+    ) -> Result<(Window, SharedGraphicsServer), FrameworkError> {
         #[cfg(not(target_arch = "wasm32"))]
         let (window, gl_context, gl_surface, mut context, gl_kind) = {
             let mut template = ConfigTemplateBuilder::new()
@@ -569,7 +568,7 @@ impl GlGraphicsServer {
             this: Default::default(),
         };
 
-        let shared = SharedPipelineState::new(state);
+        let shared = Rc::new(state);
 
         *shared.this.borrow_mut() = Some(Rc::downgrade(&shared));
 
@@ -596,25 +595,6 @@ impl GlGraphicsServer {
             }
         }
         None
-    }
-
-    pub fn set_polygon_fill_mode(
-        &self,
-        polygon_face: PolygonFace,
-        polygon_fill_mode: PolygonFillMode,
-    ) {
-        let mut state = self.state.borrow_mut();
-        if state.polygon_fill_mode != polygon_fill_mode || state.polygon_face != polygon_face {
-            state.polygon_fill_mode = polygon_fill_mode;
-            state.polygon_face = polygon_face;
-
-            unsafe {
-                self.gl.polygon_mode(
-                    state.polygon_face.into_gl(),
-                    state.polygon_fill_mode.into_gl(),
-                )
-            }
-        }
     }
 
     pub(crate) fn set_framebuffer(&self, framebuffer: Option<glow::Framebuffer>) {
@@ -941,55 +921,6 @@ impl GlGraphicsServer {
         }
     }
 
-    pub fn blit_framebuffer(
-        &self,
-        source: &dyn FrameBuffer,
-        dest: &dyn FrameBuffer,
-        src_x0: i32,
-        src_y0: i32,
-        src_x1: i32,
-        src_y1: i32,
-        dst_x0: i32,
-        dst_y0: i32,
-        dst_x1: i32,
-        dst_y1: i32,
-        copy_color: bool,
-        copy_depth: bool,
-        copy_stencil: bool,
-    ) {
-        let source = source.as_any().downcast_ref::<GlFrameBuffer>().unwrap();
-        let dest = dest.as_any().downcast_ref::<GlFrameBuffer>().unwrap();
-
-        let mut mask = 0;
-        if copy_color {
-            mask |= glow::COLOR_BUFFER_BIT;
-        }
-        if copy_depth {
-            mask |= glow::DEPTH_BUFFER_BIT;
-        }
-        if copy_stencil {
-            mask |= glow::STENCIL_BUFFER_BIT;
-        }
-
-        unsafe {
-            self.gl
-                .bind_framebuffer(glow::READ_FRAMEBUFFER, source.id());
-            self.gl.bind_framebuffer(glow::DRAW_FRAMEBUFFER, dest.id());
-            self.gl.blit_framebuffer(
-                src_x0,
-                src_y0,
-                src_x1,
-                src_y1,
-                dst_x0,
-                dst_y0,
-                dst_x1,
-                dst_y1,
-                mask,
-                glow::NEAREST,
-            );
-        }
-    }
-
     pub(crate) fn set_scissor_box(&self, scissor_box: &ScissorBox) {
         unsafe {
             self.gl.scissor(
@@ -1231,6 +1162,21 @@ impl GraphicsServer for GlGraphicsServer {
                     .gl
                     .get_parameter_i32(glow::UNIFORM_BUFFER_OFFSET_ALIGNMENT)
                     as usize,
+            }
+        }
+    }
+
+    fn set_polygon_fill_mode(&self, polygon_face: PolygonFace, polygon_fill_mode: PolygonFillMode) {
+        let mut state = self.state.borrow_mut();
+        if state.polygon_fill_mode != polygon_fill_mode || state.polygon_face != polygon_face {
+            state.polygon_fill_mode = polygon_fill_mode;
+            state.polygon_face = polygon_face;
+
+            unsafe {
+                self.gl.polygon_mode(
+                    state.polygon_face.into_gl(),
+                    state.polygon_fill_mode.into_gl(),
+                )
             }
         }
     }

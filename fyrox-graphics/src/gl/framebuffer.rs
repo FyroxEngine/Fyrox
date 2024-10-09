@@ -191,6 +191,59 @@ impl FrameBuffer for GlFrameBuffer {
         }
     }
 
+    fn blit_to(
+        &self,
+        dest: &dyn FrameBuffer,
+        src_x0: i32,
+        src_y0: i32,
+        src_x1: i32,
+        src_y1: i32,
+        dst_x0: i32,
+        dst_y0: i32,
+        dst_x1: i32,
+        dst_y1: i32,
+        copy_color: bool,
+        copy_depth: bool,
+        copy_stencil: bool,
+    ) {
+        let server = self.state.upgrade().unwrap();
+
+        let source = self;
+        let dest = dest.as_any().downcast_ref::<GlFrameBuffer>().unwrap();
+
+        let mut mask = 0;
+        if copy_color {
+            mask |= glow::COLOR_BUFFER_BIT;
+        }
+        if copy_depth {
+            mask |= glow::DEPTH_BUFFER_BIT;
+        }
+        if copy_stencil {
+            mask |= glow::STENCIL_BUFFER_BIT;
+        }
+
+        unsafe {
+            server
+                .gl
+                .bind_framebuffer(glow::READ_FRAMEBUFFER, source.id());
+            server
+                .gl
+                .bind_framebuffer(glow::DRAW_FRAMEBUFFER, dest.id());
+            server.gl.blit_framebuffer(
+                src_x0,
+                src_y0,
+                src_x1,
+                src_y1,
+                dst_x0,
+                dst_y0,
+                dst_x1,
+                dst_y1,
+                mask,
+                glow::NEAREST,
+            );
+        }
+    }
+
     fn clear(
         &mut self,
         viewport: Rect<i32>,

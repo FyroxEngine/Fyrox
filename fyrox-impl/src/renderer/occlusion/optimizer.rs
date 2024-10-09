@@ -28,7 +28,6 @@ use crate::{
                 Attachment, AttachmentKind, FrameBuffer, ResourceBindGroup, ResourceBinding,
             },
             geometry_buffer::GeometryBuffer,
-            gl::server::GlGraphicsServer,
             gpu_program::{GpuProgram, UniformLocation},
             gpu_texture::{
                 GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind,
@@ -50,7 +49,7 @@ struct VisibilityOptimizerShader {
 }
 
 impl VisibilityOptimizerShader {
-    fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
+    fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("../shaders/visibility_optimizer_fs.glsl");
         let vertex_source = include_str!("../shaders/visibility_optimizer_vs.glsl");
         let program =
@@ -75,7 +74,7 @@ pub struct VisibilityBufferOptimizer {
 
 impl VisibilityBufferOptimizer {
     pub fn new(
-        server: &GlGraphicsServer,
+        server: &dyn GraphicsServer,
         w_tiles: usize,
         h_tiles: usize,
     ) -> Result<Self, FrameworkError> {
@@ -116,7 +115,7 @@ impl VisibilityBufferOptimizer {
 
     pub fn optimize(
         &mut self,
-        server: &GlGraphicsServer,
+        server: &dyn GraphicsServer,
         visibility_buffer: &Rc<RefCell<dyn GpuTexture>>,
         unit_quad: &dyn GeometryBuffer,
         tile_size: i32,

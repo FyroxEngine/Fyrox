@@ -18,7 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::cache::uniform::UniformMemoryAllocator;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3},
@@ -27,11 +26,18 @@ use crate::{
     },
     graph::SceneGraph,
     renderer::{
-        cache::{shader::ShaderCache, uniform::UniformBufferCache},
+        cache::{
+            shader::ShaderCache, uniform::UniformBufferCache, uniform::UniformMemoryAllocator,
+        },
         flat_shader::FlatShader,
         framework::{
-            buffer::BufferUsage, error::FrameworkError, framebuffer::FrameBuffer,
-            geometry_buffer::GeometryBuffer, gl::server::GlGraphicsServer, gpu_texture::GpuTexture,
+            buffer::{Buffer, BufferUsage},
+            error::FrameworkError,
+            framebuffer::{FrameBuffer, ResourceBindGroup, ResourceBinding},
+            geometry_buffer::GeometryBuffer,
+            gpu_texture::GpuTexture,
+            server::GraphicsServer,
+            uniform::StaticUniformBuffer,
             BlendFactor, BlendFunc, BlendParameters, ColorMask, CompareFunc, CullFace,
             DrawParameters, ElementRange, GeometryBufferExt, StencilAction, StencilFunc, StencilOp,
         },
@@ -62,9 +68,6 @@ use crate::{
         Scene,
     },
 };
-use fyrox_graphics::buffer::Buffer;
-use fyrox_graphics::framebuffer::{ResourceBindGroup, ResourceBinding};
-use fyrox_graphics::uniform::StaticUniformBuffer;
 use std::{cell::RefCell, rc::Rc};
 
 pub mod ambient;
@@ -91,7 +94,7 @@ pub struct DeferredLightRenderer {
 }
 
 pub(crate) struct DeferredRendererContext<'a> {
-    pub server: &'a GlGraphicsServer,
+    pub server: &'a dyn GraphicsServer,
     pub scene: &'a Scene,
     pub camera: &'a Camera,
     pub gbuffer: &'a mut GBuffer,
@@ -113,7 +116,7 @@ pub(crate) struct DeferredRendererContext<'a> {
 
 impl DeferredLightRenderer {
     pub fn new(
-        server: &GlGraphicsServer,
+        server: &dyn GraphicsServer,
         frame_size: (u32, u32),
         settings: &QualitySettings,
     ) -> Result<Self, FrameworkError> {
@@ -226,7 +229,7 @@ impl DeferredLightRenderer {
 
     pub fn set_quality_settings(
         &mut self,
-        server: &GlGraphicsServer,
+        server: &dyn GraphicsServer,
         settings: &QualitySettings,
     ) -> Result<(), FrameworkError> {
         if settings.spot_shadow_map_size != self.spot_shadow_map_renderer.base_size()
@@ -262,7 +265,7 @@ impl DeferredLightRenderer {
 
     pub fn set_frame_size(
         &mut self,
-        server: &GlGraphicsServer,
+        server: &dyn GraphicsServer,
         frame_size: (u32, u32),
     ) -> Result<(), FrameworkError> {
         self.ssao_renderer = ScreenSpaceAmbientOcclusionRenderer::new(

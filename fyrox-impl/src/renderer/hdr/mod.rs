@@ -18,7 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::cache::uniform::UniformBufferCache;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2, Vector3},
@@ -27,15 +26,18 @@ use crate::{
         transmute_slice, value_as_u8_slice,
     },
     renderer::{
-        cache::texture::TextureCache,
+        cache::{texture::TextureCache, uniform::UniformBufferCache},
         framework::{
             error::FrameworkError,
-            framebuffer::{Attachment, AttachmentKind, FrameBuffer},
+            framebuffer::{
+                Attachment, AttachmentKind, FrameBuffer, ResourceBindGroup, ResourceBinding,
+            },
             geometry_buffer::{DrawCallStatistics, GeometryBuffer},
-            gl::server::GlGraphicsServer,
             gpu_texture::{
                 GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind,
             },
+            server::GraphicsServer,
+            uniform::StaticUniformBuffer,
             DrawParameters, ElementRange,
         },
         hdr::{
@@ -48,9 +50,6 @@ use crate::{
     },
     scene::camera::{ColorGradingLut, Exposure},
 };
-use fyrox_graphics::framebuffer::{ResourceBindGroup, ResourceBinding};
-use fyrox_graphics::server::GraphicsServer;
-use fyrox_graphics::uniform::StaticUniformBuffer;
 use std::{cell::RefCell, rc::Rc};
 
 mod adaptation;
@@ -70,7 +69,7 @@ pub struct LumBuffer {
 }
 
 impl LumBuffer {
-    fn new(server: &GlGraphicsServer, size: usize) -> Result<Self, FrameworkError> {
+    fn new(server: &dyn GraphicsServer, size: usize) -> Result<Self, FrameworkError> {
         let texture = server.create_texture(
             GpuTextureKind::Rectangle {
                 width: size,
@@ -130,7 +129,7 @@ pub struct HighDynamicRangeRenderer {
 }
 
 impl HighDynamicRangeRenderer {
-    pub fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
+    pub fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
         Ok(Self {
             frame_luminance: LumBuffer::new(server, 64)?,
             downscale_chain: [
@@ -368,7 +367,7 @@ impl HighDynamicRangeRenderer {
 
     fn map_hdr_to_ldr(
         &mut self,
-        server: &GlGraphicsServer,
+        server: &dyn GraphicsServer,
         hdr_scene_frame: Rc<RefCell<dyn GpuTexture>>,
         bloom_texture: Rc<RefCell<dyn GpuTexture>>,
         ldr_framebuffer: &mut dyn FrameBuffer,
@@ -444,7 +443,7 @@ impl HighDynamicRangeRenderer {
 
     pub fn render(
         &mut self,
-        server: &GlGraphicsServer,
+        server: &dyn GraphicsServer,
         hdr_scene_frame: Rc<RefCell<dyn GpuTexture>>,
         bloom_texture: Rc<RefCell<dyn GpuTexture>>,
         ldr_framebuffer: &mut dyn FrameBuffer,

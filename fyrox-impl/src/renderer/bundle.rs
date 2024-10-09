@@ -43,9 +43,9 @@ use crate::{
             buffer::Buffer,
             error::FrameworkError,
             framebuffer::{FrameBuffer, ResourceBindGroup, ResourceBinding},
-            gl::server::GlGraphicsServer,
             gpu_program::{BuiltInUniform, BuiltInUniformBlock, GpuProgram},
             gpu_texture::GpuTexture,
+            server::GraphicsServer,
             uniform::StaticUniformBuffer,
             ElementRange,
         },
@@ -167,7 +167,7 @@ impl<'a> BundleRenderContext<'a> {
     #[allow(missing_docs)] // TODO
     pub fn apply_material(
         &mut self,
-        server: &GlGraphicsServer,
+        server: &dyn GraphicsServer,
         material: &Material,
         program: &dyn GpuProgram,
         blend_shapes_storage: Option<TextureResource>,
@@ -460,7 +460,7 @@ impl RenderDataBundle {
     /// Draws the entire bundle to the specified frame buffer with the specified rendering environment.
     pub fn render_to_frame_buffer<F>(
         &self,
-        server: &GlGraphicsServer,
+        server: &dyn GraphicsServer,
         geometry_cache: &mut GeometryCache,
         shader_cache: &mut ShaderCache,
         instance_filter: &mut F,
@@ -730,7 +730,7 @@ impl RenderDataBundleStorage {
     /// Draws the entire bundle set to the specified frame buffer with the specified rendering environment.
     pub fn render_to_frame_buffer<BundleFilter, InstanceFilter>(
         &self,
-        server: &GlGraphicsServer,
+        server: &dyn GraphicsServer,
         geometry_cache: &mut GeometryCache,
         shader_cache: &mut ShaderCache,
         mut bundle_filter: BundleFilter,

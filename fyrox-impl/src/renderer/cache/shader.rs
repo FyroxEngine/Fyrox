@@ -18,16 +18,17 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::cache::TemporaryCache;
-use crate::renderer::framework::error::FrameworkError;
 use crate::{
-    core::sstorage::ImmutableString,
+    core::{log::Log, sstorage::ImmutableString},
     material::shader::{Shader, ShaderResource},
-    renderer::framework::{gl::server::GlGraphicsServer, gpu_program::GpuProgram, DrawParameters},
+    renderer::{
+        cache::TemporaryCache,
+        framework::{
+            error::FrameworkError, gpu_program::GpuProgram, server::GraphicsServer, DrawParameters,
+        },
+    },
 };
 use fxhash::FxHashMap;
-use fyrox_core::log::Log;
-use fyrox_graphics::server::GraphicsServer;
 
 pub struct RenderPassData {
     pub program: Box<dyn GpuProgram>,
@@ -39,7 +40,7 @@ pub struct ShaderSet {
 }
 
 impl ShaderSet {
-    pub fn new(server: &GlGraphicsServer, shader: &Shader) -> Result<Self, FrameworkError> {
+    pub fn new(server: &dyn GraphicsServer, shader: &Shader) -> Result<Self, FrameworkError> {
         let mut map = FxHashMap::default();
         for render_pass in shader.definition.passes.iter() {
             let program_name = format!("{}_{}", shader.definition.name, render_pass.name);
@@ -86,7 +87,7 @@ impl ShaderCache {
 
     pub fn get(
         &mut self,
-        server: &GlGraphicsServer,
+        server: &dyn GraphicsServer,
         shader: &ShaderResource,
     ) -> Option<&ShaderSet> {
         let mut shader_state = shader.state();

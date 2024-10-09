@@ -24,13 +24,12 @@ use crate::{
         cache::{TemporaryCache, TimeToLive},
         framework::{
             error::FrameworkError,
-            gl::server::GlGraphicsServer,
             gpu_texture::{Coordinate, GpuTexture, PixelKind},
+            server::GraphicsServer,
         },
     },
     resource::texture::{Texture, TextureResource},
 };
-use fyrox_graphics::server::GraphicsServer;
 use std::{cell::RefCell, rc::Rc};
 
 pub(crate) struct TextureRenderData {
@@ -44,7 +43,7 @@ pub struct TextureCache {
 }
 
 fn create_gpu_texture(
-    server: &GlGraphicsServer,
+    server: &dyn GraphicsServer,
     texture: &Texture,
 ) -> Result<TextureRenderData, FrameworkError> {
     server
@@ -67,7 +66,7 @@ impl TextureCache {
     /// destroyed.
     pub fn upload(
         &mut self,
-        server: &GlGraphicsServer,
+        server: &dyn GraphicsServer,
         texture: &TextureResource,
     ) -> Result<(), FrameworkError> {
         let mut texture = texture.state();
@@ -87,7 +86,7 @@ impl TextureCache {
 
     pub fn get(
         &mut self,
-        server: &GlGraphicsServer,
+        server: &dyn GraphicsServer,
         texture_resource: &TextureResource,
     ) -> Option<&Rc<RefCell<dyn GpuTexture>>> {
         let mut texture_data_guard = texture_resource.state();

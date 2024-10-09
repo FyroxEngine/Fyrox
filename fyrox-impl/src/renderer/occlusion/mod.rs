@@ -43,7 +43,6 @@ use crate::{
                 Attachment, AttachmentKind, FrameBuffer, ResourceBindGroup, ResourceBinding,
             },
             geometry_buffer::GeometryBuffer,
-            gl::server::GlGraphicsServer,
             gpu_program::{GpuProgram, UniformLocation},
             gpu_texture::{
                 Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
@@ -73,7 +72,7 @@ struct Shader {
 }
 
 impl Shader {
-    fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
+    fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("../shaders/visibility_fs.glsl");
         let vertex_source = include_str!("../shaders/visibility_vs.glsl");
         let program = server.create_program("VisibilityShader", vertex_source, fragment_source)?;
@@ -177,7 +176,7 @@ fn inflated_world_aabb(graph: &Graph, object: Handle<Node>) -> Option<AxisAligne
 
 impl OcclusionTester {
     pub fn new(
-        server: &GlGraphicsServer,
+        server: &dyn GraphicsServer,
         width: usize,
         height: usize,
         tile_size: usize,
@@ -369,7 +368,6 @@ impl OcclusionTester {
 
     fn upload_data<'a>(
         &mut self,
-        server: &GlGraphicsServer,
         graph: &Graph,
         objects_to_test: impl Iterator<Item = &'a Handle<Node>>,
         prev_framebuffer: &dyn FrameBuffer,
@@ -380,8 +378,7 @@ impl OcclusionTester {
         self.observer_position = observer_position;
         let w = self.frame_size.x as i32;
         let h = self.frame_size.y as i32;
-        server.blit_framebuffer(
-            prev_framebuffer,
+        prev_framebuffer.blit_to(
             &*self.framebuffer,
             0,
             0,
@@ -412,7 +409,7 @@ impl OcclusionTester {
 
     pub fn try_run_visibility_test<'a>(
         &mut self,
-        server: &GlGraphicsServer,
+        server: &dyn GraphicsServer,
         graph: &Graph,
         debug_renderer: Option<&mut DebugRenderer>,
         unit_quad: &dyn GeometryBuffer,
@@ -427,7 +424,6 @@ impl OcclusionTester {
         }
 
         self.upload_data(
-            server,
             graph,
             objects_to_test,
             prev_framebuffer,

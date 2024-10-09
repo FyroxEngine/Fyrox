@@ -18,7 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::cache::uniform::UniformBufferCache;
 use crate::{
     core::{
         algebra::{Matrix3, Matrix4, Vector2, Vector3},
@@ -28,12 +27,14 @@ use crate::{
     },
     rand::Rng,
     renderer::{
+        cache::uniform::UniformBufferCache,
         framework::{
             buffer::BufferUsage,
             error::FrameworkError,
-            framebuffer::{Attachment, AttachmentKind, FrameBuffer},
+            framebuffer::{
+                Attachment, AttachmentKind, FrameBuffer, ResourceBindGroup, ResourceBinding,
+            },
             geometry_buffer::GeometryBuffer,
-            gl::server::GlGraphicsServer,
             gpu_program::{GpuProgram, UniformLocation},
             gpu_texture::{
                 Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
@@ -49,7 +50,6 @@ use crate::{
     },
     scene::mesh::surface::SurfaceData,
 };
-use fyrox_graphics::framebuffer::{ResourceBindGroup, ResourceBinding};
 use std::{cell::RefCell, rc::Rc};
 
 mod blur;
@@ -69,7 +69,7 @@ struct Shader {
 }
 
 impl Shader {
-    pub fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
+    pub fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("../shaders/ssao_fs.glsl");
         let vertex_source = include_str!("../shaders/ssao_vs.glsl");
         let program = server.create_program("SsaoShader", vertex_source, fragment_source)?;
@@ -97,7 +97,7 @@ pub struct ScreenSpaceAmbientOcclusionRenderer {
 
 impl ScreenSpaceAmbientOcclusionRenderer {
     pub fn new(
-        server: &GlGraphicsServer,
+        server: &dyn GraphicsServer,
         frame_width: usize,
         frame_height: usize,
     ) -> Result<Self, FrameworkError> {

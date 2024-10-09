@@ -27,8 +27,8 @@ use crate::{
                 error::FrameworkError,
                 framebuffer::{ResourceBindGroup, ResourceBinding},
                 geometry_buffer::GeometryBuffer,
-                gl::server::GlGraphicsServer,
                 gpu_program::{GpuProgram, UniformLocation},
+                server::GraphicsServer,
                 uniform::StaticUniformBuffer,
                 BlendFactor, BlendFunc, BlendParameters, CompareFunc, DrawParameters, ElementRange,
                 GeometryBufferExt,
@@ -43,7 +43,6 @@ use crate::{
     },
     Editor,
 };
-use fyrox::renderer::framework::server::GraphicsServer;
 use std::{any::TypeId, cell::RefCell, rc::Rc};
 
 struct OverlayShader {
@@ -53,7 +52,7 @@ struct OverlayShader {
 }
 
 impl OverlayShader {
-    pub fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
+    pub fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("../resources/shaders/overlay_fs.glsl");
         let vertex_source = include_str!("../resources/shaders/overlay_vs.glsl");
         let program = server.create_program("OverlayShader", vertex_source, fragment_source)?;
@@ -75,7 +74,7 @@ pub struct OverlayRenderPass {
 }
 
 impl OverlayRenderPass {
-    pub fn new(server: &GlGraphicsServer) -> Rc<RefCell<Self>> {
+    pub fn new(server: &dyn GraphicsServer) -> Rc<RefCell<Self>> {
         Rc::new(RefCell::new(Self {
             quad: <dyn GeometryBuffer>::from_surface_data(
                 &SurfaceData::make_collapsed_xy_quad(),

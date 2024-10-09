@@ -23,7 +23,7 @@ use crate::{
     renderer::{
         cache::{TemporaryCache, TimeToLive},
         framework::{
-            error::FrameworkError, geometry_buffer::GeometryBuffer, gl::server::GlGraphicsServer,
+            error::FrameworkError, geometry_buffer::GeometryBuffer, server::GraphicsServer,
         },
     },
     scene::mesh::surface::{SurfaceData, SurfaceResource},
@@ -45,7 +45,7 @@ pub struct GeometryCache {
 
 fn create_geometry_buffer(
     data: &SurfaceData,
-    server: &GlGraphicsServer,
+    server: &dyn GraphicsServer,
 ) -> Result<SurfaceRenderData, FrameworkError> {
     let geometry_buffer =
         <dyn GeometryBuffer>::from_surface_data(data, BufferUsage::StaticDraw, server)?;
@@ -61,7 +61,7 @@ fn create_geometry_buffer(
 impl GeometryCache {
     pub fn get<'a>(
         &'a mut self,
-        server: &GlGraphicsServer,
+        server: &dyn GraphicsServer,
         data: &SurfaceResource,
         time_to_live: TimeToLive,
     ) -> Option<&'a dyn GeometryBuffer> {

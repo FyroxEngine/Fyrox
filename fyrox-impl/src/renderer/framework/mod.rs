@@ -28,10 +28,10 @@ use crate::{
             AttributeDefinition, AttributeKind, GeometryBuffer, GeometryBufferDescriptor,
             VertexBufferData, VertexBufferDescriptor,
         },
-        gl::server::GlGraphicsServer,
         gpu_texture::{
             GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind, WrapMode,
         },
+        server::GraphicsServer,
     },
     resource::texture::{
         TextureKind, TextureMagnificationFilter, TextureMinificationFilter, TexturePixelKind,
@@ -39,7 +39,6 @@ use crate::{
     },
     scene::mesh::{buffer::VertexAttributeDataType, surface::SurfaceData},
 };
-use fyrox_graphics::server::GraphicsServer;
 pub use fyrox_graphics::*;
 
 impl From<TextureKind> for GpuTextureKind {
@@ -141,7 +140,7 @@ pub trait GeometryBufferExt {
     fn from_surface_data(
         data: &SurfaceData,
         usage: BufferUsage,
-        server: &GlGraphicsServer,
+        server: &dyn GraphicsServer,
     ) -> Result<Box<dyn GeometryBuffer>, FrameworkError>;
 }
 
@@ -149,7 +148,7 @@ impl GeometryBufferExt for dyn GeometryBuffer {
     fn from_surface_data(
         data: &SurfaceData,
         usage: BufferUsage,
-        server: &GlGraphicsServer,
+        server: &dyn GraphicsServer,
     ) -> Result<Box<dyn GeometryBuffer>, FrameworkError> {
         let attributes = data
             .vertex_buffer

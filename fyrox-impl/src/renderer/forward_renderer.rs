@@ -19,15 +19,7 @@
 // SOFTWARE.
 
 //! Forward renderer is used to render transparent meshes and meshes with custom blending options.
-//!
-//! # Notes
-//!
-//! This renderer eventually will replace deferred renderer, because deferred renderer is too restrictive.
-//! For now it is used **only** to render transparent meshes (or any other mesh that has Forward render
-//! path).
 
-use crate::renderer::bundle::BundleRenderContext;
-use crate::renderer::cache::uniform::{UniformBufferCache, UniformMemoryAllocator};
 use crate::{
     core::{
         algebra::{Vector2, Vector4},
@@ -36,11 +28,15 @@ use crate::{
         sstorage::ImmutableString,
     },
     renderer::{
-        bundle::RenderDataBundleStorage,
-        cache::{shader::ShaderCache, texture::TextureCache},
+        bundle::{BundleRenderContext, RenderDataBundleStorage},
+        cache::{
+            shader::ShaderCache,
+            texture::TextureCache,
+            uniform::{UniformBufferCache, UniformMemoryAllocator},
+        },
         framework::{
-            error::FrameworkError, framebuffer::FrameBuffer, gl::server::GlGraphicsServer,
-            gpu_texture::GpuTexture,
+            buffer::Buffer, error::FrameworkError, framebuffer::FrameBuffer,
+            gpu_texture::GpuTexture, server::GraphicsServer,
         },
         GeometryCache, LightData, QualitySettings, RenderPassStatistics,
     },
@@ -51,7 +47,6 @@ use crate::{
         mesh::RenderPath,
     },
 };
-use fyrox_graphics::buffer::Buffer;
 use std::{cell::RefCell, rc::Rc};
 
 pub(crate) struct ForwardRenderer {
@@ -59,7 +54,7 @@ pub(crate) struct ForwardRenderer {
 }
 
 pub(crate) struct ForwardRenderContext<'a, 'b> {
-    pub state: &'a GlGraphicsServer,
+    pub state: &'a dyn GraphicsServer,
     pub graph: &'b Graph,
     pub camera: &'b Camera,
     pub geom_cache: &'a mut GeometryCache,

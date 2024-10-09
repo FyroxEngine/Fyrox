@@ -18,7 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::cache::uniform::{UniformBufferCache, UniformMemoryAllocator};
 use crate::{
     core::{
         algebra::{Matrix4, Vector3},
@@ -27,23 +26,26 @@ use crate::{
     },
     renderer::{
         bundle::{BundleRenderContext, ObserverInfo, RenderDataBundleStorage},
-        cache::{shader::ShaderCache, texture::TextureCache},
+        cache::{
+            shader::ShaderCache,
+            texture::TextureCache,
+            uniform::{UniformBufferCache, UniformMemoryAllocator},
+        },
         framework::{
+            buffer::Buffer,
             error::FrameworkError,
             framebuffer::{Attachment, AttachmentKind, FrameBuffer},
-            gl::server::GlGraphicsServer,
             gpu_texture::{
                 Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
                 PixelKind, WrapMode,
             },
+            server::GraphicsServer,
         },
         shadow::cascade_size,
         GeometryCache, RenderPassStatistics, ShadowMapPrecision, SPOT_SHADOW_PASS_NAME,
     },
     scene::graph::Graph,
 };
-use fyrox_graphics::buffer::Buffer;
-use fyrox_graphics::server::GraphicsServer;
 use std::{cell::RefCell, rc::Rc};
 
 pub struct SpotShadowMapRenderer {
@@ -58,12 +60,12 @@ pub struct SpotShadowMapRenderer {
 
 impl SpotShadowMapRenderer {
     pub fn new(
-        server: &GlGraphicsServer,
+        server: &dyn GraphicsServer,
         size: usize,
         precision: ShadowMapPrecision,
     ) -> Result<Self, FrameworkError> {
         fn make_cascade(
-            server: &GlGraphicsServer,
+            server: &dyn GraphicsServer,
             size: usize,
             precision: ShadowMapPrecision,
         ) -> Result<Box<dyn FrameBuffer>, FrameworkError> {
@@ -136,7 +138,7 @@ impl SpotShadowMapRenderer {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn render(
         &mut self,
-        server: &GlGraphicsServer,
+        server: &dyn GraphicsServer,
         graph: &Graph,
         light_position: Vector3<f32>,
         light_view_matrix: Matrix4<f32>,

@@ -29,13 +29,14 @@ use crate::{
         bundle::{BundleRenderContext, ObserverInfo, RenderDataBundleStorage},
         cache::{geometry::GeometryCache, shader::ShaderCache, texture::TextureCache},
         framework::{
+            buffer::Buffer,
             error::FrameworkError,
             framebuffer::{Attachment, AttachmentKind, FrameBuffer},
-            gl::server::GlGraphicsServer,
             gpu_texture::{
                 Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
                 PixelKind, WrapMode,
             },
+            server::GraphicsServer,
         },
         RenderPassStatistics, ShadowMapPrecision, DIRECTIONAL_SHADOW_PASS_NAME,
     },
@@ -45,8 +46,6 @@ use crate::{
         light::directional::{DirectionalLight, FrustumSplitOptions, CSM_NUM_CASCADES},
     },
 };
-use fyrox_graphics::buffer::Buffer;
-use fyrox_graphics::server::GraphicsServer;
 use std::{cell::RefCell, rc::Rc};
 
 pub struct Cascade {
@@ -57,7 +56,7 @@ pub struct Cascade {
 
 impl Cascade {
     pub fn new(
-        server: &GlGraphicsServer,
+        server: &dyn GraphicsServer,
         size: usize,
         precision: ShadowMapPrecision,
     ) -> Result<Self, FrameworkError> {
@@ -115,7 +114,7 @@ pub struct CsmRenderer {
 
 pub(crate) struct CsmRenderContext<'a, 'c> {
     pub frame_size: Vector2<f32>,
-    pub state: &'a GlGraphicsServer,
+    pub state: &'a dyn GraphicsServer,
     pub graph: &'c Graph,
     pub light: &'c DirectionalLight,
     pub camera: &'c Camera,
@@ -133,7 +132,7 @@ pub(crate) struct CsmRenderContext<'a, 'c> {
 
 impl CsmRenderer {
     pub fn new(
-        server: &GlGraphicsServer,
+        server: &dyn GraphicsServer,
         size: usize,
         precision: ShadowMapPrecision,
     ) -> Result<Self, FrameworkError> {

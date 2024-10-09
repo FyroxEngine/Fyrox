@@ -18,17 +18,18 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::core::sstorage::ImmutableString;
-use crate::renderer::{
-    framework::{
-        error::FrameworkError,
-        gl::server::GlGraphicsServer,
-        gpu_program::{GpuProgram, UniformLocation},
-        gpu_texture::GpuTexture,
+use crate::{
+    core::sstorage::ImmutableString,
+    renderer::{
+        framework::{
+            error::FrameworkError,
+            gpu_program::{GpuProgram, UniformLocation},
+            gpu_texture::GpuTexture,
+            server::GraphicsServer,
+        },
+        hdr::LumBuffer,
     },
-    hdr::LumBuffer,
 };
-use fyrox_graphics::server::GraphicsServer;
 use std::{cell::RefCell, rc::Rc};
 
 pub struct AdaptationShader {
@@ -39,7 +40,7 @@ pub struct AdaptationShader {
 }
 
 impl AdaptationShader {
-    pub fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
+    pub fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("../shaders/hdr_adaptation_fs.glsl");
         let vertex_source = include_str!("../shaders/hdr_adaptation_vs.glsl");
 
@@ -66,7 +67,7 @@ pub struct AdaptationContext<'a> {
 }
 
 impl AdaptationChain {
-    pub fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
+    pub fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
         Ok(Self {
             lum_framebuffers: [LumBuffer::new(server, 1)?, LumBuffer::new(server, 1)?],
             swap: false,

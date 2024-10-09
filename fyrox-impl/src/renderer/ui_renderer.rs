@@ -39,8 +39,10 @@ use crate::{
             buffer::BufferUsage,
             error::FrameworkError,
             framebuffer::{FrameBuffer, ResourceBindGroup, ResourceBinding},
-            geometry_buffer::{AttributeDefinition, AttributeKind, GeometryBuffer},
-            gl::server::GlGraphicsServer,
+            geometry_buffer::{
+                AttributeDefinition, AttributeKind, GeometryBuffer, GeometryBufferDescriptor,
+                VertexBufferData, VertexBufferDescriptor,
+            },
             gpu_program::{GpuProgram, UniformLocation},
             gpu_texture::GpuTexture,
             server::GraphicsServer,
@@ -52,9 +54,6 @@ use crate::{
     },
     resource::texture::{Texture, TextureKind, TexturePixelKind, TextureResource},
 };
-use fyrox_graphics::geometry_buffer::{
-    GeometryBufferDescriptor, VertexBufferData, VertexBufferDescriptor,
-};
 use std::{cell::RefCell, rc::Rc};
 
 struct UiShader {
@@ -64,7 +63,7 @@ struct UiShader {
 }
 
 impl UiShader {
-    pub fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
+    pub fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("shaders/ui_fs.glsl");
         let vertex_source = include_str!("shaders/ui_vs.glsl");
         let program = server.create_program("UIShader", vertex_source, fragment_source)?;
@@ -85,8 +84,8 @@ pub struct UiRenderer {
 
 /// A set of parameters to render a specified user interface drawing context.
 pub struct UiRenderContext<'a, 'b, 'c> {
-    /// Render pipeline state.
-    pub state: &'a GlGraphicsServer,
+    /// Graphics server.
+    pub server: &'a dyn GraphicsServer,
     /// Viewport to where render the user interface.
     pub viewport: Rect<i32>,
     /// Frame buffer to where render the user interface.
@@ -108,7 +107,7 @@ pub struct UiRenderContext<'a, 'b, 'c> {
 }
 
 impl UiRenderer {
-    pub(in crate::renderer) fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
+    pub(in crate::renderer) fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
         let geometry_buffer_desc = GeometryBufferDescriptor {
             element_kind: ElementKind::Triangle,
             buffers: &[VertexBufferDescriptor {
@@ -172,7 +171,7 @@ impl UiRenderer {
         args: UiRenderContext,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let UiRenderContext {
-            state: server,
+            server,
             viewport,
             frame_buffer,
             frame_width,

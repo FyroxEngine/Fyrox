@@ -36,8 +36,10 @@ use crate::{
             buffer::BufferUsage,
             error::FrameworkError,
             framebuffer::{FrameBuffer, ResourceBindGroup, ResourceBinding},
-            geometry_buffer::{AttributeDefinition, AttributeKind, GeometryBuffer},
-            gl::server::GlGraphicsServer,
+            geometry_buffer::{
+                AttributeDefinition, AttributeKind, GeometryBuffer, GeometryBufferDescriptor,
+                VertexBufferData, VertexBufferDescriptor,
+            },
             gpu_program::GpuProgram,
             server::GraphicsServer,
             uniform::StaticUniformBuffer,
@@ -48,9 +50,6 @@ use crate::{
     scene::debug::Line,
 };
 use bytemuck::{Pod, Zeroable};
-use fyrox_graphics::geometry_buffer::{
-    GeometryBufferDescriptor, VertexBufferData, VertexBufferDescriptor,
-};
 
 #[repr(C)]
 #[derive(Copy, Pod, Zeroable, Clone)]
@@ -89,7 +88,7 @@ pub fn draw_rect(rect: &Rect<f32>, lines: &mut Vec<Line>, color: Color) {
 }
 
 impl DebugShader {
-    fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
+    fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("shaders/debug_fs.glsl");
         let vertex_source = include_str!("shaders/debug_vs.glsl");
         let program = server.create_program("DebugShader", vertex_source, fragment_source)?;
@@ -102,7 +101,7 @@ impl DebugShader {
 }
 
 impl DebugRenderer {
-    pub(crate) fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
+    pub(crate) fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
         let desc = GeometryBufferDescriptor {
             element_kind: ElementKind::Line,
             buffers: &[VertexBufferDescriptor {

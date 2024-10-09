@@ -31,7 +31,6 @@ use crate::{
             error::FrameworkError,
             framebuffer::{FrameBuffer, ResourceBindGroup, ResourceBinding},
             geometry_buffer::GeometryBuffer,
-            gl::server::GlGraphicsServer,
             gpu_program::{GpuProgram, UniformLocation},
             gpu_texture::GpuTexture,
             server::GraphicsServer,
@@ -51,7 +50,7 @@ struct FxaaShader {
 }
 
 impl FxaaShader {
-    pub fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
+    pub fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("shaders/fxaa_fs.glsl");
         let vertex_source = include_str!("shaders/fxaa_vs.glsl");
 
@@ -71,7 +70,7 @@ pub struct FxaaRenderer {
 }
 
 impl FxaaRenderer {
-    pub fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
+    pub fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
         Ok(Self {
             shader: FxaaShader::new(server)?,
             quad: <dyn GeometryBuffer>::from_surface_data(

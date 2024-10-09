@@ -26,15 +26,14 @@ use crate::{
         bundle::PersistentIdentifier,
         framework::{
             error::FrameworkError,
-            gl::server::GlGraphicsServer,
             gpu_texture::{
                 GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind,
             },
+            server::GraphicsServer,
         },
     },
 };
 use fxhash::FxHashMap;
-use fyrox_graphics::server::GraphicsServer;
 use std::{cell::RefCell, collections::hash_map::Entry, rc::Rc};
 
 /// Generic, texture-based, storage for matrices with somewhat unlimited capacity.
@@ -50,7 +49,7 @@ pub struct MatrixStorage {
 
 impl MatrixStorage {
     /// Creates a new matrix storage.
-    pub fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
+    pub fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
         let identity = [Matrix4::<f32>::identity()];
         Ok(Self {
             texture: server.create_texture(
@@ -121,7 +120,7 @@ pub struct MatrixStorageCache {
 
 impl MatrixStorageCache {
     /// Creates new cache.
-    pub fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
+    pub fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
         Ok(Self {
             empty: MatrixStorage::new(server)?,
             active_set: Default::default(),
@@ -143,7 +142,7 @@ impl MatrixStorageCache {
     /// synchronization.  
     pub fn try_upload(
         &mut self,
-        server: &GlGraphicsServer,
+        server: &dyn GraphicsServer,
         id: PersistentIdentifier,
         matrices: &[Matrix4<f32>],
     ) -> Result<&MatrixStorage, FrameworkError> {

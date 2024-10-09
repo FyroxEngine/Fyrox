@@ -86,6 +86,21 @@ pub trait FrameBuffer: Any {
     fn color_attachments(&self) -> &[Attachment];
     fn depth_attachment(&self) -> Option<&Attachment>;
     fn set_cubemap_face(&mut self, attachment_index: usize, face: CubeMapFace);
+    fn blit_to(
+        &self,
+        dest: &dyn FrameBuffer,
+        src_x0: i32,
+        src_y0: i32,
+        src_x1: i32,
+        src_y1: i32,
+        dst_x0: i32,
+        dst_y0: i32,
+        dst_x1: i32,
+        dst_y1: i32,
+        copy_color: bool,
+        copy_depth: bool,
+        copy_stencil: bool,
+    );
     fn clear(
         &mut self,
         viewport: Rect<i32>,

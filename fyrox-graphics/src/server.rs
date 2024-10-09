@@ -28,6 +28,7 @@ use crate::{
     query::Query,
     read_buffer::AsyncReadBuffer,
     stats::PipelineStatistics,
+    PolygonFace, PolygonFillMode,
 };
 use std::{
     any::Any,
@@ -56,6 +57,8 @@ impl Display for ServerCapabilities {
         Ok(())
     }
 }
+
+pub type SharedGraphicsServer = Rc<dyn GraphicsServer>;
 
 pub trait GraphicsServer: Any {
     fn create_buffer(
@@ -112,4 +115,5 @@ pub trait GraphicsServer: Any {
     fn swap_buffers(&self) -> Result<(), FrameworkError>;
     fn set_frame_size(&self, new_size: (u32, u32));
     fn capabilities(&self) -> ServerCapabilities;
+    fn set_polygon_fill_mode(&self, polygon_face: PolygonFace, polygon_fill_mode: PolygonFillMode);
 }

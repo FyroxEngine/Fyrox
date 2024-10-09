@@ -29,8 +29,6 @@
 //! Every alpha channel is used for layer blending for terrains. This is inefficient, but for
 //! now I don't know better solution.
 
-use crate::renderer::cache::uniform::{UniformBufferCache, UniformMemoryAllocator};
-use crate::renderer::framework::GeometryBufferExt;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2},
@@ -40,18 +38,26 @@ use crate::{
     },
     renderer::{
         bundle::{BundleRenderContext, RenderDataBundleStorage, SurfaceInstanceData},
-        cache::shader::ShaderCache,
+        cache::{
+            shader::ShaderCache,
+            uniform::{UniformBufferCache, UniformMemoryAllocator},
+        },
         debug_renderer::DebugRenderer,
         framework::{
+            buffer::{Buffer, BufferUsage},
             error::FrameworkError,
-            framebuffer::{Attachment, AttachmentKind, FrameBuffer},
+            framebuffer::{
+                Attachment, AttachmentKind, FrameBuffer, ResourceBindGroup, ResourceBinding,
+            },
             geometry_buffer::GeometryBuffer,
-            gl::server::GlGraphicsServer,
             gpu_texture::{
                 Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
                 PixelKind, WrapMode,
             },
+            server::GraphicsServer,
+            uniform::StaticUniformBuffer,
             BlendFactor, BlendFunc, BlendParameters, DrawParameters, ElementRange,
+            GeometryBufferExt,
         },
         gbuffer::decal::DecalShader,
         occlusion::OcclusionTester,
@@ -65,10 +71,6 @@ use crate::{
     },
 };
 use fxhash::FxHashSet;
-use fyrox_graphics::buffer::{Buffer, BufferUsage};
-use fyrox_graphics::framebuffer::{ResourceBindGroup, ResourceBinding};
-use fyrox_graphics::server::GraphicsServer;
-use fyrox_graphics::uniform::StaticUniformBuffer;
 use std::{cell::RefCell, rc::Rc};
 
 mod decal;
@@ -85,7 +87,7 @@ pub struct GBuffer {
 }
 
 pub(crate) struct GBufferRenderContext<'a, 'b> {
-    pub server: &'a GlGraphicsServer,
+    pub server: &'a dyn GraphicsServer,
     pub camera: &'b Camera,
     pub geom_cache: &'a mut GeometryCache,
     pub bundle_storage: &'a RenderDataBundleStorage,
@@ -107,7 +109,7 @@ pub(crate) struct GBufferRenderContext<'a, 'b> {
 
 impl GBuffer {
     pub fn new(
-        server: &GlGraphicsServer,
+        server: &dyn GraphicsServer,
         width: usize,
         height: usize,
     ) -> Result<Self, FrameworkError> {

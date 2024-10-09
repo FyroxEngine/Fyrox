@@ -25,13 +25,12 @@ use crate::{
     graph::BaseSceneGraph,
     renderer::framework::{
         error::FrameworkError,
-        gl::server::GlGraphicsServer,
         query::{Query, QueryKind, QueryResult},
+        server::GraphicsServer,
     },
     scene::{graph::Graph, node::Node},
 };
 use fxhash::FxHashMap;
-use fyrox_graphics::server::GraphicsServer;
 
 #[derive(Debug)]
 struct PendingQuery {
@@ -161,7 +160,7 @@ impl ObserverVisibilityCache {
     /// the given observer position.
     pub fn begin_query(
         &mut self,
-        server: &GlGraphicsServer,
+        server: &dyn GraphicsServer,
         observer_position: Vector3<f32>,
         node: Handle<Node>,
     ) -> Result<(), FrameworkError> {

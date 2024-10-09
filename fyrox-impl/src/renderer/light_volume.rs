@@ -33,7 +33,6 @@ use crate::{
             error::FrameworkError,
             framebuffer::{FrameBuffer, ResourceBindGroup, ResourceBinding},
             geometry_buffer::GeometryBuffer,
-            gl::server::GlGraphicsServer,
             gpu_program::{GpuProgram, UniformLocation},
             server::GraphicsServer,
             uniform::StaticUniformBuffer,
@@ -58,7 +57,7 @@ struct SpotLightShader {
 }
 
 impl SpotLightShader {
-    fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
+    fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("shaders/spot_volumetric_fs.glsl");
         let vertex_source = include_str!("shaders/spot_volumetric_vs.glsl");
         let program =
@@ -79,7 +78,7 @@ struct PointLightShader {
 }
 
 impl PointLightShader {
-    fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
+    fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("shaders/point_volumetric_fs.glsl");
         let vertex_source = include_str!("shaders/point_volumetric_vs.glsl");
         let program =
@@ -102,7 +101,7 @@ pub struct LightVolumeRenderer {
 }
 
 impl LightVolumeRenderer {
-    pub fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
+    pub fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
         Ok(Self {
             spot_light_shader: SpotLightShader::new(server)?,
             point_light_shader: PointLightShader::new(server)?,

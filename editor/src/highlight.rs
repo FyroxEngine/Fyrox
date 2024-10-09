@@ -38,7 +38,6 @@ use crate::{
                     Attachment, AttachmentKind, FrameBuffer, ResourceBindGroup, ResourceBinding,
                 },
                 geometry_buffer::GeometryBuffer,
-                gl::server::GlGraphicsServer,
                 gpu_program::{GpuProgram, UniformLocation},
                 gpu_texture::{
                     Coordinate, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind,
@@ -64,7 +63,7 @@ struct EdgeDetectShader {
 }
 
 impl EdgeDetectShader {
-    pub fn new(server: &GlGraphicsServer) -> Result<Self, FrameworkError> {
+    pub fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
         let fragment_source = r#"
 layout (location = 0) out vec4 outColor;
 
@@ -138,7 +137,7 @@ pub struct HighlightRenderPass {
 
 impl HighlightRenderPass {
     fn create_frame_buffer(
-        server: &GlGraphicsServer,
+        server: &dyn GraphicsServer,
         width: usize,
         height: usize,
     ) -> Box<dyn FrameBuffer> {
@@ -190,7 +189,7 @@ impl HighlightRenderPass {
             .unwrap()
     }
 
-    pub fn new_raw(server: &GlGraphicsServer, width: usize, height: usize) -> Self {
+    pub fn new_raw(server: &dyn GraphicsServer, width: usize, height: usize) -> Self {
         Self {
             framebuffer: Self::create_frame_buffer(server, width, height),
             quad: <dyn GeometryBuffer>::from_surface_data(
@@ -205,11 +204,11 @@ impl HighlightRenderPass {
         }
     }
 
-    pub fn new(server: &GlGraphicsServer, width: usize, height: usize) -> Rc<RefCell<Self>> {
+    pub fn new(server: &dyn GraphicsServer, width: usize, height: usize) -> Rc<RefCell<Self>> {
         Rc::new(RefCell::new(Self::new_raw(server, width, height)))
     }
 
-    pub fn resize(&mut self, server: &GlGraphicsServer, width: usize, height: usize) {
+    pub fn resize(&mut self, server: &dyn GraphicsServer, width: usize, height: usize) {
         self.framebuffer = Self::create_frame_buffer(server, width, height);
     }
 }

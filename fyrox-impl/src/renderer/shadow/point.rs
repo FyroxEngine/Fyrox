@@ -18,7 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::cache::uniform::{UniformBufferCache, UniformMemoryAllocator};
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector3},
@@ -27,23 +26,26 @@ use crate::{
     },
     renderer::{
         bundle::{BundleRenderContext, ObserverInfo, RenderDataBundleStorage},
-        cache::{shader::ShaderCache, texture::TextureCache},
+        cache::{
+            shader::ShaderCache,
+            texture::TextureCache,
+            uniform::{UniformBufferCache, UniformMemoryAllocator},
+        },
         framework::{
+            buffer::Buffer,
             error::FrameworkError,
             framebuffer::{Attachment, AttachmentKind, FrameBuffer},
-            gl::server::GlGraphicsServer,
             gpu_texture::{
                 Coordinate, CubeMapFace, GpuTexture, GpuTextureKind, MagnificationFilter,
                 MinificationFilter, PixelKind, WrapMode,
             },
+            server::GraphicsServer,
         },
         shadow::cascade_size,
         GeometryCache, RenderPassStatistics, ShadowMapPrecision, POINT_SHADOW_PASS_NAME,
     },
     scene::graph::Graph,
 };
-use fyrox_graphics::buffer::Buffer;
-use fyrox_graphics::server::GraphicsServer;
 use std::{cell::RefCell, rc::Rc};
 
 pub struct PointShadowMapRenderer {
@@ -60,7 +62,7 @@ struct PointShadowCubeMapFace {
 }
 
 pub(crate) struct PointShadowMapRenderContext<'a> {
-    pub state: &'a GlGraphicsServer,
+    pub state: &'a dyn GraphicsServer,
     pub graph: &'a Graph,
     pub light_pos: Vector3<f32>,
     pub light_radius: f32,
@@ -79,12 +81,12 @@ pub(crate) struct PointShadowMapRenderContext<'a> {
 
 impl PointShadowMapRenderer {
     pub fn new(
-        server: &GlGraphicsServer,
+        server: &dyn GraphicsServer,
         size: usize,
         precision: ShadowMapPrecision,
     ) -> Result<Self, FrameworkError> {
         fn make_cascade(
-            server: &GlGraphicsServer,
+            server: &dyn GraphicsServer,
             size: usize,
             precision: ShadowMapPrecision,
         ) -> Result<Box<dyn FrameBuffer>, FrameworkError> {
