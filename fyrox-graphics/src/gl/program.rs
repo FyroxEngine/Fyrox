@@ -18,11 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::gpu_program::SamplerKind;
 use crate::{
     core::{
-        algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4},
-        color::Color,
         log::{Log, MessageKind},
         ImmutableString,
     },
@@ -30,7 +27,7 @@ use crate::{
     gl::server::{GlGraphicsServer, GlKind},
     gpu_program::{
         BuiltInUniform, BuiltInUniformBlock, GpuProgram, PropertyDefinition, PropertyKind,
-        UniformLocation,
+        SamplerKind, UniformLocation,
     },
 };
 use fxhash::FxHashMap;
@@ -181,6 +178,12 @@ fn fetch_built_in_uniform_blocks(
         fetch_uniform_block_index(server, program, "FyroxCameraData");
     locations[BuiltInUniformBlock::MaterialProperties as usize] =
         fetch_uniform_block_index(server, program, "FyroxMaterialProperties");
+    locations[BuiltInUniformBlock::LightData as usize] =
+        fetch_uniform_block_index(server, program, "FyroxLightData");
+    locations[BuiltInUniformBlock::LightsBlock as usize] =
+        fetch_uniform_block_index(server, program, "FyroxLightsBlock");
+    locations[BuiltInUniformBlock::GraphicsSettings as usize] =
+        fetch_uniform_block_index(server, program, "FyroxGraphicsSettings");
     locations
 }
 
@@ -194,26 +197,8 @@ fn fetch_built_in_uniform_locations(
     locations[BuiltInUniform::SceneDepth as usize] =
         fetch_uniform_location(server, program, "fyrox_sceneDepth");
 
-    locations[BuiltInUniform::UsePOM as usize] =
-        fetch_uniform_location(server, program, "fyrox_usePOM");
-
     locations[BuiltInUniform::BlendShapesStorage as usize] =
         fetch_uniform_location(server, program, "fyrox_blendShapesStorage");
-
-    locations[BuiltInUniform::LightCount as usize] =
-        fetch_uniform_location(server, program, "fyrox_lightCount");
-    locations[BuiltInUniform::LightsColorRadius as usize] =
-        fetch_uniform_location(server, program, "fyrox_lightsColorRadius");
-    locations[BuiltInUniform::LightsPosition as usize] =
-        fetch_uniform_location(server, program, "fyrox_lightsPosition");
-    locations[BuiltInUniform::LightsDirection as usize] =
-        fetch_uniform_location(server, program, "fyrox_lightsDirection");
-    locations[BuiltInUniform::LightsParameters as usize] =
-        fetch_uniform_location(server, program, "fyrox_lightsParameters");
-    locations[BuiltInUniform::AmbientLight as usize] =
-        fetch_uniform_location(server, program, "fyrox_ambientLightColor");
-    locations[BuiltInUniform::LightPosition as usize] =
-        fetch_uniform_location(server, program, "fyrox_lightPosition");
 
     locations
 }
@@ -437,248 +422,6 @@ impl GpuProgram for GlProgram {
                 .ok_or_else(|| {
                     FrameworkError::UnableToFindShaderUniformBlock(name.deref().to_owned())
                 })
-        }
-    }
-
-    #[inline(always)]
-    fn set_bool(&self, location: &UniformLocation, value: bool) {
-        unsafe {
-            self.bind().server.gl.uniform_1_i32(
-                Some(&location.id),
-                if value { glow::TRUE } else { glow::FALSE } as i32,
-            );
-        }
-    }
-
-    #[inline(always)]
-    fn set_i32(&self, location: &UniformLocation, value: i32) {
-        unsafe {
-            self.bind()
-                .server
-                .gl
-                .uniform_1_i32(Some(&location.id), value);
-        }
-    }
-
-    #[inline(always)]
-    fn set_u32(&self, location: &UniformLocation, value: u32) {
-        unsafe {
-            self.bind()
-                .server
-                .gl
-                .uniform_1_u32(Some(&location.id), value);
-        }
-    }
-
-    #[inline(always)]
-    fn set_f32(&self, location: &UniformLocation, value: f32) {
-        unsafe {
-            self.bind()
-                .server
-                .gl
-                .uniform_1_f32(Some(&location.id), value);
-        }
-    }
-
-    #[inline(always)]
-    fn set_vector2(&self, location: &UniformLocation, value: &Vector2<f32>) {
-        unsafe {
-            self.bind()
-                .server
-                .gl
-                .uniform_2_f32(Some(&location.id), value.x, value.y);
-        }
-    }
-
-    #[inline(always)]
-    fn set_vector3(&self, location: &UniformLocation, value: &Vector3<f32>) {
-        unsafe {
-            self.bind()
-                .server
-                .gl
-                .uniform_3_f32(Some(&location.id), value.x, value.y, value.z);
-        }
-    }
-
-    #[inline(always)]
-    fn set_vector4(&self, location: &UniformLocation, value: &Vector4<f32>) {
-        unsafe {
-            self.bind().server.gl.uniform_4_f32(
-                Some(&location.id),
-                value.x,
-                value.y,
-                value.z,
-                value.w,
-            );
-        }
-    }
-
-    #[inline(always)]
-    fn set_i32_slice(&self, location: &UniformLocation, value: &[i32]) {
-        unsafe {
-            if !value.is_empty() {
-                self.bind()
-                    .server
-                    .gl
-                    .uniform_1_i32_slice(Some(&location.id), value);
-            }
-        }
-    }
-
-    #[inline(always)]
-    fn set_u32_slice(&self, location: &UniformLocation, value: &[u32]) {
-        unsafe {
-            if !value.is_empty() {
-                self.bind()
-                    .server
-                    .gl
-                    .uniform_1_u32_slice(Some(&location.id), value);
-            }
-        }
-    }
-
-    #[inline(always)]
-    fn set_f32_slice(&self, location: &UniformLocation, value: &[f32]) {
-        unsafe {
-            if !value.is_empty() {
-                self.bind()
-                    .server
-                    .gl
-                    .uniform_1_f32_slice(Some(&location.id), value);
-            }
-        }
-    }
-
-    #[inline(always)]
-    fn set_vector2_slice(&self, location: &UniformLocation, value: &[Vector2<f32>]) {
-        unsafe {
-            if !value.is_empty() {
-                self.bind().server.gl.uniform_2_f32_slice(
-                    Some(&location.id),
-                    std::slice::from_raw_parts(value.as_ptr() as *const f32, value.len() * 2),
-                );
-            }
-        }
-    }
-
-    #[inline(always)]
-    fn set_vector3_slice(&self, location: &UniformLocation, value: &[Vector3<f32>]) {
-        unsafe {
-            if !value.is_empty() {
-                self.bind().server.gl.uniform_3_f32_slice(
-                    Some(&location.id),
-                    std::slice::from_raw_parts(value.as_ptr() as *const f32, value.len() * 3),
-                );
-            }
-        }
-    }
-
-    #[inline(always)]
-    fn set_vector4_slice(&self, location: &UniformLocation, value: &[Vector4<f32>]) {
-        unsafe {
-            if !value.is_empty() {
-                self.bind().server.gl.uniform_4_f32_slice(
-                    Some(&location.id),
-                    std::slice::from_raw_parts(value.as_ptr() as *const f32, value.len() * 4),
-                );
-            }
-        }
-    }
-
-    #[inline(always)]
-    fn set_matrix2(&self, location: &UniformLocation, value: &Matrix2<f32>) {
-        unsafe {
-            self.bind().server.gl.uniform_matrix_2_f32_slice(
-                Some(&location.id),
-                false,
-                value.as_slice(),
-            );
-        }
-    }
-
-    #[inline(always)]
-    fn set_matrix2_array(&self, location: &UniformLocation, value: &[Matrix2<f32>]) {
-        unsafe {
-            if !value.is_empty() {
-                self.bind().server.gl.uniform_matrix_2_f32_slice(
-                    Some(&location.id),
-                    false,
-                    std::slice::from_raw_parts(value.as_ptr() as *const f32, value.len() * 4),
-                );
-            }
-        }
-    }
-
-    #[inline(always)]
-    fn set_matrix3(&self, location: &UniformLocation, value: &Matrix3<f32>) {
-        unsafe {
-            self.bind().server.gl.uniform_matrix_3_f32_slice(
-                Some(&location.id),
-                false,
-                value.as_slice(),
-            );
-        }
-    }
-
-    #[inline(always)]
-    fn set_matrix3_array(&self, location: &UniformLocation, value: &[Matrix3<f32>]) {
-        unsafe {
-            if !value.is_empty() {
-                self.bind().server.gl.uniform_matrix_3_f32_slice(
-                    Some(&location.id),
-                    false,
-                    std::slice::from_raw_parts(value.as_ptr() as *const f32, value.len() * 9),
-                );
-            }
-        }
-    }
-
-    #[inline(always)]
-    fn set_matrix4(&self, location: &UniformLocation, value: &Matrix4<f32>) {
-        unsafe {
-            self.bind().server.gl.uniform_matrix_4_f32_slice(
-                Some(&location.id),
-                false,
-                value.as_slice(),
-            );
-        }
-    }
-
-    #[inline(always)]
-    fn set_matrix4_array(&self, location: &UniformLocation, value: &[Matrix4<f32>]) {
-        unsafe {
-            if !value.is_empty() {
-                self.bind().server.gl.uniform_matrix_4_f32_slice(
-                    Some(&location.id),
-                    false,
-                    std::slice::from_raw_parts(value.as_ptr() as *const f32, value.len() * 16),
-                );
-            }
-        }
-    }
-
-    #[inline(always)]
-    fn set_linear_color(&self, location: &UniformLocation, value: &Color) {
-        unsafe {
-            let srgb_a = value.srgb_to_linear_f32();
-            self.bind().server.gl.uniform_4_f32(
-                Some(&location.id),
-                srgb_a.x,
-                srgb_a.y,
-                srgb_a.z,
-                srgb_a.w,
-            );
-        }
-    }
-
-    #[inline(always)]
-    fn set_srgb_color(&self, location: &UniformLocation, value: &Color) {
-        unsafe {
-            let rgba = value.as_frgba();
-            self.bind()
-                .server
-                .gl
-                .uniform_4_f32(Some(&location.id), rgba.x, rgba.y, rgba.z, rgba.w);
         }
     }
 }

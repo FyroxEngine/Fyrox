@@ -166,7 +166,9 @@
                 layout(location = 3) out vec4 outMaterial;
                 layout(location = 4) out uint outDecalMask;
 
-                uniform bool fyrox_usePOM;
+                layout(std140) uniform FyroxGraphicsSettings {
+                    TGraphicsSettings fyrox_graphicsSettings;
+                };
 
                 layout(std140) uniform FyroxCameraData {
                      TCameraData cameraData;
@@ -187,7 +189,7 @@
                     vec3 toFragment = normalize(position - cameraData.position);
 
                     vec2 tc;
-                    if (fyrox_usePOM) {
+                    if (fyrox_graphicsSettings.usePOM) {
                         vec3 toFragmentTangentSpace = normalize(transpose(tangentSpace) * toFragment);
                         tc = S_ComputeParallaxTextureCoordinates(
                             heightTexture,
@@ -475,7 +477,9 @@
 
             fragment_shader:
                 r#"
-                uniform vec3 fyrox_lightPosition;
+                layout(std140) uniform FyroxLightData {
+                    TLightData fyrox_lightData;
+                };
 
                 in vec2 texCoord;
                 in vec3 worldPosition;
@@ -486,7 +490,7 @@
                 {
                     if (texture(holeMaskTexture, texCoord).r < 0.5) discard;
                     if (texture(diffuseTexture, texCoord).a < 0.2) discard;
-                    depth = length(fyrox_lightPosition - worldPosition);
+                    depth = length(fyrox_lightData.lightPosition - worldPosition);
                 }
                 "#,
         )

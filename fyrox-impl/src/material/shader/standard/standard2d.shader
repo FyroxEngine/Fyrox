@@ -67,12 +67,12 @@
 
            fragment_shader:
                r#"
-                uniform int fyrox_lightCount;
-                uniform vec4 fyrox_lightsColorRadius[16]; // xyz - color, w = radius
-                uniform vec3 fyrox_lightsPosition[16];
-                uniform vec3 fyrox_lightsDirection[16];
-                uniform vec2 fyrox_lightsParameters[16]; // x = hotspot angle, y - full cone angle delta
-                uniform vec4 fyrox_ambientLightColor;
+                layout(std140) uniform FyroxLightData {
+                    TLightData fyrox_lightData;
+                };
+                layout(std140) uniform FyroxLightsBlock {
+                    TLightsBlock fyrox_lightsBlock;
+                };
 
                 out vec4 FragColor;
 
@@ -82,15 +82,15 @@
 
                 void main()
                 {
-                    vec3 lighting = fyrox_ambientLightColor.xyz;
-                    for(int i = 0; i < fyrox_lightCount; ++i) {
+                    vec3 lighting = fyrox_lightData.ambientLightColor.xyz;
+                    for(int i = 0; i < min(fyrox_lightsBlock.lightCount, MAX_LIGHT_COUNT); ++i) {
                         // "Unpack" light parameters.
-                        float halfHotspotAngleCos = fyrox_lightsParameters[i].x;
-                        float halfConeAngleCos = fyrox_lightsParameters[i].y;
-                        vec3 lightColor = fyrox_lightsColorRadius[i].xyz;
-                        float radius = fyrox_lightsColorRadius[i].w;
-                        vec3 lightPosition = fyrox_lightsPosition[i];
-                        vec3 direction = fyrox_lightsDirection[i];
+                        float halfHotspotAngleCos = fyrox_lightsBlock.lightsParameters[i].x;
+                        float halfConeAngleCos = fyrox_lightsBlock.lightsParameters[i].y;
+                        vec3 lightColor = fyrox_lightsBlock.lightsColorRadius[i].xyz;
+                        float radius = fyrox_lightsBlock.lightsColorRadius[i].w;
+                        vec3 lightPosition = fyrox_lightsBlock.lightsPosition[i];
+                        vec3 direction = fyrox_lightsBlock.lightsDirection[i];
 
                         // Calculate lighting.
                         vec3 toFragment = fragmentPosition - lightPosition;

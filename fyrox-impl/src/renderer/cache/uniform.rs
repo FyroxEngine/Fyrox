@@ -214,7 +214,9 @@ impl UniformMemoryAllocator {
 
         for (page, gpu_buffer) in self.pages.iter_mut().zip(self.gpu_buffers.iter()) {
             if !page.is_submitted {
-                gpu_buffer.write_data(page.dynamic.storage().bytes())?;
+                let bytes = page.dynamic.storage().bytes();
+                assert!(bytes.len() <= self.max_uniform_buffer_size);
+                gpu_buffer.write_data(bytes)?;
                 page.is_submitted = true;
             }
         }

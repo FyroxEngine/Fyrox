@@ -374,6 +374,7 @@ vec2 S_RotateVec2(vec2 v, float angle)
     return m * v;
 }
 
+// Do not change layout!
 struct TInstanceData {
     mat4 worldMatrix;
     mat4 worldViewProjection;
@@ -382,6 +383,7 @@ struct TInstanceData {
     vec4 blendShapesWeights[32];
 };
 
+// Do not change layout!
 struct TCameraData {
     mat4 viewProjectionMatrix;
     vec3 position;
@@ -390,4 +392,26 @@ struct TCameraData {
     float zNear;
     float zFar;
     float zRange;
+};
+
+// Do not change layout!
+struct TLightData {
+    vec3 lightPosition;
+    vec4 ambientLightColor;
+};
+
+#define MAX_LIGHT_COUNT 16
+
+// Do not change layout!
+struct TLightsBlock {
+    int lightCount;
+    vec4 lightsColorRadius[MAX_LIGHT_COUNT]; // xyz - color, w = radius
+    vec2 lightsParameters[MAX_LIGHT_COUNT]; // x = hotspot angle, y - full cone angle delta
+    vec3 lightsPosition[MAX_LIGHT_COUNT];
+    vec3 lightsDirection[MAX_LIGHT_COUNT];
+};
+
+// Do not change layout!
+struct TGraphicsSettings {
+    bool usePOM;
 };

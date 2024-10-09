@@ -21,7 +21,6 @@
 use crate::{
     core::{
         algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4},
-        color::Color,
         reflect::prelude::*,
         sstorage::ImmutableString,
         visitor::prelude::*,
@@ -29,8 +28,7 @@ use crate::{
     error::FrameworkError,
 };
 use serde::{Deserialize, Serialize};
-use std::any::Any;
-use std::{marker::PhantomData, path::PathBuf};
+use std::{any::Any, marker::PhantomData, path::PathBuf};
 
 pub trait GpuProgram: Any {
     fn as_any(&self) -> &dyn Any;
@@ -39,27 +37,6 @@ pub trait GpuProgram: Any {
     fn built_in_uniform_blocks(&self) -> &[Option<usize>];
     fn uniform_location(&self, name: &ImmutableString) -> Result<UniformLocation, FrameworkError>;
     fn uniform_block_index(&self, name: &ImmutableString) -> Result<usize, FrameworkError>;
-    fn set_bool(&self, location: &UniformLocation, value: bool);
-    fn set_i32(&self, location: &UniformLocation, value: i32);
-    fn set_u32(&self, location: &UniformLocation, value: u32);
-    fn set_f32(&self, location: &UniformLocation, value: f32);
-    fn set_vector2(&self, location: &UniformLocation, value: &Vector2<f32>);
-    fn set_vector3(&self, location: &UniformLocation, value: &Vector3<f32>);
-    fn set_vector4(&self, location: &UniformLocation, value: &Vector4<f32>);
-    fn set_i32_slice(&self, location: &UniformLocation, value: &[i32]);
-    fn set_u32_slice(&self, location: &UniformLocation, value: &[u32]);
-    fn set_f32_slice(&self, location: &UniformLocation, value: &[f32]);
-    fn set_vector2_slice(&self, location: &UniformLocation, value: &[Vector2<f32>]);
-    fn set_vector3_slice(&self, location: &UniformLocation, value: &[Vector3<f32>]);
-    fn set_vector4_slice(&self, location: &UniformLocation, value: &[Vector4<f32>]);
-    fn set_matrix2(&self, location: &UniformLocation, value: &Matrix2<f32>);
-    fn set_matrix2_array(&self, location: &UniformLocation, value: &[Matrix2<f32>]);
-    fn set_matrix3(&self, location: &UniformLocation, value: &Matrix3<f32>);
-    fn set_matrix3_array(&self, location: &UniformLocation, value: &[Matrix3<f32>]);
-    fn set_matrix4(&self, location: &UniformLocation, value: &Matrix4<f32>);
-    fn set_matrix4_array(&self, location: &UniformLocation, value: &[Matrix4<f32>]);
-    fn set_linear_color(&self, location: &UniformLocation, value: &Color);
-    fn set_srgb_color(&self, location: &UniformLocation, value: &Color);
 }
 
 #[repr(usize)]
@@ -68,21 +45,16 @@ pub enum BuiltInUniformBlock {
     InstanceData,
     CameraData,
     MaterialProperties,
+    LightData,
+    LightsBlock,
+    GraphicsSettings,
     Count,
 }
 
 #[repr(usize)]
 pub enum BuiltInUniform {
     SceneDepth,
-    UsePOM,
-    LightPosition,
     BlendShapesStorage,
-    LightCount,
-    LightsColorRadius,
-    LightsPosition,
-    LightsDirection,
-    LightsParameters,
-    AmbientLight,
     // Must be last.
     Count,
 }

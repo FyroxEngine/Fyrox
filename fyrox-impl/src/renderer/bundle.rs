@@ -20,7 +20,6 @@
 
 //! The module responsible for bundle generation for rendering optimizations.
 
-use crate::renderer::cache::uniform::{UniformBlockLocation, UniformMemoryAllocator};
 use crate::{
     asset::untyped::ResourceKind,
     core::{
@@ -36,8 +35,11 @@ use crate::{
     material::{shader::SamplerFallback, Material, MaterialResource, PropertyValue},
     renderer::{
         cache::{
-            geometry::GeometryCache, shader::ShaderCache, texture::TextureCache,
-            uniform::UniformBufferCache, TimeToLive,
+            geometry::GeometryCache,
+            shader::ShaderCache,
+            texture::TextureCache,
+            uniform::{UniformBlockLocation, UniformBufferCache, UniformMemoryAllocator},
+            TimeToLive,
         },
         framework::{
             buffer::Buffer,
@@ -215,40 +217,6 @@ impl<'a> BundleRenderContext<'a> {
             }
         }
 
-        // Apply values for built-in uniforms. TODO: Replace with uniform buffers.
-        if let Some(location) = &built_in_uniforms[BuiltInUniform::UsePOM as usize] {
-            program.set_bool(location, self.use_pom);
-        }
-        if let Some(location) = &built_in_uniforms[BuiltInUniform::LightPosition as usize] {
-            program.set_vector3(location, self.light_position);
-        }
-
-        if let Some(light_data) = self.light_data {
-            if let Some(location) = &built_in_uniforms[BuiltInUniform::LightCount as usize] {
-                program.set_i32(location, light_data.count as i32);
-            }
-
-            if let Some(location) = &built_in_uniforms[BuiltInUniform::LightsColorRadius as usize] {
-                program.set_vector4_slice(location, &light_data.color_radius);
-            }
-
-            if let Some(location) = &built_in_uniforms[BuiltInUniform::LightsPosition as usize] {
-                program.set_vector3_slice(location, &light_data.position);
-            }
-
-            if let Some(location) = &built_in_uniforms[BuiltInUniform::LightsDirection as usize] {
-                program.set_vector3_slice(location, &light_data.direction);
-            }
-
-            if let Some(location) = &built_in_uniforms[BuiltInUniform::LightsParameters as usize] {
-                program.set_vector2_slice(location, &light_data.parameters);
-            }
-        }
-
-        if let Some(location) = &built_in_uniforms[BuiltInUniform::AmbientLight as usize] {
-            program.set_srgb_color(location, &self.ambient_light);
-        }
-
         Ok(())
     }
 }
@@ -334,6 +302,12 @@ pub struct BundleUniformData {
     pub material_block: Option<UniformBlockLocation>,
     /// Camera info block location.
     pub camera_block: UniformBlockLocation,
+    /// Lights info block location.
+    pub lights_block: Option<UniformBlockLocation>,
+    /// Light source data info block location.
+    pub light_data_block: UniformBlockLocation,
+    /// Graphics settings block location.
+    pub graphics_settings_block: UniformBlockLocation,
     /// Block locations for each instance in a bundle.
     pub instance_blocks: Vec<InstanceUniformData>,
 }
@@ -403,6 +377,32 @@ impl RenderDataBundle {
             .uniform_memory_allocator
             .allocate(camera_uniforms);
 
+        let light_data = StaticUniformBuffer::<256>::new()
+            .with(render_context.light_position)
+            .with(&render_context.ambient_light.as_frgba());
+        let light_data_block = render_context.uniform_memory_allocator.allocate(light_data);
+
+        let graphics_settings = StaticUniformBuffer::<256>::new().with(&render_context.use_pom);
+        let graphics_settings_block = render_context
+            .uniform_memory_allocator
+            .allocate(graphics_settings);
+
+        let lights_block = if let Some(light_data) = render_context.light_data {
+            let lights_data = StaticUniformBuffer::<2048>::new()
+                .with(&(light_data.count as i32))
+                .with_slice(&light_data.color_radius)
+                .with_slice(&light_data.parameters)
+                .with_slice(&light_data.position)
+                .with_slice(&light_data.direction);
+            Some(
+                render_context
+                    .uniform_memory_allocator
+                    .allocate(lights_data),
+            )
+        } else {
+            None
+        };
+
         // Upload instance uniforms.
         let mut instance_blocks = Vec::with_capacity(self.instances.len());
         for instance in self.instances.iter() {
@@ -453,6 +453,9 @@ impl RenderDataBundle {
         Some(BundleUniformData {
             material_block,
             camera_block,
+            lights_block,
+            light_data_block,
+            graphics_settings_block,
             instance_blocks,
         })
     }
@@ -528,6 +531,32 @@ impl RenderDataBundle {
                     .uniform_memory_allocator
                     .block_to_binding(bundle_uniform_data.camera_block, *location),
             );
+        }
+
+        if let Some(location) = &block_locations[BuiltInUniformBlock::LightData as usize] {
+            material_bindings.push(
+                render_context
+                    .uniform_memory_allocator
+                    .block_to_binding(bundle_uniform_data.light_data_block, *location),
+            );
+        }
+
+        if let Some(location) = &block_locations[BuiltInUniformBlock::GraphicsSettings as usize] {
+            material_bindings.push(
+                render_context
+                    .uniform_memory_allocator
+                    .block_to_binding(bundle_uniform_data.graphics_settings_block, *location),
+            );
+        }
+
+        if let Some(location) = &block_locations[BuiltInUniformBlock::LightsBlock as usize] {
+            if let Some(lights_block) = bundle_uniform_data.lights_block {
+                material_bindings.push(
+                    render_context
+                        .uniform_memory_allocator
+                        .block_to_binding(lights_block, *location),
+                );
+            }
         }
 
         for (instance, uniform_data) in self
