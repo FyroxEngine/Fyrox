@@ -400,6 +400,7 @@ impl TypeUuidProvider for Mesh {
 }
 
 impl Mesh {
+    /// Default name of the blend shapes storage property in a shader.
     pub const DEFAULT_BLEND_SHAPES_PROPERTY_NAME: &'static str = "blendShapesStorage";
 
     /// Sets surfaces for the mesh.

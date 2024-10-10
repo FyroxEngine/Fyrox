@@ -7,6 +7,10 @@
             kind: Sampler(default: None, kind: Sampler2D, fallback: White),
         ),
         (
+            name: "fyrox_sceneDepth",
+            kind: Sampler(default: None, kind: Sampler2D, fallback: White),
+        ),
+        (
             name: "softBoundarySharpnessFactor",
             kind: Float(100.0),
         )
@@ -78,8 +82,6 @@
 
            fragment_shader:
                r#"
-               uniform sampler2D fyrox_sceneDepth;
-
                layout(std140) uniform FyroxCameraData {
                     TCameraData cameraData;
                };

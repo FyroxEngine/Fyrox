@@ -45,7 +45,7 @@ use crate::{
             buffer::Buffer,
             error::FrameworkError,
             framebuffer::{FrameBuffer, ResourceBindGroup, ResourceBinding},
-            gpu_program::{BuiltInUniform, BuiltInUniformBlock, GpuProgram},
+            gpu_program::{BuiltInUniformBlock, GpuProgram},
             gpu_texture::GpuTexture,
             server::GraphicsServer,
             uniform::StaticUniformBuffer,
@@ -173,18 +173,15 @@ impl<'a> BundleRenderContext<'a> {
         program: &dyn GpuProgram,
         material_bindings: &mut ArrayVec<ResourceBinding, 32>,
     ) -> Result<(), FrameworkError> {
-        let built_in_uniforms = program.built_in_uniform_locations();
-
-        // Collect texture bindings.
-        if let Some(location) = &built_in_uniforms[BuiltInUniform::SceneDepth as usize] {
-            if let Some(scene_depth) = self.scene_depth.as_ref() {
-                material_bindings.push(ResourceBinding::texture(scene_depth, location));
-            }
-        }
-
         let shader = material.shader().data_ref();
         for property in shader.definition.properties.iter() {
-            if let Some(PropertyValue::Sampler { value, fallback }) =
+            if property.name.as_str() == "fyrox_sceneDepth" {
+                if let Some(scene_depth) = self.scene_depth.as_ref() {
+                    if let Ok(location) = program.uniform_location(&property.name) {
+                        material_bindings.push(ResourceBinding::texture(scene_depth, &location));
+                    }
+                }
+            } else if let Some(PropertyValue::Sampler { value, fallback }) =
                 material.properties().get(&property.name)
             {
                 let texture = value

@@ -26,8 +26,8 @@ use crate::{
     error::FrameworkError,
     gl::server::{GlGraphicsServer, GlKind},
     gpu_program::{
-        BuiltInUniform, BuiltInUniformBlock, GpuProgram, PropertyDefinition, PropertyKind,
-        SamplerKind, UniformLocation,
+        BuiltInUniformBlock, GpuProgram, PropertyDefinition, PropertyKind, SamplerKind,
+        UniformLocation,
     },
 };
 use fxhash::FxHashMap;
@@ -131,7 +131,6 @@ pub struct GlProgram {
     // Force compiler to not implement Send and Sync, because OpenGL is not thread-safe.
     thread_mark: PhantomData<*const u8>,
     uniform_locations: RefCell<FxHashMap<ImmutableString, Option<UniformLocation>>>,
-    pub built_in_uniform_locations: [Option<UniformLocation>; BuiltInUniform::Count as usize],
     pub built_in_uniform_blocks: [Option<usize>; BuiltInUniformBlock::Count as usize],
 }
 
@@ -184,19 +183,6 @@ fn fetch_built_in_uniform_blocks(
         fetch_uniform_block_index(server, program, "FyroxLightsBlock");
     locations[BuiltInUniformBlock::GraphicsSettings as usize] =
         fetch_uniform_block_index(server, program, "FyroxGraphicsSettings");
-    locations
-}
-
-fn fetch_built_in_uniform_locations(
-    server: &GlGraphicsServer,
-    program: glow::Program,
-) -> [Option<UniformLocation>; BuiltInUniform::Count as usize] {
-    const INIT: Option<UniformLocation> = None;
-    let mut locations = [INIT; BuiltInUniform::Count as usize];
-
-    locations[BuiltInUniform::SceneDepth as usize] =
-        fetch_uniform_location(server, program, "fyrox_sceneDepth");
-
     locations
 }
 
@@ -355,7 +341,6 @@ impl GlProgram {
                     id: program,
                     thread_mark: PhantomData,
                     uniform_locations: Default::default(),
-                    built_in_uniform_locations: fetch_built_in_uniform_locations(server, program),
                     built_in_uniform_blocks: fetch_built_in_uniform_blocks(server, program),
                 })
             }
@@ -394,10 +379,6 @@ impl GpuProgram for GlProgram {
 
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
-    }
-
-    fn built_in_uniform_locations(&self) -> &[Option<UniformLocation>] {
-        &self.built_in_uniform_locations
     }
 
     fn built_in_uniform_blocks(&self) -> &[Option<usize>] {

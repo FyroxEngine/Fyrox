@@ -33,7 +33,6 @@ use std::{any::Any, marker::PhantomData, path::PathBuf};
 pub trait GpuProgram: Any {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
-    fn built_in_uniform_locations(&self) -> &[Option<UniformLocation>];
     fn built_in_uniform_blocks(&self) -> &[Option<usize>];
     fn uniform_location(&self, name: &ImmutableString) -> Result<UniformLocation, FrameworkError>;
     fn uniform_block_index(&self, name: &ImmutableString) -> Result<usize, FrameworkError>;
@@ -48,13 +47,6 @@ pub enum BuiltInUniformBlock {
     LightData,
     LightsBlock,
     GraphicsSettings,
-    Count,
-}
-
-#[repr(usize)]
-pub enum BuiltInUniform {
-    SceneDepth,
-    // Must be last.
     Count,
 }
 
