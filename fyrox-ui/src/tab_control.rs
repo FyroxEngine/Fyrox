@@ -153,7 +153,7 @@ pub struct Tab {
 ///                 header: TextBuilder::new(WidgetBuilder::new())
 ///                             .with_text("First")
 ///                             .build(ctx),
-///                             
+///
 ///                 content: TextBuilder::new(WidgetBuilder::new())
 ///                             .with_text("First tab's contents!")
 ///                             .build(ctx),
@@ -166,7 +166,7 @@ pub struct Tab {
 ///                 header: TextBuilder::new(WidgetBuilder::new())
 ///                             .with_text("Second")
 ///                             .build(ctx),
-///                             
+///
 ///                 content: TextBuilder::new(WidgetBuilder::new())
 ///                             .with_text("Second tab's contents!")
 ///                             .build(ctx),
@@ -431,14 +431,10 @@ impl Header {
                                 .with_content(
                                     VectorImageBuilder::new(
                                         WidgetBuilder::new()
-                                            .with_margin(Thickness {
-                                                left: 2.0,
-                                                top: 2.0,
-                                                right: 0.0,
-                                                bottom: 0.0,
-                                            })
                                             .with_horizontal_alignment(HorizontalAlignment::Center)
                                             .with_vertical_alignment(VerticalAlignment::Center)
+                                            .with_width(8.0)
+                                            .with_height(8.0)
                                             .with_foreground(BRUSH_BRIGHTEST),
                                     )
                                     .with_primitives(make_cross_primitive(8.0, 2.0))

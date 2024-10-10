@@ -129,7 +129,7 @@ pub enum WindowMessage {
 
     /// Safe border size defines "part" of a window that should always be on screen when dragged.
     /// It is used to prevent moving window outside of main application window bounds, to still
-    /// be able to drag it.  
+    /// be able to drag it.
     SafeBorderSize(Option<Vector2<f32>>),
 }
 
@@ -1099,6 +1099,8 @@ enum HeaderButton {
 }
 
 fn make_mark(ctx: &mut BuildContext, button: HeaderButton) -> Handle<UiNode> {
+    let size = 12.0;
+
     VectorImageBuilder::new(
         WidgetBuilder::new()
             .with_horizontal_alignment(HorizontalAlignment::Center)
@@ -1107,11 +1109,8 @@ fn make_mark(ctx: &mut BuildContext, button: HeaderButton) -> Handle<UiNode> {
                 HeaderButton::Minimize => VerticalAlignment::Bottom,
                 HeaderButton::Maximize => VerticalAlignment::Center,
             })
-            .with_margin(match button {
-                HeaderButton::Close => Thickness::uniform(0.0),
-                HeaderButton::Minimize => Thickness::bottom(3.0),
-                HeaderButton::Maximize => Thickness::bottom(0.0),
-            })
+            .with_width(size)
+            .with_height(size)
             .with_foreground(BRUSH_BRIGHT),
     )
     .with_primitives(match button {
@@ -1119,25 +1118,26 @@ fn make_mark(ctx: &mut BuildContext, button: HeaderButton) -> Handle<UiNode> {
             vec![
                 Primitive::Line {
                     begin: Vector2::new(0.0, 0.0),
-                    end: Vector2::new(12.0, 12.0),
+                    end: Vector2::new(size, size),
                     thickness: 1.0,
                 },
                 Primitive::Line {
-                    begin: Vector2::new(12.0, 0.0),
-                    end: Vector2::new(0.0, 12.0),
+                    begin: Vector2::new(size, 0.0),
+                    end: Vector2::new(0.0, size),
                     thickness: 1.0,
                 },
             ]
         }
         HeaderButton::Minimize => {
+            let bottom_spacing = 3.0;
+
             vec![Primitive::Line {
-                begin: Vector2::new(0.0, 0.0),
-                end: Vector2::new(12.0, 0.0),
+                begin: Vector2::new(0.0, size - bottom_spacing),
+                end: Vector2::new(size, size - bottom_spacing),
                 thickness: 1.0,
             }]
         }
         HeaderButton::Maximize => {
-            let size = 12.0;
             let thickness = 1.25;
             let half_thickness = thickness * 0.5;
 
