@@ -188,7 +188,7 @@
 //! | fyrox_cameraPosition       | `vec3`       | Position of the camera.                                                                                           |
 //! | fyrox_usePOM               | `bool`       | Whether to use parallax mapping or not.                                                                           |
 //! | fyrox_lightPosition        | `vec3`       | Light position.                                                                                                   |
-//! | fyrox_blendShapesStorage   | `sampler3D`  | 3D texture of layered blend shape storage. Use `S_FetchBlendShapeOffsets` built-in method to fetch info.          |
+//! | blendShapesStorage   | `sampler3D`  | 3D texture of layered blend shape storage. Use `S_FetchBlendShapeOffsets` built-in method to fetch info.          |
 //! | fyrox_blendShapesWeights   | `float[128]` | Weights of all available blend shapes.                                                                            |
 //! | fyrox_blendShapesCount     | `int`        | Total amount of blend shapes.                                                                                     |
 //!

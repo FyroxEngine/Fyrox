@@ -197,9 +197,6 @@ fn fetch_built_in_uniform_locations(
     locations[BuiltInUniform::SceneDepth as usize] =
         fetch_uniform_location(server, program, "fyrox_sceneDepth");
 
-    locations[BuiltInUniform::BlendShapesStorage as usize] =
-        fetch_uniform_location(server, program, "fyrox_blendShapesStorage");
-
     locations
 }
 

@@ -53,7 +53,6 @@ use crate::{
         },
         LightData, RenderPassStatistics, MAX_BONE_MATRICES,
     },
-    resource::texture::TextureResource,
     scene::{
         graph::Graph,
         mesh::{
@@ -172,7 +171,6 @@ impl<'a> BundleRenderContext<'a> {
         server: &dyn GraphicsServer,
         material: &Material,
         program: &dyn GpuProgram,
-        blend_shapes_storage: Option<TextureResource>,
         material_bindings: &mut ArrayVec<ResourceBinding, 32>,
     ) -> Result<(), FrameworkError> {
         let built_in_uniforms = program.built_in_uniform_locations();
@@ -181,19 +179,6 @@ impl<'a> BundleRenderContext<'a> {
         if let Some(location) = &built_in_uniforms[BuiltInUniform::SceneDepth as usize] {
             if let Some(scene_depth) = self.scene_depth.as_ref() {
                 material_bindings.push(ResourceBinding::texture(scene_depth, location));
-            }
-        }
-
-        if let Some(location) = &built_in_uniforms[BuiltInUniform::BlendShapesStorage as usize] {
-            if let Some(texture) = blend_shapes_storage
-                .as_ref()
-                .and_then(|blend_shapes_storage| {
-                    self.texture_cache.get(server, blend_shapes_storage)
-                })
-            {
-                material_bindings.push(ResourceBinding::texture(texture, location));
-            } else {
-                material_bindings.push(ResourceBinding::texture(self.volume_dummy, location));
             }
         }
 
@@ -209,6 +194,7 @@ impl<'a> BundleRenderContext<'a> {
                         SamplerFallback::White => self.white_dummy,
                         SamplerFallback::Normal => self.normal_dummy,
                         SamplerFallback::Black => self.black_dummy,
+                        SamplerFallback::Volume => self.volume_dummy,
                     });
 
                 if let Ok(uniform) = program.uniform_location(&property.name) {
@@ -485,13 +471,6 @@ impl RenderDataBundle {
             return Ok(stats);
         };
 
-        let blend_shapes_storage = self
-            .data
-            .data_ref()
-            .blend_shapes_container
-            .as_ref()
-            .and_then(|c| c.blend_shape_storage.clone());
-
         let Some(render_pass) =
             shader_cache
                 .get(server, material.shader())
@@ -509,7 +488,6 @@ impl RenderDataBundle {
             server,
             material,
             &*render_pass.program,
-            blend_shapes_storage,
             &mut material_bindings,
         )?;
 

@@ -54,7 +54,6 @@ pub enum BuiltInUniformBlock {
 #[repr(usize)]
 pub enum BuiltInUniform {
     SceneDepth,
-    BlendShapesStorage,
     // Must be last.
     Count,
 }
@@ -90,6 +89,8 @@ pub enum SamplerFallback {
     Normal,
     /// A 1x1px black texture.
     Black,
+    /// A 1x1x1 volume texture with 1 black pixel.
+    Volume,
 }
 
 #[derive(Serialize, Deserialize, Default, Debug, PartialEq, Clone, Copy, Visit, Eq, Reflect)]

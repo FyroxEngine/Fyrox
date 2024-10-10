@@ -21,6 +21,7 @@
 //! Contains all structures and methods to create and manage mesh scene graph nodes. See [`Mesh`] docs for more info
 //! and usage examples.
 
+use crate::material::MaterialResourceExtension;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector3, Vector4},
@@ -59,6 +60,7 @@ use crate::{
     },
 };
 use fxhash::{FxHashMap, FxHasher};
+use fyrox_core::log::Log;
 use fyrox_resource::untyped::ResourceKind;
 use std::{
     cell::Cell,
@@ -338,6 +340,9 @@ pub struct Mesh {
     batching_mode: InheritableVariable<BatchingMode>,
 
     #[visit(optional)]
+    blend_shapes_property_name: String,
+
+    #[visit(optional)]
     blend_shapes: InheritableVariable<Vec<BlendShape>>,
 
     #[reflect(hidden)]
@@ -367,6 +372,7 @@ impl Default for Mesh {
             local_bounding_box_dirty: Cell::new(true),
             render_path: InheritableVariable::new_modified(RenderPath::Deferred),
             batching_mode: Default::default(),
+            blend_shapes_property_name: Mesh::DEFAULT_BLEND_SHAPES_PROPERTY_NAME.to_string(),
             blend_shapes: Default::default(),
             batch_container: Default::default(),
         }
@@ -394,6 +400,8 @@ impl TypeUuidProvider for Mesh {
 }
 
 impl Mesh {
+    pub const DEFAULT_BLEND_SHAPES_PROPERTY_NAME: &'static str = "blendShapesStorage";
+
     /// Sets surfaces for the mesh.
     pub fn set_surfaces(&mut self, surfaces: Vec<Surface>) -> Vec<Surface> {
         self.surfaces.set_value_and_mark_modified(surfaces)
@@ -666,9 +674,24 @@ impl NodeTrait for Mesh {
 
                 match batching_mode {
                     BatchingMode::None => {
+                        let surface_data = surface.data_ref();
+                        let substitute_material = surface_data
+                            .data_ref()
+                            .blend_shapes_container
+                            .as_ref()
+                            .and_then(|c| c.blend_shape_storage.as_ref())
+                            .map(|texture| {
+                                let material_copy = surface.material().deep_copy();
+                                Log::verify(material_copy.data_ref().set_property(
+                                    &self.blend_shapes_property_name,
+                                    Some(texture.clone()),
+                                ));
+                                material_copy
+                            });
+
                         ctx.storage.push(
-                            surface.data_ref(),
-                            surface.material(),
+                            surface_data,
+                            substitute_material.as_ref().unwrap_or(surface.material()),
                             self.render_path(),
                             surface.material().key(),
                             SurfaceInstanceData {
@@ -799,6 +822,7 @@ pub struct MeshBuilder {
     render_path: RenderPath,
     blend_shapes: Vec<BlendShape>,
     batching_mode: BatchingMode,
+    blend_shapes_property_name: String,
 }
 
 impl MeshBuilder {
@@ -810,6 +834,7 @@ impl MeshBuilder {
             render_path: RenderPath::Deferred,
             blend_shapes: Default::default(),
             batching_mode: BatchingMode::None,
+            blend_shapes_property_name: Mesh::DEFAULT_BLEND_SHAPES_PROPERTY_NAME.to_string(),
         }
     }
 
@@ -839,6 +864,12 @@ impl MeshBuilder {
         self
     }
 
+    /// Sets a name of the blend shapes property in a material used by this mesh.
+    pub fn with_blend_shapes_property_name(mut self, name: String) -> Self {
+        self.blend_shapes_property_name = name;
+        self
+    }
+
     /// Creates new mesh.
     pub fn build_node(self) -> Node {
         Node::new(Mesh {
@@ -851,6 +882,7 @@ impl MeshBuilder {
             world_bounding_box: Default::default(),
             batching_mode: self.batching_mode.into(),
             batch_container: Default::default(),
+            blend_shapes_property_name: self.blend_shapes_property_name,
         })
     }
 

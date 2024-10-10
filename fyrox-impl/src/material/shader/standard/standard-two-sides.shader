@@ -35,6 +35,10 @@
             kind: Sampler(default: None, kind: Sampler2D, fallback: White),
         ),
         (
+            name: "blendShapesStorage",
+            kind: Sampler(default: None, kind: Sampler3D, fallback: Volume),
+        ),
+        (
             name: "texCoordScale",
             kind: Vector2((1.0, 1.0)),
         ),
@@ -93,8 +97,6 @@
                 layout(location = 5) in vec4 boneIndices;
                 layout(location = 6) in vec2 vertexSecondTexCoord;
 
-                uniform sampler3D fyrox_blendShapesStorage;
-
                 layout(std140) uniform FyroxInstanceData {
                     TInstanceData fyrox_instanceData;
                 };
@@ -121,7 +123,7 @@
                     vec3 inputTangent = vertexTangent.xyz;
 
                     for (int i = 0; i < fyrox_instanceData.blendShapesCount; ++i) {
-                        TBlendShapeOffsets offsets = S_FetchBlendShapeOffsets(fyrox_blendShapesStorage, gl_VertexID, i);
+                        TBlendShapeOffsets offsets = S_FetchBlendShapeOffsets(blendShapesStorage, gl_VertexID, i);
                         float weight = fyrox_instanceData.blendShapesWeights[i / 4][i % 4];
                         inputPosition.xyz += offsets.position * weight;
                         inputNormal += offsets.normal * weight;
@@ -278,8 +280,6 @@
                 layout(location = 4) in vec4 boneWeights;
                 layout(location = 5) in vec4 boneIndices;
 
-                uniform sampler3D fyrox_blendShapesStorage;
-
                 layout(std140) uniform FyroxInstanceData {
                     TInstanceData fyrox_instanceData;
                 };
@@ -298,7 +298,7 @@
                     vec4 inputPosition = vec4(vertexPosition, 1.0);
 
                     for (int i = 0; i < fyrox_instanceData.blendShapesCount; ++i) {
-                        TBlendShapeOffsets offsets = S_FetchBlendShapeOffsets(fyrox_blendShapesStorage, gl_VertexID, i);
+                        TBlendShapeOffsets offsets = S_FetchBlendShapeOffsets(blendShapesStorage, gl_VertexID, i);
                         float weight = fyrox_instanceData.blendShapesWeights[i / 4][i % 4];
                         inputPosition.xyz += offsets.position * weight;
                     }
@@ -372,8 +372,6 @@
                 layout(location = 4) in vec4 boneWeights;
                 layout(location = 5) in vec4 boneIndices;
 
-                uniform sampler3D fyrox_blendShapesStorage;
-
                 layout(std140) uniform FyroxInstanceData {
                     TInstanceData fyrox_instanceData;
                 };
@@ -391,7 +389,7 @@
                     vec4 inputPosition = vec4(vertexPosition, 1.0);
 
                     for (int i = 0; i < fyrox_instanceData.blendShapesCount; ++i) {
-                        TBlendShapeOffsets offsets = S_FetchBlendShapeOffsets(fyrox_blendShapesStorage, gl_VertexID, i);
+                        TBlendShapeOffsets offsets = S_FetchBlendShapeOffsets(blendShapesStorage, gl_VertexID, i);
                         float weight = fyrox_instanceData.blendShapesWeights[i / 4][i % 4];
                         inputPosition.xyz += offsets.position * weight;
                     }
@@ -461,8 +459,6 @@
                 layout(location = 4) in vec4 boneWeights;
                 layout(location = 5) in vec4 boneIndices;
 
-                uniform sampler3D fyrox_blendShapesStorage;
-
                 layout(std140) uniform FyroxInstanceData {
                     TInstanceData fyrox_instanceData;
                 };
@@ -480,7 +476,7 @@
                     vec4 inputPosition = vec4(vertexPosition, 1.0);
 
                     for (int i = 0; i < fyrox_instanceData.blendShapesCount; ++i) {
-                        TBlendShapeOffsets offsets = S_FetchBlendShapeOffsets(fyrox_blendShapesStorage, gl_VertexID, i);
+                        TBlendShapeOffsets offsets = S_FetchBlendShapeOffsets(blendShapesStorage, gl_VertexID, i);
                         float weight = fyrox_instanceData.blendShapesWeights[i / 4][i % 4];
                         inputPosition.xyz += offsets.position * weight;
                     }
@@ -550,8 +546,6 @@
                 layout(location = 4) in vec4 boneWeights;
                 layout(location = 5) in vec4 boneIndices;
 
-                uniform sampler3D fyrox_blendShapesStorage;
-
                 layout(std140) uniform FyroxInstanceData {
                     TInstanceData fyrox_instanceData;
                 };
@@ -570,7 +564,7 @@
                     vec4 inputPosition = vec4(vertexPosition, 1.0);
 
                     for (int i = 0; i < fyrox_instanceData.blendShapesCount; ++i) {
-                        TBlendShapeOffsets offsets = S_FetchBlendShapeOffsets(fyrox_blendShapesStorage, gl_VertexID, i);
+                        TBlendShapeOffsets offsets = S_FetchBlendShapeOffsets(blendShapesStorage, gl_VertexID, i);
                         float weight = fyrox_instanceData.blendShapesWeights[i / 4][i % 4];
                         inputPosition.xyz += offsets.position * weight;
                     }
