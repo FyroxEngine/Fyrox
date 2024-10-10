@@ -42,8 +42,6 @@ use crate::{
         futures::{executor::block_on, future::join_all},
         instant,
         log::Log,
-        notify,
-        notify::{EventKind, RecursiveMode, Watcher},
         pool::Handle,
         reflect::Reflect,
         task::TaskPool,
@@ -65,7 +63,7 @@ use crate::{
         Material,
     },
     plugin::{
-        dynamic::DynamicPlugin, DynamicPluginState, Plugin, PluginContainer, PluginContext,
+        AbstractDynamicPlugin, Plugin, PluginContainer, PluginContext,
         PluginRegistrationContext,
     },
     renderer::{framework::error::FrameworkError, Renderer},
@@ -105,12 +103,10 @@ use std::{
     any::TypeId,
     collections::{HashSet, VecDeque},
     fmt::{Display, Formatter},
-    fs::File,
-    io::{Cursor, Read},
+    io::Cursor,
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
     sync::{
-        atomic::{self, AtomicBool},
         mpsc::{channel, Receiver, Sender},
         Arc,
     },
@@ -1243,38 +1239,6 @@ pub(crate) fn initialize_resource_manager_loaders(
     state.loaders.set(TileMapBrushLoader {});
 }
 
-fn try_copy_library(source_lib_path: &Path, lib_path: &Path) -> Result<(), String> {
-    if let Err(err) = std::fs::copy(source_lib_path, lib_path) {
-        // The library could already be copied and loaded, thus cannot be replaced. For
-        // example - by the running editor, that also uses hot reloading. Check for matching
-        // content, and if does not match, pass the error further.
-        let mut src_lib_file = File::open(source_lib_path).map_err(|e| e.to_string())?;
-        let mut src_lib_file_content = Vec::new();
-        src_lib_file
-            .read_to_end(&mut src_lib_file_content)
-            .map_err(|e| e.to_string())?;
-        let mut lib_file = File::open(lib_path).map_err(|e| e.to_string())?;
-        let mut lib_file_content = Vec::new();
-        lib_file
-            .read_to_end(&mut lib_file_content)
-            .map_err(|e| e.to_string())?;
-        if src_lib_file_content != lib_file_content {
-            return Err(format!(
-                "Unable to clone the library {} to {}. It is required, because source \
-                        library has {} size, but loaded has {} size and the content does not match. \
-                        Exact reason: {:?}",
-                source_lib_path.display(),
-                lib_path.display(),
-                src_lib_file_content.len(),
-                lib_file_content.len(),
-                err
-            ));
-        }
-    }
-
-    Ok(())
-}
-
 impl Engine {
     /// Creates new instance of engine from given initialization parameters. Automatically creates all sub-systems
     /// (sound, ui, resource manager, etc.) **except** graphics context. Graphics context should be created manually
@@ -2299,108 +2263,27 @@ impl Engine {
         self.plugins.push(PluginContainer::Static(Box::new(plugin)));
     }
 
-    /// Tries to add a new dynamic plugin. This method attempts to load a dynamic library by the
-    /// given path and searches for `fyrox_plugin` function. This function is called to create a
-    /// plugin instance. This method will fail if there's no dynamic library at the given path or
-    /// the `fyrox_plugin` function is not found.
-    ///
-    /// # Hot reloading
-    ///
-    /// This method can enable hot reloading for the plugin, by setting `reload_when_changed` parameter
-    /// to `true`. When enabled, the engine will clone the library to implementation-defined path
-    /// and load it. It will setup file system watcher to receive changes from the OS and reload
-    /// the plugin.
+    /// Adds a new abstract dynamic plugin
     pub fn add_dynamic_plugin<P>(
         &mut self,
-        path: P,
-        reload_when_changed: bool,
-        use_relative_paths: bool,
-    ) -> Result<&dyn Plugin, String>
+        plugin: P,
+    ) -> &dyn Plugin
     where
-        P: AsRef<Path> + 'static,
+        P: AbstractDynamicPlugin + 'static,
     {
-        let source_lib_path = if use_relative_paths {
-            let exe_folder = std::env::current_exe()
-                .map_err(|e| e.to_string())?
-                .parent()
-                .map(|p| p.to_path_buf())
-                .unwrap_or_default();
+        let display_name = plugin.display_name();
 
-            exe_folder.join(path.as_ref())
-        } else {
-            path.as_ref().to_path_buf()
-        };
+        let plugin_container = PluginContainer::Dynamic(Box::new(plugin));
 
-        let plugin = if reload_when_changed {
-            // Make sure each process will its own copy of the module. This is needed to prevent
-            // issues when there are two or more running processes and a library of the plugin
-            // changes. If the library is present in one instance in both (or more) processes, then
-            // it is impossible to replace it on disk. To prevent this, we need to add a suffix with
-            // executable name.
-            let mut suffix = std::env::current_exe()
-                .ok()
-                .and_then(|p| p.file_stem().map(|s| s.to_owned()))
-                .unwrap_or_default();
-            suffix.push(".module");
-            let lib_path = source_lib_path.with_extension(suffix);
-            try_copy_library(&source_lib_path, &lib_path)?;
-
-            let need_reload = Arc::new(AtomicBool::new(false));
-            let need_reload_clone = need_reload.clone();
-            let source_lib_path_clone = source_lib_path.clone();
-
-            let mut watcher =
-                notify::recommended_watcher(move |event: notify::Result<notify::Event>| {
-                    if let Ok(event) = event {
-                        if let EventKind::Modify(_) | EventKind::Create(_) = event.kind {
-                            need_reload_clone.store(true, atomic::Ordering::Relaxed);
-
-                            Log::warn(format!(
-                                "Plugin {} was changed. Performing hot reloading...",
-                                source_lib_path_clone.display()
-                            ))
-                        }
-                    }
-                })
-                .map_err(|e| e.to_string())?;
-
-            watcher
-                .watch(&source_lib_path, RecursiveMode::NonRecursive)
-                .map_err(|e| e.to_string())?;
-
-            Log::info(format!(
-                "Watching for changes in plugin {:?}...",
-                source_lib_path
-            ));
-
-            PluginContainer::Dynamic {
-                state: DynamicPluginState::Loaded(DynamicPlugin::load(lib_path.as_os_str())?),
-                lib_path,
-                source_lib_path: source_lib_path.clone(),
-                watcher: Some(watcher),
-                need_reload,
-            }
-        } else {
-            PluginContainer::Dynamic {
-                state: DynamicPluginState::Loaded(DynamicPlugin::load(
-                    source_lib_path.as_os_str(),
-                )?),
-                lib_path: source_lib_path.clone(),
-                source_lib_path: source_lib_path.clone(),
-                watcher: None,
-                need_reload: Default::default(),
-            }
-        };
-
-        self.register_plugin(plugin.deref());
-        self.plugins.push(plugin);
+        self.register_plugin(plugin_container.deref());
+        self.plugins.push(plugin_container);
 
         Log::info(format!(
             "Plugin {:?} was loaded successfully",
-            source_lib_path
+            display_name
         ));
 
-        Ok(&**self.plugins.last().unwrap())
+        &**self.plugins.last().unwrap()
     }
 
     /// Tries to reload a specified plugin. This method tries to perform least invasive reloading, by
@@ -2413,25 +2296,22 @@ impl Engine {
         lag: &mut f32,
     ) -> Result<(), String> {
         let plugin_container = &mut self.plugins[plugin_index];
-        let PluginContainer::Dynamic {
-            state,
-            source_lib_path,
-            lib_path,
-            need_reload,
-            ..
-        } = plugin_container
+        let PluginContainer::Dynamic(plugin) = plugin_container
         else {
             return Err(format!(
                 "Plugin {plugin_index} is static and cannot be reloaded!",
             ));
         };
 
-        if matches!(state, DynamicPluginState::Unloaded { .. }) {
+        if !plugin.is_loaded() {
+            // TODO: this means that something bad happened during plugin reloading.
+            // don't we want to recover from this situation by trying to load it again 
+            // (maybe with clearing  `need_reload` flag, to perform new attempt only when something is changed)
             return Err(format!("Cannot reload unloaded plugin {plugin_index}!"));
         }
 
-        let plugin_type_id = state.as_loaded_ref().plugin().type_id();
-        let plugin_assembly_name = state.as_loaded_ref().plugin().assembly_name();
+        let plugin_type_id = plugin.as_loaded_ref().type_id();
+        let plugin_assembly_name = plugin.as_loaded_ref().assembly_name();
 
         // Collect all the data that belongs to the plugin
         let mut scenes_state = Vec::new();
@@ -2440,7 +2320,7 @@ impl Engine {
                 scene_handle,
                 scene,
                 &self.serialization_context,
-                state.as_loaded_ref().plugin(),
+                plugin.as_loaded_ref(),
             )? {
                 scenes_state.push(data);
             }
@@ -2457,7 +2337,7 @@ impl Engine {
                         Handle::NONE,
                         &mut data.scene,
                         &self.serialization_context,
-                        state.as_loaded_ref().plugin(),
+                        plugin.as_loaded_ref(),
                     )? {
                         prefab_scenes.push((model.clone(), scene_state));
                     }
@@ -2543,47 +2423,29 @@ impl Engine {
             }
         }
 
-        // Unload the plugin.
-        if let DynamicPluginState::Loaded(dynamic) = state {
-            let mut visitor = hotreload::make_writing_visitor();
-            dynamic
-                .plugin_mut()
-                .visit("Plugin", &mut visitor)
-                .map_err(|e| e.to_string())?;
-            let mut binary_blob = Cursor::new(Vec::<u8>::new());
-            visitor
-                .save_binary_to_memory(&mut binary_blob)
-                .map_err(|e| e.to_string())?;
+        let mut visitor = hotreload::make_writing_visitor();
+        plugin
+            .as_loaded_mut()
+            .visit("Plugin", &mut visitor)
+            .map_err(|e| e.to_string())?;
+        let mut binary_blob = Cursor::new(Vec::<u8>::new());
+        visitor
+            .save_binary_to_memory(&mut binary_blob)
+            .map_err(|e| e.to_string())?;
 
-            Log::info(format!(
-                "Plugin {plugin_index} was serialized successfully!"
-            ));
+        Log::info(format!(
+            "Plugin {plugin_index} was serialized successfully!"
+        ));
 
-            // Explicitly drop the visitor to prevent any destructors from the previous version of
-            // the plugin to run at the end of the scope. This could happen, because the visitor
-            // manages serialized smart pointers and if they'll be kept alive longer than the plugin
-            // there's a very high chance of hard crash.
-            drop(visitor);
+        // Explicitly drop the visitor to prevent any destructors from the previous version of
+        // the plugin to run at the end of the scope. This could happen, because the visitor
+        // manages serialized smart pointers and if they'll be kept alive longer than the plugin
+        // there's a very high chance of hard crash.
+        drop(visitor);
 
-            *state = DynamicPluginState::Unloaded {
-                binary_blob: binary_blob.into_inner(),
-            };
+        let binary_blob = binary_blob.into_inner();
 
-            Log::info(format!("Plugin {plugin_index} was unloaded successfully!"));
-
-            // Replace the module.
-            try_copy_library(source_lib_path, lib_path)?;
-
-            Log::info(format!(
-                "{plugin_index} plugin's module {} was successfully cloned to {}.",
-                source_lib_path.display(),
-                lib_path.display()
-            ));
-        }
-
-        if let DynamicPluginState::Unloaded { binary_blob } = state {
-            let mut dynamic = DynamicPlugin::load(lib_path)?;
-
+        plugin.reload(&mut |plugin| {
             // Re-register the plugin. This is needed, because it might contain new script/node/widget
             // types (or removed ones too). This is done right before deserialization, because plugin
             // might contain some entities, that have dynamic registration.
@@ -2591,27 +2453,22 @@ impl Engine {
                 &self.serialization_context,
                 &self.widget_constructors,
                 &self.resource_manager,
-                dynamic.plugin(),
+                plugin,
             );
 
             let mut visitor = hotreload::make_reading_visitor(
-                binary_blob,
+                &binary_blob,
                 &self.serialization_context,
                 &self.resource_manager,
                 &self.widget_constructors,
             )
             .map_err(|e| e.to_string())?;
-            dynamic
-                .plugin_mut()
+
+            plugin
                 .visit("Plugin", &mut visitor)
                 .map_err(|e| e.to_string())?;
-
-            *state = DynamicPluginState::Loaded(dynamic);
-
-            need_reload.store(false, atomic::Ordering::Relaxed);
-
-            Log::info(format!("Plugin {plugin_index} was reloaded successfully!"));
-        }
+            Ok(())
+        })?;
 
         // Deserialize prefab scene content.
         for (model, scene_state) in prefab_scenes {
@@ -2637,7 +2494,7 @@ impl Engine {
         }
 
         // Call `on_loaded` for plugins, so they could restore some runtime non-serializable state.
-        state.as_loaded_mut().plugin_mut().on_loaded(PluginContext {
+        plugin.as_loaded_mut().on_loaded(PluginContext {
             scenes: &mut self.scenes,
             resource_manager: &self.resource_manager,
             user_interfaces: &mut self.user_interfaces,
@@ -2679,11 +2536,9 @@ impl Engine {
         F: FnMut(&dyn Plugin),
     {
         for plugin_index in 0..self.plugins.len() {
-            if let PluginContainer::Dynamic {
-                ref need_reload, ..
-            } = self.plugins[plugin_index]
+            if let PluginContainer::Dynamic(plugin) = &self.plugins[plugin_index]
             {
-                if need_reload.load(atomic::Ordering::Relaxed) {
+                if plugin.is_reload_needed_now() {
                     self.reload_plugin(plugin_index, dt, window_target, lag)?;
 
                     on_reloaded(self.plugins[plugin_index].deref_mut());

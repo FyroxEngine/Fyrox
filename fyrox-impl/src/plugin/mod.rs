@@ -27,61 +27,25 @@ pub mod dynamic;
 use crate::{
     asset::manager::ResourceManager,
     core::{
-        notify::RecommendedWatcher, pool::Handle, reflect::Reflect, visitor::Visit,
-        visitor::VisitError,
+        pool::Handle, reflect::Reflect, visitor::{Visit, VisitError},
     },
     engine::{
-        task::TaskPoolHandler, AsyncSceneLoader, GraphicsContext, PerformanceStatistics,
-        ScriptProcessor, SerializationContext,
+        task::TaskPoolHandler, AsyncSceneLoader, GraphicsContext, PerformanceStatistics, ScriptProcessor, SerializationContext
     },
     event::Event,
     gui::{
         constructor::WidgetConstructorContainer,
         inspector::editors::PropertyEditorDefinitionContainer, message::UiMessage, UiContainer,
     },
-    plugin::dynamic::DynamicPlugin,
     scene::{Scene, SceneContainer},
 };
 use std::{
     any::Any,
     ops::{Deref, DerefMut},
-    path::{Path, PathBuf},
-    sync::{atomic::AtomicBool, Arc},
+    path::Path,
+    sync::Arc,
 };
 use winit::event_loop::EventLoopWindowTarget;
-
-/// Actual state of a dynamic plugin.
-pub enum DynamicPluginState {
-    /// Unloaded plugin.
-    Unloaded {
-        /// Serialized content of the plugin.
-        binary_blob: Vec<u8>,
-    },
-    /// Loaded plugin.
-    Loaded(DynamicPlugin),
-}
-
-impl DynamicPluginState {
-    /// Tries to interpret the state as [`Self::Loaded`], panics if the plugin is unloaded.
-    pub fn as_loaded_ref(&self) -> &DynamicPlugin {
-        match self {
-            DynamicPluginState::Unloaded { .. } => {
-                panic!("Cannot obtain a reference to the plugin, because it is unloaded!")
-            }
-            DynamicPluginState::Loaded(dynamic) => dynamic,
-        }
-    }
-
-    /// Tries to interpret the state as [`Self::Loaded`], panics if the plugin is unloaded.
-    pub fn as_loaded_mut(&mut self) -> &mut DynamicPlugin {
-        match self {
-            DynamicPluginState::Unloaded { .. } => {
-                panic!("Cannot obtain a reference to the plugin, because it is unloaded!")
-            }
-            DynamicPluginState::Loaded(dynamic) => dynamic,
-        }
-    }
-}
 
 /// A wrapper for various plugin types.
 pub enum PluginContainer {
@@ -90,23 +54,31 @@ pub enum PluginContainer {
     Static(Box<dyn Plugin>),
     /// Dynamically linked plugin. Such plugins are meant to be used in development mode for rapid
     /// prototyping.
-    Dynamic {
-        /// Dynamic plugin state.
-        state: DynamicPluginState,
-        /// Target path of the library of the plugin.
-        lib_path: PathBuf,
-        /// Path to the source file, that is emitted by the compiler. If hot reloading is enabled,
-        /// this library will be cloned to `lib_path` and loaded. This is needed, because usually
-        /// OS locks the library and it is not possible to overwrite it while it is loaded in a process.  
-        source_lib_path: PathBuf,
-        /// Optional file system watcher, that is configured to watch the source library and re-load
-        /// the plugin if the source library has changed. If the watcher is `None`, then hot reloading
-        /// is disabled.
-        watcher: Option<RecommendedWatcher>,
-        /// A flag, that tells the engine that the plugin needs to be reloaded. Usually the engine
-        /// will do that at the end of the update tick.
-        need_reload: Arc<AtomicBool>,
-    },
+    Dynamic(Box<dyn AbstractDynamicPlugin>),
+}
+
+/// Abstraction over different kind of plugins that can be reloaded on the fly (whatever it mean).
+/// The instance is polled by engine with `is_reload_needed_now()` time to time. if it returns true,
+/// then engine serializes current plugin state, then calls `unload()` and then calls `load()`
+pub trait AbstractDynamicPlugin {
+    /// returns human-redable short description of the plugin
+    fn display_name(&self) -> String;
+
+    /// engine polls is time to time to determine if it's time to reload plugin
+    fn is_reload_needed_now(&self) -> bool;
+
+    /// panics if not loaded
+    fn as_loaded_ref(&self) -> &dyn Plugin;
+
+    /// panics if not loaded
+    fn as_loaded_mut(&mut self) -> &mut dyn Plugin;
+
+    /// returns false if something bad happends during `reload`.
+    fn is_loaded(&self) -> bool;
+
+    /// it should call `fill_and_register` function on the new fresh plugin instance as
+    /// soon as it's created, before making `is_loaded` return true.
+    fn reload(&mut self, fill_and_register: &mut dyn FnMut(&mut dyn Plugin) -> Result<(), String>) -> Result<(), String>;
 }
 
 impl Deref for PluginContainer {
@@ -115,7 +87,7 @@ impl Deref for PluginContainer {
     fn deref(&self) -> &Self::Target {
         match self {
             PluginContainer::Static(plugin) => &**plugin,
-            PluginContainer::Dynamic { state: plugin, .. } => &*plugin.as_loaded_ref().plugin,
+            PluginContainer::Dynamic(plugin) => plugin.as_loaded_ref(),
         }
     }
 }
@@ -124,7 +96,7 @@ impl DerefMut for PluginContainer {
     fn deref_mut(&mut self) -> &mut Self::Target {
         match self {
             PluginContainer::Static(plugin) => &mut **plugin,
-            PluginContainer::Dynamic { state: plugin, .. } => &mut *plugin.as_loaded_mut().plugin,
+            PluginContainer::Dynamic(plugin) => plugin.as_loaded_mut(),
         }
     }
 }
