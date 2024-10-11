@@ -49,6 +49,7 @@ use crate::{
         node::Node,
     },
 };
+use fyrox_graphics::framebuffer::BufferLocation;
 
 struct SpotLightShader {
     program: Box<dyn GpuProgram>,
@@ -215,7 +216,9 @@ impl LightVolumeRenderer {
                     bindings: &[ResourceBinding::Buffer {
                         buffer: uniform_buffer_cache
                             .write(StaticUniformBuffer::<256>::new().with(&mvp))?,
-                        shader_location: self.flat_shader.uniform_buffer_binding,
+                        binding: BufferLocation::Auto {
+                            shader_location: self.flat_shader.uniform_buffer_binding,
+                        },
                         data_usage: Default::default(),
                     }],
                 }],
@@ -266,7 +269,9 @@ impl LightVolumeRenderer {
                                     .with(&spot.base_light_ref().intensity())
                                     .with(&((spot.full_cone_angle() * 0.5).cos())),
                             )?,
-                            shader_location: shader.uniform_block_binding,
+                            binding: BufferLocation::Auto {
+                                shader_location: shader.uniform_block_binding,
+                            },
                             data_usage: Default::default(),
                         },
                     ],
@@ -317,7 +322,9 @@ impl LightVolumeRenderer {
                 &[ResourceBindGroup {
                     bindings: &[ResourceBinding::Buffer {
                         buffer: uniform_buffer,
-                        shader_location: self.flat_shader.uniform_buffer_binding,
+                        binding: BufferLocation::Auto {
+                            shader_location: self.flat_shader.uniform_buffer_binding,
+                        },
                         data_usage: Default::default(),
                     }],
                 }],
@@ -369,7 +376,9 @@ impl LightVolumeRenderer {
                                     .with(&point.base_light_ref().intensity())
                                     .with(&point.radius()),
                             )?,
-                            shader_location: shader.uniform_block_binding,
+                            binding: BufferLocation::Auto {
+                                shader_location: shader.uniform_block_binding,
+                            },
                             data_usage: Default::default(),
                         },
                     ],

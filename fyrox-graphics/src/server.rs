@@ -23,7 +23,7 @@ use crate::{
     buffer::{Buffer, BufferKind, BufferUsage},
     error::FrameworkError,
     framebuffer::{Attachment, FrameBuffer},
-    gpu_program::{GpuProgram, PropertyDefinition},
+    gpu_program::{GpuProgram, ShaderResourceDefinition},
     gpu_texture::{GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind},
     query::Query,
     read_buffer::AsyncReadBuffer,
@@ -94,7 +94,7 @@ pub trait GraphicsServer: Any {
         name: &str,
         vertex_source: &str,
         fragment_source: &str,
-        properties: &[PropertyDefinition],
+        properties: &[ShaderResourceDefinition],
     ) -> Result<Box<dyn GpuProgram>, FrameworkError>;
     fn create_async_read_buffer(
         &self,

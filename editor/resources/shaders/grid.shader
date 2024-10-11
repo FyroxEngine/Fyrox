@@ -1,7 +1,7 @@
 (
     name: "GridShader",
 
-    properties: [
+    resources: [
         (
             name: "diffuseColor",
             kind: Color(r: 40, g: 40, b: 40, a: 255),

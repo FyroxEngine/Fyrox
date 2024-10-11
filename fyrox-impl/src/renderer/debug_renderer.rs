@@ -50,6 +50,7 @@ use crate::{
     scene::debug::Line,
 };
 use bytemuck::{Pod, Zeroable};
+use fyrox_graphics::framebuffer::BufferLocation;
 
 #[repr(C)]
 #[derive(Copy, Pod, Zeroable, Clone)]
@@ -186,7 +187,9 @@ impl DebugRenderer {
             &[ResourceBindGroup {
                 bindings: &[ResourceBinding::Buffer {
                     buffer: uniform_buffer,
-                    shader_location: self.shader.uniform_buffer_binding,
+                    binding: BufferLocation::Auto {
+                        shader_location: self.shader.uniform_buffer_binding,
+                    },
                     data_usage: Default::default(),
                 }],
             }],

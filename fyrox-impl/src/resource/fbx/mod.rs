@@ -30,7 +30,6 @@ mod document;
 pub mod error;
 mod scene;
 
-use crate::resource::texture::{TextureImportOptions, TextureResource, TextureResourceExtension};
 use crate::{
     asset::manager::ResourceManager,
     core::{
@@ -42,7 +41,7 @@ use crate::{
         pool::Handle,
     },
     graph::BaseSceneGraph,
-    material::{shader::SamplerFallback, PropertyValue},
+    material::{shader::SamplerFallback, ResourceBinding},
     resource::{
         fbx::{
             document::FbxDocument,
@@ -55,7 +54,7 @@ use crate::{
             },
         },
         model::{MaterialSearchOptions, ModelImportOptions},
-        texture::Texture,
+        texture::{Texture, TextureImportOptions, TextureResource, TextureResourceExtension},
     },
     scene::{
         animation::{Animation, AnimationContainer, AnimationPlayerBuilder, Track},
@@ -436,9 +435,9 @@ async fn create_surfaces(
                         };
 
                         if let Some((property_name, usage)) = name_usage {
-                            if let Err(e) = surface.material().data_ref().set_property(
+                            if let Err(e) = surface.material().data_ref().bind(
                                 property_name,
-                                PropertyValue::Sampler {
+                                ResourceBinding::Sampler {
                                     value: Some(texture),
                                     fallback: usage,
                                 },

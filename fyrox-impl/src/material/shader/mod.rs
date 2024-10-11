@@ -29,7 +29,7 @@
 //! ```ron
 //! (
 //!     // A set of properties, there could be any amount of properties.
-//!     properties: [
+//!     resources: [
 //!         (
 //!             // Each property must have a name. This name must match with respective
 //!             // uniforms! That's is the whole point of having properties.
@@ -265,6 +265,11 @@ use crate::{
     lazy_static::lazy_static,
     renderer::framework::DrawParameters,
 };
+use fyrox_core::algebra;
+pub use fyrox_graphics::gpu_program::{
+    SamplerFallback, ShaderResourceDefinition, ShaderResourceKind,
+};
+use fyrox_graphics::gpu_program::{ShaderProperty, ShaderPropertyKind};
 use fyrox_resource::embedded_data_source;
 use fyrox_resource::manager::BuiltInResource;
 use ron::ser::PrettyConfig;
@@ -278,8 +283,6 @@ use std::{
     io::{Cursor, Write},
     path::Path,
 };
-
-pub use fyrox_graphics::gpu_program::{PropertyDefinition, PropertyKind, SamplerFallback};
 
 pub mod loader;
 
@@ -383,17 +386,124 @@ pub struct ShaderDefinition {
     pub name: String,
     /// A set of render passes.
     pub passes: Vec<RenderPassDefinition>,
-    /// A set of property definitions.
-    pub properties: Vec<PropertyDefinition>,
+    /// A set of resource definitions.
+    pub resources: Vec<ShaderResourceDefinition>,
 }
 
 impl ShaderDefinition {
     fn from_buf(buf: Vec<u8>) -> Result<Self, ShaderError> {
-        Ok(ron::de::from_reader(Cursor::new(buf))?)
+        let mut definition: ShaderDefinition = ron::de::from_reader(Cursor::new(buf))?;
+        definition.generate_built_in_resources();
+        Ok(definition)
     }
 
     fn from_str(str: &str) -> Result<Self, ShaderError> {
-        Ok(ron::de::from_str(str)?)
+        let mut definition: ShaderDefinition = ron::de::from_str(str)?;
+        definition.generate_built_in_resources();
+        Ok(definition)
+    }
+
+    fn generate_built_in_resources(&mut self) {
+        for resource in self.resources.iter_mut() {
+            let ShaderResourceKind::PropertyGroup(ref mut properties) = resource.kind else {
+                continue;
+            };
+
+            use ShaderPropertyKind::*;
+            match resource.name.as_str() {
+                "fyrox_cameraData" => {
+                    properties.clear();
+                    properties.extend([
+                        ShaderProperty::new(
+                            "viewProjectionMatrix",
+                            Matrix4(algebra::Matrix4::identity()),
+                        ),
+                        ShaderProperty::new("position", Vector3(Default::default())),
+                        ShaderProperty::new("upVector", Vector3(Default::default())),
+                        ShaderProperty::new("sideVector", Vector3(Default::default())),
+                        ShaderProperty::new("zNear", Float(0.0)),
+                        ShaderProperty::new("zFar", Float(0.0)),
+                        ShaderProperty::new("zRange", Float(0.0)),
+                    ]);
+                }
+                "fyrox_lightData" => {
+                    properties.clear();
+                    properties.extend([
+                        ShaderProperty::new("lightPosition", Vector3(Default::default())),
+                        ShaderProperty::new("ambientLightColor", Vector4(Default::default())),
+                    ]);
+                }
+                "fyrox_graphicsSettings" => {
+                    properties.clear();
+                    properties.extend([ShaderProperty::new("usePOM", Bool(false))]);
+                }
+                "fyrox_lightsBlock" => {
+                    let max_len = 16;
+                    properties.clear();
+                    properties.extend([
+                        ShaderProperty::new("lightCount", Int(0)),
+                        ShaderProperty::new(
+                            "lightsColorRadius",
+                            Vector4Array {
+                                value: Default::default(),
+                                max_len,
+                            },
+                        ),
+                        ShaderProperty::new(
+                            "lightsParameters",
+                            Vector2Array {
+                                value: Default::default(),
+                                max_len,
+                            },
+                        ),
+                        ShaderProperty::new(
+                            "lightsPosition",
+                            Vector3Array {
+                                value: Default::default(),
+                                max_len,
+                            },
+                        ),
+                        ShaderProperty::new(
+                            "lightsDirection",
+                            Vector3Array {
+                                value: Default::default(),
+                                max_len,
+                            },
+                        ),
+                    ])
+                }
+                "fyrox_instanceData" => {
+                    properties.clear();
+                    properties.extend([
+                        ShaderProperty::new("worldMatrix", Matrix4(algebra::Matrix4::identity())),
+                        ShaderProperty::new(
+                            "worldViewProjection",
+                            Matrix4(algebra::Matrix4::identity()),
+                        ),
+                        ShaderProperty::new("blendShapesCount", Int(0)),
+                        ShaderProperty::new("useSkeletalAnimation", Bool(false)),
+                        ShaderProperty::new(
+                            "blendShapesWeights",
+                            Vector4Array {
+                                value: Default::default(),
+                                max_len: 32,
+                            },
+                        ),
+                    ]);
+                }
+                "fyrox_boneMatrices" => {
+                    properties.clear();
+                    properties.extend([ShaderProperty::new(
+                        "matrices",
+                        Matrix4Array {
+                            value: Default::default(),
+                            max_len: 256,
+                        },
+                    )])
+                }
+                _ => (),
+            }
+        }
     }
 }
 
@@ -617,8 +727,8 @@ lazy_static! {
 #[cfg(test)]
 mod test {
     use crate::material::shader::{
-        PropertyDefinition, PropertyKind, RenderPassDefinition, SamplerFallback, ShaderDefinition,
-        ShaderResource, ShaderResourceExtension,
+        RenderPassDefinition, SamplerFallback, ShaderDefinition, ShaderResource,
+        ShaderResourceDefinition, ShaderResourceExtension, ShaderResourceKind,
     };
     use fyrox_graphics::gpu_program::SamplerKind;
 
@@ -628,10 +738,11 @@ mod test {
             (
                 name: "TestShader",
 
-                properties: [
+                resources: [
                     (
                         name: "diffuseTexture",
                         kind: Sampler(value: None, kind: Sampler2D, fallback: White),
+                        binding: 0
                     ),
                 ],
 
@@ -670,13 +781,14 @@ mod test {
 
         let reference_definition = ShaderDefinition {
             name: "TestShader".to_owned(),
-            properties: vec![PropertyDefinition {
+            resources: vec![ShaderResourceDefinition {
                 name: "diffuseTexture".into(),
-                kind: PropertyKind::Sampler {
+                kind: ShaderResourceKind::Sampler {
                     default: None,
                     kind: SamplerKind::Sampler2D,
                     fallback: SamplerFallback::White,
                 },
+                binding: 0,
             }],
             passes: vec![RenderPassDefinition {
                 name: "GBuffer".to_string(),

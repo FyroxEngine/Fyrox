@@ -54,6 +54,7 @@ use crate::{
     },
     resource::texture::{Texture, TextureKind, TexturePixelKind, TextureResource},
 };
+use fyrox_graphics::framebuffer::BufferLocation;
 use std::{cell::RefCell, rc::Rc};
 
 struct UiShader {
@@ -247,7 +248,9 @@ impl UiRenderer {
                     &[ResourceBindGroup {
                         bindings: &[ResourceBinding::Buffer {
                             buffer: uniform_buffer,
-                            shader_location: flat_shader.uniform_buffer_binding,
+                            binding: BufferLocation::Auto {
+                                shader_location: flat_shader.uniform_buffer_binding,
+                            },
                             data_usage: Default::default(),
                         }],
                     }],
@@ -403,7 +406,9 @@ impl UiRenderer {
                         ResourceBinding::texture(diffuse_texture, &shader.diffuse_texture),
                         ResourceBinding::Buffer {
                             buffer: uniform_buffer,
-                            shader_location: self.shader.uniform_block_index,
+                            binding: BufferLocation::Auto {
+                                shader_location: self.shader.uniform_block_index,
+                            },
                             data_usage: Default::default(),
                         },
                     ],

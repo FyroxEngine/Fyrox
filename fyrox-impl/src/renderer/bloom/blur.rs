@@ -40,6 +40,7 @@ use crate::{
         make_viewport_matrix, RenderPassStatistics,
     },
 };
+use fyrox_graphics::framebuffer::BufferLocation;
 use std::{cell::RefCell, rc::Rc};
 
 struct Shader {
@@ -168,7 +169,9 @@ impl GaussianBlur {
                                 .with(&inv_size)
                                 .with(&true),
                         )?,
-                        shader_location: shader.uniform_block_binding,
+                        binding: BufferLocation::Auto {
+                            shader_location: shader.uniform_block_binding,
+                        },
                         data_usage: Default::default(),
                     },
                 ],
@@ -202,7 +205,9 @@ impl GaussianBlur {
                                 .with(&inv_size)
                                 .with(&false),
                         )?,
-                        shader_location: shader.uniform_block_binding,
+                        binding: BufferLocation::Auto {
+                            shader_location: shader.uniform_block_binding,
+                        },
                         data_usage: Default::default(),
                     },
                 ],

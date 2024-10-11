@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::framebuffer::{BufferDataUsage, TextureShaderLocation};
+use crate::framebuffer::{BufferDataUsage, BufferLocation, TextureShaderLocation};
 use crate::gl::geometry_buffer::GlGeometryBuffer;
 use crate::{
     buffer::{Buffer, BufferKind},
@@ -465,7 +465,7 @@ fn pre_draw(
     server.set_program(Some(program.id));
 
     let mut texture_unit = 0;
-    let mut buffer_binding = 0;
+    let mut automatic_binding_index = 0;
     for bind_group in resources {
         for binding in bind_group.bindings {
             match binding {
@@ -488,7 +488,7 @@ fn pre_draw(
                 }
                 ResourceBinding::Buffer {
                     buffer,
-                    shader_location,
+                    binding: shader_location,
                     data_usage: data_location,
                 } => {
                     let gl_buffer = buffer
@@ -497,12 +497,17 @@ fn pre_draw(
                         .expect("Must be OpenGL buffer");
 
                     unsafe {
+                        let actual_binding = match shader_location {
+                            BufferLocation::Auto { .. } => automatic_binding_index,
+                            BufferLocation::Explicit { binding } => *binding,
+                        };
+
                         match data_location {
                             BufferDataUsage::UseSegment { offset, size } => {
                                 assert_ne!(*size, 0);
                                 server.gl.bind_buffer_range(
                                     gl_buffer.kind().into_gl(),
-                                    buffer_binding,
+                                    actual_binding as u32,
                                     Some(gl_buffer.id),
                                     *offset as i32,
                                     *size as i32,
@@ -511,25 +516,27 @@ fn pre_draw(
                             BufferDataUsage::UseEverything => {
                                 server.gl.bind_buffer_base(
                                     gl_buffer.kind().into_gl(),
-                                    buffer_binding,
+                                    actual_binding as u32,
                                     Some(gl_buffer.id),
                                 );
                             }
                         }
 
-                        match gl_buffer.kind() {
-                            BufferKind::Uniform => server.gl.uniform_block_binding(
-                                program.id,
-                                *shader_location as u32,
-                                buffer_binding,
-                            ),
-                            BufferKind::Vertex
-                            | BufferKind::Index
-                            | BufferKind::PixelRead
-                            | BufferKind::PixelWrite => {}
-                        }
+                        if let BufferLocation::Auto { shader_location } = shader_location {
+                            match gl_buffer.kind() {
+                                BufferKind::Uniform => server.gl.uniform_block_binding(
+                                    program.id,
+                                    *shader_location as u32,
+                                    automatic_binding_index as u32,
+                                ),
+                                BufferKind::Vertex
+                                | BufferKind::Index
+                                | BufferKind::PixelRead
+                                | BufferKind::PixelWrite => {}
+                            }
 
-                        buffer_binding += 1;
+                            automatic_binding_index += 1;
+                        }
                     }
                 }
             }

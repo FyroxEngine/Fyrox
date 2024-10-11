@@ -21,7 +21,7 @@
 //! Contains all structures and methods to create and manage mesh scene graph nodes. See [`Mesh`] docs for more info
 //! and usage examples.
 
-use crate::material::MaterialResourceExtension;
+use crate::material::{MaterialResourceExtension, ResourceBinding};
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector3, Vector4},
@@ -61,6 +61,7 @@ use crate::{
 };
 use fxhash::{FxHashMap, FxHasher};
 use fyrox_core::log::Log;
+use fyrox_graphics::gpu_program::SamplerFallback;
 use fyrox_resource::untyped::ResourceKind;
 use std::{
     cell::Cell,
@@ -683,9 +684,12 @@ impl NodeTrait for Mesh {
                             .and_then(|c| c.blend_shape_storage.as_ref())
                             .map(|texture| {
                                 let material_copy = surface.material().deep_copy();
-                                Log::verify(material_copy.data_ref().set_property(
+                                Log::verify(material_copy.data_ref().bind(
                                     &self.blend_shapes_property_name,
-                                    Some(texture.clone()),
+                                    ResourceBinding::Sampler {
+                                        value: Some(texture.clone()),
+                                        fallback: SamplerFallback::Volume,
+                                    },
                                 ));
                                 material_copy
                             });

@@ -41,6 +41,7 @@ use crate::{
     },
     scene::mesh::surface::SurfaceData,
 };
+use fyrox_graphics::framebuffer::BufferLocation;
 use std::{cell::RefCell, rc::Rc};
 
 struct FxaaShader {
@@ -126,7 +127,9 @@ impl FxaaRenderer {
                                 &Vector2::new(1.0 / viewport.w() as f32, 1.0 / viewport.h() as f32),
                             ),
                         )?,
-                        shader_location: self.shader.uniform_buffer_binding,
+                        binding: BufferLocation::Auto {
+                            shader_location: self.shader.uniform_buffer_binding,
+                        },
                         data_usage: Default::default(),
                     },
                 ],

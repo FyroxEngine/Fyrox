@@ -32,7 +32,8 @@ use crate::{
         sstorage::ImmutableString,
     },
     graph::BaseSceneGraph,
-    material::{shader::SamplerFallback, Material, MaterialResource, PropertyValue},
+    material,
+    material::{shader::SamplerFallback, MaterialResource, PropertyValue},
     renderer::{
         cache::{
             geometry::GeometryCache,
@@ -45,7 +46,6 @@ use crate::{
             buffer::Buffer,
             error::FrameworkError,
             framebuffer::{FrameBuffer, ResourceBindGroup, ResourceBinding},
-            gpu_program::BuiltInUniformBlock,
             gpu_texture::GpuTexture,
             server::GraphicsServer,
             uniform::StaticUniformBuffer,
@@ -67,6 +67,7 @@ use crate::{
     },
 };
 use fxhash::{FxBuildHasher, FxHashMap, FxHasher};
+use fyrox_graphics::framebuffer::BufferLocation;
 use std::{
     cell::RefCell,
     collections::hash_map::DefaultHasher,
@@ -164,42 +165,6 @@ pub struct BundleRenderContext<'a> {
     pub volume_dummy: &'a Rc<RefCell<dyn GpuTexture>>,
 }
 
-impl<'a> BundleRenderContext<'a> {
-    #[allow(missing_docs)] // TODO
-    pub fn apply_material(
-        &mut self,
-        server: &dyn GraphicsServer,
-        material: &Material,
-        material_bindings: &mut ArrayVec<ResourceBinding, 32>,
-    ) -> Result<(), FrameworkError> {
-        let shader = material.shader().data_ref();
-        for property in shader.definition.properties.iter() {
-            let binding = material_bindings.len();
-            if property.name.as_str() == "fyrox_sceneDepth" {
-                if let Some(scene_depth) = self.scene_depth.as_ref() {
-                    material_bindings
-                        .push(ResourceBinding::texture_with_binding(scene_depth, binding));
-                }
-            } else if let Some(PropertyValue::Sampler { value, fallback }) =
-                material.properties().get(&property.name)
-            {
-                let texture = value
-                    .as_ref()
-                    .and_then(|t| self.texture_cache.get(server, t))
-                    .unwrap_or(match fallback {
-                        SamplerFallback::White => self.white_dummy,
-                        SamplerFallback::Normal => self.normal_dummy,
-                        SamplerFallback::Black => self.black_dummy,
-                        SamplerFallback::Volume => self.volume_dummy,
-                    });
-                material_bindings.push(ResourceBinding::texture_with_binding(texture, binding));
-            }
-        }
-
-        Ok(())
-    }
-}
-
 /// Persistent identifier marks drawing data, telling the renderer that the data is the same, no matter from which
 /// render bundle it came from. It is used by the renderer to create associated GPU resources.
 #[derive(Copy, Clone, Hash, Debug, PartialEq, Eq)]
@@ -220,7 +185,7 @@ impl PersistentIdentifier {
     }
 }
 
-/// A set of data of a surface for rendering.  
+/// A set of data of a surface for rendering.
 pub struct SurfaceInstanceData {
     /// A world matrix.
     pub world_transform: Matrix4<f32>,
@@ -277,8 +242,8 @@ pub struct InstanceUniformData {
 /// Describes where to the actual uniform data is located in the memory backed by the uniform
 /// memory allocator on per-bundle basis.
 pub struct BundleUniformData {
-    /// Material info block location. Optional, because material properties could be empty.
-    pub material_block: Option<UniformBlockLocation>,
+    /// Material info block location.
+    pub material_property_group_blocks: Vec<(usize, UniformBlockLocation)>,
     /// Camera info block location.
     pub camera_block: UniformBlockLocation,
     /// Lights info block location.
@@ -301,47 +266,53 @@ impl RenderDataBundle {
 
         let material = material_state.data()?;
 
-        // Upload material uniforms.
-        let mut material_uniforms = StaticUniformBuffer::<16384>::new();
+        // Upload material property groups.
+        let mut material_property_group_blocks = Vec::new();
         let shader = material.shader().data_ref();
-        for property in shader.definition.properties.iter() {
-            if let Some(value) = material.properties().get(&property.name) {
-                match value {
-                    PropertyValue::Float(value) => material_uniforms.push(value),
-                    PropertyValue::FloatArray(array) => material_uniforms.push_slice(array),
-                    PropertyValue::Int(value) => material_uniforms.push(value),
-                    PropertyValue::IntArray(array) => material_uniforms.push_slice(array),
-                    PropertyValue::UInt(value) => material_uniforms.push(value),
-                    PropertyValue::UIntArray(array) => material_uniforms.push_slice(array),
-                    PropertyValue::Vector2(value) => material_uniforms.push(value),
-                    PropertyValue::Vector2Array(array) => material_uniforms.push_slice(array),
-                    PropertyValue::Vector3(value) => material_uniforms.push(value),
-                    PropertyValue::Vector3Array(array) => material_uniforms.push_slice(array),
-                    PropertyValue::Vector4(value) => material_uniforms.push(value),
-                    PropertyValue::Vector4Array(array) => material_uniforms.push_slice(array),
-                    PropertyValue::Matrix2(value) => material_uniforms.push(value),
-                    PropertyValue::Matrix2Array(array) => material_uniforms.push_slice(array),
-                    PropertyValue::Matrix3(value) => material_uniforms.push(value),
-                    PropertyValue::Matrix3Array(array) => material_uniforms.push_slice(array),
-                    PropertyValue::Matrix4(value) => material_uniforms.push(value),
-                    PropertyValue::Matrix4Array(array) => material_uniforms.push_slice(array),
-                    PropertyValue::Bool(value) => material_uniforms.push(value),
-                    PropertyValue::Color(color) => material_uniforms.push(color),
-                    PropertyValue::Sampler { .. } => &mut material_uniforms,
-                };
+        for resource_definition in shader.definition.resources.iter() {
+            // Ignore built-in groups.
+            if resource_definition.name.starts_with("fyrox_") {
+                continue;
+            }
+
+            if let Some(material::ResourceBinding::PropertyGroup(property_group)) =
+                material.bindings().get(&resource_definition.name)
+            {
+                let mut material_uniforms = StaticUniformBuffer::<16384>::new();
+                for property in property_group.properties() {
+                    match &property.value {
+                        PropertyValue::Float(value) => material_uniforms.push(value),
+                        PropertyValue::FloatArray(array) => material_uniforms.push_slice(array),
+                        PropertyValue::Int(value) => material_uniforms.push(value),
+                        PropertyValue::IntArray(array) => material_uniforms.push_slice(array),
+                        PropertyValue::UInt(value) => material_uniforms.push(value),
+                        PropertyValue::UIntArray(array) => material_uniforms.push_slice(array),
+                        PropertyValue::Vector2(value) => material_uniforms.push(value),
+                        PropertyValue::Vector2Array(array) => material_uniforms.push_slice(array),
+                        PropertyValue::Vector3(value) => material_uniforms.push(value),
+                        PropertyValue::Vector3Array(array) => material_uniforms.push_slice(array),
+                        PropertyValue::Vector4(value) => material_uniforms.push(value),
+                        PropertyValue::Vector4Array(array) => material_uniforms.push_slice(array),
+                        PropertyValue::Matrix2(value) => material_uniforms.push(value),
+                        PropertyValue::Matrix2Array(array) => material_uniforms.push_slice(array),
+                        PropertyValue::Matrix3(value) => material_uniforms.push(value),
+                        PropertyValue::Matrix3Array(array) => material_uniforms.push_slice(array),
+                        PropertyValue::Matrix4(value) => material_uniforms.push(value),
+                        PropertyValue::Matrix4Array(array) => material_uniforms.push_slice(array),
+                        PropertyValue::Bool(value) => material_uniforms.push(value),
+                        PropertyValue::Color(color) => material_uniforms.push(color),
+                    };
+                }
+                material_property_group_blocks.push((
+                    resource_definition.binding,
+                    render_context
+                        .uniform_memory_allocator
+                        .allocate(material_uniforms),
+                ))
             } else {
                 // TODO: Fallback to shader's defaults.
             }
         }
-        let material_block = if material_uniforms.is_empty() {
-            None
-        } else {
-            Some(
-                render_context
-                    .uniform_memory_allocator
-                    .allocate(material_uniforms),
-            )
-        };
 
         // Upload camera uniforms.
         let camera_uniforms = StaticUniformBuffer::<512>::new()
@@ -430,7 +401,7 @@ impl RenderDataBundle {
         }
 
         Some(BundleUniformData {
-            material_block,
+            material_property_group_blocks,
             camera_block,
             lights_block,
             light_data_block,
@@ -477,51 +448,89 @@ impl RenderDataBundle {
         };
 
         let mut material_bindings = ArrayVec::<ResourceBinding, 32>::new();
-        render_context.apply_material(server, material, &mut material_bindings)?;
+        let shader = material.shader().data_ref();
+        for resource_definition in shader.definition.resources.iter() {
+            let name = resource_definition.name.as_str();
 
-        let block_locations = render_pass.program.built_in_uniform_blocks();
-
-        if let Some(location) = &block_locations[BuiltInUniformBlock::MaterialProperties as usize] {
-            if let Some(material_block) = bundle_uniform_data.material_block {
-                material_bindings.push(
-                    render_context
-                        .uniform_memory_allocator
-                        .block_to_binding(material_block, *location),
-                );
-            }
-        }
-
-        if let Some(location) = &block_locations[BuiltInUniformBlock::CameraData as usize] {
-            material_bindings.push(
-                render_context
-                    .uniform_memory_allocator
-                    .block_to_binding(bundle_uniform_data.camera_block, *location),
-            );
-        }
-
-        if let Some(location) = &block_locations[BuiltInUniformBlock::LightData as usize] {
-            material_bindings.push(
-                render_context
-                    .uniform_memory_allocator
-                    .block_to_binding(bundle_uniform_data.light_data_block, *location),
-            );
-        }
-
-        if let Some(location) = &block_locations[BuiltInUniformBlock::GraphicsSettings as usize] {
-            material_bindings.push(
-                render_context
-                    .uniform_memory_allocator
-                    .block_to_binding(bundle_uniform_data.graphics_settings_block, *location),
-            );
-        }
-
-        if let Some(location) = &block_locations[BuiltInUniformBlock::LightsBlock as usize] {
-            if let Some(lights_block) = bundle_uniform_data.lights_block {
-                material_bindings.push(
-                    render_context
-                        .uniform_memory_allocator
-                        .block_to_binding(lights_block, *location),
-                );
+            match name {
+                "fyrox_sceneDepth" => {
+                    material_bindings.push(ResourceBinding::texture_with_binding(
+                        if let Some(scene_depth) = render_context.scene_depth.as_ref() {
+                            scene_depth
+                        } else {
+                            render_context.black_dummy
+                        },
+                        resource_definition.binding,
+                    ));
+                }
+                "fyrox_cameraData" => {
+                    material_bindings.push(
+                        render_context.uniform_memory_allocator.block_to_binding(
+                            bundle_uniform_data.camera_block,
+                            resource_definition.binding,
+                        ),
+                    );
+                }
+                "fyrox_lightData" => {
+                    material_bindings.push(
+                        render_context.uniform_memory_allocator.block_to_binding(
+                            bundle_uniform_data.light_data_block,
+                            resource_definition.binding,
+                        ),
+                    );
+                }
+                "fyrox_graphicsSettings" => {
+                    material_bindings.push(
+                        render_context.uniform_memory_allocator.block_to_binding(
+                            bundle_uniform_data.graphics_settings_block,
+                            resource_definition.binding,
+                        ),
+                    );
+                }
+                "fyrox_lightsBlock" => {
+                    if let Some(lights_block) = bundle_uniform_data.lights_block {
+                        material_bindings.push(
+                            render_context
+                                .uniform_memory_allocator
+                                .block_to_binding(lights_block, resource_definition.binding),
+                        );
+                    }
+                }
+                _ => {
+                    if let Some(resource) = material.binding_ref(resource_definition.name.clone()) {
+                        match resource {
+                            material::ResourceBinding::Sampler { value, fallback } => {
+                                let texture = value
+                                    .as_ref()
+                                    .and_then(|t| render_context.texture_cache.get(server, t))
+                                    .unwrap_or(match fallback {
+                                        SamplerFallback::White => render_context.white_dummy,
+                                        SamplerFallback::Normal => render_context.normal_dummy,
+                                        SamplerFallback::Black => render_context.black_dummy,
+                                        SamplerFallback::Volume => render_context.volume_dummy,
+                                    });
+                                material_bindings.push(ResourceBinding::texture_with_binding(
+                                    texture,
+                                    resource_definition.binding,
+                                ));
+                            }
+                            material::ResourceBinding::PropertyGroup(_) => {
+                                if let Some((_, block_location)) = bundle_uniform_data
+                                    .material_property_group_blocks
+                                    .iter()
+                                    .find(|(binding, _)| *binding == resource_definition.binding)
+                                {
+                                    material_bindings.push(
+                                        render_context.uniform_memory_allocator.block_to_binding(
+                                            *block_location,
+                                            resource_definition.binding,
+                                        ),
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -535,33 +544,41 @@ impl RenderDataBundle {
             }
             let mut instance_bindings = ArrayVec::<ResourceBinding, 32>::new();
 
-            if let Some(location) = &block_locations[BuiltInUniformBlock::BoneMatrices as usize] {
-                match uniform_data.bone_matrices_block {
-                    Some(block) => {
+            for resource_definition in shader.definition.resources.iter() {
+                let name = resource_definition.name.as_str();
+                match name {
+                    "fyrox_instanceData" => {
                         instance_bindings.push(
-                            render_context
-                                .uniform_memory_allocator
-                                .block_to_binding(block, *location),
+                            render_context.uniform_memory_allocator.block_to_binding(
+                                uniform_data.instance_block,
+                                resource_definition.binding,
+                            ),
                         );
                     }
-                    None => {
-                        // Bind stub buffer, instead of creating and uploading 16kb with zeros per draw
-                        // call.
-                        instance_bindings.push(ResourceBinding::Buffer {
-                            buffer: render_context.bone_matrices_stub_uniform_buffer,
-                            shader_location: *location,
-                            data_usage: Default::default(),
-                        });
+                    "fyrox_boneMatrices" => {
+                        match uniform_data.bone_matrices_block {
+                            Some(block) => {
+                                instance_bindings.push(
+                                    render_context
+                                        .uniform_memory_allocator
+                                        .block_to_binding(block, resource_definition.binding),
+                                );
+                            }
+                            None => {
+                                // Bind stub buffer, instead of creating and uploading 16kb with zeros per draw
+                                // call.
+                                instance_bindings.push(ResourceBinding::Buffer {
+                                    buffer: render_context.bone_matrices_stub_uniform_buffer,
+                                    binding: BufferLocation::Explicit {
+                                        binding: resource_definition.binding,
+                                    },
+                                    data_usage: Default::default(),
+                                });
+                            }
+                        }
                     }
-                }
-            }
-
-            if let Some(location) = &block_locations[BuiltInUniformBlock::InstanceData as usize] {
-                instance_bindings.push(
-                    render_context
-                        .uniform_memory_allocator
-                        .block_to_binding(uniform_data.instance_block, *location),
-                );
+                    _ => (),
+                };
             }
 
             stats += render_context.frame_buffer.draw(

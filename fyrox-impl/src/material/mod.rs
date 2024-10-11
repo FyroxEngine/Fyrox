@@ -38,10 +38,13 @@ use crate::{
         visitor::{prelude::*, RegionGuard},
         TypeUuidProvider,
     },
-    material::shader::{PropertyKind, SamplerFallback, ShaderResource, ShaderResourceExtension},
+    material::shader::{
+        SamplerFallback, ShaderResource, ShaderResourceExtension, ShaderResourceKind,
+    },
     resource::texture::{Texture, TextureResource},
 };
 use fxhash::FxHashMap;
+use fyrox_graphics::gpu_program::ShaderPropertyKind;
 use fyrox_resource::manager::BuiltInResource;
 use fyrox_resource::state::ResourceState;
 use fyrox_resource::untyped::ResourceKind;
@@ -64,6 +67,241 @@ pub mod shader;
 ///
 /// There is a limited set of possible types that can be passed to a shader, most of them are
 /// just simple data types.
+#[derive(Debug, Visit, Clone, Reflect)]
+pub enum ResourceBinding {
+    /// A texture with fallback option.
+    ///
+    /// # Fallback
+    ///
+    /// Sometimes you don't want to set a value to a sampler, or you even don't have the appropriate
+    /// one. There is fallback value that helps you with such situations, it defines a values that
+    /// will be fetched from a sampler when there is no texture.
+    ///
+    /// For example, standard shader has a lot of samplers defined: diffuse, normal, height, emission,
+    /// mask, metallic, roughness, etc. In some situations you may not have all the textures, you have
+    /// only diffuse texture, to keep rendering correct, each other property has appropriate fallback
+    /// value. Normal sampler - a normal vector pointing up (+Y), height - zero, emission - zero, etc.
+    ///
+    /// Fallback value is also helpful to catch missing textures, you'll definitely know the texture is
+    /// missing by very specific value in the fallback texture.
+    Sampler {
+        /// Actual value of the sampler. Could be [`None`], in this case `fallback` will be used.
+        value: Option<TextureResource>,
+
+        /// Sampler fallback value.
+        fallback: SamplerFallback,
+    },
+
+    PropertyGroup(PropertyGroup),
+}
+
+impl Default for ResourceBinding {
+    fn default() -> Self {
+        Self::PropertyGroup(Default::default())
+    }
+}
+
+impl ResourceBinding {
+    /// Creates a resource binding from its shader's representation.
+    pub fn from_property_kind(
+        kind: &ShaderResourceKind,
+        resource_manager: Option<&ResourceManager>,
+    ) -> Self {
+        match kind {
+            ShaderResourceKind::Sampler {
+                default,
+                fallback: usage,
+                ..
+            } => Self::Sampler {
+                value: default
+                    .as_ref()
+                    .and_then(|path| resource_manager.map(|rm| rm.request::<Texture>(path))),
+                fallback: *usage,
+            },
+            ShaderResourceKind::PropertyGroup(group) => Self::PropertyGroup(PropertyGroup {
+                properties: group
+                    .iter()
+                    .map(|property| MaterialProperty {
+                        name: property.name.as_str().into(),
+                        value: PropertyValue::from_property_kind(&property.kind),
+                    })
+                    .collect::<Vec<_>>(),
+            }),
+        }
+    }
+
+    /// Tries to extract a texture from the resource binding.
+    pub fn as_sampler(&self) -> Option<TextureResource> {
+        if let Self::Sampler { value, .. } = self {
+            value.clone()
+        } else {
+            None
+        }
+    }
+}
+
+#[derive(Default, Debug, Visit, Clone, Reflect)]
+pub struct MaterialProperty {
+    pub name: String,
+    pub value: PropertyValue,
+}
+
+#[derive(Default, Debug, Visit, Clone, Reflect)]
+pub struct PropertyGroup {
+    properties: Vec<MaterialProperty>,
+}
+
+impl PropertyGroup {
+    /// Searches for a property with given name.
+    ///
+    /// # Complexity
+    ///
+    /// O(1)
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use fyrox_impl::core::sstorage::ImmutableString;
+    /// # use fyrox_impl::material::Material;
+    ///
+    /// let mut material = Material::standard();
+    ///
+    /// let color = material.property_ref(&ImmutableString::new("diffuseColor")).unwrap().as_color();
+    /// ```
+    pub fn property_ref(&self, name: impl Into<ImmutableString>) -> Option<&PropertyValue> {
+        let name = name.into();
+        self.properties.iter().find_map(|property| {
+            if property.name == name.as_str() {
+                Some(&property.value)
+            } else {
+                None
+            }
+        })
+    }
+
+    fn property_mut(&mut self, name: impl Into<ImmutableString>) -> Option<&mut PropertyValue> {
+        let name = name.into();
+        self.properties.iter_mut().find_map(|property| {
+            if property.name == name.as_str() {
+                Some(&mut property.value)
+            } else {
+                None
+            }
+        })
+    }
+
+    /// Sets new value of the property with given name.
+    ///
+    /// # Type checking
+    ///
+    /// A new value must have the same type as in shader, otherwise an error will be generated.
+    /// This helps to catch subtle bugs when you passing "almost" identical values to shader, like
+    /// signed and unsigned integers - both have positive values, but GPU is very strict of what
+    /// it expects as input value.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use fyrox_impl::material::{Material, PropertyValue};
+    /// # use fyrox_impl::core::color::Color;
+    /// # use fyrox_impl::core::sstorage::ImmutableString;
+    ///
+    /// let mut material = Material::standard();
+    ///
+    /// assert!(material.set_property("diffuseColor", Color::WHITE).is_ok());
+    /// ```
+    pub fn set_property(
+        &mut self,
+        name: impl Into<ImmutableString>,
+        new_value: impl Into<PropertyValue>,
+    ) -> Result<(), MaterialError> {
+        let name = name.into();
+        let new_value = new_value.into();
+        if let Some(value) = self.property_mut(name.clone()) {
+            match (value, new_value) {
+                (PropertyValue::Float(old_value), PropertyValue::Float(value)) => {
+                    *old_value = value;
+                }
+                (PropertyValue::FloatArray(old_value), PropertyValue::FloatArray(value)) => {
+                    *old_value = value;
+                }
+                (PropertyValue::Int(old_value), PropertyValue::Int(value)) => {
+                    *old_value = value;
+                }
+                (PropertyValue::IntArray(old_value), PropertyValue::IntArray(value)) => {
+                    *old_value = value;
+                }
+                (PropertyValue::Bool(old_value), PropertyValue::Bool(value)) => {
+                    *old_value = value;
+                }
+                (PropertyValue::UInt(old_value), PropertyValue::UInt(value)) => {
+                    *old_value = value;
+                }
+                (PropertyValue::UIntArray(old_value), PropertyValue::UIntArray(value)) => {
+                    *old_value = value;
+                }
+                (PropertyValue::Vector2(old_value), PropertyValue::Vector2(value)) => {
+                    *old_value = value;
+                }
+                (PropertyValue::Vector2Array(old_value), PropertyValue::Vector2Array(value)) => {
+                    *old_value = value;
+                }
+                (PropertyValue::Vector3(old_value), PropertyValue::Vector3(value)) => {
+                    *old_value = value;
+                }
+                (PropertyValue::Vector3Array(old_value), PropertyValue::Vector3Array(value)) => {
+                    *old_value = value;
+                }
+                (PropertyValue::Vector4(old_value), PropertyValue::Vector4(value)) => {
+                    *old_value = value;
+                }
+                (PropertyValue::Vector4Array(old_value), PropertyValue::Vector4Array(value)) => {
+                    *old_value = value;
+                }
+                (PropertyValue::Matrix2(old_value), PropertyValue::Matrix2(value)) => {
+                    *old_value = value;
+                }
+                (PropertyValue::Matrix2Array(old_value), PropertyValue::Matrix2Array(value)) => {
+                    *old_value = value;
+                }
+                (PropertyValue::Matrix3(old_value), PropertyValue::Matrix3(value)) => {
+                    *old_value = value;
+                }
+                (PropertyValue::Matrix3Array(old_value), PropertyValue::Matrix3Array(value)) => {
+                    *old_value = value;
+                }
+                (PropertyValue::Matrix4(old_value), PropertyValue::Matrix4(value)) => {
+                    *old_value = value;
+                }
+                (PropertyValue::Matrix4Array(old_value), PropertyValue::Matrix4Array(value)) => {
+                    *old_value = value;
+                }
+                (PropertyValue::Color(old_value), PropertyValue::Color(value)) => {
+                    *old_value = value;
+                }
+                (value, new_value) => {
+                    return Err(MaterialError::PropertyTypeMismatch {
+                        property_name: name.deref().to_owned(),
+                        expected: Box::new(value.clone()),
+                        given: Box::new(new_value),
+                    })
+                }
+            }
+
+            Ok(())
+        } else {
+            Err(MaterialError::NoSuchProperty {
+                property_name: name.deref().to_owned(),
+            })
+        }
+    }
+
+    /// Returns immutable reference to internal property storage.
+    pub fn properties(&self) -> &[MaterialProperty] {
+        &self.properties
+    }
+}
+
 #[derive(Debug, Visit, Clone, Reflect)]
 pub enum PropertyValue {
     /// Real number.
@@ -132,29 +370,6 @@ pub enum PropertyValue {
     /// linear. Value of this variant will be automatically **converted to linear color space**
     /// before it passed to shader.
     Color(Color),
-
-    /// A texture with fallback option.
-    ///
-    /// # Fallback
-    ///
-    /// Sometimes you don't want to set a value to a sampler, or you even don't have the appropriate
-    /// one. There is fallback value that helps you with such situations, it defines a values that
-    /// will be fetched from a sampler when there is no texture.
-    ///
-    /// For example, standard shader has a lot of samplers defined: diffuse, normal, height, emission,
-    /// mask, metallic, roughness, etc. In some situations you may not have all the textures, you have
-    /// only diffuse texture, to keep rendering correct, each other property has appropriate fallback
-    /// value. Normal sampler - a normal vector pointing up (+Y), height - zero, emission - zero, etc.
-    ///
-    /// Fallback value is also helpful to catch missing textures, you'll definitely know the texture is
-    /// missing by very specific value in the fallback texture.
-    Sampler {
-        /// Actual value of the sampler. Could be [`None`], in this case `fallback` will be used.
-        value: Option<TextureResource>,
-
-        /// Sampler fallback value.
-        fallback: SamplerFallback,
-    },
 }
 
 macro_rules! impl_from {
@@ -188,7 +403,7 @@ impl_from!(Matrix4Array => Vec<Matrix4<f32>>);
 impl_from!(Bool => bool);
 impl_from!(Color => Color);
 
-impl From<Option<TextureResource>> for PropertyValue {
+impl From<Option<TextureResource>> for ResourceBinding {
     fn from(value: Option<TextureResource>) -> Self {
         Self::Sampler {
             value,
@@ -197,7 +412,7 @@ impl From<Option<TextureResource>> for PropertyValue {
     }
 }
 
-impl From<TextureResource> for PropertyValue {
+impl From<TextureResource> for ResourceBinding {
     fn from(value: TextureResource) -> Self {
         Self::Sampler {
             value: Some(value),
@@ -234,43 +449,45 @@ macro_rules! define_as_ref {
 
 impl PropertyValue {
     /// Creates property value from its shader's representation.
-    pub fn from_property_kind(
-        kind: &PropertyKind,
-        resource_manager: Option<&ResourceManager>,
-    ) -> Self {
+    pub fn from_property_kind(kind: &ShaderPropertyKind) -> Self {
         match kind {
-            PropertyKind::Float(value) => PropertyValue::Float(*value),
-            PropertyKind::Int(value) => PropertyValue::Int(*value),
-            PropertyKind::UInt(value) => PropertyValue::UInt(*value),
-            PropertyKind::Vector2(value) => PropertyValue::Vector2(*value),
-            PropertyKind::Vector3(value) => PropertyValue::Vector3(*value),
-            PropertyKind::Vector4(value) => PropertyValue::Vector4(*value),
-            PropertyKind::Color { r, g, b, a } => {
+            ShaderPropertyKind::Float(value) => PropertyValue::Float(*value),
+            ShaderPropertyKind::Int(value) => PropertyValue::Int(*value),
+            ShaderPropertyKind::UInt(value) => PropertyValue::UInt(*value),
+            ShaderPropertyKind::Vector2(value) => PropertyValue::Vector2(*value),
+            ShaderPropertyKind::Vector3(value) => PropertyValue::Vector3(*value),
+            ShaderPropertyKind::Vector4(value) => PropertyValue::Vector4(*value),
+            ShaderPropertyKind::Color { r, g, b, a } => {
                 PropertyValue::Color(Color::from_rgba(*r, *g, *b, *a))
             }
-            PropertyKind::Matrix2(value) => PropertyValue::Matrix2(*value),
-            PropertyKind::Matrix3(value) => PropertyValue::Matrix3(*value),
-            PropertyKind::Matrix4(value) => PropertyValue::Matrix4(*value),
-            PropertyKind::Bool(value) => PropertyValue::Bool(*value),
-            PropertyKind::Sampler {
-                default,
-                fallback: usage,
-                ..
-            } => PropertyValue::Sampler {
-                value: default
-                    .as_ref()
-                    .and_then(|path| resource_manager.map(|rm| rm.request::<Texture>(path))),
-                fallback: *usage,
-            },
-            PropertyKind::FloatArray { value, .. } => PropertyValue::FloatArray(value.clone()),
-            PropertyKind::IntArray { value, .. } => PropertyValue::IntArray(value.clone()),
-            PropertyKind::UIntArray { value, .. } => PropertyValue::UIntArray(value.clone()),
-            PropertyKind::Vector2Array { value, .. } => PropertyValue::Vector2Array(value.clone()),
-            PropertyKind::Vector3Array { value, .. } => PropertyValue::Vector3Array(value.clone()),
-            PropertyKind::Vector4Array { value, .. } => PropertyValue::Vector4Array(value.clone()),
-            PropertyKind::Matrix2Array { value, .. } => PropertyValue::Matrix2Array(value.clone()),
-            PropertyKind::Matrix3Array { value, .. } => PropertyValue::Matrix3Array(value.clone()),
-            PropertyKind::Matrix4Array { value, .. } => PropertyValue::Matrix4Array(value.clone()),
+            ShaderPropertyKind::Matrix2(value) => PropertyValue::Matrix2(*value),
+            ShaderPropertyKind::Matrix3(value) => PropertyValue::Matrix3(*value),
+            ShaderPropertyKind::Matrix4(value) => PropertyValue::Matrix4(*value),
+            ShaderPropertyKind::Bool(value) => PropertyValue::Bool(*value),
+
+            ShaderPropertyKind::FloatArray { value, .. } => {
+                PropertyValue::FloatArray(value.clone())
+            }
+            ShaderPropertyKind::IntArray { value, .. } => PropertyValue::IntArray(value.clone()),
+            ShaderPropertyKind::UIntArray { value, .. } => PropertyValue::UIntArray(value.clone()),
+            ShaderPropertyKind::Vector2Array { value, .. } => {
+                PropertyValue::Vector2Array(value.clone())
+            }
+            ShaderPropertyKind::Vector3Array { value, .. } => {
+                PropertyValue::Vector3Array(value.clone())
+            }
+            ShaderPropertyKind::Vector4Array { value, .. } => {
+                PropertyValue::Vector4Array(value.clone())
+            }
+            ShaderPropertyKind::Matrix2Array { value, .. } => {
+                PropertyValue::Matrix2Array(value.clone())
+            }
+            ShaderPropertyKind::Matrix3Array { value, .. } => {
+                PropertyValue::Matrix3Array(value.clone())
+            }
+            ShaderPropertyKind::Matrix4Array { value, .. } => {
+                PropertyValue::Matrix4Array(value.clone())
+            }
         }
     }
 
@@ -354,15 +571,6 @@ impl PropertyValue {
         /// Tries to unwrap property value as 4x4 matrix array.
         as_matrix4_array = Matrix4Array -> [Matrix4<f32>]
     );
-
-    /// Tries to unwrap property value as texture.
-    pub fn as_sampler(&self) -> Option<TextureResource> {
-        if let PropertyValue::Sampler { value, .. } = self {
-            value.clone()
-        } else {
-            None
-        }
-    }
 }
 
 impl Default for PropertyValue {
@@ -463,7 +671,7 @@ impl Default for PropertyValue {
 #[derive(Debug, Clone, Reflect)]
 pub struct Material {
     shader: ShaderResource,
-    properties: FxHashMap<ImmutableString, PropertyValue>,
+    resource_bindings: FxHashMap<ImmutableString, ResourceBinding>,
 }
 
 impl Visit for Material {
@@ -481,7 +689,11 @@ impl Visit for Material {
         };
         shader.visit("Shader", &mut region)?;
         self.shader = shader;
-        self.properties.visit("Properties", &mut region)?;
+
+        // TODO: Add backward compatibility.
+        // self.properties.visit("Properties", &mut region)?;
+        self.resource_bindings
+            .visit("ResourceBindings", &mut region)?;
 
         Ok(())
     }
@@ -527,19 +739,33 @@ impl ResourceData for Material {
 /// A set of possible errors that can occur when working with materials.
 #[derive(Debug)]
 pub enum MaterialError {
+    /// A resource binding is missing.
+    NoSuchResource {
+        /// Name of the binding.
+        property_name: String,
+    },
     /// A property is missing.
     NoSuchProperty {
         /// Name of the property.
         property_name: String,
     },
     /// Attempt to set a value of wrong type to a property.
-    TypeMismatch {
+    PropertyTypeMismatch {
         /// Name of the property.
         property_name: String,
         /// Expected property value.
-        expected: PropertyValue,
+        expected: Box<PropertyValue>,
         /// Given property value.
-        given: PropertyValue,
+        given: Box<PropertyValue>,
+    },
+    /// Attempt to set a value of wrong type to a property.
+    ResourceBindingTypeMismatch {
+        /// Name of the resource binding.
+        binding_name: String,
+        /// Expected binding value.
+        expected: Box<ResourceBinding>,
+        /// Given binding value.
+        given: Box<ResourceBinding>,
     },
     /// Unable to read data source.
     Visit(VisitError),
@@ -560,10 +786,16 @@ impl From<FileLoadError> for MaterialError {
 impl Display for MaterialError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
+            MaterialError::NoSuchResource { property_name } => {
+                write!(
+                    f,
+                    "Unable to find material resource binding {property_name}"
+                )
+            }
             MaterialError::NoSuchProperty { property_name } => {
                 write!(f, "Unable to find material property {property_name}")
             }
-            MaterialError::TypeMismatch {
+            MaterialError::PropertyTypeMismatch {
                 property_name,
                 expected,
                 given,
@@ -572,6 +804,17 @@ impl Display for MaterialError {
                     f,
                     "Attempt to set a value of wrong type \
                 to {property_name} property. Expected: {expected:?}, given {given:?}"
+                )
+            }
+            MaterialError::ResourceBindingTypeMismatch {
+                binding_name,
+                expected,
+                given,
+            } => {
+                write!(
+                    f,
+                    "Attempt to set a value of wrong type \
+                to {binding_name} resource binding. Expected: {expected:?}, given {given:?}"
                 )
             }
             MaterialError::Visit(e) => {
@@ -724,20 +967,23 @@ impl Material {
     pub fn from_shader(shader: ShaderResource, resource_manager: Option<ResourceManager>) -> Self {
         let data = shader.data_ref();
 
-        let mut property_values = FxHashMap::default();
-        for property_definition in data.definition.properties.iter() {
-            let value = PropertyValue::from_property_kind(
-                &property_definition.kind,
+        let mut resource_bindings = FxHashMap::default();
+        for resource_definition in data.definition.resources.iter() {
+            let resource_binding = ResourceBinding::from_property_kind(
+                &resource_definition.kind,
                 resource_manager.as_ref(),
             );
-            property_values.insert(ImmutableString::new(&property_definition.name), value);
+            resource_bindings.insert(
+                ImmutableString::new(&resource_definition.name),
+                resource_binding,
+            );
         }
 
         drop(data);
 
         Self {
             shader,
-            properties: property_values,
+            resource_bindings,
         }
     }
 
@@ -753,7 +999,7 @@ impl Material {
         let content = io.load_file(path.as_ref()).await?;
         let mut material = Material {
             shader: Default::default(),
-            properties: Default::default(),
+            resource_bindings: Default::default(),
         };
         let mut visitor = Visitor::load_from_memory(&content)?;
         visitor.blackboard.register(Arc::new(resource_manager));
@@ -761,7 +1007,31 @@ impl Material {
         Ok(material)
     }
 
-    /// Searches for a property with given name.
+    /// Searches for a resource binding with the given name and returns immutable reference to it
+    /// (if any).
+    ///
+    /// # Complexity
+    ///
+    /// O(1)
+    pub fn binding_ref(&self, name: impl Into<ImmutableString>) -> Option<&ResourceBinding> {
+        self.resource_bindings.get(&name.into())
+    }
+
+    /// Searches for a resource binding with the given name and returns mutable reference to it,
+    /// allowing you to modify the value.
+    ///
+    /// # Complexity
+    ///
+    /// O(1)
+    pub fn binding_mut(
+        &mut self,
+        name: impl Into<ImmutableString>,
+    ) -> Option<&mut ResourceBinding> {
+        self.resource_bindings.get_mut(&name.into())
+    }
+
+    /// Searches for a property group binding with the given name and returns immutable reference to it
+    /// (if any).
     ///
     /// # Complexity
     ///
@@ -775,10 +1045,107 @@ impl Material {
     ///
     /// let mut material = Material::standard();
     ///
-    /// let color = material.property_ref(&ImmutableString::new("diffuseColor")).unwrap().as_color();
+    /// let color = material.property_group_ref("properties").unwrap().property_ref("diffuseColor").unwrap().as_color();
     /// ```
-    pub fn property_ref(&self, name: &ImmutableString) -> Option<&PropertyValue> {
-        self.properties.get(name)
+    pub fn property_group_ref(&self, name: impl Into<ImmutableString>) -> Option<&PropertyGroup> {
+        self.resource_bindings
+            .get(&name.into())
+            .and_then(|binding| match binding {
+                ResourceBinding::Sampler { .. } => None,
+                ResourceBinding::PropertyGroup(group) => Some(group),
+            })
+    }
+
+    /// Searches for a property group binding with the given name and returns immutable reference to it
+    /// (if any).
+    ///
+    /// # Complexity
+    ///
+    /// O(1)
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use fyrox_core::color::Color;
+    /// use fyrox_impl::core::sstorage::ImmutableString;
+    /// # use fyrox_impl::material::Material;
+    ///
+    /// let mut material = Material::standard();
+    ///
+    /// let color = material.property_group_mut("properties").unwrap().set_property("diffuseColor", Color::RED).unwrap();
+    /// ```
+    pub fn property_group_mut(
+        &mut self,
+        name: impl Into<ImmutableString>,
+    ) -> Option<&mut PropertyGroup> {
+        self.resource_bindings
+            .get_mut(&name.into())
+            .and_then(|binding| match binding {
+                ResourceBinding::Sampler { .. } => None,
+                ResourceBinding::PropertyGroup(group) => Some(group),
+            })
+    }
+
+    /// Sets new value of the property with given name.
+    ///
+    /// # Type checking
+    ///
+    /// A new value must have the same type as in shader, otherwise an error will be generated.
+    /// This helps to catch subtle bugs when you passing "almost" identical values to shader, like
+    /// signed and unsigned integers - both have positive values, but GPU is very strict of what
+    /// it expects as input value.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use fyrox_impl::material::{Material, PropertyValue};
+    /// # use fyrox_impl::core::color::Color;
+    /// # use fyrox_impl::core::sstorage::ImmutableString;
+    ///
+    /// let mut material = Material::standard();
+    ///
+    /// assert!(material.set_property("diffuseColor", Color::WHITE).is_ok());
+    /// ```
+    pub fn bind(
+        &mut self,
+        name: impl Into<ImmutableString>,
+        new_value: impl Into<ResourceBinding>,
+    ) -> Result<(), MaterialError> {
+        let name = name.into();
+        let new_value = new_value.into();
+        if let Some(value) = self.resource_bindings.get_mut(&name) {
+            match (value, new_value) {
+                (
+                    ResourceBinding::Sampler {
+                        value: old_value,
+                        fallback: old_fallback,
+                    },
+                    ResourceBinding::Sampler { value, fallback },
+                ) => {
+                    *old_value = value;
+                    *old_fallback = fallback;
+                }
+                (
+                    ResourceBinding::PropertyGroup(old_group),
+                    ResourceBinding::PropertyGroup(new_group),
+                ) => {
+                    *old_group = new_group;
+                }
+                (value, new_value) => {
+                    return Err(MaterialError::ResourceBindingTypeMismatch {
+                        binding_name: name.deref().to_owned(),
+                        expected: Box::new(value.clone()),
+                        given: Box::new(new_value),
+                    })
+                }
+            }
+
+            Ok(())
+        } else {
+            Err(MaterialError::NoSuchProperty {
+                property_name: name.deref().to_owned(),
+            })
+        }
     }
 
     /// Sets new value of the property with given name.
@@ -806,148 +1173,25 @@ impl Material {
         name: impl Into<ImmutableString>,
         new_value: impl Into<PropertyValue>,
     ) -> Result<(), MaterialError> {
-        let name = name.into();
-        let new_value = new_value.into();
-        if let Some(value) = self.properties.get_mut(&name) {
-            match (value, new_value) {
-                (
-                    PropertyValue::Sampler {
-                        value: old_value,
-                        fallback: old_fallback,
-                    },
-                    PropertyValue::Sampler { value, fallback },
-                ) => {
-                    *old_value = value;
-                    *old_fallback = fallback;
-                }
-                (PropertyValue::Float(old_value), PropertyValue::Float(value)) => {
-                    *old_value = value;
-                }
-                (PropertyValue::FloatArray(old_value), PropertyValue::FloatArray(value)) => {
-                    *old_value = value;
-                }
-                (PropertyValue::Int(old_value), PropertyValue::Int(value)) => {
-                    *old_value = value;
-                }
-                (PropertyValue::IntArray(old_value), PropertyValue::IntArray(value)) => {
-                    *old_value = value;
-                }
-                (PropertyValue::Bool(old_value), PropertyValue::Bool(value)) => {
-                    *old_value = value;
-                }
-                (PropertyValue::UInt(old_value), PropertyValue::UInt(value)) => {
-                    *old_value = value;
-                }
-                (PropertyValue::UIntArray(old_value), PropertyValue::UIntArray(value)) => {
-                    *old_value = value;
-                }
-                (PropertyValue::Vector2(old_value), PropertyValue::Vector2(value)) => {
-                    *old_value = value;
-                }
-                (PropertyValue::Vector2Array(old_value), PropertyValue::Vector2Array(value)) => {
-                    *old_value = value;
-                }
-                (PropertyValue::Vector3(old_value), PropertyValue::Vector3(value)) => {
-                    *old_value = value;
-                }
-                (PropertyValue::Vector3Array(old_value), PropertyValue::Vector3Array(value)) => {
-                    *old_value = value;
-                }
-                (PropertyValue::Vector4(old_value), PropertyValue::Vector4(value)) => {
-                    *old_value = value;
-                }
-                (PropertyValue::Vector4Array(old_value), PropertyValue::Vector4Array(value)) => {
-                    *old_value = value;
-                }
-                (PropertyValue::Matrix2(old_value), PropertyValue::Matrix2(value)) => {
-                    *old_value = value;
-                }
-                (PropertyValue::Matrix2Array(old_value), PropertyValue::Matrix2Array(value)) => {
-                    *old_value = value;
-                }
-                (PropertyValue::Matrix3(old_value), PropertyValue::Matrix3(value)) => {
-                    *old_value = value;
-                }
-                (PropertyValue::Matrix3Array(old_value), PropertyValue::Matrix3Array(value)) => {
-                    *old_value = value;
-                }
-                (PropertyValue::Matrix4(old_value), PropertyValue::Matrix4(value)) => {
-                    *old_value = value;
-                }
-                (PropertyValue::Matrix4Array(old_value), PropertyValue::Matrix4Array(value)) => {
-                    *old_value = value;
-                }
-                (PropertyValue::Color(old_value), PropertyValue::Color(value)) => {
-                    *old_value = value;
-                }
-                (value, new_value) => {
-                    return Err(MaterialError::TypeMismatch {
-                        property_name: name.deref().to_owned(),
-                        expected: value.clone(),
-                        given: new_value,
-                    })
-                }
-            }
-
-            Ok(())
-        } else {
-            Err(MaterialError::NoSuchProperty {
-                property_name: name.deref().to_owned(),
+        self.property_group_mut("properties")
+            .ok_or_else(|| MaterialError::NoSuchResource {
+                property_name: "properties".to_string(),
             })
-        }
+            .and_then(|binding| binding.set_property(name, new_value))
     }
 
     /// Adds missing properties with default values, removes non-existent properties. Does not modify any existing
-    /// properties. This method has limited usage, that is mostly related to shader hot reloading. Returns `true`
-    /// if the syncing was successful, `false` - if the shader resource is not loaded.
-    pub fn sync_to_shader(&mut self, resource_manager: &ResourceManager) -> bool {
-        let shader_kind = self.shader.kind().clone();
-        if let Some(shader) = self.shader.state().data() {
-            if shader.definition.properties.len() > self.properties.len() {
-                // Some property was added to the shader, but missing in the material.
-                for property_definition in shader.definition.properties.iter() {
-                    let name = ImmutableString::new(&property_definition.name);
-                    if !self.properties.contains_key(&name) {
-                        // Add the property with default values.
-                        self.properties.insert(
-                            name.clone(),
-                            PropertyValue::from_property_kind(
-                                &property_definition.kind,
-                                Some(resource_manager),
-                            ),
-                        );
+    /// properties. This method has limited usage, that is mostly related to shader hot reloading.
+    pub fn sync_to_shader(&mut self, resource_manager: &ResourceManager) {
+        let temp_shader = Self::from_shader(self.shader.clone(), Some(resource_manager.clone()));
+        let mut current_bindings =
+            std::mem::replace(&mut self.resource_bindings, temp_shader.resource_bindings);
 
-                        Log::info(format!(
-                            "Added {} property to the material instance, since it exists in the \
-                            shader {}, but not in the material instance.",
-                            name, shader_kind
-                        ));
-                    }
-                }
-            } else {
-                // Some property was removed from the shader, but still exists in the material.
-                for property_name in self.properties.keys().cloned().collect::<Vec<_>>() {
-                    if shader
-                        .definition
-                        .properties
-                        .iter()
-                        .all(|p| p.name != property_name)
-                    {
-                        self.properties.remove(&property_name);
-
-                        Log::info(format!(
-                            "Removing {} property from the material instance, since it does \
-                        not exists in the shader {}.",
-                            property_name, shader_kind
-                        ));
-                    }
-                }
+        for (name, binding) in self.resource_bindings.iter_mut() {
+            if let Some(actual_binding) = current_bindings.remove(name) {
+                *binding = actual_binding;
             }
-
-            return true;
         }
-
-        false
     }
 
     /// Returns a reference to current shader.
@@ -956,20 +1200,22 @@ impl Material {
     }
 
     /// Returns immutable reference to internal property storage.
-    pub fn properties(&self) -> &FxHashMap<ImmutableString, PropertyValue> {
-        &self.properties
+    pub fn bindings(&self) -> &FxHashMap<ImmutableString, ResourceBinding> {
+        &self.resource_bindings
     }
 
     /// Tries to find a sampler with the given name and returns its texture (if any).
     pub fn texture(&self, name: &str) -> Option<TextureResource> {
-        self.properties.iter().find_map(|(property_name, value)| {
-            if property_name.as_str() == name {
-                if let PropertyValue::Sampler { value, .. } = value {
-                    return value.clone();
+        self.resource_bindings
+            .iter()
+            .find_map(|(property_name, value)| {
+                if property_name.as_str() == name {
+                    if let ResourceBinding::Sampler { value, .. } = value {
+                        return value.clone();
+                    }
                 }
-            }
-            None
-        })
+                None
+            })
     }
 }
 
@@ -1054,7 +1300,7 @@ where
     if let Ok(mut inner) = region.enter_region("Texture") {
         if old_texture.visit("Value", &mut inner).is_ok() {
             let mut material = make_default_material();
-            Log::verify(material.set_property("diffuseTexture", old_texture));
+            Log::verify(material.bind("diffuseTexture", old_texture));
             return Some(MaterialResource::new_ok(Default::default(), material));
         }
     }

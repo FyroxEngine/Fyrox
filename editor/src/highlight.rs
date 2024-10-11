@@ -339,7 +339,7 @@ impl SceneRenderPass for HighlightRenderPass {
                                     .with(&frame_matrix)
                                     .with(&Color::ORANGE),
                             )?,
-                            shader_location: shader.uniform_buffer_binding,
+                            binding: shader.uniform_buffer_binding,
                             data_usage: Default::default(),
                         },
                     ],

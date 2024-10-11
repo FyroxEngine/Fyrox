@@ -1,7 +1,7 @@
 (
     name: "GizmoShader",
 
-    properties: [
+    resources: [
         (
             name: "diffuseColor",
             kind: Color(r: 255, g: 255, b: 255, a: 255),

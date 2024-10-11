@@ -68,6 +68,7 @@ use crate::{
         Scene,
     },
 };
+use fyrox_graphics::framebuffer::BufferLocation;
 use std::{cell::RefCell, rc::Rc};
 
 pub mod ambient;
@@ -370,7 +371,9 @@ impl DeferredLightRenderer {
                                     StaticUniformBuffer::<256>::new()
                                         .with(&(view_projection * wvp)),
                                 )?,
-                                shader_location: shader.uniform_buffer_binding,
+                                binding: BufferLocation::Auto {
+                                    shader_location: shader.uniform_buffer_binding,
+                                },
                                 data_usage: Default::default(),
                             },
                         ],
@@ -432,7 +435,9 @@ impl DeferredLightRenderer {
                                 .with(&frame_matrix)
                                 .with(&ambient_color.srgb_to_linear_f32()),
                         )?,
-                        shader_location: self.ambient_light_shader.uniform_buffer_binding,
+                        binding: BufferLocation::Auto {
+                            shader_location: self.ambient_light_shader.uniform_buffer_binding,
+                        },
                         data_usage: Default::default(),
                     },
                 ],
@@ -571,7 +576,9 @@ impl DeferredLightRenderer {
                 &[ResourceBindGroup {
                     bindings: &[ResourceBinding::Buffer {
                         buffer: uniform_buffer,
-                        shader_location: self.flat_shader.uniform_buffer_binding,
+                        binding: BufferLocation::Auto {
+                            shader_location: self.flat_shader.uniform_buffer_binding,
+                        },
                         data_usage: Default::default(),
                     }],
                 }],
@@ -601,7 +608,9 @@ impl DeferredLightRenderer {
                 &[ResourceBindGroup {
                     bindings: &[ResourceBinding::Buffer {
                         buffer: uniform_buffer,
-                        shader_location: self.flat_shader.uniform_buffer_binding,
+                        binding: BufferLocation::Auto {
+                            shader_location: self.flat_shader.uniform_buffer_binding,
+                        },
                         data_usage: Default::default(),
                     }],
                 }],
@@ -641,7 +650,9 @@ impl DeferredLightRenderer {
                         &[ResourceBindGroup {
                             bindings: &[ResourceBinding::Buffer {
                                 buffer: uniform_buffer,
-                                shader_location: self.flat_shader.uniform_buffer_binding,
+                                binding: BufferLocation::Auto {
+                                    shader_location: self.flat_shader.uniform_buffer_binding,
+                                },
                                 data_usage: Default::default(),
                             }],
                         }],
@@ -833,7 +844,9 @@ impl DeferredLightRenderer {
                                 ResourceBinding::texture(cookie_texture, &shader.cookie_texture),
                                 ResourceBinding::Buffer {
                                     buffer: uniform_buffer,
-                                    shader_location: shader.uniform_buffer_binding,
+                                    binding: BufferLocation::Auto {
+                                        shader_location: shader.uniform_buffer_binding,
+                                    },
                                     data_usage: Default::default(),
                                 },
                             ],
@@ -888,7 +901,9 @@ impl DeferredLightRenderer {
                                 ),
                                 ResourceBinding::Buffer {
                                     buffer: uniform_buffer,
-                                    shader_location: shader.uniform_buffer_binding,
+                                    binding: BufferLocation::Auto {
+                                        shader_location: shader.uniform_buffer_binding,
+                                    },
                                     data_usage: Default::default(),
                                 },
                             ],
@@ -974,7 +989,9 @@ impl DeferredLightRenderer {
                                 ),
                                 ResourceBinding::Buffer {
                                     buffer: uniform_buffer,
-                                    shader_location: shader.uniform_buffer_binding,
+                                    binding: BufferLocation::Auto {
+                                        shader_location: shader.uniform_buffer_binding,
+                                    },
                                     data_usage: Default::default(),
                                 },
                             ],

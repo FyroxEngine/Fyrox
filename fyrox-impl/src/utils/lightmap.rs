@@ -26,6 +26,7 @@
 
 #![forbid(unsafe_code)]
 
+use crate::material::ResourceBinding;
 use crate::{
     asset::manager::{ResourceManager, ResourceRegistrationError},
     core::{
@@ -37,7 +38,6 @@ use crate::{
         visitor::{prelude::*, BinaryBlob},
     },
     graph::SceneGraph,
-    material::PropertyValue,
     resource::texture::{Texture, TextureKind, TexturePixelKind, TextureResource},
     scene::{
         light::{directional::DirectionalLight, point::PointLight, spot::SpotLight},
@@ -452,9 +452,9 @@ impl LightmapInputData {
                     let mut material_state = surface.material().state();
                     if let Some(material) = material_state.data() {
                         if !material
-                            .properties()
+                            .bindings()
                             .get(&ImmutableString::new("lightmapTexture"))
-                            .map(|v| matches!(v, PropertyValue::Sampler { .. }))
+                            .map(|v| matches!(v, ResourceBinding::Sampler { .. }))
                             .unwrap_or_default()
                         {
                             continue 'surface_loop;

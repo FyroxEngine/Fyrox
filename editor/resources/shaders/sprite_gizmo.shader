@@ -1,7 +1,7 @@
 (
     name: "SpriteGizmoShader",
 
-    properties: [
+    resources: [
         (
             name: "diffuseTexture",
             kind: Sampler(default: None, fallback: White),

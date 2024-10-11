@@ -57,6 +57,12 @@ pub enum TextureShaderLocation {
     ExplicitBinding(usize),
 }
 
+// TODO: Remove when raw shaders will be replaced with Fyrox-native ones.
+pub enum BufferLocation {
+    Auto { shader_location: usize },
+    Explicit { binding: usize },
+}
+
 pub enum ResourceBinding<'a> {
     Texture {
         texture: Rc<RefCell<dyn GpuTexture>>,
@@ -64,7 +70,7 @@ pub enum ResourceBinding<'a> {
     },
     Buffer {
         buffer: &'a dyn Buffer,
-        shader_location: usize,
+        binding: BufferLocation,
         data_usage: BufferDataUsage,
     },
 }

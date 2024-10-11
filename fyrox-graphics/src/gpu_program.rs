@@ -33,21 +33,8 @@ use std::{any::Any, marker::PhantomData, path::PathBuf};
 pub trait GpuProgram: Any {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
-    fn built_in_uniform_blocks(&self) -> &[Option<usize>];
     fn uniform_location(&self, name: &ImmutableString) -> Result<UniformLocation, FrameworkError>;
     fn uniform_block_index(&self, name: &ImmutableString) -> Result<usize, FrameworkError>;
-}
-
-#[repr(usize)]
-pub enum BuiltInUniformBlock {
-    BoneMatrices,
-    InstanceData,
-    CameraData,
-    MaterialProperties,
-    LightData,
-    LightsBlock,
-    GraphicsSettings,
-    Count,
 }
 
 #[derive(Clone, Debug)]
@@ -100,7 +87,22 @@ pub enum SamplerKind {
 
 /// Shader property with default value.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Reflect, Visit)]
-pub enum PropertyKind {
+pub enum ShaderResourceKind {
+    /// A texture.
+    Sampler {
+        kind: SamplerKind,
+
+        /// Optional path to default texture.
+        default: Option<PathBuf>,
+
+        /// Default fallback value. See [`SamplerFallback`] for more info.
+        fallback: SamplerFallback,
+    },
+    PropertyGroup(Vec<ShaderProperty>),
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Reflect, Visit)]
+pub enum ShaderPropertyKind {
     /// Real number.
     Float(f32),
 
@@ -215,30 +217,41 @@ pub enum PropertyKind {
         /// Default Alpha.
         a: u8,
     },
-
-    /// A texture.
-    Sampler {
-        kind: SamplerKind,
-
-        /// Optional path to default texture.
-        default: Option<PathBuf>,
-
-        /// Default fallback value. See [`SamplerFallback`] for more info.
-        fallback: SamplerFallback,
-    },
 }
 
-impl Default for PropertyKind {
+#[derive(Serialize, Deserialize, Debug, PartialEq, Reflect, Visit, Default)]
+pub struct ShaderProperty {
+    pub name: String,
+    pub kind: ShaderPropertyKind,
+}
+
+impl ShaderProperty {
+    pub fn new(name: &str, kind: ShaderPropertyKind) -> Self {
+        Self {
+            name: name.to_string(),
+            kind,
+        }
+    }
+}
+
+impl Default for ShaderPropertyKind {
     fn default() -> Self {
         Self::Float(0.0)
     }
 }
 
-/// Shader property definition.
+impl Default for ShaderResourceKind {
+    fn default() -> Self {
+        Self::PropertyGroup(Default::default())
+    }
+}
+
+/// Shader resource definition.
 #[derive(Default, Serialize, Deserialize, Debug, PartialEq, Reflect, Visit)]
-pub struct PropertyDefinition {
-    /// A name of the property.
+pub struct ShaderResourceDefinition {
+    /// A name of the resource.
     pub name: ImmutableString,
-    /// A kind of property with default value.
-    pub kind: PropertyKind,
+    /// A kind of resource.
+    pub kind: ShaderResourceKind,
+    pub binding: usize,
 }

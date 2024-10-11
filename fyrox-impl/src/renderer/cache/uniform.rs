@@ -29,6 +29,7 @@ use crate::renderer::framework::{
     uniform::{ByteStorage, DynamicUniformBuffer, UniformBuffer},
 };
 use fxhash::FxHashMap;
+use fyrox_graphics::framebuffer::BufferLocation;
 use fyrox_graphics::server::SharedGraphicsServer;
 use std::cell::RefCell;
 
@@ -127,7 +128,7 @@ struct Page {
     is_submitted: bool,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct UniformBlockLocation {
     pub page: usize,
     pub offset: usize,
@@ -196,7 +197,7 @@ impl UniformMemoryAllocator {
             offset,
             size: data.bytes_count(),
         };
-        self.blocks.push(block.clone());
+        self.blocks.push(block);
         block
     }
 
@@ -227,11 +228,13 @@ impl UniformMemoryAllocator {
     pub fn block_to_binding(
         &self,
         block: UniformBlockLocation,
-        shader_location: usize,
+        binding_point: usize,
     ) -> ResourceBinding {
         ResourceBinding::Buffer {
             buffer: &*self.gpu_buffers[block.page],
-            shader_location,
+            binding: BufferLocation::Explicit {
+                binding: binding_point,
+            },
             data_usage: BufferDataUsage::UseSegment {
                 offset: block.offset,
                 size: block.size,

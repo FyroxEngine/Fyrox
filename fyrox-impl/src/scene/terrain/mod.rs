@@ -1229,14 +1229,16 @@ impl Visit for Terrain {
                     // TODO: Due to the bug in resource system, material properties are not kept in sync
                     // so here we must re-create the material and put every property from the old material
                     // to the new.
-                    let mut new_material = Material::standard_terrain();
+                    let new_material = Material::standard_terrain();
 
+                    // TODO
+                    /*
                     let mut material_state = layer.material.state();
                     if let Some(material) = material_state.data() {
                         for (name, value) in material.properties() {
                             Log::verify(new_material.set_property(name.clone(), value.clone()));
                         }
-                    }
+                    }*/
 
                     self.layers.push(Layer {
                         material: MaterialResource::new_ok(Default::default(), new_material),
@@ -2644,7 +2646,7 @@ impl NodeTrait for Terrain {
                 let mut material = layer.material.deep_copy().data_ref().clone();
 
                 Log::verify_message(
-                    material.set_property(
+                    material.bind(
                         &layer.mask_property_name,
                         chunk.layer_masks[layer_index].clone(),
                     ),
@@ -2652,18 +2654,12 @@ impl NodeTrait for Terrain {
                 );
 
                 Log::verify_message(
-                    material.set_property(&layer.height_map_property_name, chunk.heightmap.clone()),
+                    material.bind(&layer.height_map_property_name, chunk.heightmap.clone()),
                     "Unable to set height map texture for terrain material.",
                 );
 
                 Log::verify_message(
-                    material.set_property(
-                        &layer.hole_mask_property_name,
-                        PropertyValue::Sampler {
-                            value: chunk.hole_mask.clone(),
-                            fallback: Default::default(),
-                        },
-                    ),
+                    material.bind(&layer.hole_mask_property_name, chunk.hole_mask.clone()),
                     "Unable to set hole mask texture for terrain material.",
                 );
 

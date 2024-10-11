@@ -42,6 +42,7 @@
 //! just by linking nodes to each other. Good example of this is skeleton which
 //! is used in skinning (animating 3d model by set of bones).
 
+use crate::material::ResourceBinding;
 use crate::{
     asset::{manager::ResourceManager, untyped::UntypedResource},
     core::{
@@ -54,7 +55,7 @@ use crate::{
         visitor::{Visit, VisitResult, Visitor},
     },
     graph::{AbstractSceneGraph, AbstractSceneNode, BaseSceneGraph, NodeHandleMap, SceneGraph},
-    material::{shader::SamplerFallback, MaterialResource, PropertyValue},
+    material::{shader::SamplerFallback, MaterialResource},
     resource::model::{Model, ModelResource, ModelResourceExtension},
     scene::{
         base::{NodeScriptMessage, SceneNodeId},
@@ -715,9 +716,9 @@ impl Graph {
                     let texture = entry.texture.clone().unwrap();
                     let mut material_state = surface.material().state();
                     if let Some(material) = material_state.data() {
-                        if let Err(e) = material.set_property(
+                        if let Err(e) = material.bind(
                             "lightmapTexture",
-                            PropertyValue::Sampler {
+                            ResourceBinding::Sampler {
                                 value: Some(texture),
                                 fallback: SamplerFallback::Black,
                             },
@@ -779,9 +780,9 @@ impl Graph {
                     for (entry, surface) in entries.iter_mut().zip(mesh.surfaces_mut()) {
                         let mut material_state = surface.material().state();
                         if let Some(material) = material_state.data() {
-                            if let Err(e) = material.set_property(
+                            if let Err(e) = material.bind(
                                 "lightmapTexture",
-                                PropertyValue::Sampler {
+                                ResourceBinding::Sampler {
                                     value: entry.texture.clone(),
                                     fallback: SamplerFallback::Black,
                                 },
