@@ -281,7 +281,24 @@ impl GlProgram {
             initial_source.insert_str(0, &texture_bindings);
         }
 
-        Self::from_source(server, name, &vertex_source, &fragment_source)
+        let program = Self::from_source(server, name, &vertex_source, &fragment_source)?;
+
+        unsafe {
+            server.set_program(Some(program.id));
+            let mut texture_unit_index = 0;
+            for property in properties {
+                if let PropertyKind::Sampler { .. } = property.kind {
+                    if let Some(location) =
+                        server.gl.get_uniform_location(program.id, &property.name)
+                    {
+                        server.gl.uniform_1_i32(Some(&location), texture_unit_index);
+                    }
+                    texture_unit_index += 1;
+                }
+            }
+        }
+
+        Ok(program)
     }
 
     pub fn from_source(

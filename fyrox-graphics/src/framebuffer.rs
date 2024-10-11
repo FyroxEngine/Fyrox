@@ -52,10 +52,15 @@ pub enum BufferDataUsage {
     },
 }
 
+pub enum TextureShaderLocation {
+    Uniform(UniformLocation),
+    ExplicitBinding(usize),
+}
+
 pub enum ResourceBinding<'a> {
     Texture {
         texture: Rc<RefCell<dyn GpuTexture>>,
-        shader_location: UniformLocation,
+        shader_location: TextureShaderLocation,
     },
     Buffer {
         buffer: &'a dyn Buffer,
@@ -71,7 +76,14 @@ impl<'a> ResourceBinding<'a> {
     ) -> Self {
         Self::Texture {
             texture: texture.clone(),
-            shader_location: shader_location.clone(),
+            shader_location: TextureShaderLocation::Uniform(shader_location.clone()),
+        }
+    }
+
+    pub fn texture_with_binding(texture: &Rc<RefCell<dyn GpuTexture>>, binding: usize) -> Self {
+        Self::Texture {
+            texture: texture.clone(),
+            shader_location: TextureShaderLocation::ExplicitBinding(binding),
         }
     }
 }

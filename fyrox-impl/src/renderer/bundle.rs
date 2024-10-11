@@ -45,7 +45,7 @@ use crate::{
             buffer::Buffer,
             error::FrameworkError,
             framebuffer::{FrameBuffer, ResourceBindGroup, ResourceBinding},
-            gpu_program::{BuiltInUniformBlock, GpuProgram},
+            gpu_program::BuiltInUniformBlock,
             gpu_texture::GpuTexture,
             server::GraphicsServer,
             uniform::StaticUniformBuffer,
@@ -170,16 +170,15 @@ impl<'a> BundleRenderContext<'a> {
         &mut self,
         server: &dyn GraphicsServer,
         material: &Material,
-        program: &dyn GpuProgram,
         material_bindings: &mut ArrayVec<ResourceBinding, 32>,
     ) -> Result<(), FrameworkError> {
         let shader = material.shader().data_ref();
         for property in shader.definition.properties.iter() {
+            let binding = material_bindings.len();
             if property.name.as_str() == "fyrox_sceneDepth" {
                 if let Some(scene_depth) = self.scene_depth.as_ref() {
-                    if let Ok(location) = program.uniform_location(&property.name) {
-                        material_bindings.push(ResourceBinding::texture(scene_depth, &location));
-                    }
+                    material_bindings
+                        .push(ResourceBinding::texture_with_binding(scene_depth, binding));
                 }
             } else if let Some(PropertyValue::Sampler { value, fallback }) =
                 material.properties().get(&property.name)
@@ -193,10 +192,7 @@ impl<'a> BundleRenderContext<'a> {
                         SamplerFallback::Black => self.black_dummy,
                         SamplerFallback::Volume => self.volume_dummy,
                     });
-
-                if let Ok(uniform) = program.uniform_location(&property.name) {
-                    material_bindings.push(ResourceBinding::texture(texture, &uniform));
-                }
+                material_bindings.push(ResourceBinding::texture_with_binding(texture, binding));
             }
         }
 
@@ -481,12 +477,7 @@ impl RenderDataBundle {
         };
 
         let mut material_bindings = ArrayVec::<ResourceBinding, 32>::new();
-        render_context.apply_material(
-            server,
-            material,
-            &*render_pass.program,
-            &mut material_bindings,
-        )?;
+        render_context.apply_material(server, material, &mut material_bindings)?;
 
         let block_locations = render_pass.program.built_in_uniform_blocks();
 

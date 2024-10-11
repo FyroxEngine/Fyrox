@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::framebuffer::BufferDataUsage;
+use crate::framebuffer::{BufferDataUsage, TextureShaderLocation};
 use crate::gl::geometry_buffer::GlGeometryBuffer;
 use crate::{
     buffer::{Buffer, BufferKind},
@@ -475,13 +475,16 @@ fn pre_draw(
                 } => {
                     let texture = texture.borrow();
                     let texture = texture.as_any().downcast_ref::<GlTexture>().unwrap();
-                    unsafe {
-                        server
-                            .gl
-                            .uniform_1_i32(Some(&shader_location.id), texture_unit)
-                    };
-                    texture.bind(server, texture_unit as u32);
-                    texture_unit += 1;
+                    match shader_location {
+                        TextureShaderLocation::Uniform(uniform) => {
+                            unsafe { server.gl.uniform_1_i32(Some(&uniform.id), texture_unit) };
+                            texture.bind(server, texture_unit as u32);
+                            texture_unit += 1;
+                        }
+                        TextureShaderLocation::ExplicitBinding(binding) => {
+                            texture.bind(server, *binding as u32);
+                        }
+                    }
                 }
                 ResourceBinding::Buffer {
                     buffer,
