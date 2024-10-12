@@ -57,6 +57,7 @@ use std::{
     path::Path,
     sync::Arc,
 };
+use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 pub mod loader;
 pub mod shader;
@@ -67,8 +68,9 @@ pub mod shader;
 ///
 /// There is a limited set of possible types that can be passed to a shader, most of them are
 /// just simple data types.
-#[derive(Debug, Visit, Clone, Reflect)]
-pub enum ResourceBinding {
+#[derive(Debug, Visit, Clone, Reflect, TypeUuidProvider, AsRefStr, EnumString, VariantNames)]
+#[type_uuid(id = "2df8f1e5-0075-4d0d-9860-70fc27d3e165")]
+pub enum MaterialResourceBindingValue {
     /// A texture with fallback option.
     ///
     /// # Fallback
@@ -95,13 +97,13 @@ pub enum ResourceBinding {
     PropertyGroup(PropertyGroup),
 }
 
-impl Default for ResourceBinding {
+impl Default for MaterialResourceBindingValue {
     fn default() -> Self {
         Self::PropertyGroup(Default::default())
     }
 }
 
-impl ResourceBinding {
+impl MaterialResourceBindingValue {
     /// Creates a resource binding from its shader's representation.
     pub fn from_property_kind(
         kind: &ShaderResourceKind,
@@ -140,7 +142,15 @@ impl ResourceBinding {
     }
 }
 
-#[derive(Default, Debug, Visit, Clone, Reflect)]
+#[derive(Default, Debug, Visit, Clone, Reflect, TypeUuidProvider)]
+#[type_uuid(id = "4d8bd5b1-8996-4681-bd34-fd3f46f8179f")]
+pub struct MaterialResourceBinding {
+    pub name: ImmutableString,
+    pub value: MaterialResourceBindingValue,
+}
+
+#[derive(Default, Debug, Visit, Clone, Reflect, TypeUuidProvider)]
+#[type_uuid(id = "29af996e-a2d3-4d72-adee-5db16e46f379")]
 pub struct MaterialProperty {
     pub name: String,
     pub value: PropertyValue,
@@ -302,7 +312,8 @@ impl PropertyGroup {
     }
 }
 
-#[derive(Debug, Visit, Clone, Reflect)]
+#[derive(Debug, Visit, Clone, Reflect, AsRefStr, EnumString, VariantNames, TypeUuidProvider)]
+#[type_uuid(id = "1c25018d-ab6e-4dca-99a6-e3d9639bc33c")]
 pub enum PropertyValue {
     /// Real number.
     Float(f32),
@@ -403,7 +414,7 @@ impl_from!(Matrix4Array => Vec<Matrix4<f32>>);
 impl_from!(Bool => bool);
 impl_from!(Color => Color);
 
-impl From<Option<TextureResource>> for ResourceBinding {
+impl From<Option<TextureResource>> for MaterialResourceBindingValue {
     fn from(value: Option<TextureResource>) -> Self {
         Self::Sampler {
             value,
@@ -412,7 +423,7 @@ impl From<Option<TextureResource>> for ResourceBinding {
     }
 }
 
-impl From<TextureResource> for ResourceBinding {
+impl From<TextureResource> for MaterialResourceBindingValue {
     fn from(value: TextureResource) -> Self {
         Self::Sampler {
             value: Some(value),
@@ -671,7 +682,11 @@ impl Default for PropertyValue {
 #[derive(Debug, Clone, Reflect)]
 pub struct Material {
     shader: ShaderResource,
-    resource_bindings: FxHashMap<ImmutableString, ResourceBinding>,
+    // Why not hash map here? Simply because linear search works faster here. It happens, because
+    // there's a limited amount of resources a material could contain, usually it is 32 at max.
+    // This limitation comes from GPUs. Even PBR materials have just 13 resources required for
+    // rendering. Linear search in such small amounts outperforms hash map lookups.
+    resource_bindings: Vec<MaterialResourceBinding>,
 }
 
 #[derive(Debug, Visit, Clone, Reflect)]
@@ -730,21 +745,18 @@ impl Visit for Material {
             if old_properties.visit("Properties", &mut region).is_ok() {
                 for (name, old_property) in &old_properties {
                     if let OldMaterialProperty::Sampler { value, fallback } = old_property {
-                        self.resource_bindings.insert(
-                            name.clone(),
-                            ResourceBinding::Sampler {
+                        if let Some(binding) = self.binding_mut(name.clone()) {
+                            *binding = MaterialResourceBindingValue::Sampler {
                                 value: value.clone(),
-                                fallback: fallback.clone(),
-                            },
-                        );
+                                fallback: *fallback,
+                            };
+                        }
                     }
                 }
 
-                let properties = self
-                    .resource_bindings
-                    .entry("properties".into())
-                    .or_insert_with(|| ResourceBinding::PropertyGroup(Default::default()));
-                if let ResourceBinding::PropertyGroup(properties) = properties {
+                if let Some(MaterialResourceBindingValue::PropertyGroup(properties)) =
+                    self.binding_mut("properties")
+                {
                     for (name, old_property) in old_properties {
                         let result = match old_property {
                             OldMaterialProperty::Float(v) => properties.set_property(name, v),
@@ -861,9 +873,9 @@ pub enum MaterialError {
         /// Name of the resource binding.
         binding_name: String,
         /// Expected binding value.
-        expected: Box<ResourceBinding>,
+        expected: Box<MaterialResourceBindingValue>,
         /// Given binding value.
-        given: Box<ResourceBinding>,
+        given: Box<MaterialResourceBindingValue>,
     },
     /// Unable to read data source.
     Visit(VisitError),
@@ -1065,16 +1077,16 @@ impl Material {
     pub fn from_shader(shader: ShaderResource, resource_manager: Option<ResourceManager>) -> Self {
         let data = shader.data_ref();
 
-        let mut resource_bindings = FxHashMap::default();
+        let mut resource_bindings = Vec::with_capacity(data.definition.resources.len());
         for resource_definition in data.definition.resources.iter() {
-            let resource_binding = ResourceBinding::from_property_kind(
+            let resource_binding = MaterialResourceBindingValue::from_property_kind(
                 &resource_definition.kind,
                 resource_manager.as_ref(),
             );
-            resource_bindings.insert(
-                ImmutableString::new(&resource_definition.name),
-                resource_binding,
-            );
+            resource_bindings.push(MaterialResourceBinding {
+                name: ImmutableString::new(&resource_definition.name),
+                value: resource_binding,
+            });
         }
 
         drop(data);
@@ -1110,9 +1122,19 @@ impl Material {
     ///
     /// # Complexity
     ///
-    /// O(1)
-    pub fn binding_ref(&self, name: impl Into<ImmutableString>) -> Option<&ResourceBinding> {
-        self.resource_bindings.get(&name.into())
+    /// O(N)
+    pub fn binding_ref(
+        &self,
+        name: impl Into<ImmutableString>,
+    ) -> Option<&MaterialResourceBindingValue> {
+        let name = name.into();
+        self.resource_bindings.iter().find_map(|binding| {
+            if binding.name == name {
+                Some(&binding.value)
+            } else {
+                None
+            }
+        })
     }
 
     /// Searches for a resource binding with the given name and returns mutable reference to it,
@@ -1120,12 +1142,19 @@ impl Material {
     ///
     /// # Complexity
     ///
-    /// O(1)
+    /// O(N)
     pub fn binding_mut(
         &mut self,
         name: impl Into<ImmutableString>,
-    ) -> Option<&mut ResourceBinding> {
-        self.resource_bindings.get_mut(&name.into())
+    ) -> Option<&mut MaterialResourceBindingValue> {
+        let name = name.into();
+        self.resource_bindings.iter_mut().find_map(|binding| {
+            if binding.name == name {
+                Some(&mut binding.value)
+            } else {
+                None
+            }
+        })
     }
 
     /// Searches for a property group binding with the given name and returns immutable reference to it
@@ -1146,12 +1175,10 @@ impl Material {
     /// let color = material.property_group_ref("properties").unwrap().property_ref("diffuseColor").unwrap().as_color();
     /// ```
     pub fn property_group_ref(&self, name: impl Into<ImmutableString>) -> Option<&PropertyGroup> {
-        self.resource_bindings
-            .get(&name.into())
-            .and_then(|binding| match binding {
-                ResourceBinding::Sampler { .. } => None,
-                ResourceBinding::PropertyGroup(group) => Some(group),
-            })
+        self.binding_ref(name).and_then(|binding| match binding {
+            MaterialResourceBindingValue::Sampler { .. } => None,
+            MaterialResourceBindingValue::PropertyGroup(group) => Some(group),
+        })
     }
 
     /// Searches for a property group binding with the given name and returns immutable reference to it
@@ -1176,12 +1203,10 @@ impl Material {
         &mut self,
         name: impl Into<ImmutableString>,
     ) -> Option<&mut PropertyGroup> {
-        self.resource_bindings
-            .get_mut(&name.into())
-            .and_then(|binding| match binding {
-                ResourceBinding::Sampler { .. } => None,
-                ResourceBinding::PropertyGroup(group) => Some(group),
-            })
+        self.binding_mut(name).and_then(|binding| match binding {
+            MaterialResourceBindingValue::Sampler { .. } => None,
+            MaterialResourceBindingValue::PropertyGroup(group) => Some(group),
+        })
     }
 
     /// Sets new value of the property with given name.
@@ -1207,25 +1232,25 @@ impl Material {
     pub fn bind(
         &mut self,
         name: impl Into<ImmutableString>,
-        new_value: impl Into<ResourceBinding>,
+        new_value: impl Into<MaterialResourceBindingValue>,
     ) -> Result<(), MaterialError> {
         let name = name.into();
         let new_value = new_value.into();
-        if let Some(value) = self.resource_bindings.get_mut(&name) {
+        if let Some(value) = self.binding_mut(name.clone()) {
             match (value, new_value) {
                 (
-                    ResourceBinding::Sampler {
+                    MaterialResourceBindingValue::Sampler {
                         value: old_value,
                         fallback: old_fallback,
                     },
-                    ResourceBinding::Sampler { value, fallback },
+                    MaterialResourceBindingValue::Sampler { value, fallback },
                 ) => {
                     *old_value = value;
                     *old_fallback = fallback;
                 }
                 (
-                    ResourceBinding::PropertyGroup(old_group),
-                    ResourceBinding::PropertyGroup(new_group),
+                    MaterialResourceBindingValue::PropertyGroup(old_group),
+                    MaterialResourceBindingValue::PropertyGroup(new_group),
                 ) => {
                     *old_group = new_group;
                 }
@@ -1285,9 +1310,12 @@ impl Material {
         let mut current_bindings =
             std::mem::replace(&mut self.resource_bindings, temp_shader.resource_bindings);
 
-        for (name, binding) in self.resource_bindings.iter_mut() {
-            if let Some(actual_binding) = current_bindings.remove(name) {
-                *binding = actual_binding;
+        for binding in self.resource_bindings.iter_mut() {
+            if let Some(position) = current_bindings
+                .iter()
+                .position(|current_binding| current_binding.name == binding.name)
+            {
+                *binding = current_bindings.remove(position);
             }
         }
     }
@@ -1298,22 +1326,20 @@ impl Material {
     }
 
     /// Returns immutable reference to internal property storage.
-    pub fn bindings(&self) -> &FxHashMap<ImmutableString, ResourceBinding> {
+    pub fn bindings(&self) -> &[MaterialResourceBinding] {
         &self.resource_bindings
     }
 
     /// Tries to find a sampler with the given name and returns its texture (if any).
     pub fn texture(&self, name: &str) -> Option<TextureResource> {
-        self.resource_bindings
-            .iter()
-            .find_map(|(property_name, value)| {
-                if property_name.as_str() == name {
-                    if let ResourceBinding::Sampler { value, .. } = value {
-                        return value.clone();
-                    }
+        self.resource_bindings.iter().find_map(|binding| {
+            if binding.name.as_str() == name {
+                if let MaterialResourceBindingValue::Sampler { ref value, .. } = binding.value {
+                    return value.clone();
                 }
-                None
-            })
+            }
+            None
+        })
     }
 }
 

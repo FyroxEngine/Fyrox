@@ -23,12 +23,14 @@ use crate::{
         algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4},
         reflect::prelude::*,
         sstorage::ImmutableString,
+        type_traits::prelude::*,
         visitor::prelude::*,
     },
     error::FrameworkError,
 };
 use serde::{Deserialize, Serialize};
 use std::{any::Any, marker::PhantomData, path::PathBuf};
+use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 pub trait GpuProgram: Any {
     fn as_any(&self) -> &dyn Any;
@@ -59,7 +61,23 @@ pub struct UniformLocation {
 ///
 /// Fallback value is also helpful to catch missing textures, you'll definitely know the texture is
 /// missing by very specific value in the fallback texture.
-#[derive(Serialize, Deserialize, Default, Debug, PartialEq, Clone, Copy, Visit, Eq, Reflect)]
+#[derive(
+    Serialize,
+    Deserialize,
+    Default,
+    Debug,
+    PartialEq,
+    Clone,
+    Copy,
+    Visit,
+    Eq,
+    Reflect,
+    AsRefStr,
+    EnumString,
+    VariantNames,
+    TypeUuidProvider,
+)]
+#[type_uuid(id = "791b333c-eb3f-4279-97fe-cf2ba45c6d78")]
 pub enum SamplerFallback {
     /// A 1x1px white texture.
     #[default]

@@ -42,7 +42,7 @@
 //! just by linking nodes to each other. Good example of this is skeleton which
 //! is used in skinning (animating 3d model by set of bones).
 
-use crate::material::ResourceBinding;
+use crate::material::MaterialResourceBindingValue;
 use crate::{
     asset::{manager::ResourceManager, untyped::UntypedResource},
     core::{
@@ -718,7 +718,7 @@ impl Graph {
                     if let Some(material) = material_state.data() {
                         if let Err(e) = material.bind(
                             "lightmapTexture",
-                            ResourceBinding::Sampler {
+                            MaterialResourceBindingValue::Sampler {
                                 value: Some(texture),
                                 fallback: SamplerFallback::Black,
                             },
@@ -782,7 +782,7 @@ impl Graph {
                         if let Some(material) = material_state.data() {
                             if let Err(e) = material.bind(
                                 "lightmapTexture",
-                                ResourceBinding::Sampler {
+                                MaterialResourceBindingValue::Sampler {
                                     value: entry.texture.clone(),
                                     fallback: SamplerFallback::Black,
                                 },

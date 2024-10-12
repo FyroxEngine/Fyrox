@@ -275,8 +275,8 @@ impl RenderDataBundle {
                 continue;
             }
 
-            if let Some(material::ResourceBinding::PropertyGroup(property_group)) =
-                material.bindings().get(&resource_definition.name)
+            if let Some(material::MaterialResourceBindingValue::PropertyGroup(property_group)) =
+                material.binding_ref(resource_definition.name.clone())
             {
                 let mut material_uniforms = StaticUniformBuffer::<16384>::new();
                 for property in property_group.properties() {
@@ -499,7 +499,7 @@ impl RenderDataBundle {
                 _ => {
                     if let Some(resource) = material.binding_ref(resource_definition.name.clone()) {
                         match resource {
-                            material::ResourceBinding::Sampler { value, fallback } => {
+                            material::MaterialResourceBindingValue::Sampler { value, fallback } => {
                                 let texture = value
                                     .as_ref()
                                     .and_then(|t| render_context.texture_cache.get(server, t))
@@ -514,7 +514,7 @@ impl RenderDataBundle {
                                     resource_definition.binding,
                                 ));
                             }
-                            material::ResourceBinding::PropertyGroup(_) => {
+                            material::MaterialResourceBindingValue::PropertyGroup(_) => {
                                 if let Some((_, block_location)) = bundle_uniform_data
                                     .material_property_group_blocks
                                     .iter()

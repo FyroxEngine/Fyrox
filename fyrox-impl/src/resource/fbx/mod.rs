@@ -41,7 +41,7 @@ use crate::{
         pool::Handle,
     },
     graph::BaseSceneGraph,
-    material::{shader::SamplerFallback, ResourceBinding},
+    material::{shader::SamplerFallback, MaterialResourceBindingValue},
     resource::{
         fbx::{
             document::FbxDocument,
@@ -437,7 +437,7 @@ async fn create_surfaces(
                         if let Some((property_name, usage)) = name_usage {
                             if let Err(e) = surface.material().data_ref().bind(
                                 property_name,
-                                ResourceBinding::Sampler {
+                                MaterialResourceBindingValue::Sampler {
                                     value: Some(texture),
                                     fallback: usage,
                                 },

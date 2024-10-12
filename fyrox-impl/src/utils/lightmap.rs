@@ -26,7 +26,7 @@
 
 #![forbid(unsafe_code)]
 
-use crate::material::ResourceBinding;
+use crate::material::MaterialResourceBindingValue;
 use crate::{
     asset::manager::{ResourceManager, ResourceRegistrationError},
     core::{
@@ -34,7 +34,6 @@ use crate::{
         math::{Matrix4Ext, TriangleDefinition},
         pool::Handle,
         reflect::prelude::*,
-        sstorage::ImmutableString,
         visitor::{prelude::*, BinaryBlob},
     },
     graph::SceneGraph,
@@ -452,9 +451,8 @@ impl LightmapInputData {
                     let mut material_state = surface.material().state();
                     if let Some(material) = material_state.data() {
                         if !material
-                            .bindings()
-                            .get(&ImmutableString::new("lightmapTexture"))
-                            .map(|v| matches!(v, ResourceBinding::Sampler { .. }))
+                            .binding_ref("lightmapTexture")
+                            .map(|v| matches!(v, MaterialResourceBindingValue::Sampler { .. }))
                             .unwrap_or_default()
                         {
                             continue 'surface_loop;
