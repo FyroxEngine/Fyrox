@@ -267,9 +267,6 @@ impl GlProgram {
             initial_source.insert_str(0, &texture_bindings);
         }
 
-        println!("{}", vertex_source);
-        println!("{}", fragment_source);
-
         let program = Self::from_source(server, program_name, &vertex_source, &fragment_source)?;
 
         unsafe {

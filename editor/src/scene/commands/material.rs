@@ -53,7 +53,7 @@ impl SetMaterialPropertyValueCommand {
     fn swap(&mut self) {
         let mut material = self.material.data_ref();
 
-        let old_value = material.property_ref(&self.name).unwrap().clone();
+        let old_value = material.binding_ref(&self.name).unwrap().clone();
 
         material
             .set_property(

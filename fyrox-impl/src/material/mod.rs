@@ -674,6 +674,40 @@ pub struct Material {
     resource_bindings: FxHashMap<ImmutableString, ResourceBinding>,
 }
 
+#[derive(Debug, Visit, Clone, Reflect)]
+enum OldMaterialProperty {
+    Float(f32),
+    FloatArray(Vec<f32>),
+    Int(i32),
+    IntArray(Vec<i32>),
+    UInt(u32),
+    UIntArray(Vec<u32>),
+    Vector2(Vector2<f32>),
+    Vector2Array(Vec<Vector2<f32>>),
+    Vector3(Vector3<f32>),
+    Vector3Array(Vec<Vector3<f32>>),
+    Vector4(Vector4<f32>),
+    Vector4Array(Vec<Vector4<f32>>),
+    Matrix2(Matrix2<f32>),
+    Matrix2Array(Vec<Matrix2<f32>>),
+    Matrix3(Matrix3<f32>),
+    Matrix3Array(Vec<Matrix3<f32>>),
+    Matrix4(Matrix4<f32>),
+    Matrix4Array(Vec<Matrix4<f32>>),
+    Bool(bool),
+    Color(Color),
+    Sampler {
+        value: Option<TextureResource>,
+        fallback: SamplerFallback,
+    },
+}
+
+impl Default for OldMaterialProperty {
+    fn default() -> Self {
+        Self::Float(0.0)
+    }
+}
+
 impl Visit for Material {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut region = visitor.enter_region(name)?;
@@ -690,10 +724,68 @@ impl Visit for Material {
         shader.visit("Shader", &mut region)?;
         self.shader = shader;
 
-        // TODO: Add backward compatibility.
-        // self.properties.visit("Properties", &mut region)?;
-        self.resource_bindings
-            .visit("ResourceBindings", &mut region)?;
+        if region.is_reading() {
+            // Backward compatibility.
+            let mut old_properties = FxHashMap::<ImmutableString, OldMaterialProperty>::default();
+            if old_properties.visit("Properties", &mut region).is_ok() {
+                for (name, old_property) in &old_properties {
+                    if let OldMaterialProperty::Sampler { value, .. } = old_property {
+                        Log::verify(self.bind(name.clone(), value.clone()));
+                    }
+                }
+
+                let properties = self
+                    .resource_bindings
+                    .entry("properties".into())
+                    .or_insert_with(|| ResourceBinding::PropertyGroup(Default::default()));
+                if let ResourceBinding::PropertyGroup(properties) = properties {
+                    for (name, old_property) in old_properties {
+                        let result = match old_property {
+                            OldMaterialProperty::Float(v) => properties.set_property(name, v),
+                            OldMaterialProperty::FloatArray(v) => properties.set_property(name, v),
+                            OldMaterialProperty::Int(v) => properties.set_property(name, v),
+                            OldMaterialProperty::IntArray(v) => properties.set_property(name, v),
+                            OldMaterialProperty::UInt(v) => properties.set_property(name, v),
+                            OldMaterialProperty::UIntArray(v) => properties.set_property(name, v),
+                            OldMaterialProperty::Vector2(v) => properties.set_property(name, v),
+                            OldMaterialProperty::Vector2Array(v) => {
+                                properties.set_property(name, v)
+                            }
+                            OldMaterialProperty::Vector3(v) => properties.set_property(name, v),
+                            OldMaterialProperty::Vector3Array(v) => {
+                                properties.set_property(name, v)
+                            }
+                            OldMaterialProperty::Vector4(v) => properties.set_property(name, v),
+                            OldMaterialProperty::Vector4Array(v) => {
+                                properties.set_property(name, v)
+                            }
+                            OldMaterialProperty::Matrix2(v) => properties.set_property(name, v),
+                            OldMaterialProperty::Matrix2Array(v) => {
+                                properties.set_property(name, v)
+                            }
+                            OldMaterialProperty::Matrix3(v) => properties.set_property(name, v),
+                            OldMaterialProperty::Matrix3Array(v) => {
+                                properties.set_property(name, v)
+                            }
+                            OldMaterialProperty::Matrix4(v) => properties.set_property(name, v),
+                            OldMaterialProperty::Matrix4Array(v) => {
+                                properties.set_property(name, v)
+                            }
+                            OldMaterialProperty::Bool(v) => properties.set_property(name, v),
+                            OldMaterialProperty::Color(v) => properties.set_property(name, v),
+                            _ => Ok(()),
+                        };
+                        Log::verify(result);
+                    }
+                }
+            } else {
+                self.resource_bindings
+                    .visit("ResourceBindings", &mut region)?;
+            }
+        } else {
+            self.resource_bindings
+                .visit("ResourceBindings", &mut region)?;
+        }
 
         Ok(())
     }

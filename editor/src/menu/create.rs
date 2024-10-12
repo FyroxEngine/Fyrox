@@ -164,7 +164,7 @@ pub struct CreateEntityMenu {
 
 fn placeholder_material() -> MaterialResource {
     let mut material = Material::standard();
-    let _ = material.set_property("diffuseTexture", PLACEHOLDER.resource());
+    let _ = material.bind("diffuseTexture", PLACEHOLDER.resource());
     MaterialResource::new_ok(ResourceKind::Embedded, material)
 }
 

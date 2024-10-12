@@ -94,7 +94,7 @@
                 void main()
                 {
                     vec3 lighting = fyrox_lightData.ambientLightColor.xyz;
-                    for(int i = 0; i < min(fyrox_lightsBlock.lightCount, MAX_LIGHT_COUNT); ++i) {
+                    for(int i = 0; i < min(fyrox_lightsBlock.lightCount, 16); ++i) {
                         // "Unpack" light parameters.
                         float halfHotspotAngleCos = fyrox_lightsBlock.lightsParameters[i].x;
                         float halfConeAngleCos = fyrox_lightsBlock.lightsParameters[i].y;

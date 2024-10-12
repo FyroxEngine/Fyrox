@@ -145,7 +145,7 @@ impl AssetPreviewGenerator for TexturePreview {
             };
 
             let mut material = Material::standard_two_sides();
-            Log::verify(material.set_property("diffuseTexture", texture));
+            Log::verify(material.bind("diffuseTexture", texture));
             let material = MaterialResource::new_ok(Default::default(), material);
 
             MeshBuilder::new(BaseBuilder::new())
