@@ -729,8 +729,14 @@ impl Visit for Material {
             let mut old_properties = FxHashMap::<ImmutableString, OldMaterialProperty>::default();
             if old_properties.visit("Properties", &mut region).is_ok() {
                 for (name, old_property) in &old_properties {
-                    if let OldMaterialProperty::Sampler { value, .. } = old_property {
-                        Log::verify(self.bind(name.clone(), value.clone()));
+                    if let OldMaterialProperty::Sampler { value, fallback } = old_property {
+                        self.resource_bindings.insert(
+                            name.clone(),
+                            ResourceBinding::Sampler {
+                                value: value.clone(),
+                                fallback: fallback.clone(),
+                            },
+                        );
                     }
                 }
 
