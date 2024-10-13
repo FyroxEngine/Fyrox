@@ -23,7 +23,7 @@ use crate::{
     fyrox::{
         asset::{manager::ResourceManager, untyped::ResourceKind},
         core::{
-            algebra::{Matrix4, Vector2, Vector3, Vector4},
+            algebra::{Matrix4, SMatrix, Vector2, Vector3, Vector4},
             color::Color,
             parking_lot::Mutex,
             pool::Handle,
@@ -38,6 +38,7 @@ use crate::{
             grid::{Column, GridBuilder, Row},
             image::{Image, ImageBuilder, ImageMessage},
             list_view::{ListViewBuilder, ListViewMessage},
+            matrix::MatrixEditorBuilder,
             menu::{ContextMenuBuilder, MenuItemBuilder, MenuItemContent, MenuItemMessage},
             message::{MessageDirection, UiMessage},
             numeric::{NumericUpDownBuilder, NumericUpDownMessage},
@@ -76,6 +77,9 @@ use crate::{
     },
     send_sync_message, Engine, Message,
 };
+use fyrox::graph::SceneGraph;
+use fyrox::gui::list_view::ListView;
+use fyrox::gui::matrix::MatrixEditorMessage;
 use std::sync::Arc;
 
 struct TextureContextMenu {
@@ -178,27 +182,8 @@ where
     T: Clone,
     B: FnMut(&mut BuildContext, T) -> Handle<UiNode>,
 {
-    ListViewBuilder::new(WidgetBuilder::new().with_height(24.0))
+    ListViewBuilder::new(WidgetBuilder::new())
         .with_items(value.iter().map(|v| item_builder(ctx, v.clone())).collect())
-        .build(ctx)
-}
-
-fn create_array_of_array_view<'a, T, B, I>(
-    ctx: &mut BuildContext,
-    value: I,
-    mut item_builder: B,
-) -> Handle<UiNode>
-where
-    T: 'a + Clone,
-    B: FnMut(&mut BuildContext, T) -> Handle<UiNode>,
-    I: Iterator<Item = &'a [T]>,
-{
-    ListViewBuilder::new(WidgetBuilder::new().with_height(24.0))
-        .with_items(
-            value
-                .map(|v| create_array_view(ctx, v, &mut item_builder))
-                .collect(),
-        )
         .build(ctx)
 }
 
@@ -244,45 +229,24 @@ fn create_vec4_view(ctx: &mut BuildContext, value: Vector4<f32>) -> Handle<UiNod
         .build(ctx)
 }
 
-fn sync_array<T, B>(
-    ui: &mut UserInterface,
-    handle: Handle<UiNode>,
-    array: &[T],
-    mut item_builder: B,
-) where
-    T: Clone,
-    B: FnMut(&mut BuildContext, T) -> Handle<UiNode>,
-{
-    let ctx = &mut ui.build_ctx();
-
-    let new_items = array.iter().map(|v| item_builder(ctx, v.clone())).collect();
-
-    send_sync_message(
-        ui,
-        ListViewMessage::items(handle, MessageDirection::ToWidget, new_items),
-    );
+fn create_mat_view<const R: usize, const C: usize>(
+    ctx: &mut BuildContext,
+    value: SMatrix<f32, R, C>,
+) -> Handle<UiNode> {
+    MatrixEditorBuilder::<R, C, f32>::new(WidgetBuilder::new())
+        .with_value(value)
+        .build(ctx)
 }
 
-fn sync_array_of_arrays<'a, T, I, B>(
-    ui: &mut UserInterface,
-    handle: Handle<UiNode>,
-    array: I,
-    mut item_builder: B,
-) where
-    T: 'a + Clone,
-    I: Iterator<Item = &'a [T]>,
-    B: FnMut(&mut BuildContext, T) -> Handle<UiNode>,
+fn sync_array<T, B>(ui: &UserInterface, handle: Handle<UiNode>, array: &[T], mut message_builder: B)
+where
+    T: Clone,
+    B: FnMut(&T, Handle<UiNode>) -> UiMessage,
 {
-    let ctx = &mut ui.build_ctx();
-
-    let new_items = array
-        .map(|v| create_array_view(ctx, v, &mut item_builder))
-        .collect();
-
-    send_sync_message(
-        ui,
-        ListViewMessage::items(handle, MessageDirection::ToWidget, new_items),
-    );
+    let views = &**ui.try_get_of_type::<ListView>(handle).unwrap().items;
+    for (item, view) in array.iter().zip(views) {
+        send_sync_message(ui, message_builder(item, *view))
+    }
 }
 
 fn pad_vec<T: Default + Clone>(v: &[T], max_len: usize) -> Vec<T> {
@@ -506,38 +470,17 @@ impl MaterialEditor {
                     ShaderPropertyKind::Vector4Array { value, max_len } => {
                         create_array_view(ctx, &pad_vec(value, *max_len), create_vec4_view)
                     }
-                    ShaderPropertyKind::Matrix2(value) => {
-                        create_array_view(ctx, value.data.as_slice(), create_float_view)
+                    ShaderPropertyKind::Matrix2(value) => create_mat_view(ctx, *value),
+                    ShaderPropertyKind::Matrix2Array { value, max_len } => {
+                        create_array_view(ctx, &pad_vec(value, *max_len), create_mat_view)
                     }
-                    ShaderPropertyKind::Matrix2Array { value, .. } => {
-                        // TODO: Replace with proper matrix array support.
-                        create_array_of_array_view(
-                            ctx,
-                            value.iter().map(|m| m.data.as_slice()),
-                            create_float_view,
-                        )
+                    ShaderPropertyKind::Matrix3(value) => create_mat_view(ctx, *value),
+                    ShaderPropertyKind::Matrix3Array { value, max_len } => {
+                        create_array_view(ctx, &pad_vec(value, *max_len), create_mat_view)
                     }
-                    ShaderPropertyKind::Matrix3(value) => {
-                        create_array_view(ctx, value.data.as_slice(), create_float_view)
-                    }
-                    ShaderPropertyKind::Matrix3Array { value, .. } => {
-                        // TODO: Replace with proper matrix array support.
-                        create_array_of_array_view(
-                            ctx,
-                            value.iter().map(|m| m.data.as_slice()),
-                            create_float_view,
-                        )
-                    }
-                    ShaderPropertyKind::Matrix4(value) => {
-                        create_array_view(ctx, value.data.as_slice(), create_float_view)
-                    }
-                    ShaderPropertyKind::Matrix4Array { value, .. } => {
-                        // TODO: Replace with proper matrix array support.
-                        create_array_of_array_view(
-                            ctx,
-                            value.iter().map(|m| m.data.as_slice()),
-                            create_float_view,
-                        )
+                    ShaderPropertyKind::Matrix4(value) => create_mat_view(ctx, *value),
+                    ShaderPropertyKind::Matrix4Array { value, max_len } => {
+                        create_array_view(ctx, &pad_vec(value, *max_len), create_mat_view)
                     }
                     ShaderPropertyKind::Bool(value) => CheckBoxBuilder::new(WidgetBuilder::new())
                         .checked(Some(*value))
@@ -628,7 +571,13 @@ impl MaterialEditor {
                                 );
                             }
                             PropertyValue::FloatArray(value) => {
-                                sync_array(ui, item, value, create_float_view)
+                                sync_array(ui, item, value, |value, item| {
+                                    NumericUpDownMessage::value(
+                                        item,
+                                        MessageDirection::ToWidget,
+                                        *value,
+                                    )
+                                })
                             }
                             PropertyValue::Int(value) => {
                                 send_sync_message(
@@ -641,7 +590,13 @@ impl MaterialEditor {
                                 );
                             }
                             PropertyValue::IntArray(value) => {
-                                sync_array(ui, item, value, create_int_view)
+                                sync_array(ui, item, value, |value, item| {
+                                    NumericUpDownMessage::value(
+                                        item,
+                                        MessageDirection::ToWidget,
+                                        *value as f32,
+                                    )
+                                })
                             }
                             PropertyValue::UInt(value) => {
                                 send_sync_message(
@@ -654,56 +609,104 @@ impl MaterialEditor {
                                 );
                             }
                             PropertyValue::UIntArray(value) => {
-                                sync_array(ui, item, value, create_uint_view)
+                                sync_array(ui, item, value, |value, item| {
+                                    NumericUpDownMessage::value(
+                                        item,
+                                        MessageDirection::ToWidget,
+                                        *value as f32,
+                                    )
+                                })
                             }
                             PropertyValue::Vector2(value) => send_sync_message(
                                 ui,
                                 Vec2EditorMessage::value(item, MessageDirection::ToWidget, *value),
                             ),
                             PropertyValue::Vector2Array(value) => {
-                                sync_array(ui, item, value, create_vec2_view)
+                                sync_array(ui, item, value, |value, item| {
+                                    Vec2EditorMessage::value(
+                                        item,
+                                        MessageDirection::ToWidget,
+                                        *value,
+                                    )
+                                })
                             }
                             PropertyValue::Vector3(value) => send_sync_message(
                                 ui,
                                 Vec3EditorMessage::value(item, MessageDirection::ToWidget, *value),
                             ),
                             PropertyValue::Vector3Array(value) => {
-                                sync_array(ui, item, value, create_vec3_view)
+                                sync_array(ui, item, value, |value, item| {
+                                    Vec3EditorMessage::value(
+                                        item,
+                                        MessageDirection::ToWidget,
+                                        *value,
+                                    )
+                                })
                             }
                             PropertyValue::Vector4(value) => send_sync_message(
                                 ui,
                                 Vec4EditorMessage::value(item, MessageDirection::ToWidget, *value),
                             ),
                             PropertyValue::Vector4Array(value) => {
-                                sync_array(ui, item, value, create_vec4_view)
+                                sync_array(ui, item, value, |value, item| {
+                                    Vec4EditorMessage::value(
+                                        item,
+                                        MessageDirection::ToWidget,
+                                        *value,
+                                    )
+                                })
                             }
-                            PropertyValue::Matrix2(value) => {
-                                sync_array(ui, item, value.as_slice(), create_float_view)
-                            }
-                            PropertyValue::Matrix2Array(value) => sync_array_of_arrays(
+                            PropertyValue::Matrix2(value) => send_sync_message(
                                 ui,
-                                item,
-                                value.iter().map(|m| m.as_slice()),
-                                create_float_view,
+                                MatrixEditorMessage::value(
+                                    item,
+                                    MessageDirection::ToWidget,
+                                    *value,
+                                ),
                             ),
-                            PropertyValue::Matrix3(value) => {
-                                sync_array(ui, item, value.as_slice(), create_float_view)
+                            PropertyValue::Matrix2Array(value) => {
+                                sync_array(ui, item, value, |value, item| {
+                                    MatrixEditorMessage::value(
+                                        item,
+                                        MessageDirection::ToWidget,
+                                        *value,
+                                    )
+                                })
                             }
-                            PropertyValue::Matrix3Array(value) => sync_array_of_arrays(
+                            PropertyValue::Matrix3(value) => send_sync_message(
                                 ui,
-                                item,
-                                value.iter().map(|m| m.as_slice()),
-                                create_float_view,
+                                MatrixEditorMessage::value(
+                                    item,
+                                    MessageDirection::ToWidget,
+                                    *value,
+                                ),
                             ),
-                            PropertyValue::Matrix4(value) => {
-                                sync_array(ui, item, value.as_slice(), create_float_view)
+                            PropertyValue::Matrix3Array(value) => {
+                                sync_array(ui, item, value, |value, item| {
+                                    MatrixEditorMessage::value(
+                                        item,
+                                        MessageDirection::ToWidget,
+                                        *value,
+                                    )
+                                })
                             }
-                            PropertyValue::Matrix4Array(value) => sync_array_of_arrays(
+                            PropertyValue::Matrix4(value) => send_sync_message(
                                 ui,
-                                item,
-                                value.iter().map(|m| m.as_slice()),
-                                create_float_view,
+                                MatrixEditorMessage::value(
+                                    item,
+                                    MessageDirection::ToWidget,
+                                    *value,
+                                ),
                             ),
+                            PropertyValue::Matrix4Array(value) => {
+                                sync_array(ui, item, value, |value, item| {
+                                    MatrixEditorMessage::value(
+                                        item,
+                                        MessageDirection::ToWidget,
+                                        *value,
+                                    )
+                                })
+                            }
                             PropertyValue::Bool(value) => {
                                 send_sync_message(
                                     ui,
