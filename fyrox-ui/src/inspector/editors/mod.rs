@@ -59,7 +59,7 @@ use crate::{
             inherit::InheritablePropertyEditorDefinition,
             inspectable::InspectablePropertyEditorDefinition,
             key::KeyBindingPropertyEditorDefinition,
-            matrix2::Matrix2PropertyEditorDefinition,
+            matrix2::MatrixPropertyEditorDefinition,
             numeric::NumericPropertyEditorDefinition,
             quat::QuatPropertyEditorDefinition,
             range::RangePropertyEditorDefinition,
@@ -391,6 +391,14 @@ macro_rules! reg_inspectables {
     }
 }
 
+macro_rules! reg_matrix_property_editor {
+    ($container:ident, $base:ident[$rows:expr, $columns:expr]:$init:ident, $($ty:ty),*) => {
+        $(
+             $container.insert($base::<$rows, $columns, $ty>::$init());
+        )*
+    }
+}
+
 impl PropertyEditorDefinitionContainer {
     pub fn empty() -> Self {
         Self::default()
@@ -439,7 +447,9 @@ impl PropertyEditorDefinitionContainer {
             Vector2<i16>, Vector2<u16>, Vector2<i8>, Vector2<u8>, Vector2<usize>, Vector2<isize>
         }
 
-        reg_property_editor! { container, Matrix2PropertyEditorDefinition: default, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize }
+        reg_matrix_property_editor! { container, MatrixPropertyEditorDefinition[2, 2]: default, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize }
+        reg_matrix_property_editor! { container, MatrixPropertyEditorDefinition[3, 3]: default, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize }
+        reg_matrix_property_editor! { container, MatrixPropertyEditorDefinition[4, 4]: default, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize }
 
         // Range<NumericType> + InheritableVariable<Range<NumericType>>
         reg_property_editor! { container, RangePropertyEditorDefinition: new, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize }
