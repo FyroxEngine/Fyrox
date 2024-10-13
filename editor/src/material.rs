@@ -30,15 +30,15 @@ use crate::{
             sstorage::ImmutableString,
         },
         fxhash::FxHashMap,
-        graph::BaseSceneGraph,
+        graph::{BaseSceneGraph, SceneGraph},
         gui::{
             border::BorderBuilder,
             check_box::{CheckBoxBuilder, CheckBoxMessage},
             color::{ColorFieldBuilder, ColorFieldMessage},
             grid::{Column, GridBuilder, Row},
             image::{Image, ImageBuilder, ImageMessage},
-            list_view::{ListViewBuilder, ListViewMessage},
-            matrix::MatrixEditorBuilder,
+            list_view::{ListView, ListViewBuilder, ListViewMessage},
+            matrix::{MatrixEditorBuilder, MatrixEditorMessage},
             menu::{ContextMenuBuilder, MenuItemBuilder, MenuItemContent, MenuItemMessage},
             message::{MessageDirection, UiMessage},
             numeric::{NumericUpDownBuilder, NumericUpDownMessage},
@@ -77,9 +77,6 @@ use crate::{
     },
     send_sync_message, Engine, Message,
 };
-use fyrox::graph::SceneGraph;
-use fyrox::gui::list_view::ListView;
-use fyrox::gui::matrix::MatrixEditorMessage;
 use std::sync::Arc;
 
 struct TextureContextMenu {
@@ -188,26 +185,22 @@ where
 }
 
 fn create_float_view(ctx: &mut BuildContext, value: f32) -> Handle<UiNode> {
-    NumericUpDownBuilder::new(WidgetBuilder::new().with_height(24.0))
+    NumericUpDownBuilder::<f32>::new(WidgetBuilder::new().with_height(24.0))
         .with_value(value)
         .build(ctx)
 }
 
 fn create_int_view(ctx: &mut BuildContext, value: i32) -> Handle<UiNode> {
-    NumericUpDownBuilder::new(WidgetBuilder::new().with_height(24.0))
-        .with_value(value as f32)
+    NumericUpDownBuilder::<i32>::new(WidgetBuilder::new().with_height(24.0))
+        .with_value(value)
         .with_precision(0)
-        .with_max_value(i32::MAX as f32)
-        .with_min_value(-i32::MAX as f32)
         .build(ctx)
 }
 
 fn create_uint_view(ctx: &mut BuildContext, value: u32) -> Handle<UiNode> {
-    NumericUpDownBuilder::new(WidgetBuilder::new().with_height(24.0))
-        .with_value(value as f32)
+    NumericUpDownBuilder::<u32>::new(WidgetBuilder::new().with_height(24.0))
+        .with_value(value)
         .with_precision(0)
-        .with_max_value(u32::MAX as f32)
-        .with_min_value(0.0)
         .build(ctx)
 }
 
@@ -753,11 +746,6 @@ impl MaterialEditor {
             return;
         };
 
-        let mut material_state = material.state();
-        let Some(material_data) = material_state.data() else {
-            return;
-        };
-
         self.preview.handle_message(message, engine);
 
         if let Some(msg) = message.data::<ResourceFieldMessage<Shader>>() {
@@ -853,48 +841,50 @@ impl MaterialEditor {
                         if *property_view == message.destination()
                             && message.direction() == MessageDirection::FromWidget
                         {
-                            let property_value = if let Some(NumericUpDownMessage::Value(value)) =
-                                message.data::<NumericUpDownMessage<f32>>()
-                            {
-                                // NumericUpDown is used for Float, Int, UInt properties, so we have to check
-                                // the actual property "type" to create suitable value from f32.
-                                if let Some(MaterialResourceBindingValue::PropertyGroup(group)) =
-                                    material_data.binding_ref(resource_view.name.clone())
+                            let property_value =
+                                if let Some(NumericUpDownMessage::<f32>::Value(value)) =
+                                    message.data()
                                 {
-                                    match group.property_ref(property_name.clone()).unwrap() {
-                                        PropertyValue::Float(_) => {
-                                            Some(PropertyValue::Float(*value))
-                                        }
-                                        PropertyValue::Int(_) => {
-                                            Some(PropertyValue::Int(*value as i32))
-                                        }
-                                        PropertyValue::UInt(_) => {
-                                            Some(PropertyValue::UInt(*value as u32))
-                                        }
-                                        _ => None,
-                                    }
+                                    Some(PropertyValue::Float(*value))
+                                } else if let Some(NumericUpDownMessage::<i32>::Value(value)) =
+                                    message.data()
+                                {
+                                    Some(PropertyValue::Int(*value))
+                                } else if let Some(NumericUpDownMessage::<u32>::Value(value)) =
+                                    message.data()
+                                {
+                                    Some(PropertyValue::UInt(*value))
+                                } else if let Some(Vec2EditorMessage::Value(value)) = message.data()
+                                {
+                                    Some(PropertyValue::Vector2(*value))
+                                } else if let Some(Vec3EditorMessage::Value(value)) = message.data()
+                                {
+                                    Some(PropertyValue::Vector3(*value))
+                                } else if let Some(Vec4EditorMessage::Value(value)) = message.data()
+                                {
+                                    Some(PropertyValue::Vector4(*value))
+                                } else if let Some(ColorFieldMessage::Color(color)) = message.data()
+                                {
+                                    Some(PropertyValue::Color(*color))
+                                } else if let Some(MatrixEditorMessage::<2, 2, f32>::Value(value)) =
+                                    message.data()
+                                {
+                                    Some(PropertyValue::Matrix2(*value))
+                                } else if let Some(MatrixEditorMessage::<3, 3, f32>::Value(value)) =
+                                    message.data()
+                                {
+                                    Some(PropertyValue::Matrix3(*value))
+                                } else if let Some(MatrixEditorMessage::<4, 4, f32>::Value(value)) =
+                                    message.data()
+                                {
+                                    Some(PropertyValue::Matrix4(*value))
+                                } else if let Some(CheckBoxMessage::Check(Some(value))) =
+                                    message.data()
+                                {
+                                    Some(PropertyValue::Bool(*value))
                                 } else {
                                     None
-                                }
-                            } else if let Some(Vec2EditorMessage::Value(value)) =
-                                message.data::<Vec2EditorMessage<f32>>()
-                            {
-                                Some(PropertyValue::Vector2(*value))
-                            } else if let Some(Vec3EditorMessage::Value(value)) =
-                                message.data::<Vec3EditorMessage<f32>>()
-                            {
-                                Some(PropertyValue::Vector3(*value))
-                            } else if let Some(Vec4EditorMessage::Value(value)) =
-                                message.data::<Vec4EditorMessage<f32>>()
-                            {
-                                Some(PropertyValue::Vector4(*value))
-                            } else if let Some(ColorFieldMessage::Color(color)) =
-                                message.data::<ColorFieldMessage>()
-                            {
-                                Some(PropertyValue::Color(*color))
-                            } else {
-                                None
-                            };
+                                };
 
                             if let Some(property_value) = property_value {
                                 sender.do_command(
