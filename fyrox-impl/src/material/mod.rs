@@ -152,7 +152,7 @@ pub struct MaterialResourceBinding {
 #[derive(Default, Debug, Visit, Clone, Reflect, TypeUuidProvider)]
 #[type_uuid(id = "29af996e-a2d3-4d72-adee-5db16e46f379")]
 pub struct MaterialProperty {
-    pub name: String,
+    pub name: ImmutableString,
     pub value: PropertyValue,
 }
 
@@ -181,7 +181,7 @@ impl PropertyGroup {
     pub fn property_ref(&self, name: impl Into<ImmutableString>) -> Option<&PropertyValue> {
         let name = name.into();
         self.properties.iter().find_map(|property| {
-            if property.name == name.as_str() {
+            if property.name == name {
                 Some(&property.value)
             } else {
                 None
@@ -192,7 +192,7 @@ impl PropertyGroup {
     fn property_mut(&mut self, name: impl Into<ImmutableString>) -> Option<&mut PropertyValue> {
         let name = name.into();
         self.properties.iter_mut().find_map(|property| {
-            if property.name == name.as_str() {
+            if property.name == name {
                 Some(&mut property.value)
             } else {
                 None
