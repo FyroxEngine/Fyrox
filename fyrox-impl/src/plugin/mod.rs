@@ -22,7 +22,7 @@
 
 #![warn(missing_docs)]
 
-pub mod dynamic;
+pub mod dylib;
 
 use crate::{
     asset::manager::ResourceManager,
@@ -54,13 +54,13 @@ pub enum PluginContainer {
     Static(Box<dyn Plugin>),
     /// Dynamically linked plugin. Such plugins are meant to be used in development mode for rapid
     /// prototyping.
-    Dynamic(Box<dyn AbstractDynamicPlugin>),
+    Dynamic(Box<dyn DynamicPlugin>),
 }
 
 /// Abstraction over different kind of plugins that can be reloaded on the fly (whatever it mean).
 /// The instance is polled by engine with `is_reload_needed_now()` time to time. if it returns true,
 /// then engine serializes current plugin state, then calls `unload()` and then calls `load()`
-pub trait AbstractDynamicPlugin {
+pub trait DynamicPlugin {
     /// returns human-redable short description of the plugin
     fn display_name(&self) -> String;
 

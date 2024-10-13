@@ -122,7 +122,7 @@ use crate::{
             shader::{ShaderResource, ShaderResourceExtension},
             Material, MaterialResource,
         },
-        plugin::{Plugin, PluginContainer, AbstractDynamicPlugin, dynamic::DyLibPlugin},
+        plugin::{Plugin, PluginContainer, DynamicPlugin, dylib::DyLybDynamicPlugin},
         resource::texture::{
             CompressionOptions, TextureImportOptions, TextureKind, TextureMinificationFilter,
             TextureResource, TextureResourceExtension,
@@ -2642,7 +2642,7 @@ impl Editor {
     where
         P: AsRef<Path> + 'static,
     {
-        self.add_dynamic_plugin_custom(DyLibPlugin::new(path, reload_when_changed, use_relative_paths)?)
+        self.add_dynamic_plugin_custom(DyLybDynamicPlugin::new(path, reload_when_changed, use_relative_paths)?)
     }
 
     pub fn add_dynamic_plugin_custom<P>(
@@ -2650,7 +2650,7 @@ impl Editor {
         plugin: P,
     ) -> Result<(), String>
     where
-        P: AbstractDynamicPlugin + 'static,
+        P: DynamicPlugin + 'static,
     {
         let plugin =
             self.engine

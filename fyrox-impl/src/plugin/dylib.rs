@@ -39,12 +39,12 @@ use std::{
     ffi::OsStr
 };
 
-use crate::plugin::AbstractDynamicPlugin;
+use crate::plugin::DynamicPlugin;
 
 /// Dynamic plugin, that is loaded from a dynamic library. Usually it is used for hot reloading,
 /// it is strongly advised not to use it in production builds, because it is slower than statically
 /// linked plugins and it could be unsafe if different compiler versions are used.
-pub struct DynamicPlugin {
+pub struct DyLibHandle {
     pub(super) plugin: Box<dyn Plugin>,
     // Keep the library loaded.
     // Must be last!
@@ -56,7 +56,7 @@ pub struct DynamicPlugin {
 #[cfg(any(unix, windows))]
 type PluginEntryPoint = fn() -> Box<dyn Plugin>;
 
-impl DynamicPlugin {
+impl DyLibHandle {
     /// Tries to load a plugin from a dynamic library (*.dll on Windows, *.so on Unix).
     pub fn load<P>(#[allow(unused_variables)] path: P) -> Result<Self, String>
     where
@@ -95,9 +95,9 @@ impl DynamicPlugin {
 
 
 /// Implementation of DynamicPluginTrait that [re]loads Rust code from Rust dylib .
-pub struct DyLibPlugin {
+pub struct DyLybDynamicPlugin {
     /// Dynamic plugin state.
-    state: DynamicPluginState,
+    state: PluginState,
     /// Target path of the library of the plugin.
     lib_path: PathBuf,
     /// Path to the source file, that is emitted by the compiler. If hot reloading is enabled,
@@ -113,7 +113,7 @@ pub struct DyLibPlugin {
     need_reload: Arc<AtomicBool>,
 }
 
-impl DyLibPlugin {
+impl DyLybDynamicPlugin {
 	
     /// Tries to create a new dynamic plugin. This method attempts to load a dynamic library by the
     /// given path and searches for `fyrox_plugin` function. This function is called to create a
@@ -188,16 +188,16 @@ impl DyLibPlugin {
                 source_lib_path
             ));
 
-            DyLibPlugin {
-                state: DynamicPluginState::Loaded(DynamicPlugin::load(lib_path.as_os_str())?),
+            DyLybDynamicPlugin {
+                state: PluginState::Loaded(DyLibHandle::load(lib_path.as_os_str())?),
                 lib_path,
                 source_lib_path: source_lib_path.clone(),
                 watcher: Some(watcher),
                 need_reload,
             }
         } else {
-            DyLibPlugin {
-                state: DynamicPluginState::Loaded(DynamicPlugin::load(
+            DyLybDynamicPlugin {
+                state: PluginState::Loaded(DyLibHandle::load(
                     source_lib_path.as_os_str(),
                 )?),
                 lib_path: source_lib_path.clone(),
@@ -210,7 +210,7 @@ impl DyLibPlugin {
     }
 }
 
-impl AbstractDynamicPlugin for DyLibPlugin {
+impl DynamicPlugin for DyLybDynamicPlugin {
     fn as_loaded_ref(&self) -> &dyn Plugin {
         &*self.state.as_loaded_ref().plugin
     }
@@ -228,16 +228,16 @@ impl AbstractDynamicPlugin for DyLibPlugin {
     }
 
     fn is_loaded(&self) -> bool {
-        matches!(self.state, DynamicPluginState::Loaded { .. })
+        matches!(self.state, PluginState::Loaded { .. })
     }
 
     fn reload(&mut self, fill_and_register: &mut dyn FnMut(&mut dyn Plugin) -> Result<(), String>) -> Result<(), String> {
         // Unload the plugin.
-        let DynamicPluginState::Loaded(_) = &mut self.state else {
+        let PluginState::Loaded(_) = &mut self.state else {
             return Err("cannot unload non-loaded plugin".to_string());
         };
 
-        self.state = DynamicPluginState::Unloaded;
+        self.state = PluginState::Unloaded;
 
         Log::info(format!(
             "Plugin {:?} was unloaded successfully!",
@@ -254,11 +254,11 @@ impl AbstractDynamicPlugin for DyLibPlugin {
             self.lib_path.display()
         ));
 
-        let mut dynamic = DynamicPlugin::load(&self.lib_path)?;
+        let mut dynamic = DyLibHandle::load(&self.lib_path)?;
 
         fill_and_register(dynamic.plugin_mut())?;
 
-        self.state = DynamicPluginState::Loaded(dynamic);
+        self.state = PluginState::Loaded(dynamic);
 
         self.need_reload.store(false, atomic::Ordering::Relaxed);
 
@@ -272,31 +272,31 @@ impl AbstractDynamicPlugin for DyLibPlugin {
 }
 
 /// Actual state of a dynamic plugin.
-pub enum DynamicPluginState {
+enum PluginState {
     /// Unloaded plugin.
     Unloaded,
     /// Loaded plugin.
-    Loaded(DynamicPlugin),
+    Loaded(DyLibHandle),
 }
 
-impl DynamicPluginState {
+impl PluginState {
     /// Tries to interpret the state as [`Self::Loaded`], panics if the plugin is unloaded.
-    pub fn as_loaded_ref(&self) -> &DynamicPlugin {
+    pub fn as_loaded_ref(&self) -> &DyLibHandle {
         match self {
-            DynamicPluginState::Unloaded => {
+            PluginState::Unloaded => {
                 panic!("Cannot obtain a reference to the plugin, because it is unloaded!")
             }
-            DynamicPluginState::Loaded(dynamic) => dynamic,
+            PluginState::Loaded(dynamic) => dynamic,
         }
     }
 
     /// Tries to interpret the state as [`Self::Loaded`], panics if the plugin is unloaded.
-    pub fn as_loaded_mut(&mut self) -> &mut DynamicPlugin {
+    pub fn as_loaded_mut(&mut self) -> &mut DyLibHandle {
         match self {
-            DynamicPluginState::Unloaded => {
+            PluginState::Unloaded => {
                 panic!("Cannot obtain a reference to the plugin, because it is unloaded!")
             }
-            DynamicPluginState::Loaded(dynamic) => dynamic,
+            PluginState::Loaded(dynamic) => dynamic,
         }
     }
 }

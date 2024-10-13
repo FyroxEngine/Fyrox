@@ -63,7 +63,7 @@ use crate::{
         Material,
     },
     plugin::{
-        AbstractDynamicPlugin, Plugin, PluginContainer, PluginContext,
+        DynamicPlugin, Plugin, PluginContainer, PluginContext,
         PluginRegistrationContext,
     },
     renderer::{framework::error::FrameworkError, Renderer},
@@ -2269,7 +2269,7 @@ impl Engine {
         plugin: P,
     ) -> &dyn Plugin
     where
-        P: AbstractDynamicPlugin + 'static,
+        P: DynamicPlugin + 'static,
     {
         let display_name = plugin.display_name();
 
