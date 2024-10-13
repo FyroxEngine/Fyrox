@@ -94,7 +94,7 @@ pub enum MaterialResourceBindingValue {
         fallback: SamplerFallback,
     },
 
-    PropertyGroup(PropertyGroup),
+    PropertyGroup(MaterialPropertyGroup),
 }
 
 impl Default for MaterialResourceBindingValue {
@@ -120,15 +120,17 @@ impl MaterialResourceBindingValue {
                     .and_then(|path| resource_manager.map(|rm| rm.request::<Texture>(path))),
                 fallback: *usage,
             },
-            ShaderResourceKind::PropertyGroup(group) => Self::PropertyGroup(PropertyGroup {
-                properties: group
-                    .iter()
-                    .map(|property| MaterialProperty {
-                        name: property.name.as_str().into(),
-                        value: PropertyValue::from_property_kind(&property.kind),
-                    })
-                    .collect::<Vec<_>>(),
-            }),
+            ShaderResourceKind::PropertyGroup(group) => {
+                Self::PropertyGroup(MaterialPropertyGroup {
+                    properties: group
+                        .iter()
+                        .map(|property| MaterialProperty {
+                            name: property.name.as_str().into(),
+                            value: MaterialPropertyValue::from_property_kind(&property.kind),
+                        })
+                        .collect::<Vec<_>>(),
+                })
+            }
         }
     }
 
@@ -153,15 +155,15 @@ pub struct MaterialResourceBinding {
 #[type_uuid(id = "29af996e-a2d3-4d72-adee-5db16e46f379")]
 pub struct MaterialProperty {
     pub name: ImmutableString,
-    pub value: PropertyValue,
+    pub value: MaterialPropertyValue,
 }
 
 #[derive(Default, Debug, Visit, Clone, Reflect)]
-pub struct PropertyGroup {
+pub struct MaterialPropertyGroup {
     properties: Vec<MaterialProperty>,
 }
 
-impl PropertyGroup {
+impl MaterialPropertyGroup {
     /// Searches for a property with given name.
     ///
     /// # Complexity
@@ -178,7 +180,7 @@ impl PropertyGroup {
     ///
     /// let color = material.property_ref(&ImmutableString::new("diffuseColor")).unwrap().as_color();
     /// ```
-    pub fn property_ref(&self, name: impl Into<ImmutableString>) -> Option<&PropertyValue> {
+    pub fn property_ref(&self, name: impl Into<ImmutableString>) -> Option<&MaterialPropertyValue> {
         let name = name.into();
         self.properties.iter().find_map(|property| {
             if property.name == name {
@@ -189,7 +191,10 @@ impl PropertyGroup {
         })
     }
 
-    fn property_mut(&mut self, name: impl Into<ImmutableString>) -> Option<&mut PropertyValue> {
+    fn property_mut(
+        &mut self,
+        name: impl Into<ImmutableString>,
+    ) -> Option<&mut MaterialPropertyValue> {
         let name = name.into();
         self.properties.iter_mut().find_map(|property| {
             if property.name == name {
@@ -212,7 +217,7 @@ impl PropertyGroup {
     /// # Example
     ///
     /// ```no_run
-    /// # use fyrox_impl::material::{Material, PropertyValue};
+    /// # use fyrox_impl::material::{Material, MaterialPropertyValue};
     /// # use fyrox_impl::core::color::Color;
     /// # use fyrox_impl::core::sstorage::ImmutableString;
     ///
@@ -223,70 +228,115 @@ impl PropertyGroup {
     pub fn set_property(
         &mut self,
         name: impl Into<ImmutableString>,
-        new_value: impl Into<PropertyValue>,
+        new_value: impl Into<MaterialPropertyValue>,
     ) -> Result<(), MaterialError> {
         let name = name.into();
         let new_value = new_value.into();
         if let Some(value) = self.property_mut(name.clone()) {
             match (value, new_value) {
-                (PropertyValue::Float(old_value), PropertyValue::Float(value)) => {
+                (MaterialPropertyValue::Float(old_value), MaterialPropertyValue::Float(value)) => {
                     *old_value = value;
                 }
-                (PropertyValue::FloatArray(old_value), PropertyValue::FloatArray(value)) => {
+                (
+                    MaterialPropertyValue::FloatArray(old_value),
+                    MaterialPropertyValue::FloatArray(value),
+                ) => {
                     *old_value = value;
                 }
-                (PropertyValue::Int(old_value), PropertyValue::Int(value)) => {
+                (MaterialPropertyValue::Int(old_value), MaterialPropertyValue::Int(value)) => {
                     *old_value = value;
                 }
-                (PropertyValue::IntArray(old_value), PropertyValue::IntArray(value)) => {
+                (
+                    MaterialPropertyValue::IntArray(old_value),
+                    MaterialPropertyValue::IntArray(value),
+                ) => {
                     *old_value = value;
                 }
-                (PropertyValue::Bool(old_value), PropertyValue::Bool(value)) => {
+                (MaterialPropertyValue::Bool(old_value), MaterialPropertyValue::Bool(value)) => {
                     *old_value = value;
                 }
-                (PropertyValue::UInt(old_value), PropertyValue::UInt(value)) => {
+                (MaterialPropertyValue::UInt(old_value), MaterialPropertyValue::UInt(value)) => {
                     *old_value = value;
                 }
-                (PropertyValue::UIntArray(old_value), PropertyValue::UIntArray(value)) => {
+                (
+                    MaterialPropertyValue::UIntArray(old_value),
+                    MaterialPropertyValue::UIntArray(value),
+                ) => {
                     *old_value = value;
                 }
-                (PropertyValue::Vector2(old_value), PropertyValue::Vector2(value)) => {
+                (
+                    MaterialPropertyValue::Vector2(old_value),
+                    MaterialPropertyValue::Vector2(value),
+                ) => {
                     *old_value = value;
                 }
-                (PropertyValue::Vector2Array(old_value), PropertyValue::Vector2Array(value)) => {
+                (
+                    MaterialPropertyValue::Vector2Array(old_value),
+                    MaterialPropertyValue::Vector2Array(value),
+                ) => {
                     *old_value = value;
                 }
-                (PropertyValue::Vector3(old_value), PropertyValue::Vector3(value)) => {
+                (
+                    MaterialPropertyValue::Vector3(old_value),
+                    MaterialPropertyValue::Vector3(value),
+                ) => {
                     *old_value = value;
                 }
-                (PropertyValue::Vector3Array(old_value), PropertyValue::Vector3Array(value)) => {
+                (
+                    MaterialPropertyValue::Vector3Array(old_value),
+                    MaterialPropertyValue::Vector3Array(value),
+                ) => {
                     *old_value = value;
                 }
-                (PropertyValue::Vector4(old_value), PropertyValue::Vector4(value)) => {
+                (
+                    MaterialPropertyValue::Vector4(old_value),
+                    MaterialPropertyValue::Vector4(value),
+                ) => {
                     *old_value = value;
                 }
-                (PropertyValue::Vector4Array(old_value), PropertyValue::Vector4Array(value)) => {
+                (
+                    MaterialPropertyValue::Vector4Array(old_value),
+                    MaterialPropertyValue::Vector4Array(value),
+                ) => {
                     *old_value = value;
                 }
-                (PropertyValue::Matrix2(old_value), PropertyValue::Matrix2(value)) => {
+                (
+                    MaterialPropertyValue::Matrix2(old_value),
+                    MaterialPropertyValue::Matrix2(value),
+                ) => {
                     *old_value = value;
                 }
-                (PropertyValue::Matrix2Array(old_value), PropertyValue::Matrix2Array(value)) => {
+                (
+                    MaterialPropertyValue::Matrix2Array(old_value),
+                    MaterialPropertyValue::Matrix2Array(value),
+                ) => {
                     *old_value = value;
                 }
-                (PropertyValue::Matrix3(old_value), PropertyValue::Matrix3(value)) => {
+                (
+                    MaterialPropertyValue::Matrix3(old_value),
+                    MaterialPropertyValue::Matrix3(value),
+                ) => {
                     *old_value = value;
                 }
-                (PropertyValue::Matrix3Array(old_value), PropertyValue::Matrix3Array(value)) => {
+                (
+                    MaterialPropertyValue::Matrix3Array(old_value),
+                    MaterialPropertyValue::Matrix3Array(value),
+                ) => {
                     *old_value = value;
                 }
-                (PropertyValue::Matrix4(old_value), PropertyValue::Matrix4(value)) => {
+                (
+                    MaterialPropertyValue::Matrix4(old_value),
+                    MaterialPropertyValue::Matrix4(value),
+                ) => {
                     *old_value = value;
                 }
-                (PropertyValue::Matrix4Array(old_value), PropertyValue::Matrix4Array(value)) => {
+                (
+                    MaterialPropertyValue::Matrix4Array(old_value),
+                    MaterialPropertyValue::Matrix4Array(value),
+                ) => {
                     *old_value = value;
                 }
-                (PropertyValue::Color(old_value), PropertyValue::Color(value)) => {
+                (MaterialPropertyValue::Color(old_value), MaterialPropertyValue::Color(value)) => {
                     *old_value = value;
                 }
                 (value, new_value) => {
@@ -314,7 +364,7 @@ impl PropertyGroup {
 
 #[derive(Debug, Visit, Clone, Reflect, AsRefStr, EnumString, VariantNames, TypeUuidProvider)]
 #[type_uuid(id = "1c25018d-ab6e-4dca-99a6-e3d9639bc33c")]
-pub enum PropertyValue {
+pub enum MaterialPropertyValue {
     /// Real number.
     Float(f32),
 
@@ -385,7 +435,7 @@ pub enum PropertyValue {
 
 macro_rules! impl_from {
     ($variant:ident => $value_type:ty) => {
-        impl From<$value_type> for PropertyValue {
+        impl From<$value_type> for MaterialPropertyValue {
             fn from(value: $value_type) -> Self {
                 Self::$variant(value)
             }
@@ -436,7 +486,7 @@ macro_rules! define_as {
     ($(#[$meta:meta])* $name:ident = $variant:ident -> $ty:ty) => {
         $(#[$meta])*
         pub fn $name(&self) -> Option<$ty> {
-            if let PropertyValue::$variant(v) = self {
+            if let MaterialPropertyValue::$variant(v) = self {
                 Some(*v)
             } else {
                 None
@@ -449,7 +499,7 @@ macro_rules! define_as_ref {
     ($(#[$meta:meta])* $name:ident = $variant:ident -> $ty:ty) => {
         $(#[$meta])*
         pub fn $name(&self) -> Option<&$ty> {
-            if let PropertyValue::$variant(v) = self {
+            if let MaterialPropertyValue::$variant(v) = self {
                 Some(v)
             } else {
                 None
@@ -458,46 +508,50 @@ macro_rules! define_as_ref {
     };
 }
 
-impl PropertyValue {
+impl MaterialPropertyValue {
     /// Creates property value from its shader's representation.
     pub fn from_property_kind(kind: &ShaderPropertyKind) -> Self {
         match kind {
-            ShaderPropertyKind::Float(value) => PropertyValue::Float(*value),
-            ShaderPropertyKind::Int(value) => PropertyValue::Int(*value),
-            ShaderPropertyKind::UInt(value) => PropertyValue::UInt(*value),
-            ShaderPropertyKind::Vector2(value) => PropertyValue::Vector2(*value),
-            ShaderPropertyKind::Vector3(value) => PropertyValue::Vector3(*value),
-            ShaderPropertyKind::Vector4(value) => PropertyValue::Vector4(*value),
+            ShaderPropertyKind::Float(value) => MaterialPropertyValue::Float(*value),
+            ShaderPropertyKind::Int(value) => MaterialPropertyValue::Int(*value),
+            ShaderPropertyKind::UInt(value) => MaterialPropertyValue::UInt(*value),
+            ShaderPropertyKind::Vector2(value) => MaterialPropertyValue::Vector2(*value),
+            ShaderPropertyKind::Vector3(value) => MaterialPropertyValue::Vector3(*value),
+            ShaderPropertyKind::Vector4(value) => MaterialPropertyValue::Vector4(*value),
             ShaderPropertyKind::Color { r, g, b, a } => {
-                PropertyValue::Color(Color::from_rgba(*r, *g, *b, *a))
+                MaterialPropertyValue::Color(Color::from_rgba(*r, *g, *b, *a))
             }
-            ShaderPropertyKind::Matrix2(value) => PropertyValue::Matrix2(*value),
-            ShaderPropertyKind::Matrix3(value) => PropertyValue::Matrix3(*value),
-            ShaderPropertyKind::Matrix4(value) => PropertyValue::Matrix4(*value),
-            ShaderPropertyKind::Bool(value) => PropertyValue::Bool(*value),
+            ShaderPropertyKind::Matrix2(value) => MaterialPropertyValue::Matrix2(*value),
+            ShaderPropertyKind::Matrix3(value) => MaterialPropertyValue::Matrix3(*value),
+            ShaderPropertyKind::Matrix4(value) => MaterialPropertyValue::Matrix4(*value),
+            ShaderPropertyKind::Bool(value) => MaterialPropertyValue::Bool(*value),
 
             ShaderPropertyKind::FloatArray { value, .. } => {
-                PropertyValue::FloatArray(value.clone())
+                MaterialPropertyValue::FloatArray(value.clone())
             }
-            ShaderPropertyKind::IntArray { value, .. } => PropertyValue::IntArray(value.clone()),
-            ShaderPropertyKind::UIntArray { value, .. } => PropertyValue::UIntArray(value.clone()),
+            ShaderPropertyKind::IntArray { value, .. } => {
+                MaterialPropertyValue::IntArray(value.clone())
+            }
+            ShaderPropertyKind::UIntArray { value, .. } => {
+                MaterialPropertyValue::UIntArray(value.clone())
+            }
             ShaderPropertyKind::Vector2Array { value, .. } => {
-                PropertyValue::Vector2Array(value.clone())
+                MaterialPropertyValue::Vector2Array(value.clone())
             }
             ShaderPropertyKind::Vector3Array { value, .. } => {
-                PropertyValue::Vector3Array(value.clone())
+                MaterialPropertyValue::Vector3Array(value.clone())
             }
             ShaderPropertyKind::Vector4Array { value, .. } => {
-                PropertyValue::Vector4Array(value.clone())
+                MaterialPropertyValue::Vector4Array(value.clone())
             }
             ShaderPropertyKind::Matrix2Array { value, .. } => {
-                PropertyValue::Matrix2Array(value.clone())
+                MaterialPropertyValue::Matrix2Array(value.clone())
             }
             ShaderPropertyKind::Matrix3Array { value, .. } => {
-                PropertyValue::Matrix3Array(value.clone())
+                MaterialPropertyValue::Matrix3Array(value.clone())
             }
             ShaderPropertyKind::Matrix4Array { value, .. } => {
-                PropertyValue::Matrix4Array(value.clone())
+                MaterialPropertyValue::Matrix4Array(value.clone())
             }
         }
     }
@@ -584,7 +638,7 @@ impl PropertyValue {
     );
 }
 
-impl Default for PropertyValue {
+impl Default for MaterialPropertyValue {
     fn default() -> Self {
         Self::Float(0.0)
     }
@@ -629,7 +683,7 @@ impl Default for PropertyValue {
 /// # use fyrox_impl::{
 /// #     material::shader::{ShaderResource, SamplerFallback},
 /// #     asset::manager::ResourceManager,
-/// #     material::{Material, PropertyValue},
+/// #     material::{Material, MaterialPropertyValue},
 /// #     core::sstorage::ImmutableString,
 /// # };
 /// # use fyrox_impl::resource::texture::Texture;
@@ -659,7 +713,7 @@ impl Default for PropertyValue {
 /// ```no_run
 /// # use fyrox_impl::{
 /// #     asset::manager::ResourceManager,
-/// #     material::{Material, PropertyValue},
+/// #     material::{Material, MaterialPropertyValue},
 /// #     core::{sstorage::ImmutableString, algebra::Vector3}
 /// # };
 /// # use fyrox_impl::material::shader::Shader;
@@ -864,9 +918,9 @@ pub enum MaterialError {
         /// Name of the property.
         property_name: String,
         /// Expected property value.
-        expected: Box<PropertyValue>,
+        expected: Box<MaterialPropertyValue>,
         /// Given property value.
-        given: Box<PropertyValue>,
+        given: Box<MaterialPropertyValue>,
     },
     /// Attempt to set a value of wrong type to a property.
     ResourceBindingTypeMismatch {
@@ -1000,7 +1054,7 @@ impl Material {
     /// # use fyrox_impl::{
     /// #     material::shader::{ShaderResource, SamplerFallback},
     /// #     asset::manager::ResourceManager,
-    /// #     material::{Material, PropertyValue},
+    /// #     material::{Material, MaterialPropertyValue},
     /// #     core::sstorage::ImmutableString
     /// # };
     /// # use fyrox_impl::resource::texture::Texture;
@@ -1058,7 +1112,7 @@ impl Material {
     /// ```no_run
     /// # use fyrox_impl::{
     /// #     asset::manager::ResourceManager,
-    /// #     material::{Material, PropertyValue},
+    /// #     material::{Material, MaterialPropertyValue},
     /// #     core::{sstorage::ImmutableString, algebra::Vector3}
     /// # };
     /// # use fyrox_impl::material::shader::Shader;
@@ -1174,7 +1228,10 @@ impl Material {
     ///
     /// let color = material.property_group_ref("properties").unwrap().property_ref("diffuseColor").unwrap().as_color();
     /// ```
-    pub fn property_group_ref(&self, name: impl Into<ImmutableString>) -> Option<&PropertyGroup> {
+    pub fn property_group_ref(
+        &self,
+        name: impl Into<ImmutableString>,
+    ) -> Option<&MaterialPropertyGroup> {
         self.binding_ref(name).and_then(|binding| match binding {
             MaterialResourceBindingValue::Sampler { .. } => None,
             MaterialResourceBindingValue::PropertyGroup(group) => Some(group),
@@ -1202,7 +1259,7 @@ impl Material {
     pub fn property_group_mut(
         &mut self,
         name: impl Into<ImmutableString>,
-    ) -> Option<&mut PropertyGroup> {
+    ) -> Option<&mut MaterialPropertyGroup> {
         self.binding_mut(name).and_then(|binding| match binding {
             MaterialResourceBindingValue::Sampler { .. } => None,
             MaterialResourceBindingValue::PropertyGroup(group) => Some(group),
@@ -1221,7 +1278,7 @@ impl Material {
     /// # Example
     ///
     /// ```no_run
-    /// # use fyrox_impl::material::{Material, PropertyValue};
+    /// # use fyrox_impl::material::{Material, MaterialPropertyValue};
     /// # use fyrox_impl::core::color::Color;
     /// # use fyrox_impl::core::sstorage::ImmutableString;
     ///
@@ -1283,7 +1340,7 @@ impl Material {
     /// # Example
     ///
     /// ```no_run
-    /// # use fyrox_impl::material::{Material, PropertyValue};
+    /// # use fyrox_impl::material::{Material, MaterialPropertyValue};
     /// # use fyrox_impl::core::color::Color;
     /// # use fyrox_impl::core::sstorage::ImmutableString;
     ///
@@ -1294,7 +1351,7 @@ impl Material {
     pub fn set_property(
         &mut self,
         name: impl Into<ImmutableString>,
-        new_value: impl Into<PropertyValue>,
+        new_value: impl Into<MaterialPropertyValue>,
     ) -> Result<(), MaterialError> {
         self.property_group_mut("properties")
             .ok_or_else(|| MaterialError::NoSuchResource {

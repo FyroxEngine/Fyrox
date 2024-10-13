@@ -25,7 +25,7 @@ use crate::{
     core::{algebra::Vector4, color::Color, log::Log},
     material::{
         shader::{SamplerFallback, Shader, ShaderResource},
-        Material, MaterialResource, PropertyValue,
+        Material, MaterialPropertyValue, MaterialResource,
     },
     resource::{
         model::MaterialSearchOptions,
@@ -228,7 +228,7 @@ async fn import_material(
 }
 
 fn set_material_scalar(material: &mut Material, name: &'static str, value: f32) -> Result<()> {
-    let value: PropertyValue = PropertyValue::Float(value);
+    let value: MaterialPropertyValue = MaterialPropertyValue::Float(value);
     match material.set_property(name, value) {
         Ok(()) => Ok(()),
         Err(err) => {
@@ -242,7 +242,7 @@ fn set_material_scalar(material: &mut Material, name: &'static str, value: f32) 
 }
 
 fn set_material_color(material: &mut Material, name: &'static str, color: Color) -> Result<()> {
-    let value: PropertyValue = PropertyValue::Color(color);
+    let value: MaterialPropertyValue = MaterialPropertyValue::Color(color);
     match material.set_property(name, value) {
         Ok(()) => Ok(()),
         Err(err) => {
@@ -260,7 +260,7 @@ fn set_material_vector3(
     name: &'static str,
     vector: [f32; 3],
 ) -> Result<()> {
-    let value: PropertyValue = PropertyValue::Vector3(vector.into());
+    let value: MaterialPropertyValue = MaterialPropertyValue::Vector3(vector.into());
     match material.set_property(name, value) {
         Ok(()) => Ok(()),
         Err(err) => {
@@ -279,7 +279,7 @@ fn set_material_vector4(
     name: &'static str,
     vector: [f32; 4],
 ) -> Result<()> {
-    let value: PropertyValue = PropertyValue::Vector4(vector.into());
+    let value: MaterialPropertyValue = MaterialPropertyValue::Vector4(vector.into());
     match material.set_property(name, value) {
         Ok(()) => Ok(()),
         Err(err) => {

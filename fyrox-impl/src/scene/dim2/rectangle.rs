@@ -137,7 +137,7 @@ impl Hash for RectangleVertex {
 /// ```rust
 /// # use fyrox_impl::{
 /// #     core::sstorage::ImmutableString,
-/// #     material::{shader::SamplerFallback, PropertyValue},
+/// #     material::{shader::SamplerFallback, MaterialPropertyValue},
 /// #     resource::texture::TextureResource,
 /// #     scene::dim2::rectangle::Rectangle,
 /// # };

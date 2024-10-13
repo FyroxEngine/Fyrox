@@ -33,7 +33,7 @@ use crate::{
     },
     graph::BaseSceneGraph,
     material,
-    material::{shader::SamplerFallback, MaterialResource, PropertyValue},
+    material::{shader::SamplerFallback, MaterialPropertyValue, MaterialResource},
     renderer::{
         cache::{
             geometry::GeometryCache,
@@ -281,26 +281,44 @@ impl RenderDataBundle {
                 let mut material_uniforms = StaticUniformBuffer::<16384>::new();
                 for property in property_group.properties() {
                     match &property.value {
-                        PropertyValue::Float(value) => material_uniforms.push(value),
-                        PropertyValue::FloatArray(array) => material_uniforms.push_slice(array),
-                        PropertyValue::Int(value) => material_uniforms.push(value),
-                        PropertyValue::IntArray(array) => material_uniforms.push_slice(array),
-                        PropertyValue::UInt(value) => material_uniforms.push(value),
-                        PropertyValue::UIntArray(array) => material_uniforms.push_slice(array),
-                        PropertyValue::Vector2(value) => material_uniforms.push(value),
-                        PropertyValue::Vector2Array(array) => material_uniforms.push_slice(array),
-                        PropertyValue::Vector3(value) => material_uniforms.push(value),
-                        PropertyValue::Vector3Array(array) => material_uniforms.push_slice(array),
-                        PropertyValue::Vector4(value) => material_uniforms.push(value),
-                        PropertyValue::Vector4Array(array) => material_uniforms.push_slice(array),
-                        PropertyValue::Matrix2(value) => material_uniforms.push(value),
-                        PropertyValue::Matrix2Array(array) => material_uniforms.push_slice(array),
-                        PropertyValue::Matrix3(value) => material_uniforms.push(value),
-                        PropertyValue::Matrix3Array(array) => material_uniforms.push_slice(array),
-                        PropertyValue::Matrix4(value) => material_uniforms.push(value),
-                        PropertyValue::Matrix4Array(array) => material_uniforms.push_slice(array),
-                        PropertyValue::Bool(value) => material_uniforms.push(value),
-                        PropertyValue::Color(color) => material_uniforms.push(color),
+                        MaterialPropertyValue::Float(value) => material_uniforms.push(value),
+                        MaterialPropertyValue::FloatArray(array) => {
+                            material_uniforms.push_slice(array)
+                        }
+                        MaterialPropertyValue::Int(value) => material_uniforms.push(value),
+                        MaterialPropertyValue::IntArray(array) => {
+                            material_uniforms.push_slice(array)
+                        }
+                        MaterialPropertyValue::UInt(value) => material_uniforms.push(value),
+                        MaterialPropertyValue::UIntArray(array) => {
+                            material_uniforms.push_slice(array)
+                        }
+                        MaterialPropertyValue::Vector2(value) => material_uniforms.push(value),
+                        MaterialPropertyValue::Vector2Array(array) => {
+                            material_uniforms.push_slice(array)
+                        }
+                        MaterialPropertyValue::Vector3(value) => material_uniforms.push(value),
+                        MaterialPropertyValue::Vector3Array(array) => {
+                            material_uniforms.push_slice(array)
+                        }
+                        MaterialPropertyValue::Vector4(value) => material_uniforms.push(value),
+                        MaterialPropertyValue::Vector4Array(array) => {
+                            material_uniforms.push_slice(array)
+                        }
+                        MaterialPropertyValue::Matrix2(value) => material_uniforms.push(value),
+                        MaterialPropertyValue::Matrix2Array(array) => {
+                            material_uniforms.push_slice(array)
+                        }
+                        MaterialPropertyValue::Matrix3(value) => material_uniforms.push(value),
+                        MaterialPropertyValue::Matrix3Array(array) => {
+                            material_uniforms.push_slice(array)
+                        }
+                        MaterialPropertyValue::Matrix4(value) => material_uniforms.push(value),
+                        MaterialPropertyValue::Matrix4Array(array) => {
+                            material_uniforms.push_slice(array)
+                        }
+                        MaterialPropertyValue::Bool(value) => material_uniforms.push(value),
+                        MaterialPropertyValue::Color(color) => material_uniforms.push(color),
                     };
                 }
                 material_property_group_blocks.push((

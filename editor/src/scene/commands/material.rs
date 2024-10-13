@@ -24,8 +24,8 @@ use crate::{
         asset::ResourceData,
         core::{log::Log, sstorage::ImmutableString},
         material::{
-            shader::ShaderResource, Material, MaterialResource, MaterialResourceBindingValue,
-            PropertyValue,
+            shader::ShaderResource, Material, MaterialPropertyValue, MaterialResource,
+            MaterialResourceBindingValue,
         },
     },
     scene::commands::GameSceneContext,
@@ -95,7 +95,7 @@ pub struct SetMaterialPropertyGroupPropertyValueCommand {
     material: MaterialResource,
     group_name: ImmutableString,
     property_name: ImmutableString,
-    value: PropertyValue,
+    value: MaterialPropertyValue,
 }
 
 impl SetMaterialPropertyGroupPropertyValueCommand {
@@ -103,7 +103,7 @@ impl SetMaterialPropertyGroupPropertyValueCommand {
         material: MaterialResource,
         group_name: ImmutableString,
         property_name: ImmutableString,
-        value: PropertyValue,
+        value: MaterialPropertyValue,
     ) -> Self {
         Self {
             material,

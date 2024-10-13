@@ -166,7 +166,7 @@ impl Visit for ParticleSystemRng {
 /// #         color_gradient::{ColorGradient, GradientPoint},
 /// #         sstorage::ImmutableString,
 /// #     },
-/// #     material::{Material, PropertyValue, MaterialResource},
+/// #     material::{Material, MaterialPropertyValue, MaterialResource},
 /// #     resource::texture::Texture,
 /// #     scene::{
 /// #         base::BaseBuilder,

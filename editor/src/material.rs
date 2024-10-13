@@ -56,7 +56,7 @@ use crate::{
         },
         material::{
             shader::{Shader, ShaderResourceKind},
-            MaterialResource, MaterialResourceBindingValue, PropertyValue,
+            MaterialPropertyValue, MaterialResource, MaterialResourceBindingValue,
         },
         renderer::framework::gpu_program::{ShaderProperty, ShaderPropertyKind},
         resource::texture::Texture,
@@ -553,7 +553,7 @@ impl MaterialEditor {
                             .unwrap_or_else(|| panic!("Property not found {}", property.name));
 
                         match &property.value {
-                            PropertyValue::Float(value) => {
+                            MaterialPropertyValue::Float(value) => {
                                 send_sync_message(
                                     ui,
                                     NumericUpDownMessage::value(
@@ -563,7 +563,7 @@ impl MaterialEditor {
                                     ),
                                 );
                             }
-                            PropertyValue::FloatArray(value) => {
+                            MaterialPropertyValue::FloatArray(value) => {
                                 sync_array(ui, item, value, |value, item| {
                                     NumericUpDownMessage::value(
                                         item,
@@ -572,7 +572,7 @@ impl MaterialEditor {
                                     )
                                 })
                             }
-                            PropertyValue::Int(value) => {
+                            MaterialPropertyValue::Int(value) => {
                                 send_sync_message(
                                     ui,
                                     NumericUpDownMessage::value(
@@ -582,7 +582,7 @@ impl MaterialEditor {
                                     ),
                                 );
                             }
-                            PropertyValue::IntArray(value) => {
+                            MaterialPropertyValue::IntArray(value) => {
                                 sync_array(ui, item, value, |value, item| {
                                     NumericUpDownMessage::value(
                                         item,
@@ -591,7 +591,7 @@ impl MaterialEditor {
                                     )
                                 })
                             }
-                            PropertyValue::UInt(value) => {
+                            MaterialPropertyValue::UInt(value) => {
                                 send_sync_message(
                                     ui,
                                     NumericUpDownMessage::value(
@@ -601,7 +601,7 @@ impl MaterialEditor {
                                     ),
                                 );
                             }
-                            PropertyValue::UIntArray(value) => {
+                            MaterialPropertyValue::UIntArray(value) => {
                                 sync_array(ui, item, value, |value, item| {
                                     NumericUpDownMessage::value(
                                         item,
@@ -610,11 +610,11 @@ impl MaterialEditor {
                                     )
                                 })
                             }
-                            PropertyValue::Vector2(value) => send_sync_message(
+                            MaterialPropertyValue::Vector2(value) => send_sync_message(
                                 ui,
                                 Vec2EditorMessage::value(item, MessageDirection::ToWidget, *value),
                             ),
-                            PropertyValue::Vector2Array(value) => {
+                            MaterialPropertyValue::Vector2Array(value) => {
                                 sync_array(ui, item, value, |value, item| {
                                     Vec2EditorMessage::value(
                                         item,
@@ -623,11 +623,11 @@ impl MaterialEditor {
                                     )
                                 })
                             }
-                            PropertyValue::Vector3(value) => send_sync_message(
+                            MaterialPropertyValue::Vector3(value) => send_sync_message(
                                 ui,
                                 Vec3EditorMessage::value(item, MessageDirection::ToWidget, *value),
                             ),
-                            PropertyValue::Vector3Array(value) => {
+                            MaterialPropertyValue::Vector3Array(value) => {
                                 sync_array(ui, item, value, |value, item| {
                                     Vec3EditorMessage::value(
                                         item,
@@ -636,11 +636,11 @@ impl MaterialEditor {
                                     )
                                 })
                             }
-                            PropertyValue::Vector4(value) => send_sync_message(
+                            MaterialPropertyValue::Vector4(value) => send_sync_message(
                                 ui,
                                 Vec4EditorMessage::value(item, MessageDirection::ToWidget, *value),
                             ),
-                            PropertyValue::Vector4Array(value) => {
+                            MaterialPropertyValue::Vector4Array(value) => {
                                 sync_array(ui, item, value, |value, item| {
                                     Vec4EditorMessage::value(
                                         item,
@@ -649,7 +649,7 @@ impl MaterialEditor {
                                     )
                                 })
                             }
-                            PropertyValue::Matrix2(value) => send_sync_message(
+                            MaterialPropertyValue::Matrix2(value) => send_sync_message(
                                 ui,
                                 MatrixEditorMessage::value(
                                     item,
@@ -657,7 +657,7 @@ impl MaterialEditor {
                                     *value,
                                 ),
                             ),
-                            PropertyValue::Matrix2Array(value) => {
+                            MaterialPropertyValue::Matrix2Array(value) => {
                                 sync_array(ui, item, value, |value, item| {
                                     MatrixEditorMessage::value(
                                         item,
@@ -666,7 +666,7 @@ impl MaterialEditor {
                                     )
                                 })
                             }
-                            PropertyValue::Matrix3(value) => send_sync_message(
+                            MaterialPropertyValue::Matrix3(value) => send_sync_message(
                                 ui,
                                 MatrixEditorMessage::value(
                                     item,
@@ -674,7 +674,7 @@ impl MaterialEditor {
                                     *value,
                                 ),
                             ),
-                            PropertyValue::Matrix3Array(value) => {
+                            MaterialPropertyValue::Matrix3Array(value) => {
                                 sync_array(ui, item, value, |value, item| {
                                     MatrixEditorMessage::value(
                                         item,
@@ -683,7 +683,7 @@ impl MaterialEditor {
                                     )
                                 })
                             }
-                            PropertyValue::Matrix4(value) => send_sync_message(
+                            MaterialPropertyValue::Matrix4(value) => send_sync_message(
                                 ui,
                                 MatrixEditorMessage::value(
                                     item,
@@ -691,7 +691,7 @@ impl MaterialEditor {
                                     *value,
                                 ),
                             ),
-                            PropertyValue::Matrix4Array(value) => {
+                            MaterialPropertyValue::Matrix4Array(value) => {
                                 sync_array(ui, item, value, |value, item| {
                                     MatrixEditorMessage::value(
                                         item,
@@ -700,7 +700,7 @@ impl MaterialEditor {
                                     )
                                 })
                             }
-                            PropertyValue::Bool(value) => {
+                            MaterialPropertyValue::Bool(value) => {
                                 send_sync_message(
                                     ui,
                                     CheckBoxMessage::checked(
@@ -710,7 +710,7 @@ impl MaterialEditor {
                                     ),
                                 );
                             }
-                            PropertyValue::Color(value) => {
+                            MaterialPropertyValue::Color(value) => {
                                 send_sync_message(
                                     ui,
                                     ColorFieldMessage::color(
@@ -845,43 +845,43 @@ impl MaterialEditor {
                                 if let Some(NumericUpDownMessage::<f32>::Value(value)) =
                                     message.data()
                                 {
-                                    Some(PropertyValue::Float(*value))
+                                    Some(MaterialPropertyValue::Float(*value))
                                 } else if let Some(NumericUpDownMessage::<i32>::Value(value)) =
                                     message.data()
                                 {
-                                    Some(PropertyValue::Int(*value))
+                                    Some(MaterialPropertyValue::Int(*value))
                                 } else if let Some(NumericUpDownMessage::<u32>::Value(value)) =
                                     message.data()
                                 {
-                                    Some(PropertyValue::UInt(*value))
+                                    Some(MaterialPropertyValue::UInt(*value))
                                 } else if let Some(Vec2EditorMessage::Value(value)) = message.data()
                                 {
-                                    Some(PropertyValue::Vector2(*value))
+                                    Some(MaterialPropertyValue::Vector2(*value))
                                 } else if let Some(Vec3EditorMessage::Value(value)) = message.data()
                                 {
-                                    Some(PropertyValue::Vector3(*value))
+                                    Some(MaterialPropertyValue::Vector3(*value))
                                 } else if let Some(Vec4EditorMessage::Value(value)) = message.data()
                                 {
-                                    Some(PropertyValue::Vector4(*value))
+                                    Some(MaterialPropertyValue::Vector4(*value))
                                 } else if let Some(ColorFieldMessage::Color(color)) = message.data()
                                 {
-                                    Some(PropertyValue::Color(*color))
+                                    Some(MaterialPropertyValue::Color(*color))
                                 } else if let Some(MatrixEditorMessage::<2, 2, f32>::Value(value)) =
                                     message.data()
                                 {
-                                    Some(PropertyValue::Matrix2(*value))
+                                    Some(MaterialPropertyValue::Matrix2(*value))
                                 } else if let Some(MatrixEditorMessage::<3, 3, f32>::Value(value)) =
                                     message.data()
                                 {
-                                    Some(PropertyValue::Matrix3(*value))
+                                    Some(MaterialPropertyValue::Matrix3(*value))
                                 } else if let Some(MatrixEditorMessage::<4, 4, f32>::Value(value)) =
                                     message.data()
                                 {
-                                    Some(PropertyValue::Matrix4(*value))
+                                    Some(MaterialPropertyValue::Matrix4(*value))
                                 } else if let Some(CheckBoxMessage::Check(Some(value))) =
                                     message.data()
                                 {
-                                    Some(PropertyValue::Bool(*value))
+                                    Some(MaterialPropertyValue::Bool(*value))
                                 } else {
                                     None
                                 };

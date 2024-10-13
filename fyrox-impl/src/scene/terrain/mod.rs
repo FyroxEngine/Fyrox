@@ -41,7 +41,7 @@ use crate::{
         visitor::{prelude::*, PodVecView},
         TypeUuidProvider,
     },
-    material::{Material, MaterialResource, PropertyValue},
+    material::{Material, MaterialPropertyValue, MaterialResource},
     renderer::{
         self,
         bundle::{RenderContext, SurfaceInstanceData},
@@ -2677,7 +2677,7 @@ impl NodeTrait for Terrain {
                     Log::verify_message(
                         material.set_property(
                             &layer.node_uv_offsets_property_name,
-                            PropertyValue::Vector4(Vector4::new(kx, kz, kw, kh)),
+                            MaterialPropertyValue::Vector4(Vector4::new(kx, kz, kw, kh)),
                         ),
                         "Unable to set node uv offsets for terrain material.",
                     );
