@@ -885,8 +885,15 @@ impl AssetBrowser {
         message_sender: &MessageSender,
     ) {
         if let Some(watcher) = self.watcher.as_mut() {
-            Log::verify(watcher.unwatch(&self.selected_path));
-            Log::verify(watcher.watch(path, RecursiveMode::NonRecursive));
+            // notify 6.1.1 crashes otherwise
+            if self.selected_path.exists() {
+                Log::verify(watcher.unwatch(&self.selected_path));
+            }
+            if path.exists() {
+                Log::verify(watcher.watch(path, RecursiveMode::NonRecursive));
+            } else {
+                Log::err(format!("cannot watch non-existing path {:?}", path));
+            }
         }
 
         self.selected_path = path.to_path_buf();
