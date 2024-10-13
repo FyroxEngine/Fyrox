@@ -22,7 +22,7 @@
 //!
 //! See [Material struct docs](self::Material) for more info.
 
-#![warn(missing_docs)]
+// #![warn(missing_docs)] TODO: docs needs rework
 
 use crate::{
     asset::{io::ResourceIo, manager::ResourceManager, Resource, ResourceData},
