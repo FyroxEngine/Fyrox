@@ -193,19 +193,12 @@ fn read_metadata() -> Result<Metadata, String> {
             Ok(output) => match serde_json::from_slice::<Metadata>(&output.stdout) {
                 Ok(metadata) => Ok(metadata),
                 Err(err) => Err(format!(
-                    "Unable to parse workspace metadata. Reason {:?}",
-                    err
+                    "Unable to parse workspace metadata. Reason {err:?}"
                 )),
             },
-            Err(err) => Err(format!(
-                "Unable to fetch project metadata. Reason {:?}",
-                err
-            )),
+            Err(err) => Err(format!("Unable to fetch project metadata. Reason {err:?}")),
         },
-        Err(err) => Err(format!(
-            "Unable to fetch project metadata. Reason {:?}",
-            err
-        )),
+        Err(err) => Err(format!("Unable to fetch project metadata. Reason {err:?}")),
     };
 }
 
@@ -215,8 +208,7 @@ fn prepare_build_dir(path: &Path) -> Result<(), String> {
 
         if let Err(err) = fs::remove_dir_all(path) {
             return Err(format!(
-                "Unable to remove previous build at destination path! Reason: {:?}",
-                err
+                "Unable to remove previous build at destination path! Reason: {err:?}"
             ));
         }
     }
@@ -224,8 +216,7 @@ fn prepare_build_dir(path: &Path) -> Result<(), String> {
     // Create the new clean folder.
     if let Err(err) = fs::create_dir_all(path) {
         return Err(format!(
-            "Unable to create build directory at destination path! Reason: {:?}",
-            err
+            "Unable to create build directory at destination path! Reason: {err:?}"
         ));
     }
 
@@ -268,14 +259,14 @@ fn cargo_install(crate_name: &str) -> Result<(), String> {
                     Err(String::from_utf8_lossy(&output.stderr).to_string())
                 }
             }
-            Err(err) => Err(format!("Unable to install {crate_name}. Reason: {:?}", err)),
+            Err(err) => Err(format!("Unable to install {crate_name}. Reason: {err:?}")),
         },
-        Err(err) => Err(format!("Unable to install {crate_name}. Reason: {:?}", err)),
+        Err(err) => Err(format!("Unable to install {crate_name}. Reason: {err:?}")),
     }
 }
 
 fn install_build_target(target: &str) -> Result<(), String> {
-    Log::info(format!("Trying to install {} build target...", target));
+    Log::info(format!("Trying to install {target} build target..."));
 
     let mut process = make_command("rustup");
     match process
@@ -288,7 +279,7 @@ fn install_build_target(target: &str) -> Result<(), String> {
         Ok(handle) => match handle.wait_with_output() {
             Ok(output) => {
                 if output.status.code().unwrap_or(1) == 0 {
-                    Log::info(format!("{} target installed successfully!", target));
+                    Log::info(format!("{target} target installed successfully!"));
 
                     Ok(())
                 } else {
@@ -296,13 +287,11 @@ fn install_build_target(target: &str) -> Result<(), String> {
                 }
             }
             Err(err) => Err(format!(
-                "Unable to install {} target. Reason: {:?}",
-                target, err
+                "Unable to install {target} target. Reason: {err:?}"
             )),
         },
         Err(err) => Err(format!(
-            "Unable to install {} target. Reason: {:?}",
-            target, err
+            "Unable to install {target} target. Reason: {err:?}"
         )),
     }
 }
@@ -380,7 +369,7 @@ fn build_package(
     let mut handle = match process.spawn() {
         Ok(handle) => handle,
         Err(err) => {
-            return Err(format!("Failed to build the game. Reason: {:?}", err));
+            return Err(format!("Failed to build the game. Reason: {err:?}"));
         }
     };
 
@@ -411,7 +400,7 @@ fn build_package(
                 }
             }
             Err(err) => {
-                return Err(format!("Failed to build the game. Reason: {:?}", err));
+                return Err(format!("Failed to build the game. Reason: {err:?}"));
             }
         }
 
@@ -547,8 +536,7 @@ fn export(export_options: ExportOptions, cancel_flag: Arc<AtomicBool>) -> Result
 
     let Some(package) = metadata.packages.iter().find(|p| p.name == package_name) else {
         return Err(format!(
-            "The project does not have `{}` package.",
-            package_name
+            "The project does not have `{package_name}` package."
         ));
     };
 
@@ -713,7 +701,7 @@ fn export(export_options: ExportOptions, cancel_flag: Arc<AtomicBool>) -> Result
                                         .spawn(),
                                 );
                             }
-                            Err(err) => Log::err(format!("ADB error: {:?}", err)),
+                            Err(err) => Log::err(format!("ADB error: {err:?}")),
                         }
                     }
                 }
@@ -1113,7 +1101,7 @@ impl ExportWindow {
                 ctx.sync(&self.export_options, ui, 0, true, Default::default())
             {
                 for error in sync_errors {
-                    Log::err(format!("Failed to sync property. Reason: {:?}", error))
+                    Log::err(format!("Failed to sync property. Reason: {error:?}"))
                 }
             }
         }
@@ -1156,7 +1144,7 @@ impl ExportWindow {
                     Ok(_) => {
                         Log::info("Build finished!");
                     }
-                    Err(err) => Log::err(format!("Build failed! Reason: {}", err)),
+                    Err(err) => Log::err(format!("Build failed! Reason: {err}")),
                 }
 
                 ui.send_message(WidgetMessage::enabled(

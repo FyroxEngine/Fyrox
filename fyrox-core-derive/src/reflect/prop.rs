@@ -162,7 +162,7 @@ pub fn enum_prop_ident(
     let variant_ident = &variant_args.ident;
     let field_ident = self::field_ident_string(&variant_args.fields, nth, field);
 
-    let ident = format!("{}_{}", variant_ident, field_ident).to_case(Case::UpperSnake);
+    let ident = format!("{variant_ident}_{field_ident}").to_case(Case::UpperSnake);
     syn::parse_str(&ident).unwrap()
 }
 
@@ -171,7 +171,7 @@ fn field_ident_string(fields: &args::Fields, nth: usize, field: &args::FieldArgs
         ast::Style::Struct => field.ident.as_ref().unwrap().to_string(),
         ast::Style::Tuple => {
             // this is actually `F_0` in UPPER_SNAKE_CASE
-            format!("F{}", nth)
+            format!("F{nth}")
         }
         ast::Style::Unit => unreachable!(),
     }

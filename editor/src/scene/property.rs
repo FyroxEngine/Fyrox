@@ -198,10 +198,10 @@ where
 
                     for i in 0..array.reflect_len() {
                         let item = array.reflect_index(i).unwrap();
-                        let item_path = format!("{}[{}]", path, i);
+                        let item_path = format!("{path}[{i}]");
                         descriptor.children_properties.push(PropertyDescriptor {
                             path: item_path.clone(),
-                            display_name: format!("[{}]", i),
+                            display_name: format!("[{i}]"),
                             type_name: item.type_name().to_owned(),
                             type_id: item.type_id(),
                             read_only: field_info.read_only,
@@ -233,7 +233,7 @@ where
 
                             // TODO: Here we just using `Debug` impl to obtain string representation for keys. This is
                             // fine for most cases in the engine.
-                            let mut key_str = format!("{:?}", key);
+                            let mut key_str = format!("{key:?}");
 
                             let mut is_key_string = false;
                             key.downcast_ref::<String>(&mut |string| {
@@ -251,11 +251,11 @@ where
                                 key_str.pop();
                             }
 
-                            let item_path = format!("{}[{}]", path, key_str);
+                            let item_path = format!("{path}[{key_str}]");
 
                             descriptor.children_properties.push(PropertyDescriptor {
                                 path: item_path.clone(),
-                                display_name: format!("[{}]", key_str),
+                                display_name: format!("[{key_str}]"),
                                 type_name: value.type_name().to_owned(),
                                 type_id: value.type_id(),
                                 read_only: field_info.read_only,

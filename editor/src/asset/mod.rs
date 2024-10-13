@@ -109,8 +109,7 @@ fn execute_command(command: &mut Command) {
     match command.spawn() {
         Ok(mut process) => Log::verify(process.wait()),
         Err(err) => Log::err(format!(
-            "Failed to show asset item in explorer. Reason: {:?}",
-            err
+            "Failed to show asset item in explorer. Reason: {err:?}"
         )),
     }
 }
@@ -508,7 +507,7 @@ impl ResourceCreator {
 
                             asset_added = true;
                         }
-                        Err(e) => Log::err(format!("Unable to create a resource. Reason: {:?}", e)),
+                        Err(e) => Log::err(format!("Unable to create a resource. Reason: {e:?}")),
                     }
                 }
             }
@@ -1266,9 +1265,8 @@ impl AssetBrowser {
                 }) {
                     if ext == "fbx" {
                         Log::warn(format!(
-                            "Resource {} cannot be scanned for \
-                        references, because FBX cannot be exported.",
-                            kind
+                            "Resource {kind} cannot be scanned for \
+                        references, because FBX cannot be exported."
                         ));
                         return false;
                     }

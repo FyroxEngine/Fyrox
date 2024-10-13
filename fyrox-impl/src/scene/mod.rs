@@ -356,16 +356,14 @@ impl SceneLoader {
         let used_resources_count = used_resources.len();
 
         Log::info(format!(
-            "SceneLoader::finish() - {} resources collected. Waiting them to load...",
-            used_resources_count
+            "SceneLoader::finish() - {used_resources_count} resources collected. Waiting them to load..."
         ));
 
         // Wait everything.
         join_all(used_resources.into_iter()).await;
 
         Log::info(format!(
-            "SceneLoader::finish() - All {} resources have finished loading.",
-            used_resources_count
+            "SceneLoader::finish() - All {used_resources_count} resources have finished loading."
         ));
 
         // TODO: Move into Camera::restore_resources?

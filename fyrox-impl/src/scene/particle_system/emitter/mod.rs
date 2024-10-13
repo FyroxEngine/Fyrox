@@ -66,7 +66,7 @@ impl Emitter {
             1 => Ok(Self::Cuboid(Default::default())),
             2 => Ok(Self::Sphere(Default::default())),
             3 => Ok(Self::Cylinder(Default::default())),
-            _ => Err(format!("Invalid emitter id {}!", id)),
+            _ => Err(format!("Invalid emitter id {id}!")),
         }
     }
 

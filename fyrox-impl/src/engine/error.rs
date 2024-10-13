@@ -61,6 +61,6 @@ impl From<FrameworkError> for EngineError {
 
 impl From<Box<dyn Error>> for EngineError {
     fn from(e: Box<dyn Error>) -> Self {
-        Self::Custom(format!("{:?}", e))
+        Self::Custom(format!("{e:?}"))
     }
 }

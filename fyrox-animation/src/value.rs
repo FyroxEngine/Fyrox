@@ -305,7 +305,7 @@ impl Display for ValueBinding {
             ValueBinding::Position => write!(f, "Position"),
             ValueBinding::Scale => write!(f, "Scale"),
             ValueBinding::Rotation => write!(f, "Rotation"),
-            ValueBinding::Property { name, .. } => write!(f, "{}", name),
+            ValueBinding::Property { name, .. } => write!(f, "{name}"),
         }
     }
 }
@@ -342,14 +342,12 @@ impl BoundValue {
                         match err {
                             SetFieldByPathError::InvalidPath { reason, .. } => {
                                 Log::err(format!(
-                                    "Failed to set property {}! Invalid path: {}",
-                                    property_name, reason
+                                    "Failed to set property {property_name}! Invalid path: {reason}"
                                 ));
                             }
                             SetFieldByPathError::InvalidValue(_) => {
                                 Log::err(format!(
-                                    "Failed to set property {}! Types mismatch!",
-                                    property_name
+                                    "Failed to set property {property_name}! Types mismatch!"
                                 ));
                             }
                         }

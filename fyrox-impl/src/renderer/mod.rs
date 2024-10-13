@@ -1302,7 +1302,7 @@ impl Renderer {
                         Err(e) => {
                             Log::writeln(
                                 MessageKind::Error,
-                                format!("Failed to upload texture to GPU. Reason: {:?}", e),
+                                format!("Failed to upload texture to GPU. Reason: {e:?}"),
                             );
                         }
                     }
@@ -1397,8 +1397,7 @@ impl Renderer {
                 let height = frame_size.y as usize;
 
                 Log::info(format!(
-                    "A new associated scene rendering data was created for scene {}!",
-                    scene_handle
+                    "A new associated scene rendering data was created for scene {scene_handle}!"
                 ));
 
                 AssociatedSceneData::new(server, width, height).unwrap()

@@ -2369,8 +2369,7 @@ impl Engine {
                 .map_err(|e| e.to_string())?;
 
             Log::info(format!(
-                "Watching for changes in plugin {:?}...",
-                source_lib_path
+                "Watching for changes in plugin {source_lib_path:?}..."
             ));
 
             PluginContainer::Dynamic {
@@ -2396,8 +2395,7 @@ impl Engine {
         self.plugins.push(plugin);
 
         Log::info(format!(
-            "Plugin {:?} was loaded successfully",
-            source_lib_path
+            "Plugin {source_lib_path:?} was loaded successfully"
         ));
 
         Ok(&**self.plugins.last().unwrap())
@@ -2654,10 +2652,7 @@ impl Engine {
             task_pool: &mut self.task_pool,
         });
 
-        Log::info(format!(
-            "Plugin {} was successfully reloaded!",
-            plugin_index
-        ));
+        Log::info(format!("Plugin {plugin_index} was successfully reloaded!"));
 
         Ok(())
     }

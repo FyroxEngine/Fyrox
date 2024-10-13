@@ -204,7 +204,7 @@ impl Log {
         if let Err(e) = result {
             Self::writeln(
                 MessageKind::Error,
-                format!("Operation failed! Reason: {:?}", e),
+                format!("Operation failed! Reason: {e:?}"),
             );
         }
     }
@@ -221,7 +221,7 @@ impl Log {
         S: Display,
     {
         if let Err(e) = result {
-            Self::writeln(MessageKind::Error, format!("{}. Reason: {:?}", msg, e));
+            Self::writeln(MessageKind::Error, format!("{msg}. Reason: {e:?}"));
         }
     }
 }

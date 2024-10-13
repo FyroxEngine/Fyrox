@@ -75,8 +75,7 @@ impl Display for NameErrors {
         match self {
             Self::CargoReserved(name) => write!(
                 f,
-                "The project name cannot be `{}` due to cargo's reserved keywords",
-                name
+                "The project name cannot be `{name}` due to cargo's reserved keywords"
             ),
             Self::Hyphen => write!(f, "The project name cannot contain `-`"),
             Self::StartsWithNumber => write!(f, "The project name cannot start with a number"),
@@ -528,8 +527,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 fyrox = {{ workspace = true }}
-{} = {{ path = "../game" }}"#,
-            name,
+{name} = {{ path = "../game" }}"#,
         ),
     )?;
 
@@ -636,7 +634,7 @@ fn init_data(base_path: &Path, style: &str) -> Result<(), String> {
     match style {
         "2d" => write_file_binary(scene_path, include_bytes!("2d.rgs")),
         "3d" => write_file_binary(scene_path, include_bytes!("3d.rgs")),
-        _ => Err(format!("Unknown style: {}. Use either `2d` or `3d`", style)),
+        _ => Err(format!("Unknown style: {style}. Use either `2d` or `3d`")),
     }
 }
 
@@ -652,7 +650,7 @@ pub fn init_script(root_path: &Path, raw_name: &str) -> Result<(), String> {
     let file_name = base_path.join(script_file_stem.clone() + ".rs");
 
     if file_name.exists() {
-        return Err(format!("Script {} already exists!", script_name));
+        return Err(format!("Script {script_name} already exists!"));
     }
 
     let script_uuid = Uuid::new_v4().to_string();
@@ -667,13 +665,13 @@ use fyrox::{{
 }};
 
 #[derive(Visit, Reflect, Default, Debug, Clone, TypeUuidProvider, ComponentProvider)]
-#[type_uuid(id = "{id}")]
+#[type_uuid(id = "{script_uuid}")]
 #[visit(optional)]
-pub struct {name} {{
+pub struct {script_name} {{
     // Add fields here.
 }}
 
-impl ScriptTrait for {name} {{
+impl ScriptTrait for {script_name} {{
     fn on_init(&mut self, context: &mut ScriptContext) {{
         // Put initialization logic here.
     }}
@@ -695,9 +693,7 @@ impl ScriptTrait for {name} {{
         // Put object logic here.
     }}
 }}
-    "#,
-            name = script_name,
-            id = script_uuid
+    "#
         ),
     )
 }
@@ -713,7 +709,7 @@ pub fn init_project(
     let name = match name {
         Ok(s) => s,
         Err(name_error) => {
-            println!("{}", name_error);
+            println!("{name_error}");
             return Err(name_error.to_string());
         }
     };

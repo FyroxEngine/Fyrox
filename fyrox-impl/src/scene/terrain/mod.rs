@@ -1266,7 +1266,7 @@ impl Visit for Terrain {
         if region.is_reading() {
             self.geometry = TerrainGeometry::new(*self.block_size);
             if version < 2 {
-                Log::info(format!("Updating terrain to version: {}", VERSION));
+                Log::info(format!("Updating terrain to version: {VERSION}"));
                 *self.height_map_size = self.height_map_size.map(|x| x + 2);
                 for c in self.chunks.iter() {
                     if c.height_map_size() != self.height_map_size() {

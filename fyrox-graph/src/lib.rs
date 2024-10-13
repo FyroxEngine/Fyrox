@@ -497,8 +497,7 @@ pub trait SceneGraphNode: AbstractSceneNode + Clone + 'static {
                         }
                     }),
                     Err(e) => Log::err(format!(
-                        "Failed to resolve parent path {}. Reason: {:?}",
-                        path, e
+                        "Failed to resolve parent path {path}. Reason: {e:?}"
                     )),
                 })
             });
@@ -513,13 +512,12 @@ pub trait SceneGraphNode: AbstractSceneNode + Clone + 'static {
                             if let Some(child_inheritable) = child_inheritable {
                                 need_revert = child_inheritable.is_modified();
                             } else {
-                                Log::err(format!("Property {} is not inheritable!", path))
+                                Log::err(format!("Property {path} is not inheritable!"))
                             }
                         })
                     }
                     Err(e) => Log::err(format!(
-                        "Failed to resolve child path {}. Reason: {:?}",
-                        path, e
+                        "Failed to resolve child path {path}. Reason: {e:?}"
                     )),
                 });
             });
@@ -541,8 +539,7 @@ pub trait SceneGraphNode: AbstractSceneNode + Clone + 'static {
                                     was_set = true;
                                 }
                                 Err(_) => Log::err(format!(
-                                    "Failed to revert property {}. Reason: no such property!",
-                                    path
+                                    "Failed to revert property {path}. Reason: no such property!"
                                 )),
                             },
                         );
@@ -1150,8 +1147,7 @@ pub trait SceneGraph: BaseSceneGraph {
         Log::writeln(
             MessageKind::Information,
             format!(
-                "Integrity restored for {} instances! {} new nodes were added!",
-                instance_count, restored_count
+                "Integrity restored for {instance_count} instances! {restored_count} new nodes were added!"
             ),
         );
 
