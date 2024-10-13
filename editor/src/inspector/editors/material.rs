@@ -167,7 +167,7 @@ fn make_name(material: &MaterialResource) -> String {
             format!("{} - {} uses", header.kind, material.use_count())
         }
         ResourceState::LoadError { ref error, .. } => {
-            format!("Loading failed: {:?}", error)
+            format!("Loading failed: {error:?}")
         }
         ResourceState::Pending { .. } => {
             format!("Loading {}", header.kind)

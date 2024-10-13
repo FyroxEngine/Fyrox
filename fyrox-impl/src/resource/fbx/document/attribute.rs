@@ -33,13 +33,13 @@ pub enum FbxAttribute {
 impl std::fmt::Display for FbxAttribute {
     fn fmt(&self, f: &mut Formatter) -> Result<(), std::fmt::Error> {
         match self {
-            FbxAttribute::Double(double) => write!(f, "{}", double),
-            FbxAttribute::Float(float) => write!(f, "{}", float),
-            FbxAttribute::Integer(integer) => write!(f, "{}", integer),
-            FbxAttribute::Long(long) => write!(f, "{}", long),
-            FbxAttribute::Bool(boolean) => write!(f, "{}", boolean),
-            FbxAttribute::String(string) => write!(f, "{}", string),
-            FbxAttribute::RawData(raw) => write!(f, "{:?}", raw),
+            FbxAttribute::Double(double) => write!(f, "{double}"),
+            FbxAttribute::Float(float) => write!(f, "{float}"),
+            FbxAttribute::Integer(integer) => write!(f, "{integer}"),
+            FbxAttribute::Long(long) => write!(f, "{long}"),
+            FbxAttribute::Bool(boolean) => write!(f, "{boolean}"),
+            FbxAttribute::String(string) => write!(f, "{string}"),
+            FbxAttribute::RawData(raw) => write!(f, "{raw:?}"),
         }
     }
 }
@@ -54,7 +54,7 @@ impl FbxAttribute {
             FbxAttribute::Bool(val) => Ok(*val as i32),
             FbxAttribute::String(val) => match val.parse::<i32>() {
                 Ok(i) => Ok(i),
-                Err(_) => Err(format!("Unable to convert string {} to i32", val)),
+                Err(_) => Err(format!("Unable to convert string {val} to i32")),
             },
             FbxAttribute::RawData(_) => Err("Unable to convert raw data to i32".to_string()),
         }
@@ -69,7 +69,7 @@ impl FbxAttribute {
             FbxAttribute::Bool(val) => Ok(*val as i64),
             FbxAttribute::String(val) => match val.parse::<i64>() {
                 Ok(i) => Ok(i),
-                Err(_) => Err(format!("Unable to convert string {} to i64", val)),
+                Err(_) => Err(format!("Unable to convert string {val} to i64")),
             },
             FbxAttribute::RawData(_) => Err("Unable to convert raw data to i64".to_string()),
         }
@@ -84,7 +84,7 @@ impl FbxAttribute {
             FbxAttribute::Bool(val) => Ok((*val as i64) as f64),
             FbxAttribute::String(val) => match val.parse::<f64>() {
                 Ok(i) => Ok(i),
-                Err(_) => Err(format!("Unable to convert string {} to f64", val)),
+                Err(_) => Err(format!("Unable to convert string {val} to f64")),
             },
             FbxAttribute::RawData(_) => Err("Unable to convert raw data to f64".to_string()),
         }
@@ -99,7 +99,7 @@ impl FbxAttribute {
             FbxAttribute::Bool(val) => Ok((*val as i32) as f32),
             FbxAttribute::String(val) => match val.parse::<f32>() {
                 Ok(i) => Ok(i),
-                Err(_) => Err(format!("Unable to convert string {} to f32", val)),
+                Err(_) => Err(format!("Unable to convert string {val} to f32")),
             },
             FbxAttribute::RawData(_) => Err("Unable to convert raw data to f32".to_string()),
         }

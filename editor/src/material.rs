@@ -493,7 +493,7 @@ impl MaterialEditor {
                 let item = *self
                     .properties
                     .value_of(name)
-                    .unwrap_or_else(|| panic!("Property not found {}", name));
+                    .unwrap_or_else(|| panic!("Property not found {name}"));
 
                 match property_value {
                     PropertyValue::Float(value) => {

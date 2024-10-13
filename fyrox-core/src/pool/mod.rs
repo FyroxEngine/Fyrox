@@ -471,8 +471,7 @@ where
 
             if record.payload.is_some() {
                 panic!(
-                    "Attempt to spawn an object at pool record with payload! Record index is {}",
-                    free_index
+                    "Attempt to spawn an object at pool record with payload! Record index is {free_index}"
                 );
             }
 
@@ -527,8 +526,7 @@ where
 
             if record.payload.is_some() {
                 panic!(
-                    "Attempt to spawn an object at pool record with payload! Record index is {}",
-                    free_index
+                    "Attempt to spawn an object at pool record with payload! Record index is {free_index}"
                 );
             }
 
@@ -605,7 +603,7 @@ where
                 if let Some(payload) = record.payload.as_ref() {
                     payload
                 } else {
-                    panic!("Attempt to borrow destroyed object at {:?} handle.", handle);
+                    panic!("Attempt to borrow destroyed object at {handle:?} handle.");
                 }
             } else {
                 panic!(
@@ -648,15 +646,14 @@ where
                 if let Some(payload) = record.payload.as_mut() {
                     payload
                 } else {
-                    panic!("Attempt to borrow destroyed object at {:?} handle.", handle);
+                    panic!("Attempt to borrow destroyed object at {handle:?} handle.");
                 }
             } else {
                 panic!("Attempt to borrow object using dangling handle {:?}. Record has {} generation!", handle, record.generation);
             }
         } else {
             panic!(
-                "Attempt to borrow object using out-of-bounds handle {:?}! Record count is {}",
-                handle, record_count
+                "Attempt to borrow object using out-of-bounds handle {handle:?}! Record count is {record_count}"
             );
         }
     }
@@ -852,7 +849,7 @@ where
                 if let Some(payload) = record.payload.take() {
                     payload
                 } else {
-                    panic!("Attempt to double free object at handle {:?}!", handle);
+                    panic!("Attempt to double free object at handle {handle:?}!");
                 }
             } else {
                 panic!(
@@ -917,8 +914,7 @@ where
                     (ticket, payload)
                 } else {
                     panic!(
-                        "Attempt to take already taken object at handle {:?}!",
-                        handle
+                        "Attempt to take already taken object at handle {handle:?}!"
                     );
                 }
             } else {
@@ -1521,16 +1517,16 @@ mod test {
         pool.free(d);
         let baz = pool.spawn("Baz".to_string());
         for s in pool.iter() {
-            println!("{}", s);
+            println!("{s}");
         }
         for s in pool.iter_mut() {
-            println!("{}", s);
+            println!("{s}");
         }
         for s in &pool {
-            println!("{}", s);
+            println!("{s}");
         }
         for s in &mut pool {
-            println!("{}", s);
+            println!("{s}");
         }
         pool.free(foobar);
         pool.free(baz);

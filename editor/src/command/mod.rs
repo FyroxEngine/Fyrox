@@ -210,7 +210,7 @@ impl CommandStack {
             ) {
                 for mut dropped_command in commands.drain(range) {
                     if debug {
-                        println!("Finalizing command {:?}", dropped_command);
+                        println!("Finalizing command {dropped_command:?}");
                     }
                     dropped_command.finalize(context);
                 }
@@ -235,7 +235,7 @@ impl CommandStack {
         }
 
         if self.debug {
-            println!("Executing command {:?}", command);
+            println!("Executing command {command:?}");
         }
 
         command.execute(context);
@@ -248,7 +248,7 @@ impl CommandStack {
             if let Some(top) = self.top.as_mut() {
                 if let Some(command) = self.commands.get_mut(*top) {
                     if self.debug {
-                        println!("Undo command {:?}", command);
+                        println!("Undo command {command:?}");
                     }
                     command.revert(context)
                 }
@@ -281,7 +281,7 @@ impl CommandStack {
 
             if let Some(command) = command {
                 if self.debug {
-                    println!("Redo command {:?}", command);
+                    println!("Redo command {command:?}");
                 }
                 command.execute(context)
             }
@@ -291,7 +291,7 @@ impl CommandStack {
     pub fn clear(&mut self, context: &mut dyn CommandContext) {
         for mut dropped_command in self.commands.drain(..) {
             if self.debug {
-                println!("Finalizing command {:?}", dropped_command);
+                println!("Finalizing command {dropped_command:?}");
             }
             dropped_command.finalize(context);
         }
@@ -330,8 +330,7 @@ where
     entity.resolve_path_mut(path, &mut |result| match result {
         Ok(field) => func.take().unwrap()(field),
         Err(e) => fyrox::core::log::Log::err(format!(
-            "There is no such property {}! Reason: {:?}",
-            path, e
+            "There is no such property {path}! Reason: {e:?}"
         )),
     })
 }

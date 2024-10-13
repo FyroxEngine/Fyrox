@@ -69,8 +69,7 @@ fn read_node(name: &str, visitor: &mut Visitor) -> Result<Node, VisitError> {
                         2 => Node::new(DirectionalLight::default()),
                         _ => {
                             return Err(VisitError::User(format!(
-                                "Invalid legacy light kind {}",
-                                light_id
+                                "Invalid legacy light kind {light_id}"
                             )))
                         }
                     };
@@ -96,8 +95,7 @@ fn read_node(name: &str, visitor: &mut Visitor) -> Result<Node, VisitError> {
                 16 => Node::new(Listener::default()),
                 _ => {
                     return Err(VisitError::User(format!(
-                        "Invalid legacy node kind {}",
-                        kind_id
+                        "Invalid legacy node kind {kind_id}"
                     )))
                 }
             };
@@ -120,7 +118,7 @@ fn read_node(name: &str, visitor: &mut Visitor) -> Result<Node, VisitError> {
             let mut node = serialization_context
                 .node_constructors
                 .try_create(&id)
-                .ok_or_else(|| VisitError::User(format!("Unknown node type uuid {}!", id)))?;
+                .ok_or_else(|| VisitError::User(format!("Unknown node type uuid {id}!")))?;
 
             node.visit("NodeData", &mut region)?;
 

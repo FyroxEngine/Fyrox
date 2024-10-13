@@ -93,7 +93,7 @@ pub fn create_field_visits<'a>(
 
                     (
                         quote!(#ident),
-                        format!("{}", ident).to_case(Case::UpperCamel),
+                        format!("{ident}").to_case(Case::UpperCamel),
                     )
                 }
                 // `Tuple(f32, ..)`
@@ -108,7 +108,7 @@ pub fn create_field_visits<'a>(
                         quote!(#ident)
                     };
 
-                    (ident, format!("{}", field_index))
+                    (ident, format!("{field_index}"))
                 }
                 ast::Style::Unit => unreachable!(),
             };

@@ -38,8 +38,8 @@ pub fn save_load<T: Visit>(test_name: &str, data: &mut T, data_default: &mut T) 
         let root = PathBuf::from(manifest_dir).join("test_output");
         let _ = std::fs::create_dir(&root);
         (
-            root.join(format!("{}.bin", test_name)),
-            root.join(format!("{}.txt", test_name)),
+            root.join(format!("{test_name}.bin")),
+            root.join(format!("{test_name}.txt")),
         )
     };
 

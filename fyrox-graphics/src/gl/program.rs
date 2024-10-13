@@ -74,7 +74,7 @@ unsafe fn create_shader(
     if !status {
         Log::writeln(
             MessageKind::Error,
-            format!("Failed to compile {} shader: {}", name, compilation_message),
+            format!("Failed to compile {name} shader: {compilation_message}"),
         );
         Err(FrameworkError::ShaderCompilationFailed {
             shader_name: name,
@@ -84,11 +84,10 @@ unsafe fn create_shader(
         let msg = if compilation_message.is_empty()
             || compilation_message.chars().all(|c| c.is_whitespace())
         {
-            format!("Shader {} compiled successfully!", name)
+            format!("Shader {name} compiled successfully!")
         } else {
             format!(
-                "Shader {} compiled successfully!\nAdditional info: {}",
-                name, compilation_message
+                "Shader {name} compiled successfully!\nAdditional info: {compilation_message}"
             )
         };
 
@@ -310,14 +309,14 @@ impl GlProgram {
         unsafe {
             let vertex_shader = create_shader(
                 server,
-                format!("{}_VertexShader", name),
+                format!("{name}_VertexShader"),
                 glow::VERTEX_SHADER,
                 vertex_source,
                 server.gl_kind(),
             )?;
             let fragment_shader = create_shader(
                 server,
-                format!("{}_FragmentShader", name),
+                format!("{name}_FragmentShader"),
                 glow::FRAGMENT_SHADER,
                 fragment_source,
                 server.gl_kind(),
@@ -334,7 +333,7 @@ impl GlProgram {
             if !status {
                 Log::writeln(
                     MessageKind::Error,
-                    format!("Failed to link {} shader: {}", name, link_message),
+                    format!("Failed to link {name} shader: {link_message}"),
                 );
                 Err(FrameworkError::ShaderLinkingFailed {
                     shader_name: name.to_owned(),
@@ -343,11 +342,10 @@ impl GlProgram {
             } else {
                 let msg =
                     if link_message.is_empty() || link_message.chars().all(|c| c.is_whitespace()) {
-                        format!("Shader {} linked successfully!", name)
+                        format!("Shader {name} linked successfully!")
                     } else {
                         format!(
-                            "Shader {} linked successfully!\nAdditional info: {}",
-                            name, link_message
+                            "Shader {name} linked successfully!\nAdditional info: {link_message}"
                         )
                     };
 

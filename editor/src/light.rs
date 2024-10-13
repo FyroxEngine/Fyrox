@@ -350,8 +350,7 @@ impl LightPanel {
                         })
                     {
                         Log::err(format!(
-                            "Failed to create a new lightmap generation thread. Reason: {}",
-                            e
+                            "Failed to create a new lightmap generation thread. Reason: {e}"
                         ))
                     }
                 }
@@ -387,11 +386,11 @@ impl LightPanel {
             match result {
                 Ok(lightmap) => {
                     if let Err(err) = scene.graph.set_lightmap(lightmap) {
-                        Log::err(format!("Failed to set generated lightmap. Reason: {}", err));
+                        Log::err(format!("Failed to set generated lightmap. Reason: {err}"));
                     }
                 }
                 Err(err) => {
-                    Log::err(format!("Failed to generated a lightmap. Reason: {}", err));
+                    Log::err(format!("Failed to generated a lightmap. Reason: {err}"));
                 }
             }
 

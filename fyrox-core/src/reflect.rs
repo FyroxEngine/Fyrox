@@ -889,7 +889,7 @@ impl dyn Reflect {
                     if let Some((key, value)) = hash_map.reflect_get_at(i) {
                         // TODO: Here we just using `Debug` impl to obtain string representation for keys. This is
                         // fine for most cases in the engine.
-                        let mut key_str = format!("{:?}", key);
+                        let mut key_str = format!("{key:?}");
 
                         let mut is_key_string = false;
                         key.downcast_ref::<String>(&mut |string| is_key_string |= string.is_some());
@@ -905,7 +905,7 @@ impl dyn Reflect {
                             key_str.pop();
                         }
 
-                        let item_path = format!("{}[{}]", path, key_str);
+                        let item_path = format!("{path}[{key_str}]");
 
                         value.enumerate_fields_recursively_internal(
                             &item_path,

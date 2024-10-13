@@ -556,8 +556,7 @@ impl Editor {
                 Log::info("Editor settings were loaded successfully!");
             }
             Err(e) => Log::warn(format!(
-                "Failed to load settings, fallback to default. Reason: {:?}",
-                e
+                "Failed to load settings, fallback to default. Reason: {e:?}"
             )),
         }
 
@@ -925,8 +924,7 @@ impl Editor {
                 self.settings = Default::default();
 
                 Log::warn(format!(
-                    "Failed to load settings, fallback to default. Reason: {:?}",
-                    e
+                    "Failed to load settings, fallback to default. Reason: {e:?}"
                 ))
             }
         }
@@ -946,8 +944,7 @@ impl Editor {
                 Log::info("Graphics settings were applied successfully!");
             }
             Err(e) => Log::info(format!(
-                "Failed to apply graphics settings! Reason: {:?}",
-                e
+                "Failed to apply graphics settings! Reason: {e:?}"
             )),
         }
     }
@@ -1517,7 +1514,7 @@ impl Editor {
 
                 self.on_mode_changed();
             }
-            Err(e) => Log::err(format!("Failed to enter play mode: {:?}", e)),
+            Err(e) => Log::err(format!("Failed to enter play mode: {e:?}")),
         }
     }
 
@@ -2116,7 +2113,7 @@ impl Editor {
                 engine.resource_manager.state().set_watcher(Some(watcher));
             }
             Err(e) => {
-                Log::err(format!("Unable to create resource watcher. Reason {:?}", e));
+                Log::err(format!("Unable to create resource watcher. Reason {e:?}"));
             }
         }
 
@@ -2129,8 +2126,7 @@ impl Editor {
             .on_configure(engine.user_interfaces.first(), &self.settings);
 
         Log::info(format!(
-            "New working directory was successfully set: {:?}",
-            working_directory
+            "New working directory was successfully set: {working_directory:?}"
         ));
     }
 
@@ -2182,10 +2178,10 @@ impl Editor {
                             self.mode = Mode::Edit;
                             self.on_mode_changed();
 
-                            Log::warn(format!("Game was closed: {:?}", status))
+                            Log::warn(format!("Game was closed: {status:?}"))
                         }
                     }
-                    Err(err) => Log::err(format!("Failed to wait for game process: {:?}", err)),
+                    Err(err) => Log::err(format!("Failed to wait for game process: {err:?}")),
                 }
             }
             Mode::Build {
@@ -2194,7 +2190,7 @@ impl Editor {
             } => {
                 if process.is_none() {
                     if let Some(command) = queue.pop_front() {
-                        Log::info(format!("Trying to run build command: {}", command));
+                        Log::info(format!("Trying to run build command: {command}"));
 
                         let mut new_process = std::process::Command::new(&command.command);
                         new_process
@@ -2216,7 +2212,7 @@ impl Editor {
 
                                 *process = Some(new_process);
                             }
-                            Err(e) => Log::err(format!("Failed to enter build mode: {:?}", e)),
+                            Err(e) => Log::err(format!("Failed to enter build mode: {e:?}")),
                         }
                     } else {
                         Log::warn("Empty build command queue!");
@@ -2251,7 +2247,7 @@ impl Editor {
                                 }
                             }
                         }
-                        Err(err) => Log::err(format!("Failed to wait for game process: {:?}", err)),
+                        Err(err) => Log::err(format!("Failed to wait for game process: {err:?}")),
                     }
                 }
             }
@@ -2729,8 +2725,7 @@ impl Editor {
                 Log::info("Graphics settings were applied successfully!");
             }
             Err(e) => Log::err(format!(
-                "Failed to apply graphics settings! Reason: {:?}",
-                e
+                "Failed to apply graphics settings! Reason: {e:?}"
             )),
         }
     }
@@ -2788,7 +2783,7 @@ impl Editor {
                             if let Err(e) = self.engine.set_frame_size((*size).into()) {
                                 fyrox::core::log::Log::writeln(
                                     MessageKind::Error,
-                                    format!("Failed to set renderer size! Reason: {:?}", e),
+                                    format!("Failed to set renderer size! Reason: {e:?}"),
                                 );
                             }
 
@@ -2974,7 +2969,7 @@ fn update(editor: &mut Editor, window_target: &EventLoopWindowTarget<()>) {
                         );
                         entry.selection = Default::default();
 
-                        Log::warn(format!("Command stack flushed for scene {}", i));
+                        Log::warn(format!("Command stack flushed for scene {i}"));
                     }
 
                     editor.message_sender.send(Message::SelectionChanged {

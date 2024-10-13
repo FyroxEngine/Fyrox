@@ -231,7 +231,7 @@ impl Executor {
                         engine.resource_manager.state().set_watcher(Some(watcher));
                     }
                     Err(e) => {
-                        Log::err(format!("Unable to create resource watcher. Reason {:?}", e));
+                        Log::err(format!("Unable to create resource watcher. Reason {e:?}"));
                     }
                 }
             }
@@ -336,7 +336,7 @@ impl Executor {
                             if let Err(e) = engine.set_frame_size(size.into()) {
                                 Log::writeln(
                                     MessageKind::Error,
-                                    format!("Unable to set frame size: {:?}", e),
+                                    format!("Unable to set frame size: {e:?}"),
                                 );
                             }
                         }

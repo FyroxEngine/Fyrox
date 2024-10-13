@@ -760,7 +760,7 @@ mod test {
         for entry_set in lightmap.map.values() {
             for entry in entry_set {
                 let mut data = entry.texture.as_ref().unwrap().data_ref();
-                data.save(Path::new(&format!("{}.png", counter))).unwrap();
+                data.save(Path::new(&format!("{counter}.png"))).unwrap();
                 counter += 1;
             }
         }

@@ -314,7 +314,7 @@ impl AssetItemBuilder {
                 .with_margin(Thickness::uniform(1.0))
                 .with_allow_drag(true)
                 .with_foreground(Brush::Solid(Color::opaque(50, 50, 50)))
-                .with_tooltip(make_tooltip(ctx, &format!("{:?}", path)))
+                .with_tooltip(make_tooltip(ctx, &format!("{path:?}")))
                 .with_child(
                     GridBuilder::new(
                         WidgetBuilder::new()

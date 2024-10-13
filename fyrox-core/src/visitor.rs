@@ -295,17 +295,17 @@ impl<'a, T: Pod> Visit for PodVecView<'a, T> {
 impl FieldKind {
     fn as_string(&self) -> String {
         match self {
-            Self::Bool(data) => format!("<bool = {}>, ", data),
-            Self::U8(data) => format!("<u8 = {}>, ", data),
-            Self::I8(data) => format!("<i8 = {}>, ", data),
-            Self::U16(data) => format!("<u16 = {}>, ", data),
-            Self::I16(data) => format!("<i16 = {}>, ", data),
-            Self::U32(data) => format!("<u32 = {}>, ", data),
-            Self::I32(data) => format!("<i32 = {}>, ", data),
-            Self::U64(data) => format!("<u64 = {}>, ", data),
-            Self::I64(data) => format!("<i64 = {}>, ", data),
-            Self::F32(data) => format!("<f32 = {}>, ", data),
-            Self::F64(data) => format!("<f64 = {}>, ", data),
+            Self::Bool(data) => format!("<bool = {data}>, "),
+            Self::U8(data) => format!("<u8 = {data}>, "),
+            Self::I8(data) => format!("<i8 = {data}>, "),
+            Self::U16(data) => format!("<u16 = {data}>, "),
+            Self::I16(data) => format!("<i16 = {data}>, "),
+            Self::U32(data) => format!("<u32 = {data}>, "),
+            Self::I32(data) => format!("<i32 = {data}>, "),
+            Self::U64(data) => format!("<u64 = {data}>, "),
+            Self::I64(data) => format!("<i64 = {data}>, "),
+            Self::F32(data) => format!("<f32 = {data}>, "),
+            Self::F64(data) => format!("<f64 = {data}>, "),
             Self::Vector2F32(data) => format!("<vec2f32 = {}; {}>, ", data.x, data.y),
             Self::Vector3F32(data) => format!("<vec3f32 = {}; {}; {}>, ", data.x, data.y, data.z),
             Self::Vector4F32(data) => {
@@ -396,7 +396,7 @@ impl FieldKind {
             Self::Matrix4(data) => {
                 let mut out = String::from("<mat4 = ");
                 for f in data.iter() {
-                    out += format!("{}; ", f).as_str();
+                    out += format!("{f}; ").as_str();
                 }
                 out
             }
@@ -405,17 +405,17 @@ impl FieldKind {
                     Ok(s) => s,
                     Err(_) => base64::engine::general_purpose::STANDARD.encode(data),
                 };
-                format!("<data = {}>, ", out)
+                format!("<data = {out}>, ")
             }
             Self::Matrix3(data) => {
                 let mut out = String::from("<mat3 = ");
                 for f in data.iter() {
-                    out += format!("{}; ", f).as_str();
+                    out += format!("{f}; ").as_str();
                 }
                 out
             }
             Self::Uuid(uuid) => {
-                format!("<uuid = {}", uuid)
+                format!("<uuid = {uuid}")
             }
             Self::UnitComplex(data) => {
                 format!("<complex = {}; {}>, ", data.re, data.im)
@@ -427,14 +427,13 @@ impl FieldKind {
             } => {
                 let base64_encoded = base64::engine::general_purpose::STANDARD.encode(bytes);
                 format!(
-                    "<podarray = {}; {}; [{}]>",
-                    type_id, element_size, base64_encoded
+                    "<podarray = {type_id}; {element_size}; [{base64_encoded}]>"
                 )
             }
             Self::Matrix2(data) => {
                 let mut out = String::from("<mat2 = ");
                 for f in data.iter() {
-                    out += format!("{}; ", f).as_str();
+                    out += format!("{f}; ").as_str();
                 }
                 out
             }
@@ -653,23 +652,23 @@ impl Error for VisitError {}
 impl Display for VisitError {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         match self {
-            Self::Io(io) => write!(f, "io error: {}", io),
-            Self::UnknownFieldType(type_index) => write!(f, "unknown field type {}", type_index),
-            Self::FieldDoesNotExist(name) => write!(f, "field does not exists {}", name),
-            Self::FieldAlreadyExists(name) => write!(f, "field already exists {}", name),
-            Self::RegionAlreadyExists(name) => write!(f, "region already exists {}", name),
+            Self::Io(io) => write!(f, "io error: {io}"),
+            Self::UnknownFieldType(type_index) => write!(f, "unknown field type {type_index}"),
+            Self::FieldDoesNotExist(name) => write!(f, "field does not exists {name}"),
+            Self::FieldAlreadyExists(name) => write!(f, "field already exists {name}"),
+            Self::RegionAlreadyExists(name) => write!(f, "region already exists {name}"),
             Self::InvalidCurrentNode => write!(f, "invalid current node"),
             Self::FieldTypeDoesNotMatch => write!(f, "field type does not match"),
-            Self::RegionDoesNotExist(name) => write!(f, "region does not exists {}", name),
+            Self::RegionDoesNotExist(name) => write!(f, "region does not exists {name}"),
             Self::NoActiveNode => write!(f, "no active node"),
             Self::NotSupportedFormat => write!(f, "not supported format"),
             Self::InvalidName => write!(f, "invalid name"),
             Self::TypeMismatch => write!(f, "type mismatch"),
             Self::RefCellAlreadyMutableBorrowed => write!(f, "ref cell already mutable borrowed"),
-            Self::User(msg) => write!(f, "user defined error: {}", msg),
+            Self::User(msg) => write!(f, "user defined error: {msg}"),
             Self::UnexpectedRcNullIndex => write!(f, "unexpected rc null index"),
             Self::PoisonedMutex => write!(f, "attempt to lock poisoned mutex"),
-            Self::FileLoadError(e) => write!(f, "file load error: {:?}", e),
+            Self::FileLoadError(e) => write!(f, "file load error: {e:?}"),
         }
     }
 }
@@ -1590,7 +1589,7 @@ where
         if region.reading {
             self.clear();
             for index in 0..len {
-                let region_name = format!("Item{}", index);
+                let region_name = format!("Item{index}");
                 let mut region = region.enter_region(region_name.as_str())?;
                 let mut object = T::default();
                 object.visit("ItemData", &mut region)?;
@@ -1598,7 +1597,7 @@ where
             }
         } else {
             for (index, item) in self.iter_mut().enumerate() {
-                let region_name = format!("Item{}", index);
+                let region_name = format!("Item{index}");
                 let mut region = region.enter_region(region_name.as_str())?;
                 item.visit("ItemData", &mut region)?;
             }
@@ -1951,7 +1950,7 @@ where
         if region.is_reading() {
             self.clear();
             for i in 0..(count as usize) {
-                let name = format!("Item{}", i);
+                let name = format!("Item{i}");
 
                 let mut region = region.enter_region(name.as_str())?;
 
@@ -1965,7 +1964,7 @@ where
             }
         } else {
             for (i, (key, value)) in self.iter_mut().enumerate() {
-                let name = format!("Item{}", i);
+                let name = format!("Item{i}");
 
                 let mut region = region.enter_region(name.as_str())?;
 
@@ -1994,7 +1993,7 @@ where
         if region.is_reading() {
             self.clear();
             for i in 0..(count as usize) {
-                let name = format!("Item{}", i);
+                let name = format!("Item{i}");
 
                 let mut region = region.enter_region(name.as_str())?;
 
@@ -2005,7 +2004,7 @@ where
             }
         } else {
             for (i, mut key) in self.clone().into_iter().enumerate() {
-                let name = format!("Item{}", i);
+                let name = format!("Item{i}");
 
                 let mut region = region.enter_region(name.as_str())?;
 
@@ -2027,13 +2026,12 @@ impl<T: Default + Visit, const SIZE: usize> Visit for [T; SIZE] {
         if region.reading {
             if len > SIZE as u32 {
                 return VisitResult::Err(VisitError::User(format!(
-                    "Not enough space in static array, got {}, needed {}!",
-                    len, SIZE
+                    "Not enough space in static array, got {len}, needed {SIZE}!"
                 )));
             }
 
             for index in 0..len {
-                let region_name = format!("Item{}", index);
+                let region_name = format!("Item{index}");
                 let mut region = region.enter_region(region_name.as_str())?;
                 let mut object = T::default();
                 object.visit("ItemData", &mut region)?;
@@ -2041,7 +2039,7 @@ impl<T: Default + Visit, const SIZE: usize> Visit for [T; SIZE] {
             }
         } else {
             for (index, item) in self.iter_mut().enumerate() {
-                let region_name = format!("Item{}", index);
+                let region_name = format!("Item{index}");
                 let mut region = region.enter_region(region_name.as_str())?;
                 item.visit("ItemData", &mut region)?;
             }

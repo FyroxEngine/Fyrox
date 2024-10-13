@@ -153,8 +153,7 @@ impl SoundContext {
             state.remove_source(sound);
 
             Log::info(format!(
-                "Native sound source was removed for node: {}",
-                name
+                "Native sound source was removed for node: {name}"
             ));
         }
     }

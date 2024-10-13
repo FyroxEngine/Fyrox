@@ -64,8 +64,7 @@ impl FbxNode {
         match self.attributes.get(n) {
             Some(attrib) => Ok(attrib),
             None => Err(format!(
-                "Unable to get {} attribute because index out of bounds.",
-                n
+                "Unable to get {n} attribute because index out of bounds."
             )),
         }
     }
@@ -106,7 +105,7 @@ impl FbxNodeContainer {
             }
         }
 
-        Err(format!("FBX DOM: Unable to find {} node", name))
+        Err(format!("FBX DOM: Unable to find {name} node"))
     }
 
     /// Searches node by specified name and borrows a reference to it
@@ -123,7 +122,7 @@ impl FbxNodeContainer {
             }
         }
 
-        Err(format!("FBX DOM: Unable to find {} node", name))
+        Err(format!("FBX DOM: Unable to find {name} node"))
     }
 
     pub fn get(&self, handle: Handle<FbxNode>) -> &FbxNode {

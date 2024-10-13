@@ -1046,8 +1046,7 @@ pub(crate) fn visit_opt_script(
                     .try_create(&script_type_uuid)
                     .ok_or_else(|| {
                         VisitError::User(format!(
-                            "There is no corresponding script constructor for {} type!",
-                            script_type_uuid
+                            "There is no corresponding script constructor for {script_type_uuid} type!"
                         ))
                     })?,
             )

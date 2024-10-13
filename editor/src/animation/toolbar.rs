@@ -1087,7 +1087,7 @@ impl Toolbar {
                             animation.set_name(if i == 0 {
                                 file_stem.clone()
                             } else {
-                                format!("{} {}", file_stem, i)
+                                format!("{file_stem} {i}")
                             });
                         }
 

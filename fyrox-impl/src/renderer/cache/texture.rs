@@ -113,8 +113,7 @@ impl TextureCache {
                             Log::writeln(
                                 MessageKind::Error,
                                 format!(
-                                    "Unable to upload new texture data to GPU. Reason: {:?}",
-                                    e
+                                    "Unable to upload new texture data to GPU. Reason: {e:?}"
                                 ),
                             )
                         } else {

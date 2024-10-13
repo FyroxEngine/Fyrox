@@ -575,7 +575,7 @@ impl Display for MaterialError {
                 )
             }
             MaterialError::Visit(e) => {
-                write!(f, "Failed to visit data source. Reason: {:?}", e)
+                write!(f, "Failed to visit data source. Reason: {e:?}")
             }
         }
     }
@@ -918,9 +918,8 @@ impl Material {
                         );
 
                         Log::info(format!(
-                            "Added {} property to the material instance, since it exists in the \
-                            shader {}, but not in the material instance.",
-                            name, shader_kind
+                            "Added {name} property to the material instance, since it exists in the \
+                            shader {shader_kind}, but not in the material instance."
                         ));
                     }
                 }
@@ -936,9 +935,8 @@ impl Material {
                         self.properties.remove(&property_name);
 
                         Log::info(format!(
-                            "Removing {} property from the material instance, since it does \
-                        not exists in the shader {}.",
-                            property_name, shader_kind
+                            "Removing {property_name} property from the material instance, since it does \
+                        not exists in the shader {shader_kind}."
                         ));
                     }
                 }
