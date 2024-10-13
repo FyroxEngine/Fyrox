@@ -121,8 +121,7 @@ impl NetStream {
                 Ok(message) => Some(message),
                 Err(err) => {
                     Log::err(format!(
-                        "Failed to parse a network message of {} bytes long. Reason: {:?}",
-                        length, err
+                        "Failed to parse a network message of {length} bytes long. Reason: {err:?}"
                     ));
 
                     None
@@ -161,8 +160,7 @@ impl NetStream {
                     }
                     _ => {
                         Log::err(format!(
-                            "An error occurred when reading data from socket: {}",
-                            err
+                            "An error occurred when reading data from socket: {err}"
                         ));
 
                         self.rx_buffer.clear();

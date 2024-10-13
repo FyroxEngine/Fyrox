@@ -445,7 +445,7 @@ impl NodeTrait for Sound {
                             None => Err("Sound buffer is failed to load, the reason is unknown!"
                                 .to_string()),
                             Some(err) => {
-                                Err(format!("Sound buffer is failed to load. Reason: {:?}", err))
+                                Err(format!("Sound buffer is failed to load. Reason: {err:?}"))
                             }
                         }
                     }

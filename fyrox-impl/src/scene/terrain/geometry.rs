@@ -148,7 +148,7 @@ mod tests {
             let ElementRange::Specific { count, .. } = q else {
                 panic!("Quadrant is full.")
             };
-            assert_eq!(count, 2, "Quadrant: {}", i);
+            assert_eq!(count, 2, "Quadrant: {i}");
         }
     }
     #[test]
@@ -159,7 +159,7 @@ mod tests {
             let ElementRange::Specific { count, .. } = q else {
                 panic!("Quadrant is full.")
             };
-            assert_eq!(count, c, "Quadrant: {}", i);
+            assert_eq!(count, c, "Quadrant: {i}");
         }
     }
     #[test]
@@ -169,7 +169,7 @@ mod tests {
             let ElementRange::Specific { count, .. } = q else {
                 panic!("Quadrant is full.")
             };
-            assert_eq!(count, 8, "Quadrant: {}", i);
+            assert_eq!(count, 8, "Quadrant: {i}");
         }
     }
     #[test]

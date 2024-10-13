@@ -238,7 +238,7 @@ impl StateViewer {
         ui.send_message(WindowMessage::title(
             self.window,
             MessageDirection::ToWidget,
-            WindowTitle::text(format!("State Viewer - {}", state_name)),
+            WindowTitle::text(format!("State Viewer - {state_name}")),
         ));
 
         ui.send_message(WidgetMessage::enabled(

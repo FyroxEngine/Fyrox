@@ -680,7 +680,7 @@ impl BrushPanel {
         if let Err(e) = ctx.sync(brush, ui, 0, true, Default::default()) {
             Log::writeln(
                 MessageKind::Error,
-                format!("Failed to sync BrushPanel's inspector. Reason: {:?}", e),
+                format!("Failed to sync BrushPanel's inspector. Reason: {e:?}"),
             )
         }
     }

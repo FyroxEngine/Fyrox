@@ -338,7 +338,7 @@ impl PropertyChanged {
                         FieldKind::Inspectable(inspectable) => {
                             path += format!("[{}].{}", index, inspectable.path()).as_ref();
                         }
-                        _ => path += format!("[{}]", index).as_ref(),
+                        _ => path += format!("[{index}]").as_ref(),
                     }
                 }
             }
@@ -651,7 +651,7 @@ fn make_expander_check_box(
     let description = if property_description.is_empty() {
         property_name.to_string()
     } else {
-        format!("{}\n\n{}", property_name, property_description)
+        format!("{property_name}\n\n{property_description}")
     };
 
     let handle = CheckBoxBuilder::new(
@@ -826,7 +826,7 @@ impl InspectorContext {
         object.fields(&mut |fields| {
             for field in fields {
                 fields_text.push(if generate_property_string_values {
-                    format!("{:?}", field)
+                    format!("{field:?}")
                 } else {
                     Default::default()
                 })
@@ -903,8 +903,7 @@ impl InspectorContext {
                                 .with_vertical_text_alignment(VerticalAlignment::Center)
                                 .with_text(format!(
                                     "Unable to create property \
-                                                    editor instance: Reason {:?}",
-                                    e
+                                                    editor instance: Reason {e:?}"
                                 ))
                                 .build(ctx),
                             &description,

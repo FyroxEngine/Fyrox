@@ -67,7 +67,7 @@ fn impl_visit_struct(
 /// impl `Visit` for `enum`
 fn impl_visit_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs]) -> TokenStream2 {
     let ty_ident = &ty_args.ident;
-    let ty_name = format!("{}", ty_ident);
+    let ty_name = format!("{ty_ident}");
 
     // variant ID = variant index
     let id_type = quote!(u32);

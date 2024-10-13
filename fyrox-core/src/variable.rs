@@ -1000,10 +1000,10 @@ mod test {
     #[test]
     fn inheritable_variable_try_sync_model() {
         let v = InheritableVariable::from(42);
-        assert!(!v.try_sync_model(|s| println!("{}", s)));
+        assert!(!v.try_sync_model(|s| println!("{s}")));
 
         let v = InheritableVariable::new_with_flags(42, VariableFlags::NEED_SYNC);
-        assert!(v.try_sync_model(|s| println!("{}", s)));
+        assert!(v.try_sync_model(|s| println!("{s}")));
     }
 
     #[test]

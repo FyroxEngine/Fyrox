@@ -197,8 +197,7 @@ impl Visit for TextureKind {
                 },
                 _ => {
                     return VisitResult::Err(VisitError::User(format!(
-                        "Invalid texture kind {}!",
-                        id
+                        "Invalid texture kind {id}!"
                     )))
                 }
             };
@@ -974,7 +973,7 @@ impl TexturePixelKind {
             22 => Ok(Self::RGB16F),
             23 => Ok(Self::R32F),
             24 => Ok(Self::R16F),
-            _ => Err(format!("Invalid texture kind {}!", id)),
+            _ => Err(format!("Invalid texture kind {id}!")),
         }
     }
 

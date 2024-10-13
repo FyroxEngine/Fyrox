@@ -128,7 +128,7 @@ impl ParameterPanel {
 
         if let Err(sync_errors) = ctx.sync(parameters, ui, 0, true, Default::default()) {
             for error in sync_errors {
-                Log::err(format!("Failed to sync property. Reason: {:?}", error))
+                Log::err(format!("Failed to sync property. Reason: {error:?}"))
             }
         }
     }

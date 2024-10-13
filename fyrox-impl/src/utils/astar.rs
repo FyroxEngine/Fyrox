@@ -756,7 +756,7 @@ mod test {
 
         println!();
         for size in [10, 40, 100, 500] {
-            println!("benchmarking grid size of: {}^2", size);
+            println!("benchmarking grid size of: {size}^2");
             let setup_start_time = Instant::now();
 
             let mut pathfinder = Graph::new();

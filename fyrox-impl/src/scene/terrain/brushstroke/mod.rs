@@ -219,10 +219,7 @@ impl BrushSender {
 }
 
 fn on_send_failure(error: SendError<BrushThreadMessage>) {
-    Log::err(format!(
-        "A brush painting message was not sent. {:?}",
-        error
-    ));
+    Log::err(format!("A brush painting message was not sent. {error:?}"));
 }
 
 /// Type for a callback that delivers the original data of textures that have been modified
@@ -821,8 +818,7 @@ fn within_size_limit(bounds: &Rect<i32>) -> bool {
     let accepted = area <= BRUSH_PIXEL_SANITY_LIMIT;
     if !accepted {
         Log::warn(format!(
-            "Terrain brush operation dropped due to sanity limit: {}",
-            area
+            "Terrain brush operation dropped due to sanity limit: {area}"
         ))
     }
     accepted

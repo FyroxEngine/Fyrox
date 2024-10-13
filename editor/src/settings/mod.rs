@@ -400,8 +400,7 @@ impl SettingsWindow {
                 .set_quality_settings(&settings.graphics.quality)
             {
                 Log::err(format!(
-                    "An error occurred at attempt to set new graphics settings: {:?}",
-                    e
+                    "An error occurred at attempt to set new graphics settings: {e:?}"
                 ));
             } else {
                 Log::info("New graphics quality settings were successfully set!");

@@ -61,8 +61,7 @@ impl ShaderSet {
                 }
                 Err(e) => {
                     return Err(FrameworkError::Custom(format!(
-                        "Failed to create {} shader' GPU program. Reason: {:?}",
-                        program_name, e
+                        "Failed to create {program_name} shader' GPU program. Reason: {e:?}"
                     )));
                 }
             };
@@ -100,7 +99,7 @@ impl ShaderCache {
             ) {
                 Ok(shader_set) => Some(shader_set),
                 Err(error) => {
-                    Log::err(format!("{}", error));
+                    Log::err(format!("{error}"));
                     None
                 }
             }

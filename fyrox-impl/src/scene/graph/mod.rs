@@ -726,8 +726,7 @@ impl Graph {
                             Log::writeln(
                                 MessageKind::Error,
                                 format!(
-                                    "Failed to apply light map texture to material. Reason {:?}",
-                                    e
+                                    "Failed to apply light map texture to material. Reason {e:?}"
                                 ),
                             )
                         }
@@ -790,8 +789,7 @@ impl Graph {
                                 Log::writeln(
                                     MessageKind::Error,
                                     format!(
-                                    "Failed to apply light map texture to material. Reason {:?}",
-                                    e
+                                    "Failed to apply light map texture to material. Reason {e:?}"
                                 ),
                                 )
                             }

@@ -388,7 +388,7 @@ impl WorldViewer {
                     .with_text(if self.breadcrumbs.is_empty() {
                         name.to_owned()
                     } else {
-                        format!("{} >", name)
+                        format!("{name} >")
                     })
                     .with_font_size(11.0)
                     .build(ctx),

@@ -181,8 +181,7 @@ impl<'a> InstantiationContext<'a> {
                         node.instance_id = *id;
                     } else {
                         Log::warn(format!(
-                            "No id specified for node {}! Random id will be used.",
-                            original_handle
+                            "No id specified for node {original_handle}! Random id will be used."
                         ))
                     }
                 }
@@ -761,8 +760,7 @@ impl Model {
             // TODO: Add more formats.
             _ => {
                 return Err(ModelLoadError::NotSupported(format!(
-                    "Unsupported model resource format: {}",
-                    extension
+                    "Unsupported model resource format: {extension}"
                 )))
             }
         };

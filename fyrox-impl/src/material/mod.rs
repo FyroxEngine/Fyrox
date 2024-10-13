@@ -982,7 +982,7 @@ impl Display for MaterialError {
                 )
             }
             MaterialError::Visit(e) => {
-                write!(f, "Failed to visit data source. Reason: {:?}", e)
+                write!(f, "Failed to visit data source. Reason: {e:?}")
             }
         }
     }

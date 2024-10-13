@@ -79,11 +79,8 @@ fn main() {
             fyrox_template_core::init_project(Path::new("./"), &name, &style, &vcs, overwrite)
                 .unwrap();
 
-            println!("Project {} was generated successfully!", name);
-            println!(
-                "Navigate to {} directory and use one of the following commands:",
-                name
-            );
+            println!("Project {name} was generated successfully!");
+            println!("Navigate to {name} directory and use one of the following commands:");
             println!("\tRun the Editor: cargo run --package editor --release");
             println!("\tRun the Executor: cargo run --package executor --release");
             println!(
@@ -103,7 +100,7 @@ fn main() {
         Commands::Upgrade { version, local } => {
             fyrox_template_core::upgrade_project(Path::new("./"), &version, local).unwrap();
 
-            println!("Fyrox version was successfully set to '{}'!", version);
+            println!("Fyrox version was successfully set to '{version}'!");
         }
     }
 }

@@ -47,7 +47,7 @@ impl Display for BuildCommand {
         write!(f, "{}", self.command)?;
 
         for arg in self.args.iter() {
-            write!(f, " {}", arg)?;
+            write!(f, " {arg}")?;
         }
 
         Ok(())

@@ -150,7 +150,7 @@ fn main() {
                             if let Err(e) = engine.set_frame_size(size.into()) {
                                 Log::writeln(
                                     MessageKind::Error,
-                                    format!("Unable to set frame size: {:?}", e),
+                                    format!("Unable to set frame size: {e:?}"),
                                 );
                             }
                         }
@@ -452,7 +452,7 @@ impl ProjectManager {
 
                             self.build_window = Some(build_window);
                         }
-                        Err(e) => Log::err(format!("Failed to start the editor: {:?}", e)),
+                        Err(e) => Log::err(format!("Failed to start the editor: {e:?}")),
                     }
                 } else if button == self.run {
                     let mut new_process = std::process::Command::new("cargo");
@@ -469,7 +469,7 @@ impl ProjectManager {
 
                             self.build_window = Some(build_window);
                         }
-                        Err(e) => Log::err(format!("Failed to start the game: {:?}", e)),
+                        Err(e) => Log::err(format!("Failed to start the game: {e:?}")),
                     }
                 } else if button == self.delete {
                     if let Some(dir) = project.manifest_path.parent() {

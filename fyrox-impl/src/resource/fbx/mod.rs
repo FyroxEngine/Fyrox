@@ -321,10 +321,7 @@ async fn create_surfaces(
             {
                 Log::writeln(
                     MessageKind::Error,
-                    format!(
-                        "Failed to set diffuseColor property for material. Reason: {:?}",
-                        e,
-                    ),
+                    format!("Failed to set diffuseColor property for material. Reason: {e:?}",),
                 )
             }
 
@@ -445,9 +442,8 @@ async fn create_surfaces(
                                 Log::writeln(
                                     MessageKind::Error,
                                     format!(
-                                        "Unable to set material property {}\
-                                 for FBX material! Reason: {:?}",
-                                        property_name, e
+                                        "Unable to set material property {property_name}\
+                                 for FBX material! Reason: {e:?}"
                                     ),
                                 );
                             }
@@ -456,8 +452,7 @@ async fn create_surfaces(
                         Log::writeln(
                             MessageKind::Warning,
                             format!(
-                                "Unable to find a texture {:?} for 3D model {:?} using {:?} option!",
-                                filename, model_path, model_import_options
+                                "Unable to find a texture {filename:?} for 3D model {model_path:?} using {model_import_options:?} option!"
                             ),
                         );
                     }

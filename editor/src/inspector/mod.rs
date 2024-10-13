@@ -146,7 +146,7 @@ fn print_errors(sync_errors: &[InspectorError]) {
     for error in sync_errors {
         Log::writeln(
             MessageKind::Error,
-            format!("Failed to sync property. Reason: {:?}", error),
+            format!("Failed to sync property. Reason: {error:?}"),
         )
     }
 }

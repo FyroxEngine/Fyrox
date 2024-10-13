@@ -512,7 +512,7 @@ impl NodeStatistics {
             let prev_count = prev_stats.count_of(type_name);
             let delta = count - prev_count;
             if delta != 0 || show_unchanged {
-                println!("{}: \x1b[93m{}\x1b[0m", type_name, delta);
+                println!("{type_name}: \x1b[93m{delta}\x1b[0m");
             }
         }
     }
@@ -523,7 +523,7 @@ impl NodeStatistics {
             let count = self.count_of(type_name);
             let prev_count = prev_stats.count_of(type_name);
             if count - prev_count != 0 {
-                println!("{}: \x1b[93m{}\x1b[0m", type_name, count);
+                println!("{type_name}: \x1b[93m{count}\x1b[0m");
             }
         }
     }
@@ -3015,8 +3015,7 @@ impl UserInterface {
         let used_resources_count = used_resources.len();
 
         Log::info(format!(
-            "UserInterface - {} resources collected. Waiting them to load...",
-            used_resources_count
+            "UserInterface - {used_resources_count} resources collected. Waiting them to load..."
         ));
 
         // Wait everything.

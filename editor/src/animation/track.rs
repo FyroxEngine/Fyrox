@@ -953,8 +953,7 @@ impl TrackList {
                             }
                             Err(e) => {
                                 Log::err(format!(
-                                    "Invalid property path {:?}. Error: {:?}!",
-                                    property_path, e
+                                    "Invalid property path {property_path:?}. Error: {e:?}!"
                                 ));
                             }
                         })
@@ -1227,7 +1226,7 @@ impl TrackList {
                 }
             }
             Err(e) => {
-                Log::err(format!("Invalid property path {:?}. Error: {:?}!", desc, e));
+                Log::err(format!("Invalid property path {desc:?}. Error: {e:?}!"));
             }
         })
     }
@@ -1565,21 +1564,18 @@ impl TrackList {
                                 if let Some((_, type_)) = type_id_to_supported_type(property_type) {
                                     if *value_type != type_ {
                                         validation_result = Err(format!(
-                                            "Property type mismatch. Expected {:?}, got {:?}",
-                                            value_type, type_
+                                            "Property type mismatch. Expected {value_type:?}, got {type_:?}"
                                         ));
                                     }
                                 } else {
                                     validation_result = Err(format!(
-                                        "Unsupported property type of {:?} type id.",
-                                        property_type
+                                        "Unsupported property type of {property_type:?} type id."
                                     ));
                                 }
                             }
                             Err(err) => {
                                 validation_result = Err(format!(
-                                    "Unable to resolve property path {}. Reason: {:?}",
-                                    name, err
+                                    "Unable to resolve property path {name}. Reason: {err:?}"
                                 ));
                             }
                         });
