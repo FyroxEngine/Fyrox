@@ -271,7 +271,7 @@ impl RenderDataBundle {
         let shader = material.shader().data_ref();
         for resource_definition in shader.definition.resources.iter() {
             // Ignore built-in groups.
-            if resource_definition.name.starts_with("fyrox_") {
+            if resource_definition.is_built_in() {
                 continue;
             }
 

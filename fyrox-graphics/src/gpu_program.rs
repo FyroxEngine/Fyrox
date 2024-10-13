@@ -273,3 +273,9 @@ pub struct ShaderResourceDefinition {
     pub kind: ShaderResourceKind,
     pub binding: usize,
 }
+
+impl ShaderResourceDefinition {
+    pub fn is_built_in(&self) -> bool {
+        self.name.starts_with("fyrox_")
+    }
+}

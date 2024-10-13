@@ -383,6 +383,10 @@ impl MaterialEditor {
         };
 
         for resource in shader.definition.resources.iter() {
+            if resource.is_built_in() {
+                continue;
+            }
+
             let view = match resource.kind {
                 ShaderResourceKind::Sampler { ref default, .. } => {
                     let value = default
