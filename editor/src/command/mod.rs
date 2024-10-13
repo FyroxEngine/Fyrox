@@ -329,9 +329,9 @@ where
     let mut func = Some(func);
     entity.resolve_path_mut(path, &mut |result| match result {
         Ok(field) => func.take().unwrap()(field),
-        Err(e) => fyrox::core::log::Log::err(format!(
-            "There is no such property {path}! Reason: {e:?}"
-        )),
+        Err(e) => {
+            fyrox::core::log::Log::err(format!("There is no such property {path}! Reason: {e:?}"))
+        }
     })
 }
 

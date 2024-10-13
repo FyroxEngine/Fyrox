@@ -943,9 +943,7 @@ impl Editor {
             Ok(_) => {
                 Log::info("Graphics settings were applied successfully!");
             }
-            Err(e) => Log::info(format!(
-                "Failed to apply graphics settings! Reason: {e:?}"
-            )),
+            Err(e) => Log::info(format!("Failed to apply graphics settings! Reason: {e:?}")),
         }
     }
 
@@ -2724,9 +2722,7 @@ impl Editor {
             Ok(_) => {
                 Log::info("Graphics settings were applied successfully!");
             }
-            Err(e) => Log::err(format!(
-                "Failed to apply graphics settings! Reason: {e:?}"
-            )),
+            Err(e) => Log::err(format!("Failed to apply graphics settings! Reason: {e:?}")),
         }
     }
 

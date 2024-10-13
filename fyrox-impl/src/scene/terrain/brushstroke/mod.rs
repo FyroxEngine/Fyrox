@@ -219,9 +219,7 @@ impl BrushSender {
 }
 
 fn on_send_failure(error: SendError<BrushThreadMessage>) {
-    Log::err(format!(
-        "A brush painting message was not sent. {error:?}"
-    ));
+    Log::err(format!("A brush painting message was not sent. {error:?}"));
 }
 
 /// Type for a callback that delivers the original data of textures that have been modified

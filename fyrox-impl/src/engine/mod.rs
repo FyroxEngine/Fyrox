@@ -2652,9 +2652,7 @@ impl Engine {
             task_pool: &mut self.task_pool,
         });
 
-        Log::info(format!(
-            "Plugin {plugin_index} was successfully reloaded!"
-        ));
+        Log::info(format!("Plugin {plugin_index} was successfully reloaded!"));
 
         Ok(())
     }

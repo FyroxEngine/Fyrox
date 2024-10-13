@@ -196,13 +196,9 @@ fn read_metadata() -> Result<Metadata, String> {
                     "Unable to parse workspace metadata. Reason {err:?}"
                 )),
             },
-            Err(err) => Err(format!(
-                "Unable to fetch project metadata. Reason {err:?}"
-            )),
+            Err(err) => Err(format!("Unable to fetch project metadata. Reason {err:?}")),
         },
-        Err(err) => Err(format!(
-            "Unable to fetch project metadata. Reason {err:?}"
-        )),
+        Err(err) => Err(format!("Unable to fetch project metadata. Reason {err:?}")),
     };
 }
 

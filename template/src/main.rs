@@ -80,9 +80,7 @@ fn main() {
                 .unwrap();
 
             println!("Project {name} was generated successfully!");
-            println!(
-                "Navigate to {name} directory and use one of the following commands:"
-            );
+            println!("Navigate to {name} directory and use one of the following commands:");
             println!("\tRun the Editor: cargo run --package editor --release");
             println!("\tRun the Executor: cargo run --package executor --release");
             println!(

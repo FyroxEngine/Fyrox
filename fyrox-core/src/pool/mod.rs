@@ -913,9 +913,7 @@ where
                     };
                     (ticket, payload)
                 } else {
-                    panic!(
-                        "Attempt to take already taken object at handle {handle:?}!"
-                    );
+                    panic!("Attempt to take already taken object at handle {handle:?}!");
                 }
             } else {
                 panic!(

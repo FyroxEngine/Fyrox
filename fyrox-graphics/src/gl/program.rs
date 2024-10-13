@@ -86,9 +86,7 @@ unsafe fn create_shader(
         {
             format!("Shader {name} compiled successfully!")
         } else {
-            format!(
-                "Shader {name} compiled successfully!\nAdditional info: {compilation_message}"
-            )
+            format!("Shader {name} compiled successfully!\nAdditional info: {compilation_message}")
         };
 
         Log::writeln(MessageKind::Information, msg);
@@ -340,14 +338,13 @@ impl GlProgram {
                     error_message: link_message,
                 })
             } else {
-                let msg =
-                    if link_message.is_empty() || link_message.chars().all(|c| c.is_whitespace()) {
-                        format!("Shader {name} linked successfully!")
-                    } else {
-                        format!(
-                            "Shader {name} linked successfully!\nAdditional info: {link_message}"
-                        )
-                    };
+                let msg = if link_message.is_empty()
+                    || link_message.chars().all(|c| c.is_whitespace())
+                {
+                    format!("Shader {name} linked successfully!")
+                } else {
+                    format!("Shader {name} linked successfully!\nAdditional info: {link_message}")
+                };
 
                 Log::writeln(MessageKind::Information, msg);
 

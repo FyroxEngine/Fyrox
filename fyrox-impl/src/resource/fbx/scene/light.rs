@@ -95,9 +95,7 @@ impl FbxLight {
                         _ => {
                             Log::writeln(
                                 MessageKind::Warning,
-                                format!(
-                                    "FBX: Unknown light type {type_code}, fallback to Point!"
-                                ),
+                                format!("FBX: Unknown light type {type_code}, fallback to Point!"),
                             );
                             FbxLightType::Point
                         }

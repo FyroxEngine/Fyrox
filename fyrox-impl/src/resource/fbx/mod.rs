@@ -322,9 +322,7 @@ async fn create_surfaces(
             {
                 Log::writeln(
                     MessageKind::Error,
-                    format!(
-                        "Failed to set diffuseColor property for material. Reason: {e:?}",
-                    ),
+                    format!("Failed to set diffuseColor property for material. Reason: {e:?}",),
                 )
             }
 

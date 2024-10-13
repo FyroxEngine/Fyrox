@@ -426,9 +426,7 @@ impl FieldKind {
                 bytes,
             } => {
                 let base64_encoded = base64::engine::general_purpose::STANDARD.encode(bytes);
-                format!(
-                    "<podarray = {type_id}; {element_size}; [{base64_encoded}]>"
-                )
+                format!("<podarray = {type_id}; {element_size}; [{base64_encoded}]>")
             }
             Self::Matrix2(data) => {
                 let mut out = String::from("<mat2 = ");

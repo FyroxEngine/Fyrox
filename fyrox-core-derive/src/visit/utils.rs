@@ -91,10 +91,7 @@ pub fn create_field_visits<'a>(
                 ast::Style::Struct => {
                     let ident = field.ident.as_ref().unwrap_or_else(|| unreachable!());
 
-                    (
-                        quote!(#ident),
-                        format!("{ident}").to_case(Case::UpperCamel),
-                    )
+                    (quote!(#ident), format!("{ident}").to_case(Case::UpperCamel))
                 }
                 // `Tuple(f32, ..)`
                 ast::Style::Tuple => {
