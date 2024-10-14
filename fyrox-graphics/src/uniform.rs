@@ -264,14 +264,34 @@ where
         self
     }
 
+    fn push_array_element<T: Std140>(&mut self, item: &T) {
+        self.push_padding(16);
+        item.write(&mut self.storage);
+        self.push_padding(16);
+    }
+
     pub fn push_slice<T>(&mut self, slice: &[T]) -> &mut Self
     where
         T: Std140,
     {
         for item in slice {
-            self.push_padding(16);
-            item.write(&mut self.storage);
-            self.push_padding(16);
+            self.push_array_element(item);
+        }
+        self
+    }
+
+    /// Pushes the given slice into the uniform buffer and pads the rest of the space
+    /// (`max_len - slice_len`) with the default value of the underlying type.
+    pub fn push_slice_with_max_size<T: Std140 + Default>(
+        &mut self,
+        slice: &[T],
+        max_len: usize,
+    ) -> &mut Self {
+        self.push_slice(&slice[0..max_len]);
+        let remainder = max_len.saturating_sub(slice.len());
+        let item = T::default();
+        for _ in 0..remainder {
+            self.push_array_element(&item);
         }
         self
     }

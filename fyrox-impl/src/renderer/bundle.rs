@@ -20,6 +20,7 @@
 
 //! The module responsible for bundle generation for rendering optimizations.
 
+use crate::material::MaterialPropertyGroup;
 use crate::{
     asset::untyped::ResourceKind,
     core::{
@@ -67,7 +68,10 @@ use crate::{
     },
 };
 use fxhash::{FxBuildHasher, FxHashMap, FxHasher};
+use fyrox_core::color;
 use fyrox_graphics::framebuffer::BufferLocation;
+use fyrox_graphics::gpu_program::{ShaderProperty, ShaderPropertyKind, ShaderResourceKind};
+use fyrox_graphics::uniform::{ByteStorage, UniformBuffer};
 use std::{
     cell::RefCell,
     collections::hash_map::DefaultHasher,
@@ -256,6 +260,96 @@ pub struct BundleUniformData {
     pub instance_blocks: Vec<InstanceUniformData>,
 }
 
+fn write_with_material<T: ByteStorage>(
+    shader_property_group: &[ShaderProperty],
+    material_property_group: &MaterialPropertyGroup,
+    buf: &mut UniformBuffer<T>,
+) {
+    // The order of fields is strictly defined in shader, so we must iterate over shader definition
+    // of a structure and look for respective values in the material.
+    for shader_property in shader_property_group {
+        let material_property = material_property_group.property_ref(shader_property.name.clone());
+
+        macro_rules! push_value {
+            ($variant:ident, $shader_value:ident) => {
+                if let Some(MaterialPropertyValue::$variant(material_value)) = material_property {
+                    buf.push(material_value);
+                } else {
+                    buf.push($shader_value);
+                }
+            };
+        }
+
+        macro_rules! push_slice {
+            ($variant:ident, $shader_value:ident, $max_size:ident) => {
+                if let Some(MaterialPropertyValue::$variant(material_value)) = material_property {
+                    buf.push_slice_with_max_size(material_value, *$max_size);
+                } else {
+                    buf.push_slice_with_max_size($shader_value, *$max_size);
+                }
+            };
+        }
+
+        use ShaderPropertyKind::*;
+        match &shader_property.kind {
+            Float(value) => push_value!(Float, value),
+            FloatArray { value, max_len } => push_slice!(FloatArray, value, max_len),
+            Int(value) => push_value!(Int, value),
+            IntArray { value, max_len } => push_slice!(IntArray, value, max_len),
+            UInt(value) => push_value!(UInt, value),
+            UIntArray { value, max_len } => push_slice!(UIntArray, value, max_len),
+            Vector2(value) => push_value!(Vector2, value),
+            Vector2Array { value, max_len } => push_slice!(Vector2Array, value, max_len),
+            Vector3(value) => push_value!(Vector3, value),
+            Vector3Array { value, max_len } => push_slice!(Vector3Array, value, max_len),
+            Vector4(value) => push_value!(Vector4, value),
+            Vector4Array { value, max_len } => push_slice!(Vector4Array, value, max_len),
+            Matrix2(value) => push_value!(Matrix2, value),
+            Matrix2Array { value, max_len } => push_slice!(Matrix2Array, value, max_len),
+            Matrix3(value) => push_value!(Matrix3, value),
+            Matrix3Array { value, max_len } => push_slice!(Matrix3Array, value, max_len),
+            Matrix4(value) => push_value!(Matrix4, value),
+            Matrix4Array { value, max_len } => push_slice!(Matrix4Array, value, max_len),
+            Bool(value) => push_value!(Bool, value),
+            Color { r, g, b, a } => {
+                let value = &color::Color::from_rgba(*r, *g, *b, *a);
+                push_value!(Color, value)
+            }
+        };
+    }
+}
+
+fn write_shader_values<T: ByteStorage>(
+    shader_property_group: &[ShaderProperty],
+    buf: &mut UniformBuffer<T>,
+) {
+    for property in shader_property_group {
+        use ShaderPropertyKind::*;
+        match &property.kind {
+            Float(value) => buf.push(value),
+            FloatArray { value, max_len } => buf.push_slice_with_max_size(value, *max_len),
+            Int(value) => buf.push(value),
+            IntArray { value, max_len } => buf.push_slice_with_max_size(value, *max_len),
+            UInt(value) => buf.push(value),
+            UIntArray { value, max_len } => buf.push_slice_with_max_size(value, *max_len),
+            Vector2(value) => buf.push(value),
+            Vector2Array { value, max_len } => buf.push_slice_with_max_size(value, *max_len),
+            Vector3(value) => buf.push(value),
+            Vector3Array { value, max_len } => buf.push_slice_with_max_size(value, *max_len),
+            Vector4(value) => buf.push(value),
+            Vector4Array { value, max_len } => buf.push_slice_with_max_size(value, *max_len),
+            Matrix2(value) => buf.push(value),
+            Matrix2Array { value, max_len } => buf.push_slice_with_max_size(value, *max_len),
+            Matrix3(value) => buf.push(value),
+            Matrix3Array { value, max_len } => buf.push_slice_with_max_size(value, *max_len),
+            Matrix4(value) => buf.push(value),
+            Matrix4Array { value, max_len } => buf.push_slice_with_max_size(value, *max_len),
+            Bool(value) => buf.push(value),
+            Color { r, g, b, a } => buf.push(&color::Color::from_rgba(*r, *g, *b, *a)),
+        };
+    }
+}
+
 impl RenderDataBundle {
     /// Writes all the required uniform data of the bundle to uniform memory allocator.
     pub fn write_uniforms(
@@ -275,61 +369,29 @@ impl RenderDataBundle {
                 continue;
             }
 
-            if let Some(material::MaterialResourceBindingValue::PropertyGroup(property_group)) =
-                material.binding_ref(resource_definition.name.clone())
+            let ShaderResourceKind::PropertyGroup(ref shader_property_group) =
+                resource_definition.kind
+            else {
+                continue;
+            };
+
+            let mut buf = StaticUniformBuffer::<16384>::new();
+
+            if let Some(material_property_group) =
+                material.property_group_ref(resource_definition.name.clone())
             {
-                let mut material_uniforms = StaticUniformBuffer::<16384>::new();
-                for property in property_group.properties() {
-                    match &property.value {
-                        MaterialPropertyValue::Float(value) => material_uniforms.push(value),
-                        MaterialPropertyValue::FloatArray(array) => {
-                            material_uniforms.push_slice(array)
-                        }
-                        MaterialPropertyValue::Int(value) => material_uniforms.push(value),
-                        MaterialPropertyValue::IntArray(array) => {
-                            material_uniforms.push_slice(array)
-                        }
-                        MaterialPropertyValue::UInt(value) => material_uniforms.push(value),
-                        MaterialPropertyValue::UIntArray(array) => {
-                            material_uniforms.push_slice(array)
-                        }
-                        MaterialPropertyValue::Vector2(value) => material_uniforms.push(value),
-                        MaterialPropertyValue::Vector2Array(array) => {
-                            material_uniforms.push_slice(array)
-                        }
-                        MaterialPropertyValue::Vector3(value) => material_uniforms.push(value),
-                        MaterialPropertyValue::Vector3Array(array) => {
-                            material_uniforms.push_slice(array)
-                        }
-                        MaterialPropertyValue::Vector4(value) => material_uniforms.push(value),
-                        MaterialPropertyValue::Vector4Array(array) => {
-                            material_uniforms.push_slice(array)
-                        }
-                        MaterialPropertyValue::Matrix2(value) => material_uniforms.push(value),
-                        MaterialPropertyValue::Matrix2Array(array) => {
-                            material_uniforms.push_slice(array)
-                        }
-                        MaterialPropertyValue::Matrix3(value) => material_uniforms.push(value),
-                        MaterialPropertyValue::Matrix3Array(array) => {
-                            material_uniforms.push_slice(array)
-                        }
-                        MaterialPropertyValue::Matrix4(value) => material_uniforms.push(value),
-                        MaterialPropertyValue::Matrix4Array(array) => {
-                            material_uniforms.push_slice(array)
-                        }
-                        MaterialPropertyValue::Bool(value) => material_uniforms.push(value),
-                        MaterialPropertyValue::Color(color) => material_uniforms.push(color),
-                    };
-                }
-                material_property_group_blocks.push((
-                    resource_definition.binding,
-                    render_context
-                        .uniform_memory_allocator
-                        .allocate(material_uniforms),
-                ))
+                write_with_material(shader_property_group, material_property_group, &mut buf);
             } else {
-                // TODO: Fallback to shader's defaults.
+                // No respective resource bound in the material, use shader defaults. This is very
+                // important, because some drivers will crash if uniform buffer has insufficient
+                // data.
+                write_shader_values(shader_property_group, &mut buf)
             }
+
+            material_property_group_blocks.push((
+                resource_definition.binding,
+                render_context.uniform_memory_allocator.allocate(buf),
+            ))
         }
 
         // Upload camera uniforms.
