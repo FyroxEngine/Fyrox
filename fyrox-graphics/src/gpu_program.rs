@@ -239,14 +239,14 @@ pub enum ShaderPropertyKind {
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Reflect, Visit, Default)]
 pub struct ShaderProperty {
-    pub name: String,
+    pub name: ImmutableString,
     pub kind: ShaderPropertyKind,
 }
 
 impl ShaderProperty {
-    pub fn new(name: &str, kind: ShaderPropertyKind) -> Self {
+    pub fn new(name: impl Into<ImmutableString>, kind: ShaderPropertyKind) -> Self {
         Self {
-            name: name.to_string(),
+            name: name.into(),
             kind,
         }
     }

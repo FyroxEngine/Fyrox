@@ -507,7 +507,7 @@ impl MaterialEditor {
                 property_views: group
                     .iter()
                     .zip(property_views.iter())
-                    .map(|(property, view)| ((&property.name).into(), *view))
+                    .map(|(property, view)| (property.name.clone(), *view))
                     .collect::<FxHashMap<_, _>>(),
             },
             editor: panel,
