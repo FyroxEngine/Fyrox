@@ -155,7 +155,10 @@ impl UniformMemoryAllocator {
     }
 
     pub fn clear(&mut self) {
-        self.pages.clear();
+        for page in self.pages.iter_mut() {
+            page.dynamic.clear();
+            page.is_submitted = false;
+        }
         self.blocks.clear();
     }
 
