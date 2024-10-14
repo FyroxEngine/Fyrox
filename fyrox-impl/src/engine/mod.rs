@@ -52,8 +52,7 @@ use crate::{
     event::Event,
     graph::{BaseSceneGraph, NodeMapping, SceneGraph},
     gui::{
-        constructor::WidgetConstructorContainer, font::loader::FontLoader, font::Font,
-        font::BUILT_IN_FONT, loader::UserInterfaceLoader, UiContainer, UiUpdateSwitches,
+        constructor::WidgetConstructorContainer, font::{loader::FontLoader, Font, BUILT_IN_FONT}, loader::UserInterfaceLoader, UiContainer, UiUpdateSwitches,
         UserInterface,
     },
     material::{
@@ -63,8 +62,7 @@ use crate::{
         Material,
     },
     plugin::{
-        DynamicPlugin, Plugin, PluginContainer, PluginContext,
-        PluginRegistrationContext,
+        dylib::DyLybDynamicPlugin, DynamicPlugin, Plugin, PluginContainer, PluginContext, PluginRegistrationContext
     },
     renderer::{framework::error::FrameworkError, Renderer},
     resource::{
@@ -87,11 +85,8 @@ use crate::{
         Scene, SceneContainer, SceneLoader,
     },
     script::{
-        constructor::ScriptConstructorContainer, RoutingStrategy, Script, ScriptContext,
-        ScriptDeinitContext, ScriptMessage, ScriptMessageContext, ScriptMessageKind,
-        ScriptMessageSender,
+        constructor::ScriptConstructorContainer, PluginsRefMut, RoutingStrategy, Script, ScriptContext, ScriptDeinitContext, ScriptMessage, ScriptMessageContext, ScriptMessageKind, ScriptMessageSender, UniversalScriptContext
     },
-    script::{PluginsRefMut, UniversalScriptContext},
     window::{Window, WindowBuilder},
 };
 use fxhash::{FxHashMap, FxHashSet};
@@ -2263,8 +2258,31 @@ impl Engine {
         self.plugins.push(PluginContainer::Static(Box::new(plugin)));
     }
 
-    /// Adds a new abstract dynamic plugin
+    /// Tries to add a new dynamic plugin. This method attempts to load a dynamic library by the
+    /// given path and searches for `fyrox_plugin` function. This function is called to create a
+    /// plugin instance. This method will fail if there's no dynamic library at the given path or
+    /// the `fyrox_plugin` function is not found.
+    ///
+    /// # Hot reloading
+    ///
+    /// This method can enable hot reloading for the plugin, by setting `reload_when_changed` parameter
+    /// to `true`. When enabled, the engine will clone the library to implementation-defined path
+    /// and load it. It will setup file system watcher to receive changes from the OS and reload
+    /// the plugin.
     pub fn add_dynamic_plugin<P>(
+        &mut self,
+        path: P,
+        reload_when_changed: bool,
+        use_relative_paths: bool,
+    ) -> Result<&dyn Plugin, String>
+    where
+        P: AsRef<Path> + 'static,
+    {
+        Ok(self.add_dynamic_plugin_custom(DyLybDynamicPlugin::new(path, reload_when_changed, use_relative_paths)?))
+    }
+
+    /// Adds a new abstract dynamic plugin
+    pub fn add_dynamic_plugin_custom<P>(
         &mut self,
         plugin: P,
     ) -> &dyn Plugin

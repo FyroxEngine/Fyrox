@@ -2654,7 +2654,7 @@ impl Editor {
     {
         let plugin =
             self.engine
-                .add_dynamic_plugin(plugin);
+                .add_dynamic_plugin_custom(plugin);
         *self.inspector.property_editors.context_type_id.lock() = plugin.type_id();
         self.inspector
             .property_editors
