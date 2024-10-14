@@ -452,7 +452,7 @@ impl LightmapInputData {
                     if let Some(material) = material_state.data() {
                         if !material
                             .binding_ref("lightmapTexture")
-                            .map(|v| matches!(v, MaterialResourceBindingValue::Sampler { .. }))
+                            .map(|v| matches!(v, MaterialResourceBindingValue::Texture { .. }))
                             .unwrap_or_default()
                         {
                             continue 'surface_loop;

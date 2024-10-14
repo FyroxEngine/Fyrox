@@ -26,7 +26,7 @@ use crate::fyrox::{
     scene::{mesh::Mesh, node::Node},
 };
 use crate::{command::CommandTrait, scene::commands::GameSceneContext};
-use fyrox::material::MaterialResourceBindingValue;
+use fyrox::material::{MaterialResourceBindingValue, TextureBinding};
 
 #[derive(Debug)]
 enum TextureSet {
@@ -66,8 +66,8 @@ impl CommandTrait for SetMeshTextureCommand {
                         .data_ref()
                         .binding_ref("diffuseTexture")
                         .and_then(|p| {
-                            if let MaterialResourceBindingValue::Sampler { value, .. } = p {
-                                value.clone()
+                            if let MaterialResourceBindingValue::Texture(binding) = p {
+                                binding.value.clone()
                             } else {
                                 None
                             }
@@ -96,8 +96,8 @@ impl CommandTrait for SetMeshTextureCommand {
                 .data_ref()
                 .binding_ref("diffuseTexture")
                 .and_then(|p| {
-                    if let MaterialResourceBindingValue::Sampler { value, .. } = p {
-                        value.clone()
+                    if let MaterialResourceBindingValue::Texture(binding) = p {
+                        binding.value.clone()
                     } else {
                         None
                     }
@@ -110,10 +110,10 @@ impl CommandTrait for SetMeshTextureCommand {
                     .data_ref()
                     .bind(
                         "diffuseTexture",
-                        MaterialResourceBindingValue::Sampler {
+                        MaterialResourceBindingValue::Texture(TextureBinding {
                             value: old_texture.clone(),
                             fallback: SamplerFallback::White,
-                        },
+                        }),
                     )
                     .unwrap();
             }

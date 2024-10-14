@@ -107,7 +107,7 @@ pub enum SamplerKind {
 #[derive(Serialize, Deserialize, Debug, PartialEq, Reflect, Visit)]
 pub enum ShaderResourceKind {
     /// A texture.
-    Sampler {
+    Texture {
         kind: SamplerKind,
 
         /// Optional path to default texture.

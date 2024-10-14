@@ -183,7 +183,7 @@ impl Visit for ParticleSystemRng {
 /// fn create_smoke(graph: &mut Graph, resource_manager: &mut ResourceManager, pos: Vector3<f32>) {
 ///     let mut material = Material::standard_particle_system();
 ///     material
-///         .set_property("diffuseTexture", resource_manager.request::<Texture>(Path::new("data/particles/smoke_04.tga")))
+///         .bind("diffuseTexture", resource_manager.request::<Texture>(Path::new("data/particles/smoke_04.tga")))
 ///         .unwrap();
 ///
 ///     ParticleSystemBuilder::new(

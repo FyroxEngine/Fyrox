@@ -142,7 +142,7 @@ impl VertexTrait for SpriteVertex {
 ///     let mut material = Material::standard_sprite();
 ///
 ///     material
-///         .set_property("smoke.png", resource_manager.request::<Texture>("smoke.png"))
+///         .bind("smoke.png", resource_manager.request::<Texture>("smoke.png"))
 ///         .unwrap();
 ///
 ///     SpriteBuilder::new(BaseBuilder::new())

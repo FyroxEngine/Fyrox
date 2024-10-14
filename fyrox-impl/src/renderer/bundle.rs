@@ -517,11 +517,12 @@ impl RenderDataBundle {
                 _ => {
                     if let Some(resource) = material.binding_ref(resource_definition.name.clone()) {
                         match resource {
-                            material::MaterialResourceBindingValue::Sampler { value, fallback } => {
-                                let texture = value
+                            material::MaterialResourceBindingValue::Texture(binding) => {
+                                let texture = binding
+                                    .value
                                     .as_ref()
                                     .and_then(|t| render_context.texture_cache.get(server, t))
-                                    .unwrap_or(match fallback {
+                                    .unwrap_or(match binding.fallback {
                                         SamplerFallback::White => render_context.white_dummy,
                                         SamplerFallback::Normal => render_context.normal_dummy,
                                         SamplerFallback::Black => render_context.black_dummy,

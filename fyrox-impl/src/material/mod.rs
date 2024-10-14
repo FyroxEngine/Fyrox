@@ -62,6 +62,16 @@ use strum_macros::{AsRefStr, EnumString, VariantNames};
 pub mod loader;
 pub mod shader;
 
+#[derive(Default, Debug, Visit, Clone, Reflect, TypeUuidProvider)]
+#[type_uuid(id = "e1642a47-d372-4840-a8eb-f16350f436f8")]
+pub struct TextureBinding {
+    /// Actual value of the sampler. Could be [`None`], in this case `fallback` will be used.
+    pub value: Option<TextureResource>,
+
+    /// Sampler fallback value.
+    pub fallback: SamplerFallback,
+}
+
 /// A value of a property that will be used for rendering with a shader.
 ///
 /// # Limitations
@@ -86,14 +96,7 @@ pub enum MaterialResourceBindingValue {
     ///
     /// Fallback value is also helpful to catch missing textures, you'll definitely know the texture is
     /// missing by very specific value in the fallback texture.
-    Sampler {
-        /// Actual value of the sampler. Could be [`None`], in this case `fallback` will be used.
-        value: Option<TextureResource>,
-
-        /// Sampler fallback value.
-        fallback: SamplerFallback,
-    },
-
+    Texture(TextureBinding),
     PropertyGroup(MaterialPropertyGroup),
 }
 
@@ -110,16 +113,16 @@ impl MaterialResourceBindingValue {
         resource_manager: Option<&ResourceManager>,
     ) -> Self {
         match kind {
-            ShaderResourceKind::Sampler {
+            ShaderResourceKind::Texture {
                 default,
                 fallback: usage,
                 ..
-            } => Self::Sampler {
+            } => Self::Texture(TextureBinding {
                 value: default
                     .as_ref()
                     .and_then(|path| resource_manager.map(|rm| rm.request::<Texture>(path))),
                 fallback: *usage,
-            },
+            }),
             ShaderResourceKind::PropertyGroup(group) => {
                 Self::PropertyGroup(MaterialPropertyGroup {
                     properties: group
@@ -135,9 +138,9 @@ impl MaterialResourceBindingValue {
     }
 
     /// Tries to extract a texture from the resource binding.
-    pub fn as_sampler(&self) -> Option<TextureResource> {
-        if let Self::Sampler { value, .. } = self {
-            value.clone()
+    pub fn as_texture(&self) -> Option<TextureResource> {
+        if let Self::Texture(binding) = self {
+            binding.value.clone()
         } else {
             None
         }
@@ -168,7 +171,7 @@ impl MaterialPropertyGroup {
     ///
     /// # Complexity
     ///
-    /// O(1)
+    /// O(N)
     ///
     /// # Examples
     ///
@@ -177,8 +180,8 @@ impl MaterialPropertyGroup {
     /// # use fyrox_impl::material::Material;
     ///
     /// let mut material = Material::standard();
-    ///
-    /// let color = material.property_ref(&ImmutableString::new("diffuseColor")).unwrap().as_color();
+    /// let properties = material.property_group_ref("properties").unwrap();
+    /// let color = properties.property_ref("diffuseColor").unwrap().as_color();
     /// ```
     pub fn property_ref(&self, name: impl Into<ImmutableString>) -> Option<&MaterialPropertyValue> {
         let name = name.into();
@@ -191,6 +194,22 @@ impl MaterialPropertyGroup {
         })
     }
 
+    /// Searches for a property with given name.
+    ///
+    /// # Complexity
+    ///
+    /// O(N)
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use fyrox_impl::core::sstorage::ImmutableString;
+    /// # use fyrox_impl::material::Material;
+    ///
+    /// let mut material = Material::standard();
+    /// let properties = material.property_group_ref("properties").unwrap();
+    /// let color = properties.property_ref("diffuseColor").unwrap().as_color();
+    /// ```
     fn property_mut(
         &mut self,
         name: impl Into<ImmutableString>,
@@ -466,19 +485,19 @@ impl_from!(Color => Color);
 
 impl From<Option<TextureResource>> for MaterialResourceBindingValue {
     fn from(value: Option<TextureResource>) -> Self {
-        Self::Sampler {
+        Self::Texture(TextureBinding {
             value,
             fallback: Default::default(),
-        }
+        })
     }
 }
 
 impl From<TextureResource> for MaterialResourceBindingValue {
     fn from(value: TextureResource) -> Self {
-        Self::Sampler {
+        Self::Texture(TextureBinding {
             value: Some(value),
             fallback: Default::default(),
-        }
+        })
     }
 }
 
@@ -691,7 +710,7 @@ impl Default for MaterialPropertyValue {
 /// fn create_brick_material(resource_manager: ResourceManager) -> Material {
 ///     let mut material = Material::standard();
 ///
-///     material.set_property(
+///     material.bind(
 ///         "diffuseTexture",
 ///         resource_manager.request::<Texture>("Brick_DiffuseTexture.jpg")
 ///     ).unwrap();
@@ -800,10 +819,10 @@ impl Visit for Material {
                 for (name, old_property) in &old_properties {
                     if let OldMaterialProperty::Sampler { value, fallback } = old_property {
                         if let Some(binding) = self.binding_mut(name.clone()) {
-                            *binding = MaterialResourceBindingValue::Sampler {
+                            *binding = MaterialResourceBindingValue::Texture(TextureBinding {
                                 value: value.clone(),
                                 fallback: *fallback,
-                            };
+                            });
                         }
                     }
                 }
@@ -1062,7 +1081,7 @@ impl Material {
     /// fn create_brick_material(resource_manager: ResourceManager) -> Material {
     ///     let mut material = Material::standard();
     ///
-    ///     material.set_property(
+    ///     material.bind(
     ///         "diffuseTexture",
     ///         resource_manager.request::<Texture>("Brick_DiffuseTexture.jpg")
     ///     ).unwrap();
@@ -1211,6 +1230,22 @@ impl Material {
         })
     }
 
+    pub fn texture_ref(&self, name: impl Into<ImmutableString>) -> Option<&TextureBinding> {
+        if let Some(MaterialResourceBindingValue::Texture(binding)) = self.binding_ref(name) {
+            Some(binding)
+        } else {
+            None
+        }
+    }
+
+    pub fn texture_mut(&mut self, name: impl Into<ImmutableString>) -> Option<&mut TextureBinding> {
+        if let Some(MaterialResourceBindingValue::Texture(binding)) = self.binding_mut(name) {
+            Some(binding)
+        } else {
+            None
+        }
+    }
+
     /// Searches for a property group binding with the given name and returns immutable reference to it
     /// (if any).
     ///
@@ -1233,7 +1268,7 @@ impl Material {
         name: impl Into<ImmutableString>,
     ) -> Option<&MaterialPropertyGroup> {
         self.binding_ref(name).and_then(|binding| match binding {
-            MaterialResourceBindingValue::Sampler { .. } => None,
+            MaterialResourceBindingValue::Texture { .. } => None,
             MaterialResourceBindingValue::PropertyGroup(group) => Some(group),
         })
     }
@@ -1261,7 +1296,7 @@ impl Material {
         name: impl Into<ImmutableString>,
     ) -> Option<&mut MaterialPropertyGroup> {
         self.binding_mut(name).and_then(|binding| match binding {
-            MaterialResourceBindingValue::Sampler { .. } => None,
+            MaterialResourceBindingValue::Texture { .. } => None,
             MaterialResourceBindingValue::PropertyGroup(group) => Some(group),
         })
     }
@@ -1296,14 +1331,10 @@ impl Material {
         if let Some(value) = self.binding_mut(name.clone()) {
             match (value, new_value) {
                 (
-                    MaterialResourceBindingValue::Sampler {
-                        value: old_value,
-                        fallback: old_fallback,
-                    },
-                    MaterialResourceBindingValue::Sampler { value, fallback },
+                    MaterialResourceBindingValue::Texture(old),
+                    MaterialResourceBindingValue::Texture(new),
                 ) => {
-                    *old_value = value;
-                    *old_fallback = fallback;
+                    *old = new;
                 }
                 (
                     MaterialResourceBindingValue::PropertyGroup(old_group),
@@ -1391,8 +1422,8 @@ impl Material {
     pub fn texture(&self, name: &str) -> Option<TextureResource> {
         self.resource_bindings.iter().find_map(|binding| {
             if binding.name.as_str() == name {
-                if let MaterialResourceBindingValue::Sampler { ref value, .. } = binding.value {
-                    return value.clone();
+                if let MaterialResourceBindingValue::Texture(ref binding) = binding.value {
+                    return binding.value.clone();
                 }
             }
             None

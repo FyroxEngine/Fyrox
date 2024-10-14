@@ -30,6 +30,7 @@ mod document;
 pub mod error;
 mod scene;
 
+use crate::material::TextureBinding;
 use crate::{
     asset::manager::ResourceManager,
     core::{
@@ -434,10 +435,10 @@ async fn create_surfaces(
                         if let Some((property_name, usage)) = name_usage {
                             if let Err(e) = surface.material().data_ref().bind(
                                 property_name,
-                                MaterialResourceBindingValue::Sampler {
+                                MaterialResourceBindingValue::Texture(TextureBinding {
                                     value: Some(texture),
                                     fallback: usage,
-                                },
+                                }),
                             ) {
                                 Log::writeln(
                                     MessageKind::Error,

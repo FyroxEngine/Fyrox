@@ -77,6 +77,7 @@ use crate::{
     },
     send_sync_message, Engine, Message,
 };
+use fyrox::material::TextureBinding;
 use std::sync::Arc;
 
 struct TextureContextMenu {
@@ -388,7 +389,7 @@ impl MaterialEditor {
             }
 
             let view = match resource.kind {
-                ShaderResourceKind::Sampler { ref default, .. } => {
+                ShaderResourceKind::Texture { ref default, .. } => {
                     let value = default
                         .as_ref()
                         .and_then(|default| resource_manager.try_request::<Texture>(&default));
@@ -538,12 +539,12 @@ impl MaterialEditor {
                 continue;
             };
             match binding.value {
-                MaterialResourceBindingValue::Sampler { ref value, .. } => send_sync_message(
+                MaterialResourceBindingValue::Texture(ref binding) => send_sync_message(
                     ui,
                     ImageMessage::texture(
                         view.editor,
                         MessageDirection::ToWidget,
-                        value.clone().map(Into::into),
+                        binding.value.clone().map(Into::into),
                     ),
                 ),
                 MaterialResourceBindingValue::PropertyGroup(ref group) => {
@@ -798,10 +799,10 @@ impl MaterialEditor {
                     sender.do_command(SetMaterialBindingCommand::new(
                         material.clone(),
                         binding_name.clone(),
-                        MaterialResourceBindingValue::Sampler {
+                        MaterialResourceBindingValue::Texture(TextureBinding {
                             value: None,
                             fallback: Default::default(),
-                        },
+                        }),
                     ));
                 }
             }
@@ -831,10 +832,10 @@ impl MaterialEditor {
                                 sender.do_command(SetMaterialBindingCommand::new(
                                     material.clone(),
                                     resource_view.name.clone(),
-                                    MaterialResourceBindingValue::Sampler {
+                                    MaterialResourceBindingValue::Texture(TextureBinding {
                                         value: texture,
                                         fallback: Default::default(),
-                                    },
+                                    }),
                                 ));
                             }
                         }

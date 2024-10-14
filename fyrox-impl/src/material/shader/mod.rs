@@ -741,7 +741,7 @@ mod test {
                 resources: [
                     (
                         name: "diffuseTexture",
-                        kind: Sampler(value: None, kind: Sampler2D, fallback: White),
+                        kind: Texture(value: None, kind: Sampler2D, fallback: White),
                         binding: 0
                     ),
                 ],
@@ -783,7 +783,7 @@ mod test {
             name: "TestShader".to_owned(),
             resources: vec![ShaderResourceDefinition {
                 name: "diffuseTexture".into(),
-                kind: ShaderResourceKind::Sampler {
+                kind: ShaderResourceKind::Texture {
                     default: None,
                     kind: SamplerKind::Sampler2D,
                     fallback: SamplerFallback::White,

@@ -21,7 +21,7 @@
 //! Contains all structures and methods to create and manage mesh scene graph nodes. See [`Mesh`] docs for more info
 //! and usage examples.
 
-use crate::material::{MaterialResourceBindingValue, MaterialResourceExtension};
+use crate::material::{MaterialResourceBindingValue, MaterialResourceExtension, TextureBinding};
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector3, Vector4},
@@ -686,10 +686,10 @@ impl NodeTrait for Mesh {
                                 let material_copy = surface.material().deep_copy();
                                 Log::verify(material_copy.data_ref().bind(
                                     &self.blend_shapes_property_name,
-                                    MaterialResourceBindingValue::Sampler {
+                                    MaterialResourceBindingValue::Texture(TextureBinding {
                                         value: Some(texture.clone()),
                                         fallback: SamplerFallback::Volume,
-                                    },
+                                    }),
                                 ));
                                 material_copy
                             });

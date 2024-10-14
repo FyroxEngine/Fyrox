@@ -4,7 +4,7 @@
     resources: [
         (
             name: "diffuseTexture",
-            kind: Sampler(default: None, kind: Sampler2D, fallback: White),
+            kind: Texture(default: None, kind: Sampler2D, fallback: White),
             binding: 0
         ),
         (

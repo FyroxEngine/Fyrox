@@ -178,7 +178,7 @@ impl GlProgram {
             for property in resources {
                 let resource_name = &property.name;
                 match property.kind {
-                    ShaderResourceKind::Sampler { kind, .. } => {
+                    ShaderResourceKind::Texture { kind, .. } => {
                         let glsl_name = kind.glsl_name();
                         texture_bindings += &format!("uniform {glsl_name} {resource_name};\n");
                     }
@@ -270,7 +270,7 @@ impl GlProgram {
             server.set_program(Some(program.id));
             for resource_definition in resources {
                 match resource_definition.kind {
-                    ShaderResourceKind::Sampler { .. } => {
+                    ShaderResourceKind::Texture { .. } => {
                         if let Some(location) = server
                             .gl
                             .get_uniform_location(program.id, &resource_definition.name)
