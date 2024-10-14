@@ -145,7 +145,7 @@ impl AssetPreviewGenerator for TexturePreview {
             };
 
             let mut material = Material::standard_two_sides();
-            Log::verify(material.bind("diffuseTexture", texture));
+            material.bind("diffuseTexture", texture);
             let material = MaterialResource::new_ok(Default::default(), material);
 
             MeshBuilder::new(BaseBuilder::new())
@@ -461,14 +461,12 @@ impl AssetPreviewGenerator for ShaderPreview {
     fn generate_scene(
         &mut self,
         resource: &UntypedResource,
-        resource_manager: &ResourceManager,
+        _resource_manager: &ResourceManager,
         scene: &mut Scene,
     ) -> Handle<Node> {
         if let Some(shader) = resource.try_cast::<Shader>() {
-            let material = MaterialResource::new_ok(
-                Default::default(),
-                Material::from_shader(shader, Some(resource_manager.clone())),
-            );
+            let material =
+                MaterialResource::new_ok(Default::default(), Material::from_shader(shader));
 
             MeshBuilder::new(BaseBuilder::new())
                 .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_ok(

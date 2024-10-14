@@ -24,11 +24,10 @@ use crate::{
         asset::ResourceData,
         core::{log::Log, sstorage::ImmutableString},
         material::{
-            shader::ShaderResource, Material, MaterialPropertyValue, MaterialResource,
-            MaterialResourceBindingValue,
+            shader::ShaderResource, Material, MaterialProperty, MaterialResource,
+            MaterialResourceBinding,
         },
     },
-    scene::commands::GameSceneContext,
 };
 
 fn try_save(material: &MaterialResource) {
@@ -43,33 +42,32 @@ fn try_save(material: &MaterialResource) {
 pub struct SetMaterialBindingCommand {
     material: MaterialResource,
     name: ImmutableString,
-    binding: MaterialResourceBindingValue,
+    binding: Option<MaterialResourceBinding>,
 }
 
 impl SetMaterialBindingCommand {
     pub fn new(
         material: MaterialResource,
         name: ImmutableString,
-        binding: MaterialResourceBindingValue,
+        binding: MaterialResourceBinding,
     ) -> Self {
         Self {
             material,
             name,
-            binding,
+            binding: Some(binding),
         }
     }
 
     fn swap(&mut self) {
         let mut material = self.material.data_ref();
 
-        let old_value = material.binding_ref(self.name.clone()).unwrap().clone();
-
-        material
-            .bind(
-                self.name.clone(),
-                std::mem::replace(&mut self.binding, old_value),
-            )
-            .unwrap();
+        let old_value = material.binding_ref(self.name.clone()).cloned();
+        let new_value = std::mem::replace(&mut self.binding, old_value);
+        if let Some(new_value) = new_value {
+            material.bind(self.name.clone(), new_value);
+        } else {
+            material.unbind(self.name.clone());
+        }
 
         drop(material);
         try_save(&self.material);
@@ -95,7 +93,7 @@ pub struct SetMaterialPropertyGroupPropertyValueCommand {
     material: MaterialResource,
     group_name: ImmutableString,
     property_name: ImmutableString,
-    value: MaterialPropertyValue,
+    value: Option<MaterialProperty>,
 }
 
 impl SetMaterialPropertyGroupPropertyValueCommand {
@@ -103,37 +101,30 @@ impl SetMaterialPropertyGroupPropertyValueCommand {
         material: MaterialResource,
         group_name: ImmutableString,
         property_name: ImmutableString,
-        value: MaterialPropertyValue,
+        value: MaterialProperty,
     ) -> Self {
         Self {
             material,
             group_name,
             property_name,
-            value,
+            value: Some(value),
         }
     }
 
     fn swap(&mut self) {
         let mut material = self.material.data_ref();
 
-        if let MaterialResourceBindingValue::PropertyGroup(group) =
-            material.binding_mut(self.group_name.clone()).unwrap()
-        {
-            let old_value = group
-                .property_ref(self.property_name.clone())
-                .unwrap()
-                .clone();
-
-            group
-                .set_property(
-                    self.property_name.clone(),
-                    std::mem::replace(&mut self.value, old_value),
-                )
-                .unwrap();
-
-            drop(material);
-            try_save(&self.material);
+        let group = material.try_get_or_insert_property_group(self.group_name.clone());
+        let old_value = group.property_ref(self.property_name.clone()).cloned();
+        let new_value = std::mem::replace(&mut self.value, old_value);
+        if let Some(new_value) = new_value {
+            group.set_property(self.property_name.clone(), new_value);
+        } else {
+            group.unset_property(self.property_name.clone());
         }
+
+        drop(material);
+        try_save(&self.material);
     }
 }
 
@@ -173,8 +164,7 @@ impl SetMaterialShaderCommand {
         }
     }
 
-    fn swap(&mut self, context: &mut dyn CommandContext) {
-        let context = context.get_mut::<GameSceneContext>();
+    fn swap(&mut self, _context: &mut dyn CommandContext) {
         match std::mem::replace(&mut self.state, SetMaterialShaderCommandState::Undefined) {
             SetMaterialShaderCommandState::Undefined => {
                 unreachable!()
@@ -182,10 +172,8 @@ impl SetMaterialShaderCommand {
             SetMaterialShaderCommandState::NonExecuted { new_shader } => {
                 let mut material = self.material.data_ref();
 
-                let old_material = std::mem::replace(
-                    &mut *material,
-                    Material::from_shader(new_shader, Some(context.resource_manager.clone())),
-                );
+                let old_material =
+                    std::mem::replace(&mut *material, Material::from_shader(new_shader));
 
                 self.state = SetMaterialShaderCommandState::Executed { old_material };
             }

@@ -34,7 +34,7 @@ use crate::{
     },
     graph::BaseSceneGraph,
     material,
-    material::{shader::SamplerFallback, MaterialPropertyValue, MaterialResource},
+    material::{shader::SamplerFallback, MaterialProperty, MaterialResource},
     renderer::{
         cache::{
             geometry::GeometryCache,
@@ -69,6 +69,7 @@ use crate::{
 };
 use fxhash::{FxBuildHasher, FxHashMap, FxHasher};
 use fyrox_core::color;
+use fyrox_core::log::Log;
 use fyrox_graphics::framebuffer::BufferLocation;
 use fyrox_graphics::gpu_program::{ShaderProperty, ShaderPropertyKind, ShaderResourceKind};
 use fyrox_graphics::uniform::{ByteStorage, UniformBuffer};
@@ -272,8 +273,17 @@ fn write_with_material<T: ByteStorage>(
 
         macro_rules! push_value {
             ($variant:ident, $shader_value:ident) => {
-                if let Some(MaterialPropertyValue::$variant(material_value)) = material_property {
-                    buf.push(material_value);
+                if let Some(property) = material_property {
+                    if let MaterialProperty::$variant(material_value) = property {
+                        buf.push(material_value);
+                    } else {
+                        buf.push($shader_value);
+                        Log::err(format!(
+                            "Unable to use material property {} because of mismatching types.\
+                            Expected {:?} got {:?}. Fallback to shader default value.",
+                            shader_property.name, shader_property, property
+                        ));
+                    }
                 } else {
                     buf.push($shader_value);
                 }
@@ -282,8 +292,17 @@ fn write_with_material<T: ByteStorage>(
 
         macro_rules! push_slice {
             ($variant:ident, $shader_value:ident, $max_size:ident) => {
-                if let Some(MaterialPropertyValue::$variant(material_value)) = material_property {
-                    buf.push_slice_with_max_size(material_value, *$max_size);
+                if let Some(property) = material_property {
+                    if let MaterialProperty::$variant(material_value) = property {
+                        buf.push_slice_with_max_size(material_value, *$max_size);
+                    } else {
+                        buf.push_slice_with_max_size($shader_value, *$max_size);
+                        Log::err(format!(
+                            "Unable to use material property {} because of mismatching types.\
+                            Expected {:?} got {:?}. Fallback to shader default value.",
+                            shader_property.name, shader_property, property
+                        ))
+                    }
                 } else {
                     buf.push_slice_with_max_size($shader_value, *$max_size);
                 }
@@ -576,42 +595,57 @@ impl RenderDataBundle {
                         );
                     }
                 }
-                _ => {
-                    if let Some(resource) = material.binding_ref(resource_definition.name.clone()) {
-                        match resource {
-                            material::MaterialResourceBindingValue::Texture(binding) => {
-                                let texture = binding
+                _ => match resource_definition.kind {
+                    ShaderResourceKind::Texture { fallback, .. } => {
+                        let fallback = match fallback {
+                            SamplerFallback::White => render_context.white_dummy,
+                            SamplerFallback::Normal => render_context.normal_dummy,
+                            SamplerFallback::Black => render_context.black_dummy,
+                            SamplerFallback::Volume => render_context.volume_dummy,
+                        };
+
+                        let texture = if let Some(binding) =
+                            material.binding_ref(resource_definition.name.clone())
+                        {
+                            if let material::MaterialResourceBinding::Texture(binding) = binding {
+                                binding
                                     .value
                                     .as_ref()
                                     .and_then(|t| render_context.texture_cache.get(server, t))
-                                    .unwrap_or(match binding.fallback {
-                                        SamplerFallback::White => render_context.white_dummy,
-                                        SamplerFallback::Normal => render_context.normal_dummy,
-                                        SamplerFallback::Black => render_context.black_dummy,
-                                        SamplerFallback::Volume => render_context.volume_dummy,
-                                    });
-                                material_bindings.push(ResourceBinding::texture_with_binding(
-                                    texture,
-                                    resource_definition.binding,
+                                    .unwrap_or(fallback)
+                            } else {
+                                Log::err(format!(
+                                    "Unable to use texture binding {}, types mismatch! Expected \
+                                {:?} got {:?}",
+                                    resource_definition.name, resource_definition.kind, binding
                                 ));
+
+                                fallback
                             }
-                            material::MaterialResourceBindingValue::PropertyGroup(_) => {
-                                if let Some((_, block_location)) = bundle_uniform_data
-                                    .material_property_group_blocks
-                                    .iter()
-                                    .find(|(binding, _)| *binding == resource_definition.binding)
-                                {
-                                    material_bindings.push(
-                                        render_context.uniform_memory_allocator.block_to_binding(
-                                            *block_location,
-                                            resource_definition.binding,
-                                        ),
-                                    );
-                                }
-                            }
+                        } else {
+                            fallback
+                        };
+
+                        material_bindings.push(ResourceBinding::texture_with_binding(
+                            texture,
+                            resource_definition.binding,
+                        ));
+                    }
+                    ShaderResourceKind::PropertyGroup(_) => {
+                        // No validation here, it is done in uniform variables collection step.
+                        if let Some((_, block_location)) = bundle_uniform_data
+                            .material_property_group_blocks
+                            .iter()
+                            .find(|(binding, _)| *binding == resource_definition.binding)
+                        {
+                            material_bindings.push(
+                                render_context
+                                    .uniform_memory_allocator
+                                    .block_to_binding(*block_location, resource_definition.binding),
+                            );
                         }
                     }
-                }
+                },
             }
         }
 

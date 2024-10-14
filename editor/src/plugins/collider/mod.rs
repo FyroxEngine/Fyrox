@@ -268,14 +268,12 @@ lazy_static! {
 }
 
 fn make_handle(scene: &mut Scene, root: Handle<Node>, visible: bool) -> Handle<Node> {
-    let mut material = Material::from_shader(GIZMO_SHADER.clone(), None);
+    let mut material = Material::from_shader(GIZMO_SHADER.clone());
 
-    material
-        .bind(
-            "diffuseTexture",
-            load_texture(include_bytes!("../../../resources/circle.png")),
-        )
-        .unwrap();
+    material.bind(
+        "diffuseTexture",
+        load_texture(include_bytes!("../../../resources/circle.png")),
+    );
 
     let handle = SpriteBuilder::new(BaseBuilder::new().with_visibility(visible))
         .with_material(MaterialResource::new_ok(ResourceKind::Embedded, material))

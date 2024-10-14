@@ -81,7 +81,7 @@ pub struct SceneGizmo {
 fn make_cone(transform: Matrix4<f32>, color: Color, graph: &mut Graph) -> Handle<Node> {
     let mut material = Material::standard();
 
-    material.set_property("diffuseColor", color).unwrap();
+    material.set_property("diffuseColor", color);
 
     MeshBuilder::new(BaseBuilder::new().with_cast_shadows(false))
         .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_ok(
@@ -310,8 +310,7 @@ impl SceneGizmo {
                 graph[node].as_mesh().surfaces()[0]
                     .material()
                     .data_ref()
-                    .set_property("diffuseColor", color)
-                    .unwrap();
+                    .set_property("diffuseColor", color);
             }
             for (node, default_color) in self.parts() {
                 set_color(

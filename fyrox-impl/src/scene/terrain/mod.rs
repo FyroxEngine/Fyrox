@@ -41,7 +41,7 @@ use crate::{
         visitor::{prelude::*, PodVecView},
         TypeUuidProvider,
     },
-    material::{Material, MaterialPropertyValue, MaterialResource},
+    material::{Material, MaterialProperty, MaterialResource},
     renderer::{
         self,
         bundle::{RenderContext, SurfaceInstanceData},
@@ -2645,23 +2645,12 @@ impl NodeTrait for Terrain {
 
                 let mut material = layer.material.deep_copy().data_ref().clone();
 
-                Log::verify_message(
-                    material.bind(
-                        &layer.mask_property_name,
-                        chunk.layer_masks[layer_index].clone(),
-                    ),
-                    "Unable to set mask texture for terrain material.",
+                material.bind(
+                    &layer.mask_property_name,
+                    chunk.layer_masks[layer_index].clone(),
                 );
-
-                Log::verify_message(
-                    material.bind(&layer.height_map_property_name, chunk.heightmap.clone()),
-                    "Unable to set height map texture for terrain material.",
-                );
-
-                Log::verify_message(
-                    material.bind(&layer.hole_mask_property_name, chunk.hole_mask.clone()),
-                    "Unable to set hole mask texture for terrain material.",
-                );
+                material.bind(&layer.height_map_property_name, chunk.heightmap.clone());
+                material.bind(&layer.hole_mask_property_name, chunk.hole_mask.clone());
 
                 // The size of the chunk excluding the margins
                 let size = self.height_map_size.map(|x| (x - 3) as f32);
@@ -2674,12 +2663,9 @@ impl NodeTrait for Terrain {
                     let kw = (node.size.x - 1) as f32 / size.x;
                     let kh = (node.size.y - 1) as f32 / size.y;
 
-                    Log::verify_message(
-                        material.set_property(
-                            &layer.node_uv_offsets_property_name,
-                            MaterialPropertyValue::Vector4(Vector4::new(kx, kz, kw, kh)),
-                        ),
-                        "Unable to set node uv offsets for terrain material.",
+                    material.set_property(
+                        &layer.node_uv_offsets_property_name,
+                        MaterialProperty::Vector4(Vector4::new(kx, kz, kw, kh)),
                     );
 
                     let material = MaterialResource::new_ok(Default::default(), material.clone());

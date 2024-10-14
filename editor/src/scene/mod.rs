@@ -159,7 +159,7 @@ lazy_static! {
 }
 
 fn make_grid_material() -> MaterialResource {
-    let material = Material::from_shader(GRID_SHADER.clone(), None);
+    let material = Material::from_shader(GRID_SHADER.clone());
     MaterialResource::new_ok(Default::default(), material)
 }
 

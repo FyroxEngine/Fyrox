@@ -753,7 +753,7 @@ impl Model {
                 )
                 .await?
                 .0
-                .finish(&resource_manager)
+                .finish()
                 .await,
                 NodeMapping::UseHandles,
             ),

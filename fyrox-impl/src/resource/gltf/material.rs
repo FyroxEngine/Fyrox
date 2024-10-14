@@ -24,8 +24,8 @@ use crate::{
     asset::{manager::ResourceManager, state::LoadError, untyped::ResourceKind, Resource},
     core::{algebra::Vector4, color::Color, log::Log},
     material::{
-        shader::{SamplerFallback, Shader, ShaderResource},
-        Material, MaterialPropertyValue, MaterialResource,
+        shader::{Shader, ShaderResource},
+        Material, MaterialProperty, MaterialResource,
     },
     resource::{
         model::MaterialSearchOptions,
@@ -70,7 +70,7 @@ fn convert_mag(filter: GltfMagFilter) -> FyroxMagFilter {
     }
 }
 
-use crate::material::{MaterialResourceBindingValue, TextureBinding};
+use crate::material::{MaterialResourceBinding, MaterialTextureBinding};
 use crate::resource::texture::TextureWrapMode as FyroxWrapMode;
 use gltf::texture::WrappingMode as GltfWrapMode;
 
@@ -142,11 +142,10 @@ pub fn decode_base64(source: &str) -> Result<Vec<u8>> {
 pub async fn import_materials(
     gltf: &Document,
     textures: &[TextureResource],
-    resource_manager: &ResourceManager,
 ) -> Result<Vec<MaterialResource>> {
     let mut result: Vec<MaterialResource> = Vec::with_capacity(gltf.materials().len());
     for mat in gltf.materials() {
-        match import_material(mat, textures, resource_manager).await {
+        match import_material(mat, textures).await {
             Ok(res) => result.push(res),
             Err(err) => {
                 Log::err(format!("glTF material failed to import. Reason: {:?}", err));
@@ -163,13 +162,12 @@ pub async fn import_materials(
 async fn import_material(
     mat: gltf::Material<'_>,
     textures: &[TextureResource],
-    resource_manager: &ResourceManager,
 ) -> Result<MaterialResource> {
     let shader: ShaderResource = GLTF_SHADER.clone(); //resource_manager.request(SHADER_PATH).await?;
     if !shader.is_ok() {
         return Err(GltfMaterialError::ShaderLoadFailed);
     }
-    let mut result: Material = Material::from_shader(shader, Some(resource_manager.clone()));
+    let mut result: Material = Material::from_shader(shader);
     let pbr = mat.pbr_metallic_roughness();
     if let Some(tex) = pbr.base_color_texture() {
         set_texture(
@@ -177,7 +175,6 @@ async fn import_material(
             "diffuseTexture",
             textures,
             tex.texture().index(),
-            SamplerFallback::White,
         )?;
     }
     if let Some(tex) = mat.normal_texture() {
@@ -186,7 +183,6 @@ async fn import_material(
             "normalTexture",
             textures,
             tex.texture().index(),
-            SamplerFallback::Normal,
         )?;
     }
     if let Some(tex) = pbr.metallic_roughness_texture() {
@@ -195,7 +191,6 @@ async fn import_material(
             "metallicRoughnessTexture",
             textures,
             tex.texture().index(),
-            SamplerFallback::White,
         )?;
     }
     if let Some(tex) = mat.emissive_texture() {
@@ -204,92 +199,41 @@ async fn import_material(
             "emissionTexture",
             textures,
             tex.texture().index(),
-            SamplerFallback::Black,
         )?;
     }
     if let Some(tex) = mat.occlusion_texture() {
-        set_texture(
-            &mut result,
-            "aoTexture",
-            textures,
-            tex.texture().index(),
-            SamplerFallback::White,
-        )?;
+        set_texture(&mut result, "aoTexture", textures, tex.texture().index())?;
     }
     set_material_color(
         &mut result,
         "diffuseColor",
         Vector4::<f32>::from(pbr.base_color_factor()).into(),
-    )?;
-    set_material_vector3(&mut result, "emissionStrength", mat.emissive_factor())?;
-    set_material_scalar(&mut result, "metallicFactor", pbr.metallic_factor())?;
-    set_material_scalar(&mut result, "roughnessFactor", pbr.roughness_factor())?;
+    );
+    set_material_vector3(&mut result, "emissionStrength", mat.emissive_factor());
+    set_material_scalar(&mut result, "metallicFactor", pbr.metallic_factor());
+    set_material_scalar(&mut result, "roughnessFactor", pbr.roughness_factor());
     Ok(Resource::new_ok(ResourceKind::Embedded, result))
 }
 
-fn set_material_scalar(material: &mut Material, name: &'static str, value: f32) -> Result<()> {
-    let value: MaterialPropertyValue = MaterialPropertyValue::Float(value);
-    match material.set_property(name, value) {
-        Ok(()) => Ok(()),
-        Err(err) => {
-            Log::err(format!(
-                "Unable to set material property {} for glTF material! Reason: {:?}",
-                name, err
-            ));
-            Ok(())
-        }
-    }
+fn set_material_scalar(material: &mut Material, name: &'static str, value: f32) {
+    let value: MaterialProperty = MaterialProperty::Float(value);
+    material.set_property(name, value);
 }
 
-fn set_material_color(material: &mut Material, name: &'static str, color: Color) -> Result<()> {
-    let value: MaterialPropertyValue = MaterialPropertyValue::Color(color);
-    match material.set_property(name, value) {
-        Ok(()) => Ok(()),
-        Err(err) => {
-            Log::err(format!(
-                "Unable to set material property {} for GLTF material! Reason: {:?}",
-                name, err
-            ));
-            Ok(())
-        }
-    }
+fn set_material_color(material: &mut Material, name: &'static str, color: Color) {
+    let value: MaterialProperty = MaterialProperty::Color(color);
+    material.set_property(name, value);
 }
 
-fn set_material_vector3(
-    material: &mut Material,
-    name: &'static str,
-    vector: [f32; 3],
-) -> Result<()> {
-    let value: MaterialPropertyValue = MaterialPropertyValue::Vector3(vector.into());
-    match material.set_property(name, value) {
-        Ok(()) => Ok(()),
-        Err(err) => {
-            Log::err(format!(
-                "Unable to set material property {} for GLTF material! Reason: {:?}",
-                name, err
-            ));
-            Ok(())
-        }
-    }
+fn set_material_vector3(material: &mut Material, name: &'static str, vector: [f32; 3]) {
+    let value: MaterialProperty = MaterialProperty::Vector3(vector.into());
+    material.set_property(name, value);
 }
 
 #[allow(dead_code)]
-fn set_material_vector4(
-    material: &mut Material,
-    name: &'static str,
-    vector: [f32; 4],
-) -> Result<()> {
-    let value: MaterialPropertyValue = MaterialPropertyValue::Vector4(vector.into());
-    match material.set_property(name, value) {
-        Ok(()) => Ok(()),
-        Err(err) => {
-            Log::err(format!(
-                "Unable to set material property {} for GLTF material! Reason: {:?}",
-                name, err
-            ));
-            Ok(())
-        }
-    }
+fn set_material_vector4(material: &mut Material, name: &'static str, vector: [f32; 4]) {
+    let value: MaterialProperty = MaterialProperty::Vector4(vector.into());
+    material.set_property(name, value);
 }
 
 fn set_texture(
@@ -297,28 +241,16 @@ fn set_texture(
     name: &'static str,
     textures: &[TextureResource],
     index: usize,
-    fallback: SamplerFallback,
 ) -> Result<()> {
     let tex: TextureResource = textures
         .get(index)
         .ok_or(GltfMaterialError::InvalidIndex)?
         .clone();
-    match material.bind(
+    material.bind(
         name,
-        MaterialResourceBindingValue::Texture(TextureBinding {
-            value: Some(tex),
-            fallback,
-        }),
-    ) {
-        Ok(()) => Ok(()),
-        Err(err) => {
-            Log::err(format!(
-                "Unable to set material property {} for GLTF material! Reason: {:?}",
-                name, err
-            ));
-            Ok(())
-        }
-    }
+        MaterialResourceBinding::Texture(MaterialTextureBinding { value: Some(tex) }),
+    );
+    Ok(())
 }
 
 pub fn import_images<'a, 'b>(

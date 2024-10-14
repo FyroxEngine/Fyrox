@@ -241,7 +241,7 @@ impl TileSetImporter {
                     if let Some(texture) = item.resource::<Texture>() {
                         let mut material = Material::standard_2d();
 
-                        material.bind("diffuseTexture", texture).unwrap();
+                        material.bind("diffuseTexture", texture);
 
                         self.set_material(
                             Some(MaterialResource::new_ok(ResourceKind::Embedded, material)),

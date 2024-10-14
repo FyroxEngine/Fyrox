@@ -29,7 +29,7 @@ use crate::{
     error::FrameworkError,
 };
 use serde::{Deserialize, Serialize};
-use std::{any::Any, marker::PhantomData, path::PathBuf};
+use std::{any::Any, marker::PhantomData};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 pub trait GpuProgram: Any {
@@ -108,12 +108,10 @@ pub enum SamplerKind {
 pub enum ShaderResourceKind {
     /// A texture.
     Texture {
+        /// Kind of the texture.
         kind: SamplerKind,
 
-        /// Optional path to default texture.
-        default: Option<PathBuf>,
-
-        /// Default fallback value. See [`SamplerFallback`] for more info.
+        /// Fallback value. See [`SamplerFallback`] for more info.
         fallback: SamplerFallback,
     },
     PropertyGroup(Vec<ShaderProperty>),

@@ -42,9 +42,9 @@
 //! just by linking nodes to each other. Good example of this is skeleton which
 //! is used in skinning (animating 3d model by set of bones).
 
-use crate::material::{MaterialResourceBindingValue, TextureBinding};
+use crate::material::{MaterialResourceBinding, MaterialTextureBinding};
 use crate::{
-    asset::{manager::ResourceManager, untyped::UntypedResource},
+    asset::untyped::UntypedResource,
     core::{
         algebra::{Matrix4, Rotation3, UnitQuaternion, Vector2, Vector3},
         instant,
@@ -55,7 +55,6 @@ use crate::{
         visitor::{Visit, VisitResult, Visitor},
     },
     graph::{AbstractSceneGraph, AbstractSceneNode, BaseSceneGraph, NodeHandleMap, SceneGraph},
-    material::{shader::SamplerFallback, MaterialResource},
     resource::model::{Model, ModelResource, ModelResourceExtension},
     scene::{
         base::{NodeScriptMessage, SceneNodeId},
@@ -648,7 +647,7 @@ impl Graph {
         }
     }
 
-    pub(crate) fn resolve(&mut self, resource_manager: &ResourceManager) {
+    pub(crate) fn resolve(&mut self) {
         Log::writeln(MessageKind::Information, "Resolving graph...");
 
         self.restore_dynamic_node_data();
@@ -674,28 +673,6 @@ impl Graph {
             }
         }
 
-        // Sync materials with shaders.
-        let mut materials = FxHashSet::default();
-        for node in self.linear_iter_mut() {
-            (node as &mut dyn Reflect).enumerate_fields_recursively(
-                &mut |_, _, v| {
-                    v.downcast_ref::<MaterialResource>(&mut |material| {
-                        if let Some(material) = material {
-                            materials.insert(material.clone());
-                        }
-                    })
-                },
-                &[TypeId::of::<UntypedResource>()],
-            );
-        }
-
-        for material in materials {
-            let mut material_state = material.state();
-            if let Some(material) = material_state.data() {
-                material.sync_to_shader(resource_manager);
-            }
-        }
-
         self.apply_lightmap();
 
         Log::writeln(MessageKind::Information, "Graph resolved successfully!");
@@ -716,20 +693,12 @@ impl Graph {
                     let texture = entry.texture.clone().unwrap();
                     let mut material_state = surface.material().state();
                     if let Some(material) = material_state.data() {
-                        if let Err(e) = material.bind(
+                        material.bind(
                             "lightmapTexture",
-                            MaterialResourceBindingValue::Texture(TextureBinding {
+                            MaterialResourceBinding::Texture(MaterialTextureBinding {
                                 value: Some(texture),
-                                fallback: SamplerFallback::Black,
                             }),
-                        ) {
-                            Log::writeln(
-                                MessageKind::Error,
-                                format!(
-                                    "Failed to apply light map texture to material. Reason {e:?}"
-                                ),
-                            )
-                        }
+                        );
                     }
                 }
             }
@@ -779,20 +748,12 @@ impl Graph {
                     for (entry, surface) in entries.iter_mut().zip(mesh.surfaces_mut()) {
                         let mut material_state = surface.material().state();
                         if let Some(material) = material_state.data() {
-                            if let Err(e) = material.bind(
+                            material.bind(
                                 "lightmapTexture",
-                                MaterialResourceBindingValue::Texture(TextureBinding {
+                                MaterialResourceBinding::Texture(MaterialTextureBinding {
                                     value: entry.texture.clone(),
-                                    fallback: SamplerFallback::Black,
                                 }),
-                            ) {
-                                Log::writeln(
-                                    MessageKind::Error,
-                                    format!(
-                                    "Failed to apply light map texture to material. Reason {e:?}"
-                                ),
-                                )
-                            }
+                            );
                         }
                     }
                 }
@@ -1949,7 +1910,7 @@ mod test {
                 ))
                 .unwrap()
                 .0
-                .finish(&resource_manager),
+                .finish(),
             );
 
             // Add a new node to the root node of the scene.

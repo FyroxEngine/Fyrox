@@ -224,8 +224,8 @@ lazy_static! {
 }
 
 pub fn make_color_material(color: Color) -> MaterialResource {
-    let mut material = Material::from_shader(GIZMO_SHADER.clone(), None);
-    material.set_property("diffuseColor", color).unwrap();
+    let mut material = Material::from_shader(GIZMO_SHADER.clone());
+    material.set_property("diffuseColor", color);
     MaterialResource::new_ok(Default::default(), material)
 }
 
@@ -234,16 +234,13 @@ pub fn set_mesh_diffuse_color(mesh: &mut Mesh, color: Color) {
         surface
             .material()
             .data_ref()
-            .set_property("diffuseColor", color)
-            .unwrap();
+            .set_property("diffuseColor", color);
     }
 }
 
 pub fn create_terrain_layer_material() -> MaterialResource {
     let mut material = Material::standard_terrain();
-    material
-        .set_property("texCoordScale", Vector2::new(10.0, 10.0))
-        .unwrap();
+    material.set_property("texCoordScale", Vector2::new(10.0, 10.0));
     MaterialResource::new_ok(Default::default(), material)
 }
 
@@ -1914,7 +1911,7 @@ impl Editor {
                 };
                 match result {
                     Ok(loader) => {
-                        let scene = block_on(loader.0.finish(&engine.resource_manager));
+                        let scene = block_on(loader.0.finish());
                         let entry = EditorSceneEntry::new_game_scene(
                             scene,
                             Some(scene_path),

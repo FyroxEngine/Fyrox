@@ -4,42 +4,42 @@
     resources: [
         (
             name: "diffuseTexture",
-            kind: Texture(default: None, kind: Sampler2D, fallback: White),
+            kind: Texture(kind: Sampler2D, fallback: White),
             binding: 0
         ),
         (
             name: "normalTexture",
-            kind: Texture(default: None, kind: Sampler2D, fallback: Normal),
+            kind: Texture(kind: Sampler2D, fallback: Normal),
             binding: 1
         ),
         (
             name: "metallicRoughnessTexture",
-            kind: Texture(default: None, kind: Sampler2D, fallback: White),
+            kind: Texture(kind: Sampler2D, fallback: White),
             binding: 2
         ),
         (
             name: "heightTexture",
-            kind: Texture(default: None, kind: Sampler2D, fallback: Black),
+            kind: Texture(kind: Sampler2D, fallback: Black),
             binding: 3
         ),
         (
             name: "emissionTexture",
-            kind: Texture(default: None, kind: Sampler2D, fallback: Black),
+            kind: Texture(kind: Sampler2D, fallback: Black),
             binding: 4
         ),
         (
             name: "lightmapTexture",
-            kind: Texture(default: None, kind: Sampler2D, fallback: Black),
+            kind: Texture(kind: Sampler2D, fallback: Black),
             binding: 5
         ),
         (
             name: "aoTexture",
-            kind: Texture(default: None, kind: Sampler2D, fallback: White),
+            kind: Texture(kind: Sampler2D, fallback: White),
             binding: 6
         ),
         (
             name: "blendShapesStorage",
-            kind: Texture(default: None, kind: Sampler3D, fallback: Volume),
+            kind: Texture(kind: Sampler3D, fallback: Volume),
             binding: 7
         ),
         (

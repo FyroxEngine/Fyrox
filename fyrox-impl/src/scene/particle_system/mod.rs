@@ -27,7 +27,6 @@ use crate::{
     core::{
         algebra::{Point3, Vector2, Vector3},
         color_gradient::ColorGradient,
-        log::Log,
         math::{aabb::AxisAlignedBoundingBox, TriangleDefinition},
         pool::Handle,
         reflect::prelude::*,
@@ -166,7 +165,7 @@ impl Visit for ParticleSystemRng {
 /// #         color_gradient::{ColorGradient, GradientPoint},
 /// #         sstorage::ImmutableString,
 /// #     },
-/// #     material::{Material, MaterialPropertyValue, MaterialResource},
+/// #     material::{Material, MaterialProperty, MaterialResource},
 /// #     resource::texture::Texture,
 /// #     scene::{
 /// #         base::BaseBuilder,
@@ -183,8 +182,7 @@ impl Visit for ParticleSystemRng {
 /// fn create_smoke(graph: &mut Graph, resource_manager: &mut ResourceManager, pos: Vector3<f32>) {
 ///     let mut material = Material::standard_particle_system();
 ///     material
-///         .bind("diffuseTexture", resource_manager.request::<Texture>(Path::new("data/particles/smoke_04.tga")))
-///         .unwrap();
+///         .bind("diffuseTexture", resource_manager.request::<Texture>(Path::new("data/particles/smoke_04.tga")));
 ///
 ///     ParticleSystemBuilder::new(
 ///         BaseBuilder::new()
@@ -290,10 +288,10 @@ impl Visit for ParticleSystem {
             .visit("SoftBoundarySharpnessFactor", &mut region)
             .is_ok()
         {
-            Log::verify(self.material.data_ref().set_property(
+            self.material.data_ref().set_property(
                 "softBoundarySharpnessFactor",
                 soft_boundary_sharpness_factor,
-            ));
+            );
         }
 
         Ok(())

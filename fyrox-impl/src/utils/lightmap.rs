@@ -26,7 +26,7 @@
 
 #![forbid(unsafe_code)]
 
-use crate::material::MaterialResourceBindingValue;
+use crate::material::MaterialResourceBinding;
 use crate::{
     asset::manager::{ResourceManager, ResourceRegistrationError},
     core::{
@@ -452,7 +452,7 @@ impl LightmapInputData {
                     if let Some(material) = material_state.data() {
                         if !material
                             .binding_ref("lightmapTexture")
-                            .map(|v| matches!(v, MaterialResourceBindingValue::Texture { .. }))
+                            .map(|v| matches!(v, MaterialResourceBinding::Texture { .. }))
                             .unwrap_or_default()
                         {
                             continue 'surface_loop;

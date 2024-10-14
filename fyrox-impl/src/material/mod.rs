@@ -30,7 +30,6 @@ use crate::{
         algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4},
         color::Color,
         io::FileLoadError,
-        log::Log,
         parking_lot::Mutex,
         reflect::prelude::*,
         sstorage::ImmutableString,
@@ -38,13 +37,10 @@ use crate::{
         visitor::{prelude::*, RegionGuard},
         TypeUuidProvider,
     },
-    material::shader::{
-        SamplerFallback, ShaderResource, ShaderResourceExtension, ShaderResourceKind,
-    },
-    resource::texture::{Texture, TextureResource},
+    material::shader::{SamplerFallback, ShaderResource, ShaderResourceExtension},
+    resource::texture::TextureResource,
 };
 use fxhash::FxHashMap;
-use fyrox_graphics::gpu_program::ShaderPropertyKind;
 use fyrox_resource::manager::BuiltInResource;
 use fyrox_resource::state::ResourceState;
 use fyrox_resource::untyped::ResourceKind;
@@ -53,7 +49,6 @@ use std::error::Error;
 use std::{
     any::Any,
     fmt::{Display, Formatter},
-    ops::Deref,
     path::Path,
     sync::Arc,
 };
@@ -64,12 +59,9 @@ pub mod shader;
 
 #[derive(Default, Debug, Visit, Clone, Reflect, TypeUuidProvider)]
 #[type_uuid(id = "e1642a47-d372-4840-a8eb-f16350f436f8")]
-pub struct TextureBinding {
+pub struct MaterialTextureBinding {
     /// Actual value of the sampler. Could be [`None`], in this case `fallback` will be used.
     pub value: Option<TextureResource>,
-
-    /// Sampler fallback value.
-    pub fallback: SamplerFallback,
 }
 
 /// A value of a property that will be used for rendering with a shader.
@@ -80,7 +72,7 @@ pub struct TextureBinding {
 /// just simple data types.
 #[derive(Debug, Visit, Clone, Reflect, TypeUuidProvider, AsRefStr, EnumString, VariantNames)]
 #[type_uuid(id = "2df8f1e5-0075-4d0d-9860-70fc27d3e165")]
-pub enum MaterialResourceBindingValue {
+pub enum MaterialResourceBinding {
     /// A texture with fallback option.
     ///
     /// # Fallback
@@ -96,47 +88,17 @@ pub enum MaterialResourceBindingValue {
     ///
     /// Fallback value is also helpful to catch missing textures, you'll definitely know the texture is
     /// missing by very specific value in the fallback texture.
-    Texture(TextureBinding),
+    Texture(MaterialTextureBinding),
     PropertyGroup(MaterialPropertyGroup),
 }
 
-impl Default for MaterialResourceBindingValue {
+impl Default for MaterialResourceBinding {
     fn default() -> Self {
         Self::PropertyGroup(Default::default())
     }
 }
 
-impl MaterialResourceBindingValue {
-    /// Creates a resource binding from its shader's representation.
-    pub fn from_property_kind(
-        kind: &ShaderResourceKind,
-        resource_manager: Option<&ResourceManager>,
-    ) -> Self {
-        match kind {
-            ShaderResourceKind::Texture {
-                default,
-                fallback: usage,
-                ..
-            } => Self::Texture(TextureBinding {
-                value: default
-                    .as_ref()
-                    .and_then(|path| resource_manager.map(|rm| rm.request::<Texture>(path))),
-                fallback: *usage,
-            }),
-            ShaderResourceKind::PropertyGroup(group) => {
-                Self::PropertyGroup(MaterialPropertyGroup {
-                    properties: group
-                        .iter()
-                        .map(|property| MaterialProperty {
-                            name: property.name.as_str().into(),
-                            value: MaterialPropertyValue::from_property_kind(&property.kind),
-                        })
-                        .collect::<Vec<_>>(),
-                })
-            }
-        }
-    }
-
+impl MaterialResourceBinding {
     /// Tries to extract a texture from the resource binding.
     pub fn as_texture(&self) -> Option<TextureResource> {
         if let Self::Texture(binding) = self {
@@ -147,23 +109,9 @@ impl MaterialResourceBindingValue {
     }
 }
 
-#[derive(Default, Debug, Visit, Clone, Reflect, TypeUuidProvider)]
-#[type_uuid(id = "4d8bd5b1-8996-4681-bd34-fd3f46f8179f")]
-pub struct MaterialResourceBinding {
-    pub name: ImmutableString,
-    pub value: MaterialResourceBindingValue,
-}
-
-#[derive(Default, Debug, Visit, Clone, Reflect, TypeUuidProvider)]
-#[type_uuid(id = "29af996e-a2d3-4d72-adee-5db16e46f379")]
-pub struct MaterialProperty {
-    pub name: ImmutableString,
-    pub value: MaterialPropertyValue,
-}
-
 #[derive(Default, Debug, Visit, Clone, Reflect)]
 pub struct MaterialPropertyGroup {
-    properties: Vec<MaterialProperty>,
+    properties: FxHashMap<ImmutableString, MaterialProperty>,
 }
 
 impl MaterialPropertyGroup {
@@ -171,7 +119,7 @@ impl MaterialPropertyGroup {
     ///
     /// # Complexity
     ///
-    /// O(N)
+    /// O(1)
     ///
     /// # Examples
     ///
@@ -183,22 +131,16 @@ impl MaterialPropertyGroup {
     /// let properties = material.property_group_ref("properties").unwrap();
     /// let color = properties.property_ref("diffuseColor").unwrap().as_color();
     /// ```
-    pub fn property_ref(&self, name: impl Into<ImmutableString>) -> Option<&MaterialPropertyValue> {
+    pub fn property_ref(&self, name: impl Into<ImmutableString>) -> Option<&MaterialProperty> {
         let name = name.into();
-        self.properties.iter().find_map(|property| {
-            if property.name == name {
-                Some(&property.value)
-            } else {
-                None
-            }
-        })
+        self.properties.get(&name)
     }
 
     /// Searches for a property with given name.
     ///
     /// # Complexity
     ///
-    /// O(N)
+    /// O(1)
     ///
     /// # Examples
     ///
@@ -210,180 +152,55 @@ impl MaterialPropertyGroup {
     /// let properties = material.property_group_ref("properties").unwrap();
     /// let color = properties.property_ref("diffuseColor").unwrap().as_color();
     /// ```
-    fn property_mut(
+    pub fn property_mut(
         &mut self,
         name: impl Into<ImmutableString>,
-    ) -> Option<&mut MaterialPropertyValue> {
+    ) -> Option<&mut MaterialProperty> {
         let name = name.into();
-        self.properties.iter_mut().find_map(|property| {
-            if property.name == name {
-                Some(&mut property.value)
-            } else {
-                None
-            }
-        })
+        self.properties.get_mut(&name)
     }
 
     /// Sets new value of the property with given name.
     ///
     /// # Type checking
     ///
-    /// A new value must have the same type as in shader, otherwise an error will be generated.
-    /// This helps to catch subtle bugs when you passing "almost" identical values to shader, like
-    /// signed and unsigned integers - both have positive values, but GPU is very strict of what
-    /// it expects as input value.
+    /// This method does not check if the property exists in the shader nor its type. Validation
+    /// happens in the renderer, when it tries to use the material. This is made for performance
+    /// reasons.
     ///
     /// # Example
     ///
     /// ```no_run
-    /// # use fyrox_impl::material::{Material, MaterialPropertyValue};
+    /// # use fyrox_impl::material::{Material, MaterialProperty};
     /// # use fyrox_impl::core::color::Color;
     /// # use fyrox_impl::core::sstorage::ImmutableString;
     ///
     /// let mut material = Material::standard();
     ///
-    /// assert!(material.set_property("diffuseColor", Color::WHITE).is_ok());
+    /// material.set_property("diffuseColor", Color::WHITE);
     /// ```
     pub fn set_property(
         &mut self,
         name: impl Into<ImmutableString>,
-        new_value: impl Into<MaterialPropertyValue>,
-    ) -> Result<(), MaterialError> {
-        let name = name.into();
-        let new_value = new_value.into();
-        if let Some(value) = self.property_mut(name.clone()) {
-            match (value, new_value) {
-                (MaterialPropertyValue::Float(old_value), MaterialPropertyValue::Float(value)) => {
-                    *old_value = value;
-                }
-                (
-                    MaterialPropertyValue::FloatArray(old_value),
-                    MaterialPropertyValue::FloatArray(value),
-                ) => {
-                    *old_value = value;
-                }
-                (MaterialPropertyValue::Int(old_value), MaterialPropertyValue::Int(value)) => {
-                    *old_value = value;
-                }
-                (
-                    MaterialPropertyValue::IntArray(old_value),
-                    MaterialPropertyValue::IntArray(value),
-                ) => {
-                    *old_value = value;
-                }
-                (MaterialPropertyValue::Bool(old_value), MaterialPropertyValue::Bool(value)) => {
-                    *old_value = value;
-                }
-                (MaterialPropertyValue::UInt(old_value), MaterialPropertyValue::UInt(value)) => {
-                    *old_value = value;
-                }
-                (
-                    MaterialPropertyValue::UIntArray(old_value),
-                    MaterialPropertyValue::UIntArray(value),
-                ) => {
-                    *old_value = value;
-                }
-                (
-                    MaterialPropertyValue::Vector2(old_value),
-                    MaterialPropertyValue::Vector2(value),
-                ) => {
-                    *old_value = value;
-                }
-                (
-                    MaterialPropertyValue::Vector2Array(old_value),
-                    MaterialPropertyValue::Vector2Array(value),
-                ) => {
-                    *old_value = value;
-                }
-                (
-                    MaterialPropertyValue::Vector3(old_value),
-                    MaterialPropertyValue::Vector3(value),
-                ) => {
-                    *old_value = value;
-                }
-                (
-                    MaterialPropertyValue::Vector3Array(old_value),
-                    MaterialPropertyValue::Vector3Array(value),
-                ) => {
-                    *old_value = value;
-                }
-                (
-                    MaterialPropertyValue::Vector4(old_value),
-                    MaterialPropertyValue::Vector4(value),
-                ) => {
-                    *old_value = value;
-                }
-                (
-                    MaterialPropertyValue::Vector4Array(old_value),
-                    MaterialPropertyValue::Vector4Array(value),
-                ) => {
-                    *old_value = value;
-                }
-                (
-                    MaterialPropertyValue::Matrix2(old_value),
-                    MaterialPropertyValue::Matrix2(value),
-                ) => {
-                    *old_value = value;
-                }
-                (
-                    MaterialPropertyValue::Matrix2Array(old_value),
-                    MaterialPropertyValue::Matrix2Array(value),
-                ) => {
-                    *old_value = value;
-                }
-                (
-                    MaterialPropertyValue::Matrix3(old_value),
-                    MaterialPropertyValue::Matrix3(value),
-                ) => {
-                    *old_value = value;
-                }
-                (
-                    MaterialPropertyValue::Matrix3Array(old_value),
-                    MaterialPropertyValue::Matrix3Array(value),
-                ) => {
-                    *old_value = value;
-                }
-                (
-                    MaterialPropertyValue::Matrix4(old_value),
-                    MaterialPropertyValue::Matrix4(value),
-                ) => {
-                    *old_value = value;
-                }
-                (
-                    MaterialPropertyValue::Matrix4Array(old_value),
-                    MaterialPropertyValue::Matrix4Array(value),
-                ) => {
-                    *old_value = value;
-                }
-                (MaterialPropertyValue::Color(old_value), MaterialPropertyValue::Color(value)) => {
-                    *old_value = value;
-                }
-                (value, new_value) => {
-                    return Err(MaterialError::PropertyTypeMismatch {
-                        property_name: name.deref().to_owned(),
-                        expected: Box::new(value.clone()),
-                        given: Box::new(new_value),
-                    })
-                }
-            }
+        new_value: impl Into<MaterialProperty>,
+    ) {
+        self.properties.insert(name.into(), new_value.into());
+    }
 
-            Ok(())
-        } else {
-            Err(MaterialError::NoSuchProperty {
-                property_name: name.deref().to_owned(),
-            })
-        }
+    /// Removes the property from the group. The renderer will use shader defaults for this property.
+    pub fn unset_property(&mut self, name: impl Into<ImmutableString>) -> Option<MaterialProperty> {
+        self.properties.remove(&name.into())
     }
 
     /// Returns immutable reference to internal property storage.
-    pub fn properties(&self) -> &[MaterialProperty] {
+    pub fn properties(&self) -> &FxHashMap<ImmutableString, MaterialProperty> {
         &self.properties
     }
 }
 
 #[derive(Debug, Visit, Clone, Reflect, AsRefStr, EnumString, VariantNames, TypeUuidProvider)]
 #[type_uuid(id = "1c25018d-ab6e-4dca-99a6-e3d9639bc33c")]
-pub enum MaterialPropertyValue {
+pub enum MaterialProperty {
     /// Real number.
     Float(f32),
 
@@ -454,7 +271,7 @@ pub enum MaterialPropertyValue {
 
 macro_rules! impl_from {
     ($variant:ident => $value_type:ty) => {
-        impl From<$value_type> for MaterialPropertyValue {
+        impl From<$value_type> for MaterialProperty {
             fn from(value: $value_type) -> Self {
                 Self::$variant(value)
             }
@@ -483,21 +300,15 @@ impl_from!(Matrix4Array => Vec<Matrix4<f32>>);
 impl_from!(Bool => bool);
 impl_from!(Color => Color);
 
-impl From<Option<TextureResource>> for MaterialResourceBindingValue {
+impl From<Option<TextureResource>> for MaterialResourceBinding {
     fn from(value: Option<TextureResource>) -> Self {
-        Self::Texture(TextureBinding {
-            value,
-            fallback: Default::default(),
-        })
+        Self::Texture(MaterialTextureBinding { value })
     }
 }
 
-impl From<TextureResource> for MaterialResourceBindingValue {
+impl From<TextureResource> for MaterialResourceBinding {
     fn from(value: TextureResource) -> Self {
-        Self::Texture(TextureBinding {
-            value: Some(value),
-            fallback: Default::default(),
-        })
+        Self::Texture(MaterialTextureBinding { value: Some(value) })
     }
 }
 
@@ -505,7 +316,7 @@ macro_rules! define_as {
     ($(#[$meta:meta])* $name:ident = $variant:ident -> $ty:ty) => {
         $(#[$meta])*
         pub fn $name(&self) -> Option<$ty> {
-            if let MaterialPropertyValue::$variant(v) = self {
+            if let MaterialProperty::$variant(v) = self {
                 Some(*v)
             } else {
                 None
@@ -518,7 +329,7 @@ macro_rules! define_as_ref {
     ($(#[$meta:meta])* $name:ident = $variant:ident -> $ty:ty) => {
         $(#[$meta])*
         pub fn $name(&self) -> Option<&$ty> {
-            if let MaterialPropertyValue::$variant(v) = self {
+            if let MaterialProperty::$variant(v) = self {
                 Some(v)
             } else {
                 None
@@ -527,54 +338,7 @@ macro_rules! define_as_ref {
     };
 }
 
-impl MaterialPropertyValue {
-    /// Creates property value from its shader's representation.
-    pub fn from_property_kind(kind: &ShaderPropertyKind) -> Self {
-        match kind {
-            ShaderPropertyKind::Float(value) => MaterialPropertyValue::Float(*value),
-            ShaderPropertyKind::Int(value) => MaterialPropertyValue::Int(*value),
-            ShaderPropertyKind::UInt(value) => MaterialPropertyValue::UInt(*value),
-            ShaderPropertyKind::Vector2(value) => MaterialPropertyValue::Vector2(*value),
-            ShaderPropertyKind::Vector3(value) => MaterialPropertyValue::Vector3(*value),
-            ShaderPropertyKind::Vector4(value) => MaterialPropertyValue::Vector4(*value),
-            ShaderPropertyKind::Color { r, g, b, a } => {
-                MaterialPropertyValue::Color(Color::from_rgba(*r, *g, *b, *a))
-            }
-            ShaderPropertyKind::Matrix2(value) => MaterialPropertyValue::Matrix2(*value),
-            ShaderPropertyKind::Matrix3(value) => MaterialPropertyValue::Matrix3(*value),
-            ShaderPropertyKind::Matrix4(value) => MaterialPropertyValue::Matrix4(*value),
-            ShaderPropertyKind::Bool(value) => MaterialPropertyValue::Bool(*value),
-
-            ShaderPropertyKind::FloatArray { value, .. } => {
-                MaterialPropertyValue::FloatArray(value.clone())
-            }
-            ShaderPropertyKind::IntArray { value, .. } => {
-                MaterialPropertyValue::IntArray(value.clone())
-            }
-            ShaderPropertyKind::UIntArray { value, .. } => {
-                MaterialPropertyValue::UIntArray(value.clone())
-            }
-            ShaderPropertyKind::Vector2Array { value, .. } => {
-                MaterialPropertyValue::Vector2Array(value.clone())
-            }
-            ShaderPropertyKind::Vector3Array { value, .. } => {
-                MaterialPropertyValue::Vector3Array(value.clone())
-            }
-            ShaderPropertyKind::Vector4Array { value, .. } => {
-                MaterialPropertyValue::Vector4Array(value.clone())
-            }
-            ShaderPropertyKind::Matrix2Array { value, .. } => {
-                MaterialPropertyValue::Matrix2Array(value.clone())
-            }
-            ShaderPropertyKind::Matrix3Array { value, .. } => {
-                MaterialPropertyValue::Matrix3Array(value.clone())
-            }
-            ShaderPropertyKind::Matrix4Array { value, .. } => {
-                MaterialPropertyValue::Matrix4Array(value.clone())
-            }
-        }
-    }
-
+impl MaterialProperty {
     define_as!(
         /// Tries to unwrap property value as float.
         as_float = Float -> f32
@@ -657,7 +421,7 @@ impl MaterialPropertyValue {
     );
 }
 
-impl Default for MaterialPropertyValue {
+impl Default for MaterialProperty {
     fn default() -> Self {
         Self::Float(0.0)
     }
@@ -702,7 +466,7 @@ impl Default for MaterialPropertyValue {
 /// # use fyrox_impl::{
 /// #     material::shader::{ShaderResource, SamplerFallback},
 /// #     asset::manager::ResourceManager,
-/// #     material::{Material, MaterialPropertyValue},
+/// #     material::{Material, MaterialProperty},
 /// #     core::sstorage::ImmutableString,
 /// # };
 /// # use fyrox_impl::resource::texture::Texture;
@@ -713,7 +477,7 @@ impl Default for MaterialPropertyValue {
 ///     material.bind(
 ///         "diffuseTexture",
 ///         resource_manager.request::<Texture>("Brick_DiffuseTexture.jpg")
-///     ).unwrap();
+///     );
 ///
 ///     material
 /// }
@@ -732,7 +496,7 @@ impl Default for MaterialPropertyValue {
 /// ```no_run
 /// # use fyrox_impl::{
 /// #     asset::manager::ResourceManager,
-/// #     material::{Material, MaterialPropertyValue},
+/// #     material::{Material, MaterialProperty},
 /// #     core::{sstorage::ImmutableString, algebra::Vector3}
 /// # };
 /// # use fyrox_impl::material::shader::Shader;
@@ -741,9 +505,9 @@ impl Default for MaterialPropertyValue {
 ///     let shader = resource_manager.request::<Shader>("my_grass_shader.ron").await.unwrap();
 ///
 ///     // Here we assume that the material really has the properties defined below.
-///     let mut material = Material::from_shader(shader, Some(resource_manager));
+///     let mut material = Material::from_shader(shader);
 ///
-///     material.set_property("windDirection", Vector3::new(1.0, 0.0, 0.5)).unwrap();
+///     material.set_property("windDirection", Vector3::new(1.0, 0.0, 0.5));
 ///
 ///     material
 /// }
@@ -755,11 +519,7 @@ impl Default for MaterialPropertyValue {
 #[derive(Debug, Clone, Reflect)]
 pub struct Material {
     shader: ShaderResource,
-    // Why not hash map here? Simply because linear search works faster here. It happens, because
-    // there's a limited amount of resources a material could contain, usually it is 32 at max.
-    // This limitation comes from GPUs. Even PBR materials have just 13 resources required for
-    // rendering. Linear search in such small amounts outperforms hash map lookups.
-    resource_bindings: Vec<MaterialResourceBinding>,
+    resource_bindings: FxHashMap<ImmutableString, MaterialResourceBinding>,
 }
 
 #[derive(Debug, Visit, Clone, Reflect)]
@@ -817,57 +577,42 @@ impl Visit for Material {
             let mut old_properties = FxHashMap::<ImmutableString, OldMaterialProperty>::default();
             if old_properties.visit("Properties", &mut region).is_ok() {
                 for (name, old_property) in &old_properties {
-                    if let OldMaterialProperty::Sampler { value, fallback } = old_property {
-                        if let Some(binding) = self.binding_mut(name.clone()) {
-                            *binding = MaterialResourceBindingValue::Texture(TextureBinding {
+                    if let OldMaterialProperty::Sampler { value, .. } = old_property {
+                        self.bind(
+                            name.clone(),
+                            MaterialResourceBinding::Texture(MaterialTextureBinding {
                                 value: value.clone(),
-                                fallback: *fallback,
-                            });
-                        }
+                            }),
+                        )
                     }
                 }
 
-                if let Some(MaterialResourceBindingValue::PropertyGroup(properties)) =
-                    self.binding_mut("properties")
-                {
-                    for (name, old_property) in old_properties {
-                        let result = match old_property {
-                            OldMaterialProperty::Float(v) => properties.set_property(name, v),
-                            OldMaterialProperty::FloatArray(v) => properties.set_property(name, v),
-                            OldMaterialProperty::Int(v) => properties.set_property(name, v),
-                            OldMaterialProperty::IntArray(v) => properties.set_property(name, v),
-                            OldMaterialProperty::UInt(v) => properties.set_property(name, v),
-                            OldMaterialProperty::UIntArray(v) => properties.set_property(name, v),
-                            OldMaterialProperty::Vector2(v) => properties.set_property(name, v),
-                            OldMaterialProperty::Vector2Array(v) => {
-                                properties.set_property(name, v)
-                            }
-                            OldMaterialProperty::Vector3(v) => properties.set_property(name, v),
-                            OldMaterialProperty::Vector3Array(v) => {
-                                properties.set_property(name, v)
-                            }
-                            OldMaterialProperty::Vector4(v) => properties.set_property(name, v),
-                            OldMaterialProperty::Vector4Array(v) => {
-                                properties.set_property(name, v)
-                            }
-                            OldMaterialProperty::Matrix2(v) => properties.set_property(name, v),
-                            OldMaterialProperty::Matrix2Array(v) => {
-                                properties.set_property(name, v)
-                            }
-                            OldMaterialProperty::Matrix3(v) => properties.set_property(name, v),
-                            OldMaterialProperty::Matrix3Array(v) => {
-                                properties.set_property(name, v)
-                            }
-                            OldMaterialProperty::Matrix4(v) => properties.set_property(name, v),
-                            OldMaterialProperty::Matrix4Array(v) => {
-                                properties.set_property(name, v)
-                            }
-                            OldMaterialProperty::Bool(v) => properties.set_property(name, v),
-                            OldMaterialProperty::Color(v) => properties.set_property(name, v),
-                            _ => Ok(()),
-                        };
-                        Log::verify(result);
-                    }
+                let properties = self.try_get_or_insert_property_group("properties");
+
+                for (name, old_property) in old_properties {
+                    match old_property {
+                        OldMaterialProperty::Float(v) => properties.set_property(name, v),
+                        OldMaterialProperty::FloatArray(v) => properties.set_property(name, v),
+                        OldMaterialProperty::Int(v) => properties.set_property(name, v),
+                        OldMaterialProperty::IntArray(v) => properties.set_property(name, v),
+                        OldMaterialProperty::UInt(v) => properties.set_property(name, v),
+                        OldMaterialProperty::UIntArray(v) => properties.set_property(name, v),
+                        OldMaterialProperty::Vector2(v) => properties.set_property(name, v),
+                        OldMaterialProperty::Vector2Array(v) => properties.set_property(name, v),
+                        OldMaterialProperty::Vector3(v) => properties.set_property(name, v),
+                        OldMaterialProperty::Vector3Array(v) => properties.set_property(name, v),
+                        OldMaterialProperty::Vector4(v) => properties.set_property(name, v),
+                        OldMaterialProperty::Vector4Array(v) => properties.set_property(name, v),
+                        OldMaterialProperty::Matrix2(v) => properties.set_property(name, v),
+                        OldMaterialProperty::Matrix2Array(v) => properties.set_property(name, v),
+                        OldMaterialProperty::Matrix3(v) => properties.set_property(name, v),
+                        OldMaterialProperty::Matrix3Array(v) => properties.set_property(name, v),
+                        OldMaterialProperty::Matrix4(v) => properties.set_property(name, v),
+                        OldMaterialProperty::Matrix4Array(v) => properties.set_property(name, v),
+                        OldMaterialProperty::Bool(v) => properties.set_property(name, v),
+                        OldMaterialProperty::Color(v) => properties.set_property(name, v),
+                        _ => (),
+                    };
                 }
             } else {
                 self.resource_bindings
@@ -937,18 +682,18 @@ pub enum MaterialError {
         /// Name of the property.
         property_name: String,
         /// Expected property value.
-        expected: Box<MaterialPropertyValue>,
+        expected: Box<MaterialProperty>,
         /// Given property value.
-        given: Box<MaterialPropertyValue>,
+        given: Box<MaterialProperty>,
     },
     /// Attempt to set a value of wrong type to a property.
     ResourceBindingTypeMismatch {
         /// Name of the resource binding.
         binding_name: String,
         /// Expected binding value.
-        expected: Box<MaterialResourceBindingValue>,
+        expected: Box<MaterialResourceBinding>,
         /// Given binding value.
-        given: Box<MaterialResourceBindingValue>,
+        given: Box<MaterialResourceBinding>,
     },
     /// Unable to read data source.
     Visit(VisitError),
@@ -1013,7 +758,7 @@ lazy_static! {
     pub static ref STANDARD: BuiltInResource<Material> = BuiltInResource::new_no_source(
         MaterialResource::new_ok(
             "__StandardMaterial".into(),
-            Material::from_shader(ShaderResource::standard(), None),
+            Material::from_shader(ShaderResource::standard()),
         )
     );
 
@@ -1022,7 +767,7 @@ lazy_static! {
     pub static ref STANDARD_2D: BuiltInResource<Material> = BuiltInResource::new_no_source(
         MaterialResource::new_ok(
             "__Standard2DMaterial".into(),
-            Material::from_shader(ShaderResource::standard_2d(), None),
+            Material::from_shader(ShaderResource::standard_2d()),
         )
     );
 
@@ -1031,7 +776,7 @@ lazy_static! {
     pub static ref STANDARD_PARTICLE_SYSTEM: BuiltInResource<Material> = BuiltInResource::new_no_source(
         MaterialResource::new_ok(
             "__StandardParticleSystemMaterial".into(),
-            Material::from_shader(ShaderResource::standard_particle_system(), None),
+            Material::from_shader(ShaderResource::standard_particle_system(),),
         )
     );
 
@@ -1040,7 +785,7 @@ lazy_static! {
     pub static ref STANDARD_SPRITE: BuiltInResource<Material> = BuiltInResource::new_no_source(
         MaterialResource::new_ok(
             "__StandardSpriteMaterial".into(),
-            Material::from_shader(ShaderResource::standard_sprite(), None),
+            Material::from_shader(ShaderResource::standard_sprite()),
         )
     );
 
@@ -1049,7 +794,7 @@ lazy_static! {
     pub static ref STANDARD_TERRAIN: BuiltInResource<Material> = BuiltInResource::new_no_source(
         MaterialResource::new_ok(
             "__StandardTerrainMaterial".into(),
-           Material::from_shader(ShaderResource::standard_terrain(), None),
+           Material::from_shader(ShaderResource::standard_terrain()),
         )
     );
 
@@ -1058,7 +803,7 @@ lazy_static! {
     pub static ref STANDARD_TWOSIDES: BuiltInResource<Material> = BuiltInResource::new_no_source(
         MaterialResource::new_ok(
             "__StandardTwoSidesMaterial".into(),
-          Material::from_shader(ShaderResource::standard_twosides(), None),
+          Material::from_shader(ShaderResource::standard_twosides()),
         )
     );
 }
@@ -1073,7 +818,7 @@ impl Material {
     /// # use fyrox_impl::{
     /// #     material::shader::{ShaderResource, SamplerFallback},
     /// #     asset::manager::ResourceManager,
-    /// #     material::{Material, MaterialPropertyValue},
+    /// #     material::{Material, MaterialProperty},
     /// #     core::sstorage::ImmutableString
     /// # };
     /// # use fyrox_impl::resource::texture::Texture;
@@ -1084,38 +829,38 @@ impl Material {
     ///     material.bind(
     ///         "diffuseTexture",
     ///         resource_manager.request::<Texture>("Brick_DiffuseTexture.jpg")
-    ///     ).unwrap();
+    ///     );
     ///
     ///     material
     /// }
     /// ```
     pub fn standard() -> Self {
-        Self::from_shader(ShaderResource::standard(), None)
+        Self::from_shader(ShaderResource::standard())
     }
 
     /// Creates new instance of standard 2D material.
     pub fn standard_2d() -> Self {
-        Self::from_shader(ShaderResource::standard_2d(), None)
+        Self::from_shader(ShaderResource::standard_2d())
     }
 
     /// Creates new instance of standard 2D material.
     pub fn standard_particle_system() -> Self {
-        Self::from_shader(ShaderResource::standard_particle_system(), None)
+        Self::from_shader(ShaderResource::standard_particle_system())
     }
 
     /// Creates new instance of standard sprite material.
     pub fn standard_sprite() -> Self {
-        Self::from_shader(ShaderResource::standard_sprite(), None)
+        Self::from_shader(ShaderResource::standard_sprite())
     }
 
     /// Creates new instance of standard material that renders both sides of a face.
     pub fn standard_two_sides() -> Self {
-        Self::from_shader(ShaderResource::standard_twosides(), None)
+        Self::from_shader(ShaderResource::standard_twosides())
     }
 
     /// Creates new instance of standard terrain material.
     pub fn standard_terrain() -> Self {
-        Self::from_shader(ShaderResource::standard_terrain(), None)
+        Self::from_shader(ShaderResource::standard_terrain())
     }
 
     /// Creates a new material instance with given shader. Each property will have default values
@@ -1131,7 +876,7 @@ impl Material {
     /// ```no_run
     /// # use fyrox_impl::{
     /// #     asset::manager::ResourceManager,
-    /// #     material::{Material, MaterialPropertyValue},
+    /// #     material::{Material, MaterialProperty},
     /// #     core::{sstorage::ImmutableString, algebra::Vector3}
     /// # };
     /// # use fyrox_impl::material::shader::Shader;
@@ -1140,33 +885,17 @@ impl Material {
     ///     let shader = resource_manager.request::<Shader>("my_grass_shader.ron").await.unwrap();
     ///
     ///     // Here we assume that the material really has the properties defined below.
-    ///     let mut material = Material::from_shader(shader, Some(resource_manager));
+    ///     let mut material = Material::from_shader(shader);
     ///
-    ///     material.set_property("windDirection", Vector3::new(1.0, 0.0, 0.5)).unwrap();
+    ///     material.set_property("windDirection", Vector3::new(1.0, 0.0, 0.5));
     ///
     ///     material
     /// }
     /// ```
-    pub fn from_shader(shader: ShaderResource, resource_manager: Option<ResourceManager>) -> Self {
-        let data = shader.data_ref();
-
-        let mut resource_bindings = Vec::with_capacity(data.definition.resources.len());
-        for resource_definition in data.definition.resources.iter() {
-            let resource_binding = MaterialResourceBindingValue::from_property_kind(
-                &resource_definition.kind,
-                resource_manager.as_ref(),
-            );
-            resource_bindings.push(MaterialResourceBinding {
-                name: ImmutableString::new(&resource_definition.name),
-                value: resource_binding,
-            });
-        }
-
-        drop(data);
-
+    pub fn from_shader(shader: ShaderResource) -> Self {
         Self {
             shader,
-            resource_bindings,
+            resource_bindings: Default::default(),
         }
     }
 
@@ -1199,15 +928,9 @@ impl Material {
     pub fn binding_ref(
         &self,
         name: impl Into<ImmutableString>,
-    ) -> Option<&MaterialResourceBindingValue> {
+    ) -> Option<&MaterialResourceBinding> {
         let name = name.into();
-        self.resource_bindings.iter().find_map(|binding| {
-            if binding.name == name {
-                Some(&binding.value)
-            } else {
-                None
-            }
-        })
+        self.resource_bindings.get(&name)
     }
 
     /// Searches for a resource binding with the given name and returns mutable reference to it,
@@ -1219,27 +942,24 @@ impl Material {
     pub fn binding_mut(
         &mut self,
         name: impl Into<ImmutableString>,
-    ) -> Option<&mut MaterialResourceBindingValue> {
+    ) -> Option<&mut MaterialResourceBinding> {
         let name = name.into();
-        self.resource_bindings.iter_mut().find_map(|binding| {
-            if binding.name == name {
-                Some(&mut binding.value)
-            } else {
-                None
-            }
-        })
+        self.resource_bindings.get_mut(&name)
     }
 
-    pub fn texture_ref(&self, name: impl Into<ImmutableString>) -> Option<&TextureBinding> {
-        if let Some(MaterialResourceBindingValue::Texture(binding)) = self.binding_ref(name) {
+    pub fn texture_ref(&self, name: impl Into<ImmutableString>) -> Option<&MaterialTextureBinding> {
+        if let Some(MaterialResourceBinding::Texture(binding)) = self.binding_ref(name) {
             Some(binding)
         } else {
             None
         }
     }
 
-    pub fn texture_mut(&mut self, name: impl Into<ImmutableString>) -> Option<&mut TextureBinding> {
-        if let Some(MaterialResourceBindingValue::Texture(binding)) = self.binding_mut(name) {
+    pub fn texture_mut(
+        &mut self,
+        name: impl Into<ImmutableString>,
+    ) -> Option<&mut MaterialTextureBinding> {
+        if let Some(MaterialResourceBinding::Texture(binding)) = self.binding_mut(name) {
             Some(binding)
         } else {
             None
@@ -1268,8 +988,8 @@ impl Material {
         name: impl Into<ImmutableString>,
     ) -> Option<&MaterialPropertyGroup> {
         self.binding_ref(name).and_then(|binding| match binding {
-            MaterialResourceBindingValue::Texture { .. } => None,
-            MaterialResourceBindingValue::PropertyGroup(group) => Some(group),
+            MaterialResourceBinding::Texture { .. } => None,
+            MaterialResourceBinding::PropertyGroup(group) => Some(group),
         })
     }
 
@@ -1289,16 +1009,35 @@ impl Material {
     ///
     /// let mut material = Material::standard();
     ///
-    /// let color = material.property_group_mut("properties").unwrap().set_property("diffuseColor", Color::RED).unwrap();
+    /// let color = material.property_group_mut("properties")
+    /// .unwrap().set_property("diffuseColor", Color::RED).unwrap();
     /// ```
     pub fn property_group_mut(
         &mut self,
         name: impl Into<ImmutableString>,
     ) -> Option<&mut MaterialPropertyGroup> {
         self.binding_mut(name).and_then(|binding| match binding {
-            MaterialResourceBindingValue::Texture { .. } => None,
-            MaterialResourceBindingValue::PropertyGroup(group) => Some(group),
+            MaterialResourceBinding::Texture { .. } => None,
+            MaterialResourceBinding::PropertyGroup(group) => Some(group),
         })
+    }
+
+    pub fn try_get_or_insert_property_group(
+        &mut self,
+        name: impl Into<ImmutableString>,
+    ) -> &mut MaterialPropertyGroup {
+        let name = name.into();
+        if let MaterialResourceBinding::PropertyGroup(group) = self
+            .resource_bindings
+            .entry(name.clone())
+            .or_insert_with(|| {
+                MaterialResourceBinding::PropertyGroup(MaterialPropertyGroup::default())
+            })
+        {
+            group
+        } else {
+            panic!("There's already a material resource binding with {name}!");
+        }
     }
 
     /// Sets new value of the property with given name.
@@ -1313,50 +1052,25 @@ impl Material {
     /// # Example
     ///
     /// ```no_run
-    /// # use fyrox_impl::material::{Material, MaterialPropertyValue};
+    /// # use fyrox_impl::material::{Material, MaterialProperty};
     /// # use fyrox_impl::core::color::Color;
     /// # use fyrox_impl::core::sstorage::ImmutableString;
     ///
     /// let mut material = Material::standard();
     ///
-    /// assert!(material.set_property("diffuseColor", Color::WHITE).is_ok());
+    /// material.set_property("diffuseColor", Color::WHITE);
     /// ```
     pub fn bind(
         &mut self,
         name: impl Into<ImmutableString>,
-        new_value: impl Into<MaterialResourceBindingValue>,
-    ) -> Result<(), MaterialError> {
-        let name = name.into();
-        let new_value = new_value.into();
-        if let Some(value) = self.binding_mut(name.clone()) {
-            match (value, new_value) {
-                (
-                    MaterialResourceBindingValue::Texture(old),
-                    MaterialResourceBindingValue::Texture(new),
-                ) => {
-                    *old = new;
-                }
-                (
-                    MaterialResourceBindingValue::PropertyGroup(old_group),
-                    MaterialResourceBindingValue::PropertyGroup(new_group),
-                ) => {
-                    *old_group = new_group;
-                }
-                (value, new_value) => {
-                    return Err(MaterialError::ResourceBindingTypeMismatch {
-                        binding_name: name.deref().to_owned(),
-                        expected: Box::new(value.clone()),
-                        given: Box::new(new_value),
-                    })
-                }
-            }
+        new_value: impl Into<MaterialResourceBinding>,
+    ) {
+        self.resource_bindings.insert(name.into(), new_value.into());
+    }
 
-            Ok(())
-        } else {
-            Err(MaterialError::NoSuchProperty {
-                property_name: name.deref().to_owned(),
-            })
-        }
+    /// Tries to remove a resource bound to the given name.
+    pub fn unbind(&mut self, name: impl Into<ImmutableString>) -> Option<MaterialResourceBinding> {
+        self.resource_bindings.remove(&name.into())
     }
 
     /// Sets new value of the property with given name.
@@ -1371,41 +1085,21 @@ impl Material {
     /// # Example
     ///
     /// ```no_run
-    /// # use fyrox_impl::material::{Material, MaterialPropertyValue};
+    /// # use fyrox_impl::material::{Material, MaterialProperty};
     /// # use fyrox_impl::core::color::Color;
     /// # use fyrox_impl::core::sstorage::ImmutableString;
     ///
     /// let mut material = Material::standard();
     ///
-    /// assert!(material.set_property("diffuseColor", Color::WHITE).is_ok());
+    /// material.set_property("diffuseColor", Color::WHITE);
     /// ```
     pub fn set_property(
         &mut self,
         name: impl Into<ImmutableString>,
-        new_value: impl Into<MaterialPropertyValue>,
-    ) -> Result<(), MaterialError> {
-        self.property_group_mut("properties")
-            .ok_or_else(|| MaterialError::NoSuchResource {
-                property_name: "properties".to_string(),
-            })
-            .and_then(|binding| binding.set_property(name, new_value))
-    }
-
-    /// Adds missing properties with default values, removes non-existent properties. Does not modify any existing
-    /// properties. This method has limited usage, that is mostly related to shader hot reloading.
-    pub fn sync_to_shader(&mut self, resource_manager: &ResourceManager) {
-        let temp_shader = Self::from_shader(self.shader.clone(), Some(resource_manager.clone()));
-        let mut current_bindings =
-            std::mem::replace(&mut self.resource_bindings, temp_shader.resource_bindings);
-
-        for binding in self.resource_bindings.iter_mut() {
-            if let Some(position) = current_bindings
-                .iter()
-                .position(|current_binding| current_binding.name == binding.name)
-            {
-                *binding = current_bindings.remove(position);
-            }
-        }
+        new_value: impl Into<MaterialProperty>,
+    ) {
+        self.try_get_or_insert_property_group("properties")
+            .set_property(name, new_value);
     }
 
     /// Returns a reference to current shader.
@@ -1414,19 +1108,18 @@ impl Material {
     }
 
     /// Returns immutable reference to internal property storage.
-    pub fn bindings(&self) -> &[MaterialResourceBinding] {
+    pub fn bindings(&self) -> &FxHashMap<ImmutableString, MaterialResourceBinding> {
         &self.resource_bindings
     }
 
     /// Tries to find a sampler with the given name and returns its texture (if any).
-    pub fn texture(&self, name: &str) -> Option<TextureResource> {
-        self.resource_bindings.iter().find_map(|binding| {
-            if binding.name.as_str() == name {
-                if let MaterialResourceBindingValue::Texture(ref binding) = binding.value {
-                    return binding.value.clone();
-                }
+    pub fn texture(&self, name: impl Into<ImmutableString>) -> Option<TextureResource> {
+        self.resource_bindings.get(&name.into()).and_then(|v| {
+            if let MaterialResourceBinding::Texture(ref binding) = v {
+                binding.value.clone()
+            } else {
+                None
             }
-            None
         })
     }
 }
@@ -1512,7 +1205,7 @@ where
     if let Ok(mut inner) = region.enter_region("Texture") {
         if old_texture.visit("Value", &mut inner).is_ok() {
             let mut material = make_default_material();
-            Log::verify(material.bind("diffuseTexture", old_texture));
+            material.bind("diffuseTexture", old_texture);
             return Some(MaterialResource::new_ok(Default::default(), material));
         }
     }

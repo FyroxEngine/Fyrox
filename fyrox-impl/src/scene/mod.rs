@@ -333,7 +333,7 @@ impl SceneLoader {
     }
 
     /// Finishes scene loading.
-    pub async fn finish(self, resource_manager: &ResourceManager) -> Scene {
+    pub async fn finish(self) -> Scene {
         let mut scene = self.scene;
 
         Log::info("SceneLoader::finish() - Collecting resources used by the scene...");
@@ -380,7 +380,7 @@ impl SceneLoader {
         join_all(skybox_textures).await;
 
         // And do resolve to extract correct graphical data and so on.
-        scene.resolve(resource_manager);
+        scene.resolve();
 
         scene
     }
@@ -406,10 +406,10 @@ impl Scene {
     }
 
     /// Synchronizes the state of the scene with external resources.
-    pub fn resolve(&mut self, resource_manager: &ResourceManager) {
+    pub fn resolve(&mut self) {
         Log::writeln(MessageKind::Information, "Starting resolve...");
 
-        self.graph.resolve(resource_manager);
+        self.graph.resolve();
 
         Log::writeln(MessageKind::Information, "Resolve succeeded!");
     }
