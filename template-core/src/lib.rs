@@ -616,10 +616,10 @@ opt-level = 3
         // Write .gitignore
         write_file(
             base_path.join(".gitignore"),
-            r#"
+            r"
 /target
 *.log
-"#,
+",
         )?;
     }
 

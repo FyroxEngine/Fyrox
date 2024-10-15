@@ -65,7 +65,7 @@ struct EdgeDetectShader {
 
 impl EdgeDetectShader {
     pub fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
-        let fragment_source = r#"
+        let fragment_source = r"
 layout (location = 0) out vec4 outColor;
 
 uniform sampler2D frameTexture;
@@ -99,9 +99,9 @@ void main() {
 	float sobel = sqrt((sobel_edge_h * sobel_edge_h) + (sobel_edge_v * sobel_edge_v));
 
 	outColor = vec4(color.rgb, color.a * sobel);
-}"#;
+}";
 
-        let vertex_source = r#"
+        let vertex_source = r"
 layout(location = 0) in vec3 vertexPosition;
 layout(location = 1) in vec2 vertexTexCoord;
 
@@ -116,7 +116,7 @@ void main()
 {
     texCoord = vertexTexCoord;
     gl_Position = worldViewProjection * vec4(vertexPosition, 1.0);
-}"#;
+}";
 
         let program = server.create_program("EdgeDetectShader", vertex_source, fragment_source)?;
         Ok(Self {

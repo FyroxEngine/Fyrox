@@ -99,7 +99,7 @@ fn prepare_source_code(code: &str, gl_kind: GlKind) -> String {
     let mut full_source_code = "#version 330 core\n// include 'shared.glsl'\n".to_owned();
 
     if gl_kind == GlKind::OpenGLES {
-        full_source_code += r#"
+        full_source_code += r"
             precision highp float;
             precision highp int;
             precision highp usampler2D;
@@ -108,7 +108,7 @@ fn prepare_source_code(code: &str, gl_kind: GlKind) -> String {
             precision highp sampler2D;
             precision highp sampler3D;
             precision highp samplerCube;
-        "#;
+        ";
     }
 
     full_source_code += include_str!("shaders/shared.glsl");
