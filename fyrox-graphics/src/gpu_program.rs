@@ -111,7 +111,19 @@ pub enum ShaderResourceKind {
         /// Kind of the texture.
         kind: SamplerKind,
 
-        /// Fallback value. See [`SamplerFallback`] for more info.
+        /// Fallback value.
+        ///
+        /// Sometimes you don't want to set a value to a texture binding, or you even don't have the appropriate
+        /// one. There is fallback value that helps you with such situations, it defines a set of values that
+        /// will be fetched from a texture binding point when there is no actual texture.
+        ///
+        /// For example, standard shader has a lot of samplers defined: diffuse, normal, height, emission,
+        /// mask, metallic, roughness, etc. In some situations you may not have all the textures, you have
+        /// only diffuse texture, to keep rendering correct, each other property has appropriate fallback
+        /// value. Normal sampler - a normal vector pointing up (+Y), height - zero, emission - zero, etc.
+        ///
+        /// Fallback value is also helpful to catch missing textures, you'll definitely know the texture is
+        /// missing by very specific value in the fallback texture.
         fallback: SamplerFallback,
     },
     PropertyGroup(Vec<ShaderProperty>),

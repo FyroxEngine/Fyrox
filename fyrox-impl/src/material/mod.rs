@@ -143,7 +143,7 @@ impl MaterialPropertyGroup {
     /// # use fyrox_impl::material::{MaterialProperty, MaterialPropertyGroup};
     ///
     /// let mut group = MaterialPropertyGroup::default();
-    /// *group.property_mut("diffuseColor") = MaterialProperty::Color(Color::RED);
+    /// *group.property_mut("diffuseColor").unwrap() = MaterialProperty::Color(Color::RED);
     /// ```
     pub fn property_mut(
         &mut self,
