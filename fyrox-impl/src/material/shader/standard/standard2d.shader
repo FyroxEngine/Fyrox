@@ -43,7 +43,7 @@
                 ),
                 depth_write: true,
                 stencil_test: None,
-                depth_test: Some(Less),
+                depth_test: Some(LessOrEqual),
                 blend: Some(BlendParameters(
                     func: BlendFunc(
                         sfactor: SrcAlpha,
