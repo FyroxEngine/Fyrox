@@ -278,11 +278,6 @@ impl GlProgram {
                             server
                                 .gl
                                 .uniform_1_i32(Some(&location), resource_definition.binding as i32);
-                        } else {
-                            Log::warn(format!(
-                                "Couldn't find sampler {}!",
-                                resource_definition.name
-                            ))
                         }
                     }
                     ShaderResourceKind::PropertyGroup { .. } => {
