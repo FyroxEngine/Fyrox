@@ -23,31 +23,20 @@ use crate::{
         algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4},
         reflect::prelude::*,
         sstorage::ImmutableString,
+        type_traits::prelude::*,
         visitor::prelude::*,
     },
     error::FrameworkError,
 };
 use serde::{Deserialize, Serialize};
-use std::{any::Any, marker::PhantomData, path::PathBuf};
+use std::{any::Any, marker::PhantomData};
+use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 pub trait GpuProgram: Any {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
-    fn built_in_uniform_blocks(&self) -> &[Option<usize>];
     fn uniform_location(&self, name: &ImmutableString) -> Result<UniformLocation, FrameworkError>;
     fn uniform_block_index(&self, name: &ImmutableString) -> Result<usize, FrameworkError>;
-}
-
-#[repr(usize)]
-pub enum BuiltInUniformBlock {
-    BoneMatrices,
-    InstanceData,
-    CameraData,
-    MaterialProperties,
-    LightData,
-    LightsBlock,
-    GraphicsSettings,
-    Count,
 }
 
 #[derive(Clone, Debug)]
@@ -72,7 +61,23 @@ pub struct UniformLocation {
 ///
 /// Fallback value is also helpful to catch missing textures, you'll definitely know the texture is
 /// missing by very specific value in the fallback texture.
-#[derive(Serialize, Deserialize, Default, Debug, PartialEq, Clone, Copy, Visit, Eq, Reflect)]
+#[derive(
+    Serialize,
+    Deserialize,
+    Default,
+    Debug,
+    PartialEq,
+    Clone,
+    Copy,
+    Visit,
+    Eq,
+    Reflect,
+    AsRefStr,
+    EnumString,
+    VariantNames,
+    TypeUuidProvider,
+)]
+#[type_uuid(id = "791b333c-eb3f-4279-97fe-cf2ba45c6d78")]
 pub enum SamplerFallback {
     /// A 1x1px white texture.
     #[default]
@@ -100,7 +105,32 @@ pub enum SamplerKind {
 
 /// Shader property with default value.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Reflect, Visit)]
-pub enum PropertyKind {
+pub enum ShaderResourceKind {
+    /// A texture.
+    Texture {
+        /// Kind of the texture.
+        kind: SamplerKind,
+
+        /// Fallback value.
+        ///
+        /// Sometimes you don't want to set a value to a texture binding, or you even don't have the appropriate
+        /// one. There is fallback value that helps you with such situations, it defines a set of values that
+        /// will be fetched from a texture binding point when there is no actual texture.
+        ///
+        /// For example, standard shader has a lot of samplers defined: diffuse, normal, height, emission,
+        /// mask, metallic, roughness, etc. In some situations you may not have all the textures, you have
+        /// only diffuse texture, to keep rendering correct, each other property has appropriate fallback
+        /// value. Normal sampler - a normal vector pointing up (+Y), height - zero, emission - zero, etc.
+        ///
+        /// Fallback value is also helpful to catch missing textures, you'll definitely know the texture is
+        /// missing by very specific value in the fallback texture.
+        fallback: SamplerFallback,
+    },
+    PropertyGroup(Vec<ShaderProperty>),
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Reflect, Visit)]
+pub enum ShaderPropertyKind {
     /// Real number.
     Float(f32),
 
@@ -215,30 +245,47 @@ pub enum PropertyKind {
         /// Default Alpha.
         a: u8,
     },
-
-    /// A texture.
-    Sampler {
-        kind: SamplerKind,
-
-        /// Optional path to default texture.
-        default: Option<PathBuf>,
-
-        /// Default fallback value. See [`SamplerFallback`] for more info.
-        fallback: SamplerFallback,
-    },
 }
 
-impl Default for PropertyKind {
+#[derive(Serialize, Deserialize, Debug, PartialEq, Reflect, Visit, Default)]
+pub struct ShaderProperty {
+    pub name: ImmutableString,
+    pub kind: ShaderPropertyKind,
+}
+
+impl ShaderProperty {
+    pub fn new(name: impl Into<ImmutableString>, kind: ShaderPropertyKind) -> Self {
+        Self {
+            name: name.into(),
+            kind,
+        }
+    }
+}
+
+impl Default for ShaderPropertyKind {
     fn default() -> Self {
         Self::Float(0.0)
     }
 }
 
-/// Shader property definition.
+impl Default for ShaderResourceKind {
+    fn default() -> Self {
+        Self::PropertyGroup(Default::default())
+    }
+}
+
+/// Shader resource definition.
 #[derive(Default, Serialize, Deserialize, Debug, PartialEq, Reflect, Visit)]
-pub struct PropertyDefinition {
-    /// A name of the property.
+pub struct ShaderResourceDefinition {
+    /// A name of the resource.
     pub name: ImmutableString,
-    /// A kind of property with default value.
-    pub kind: PropertyKind,
+    /// A kind of resource.
+    pub kind: ShaderResourceKind,
+    pub binding: usize,
+}
+
+impl ShaderResourceDefinition {
+    pub fn is_built_in(&self) -> bool {
+        self.name.starts_with("fyrox_")
+    }
 }

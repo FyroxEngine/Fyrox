@@ -28,7 +28,7 @@ use crate::{
         self, framebuffer::GlFrameBuffer, geometry_buffer::GlGeometryBuffer, program::GlProgram,
         query::GlQuery, read_buffer::GlAsyncReadBuffer, texture::GlTexture, ToGlConstant,
     },
-    gpu_program::{GpuProgram, PropertyDefinition},
+    gpu_program::{GpuProgram, ShaderResourceDefinition},
     gpu_texture::{GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind},
     query::Query,
     read_buffer::AsyncReadBuffer,
@@ -1055,7 +1055,7 @@ impl GraphicsServer for GlGraphicsServer {
         name: &str,
         vertex_source: &str,
         fragment_source: &str,
-        properties: &[PropertyDefinition],
+        properties: &[ShaderResourceDefinition],
     ) -> Result<Box<dyn GpuProgram>, FrameworkError> {
         Ok(Box::new(GlProgram::from_source_and_properties(
             self,

@@ -41,6 +41,7 @@ use crate::{
         make_viewport_matrix, RenderPassStatistics,
     },
 };
+use fyrox_graphics::framebuffer::BufferLocation;
 use std::{cell::RefCell, rc::Rc};
 
 mod blur;
@@ -154,7 +155,9 @@ impl BloomRenderer {
                         buffer: uniform_buffer_cache.write(
                             StaticUniformBuffer::<256>::new().with(&make_viewport_matrix(viewport)),
                         )?,
-                        shader_location: shader.uniform_block_binding,
+                        binding: BufferLocation::Auto {
+                            shader_location: shader.uniform_block_binding,
+                        },
                         data_usage: Default::default(),
                     },
                 ],

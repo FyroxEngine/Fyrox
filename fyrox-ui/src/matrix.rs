@@ -20,8 +20,7 @@
 
 use crate::{
     core::{
-        algebra::Matrix2, num_traits, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-        visitor::prelude::*,
+        num_traits, pool::Handle, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*,
     },
     define_constructor,
     grid::{Column, GridBuilder, Row},
@@ -30,6 +29,7 @@ use crate::{
     widget::WidgetBuilder,
     BuildContext, Control, Thickness, UiNode, UserInterface, Widget,
 };
+use fyrox_core::algebra::SMatrix;
 use std::ops::{Deref, DerefMut};
 
 fn make_numeric_input<T: NumericType>(
@@ -64,42 +64,58 @@ fn make_numeric_input<T: NumericType>(
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Matrix2EditorMessage<T>
+pub enum MatrixEditorMessage<const R: usize, const C: usize, T>
 where
     T: NumericType,
 {
-    Value(Matrix2<T>),
+    Value(SMatrix<T, R, C>),
 }
 
-impl<T> Matrix2EditorMessage<T>
+impl<const R: usize, const C: usize, T> MatrixEditorMessage<R, C, T>
 where
     T: NumericType,
 {
-    define_constructor!(Matrix2EditorMessage:Value => fn value(Matrix2<T>), layout: false);
+    define_constructor!(MatrixEditorMessage:Value => fn value(SMatrix<T, R, C>), layout: false);
 }
 
-#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
-pub struct Matrix2Editor<T>
+#[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
+pub struct MatrixEditor<const R: usize, const C: usize, T>
 where
     T: NumericType,
 {
     pub widget: Widget,
-    pub fields: [Handle<UiNode>; 4],
+    pub fields: Vec<Handle<UiNode>>,
     #[reflect(hidden)]
     #[visit(skip)]
-    pub value: Matrix2<T>,
+    pub value: SMatrix<T, R, C>,
     #[reflect(hidden)]
     #[visit(skip)]
-    pub min: Matrix2<T>,
+    pub min: SMatrix<T, R, C>,
     #[reflect(hidden)]
     #[visit(skip)]
-    pub max: Matrix2<T>,
+    pub max: SMatrix<T, R, C>,
     #[reflect(hidden)]
     #[visit(skip)]
-    pub step: Matrix2<T>,
+    pub step: SMatrix<T, R, C>,
 }
 
-impl<T> Deref for Matrix2Editor<T>
+impl<const R: usize, const C: usize, T> Default for MatrixEditor<R, C, T>
+where
+    T: NumericType,
+{
+    fn default() -> Self {
+        Self {
+            widget: Default::default(),
+            fields: Default::default(),
+            value: SMatrix::repeat(T::zero()),
+            min: SMatrix::repeat(T::min_value()),
+            max: SMatrix::repeat(T::max_value()),
+            step: SMatrix::repeat(T::one()),
+        }
+    }
+}
+
+impl<const R: usize, const C: usize, T> Deref for MatrixEditor<R, C, T>
 where
     T: NumericType,
 {
@@ -110,7 +126,7 @@ where
     }
 }
 
-impl<T> DerefMut for Matrix2Editor<T>
+impl<const R: usize, const C: usize, T> DerefMut for MatrixEditor<R, C, T>
 where
     T: NumericType,
 {
@@ -119,16 +135,24 @@ where
     }
 }
 
-impl<T: NumericType> TypeUuidProvider for Matrix2Editor<T> {
+impl<const R: usize, const C: usize, T: NumericType> TypeUuidProvider for MatrixEditor<R, C, T> {
     fn type_uuid() -> Uuid {
+        let r_id = Uuid::from_u64_pair(R as u64, R as u64);
+        let c_id = Uuid::from_u64_pair(C as u64, C as u64);
         combine_uuids(
-            uuid!("9f05427a-5862-4574-bb21-ebaf52aa8c72"),
-            T::type_uuid(),
+            c_id,
+            combine_uuids(
+                r_id,
+                combine_uuids(
+                    uuid!("9f05427a-5862-4574-bb21-ebaf52aa8c72"),
+                    T::type_uuid(),
+                ),
+            ),
         )
     }
 }
 
-impl<T> Control for Matrix2Editor<T>
+impl<const R: usize, const C: usize, T> Control for MatrixEditor<R, C, T>
 where
     T: NumericType,
 {
@@ -142,7 +166,7 @@ where
                     if message.destination() == *field {
                         let mut new_value = self.value;
                         new_value[i] = value;
-                        ui.send_message(Matrix2EditorMessage::value(
+                        ui.send_message(MatrixEditorMessage::value(
                             self.handle(),
                             MessageDirection::ToWidget,
                             new_value,
@@ -150,13 +174,13 @@ where
                     }
                 }
             }
-        } else if let Some(&Matrix2EditorMessage::Value(new_value)) =
-            message.data::<Matrix2EditorMessage<T>>()
+        } else if let Some(&MatrixEditorMessage::Value(new_value)) =
+            message.data::<MatrixEditorMessage<R, C, T>>()
         {
             if message.direction() == MessageDirection::ToWidget {
                 let mut changed = false;
 
-                for i in 0..4 {
+                for i in 0..self.fields.len() {
                     let editor = self.fields[i];
                     let current = &mut self.value[i];
                     let min = self.min[i];
@@ -182,36 +206,36 @@ where
     }
 }
 
-pub struct Matrix2EditorBuilder<T>
+pub struct MatrixEditorBuilder<const R: usize, const C: usize, T>
 where
     T: NumericType,
 {
     widget_builder: WidgetBuilder,
-    value: Matrix2<T>,
+    value: SMatrix<T, R, C>,
     editable: bool,
-    min: Matrix2<T>,
-    max: Matrix2<T>,
-    step: Matrix2<T>,
+    min: SMatrix<T, R, C>,
+    max: SMatrix<T, R, C>,
+    step: SMatrix<T, R, C>,
     precision: usize,
 }
 
-impl<T> Matrix2EditorBuilder<T>
+impl<const R: usize, const C: usize, T> MatrixEditorBuilder<R, C, T>
 where
     T: NumericType,
 {
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
-            value: Matrix2::identity(),
+            value: SMatrix::identity(),
             editable: true,
-            min: Matrix2::repeat(T::min_value()),
-            max: Matrix2::repeat(T::max_value()),
-            step: Matrix2::repeat(T::one()),
+            min: SMatrix::repeat(T::min_value()),
+            max: SMatrix::repeat(T::max_value()),
+            step: SMatrix::repeat(T::one()),
             precision: 3,
         }
     }
 
-    pub fn with_value(mut self, value: Matrix2<T>) -> Self {
+    pub fn with_value(mut self, value: SMatrix<T, R, C>) -> Self {
         self.value = value;
         self
     }
@@ -221,17 +245,17 @@ where
         self
     }
 
-    pub fn with_min(mut self, min: Matrix2<T>) -> Self {
+    pub fn with_min(mut self, min: SMatrix<T, R, C>) -> Self {
         self.min = min;
         self
     }
 
-    pub fn with_max(mut self, max: Matrix2<T>) -> Self {
+    pub fn with_max(mut self, max: SMatrix<T, R, C>) -> Self {
         self.max = max;
         self
     }
 
-    pub fn with_step(mut self, step: Matrix2<T>) -> Self {
+    pub fn with_step(mut self, step: SMatrix<T, R, C>) -> Self {
         self.step = step;
         self
     }
@@ -245,16 +269,16 @@ where
         let mut fields = Vec::new();
         let mut children = Vec::new();
 
-        for y in 0..2 {
-            for x in 0..2 {
+        for row in 0..R {
+            for column in 0..C {
                 let field = make_numeric_input(
                     ctx,
-                    x,
-                    y,
-                    self.value[(y, x)],
-                    self.min[(y, x)],
-                    self.max[(y, x)],
-                    self.step[(y, x)],
+                    column,
+                    row,
+                    self.value[(row, column)],
+                    self.min[(row, column)],
+                    self.max[(row, column)],
+                    self.step[(row, column)],
                     self.editable,
                     self.precision,
                 );
@@ -264,15 +288,13 @@ where
         }
 
         let grid = GridBuilder::new(WidgetBuilder::new().with_children(children))
-            .add_row(Row::stretch())
-            .add_row(Row::stretch())
-            .add_column(Column::stretch())
-            .add_column(Column::stretch())
+            .add_rows(vec![Row::stretch(); R])
+            .add_columns(vec![Column::stretch(); C])
             .build(ctx);
 
-        let node = Matrix2Editor {
+        let node = MatrixEditor {
             widget: self.widget_builder.with_child(grid).build(),
-            fields: fields.try_into().unwrap(),
+            fields,
             value: self.value,
             min: self.min,
             max: self.max,

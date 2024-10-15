@@ -365,7 +365,7 @@ impl AsyncSceneLoader {
                 .await
                 {
                     Ok((loader, data)) => {
-                        let scene = loader.finish(&resource_manager).await;
+                        let scene = loader.finish().await;
                         Log::verify(sender.send(SceneLoadingResult {
                             path,
                             result: Ok((scene, data)),
@@ -966,7 +966,7 @@ impl ResourceGraphVertex {
         }
     }
 
-    pub fn resolve(&self, resource_manager: &ResourceManager) {
+    pub fn resolve(&self) {
         Log::info(format!(
             "Resolving {} resource from dependency graph...",
             self.resource.kind()
@@ -974,13 +974,10 @@ impl ResourceGraphVertex {
 
         // Wait until resource is fully loaded, then resolve.
         if block_on(self.resource.clone()).is_ok() {
-            self.resource
-                .data_ref()
-                .get_scene_mut()
-                .resolve(resource_manager);
+            self.resource.data_ref().get_scene_mut();
 
             for child in self.children.iter() {
-                child.resolve(resource_manager);
+                child.resolve();
             }
         }
     }
@@ -997,8 +994,8 @@ impl ResourceDependencyGraph {
         }
     }
 
-    pub fn resolve(&self, resource_manager: &ResourceManager) {
-        self.root.resolve(resource_manager)
+    pub fn resolve(&self) {
+        self.root.resolve()
     }
 }
 
@@ -2170,8 +2167,7 @@ impl Engine {
                     ));
 
                     // Build resource dependency graph and resolve it first.
-                    ResourceDependencyGraph::new(model, self.resource_manager.clone())
-                        .resolve(&self.resource_manager);
+                    ResourceDependencyGraph::new(model, self.resource_manager.clone()).resolve();
 
                     Log::info("Propagating changes to active scenes...");
 
@@ -2179,7 +2175,7 @@ impl Engine {
                     // TODO: This might be inefficient if there is bunch of scenes loaded,
                     // however this seems to be very rare case so it should be ok.
                     for scene in self.scenes.iter_mut() {
-                        scene.resolve(&self.resource_manager);
+                        scene.resolve();
                     }
                 }
             }

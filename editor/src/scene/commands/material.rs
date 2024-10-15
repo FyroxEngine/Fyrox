@@ -18,20 +18,17 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::{
-    asset::ResourceData,
-    core::{log::Log, sstorage::ImmutableString},
-    material::{shader::ShaderResource, Material, MaterialResource, PropertyValue},
+use crate::{
+    command::{CommandContext, CommandTrait},
+    fyrox::{
+        asset::ResourceData,
+        core::{log::Log, sstorage::ImmutableString},
+        material::{
+            shader::ShaderResource, Material, MaterialProperty, MaterialResource,
+            MaterialResourceBinding,
+        },
+    },
 };
-use crate::{command::CommandTrait, scene::commands::GameSceneContext};
-
-#[derive(Debug)]
-pub struct SetMaterialPropertyValueCommand {
-    material: MaterialResource,
-    name: ImmutableString,
-    value: PropertyValue,
-}
-use crate::command::CommandContext;
 
 fn try_save(material: &MaterialResource) {
     let header = material.header();
@@ -41,35 +38,99 @@ fn try_save(material: &MaterialResource) {
     }
 }
 
-impl SetMaterialPropertyValueCommand {
-    pub fn new(material: MaterialResource, name: ImmutableString, value: PropertyValue) -> Self {
+#[derive(Debug)]
+pub struct SetMaterialBindingCommand {
+    material: MaterialResource,
+    name: ImmutableString,
+    binding: Option<MaterialResourceBinding>,
+}
+
+impl SetMaterialBindingCommand {
+    pub fn new(
+        material: MaterialResource,
+        name: ImmutableString,
+        binding: MaterialResourceBinding,
+    ) -> Self {
         Self {
             material,
             name,
-            value,
+            binding: Some(binding),
         }
     }
 
     fn swap(&mut self) {
         let mut material = self.material.data_ref();
 
-        let old_value = material.property_ref(&self.name).unwrap().clone();
-
-        material
-            .set_property(
-                self.name.clone(),
-                std::mem::replace(&mut self.value, old_value),
-            )
-            .unwrap();
+        let old_value = material.binding_ref(self.name.clone()).cloned();
+        let new_value = std::mem::replace(&mut self.binding, old_value);
+        if let Some(new_value) = new_value {
+            material.bind(self.name.clone(), new_value);
+        } else {
+            material.unbind(self.name.clone());
+        }
 
         drop(material);
         try_save(&self.material);
     }
 }
 
-impl CommandTrait for SetMaterialPropertyValueCommand {
+impl CommandTrait for SetMaterialBindingCommand {
     fn name(&mut self, _: &dyn CommandContext) -> String {
         format!("Set Material {} Property Value", self.name)
+    }
+
+    fn execute(&mut self, _: &mut dyn CommandContext) {
+        self.swap();
+    }
+
+    fn revert(&mut self, _: &mut dyn CommandContext) {
+        self.swap();
+    }
+}
+
+#[derive(Debug)]
+pub struct SetMaterialPropertyGroupPropertyValueCommand {
+    material: MaterialResource,
+    group_name: ImmutableString,
+    property_name: ImmutableString,
+    value: Option<MaterialProperty>,
+}
+
+impl SetMaterialPropertyGroupPropertyValueCommand {
+    pub fn new(
+        material: MaterialResource,
+        group_name: ImmutableString,
+        property_name: ImmutableString,
+        value: MaterialProperty,
+    ) -> Self {
+        Self {
+            material,
+            group_name,
+            property_name,
+            value: Some(value),
+        }
+    }
+
+    fn swap(&mut self) {
+        let mut material = self.material.data_ref();
+
+        let group = material.try_get_or_insert_property_group(self.group_name.clone());
+        let old_value = group.property_ref(self.property_name.clone()).cloned();
+        let new_value = std::mem::replace(&mut self.value, old_value);
+        if let Some(new_value) = new_value {
+            group.set_property(self.property_name.clone(), new_value);
+        } else {
+            group.unset_property(self.property_name.clone());
+        }
+
+        drop(material);
+        try_save(&self.material);
+    }
+}
+
+impl CommandTrait for SetMaterialPropertyGroupPropertyValueCommand {
+    fn name(&mut self, _: &dyn CommandContext) -> String {
+        format!("Set Material {} Property Value", self.property_name)
     }
 
     fn execute(&mut self, _: &mut dyn CommandContext) {
@@ -103,8 +164,7 @@ impl SetMaterialShaderCommand {
         }
     }
 
-    fn swap(&mut self, context: &mut dyn CommandContext) {
-        let context = context.get_mut::<GameSceneContext>();
+    fn swap(&mut self, _context: &mut dyn CommandContext) {
         match std::mem::replace(&mut self.state, SetMaterialShaderCommandState::Undefined) {
             SetMaterialShaderCommandState::Undefined => {
                 unreachable!()
@@ -112,10 +172,8 @@ impl SetMaterialShaderCommand {
             SetMaterialShaderCommandState::NonExecuted { new_shader } => {
                 let mut material = self.material.data_ref();
 
-                let old_material = std::mem::replace(
-                    &mut *material,
-                    Material::from_shader(new_shader, Some(context.resource_manager.clone())),
-                );
+                let old_material =
+                    std::mem::replace(&mut *material, Material::from_shader(new_shader));
 
                 self.state = SetMaterialShaderCommandState::Executed { old_material };
             }

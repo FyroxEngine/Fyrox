@@ -296,7 +296,7 @@ impl PathFixer {
                                 );
                             }
                             Ok(loader) => {
-                                let scene = block_on(loader.finish(&resource_manager));
+                                let scene = block_on(loader.finish());
 
                                 // Gather resources.
                                 let scene_resources = scene.collect_used_resources();

@@ -30,7 +30,7 @@ mod document;
 pub mod error;
 mod scene;
 
-use crate::resource::texture::{TextureImportOptions, TextureResource, TextureResourceExtension};
+use crate::material::MaterialTextureBinding;
 use crate::{
     asset::manager::ResourceManager,
     core::{
@@ -42,7 +42,7 @@ use crate::{
         pool::Handle,
     },
     graph::BaseSceneGraph,
-    material::{shader::SamplerFallback, PropertyValue},
+    material::MaterialResourceBinding,
     resource::{
         fbx::{
             document::FbxDocument,
@@ -55,7 +55,7 @@ use crate::{
             },
         },
         model::{MaterialSearchOptions, ModelImportOptions},
-        texture::Texture,
+        texture::{Texture, TextureImportOptions, TextureResource, TextureResourceExtension},
     },
     scene::{
         animation::{Animation, AnimationContainer, AnimationPlayerBuilder, Track},
@@ -315,16 +315,10 @@ async fn create_surfaces(
             ));
             surface.vertex_weights = data.skin_data;
             let material = fbx_scene.get(material_handle).as_material()?;
-            if let Err(e) = surface
+            surface
                 .material()
                 .data_ref()
-                .set_property("diffuseColor", material.diffuse_color)
-            {
-                Log::writeln(
-                    MessageKind::Error,
-                    format!("Failed to set diffuseColor property for material. Reason: {e:?}",),
-                )
-            }
+                .set_property("diffuseColor", material.diffuse_color);
 
             let io = resource_manager.resource_io();
 
@@ -390,64 +384,55 @@ async fn create_surfaces(
 
                         // Make up your mind, Autodesk and Blender.
                         // Handle all possible combinations of links to auto-import materials.
-                        let name_usage = if name.contains("AmbientColor")
+                        let name = if name.contains("AmbientColor")
                             || name.contains("ambient_color")
                         {
-                            Some(("aoTexture", SamplerFallback::White))
+                            Some("aoTexture")
                         } else if name.contains("DiffuseColor")
                             || name.contains("diffuse_color")
                             || name.contains("base_color_map")
                             || name.contains("texmap_diffuse")
                         {
-                            Some(("diffuseTexture", SamplerFallback::White))
+                            Some("diffuseTexture")
                         } else if name.contains("MetalnessMap")
                             || name.contains("metalness_map")
                             || name.contains("ReflectionFactor")
                             || name.contains("texmap_reflection")
                             || name.contains("texmap_metalness")
                         {
-                            Some(("metallicTexture", SamplerFallback::Black))
+                            Some("metallicTexture")
                         } else if name.contains("RoughnessMap")
                             || name.contains("roughness_map")
                             || name.contains("Shininess")
                             || name.contains("ShininessExponent")
                             || name.contains("texmap_roughness")
                         {
-                            Some(("roughnessTexture", SamplerFallback::White))
+                            Some("roughnessTexture")
                         } else if name.contains("Bump")
                             || name.contains("bump_map")
                             || name.contains("NormalMap")
                             || name.contains("normal_map")
                             || name.contains("texmap_bump")
                         {
-                            Some(("normalTexture", SamplerFallback::Normal))
+                            Some("normalTexture")
                         } else if name.contains("DisplacementColor")
                             || name.contains("displacement_map")
                         {
-                            Some(("heightTexture", SamplerFallback::Black))
+                            Some("heightTexture")
                         } else if name.contains("EmissiveColor") || name.contains("emit_color_map")
                         {
-                            Some(("emissionTexture", SamplerFallback::Black))
+                            Some("emissionTexture")
                         } else {
                             None
                         };
 
-                        if let Some((property_name, usage)) = name_usage {
-                            if let Err(e) = surface.material().data_ref().set_property(
+                        if let Some(property_name) = name {
+                            surface.material().data_ref().bind(
                                 property_name,
-                                PropertyValue::Sampler {
+                                MaterialResourceBinding::Texture(MaterialTextureBinding {
                                     value: Some(texture),
-                                    fallback: usage,
-                                },
-                            ) {
-                                Log::writeln(
-                                    MessageKind::Error,
-                                    format!(
-                                        "Unable to set material property {property_name}\
-                                 for FBX material! Reason: {e:?}"
-                                    ),
-                                );
-                            }
+                                }),
+                            );
                         }
                     } else {
                         Log::writeln(

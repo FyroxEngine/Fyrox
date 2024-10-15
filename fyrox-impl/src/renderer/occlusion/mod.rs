@@ -62,6 +62,7 @@ use crate::{
     scene::{graph::Graph, mesh::surface::SurfaceData, node::Node},
 };
 use bytemuck::{Pod, Zeroable};
+use fyrox_graphics::framebuffer::BufferLocation;
 use std::{cell::RefCell, rc::Rc};
 
 struct Shader {
@@ -479,7 +480,9 @@ impl OcclusionTester {
                                 .with(&(self.tile_size as i32))
                                 .with(&(self.frame_size.y as f32)),
                         )?,
-                        shader_location: self.shader.uniform_buffer_binding,
+                        binding: BufferLocation::Auto {
+                            shader_location: self.shader.uniform_buffer_binding,
+                        },
                         data_usage: Default::default(),
                     },
                 ],

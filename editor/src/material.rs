@@ -23,20 +23,22 @@ use crate::{
     fyrox::{
         asset::untyped::ResourceKind,
         core::{
-            algebra::{Matrix4, Vector2, Vector3, Vector4},
+            algebra::{Matrix4, SMatrix, Vector2, Vector3, Vector4},
+            color::Color,
             parking_lot::Mutex,
             pool::Handle,
             sstorage::ImmutableString,
-            BiDirHashMap,
         },
-        graph::BaseSceneGraph,
+        fxhash::FxHashMap,
+        graph::{BaseSceneGraph, SceneGraph},
         gui::{
             border::BorderBuilder,
             check_box::{CheckBoxBuilder, CheckBoxMessage},
             color::{ColorFieldBuilder, ColorFieldMessage},
             grid::{Column, GridBuilder, Row},
             image::{Image, ImageBuilder, ImageMessage},
-            list_view::{ListViewBuilder, ListViewMessage},
+            list_view::{ListView, ListViewBuilder, ListViewMessage},
+            matrix::{MatrixEditorBuilder, MatrixEditorMessage},
             menu::{ContextMenuBuilder, MenuItemBuilder, MenuItemContent, MenuItemMessage},
             message::{MessageDirection, UiMessage},
             numeric::{NumericUpDownBuilder, NumericUpDownMessage},
@@ -52,7 +54,11 @@ use crate::{
             window::{WindowBuilder, WindowTitle},
             BuildContext, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
         },
-        material::{shader::Shader, MaterialResource, PropertyValue},
+        material::{
+            shader::{Shader, ShaderResourceKind},
+            MaterialProperty, MaterialResource, MaterialResourceBinding,
+        },
+        renderer::framework::gpu_program::{ShaderProperty, ShaderPropertyKind},
         resource::texture::Texture,
         scene::{
             base::BaseBuilder,
@@ -65,9 +71,13 @@ use crate::{
     inspector::editors::resource::{ResourceFieldBuilder, ResourceFieldMessage},
     message::MessageSender,
     preview::PreviewPanel,
-    scene::commands::material::{SetMaterialPropertyValueCommand, SetMaterialShaderCommand},
+    scene::commands::material::{
+        SetMaterialBindingCommand, SetMaterialPropertyGroupPropertyValueCommand,
+        SetMaterialShaderCommand,
+    },
     send_sync_message, Engine, Message,
 };
+use fyrox::material::MaterialTextureBinding;
 use std::sync::Arc;
 
 struct TextureContextMenu {
@@ -113,10 +123,24 @@ impl TextureContextMenu {
     }
 }
 
+enum ResourceViewKind {
+    Sampler,
+    PropertyGroup {
+        property_views: FxHashMap<ImmutableString, Handle<UiNode>>,
+    },
+}
+
+struct ResourceView {
+    name: ImmutableString,
+    kind: ResourceViewKind,
+    container: Handle<UiNode>,
+    editor: Handle<UiNode>,
+}
+
 pub struct MaterialEditor {
     pub window: Handle<UiNode>,
     properties_panel: Handle<UiNode>,
-    properties: BiDirHashMap<ImmutableString, Handle<UiNode>>,
+    resource_views: Vec<ResourceView>,
     preview: PreviewPanel,
     material: Option<MaterialResource>,
     shader: Handle<UiNode>,
@@ -141,7 +165,7 @@ fn create_item_container(
             )
             .with_child(item),
     )
-    .add_row(Row::strict(24.0))
+    .add_row(Row::auto())
     .add_column(Column::strict(150.0))
     .add_column(Column::stretch())
     .build(ctx)
@@ -156,51 +180,28 @@ where
     T: Clone,
     B: FnMut(&mut BuildContext, T) -> Handle<UiNode>,
 {
-    ListViewBuilder::new(WidgetBuilder::new().with_height(24.0))
+    ListViewBuilder::new(WidgetBuilder::new())
         .with_items(value.iter().map(|v| item_builder(ctx, v.clone())).collect())
         .build(ctx)
 }
 
-fn create_array_of_array_view<'a, T, B, I>(
-    ctx: &mut BuildContext,
-    value: I,
-    mut item_builder: B,
-) -> Handle<UiNode>
-where
-    T: 'a + Clone,
-    B: FnMut(&mut BuildContext, T) -> Handle<UiNode>,
-    I: Iterator<Item = &'a [T]>,
-{
-    ListViewBuilder::new(WidgetBuilder::new().with_height(24.0))
-        .with_items(
-            value
-                .map(|v| create_array_view(ctx, v, &mut item_builder))
-                .collect(),
-        )
-        .build(ctx)
-}
-
 fn create_float_view(ctx: &mut BuildContext, value: f32) -> Handle<UiNode> {
-    NumericUpDownBuilder::new(WidgetBuilder::new().with_height(24.0))
+    NumericUpDownBuilder::<f32>::new(WidgetBuilder::new().with_height(24.0))
         .with_value(value)
         .build(ctx)
 }
 
 fn create_int_view(ctx: &mut BuildContext, value: i32) -> Handle<UiNode> {
-    NumericUpDownBuilder::new(WidgetBuilder::new().with_height(24.0))
-        .with_value(value as f32)
+    NumericUpDownBuilder::<i32>::new(WidgetBuilder::new().with_height(24.0))
+        .with_value(value)
         .with_precision(0)
-        .with_max_value(i32::MAX as f32)
-        .with_min_value(-i32::MAX as f32)
         .build(ctx)
 }
 
 fn create_uint_view(ctx: &mut BuildContext, value: u32) -> Handle<UiNode> {
-    NumericUpDownBuilder::new(WidgetBuilder::new().with_height(24.0))
-        .with_value(value as f32)
+    NumericUpDownBuilder::<u32>::new(WidgetBuilder::new().with_height(24.0))
+        .with_value(value)
         .with_precision(0)
-        .with_max_value(u32::MAX as f32)
-        .with_min_value(0.0)
         .build(ctx)
 }
 
@@ -222,45 +223,32 @@ fn create_vec4_view(ctx: &mut BuildContext, value: Vector4<f32>) -> Handle<UiNod
         .build(ctx)
 }
 
-fn sync_array<T, B>(
-    ui: &mut UserInterface,
-    handle: Handle<UiNode>,
-    array: &[T],
-    mut item_builder: B,
-) where
-    T: Clone,
-    B: FnMut(&mut BuildContext, T) -> Handle<UiNode>,
-{
-    let ctx = &mut ui.build_ctx();
-
-    let new_items = array.iter().map(|v| item_builder(ctx, v.clone())).collect();
-
-    send_sync_message(
-        ui,
-        ListViewMessage::items(handle, MessageDirection::ToWidget, new_items),
-    );
+fn create_mat_view<const R: usize, const C: usize>(
+    ctx: &mut BuildContext,
+    value: SMatrix<f32, R, C>,
+) -> Handle<UiNode> {
+    MatrixEditorBuilder::<R, C, f32>::new(WidgetBuilder::new())
+        .with_value(value)
+        .build(ctx)
 }
 
-fn sync_array_of_arrays<'a, T, I, B>(
-    ui: &mut UserInterface,
-    handle: Handle<UiNode>,
-    array: I,
-    mut item_builder: B,
-) where
-    T: 'a + Clone,
-    I: Iterator<Item = &'a [T]>,
-    B: FnMut(&mut BuildContext, T) -> Handle<UiNode>,
+fn sync_array<T, B>(ui: &UserInterface, handle: Handle<UiNode>, array: &[T], mut message_builder: B)
+where
+    T: Clone,
+    B: FnMut(&T, Handle<UiNode>) -> UiMessage,
 {
-    let ctx = &mut ui.build_ctx();
+    let views = &**ui.try_get_of_type::<ListView>(handle).unwrap().items;
+    for (item, view) in array.iter().zip(views) {
+        send_sync_message(ui, message_builder(item, *view))
+    }
+}
 
-    let new_items = array
-        .map(|v| create_array_view(ctx, v, &mut item_builder))
-        .collect();
-
-    send_sync_message(
-        ui,
-        ListViewMessage::items(handle, MessageDirection::ToWidget, new_items),
-    );
+fn pad_vec<T: Default + Clone>(v: &[T], max_len: usize) -> Vec<T> {
+    let mut vec = v.to_vec();
+    for _ in v.len()..max_len {
+        vec.push(T::default());
+    }
+    vec
 }
 
 impl MaterialEditor {
@@ -282,7 +270,7 @@ impl MaterialEditor {
         let panel;
         let properties_panel;
         let shader;
-        let window = WindowBuilder::new(WidgetBuilder::new().with_width(350.0))
+        let window = WindowBuilder::new(WidgetBuilder::new().with_width(500.0).with_height(800.0))
             .open(false)
             .with_title(WindowTitle::text("Material Editor"))
             .with_content(
@@ -344,7 +332,7 @@ impl MaterialEditor {
             window,
             preview,
             properties_panel,
-            properties: Default::default(),
+            resource_views: Default::default(),
             material: None,
             shader,
         }
@@ -362,261 +350,386 @@ impl MaterialEditor {
                 .set_material(material);
         }
 
-        self.sync_to_model(engine.user_interfaces.first_mut());
+        let ui = engine.user_interfaces.first_mut();
+        self.create_property_editors(ui);
+        self.sync_to_model(ui);
     }
 
-    pub fn sync_to_model(&mut self, ui: &mut UserInterface) {
-        if let Some(material) = self.material.as_ref() {
-            let mut material_state = material.state();
-            let Some(material) = material_state.data() else {
-                return;
+    /// Creates property editors for each resource descriptor used by material's shader. Fills
+    /// the views with default values from the shader.
+    fn create_property_editors(&mut self, ui: &mut UserInterface) {
+        for resource_view in self.resource_views.drain(..) {
+            send_sync_message(
+                ui,
+                WidgetMessage::remove(resource_view.container, MessageDirection::ToWidget),
+            );
+        }
+
+        let Some(material) = self.material.clone() else {
+            return;
+        };
+
+        let mut material_state = material.state();
+        let Some(material) = material_state.data() else {
+            return;
+        };
+
+        let mut shader_state = material.shader().state();
+        let Some(shader) = shader_state.data() else {
+            return;
+        };
+
+        for resource in shader.definition.resources.iter() {
+            if resource.is_built_in() {
+                continue;
+            }
+
+            let view = match resource.kind {
+                ShaderResourceKind::Texture { .. } => {
+                    let editor = ImageBuilder::new(
+                        WidgetBuilder::new()
+                            .with_height(28.0)
+                            .with_user_data(Arc::new(Mutex::new(resource.name.clone())))
+                            .with_allow_drop(true)
+                            .with_context_menu(self.texture_context_menu.popup.clone()),
+                    )
+                    .build(&mut ui.build_ctx());
+                    ResourceView {
+                        name: resource.name.clone(),
+                        container: create_item_container(
+                            &mut ui.build_ctx(),
+                            resource.name.as_str(),
+                            editor,
+                        ),
+                        kind: ResourceViewKind::Sampler,
+                        editor,
+                    }
+                }
+                ShaderResourceKind::PropertyGroup(ref group) => self.create_property_group_view(
+                    resource.name.clone(),
+                    group,
+                    &mut ui.build_ctx(),
+                ),
             };
-
-            // Remove properties from ui.
-            for name in self
-                .properties
-                .forward_map()
-                .keys()
-                .cloned()
-                .collect::<Vec<_>>()
-            {
-                if !material.properties().contains_key(&name) {
-                    let item_to_delete = ui
-                        .node(
-                            self.properties
-                                .remove_by_key(&name)
-                                .expect("Desync has occurred!"),
-                        )
-                        .parent();
-
-                    send_sync_message(
-                        ui,
-                        WidgetMessage::remove(item_to_delete, MessageDirection::ToWidget),
-                    );
-                }
-            }
-
-            let mut sorted_properties = material
-                .properties()
-                .iter()
-                .map(|(k, v)| (k.clone(), v.clone()))
-                .collect::<Vec<_>>();
-            sorted_properties.sort_by(|(name_a, _), (name_b, _)| name_a.cmp(name_b));
-
-            // Add missing properties.
-            for (name, property_value) in sorted_properties.iter() {
-                if !self.properties.contains_key(name) {
-                    let ctx = &mut ui.build_ctx();
-
-                    let item = match property_value {
-                        PropertyValue::Float(value) => create_float_view(ctx, *value),
-                        PropertyValue::FloatArray(value) => {
-                            create_array_view(ctx, value, create_float_view)
-                        }
-                        PropertyValue::Int(value) => create_int_view(ctx, *value),
-                        PropertyValue::IntArray(value) => {
-                            create_array_view(ctx, value, create_int_view)
-                        }
-                        PropertyValue::UInt(value) => create_uint_view(ctx, *value),
-                        PropertyValue::UIntArray(value) => {
-                            create_array_view(ctx, value, create_uint_view)
-                        }
-                        PropertyValue::Vector2(value) => create_vec2_view(ctx, *value),
-                        PropertyValue::Vector2Array(value) => {
-                            create_array_view(ctx, value, create_vec2_view)
-                        }
-                        PropertyValue::Vector3(value) => create_vec3_view(ctx, *value),
-                        PropertyValue::Vector3Array(value) => {
-                            create_array_view(ctx, value, create_vec3_view)
-                        }
-                        PropertyValue::Vector4(value) => create_vec4_view(ctx, *value),
-                        PropertyValue::Vector4Array(value) => {
-                            create_array_view(ctx, value, create_vec4_view)
-                        }
-                        PropertyValue::Matrix2(value) => {
-                            create_array_view(ctx, value.data.as_slice(), create_float_view)
-                        }
-                        PropertyValue::Matrix2Array(value) => create_array_of_array_view(
-                            ctx,
-                            value.iter().map(|m| m.data.as_slice()),
-                            create_float_view,
-                        ),
-                        PropertyValue::Matrix3(value) => {
-                            create_array_view(ctx, value.data.as_slice(), create_float_view)
-                        }
-                        PropertyValue::Matrix3Array(value) => create_array_of_array_view(
-                            ctx,
-                            value.iter().map(|m| m.data.as_slice()),
-                            create_float_view,
-                        ),
-                        PropertyValue::Matrix4(value) => {
-                            create_array_view(ctx, value.data.as_slice(), create_float_view)
-                        }
-                        PropertyValue::Matrix4Array(value) => create_array_of_array_view(
-                            ctx,
-                            value.iter().map(|m| m.data.as_slice()),
-                            create_float_view,
-                        ),
-                        PropertyValue::Bool(value) => CheckBoxBuilder::new(WidgetBuilder::new())
-                            .checked(Some(*value))
-                            .build(ctx),
-                        PropertyValue::Color(value) => ColorFieldBuilder::new(WidgetBuilder::new())
-                            .with_color(*value)
-                            .build(ctx),
-                        PropertyValue::Sampler { value, .. } => ImageBuilder::new(
-                            WidgetBuilder::new()
-                                .with_user_data(Arc::new(Mutex::new(name.clone())))
-                                .with_allow_drop(true)
-                                .with_context_menu(self.texture_context_menu.popup.clone()),
-                        )
-                        .with_opt_texture(value.clone().map(Into::into))
-                        .build(ctx),
-                    };
-
-                    self.properties.insert(name.to_owned(), item);
-
-                    let container = create_item_container(ctx, name, item);
-
-                    send_sync_message(
-                        ui,
-                        WidgetMessage::link(
-                            container,
-                            MessageDirection::ToWidget,
-                            self.properties_panel,
-                        ),
-                    );
-                }
-            }
-
-            // Sync values.
-            for (name, property_value) in material.properties() {
-                let item = *self
-                    .properties
-                    .value_of(name)
-                    .unwrap_or_else(|| panic!("Property not found {name}"));
-
-                match property_value {
-                    PropertyValue::Float(value) => {
-                        send_sync_message(
-                            ui,
-                            NumericUpDownMessage::value(item, MessageDirection::ToWidget, *value),
-                        );
-                    }
-                    PropertyValue::FloatArray(value) => {
-                        sync_array(ui, item, value, create_float_view)
-                    }
-                    PropertyValue::Int(value) => {
-                        send_sync_message(
-                            ui,
-                            NumericUpDownMessage::value(
-                                item,
-                                MessageDirection::ToWidget,
-                                *value as f32,
-                            ),
-                        );
-                    }
-                    PropertyValue::IntArray(value) => sync_array(ui, item, value, create_int_view),
-                    PropertyValue::UInt(value) => {
-                        send_sync_message(
-                            ui,
-                            NumericUpDownMessage::value(
-                                item,
-                                MessageDirection::ToWidget,
-                                *value as f32,
-                            ),
-                        );
-                    }
-                    PropertyValue::UIntArray(value) => {
-                        sync_array(ui, item, value, create_uint_view)
-                    }
-                    PropertyValue::Vector2(value) => send_sync_message(
-                        ui,
-                        Vec2EditorMessage::value(item, MessageDirection::ToWidget, *value),
-                    ),
-                    PropertyValue::Vector2Array(value) => {
-                        sync_array(ui, item, value, create_vec2_view)
-                    }
-                    PropertyValue::Vector3(value) => send_sync_message(
-                        ui,
-                        Vec3EditorMessage::value(item, MessageDirection::ToWidget, *value),
-                    ),
-                    PropertyValue::Vector3Array(value) => {
-                        sync_array(ui, item, value, create_vec3_view)
-                    }
-                    PropertyValue::Vector4(value) => send_sync_message(
-                        ui,
-                        Vec4EditorMessage::value(item, MessageDirection::ToWidget, *value),
-                    ),
-                    PropertyValue::Vector4Array(value) => {
-                        sync_array(ui, item, value, create_vec4_view)
-                    }
-                    PropertyValue::Matrix2(value) => {
-                        sync_array(ui, item, value.as_slice(), create_float_view)
-                    }
-                    PropertyValue::Matrix2Array(value) => sync_array_of_arrays(
-                        ui,
-                        item,
-                        value.iter().map(|m| m.as_slice()),
-                        create_float_view,
-                    ),
-                    PropertyValue::Matrix3(value) => {
-                        sync_array(ui, item, value.as_slice(), create_float_view)
-                    }
-                    PropertyValue::Matrix3Array(value) => sync_array_of_arrays(
-                        ui,
-                        item,
-                        value.iter().map(|m| m.as_slice()),
-                        create_float_view,
-                    ),
-                    PropertyValue::Matrix4(value) => {
-                        sync_array(ui, item, value.as_slice(), create_float_view)
-                    }
-                    PropertyValue::Matrix4Array(value) => sync_array_of_arrays(
-                        ui,
-                        item,
-                        value.iter().map(|m| m.as_slice()),
-                        create_float_view,
-                    ),
-                    PropertyValue::Bool(value) => {
-                        send_sync_message(
-                            ui,
-                            CheckBoxMessage::checked(
-                                item,
-                                MessageDirection::ToWidget,
-                                Some(*value),
-                            ),
-                        );
-                    }
-                    PropertyValue::Color(value) => {
-                        send_sync_message(
-                            ui,
-                            ColorFieldMessage::color(item, MessageDirection::ToWidget, *value),
-                        );
-                    }
-                    PropertyValue::Sampler { value, .. } => send_sync_message(
-                        ui,
-                        ImageMessage::texture(
-                            item,
-                            MessageDirection::ToWidget,
-                            value.clone().map(Into::into),
-                        ),
-                    ),
-                }
-            }
 
             send_sync_message(
                 ui,
-                ResourceFieldMessage::value(
-                    self.shader,
+                WidgetMessage::link(
+                    view.container,
                     MessageDirection::ToWidget,
-                    Some(material.shader().clone()),
+                    self.properties_panel,
                 ),
             );
-        } else {
+
+            self.resource_views.push(view);
+        }
+    }
+
+    fn create_property_group_view(
+        &mut self,
+        name: ImmutableString,
+        group: &[ShaderProperty],
+        ctx: &mut BuildContext,
+    ) -> ResourceView {
+        let mut property_views = Vec::new();
+        let property_containers = group
+            .iter()
+            .map(|property| {
+                let item = match &property.kind {
+                    ShaderPropertyKind::Float(value) => create_float_view(ctx, *value),
+                    ShaderPropertyKind::FloatArray { value, max_len } => {
+                        create_array_view(ctx, &pad_vec(value, *max_len), create_float_view)
+                    }
+                    ShaderPropertyKind::Int(value) => create_int_view(ctx, *value),
+                    ShaderPropertyKind::IntArray { value, max_len } => {
+                        create_array_view(ctx, &pad_vec(value, *max_len), create_int_view)
+                    }
+                    ShaderPropertyKind::UInt(value) => create_uint_view(ctx, *value),
+                    ShaderPropertyKind::UIntArray { value, max_len } => {
+                        create_array_view(ctx, &pad_vec(value, *max_len), create_uint_view)
+                    }
+                    ShaderPropertyKind::Vector2(value) => create_vec2_view(ctx, *value),
+                    ShaderPropertyKind::Vector2Array { value, max_len } => {
+                        create_array_view(ctx, &pad_vec(value, *max_len), create_vec2_view)
+                    }
+                    ShaderPropertyKind::Vector3(value) => create_vec3_view(ctx, *value),
+                    ShaderPropertyKind::Vector3Array { value, max_len } => {
+                        create_array_view(ctx, &pad_vec(value, *max_len), create_vec3_view)
+                    }
+                    ShaderPropertyKind::Vector4(value) => create_vec4_view(ctx, *value),
+                    ShaderPropertyKind::Vector4Array { value, max_len } => {
+                        create_array_view(ctx, &pad_vec(value, *max_len), create_vec4_view)
+                    }
+                    ShaderPropertyKind::Matrix2(value) => create_mat_view(ctx, *value),
+                    ShaderPropertyKind::Matrix2Array { value, max_len } => {
+                        create_array_view(ctx, &pad_vec(value, *max_len), create_mat_view)
+                    }
+                    ShaderPropertyKind::Matrix3(value) => create_mat_view(ctx, *value),
+                    ShaderPropertyKind::Matrix3Array { value, max_len } => {
+                        create_array_view(ctx, &pad_vec(value, *max_len), create_mat_view)
+                    }
+                    ShaderPropertyKind::Matrix4(value) => create_mat_view(ctx, *value),
+                    ShaderPropertyKind::Matrix4Array { value, max_len } => {
+                        create_array_view(ctx, &pad_vec(value, *max_len), create_mat_view)
+                    }
+                    ShaderPropertyKind::Bool(value) => CheckBoxBuilder::new(WidgetBuilder::new())
+                        .checked(Some(*value))
+                        .build(ctx),
+                    ShaderPropertyKind::Color { r, g, b, a } => {
+                        ColorFieldBuilder::new(WidgetBuilder::new())
+                            .with_color(Color::from_rgba(*r, *g, *b, *a))
+                            .build(ctx)
+                    }
+                };
+
+                property_views.push(item);
+                create_item_container(ctx, &property.name, item)
+            })
+            .collect::<Vec<_>>();
+
+        let panel = StackPanelBuilder::new(
+            WidgetBuilder::new().with_children(property_containers.iter().cloned()),
+        )
+        .build(ctx);
+
+        ResourceView {
+            container: create_item_container(ctx, name.as_str(), panel),
+            name,
+            kind: ResourceViewKind::PropertyGroup {
+                property_views: group
+                    .iter()
+                    .zip(property_views.iter())
+                    .map(|(property, view)| (property.name.clone(), *view))
+                    .collect::<FxHashMap<_, _>>(),
+            },
+            editor: panel,
+        }
+    }
+
+    fn find_resource_view(&self, name: &str) -> Option<&ResourceView> {
+        self.resource_views
+            .iter()
+            .find(|view| view.name.as_str() == name)
+    }
+
+    pub fn sync_to_model(&mut self, ui: &mut UserInterface) {
+        let Some(material) = self.material.as_ref() else {
             send_sync_message(
                 ui,
                 ListViewMessage::items(self.properties_panel, MessageDirection::ToWidget, vec![]),
             );
+            return;
+        };
+
+        let mut material_state = material.state();
+        let Some(material) = material_state.data() else {
+            return;
+        };
+
+        for (binding_name, binding_value) in material.bindings() {
+            let Some(view) = self.find_resource_view(binding_name) else {
+                continue;
+            };
+            match binding_value {
+                MaterialResourceBinding::Texture(ref binding) => send_sync_message(
+                    ui,
+                    ImageMessage::texture(
+                        view.editor,
+                        MessageDirection::ToWidget,
+                        binding.value.clone().map(Into::into),
+                    ),
+                ),
+                MaterialResourceBinding::PropertyGroup(ref group) => {
+                    let ResourceViewKind::PropertyGroup { ref property_views } = view.kind else {
+                        continue;
+                    };
+
+                    for (property_name, property_value) in group.properties() {
+                        let item = *property_views
+                            .get(property_name)
+                            .unwrap_or_else(|| panic!("Property not found {}", property_name));
+
+                        match property_value {
+                            MaterialProperty::Float(value) => {
+                                send_sync_message(
+                                    ui,
+                                    NumericUpDownMessage::value(
+                                        item,
+                                        MessageDirection::ToWidget,
+                                        *value,
+                                    ),
+                                );
+                            }
+                            MaterialProperty::FloatArray(value) => {
+                                sync_array(ui, item, value, |value, item| {
+                                    NumericUpDownMessage::value(
+                                        item,
+                                        MessageDirection::ToWidget,
+                                        *value,
+                                    )
+                                })
+                            }
+                            MaterialProperty::Int(value) => {
+                                send_sync_message(
+                                    ui,
+                                    NumericUpDownMessage::value(
+                                        item,
+                                        MessageDirection::ToWidget,
+                                        *value as f32,
+                                    ),
+                                );
+                            }
+                            MaterialProperty::IntArray(value) => {
+                                sync_array(ui, item, value, |value, item| {
+                                    NumericUpDownMessage::value(
+                                        item,
+                                        MessageDirection::ToWidget,
+                                        *value as f32,
+                                    )
+                                })
+                            }
+                            MaterialProperty::UInt(value) => {
+                                send_sync_message(
+                                    ui,
+                                    NumericUpDownMessage::value(
+                                        item,
+                                        MessageDirection::ToWidget,
+                                        *value as f32,
+                                    ),
+                                );
+                            }
+                            MaterialProperty::UIntArray(value) => {
+                                sync_array(ui, item, value, |value, item| {
+                                    NumericUpDownMessage::value(
+                                        item,
+                                        MessageDirection::ToWidget,
+                                        *value as f32,
+                                    )
+                                })
+                            }
+                            MaterialProperty::Vector2(value) => send_sync_message(
+                                ui,
+                                Vec2EditorMessage::value(item, MessageDirection::ToWidget, *value),
+                            ),
+                            MaterialProperty::Vector2Array(value) => {
+                                sync_array(ui, item, value, |value, item| {
+                                    Vec2EditorMessage::value(
+                                        item,
+                                        MessageDirection::ToWidget,
+                                        *value,
+                                    )
+                                })
+                            }
+                            MaterialProperty::Vector3(value) => send_sync_message(
+                                ui,
+                                Vec3EditorMessage::value(item, MessageDirection::ToWidget, *value),
+                            ),
+                            MaterialProperty::Vector3Array(value) => {
+                                sync_array(ui, item, value, |value, item| {
+                                    Vec3EditorMessage::value(
+                                        item,
+                                        MessageDirection::ToWidget,
+                                        *value,
+                                    )
+                                })
+                            }
+                            MaterialProperty::Vector4(value) => send_sync_message(
+                                ui,
+                                Vec4EditorMessage::value(item, MessageDirection::ToWidget, *value),
+                            ),
+                            MaterialProperty::Vector4Array(value) => {
+                                sync_array(ui, item, value, |value, item| {
+                                    Vec4EditorMessage::value(
+                                        item,
+                                        MessageDirection::ToWidget,
+                                        *value,
+                                    )
+                                })
+                            }
+                            MaterialProperty::Matrix2(value) => send_sync_message(
+                                ui,
+                                MatrixEditorMessage::value(
+                                    item,
+                                    MessageDirection::ToWidget,
+                                    *value,
+                                ),
+                            ),
+                            MaterialProperty::Matrix2Array(value) => {
+                                sync_array(ui, item, value, |value, item| {
+                                    MatrixEditorMessage::value(
+                                        item,
+                                        MessageDirection::ToWidget,
+                                        *value,
+                                    )
+                                })
+                            }
+                            MaterialProperty::Matrix3(value) => send_sync_message(
+                                ui,
+                                MatrixEditorMessage::value(
+                                    item,
+                                    MessageDirection::ToWidget,
+                                    *value,
+                                ),
+                            ),
+                            MaterialProperty::Matrix3Array(value) => {
+                                sync_array(ui, item, value, |value, item| {
+                                    MatrixEditorMessage::value(
+                                        item,
+                                        MessageDirection::ToWidget,
+                                        *value,
+                                    )
+                                })
+                            }
+                            MaterialProperty::Matrix4(value) => send_sync_message(
+                                ui,
+                                MatrixEditorMessage::value(
+                                    item,
+                                    MessageDirection::ToWidget,
+                                    *value,
+                                ),
+                            ),
+                            MaterialProperty::Matrix4Array(value) => {
+                                sync_array(ui, item, value, |value, item| {
+                                    MatrixEditorMessage::value(
+                                        item,
+                                        MessageDirection::ToWidget,
+                                        *value,
+                                    )
+                                })
+                            }
+                            MaterialProperty::Bool(value) => {
+                                send_sync_message(
+                                    ui,
+                                    CheckBoxMessage::checked(
+                                        item,
+                                        MessageDirection::ToWidget,
+                                        Some(*value),
+                                    ),
+                                );
+                            }
+                            MaterialProperty::Color(value) => {
+                                send_sync_message(
+                                    ui,
+                                    ColorFieldMessage::color(
+                                        item,
+                                        MessageDirection::ToWidget,
+                                        *value,
+                                    ),
+                                );
+                            }
+                        }
+                    }
+
+                    send_sync_message(
+                        ui,
+                        ResourceFieldMessage::value(
+                            self.shader,
+                            MessageDirection::ToWidget,
+                            Some(material.shader().clone()),
+                        ),
+                    );
+                }
+            }
         }
     }
 
@@ -626,151 +739,158 @@ impl MaterialEditor {
         engine: &mut Engine,
         sender: &MessageSender,
     ) {
+        let Some(material) = self.material.clone() else {
+            return;
+        };
+
         self.preview.handle_message(message, engine);
 
-        if let Some(material) = self.material.clone() {
-            if let Some(msg) = message.data::<ResourceFieldMessage<Shader>>() {
-                if message.destination() == self.shader
-                    && message.direction() == MessageDirection::FromWidget
-                {
-                    if let ResourceFieldMessage::Value(Some(value)) = msg {
-                        sender.do_command(SetMaterialShaderCommand::new(
-                            material.clone(),
-                            value.clone(),
-                        ));
-                    }
-                }
-            } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) =
-                message.data::<PopupMessage>()
+        if let Some(msg) = message.data::<ResourceFieldMessage<Shader>>() {
+            if message.destination() == self.shader
+                && message.direction() == MessageDirection::FromWidget
             {
-                if message.destination() == self.texture_context_menu.popup.handle() {
-                    self.texture_context_menu.target = *target;
-                }
-            } else if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
-                if message.destination() == self.texture_context_menu.show_in_asset_browser
-                    && self.texture_context_menu.target.is_some()
-                {
-                    let path = (*engine
-                        .user_interfaces
-                        .first_mut()
-                        .node(self.texture_context_menu.target)
-                        .cast::<Image>()
-                        .unwrap()
-                        .texture)
-                        .clone()
-                        .and_then(|t| t.kind().into_path());
-
-                    if let Some(path) = path {
-                        sender.send(Message::ShowInAssetBrowser(path));
-                    }
-                } else if message.destination() == self.texture_context_menu.unassign
-                    && self.texture_context_menu.target.is_some()
-                {
-                    if let Some(property_name) = engine
-                        .user_interfaces
-                        .first_mut()
-                        .node(self.texture_context_menu.target)
-                        .user_data_cloned::<ImmutableString>()
-                    {
-                        sender.do_command(SetMaterialPropertyValueCommand::new(
-                            material.clone(),
-                            property_name.clone(),
-                            PropertyValue::Sampler {
-                                value: None,
-                                fallback: Default::default(),
-                            },
-                        ));
-                    }
+                if let ResourceFieldMessage::Value(Some(value)) = msg {
+                    sender.do_command(SetMaterialShaderCommand::new(
+                        material.clone(),
+                        value.clone(),
+                    ));
                 }
             }
+        } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) =
+            message.data::<PopupMessage>()
+        {
+            if message.destination() == self.texture_context_menu.popup.handle() {
+                self.texture_context_menu.target = *target;
+            }
+        } else if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
+            if message.destination() == self.texture_context_menu.show_in_asset_browser
+                && self.texture_context_menu.target.is_some()
+            {
+                let path = (*engine
+                    .user_interfaces
+                    .first_mut()
+                    .node(self.texture_context_menu.target)
+                    .cast::<Image>()
+                    .unwrap()
+                    .texture)
+                    .clone()
+                    .and_then(|t| t.kind().into_path());
 
-            if let Some(property_name) = self.properties.key_of(&message.destination()) {
-                let property_value = if let Some(NumericUpDownMessage::Value(value)) =
-                    message.data::<NumericUpDownMessage<f32>>()
+                if let Some(path) = path {
+                    sender.send(Message::ShowInAssetBrowser(path));
+                }
+            } else if message.destination() == self.texture_context_menu.unassign
+                && self.texture_context_menu.target.is_some()
+            {
+                if let Some(binding_name) = engine
+                    .user_interfaces
+                    .first_mut()
+                    .node(self.texture_context_menu.target)
+                    .user_data_cloned::<ImmutableString>()
                 {
-                    if message.direction() == MessageDirection::FromWidget {
-                        // NumericUpDown is used for Float, Int, UInt properties, so we have to check
-                        // the actual property "type" to create suitable value from f32.
-                        if let Some(material) = material.state().data() {
-                            match material.property_ref(property_name).unwrap() {
-                                PropertyValue::Float(_) => Some(PropertyValue::Float(*value)),
-                                PropertyValue::Int(_) => Some(PropertyValue::Int(*value as i32)),
-                                PropertyValue::UInt(_) => Some(PropertyValue::UInt(*value as u32)),
-                                _ => None,
-                            }
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    }
-                } else if let Some(Vec2EditorMessage::Value(value)) =
-                    message.data::<Vec2EditorMessage<f32>>()
-                {
-                    if message.direction() == MessageDirection::FromWidget {
-                        Some(PropertyValue::Vector2(*value))
-                    } else {
-                        None
-                    }
-                } else if let Some(Vec3EditorMessage::Value(value)) =
-                    message.data::<Vec3EditorMessage<f32>>()
-                {
-                    if message.direction() == MessageDirection::FromWidget {
-                        Some(PropertyValue::Vector3(*value))
-                    } else {
-                        None
-                    }
-                } else if let Some(Vec4EditorMessage::Value(value)) =
-                    message.data::<Vec4EditorMessage<f32>>()
-                {
-                    if message.direction() == MessageDirection::FromWidget {
-                        Some(PropertyValue::Vector4(*value))
-                    } else {
-                        None
-                    }
-                } else if let Some(ColorFieldMessage::Color(color)) =
-                    message.data::<ColorFieldMessage>()
-                {
-                    if message.direction() == MessageDirection::FromWidget {
-                        Some(PropertyValue::Color(*color))
-                    } else {
-                        None
-                    }
-                } else if let Some(WidgetMessage::Drop(handle)) = message.data::<WidgetMessage>() {
-                    if let Some(asset_item) = engine
-                        .user_interfaces
-                        .first_mut()
-                        .node(*handle)
-                        .cast::<AssetItem>()
-                    {
-                        let texture = asset_item.resource::<Texture>();
+                    sender.do_command(SetMaterialBindingCommand::new(
+                        material.clone(),
+                        binding_name.clone(),
+                        MaterialResourceBinding::Texture(MaterialTextureBinding { value: None }),
+                    ));
+                }
+            }
+        }
 
-                        engine
+        for resource_view in self.resource_views.iter() {
+            match resource_view.kind {
+                ResourceViewKind::Sampler => {
+                    if let Some(WidgetMessage::Drop(handle)) = message.data::<WidgetMessage>() {
+                        if let Some(asset_item) = engine
                             .user_interfaces
                             .first_mut()
-                            .send_message(ImageMessage::texture(
-                                message.destination(),
-                                MessageDirection::ToWidget,
-                                texture.clone().map(Into::into),
-                            ));
+                            .node(*handle)
+                            .cast::<AssetItem>()
+                        {
+                            if resource_view.editor == message.destination() {
+                                let texture = asset_item.resource::<Texture>();
 
-                        Some(PropertyValue::Sampler {
-                            value: texture,
-                            fallback: Default::default(),
-                        })
-                    } else {
-                        None
+                                engine.user_interfaces.first_mut().send_message(
+                                    ImageMessage::texture(
+                                        message.destination(),
+                                        MessageDirection::ToWidget,
+                                        texture.clone().map(Into::into),
+                                    ),
+                                );
+
+                                sender.do_command(SetMaterialBindingCommand::new(
+                                    material.clone(),
+                                    resource_view.name.clone(),
+                                    MaterialResourceBinding::Texture(MaterialTextureBinding {
+                                        value: texture,
+                                    }),
+                                ));
+                            }
+                        }
                     }
-                } else {
-                    None
-                };
+                }
+                ResourceViewKind::PropertyGroup { ref property_views } => {
+                    for (property_name, property_view) in property_views {
+                        if *property_view == message.destination()
+                            && message.direction() == MessageDirection::FromWidget
+                        {
+                            let property_value =
+                                if let Some(NumericUpDownMessage::<f32>::Value(value)) =
+                                    message.data()
+                                {
+                                    Some(MaterialProperty::Float(*value))
+                                } else if let Some(NumericUpDownMessage::<i32>::Value(value)) =
+                                    message.data()
+                                {
+                                    Some(MaterialProperty::Int(*value))
+                                } else if let Some(NumericUpDownMessage::<u32>::Value(value)) =
+                                    message.data()
+                                {
+                                    Some(MaterialProperty::UInt(*value))
+                                } else if let Some(Vec2EditorMessage::Value(value)) = message.data()
+                                {
+                                    Some(MaterialProperty::Vector2(*value))
+                                } else if let Some(Vec3EditorMessage::Value(value)) = message.data()
+                                {
+                                    Some(MaterialProperty::Vector3(*value))
+                                } else if let Some(Vec4EditorMessage::Value(value)) = message.data()
+                                {
+                                    Some(MaterialProperty::Vector4(*value))
+                                } else if let Some(ColorFieldMessage::Color(color)) = message.data()
+                                {
+                                    Some(MaterialProperty::Color(*color))
+                                } else if let Some(MatrixEditorMessage::<2, 2, f32>::Value(value)) =
+                                    message.data()
+                                {
+                                    Some(MaterialProperty::Matrix2(*value))
+                                } else if let Some(MatrixEditorMessage::<3, 3, f32>::Value(value)) =
+                                    message.data()
+                                {
+                                    Some(MaterialProperty::Matrix3(*value))
+                                } else if let Some(MatrixEditorMessage::<4, 4, f32>::Value(value)) =
+                                    message.data()
+                                {
+                                    Some(MaterialProperty::Matrix4(*value))
+                                } else if let Some(CheckBoxMessage::Check(Some(value))) =
+                                    message.data()
+                                {
+                                    Some(MaterialProperty::Bool(*value))
+                                } else {
+                                    None
+                                };
 
-                if let Some(property_value) = property_value {
-                    sender.do_command(SetMaterialPropertyValueCommand::new(
-                        material,
-                        property_name.clone(),
-                        property_value,
-                    ));
+                            if let Some(property_value) = property_value {
+                                sender.do_command(
+                                    SetMaterialPropertyGroupPropertyValueCommand::new(
+                                        material.clone(),
+                                        resource_view.name.clone(),
+                                        property_name.clone(),
+                                        property_value,
+                                    ),
+                                );
+                            }
+                        }
+                    }
                 }
             }
         }

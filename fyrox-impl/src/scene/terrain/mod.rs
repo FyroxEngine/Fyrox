@@ -41,7 +41,7 @@ use crate::{
         visitor::{prelude::*, PodVecView},
         TypeUuidProvider,
     },
-    material::{Material, MaterialResource, PropertyValue},
+    material::{Material, MaterialProperty, MaterialResource},
     renderer::{
         self,
         bundle::{RenderContext, SurfaceInstanceData},
@@ -1229,14 +1229,16 @@ impl Visit for Terrain {
                     // TODO: Due to the bug in resource system, material properties are not kept in sync
                     // so here we must re-create the material and put every property from the old material
                     // to the new.
-                    let mut new_material = Material::standard_terrain();
+                    let new_material = Material::standard_terrain();
 
+                    // TODO
+                    /*
                     let mut material_state = layer.material.state();
                     if let Some(material) = material_state.data() {
                         for (name, value) in material.properties() {
                             Log::verify(new_material.set_property(name.clone(), value.clone()));
                         }
-                    }
+                    }*/
 
                     self.layers.push(Layer {
                         material: MaterialResource::new_ok(Default::default(), new_material),
@@ -2643,29 +2645,12 @@ impl NodeTrait for Terrain {
 
                 let mut material = layer.material.deep_copy().data_ref().clone();
 
-                Log::verify_message(
-                    material.set_property(
-                        &layer.mask_property_name,
-                        chunk.layer_masks[layer_index].clone(),
-                    ),
-                    "Unable to set mask texture for terrain material.",
+                material.bind(
+                    &layer.mask_property_name,
+                    chunk.layer_masks[layer_index].clone(),
                 );
-
-                Log::verify_message(
-                    material.set_property(&layer.height_map_property_name, chunk.heightmap.clone()),
-                    "Unable to set height map texture for terrain material.",
-                );
-
-                Log::verify_message(
-                    material.set_property(
-                        &layer.hole_mask_property_name,
-                        PropertyValue::Sampler {
-                            value: chunk.hole_mask.clone(),
-                            fallback: Default::default(),
-                        },
-                    ),
-                    "Unable to set hole mask texture for terrain material.",
-                );
+                material.bind(&layer.height_map_property_name, chunk.heightmap.clone());
+                material.bind(&layer.hole_mask_property_name, chunk.hole_mask.clone());
 
                 // The size of the chunk excluding the margins
                 let size = self.height_map_size.map(|x| (x - 3) as f32);
@@ -2678,12 +2663,9 @@ impl NodeTrait for Terrain {
                     let kw = (node.size.x - 1) as f32 / size.x;
                     let kh = (node.size.y - 1) as f32 / size.y;
 
-                    Log::verify_message(
-                        material.set_property(
-                            &layer.node_uv_offsets_property_name,
-                            PropertyValue::Vector4(Vector4::new(kx, kz, kw, kh)),
-                        ),
-                        "Unable to set node uv offsets for terrain material.",
+                    material.set_property(
+                        &layer.node_uv_offsets_property_name,
+                        MaterialProperty::Vector4(Vector4::new(kx, kz, kw, kh)),
                     );
 
                     let material = MaterialResource::new_ok(Default::default(), material.clone());

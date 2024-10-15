@@ -50,6 +50,7 @@ use crate::{
     },
     scene::mesh::surface::SurfaceData,
 };
+use fyrox_graphics::framebuffer::BufferLocation;
 use std::{cell::RefCell, rc::Rc};
 
 mod blur;
@@ -267,7 +268,9 @@ impl ScreenSpaceAmbientOcclusionRenderer {
                     ResourceBinding::texture(&self.noise, &self.shader.noise_sampler),
                     ResourceBinding::Buffer {
                         buffer: uniform_buffer,
-                        shader_location: self.shader.uniform_block_index,
+                        binding: BufferLocation::Auto {
+                            shader_location: self.shader.uniform_block_index,
+                        },
                         data_usage: Default::default(),
                     },
                 ],

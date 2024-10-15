@@ -48,7 +48,7 @@ impl ShaderSet {
                 &program_name,
                 &render_pass.vertex_shader,
                 &render_pass.fragment_shader,
-                &shader.definition.properties,
+                &shader.definition.resources,
             ) {
                 Ok(gpu_program) => {
                     map.insert(

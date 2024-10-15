@@ -40,6 +40,7 @@ use crate::{
         make_viewport_matrix,
     },
 };
+use fyrox_graphics::framebuffer::BufferLocation;
 use std::{cell::RefCell, rc::Rc};
 
 struct VisibilityOptimizerShader {
@@ -153,7 +154,9 @@ impl VisibilityBufferOptimizer {
                                 .with(&matrix)
                                 .with(&tile_size),
                         )?,
-                        shader_location: self.shader.uniform_buffer_binding,
+                        binding: BufferLocation::Auto {
+                            shader_location: self.shader.uniform_buffer_binding,
+                        },
                         data_usage: Default::default(),
                     },
                 ],

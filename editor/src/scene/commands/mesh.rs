@@ -20,12 +20,12 @@
 
 use crate::command::CommandContext;
 use crate::fyrox::{
-    core::{pool::Handle, sstorage::ImmutableString},
-    material::{shader::SamplerFallback, PropertyValue},
+    core::pool::Handle,
     resource::texture::TextureResource,
     scene::{mesh::Mesh, node::Node},
 };
 use crate::{command::CommandTrait, scene::commands::GameSceneContext};
+use fyrox::material::{MaterialResourceBinding, MaterialTextureBinding};
 
 #[derive(Debug)]
 enum TextureSet {
@@ -63,10 +63,10 @@ impl CommandTrait for SetMeshTextureCommand {
                 .map(|s| {
                     s.material()
                         .data_ref()
-                        .property_ref(&ImmutableString::new("diffuseTexture"))
+                        .binding_ref("diffuseTexture")
                         .and_then(|p| {
-                            if let PropertyValue::Sampler { value, .. } = p {
-                                value.clone()
+                            if let MaterialResourceBinding::Texture(binding) = p {
+                                binding.value.clone()
                             } else {
                                 None
                             }
@@ -77,8 +77,7 @@ impl CommandTrait for SetMeshTextureCommand {
                 surface
                     .material()
                     .data_ref()
-                    .set_property("diffuseTexture", texture.clone())
-                    .unwrap();
+                    .bind("diffuseTexture", texture.clone());
             }
             self.set = TextureSet::Multiple(old_set);
         } else {
@@ -93,10 +92,10 @@ impl CommandTrait for SetMeshTextureCommand {
             let new_value = mesh.surfaces_mut()[0]
                 .material()
                 .data_ref()
-                .property_ref(&ImmutableString::new("diffuseTexture"))
+                .binding_ref("diffuseTexture")
                 .and_then(|p| {
-                    if let PropertyValue::Sampler { value, .. } = p {
-                        value.clone()
+                    if let MaterialResourceBinding::Texture(binding) = p {
+                        binding.value.clone()
                     } else {
                         None
                     }
@@ -104,17 +103,12 @@ impl CommandTrait for SetMeshTextureCommand {
                 .unwrap();
             assert_eq!(mesh.surfaces_mut().len(), set.len());
             for (surface, old_texture) in mesh.surfaces_mut().iter_mut().zip(set) {
-                surface
-                    .material()
-                    .data_ref()
-                    .set_property(
-                        "diffuseTexture",
-                        PropertyValue::Sampler {
-                            value: old_texture.clone(),
-                            fallback: SamplerFallback::White,
-                        },
-                    )
-                    .unwrap();
+                surface.material().data_ref().bind(
+                    "diffuseTexture",
+                    MaterialResourceBinding::Texture(MaterialTextureBinding {
+                        value: old_texture.clone(),
+                    }),
+                );
             }
             self.set = TextureSet::Single(new_value);
         } else {

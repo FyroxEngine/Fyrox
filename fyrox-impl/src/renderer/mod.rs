@@ -107,6 +107,7 @@ use crate::{
     scene::{camera::Camera, mesh::surface::SurfaceData, Scene, SceneContainer},
 };
 use fxhash::FxHashMap;
+use fyrox_graphics::framebuffer::BufferLocation;
 use fyrox_graphics::gl::server::GlGraphicsServer;
 use fyrox_graphics::server::SharedGraphicsServer;
 use lazy_static::lazy_static;
@@ -912,7 +913,9 @@ fn blit_pixels(
                 ResourceBinding::texture(&texture, &shader.diffuse_texture),
                 ResourceBinding::Buffer {
                     buffer: uniform_buffer,
-                    shader_location: shader.uniform_buffer_binding,
+                    binding: BufferLocation::Auto {
+                        shader_location: shader.uniform_buffer_binding,
+                    },
                     data_usage: Default::default(),
                 },
             ],

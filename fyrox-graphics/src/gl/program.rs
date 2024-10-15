@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::gpu_program::ShaderPropertyKind;
 use crate::{
     core::{
         log::{Log, MessageKind},
@@ -26,8 +27,7 @@ use crate::{
     error::FrameworkError,
     gl::server::{GlGraphicsServer, GlKind},
     gpu_program::{
-        BuiltInUniformBlock, GpuProgram, PropertyDefinition, PropertyKind, SamplerKind,
-        UniformLocation,
+        GpuProgram, SamplerKind, ShaderResourceDefinition, ShaderResourceKind, UniformLocation,
     },
 };
 use fxhash::FxHashMap;
@@ -128,7 +128,6 @@ pub struct GlProgram {
     // Force compiler to not implement Send and Sync, because OpenGL is not thread-safe.
     thread_mark: PhantomData<*const u8>,
     uniform_locations: RefCell<FxHashMap<ImmutableString, Option<UniformLocation>>>,
-    pub built_in_uniform_blocks: [Option<usize>; BuiltInUniformBlock::Count as usize],
 }
 
 #[inline]
@@ -161,35 +160,13 @@ pub fn fetch_uniform_block_index(
     }
 }
 
-fn fetch_built_in_uniform_blocks(
-    server: &GlGraphicsServer,
-    program: glow::Program,
-) -> [Option<usize>; BuiltInUniformBlock::Count as usize] {
-    let mut locations = [None; BuiltInUniformBlock::Count as usize];
-    locations[BuiltInUniformBlock::BoneMatrices as usize] =
-        fetch_uniform_block_index(server, program, "FyroxBoneMatrices");
-    locations[BuiltInUniformBlock::InstanceData as usize] =
-        fetch_uniform_block_index(server, program, "FyroxInstanceData");
-    locations[BuiltInUniformBlock::CameraData as usize] =
-        fetch_uniform_block_index(server, program, "FyroxCameraData");
-    locations[BuiltInUniformBlock::MaterialProperties as usize] =
-        fetch_uniform_block_index(server, program, "FyroxMaterialProperties");
-    locations[BuiltInUniformBlock::LightData as usize] =
-        fetch_uniform_block_index(server, program, "FyroxLightData");
-    locations[BuiltInUniformBlock::LightsBlock as usize] =
-        fetch_uniform_block_index(server, program, "FyroxLightsBlock");
-    locations[BuiltInUniformBlock::GraphicsSettings as usize] =
-        fetch_uniform_block_index(server, program, "FyroxGraphicsSettings");
-    locations
-}
-
 impl GlProgram {
     pub fn from_source_and_properties(
         server: &GlGraphicsServer,
-        name: &str,
+        program_name: &str,
         vertex_source: &str,
         fragment_source: &str,
-        properties: &[PropertyDefinition],
+        resources: &[ShaderResourceDefinition],
     ) -> Result<GlProgram, FrameworkError> {
         let mut vertex_source = vertex_source.to_string();
         let mut fragment_source = fragment_source.to_string();
@@ -197,100 +174,134 @@ impl GlProgram {
         // Generate appropriate texture binding points and uniform blocks for the specified properties.
         for initial_source in [&mut vertex_source, &mut fragment_source] {
             let mut texture_bindings = String::new();
-            let mut uniform_block = "struct TProperties {\n".to_string();
-            let mut sampler_count = 0;
-            for property in properties {
-                let name = &property.name;
+
+            for property in resources {
+                let resource_name = &property.name;
                 match property.kind {
-                    PropertyKind::Float(_) => {
-                        uniform_block += &format!("\tfloat {name};\n");
-                    }
-                    PropertyKind::FloatArray { max_len, .. } => {
-                        uniform_block += &format!("\tfloat {name}[{max_len}];\n");
-                    }
-                    PropertyKind::Int(_) => {
-                        uniform_block += &format!("\tint {name};\n");
-                    }
-                    PropertyKind::IntArray { max_len, .. } => {
-                        uniform_block += &format!("\tint {name}[{max_len}];\n");
-                    }
-                    PropertyKind::UInt(_) => {
-                        uniform_block += &format!("\tuint {name};\n");
-                    }
-                    PropertyKind::UIntArray { max_len, .. } => {
-                        uniform_block += &format!("\tuint {name}[{max_len}];\n");
-                    }
-                    PropertyKind::Bool(_) => {
-                        uniform_block += &format!("\tbool {name};\n");
-                    }
-                    PropertyKind::Vector2(_) => {
-                        uniform_block += &format!("\tvec2 {name};\n");
-                    }
-                    PropertyKind::Vector2Array { max_len, .. } => {
-                        uniform_block += &format!("\tvec2 {name}[{max_len}];\n");
-                    }
-                    PropertyKind::Vector3(_) => {
-                        uniform_block += &format!("\tvec3 {name};\n");
-                    }
-                    PropertyKind::Vector3Array { max_len, .. } => {
-                        uniform_block += &format!("\tvec3 {name}[{max_len}];\n");
-                    }
-                    PropertyKind::Vector4(_) => {
-                        uniform_block += &format!("\tvec4 {name};\n");
-                    }
-                    PropertyKind::Vector4Array { max_len, .. } => {
-                        uniform_block += &format!("\tvec4 {name}[{max_len}];\n");
-                    }
-                    PropertyKind::Matrix2(_) => {
-                        uniform_block += &format!("\tmat2 {name};\n");
-                    }
-                    PropertyKind::Matrix2Array { max_len, .. } => {
-                        uniform_block += &format!("\tmat2 {name}[{max_len}];\n");
-                    }
-                    PropertyKind::Matrix3(_) => {
-                        uniform_block += &format!("\tmat3 {name};\n");
-                    }
-                    PropertyKind::Matrix3Array { max_len, .. } => {
-                        uniform_block += &format!("\tmat3 {name}[{max_len}];\n");
-                    }
-                    PropertyKind::Matrix4(_) => {
-                        uniform_block += &format!("\tmat4 {name};\n");
-                    }
-                    PropertyKind::Matrix4Array { max_len, .. } => {
-                        uniform_block += &format!("\tmat4 {name}[{max_len}];\n");
-                    }
-                    PropertyKind::Color { .. } => {
-                        uniform_block += &format!("\tvec4 {name};\n");
-                    }
-                    PropertyKind::Sampler { kind, .. } => {
+                    ShaderResourceKind::Texture { kind, .. } => {
                         let glsl_name = kind.glsl_name();
-                        texture_bindings += &format!("uniform {glsl_name} {name};\n");
-                        sampler_count += 1;
+                        texture_bindings += &format!("uniform {glsl_name} {resource_name};\n");
+                    }
+                    ShaderResourceKind::PropertyGroup(ref fields) => {
+                        if fields.is_empty() {
+                            Log::warn(format!(
+                                "Uniform block {resource_name} is empty and will be ignored!"
+                            ));
+                            continue;
+                        }
+                        let mut block = format!("struct T{resource_name}{{\n");
+                        for field in fields {
+                            let field_name = &field.name;
+                            match field.kind {
+                                ShaderPropertyKind::Float(_) => {
+                                    block += &format!("\tfloat {field_name};\n");
+                                }
+                                ShaderPropertyKind::FloatArray { max_len, .. } => {
+                                    block += &format!("\tfloat {field_name}[{max_len}];\n");
+                                }
+                                ShaderPropertyKind::Int(_) => {
+                                    block += &format!("\tint {field_name};\n");
+                                }
+                                ShaderPropertyKind::IntArray { max_len, .. } => {
+                                    block += &format!("\tint {field_name}[{max_len}];\n");
+                                }
+                                ShaderPropertyKind::UInt(_) => {
+                                    block += &format!("\tuint {field_name};\n");
+                                }
+                                ShaderPropertyKind::UIntArray { max_len, .. } => {
+                                    block += &format!("\tuint {field_name}[{max_len}];\n");
+                                }
+                                ShaderPropertyKind::Bool(_) => {
+                                    block += &format!("\tbool {field_name};\n");
+                                }
+                                ShaderPropertyKind::Vector2(_) => {
+                                    block += &format!("\tvec2 {field_name};\n");
+                                }
+                                ShaderPropertyKind::Vector2Array { max_len, .. } => {
+                                    block += &format!("\tvec2 {field_name}[{max_len}];\n");
+                                }
+                                ShaderPropertyKind::Vector3(_) => {
+                                    block += &format!("\tvec3 {field_name};\n");
+                                }
+                                ShaderPropertyKind::Vector3Array { max_len, .. } => {
+                                    block += &format!("\tvec3 {field_name}[{max_len}];\n");
+                                }
+                                ShaderPropertyKind::Vector4(_) => {
+                                    block += &format!("\tvec4 {field_name};\n");
+                                }
+                                ShaderPropertyKind::Vector4Array { max_len, .. } => {
+                                    block += &format!("\tvec4 {field_name}[{max_len}];\n");
+                                }
+                                ShaderPropertyKind::Matrix2(_) => {
+                                    block += &format!("\tmat2 {field_name};\n");
+                                }
+                                ShaderPropertyKind::Matrix2Array { max_len, .. } => {
+                                    block += &format!("\tmat2 {field_name}[{max_len}];\n");
+                                }
+                                ShaderPropertyKind::Matrix3(_) => {
+                                    block += &format!("\tmat3 {field_name};\n");
+                                }
+                                ShaderPropertyKind::Matrix3Array { max_len, .. } => {
+                                    block += &format!("\tmat3 {field_name}[{max_len}];\n");
+                                }
+                                ShaderPropertyKind::Matrix4(_) => {
+                                    block += &format!("\tmat4 {field_name};\n");
+                                }
+                                ShaderPropertyKind::Matrix4Array { max_len, .. } => {
+                                    block += &format!("\tmat4 {field_name}[{max_len}];\n");
+                                }
+                                ShaderPropertyKind::Color { .. } => {
+                                    block += &format!("\tvec4 {field_name};\n");
+                                }
+                            }
+                        }
+                        block += "};\n";
+                        block += &format!("layout(std140) uniform U{resource_name} {{ T{resource_name} {resource_name}; }};\n");
+                        initial_source.insert_str(0, &block);
                     }
                 }
-            }
-
-            uniform_block += "\n};\nlayout(std140) uniform FyroxMaterialProperties { TProperties properties; };\n";
-
-            if (properties.len() - sampler_count) != 0 {
-                initial_source.insert_str(0, &uniform_block);
             }
             initial_source.insert_str(0, &texture_bindings);
         }
 
-        let program = Self::from_source(server, name, &vertex_source, &fragment_source)?;
+        let program = Self::from_source(server, program_name, &vertex_source, &fragment_source)?;
 
         unsafe {
             server.set_program(Some(program.id));
-            let mut texture_unit_index = 0;
-            for property in properties {
-                if let PropertyKind::Sampler { .. } = property.kind {
-                    if let Some(location) =
-                        server.gl.get_uniform_location(program.id, &property.name)
-                    {
-                        server.gl.uniform_1_i32(Some(&location), texture_unit_index);
+            for resource_definition in resources {
+                match resource_definition.kind {
+                    ShaderResourceKind::Texture { .. } => {
+                        if let Some(location) = server
+                            .gl
+                            .get_uniform_location(program.id, &resource_definition.name)
+                        {
+                            server
+                                .gl
+                                .uniform_1_i32(Some(&location), resource_definition.binding as i32);
+                        } else {
+                            Log::warn(format!(
+                                "Couldn't find sampler {}!",
+                                resource_definition.name
+                            ))
+                        }
                     }
-                    texture_unit_index += 1;
+                    ShaderResourceKind::PropertyGroup { .. } => {
+                        if let Some(shader_block_index) = server.gl.get_uniform_block_index(
+                            program.id,
+                            &format!("U{}", resource_definition.name),
+                        ) {
+                            server.gl.uniform_block_binding(
+                                program.id,
+                                shader_block_index,
+                                resource_definition.binding as u32,
+                            )
+                        } else {
+                            Log::warn(format!(
+                                "Couldn't find uniform block U{}",
+                                resource_definition.name
+                            ));
+                        }
+                    }
                 }
             }
         }
@@ -353,7 +364,6 @@ impl GlProgram {
                     id: program,
                     thread_mark: PhantomData,
                     uniform_locations: Default::default(),
-                    built_in_uniform_blocks: fetch_built_in_uniform_blocks(server, program),
                 })
             }
         }
@@ -391,10 +401,6 @@ impl GpuProgram for GlProgram {
 
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
-    }
-
-    fn built_in_uniform_blocks(&self) -> &[Option<usize>] {
-        &self.built_in_uniform_blocks
     }
 
     fn uniform_location(&self, name: &ImmutableString) -> Result<UniformLocation, FrameworkError> {

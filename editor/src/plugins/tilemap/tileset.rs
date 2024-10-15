@@ -343,7 +343,7 @@ impl TileSetEditor {
                         self.need_save = true;
                     } else if let Some(texture) = item.resource::<Texture>() {
                         let mut material = Material::standard_2d();
-                        material.set_property("diffuseTexture", texture).unwrap();
+                        material.bind("diffuseTexture", texture);
 
                         let material = MaterialResource::new_ok(ResourceKind::Embedded, material);
 

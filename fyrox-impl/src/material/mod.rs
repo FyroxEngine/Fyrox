@@ -25,12 +25,17 @@
 #![warn(missing_docs)]
 
 use crate::{
-    asset::{io::ResourceIo, manager::ResourceManager, Resource, ResourceData},
+    asset::{
+        io::ResourceIo,
+        manager::{BuiltInResource, ResourceManager},
+        state::ResourceState,
+        untyped::ResourceKind,
+        Resource, ResourceData,
+    },
     core::{
         algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4},
         color::Color,
         io::FileLoadError,
-        log::Log,
         parking_lot::Mutex,
         reflect::prelude::*,
         sstorage::ImmutableString,
@@ -38,34 +43,156 @@ use crate::{
         visitor::{prelude::*, RegionGuard},
         TypeUuidProvider,
     },
-    material::shader::{PropertyKind, SamplerFallback, ShaderResource, ShaderResourceExtension},
-    resource::texture::{Texture, TextureResource},
+    material::shader::{SamplerFallback, ShaderResource, ShaderResourceExtension},
+    resource::texture::TextureResource,
 };
 use fxhash::FxHashMap;
-use fyrox_resource::manager::BuiltInResource;
-use fyrox_resource::state::ResourceState;
-use fyrox_resource::untyped::ResourceKind;
 use lazy_static::lazy_static;
-use std::error::Error;
 use std::{
     any::Any,
+    error::Error,
     fmt::{Display, Formatter},
-    ops::Deref,
     path::Path,
     sync::Arc,
 };
+use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 pub mod loader;
 pub mod shader;
 
-/// A value of a property that will be used for rendering with a shader.
+/// A texture binding.
+#[derive(Default, Debug, Visit, Clone, Reflect, TypeUuidProvider)]
+#[type_uuid(id = "e1642a47-d372-4840-a8eb-f16350f436f8")]
+pub struct MaterialTextureBinding {
+    /// Actual value of the texture binding. Could be [`None`], in this case fallback value of the
+    /// shader will be used.
+    pub value: Option<TextureResource>,
+}
+
+/// A value of a resource binding that will be used for rendering.
 ///
 /// # Limitations
 ///
 /// There is a limited set of possible types that can be passed to a shader, most of them are
 /// just simple data types.
-#[derive(Debug, Visit, Clone, Reflect)]
-pub enum PropertyValue {
+#[derive(Debug, Visit, Clone, Reflect, TypeUuidProvider, AsRefStr, EnumString, VariantNames)]
+#[type_uuid(id = "2df8f1e5-0075-4d0d-9860-70fc27d3e165")]
+pub enum MaterialResourceBinding {
+    /// A texture.
+    Texture(MaterialTextureBinding),
+    /// A group of properties.
+    PropertyGroup(MaterialPropertyGroup),
+}
+
+impl Default for MaterialResourceBinding {
+    fn default() -> Self {
+        Self::PropertyGroup(Default::default())
+    }
+}
+
+impl MaterialResourceBinding {
+    /// Tries to extract a texture from the resource binding.
+    pub fn as_texture(&self) -> Option<TextureResource> {
+        if let Self::Texture(binding) = self {
+            binding.value.clone()
+        } else {
+            None
+        }
+    }
+}
+
+/// Property group stores a bunch of named values of a fixed set of types, that will be used for
+/// rendering with some shader.
+#[derive(Default, Debug, Visit, Clone, Reflect)]
+pub struct MaterialPropertyGroup {
+    properties: FxHashMap<ImmutableString, MaterialProperty>,
+}
+
+impl MaterialPropertyGroup {
+    /// Searches for a property with given name.
+    ///
+    /// # Complexity
+    ///
+    /// O(1)
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use fyrox_impl::core::sstorage::ImmutableString;
+    /// # use fyrox_impl::material::MaterialPropertyGroup;
+    ///
+    /// let mut group = MaterialPropertyGroup::default();
+    /// let color = group.property_ref("diffuseColor").unwrap().as_color();
+    /// ```
+    pub fn property_ref(&self, name: impl Into<ImmutableString>) -> Option<&MaterialProperty> {
+        let name = name.into();
+        self.properties.get(&name)
+    }
+
+    /// Searches for a property with given name.
+    ///
+    /// # Complexity
+    ///
+    /// O(1)
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use fyrox_core::color::Color;
+    /// # use fyrox_impl::core::sstorage::ImmutableString;
+    /// # use fyrox_impl::material::{MaterialProperty, MaterialPropertyGroup};
+    ///
+    /// let mut group = MaterialPropertyGroup::default();
+    /// *group.property_mut("diffuseColor").unwrap() = MaterialProperty::Color(Color::RED);
+    /// ```
+    pub fn property_mut(
+        &mut self,
+        name: impl Into<ImmutableString>,
+    ) -> Option<&mut MaterialProperty> {
+        let name = name.into();
+        self.properties.get_mut(&name)
+    }
+
+    /// Sets new value of the property with given name.
+    ///
+    /// # Type checking
+    ///
+    /// This method does not check if the property exists in the shader nor its type. Validation
+    /// happens in the renderer, when it tries to use the property group. This is made for performance
+    /// reasons.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use fyrox_impl::material::{Material, MaterialPropertyGroup};
+    /// # use fyrox_impl::core::color::Color;
+    ///
+    /// let mut group = MaterialPropertyGroup::default();
+    /// group.set_property("diffuseColor", Color::WHITE);
+    /// ```
+    pub fn set_property(
+        &mut self,
+        name: impl Into<ImmutableString>,
+        new_value: impl Into<MaterialProperty>,
+    ) {
+        self.properties.insert(name.into(), new_value.into());
+    }
+
+    /// Removes the property from the group. The renderer will use shader defaults for this property.
+    pub fn unset_property(&mut self, name: impl Into<ImmutableString>) -> Option<MaterialProperty> {
+        self.properties.remove(&name.into())
+    }
+
+    /// Returns immutable reference to internal property storage.
+    pub fn properties(&self) -> &FxHashMap<ImmutableString, MaterialProperty> {
+        &self.properties
+    }
+}
+
+/// A set of possible material property types.
+#[derive(Debug, Visit, Clone, Reflect, AsRefStr, EnumString, VariantNames, TypeUuidProvider)]
+#[type_uuid(id = "1c25018d-ab6e-4dca-99a6-e3d9639bc33c")]
+pub enum MaterialProperty {
     /// Real number.
     Float(f32),
 
@@ -130,36 +257,14 @@ pub enum PropertyValue {
     /// The colors you see on your monitor are in sRGB color space, this is fine for simple cases
     /// of rendering, but not for complex things like lighting. Such things require color to be
     /// linear. Value of this variant will be automatically **converted to linear color space**
-    /// before it passed to shader.
+    /// before it passed to shader. If you want to pass sRGB color ("as is"), then use
+    /// [`MaterialProperty::Vector4`].
     Color(Color),
-
-    /// A texture with fallback option.
-    ///
-    /// # Fallback
-    ///
-    /// Sometimes you don't want to set a value to a sampler, or you even don't have the appropriate
-    /// one. There is fallback value that helps you with such situations, it defines a values that
-    /// will be fetched from a sampler when there is no texture.
-    ///
-    /// For example, standard shader has a lot of samplers defined: diffuse, normal, height, emission,
-    /// mask, metallic, roughness, etc. In some situations you may not have all the textures, you have
-    /// only diffuse texture, to keep rendering correct, each other property has appropriate fallback
-    /// value. Normal sampler - a normal vector pointing up (+Y), height - zero, emission - zero, etc.
-    ///
-    /// Fallback value is also helpful to catch missing textures, you'll definitely know the texture is
-    /// missing by very specific value in the fallback texture.
-    Sampler {
-        /// Actual value of the sampler. Could be [`None`], in this case `fallback` will be used.
-        value: Option<TextureResource>,
-
-        /// Sampler fallback value.
-        fallback: SamplerFallback,
-    },
 }
 
 macro_rules! impl_from {
     ($variant:ident => $value_type:ty) => {
-        impl From<$value_type> for PropertyValue {
+        impl From<$value_type> for MaterialProperty {
             fn from(value: $value_type) -> Self {
                 Self::$variant(value)
             }
@@ -188,21 +293,15 @@ impl_from!(Matrix4Array => Vec<Matrix4<f32>>);
 impl_from!(Bool => bool);
 impl_from!(Color => Color);
 
-impl From<Option<TextureResource>> for PropertyValue {
+impl From<Option<TextureResource>> for MaterialResourceBinding {
     fn from(value: Option<TextureResource>) -> Self {
-        Self::Sampler {
-            value,
-            fallback: Default::default(),
-        }
+        Self::Texture(MaterialTextureBinding { value })
     }
 }
 
-impl From<TextureResource> for PropertyValue {
+impl From<TextureResource> for MaterialResourceBinding {
     fn from(value: TextureResource) -> Self {
-        Self::Sampler {
-            value: Some(value),
-            fallback: Default::default(),
-        }
+        Self::Texture(MaterialTextureBinding { value: Some(value) })
     }
 }
 
@@ -210,7 +309,7 @@ macro_rules! define_as {
     ($(#[$meta:meta])* $name:ident = $variant:ident -> $ty:ty) => {
         $(#[$meta])*
         pub fn $name(&self) -> Option<$ty> {
-            if let PropertyValue::$variant(v) = self {
+            if let MaterialProperty::$variant(v) = self {
                 Some(*v)
             } else {
                 None
@@ -223,7 +322,7 @@ macro_rules! define_as_ref {
     ($(#[$meta:meta])* $name:ident = $variant:ident -> $ty:ty) => {
         $(#[$meta])*
         pub fn $name(&self) -> Option<&$ty> {
-            if let PropertyValue::$variant(v) = self {
+            if let MaterialProperty::$variant(v) = self {
                 Some(v)
             } else {
                 None
@@ -232,48 +331,7 @@ macro_rules! define_as_ref {
     };
 }
 
-impl PropertyValue {
-    /// Creates property value from its shader's representation.
-    pub fn from_property_kind(
-        kind: &PropertyKind,
-        resource_manager: Option<&ResourceManager>,
-    ) -> Self {
-        match kind {
-            PropertyKind::Float(value) => PropertyValue::Float(*value),
-            PropertyKind::Int(value) => PropertyValue::Int(*value),
-            PropertyKind::UInt(value) => PropertyValue::UInt(*value),
-            PropertyKind::Vector2(value) => PropertyValue::Vector2(*value),
-            PropertyKind::Vector3(value) => PropertyValue::Vector3(*value),
-            PropertyKind::Vector4(value) => PropertyValue::Vector4(*value),
-            PropertyKind::Color { r, g, b, a } => {
-                PropertyValue::Color(Color::from_rgba(*r, *g, *b, *a))
-            }
-            PropertyKind::Matrix2(value) => PropertyValue::Matrix2(*value),
-            PropertyKind::Matrix3(value) => PropertyValue::Matrix3(*value),
-            PropertyKind::Matrix4(value) => PropertyValue::Matrix4(*value),
-            PropertyKind::Bool(value) => PropertyValue::Bool(*value),
-            PropertyKind::Sampler {
-                default,
-                fallback: usage,
-                ..
-            } => PropertyValue::Sampler {
-                value: default
-                    .as_ref()
-                    .and_then(|path| resource_manager.map(|rm| rm.request::<Texture>(path))),
-                fallback: *usage,
-            },
-            PropertyKind::FloatArray { value, .. } => PropertyValue::FloatArray(value.clone()),
-            PropertyKind::IntArray { value, .. } => PropertyValue::IntArray(value.clone()),
-            PropertyKind::UIntArray { value, .. } => PropertyValue::UIntArray(value.clone()),
-            PropertyKind::Vector2Array { value, .. } => PropertyValue::Vector2Array(value.clone()),
-            PropertyKind::Vector3Array { value, .. } => PropertyValue::Vector3Array(value.clone()),
-            PropertyKind::Vector4Array { value, .. } => PropertyValue::Vector4Array(value.clone()),
-            PropertyKind::Matrix2Array { value, .. } => PropertyValue::Matrix2Array(value.clone()),
-            PropertyKind::Matrix3Array { value, .. } => PropertyValue::Matrix3Array(value.clone()),
-            PropertyKind::Matrix4Array { value, .. } => PropertyValue::Matrix4Array(value.clone()),
-        }
-    }
-
+impl MaterialProperty {
     define_as!(
         /// Tries to unwrap property value as float.
         as_float = Float -> f32
@@ -354,34 +412,27 @@ impl PropertyValue {
         /// Tries to unwrap property value as 4x4 matrix array.
         as_matrix4_array = Matrix4Array -> [Matrix4<f32>]
     );
-
-    /// Tries to unwrap property value as texture.
-    pub fn as_sampler(&self) -> Option<TextureResource> {
-        if let PropertyValue::Sampler { value, .. } = self {
-            value.clone()
-        } else {
-            None
-        }
-    }
 }
 
-impl Default for PropertyValue {
+impl Default for MaterialProperty {
     fn default() -> Self {
         Self::Float(0.0)
     }
 }
 
-/// Material defines a set of values for a shader. Materials usually contains textures (diffuse,
-/// normal, height, emission, etc. maps), numerical values (floats, integers), vectors, booleans,
-/// matrices and arrays of each type, except textures. Each parameter can be changed in runtime
-/// giving you the ability to create animated materials. However in practice, most materials are
-/// static, this means that once it created, it won't be changed anymore.
+/// Material defines a set of resource bindings for a shader. It could be textures and property groups.
+/// Textures contains graphical information (such as diffuse, normal, height, emission, etc. maps),
+/// while property groups contains numerical values (matrices, vectors, numbers, etc.).
+///
+/// Each resource binding can be changed in runtime giving you the ability to create animated materials.
+/// However, in practice most materials are static, this means that once it created, it won't be
+/// changed anymore.
 ///
 /// Please keep in mind that the actual "rules" of drawing an entity are stored in the shader,
 /// **material is only a storage** for specific uses of the shader.
 ///
 /// Multiple materials can share the same shader, for example standard shader covers 95% of most
-/// common use cases and it is shared across multiple materials. The only difference are property
+/// common use cases, and it is shared across multiple materials. The only difference are property
 /// values, for example you can draw multiple cubes using the same shader, but with different
 /// textures.
 ///
@@ -390,16 +441,16 @@ impl Default for PropertyValue {
 ///
 /// # Performance
 ///
-/// It is very important re-use materials as much as possible, because the amount of materials used
+/// It is very important to re-use materials as much as possible, because the amount of materials used
 /// per frame significantly correlates with performance. The more unique materials you have per frame,
-/// the more work has to be done by the renderer and video driver to render a frame and the more time
+/// the more work has to be done by the renderer and the video driver to render a frame and the more time
 /// the frame will require for rendering, thus lowering your FPS.
 ///
 /// # Examples
 ///
 /// A material can only be created using a shader instance, every material must have a shader. The
-/// shader provides information about its properties, and this information is used to populate a set
-/// of properties with default values. Default values of each property defined in the shader.
+/// shader provides information about its resources. Default values of each property defined in the
+/// shader.
 ///
 /// ## Standard material
 ///
@@ -410,7 +461,7 @@ impl Default for PropertyValue {
 /// # use fyrox_impl::{
 /// #     material::shader::{ShaderResource, SamplerFallback},
 /// #     asset::manager::ResourceManager,
-/// #     material::{Material, PropertyValue},
+/// #     material::{Material, MaterialProperty},
 /// #     core::sstorage::ImmutableString,
 /// # };
 /// # use fyrox_impl::resource::texture::Texture;
@@ -418,10 +469,10 @@ impl Default for PropertyValue {
 /// fn create_brick_material(resource_manager: ResourceManager) -> Material {
 ///     let mut material = Material::standard();
 ///
-///     material.set_property(
+///     material.bind(
 ///         "diffuseTexture",
 ///         resource_manager.request::<Texture>("Brick_DiffuseTexture.jpg")
-///     ).unwrap();
+///     );
 ///
 ///     material
 /// }
@@ -435,12 +486,13 @@ impl Default for PropertyValue {
 /// ## Custom material
 ///
 /// Custom materials is a bit more complex, you need to get a shader instance using the resource manager
-/// and then create the material and populate it with a set of property values.
+/// (or create a shader in-place by embedding its source code in the binary) and then create the material
+/// and populate it with a set of property values.
 ///
 /// ```no_run
 /// # use fyrox_impl::{
 /// #     asset::manager::ResourceManager,
-/// #     material::{Material, PropertyValue},
+/// #     material::{Material, MaterialProperty},
 /// #     core::{sstorage::ImmutableString, algebra::Vector3}
 /// # };
 /// # use fyrox_impl::material::shader::Shader;
@@ -449,21 +501,55 @@ impl Default for PropertyValue {
 ///     let shader = resource_manager.request::<Shader>("my_grass_shader.ron").await.unwrap();
 ///
 ///     // Here we assume that the material really has the properties defined below.
-///     let mut material = Material::from_shader(shader, Some(resource_manager));
+///     let mut material = Material::from_shader(shader);
 ///
-///     material.set_property("windDirection", Vector3::new(1.0, 0.0, 0.5)).unwrap();
+///     material.set_property("windDirection", Vector3::new(1.0, 0.0, 0.5));
 ///
 ///     material
 /// }
 /// ```
 ///
-/// As you can see it is only a bit more hard that with the standard shader. The main difference here is
+/// As you can see it is slightly more complex that with the standard shader. The main difference here is
 /// that we using resource manager to get shader instance, and then we just use the instance to create
 /// material instance. Then we populate properties as usual.
 #[derive(Debug, Clone, Reflect)]
 pub struct Material {
     shader: ShaderResource,
-    properties: FxHashMap<ImmutableString, PropertyValue>,
+    resource_bindings: FxHashMap<ImmutableString, MaterialResourceBinding>,
+}
+
+#[derive(Debug, Visit, Clone, Reflect)]
+enum OldMaterialProperty {
+    Float(f32),
+    FloatArray(Vec<f32>),
+    Int(i32),
+    IntArray(Vec<i32>),
+    UInt(u32),
+    UIntArray(Vec<u32>),
+    Vector2(Vector2<f32>),
+    Vector2Array(Vec<Vector2<f32>>),
+    Vector3(Vector3<f32>),
+    Vector3Array(Vec<Vector3<f32>>),
+    Vector4(Vector4<f32>),
+    Vector4Array(Vec<Vector4<f32>>),
+    Matrix2(Matrix2<f32>),
+    Matrix2Array(Vec<Matrix2<f32>>),
+    Matrix3(Matrix3<f32>),
+    Matrix3Array(Vec<Matrix3<f32>>),
+    Matrix4(Matrix4<f32>),
+    Matrix4Array(Vec<Matrix4<f32>>),
+    Bool(bool),
+    Color(Color),
+    Sampler {
+        value: Option<TextureResource>,
+        fallback: SamplerFallback,
+    },
+}
+
+impl Default for OldMaterialProperty {
+    fn default() -> Self {
+        Self::Float(0.0)
+    }
 }
 
 impl Visit for Material {
@@ -481,7 +567,57 @@ impl Visit for Material {
         };
         shader.visit("Shader", &mut region)?;
         self.shader = shader;
-        self.properties.visit("Properties", &mut region)?;
+
+        if region.is_reading() {
+            // Backward compatibility.
+            let mut old_properties = FxHashMap::<ImmutableString, OldMaterialProperty>::default();
+            if old_properties.visit("Properties", &mut region).is_ok() {
+                for (name, old_property) in &old_properties {
+                    if let OldMaterialProperty::Sampler { value, .. } = old_property {
+                        self.bind(
+                            name.clone(),
+                            MaterialResourceBinding::Texture(MaterialTextureBinding {
+                                value: value.clone(),
+                            }),
+                        )
+                    }
+                }
+
+                let properties = self.try_get_or_insert_property_group("properties");
+
+                for (name, old_property) in old_properties {
+                    match old_property {
+                        OldMaterialProperty::Float(v) => properties.set_property(name, v),
+                        OldMaterialProperty::FloatArray(v) => properties.set_property(name, v),
+                        OldMaterialProperty::Int(v) => properties.set_property(name, v),
+                        OldMaterialProperty::IntArray(v) => properties.set_property(name, v),
+                        OldMaterialProperty::UInt(v) => properties.set_property(name, v),
+                        OldMaterialProperty::UIntArray(v) => properties.set_property(name, v),
+                        OldMaterialProperty::Vector2(v) => properties.set_property(name, v),
+                        OldMaterialProperty::Vector2Array(v) => properties.set_property(name, v),
+                        OldMaterialProperty::Vector3(v) => properties.set_property(name, v),
+                        OldMaterialProperty::Vector3Array(v) => properties.set_property(name, v),
+                        OldMaterialProperty::Vector4(v) => properties.set_property(name, v),
+                        OldMaterialProperty::Vector4Array(v) => properties.set_property(name, v),
+                        OldMaterialProperty::Matrix2(v) => properties.set_property(name, v),
+                        OldMaterialProperty::Matrix2Array(v) => properties.set_property(name, v),
+                        OldMaterialProperty::Matrix3(v) => properties.set_property(name, v),
+                        OldMaterialProperty::Matrix3Array(v) => properties.set_property(name, v),
+                        OldMaterialProperty::Matrix4(v) => properties.set_property(name, v),
+                        OldMaterialProperty::Matrix4Array(v) => properties.set_property(name, v),
+                        OldMaterialProperty::Bool(v) => properties.set_property(name, v),
+                        OldMaterialProperty::Color(v) => properties.set_property(name, v),
+                        _ => (),
+                    };
+                }
+            } else {
+                self.resource_bindings
+                    .visit("ResourceBindings", &mut region)?;
+            }
+        } else {
+            self.resource_bindings
+                .visit("ResourceBindings", &mut region)?;
+        }
 
         Ok(())
     }
@@ -527,20 +663,6 @@ impl ResourceData for Material {
 /// A set of possible errors that can occur when working with materials.
 #[derive(Debug)]
 pub enum MaterialError {
-    /// A property is missing.
-    NoSuchProperty {
-        /// Name of the property.
-        property_name: String,
-    },
-    /// Attempt to set a value of wrong type to a property.
-    TypeMismatch {
-        /// Name of the property.
-        property_name: String,
-        /// Expected property value.
-        expected: PropertyValue,
-        /// Given property value.
-        given: PropertyValue,
-    },
     /// Unable to read data source.
     Visit(VisitError),
 }
@@ -560,20 +682,6 @@ impl From<FileLoadError> for MaterialError {
 impl Display for MaterialError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            MaterialError::NoSuchProperty { property_name } => {
-                write!(f, "Unable to find material property {property_name}")
-            }
-            MaterialError::TypeMismatch {
-                property_name,
-                expected,
-                given,
-            } => {
-                write!(
-                    f,
-                    "Attempt to set a value of wrong type \
-                to {property_name} property. Expected: {expected:?}, given {given:?}"
-                )
-            }
             MaterialError::Visit(e) => {
                 write!(f, "Failed to visit data source. Reason: {e:?}")
             }
@@ -587,7 +695,7 @@ lazy_static! {
     pub static ref STANDARD: BuiltInResource<Material> = BuiltInResource::new_no_source(
         MaterialResource::new_ok(
             "__StandardMaterial".into(),
-            Material::from_shader(ShaderResource::standard(), None),
+            Material::from_shader(ShaderResource::standard()),
         )
     );
 
@@ -596,7 +704,7 @@ lazy_static! {
     pub static ref STANDARD_2D: BuiltInResource<Material> = BuiltInResource::new_no_source(
         MaterialResource::new_ok(
             "__Standard2DMaterial".into(),
-            Material::from_shader(ShaderResource::standard_2d(), None),
+            Material::from_shader(ShaderResource::standard_2d()),
         )
     );
 
@@ -605,7 +713,7 @@ lazy_static! {
     pub static ref STANDARD_PARTICLE_SYSTEM: BuiltInResource<Material> = BuiltInResource::new_no_source(
         MaterialResource::new_ok(
             "__StandardParticleSystemMaterial".into(),
-            Material::from_shader(ShaderResource::standard_particle_system(), None),
+            Material::from_shader(ShaderResource::standard_particle_system(),),
         )
     );
 
@@ -614,7 +722,7 @@ lazy_static! {
     pub static ref STANDARD_SPRITE: BuiltInResource<Material> = BuiltInResource::new_no_source(
         MaterialResource::new_ok(
             "__StandardSpriteMaterial".into(),
-            Material::from_shader(ShaderResource::standard_sprite(), None),
+            Material::from_shader(ShaderResource::standard_sprite()),
         )
     );
 
@@ -623,7 +731,7 @@ lazy_static! {
     pub static ref STANDARD_TERRAIN: BuiltInResource<Material> = BuiltInResource::new_no_source(
         MaterialResource::new_ok(
             "__StandardTerrainMaterial".into(),
-           Material::from_shader(ShaderResource::standard_terrain(), None),
+           Material::from_shader(ShaderResource::standard_terrain()),
         )
     );
 
@@ -632,14 +740,13 @@ lazy_static! {
     pub static ref STANDARD_TWOSIDES: BuiltInResource<Material> = BuiltInResource::new_no_source(
         MaterialResource::new_ok(
             "__StandardTwoSidesMaterial".into(),
-          Material::from_shader(ShaderResource::standard_twosides(), None),
+          Material::from_shader(ShaderResource::standard_twosides()),
         )
     );
 }
 
 impl Material {
-    /// Creates a new instance of material with the standard shader. For the full list
-    /// of properties of the standard material see [shader module docs](self::shader).
+    /// Creates a new instance of material with the standard shader.
     ///
     /// # Example
     ///
@@ -647,7 +754,7 @@ impl Material {
     /// # use fyrox_impl::{
     /// #     material::shader::{ShaderResource, SamplerFallback},
     /// #     asset::manager::ResourceManager,
-    /// #     material::{Material, PropertyValue},
+    /// #     material::{Material, MaterialProperty},
     /// #     core::sstorage::ImmutableString
     /// # };
     /// # use fyrox_impl::resource::texture::Texture;
@@ -655,57 +762,53 @@ impl Material {
     /// fn create_brick_material(resource_manager: ResourceManager) -> Material {
     ///     let mut material = Material::standard();
     ///
-    ///     material.set_property(
+    ///     material.bind(
     ///         "diffuseTexture",
     ///         resource_manager.request::<Texture>("Brick_DiffuseTexture.jpg")
-    ///     ).unwrap();
+    ///     );
     ///
     ///     material
     /// }
     /// ```
     pub fn standard() -> Self {
-        Self::from_shader(ShaderResource::standard(), None)
+        Self::from_shader(ShaderResource::standard())
     }
 
     /// Creates new instance of standard 2D material.
     pub fn standard_2d() -> Self {
-        Self::from_shader(ShaderResource::standard_2d(), None)
+        Self::from_shader(ShaderResource::standard_2d())
     }
 
     /// Creates new instance of standard 2D material.
     pub fn standard_particle_system() -> Self {
-        Self::from_shader(ShaderResource::standard_particle_system(), None)
+        Self::from_shader(ShaderResource::standard_particle_system())
     }
 
     /// Creates new instance of standard sprite material.
     pub fn standard_sprite() -> Self {
-        Self::from_shader(ShaderResource::standard_sprite(), None)
+        Self::from_shader(ShaderResource::standard_sprite())
     }
 
     /// Creates new instance of standard material that renders both sides of a face.
     pub fn standard_two_sides() -> Self {
-        Self::from_shader(ShaderResource::standard_twosides(), None)
+        Self::from_shader(ShaderResource::standard_twosides())
     }
 
     /// Creates new instance of standard terrain material.
     pub fn standard_terrain() -> Self {
-        Self::from_shader(ShaderResource::standard_terrain(), None)
+        Self::from_shader(ShaderResource::standard_terrain())
     }
 
-    /// Creates a new material instance with given shader. Each property will have default values
-    /// defined in the shader.
-    ///
-    /// It is possible to pass resource manager as a second argument, it is needed to correctly resolve
-    /// default values of samplers in case if they are bound to some resources - shader's definition stores
-    /// only paths to textures. If you pass [`None`], no resolving will be done and every sampler will
-    /// have [`None`] as default value, which in its turn will force engine to use fallback sampler value.
+    /// Creates a new material instance with given shader. By default, a material does not store any
+    /// resource bindings. In this case the renderer will use shader default values for rendering.
+    /// Materials could be considered as container with values that overwrites shader values.
     ///
     /// # Example
     ///
     /// ```no_run
     /// # use fyrox_impl::{
     /// #     asset::manager::ResourceManager,
-    /// #     material::{Material, PropertyValue},
+    /// #     material::{Material, MaterialProperty},
     /// #     core::{sstorage::ImmutableString, algebra::Vector3}
     /// # };
     /// # use fyrox_impl::material::shader::Shader;
@@ -714,30 +817,17 @@ impl Material {
     ///     let shader = resource_manager.request::<Shader>("my_grass_shader.ron").await.unwrap();
     ///
     ///     // Here we assume that the material really has the properties defined below.
-    ///     let mut material = Material::from_shader(shader, Some(resource_manager));
+    ///     let mut material = Material::from_shader(shader);
     ///
-    ///     material.set_property("windDirection", Vector3::new(1.0, 0.0, 0.5)).unwrap();
+    ///     material.set_property("windDirection", Vector3::new(1.0, 0.0, 0.5));
     ///
     ///     material
     /// }
     /// ```
-    pub fn from_shader(shader: ShaderResource, resource_manager: Option<ResourceManager>) -> Self {
-        let data = shader.data_ref();
-
-        let mut property_values = FxHashMap::default();
-        for property_definition in data.definition.properties.iter() {
-            let value = PropertyValue::from_property_kind(
-                &property_definition.kind,
-                resource_manager.as_ref(),
-            );
-            property_values.insert(ImmutableString::new(&property_definition.name), value);
-        }
-
-        drop(data);
-
+    pub fn from_shader(shader: ShaderResource) -> Self {
         Self {
             shader,
-            properties: property_values,
+            resource_bindings: Default::default(),
         }
     }
 
@@ -753,7 +843,7 @@ impl Material {
         let content = io.load_file(path.as_ref()).await?;
         let mut material = Material {
             shader: Default::default(),
-            properties: Default::default(),
+            resource_bindings: Default::default(),
         };
         let mut visitor = Visitor::load_from_memory(&content)?;
         visitor.blackboard.register(Arc::new(resource_manager));
@@ -761,7 +851,57 @@ impl Material {
         Ok(material)
     }
 
-    /// Searches for a property with given name.
+    /// Searches for a resource binding with the given name and returns immutable reference to it
+    /// (if any).
+    ///
+    /// # Complexity
+    ///
+    /// O(1)
+    pub fn binding_ref(
+        &self,
+        name: impl Into<ImmutableString>,
+    ) -> Option<&MaterialResourceBinding> {
+        let name = name.into();
+        self.resource_bindings.get(&name)
+    }
+
+    /// Searches for a resource binding with the given name and returns mutable reference to it,
+    /// allowing you to modify the value.
+    ///
+    /// # Complexity
+    ///
+    /// O(1)
+    pub fn binding_mut(
+        &mut self,
+        name: impl Into<ImmutableString>,
+    ) -> Option<&mut MaterialResourceBinding> {
+        let name = name.into();
+        self.resource_bindings.get_mut(&name)
+    }
+
+    /// Searches for a texture with the given name.
+    pub fn texture_ref(&self, name: impl Into<ImmutableString>) -> Option<&MaterialTextureBinding> {
+        if let Some(MaterialResourceBinding::Texture(binding)) = self.binding_ref(name) {
+            Some(binding)
+        } else {
+            None
+        }
+    }
+
+    /// Searches for a texture with the given name.
+    pub fn texture_mut(
+        &mut self,
+        name: impl Into<ImmutableString>,
+    ) -> Option<&mut MaterialTextureBinding> {
+        if let Some(MaterialResourceBinding::Texture(binding)) = self.binding_mut(name) {
+            Some(binding)
+        } else {
+            None
+        }
+    }
+
+    /// Searches for a property group binding with the given name and returns immutable reference to it
+    /// (if any).
     ///
     /// # Complexity
     ///
@@ -775,177 +915,135 @@ impl Material {
     ///
     /// let mut material = Material::standard();
     ///
-    /// let color = material.property_ref(&ImmutableString::new("diffuseColor")).unwrap().as_color();
+    /// let color = material
+    ///     .property_group_ref("properties")
+    ///     .unwrap()
+    ///     .property_ref("diffuseColor")
+    ///     .unwrap()
+    ///     .as_color();
     /// ```
-    pub fn property_ref(&self, name: &ImmutableString) -> Option<&PropertyValue> {
-        self.properties.get(name)
+    pub fn property_group_ref(
+        &self,
+        name: impl Into<ImmutableString>,
+    ) -> Option<&MaterialPropertyGroup> {
+        self.binding_ref(name).and_then(|binding| match binding {
+            MaterialResourceBinding::Texture { .. } => None,
+            MaterialResourceBinding::PropertyGroup(group) => Some(group),
+        })
     }
 
-    /// Sets new value of the property with given name.
+    /// Searches for a property group binding with the given name and returns immutable reference to it
+    /// (if any).
+    ///
+    /// # Complexity
+    ///
+    /// O(1)
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use fyrox_core::color::Color;
+    /// use fyrox_impl::core::sstorage::ImmutableString;
+    /// # use fyrox_impl::material::Material;
+    ///
+    /// let mut material = Material::standard();
+    ///
+    /// let color = material
+    ///     .property_group_mut("properties")
+    ///     .unwrap()
+    ///     .set_property("diffuseColor", Color::RED);
+    /// ```
+    pub fn property_group_mut(
+        &mut self,
+        name: impl Into<ImmutableString>,
+    ) -> Option<&mut MaterialPropertyGroup> {
+        self.binding_mut(name).and_then(|binding| match binding {
+            MaterialResourceBinding::Texture { .. } => None,
+            MaterialResourceBinding::PropertyGroup(group) => Some(group),
+        })
+    }
+
+    /// Tries to find a property group with the given name, creates a new group with the given name
+    /// if there's no such group.
+    pub fn try_get_or_insert_property_group(
+        &mut self,
+        name: impl Into<ImmutableString>,
+    ) -> &mut MaterialPropertyGroup {
+        let name = name.into();
+        if let MaterialResourceBinding::PropertyGroup(group) = self
+            .resource_bindings
+            .entry(name.clone())
+            .or_insert_with(|| {
+                MaterialResourceBinding::PropertyGroup(MaterialPropertyGroup::default())
+            })
+        {
+            group
+        } else {
+            panic!("There's already a material resource binding with {name}!");
+        }
+    }
+
+    /// Sets new value of the resource binding with given name.
     ///
     /// # Type checking
     ///
-    /// A new value must have the same type as in shader, otherwise an error will be generated.
-    /// This helps to catch subtle bugs when you passing "almost" identical values to shader, like
-    /// signed and unsigned integers - both have positive values, but GPU is very strict of what
-    /// it expects as input value.
+    /// A new value must have the same type as in shader, otherwise an error will be generated at
+    /// attempt to render something with this material.
     ///
     /// # Example
     ///
     /// ```no_run
-    /// # use fyrox_impl::material::{Material, PropertyValue};
+    /// # use fyrox_impl::material::{Material, MaterialProperty};
     /// # use fyrox_impl::core::color::Color;
     /// # use fyrox_impl::core::sstorage::ImmutableString;
     ///
     /// let mut material = Material::standard();
     ///
-    /// assert!(material.set_property("diffuseColor", Color::WHITE).is_ok());
+    /// material.set_property("diffuseColor", Color::WHITE);
+    /// ```
+    pub fn bind(
+        &mut self,
+        name: impl Into<ImmutableString>,
+        new_value: impl Into<MaterialResourceBinding>,
+    ) {
+        self.resource_bindings.insert(name.into(), new_value.into());
+    }
+
+    /// Tries to remove a resource bound to the given name.
+    pub fn unbind(&mut self, name: impl Into<ImmutableString>) -> Option<MaterialResourceBinding> {
+        self.resource_bindings.remove(&name.into())
+    }
+
+    /// Sets new value of the property with given name to the property group with `properties` name.
+    /// It is a standard property group, that could be used to store pretty much any values.
+    ///
+    /// # Type checking
+    ///
+    /// A new value must have the same type as in shader, otherwise an error will be generated at
+    /// attempt to render something with this material.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use fyrox_impl::material::{Material, MaterialProperty};
+    /// # use fyrox_impl::core::color::Color;
+    /// # use fyrox_impl::core::sstorage::ImmutableString;
+    ///
+    /// let mut material = Material::standard();
+    ///
+    /// material.set_property("diffuseColor", Color::WHITE);
+    ///
+    /// // A full equivalent of the above:
+    /// material.try_get_or_insert_property_group("properties")
+    ///         .set_property("diffuseColor", Color::WHITE);
     /// ```
     pub fn set_property(
         &mut self,
         name: impl Into<ImmutableString>,
-        new_value: impl Into<PropertyValue>,
-    ) -> Result<(), MaterialError> {
-        let name = name.into();
-        let new_value = new_value.into();
-        if let Some(value) = self.properties.get_mut(&name) {
-            match (value, new_value) {
-                (
-                    PropertyValue::Sampler {
-                        value: old_value,
-                        fallback: old_fallback,
-                    },
-                    PropertyValue::Sampler { value, fallback },
-                ) => {
-                    *old_value = value;
-                    *old_fallback = fallback;
-                }
-                (PropertyValue::Float(old_value), PropertyValue::Float(value)) => {
-                    *old_value = value;
-                }
-                (PropertyValue::FloatArray(old_value), PropertyValue::FloatArray(value)) => {
-                    *old_value = value;
-                }
-                (PropertyValue::Int(old_value), PropertyValue::Int(value)) => {
-                    *old_value = value;
-                }
-                (PropertyValue::IntArray(old_value), PropertyValue::IntArray(value)) => {
-                    *old_value = value;
-                }
-                (PropertyValue::Bool(old_value), PropertyValue::Bool(value)) => {
-                    *old_value = value;
-                }
-                (PropertyValue::UInt(old_value), PropertyValue::UInt(value)) => {
-                    *old_value = value;
-                }
-                (PropertyValue::UIntArray(old_value), PropertyValue::UIntArray(value)) => {
-                    *old_value = value;
-                }
-                (PropertyValue::Vector2(old_value), PropertyValue::Vector2(value)) => {
-                    *old_value = value;
-                }
-                (PropertyValue::Vector2Array(old_value), PropertyValue::Vector2Array(value)) => {
-                    *old_value = value;
-                }
-                (PropertyValue::Vector3(old_value), PropertyValue::Vector3(value)) => {
-                    *old_value = value;
-                }
-                (PropertyValue::Vector3Array(old_value), PropertyValue::Vector3Array(value)) => {
-                    *old_value = value;
-                }
-                (PropertyValue::Vector4(old_value), PropertyValue::Vector4(value)) => {
-                    *old_value = value;
-                }
-                (PropertyValue::Vector4Array(old_value), PropertyValue::Vector4Array(value)) => {
-                    *old_value = value;
-                }
-                (PropertyValue::Matrix2(old_value), PropertyValue::Matrix2(value)) => {
-                    *old_value = value;
-                }
-                (PropertyValue::Matrix2Array(old_value), PropertyValue::Matrix2Array(value)) => {
-                    *old_value = value;
-                }
-                (PropertyValue::Matrix3(old_value), PropertyValue::Matrix3(value)) => {
-                    *old_value = value;
-                }
-                (PropertyValue::Matrix3Array(old_value), PropertyValue::Matrix3Array(value)) => {
-                    *old_value = value;
-                }
-                (PropertyValue::Matrix4(old_value), PropertyValue::Matrix4(value)) => {
-                    *old_value = value;
-                }
-                (PropertyValue::Matrix4Array(old_value), PropertyValue::Matrix4Array(value)) => {
-                    *old_value = value;
-                }
-                (PropertyValue::Color(old_value), PropertyValue::Color(value)) => {
-                    *old_value = value;
-                }
-                (value, new_value) => {
-                    return Err(MaterialError::TypeMismatch {
-                        property_name: name.deref().to_owned(),
-                        expected: value.clone(),
-                        given: new_value,
-                    })
-                }
-            }
-
-            Ok(())
-        } else {
-            Err(MaterialError::NoSuchProperty {
-                property_name: name.deref().to_owned(),
-            })
-        }
-    }
-
-    /// Adds missing properties with default values, removes non-existent properties. Does not modify any existing
-    /// properties. This method has limited usage, that is mostly related to shader hot reloading. Returns `true`
-    /// if the syncing was successful, `false` - if the shader resource is not loaded.
-    pub fn sync_to_shader(&mut self, resource_manager: &ResourceManager) -> bool {
-        let shader_kind = self.shader.kind().clone();
-        if let Some(shader) = self.shader.state().data() {
-            if shader.definition.properties.len() > self.properties.len() {
-                // Some property was added to the shader, but missing in the material.
-                for property_definition in shader.definition.properties.iter() {
-                    let name = ImmutableString::new(&property_definition.name);
-                    if !self.properties.contains_key(&name) {
-                        // Add the property with default values.
-                        self.properties.insert(
-                            name.clone(),
-                            PropertyValue::from_property_kind(
-                                &property_definition.kind,
-                                Some(resource_manager),
-                            ),
-                        );
-
-                        Log::info(format!(
-                            "Added {name} property to the material instance, since it exists in the \
-                            shader {shader_kind}, but not in the material instance."
-                        ));
-                    }
-                }
-            } else {
-                // Some property was removed from the shader, but still exists in the material.
-                for property_name in self.properties.keys().cloned().collect::<Vec<_>>() {
-                    if shader
-                        .definition
-                        .properties
-                        .iter()
-                        .all(|p| p.name != property_name)
-                    {
-                        self.properties.remove(&property_name);
-
-                        Log::info(format!(
-                            "Removing {property_name} property from the material instance, since it does \
-                        not exists in the shader {shader_kind}."
-                        ));
-                    }
-                }
-            }
-
-            return true;
-        }
-
-        false
+        new_value: impl Into<MaterialProperty>,
+    ) {
+        self.try_get_or_insert_property_group("properties")
+            .set_property(name, new_value);
     }
 
     /// Returns a reference to current shader.
@@ -954,27 +1052,26 @@ impl Material {
     }
 
     /// Returns immutable reference to internal property storage.
-    pub fn properties(&self) -> &FxHashMap<ImmutableString, PropertyValue> {
-        &self.properties
+    pub fn bindings(&self) -> &FxHashMap<ImmutableString, MaterialResourceBinding> {
+        &self.resource_bindings
     }
 
     /// Tries to find a sampler with the given name and returns its texture (if any).
-    pub fn texture(&self, name: &str) -> Option<TextureResource> {
-        self.properties.iter().find_map(|(property_name, value)| {
-            if property_name.as_str() == name {
-                if let PropertyValue::Sampler { value, .. } = value {
-                    return value.clone();
-                }
+    pub fn texture(&self, name: impl Into<ImmutableString>) -> Option<TextureResource> {
+        self.resource_bindings.get(&name.into()).and_then(|v| {
+            if let MaterialResourceBinding::Texture(ref binding) = v {
+                binding.value.clone()
+            } else {
+                None
             }
-            None
         })
     }
 }
 
-/// Shared material is a material instance that can be used across multiple objects. It is useful
+/// Material resource is a material instance that can be used across multiple objects. It is useful
 /// when you need to have multiple objects that have the same material.
 ///
-/// Shared material is also tells a renderer that this material can be used for efficient rendering -
+/// Material resource is also tells a renderer that this material can be used for efficient rendering -
 /// the renderer will be able to optimize rendering when it knows that multiple objects share the
 /// same material.
 pub type MaterialResource = Resource<Material>;
@@ -1052,7 +1149,7 @@ where
     if let Ok(mut inner) = region.enter_region("Texture") {
         if old_texture.visit("Value", &mut inner).is_ok() {
             let mut material = make_default_material();
-            Log::verify(material.set_property("diffuseTexture", old_texture));
+            material.bind("diffuseTexture", old_texture);
             return Some(MaterialResource::new_ok(Default::default(), material));
         }
     }

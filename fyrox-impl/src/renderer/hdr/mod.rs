@@ -50,6 +50,7 @@ use crate::{
     },
     scene::camera::{ColorGradingLut, Exposure},
 };
+use fyrox_graphics::framebuffer::BufferLocation;
 use std::{cell::RefCell, rc::Rc};
 
 mod adaptation;
@@ -200,7 +201,9 @@ impl HighDynamicRangeRenderer {
                                 .with(&frame_matrix)
                                 .with(&Vector2::new(inv_size, inv_size)),
                         )?,
-                        shader_location: shader.uniform_buffer_binding,
+                        binding: BufferLocation::Auto {
+                            shader_location: shader.uniform_buffer_binding,
+                        },
                         data_usage: Default::default(),
                     },
                 ],
@@ -296,7 +299,9 @@ impl HighDynamicRangeRenderer {
                                             .with(&matrix)
                                             .with(&Vector2::new(inv_size, inv_size)),
                                     )?,
-                                    shader_location: shader.uniform_buffer_binding,
+                                    binding: BufferLocation::Auto {
+                                        shader_location: shader.uniform_buffer_binding,
+                                    },
                                     data_usage: Default::default(),
                                 },
                             ],
@@ -350,7 +355,9 @@ impl HighDynamicRangeRenderer {
                                 // TODO: Make configurable
                                 .with(&(0.3 * dt)),
                         )?,
-                        shader_location: shader.uniform_buffer_binding,
+                        binding: BufferLocation::Auto {
+                            shader_location: shader.uniform_buffer_binding,
+                        },
                         data_usage: Default::default(),
                     },
                 ],
@@ -425,7 +432,9 @@ impl HighDynamicRangeRenderer {
                     ResourceBinding::texture(color_grading_lut_tex, &shader.color_map_sampler),
                     ResourceBinding::Buffer {
                         buffer: uniform_buffer,
-                        shader_location: shader.uniform_buffer_binding,
+                        binding: BufferLocation::Auto {
+                            shader_location: shader.uniform_buffer_binding,
+                        },
                         data_usage: Default::default(),
                     },
                 ],

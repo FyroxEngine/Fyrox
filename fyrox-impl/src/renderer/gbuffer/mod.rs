@@ -71,6 +71,7 @@ use crate::{
     },
 };
 use fxhash::FxHashSet;
+use fyrox_graphics::framebuffer::BufferLocation;
 use std::{cell::RefCell, rc::Rc};
 
 mod decal;
@@ -459,7 +460,9 @@ impl GBuffer {
                                     .with(&decal.color().srgb_to_linear_f32())
                                     .with(&(decal.layer() as u32)),
                             )?,
-                            shader_location: shader.uniform_buffer_binding,
+                            binding: BufferLocation::Auto {
+                                shader_location: shader.uniform_buffer_binding,
+                            },
                             data_usage: Default::default(),
                         },
                     ],

@@ -54,6 +54,7 @@ use crate::{
     },
     Editor,
 };
+use fyrox::renderer::framework::framebuffer::BufferLocation;
 use std::{any::TypeId, cell::RefCell, rc::Rc};
 
 struct EdgeDetectShader {
@@ -339,7 +340,9 @@ impl SceneRenderPass for HighlightRenderPass {
                                     .with(&frame_matrix)
                                     .with(&Color::ORANGE),
                             )?,
-                            shader_location: shader.uniform_buffer_binding,
+                            binding: BufferLocation::Auto {
+                                shader_location: shader.uniform_buffer_binding,
+                            },
                             data_usage: Default::default(),
                         },
                     ],

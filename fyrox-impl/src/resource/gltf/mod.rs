@@ -353,7 +353,7 @@ async fn import_from_slice(slice: &[u8], graph: &mut Graph, context: &ImportCont
     imports.textures =
         Some(import_textures(&doc, images.as_slice(), context.as_texture_context()).await?);
     let textures = imports.textures.as_ref().unwrap().as_slice();
-    imports.materials = Some(import_materials(&doc, textures, &context.resource_manager).await?);
+    imports.materials = Some(import_materials(&doc, textures).await?);
     let materials = imports.materials.as_ref().unwrap().as_slice();
     imports.skins = Some(import_skins(&doc, &imports)?);
     imports.meshes = Some(import_meshes(

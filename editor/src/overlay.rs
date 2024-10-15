@@ -43,6 +43,7 @@ use crate::{
     },
     Editor,
 };
+use fyrox::renderer::framework::framebuffer::BufferLocation;
 use std::{any::TypeId, cell::RefCell, rc::Rc};
 
 struct OverlayShader {
@@ -163,7 +164,9 @@ impl SceneRenderPass for OverlayRenderPass {
                                     .with(&camera_up)
                                     .with(&self.pictogram_size),
                             )?,
-                            shader_location: shader.uniform_buffer_binding,
+                            binding: BufferLocation::Auto {
+                                shader_location: shader.uniform_buffer_binding,
+                            },
                             data_usage: Default::default(),
                         },
                     ],

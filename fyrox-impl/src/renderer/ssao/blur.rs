@@ -42,6 +42,7 @@ use crate::{
     },
     scene::mesh::surface::SurfaceData,
 };
+use fyrox_graphics::framebuffer::BufferLocation;
 use std::{cell::RefCell, rc::Rc};
 
 struct Shader {
@@ -150,7 +151,9 @@ impl Blur {
                         buffer: uniform_buffer_cache.write(
                             StaticUniformBuffer::<256>::new().with(&make_viewport_matrix(viewport)),
                         )?,
-                        shader_location: shader.uniform_buffer_binding,
+                        binding: BufferLocation::Auto {
+                            shader_location: shader.uniform_buffer_binding,
+                        },
                         data_usage: Default::default(),
                     },
                 ],

@@ -137,7 +137,7 @@ impl Hash for RectangleVertex {
 /// ```rust
 /// # use fyrox_impl::{
 /// #     core::sstorage::ImmutableString,
-/// #     material::{shader::SamplerFallback, PropertyValue},
+/// #     material::{shader::SamplerFallback, MaterialProperty},
 /// #     resource::texture::TextureResource,
 /// #     scene::dim2::rectangle::Rectangle,
 /// # };
@@ -145,10 +145,7 @@ impl Hash for RectangleVertex {
 /// fn set_texture(rect: &mut Rectangle, texture: Option<TextureResource>) {
 ///     rect.material()
 ///         .data_ref()
-///         .set_property("diffuseTexture", texture)
-///         // This could fail, if you have a custom material without diffuseTexture property.
-///         // Otherwise, it is safe to just unwrap.
-///         .unwrap();
+///         .bind("diffuseTexture", texture);
 /// }
 /// ```
 ///
