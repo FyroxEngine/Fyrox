@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::renderer::bundle::{LightSource, LightSourceKind, RenderDataBundleStorageOptions};
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
@@ -46,7 +47,7 @@ use crate::{
     scene::{
         camera::Camera,
         graph::Graph,
-        light::directional::{DirectionalLight, FrustumSplitOptions, CSM_NUM_CASCADES},
+        light::directional::{FrustumSplitOptions, CSM_NUM_CASCADES},
     },
 };
 use std::{cell::RefCell, rc::Rc};
@@ -119,7 +120,7 @@ pub(crate) struct CsmRenderContext<'a, 'c> {
     pub frame_size: Vector2<f32>,
     pub state: &'a dyn GraphicsServer,
     pub graph: &'c Graph,
-    pub light: &'c DirectionalLight,
+    pub light: &'c LightSource,
     pub camera: &'c Camera,
     pub geom_cache: &'a mut GeometryCache,
     pub shader_cache: &'a mut ShaderCache,
@@ -178,17 +179,21 @@ impl CsmRenderer {
             uniform_memory_allocator,
         } = ctx;
 
+        let LightSourceKind::Directional { ref csm_options } = light.kind else {
+            return Ok(stats);
+        };
+
         let light_direction = -light
-            .up_vector()
+            .up_vector
             .try_normalize(f32::EPSILON)
             .unwrap_or_else(Vector3::y);
 
         let light_up_vec = light
-            .look_vector()
+            .look_vector
             .try_normalize(f32::EPSILON)
             .unwrap_or_else(Vector3::z);
 
-        let z_values = match light.csm_options.split_options {
+        let z_values = match csm_options.split_options {
             FrustumSplitOptions::Absolute { far_planes } => [
                 camera.projection().z_near(),
                 far_planes[0],
@@ -277,6 +282,9 @@ impl CsmRenderer {
                     projection_matrix: cascade_projection_matrix,
                 },
                 DIRECTIONAL_SHADOW_PASS_NAME.clone(),
+                RenderDataBundleStorageOptions {
+                    collect_lights: false,
+                },
             );
 
             stats += bundle_storage.render_to_frame_buffer(

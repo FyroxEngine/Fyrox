@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::renderer::bundle::RenderDataBundleStorageOptions;
 use crate::renderer::FallbackResources;
 use crate::{
     core::{
@@ -261,6 +262,9 @@ impl PointShadowMapRenderer {
                     projection_matrix: light_projection_matrix,
                 },
                 POINT_SHADOW_PASS_NAME.clone(),
+                RenderDataBundleStorageOptions {
+                    collect_lights: false,
+                },
             );
 
             statistics += bundle_storage.render_to_frame_buffer(

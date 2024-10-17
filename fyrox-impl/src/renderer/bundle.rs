@@ -20,22 +20,23 @@
 
 //! The module responsible for bundle generation for rendering optimizations.
 
-use crate::material::MaterialPropertyGroup;
-use crate::renderer::FallbackResources;
+#![allow(missing_docs)] // TODO
+
+use crate::resource::texture::TextureResource;
 use crate::{
     asset::untyped::ResourceKind,
     core::{
-        algebra::Vector4,
-        algebra::{Matrix4, Vector3},
+        algebra::{Matrix4, Vector3, Vector4},
         arrayvec::ArrayVec,
+        color,
         color::Color,
+        log::Log,
         math::{frustum::Frustum, Rect},
         pool::Handle,
         sstorage::ImmutableString,
     },
     graph::BaseSceneGraph,
-    material,
-    material::{MaterialProperty, MaterialResource},
+    material::{self, MaterialProperty, MaterialPropertyGroup, MaterialResource},
     renderer::{
         cache::{
             geometry::GeometryCache,
@@ -46,16 +47,24 @@ use crate::{
         },
         framework::{
             error::FrameworkError,
-            framebuffer::{FrameBuffer, ResourceBindGroup, ResourceBinding},
+            framebuffer::{BufferLocation, FrameBuffer, ResourceBindGroup, ResourceBinding},
+            gpu_program::{ShaderProperty, ShaderPropertyKind, ShaderResourceKind},
             gpu_texture::GpuTexture,
             server::GraphicsServer,
             uniform::StaticUniformBuffer,
+            uniform::{ByteStorage, UniformBuffer},
             ElementRange,
         },
-        LightData, RenderPassStatistics, MAX_BONE_MATRICES,
+        FallbackResources, LightData, RenderPassStatistics, MAX_BONE_MATRICES,
     },
     scene::{
         graph::Graph,
+        light::{
+            directional::{CsmOptions, DirectionalLight},
+            point::PointLight,
+            spot::SpotLight,
+            BaseLight,
+        },
         mesh::{
             buffer::{
                 BytesStorage, TriangleBuffer, TriangleBufferRefMut, VertexAttributeDescriptor,
@@ -68,11 +77,7 @@ use crate::{
     },
 };
 use fxhash::{FxBuildHasher, FxHashMap, FxHasher};
-use fyrox_core::color;
-use fyrox_core::log::Log;
-use fyrox_graphics::framebuffer::BufferLocation;
-use fyrox_graphics::gpu_program::{ShaderProperty, ShaderPropertyKind, ShaderResourceKind};
-use fyrox_graphics::uniform::{ByteStorage, UniformBuffer};
+use fyrox_graph::{SceneGraph, SceneGraphNode};
 use std::{
     cell::RefCell,
     collections::hash_map::DefaultHasher,
@@ -83,6 +88,7 @@ use std::{
 
 /// Observer info contains all the data, that describes an observer. It could be a real camera, light source's
 /// "virtual camera" that is used for shadow mapping, etc.
+#[derive(Clone, Default)]
 pub struct ObserverInfo {
     /// World-space position of the observer.
     pub observer_position: Vector3<f32>,
@@ -755,6 +761,40 @@ pub trait RenderDataBundleStorageTrait {
     );
 }
 
+pub enum LightSourceKind {
+    Spot {
+        full_cone_angle: f32,
+        hotspot_cone_angle: f32,
+        distance: f32,
+        shadow_bias: f32,
+        cookie_texture: Option<TextureResource>,
+    },
+    Point {
+        radius: f32,
+        shadow_bias: f32,
+    },
+    Directional {
+        csm_options: CsmOptions,
+    },
+    Unknown,
+}
+
+pub struct LightSource {
+    pub handle: Handle<Node>,
+    pub global_transform: Matrix4<f32>,
+    pub kind: LightSourceKind,
+    pub position: Vector3<f32>,
+    pub up_vector: Vector3<f32>,
+    pub side_vector: Vector3<f32>,
+    pub look_vector: Vector3<f32>,
+    pub cast_shadows: bool,
+    pub local_scale: Vector3<f32>,
+    pub color: Color,
+    pub intensity: f32,
+    pub scatter_enabled: bool,
+    pub scatter: Vector3<f32>,
+}
+
 /// Bundle storage handles bundle generation for a scene before rendering. It is used to optimize
 /// rendering by reducing amount of state changes of OpenGL context.
 #[derive(Default)]
@@ -762,6 +802,19 @@ pub struct RenderDataBundleStorage {
     bundle_map: FxHashMap<u64, usize>,
     /// A sorted list of bundles.
     pub bundles: Vec<RenderDataBundle>,
+    pub light_sources: Vec<LightSource>,
+}
+
+pub struct RenderDataBundleStorageOptions {
+    pub collect_lights: bool,
+}
+
+impl Default for RenderDataBundleStorageOptions {
+    fn default() -> Self {
+        Self {
+            collect_lights: true,
+        }
+    }
 }
 
 impl RenderDataBundleStorage {
@@ -772,16 +825,18 @@ impl RenderDataBundleStorage {
         graph: &Graph,
         observer_info: ObserverInfo,
         render_pass_name: ImmutableString,
+        options: RenderDataBundleStorageOptions,
     ) -> Self {
         // Aim for the worst-case scenario when every node has unique render data.
         let capacity = graph.node_count() as usize;
         let mut storage = Self {
             bundle_map: FxHashMap::with_capacity_and_hasher(capacity, FxBuildHasher::default()),
             bundles: Vec::with_capacity(capacity),
+            light_sources: Default::default(),
         };
 
         let mut lod_filter = vec![true; graph.capacity() as usize];
-        for node in graph.linear_iter() {
+        for (node_handle, node) in graph.pair_iter() {
             if let Some(lod_group) = node.lod_group() {
                 for level in lod_group.levels.iter() {
                     for &object in level.objects.iter() {
@@ -795,6 +850,51 @@ impl RenderDataBundleStorage {
                                 && normalized_distance <= level.end();
                             lod_filter[object.index() as usize] = visible;
                         }
+                    }
+                }
+            }
+
+            if options.collect_lights {
+                if let Some(base_light) = node.component_ref::<BaseLight>() {
+                    if base_light.global_visibility() && base_light.is_globally_enabled() {
+                        let kind = if let Some(spot_light) = node.cast::<SpotLight>() {
+                            LightSourceKind::Spot {
+                                full_cone_angle: spot_light.full_cone_angle(),
+                                hotspot_cone_angle: spot_light.hotspot_cone_angle(),
+                                distance: spot_light.distance(),
+                                shadow_bias: spot_light.shadow_bias(),
+                                cookie_texture: spot_light.cookie_texture(),
+                            }
+                        } else if let Some(point_light) = node.cast::<PointLight>() {
+                            LightSourceKind::Point {
+                                radius: point_light.radius(),
+                                shadow_bias: point_light.shadow_bias(),
+                            }
+                        } else if let Some(directional_light) = node.cast::<DirectionalLight>() {
+                            LightSourceKind::Directional {
+                                csm_options: (*directional_light.csm_options).clone(),
+                            }
+                        } else {
+                            LightSourceKind::Unknown
+                        };
+
+                        let source = LightSource {
+                            handle: node_handle,
+                            global_transform: base_light.global_transform(),
+                            kind,
+                            position: base_light.global_position(),
+                            up_vector: base_light.up_vector(),
+                            side_vector: base_light.side_vector(),
+                            look_vector: base_light.look_vector(),
+                            cast_shadows: base_light.cast_shadows(),
+                            local_scale: **base_light.local_transform().scale(),
+                            color: base_light.color(),
+                            intensity: base_light.intensity(),
+                            scatter_enabled: base_light.is_scatter_enabled(),
+                            scatter: base_light.scatter(),
+                        };
+
+                        storage.light_sources.push(source);
                     }
                 }
             }

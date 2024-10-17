@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::renderer::bundle::RenderDataBundleStorageOptions;
 use crate::renderer::FallbackResources;
 use crate::{
     core::{
@@ -173,6 +174,9 @@ impl SpotShadowMapRenderer {
                 projection_matrix: light_projection_matrix,
             },
             SPOT_SHADOW_PASS_NAME.clone(),
+            RenderDataBundleStorageOptions {
+                collect_lights: false,
+            },
         );
 
         let inv_view = light_view_matrix.try_inverse().unwrap();

@@ -51,7 +51,6 @@ mod skybox_shader;
 mod ssao;
 mod stats;
 
-use crate::renderer::cache::uniform::UniformMemoryAllocator;
 use crate::{
     asset::{event::ResourceEvent, manager::ResourceManager},
     core::{
@@ -72,10 +71,10 @@ use crate::{
     material::shader::{Shader, ShaderResource, ShaderResourceExtension},
     renderer::{
         bloom::BloomRenderer,
-        bundle::{ObserverInfo, RenderDataBundleStorage},
+        bundle::{ObserverInfo, RenderDataBundleStorage, RenderDataBundleStorageOptions},
         cache::{
             geometry::GeometryCache, shader::ShaderCache, texture::TextureCache,
-            uniform::UniformBufferCache,
+            uniform::UniformBufferCache, uniform::UniformMemoryAllocator,
         },
         debug_renderer::DebugRenderer,
         flat_shader::FlatShader,
@@ -107,10 +106,10 @@ use crate::{
     scene::{camera::Camera, mesh::surface::SurfaceData, Scene, SceneContainer},
 };
 use fxhash::FxHashMap;
-use fyrox_graphics::framebuffer::BufferLocation;
-use fyrox_graphics::gl::server::GlGraphicsServer;
-use fyrox_graphics::gpu_program::SamplerFallback;
-use fyrox_graphics::server::SharedGraphicsServer;
+use fyrox_graphics::{
+    framebuffer::BufferLocation, gl::server::GlGraphicsServer, gpu_program::SamplerFallback,
+    server::SharedGraphicsServer,
+};
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 pub use stats::*;
@@ -1452,6 +1451,9 @@ impl Renderer {
                     projection_matrix: camera.projection_matrix(),
                 },
                 GBUFFER_PASS_NAME.clone(),
+                RenderDataBundleStorageOptions {
+                    collect_lights: true,
+                },
             );
 
             server.set_polygon_fill_mode(
@@ -1500,6 +1502,7 @@ impl Renderer {
                         camera,
                         gbuffer: &mut scene_associated_data.gbuffer,
                         ambient_color: scene.rendering_options.ambient_lighting_color,
+                        render_data_bundle: &bundle_storage,
                         settings: &self.quality_settings,
                         textures: &mut self.texture_cache,
                         geometry_cache: &mut self.geometry_cache,
