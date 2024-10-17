@@ -20,6 +20,7 @@
 
 //! See [`UiRenderer`] docs.
 
+use crate::renderer::FallbackTextures;
 use crate::{
     asset::untyped::ResourceKind,
     core::{
@@ -44,7 +45,6 @@ use crate::{
                 VertexBufferData, VertexBufferDescriptor,
             },
             gpu_program::{GpuProgram, UniformLocation},
-            gpu_texture::GpuTexture,
             server::GraphicsServer,
             uniform::StaticUniformBuffer,
             BlendFactor, BlendFunc, BlendParameters, ColorMask, CompareFunc, DrawParameters,
@@ -55,7 +55,6 @@ use crate::{
     resource::texture::{Texture, TextureKind, TexturePixelKind, TextureResource},
 };
 use fyrox_graphics::framebuffer::BufferLocation;
-use std::{cell::RefCell, rc::Rc};
 
 struct UiShader {
     program: Box<dyn GpuProgram>,
@@ -97,8 +96,8 @@ pub struct UiRenderContext<'a, 'b, 'c> {
     pub frame_height: f32,
     /// Drawing context of a user interface.
     pub drawing_context: &'c DrawingContext,
-    /// A reference of white-pixel texture.
-    pub white_dummy: Rc<RefCell<dyn GpuTexture>>,
+    /// Fallback textures.
+    pub fallback_textures: &'a FallbackTextures,
     /// GPU texture cache.
     pub texture_cache: &'a mut TextureCache,
     /// A reference to the cache of uniform buffers.
@@ -178,7 +177,7 @@ impl UiRenderer {
             frame_width,
             frame_height,
             drawing_context,
-            white_dummy,
+            fallback_textures,
             texture_cache,
             uniform_buffer_cache,
             flat_shader,
@@ -195,7 +194,7 @@ impl UiRenderer {
         let resolution = Vector2::new(frame_width, frame_height);
 
         for cmd in drawing_context.get_commands() {
-            let mut diffuse_texture = &white_dummy;
+            let mut diffuse_texture = &fallback_textures.white_dummy;
             let mut is_font_texture = false;
 
             let mut clip_bounds = cmd.clip_bounds;

@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::renderer::FallbackTextures;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3},
@@ -35,7 +36,6 @@ use crate::{
             error::FrameworkError,
             framebuffer::{FrameBuffer, ResourceBindGroup, ResourceBinding},
             geometry_buffer::GeometryBuffer,
-            gpu_texture::GpuTexture,
             server::GraphicsServer,
             uniform::StaticUniformBuffer,
             BlendFactor, BlendFunc, BlendParameters, ColorMask, CompareFunc, CullFace,
@@ -69,7 +69,6 @@ use crate::{
     },
 };
 use fyrox_graphics::framebuffer::BufferLocation;
-use std::{cell::RefCell, rc::Rc};
 
 pub mod ambient;
 pub mod directional;
@@ -105,10 +104,7 @@ pub(crate) struct DeferredRendererContext<'a> {
     pub geometry_cache: &'a mut GeometryCache,
     pub frame_buffer: &'a mut dyn FrameBuffer,
     pub shader_cache: &'a mut ShaderCache,
-    pub normal_dummy: Rc<RefCell<dyn GpuTexture>>,
-    pub white_dummy: Rc<RefCell<dyn GpuTexture>>,
-    pub black_dummy: Rc<RefCell<dyn GpuTexture>>,
-    pub volume_dummy: Rc<RefCell<dyn GpuTexture>>,
+    pub fallback_textures: &'a FallbackTextures,
     pub uniform_buffer_cache: &'a mut UniformBufferCache,
     pub visibility_cache: &'a mut ObserverVisibilityCache,
     pub bone_matrices_stub_uniform_buffer: &'a dyn Buffer,
@@ -290,15 +286,12 @@ impl DeferredLightRenderer {
             camera,
             gbuffer,
             shader_cache,
-            normal_dummy,
-            white_dummy,
             ambient_color,
             settings,
             textures,
             geometry_cache,
             frame_buffer,
-            black_dummy,
-            volume_dummy,
+            fallback_textures,
             uniform_buffer_cache,
             visibility_cache,
             bone_matrices_stub_uniform_buffer,
@@ -421,7 +414,7 @@ impl DeferredLightRenderer {
                         if settings.use_ssao {
                             &ao_map
                         } else {
-                            &white_dummy
+                            &fallback_textures.white_dummy
                         },
                         &self.ambient_light_shader.ao_sampler,
                     ),
@@ -700,10 +693,7 @@ impl DeferredLightRenderer {
                         cascade_index,
                         shader_cache,
                         textures,
-                        normal_dummy.clone(),
-                        white_dummy.clone(),
-                        black_dummy.clone(),
-                        volume_dummy.clone(),
+                        fallback_textures,
                         uniform_buffer_cache,
                         bone_matrices_stub_uniform_buffer,
                         uniform_memory_allocator,
@@ -722,10 +712,7 @@ impl DeferredLightRenderer {
                                 cascade: cascade_index,
                                 shader_cache,
                                 texture_cache: textures,
-                                normal_dummy: normal_dummy.clone(),
-                                white_dummy: white_dummy.clone(),
-                                black_dummy: black_dummy.clone(),
-                                volume_dummy: volume_dummy.clone(),
+                                fallback_textures,
                                 uniform_buffer_cache,
                                 bone_matrices_stub_uniform_buffer,
                                 uniform_memory_allocator,
@@ -742,10 +729,7 @@ impl DeferredLightRenderer {
                         geom_cache: geometry_cache,
                         shader_cache,
                         texture_cache: textures,
-                        normal_dummy: normal_dummy.clone(),
-                        white_dummy: white_dummy.clone(),
-                        black_dummy: black_dummy.clone(),
-                        volume_dummy: volume_dummy.clone(),
+                        fallback_textures,
                         uniform_buffer_cache,
                         bone_matrices_stub_uniform_buffer,
                         uniform_memory_allocator,
@@ -786,10 +770,10 @@ impl DeferredLightRenderer {
                             if let Some(cookie) = textures.get(server, texture) {
                                 (true, cookie)
                             } else {
-                                (false, &white_dummy)
+                                (false, &fallback_textures.white_dummy)
                             }
                         } else {
-                            (false, &white_dummy)
+                            (false, &fallback_textures.white_dummy)
                         };
 
                     light_stats.spot_lights_rendered += 1;

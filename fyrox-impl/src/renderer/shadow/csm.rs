@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::renderer::cache::uniform::{UniformBufferCache, UniformMemoryAllocator};
+use crate::renderer::FallbackTextures;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
@@ -121,10 +122,7 @@ pub(crate) struct CsmRenderContext<'a, 'c> {
     pub geom_cache: &'a mut GeometryCache,
     pub shader_cache: &'a mut ShaderCache,
     pub texture_cache: &'a mut TextureCache,
-    pub normal_dummy: Rc<RefCell<dyn GpuTexture>>,
-    pub white_dummy: Rc<RefCell<dyn GpuTexture>>,
-    pub black_dummy: Rc<RefCell<dyn GpuTexture>>,
-    pub volume_dummy: Rc<RefCell<dyn GpuTexture>>,
+    pub fallback_textures: &'a FallbackTextures,
     pub uniform_buffer_cache: &'a mut UniformBufferCache,
     pub bone_matrices_stub_uniform_buffer: &'a dyn Buffer,
     pub uniform_memory_allocator: &'a mut UniformMemoryAllocator,
@@ -174,10 +172,7 @@ impl CsmRenderer {
             geom_cache,
             shader_cache,
             texture_cache,
-            normal_dummy,
-            white_dummy,
-            black_dummy,
-            volume_dummy,
+            fallback_textures,
             uniform_buffer_cache,
             bone_matrices_stub_uniform_buffer,
             uniform_memory_allocator,
@@ -305,10 +300,7 @@ impl CsmRenderer {
                     z_near,
                     use_pom: false,
                     light_position: &Default::default(),
-                    normal_dummy: &normal_dummy,
-                    white_dummy: &white_dummy,
-                    black_dummy: &black_dummy,
-                    volume_dummy: &volume_dummy,
+                    fallback_textures,
                     light_data: None,            // TODO
                     ambient_light: Color::WHITE, // TODO
                     scene_depth: None,

@@ -21,6 +21,7 @@
 //! The module responsible for bundle generation for rendering optimizations.
 
 use crate::material::MaterialPropertyGroup;
+use crate::renderer::FallbackTextures;
 use crate::{
     asset::untyped::ResourceKind,
     core::{
@@ -34,7 +35,7 @@ use crate::{
     },
     graph::BaseSceneGraph,
     material,
-    material::{shader::SamplerFallback, MaterialProperty, MaterialResource},
+    material::{MaterialProperty, MaterialResource},
     renderer::{
         cache::{
             geometry::GeometryCache,
@@ -164,10 +165,7 @@ pub struct BundleRenderContext<'a> {
     pub z_far: f32,
 
     // Fallback textures.
-    pub normal_dummy: &'a Rc<RefCell<dyn GpuTexture>>,
-    pub white_dummy: &'a Rc<RefCell<dyn GpuTexture>>,
-    pub black_dummy: &'a Rc<RefCell<dyn GpuTexture>>,
-    pub volume_dummy: &'a Rc<RefCell<dyn GpuTexture>>,
+    pub fallback_textures: &'a FallbackTextures,
 }
 
 /// Persistent identifier marks drawing data, telling the renderer that the data is the same, no matter from which
@@ -557,7 +555,7 @@ impl RenderDataBundle {
                         if let Some(scene_depth) = render_context.scene_depth.as_ref() {
                             scene_depth
                         } else {
-                            render_context.black_dummy
+                            &render_context.fallback_textures.black_dummy
                         },
                         resource_definition.binding,
                     ));
@@ -597,12 +595,7 @@ impl RenderDataBundle {
                 }
                 _ => match resource_definition.kind {
                     ShaderResourceKind::Texture { fallback, .. } => {
-                        let fallback = match fallback {
-                            SamplerFallback::White => render_context.white_dummy,
-                            SamplerFallback::Normal => render_context.normal_dummy,
-                            SamplerFallback::Black => render_context.black_dummy,
-                            SamplerFallback::Volume => render_context.volume_dummy,
-                        };
+                        let fallback = render_context.fallback_textures.sampler_fallback(fallback);
 
                         let texture = if let Some(binding) =
                             material.binding_ref(resource_definition.name.clone())

@@ -29,6 +29,7 @@
 //! Every alpha channel is used for layer blending for terrains. This is inefficient, but for
 //! now I don't know better solution.
 
+use crate::renderer::FallbackTextures;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2},
@@ -94,10 +95,7 @@ pub(crate) struct GBufferRenderContext<'a, 'b> {
     pub bundle_storage: &'a RenderDataBundleStorage,
     pub texture_cache: &'a mut TextureCache,
     pub shader_cache: &'a mut ShaderCache,
-    pub white_dummy: Rc<RefCell<dyn GpuTexture>>,
-    pub normal_dummy: Rc<RefCell<dyn GpuTexture>>,
-    pub black_dummy: Rc<RefCell<dyn GpuTexture>>,
-    pub volume_dummy: Rc<RefCell<dyn GpuTexture>>,
+    pub fallback_textures: &'a FallbackTextures,
     pub quality_settings: &'a QualitySettings,
     pub graph: &'b Graph,
     pub uniform_buffer_cache: &'a mut UniformBufferCache,
@@ -305,10 +303,7 @@ impl GBuffer {
             texture_cache,
             shader_cache,
             quality_settings,
-            white_dummy,
-            normal_dummy,
-            black_dummy,
-            volume_dummy,
+            fallback_textures,
             graph,
             uniform_buffer_cache,
             unit_quad,
@@ -367,10 +362,7 @@ impl GBuffer {
                 z_near: camera.projection().z_near(),
                 use_pom: quality_settings.use_parallax_mapping,
                 light_position: &Default::default(),
-                normal_dummy: &normal_dummy,
-                white_dummy: &white_dummy,
-                black_dummy: &black_dummy,
-                volume_dummy: &volume_dummy,
+                fallback_textures,
                 light_data: None,
                 ambient_light: Color::WHITE, // TODO
                 scene_depth: None,           // TODO. Add z-pre-pass.
@@ -416,13 +408,13 @@ impl GBuffer {
             let diffuse_texture = decal
                 .diffuse_texture()
                 .and_then(|t| texture_cache.get(server, t))
-                .unwrap_or(&white_dummy)
+                .unwrap_or(&fallback_textures.white_dummy)
                 .clone();
 
             let normal_texture = decal
                 .normal_texture()
                 .and_then(|t| texture_cache.get(server, t))
-                .unwrap_or(&normal_dummy)
+                .unwrap_or(&fallback_textures.normal_dummy)
                 .clone();
 
             statistics += self.decal_framebuffer.draw(

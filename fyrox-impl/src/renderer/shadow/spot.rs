@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::renderer::FallbackTextures;
 use crate::{
     core::{
         algebra::{Matrix4, Vector3},
@@ -149,10 +150,7 @@ impl SpotShadowMapRenderer {
         cascade: usize,
         shader_cache: &mut ShaderCache,
         texture_cache: &mut TextureCache,
-        normal_dummy: Rc<RefCell<dyn GpuTexture>>,
-        white_dummy: Rc<RefCell<dyn GpuTexture>>,
-        black_dummy: Rc<RefCell<dyn GpuTexture>>,
-        volume_dummy: Rc<RefCell<dyn GpuTexture>>,
+        fallback_textures: &FallbackTextures,
         uniform_buffer_cache: &mut UniformBufferCache,
         bone_matrices_stub_uniform_buffer: &dyn Buffer,
         uniform_memory_allocator: &mut UniformMemoryAllocator,
@@ -204,10 +202,7 @@ impl SpotShadowMapRenderer {
                 z_near,
                 use_pom: false,
                 light_position: &Default::default(),
-                normal_dummy: &normal_dummy,
-                white_dummy: &white_dummy,
-                black_dummy: &black_dummy,
-                volume_dummy: &volume_dummy,
+                fallback_textures,
                 light_data: None,            // TODO
                 ambient_light: Color::WHITE, // TODO
                 scene_depth: None,
