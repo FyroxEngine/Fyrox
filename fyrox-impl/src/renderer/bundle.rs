@@ -21,7 +21,7 @@
 //! The module responsible for bundle generation for rendering optimizations.
 
 use crate::material::MaterialPropertyGroup;
-use crate::renderer::FallbackTextures;
+use crate::renderer::FallbackResources;
 use crate::{
     asset::untyped::ResourceKind,
     core::{
@@ -45,7 +45,6 @@ use crate::{
             TimeToLive,
         },
         framework::{
-            buffer::Buffer,
             error::FrameworkError,
             framebuffer::{FrameBuffer, ResourceBindGroup, ResourceBinding},
             gpu_texture::GpuTexture,
@@ -145,7 +144,6 @@ pub struct BundleRenderContext<'a> {
     pub frame_buffer: &'a mut dyn FrameBuffer,
     pub viewport: Rect<i32>,
     pub uniform_buffer_cache: &'a mut UniformBufferCache,
-    pub bone_matrices_stub_uniform_buffer: &'a dyn Buffer,
     pub uniform_memory_allocator: &'a mut UniformMemoryAllocator,
 
     // Built-in uniforms.
@@ -164,8 +162,7 @@ pub struct BundleRenderContext<'a> {
     pub z_near: f32,
     pub z_far: f32,
 
-    // Fallback textures.
-    pub fallback_textures: &'a FallbackTextures,
+    pub fallback_resources: &'a FallbackResources,
 }
 
 /// Persistent identifier marks drawing data, telling the renderer that the data is the same, no matter from which
@@ -555,7 +552,7 @@ impl RenderDataBundle {
                         if let Some(scene_depth) = render_context.scene_depth.as_ref() {
                             scene_depth
                         } else {
-                            &render_context.fallback_textures.black_dummy
+                            &render_context.fallback_resources.black_dummy
                         },
                         resource_definition.binding,
                     ));
@@ -595,7 +592,7 @@ impl RenderDataBundle {
                 }
                 _ => match resource_definition.kind {
                     ShaderResourceKind::Texture { fallback, .. } => {
-                        let fallback = render_context.fallback_textures.sampler_fallback(fallback);
+                        let fallback = render_context.fallback_resources.sampler_fallback(fallback);
 
                         let texture = if let Some(binding) =
                             material.binding_ref(resource_definition.name.clone())
@@ -676,7 +673,9 @@ impl RenderDataBundle {
                                 // Bind stub buffer, instead of creating and uploading 16kb with zeros per draw
                                 // call.
                                 instance_bindings.push(ResourceBinding::Buffer {
-                                    buffer: render_context.bone_matrices_stub_uniform_buffer,
+                                    buffer: &*render_context
+                                        .fallback_resources
+                                        .bone_matrices_stub_uniform_buffer,
                                     binding: BufferLocation::Explicit {
                                         binding: resource_definition.binding,
                                     },

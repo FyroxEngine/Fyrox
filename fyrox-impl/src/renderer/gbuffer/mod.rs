@@ -29,7 +29,7 @@
 //! Every alpha channel is used for layer blending for terrains. This is inefficient, but for
 //! now I don't know better solution.
 
-use crate::renderer::FallbackTextures;
+use crate::renderer::FallbackResources;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2},
@@ -45,7 +45,7 @@ use crate::{
         },
         debug_renderer::DebugRenderer,
         framework::{
-            buffer::{Buffer, BufferUsage},
+            buffer::BufferUsage,
             error::FrameworkError,
             framebuffer::{
                 Attachment, AttachmentKind, FrameBuffer, ResourceBindGroup, ResourceBinding,
@@ -95,11 +95,10 @@ pub(crate) struct GBufferRenderContext<'a, 'b> {
     pub bundle_storage: &'a RenderDataBundleStorage,
     pub texture_cache: &'a mut TextureCache,
     pub shader_cache: &'a mut ShaderCache,
-    pub fallback_textures: &'a FallbackTextures,
+    pub fallback_resources: &'a FallbackResources,
     pub quality_settings: &'a QualitySettings,
     pub graph: &'b Graph,
     pub uniform_buffer_cache: &'a mut UniformBufferCache,
-    pub bone_matrices_stub_uniform_buffer: &'a dyn Buffer,
     pub uniform_memory_allocator: &'a mut UniformMemoryAllocator,
     #[allow(dead_code)]
     pub screen_space_debug_renderer: &'a mut DebugRenderer,
@@ -303,11 +302,10 @@ impl GBuffer {
             texture_cache,
             shader_cache,
             quality_settings,
-            fallback_textures,
+            fallback_resources,
             graph,
             uniform_buffer_cache,
             unit_quad,
-            bone_matrices_stub_uniform_buffer,
             uniform_memory_allocator,
             ..
         } = args;
@@ -353,7 +351,6 @@ impl GBuffer {
                 frame_buffer: &mut *self.framebuffer,
                 viewport,
                 uniform_buffer_cache,
-                bone_matrices_stub_uniform_buffer,
                 uniform_memory_allocator,
                 view_projection_matrix: &view_projection,
                 camera_position: &camera.global_position(),
@@ -362,7 +359,7 @@ impl GBuffer {
                 z_near: camera.projection().z_near(),
                 use_pom: quality_settings.use_parallax_mapping,
                 light_position: &Default::default(),
-                fallback_textures,
+                fallback_resources,
                 light_data: None,
                 ambient_light: Color::WHITE, // TODO
                 scene_depth: None,           // TODO. Add z-pre-pass.
@@ -408,13 +405,13 @@ impl GBuffer {
             let diffuse_texture = decal
                 .diffuse_texture()
                 .and_then(|t| texture_cache.get(server, t))
-                .unwrap_or(&fallback_textures.white_dummy)
+                .unwrap_or(&fallback_resources.white_dummy)
                 .clone();
 
             let normal_texture = decal
                 .normal_texture()
                 .and_then(|t| texture_cache.get(server, t))
-                .unwrap_or(&fallback_textures.normal_dummy)
+                .unwrap_or(&fallback_resources.normal_dummy)
                 .clone();
 
             statistics += self.decal_framebuffer.draw(

@@ -652,7 +652,7 @@ pub(crate) fn make_viewport_matrix(viewport: Rect<i32>) -> Matrix4<f32> {
 
 /// A set of textures of certain kinds that could be used as a stub in cases when you don't have
 /// your own texture of this kind.
-pub struct FallbackTextures {
+pub struct FallbackResources {
     /// White, one pixel, texture which will be used as stub when rendering something without
     /// a texture specified.
     pub white_dummy: Rc<RefCell<dyn GpuTexture>>,
@@ -668,9 +668,11 @@ pub struct FallbackTextures {
     pub metallic_dummy: Rc<RefCell<dyn GpuTexture>>,
     /// One pixel volume texture.
     pub volume_dummy: Rc<RefCell<dyn GpuTexture>>,
+    /// A stub uniform buffer for situation when there's no actual bone matrices.
+    pub bone_matrices_stub_uniform_buffer: Box<dyn Buffer>,
 }
 
-impl FallbackTextures {
+impl FallbackResources {
     /// Picks a texture that corresponds to the actual value of the given sampler fallback.
     pub fn sampler_fallback(
         &self,
@@ -693,7 +695,7 @@ pub struct Renderer {
     flat_shader: FlatShader,
     /// A set of textures of certain kinds that could be used as a stub in cases when you don't have
     /// your own texture of this kind.
-    pub fallback_textures: FallbackTextures,
+    pub fallback_resources: FallbackResources,
     /// User interface renderer.
     pub ui_renderer: UiRenderer,
     statistics: Statistics,
@@ -723,8 +725,6 @@ pub struct Renderer {
     // like ones used to render UI instances.
     ui_frame_buffers: FxHashMap<u64, Box<dyn FrameBuffer>>,
     uniform_memory_allocator: UniformMemoryAllocator,
-    /// A stub uniform buffer for situation when there's no actual bone matrices.
-    pub bone_matrices_stub_uniform_buffer: Box<dyn Buffer>,
     /// Visibility cache based on occlusion query.
     pub visibility_cache: VisibilityCache,
     /// Graphics server.
@@ -814,7 +814,7 @@ pub struct SceneRenderPassContext<'a, 'b> {
 
     /// A set of textures of certain kinds that could be used as a stub in cases when you don't have
     /// your own texture of this kind.
-    pub fallback_textures: &'a FallbackTextures,
+    pub fallback_resources: &'a FallbackResources,
 
     /// A texture with depth values from G-Buffer.
     ///
@@ -846,9 +846,6 @@ pub struct SceneRenderPassContext<'a, 'b> {
 
     /// A cache of uniform buffers.
     pub uniform_buffer_cache: &'a mut UniformBufferCache,
-
-    /// A stub uniform buffer with bone matrices.
-    pub bone_matrices_stub_uniform_buffer: &'a dyn Buffer,
 
     /// Memory allocator for uniform buffers that tries to pack uniforms densely into large uniform
     /// buffers, giving you offsets to the data.
@@ -1000,7 +997,7 @@ impl Renderer {
             caps.uniform_buffer_offset_alignment,
         );
 
-        let fallback_textures = FallbackTextures {
+        let fallback_resources = FallbackResources {
             white_dummy: server.create_texture(
                 GpuTextureKind::Rectangle {
                     width: 1,
@@ -1075,19 +1072,6 @@ impl Renderer {
                 1,
                 Some(&[0u8, 0u8, 0u8, 0u8]),
             )?,
-        };
-
-        let renderer = Self {
-            backbuffer: server.back_buffer(),
-            frame_size,
-            deferred_light_renderer: DeferredLightRenderer::new(&*server, frame_size, &settings)?,
-            flat_shader: FlatShader::new(&*server)?,
-            fallback_textures,
-            quad: <dyn GeometryBuffer>::from_surface_data(
-                &SurfaceData::make_unit_xy_quad(),
-                BufferUsage::StaticDraw,
-                &*server,
-            )?,
             bone_matrices_stub_uniform_buffer: {
                 let buffer = server.create_buffer(
                     MAX_BONE_MATRICES * size_of::<Matrix4<f32>>(),
@@ -1099,6 +1083,20 @@ impl Renderer {
                 buffer.write_data(array_as_u8_slice(&zeros))?;
                 buffer
             },
+        };
+
+        let renderer = Self {
+            backbuffer: server.back_buffer(),
+            frame_size,
+            deferred_light_renderer: DeferredLightRenderer::new(&*server, frame_size, &settings)?,
+            flat_shader: FlatShader::new(&*server)?,
+            fallback_resources,
+            quad: <dyn GeometryBuffer>::from_surface_data(
+                &SurfaceData::make_unit_xy_quad(),
+                BufferUsage::StaticDraw,
+                &*server,
+            )?,
+
             ui_renderer: UiRenderer::new(&*server)?,
             quality_settings: settings,
             debug_renderer: DebugRenderer::new(&*server)?,
@@ -1277,7 +1275,7 @@ impl Renderer {
             frame_width: screen_size.x,
             frame_height: screen_size.y,
             drawing_context,
-            fallback_textures: &self.fallback_textures,
+            fallback_resources: &self.fallback_resources,
             texture_cache: &mut self.texture_cache,
             uniform_buffer_cache: &mut self.uniform_buffer_cache,
             flat_shader: &self.flat_shader,
@@ -1470,10 +1468,9 @@ impl Renderer {
                     texture_cache: &mut self.texture_cache,
                     shader_cache: &mut self.shader_cache,
                     quality_settings: &self.quality_settings,
-                    fallback_textures: &self.fallback_textures,
+                    fallback_resources: &self.fallback_resources,
                     graph,
                     uniform_buffer_cache: &mut self.uniform_buffer_cache,
-                    bone_matrices_stub_uniform_buffer: &*self.bone_matrices_stub_uniform_buffer,
                     uniform_memory_allocator: &mut self.uniform_memory_allocator,
                     screen_space_debug_renderer: &mut self.screen_space_debug_renderer,
                     unit_quad: &*self.quad,
@@ -1508,9 +1505,8 @@ impl Renderer {
                         geometry_cache: &mut self.geometry_cache,
                         frame_buffer: &mut *scene_associated_data.hdr_scene_framebuffer,
                         shader_cache: &mut self.shader_cache,
-                        fallback_textures: &self.fallback_textures,
+                        fallback_resources: &self.fallback_resources,
                         uniform_buffer_cache: &mut self.uniform_buffer_cache,
-                        bone_matrices_stub_uniform_buffer: &*self.bone_matrices_stub_uniform_buffer,
                         visibility_cache,
                         uniform_memory_allocator: &mut self.uniform_memory_allocator,
                     })?;
@@ -1532,11 +1528,10 @@ impl Renderer {
                     framebuffer: &mut *scene_associated_data.hdr_scene_framebuffer,
                     viewport,
                     quality_settings: &self.quality_settings,
-                    fallback_textures: &self.fallback_textures,
+                    fallback_resources: &self.fallback_resources,
                     scene_depth: depth,
                     uniform_buffer_cache: &mut self.uniform_buffer_cache,
                     ambient_light: scene.rendering_options.ambient_lighting_color,
-                    bone_matrices_stub_uniform_buffer: &*self.bone_matrices_stub_uniform_buffer,
                     uniform_memory_allocator: &mut self.uniform_memory_allocator,
                 })?;
 
@@ -1555,15 +1550,13 @@ impl Renderer {
                             scene,
                             camera,
                             scene_handle,
-                            fallback_textures: &self.fallback_textures,
+                            fallback_resources: &self.fallback_resources,
                             depth_texture: scene_associated_data.gbuffer.depth(),
                             normal_texture: scene_associated_data.gbuffer.normal_texture(),
                             ambient_texture: scene_associated_data.gbuffer.ambient_texture(),
                             framebuffer: &mut *scene_associated_data.hdr_scene_framebuffer,
                             ui_renderer: &mut self.ui_renderer,
                             uniform_buffer_cache: &mut self.uniform_buffer_cache,
-                            bone_matrices_stub_uniform_buffer: &*self
-                                .bone_matrices_stub_uniform_buffer,
                             uniform_memory_allocator: &mut self.uniform_memory_allocator,
                         })?;
             }
@@ -1638,15 +1631,13 @@ impl Renderer {
                             scene,
                             camera,
                             scene_handle,
-                            fallback_textures: &self.fallback_textures,
+                            fallback_resources: &self.fallback_resources,
                             depth_texture: scene_associated_data.gbuffer.depth(),
                             normal_texture: scene_associated_data.gbuffer.normal_texture(),
                             ambient_texture: scene_associated_data.gbuffer.ambient_texture(),
                             framebuffer: &mut *scene_associated_data.ldr_scene_framebuffer,
                             ui_renderer: &mut self.ui_renderer,
                             uniform_buffer_cache: &mut self.uniform_buffer_cache,
-                            bone_matrices_stub_uniform_buffer: &*self
-                                .bone_matrices_stub_uniform_buffer,
                             uniform_memory_allocator: &mut self.uniform_memory_allocator,
                         })?;
             }
@@ -1725,7 +1716,7 @@ impl Renderer {
                 frame_width: backbuffer_width,
                 frame_height: backbuffer_height,
                 drawing_context,
-                fallback_textures: &self.fallback_textures,
+                fallback_resources: &self.fallback_resources,
                 texture_cache: &mut self.texture_cache,
                 uniform_buffer_cache: &mut self.uniform_buffer_cache,
                 flat_shader: &self.flat_shader,

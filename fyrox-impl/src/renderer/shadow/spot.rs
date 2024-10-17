@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::FallbackTextures;
+use crate::renderer::FallbackResources;
 use crate::{
     core::{
         algebra::{Matrix4, Vector3},
@@ -33,7 +33,6 @@ use crate::{
             uniform::{UniformBufferCache, UniformMemoryAllocator},
         },
         framework::{
-            buffer::Buffer,
             error::FrameworkError,
             framebuffer::{Attachment, AttachmentKind, FrameBuffer},
             gpu_texture::{
@@ -150,9 +149,8 @@ impl SpotShadowMapRenderer {
         cascade: usize,
         shader_cache: &mut ShaderCache,
         texture_cache: &mut TextureCache,
-        fallback_textures: &FallbackTextures,
+        fallback_resources: &FallbackResources,
         uniform_buffer_cache: &mut UniformBufferCache,
-        bone_matrices_stub_uniform_buffer: &dyn Buffer,
         uniform_memory_allocator: &mut UniformMemoryAllocator,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut statistics = RenderPassStatistics::default();
@@ -193,7 +191,6 @@ impl SpotShadowMapRenderer {
                 frame_buffer: framebuffer,
                 viewport,
                 uniform_buffer_cache,
-                bone_matrices_stub_uniform_buffer,
                 uniform_memory_allocator,
                 view_projection_matrix: &light_view_projection,
                 camera_position: &Default::default(),
@@ -202,7 +199,7 @@ impl SpotShadowMapRenderer {
                 z_near,
                 use_pom: false,
                 light_position: &Default::default(),
-                fallback_textures,
+                fallback_resources,
                 light_data: None,            // TODO
                 ambient_light: Color::WHITE, // TODO
                 scene_depth: None,

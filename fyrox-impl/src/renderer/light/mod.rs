@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::FallbackTextures;
+use crate::renderer::FallbackResources;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3},
@@ -32,7 +32,7 @@ use crate::{
         },
         flat_shader::FlatShader,
         framework::{
-            buffer::{Buffer, BufferUsage},
+            buffer::BufferUsage,
             error::FrameworkError,
             framebuffer::{FrameBuffer, ResourceBindGroup, ResourceBinding},
             geometry_buffer::GeometryBuffer,
@@ -104,10 +104,9 @@ pub(crate) struct DeferredRendererContext<'a> {
     pub geometry_cache: &'a mut GeometryCache,
     pub frame_buffer: &'a mut dyn FrameBuffer,
     pub shader_cache: &'a mut ShaderCache,
-    pub fallback_textures: &'a FallbackTextures,
+    pub fallback_resources: &'a FallbackResources,
     pub uniform_buffer_cache: &'a mut UniformBufferCache,
     pub visibility_cache: &'a mut ObserverVisibilityCache,
-    pub bone_matrices_stub_uniform_buffer: &'a dyn Buffer,
     pub uniform_memory_allocator: &'a mut UniformMemoryAllocator,
 }
 
@@ -291,10 +290,9 @@ impl DeferredLightRenderer {
             textures,
             geometry_cache,
             frame_buffer,
-            fallback_textures,
+            fallback_resources,
             uniform_buffer_cache,
             visibility_cache,
-            bone_matrices_stub_uniform_buffer,
             uniform_memory_allocator,
         } = args;
 
@@ -414,7 +412,7 @@ impl DeferredLightRenderer {
                         if settings.use_ssao {
                             &ao_map
                         } else {
-                            &fallback_textures.white_dummy
+                            &fallback_resources.white_dummy
                         },
                         &self.ambient_light_shader.ao_sampler,
                     ),
@@ -693,9 +691,8 @@ impl DeferredLightRenderer {
                         cascade_index,
                         shader_cache,
                         textures,
-                        fallback_textures,
+                        fallback_resources,
                         uniform_buffer_cache,
-                        bone_matrices_stub_uniform_buffer,
                         uniform_memory_allocator,
                     )?;
 
@@ -712,9 +709,8 @@ impl DeferredLightRenderer {
                                 cascade: cascade_index,
                                 shader_cache,
                                 texture_cache: textures,
-                                fallback_textures,
+                                fallback_resources,
                                 uniform_buffer_cache,
-                                bone_matrices_stub_uniform_buffer,
                                 uniform_memory_allocator,
                             })?;
 
@@ -729,9 +725,8 @@ impl DeferredLightRenderer {
                         geom_cache: geometry_cache,
                         shader_cache,
                         texture_cache: textures,
-                        fallback_textures,
+                        fallback_resources,
                         uniform_buffer_cache,
-                        bone_matrices_stub_uniform_buffer,
                         uniform_memory_allocator,
                     })?;
 
@@ -770,10 +765,10 @@ impl DeferredLightRenderer {
                             if let Some(cookie) = textures.get(server, texture) {
                                 (true, cookie)
                             } else {
-                                (false, &fallback_textures.white_dummy)
+                                (false, &fallback_resources.white_dummy)
                             }
                         } else {
-                            (false, &fallback_textures.white_dummy)
+                            (false, &fallback_resources.white_dummy)
                         };
 
                     light_stats.spot_lights_rendered += 1;

@@ -18,8 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::cache::uniform::{UniformBufferCache, UniformMemoryAllocator};
-use crate::renderer::FallbackTextures;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
@@ -28,9 +26,13 @@ use crate::{
     },
     renderer::{
         bundle::{BundleRenderContext, ObserverInfo, RenderDataBundleStorage},
-        cache::{geometry::GeometryCache, shader::ShaderCache, texture::TextureCache},
+        cache::{
+            geometry::GeometryCache,
+            shader::ShaderCache,
+            texture::TextureCache,
+            uniform::{UniformBufferCache, UniformMemoryAllocator},
+        },
         framework::{
-            buffer::Buffer,
             error::FrameworkError,
             framebuffer::{Attachment, AttachmentKind, FrameBuffer},
             gpu_texture::{
@@ -39,7 +41,7 @@ use crate::{
             },
             server::GraphicsServer,
         },
-        RenderPassStatistics, ShadowMapPrecision, DIRECTIONAL_SHADOW_PASS_NAME,
+        FallbackResources, RenderPassStatistics, ShadowMapPrecision, DIRECTIONAL_SHADOW_PASS_NAME,
     },
     scene::{
         camera::Camera,
@@ -122,9 +124,8 @@ pub(crate) struct CsmRenderContext<'a, 'c> {
     pub geom_cache: &'a mut GeometryCache,
     pub shader_cache: &'a mut ShaderCache,
     pub texture_cache: &'a mut TextureCache,
-    pub fallback_textures: &'a FallbackTextures,
+    pub fallback_resources: &'a FallbackResources,
     pub uniform_buffer_cache: &'a mut UniformBufferCache,
-    pub bone_matrices_stub_uniform_buffer: &'a dyn Buffer,
     pub uniform_memory_allocator: &'a mut UniformMemoryAllocator,
 }
 
@@ -172,9 +173,8 @@ impl CsmRenderer {
             geom_cache,
             shader_cache,
             texture_cache,
-            fallback_textures,
+            fallback_resources,
             uniform_buffer_cache,
-            bone_matrices_stub_uniform_buffer,
             uniform_memory_allocator,
         } = ctx;
 
@@ -291,7 +291,6 @@ impl CsmRenderer {
                     frame_buffer: framebuffer,
                     viewport,
                     uniform_buffer_cache,
-                    bone_matrices_stub_uniform_buffer,
                     uniform_memory_allocator,
                     view_projection_matrix: &light_view_projection,
                     camera_position: &camera.global_position(),
@@ -300,7 +299,7 @@ impl CsmRenderer {
                     z_near,
                     use_pom: false,
                     light_position: &Default::default(),
-                    fallback_textures,
+                    fallback_resources,
                     light_data: None,            // TODO
                     ambient_light: Color::WHITE, // TODO
                     scene_depth: None,

@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::FallbackTextures;
+use crate::renderer::FallbackResources;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector3},
@@ -33,7 +33,6 @@ use crate::{
             uniform::{UniformBufferCache, UniformMemoryAllocator},
         },
         framework::{
-            buffer::Buffer,
             error::FrameworkError,
             framebuffer::{Attachment, AttachmentKind, FrameBuffer},
             gpu_texture::{
@@ -71,9 +70,8 @@ pub(crate) struct PointShadowMapRenderContext<'a> {
     pub cascade: usize,
     pub shader_cache: &'a mut ShaderCache,
     pub texture_cache: &'a mut TextureCache,
-    pub fallback_textures: &'a FallbackTextures,
+    pub fallback_resources: &'a FallbackResources,
     pub uniform_buffer_cache: &'a mut UniformBufferCache,
-    pub bone_matrices_stub_uniform_buffer: &'a dyn Buffer,
     pub uniform_memory_allocator: &'a mut UniformMemoryAllocator,
 }
 
@@ -222,9 +220,8 @@ impl PointShadowMapRenderer {
             cascade,
             shader_cache,
             texture_cache,
-            fallback_textures,
+            fallback_resources,
             uniform_buffer_cache,
-            bone_matrices_stub_uniform_buffer,
             uniform_memory_allocator,
         } = args;
 
@@ -278,7 +275,6 @@ impl PointShadowMapRenderer {
                     frame_buffer: framebuffer,
                     viewport,
                     uniform_buffer_cache,
-                    bone_matrices_stub_uniform_buffer,
                     uniform_memory_allocator,
                     view_projection_matrix: &light_view_projection_matrix,
                     camera_position: &Default::default(),
@@ -287,7 +283,7 @@ impl PointShadowMapRenderer {
                     z_near,
                     use_pom: false,
                     light_position: &light_pos,
-                    fallback_textures,
+                    fallback_resources,
                     light_data: None,            // TODO
                     ambient_light: Color::WHITE, // TODO
                     scene_depth: None,

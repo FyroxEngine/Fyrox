@@ -20,7 +20,7 @@
 
 //! See [`UiRenderer`] docs.
 
-use crate::renderer::FallbackTextures;
+use crate::renderer::FallbackResources;
 use crate::{
     asset::untyped::ResourceKind,
     core::{
@@ -97,7 +97,7 @@ pub struct UiRenderContext<'a, 'b, 'c> {
     /// Drawing context of a user interface.
     pub drawing_context: &'c DrawingContext,
     /// Fallback textures.
-    pub fallback_textures: &'a FallbackTextures,
+    pub fallback_resources: &'a FallbackResources,
     /// GPU texture cache.
     pub texture_cache: &'a mut TextureCache,
     /// A reference to the cache of uniform buffers.
@@ -177,7 +177,7 @@ impl UiRenderer {
             frame_width,
             frame_height,
             drawing_context,
-            fallback_textures,
+            fallback_resources,
             texture_cache,
             uniform_buffer_cache,
             flat_shader,
@@ -194,7 +194,7 @@ impl UiRenderer {
         let resolution = Vector2::new(frame_width, frame_height);
 
         for cmd in drawing_context.get_commands() {
-            let mut diffuse_texture = &fallback_textures.white_dummy;
+            let mut diffuse_texture = &fallback_resources.white_dummy;
             let mut is_font_texture = false;
 
             let mut clip_bounds = cmd.clip_bounds;

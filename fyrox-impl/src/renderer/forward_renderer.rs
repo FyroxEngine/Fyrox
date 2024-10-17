@@ -20,7 +20,7 @@
 
 //! Forward renderer is used to render transparent meshes and meshes with custom blending options.
 
-use crate::renderer::FallbackTextures;
+use crate::renderer::FallbackResources;
 use crate::{
     core::{
         algebra::{Vector2, Vector4},
@@ -36,8 +36,8 @@ use crate::{
             uniform::{UniformBufferCache, UniformMemoryAllocator},
         },
         framework::{
-            buffer::Buffer, error::FrameworkError, framebuffer::FrameBuffer,
-            gpu_texture::GpuTexture, server::GraphicsServer,
+            error::FrameworkError, framebuffer::FrameBuffer, gpu_texture::GpuTexture,
+            server::GraphicsServer,
         },
         GeometryCache, LightData, QualitySettings, RenderPassStatistics,
     },
@@ -65,11 +65,10 @@ pub(crate) struct ForwardRenderContext<'a, 'b> {
     pub framebuffer: &'a mut dyn FrameBuffer,
     pub viewport: Rect<i32>,
     pub quality_settings: &'a QualitySettings,
-    pub fallback_textures: &'a FallbackTextures,
+    pub fallback_resources: &'a FallbackResources,
     pub scene_depth: Rc<RefCell<dyn GpuTexture>>,
     pub uniform_buffer_cache: &'a mut UniformBufferCache,
     pub ambient_light: Color,
-    pub bone_matrices_stub_uniform_buffer: &'a dyn Buffer,
     pub uniform_memory_allocator: &'a mut UniformMemoryAllocator,
 }
 
@@ -97,11 +96,10 @@ impl ForwardRenderer {
             framebuffer,
             viewport,
             quality_settings,
-            fallback_textures,
+            fallback_resources,
             scene_depth,
             uniform_buffer_cache,
             ambient_light,
-            bone_matrices_stub_uniform_buffer,
             uniform_memory_allocator,
         } = args;
 
@@ -173,7 +171,6 @@ impl ForwardRenderer {
                 frame_buffer: framebuffer,
                 viewport,
                 uniform_buffer_cache,
-                bone_matrices_stub_uniform_buffer,
                 uniform_memory_allocator,
                 view_projection_matrix: &view_projection,
                 camera_position: &camera.global_position(),
@@ -183,7 +180,7 @@ impl ForwardRenderer {
                 z_far: camera.projection().z_far(),
                 use_pom: quality_settings.use_parallax_mapping,
                 light_position: &Default::default(),
-                fallback_textures,
+                fallback_resources,
                 light_data: Some(&light_data),
                 ambient_light,
                 scene_depth: Some(&scene_depth),
