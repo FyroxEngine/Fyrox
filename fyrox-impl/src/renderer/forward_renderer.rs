@@ -20,12 +20,10 @@
 
 //! Forward renderer is used to render transparent meshes and meshes with custom blending options.
 
-use crate::renderer::FallbackResources;
 use crate::{
     core::{
-        algebra::{Vector2, Vector4},
         color::Color,
-        math::{frustum::Frustum, Matrix4Ext, Rect},
+        math::{Matrix4Ext, Rect},
         sstorage::ImmutableString,
     },
     renderer::{
@@ -39,14 +37,9 @@ use crate::{
             error::FrameworkError, framebuffer::FrameBuffer, gpu_texture::GpuTexture,
             server::GraphicsServer,
         },
-        GeometryCache, LightData, QualitySettings, RenderPassStatistics,
+        FallbackResources, GeometryCache, QualitySettings, RenderPassStatistics,
     },
-    scene::{
-        camera::Camera,
-        graph::Graph,
-        light::{directional::DirectionalLight, point::PointLight, spot::SpotLight},
-        mesh::RenderPath,
-    },
+    scene::{camera::Camera, mesh::RenderPath},
 };
 use std::{cell::RefCell, rc::Rc};
 
@@ -56,7 +49,6 @@ pub(crate) struct ForwardRenderer {
 
 pub(crate) struct ForwardRenderContext<'a, 'b> {
     pub state: &'a dyn GraphicsServer,
-    pub graph: &'b Graph,
     pub camera: &'b Camera,
     pub geom_cache: &'a mut GeometryCache,
     pub texture_cache: &'a mut TextureCache,
@@ -87,7 +79,6 @@ impl ForwardRenderer {
 
         let ForwardRenderContext {
             state,
-            graph,
             camera,
             geom_cache,
             texture_cache,
@@ -105,59 +96,10 @@ impl ForwardRenderer {
 
         let view_projection = camera.view_projection_matrix();
 
-        let frustum = Frustum::from_view_projection_matrix(camera.view_projection_matrix())
-            .unwrap_or_default();
-
         let inv_view = camera.inv_view_matrix().unwrap();
 
         let camera_up = inv_view.up();
         let camera_side = inv_view.side();
-
-        let mut light_data = LightData::default();
-        for light in graph.linear_iter() {
-            if !light.global_visibility() || light_data.count == light_data.parameters.len() {
-                continue;
-            }
-
-            let (radius, half_cone_angle_cos, half_hotspot_angle_cos, color) =
-                if let Some(point) = light.cast::<PointLight>() {
-                    (
-                        point.radius(),
-                        std::f32::consts::PI.cos(),
-                        std::f32::consts::PI.cos(),
-                        point.base_light_ref().color().as_frgb(),
-                    )
-                } else if let Some(spot) = light.cast::<SpotLight>() {
-                    (
-                        spot.distance(),
-                        (spot.hotspot_cone_angle() * 0.5).cos(),
-                        (spot.full_cone_angle() * 0.5).cos(),
-                        spot.base_light_ref().color().as_frgb(),
-                    )
-                } else if let Some(directional) = light.cast::<DirectionalLight>() {
-                    (
-                        f32::INFINITY,
-                        std::f32::consts::PI.cos(),
-                        std::f32::consts::PI.cos(),
-                        directional.base_light_ref().color().as_frgb(),
-                    )
-                } else {
-                    continue;
-                };
-
-            if frustum.is_intersects_aabb(&light.world_bounding_box()) {
-                let light_num = light_data.count;
-
-                light_data.position[light_num] = light.global_position();
-                light_data.direction[light_num] = light.up_vector();
-                light_data.color_radius[light_num] =
-                    Vector4::new(color.x, color.y, color.z, radius);
-                light_data.parameters[light_num] =
-                    Vector2::new(half_cone_angle_cos, half_hotspot_angle_cos);
-
-                light_data.count += 1;
-            }
-        }
 
         statistics += bundle_storage.render_to_frame_buffer(
             state,
@@ -181,7 +123,6 @@ impl ForwardRenderer {
                 use_pom: quality_settings.use_parallax_mapping,
                 light_position: &Default::default(),
                 fallback_resources,
-                light_data: Some(&light_data),
                 ambient_light,
                 scene_depth: Some(&scene_depth),
             },

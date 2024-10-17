@@ -1522,7 +1522,6 @@ impl Renderer {
             scene_associated_data.statistics +=
                 self.forward_renderer.render(ForwardRenderContext {
                     state: server,
-                    graph,
                     camera,
                     geom_cache: &mut self.geometry_cache,
                     texture_cache: &mut self.texture_cache,

@@ -292,8 +292,11 @@
 //!
 //! ### `fyrox_lightsBlock`
 //!
+//! Property group. Information about visible light sources
+//!
 //! | Name              | Type       | Description                                             |
 //! |------------------ |------------|---------------------------------------------------------|
+//! | lightCount        | `int`      | Total amount of light sources visible on screen.        |
 //! | lightsColorRadius | `vec4[16]` | Color (xyz) and radius (w) of light source              |
 //! | lightsParameters  | `vec2[16]` | Hot-spot cone angle cos (x) and half cone angle cos (y) |
 //! | lightsPosition    | `vec3[16]` | World-space light position.                             |
@@ -301,11 +304,16 @@
 //!
 //! ### `fyrox_graphicsSettings`
 //!
+//! Property group. Contains graphics options of the renderer.
+//!
 //! | Name   | Type       | Description                                       |
 //! |--------|------------|---------------------------------------------------|
 //! | usePom | `bool`     | Whether to use parallax occlusion mapping or not. |
 //!
 //! ### `fyrox_sceneDepth`
+//!
+//! Texture. Contains depth values of scene. Available **only** after opaque geometry is
+//! rendered (read - G-Buffer is filled). Typical usage is something like this:
 //!
 //! ```ron
 //! (
@@ -314,9 +322,6 @@
 //!     binding: 1
 //! ),
 //! ```
-//!
-//! Texture. Contains depth values of scene. Available **only** after opaque geometry is
-//! rendered (read - G-Buffer is filled).
 //!
 //! # Code generation
 //!
@@ -569,6 +574,10 @@ pub struct ShaderDefinition {
 }
 
 impl ShaderDefinition {
+    /// Maximum amount of simultaneous light sources that can be passed into a standard lights data
+    /// block.
+    pub const MAX_LIGHTS: usize = 16;
+
     fn from_buf(buf: Vec<u8>) -> Result<Self, ShaderError> {
         let mut definition: ShaderDefinition = ron::de::from_reader(Cursor::new(buf))?;
         definition.generate_built_in_resources();
@@ -616,7 +625,6 @@ impl ShaderDefinition {
                     properties.extend([ShaderProperty::new("usePOM", Bool(false))]);
                 }
                 "fyrox_lightsBlock" => {
-                    let max_len = 16;
                     properties.clear();
                     properties.extend([
                         ShaderProperty::new("lightCount", Int(0)),
@@ -624,28 +632,28 @@ impl ShaderDefinition {
                             "lightsColorRadius",
                             Vector4Array {
                                 value: Default::default(),
-                                max_len,
+                                max_len: Self::MAX_LIGHTS,
                             },
                         ),
                         ShaderProperty::new(
                             "lightsParameters",
                             Vector2Array {
                                 value: Default::default(),
-                                max_len,
+                                max_len: Self::MAX_LIGHTS,
                             },
                         ),
                         ShaderProperty::new(
                             "lightsPosition",
                             Vector3Array {
                                 value: Default::default(),
-                                max_len,
+                                max_len: Self::MAX_LIGHTS,
                             },
                         ),
                         ShaderProperty::new(
                             "lightsDirection",
                             Vector3Array {
                                 value: Default::default(),
-                                max_len,
+                                max_len: Self::MAX_LIGHTS,
                             },
                         ),
                     ])

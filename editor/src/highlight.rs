@@ -285,7 +285,6 @@ impl SceneRenderPass for HighlightRenderPass {
                     light_position: &Default::default(),
                     fallback_resources: ctx.fallback_resources,
                     uniform_buffer_cache: ctx.uniform_buffer_cache,
-                    light_data: None,
                     ambient_light: Default::default(),
                     scene_depth: Some(&ctx.depth_texture),
                     viewport: ctx.viewport,

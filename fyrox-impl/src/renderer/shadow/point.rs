@@ -288,7 +288,6 @@ impl PointShadowMapRenderer {
                     use_pom: false,
                     light_position: &light_pos,
                     fallback_resources,
-                    light_data: None,            // TODO
                     ambient_light: Color::WHITE, // TODO
                     scene_depth: None,
                     z_far,

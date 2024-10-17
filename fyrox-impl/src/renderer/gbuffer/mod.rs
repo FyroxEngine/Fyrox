@@ -360,7 +360,6 @@ impl GBuffer {
                 use_pom: quality_settings.use_parallax_mapping,
                 light_position: &Default::default(),
                 fallback_resources,
-                light_data: None,
                 ambient_light: Color::WHITE, // TODO
                 scene_depth: None,           // TODO. Add z-pre-pass.
                 z_far: camera.projection().z_far(),

@@ -308,7 +308,6 @@ impl CsmRenderer {
                     use_pom: false,
                     light_position: &Default::default(),
                     fallback_resources,
-                    light_data: None,            // TODO
                     ambient_light: Color::WHITE, // TODO
                     scene_depth: None,
                     z_far,
