@@ -219,7 +219,7 @@ impl NodeTrait for SpotLight {
     crate::impl_query_component!(base_light: BaseLight);
 
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
-        AxisAlignedBoundingBox::unit()
+        AxisAlignedBoundingBox::from_radius(self.distance())
     }
 
     fn world_bounding_box(&self) -> AxisAlignedBoundingBox {

@@ -835,6 +835,11 @@ impl RenderDataBundleStorage {
             light_sources: Default::default(),
         };
 
+        let frustum = Frustum::from_view_projection_matrix(
+            observer_info.projection_matrix * observer_info.view_matrix,
+        )
+        .unwrap_or_default();
+
         let mut lod_filter = vec![true; graph.capacity() as usize];
         for (node_handle, node) in graph.pair_iter() {
             if let Some(lod_group) = node.lod_group() {
@@ -856,7 +861,10 @@ impl RenderDataBundleStorage {
 
             if options.collect_lights {
                 if let Some(base_light) = node.component_ref::<BaseLight>() {
-                    if base_light.global_visibility() && base_light.is_globally_enabled() {
+                    if frustum.is_intersects_aabb(&node.world_bounding_box())
+                        && base_light.global_visibility()
+                        && base_light.is_globally_enabled()
+                    {
                         let kind = if let Some(spot_light) = node.cast::<SpotLight>() {
                             LightSourceKind::Spot {
                                 full_cone_angle: spot_light.full_cone_angle(),
@@ -899,11 +907,6 @@ impl RenderDataBundleStorage {
                 }
             }
         }
-
-        let frustum = Frustum::from_view_projection_matrix(
-            observer_info.projection_matrix * observer_info.view_matrix,
-        )
-        .unwrap_or_default();
 
         let mut ctx = RenderContext {
             observer_position: &observer_info.observer_position,

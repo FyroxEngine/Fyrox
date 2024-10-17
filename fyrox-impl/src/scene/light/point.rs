@@ -133,7 +133,7 @@ impl NodeTrait for PointLight {
     crate::impl_query_component!(base_light: BaseLight);
 
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
-        AxisAlignedBoundingBox::unit()
+        AxisAlignedBoundingBox::from_radius(*self.radius)
     }
 
     fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
