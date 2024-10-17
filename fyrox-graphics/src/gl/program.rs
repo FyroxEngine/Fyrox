@@ -171,6 +171,35 @@ impl GlProgram {
         let mut vertex_source = vertex_source.to_string();
         let mut fragment_source = fragment_source.to_string();
 
+        // Initial validation. The program will be validated once more by the compiler.
+        for resource in resources {
+            for other_resource in resources {
+                if std::ptr::eq(resource, other_resource) {
+                    continue;
+                }
+
+                if std::mem::discriminant(&resource.kind)
+                    == std::mem::discriminant(&other_resource.kind)
+                {
+                    if resource.binding == other_resource.binding {
+                        return Err(FrameworkError::Custom(format!(
+                            "Resource {} and {} using the same binding point {} \
+                            in the {program_name} GPU program.",
+                            resource.name, other_resource.name, resource.binding
+                        )));
+                    }
+
+                    if resource.name == other_resource.name {
+                        return Err(FrameworkError::Custom(format!(
+                            "There are two or more resources with same name {} \
+                                in the {program_name} GPU program.",
+                            resource.name
+                        )));
+                    }
+                }
+            }
+        }
+
         // Generate appropriate texture binding points and uniform blocks for the specified properties.
         for initial_source in [&mut vertex_source, &mut fragment_source] {
             let mut texture_bindings = String::new();
