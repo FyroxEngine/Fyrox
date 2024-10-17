@@ -2325,6 +2325,7 @@ impl Engine {
             // (maybe with clearing  `need_reload` flag, to perform new attempt only when something is changed)
             return Err(format!("Cannot reload unloaded plugin {plugin_index}!"));
         }
+        plugin.prepare_to_reload();
 
         let plugin_type_id = plugin.as_loaded_ref().type_id();
         let plugin_assembly_name = plugin.as_loaded_ref().assembly_name();

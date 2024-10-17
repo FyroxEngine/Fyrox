@@ -74,10 +74,15 @@ pub trait DynamicPlugin {
     fn as_loaded_mut(&mut self) -> &mut dyn Plugin;
 
     /// returns false if something bad happends during `reload`.
+    /// has no much use except prevention of error spamming
     fn is_loaded(&self) -> bool;
 
-    /// it should call `fill_and_register` function on the new fresh plugin instance as
-    /// soon as it's created, before making `is_loaded` return true.
+    /// called before saving state and detaching related objects
+    fn prepare_to_reload(&mut self) {}
+
+    /// called after plugin-related objects are detached
+    /// `fill_and_register` callback exposes plugin instance to engine to register constructors and restore the state
+    /// callback approach allows plugins to do some necessary actions right after plugin is registed
     fn reload(&mut self, fill_and_register: &mut dyn FnMut(&mut dyn Plugin) -> Result<(), String>) -> Result<(), String>;
 }
 
