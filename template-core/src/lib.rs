@@ -319,7 +319,7 @@ extern "C" {{
     fn stack(error: &Error) -> String;
 }}
 
-fn custom_panic_hook(info: &std::panic::PanicInfo) {{
+fn custom_panic_hook(info: &std::panic::PanicHookInfo) {{
     let mut msg = info.to_string();
     msg.push_str("\n\nStack:\n\n");
     let e = Error::new();
