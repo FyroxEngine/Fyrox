@@ -95,7 +95,7 @@ impl DyLibHandle {
 
 
 /// Implementation of DynamicPluginTrait that [re]loads Rust code from Rust dylib .
-pub struct DyLybDynamicPlugin {
+pub struct DyLibDynamicPlugin {
     /// Dynamic plugin state.
     state: PluginState,
     /// Target path of the library of the plugin.
@@ -113,7 +113,7 @@ pub struct DyLybDynamicPlugin {
     need_reload: Arc<AtomicBool>,
 }
 
-impl DyLybDynamicPlugin {
+impl DyLibDynamicPlugin {
 	
     /// Tries to create a new dynamic plugin. This method attempts to load a dynamic library by the
     /// given path and searches for `fyrox_plugin` function. This function is called to create a
@@ -188,7 +188,7 @@ impl DyLybDynamicPlugin {
                 source_lib_path
             ));
 
-            DyLybDynamicPlugin {
+            DyLibDynamicPlugin {
                 state: PluginState::Loaded(DyLibHandle::load(lib_path.as_os_str())?),
                 lib_path,
                 source_lib_path: source_lib_path.clone(),
@@ -196,7 +196,7 @@ impl DyLybDynamicPlugin {
                 need_reload,
             }
         } else {
-            DyLybDynamicPlugin {
+            DyLibDynamicPlugin {
                 state: PluginState::Loaded(DyLibHandle::load(
                     source_lib_path.as_os_str(),
                 )?),
@@ -210,7 +210,7 @@ impl DyLybDynamicPlugin {
     }
 }
 
-impl DynamicPlugin for DyLybDynamicPlugin {
+impl DynamicPlugin for DyLibDynamicPlugin {
     fn as_loaded_ref(&self) -> &dyn Plugin {
         &*self.state.as_loaded_ref().plugin
     }

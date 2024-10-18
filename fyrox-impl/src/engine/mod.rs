@@ -62,7 +62,7 @@ use crate::{
         Material,
     },
     plugin::{
-        dylib::DyLybDynamicPlugin, DynamicPlugin, Plugin, PluginContainer, PluginContext, PluginRegistrationContext
+        dylib::DyLibDynamicPlugin, DynamicPlugin, Plugin, PluginContainer, PluginContext, PluginRegistrationContext
     },
     renderer::{framework::error::FrameworkError, Renderer},
     resource::{
@@ -2278,7 +2278,7 @@ impl Engine {
     where
         P: AsRef<Path> + 'static,
     {
-        Ok(self.add_dynamic_plugin_custom(DyLybDynamicPlugin::new(path, reload_when_changed, use_relative_paths)?))
+        Ok(self.add_dynamic_plugin_custom(DyLibDynamicPlugin::new(path, reload_when_changed, use_relative_paths)?))
     }
 
     /// Adds a new abstract dynamic plugin
