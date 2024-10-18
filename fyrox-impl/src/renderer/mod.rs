@@ -99,7 +99,6 @@ use crate::{
         gbuffer::{GBuffer, GBufferRenderContext},
         hdr::HighDynamicRangeRenderer,
         light::{DeferredLightRenderer, DeferredRendererContext},
-        storage::MatrixStorageCache,
         ui_renderer::{UiRenderContext, UiRenderer},
         visibility::VisibilityCache,
     },
@@ -717,7 +716,6 @@ pub struct Renderer {
     fxaa_renderer: FxaaRenderer,
     texture_event_receiver: Receiver<ResourceEvent>,
     shader_event_receiver: Receiver<ResourceEvent>,
-    matrix_storage: MatrixStorageCache,
     // TextureId -> FrameBuffer mapping. This mapping is used for temporal frame buffers
     // like ones used to render UI instances.
     ui_frame_buffers: FxHashMap<u64, Box<dyn FrameBuffer>>,
@@ -1110,7 +1108,6 @@ impl Renderer {
             texture_event_receiver,
             shader_cache,
             scene_render_passes: Default::default(),
-            matrix_storage: MatrixStorageCache::new(&*server)?,
             uniform_buffer_cache: UniformBufferCache::new(server.clone()),
             server,
             visibility_cache: Default::default(),
@@ -1673,7 +1670,6 @@ impl Renderer {
             return Ok(());
         }
 
-        self.matrix_storage.begin_frame();
         self.uniform_buffer_cache.mark_all_unused();
         self.uniform_memory_allocator.clear();
 

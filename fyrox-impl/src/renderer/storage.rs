@@ -22,19 +22,15 @@
 
 use crate::{
     core::algebra::Matrix4,
-    renderer::{
-        bundle::PersistentIdentifier,
-        framework::{
-            error::FrameworkError,
-            gpu_texture::{
-                GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind,
-            },
-            server::GraphicsServer,
+    renderer::framework::{
+        error::FrameworkError,
+        gpu_texture::{
+            GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind,
         },
+        server::GraphicsServer,
     },
 };
-use fxhash::FxHashMap;
-use std::{cell::RefCell, collections::hash_map::Entry, rc::Rc};
+use std::{cell::RefCell, rc::Rc};
 
 /// Generic, texture-based, storage for matrices with somewhat unlimited capacity.
 ///
@@ -106,65 +102,5 @@ impl MatrixStorage {
         }
 
         Ok(())
-    }
-}
-
-/// A cache for matrix storages. It supplies the renderer with textures filled with matrices, usually
-/// it is used to give unique storage for every entity that has bone matrices. Every storage in the
-/// cache is re-used in the next frame.
-pub struct MatrixStorageCache {
-    empty: MatrixStorage,
-    active_set: FxHashMap<PersistentIdentifier, MatrixStorage>,
-    cache: Vec<MatrixStorage>,
-}
-
-impl MatrixStorageCache {
-    /// Creates new cache.
-    pub fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
-        Ok(Self {
-            empty: MatrixStorage::new(server)?,
-            active_set: Default::default(),
-            cache: Default::default(),
-        })
-    }
-
-    /// Clears active set of the cache and prepares the cache for the a new frame.
-    pub fn begin_frame(&mut self) {
-        for (_, storage) in self.active_set.drain() {
-            self.cache.push(storage);
-        }
-    }
-
-    /// Tries to upload the given set of matrices to a GPU matrix storage associated with some persistent
-    /// identifier. Main idea of this method is to give every entity with a persistent id its own matrix
-    /// storage which prevents implicit synchronization step in the video driver. Using a single texture
-    /// and changing its content dozens of time per frame could be bad for performance, because of implicit
-    /// synchronization.  
-    pub fn try_upload(
-        &mut self,
-        server: &dyn GraphicsServer,
-        id: PersistentIdentifier,
-        matrices: &[Matrix4<f32>],
-    ) -> Result<&MatrixStorage, FrameworkError> {
-        if matrices.is_empty() {
-            Ok(&self.empty)
-        } else {
-            // Otherwise, try to fetch a storage using persistent id and use it (or create new if there's
-            // no vacant storage in the cache).
-            match self.active_set.entry(id) {
-                Entry::Occupied(existing) => Ok(existing.into_mut()),
-                Entry::Vacant(entry) => {
-                    let mut storage = if let Some(cached) = self.cache.pop() {
-                        cached
-                    } else {
-                        MatrixStorage::new(server)?
-                    };
-
-                    storage.upload(matrices.iter().cloned())?;
-
-                    Ok(entry.insert(storage))
-                }
-            }
-        }
     }
 }

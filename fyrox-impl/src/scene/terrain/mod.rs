@@ -20,12 +20,6 @@
 
 //! Everything related to terrains. See [`Terrain`] docs for more info.
 
-use crate::material::MaterialResourceExtension;
-use crate::renderer::bundle::PersistentIdentifier;
-use crate::resource::texture::{
-    TextureDataRefMut, TextureMagnificationFilter, TextureMinificationFilter,
-};
-use crate::scene::node::RdcControlFlow;
 use crate::{
     asset::{Resource, ResourceDataRef},
     core::{
@@ -41,6 +35,7 @@ use crate::{
         visitor::{prelude::*, PodVecView},
         TypeUuidProvider,
     },
+    material::MaterialResourceExtension,
     material::{Material, MaterialProperty, MaterialResource},
     renderer::{
         self,
@@ -51,6 +46,8 @@ use crate::{
         Texture, TextureKind, TexturePixelKind, TextureResource, TextureResourceExtension,
         TextureWrapMode,
     },
+    resource::texture::{TextureDataRefMut, TextureMagnificationFilter, TextureMinificationFilter},
+    scene::node::RdcControlFlow,
     scene::{
         base::{Base, BaseBuilder},
         debug::SceneDrawingContext,
@@ -2693,11 +2690,6 @@ impl NodeTrait for Terrain {
                                 bone_matrices: Default::default(),
                                 blend_shapes_weights: Default::default(),
                                 element_range: ElementRange::Full,
-                                persistent_identifier: PersistentIdentifier::new_combined(
-                                    &self.geometry.data,
-                                    self.self_handle,
-                                    node.persistent_index,
-                                ),
                                 node_handle: self.self_handle,
                             },
                         );
@@ -2714,11 +2706,6 @@ impl NodeTrait for Terrain {
                                         bone_matrices: Default::default(),
                                         blend_shapes_weights: Default::default(),
                                         element_range: self.geometry.quadrants[i],
-                                        persistent_identifier: PersistentIdentifier::new_combined(
-                                            &self.geometry.data,
-                                            self.self_handle,
-                                            node.persistent_index,
-                                        ),
                                         node_handle: self.self_handle,
                                     },
                                 );

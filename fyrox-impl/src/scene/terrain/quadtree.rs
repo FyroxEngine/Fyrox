@@ -60,11 +60,6 @@ pub struct QuadTreeNode {
     pub min_height: f32,
     /// The maximum of all terrain height data within the area this node represents.
     pub max_height: f32,
-    /// A number that is unique to each node in the tree, increment as the tree is constructed
-    /// so that each constructed node gets a value one greater than the previous node.
-    /// It is used to create a [PersistentIdentifier](crate::renderer::bundle::PersistentIdentifier)
-    /// for each instance of the terrain geometry used to render the terrain.
-    pub persistent_index: usize,
 }
 
 impl Default for QuadTreeNode {
@@ -76,7 +71,6 @@ impl Default for QuadTreeNode {
             level: 0,
             min_height: 0.0,
             max_height: 0.0,
-            persistent_index: 0,
         }
     }
 }
@@ -99,10 +93,6 @@ pub struct SelectedNode {
     /// The active_quadrants determine which elements go in the
     /// [SurfaceInstanceData::element_range](crate::renderer::bundle::SurfaceInstanceData::element_range).
     pub active_quadrants: [bool; 4],
-    /// The [persistent_index](QuadTreeNode::persistent_index) of the selected [QuadTreeNode].
-    /// This is used to create a [PersistentIdentifier](crate::renderer::bundle::PersistentIdentifier) for
-    /// the geometry of this node.
-    pub persistent_index: usize,
 }
 
 impl SelectedNode {
@@ -121,7 +111,6 @@ impl QuadTreeNode {
     /// Each node should overlap with its neighbors along the edges by one pixel.
     /// * max_size: Any node below this size will be a leaf.
     /// * level: The level of detail of this node.
-    /// * index: The mutable pointer to the current persistent index.
     /// It will be recursively passed to each of the children and incremented by each child,
     /// then it's value will be copied into [QuadTreeNode::persistent_index] of this node
     /// and then incremented for the next node.
@@ -132,7 +121,6 @@ impl QuadTreeNode {
         node_size: Vector2<u32>,
         max_size: Vector2<u32>,
         level: u32,
-        index: &mut usize,
     ) -> Self {
         let mut min_height = f32::MAX;
         let mut max_height = f32::MIN;
@@ -192,7 +180,6 @@ impl QuadTreeNode {
                         new_size,
                         max_size,
                         next_level,
-                        index,
                     )),
                     Box::new(QuadTreeNode::new(
                         height_map,
@@ -201,7 +188,6 @@ impl QuadTreeNode {
                         Vector2::new(remain.x, new_size.y),
                         max_size,
                         next_level,
-                        index,
                     )),
                     Box::new(QuadTreeNode::new(
                         height_map,
@@ -210,7 +196,6 @@ impl QuadTreeNode {
                         remain,
                         max_size,
                         next_level,
-                        index,
                     )),
                     Box::new(QuadTreeNode::new(
                         height_map,
@@ -219,14 +204,10 @@ impl QuadTreeNode {
                         Vector2::new(new_size.x, remain.y),
                         max_size,
                         next_level,
-                        index,
                     )),
                 ],
             }
         };
-
-        let persistent_index = *index;
-        *index += 1;
 
         Self {
             position,
@@ -235,7 +216,6 @@ impl QuadTreeNode {
             level,
             min_height,
             max_height,
-            persistent_index,
         }
     }
 
@@ -380,7 +360,6 @@ impl QuadTreeNode {
                         position: self.position,
                         size: self.size,
                         active_quadrants,
-                        persistent_index: self.persistent_index,
                     });
                 }
                 QuadTreeNodeKind::Leaf => {
@@ -389,7 +368,6 @@ impl QuadTreeNode {
                         position: self.position,
                         size: self.size,
                         active_quadrants: [true; 4],
-                        persistent_index: self.persistent_index,
                     });
                 }
             }
@@ -400,7 +378,6 @@ impl QuadTreeNode {
                 position: self.position,
                 size: self.size,
                 active_quadrants: [true; 4],
-                persistent_index: self.persistent_index,
             });
         }
         // At this point we are guaranteed to have added something to the selection list.
@@ -433,7 +410,6 @@ impl QuadTree {
         block_size: Vector2<u32>,
         height_mod_count: u64,
     ) -> Self {
-        let mut index = 0;
         // The root node excludes the margins.
         let root = QuadTreeNode::new(
             height_map,
@@ -442,7 +418,6 @@ impl QuadTree {
             height_map_size.map(|x| x - 2),
             block_size,
             0,
-            &mut index,
         );
         let mut max_level = 0;
         root.max_level(&mut max_level);

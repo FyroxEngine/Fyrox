@@ -39,9 +39,7 @@ use crate::{
     material::MaterialResource,
     renderer::{
         self,
-        bundle::{
-            PersistentIdentifier, RenderContext, RenderDataBundleStorageTrait, SurfaceInstanceData,
-        },
+        bundle::{RenderContext, RenderDataBundleStorageTrait, SurfaceInstanceData},
         framework::ElementRange,
     },
     scene::{
@@ -624,7 +622,7 @@ impl NodeTrait for Mesh {
                 container.fill(self.self_handle, ctx);
             }
 
-            for (index, batch) in container.batches.values().enumerate() {
+            for batch in container.batches.values() {
                 ctx.storage.push(
                     &batch.data,
                     &batch.material,
@@ -635,11 +633,6 @@ impl NodeTrait for Mesh {
                         bone_matrices: Default::default(),
                         blend_shapes_weights: Default::default(),
                         element_range: ElementRange::Full,
-                        persistent_identifier: PersistentIdentifier::new_combined(
-                            &batch.data,
-                            self.self_handle,
-                            index,
-                        ),
                         node_handle: self.self_handle,
                     },
                 );
@@ -647,7 +640,7 @@ impl NodeTrait for Mesh {
 
             RdcControlFlow::Break
         } else {
-            for (index, surface) in self.surfaces().iter().enumerate() {
+            for surface in self.surfaces().iter() {
                 let is_skinned = !surface.bones.is_empty();
 
                 let world = if is_skinned {
@@ -716,11 +709,6 @@ impl NodeTrait for Mesh {
                                     .map(|bs| bs.weight / 100.0)
                                     .collect(),
                                 element_range: ElementRange::Full,
-                                persistent_identifier: PersistentIdentifier::new_combined(
-                                    surface.data_ref(),
-                                    self.self_handle,
-                                    index,
-                                ),
                                 node_handle: self.self_handle,
                             },
                         );
