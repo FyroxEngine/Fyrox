@@ -2538,6 +2538,11 @@ impl Engine {
         &self.plugins
     }
 
+    /// Returns a mutable reference to the plugins.
+    pub fn plugins_mut(&mut self) -> &mut [PluginContainer] {
+        &mut self.plugins
+    }
+
     /// Tries to reload all dynamic plugins registered in the engine, that needs to be reloaded.
     pub fn reload_dynamic_plugins<F>(
         &mut self,
