@@ -31,6 +31,8 @@ pub struct WindowsSettings {
     #[serde(default)]
     pub window_size: Vector2<f32>,
     #[serde(default)]
+    pub window_maximized: bool,
+    #[serde(default)]
     #[reflect(hidden)]
     pub layout: Option<DockingManagerLayoutDescriptor>,
 }
@@ -40,6 +42,7 @@ impl Default for WindowsSettings {
         Self {
             window_position: Vector2::new(0.0, 0.0),
             window_size: Vector2::new(1024.0, 768.0),
+            window_maximized: true,
             layout: None,
         }
     }
