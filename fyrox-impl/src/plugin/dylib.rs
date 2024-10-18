@@ -93,7 +93,7 @@ impl DyLibHandle {
     }
 }
 
-/// Implementation of DynamicPluginTrait that [re]loads Rust code from Rust dylib .
+/// Implementation of DynamicPluginTrait that (re)loads Rust code from Rust dylib .
 pub struct DyLibDynamicPlugin {
     /// Dynamic plugin state.
     state: PluginState,
