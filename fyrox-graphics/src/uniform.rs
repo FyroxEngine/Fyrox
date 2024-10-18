@@ -287,12 +287,26 @@ where
         slice: &[T],
         max_len: usize,
     ) -> &mut Self {
-        self.push_slice(&slice[0..max_len]);
-        let remainder = max_len.saturating_sub(slice.len());
+        let len = slice.len();
+        if !slice.is_empty() {
+            let end = max_len.min(len);
+            self.push_slice(&slice[0..end]);
+        }
+        let remainder = max_len.saturating_sub(len);
         let item = T::default();
         for _ in 0..remainder {
             self.push_array_element(&item);
         }
+        self
+    }
+
+    /// Same as [`Self::push_slice_with_max_size`], but allows changed calls with builder-like style.
+    pub fn with_slice_with_max_size<T: Std140 + Default>(
+        mut self,
+        slice: &[T],
+        max_len: usize,
+    ) -> Self {
+        self.push_slice_with_max_size(slice, max_len);
         self
     }
 
@@ -338,6 +352,7 @@ mod test {
         core::algebra::{Matrix3, Vector3, Vector4},
         uniform::DynamicUniformBuffer,
     };
+    use fyrox_core::transmute_slice;
 
     #[test]
     fn test_uniform_buffer() {
@@ -365,5 +380,27 @@ mod test {
         assert_eq!(buffer.len(), 12);
         buffer.push(&1.0);
         assert_eq!(buffer.len(), 16);
+    }
+
+    #[test]
+    fn test_push_with_max_len() {
+        let mut buffer = DynamicUniformBuffer::default();
+        buffer.push_slice_with_max_size(&[1.0, 2.0, 3.0, 4.0], 6);
+        let floats: &[f32] = transmute_slice(buffer.storage().as_slice());
+        assert_eq!(
+            floats,
+            &[
+                1.0, 0.0, 0.0, 0.0, // 1
+                2.0, 0.0, 0.0, 0.0, // 2
+                3.0, 0.0, 0.0, 0.0, // 3
+                4.0, 0.0, 0.0, 0.0, // 4
+                0.0, 0.0, 0.0, 0.0, // Zero with padding
+                0.0, 0.0, 0.0, 0.0, // Zero with padding
+            ]
+        );
+        buffer.clear();
+        buffer.push_slice_with_max_size(&[1.0, 2.0], 1);
+        let floats: &[f32] = transmute_slice(buffer.storage().as_slice());
+        assert_eq!(floats, &[1.0, 0.0, 0.0, 0.0,]);
     }
 }

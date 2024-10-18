@@ -402,26 +402,15 @@ impl RenderDataBundle {
         // Upload instance uniforms.
         let mut instance_blocks = Vec::with_capacity(self.instances.len());
         for instance in self.instances.iter() {
-            let mut blend_shapes_weights =
-                [Vector4::new(0.0, 0.0, 0.0, 0.0); ShaderDefinition::MAX_BLEND_SHAPE_WEIGHT_GROUPS];
-            // SAFETY: This is safe to copy PODs from one array to another with type erasure.
-            unsafe {
-                std::ptr::copy_nonoverlapping(
-                    instance.blend_shapes_weights.as_ptr(),
-                    blend_shapes_weights.as_mut_ptr() as *mut _,
-                    // Copy at max the amount of blend shape weights supported by the shader.
-                    instance
-                        .blend_shapes_weights
-                        .len()
-                        .min(blend_shapes_weights.len() * 4),
-                );
-            }
             let instance_buffer = StaticUniformBuffer::<1024>::new()
                 .with(&instance.world_transform)
                 .with(&(render_context.view_projection_matrix * instance.world_transform))
                 .with(&(instance.blend_shapes_weights.len() as i32))
                 .with(&(!instance.bone_matrices.is_empty()))
-                .with_slice(&blend_shapes_weights);
+                .with_slice_with_max_size(
+                    &instance.blend_shapes_weights,
+                    ShaderDefinition::MAX_BLEND_SHAPE_WEIGHT_GROUPS,
+                );
 
             let mut instance_uniform_data = InstanceUniformData {
                 instance_block: render_context
