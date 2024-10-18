@@ -56,7 +56,7 @@ use crate::{
             uniform::{ByteStorage, UniformBuffer},
             ElementRange,
         },
-        FallbackResources, LightData, RenderPassStatistics, MAX_BONE_MATRICES,
+        FallbackResources, LightData, RenderPassStatistics,
     },
     resource::texture::TextureResource,
     scene::{
@@ -426,7 +426,8 @@ impl RenderDataBundle {
         // Upload instance uniforms.
         let mut instance_blocks = Vec::with_capacity(self.instances.len());
         for instance in self.instances.iter() {
-            let mut blend_shapes_weights = [Vector4::new(0.0, 0.0, 0.0, 0.0); 32];
+            let mut blend_shapes_weights =
+                [Vector4::new(0.0, 0.0, 0.0, 0.0); ShaderDefinition::MAX_BLEND_SHAPE_WEIGHT_GROUPS];
             // SAFETY: This is safe to copy PODs from one array to another with type erasure.
             unsafe {
                 std::ptr::copy_nonoverlapping(
@@ -457,8 +458,8 @@ impl RenderDataBundle {
                 const INIT: Matrix4<f32> = Matrix4::new(
                     0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
                 );
-                let mut matrices = [INIT; MAX_BONE_MATRICES];
-                const SIZE: usize = MAX_BONE_MATRICES * size_of::<Matrix4<f32>>();
+                let mut matrices = [INIT; ShaderDefinition::MAX_BONE_MATRICES];
+                const SIZE: usize = ShaderDefinition::MAX_BONE_MATRICES * size_of::<Matrix4<f32>>();
                 matrices[0..instance.bone_matrices.len()].copy_from_slice(&instance.bone_matrices);
 
                 let bone_matrices_block = render_context

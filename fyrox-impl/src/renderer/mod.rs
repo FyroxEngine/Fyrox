@@ -51,6 +51,7 @@ mod skybox_shader;
 mod ssao;
 mod stats;
 
+use crate::material::shader::ShaderDefinition;
 use crate::{
     asset::{event::ResourceEvent, manager::ResourceManager},
     core::{
@@ -119,9 +120,6 @@ use winit::{
     event_loop::EventLoopWindowTarget,
     window::{Window, WindowBuilder},
 };
-
-/// Maximum amount of bone matrices per shader.
-pub const MAX_BONE_MATRICES: usize = 256;
 
 lazy_static! {
     static ref GBUFFER_PASS_NAME: ImmutableString = ImmutableString::new("GBuffer");
@@ -1073,11 +1071,11 @@ impl Renderer {
             )?,
             bone_matrices_stub_uniform_buffer: {
                 let buffer = server.create_buffer(
-                    MAX_BONE_MATRICES * size_of::<Matrix4<f32>>(),
+                    ShaderDefinition::MAX_BONE_MATRICES * size_of::<Matrix4<f32>>(),
                     BufferKind::Uniform,
                     BufferUsage::StaticDraw,
                 )?;
-                const SIZE: usize = MAX_BONE_MATRICES * size_of::<Matrix4<f32>>();
+                const SIZE: usize = ShaderDefinition::MAX_BONE_MATRICES * size_of::<Matrix4<f32>>();
                 let zeros = [0.0; SIZE];
                 buffer.write_data(array_as_u8_slice(&zeros))?;
                 buffer

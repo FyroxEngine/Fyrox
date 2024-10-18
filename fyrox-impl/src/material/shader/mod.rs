@@ -578,6 +578,12 @@ impl ShaderDefinition {
     /// block.
     pub const MAX_LIGHTS: usize = 16;
 
+    /// Maximum amount of bone matrices per shader.
+    pub const MAX_BONE_MATRICES: usize = 256;
+
+    /// Maximum amount of blend shape weight groups (packed weights of blend shapes into vec4).
+    pub const MAX_BLEND_SHAPE_WEIGHT_GROUPS: usize = 32;
+
     fn from_buf(buf: Vec<u8>) -> Result<Self, ShaderError> {
         let mut definition: ShaderDefinition = ron::de::from_reader(Cursor::new(buf))?;
         definition.generate_built_in_resources();
@@ -672,7 +678,7 @@ impl ShaderDefinition {
                             "blendShapesWeights",
                             Vector4Array {
                                 value: Default::default(),
-                                max_len: 32,
+                                max_len: Self::MAX_BLEND_SHAPE_WEIGHT_GROUPS,
                             },
                         ),
                     ]);
@@ -683,7 +689,7 @@ impl ShaderDefinition {
                         "matrices",
                         Matrix4Array {
                             value: Default::default(),
-                            max_len: 256,
+                            max_len: Self::MAX_BONE_MATRICES,
                         },
                     )])
                 }
