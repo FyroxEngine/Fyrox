@@ -563,6 +563,7 @@ impl Editor {
         );
 
         let mut window_attributes = WindowAttributes::default();
+        window_attributes.maximized = settings.windows.window_maximized;
         window_attributes.inner_size = Some(inner_size.into());
         window_attributes.position = Some(
             PhysicalPosition::new(
@@ -2780,13 +2781,9 @@ impl Editor {
                                 );
                             }
 
-                            let logical_size = size.to_logical(
-                                self.engine
-                                    .graphics_context
-                                    .as_initialized_ref()
-                                    .window
-                                    .scale_factor(),
-                            );
+                            let window = &self.engine.graphics_context.as_initialized_ref().window;
+
+                            let logical_size = size.to_logical(window.scale_factor());
                             self.engine.user_interfaces.first_mut().send_message(
                                 WidgetMessage::width(
                                     self.root_grid,
@@ -2806,6 +2803,8 @@ impl Editor {
                                 self.settings.windows.window_size.x = size.width as f32;
                                 self.settings.windows.window_size.y = size.height as f32;
                             }
+
+                            self.settings.windows.window_maximized = window.is_maximized();
                         }
                         WindowEvent::Focused(focused) => {
                             self.focused = *focused;
