@@ -27,10 +27,13 @@ pub mod dylib;
 use crate::{
     asset::manager::ResourceManager,
     core::{
-        pool::Handle, reflect::Reflect, visitor::{Visit, VisitError},
+        pool::Handle,
+        reflect::Reflect,
+        visitor::{Visit, VisitError},
     },
     engine::{
-        task::TaskPoolHandler, AsyncSceneLoader, GraphicsContext, PerformanceStatistics, ScriptProcessor, SerializationContext
+        task::TaskPoolHandler, AsyncSceneLoader, GraphicsContext, PerformanceStatistics,
+        ScriptProcessor, SerializationContext,
     },
     event::Event,
     gui::{
@@ -83,7 +86,10 @@ pub trait DynamicPlugin {
     /// called after plugin-related objects are detached
     /// `fill_and_register` callback exposes plugin instance to engine to register constructors and restore the state
     /// callback approach allows plugins to do some necessary actions right after plugin is registed
-    fn reload(&mut self, fill_and_register: &mut dyn FnMut(&mut dyn Plugin) -> Result<(), String>) -> Result<(), String>;
+    fn reload(
+        &mut self,
+        fill_and_register: &mut dyn FnMut(&mut dyn Plugin) -> Result<(), String>,
+    ) -> Result<(), String>;
 }
 
 impl Deref for PluginContainer {

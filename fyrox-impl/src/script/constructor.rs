@@ -84,11 +84,17 @@ impl ScriptConstructorContainer {
     }
 
     /// Adds custom type constructor.
-    pub fn add_custom(&self, type_uuid: Uuid, constructor: ScriptConstructor) -> Result<(), String> {
+    pub fn add_custom(
+        &self,
+        type_uuid: Uuid,
+        constructor: ScriptConstructor,
+    ) -> Result<(), String> {
         let mut map = self.map.lock();
         if let Some(old) = map.get(&type_uuid) {
-            return Err(format!("cannot add {} ({}) because its uuid is already used by {} ({})", 
-                constructor.name, constructor.assembly_name, old.name, old.assembly_name));
+            return Err(format!(
+                "cannot add {} ({}) because its uuid is already used by {} ({})",
+                constructor.name, constructor.assembly_name, old.name, old.assembly_name
+            ));
         }
         map.insert(type_uuid, constructor);
         Ok(())

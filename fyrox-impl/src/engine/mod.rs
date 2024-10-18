@@ -52,8 +52,10 @@ use crate::{
     event::Event,
     graph::{BaseSceneGraph, NodeMapping, SceneGraph},
     gui::{
-        constructor::WidgetConstructorContainer, font::{loader::FontLoader, Font, BUILT_IN_FONT}, loader::UserInterfaceLoader, UiContainer, UiUpdateSwitches,
-        UserInterface,
+        constructor::WidgetConstructorContainer,
+        font::{loader::FontLoader, Font, BUILT_IN_FONT},
+        loader::UserInterfaceLoader,
+        UiContainer, UiUpdateSwitches, UserInterface,
     },
     material::{
         self,
@@ -62,7 +64,8 @@ use crate::{
         Material,
     },
     plugin::{
-        dylib::DyLibDynamicPlugin, DynamicPlugin, Plugin, PluginContainer, PluginContext, PluginRegistrationContext
+        dylib::DyLibDynamicPlugin, DynamicPlugin, Plugin, PluginContainer, PluginContext,
+        PluginRegistrationContext,
     },
     renderer::{framework::error::FrameworkError, Renderer},
     resource::{
@@ -85,7 +88,9 @@ use crate::{
         Scene, SceneContainer, SceneLoader,
     },
     script::{
-        constructor::ScriptConstructorContainer, PluginsRefMut, RoutingStrategy, Script, ScriptContext, ScriptDeinitContext, ScriptMessage, ScriptMessageContext, ScriptMessageKind, ScriptMessageSender, UniversalScriptContext
+        constructor::ScriptConstructorContainer, PluginsRefMut, RoutingStrategy, Script,
+        ScriptContext, ScriptDeinitContext, ScriptMessage, ScriptMessageContext, ScriptMessageKind,
+        ScriptMessageSender, UniversalScriptContext,
     },
     window::{Window, WindowBuilder},
 };
@@ -2278,14 +2283,15 @@ impl Engine {
     where
         P: AsRef<Path> + 'static,
     {
-        Ok(self.add_dynamic_plugin_custom(DyLibDynamicPlugin::new(path, reload_when_changed, use_relative_paths)?))
+        Ok(self.add_dynamic_plugin_custom(DyLibDynamicPlugin::new(
+            path,
+            reload_when_changed,
+            use_relative_paths,
+        )?))
     }
 
     /// Adds a new abstract dynamic plugin
-    pub fn add_dynamic_plugin_custom<P>(
-        &mut self,
-        plugin: P,
-    ) -> &dyn Plugin
+    pub fn add_dynamic_plugin_custom<P>(&mut self, plugin: P) -> &dyn Plugin
     where
         P: DynamicPlugin + 'static,
     {
@@ -2296,8 +2302,7 @@ impl Engine {
         self.register_plugin(plugin_container.deref());
         self.plugins.push(plugin_container);
 
-        Log::info(format!(
-            "Plugin {display_name:?} was loaded successfully"));
+        Log::info(format!("Plugin {display_name:?} was loaded successfully"));
 
         &**self.plugins.last().unwrap()
     }
@@ -2312,8 +2317,7 @@ impl Engine {
         lag: &mut f32,
     ) -> Result<(), String> {
         let plugin_container = &mut self.plugins[plugin_index];
-        let PluginContainer::Dynamic(plugin) = plugin_container
-        else {
+        let PluginContainer::Dynamic(plugin) = plugin_container else {
             return Err(format!(
                 "Plugin {plugin_index} is static and cannot be reloaded!",
             ));
@@ -2321,7 +2325,7 @@ impl Engine {
 
         if !plugin.is_loaded() {
             // TODO: this means that something bad happened during plugin reloading.
-            // don't we want to recover from this situation by trying to load it again 
+            // don't we want to recover from this situation by trying to load it again
             // (maybe with clearing  `need_reload` flag, to perform new attempt only when something is changed)
             return Err(format!("Cannot reload unloaded plugin {plugin_index}!"));
         }
@@ -2555,8 +2559,7 @@ impl Engine {
         F: FnMut(&dyn Plugin),
     {
         for plugin_index in 0..self.plugins.len() {
-            if let PluginContainer::Dynamic(plugin) = &self.plugins[plugin_index]
-            {
+            if let PluginContainer::Dynamic(plugin) = &self.plugins[plugin_index] {
                 if plugin.is_reload_needed_now() {
                     self.reload_plugin(plugin_index, dt, window_target, lag)?;
 

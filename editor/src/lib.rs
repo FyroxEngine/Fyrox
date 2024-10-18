@@ -122,7 +122,7 @@ use crate::{
             shader::{ShaderResource, ShaderResourceExtension},
             Material, MaterialResource,
         },
-        plugin::{Plugin, PluginContainer, DynamicPlugin, dylib::DyLibDynamicPlugin},
+        plugin::{dylib::DyLibDynamicPlugin, DynamicPlugin, Plugin, PluginContainer},
         resource::texture::{
             CompressionOptions, TextureImportOptions, TextureKind, TextureMinificationFilter,
             TextureResource, TextureResourceExtension,
@@ -2642,19 +2642,18 @@ impl Editor {
     where
         P: AsRef<Path> + 'static,
     {
-        self.add_dynamic_plugin_custom(DyLibDynamicPlugin::new(path, reload_when_changed, use_relative_paths)?)
+        self.add_dynamic_plugin_custom(DyLibDynamicPlugin::new(
+            path,
+            reload_when_changed,
+            use_relative_paths,
+        )?)
     }
 
-    pub fn add_dynamic_plugin_custom<P>(
-        &mut self,
-        plugin: P,
-    ) -> Result<(), String>
+    pub fn add_dynamic_plugin_custom<P>(&mut self, plugin: P) -> Result<(), String>
     where
         P: DynamicPlugin + 'static,
     {
-        let plugin =
-            self.engine
-                .add_dynamic_plugin_custom(plugin);
+        let plugin = self.engine.add_dynamic_plugin_custom(plugin);
         *self.inspector.property_editors.context_type_id.lock() = plugin.type_id();
         self.inspector
             .property_editors
@@ -2956,8 +2955,7 @@ fn update(editor: &mut Editor, window_target: &EventLoopWindowTarget<()>) {
         for plugin_index in 0..editor.engine.plugins().len() {
             let plugin = &editor.engine.plugins()[plugin_index];
 
-            if let PluginContainer::Dynamic(plugin) = plugin
-            {
+            if let PluginContainer::Dynamic(plugin) = plugin {
                 let plugin_type_id = plugin.as_loaded_ref().type_id();
 
                 if plugin.is_reload_needed_now() {

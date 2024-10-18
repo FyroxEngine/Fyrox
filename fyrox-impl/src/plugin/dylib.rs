@@ -20,6 +20,7 @@
 
 //! Dynamic plugins with hot-reloading ability.
 
+use crate::core::notify::RecommendedWatcher;
 use crate::{
     core::{
         log::Log,
@@ -27,8 +28,8 @@ use crate::{
     },
     plugin::Plugin,
 };
-use crate::core::notify::RecommendedWatcher;
 use std::{
+    ffi::OsStr,
     fs::File,
     io::Read,
     path::{Path, PathBuf},
@@ -36,7 +37,6 @@ use std::{
         atomic::{self, AtomicBool},
         Arc,
     },
-    ffi::OsStr
 };
 
 use crate::plugin::DynamicPlugin;
@@ -93,7 +93,6 @@ impl DyLibHandle {
     }
 }
 
-
 /// Implementation of DynamicPluginTrait that [re]loads Rust code from Rust dylib .
 pub struct DyLibDynamicPlugin {
     /// Dynamic plugin state.
@@ -114,7 +113,6 @@ pub struct DyLibDynamicPlugin {
 }
 
 impl DyLibDynamicPlugin {
-	
     /// Tries to create a new dynamic plugin. This method attempts to load a dynamic library by the
     /// given path and searches for `fyrox_plugin` function. This function is called to create a
     /// plugin instance. This method will fail if there's no dynamic library at the given path or
@@ -197,9 +195,7 @@ impl DyLibDynamicPlugin {
             }
         } else {
             DyLibDynamicPlugin {
-                state: PluginState::Loaded(DyLibHandle::load(
-                    source_lib_path.as_os_str(),
-                )?),
+                state: PluginState::Loaded(DyLibHandle::load(source_lib_path.as_os_str())?),
                 lib_path: source_lib_path.clone(),
                 source_lib_path: source_lib_path.clone(),
                 _watcher: None,
@@ -231,7 +227,10 @@ impl DynamicPlugin for DyLibDynamicPlugin {
         matches!(self.state, PluginState::Loaded { .. })
     }
 
-    fn reload(&mut self, fill_and_register: &mut dyn FnMut(&mut dyn Plugin) -> Result<(), String>) -> Result<(), String> {
+    fn reload(
+        &mut self,
+        fill_and_register: &mut dyn FnMut(&mut dyn Plugin) -> Result<(), String>,
+    ) -> Result<(), String> {
         // Unload the plugin.
         let PluginState::Loaded(_) = &mut self.state else {
             return Err("cannot unload non-loaded plugin".to_string());
