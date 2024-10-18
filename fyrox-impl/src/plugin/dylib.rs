@@ -107,7 +107,7 @@ pub struct DyLibDynamicPlugin {
     /// Optional file system watcher, that is configured to watch the source library and re-load
     /// the plugin if the source library has changed. If the watcher is `None`, then hot reloading
     /// is disabled.
-    watcher: Option<RecommendedWatcher>,
+    _watcher: Option<RecommendedWatcher>,
     /// A flag, that tells the engine that the plugin needs to be reloaded. Usually the engine
     /// will do that at the end of the update tick.
     need_reload: Arc<AtomicBool>,
@@ -192,7 +192,7 @@ impl DyLibDynamicPlugin {
                 state: PluginState::Loaded(DyLibHandle::load(lib_path.as_os_str())?),
                 lib_path,
                 source_lib_path: source_lib_path.clone(),
-                watcher: Some(watcher),
+                _watcher: Some(watcher),
                 need_reload,
             }
         } else {
@@ -202,7 +202,7 @@ impl DyLibDynamicPlugin {
                 )?),
                 lib_path: source_lib_path.clone(),
                 source_lib_path: source_lib_path.clone(),
-                watcher: None,
+                _watcher: None,
                 need_reload: Default::default(),
             }
         };
