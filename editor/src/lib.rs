@@ -122,7 +122,7 @@ use crate::{
             shader::{ShaderResource, ShaderResourceExtension},
             Material, MaterialResource,
         },
-        plugin::{Plugin, PluginContainer},
+        plugin::{dylib::DyLibDynamicPlugin, DynamicPlugin, Plugin, PluginContainer},
         resource::texture::{
             CompressionOptions, TextureImportOptions, TextureKind, TextureMinificationFilter,
             TextureResource, TextureResourceExtension,
@@ -2640,9 +2640,18 @@ impl Editor {
     where
         P: AsRef<Path> + 'static,
     {
-        let plugin =
-            self.engine
-                .add_dynamic_plugin(path, reload_when_changed, use_relative_paths)?;
+        self.add_dynamic_plugin_custom(DyLibDynamicPlugin::new(
+            path,
+            reload_when_changed,
+            use_relative_paths,
+        )?)
+    }
+
+    pub fn add_dynamic_plugin_custom<P>(&mut self, plugin: P) -> Result<(), String>
+    where
+        P: DynamicPlugin + 'static,
+    {
+        let plugin = self.engine.add_dynamic_plugin_custom(plugin);
         *self.inspector.property_editors.context_type_id.lock() = plugin.type_id();
         self.inspector
             .property_editors
@@ -2942,13 +2951,10 @@ fn update(editor: &mut Editor, window_target: &EventLoopWindowTarget<()>) {
         for plugin_index in 0..editor.engine.plugins().len() {
             let plugin = &editor.engine.plugins()[plugin_index];
 
-            if let PluginContainer::Dynamic {
-                need_reload, state, ..
-            } = plugin
-            {
-                let plugin_type_id = state.as_loaded_ref().plugin().type_id();
+            if let PluginContainer::Dynamic(plugin) = plugin {
+                let plugin_type_id = plugin.as_loaded_ref().type_id();
 
-                if need_reload.load(Ordering::SeqCst) {
+                if plugin.is_reload_needed_now() {
                     // Clear command stacks for scenes. This is mandatory step, because command stack
                     // could contain objects from plugins and any attempt to use them after the plugin is
                     // unloaded will cause crash.
