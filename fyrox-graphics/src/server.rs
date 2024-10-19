@@ -18,13 +18,13 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::geometry_buffer::{GeometryBuffer, GeometryBufferDescriptor};
 use crate::{
     buffer::{Buffer, BufferKind, BufferUsage},
     error::FrameworkError,
     framebuffer::{Attachment, FrameBuffer},
+    geometry_buffer::{GeometryBuffer, GeometryBufferDescriptor},
     gpu_program::{GpuProgram, ShaderResourceDefinition},
-    gpu_texture::{GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind},
+    gpu_texture::{GpuTexture, GpuTextureDescriptor},
     query::Query,
     read_buffer::AsyncReadBuffer,
     stats::PipelineStatistics,
@@ -69,12 +69,7 @@ pub trait GraphicsServer: Any {
     ) -> Result<Box<dyn Buffer>, FrameworkError>;
     fn create_texture(
         &self,
-        kind: GpuTextureKind,
-        pixel_kind: PixelKind,
-        min_filter: MinificationFilter,
-        mag_filter: MagnificationFilter,
-        mip_count: usize,
-        data: Option<&[u8]>,
+        desc: GpuTextureDescriptor,
     ) -> Result<Rc<RefCell<dyn GpuTexture>>, FrameworkError>;
     fn create_frame_buffer(
         &self,

@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::gpu_texture::GpuTextureDescriptor;
 use crate::{
     buffer::{Buffer, BufferKind, BufferUsage},
     core::{color::Color, log::Log, math::Rect},
@@ -29,7 +30,7 @@ use crate::{
         query::GlQuery, read_buffer::GlAsyncReadBuffer, texture::GlTexture, ToGlConstant,
     },
     gpu_program::{GpuProgram, ShaderResourceDefinition},
-    gpu_texture::{GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind},
+    gpu_texture::GpuTexture,
     query::Query,
     read_buffer::AsyncReadBuffer,
     server::{GraphicsServer, ServerCapabilities, SharedGraphicsServer},
@@ -1004,16 +1005,9 @@ impl GraphicsServer for GlGraphicsServer {
 
     fn create_texture(
         &self,
-        kind: GpuTextureKind,
-        pixel_kind: PixelKind,
-        min_filter: MinificationFilter,
-        mag_filter: MagnificationFilter,
-        mip_count: usize,
-        data: Option<&[u8]>,
+        desc: GpuTextureDescriptor,
     ) -> Result<Rc<RefCell<dyn GpuTexture>>, FrameworkError> {
-        Ok(Rc::new(RefCell::new(GlTexture::new(
-            self, kind, pixel_kind, min_filter, mag_filter, mip_count, data,
-        )?)))
+        Ok(Rc::new(RefCell::new(GlTexture::new(self, desc)?)))
     }
 
     fn create_frame_buffer(

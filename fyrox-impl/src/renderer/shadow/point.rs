@@ -37,8 +37,8 @@ use crate::{
             error::FrameworkError,
             framebuffer::{Attachment, AttachmentKind, FrameBuffer},
             gpu_texture::{
-                Coordinate, CubeMapFace, GpuTexture, GpuTextureKind, MagnificationFilter,
-                MinificationFilter, PixelKind, WrapMode,
+                CubeMapFace, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
+                PixelKind, WrapMode,
             },
             server::GraphicsServer,
         },
@@ -47,6 +47,7 @@ use crate::{
     },
     scene::graph::Graph,
 };
+use fyrox_graphics::gpu_texture::GpuTextureDescriptor;
 use std::{cell::RefCell, rc::Rc};
 
 pub struct PointShadowMapRenderer {
@@ -87,55 +88,40 @@ impl PointShadowMapRenderer {
             size: usize,
             precision: ShadowMapPrecision,
         ) -> Result<Box<dyn FrameBuffer>, FrameworkError> {
-            let depth = {
-                let kind = GpuTextureKind::Rectangle {
+            let depth = server.create_texture(GpuTextureDescriptor {
+                kind: GpuTextureKind::Rectangle {
                     width: size,
                     height: size,
-                };
-                let texture = server.create_texture(
-                    kind,
-                    match precision {
-                        ShadowMapPrecision::Full => PixelKind::D32F,
-                        ShadowMapPrecision::Half => PixelKind::D16,
-                    },
-                    MinificationFilter::Nearest,
-                    MagnificationFilter::Nearest,
-                    1,
-                    None,
-                )?;
-                texture
-                    .borrow_mut()
-                    .set_wrap(Coordinate::S, WrapMode::ClampToEdge);
-                texture
-                    .borrow_mut()
-                    .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
-                texture
-            };
+                },
+                pixel_kind: match precision {
+                    ShadowMapPrecision::Full => PixelKind::D32F,
+                    ShadowMapPrecision::Half => PixelKind::D16,
+                },
+                min_filter: MinificationFilter::Nearest,
+                mag_filter: MagnificationFilter::Nearest,
+                mip_count: 1,
+                s_wrap_mode: WrapMode::ClampToEdge,
+                t_wrap_mode: WrapMode::ClampToEdge,
+                r_wrap_mode: WrapMode::ClampToEdge,
+                anisotropy: 1.0,
+                data: None,
+            })?;
 
-            let cube_map = {
-                let kind = GpuTextureKind::Cube {
+            let cube_map = server.create_texture(GpuTextureDescriptor {
+                kind: GpuTextureKind::Cube {
                     width: size,
                     height: size,
-                };
-                let texture = server.create_texture(
-                    kind,
-                    PixelKind::R16F,
-                    MinificationFilter::Nearest,
-                    MagnificationFilter::Nearest,
-                    1,
-                    None,
-                )?;
-                texture
-                    .borrow_mut()
-                    .set_wrap(Coordinate::S, WrapMode::ClampToEdge);
-                texture
-                    .borrow_mut()
-                    .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
-                texture
-                    .borrow_mut()
-                    .set_wrap(Coordinate::R, WrapMode::ClampToEdge);
-                texture
-            };
+                },
+                pixel_kind: PixelKind::R16F,
+                min_filter: MinificationFilter::Nearest,
+                mag_filter: MagnificationFilter::Nearest,
+                mip_count: 1,
+                s_wrap_mode: WrapMode::ClampToEdge,
+                t_wrap_mode: WrapMode::ClampToEdge,
+                r_wrap_mode: WrapMode::ClampToEdge,
+                anisotropy: 1.0,
+                data: None,
+            })?;
 
             server.create_frame_buffer(
                 Some(Attachment {

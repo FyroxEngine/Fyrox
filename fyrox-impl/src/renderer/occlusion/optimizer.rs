@@ -41,6 +41,7 @@ use crate::{
     },
 };
 use fyrox_graphics::framebuffer::BufferLocation;
+use fyrox_graphics::gpu_texture::GpuTextureDescriptor;
 use std::{cell::RefCell, rc::Rc};
 
 struct VisibilityOptimizerShader {
@@ -79,17 +80,21 @@ impl VisibilityBufferOptimizer {
         w_tiles: usize,
         h_tiles: usize,
     ) -> Result<Self, FrameworkError> {
-        let optimized_visibility_buffer = server.create_texture(
-            GpuTextureKind::Rectangle {
+        let optimized_visibility_buffer = server.create_texture(GpuTextureDescriptor {
+            kind: GpuTextureKind::Rectangle {
                 width: w_tiles,
                 height: h_tiles,
             },
-            PixelKind::R32UI,
-            MinificationFilter::Nearest,
-            MagnificationFilter::Nearest,
-            1,
-            None,
-        )?;
+            pixel_kind: PixelKind::R32UI,
+            min_filter: MinificationFilter::Nearest,
+            mag_filter: MagnificationFilter::Nearest,
+            mip_count: 1,
+            s_wrap_mode: Default::default(),
+            t_wrap_mode: Default::default(),
+            r_wrap_mode: Default::default(),
+            anisotropy: 1.0,
+            data: None,
+        })?;
 
         Ok(Self {
             framebuffer: server.create_frame_buffer(

@@ -30,6 +30,7 @@ use crate::{
     },
     resource::texture::{Texture, TextureResource},
 };
+use fyrox_graphics::gpu_texture::GpuTextureDescriptor;
 use std::{cell::RefCell, rc::Rc};
 
 pub(crate) struct TextureRenderData {
@@ -47,14 +48,18 @@ fn create_gpu_texture(
     texture: &Texture,
 ) -> Result<TextureRenderData, FrameworkError> {
     server
-        .create_texture(
-            texture.kind().into(),
-            PixelKind::from(texture.pixel_kind()),
-            texture.minification_filter().into(),
-            texture.magnification_filter().into(),
-            texture.mip_count() as usize,
-            Some(texture.data()),
-        )
+        .create_texture(GpuTextureDescriptor {
+            kind: texture.kind().into(),
+            pixel_kind: PixelKind::from(texture.pixel_kind()),
+            mag_filter: texture.magnification_filter().into(),
+            min_filter: texture.minification_filter().into(),
+            mip_count: texture.mip_count() as usize,
+            s_wrap_mode: texture.s_wrap_mode().into(),
+            t_wrap_mode: texture.t_wrap_mode().into(),
+            r_wrap_mode: texture.r_wrap_mode().into(),
+            anisotropy: texture.anisotropy_level(),
+            data: Some(texture.data()),
+        })
         .map(|gpu_texture| TextureRenderData {
             gpu_texture,
             modifications_counter: texture.modifications_count(),
@@ -136,12 +141,12 @@ impl TextureCache {
                     }
 
                     let new_s_wrap_mode = texture.s_wrap_mode().into();
-                    if gpu_texture.s_wrap_mode() != new_s_wrap_mode {
+                    if gpu_texture.wrap_mode(Coordinate::S) != new_s_wrap_mode {
                         gpu_texture.set_wrap(Coordinate::S, new_s_wrap_mode);
                     }
 
                     let new_t_wrap_mode = texture.t_wrap_mode().into();
-                    if gpu_texture.t_wrap_mode() != new_t_wrap_mode {
+                    if gpu_texture.wrap_mode(Coordinate::T) != new_t_wrap_mode {
                         gpu_texture.set_wrap(Coordinate::T, new_t_wrap_mode);
                     }
 

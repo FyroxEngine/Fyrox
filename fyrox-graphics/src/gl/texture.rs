@@ -18,20 +18,19 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::gl::server::GlGraphicsServer;
-use crate::gl::ToGlConstant;
-use crate::gpu_texture::CubeMapFace;
 use crate::{
     core::color::Color,
     error::FrameworkError,
+    gl::{server::GlGraphicsServer, ToGlConstant},
     gpu_texture::{
-        image_1d_size_bytes, image_2d_size_bytes, image_3d_size_bytes, Coordinate, GpuTexture,
-        GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind, WrapMode,
+        image_1d_size_bytes, image_2d_size_bytes, image_3d_size_bytes, Coordinate, CubeMapFace,
+        GpuTexture, GpuTextureDescriptor, GpuTextureKind, MagnificationFilter, MinificationFilter,
+        PixelKind, WrapMode,
     },
 };
 use glow::{HasContext, PixelPackData, COMPRESSED_RED_RGTC1, COMPRESSED_RG_RGTC2};
-use std::any::Any;
 use std::{
+    any::Any,
     marker::PhantomData,
     rc::{Rc, Weak},
 };
@@ -259,6 +258,50 @@ impl TempBinding {
             target,
         }
     }
+
+    fn set_minification_filter(&mut self, min_filter: MinificationFilter) {
+        unsafe {
+            self.server.gl.tex_parameter_i32(
+                self.target,
+                glow::TEXTURE_MIN_FILTER,
+                min_filter.into_gl() as i32,
+            );
+        }
+    }
+
+    fn set_magnification_filter(&mut self, mag_filter: MagnificationFilter) {
+        unsafe {
+            self.server.gl.tex_parameter_i32(
+                self.target,
+                glow::TEXTURE_MAG_FILTER,
+                mag_filter.into_gl() as i32,
+            );
+        }
+    }
+
+    fn set_anisotropy(&mut self, anisotropy: f32) {
+        unsafe {
+            let max = self
+                .server
+                .gl
+                .get_parameter_f32(glow::MAX_TEXTURE_MAX_ANISOTROPY_EXT);
+            self.server.gl.tex_parameter_f32(
+                self.target,
+                glow::TEXTURE_MAX_ANISOTROPY_EXT,
+                anisotropy.clamp(1.0, max),
+            );
+        }
+    }
+
+    fn set_wrap(&mut self, coordinate: Coordinate, wrap: WrapMode) {
+        unsafe {
+            self.server.gl.tex_parameter_i32(
+                self.target,
+                coordinate.into_gl(),
+                wrap.into_gl() as i32,
+            );
+        }
+    }
 }
 
 impl Drop for TempBinding {
@@ -285,52 +328,34 @@ impl GlTexture {
     /// smaller than previous.
     pub fn new(
         server: &GlGraphicsServer,
-        kind: GpuTextureKind,
-        pixel_kind: PixelKind,
-        min_filter: MinificationFilter,
-        mag_filter: MagnificationFilter,
-        mip_count: usize,
-        data: Option<&[u8]>,
+        desc: GpuTextureDescriptor,
     ) -> Result<Self, FrameworkError> {
-        let mip_count = mip_count.max(1);
-
-        let target = kind.gl_texture_target();
-
         unsafe {
             let texture = server.gl.create_texture()?;
 
             let mut result = Self {
                 state: server.weak(),
                 texture,
-                kind,
-                min_filter,
-                mag_filter,
-                s_wrap_mode: WrapMode::Repeat,
-                t_wrap_mode: WrapMode::Repeat,
-                r_wrap_mode: WrapMode::Repeat,
-                anisotropy: 1.0,
-                pixel_kind,
+                kind: desc.kind,
+                min_filter: desc.min_filter,
+                mag_filter: desc.mag_filter,
+                s_wrap_mode: desc.s_wrap_mode,
+                t_wrap_mode: desc.t_wrap_mode,
+                r_wrap_mode: desc.r_wrap_mode,
+                anisotropy: desc.anisotropy,
+                pixel_kind: desc.pixel_kind,
                 thread_mark: PhantomData,
             };
 
-            result.set_data(kind, pixel_kind, mip_count, data)?;
+            result.set_data(desc.kind, desc.pixel_kind, desc.mip_count, desc.data)?;
 
-            let binding = result.make_temp_binding();
-            binding.server.gl.tex_parameter_i32(
-                target,
-                glow::TEXTURE_MAG_FILTER,
-                mag_filter.into_gl() as i32,
-            );
-            binding.server.gl.tex_parameter_i32(
-                target,
-                glow::TEXTURE_MIN_FILTER,
-                min_filter.into_gl() as i32,
-            );
-            binding.server.gl.tex_parameter_i32(
-                target,
-                glow::TEXTURE_MAX_LEVEL,
-                mip_count as i32 - 1,
-            );
+            let mut binding = result.make_temp_binding();
+            binding.set_magnification_filter(desc.mag_filter);
+            binding.set_minification_filter(desc.min_filter);
+            binding.set_wrap(Coordinate::S, desc.s_wrap_mode);
+            binding.set_wrap(Coordinate::T, desc.t_wrap_mode);
+            binding.set_wrap(Coordinate::R, desc.r_wrap_mode);
+            binding.set_anisotropy(desc.anisotropy);
 
             Ok(result)
         }
@@ -374,70 +399,46 @@ impl GpuTexture for GlTexture {
     }
 
     fn set_anisotropy(&mut self, anisotropy: f32) {
-        let temp_binding = self.make_temp_binding();
-
-        unsafe {
-            let max = temp_binding
-                .server
-                .gl
-                .get_parameter_f32(glow::MAX_TEXTURE_MAX_ANISOTROPY_EXT);
-            temp_binding.server.gl.tex_parameter_f32(
-                glow::TEXTURE_2D,
-                glow::TEXTURE_MAX_ANISOTROPY_EXT,
-                anisotropy.clamp(0.0, max),
-            );
-
-            // Set it to requested value, instead of hardware-limited. This will allow
-            // us to check if anisotropy needs to be changed.
-            self.anisotropy = anisotropy;
-        }
+        self.make_temp_binding().set_anisotropy(anisotropy);
+        self.anisotropy = anisotropy;
     }
 
-    fn set_minification_filter(&mut self, min_filter: MinificationFilter) {
-        let temp_binding = self.make_temp_binding();
-
-        unsafe {
-            let target = self.kind.gl_texture_target();
-
-            temp_binding.server.gl.tex_parameter_i32(
-                target,
-                glow::TEXTURE_MIN_FILTER,
-                min_filter.into_gl() as i32,
-            );
-
-            self.min_filter = min_filter;
-        }
+    fn anisotropy(&self) -> f32 {
+        self.anisotropy
     }
 
-    fn set_magnification_filter(&mut self, mag_filter: MagnificationFilter) {
-        let temp_binding = self.make_temp_binding();
+    fn set_minification_filter(&mut self, filter: MinificationFilter) {
+        self.make_temp_binding().set_minification_filter(filter);
+        self.min_filter = filter;
+    }
 
-        unsafe {
-            temp_binding.server.gl.tex_parameter_i32(
-                self.kind.gl_texture_target(),
-                glow::TEXTURE_MAG_FILTER,
-                mag_filter.into_gl() as i32,
-            );
+    fn minification_filter(&self) -> MinificationFilter {
+        self.min_filter
+    }
 
-            self.mag_filter = mag_filter;
-        }
+    fn set_magnification_filter(&mut self, filter: MagnificationFilter) {
+        self.make_temp_binding().set_magnification_filter(filter);
+        self.mag_filter = filter;
+    }
+
+    fn magnification_filter(&self) -> MagnificationFilter {
+        self.mag_filter
     }
 
     fn set_wrap(&mut self, coordinate: Coordinate, wrap: WrapMode) {
-        let temp_binding = self.make_temp_binding();
+        self.make_temp_binding().set_wrap(coordinate, wrap);
+        match coordinate {
+            Coordinate::S => self.s_wrap_mode = wrap,
+            Coordinate::T => self.t_wrap_mode = wrap,
+            Coordinate::R => self.r_wrap_mode = wrap,
+        }
+    }
 
-        unsafe {
-            temp_binding.server.gl.tex_parameter_i32(
-                self.kind.gl_texture_target(),
-                coordinate.into_gl(),
-                wrap.into_gl() as i32,
-            );
-
-            match coordinate {
-                Coordinate::S => self.s_wrap_mode = wrap,
-                Coordinate::T => self.t_wrap_mode = wrap,
-                Coordinate::R => self.r_wrap_mode = wrap,
-            }
+    fn wrap_mode(&self, coordinate: Coordinate) -> WrapMode {
+        match coordinate {
+            Coordinate::S => self.s_wrap_mode,
+            Coordinate::T => self.t_wrap_mode,
+            Coordinate::R => self.r_wrap_mode,
         }
     }
 
@@ -810,26 +811,6 @@ impl GpuTexture for GlTexture {
 
     fn kind(&self) -> GpuTextureKind {
         self.kind
-    }
-
-    fn minification_filter(&self) -> MinificationFilter {
-        self.min_filter
-    }
-
-    fn magnification_filter(&self) -> MagnificationFilter {
-        self.mag_filter
-    }
-
-    fn s_wrap_mode(&self) -> WrapMode {
-        self.s_wrap_mode
-    }
-
-    fn t_wrap_mode(&self) -> WrapMode {
-        self.t_wrap_mode
-    }
-
-    fn anisotropy(&self) -> f32 {
-        self.anisotropy
     }
 
     fn pixel_kind(&self) -> PixelKind {

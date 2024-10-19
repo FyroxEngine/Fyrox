@@ -88,8 +88,8 @@ use crate::{
             },
             geometry_buffer::{DrawCallStatistics, GeometryBuffer},
             gpu_texture::{
-                Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
-                PixelKind, WrapMode,
+                GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind,
+                WrapMode,
             },
             server::GraphicsServer,
             uniform::StaticUniformBuffer,
@@ -106,6 +106,7 @@ use crate::{
     scene::{camera::Camera, mesh::surface::SurfaceData, Scene, SceneContainer},
 };
 use fxhash::FxHashMap;
+use fyrox_graphics::gpu_texture::GpuTextureDescriptor;
 use fyrox_graphics::{
     framebuffer::BufferLocation, gl::server::GlGraphicsServer, gpu_program::SamplerFallback,
     server::SharedGraphicsServer,
@@ -503,30 +504,32 @@ impl AssociatedSceneData {
         width: usize,
         height: usize,
     ) -> Result<Self, FrameworkError> {
-        let depth_stencil = server.create_texture(
-            GpuTextureKind::Rectangle { width, height },
-            PixelKind::D24S8,
-            MinificationFilter::Nearest,
-            MagnificationFilter::Nearest,
-            1,
-            None,
-        )?;
-        depth_stencil
-            .borrow_mut()
-            .set_wrap(Coordinate::S, WrapMode::ClampToEdge);
-        depth_stencil
-            .borrow_mut()
-            .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
+        let depth_stencil = server.create_texture(GpuTextureDescriptor {
+            kind: GpuTextureKind::Rectangle { width, height },
+            pixel_kind: PixelKind::D24S8,
+            min_filter: MinificationFilter::Nearest,
+            mag_filter: MagnificationFilter::Nearest,
+            mip_count: 1,
+            s_wrap_mode: WrapMode::ClampToEdge,
+            t_wrap_mode: WrapMode::ClampToEdge,
+            r_wrap_mode: WrapMode::ClampToEdge,
+            anisotropy: 1.0,
+            data: None,
+        })?;
 
-        let hdr_frame_texture = server.create_texture(
-            GpuTextureKind::Rectangle { width, height },
+        let hdr_frame_texture = server.create_texture(GpuTextureDescriptor {
+            kind: GpuTextureKind::Rectangle { width, height },
             // Intermediate scene frame will be rendered in HDR render target.
-            PixelKind::RGBA16F,
-            MinificationFilter::Nearest,
-            MagnificationFilter::Nearest,
-            1,
-            None,
-        )?;
+            pixel_kind: PixelKind::RGBA16F,
+            min_filter: MinificationFilter::Nearest,
+            mag_filter: MagnificationFilter::Nearest,
+            mip_count: 1,
+            s_wrap_mode: Default::default(),
+            t_wrap_mode: Default::default(),
+            r_wrap_mode: Default::default(),
+            anisotropy: 1.0,
+            data: None,
+        })?;
 
         let hdr_scene_framebuffer = server.create_frame_buffer(
             Some(Attachment {
@@ -539,15 +542,19 @@ impl AssociatedSceneData {
             }],
         )?;
 
-        let ldr_frame_texture = server.create_texture(
-            GpuTextureKind::Rectangle { width, height },
+        let ldr_frame_texture = server.create_texture(GpuTextureDescriptor {
+            kind: GpuTextureKind::Rectangle { width, height },
             // Final scene frame is in standard sRGB space.
-            PixelKind::RGBA8,
-            MinificationFilter::Linear,
-            MagnificationFilter::Linear,
-            1,
-            None,
-        )?;
+            pixel_kind: PixelKind::RGBA8,
+            min_filter: MinificationFilter::Linear,
+            mag_filter: MagnificationFilter::Linear,
+            mip_count: 1,
+            s_wrap_mode: Default::default(),
+            t_wrap_mode: Default::default(),
+            r_wrap_mode: Default::default(),
+            anisotropy: 1.0,
+            data: None,
+        })?;
 
         let ldr_scene_framebuffer = server.create_frame_buffer(
             Some(Attachment {
@@ -560,15 +567,19 @@ impl AssociatedSceneData {
             }],
         )?;
 
-        let ldr_temp_texture = server.create_texture(
-            GpuTextureKind::Rectangle { width, height },
+        let ldr_temp_texture = server.create_texture(GpuTextureDescriptor {
+            kind: GpuTextureKind::Rectangle { width, height },
             // Final scene frame is in standard sRGB space.
-            PixelKind::RGBA8,
-            MinificationFilter::Linear,
-            MagnificationFilter::Linear,
-            1,
-            None,
-        )?;
+            pixel_kind: PixelKind::RGBA8,
+            min_filter: MinificationFilter::Linear,
+            mag_filter: MagnificationFilter::Linear,
+            mip_count: 1,
+            s_wrap_mode: Default::default(),
+            t_wrap_mode: Default::default(),
+            r_wrap_mode: Default::default(),
+            anisotropy: 1.0,
+            data: None,
+        })?;
 
         let ldr_temp_framebuffer = server.create_frame_buffer(
             Some(Attachment {
@@ -731,29 +742,37 @@ fn make_ui_frame_buffer(
     server: &dyn GraphicsServer,
     pixel_kind: PixelKind,
 ) -> Result<Box<dyn FrameBuffer>, FrameworkError> {
-    let color_texture = server.create_texture(
-        GpuTextureKind::Rectangle {
+    let color_texture = server.create_texture(GpuTextureDescriptor {
+        kind: GpuTextureKind::Rectangle {
             width: frame_size.x as usize,
             height: frame_size.y as usize,
         },
         pixel_kind,
-        MinificationFilter::Linear,
-        MagnificationFilter::Linear,
-        1,
-        None,
-    )?;
+        min_filter: MinificationFilter::Linear,
+        mag_filter: MagnificationFilter::Linear,
+        mip_count: 1,
+        s_wrap_mode: Default::default(),
+        t_wrap_mode: Default::default(),
+        r_wrap_mode: Default::default(),
+        anisotropy: 1.0,
+        data: None,
+    })?;
 
-    let depth_stencil = server.create_texture(
-        GpuTextureKind::Rectangle {
+    let depth_stencil = server.create_texture(GpuTextureDescriptor {
+        kind: GpuTextureKind::Rectangle {
             width: frame_size.x as usize,
             height: frame_size.y as usize,
         },
-        PixelKind::D24S8,
-        MinificationFilter::Nearest,
-        MagnificationFilter::Nearest,
-        1,
-        None,
-    )?;
+        pixel_kind: PixelKind::D24S8,
+        min_filter: MinificationFilter::Nearest,
+        mag_filter: MagnificationFilter::Nearest,
+        mip_count: 1,
+        s_wrap_mode: Default::default(),
+        t_wrap_mode: Default::default(),
+        r_wrap_mode: Default::default(),
+        anisotropy: 1.0,
+        data: None,
+    })?;
 
     server.create_frame_buffer(
         Some(Attachment {
@@ -993,38 +1012,50 @@ impl Renderer {
         );
 
         let fallback_resources = FallbackResources {
-            white_dummy: server.create_texture(
-                GpuTextureKind::Rectangle {
+            white_dummy: server.create_texture(GpuTextureDescriptor {
+                kind: GpuTextureKind::Rectangle {
                     width: 1,
                     height: 1,
                 },
-                PixelKind::RGBA8,
-                MinificationFilter::Linear,
-                MagnificationFilter::Linear,
-                1,
-                Some(&[255u8, 255u8, 255u8, 255u8]),
-            )?,
-            black_dummy: server.create_texture(
-                GpuTextureKind::Rectangle {
+                pixel_kind: PixelKind::RGBA8,
+                min_filter: MinificationFilter::Linear,
+                mag_filter: MagnificationFilter::Linear,
+                mip_count: 1,
+                s_wrap_mode: Default::default(),
+                t_wrap_mode: Default::default(),
+                r_wrap_mode: Default::default(),
+                anisotropy: 1.0,
+                data: Some(&[255u8, 255u8, 255u8, 255u8]),
+            })?,
+            black_dummy: server.create_texture(GpuTextureDescriptor {
+                kind: GpuTextureKind::Rectangle {
                     width: 1,
                     height: 1,
                 },
-                PixelKind::RGBA8,
-                MinificationFilter::Linear,
-                MagnificationFilter::Linear,
-                1,
-                Some(&[0u8, 0u8, 0u8, 255u8]),
-            )?,
-            environment_dummy: server.create_texture(
-                GpuTextureKind::Cube {
+                pixel_kind: PixelKind::RGBA8,
+                min_filter: MinificationFilter::Linear,
+                mag_filter: MagnificationFilter::Linear,
+                mip_count: 1,
+                s_wrap_mode: Default::default(),
+                t_wrap_mode: Default::default(),
+                r_wrap_mode: Default::default(),
+                anisotropy: 1.0,
+                data: Some(&[0u8, 0u8, 0u8, 255u8]),
+            })?,
+            environment_dummy: server.create_texture(GpuTextureDescriptor {
+                kind: GpuTextureKind::Cube {
                     width: 1,
                     height: 1,
                 },
-                PixelKind::RGBA8,
-                MinificationFilter::Linear,
-                MagnificationFilter::Linear,
-                1,
-                Some(&[
+                pixel_kind: PixelKind::RGBA8,
+                min_filter: MinificationFilter::Linear,
+                mag_filter: MagnificationFilter::Linear,
+                mip_count: 1,
+                s_wrap_mode: Default::default(),
+                t_wrap_mode: Default::default(),
+                r_wrap_mode: Default::default(),
+                anisotropy: 1.0,
+                data: Some(&[
                     0u8, 0u8, 0u8, 255u8, // pos-x
                     0u8, 0u8, 0u8, 255u8, // neg-x
                     0u8, 0u8, 0u8, 255u8, // pos-y
@@ -1032,41 +1063,53 @@ impl Renderer {
                     0u8, 0u8, 0u8, 255u8, // pos-z
                     0u8, 0u8, 0u8, 255u8, // neg-z
                 ]),
-            )?,
-            normal_dummy: server.create_texture(
-                GpuTextureKind::Rectangle {
+            })?,
+            normal_dummy: server.create_texture(GpuTextureDescriptor {
+                kind: GpuTextureKind::Rectangle {
                     width: 1,
                     height: 1,
                 },
-                PixelKind::RGBA8,
-                MinificationFilter::Linear,
-                MagnificationFilter::Linear,
-                1,
-                Some(&[128u8, 128u8, 255u8, 255u8]),
-            )?,
-            metallic_dummy: server.create_texture(
-                GpuTextureKind::Rectangle {
+                pixel_kind: PixelKind::RGBA8,
+                min_filter: MinificationFilter::Linear,
+                mag_filter: MagnificationFilter::Linear,
+                mip_count: 1,
+                s_wrap_mode: Default::default(),
+                t_wrap_mode: Default::default(),
+                r_wrap_mode: Default::default(),
+                anisotropy: 1.0,
+                data: Some(&[128u8, 128u8, 255u8, 255u8]),
+            })?,
+            metallic_dummy: server.create_texture(GpuTextureDescriptor {
+                kind: GpuTextureKind::Rectangle {
                     width: 1,
                     height: 1,
                 },
-                PixelKind::RGBA8,
-                MinificationFilter::Linear,
-                MagnificationFilter::Linear,
-                1,
-                Some(&[0u8, 0u8, 0u8, 0u8]),
-            )?,
-            volume_dummy: server.create_texture(
-                GpuTextureKind::Volume {
+                pixel_kind: PixelKind::RGBA8,
+                min_filter: MinificationFilter::Linear,
+                mag_filter: MagnificationFilter::Linear,
+                mip_count: 1,
+                s_wrap_mode: Default::default(),
+                t_wrap_mode: Default::default(),
+                r_wrap_mode: Default::default(),
+                anisotropy: 1.0,
+                data: Some(&[0u8, 0u8, 0u8, 0u8]),
+            })?,
+            volume_dummy: server.create_texture(GpuTextureDescriptor {
+                kind: GpuTextureKind::Volume {
                     width: 1,
                     height: 1,
                     depth: 1,
                 },
-                PixelKind::RGBA8,
-                MinificationFilter::Linear,
-                MagnificationFilter::Linear,
-                1,
-                Some(&[0u8, 0u8, 0u8, 0u8]),
-            )?,
+                pixel_kind: PixelKind::RGBA8,
+                min_filter: MinificationFilter::Linear,
+                mag_filter: MagnificationFilter::Linear,
+                mip_count: 1,
+                s_wrap_mode: Default::default(),
+                t_wrap_mode: Default::default(),
+                r_wrap_mode: Default::default(),
+                anisotropy: 1.0,
+                data: Some(&[0u8, 0u8, 0u8, 0u8]),
+            })?,
             bone_matrices_stub_uniform_buffer: {
                 let buffer = server.create_buffer(
                     ShaderDefinition::MAX_BONE_MATRICES * size_of::<Matrix4<f32>>(),

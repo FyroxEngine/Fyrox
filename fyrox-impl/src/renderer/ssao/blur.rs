@@ -31,8 +31,8 @@ use crate::{
             geometry_buffer::{DrawCallStatistics, GeometryBuffer},
             gpu_program::{GpuProgram, UniformLocation},
             gpu_texture::{
-                Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
-                PixelKind, WrapMode,
+                GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind,
+                WrapMode,
             },
             server::GraphicsServer,
             uniform::StaticUniformBuffer,
@@ -43,6 +43,7 @@ use crate::{
     scene::mesh::surface::SurfaceData,
 };
 use fyrox_graphics::framebuffer::BufferLocation;
+use fyrox_graphics::gpu_texture::GpuTextureDescriptor;
 use std::{cell::RefCell, rc::Rc};
 
 struct Shader {
@@ -80,24 +81,18 @@ impl Blur {
         width: usize,
         height: usize,
     ) -> Result<Self, FrameworkError> {
-        let frame = {
-            let kind = GpuTextureKind::Rectangle { width, height };
-            let texture = server.create_texture(
-                kind,
-                PixelKind::R32F,
-                MinificationFilter::Nearest,
-                MagnificationFilter::Nearest,
-                1,
-                None,
-            )?;
-            texture
-                .borrow_mut()
-                .set_wrap(Coordinate::S, WrapMode::ClampToEdge);
-            texture
-                .borrow_mut()
-                .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
-            texture
-        };
+        let frame = server.create_texture(GpuTextureDescriptor {
+            kind: GpuTextureKind::Rectangle { width, height },
+            pixel_kind: PixelKind::R32F,
+            min_filter: MinificationFilter::Nearest,
+            mag_filter: MagnificationFilter::Nearest,
+            mip_count: 1,
+            s_wrap_mode: WrapMode::ClampToEdge,
+            t_wrap_mode: WrapMode::ClampToEdge,
+            r_wrap_mode: WrapMode::ClampToEdge,
+            anisotropy: 1.0,
+            data: None,
+        })?;
 
         Ok(Self {
             shader: Shader::new(server)?,

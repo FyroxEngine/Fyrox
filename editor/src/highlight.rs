@@ -40,8 +40,7 @@ use crate::{
                 geometry_buffer::GeometryBuffer,
                 gpu_program::{GpuProgram, UniformLocation},
                 gpu_texture::{
-                    Coordinate, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind,
-                    WrapMode,
+                    GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind, WrapMode,
                 },
                 server::GraphicsServer,
                 uniform::StaticUniformBuffer,
@@ -55,6 +54,7 @@ use crate::{
     Editor,
 };
 use fyrox::renderer::framework::framebuffer::BufferLocation;
+use fyrox::renderer::framework::gpu_texture::GpuTextureDescriptor;
 use std::{any::TypeId, cell::RefCell, rc::Rc};
 
 struct EdgeDetectShader {
@@ -143,38 +143,34 @@ impl HighlightRenderPass {
         height: usize,
     ) -> Box<dyn FrameBuffer> {
         let depth_stencil = server
-            .create_texture(
-                GpuTextureKind::Rectangle { width, height },
-                PixelKind::D24S8,
-                MinificationFilter::Nearest,
-                MagnificationFilter::Nearest,
-                1,
-                None,
-            )
+            .create_texture(GpuTextureDescriptor {
+                kind: GpuTextureKind::Rectangle { width, height },
+                pixel_kind: PixelKind::D24S8,
+                min_filter: MinificationFilter::Nearest,
+                mag_filter: MagnificationFilter::Nearest,
+                mip_count: 1,
+                s_wrap_mode: WrapMode::ClampToEdge,
+                t_wrap_mode: WrapMode::ClampToEdge,
+                r_wrap_mode: WrapMode::ClampToEdge,
+                anisotropy: 1.0,
+                data: None,
+            })
             .unwrap();
-        depth_stencil
-            .borrow_mut()
-            .set_wrap(Coordinate::S, WrapMode::ClampToEdge);
-        depth_stencil
-            .borrow_mut()
-            .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
 
         let frame_texture = server
-            .create_texture(
-                GpuTextureKind::Rectangle { width, height },
-                PixelKind::RGBA8,
-                MinificationFilter::Linear,
-                MagnificationFilter::Linear,
-                1,
-                None,
-            )
+            .create_texture(GpuTextureDescriptor {
+                kind: GpuTextureKind::Rectangle { width, height },
+                pixel_kind: PixelKind::RGBA8,
+                min_filter: MinificationFilter::Linear,
+                mag_filter: MagnificationFilter::Linear,
+                mip_count: 1,
+                s_wrap_mode: WrapMode::ClampToEdge,
+                t_wrap_mode: WrapMode::ClampToEdge,
+                r_wrap_mode: WrapMode::ClampToEdge,
+                anisotropy: 1.0,
+                data: None,
+            })
             .unwrap();
-        frame_texture
-            .borrow_mut()
-            .set_wrap(Coordinate::S, WrapMode::ClampToEdge);
-        frame_texture
-            .borrow_mut()
-            .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
 
         server
             .create_frame_buffer(

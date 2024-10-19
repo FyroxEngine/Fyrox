@@ -29,7 +29,6 @@
 //! Every alpha channel is used for layer blending for terrains. This is inefficient, but for
 //! now I don't know better solution.
 
-use crate::renderer::FallbackResources;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2},
@@ -48,12 +47,13 @@ use crate::{
             buffer::BufferUsage,
             error::FrameworkError,
             framebuffer::{
-                Attachment, AttachmentKind, FrameBuffer, ResourceBindGroup, ResourceBinding,
+                Attachment, AttachmentKind, BufferLocation, FrameBuffer, ResourceBindGroup,
+                ResourceBinding,
             },
             geometry_buffer::GeometryBuffer,
             gpu_texture::{
-                Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
-                PixelKind, WrapMode,
+                GpuTexture, GpuTextureDescriptor, GpuTextureKind, MagnificationFilter,
+                MinificationFilter, PixelKind, WrapMode,
             },
             server::GraphicsServer,
             uniform::StaticUniformBuffer,
@@ -62,7 +62,7 @@ use crate::{
         },
         gbuffer::decal::DecalShader,
         occlusion::OcclusionTester,
-        GeometryCache, QualitySettings, RenderPassStatistics, TextureCache,
+        FallbackResources, GeometryCache, QualitySettings, RenderPassStatistics, TextureCache,
     },
     scene::{
         camera::Camera,
@@ -72,7 +72,6 @@ use crate::{
     },
 };
 use fxhash::FxHashSet;
-use fyrox_graphics::framebuffer::BufferLocation;
 use std::{cell::RefCell, rc::Rc};
 
 mod decal;
@@ -111,100 +110,32 @@ impl GBuffer {
         width: usize,
         height: usize,
     ) -> Result<Self, FrameworkError> {
-        let depth_stencil = server.create_texture(
-            GpuTextureKind::Rectangle { width, height },
-            PixelKind::D24S8,
-            MinificationFilter::Nearest,
-            MagnificationFilter::Nearest,
-            1,
-            None,
-        )?;
-        depth_stencil
-            .borrow_mut()
-            .set_wrap(Coordinate::S, WrapMode::ClampToEdge);
-        depth_stencil
-            .borrow_mut()
-            .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
+        fn create_rt(
+            server: &dyn GraphicsServer,
+            pixel_kind: PixelKind,
+            width: usize,
+            height: usize,
+        ) -> Result<Rc<RefCell<dyn GpuTexture>>, FrameworkError> {
+            server.create_texture(GpuTextureDescriptor {
+                kind: GpuTextureKind::Rectangle { width, height },
+                pixel_kind,
+                min_filter: MinificationFilter::Nearest,
+                mag_filter: MagnificationFilter::Nearest,
+                mip_count: 1,
+                s_wrap_mode: WrapMode::ClampToEdge,
+                t_wrap_mode: WrapMode::ClampToEdge,
+                r_wrap_mode: WrapMode::ClampToEdge,
+                anisotropy: 1.0,
+                data: None,
+            })
+        }
 
-        let diffuse_texture = server.create_texture(
-            GpuTextureKind::Rectangle { width, height },
-            PixelKind::RGBA8,
-            MinificationFilter::Nearest,
-            MagnificationFilter::Nearest,
-            1,
-            None,
-        )?;
-        diffuse_texture
-            .borrow_mut()
-            .set_wrap(Coordinate::S, WrapMode::ClampToEdge);
-        diffuse_texture
-            .borrow_mut()
-            .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
-
-        let normal_texture = server.create_texture(
-            GpuTextureKind::Rectangle { width, height },
-            PixelKind::RGBA8,
-            MinificationFilter::Nearest,
-            MagnificationFilter::Nearest,
-            1,
-            None,
-        )?;
-        normal_texture
-            .borrow_mut()
-            .set_wrap(Coordinate::S, WrapMode::ClampToEdge);
-        normal_texture
-            .borrow_mut()
-            .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
-
-        let ambient_texture = server.create_texture(
-            GpuTextureKind::Rectangle { width, height },
-            PixelKind::RGBA16F,
-            MinificationFilter::Nearest,
-            MagnificationFilter::Nearest,
-            1,
-            None,
-        )?;
-        ambient_texture
-            .borrow_mut()
-            .set_wrap(Coordinate::S, WrapMode::ClampToEdge);
-        ambient_texture
-            .borrow_mut()
-            .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
-
-        let decal_mask_texture = server.create_texture(
-            GpuTextureKind::Rectangle { width, height },
-            PixelKind::R8UI,
-            MinificationFilter::Nearest,
-            MagnificationFilter::Nearest,
-            1,
-            None,
-        )?;
-        decal_mask_texture
-            .borrow_mut()
-            .set_wrap(Coordinate::S, WrapMode::ClampToEdge);
-        decal_mask_texture
-            .borrow_mut()
-            .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
-
-        let material_texture = server.create_texture(
-            GpuTextureKind::Rectangle { width, height },
-            PixelKind::RGBA8,
-            MinificationFilter::Nearest,
-            MagnificationFilter::Nearest,
-            1,
-            None,
-        )?;
-        material_texture
-            .borrow_mut()
-            .set_wrap(Coordinate::S, WrapMode::ClampToEdge);
-        material_texture
-            .borrow_mut()
-            .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
-
+        let diffuse_texture = create_rt(server, PixelKind::RGBA8, width, height)?;
+        let normal_texture = create_rt(server, PixelKind::RGBA8, width, height)?;
         let framebuffer = server.create_frame_buffer(
             Some(Attachment {
                 kind: AttachmentKind::DepthStencil,
-                texture: depth_stencil,
+                texture: create_rt(server, PixelKind::D24S8, width, height)?,
             }),
             vec![
                 Attachment {
@@ -217,15 +148,15 @@ impl GBuffer {
                 },
                 Attachment {
                     kind: AttachmentKind::Color,
-                    texture: ambient_texture,
+                    texture: create_rt(server, PixelKind::RGBA16F, width, height)?,
                 },
                 Attachment {
                     kind: AttachmentKind::Color,
-                    texture: material_texture,
+                    texture: create_rt(server, PixelKind::RGBA8, width, height)?,
                 },
                 Attachment {
                     kind: AttachmentKind::Color,
-                    texture: decal_mask_texture,
+                    texture: create_rt(server, PixelKind::R8UI, width, height)?,
                 },
             ],
         )?;

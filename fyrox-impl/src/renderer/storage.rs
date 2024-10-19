@@ -25,7 +25,8 @@ use crate::{
     renderer::framework::{
         error::FrameworkError,
         gpu_texture::{
-            GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind,
+            GpuTexture, GpuTextureDescriptor, GpuTextureKind, MagnificationFilter,
+            MinificationFilter, PixelKind, WrapMode,
         },
         server::GraphicsServer,
     },
@@ -48,17 +49,21 @@ impl MatrixStorage {
     pub fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
         let identity = [Matrix4::<f32>::identity()];
         Ok(Self {
-            texture: server.create_texture(
-                GpuTextureKind::Rectangle {
+            texture: server.create_texture(GpuTextureDescriptor {
+                kind: GpuTextureKind::Rectangle {
                     width: 4,
                     height: 1,
                 },
-                PixelKind::RGBA32F,
-                MinificationFilter::Nearest,
-                MagnificationFilter::Nearest,
-                1,
-                Some(crate::core::array_as_u8_slice(&identity)),
-            )?,
+                pixel_kind: PixelKind::RGBA32F,
+                min_filter: MinificationFilter::Nearest,
+                mag_filter: MagnificationFilter::Nearest,
+                mip_count: 1,
+                s_wrap_mode: WrapMode::ClampToEdge,
+                t_wrap_mode: WrapMode::ClampToEdge,
+                r_wrap_mode: WrapMode::ClampToEdge,
+                anisotropy: 1.0,
+                data: Some(crate::core::array_as_u8_slice(&identity)),
+            })?,
             matrices: Default::default(),
         })
     }

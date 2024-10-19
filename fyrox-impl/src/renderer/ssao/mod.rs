@@ -37,8 +37,8 @@ use crate::{
             geometry_buffer::GeometryBuffer,
             gpu_program::{GpuProgram, UniformLocation},
             gpu_texture::{
-                Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
-                PixelKind, WrapMode,
+                GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind,
+                WrapMode,
             },
             server::GraphicsServer,
             uniform::StaticUniformBuffer,
@@ -51,6 +51,7 @@ use crate::{
     scene::mesh::surface::SurfaceData,
 };
 use fyrox_graphics::framebuffer::BufferLocation;
+use fyrox_graphics::gpu_texture::GpuTextureDescriptor;
 use std::{cell::RefCell, rc::Rc};
 
 mod blur;
@@ -107,14 +108,18 @@ impl ScreenSpaceAmbientOcclusionRenderer {
         let width = (frame_width / 2).max(1);
         let height = (frame_height / 2).max(1);
 
-        let occlusion = server.create_texture(
-            GpuTextureKind::Rectangle { width, height },
-            PixelKind::R32F,
-            MinificationFilter::Nearest,
-            MagnificationFilter::Nearest,
-            1,
-            None,
-        )?;
+        let occlusion = server.create_texture(GpuTextureDescriptor {
+            kind: GpuTextureKind::Rectangle { width, height },
+            pixel_kind: PixelKind::R32F,
+            min_filter: MinificationFilter::Nearest,
+            mag_filter: MagnificationFilter::Nearest,
+            mip_count: 1,
+            s_wrap_mode: Default::default(),
+            t_wrap_mode: Default::default(),
+            r_wrap_mode: Default::default(),
+            anisotropy: 1.0,
+            data: None,
+        })?;
 
         let mut rng = crate::rand::thread_rng();
 
@@ -161,25 +166,21 @@ impl ScreenSpaceAmbientOcclusionRenderer {
                     pixel[1] = rng.gen_range(0u8..255u8); // G
                     pixel[2] = 0u8; // B
                 }
-                let kind = GpuTextureKind::Rectangle {
-                    width: NOISE_SIZE,
-                    height: NOISE_SIZE,
-                };
-                let texture = server.create_texture(
-                    kind,
-                    PixelKind::RGB8,
-                    MinificationFilter::Nearest,
-                    MagnificationFilter::Nearest,
-                    1,
-                    Some(&pixels),
-                )?;
-                texture
-                    .borrow_mut()
-                    .set_wrap(Coordinate::S, WrapMode::Repeat);
-                texture
-                    .borrow_mut()
-                    .set_wrap(Coordinate::T, WrapMode::Repeat);
-                texture
+                server.create_texture(GpuTextureDescriptor {
+                    kind: GpuTextureKind::Rectangle {
+                        width: NOISE_SIZE,
+                        height: NOISE_SIZE,
+                    },
+                    pixel_kind: PixelKind::RGB8,
+                    min_filter: MinificationFilter::Nearest,
+                    mag_filter: MagnificationFilter::Nearest,
+                    mip_count: 1,
+                    s_wrap_mode: WrapMode::Repeat,
+                    t_wrap_mode: WrapMode::Repeat,
+                    r_wrap_mode: WrapMode::Repeat,
+                    anisotropy: 1.0,
+                    data: Some(&pixels),
+                })?
             },
             radius: 0.5,
         })

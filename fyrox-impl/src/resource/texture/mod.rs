@@ -275,6 +275,7 @@ pub struct Texture {
     magnification_filter: TextureMagnificationFilter,
     s_wrap_mode: TextureWrapMode,
     t_wrap_mode: TextureWrapMode,
+    r_wrap_mode: TextureWrapMode,
     mip_count: u32,
     anisotropy: f32,
     modifications_counter: u64,
@@ -366,6 +367,7 @@ impl Visit for Texture {
         self.anisotropy.visit("Anisotropy", &mut region)?;
         self.s_wrap_mode.visit("SWrapMode", &mut region)?;
         self.t_wrap_mode.visit("TWrapMode", &mut region)?;
+        let _ = self.t_wrap_mode.visit("RWrapMode", &mut region);
         self.mip_count.visit("MipCount", &mut region)?;
         self.kind.visit("Kind", &mut region)?;
         let mut bytes_view = PodVecView::from_pod_vec(&mut self.bytes);
@@ -391,6 +393,7 @@ impl Default for Texture {
             magnification_filter: TextureMagnificationFilter::Linear,
             s_wrap_mode: TextureWrapMode::Repeat,
             t_wrap_mode: TextureWrapMode::Repeat,
+            r_wrap_mode: TextureWrapMode::Repeat,
             mip_count: 1,
             anisotropy: 16.0,
             modifications_counter: 0,
@@ -464,6 +467,8 @@ pub struct TextureImportOptions {
     #[serde(default)]
     pub(crate) t_wrap_mode: TextureWrapMode,
     #[serde(default)]
+    pub(crate) r_wrap_mode: TextureWrapMode,
+    #[serde(default)]
     pub(crate) anisotropy: f32,
     #[serde(default)]
     pub(crate) compression: CompressionOptions,
@@ -480,6 +485,7 @@ impl Default for TextureImportOptions {
             magnification_filter: TextureMagnificationFilter::Linear,
             s_wrap_mode: TextureWrapMode::Repeat,
             t_wrap_mode: TextureWrapMode::Repeat,
+            r_wrap_mode: TextureWrapMode::Repeat,
             anisotropy: 16.0,
             compression: CompressionOptions::default(),
             mip_filter: Default::default(),
@@ -647,6 +653,7 @@ impl TextureResourceExtension for TextureResource {
                 magnification_filter: TextureMagnificationFilter::Linear,
                 s_wrap_mode: TextureWrapMode::Repeat,
                 t_wrap_mode: TextureWrapMode::Repeat,
+                r_wrap_mode: TextureWrapMode::Repeat,
                 mip_count: 1,
                 anisotropy: 1.0,
                 modifications_counter: 0,
@@ -1393,6 +1400,7 @@ impl Texture {
                 magnification_filter: import_options.magnification_filter,
                 s_wrap_mode: import_options.s_wrap_mode,
                 t_wrap_mode: import_options.t_wrap_mode,
+                r_wrap_mode: import_options.r_wrap_mode,
                 anisotropy: import_options.anisotropy,
                 mip_count,
                 bytes: bytes.into(),
@@ -1544,6 +1552,7 @@ impl Texture {
                 magnification_filter: import_options.magnification_filter,
                 s_wrap_mode: import_options.s_wrap_mode,
                 t_wrap_mode: import_options.t_wrap_mode,
+                r_wrap_mode: import_options.r_wrap_mode,
                 anisotropy: import_options.anisotropy,
                 is_render_target: false,
                 cache_index: Default::default(),
@@ -1627,6 +1636,16 @@ impl Texture {
     /// Returns current T coordinate wrap mode.
     pub fn t_wrap_mode(&self) -> TextureWrapMode {
         self.t_wrap_mode
+    }
+
+    /// Sets new R coordinate wrap mode.
+    pub fn set_r_wrap_mode(&mut self, r_wrap_mode: TextureWrapMode) {
+        self.r_wrap_mode = r_wrap_mode;
+    }
+
+    /// Returns current T coordinate wrap mode.
+    pub fn r_wrap_mode(&self) -> TextureWrapMode {
+        self.r_wrap_mode
     }
 
     /// Returns total mip count.

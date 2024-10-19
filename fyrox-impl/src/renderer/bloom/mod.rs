@@ -26,13 +26,14 @@ use crate::{
         framework::{
             error::FrameworkError,
             framebuffer::{
-                Attachment, AttachmentKind, FrameBuffer, ResourceBindGroup, ResourceBinding,
+                Attachment, AttachmentKind, BufferLocation, FrameBuffer, ResourceBindGroup,
+                ResourceBinding,
             },
             geometry_buffer::GeometryBuffer,
             gpu_program::{GpuProgram, UniformLocation},
             gpu_texture::{
-                Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
-                PixelKind, WrapMode,
+                GpuTexture, GpuTextureDescriptor, GpuTextureKind, MagnificationFilter,
+                MinificationFilter, PixelKind, WrapMode,
             },
             server::GraphicsServer,
             uniform::StaticUniformBuffer,
@@ -41,7 +42,6 @@ use crate::{
         make_viewport_matrix, RenderPassStatistics,
     },
 };
-use fyrox_graphics::framebuffer::BufferLocation;
 use std::{cell::RefCell, rc::Rc};
 
 mod blur;
@@ -81,24 +81,18 @@ impl BloomRenderer {
         width: usize,
         height: usize,
     ) -> Result<Self, FrameworkError> {
-        let frame = {
-            let kind = GpuTextureKind::Rectangle { width, height };
-            let texture = server.create_texture(
-                kind,
-                PixelKind::RGBA16F,
-                MinificationFilter::Nearest,
-                MagnificationFilter::Nearest,
-                1,
-                None,
-            )?;
-            texture
-                .borrow_mut()
-                .set_wrap(Coordinate::S, WrapMode::ClampToEdge);
-            texture
-                .borrow_mut()
-                .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
-            texture
-        };
+        let frame = server.create_texture(GpuTextureDescriptor {
+            kind: GpuTextureKind::Rectangle { width, height },
+            pixel_kind: PixelKind::RGBA16F,
+            min_filter: MinificationFilter::Nearest,
+            mag_filter: MagnificationFilter::Nearest,
+            mip_count: 1,
+            s_wrap_mode: WrapMode::ClampToEdge,
+            t_wrap_mode: WrapMode::ClampToEdge,
+            r_wrap_mode: WrapMode::ClampToEdge,
+            anisotropy: 1.0,
+            data: None,
+        })?;
 
         Ok(Self {
             shader: Shader::new(server)?,

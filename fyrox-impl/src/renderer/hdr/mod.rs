@@ -30,11 +30,13 @@ use crate::{
         framework::{
             error::FrameworkError,
             framebuffer::{
-                Attachment, AttachmentKind, FrameBuffer, ResourceBindGroup, ResourceBinding,
+                Attachment, AttachmentKind, BufferLocation, FrameBuffer, ResourceBindGroup,
+                ResourceBinding,
             },
             geometry_buffer::{DrawCallStatistics, GeometryBuffer},
             gpu_texture::{
-                GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind,
+                GpuTexture, GpuTextureDescriptor, GpuTextureKind, MagnificationFilter,
+                MinificationFilter, PixelKind, WrapMode,
             },
             server::GraphicsServer,
             uniform::StaticUniformBuffer,
@@ -50,7 +52,6 @@ use crate::{
     },
     scene::camera::{ColorGradingLut, Exposure},
 };
-use fyrox_graphics::framebuffer::BufferLocation;
 use std::{cell::RefCell, rc::Rc};
 
 mod adaptation;
@@ -71,17 +72,21 @@ pub struct LumBuffer {
 
 impl LumBuffer {
     fn new(server: &dyn GraphicsServer, size: usize) -> Result<Self, FrameworkError> {
-        let texture = server.create_texture(
-            GpuTextureKind::Rectangle {
+        let texture = server.create_texture(GpuTextureDescriptor {
+            kind: GpuTextureKind::Rectangle {
                 width: size,
                 height: size,
             },
-            PixelKind::R32F,
-            MinificationFilter::Nearest,
-            MagnificationFilter::Nearest,
-            1,
-            None,
-        )?;
+            pixel_kind: PixelKind::R32F,
+            min_filter: MinificationFilter::Nearest,
+            mag_filter: MagnificationFilter::Nearest,
+            mip_count: 1,
+            s_wrap_mode: WrapMode::ClampToEdge,
+            t_wrap_mode: WrapMode::ClampToEdge,
+            r_wrap_mode: WrapMode::ClampToEdge,
+            anisotropy: 1.0,
+            data: None,
+        })?;
         Ok(Self {
             framebuffer: server.create_frame_buffer(
                 None,
@@ -146,18 +151,22 @@ impl HighDynamicRangeRenderer {
             luminance_shader: LuminanceShader::new(server)?,
             downscale_shader: DownscaleShader::new(server)?,
             map_shader: MapShader::new(server)?,
-            stub_lut: server.create_texture(
-                GpuTextureKind::Volume {
+            stub_lut: server.create_texture(GpuTextureDescriptor {
+                kind: GpuTextureKind::Volume {
                     width: 1,
                     height: 1,
                     depth: 1,
                 },
-                PixelKind::RGB8,
-                MinificationFilter::Linear,
-                MagnificationFilter::Linear,
-                1,
-                Some(&[0, 0, 0]),
-            )?,
+                pixel_kind: PixelKind::RGB8,
+                min_filter: MinificationFilter::Linear,
+                mag_filter: MagnificationFilter::Linear,
+                mip_count: 1,
+                s_wrap_mode: WrapMode::Repeat,
+                t_wrap_mode: WrapMode::Repeat,
+                r_wrap_mode: WrapMode::Repeat,
+                anisotropy: 1.0,
+                data: Some(&[0, 0, 0]),
+            })?,
             lum_calculation_method: LuminanceCalculationMethod::DownSampling,
         })
     }

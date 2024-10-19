@@ -45,8 +45,8 @@ use crate::{
             geometry_buffer::GeometryBuffer,
             gpu_program::{GpuProgram, UniformLocation},
             gpu_texture::{
-                Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
-                PixelKind, WrapMode,
+                GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind,
+                WrapMode,
             },
             server::GraphicsServer,
             uniform::StaticUniformBuffer,
@@ -63,6 +63,7 @@ use crate::{
 };
 use bytemuck::{Pod, Zeroable};
 use fyrox_graphics::framebuffer::BufferLocation;
+use fyrox_graphics::gpu_texture::GpuTextureDescriptor;
 use std::{cell::RefCell, rc::Rc};
 
 struct Shader {
@@ -182,43 +183,49 @@ impl OcclusionTester {
         height: usize,
         tile_size: usize,
     ) -> Result<Self, FrameworkError> {
-        let depth_stencil = server.create_texture(
-            GpuTextureKind::Rectangle { width, height },
-            PixelKind::D24S8,
-            MinificationFilter::Nearest,
-            MagnificationFilter::Nearest,
-            1,
-            None,
-        )?;
-        depth_stencil
-            .borrow_mut()
-            .set_wrap(Coordinate::S, WrapMode::ClampToEdge);
-        depth_stencil
-            .borrow_mut()
-            .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
+        let depth_stencil = server.create_texture(GpuTextureDescriptor {
+            kind: GpuTextureKind::Rectangle { width, height },
+            pixel_kind: PixelKind::D24S8,
+            min_filter: MinificationFilter::Nearest,
+            mag_filter: MagnificationFilter::Nearest,
+            mip_count: 1,
+            s_wrap_mode: WrapMode::ClampToEdge,
+            t_wrap_mode: WrapMode::ClampToEdge,
+            r_wrap_mode: WrapMode::ClampToEdge,
+            anisotropy: 1.0,
+            data: None,
+        })?;
 
-        let visibility_mask = server.create_texture(
-            GpuTextureKind::Rectangle { width, height },
-            PixelKind::RGBA8,
-            MinificationFilter::Nearest,
-            MagnificationFilter::Nearest,
-            1,
-            None,
-        )?;
+        let visibility_mask = server.create_texture(GpuTextureDescriptor {
+            kind: GpuTextureKind::Rectangle { width, height },
+            pixel_kind: PixelKind::RGBA8,
+            min_filter: MinificationFilter::Nearest,
+            mag_filter: MagnificationFilter::Nearest,
+            mip_count: 1,
+            s_wrap_mode: WrapMode::ClampToEdge,
+            t_wrap_mode: WrapMode::ClampToEdge,
+            r_wrap_mode: WrapMode::ClampToEdge,
+            anisotropy: 1.0,
+            data: None,
+        })?;
 
         let w_tiles = width / tile_size + 1;
         let h_tiles = height / tile_size + 1;
-        let tile_buffer = server.create_texture(
-            GpuTextureKind::Rectangle {
+        let tile_buffer = server.create_texture(GpuTextureDescriptor {
+            kind: GpuTextureKind::Rectangle {
                 width: w_tiles * (MAX_BITS + 1),
                 height: h_tiles,
             },
-            PixelKind::R32UI,
-            MinificationFilter::Nearest,
-            MagnificationFilter::Nearest,
-            1,
-            None,
-        )?;
+            pixel_kind: PixelKind::R32UI,
+            min_filter: MinificationFilter::Nearest,
+            mag_filter: MagnificationFilter::Nearest,
+            mip_count: 1,
+            s_wrap_mode: WrapMode::ClampToEdge,
+            t_wrap_mode: WrapMode::ClampToEdge,
+            r_wrap_mode: WrapMode::ClampToEdge,
+            anisotropy: 1.0,
+            data: None,
+        })?;
 
         Ok(Self {
             framebuffer: server.create_frame_buffer(

@@ -326,25 +326,28 @@ pub fn image_1d_size_bytes(pixel_kind: PixelKind, length: usize) -> usize {
     }
 }
 
-#[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Hash, Debug)]
+#[derive(Default, Copy, Clone, PartialOrd, PartialEq, Eq, Hash, Debug)]
 #[repr(u32)]
 pub enum MagnificationFilter {
     Nearest,
+    #[default]
     Linear,
 }
 
-#[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Hash, Debug)]
+#[derive(Default, Copy, Clone, PartialOrd, PartialEq, Eq, Hash, Debug)]
 pub enum MinificationFilter {
     Nearest,
     NearestMipMapNearest,
     NearestMipMapLinear,
+    #[default]
     Linear,
     LinearMipMapNearest,
     LinearMipMapLinear,
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[derive(Default, Copy, Clone, Eq, PartialEq, Debug)]
 pub enum WrapMode {
+    #[default]
     Repeat,
     ClampToEdge,
     ClampToBorder,
@@ -369,13 +372,30 @@ pub enum CubeMapFace {
     NegativeZ,
 }
 
+pub struct GpuTextureDescriptor<'a> {
+    pub kind: GpuTextureKind,
+    pub pixel_kind: PixelKind,
+    pub min_filter: MinificationFilter,
+    pub mag_filter: MagnificationFilter,
+    pub mip_count: usize,
+    pub s_wrap_mode: WrapMode,
+    pub t_wrap_mode: WrapMode,
+    pub r_wrap_mode: WrapMode,
+    pub anisotropy: f32,
+    pub data: Option<&'a [u8]>,
+}
+
 pub trait GpuTexture: Any {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
     fn set_anisotropy(&mut self, anisotropy: f32);
+    fn anisotropy(&self) -> f32;
     fn set_minification_filter(&mut self, min_filter: MinificationFilter);
+    fn minification_filter(&self) -> MinificationFilter;
     fn set_magnification_filter(&mut self, mag_filter: MagnificationFilter);
+    fn magnification_filter(&self) -> MagnificationFilter;
     fn set_wrap(&mut self, coordinate: Coordinate, wrap: WrapMode);
+    fn wrap_mode(&self, coordinate: Coordinate) -> WrapMode;
     fn set_border_color(&mut self, color: Color);
     fn set_data(
         &mut self,
@@ -387,11 +407,6 @@ pub trait GpuTexture: Any {
     fn get_image(&self, level: usize) -> Vec<u8>;
     fn read_pixels(&self) -> Vec<u8>;
     fn kind(&self) -> GpuTextureKind;
-    fn minification_filter(&self) -> MinificationFilter;
-    fn magnification_filter(&self) -> MagnificationFilter;
-    fn s_wrap_mode(&self) -> WrapMode;
-    fn t_wrap_mode(&self) -> WrapMode;
-    fn anisotropy(&self) -> f32;
     fn pixel_kind(&self) -> PixelKind;
 }
 
