@@ -200,12 +200,13 @@ impl ObserverVisibilityCache {
                 let grid_position =
                     world_to_grid(pending_query.observer_position, self.granularity);
 
-                let visibility = self
-                    .cells
-                    .get_mut(&grid_position)
-                    .expect("grid cell must exist!")
-                    .get_mut(&pending_query.node)
-                    .expect("object visibility must be predefined!");
+                let Some(cell) = self.cells.get_mut(&grid_position) else {
+                    return false;
+                };
+
+                let Some(visibility) = cell.get_mut(&pending_query.node) else {
+                    return false;
+                };
 
                 match visibility {
                     Visibility::Undefined => match query_result {
