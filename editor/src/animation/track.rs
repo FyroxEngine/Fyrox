@@ -91,6 +91,8 @@ use crate::{
     },
     send_sync_message, utils,
 };
+use fyrox::renderer::framework::DrawParameters;
+use fyrox::scene::mesh::buffer::{TriangleBuffer, VertexBuffer};
 use std::{
     any::TypeId,
     cmp::Ordering,
@@ -1115,6 +1117,12 @@ impl TrackList {
                 descriptors = object_to_property_tree("", node, &mut |field: &FieldInfo| {
                     let type_id = field.reflect_value.type_id();
                     type_id != TypeId::of::<TextureBytes>()
+                        // Vertex buffer cannot be animated (mainly because it contains untyped data).
+                        && type_id != TypeId::of::<VertexBuffer>()
+                        // Mesh topology cannot be animated.
+                        && type_id != TypeId::of::<TriangleBuffer>()
+                        // Makes no sense to animate drawing parameters.
+                        && type_id != TypeId::of::<DrawParameters>()
                 });
             });
         }
