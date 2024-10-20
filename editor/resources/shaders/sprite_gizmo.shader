@@ -75,8 +75,8 @@
                     texCoord = vertexTexCoord;
                     color = vertexColor;
                     vec2 vertexOffset = S_RotateVec2(vertexTexCoord * 2.0 - 1.0, rotation);
-                    vec4 worldPosition = instanceData.worldMatrix * vec4(vertexPosition, 1.0);
-                    vec3 offset = (vertexOffset.x * fyrox_cameraData.sideVector + vertexOffset.y * cameraData.upVector) * size;
+                    vec4 worldPosition = fyrox_instanceData.worldMatrix * vec4(vertexPosition, 1.0);
+                    vec3 offset = (vertexOffset.x * fyrox_cameraData.sideVector + vertexOffset.y * fyrox_cameraData.upVector) * size;
                     gl_Position = fyrox_cameraData.viewProjectionMatrix * (worldPosition + vec4(offset.x, offset.y, offset.z, 0.0));
                 }
                "#,
