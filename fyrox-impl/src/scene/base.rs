@@ -40,6 +40,7 @@ use crate::{
     scene::{node::Node, transform::Transform},
     script::{Script, ScriptTrait},
 };
+use fyrox_core::algebra::UnitQuaternion;
 use serde::{Deserialize, Serialize};
 use std::{
     any::Any,
@@ -577,6 +578,15 @@ impl Base {
     #[inline]
     pub fn global_transform(&self) -> Matrix4<f32> {
         self.global_transform.get()
+    }
+
+    /// Calculates global transform of the node, but discards scaling part of it.
+    #[inline]
+    pub fn global_transform_without_scaling(&self) -> Matrix4<f32> {
+        const EPSILON: f32 = 10.0 * f32::EPSILON;
+        let basis = self.global_transform().basis();
+        let rotation = UnitQuaternion::from_matrix_eps(&basis, EPSILON, 16, Default::default());
+        Matrix4::new_translation(&self.global_position()) * rotation.to_homogeneous()
     }
 
     /// Returns inverse of bind pose matrix. Bind pose matrix - is special matrix

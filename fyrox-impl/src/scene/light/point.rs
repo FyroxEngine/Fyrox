@@ -137,8 +137,9 @@ impl NodeTrait for PointLight {
     }
 
     fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
+        // Discard scaling part, light emission distance does not affected by scaling.
         self.local_bounding_box()
-            .transform(&self.global_transform())
+            .transform(&self.global_transform_without_scaling())
     }
 
     fn id(&self) -> Uuid {
