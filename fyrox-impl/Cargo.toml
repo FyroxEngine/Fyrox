@@ -23,8 +23,8 @@ fyrox-resource = { path = "../fyrox-resource", version = "0.12.0" }
 fyrox-animation = { path = "../fyrox-animation", version = "0.2.0" }
 fyrox-graph = { path = "../fyrox-graph", version = "0.1.0" }
 fyrox-graphics = { path = "../fyrox-graphics", version = "0.1.0" }
-rapier2d = { version = "0.20", features = ["debug-render"] }
-rapier3d = { version = "0.20", features = ["debug-render"] }
+rapier2d = { version = "0.22", features = ["debug-render"] }
+rapier3d = { version = "0.22", features = ["debug-render"] }
 image = { version = "0.25.1", default-features = false, features = ["gif", "jpeg", "png", "tga", "tiff", "bmp"] }
 inflate = "0.4.5"
 serde = { version = "1", features = ["derive"] }
@@ -43,8 +43,8 @@ winit = { version = "0.29.2", features = ["serde"] }
 half = { version = "2.2.1", features = ["bytemuck"] }
 fast_image_resize = "4.0.0"
 base64 = "0.22.1"
-uvgen = "0.1.0"
-lightmap = "0.1.1"
+uvgen = "0.2.0"
+lightmap = "0.2"
 libloading = "0.8.1"
 gltf = { version = "1.4.0", optional = true, default-features = false, features = ["names", "utils"] }
 bytemuck = { version = "1.16.1", features = ["derive"] }

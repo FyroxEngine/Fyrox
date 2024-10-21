@@ -170,7 +170,7 @@ impl Std140 for Matrix3<f32> {
     const ALIGNMENT: usize = 16;
 
     fn write<T: ByteStorage>(&self, dest: &mut T) {
-        for row in self.as_ref() {
+        for row in (self as &dyn AsRef<[[f32; 3]; 3]>).as_ref() {
             dest.write_bytes(array_as_u8_slice(row));
             dest.write_bytes(&[0; size_of::<f32>()]);
         }
@@ -181,7 +181,7 @@ impl Std140 for Matrix2<f32> {
     const ALIGNMENT: usize = 16;
 
     fn write<T: ByteStorage>(&self, dest: &mut T) {
-        for row in self.as_ref() {
+        for row in (self as &dyn AsRef<[[f32; 2]; 2]>).as_ref() {
             dest.write_bytes(array_as_u8_slice(row));
             dest.write_bytes(&[0; 2 * size_of::<f32>()]);
         }

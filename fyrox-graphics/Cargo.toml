@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 fyrox-core = { path = "../fyrox-core", version = "0.28.1", features = ["serde"] }
-glow = "0.14.1"
+glow = "0.15"
 serde = { version = "1", features = ["derive"] }
 strum = "0.26.1"
 strum_macros = "0.26.1"
