@@ -18,43 +18,30 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use nalgebra::{
-    allocator::Allocator, ArrayStorage, ClosedAdd, ClosedMul, ClosedSub, DefaultAllocator, Dim,
-    OVector, RealField, Scalar, Storage, Vector, Vector2, U2, U3,
-};
+use nalgebra::{RealField, SVector, Scalar, Vector2};
 use num_traits::{One, Signed, Zero};
 use rectutils::{Number, Rect};
 
 /// Line segment in two dimensions
-pub type LineSegment2<T> = LineSegment<T, U2>;
+pub type LineSegment2<T> = LineSegment<T, 2>;
 /// Line segment in three dimensions
-pub type LineSegment3<T> = LineSegment<T, U3>;
+pub type LineSegment3<T> = LineSegment<T, 3>;
 
 /// Line segment in any number of dimensions
 #[derive(Clone, Debug)]
-pub struct LineSegment<T, D>
-where
-    DefaultAllocator: Allocator<T, D>,
-    D: Dim,
-{
+pub struct LineSegment<T, const D: usize> {
     /// One end of the line segment, the point returned when interpolating at t = 0.0
-    pub start: OVector<T, D>,
+    pub start: SVector<T, D>,
     /// One end of the line segment, the point returned when interpolating at t = 1.0
-    pub end: OVector<T, D>,
+    pub end: SVector<T, D>,
 }
 
-impl<T, D> LineSegment<T, D>
+impl<T, const D: usize> LineSegment<T, D>
 where
-    T: Zero + One + Scalar + ClosedAdd + ClosedSub + ClosedMul + RealField,
-    D: Dim,
-    DefaultAllocator: Allocator<T, D>,
+    T: Zero + One + Scalar + RealField,
 {
     /// Create a new line segment with the given points.
-    pub fn new<S1, S2>(start: &Vector<T, D, S1>, end: &Vector<T, D, S2>) -> Self
-    where
-        S1: Storage<T, D>,
-        S2: Storage<T, D>,
-    {
+    pub fn new(start: &SVector<T, D>, end: &SVector<T, D>) -> Self {
         Self {
             start: start.clone_owned(),
             end: end.clone_owned(),
@@ -73,17 +60,17 @@ where
     /// When t = 1.0, `end` is returned.
     /// The result is `(1.0 - t) * start + t * end`, which may produce points off the line segment,
     /// if t < 0.0 or t > 1.0.
-    pub fn interpolate(&self, t: T) -> OVector<T, D> {
+    pub fn interpolate(&self, t: T) -> SVector<T, D> {
         self.start.lerp(&self.end, t)
     }
     /// Create a point somewhere between `start` and `end`.
     /// This is just like [LineSegment::interpolate] except that t is clamped to between 0.0 and 1.0,
     /// so points off the line segment can never be returned.
-    pub fn interpolate_clamped(&self, t: T) -> OVector<T, D> {
+    pub fn interpolate_clamped(&self, t: T) -> SVector<T, D> {
         self.interpolate(t.clamp(<T as Zero>::zero(), <T as One>::one()))
     }
     /// The vector from `start` to `end`
-    pub fn vector(&self) -> OVector<T, D> {
+    pub fn vector(&self) -> SVector<T, D> {
         self.end.clone() - self.start.clone()
     }
     /// The distance between `start` and `end`
@@ -97,10 +84,7 @@ where
     /// The interpolation parameter of the point on this segment that is closest to the given point.
     ///
     /// [Stack Exchange question: Find a point on a line segment which is the closest to other point not on the line segment](https://math.stackexchange.com/questions/2193720/find-a-point-on-a-line-segment-which-is-the-closest-to-other-point-not-on-the-li)
-    pub fn nearest_t<S>(&self, point: &Vector<T, D, S>) -> T
-    where
-        S: Storage<T, D>,
-    {
+    pub fn nearest_t(&self, point: &SVector<T, D>) -> T {
         let v = self.vector();
         let u = self.start.clone() - point;
         let n2 = v.norm_squared();
@@ -110,32 +94,22 @@ where
         -v.dot(&u) / n2
     }
     /// The point on this segment that is closest to the given point.
-    pub fn nearest_point<S>(&self, point: &Vector<T, D, S>) -> OVector<T, D>
-    where
-        S: Storage<T, D>,
-    {
+    pub fn nearest_point(&self, point: &SVector<T, D>) -> SVector<T, D> {
         self.interpolate_clamped(self.nearest_t(point))
     }
     /// The squared distance between the given point and the nearest point on this line segment.
-    pub fn distance_squared<S>(&self, point: &Vector<T, D, S>) -> T
-    where
-        S: Storage<T, D>,
-    {
+    pub fn distance_squared(&self, point: &SVector<T, D>) -> T {
         (point - self.nearest_point(point)).norm_squared()
     }
     /// The distance between the given point and the nearest point on this line segment.
-    pub fn distance<S>(&self, point: &Vector<T, D, S>) -> T
-    where
-        S: Storage<T, D>,
-    {
+    pub fn distance(&self, point: &SVector<T, D>) -> T {
         (point - self.nearest_point(point)).norm()
     }
 }
 
 impl<T> LineSegment2<T>
 where
-    T: Zero + One + Scalar + ClosedAdd + ClosedSub + ClosedMul + RealField,
-    DefaultAllocator: Allocator<T, U2, Buffer = ArrayStorage<T, 2, 1>>,
+    T: Zero + One + Scalar + RealField,
 {
     /// AABB for a 2D line segment
     pub fn bounds(&self) -> Rect<T>
