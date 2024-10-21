@@ -162,19 +162,18 @@ impl PreviewPanel {
 
         scene.graph.link_nodes(hinge, camera_pivot);
 
-        DirectionalLightBuilder::new(
-            BaseLightBuilder::new(
-                BaseBuilder::new().with_local_transform(
+        DirectionalLightBuilder::new(BaseLightBuilder::new(
+            BaseBuilder::new()
+                .with_local_transform(
                     TransformBuilder::new()
                         .with_local_rotation(UnitQuaternion::from_axis_angle(
                             &Vector3::y_axis(),
                             45.0f32.to_radians(),
                         ))
                         .build(),
-                ),
-            )
-            .cast_shadows(false),
-        )
+                )
+                .with_cast_shadows(false),
+        ))
         .build(&mut scene.graph);
 
         scene.rendering_options.ambient_lighting_color = Color::opaque(80, 80, 80);

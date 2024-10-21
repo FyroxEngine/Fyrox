@@ -74,9 +74,6 @@ pub struct BaseLight {
     #[reflect(setter = "set_color")]
     color: InheritableVariable<Color>,
 
-    #[reflect(setter = "set_cast_shadows")]
-    cast_shadows: InheritableVariable<bool>,
-
     #[visit(rename = "ScatterFactor")]
     #[reflect(setter = "set_scatter")]
     scatter: InheritableVariable<Vector3<f32>>,
@@ -108,7 +105,6 @@ impl Default for BaseLight {
         Self {
             base: Default::default(),
             color: InheritableVariable::new_modified(Color::WHITE),
-            cast_shadows: InheritableVariable::new_modified(true),
             scatter: InheritableVariable::new_modified(Vector3::new(
                 DEFAULT_SCATTER_R,
                 DEFAULT_SCATTER_G,
@@ -131,18 +127,6 @@ impl BaseLight {
     #[inline]
     pub fn color(&self) -> Color {
         *self.color
-    }
-
-    /// Enables or disables shadows for light source.
-    #[inline]
-    pub fn set_cast_shadows(&mut self, value: bool) -> bool {
-        self.cast_shadows.set_value_and_mark_modified(value)
-    }
-
-    /// Returns true if light is able to cast shadows, false - otherwise.
-    #[inline]
-    pub fn is_cast_shadows(&self) -> bool {
-        *self.cast_shadows
     }
 
     /// Sets scatter factor per color channel (red, green, blue) in (0..1) range.
@@ -202,7 +186,6 @@ impl BaseLight {
 pub struct BaseLightBuilder {
     base_builder: BaseBuilder,
     color: Color,
-    cast_shadows: bool,
     scatter_factor: Vector3<f32>,
     scatter_enabled: bool,
     intensity: f32,
@@ -217,7 +200,6 @@ impl BaseLightBuilder {
         Self {
             base_builder,
             color: Color::WHITE,
-            cast_shadows: true,
             scatter_factor: Vector3::new(DEFAULT_SCATTER_R, DEFAULT_SCATTER_G, DEFAULT_SCATTER_B),
             scatter_enabled: true,
             intensity: 1.0,
@@ -227,12 +209,6 @@ impl BaseLightBuilder {
     /// Sets light color.
     pub fn with_color(mut self, color: Color) -> Self {
         self.color = color;
-        self
-    }
-
-    /// Sets whether to casts shadows or not.
-    pub fn cast_shadows(mut self, cast_shadows: bool) -> Self {
-        self.cast_shadows = cast_shadows;
         self
     }
 
@@ -259,7 +235,6 @@ impl BaseLightBuilder {
         BaseLight {
             base: self.base_builder.build_base(),
             color: self.color.into(),
-            cast_shadows: self.cast_shadows.into(),
             scatter: self.scatter_factor.into(),
             scatter_enabled: self.scatter_enabled.into(),
             intensity: self.intensity.into(),
