@@ -789,7 +789,10 @@ pub struct Widget {
     /// Current render transform of the node. It only modifies the widget at drawing stage, layout information remains unmodified.
     #[reflect(hidden)]
     pub render_transform: Matrix3<f32>,
-    /// Current visual transform of the node. It always contains a result of mixing the layout and render transformation matrices.
+    /// Current visual transform of the node. It always contains a result of mixing the layout and
+    /// render transformation matrices. Visual transform could be used to transform a point to
+    /// screen space. To transform a screen space point to local coordinates use [`Widget::screen_to_local`]
+    /// method.
     #[reflect(hidden)]
     pub visual_transform: Matrix3<f32>,
     /// A flag, that defines whether the widget will preview UI messages or not. Basically, it defines whether [crate::Control::preview_message]
@@ -980,7 +983,8 @@ impl Widget {
         *self.allow_drop
     }
 
-    /// Maps the given point from screen to local widget's coordinates.
+    /// Maps the given point from screen to local widget's coordinates. Could be used to transform
+    /// mouse cursor position (which is in screen space) to local widget coordinates.
     #[inline]
     pub fn screen_to_local(&self, point: Vector2<f32>) -> Vector2<f32> {
         self.visual_transform

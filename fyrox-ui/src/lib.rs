@@ -1627,6 +1627,7 @@ impl UserInterface {
         picked
     }
 
+    /// Cursor position in screen space coordinate system.
     pub fn cursor_position(&self) -> Vector2<f32> {
         self.cursor_position
     }
