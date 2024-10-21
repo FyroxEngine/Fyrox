@@ -956,7 +956,7 @@ impl Graph {
     // Performance of this method is detached from the amount of scene nodes in the graph and only
     // correlates with the amount of changing nodes, allowing to have large scene graphs with tons
     // of static nodes.
-    fn process_node_messages(&mut self) {
+    pub(crate) fn process_node_messages(&mut self) {
         bitflags! {
             #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
             struct Flags: u8 {
