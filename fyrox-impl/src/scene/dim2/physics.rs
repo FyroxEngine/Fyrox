@@ -907,19 +907,27 @@ impl PhysicsWorld {
                         .unwrap_or_else(Matrix4::identity)
                         * isometry2_to_mat4(native.position());
 
-                    let local_rotation = UnitQuaternion::from_matrix_eps(
+                    let new_local_rotation = UnitQuaternion::from_matrix_eps(
                         &local_transform.basis(),
                         f32::EPSILON,
                         16,
                         UnitQuaternion::identity(),
                     );
-                    let local_position =
+                    let new_local_position =
                         Vector3::new(local_transform[12], local_transform[13], 0.0);
 
-                    rigid_body
-                        .local_transform_mut()
-                        .set_position(local_position)
-                        .set_rotation(local_rotation);
+                    // Do not touch local transform if position/rotation is not changing. This will
+                    // prevent redundant update of its global transform, which in its turn save some
+                    // CPU cycles.
+                    let local_transform = rigid_body.local_transform();
+                    if **local_transform.position() != new_local_position
+                        || **local_transform.rotation() != new_local_rotation
+                    {
+                        rigid_body
+                            .local_transform_mut()
+                            .set_position(new_local_position)
+                            .set_rotation(new_local_rotation);
+                    }
 
                     rigid_body
                         .lin_vel
