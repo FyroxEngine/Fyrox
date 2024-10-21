@@ -825,7 +825,9 @@ impl Graph {
     }
 
     pub(crate) fn update_enabled_flag_recursively(nodes: &NodePool, node_handle: Handle<Node>) {
-        let node = &nodes[node_handle];
+        let Some(node) = nodes.try_borrow(node_handle) else {
+            return;
+        };
 
         let parent_enabled = nodes
             .try_borrow(node.parent())
@@ -838,7 +840,9 @@ impl Graph {
     }
 
     pub(crate) fn update_visibility_recursively(nodes: &NodePool, node_handle: Handle<Node>) {
-        let node = &nodes[node_handle];
+        let Some(node) = nodes.try_borrow(node_handle) else {
+            return;
+        };
 
         let parent_visibility = nodes
             .try_borrow(node.parent())
@@ -858,7 +862,9 @@ impl Graph {
         physics2d: &mut dim2::physics::PhysicsWorld,
         node_handle: Handle<Node>,
     ) {
-        let node = &nodes[node_handle];
+        let Some(node) = nodes.try_borrow(node_handle) else {
+            return;
+        };
 
         let parent_global_transform = if let Some(parent) = nodes.try_borrow(node.parent()) {
             parent.global_transform()
