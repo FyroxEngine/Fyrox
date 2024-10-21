@@ -917,7 +917,7 @@ impl PhysicsWorld {
                         Vector3::new(local_transform[12], local_transform[13], 0.0);
 
                     rigid_body
-                        .local_transform
+                        .local_transform_mut()
                         .set_position(local_position)
                         .set_rotation(local_rotation);
 

@@ -2409,7 +2409,7 @@ impl Terrain {
             Log::err("Invalid brush stroke. Holes are not enabled on terrain.");
             return;
         }
-        stroke.start_stroke(brush, self.self_handle, self.texture_data(target))
+        stroke.start_stroke(brush, self.handle(), self.texture_data(target))
     }
     /// Modify the given BrushStroke to include a stamp of its brush at the given position.
     /// The location of the stamp relative to the textures is determined based on the global position
@@ -2690,7 +2690,7 @@ impl NodeTrait for Terrain {
                                 bone_matrices: Default::default(),
                                 blend_shapes_weights: Default::default(),
                                 element_range: ElementRange::Full,
-                                node_handle: self.self_handle,
+                                node_handle: self.handle(),
                             },
                         );
                     } else {
@@ -2706,7 +2706,7 @@ impl NodeTrait for Terrain {
                                         bone_matrices: Default::default(),
                                         blend_shapes_weights: Default::default(),
                                         element_range: self.geometry.quadrants[i],
-                                        node_handle: self.self_handle,
+                                        node_handle: self.handle(),
                                     },
                                 );
                             }

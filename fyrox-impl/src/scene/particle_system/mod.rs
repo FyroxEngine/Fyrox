@@ -558,7 +558,7 @@ impl NodeTrait for ParticleSystem {
             &self.material,
             RenderPath::Forward,
             sort_index,
-            self.self_handle,
+            self.handle(),
             &mut move |mut vertex_buffer, mut triangle_buffer| {
                 let vertices = sorted_particles.iter().flat_map(move |particle_index| {
                     let particle = self.particles.get(*particle_index as usize).unwrap();

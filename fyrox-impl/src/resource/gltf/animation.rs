@@ -115,15 +115,15 @@ impl ImportedTarget {
         let node: &Node = graph.try_get(self.handle)?;
         match self.binding {
             ImportedBinding::Position => {
-                Some(node.local_transform.position().data.as_slice().into())
+                Some(node.local_transform().position().data.as_slice().into())
             }
             ImportedBinding::Rotation => Some(
-                quaternion_to_euler(*node.local_transform.rotation().get_value_ref())
+                quaternion_to_euler(*node.local_transform().rotation().get_value_ref())
                     .data
                     .as_slice()
                     .into(),
             ),
-            ImportedBinding::Scale => Some(node.local_transform.scale().data.as_slice().into()),
+            ImportedBinding::Scale => Some(node.local_transform().scale().data.as_slice().into()),
             ImportedBinding::Weight(index) => match node.cast::<Mesh>() {
                 Some(mesh) => mesh.blend_shapes().get(index).map(|s| [s.weight].into()),
                 None => None,

@@ -403,7 +403,7 @@ impl SceneGraphNode for Node {
     }
 
     fn self_handle(&self) -> Handle<Self> {
-        self.self_handle
+        self.handle()
     }
 
     fn parent(&self) -> Handle<Self> {

@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::scene::base::NodeMessage;
 use crate::{
     asset::manager::ResourceManager,
     core::{
@@ -140,6 +141,7 @@ impl SceneState {
         let scene2 = unsafe { &mut *(scene as *mut Scene) };
 
         let script_message_sender = scene.graph.script_message_sender.clone();
+        let message_sender = scene.graph.message_sender.clone();
         self.deserialize_into_scene_internal(
             |handle: Handle<Node>, index, script| {
                 scene.graph[handle].scripts[index].script = script;
@@ -148,6 +150,7 @@ impl SceneState {
                 scene2.graph[handle] = node;
             },
             script_message_sender,
+            message_sender,
             serialization_context,
             resource_manager,
             widget_constructors,
@@ -162,6 +165,7 @@ impl SceneState {
         widget_constructors: &Arc<WidgetConstructorContainer>,
     ) -> Result<(), String> {
         let script_message_sender = prefab.data_ref().scene.graph.script_message_sender.clone();
+        let message_sender = prefab.data_ref().scene.graph.message_sender.clone();
         self.deserialize_into_scene_internal(
             |handle: Handle<Node>, index, script| {
                 prefab.data_ref().scene.graph[handle].scripts[index].script = script;
@@ -170,6 +174,7 @@ impl SceneState {
                 prefab.data_ref().scene.graph[handle] = node;
             },
             script_message_sender,
+            message_sender,
             serialization_context,
             resource_manager,
             widget_constructors,
@@ -181,6 +186,7 @@ impl SceneState {
         mut set_script: S,
         mut set_node: N,
         script_message_sender: Sender<NodeScriptMessage>,
+        message_sender: Sender<NodeMessage>,
         serialization_context: &Arc<SerializationContext>,
         resource_manager: &ResourceManager,
         widget_constructors: &Arc<WidgetConstructorContainer>,
@@ -223,7 +229,11 @@ impl SceneState {
                     .visit("Node", &mut visitor)
                     .map_err(|e| e.to_string())?;
                 if let Some(mut new_node) = container.take() {
-                    new_node.script_message_sender = Some(script_message_sender.clone());
+                    new_node.on_connected_to_graph(
+                        node_state.node,
+                        message_sender.clone(),
+                        script_message_sender.clone(),
+                    );
                     set_node(node_state.node, new_node);
 
                     Log::info(format!(

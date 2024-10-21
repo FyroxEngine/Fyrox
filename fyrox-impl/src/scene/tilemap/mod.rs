@@ -738,7 +738,7 @@ impl NodeTrait for TileMap {
                     &tile_definition.material,
                     RenderPath::Forward,
                     sort_index,
-                    self.self_handle,
+                    self.handle(),
                     &mut move |mut vertex_buffer, mut triangle_buffer| {
                         let start_vertex_index = vertex_buffer.vertex_count();
 

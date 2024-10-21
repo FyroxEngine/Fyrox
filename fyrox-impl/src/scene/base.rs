@@ -347,6 +347,26 @@ impl Visit for ScriptRecord {
     }
 }
 
+#[allow(clippy::enum_variant_names)] // STFU
+#[derive(PartialEq, Eq, Hash, Copy, Clone)]
+pub(crate) enum NodeMessageKind {
+    TransformChanged,
+    VisibilityChanged,
+    EnabledFlagChanged,
+}
+
+#[derive(PartialEq, Eq, Hash, Copy, Clone)]
+pub(crate) struct NodeMessage {
+    pub node: Handle<Node>,
+    pub kind: NodeMessageKind,
+}
+
+impl NodeMessage {
+    pub fn new(node: Handle<Node>, kind: NodeMessageKind) -> Self {
+        Self { node, kind }
+    }
+}
+
 /// Base scene graph node is a simplest possible node, it is used to build more complex ones using composition.
 /// It contains all fundamental properties for each scene graph nodes, like local and global transforms, name,
 /// lifetime, etc. Base node is a building block for all complex node hierarchies - it contains list of children
@@ -370,17 +390,21 @@ impl Visit for ScriptRecord {
 #[derive(Debug, Reflect, Clone)]
 pub struct Base {
     #[reflect(hidden)]
-    pub(crate) self_handle: Handle<Node>,
+    self_handle: Handle<Node>,
 
     #[reflect(hidden)]
-    pub(crate) script_message_sender: Option<Sender<NodeScriptMessage>>,
+    script_message_sender: Option<Sender<NodeScriptMessage>>,
+
+    #[reflect(hidden)]
+    message_sender: Option<Sender<NodeMessage>>,
 
     // Name is not inheritable, because property inheritance works bad with external 3D models.
     // They use names to search "original" nodes.
     #[reflect(setter = "set_name_internal")]
     pub(crate) name: ImmutableString,
 
-    pub(crate) local_transform: Transform,
+    #[reflect(setter = "set_local_transform")]
+    local_transform: Transform,
 
     #[reflect(setter = "set_visibility")]
     visibility: InheritableVariable<bool>,
@@ -459,6 +483,7 @@ pub struct Base {
     // Use it at your own risk only when you're completely sure what you are doing.
     pub(crate) scripts: Vec<ScriptRecord>,
 
+    #[reflect(setter = "set_enabled")]
     enabled: InheritableVariable<bool>,
 
     #[reflect(hidden)]
@@ -472,6 +497,12 @@ impl Drop for Base {
 }
 
 impl Base {
+    /// Returns handle of the node. A node has valid handle only after it was inserted in a graph!
+    #[inline]
+    pub fn handle(&self) -> Handle<Node> {
+        self.self_handle
+    }
+
     /// Sets name of node. Can be useful to mark a node to be able to find it later on.
     #[inline]
     pub fn set_name<N: AsRef<str>>(&mut self, name: N) {
@@ -501,11 +532,34 @@ impl Base {
         &self.local_transform
     }
 
+    pub(crate) fn on_connected_to_graph(
+        &mut self,
+        self_handle: Handle<Node>,
+        message_sender: Sender<NodeMessage>,
+        script_message_sender: Sender<NodeScriptMessage>,
+    ) {
+        self.self_handle = self_handle;
+        self.message_sender = Some(message_sender);
+        self.script_message_sender = Some(script_message_sender);
+        // Kick off initial hierarchical property propagation.
+        self.notify(self.self_handle, NodeMessageKind::TransformChanged);
+        self.notify(self.self_handle, NodeMessageKind::VisibilityChanged);
+        self.notify(self.self_handle, NodeMessageKind::EnabledFlagChanged);
+    }
+
+    fn notify(&self, node: Handle<Node>, kind: NodeMessageKind) {
+        let Some(sender) = self.message_sender.as_ref() else {
+            return;
+        };
+        Log::verify(sender.send(NodeMessage::new(node, kind)));
+    }
+
     /// Returns mutable reference to local transform of a node, can be used to set
     /// some local spatial properties, such as position, rotation, scale, etc.
     #[inline]
     pub fn local_transform_mut(&mut self) -> &mut Transform {
         self.transform_modified.set(true);
+        self.notify(self.self_handle, NodeMessageKind::TransformChanged);
         &mut self.local_transform
     }
 
@@ -513,6 +567,7 @@ impl Base {
     #[inline]
     pub fn set_local_transform(&mut self, transform: Transform) {
         self.local_transform = transform;
+        self.notify(self.self_handle, NodeMessageKind::TransformChanged);
     }
 
     /// Tries to find properties by the name. The method returns an iterator because it possible
@@ -612,7 +667,9 @@ impl Base {
     /// Sets local visibility of a node.
     #[inline]
     pub fn set_visibility(&mut self, visibility: bool) -> bool {
-        self.visibility.set_value_and_mark_modified(visibility)
+        let old = self.visibility.set_value_and_mark_modified(visibility);
+        self.notify(self.self_handle, NodeMessageKind::VisibilityChanged);
+        old
     }
 
     /// Returns local visibility of a node.
@@ -978,8 +1035,10 @@ impl Base {
     /// and you disable the node, all children nodes will be disabled too even if their [`Self::is_enabled`] method
     /// returns `true`.
     #[inline]
-    pub fn set_enabled(&mut self, enabled: bool) {
-        self.enabled.set_value_and_mark_modified(enabled);
+    pub fn set_enabled(&mut self, enabled: bool) -> bool {
+        let old = self.enabled.set_value_and_mark_modified(enabled);
+        self.notify(self.self_handle, NodeMessageKind::EnabledFlagChanged);
+        old
     }
 
     /// Returns `true` if the node is enabled, `false` - otherwise. The return value does **not** include the state
@@ -1283,6 +1342,7 @@ impl BaseBuilder {
         Base {
             self_handle: Default::default(),
             script_message_sender: None,
+            message_sender: None,
             name: self.name.into(),
             children: self.children,
             local_transform: self.local_transform,

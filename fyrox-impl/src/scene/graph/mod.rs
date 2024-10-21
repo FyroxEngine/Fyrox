@@ -42,7 +42,7 @@
 //! just by linking nodes to each other. Good example of this is skeleton which
 //! is used in skinning (animating 3d model by set of bones).
 
-use crate::material::{MaterialResourceBinding, MaterialTextureBinding};
+use crate::scene::base::NodeMessageKind;
 use crate::{
     asset::untyped::UntypedResource,
     core::{
@@ -55,9 +55,10 @@ use crate::{
         visitor::{Visit, VisitResult, Visitor},
     },
     graph::{AbstractSceneGraph, AbstractSceneNode, BaseSceneGraph, NodeHandleMap, SceneGraph},
+    material::{MaterialResourceBinding, MaterialTextureBinding},
     resource::model::{Model, ModelResource, ModelResourceExtension},
     scene::{
-        base::{NodeScriptMessage, SceneNodeId},
+        base::{NodeMessage, NodeScriptMessage, SceneNodeId},
         camera::Camera,
         dim2::{self},
         graph::{
@@ -74,7 +75,9 @@ use crate::{
     script::ScriptTrait,
     utils::lightmap::{self, Lightmap},
 };
+use bitflags::bitflags;
 use fxhash::{FxHashMap, FxHashSet};
+use fyrox_graph::SceneGraphNode;
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
@@ -159,12 +162,18 @@ pub struct Graph {
     #[reflect(hidden)]
     pub(crate) script_message_receiver: Receiver<NodeScriptMessage>,
 
+    #[reflect(hidden)]
+    pub(crate) message_sender: Sender<NodeMessage>,
+    #[reflect(hidden)]
+    pub(crate) message_receiver: Receiver<NodeMessage>,
+
     instance_id_map: FxHashMap<SceneNodeId, Handle<Node>>,
 }
 
 impl Default for Graph {
     fn default() -> Self {
-        let (tx, rx) = channel();
+        let (script_message_sender, script_message_receiver) = channel();
+        let (message_sender, message_receiver) = channel();
 
         Self {
             physics: PhysicsWorld::new(),
@@ -175,19 +184,21 @@ impl Default for Graph {
             sound_context: Default::default(),
             performance_statistics: Default::default(),
             event_broadcaster: Default::default(),
-            script_message_receiver: rx,
-            script_message_sender: tx,
+            script_message_receiver,
+            message_sender,
+            script_message_sender,
             lightmap: None,
             instance_id_map: Default::default(),
+            message_receiver,
         }
     }
 }
 
 /// Sub-graph is a piece of graph that was extracted from a graph. It has ownership
 /// over its nodes. It is used to temporarily take ownership of a sub-graph. This could
-/// be used if you making a scene editor with a command stack - once you reverted a command,
+/// be used if you're making a scene editor with a command stack - once you reverted a command,
 /// that created a complex nodes hierarchy (for example you loaded a model) you must store
-/// all added nodes somewhere to be able put nodes back into graph when user decide to re-do
+/// all added nodes somewhere to be able to put nodes back into graph when user decide to re-do
 /// command. Sub-graph allows you to do this without invalidating handles to nodes.
 #[derive(Debug)]
 pub struct SubGraph {
@@ -276,18 +287,22 @@ impl Graph {
     /// Creates new graph instance with single root node.
     #[inline]
     pub fn new() -> Self {
-        let (tx, rx) = channel();
+        let (script_message_sender, script_message_receiver) = channel();
+        let (message_sender, message_receiver) = channel();
 
         // Create root node.
         let mut root_node = Pivot::default();
         let instance_id = root_node.instance_id;
-        root_node.script_message_sender = Some(tx.clone());
         root_node.set_name("__ROOT__");
 
         // Add it to the pool.
         let mut pool = Pool::new();
         let root = pool.spawn(Node::new(root_node));
-        pool[root].self_handle = root;
+        pool[root].on_connected_to_graph(
+            root,
+            message_sender.clone(),
+            script_message_sender.clone(),
+        );
 
         let instance_id_map = FxHashMap::from_iter([(instance_id, root)]);
 
@@ -300,10 +315,12 @@ impl Graph {
             sound_context: SoundContext::new(),
             performance_statistics: Default::default(),
             event_broadcaster: Default::default(),
-            script_message_receiver: rx,
-            script_message_sender: tx,
+            script_message_receiver,
+            message_sender,
+            script_message_sender,
             lightmap: None,
             instance_id_map,
+            message_receiver,
         }
     }
 
@@ -632,8 +649,11 @@ impl Graph {
 
     fn restore_dynamic_node_data(&mut self) {
         for (handle, node) in self.pool.pair_iter_mut() {
-            node.self_handle = handle;
-            node.script_message_sender = Some(self.script_message_sender.clone());
+            node.on_connected_to_graph(
+                handle,
+                self.message_sender.clone(),
+                self.script_message_sender.clone(),
+            );
         }
     }
 
@@ -761,56 +781,6 @@ impl Graph {
         }
     }
 
-    pub(crate) fn update_hierarchical_data_recursively(
-        nodes: &NodePool,
-        sound_context: &mut SoundContext,
-        physics: &mut PhysicsWorld,
-        physics2d: &mut dim2::physics::PhysicsWorld,
-        node_handle: Handle<Node>,
-    ) {
-        let node = &nodes[node_handle];
-
-        let (parent_global_transform, parent_visibility, parent_enabled) =
-            if let Some(parent) = nodes.try_borrow(node.parent()) {
-                (
-                    parent.global_transform(),
-                    parent.global_visibility(),
-                    parent.is_globally_enabled(),
-                )
-            } else {
-                (Matrix4::identity(), true, true)
-            };
-
-        let new_global_transform = parent_global_transform * node.local_transform().matrix();
-
-        // TODO: Detect changes from user code here.
-        node.sync_transform(
-            &new_global_transform,
-            &mut SyncContext {
-                nodes,
-                physics,
-                physics2d,
-                sound_context,
-                switches: None,
-            },
-        );
-
-        node.global_transform.set(new_global_transform);
-        node.global_visibility
-            .set(parent_visibility && node.visibility());
-        node.global_enabled.set(parent_enabled && node.is_enabled());
-
-        for &child in node.children() {
-            Self::update_hierarchical_data_recursively(
-                nodes,
-                sound_context,
-                physics,
-                physics2d,
-                child,
-            );
-        }
-    }
-
     /// Tries to compute combined axis-aligned bounding box (AABB) in world-space of the hierarchy starting from the given
     /// scene node. It will return [`None`] if the scene node handle is invalid, otherwise it will return AABB that enclosing
     /// all the nodes in the hierarchy.
@@ -854,9 +824,82 @@ impl Graph {
         aabb_of_descendants_recursive(self, root, &mut filter)
     }
 
+    pub(crate) fn update_enabled_flag_recursively(nodes: &NodePool, node_handle: Handle<Node>) {
+        let node = &nodes[node_handle];
+
+        let parent_enabled = nodes
+            .try_borrow(node.parent())
+            .map_or(true, |p| p.is_globally_enabled());
+        node.global_enabled.set(parent_enabled && node.is_enabled());
+
+        for &child in node.children() {
+            Self::update_enabled_flag_recursively(nodes, child);
+        }
+    }
+
+    pub(crate) fn update_visibility_recursively(nodes: &NodePool, node_handle: Handle<Node>) {
+        let node = &nodes[node_handle];
+
+        let parent_visibility = nodes
+            .try_borrow(node.parent())
+            .map_or(true, |p| p.global_visibility());
+        node.global_visibility
+            .set(parent_visibility && node.visibility());
+
+        for &child in node.children() {
+            Self::update_visibility_recursively(nodes, child);
+        }
+    }
+
+    pub(crate) fn update_global_transform_recursively(
+        nodes: &NodePool,
+        sound_context: &mut SoundContext,
+        physics: &mut PhysicsWorld,
+        physics2d: &mut dim2::physics::PhysicsWorld,
+        node_handle: Handle<Node>,
+    ) {
+        let node = &nodes[node_handle];
+
+        let parent_global_transform = if let Some(parent) = nodes.try_borrow(node.parent()) {
+            parent.global_transform()
+        } else {
+            Matrix4::identity()
+        };
+
+        let new_global_transform = parent_global_transform * node.local_transform().matrix();
+
+        // TODO: Detect changes from user code here.
+        node.sync_transform(
+            &new_global_transform,
+            &mut SyncContext {
+                nodes,
+                physics,
+                physics2d,
+                sound_context,
+                switches: None,
+            },
+        );
+
+        node.global_transform.set(new_global_transform);
+
+        for &child in node.children() {
+            Self::update_global_transform_recursively(
+                nodes,
+                sound_context,
+                physics,
+                physics2d,
+                child,
+            );
+        }
+    }
+
     /// Calculates local and global transform, global visibility for each node in graph starting from the
     /// specified node and down the tree. The main use case of the method is to update global position (etc.)
     /// of an hierarchy of the nodes of some new prefab instance.
+    ///
+    /// # Important Notes
+    ///
+    /// This method could be slow for large hierarchies. You should call it only when absolutely needed.
     #[inline]
     pub fn update_hierarchical_data_for_descendants(&mut self, node_handle: Handle<Node>) {
         Self::update_hierarchical_data_recursively(
@@ -868,20 +911,128 @@ impl Graph {
         );
     }
 
-    /// Calculates local and global transform, global visibility for each node in graph.
-    /// Normally you not need to call this method directly, it will be called automatically
-    /// on each frame. However there is one use case - when you setup complex hierarchy and
-    /// need to know global transform of nodes before entering update loop, then you can call
-    /// this method.
+    /// Calculates local and global transform, global visibility for each node in graph starting from the
+    /// specified node and down the tree. The main use case of the method is to update global position (etc.)
+    /// of an hierarchy of the nodes of some new prefab instance.
+    ///
+    /// # Important Notes
+    ///
+    /// This method could be slow for large graph. You should call it only when absolutely needed.
     #[inline]
     pub fn update_hierarchical_data(&mut self) {
-        Self::update_hierarchical_data_recursively(
-            &self.pool,
-            &mut self.sound_context,
-            &mut self.physics,
-            &mut self.physics2d,
-            self.root,
+        self.update_hierarchical_data_for_descendants(self.root);
+    }
+
+    pub(crate) fn update_hierarchical_data_recursively(
+        nodes: &NodePool,
+        sound_context: &mut SoundContext,
+        physics: &mut PhysicsWorld,
+        physics2d: &mut dim2::physics::PhysicsWorld,
+        node_handle: Handle<Node>,
+    ) {
+        Self::update_global_transform_recursively(
+            nodes,
+            sound_context,
+            physics,
+            physics2d,
+            node_handle,
         );
+        Self::update_enabled_flag_recursively(nodes, node_handle);
+        Self::update_visibility_recursively(nodes, node_handle);
+    }
+
+    // This method processes messages from scene nodes and propagates changes on descendant nodes
+    // in the hierarchy. Scene nodes have global transform, visibility and enabled flags and their
+    // values depend on the values of ancestors in the hierarchy. This method uses optimized changes
+    // propagation that propagates changes on small "chains" of nodes instead of updating the entire
+    // graph. This is much faster since most scene nodes remain unchanged most of the time.
+    //
+    // Performance of this method is detached from the amount of scene nodes in the graph and only
+    // correlates with the amount of changing nodes, allowing to have large scene graphs with tons
+    // of static nodes.
+    fn process_node_messages(&mut self) {
+        bitflags! {
+            #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+            struct Flags: u8 {
+                const NONE = 0;
+                const TRANSFORM_CHANGED = 0b0001;
+                const VISIBILITY_CHANGED = 0b0010;
+                const ENABLED_FLAG_CHANGED = 0b0100;
+            }
+        }
+
+        let mut visited_flags = vec![Flags::NONE; self.pool.get_capacity() as usize];
+        let mut roots = FxHashMap::default();
+
+        while let Ok(message) = self.message_receiver.try_recv() {
+            let message_flag = match message.kind {
+                NodeMessageKind::TransformChanged => Flags::TRANSFORM_CHANGED,
+                NodeMessageKind::VisibilityChanged => Flags::VISIBILITY_CHANGED,
+                NodeMessageKind::EnabledFlagChanged => Flags::ENABLED_FLAG_CHANGED,
+            };
+
+            let visit_flags = &mut visited_flags[message.node.index() as usize];
+
+            if visit_flags.contains(message_flag) {
+                continue;
+            }
+
+            visit_flags.insert(message_flag);
+
+            roots
+                .entry(message.node)
+                .or_insert(Flags::NONE)
+                .insert(message_flag);
+
+            // Mark the entire hierarchy as visited.
+            fn traverse_recursive(
+                graph: &Graph,
+                from: Handle<Node>,
+                func: &mut impl FnMut(Handle<Node>),
+            ) {
+                func(from);
+                if let Some(node) = graph.try_get(from) {
+                    for &child in node.children() {
+                        traverse_recursive(graph, child, func)
+                    }
+                }
+            }
+
+            traverse_recursive(self, message.node, &mut |h| {
+                visited_flags[h.index() as usize].insert(message_flag);
+
+                // Remove a descendant from the list of potential roots.
+                if h != message.node {
+                    if let Some(flags) = roots.get_mut(&h) {
+                        flags.remove(message_flag);
+
+                        if flags.is_empty() {
+                            roots.remove(&h);
+                        }
+                    }
+                }
+            })
+        }
+
+        for (node, flags) in roots {
+            if flags.contains(Flags::TRANSFORM_CHANGED) {
+                Self::update_global_transform_recursively(
+                    &self.pool,
+                    &mut self.sound_context,
+                    &mut self.physics,
+                    &mut self.physics2d,
+                    node,
+                );
+            }
+            // All these calls could be combined into one with the above, but visibility/enabled
+            // flags changes so rare, that it isn't worth spending CPU cycles on useless checks.
+            if flags.contains(Flags::VISIBILITY_CHANGED) {
+                Self::update_visibility_recursively(&self.pool, node);
+            }
+            if flags.contains(Flags::ENABLED_FLAG_CHANGED) {
+                Self::update_enabled_flag_recursively(&self.pool, node)
+            }
+        }
     }
 
     fn sync_native(&mut self, switches: &GraphUpdateSwitches) {
@@ -952,7 +1103,7 @@ impl Graph {
         }
 
         let last_time = instant::Instant::now();
-        self.update_hierarchical_data();
+        self.process_node_messages();
         self.performance_statistics.hierarchical_properties_time =
             instant::Instant::now() - last_time;
 
@@ -1533,10 +1684,10 @@ impl BaseSceneGraph for Graph {
                 .unwrap();
         }
 
-        let sender = self.script_message_sender.clone();
+        let script_message_sender = self.script_message_sender.clone();
+        let message_sender = self.message_sender.clone();
         let node = &mut self.pool[handle];
-        node.self_handle = handle;
-        node.script_message_sender = Some(sender);
+        node.on_connected_to_graph(handle, message_sender, script_message_sender);
 
         self.instance_id_map.insert(node.instance_id, handle);
 
@@ -1654,6 +1805,7 @@ mod test {
         },
         script::ScriptTrait,
     };
+    use fyrox_core::algebra::Vector2;
     use fyrox_resource::untyped::ResourceKind;
     use std::{fs, path::Path, sync::Arc};
 
@@ -1967,5 +2119,102 @@ mod test {
                 .find_by_name(mesh, "NewChildOfMesh")
                 .unwrap();
         }
+    }
+
+    #[test]
+    fn test_hierarchy_changes_propagation() {
+        let mut graph = Graph::new();
+
+        let b;
+        let c;
+        let d;
+        let a = PivotBuilder::new(
+            BaseBuilder::new()
+                .with_local_transform(
+                    TransformBuilder::new()
+                        .with_local_position(Vector3::new(1.0, 0.0, 0.0))
+                        .build(),
+                )
+                .with_children(&[
+                    {
+                        b = PivotBuilder::new(
+                            BaseBuilder::new()
+                                .with_visibility(false)
+                                .with_enabled(false)
+                                .with_local_transform(
+                                    TransformBuilder::new()
+                                        .with_local_position(Vector3::new(0.0, 1.0, 0.0))
+                                        .build(),
+                                )
+                                .with_children(&[{
+                                    c = PivotBuilder::new(
+                                        BaseBuilder::new().with_local_transform(
+                                            TransformBuilder::new()
+                                                .with_local_position(Vector3::new(0.0, 0.0, 1.0))
+                                                .build(),
+                                        ),
+                                    )
+                                    .build(&mut graph);
+                                    c
+                                }]),
+                        )
+                        .build(&mut graph);
+                        b
+                    },
+                    {
+                        d = PivotBuilder::new(
+                            BaseBuilder::new().with_local_transform(
+                                TransformBuilder::new()
+                                    .with_local_position(Vector3::new(1.0, 1.0, 1.0))
+                                    .build(),
+                            ),
+                        )
+                        .build(&mut graph);
+                        d
+                    },
+                ]),
+        )
+        .build(&mut graph);
+
+        graph.update(Vector2::new(1.0, 1.0), 1.0 / 60.0, Default::default());
+
+        assert_eq!(graph[a].global_position(), Vector3::new(1.0, 0.0, 0.0));
+        assert_eq!(graph[b].global_position(), Vector3::new(1.0, 1.0, 0.0));
+        assert_eq!(graph[c].global_position(), Vector3::new(1.0, 1.0, 1.0));
+        assert_eq!(graph[d].global_position(), Vector3::new(2.0, 1.0, 1.0));
+
+        assert!(graph[a].global_visibility());
+        assert!(!graph[b].global_visibility());
+        assert!(!graph[c].global_visibility());
+        assert!(graph[d].global_visibility());
+
+        assert!(graph[a].is_globally_enabled());
+        assert!(!graph[b].is_globally_enabled());
+        assert!(!graph[c].is_globally_enabled());
+        assert!(graph[d].is_globally_enabled());
+
+        // Change something
+        graph[b]
+            .local_transform_mut()
+            .set_position(Vector3::new(0.0, 2.0, 0.0));
+        graph[a].set_enabled(false);
+        graph[b].set_visibility(true);
+
+        graph.update(Vector2::new(1.0, 1.0), 1.0 / 60.0, Default::default());
+
+        assert_eq!(graph[a].global_position(), Vector3::new(1.0, 0.0, 0.0));
+        assert_eq!(graph[b].global_position(), Vector3::new(1.0, 2.0, 0.0));
+        assert_eq!(graph[c].global_position(), Vector3::new(1.0, 2.0, 1.0));
+        assert_eq!(graph[d].global_position(), Vector3::new(2.0, 1.0, 1.0));
+
+        assert!(graph[a].global_visibility());
+        assert!(graph[b].global_visibility());
+        assert!(graph[c].global_visibility());
+        assert!(graph[d].global_visibility());
+
+        assert!(!graph[a].is_globally_enabled());
+        assert!(!graph[b].is_globally_enabled());
+        assert!(!graph[c].is_globally_enabled());
+        assert!(!graph[d].is_globally_enabled());
     }
 }

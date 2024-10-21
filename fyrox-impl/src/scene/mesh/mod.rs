@@ -619,7 +619,7 @@ impl NodeTrait for Mesh {
             let mut container = self.batch_container.0.lock();
 
             if container.batches.is_empty() {
-                container.fill(self.self_handle, ctx);
+                container.fill(self.handle(), ctx);
             }
 
             for batch in container.batches.values() {
@@ -633,7 +633,7 @@ impl NodeTrait for Mesh {
                         bone_matrices: Default::default(),
                         blend_shapes_weights: Default::default(),
                         element_range: ElementRange::Full,
-                        node_handle: self.self_handle,
+                        node_handle: self.handle(),
                     },
                 );
             }
@@ -709,7 +709,7 @@ impl NodeTrait for Mesh {
                                     .map(|bs| bs.weight / 100.0)
                                     .collect(),
                                 element_range: ElementRange::Full,
-                                node_handle: self.self_handle,
+                                node_handle: self.handle(),
                             },
                         );
                     }
@@ -724,7 +724,7 @@ impl NodeTrait for Mesh {
                             surface.material(),
                             *self.render_path,
                             0,
-                            self.self_handle,
+                            self.handle(),
                             &mut move |mut vertex_buffer, mut triangle_buffer| {
                                 let start_vertex_index = vertex_buffer.vertex_count();
 
