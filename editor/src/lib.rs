@@ -1045,6 +1045,15 @@ impl Editor {
                             });
                         }
                     }
+                } else if hot_key == key_bindings.save_scene_as {
+                    if let Some(entry) = self.scenes.current_scene_entry_ref() {
+                        self.menu.file_menu.open_save_file_selector(
+                            engine.user_interfaces.first_mut(),
+                            entry.default_file_name(),
+                        );
+                    }
+                } else if hot_key == key_bindings.save_all_scenes {
+                    self.message_sender.send(Message::SaveAllScenes);
                 } else if hot_key == key_bindings.copy_selection {
                     if let Some(entry) = self.scenes.current_scene_entry_mut() {
                         if let Some(graph_selection) = entry.selection.as_graph() {
@@ -2488,6 +2497,14 @@ impl Editor {
                     }
                     Message::ForceSync => {
                         needs_sync = true;
+                    }
+                    Message::SaveAllScenes => {
+                        for scene in self.scenes.iter() {
+                            if let Some(path) = scene.path.clone() {
+                                self.message_sender
+                                    .send(Message::SaveScene { id: scene.id, path })
+                            }
+                        }
                     }
                     Message::OpenAnimationEditor => {
                         self.animation_editor

@@ -25,6 +25,7 @@ use crate::fyrox::{
         message::KeyCode,
     },
 };
+use fyrox::gui::message::KeyboardModifiers;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Reflect)]
@@ -60,6 +61,10 @@ pub struct KeyBindings {
     pub enable_navmesh_mode: HotKey,
     pub enable_terrain_mode: HotKey,
     pub save_scene: HotKey,
+    #[serde(default = "default_save_scene_as_hotkey")]
+    pub save_scene_as: HotKey,
+    #[serde(default = "default_save_all_scenes_hotkey")]
+    pub save_all_scenes: HotKey,
     pub load_scene: HotKey,
     pub copy_selection: HotKey,
     pub paste: HotKey,
@@ -72,6 +77,28 @@ pub struct KeyBindings {
     pub terrain_key_bindings: TerrainKeyBindings,
     #[serde(default = "default_run_hotkey")]
     pub run_game: HotKey,
+}
+
+fn default_save_scene_as_hotkey() -> HotKey {
+    HotKey::Some {
+        code: KeyCode::KeyS,
+        modifiers: KeyboardModifiers {
+            shift: true,
+            control: true,
+            ..Default::default()
+        },
+    }
+}
+
+fn default_save_all_scenes_hotkey() -> HotKey {
+    HotKey::Some {
+        code: KeyCode::KeyS,
+        modifiers: KeyboardModifiers {
+            alt: true,
+            control: true,
+            ..Default::default()
+        },
+    }
 }
 
 fn default_focus_hotkey() -> HotKey {
@@ -117,6 +144,8 @@ impl Default for KeyBindings {
             enable_navmesh_mode: HotKey::from_key_code(KeyCode::Digit5),
             enable_terrain_mode: HotKey::from_key_code(KeyCode::Digit6),
             save_scene: HotKey::ctrl_key(KeyCode::KeyS),
+            save_scene_as: default_save_scene_as_hotkey(),
+            save_all_scenes: default_save_all_scenes_hotkey(),
             load_scene: HotKey::ctrl_key(KeyCode::KeyL),
             copy_selection: HotKey::ctrl_key(KeyCode::KeyC),
             paste: HotKey::ctrl_key(KeyCode::KeyV),

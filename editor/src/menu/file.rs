@@ -47,6 +47,7 @@ pub struct FileMenu {
     new_ui_scene: Handle<UiNode>,
     pub save: Handle<UiNode>,
     pub save_as: Handle<UiNode>,
+    pub save_all: Handle<UiNode>,
     load: Handle<UiNode>,
     pub close_scene: Handle<UiNode>,
     exit: Handle<UiNode>,
@@ -79,6 +80,7 @@ impl FileMenu {
         let new_ui_scene;
         let save;
         let save_as;
+        let save_all;
         let close_scene;
         let load;
         let open_settings;
@@ -120,6 +122,10 @@ impl FileMenu {
                     save_as =
                         create_menu_item_shortcut("Save Scene As...", "Ctrl+Shift+S", vec![], ctx);
                     save_as
+                },
+                {
+                    save_all = create_menu_item_shortcut("Save All", "Ctrl+Alt+S", vec![], ctx);
+                    save_all
                 },
                 {
                     load = create_menu_item_shortcut("Load Scene...", "Ctrl+L", vec![], ctx);
@@ -185,6 +191,7 @@ impl FileMenu {
             recent_files,
             open_scene_settings,
             export_project,
+            save_all,
         }
     }
 
@@ -281,6 +288,8 @@ impl FileMenu {
                         entry.default_file_name(),
                     );
                 }
+            } else if message.destination() == self.save_all {
+                sender.send(Message::SaveAllScenes);
             } else if message.destination() == self.load {
                 self.open_load_file_selector(engine.user_interfaces.first_mut());
             } else if message.destination() == self.close_scene {

@@ -49,6 +49,7 @@ pub enum Message {
         id: Uuid,
         path: PathBuf,
     },
+    SaveAllScenes,
     LoadScene(PathBuf),
     CloseScene(Uuid),
     SetInteractionMode(Uuid),
