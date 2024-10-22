@@ -130,9 +130,7 @@ where
                     Some(index),
                 )))
             } else {
-                Err(InspectorError::Custom(
-                    "Animation list desync has occurred!".to_string(),
-                ))
+                Ok(None)
             }
         } else {
             Err(InspectorError::Custom("No environment!".to_string()))
