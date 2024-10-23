@@ -260,7 +260,10 @@ pub struct RootMotion {
     pub delta_rotation: UnitQuaternion<f32>,
 
     prev_position: Vector3<f32>,
+    position_offset_remainder: Option<Vector3<f32>>,
+
     prev_rotation: UnitQuaternion<f32>,
+    rotation_remainder: Option<UnitQuaternion<f32>>,
 }
 
 impl RootMotion {
@@ -469,7 +472,7 @@ impl<T: EntityId> Animation<T> {
         // If we have root motion enabled, try to extract the actual motion values. We'll take only relative motion
         // here, relative to the previous values.
         if let Some(root_motion_settings) = self.root_motion_settings.as_ref() {
-            let prev_root_motion = self.root_motion.clone().unwrap_or_default();
+            let mut prev_root_motion = self.root_motion.clone().unwrap_or_default();
 
             // Check if we've started another loop cycle.
             let new_loop_cycle_started = self.looped
@@ -494,18 +497,23 @@ impl<T: EntityId> Animation<T> {
                     match bound_value.binding {
                         ValueBinding::Position => {
                             if let TrackValue::Vector3(pose_position) = bound_value.value {
-                                let delta = if new_loop_cycle_started {
+                                if new_loop_cycle_started {
                                     root_motion.prev_position =
                                         fetch_position_at_time(&self.tracks, cycle_start_time);
-
-                                    let end_value =
-                                        fetch_position_at_time(&self.tracks, cycle_end_time);
-
-                                    end_value - prev_root_motion.prev_position
+                                    root_motion.position_offset_remainder = Some(
+                                        fetch_position_at_time(&self.tracks, cycle_end_time)
+                                            - pose_position,
+                                    );
                                 } else {
                                     root_motion.prev_position = pose_position;
-                                    pose_position - prev_root_motion.prev_position
-                                };
+                                }
+
+                                let remainder = prev_root_motion
+                                    .position_offset_remainder
+                                    .take()
+                                    .unwrap_or_default();
+                                let current_offset = pose_position - prev_root_motion.prev_position;
+                                let delta = current_offset + remainder;
 
                                 root_motion.delta_position.x =
                                     if root_motion_settings.ignore_x_movement {
@@ -555,19 +563,24 @@ impl<T: EntityId> Animation<T> {
                                     if new_loop_cycle_started {
                                         root_motion.prev_rotation =
                                             fetch_rotation_at_time(&self.tracks, cycle_start_time);
-
-                                        let end_value =
-                                            fetch_rotation_at_time(&self.tracks, cycle_end_time);
-
-                                        root_motion.delta_rotation =
-                                            prev_root_motion.prev_rotation.inverse() * end_value;
+                                        root_motion.rotation_remainder = Some(
+                                            fetch_rotation_at_time(&self.tracks, cycle_end_time)
+                                                .inverse()
+                                                * pose_rotation,
+                                        );
                                     } else {
-                                        // Compute relative rotation that can be used to "turn" a node later on.
-                                        root_motion.delta_rotation =
-                                            prev_root_motion.prev_rotation.inverse()
-                                                * pose_rotation;
                                         root_motion.prev_rotation = pose_rotation;
                                     }
+
+                                    // Compute relative rotation that can be used to "turn" a node later on.
+                                    let remainder = prev_root_motion
+                                        .rotation_remainder
+                                        .take()
+                                        .unwrap_or_else(UnitQuaternion::identity);
+                                    let current_relative_rotation =
+                                        prev_root_motion.prev_rotation.inverse() * pose_rotation;
+                                    root_motion.delta_rotation =
+                                        remainder * current_relative_rotation;
 
                                     // Reset rotation so the root won't rotate.
                                     bound_value.value = TrackValue::UnitQuaternion(
