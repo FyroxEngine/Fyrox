@@ -228,6 +228,8 @@ impl AudioBus {
 /// audio sources through a chain of audio buses or directly to an audio playback device. To get a
 /// better understanding of how the audio graph works take a look the data flow diagram below:
 ///
+/// ```text
+///
 /// ┌────────────┐                                                        ┌────────────┐
 /// │            │                                                        │            │
 /// │   Source1  ├────────────┐                                ┌──────────┤   Source2  │
@@ -268,6 +270,8 @@ impl AudioBus {
 ///                               │       Output Device       │
 ///                               │                           │
 ///                               └───────────────────────────┘
+///
+/// ```
 ///
 /// Each audio bus is backed with data (samples) by a set of sound sources (`Source1`, `Source2`, ..) of
 /// current audio context. This data is then passed through a set of effects, which could include various
