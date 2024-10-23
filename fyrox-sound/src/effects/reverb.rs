@@ -73,6 +73,16 @@ fn calculate_decay(len: usize, sample_rate: u32, decay_time: f32) -> f32 {
 }
 
 impl ChannelReverb {
+    /// Total amount of allpass + comb filters per channel
+    const TOTAL_FILTERS_COUNT: f32 = 4.0 + 8.0;
+
+    /// Accumulated gain of all sources of signal (all filters, delay lines, etc.)
+    /// it is used to scale input samples and prevent multiplication of signal gain
+    /// too much which will cause signal overflow.
+    ///
+    /// 2.0 here because left and right signals will be mixed together.
+    const GAIN: f32 = 1.0 / (2.0 * Self::TOTAL_FILTERS_COUNT);
+
     /// Filter lengths given in samples
     const COMB_LENGTHS: [usize; 8] = [1557, 1617, 1491, 1422, 1277, 1356, 1188, 1116];
     const ALLPASS_LENGTHS: [usize; 4] = [225, 556, 441, 341];
@@ -139,9 +149,11 @@ impl ChannelReverb {
     }
 
     fn feed(&mut self, sample: f32) -> f32 {
+        let input = (sample * Self::GAIN).min(1.0);
+
         let mut result = 0.0;
         for comb in self.lp_fb_comb_filters.iter_mut() {
-            result += comb.feed(sample);
+            result += comb.feed(input);
         }
         for allpass in self.all_pass_filters.iter_mut() {
             result = allpass.feed(result);
@@ -190,17 +202,7 @@ impl Default for Reverb {
 }
 
 impl Reverb {
-    /// Total amount of allpass + comb filters per channel
-    const TOTAL_FILTERS_COUNT: f32 = 4.0 + 8.0;
-
     const FEEDBACK: f32 = 0.84;
-
-    /// Accumulated gain of all sources of signal (all filters, delay lines, etc.)
-    /// it is used to scale input samples and prevent multiplication of signal gain
-    /// too much which will cause signal overflow.
-    ///
-    /// 2.0 here because left and right signals will be mixed together.
-    const GAIN: f32 = 1.0 / (2.0 * Self::TOTAL_FILTERS_COUNT);
 
     /// Creates new instance of reverb effect with cutoff frequency of ~11.2 kHz and
     /// 5 seconds decay time.
@@ -294,13 +296,37 @@ impl EffectRenderTrait for Reverb {
 
         for ((out_left, out_right), &(left, right)) in mix_buf.iter_mut().zip(input.iter()) {
             let mid = (left + right) * 0.5;
-            let input = mid * Self::GAIN;
 
-            let processed_left = self.left.feed(input);
-            let processed_right = self.right.feed(input);
+            let processed_left = self.left.feed(mid);
+            let processed_right = self.right.feed(mid);
 
             *out_left = processed_left * wet + processed_right * dry + self.dry * left;
             *out_right = processed_right * wet + processed_left * dry + self.dry * right;
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::effects::reverb::{ChannelReverb, Reverb};
+
+    // Test reverberation for convergence and energy conservation law.
+    #[test]
+    fn test_reverb_convergence() {
+        let mut reverb = ChannelReverb::new(0, 0.25615, Reverb::FEEDBACK, 5.0);
+        let impulse_amplitude = 2.0;
+        reverb.feed(impulse_amplitude);
+        let mut counter = 0;
+        while counter < 6 * 44100 {
+            let result = reverb.feed(0.0);
+            if result > 1.0 {
+                panic!(
+                    "Reverb does not converge with initial impulse of \
+                {impulse_amplitude} amplitude. The output sample was {result} \
+                at {counter} iteration. Energy conservation law was violated."
+                )
+            }
+            counter += 1;
         }
     }
 }
