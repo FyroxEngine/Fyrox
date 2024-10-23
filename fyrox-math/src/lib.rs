@@ -844,6 +844,10 @@ impl Vector2Ext for Vector2<f32> {
 /// This function handles singularities for you.
 #[inline]
 pub fn vector_to_quat(vec: Vector3<f32>) -> UnitQuaternion<f32> {
+    if vec.norm() == 0.0 {
+        return Default::default();
+    }
+
     let dot = vec.normalize().dot(&Vector3::y());
 
     if dot.abs() > 1.0 - 10.0 * f32::EPSILON {
