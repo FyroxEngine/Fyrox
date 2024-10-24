@@ -26,14 +26,12 @@ use crate::{
             buffer::BufferUsage,
             error::FrameworkError,
             framebuffer::{
-                Attachment, AttachmentKind, FrameBuffer, ResourceBindGroup, ResourceBinding,
+                Attachment, AttachmentKind, BufferLocation, FrameBuffer, ResourceBindGroup,
+                ResourceBinding,
             },
             geometry_buffer::{DrawCallStatistics, GeometryBuffer},
             gpu_program::{GpuProgram, UniformLocation},
-            gpu_texture::{
-                GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind,
-                WrapMode,
-            },
+            gpu_texture::{GpuTexture, PixelKind},
             server::GraphicsServer,
             uniform::StaticUniformBuffer,
             DrawParameters, ElementRange, GeometryBufferExt,
@@ -42,8 +40,6 @@ use crate::{
     },
     scene::mesh::surface::SurfaceData,
 };
-use fyrox_graphics::framebuffer::BufferLocation;
-use fyrox_graphics::gpu_texture::GpuTextureDescriptor;
 use std::{cell::RefCell, rc::Rc};
 
 struct Shader {
@@ -81,18 +77,7 @@ impl Blur {
         width: usize,
         height: usize,
     ) -> Result<Self, FrameworkError> {
-        let frame = server.create_texture(GpuTextureDescriptor {
-            kind: GpuTextureKind::Rectangle { width, height },
-            pixel_kind: PixelKind::R32F,
-            min_filter: MinificationFilter::Nearest,
-            mag_filter: MagnificationFilter::Nearest,
-            mip_count: 1,
-            s_wrap_mode: WrapMode::ClampToEdge,
-            t_wrap_mode: WrapMode::ClampToEdge,
-            r_wrap_mode: WrapMode::ClampToEdge,
-            anisotropy: 1.0,
-            data: None,
-        })?;
+        let frame = server.create_2d_render_target(PixelKind::R32F, width, height)?;
 
         Ok(Self {
             shader: Shader::new(server)?,

@@ -72,21 +72,7 @@ pub struct LumBuffer {
 
 impl LumBuffer {
     fn new(server: &dyn GraphicsServer, size: usize) -> Result<Self, FrameworkError> {
-        let texture = server.create_texture(GpuTextureDescriptor {
-            kind: GpuTextureKind::Rectangle {
-                width: size,
-                height: size,
-            },
-            pixel_kind: PixelKind::R32F,
-            min_filter: MinificationFilter::Nearest,
-            mag_filter: MagnificationFilter::Nearest,
-            mip_count: 1,
-            s_wrap_mode: WrapMode::ClampToEdge,
-            t_wrap_mode: WrapMode::ClampToEdge,
-            r_wrap_mode: WrapMode::ClampToEdge,
-            anisotropy: 1.0,
-            data: None,
-        })?;
+        let texture = server.create_2d_render_target(PixelKind::R32F, size, size)?;
         Ok(Self {
             framebuffer: server.create_frame_buffer(
                 None,

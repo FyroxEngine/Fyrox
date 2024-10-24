@@ -108,18 +108,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
         let width = (frame_width / 2).max(1);
         let height = (frame_height / 2).max(1);
 
-        let occlusion = server.create_texture(GpuTextureDescriptor {
-            kind: GpuTextureKind::Rectangle { width, height },
-            pixel_kind: PixelKind::R32F,
-            min_filter: MinificationFilter::Nearest,
-            mag_filter: MagnificationFilter::Nearest,
-            mip_count: 1,
-            s_wrap_mode: Default::default(),
-            t_wrap_mode: Default::default(),
-            r_wrap_mode: Default::default(),
-            anisotropy: 1.0,
-            data: None,
-        })?;
+        let occlusion = server.create_2d_render_target(PixelKind::R32F, width, height)?;
 
         let mut rng = crate::rand::thread_rng();
 

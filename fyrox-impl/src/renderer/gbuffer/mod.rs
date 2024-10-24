@@ -51,10 +51,7 @@ use crate::{
                 ResourceBinding,
             },
             geometry_buffer::GeometryBuffer,
-            gpu_texture::{
-                GpuTexture, GpuTextureDescriptor, GpuTextureKind, MagnificationFilter,
-                MinificationFilter, PixelKind, WrapMode,
-            },
+            gpu_texture::{GpuTexture, PixelKind},
             server::GraphicsServer,
             uniform::StaticUniformBuffer,
             BlendFactor, BlendFunc, BlendParameters, DrawParameters, ElementRange,
@@ -110,32 +107,12 @@ impl GBuffer {
         width: usize,
         height: usize,
     ) -> Result<Self, FrameworkError> {
-        fn create_rt(
-            server: &dyn GraphicsServer,
-            pixel_kind: PixelKind,
-            width: usize,
-            height: usize,
-        ) -> Result<Rc<RefCell<dyn GpuTexture>>, FrameworkError> {
-            server.create_texture(GpuTextureDescriptor {
-                kind: GpuTextureKind::Rectangle { width, height },
-                pixel_kind,
-                min_filter: MinificationFilter::Nearest,
-                mag_filter: MagnificationFilter::Nearest,
-                mip_count: 1,
-                s_wrap_mode: WrapMode::ClampToEdge,
-                t_wrap_mode: WrapMode::ClampToEdge,
-                r_wrap_mode: WrapMode::ClampToEdge,
-                anisotropy: 1.0,
-                data: None,
-            })
-        }
-
-        let diffuse_texture = create_rt(server, PixelKind::RGBA8, width, height)?;
-        let normal_texture = create_rt(server, PixelKind::RGBA8, width, height)?;
+        let diffuse_texture = server.create_2d_render_target(PixelKind::RGBA8, width, height)?;
+        let normal_texture = server.create_2d_render_target(PixelKind::RGBA8, width, height)?;
         let framebuffer = server.create_frame_buffer(
             Some(Attachment {
                 kind: AttachmentKind::DepthStencil,
-                texture: create_rt(server, PixelKind::D24S8, width, height)?,
+                texture: server.create_2d_render_target(PixelKind::D24S8, width, height)?,
             }),
             vec![
                 Attachment {
@@ -148,15 +125,15 @@ impl GBuffer {
                 },
                 Attachment {
                     kind: AttachmentKind::Color,
-                    texture: create_rt(server, PixelKind::RGBA16F, width, height)?,
+                    texture: server.create_2d_render_target(PixelKind::RGBA16F, width, height)?,
                 },
                 Attachment {
                     kind: AttachmentKind::Color,
-                    texture: create_rt(server, PixelKind::RGBA8, width, height)?,
+                    texture: server.create_2d_render_target(PixelKind::RGBA8, width, height)?,
                 },
                 Attachment {
                     kind: AttachmentKind::Color,
-                    texture: create_rt(server, PixelKind::R8UI, width, height)?,
+                    texture: server.create_2d_render_target(PixelKind::R8UI, width, height)?,
                 },
             ],
         )?;

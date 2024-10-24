@@ -25,13 +25,12 @@ use crate::{
         framework::{
             error::FrameworkError,
             framebuffer::{
-                Attachment, AttachmentKind, FrameBuffer, ResourceBindGroup, ResourceBinding,
+                Attachment, AttachmentKind, BufferLocation, FrameBuffer, ResourceBindGroup,
+                ResourceBinding,
             },
             geometry_buffer::GeometryBuffer,
             gpu_program::{GpuProgram, UniformLocation},
-            gpu_texture::{
-                GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind,
-            },
+            gpu_texture::{GpuTexture, PixelKind},
             read_buffer::AsyncReadBuffer,
             server::GraphicsServer,
             uniform::StaticUniformBuffer,
@@ -40,8 +39,6 @@ use crate::{
         make_viewport_matrix,
     },
 };
-use fyrox_graphics::framebuffer::BufferLocation;
-use fyrox_graphics::gpu_texture::GpuTextureDescriptor;
 use std::{cell::RefCell, rc::Rc};
 
 struct VisibilityOptimizerShader {
@@ -80,21 +77,8 @@ impl VisibilityBufferOptimizer {
         w_tiles: usize,
         h_tiles: usize,
     ) -> Result<Self, FrameworkError> {
-        let optimized_visibility_buffer = server.create_texture(GpuTextureDescriptor {
-            kind: GpuTextureKind::Rectangle {
-                width: w_tiles,
-                height: h_tiles,
-            },
-            pixel_kind: PixelKind::R32UI,
-            min_filter: MinificationFilter::Nearest,
-            mag_filter: MagnificationFilter::Nearest,
-            mip_count: 1,
-            s_wrap_mode: Default::default(),
-            t_wrap_mode: Default::default(),
-            r_wrap_mode: Default::default(),
-            anisotropy: 1.0,
-            data: None,
-        })?;
+        let optimized_visibility_buffer =
+            server.create_2d_render_target(PixelKind::R32UI, w_tiles, h_tiles)?;
 
         Ok(Self {
             framebuffer: server.create_frame_buffer(

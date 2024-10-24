@@ -18,6 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::gpu_texture::{
+    GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind, WrapMode,
+};
 use crate::{
     buffer::{Buffer, BufferKind, BufferUsage},
     error::FrameworkError,
@@ -111,4 +114,23 @@ pub trait GraphicsServer: Any {
     fn set_frame_size(&self, new_size: (u32, u32));
     fn capabilities(&self) -> ServerCapabilities;
     fn set_polygon_fill_mode(&self, polygon_face: PolygonFace, polygon_fill_mode: PolygonFillMode);
+    fn create_2d_render_target(
+        &self,
+        pixel_kind: PixelKind,
+        width: usize,
+        height: usize,
+    ) -> Result<Rc<RefCell<dyn GpuTexture>>, FrameworkError> {
+        self.create_texture(GpuTextureDescriptor {
+            kind: GpuTextureKind::Rectangle { width, height },
+            pixel_kind,
+            min_filter: MinificationFilter::Nearest,
+            mag_filter: MagnificationFilter::Nearest,
+            mip_count: 1,
+            s_wrap_mode: WrapMode::ClampToEdge,
+            t_wrap_mode: WrapMode::ClampToEdge,
+            r_wrap_mode: WrapMode::ClampToEdge,
+            anisotropy: 1.0,
+            data: None,
+        })
+    }
 }

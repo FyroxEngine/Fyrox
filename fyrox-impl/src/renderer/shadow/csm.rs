@@ -18,7 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::bundle::{LightSource, LightSourceKind, RenderDataBundleStorageOptions};
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
@@ -26,7 +25,10 @@ use crate::{
         math::{aabb::AxisAlignedBoundingBox, frustum::Frustum, Matrix4Ext, Rect},
     },
     renderer::{
-        bundle::{BundleRenderContext, ObserverInfo, RenderDataBundleStorage},
+        bundle::{
+            BundleRenderContext, LightSource, LightSourceKind, ObserverInfo,
+            RenderDataBundleStorage, RenderDataBundleStorageOptions,
+        },
         cache::{
             geometry::GeometryCache,
             shader::ShaderCache,
@@ -36,10 +38,7 @@ use crate::{
         framework::{
             error::FrameworkError,
             framebuffer::{Attachment, AttachmentKind, FrameBuffer},
-            gpu_texture::{
-                GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind,
-                WrapMode,
-            },
+            gpu_texture::{GpuTexture, PixelKind},
             server::GraphicsServer,
         },
         FallbackResources, RenderPassStatistics, ShadowMapPrecision, DIRECTIONAL_SHADOW_PASS_NAME,
@@ -50,7 +49,6 @@ use crate::{
         light::directional::{FrustumSplitOptions, CSM_NUM_CASCADES},
     },
 };
-use fyrox_graphics::gpu_texture::GpuTextureDescriptor;
 use std::{cell::RefCell, rc::Rc};
 
 pub struct Cascade {
@@ -65,24 +63,14 @@ impl Cascade {
         size: usize,
         precision: ShadowMapPrecision,
     ) -> Result<Self, FrameworkError> {
-        let depth = server.create_texture(GpuTextureDescriptor {
-            kind: GpuTextureKind::Rectangle {
-                width: size,
-                height: size,
-            },
-            pixel_kind: match precision {
+        let depth = server.create_2d_render_target(
+            match precision {
                 ShadowMapPrecision::Full => PixelKind::D32F,
                 ShadowMapPrecision::Half => PixelKind::D16,
             },
-            min_filter: MinificationFilter::Nearest,
-            mag_filter: MagnificationFilter::Nearest,
-            mip_count: 1,
-            s_wrap_mode: WrapMode::ClampToEdge,
-            t_wrap_mode: WrapMode::ClampToEdge,
-            r_wrap_mode: WrapMode::ClampToEdge,
-            anisotropy: 1.0,
-            data: None,
-        })?;
+            size,
+            size,
+        )?;
 
         Ok(Self {
             frame_buffer: server.create_frame_buffer(

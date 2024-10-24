@@ -44,10 +44,7 @@ use crate::{
             },
             geometry_buffer::GeometryBuffer,
             gpu_program::{GpuProgram, UniformLocation},
-            gpu_texture::{
-                GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind,
-                WrapMode,
-            },
+            gpu_texture::{GpuTexture, GpuTextureKind, PixelKind},
             server::GraphicsServer,
             uniform::StaticUniformBuffer,
             BlendEquation, BlendFactor, BlendFunc, BlendMode, BlendParameters, ColorMask,
@@ -63,7 +60,6 @@ use crate::{
 };
 use bytemuck::{Pod, Zeroable};
 use fyrox_graphics::framebuffer::BufferLocation;
-use fyrox_graphics::gpu_texture::GpuTextureDescriptor;
 use std::{cell::RefCell, rc::Rc};
 
 struct Shader {
@@ -160,49 +156,12 @@ impl OcclusionTester {
         height: usize,
         tile_size: usize,
     ) -> Result<Self, FrameworkError> {
-        let depth_stencil = server.create_texture(GpuTextureDescriptor {
-            kind: GpuTextureKind::Rectangle { width, height },
-            pixel_kind: PixelKind::D24S8,
-            min_filter: MinificationFilter::Nearest,
-            mag_filter: MagnificationFilter::Nearest,
-            mip_count: 1,
-            s_wrap_mode: WrapMode::ClampToEdge,
-            t_wrap_mode: WrapMode::ClampToEdge,
-            r_wrap_mode: WrapMode::ClampToEdge,
-            anisotropy: 1.0,
-            data: None,
-        })?;
-
-        let visibility_mask = server.create_texture(GpuTextureDescriptor {
-            kind: GpuTextureKind::Rectangle { width, height },
-            pixel_kind: PixelKind::RGBA8,
-            min_filter: MinificationFilter::Nearest,
-            mag_filter: MagnificationFilter::Nearest,
-            mip_count: 1,
-            s_wrap_mode: WrapMode::ClampToEdge,
-            t_wrap_mode: WrapMode::ClampToEdge,
-            r_wrap_mode: WrapMode::ClampToEdge,
-            anisotropy: 1.0,
-            data: None,
-        })?;
-
+        let depth_stencil = server.create_2d_render_target(PixelKind::D24S8, width, height)?;
+        let visibility_mask = server.create_2d_render_target(PixelKind::RGBA8, width, height)?;
         let w_tiles = width / tile_size + 1;
         let h_tiles = height / tile_size + 1;
-        let tile_buffer = server.create_texture(GpuTextureDescriptor {
-            kind: GpuTextureKind::Rectangle {
-                width: w_tiles * (MAX_BITS + 1),
-                height: h_tiles,
-            },
-            pixel_kind: PixelKind::R32UI,
-            min_filter: MinificationFilter::Nearest,
-            mag_filter: MagnificationFilter::Nearest,
-            mip_count: 1,
-            s_wrap_mode: WrapMode::ClampToEdge,
-            t_wrap_mode: WrapMode::ClampToEdge,
-            r_wrap_mode: WrapMode::ClampToEdge,
-            anisotropy: 1.0,
-            data: None,
-        })?;
+        let tile_buffer =
+            server.create_2d_render_target(PixelKind::R32UI, w_tiles * (MAX_BITS + 1), h_tiles)?;
 
         Ok(Self {
             framebuffer: server.create_frame_buffer(

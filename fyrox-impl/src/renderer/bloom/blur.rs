@@ -30,10 +30,7 @@ use crate::{
             },
             geometry_buffer::GeometryBuffer,
             gpu_program::{GpuProgram, UniformLocation},
-            gpu_texture::{
-                GpuTexture, GpuTextureDescriptor, GpuTextureKind, MagnificationFilter,
-                MinificationFilter, PixelKind, WrapMode,
-            },
+            gpu_texture::{GpuTexture, PixelKind},
             server::GraphicsServer,
             uniform::StaticUniformBuffer,
             DrawParameters, ElementRange,
@@ -79,18 +76,7 @@ fn create_framebuffer(
     height: usize,
     pixel_kind: PixelKind,
 ) -> Result<Box<dyn FrameBuffer>, FrameworkError> {
-    let frame = server.create_texture(GpuTextureDescriptor {
-        kind: GpuTextureKind::Rectangle { width, height },
-        pixel_kind,
-        min_filter: MinificationFilter::Nearest,
-        mag_filter: MagnificationFilter::Nearest,
-        mip_count: 1,
-        s_wrap_mode: WrapMode::ClampToEdge,
-        t_wrap_mode: WrapMode::ClampToEdge,
-        r_wrap_mode: WrapMode::ClampToEdge,
-        anisotropy: 1.0,
-        data: None,
-    })?;
+    let frame = server.create_2d_render_target(pixel_kind, width, height)?;
 
     server.create_frame_buffer(
         None,

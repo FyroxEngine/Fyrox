@@ -51,7 +51,6 @@ mod skybox_shader;
 mod ssao;
 mod stats;
 
-use crate::material::shader::ShaderDefinition;
 use crate::{
     asset::{event::ResourceEvent, manager::ResourceManager},
     core::{
@@ -69,7 +68,7 @@ use crate::{
     engine::{error::EngineError, GraphicsContextParams},
     graph::SceneGraph,
     gui::draw::DrawingContext,
-    material::shader::{Shader, ShaderResource, ShaderResourceExtension},
+    material::shader::{Shader, ShaderDefinition, ShaderResource, ShaderResourceExtension},
     renderer::{
         bloom::BloomRenderer,
         bundle::{ObserverInfo, RenderDataBundleStorage, RenderDataBundleStorageOptions},
@@ -84,14 +83,17 @@ use crate::{
             buffer::{Buffer, BufferKind, BufferUsage},
             error::FrameworkError,
             framebuffer::{
-                Attachment, AttachmentKind, FrameBuffer, ResourceBindGroup, ResourceBinding,
+                Attachment, AttachmentKind, BufferLocation, FrameBuffer, ResourceBindGroup,
+                ResourceBinding,
             },
             geometry_buffer::{DrawCallStatistics, GeometryBuffer},
+            gl::server::GlGraphicsServer,
+            gpu_program::SamplerFallback,
             gpu_texture::{
-                GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind,
-                WrapMode,
+                GpuTexture, GpuTextureDescriptor, GpuTextureKind, MagnificationFilter,
+                MinificationFilter, PixelKind,
             },
-            server::GraphicsServer,
+            server::{GraphicsServer, SharedGraphicsServer},
             uniform::StaticUniformBuffer,
             DrawParameters, ElementRange, GeometryBufferExt, PolygonFace, PolygonFillMode,
         },
@@ -106,11 +108,6 @@ use crate::{
     scene::{camera::Camera, mesh::surface::SurfaceData, Scene, SceneContainer},
 };
 use fxhash::FxHashMap;
-use fyrox_graphics::gpu_texture::GpuTextureDescriptor;
-use fyrox_graphics::{
-    framebuffer::BufferLocation, gl::server::GlGraphicsServer, gpu_program::SamplerFallback,
-    server::SharedGraphicsServer,
-};
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 pub use stats::*;
@@ -504,32 +501,10 @@ impl AssociatedSceneData {
         width: usize,
         height: usize,
     ) -> Result<Self, FrameworkError> {
-        let depth_stencil = server.create_texture(GpuTextureDescriptor {
-            kind: GpuTextureKind::Rectangle { width, height },
-            pixel_kind: PixelKind::D24S8,
-            min_filter: MinificationFilter::Nearest,
-            mag_filter: MagnificationFilter::Nearest,
-            mip_count: 1,
-            s_wrap_mode: WrapMode::ClampToEdge,
-            t_wrap_mode: WrapMode::ClampToEdge,
-            r_wrap_mode: WrapMode::ClampToEdge,
-            anisotropy: 1.0,
-            data: None,
-        })?;
-
-        let hdr_frame_texture = server.create_texture(GpuTextureDescriptor {
-            kind: GpuTextureKind::Rectangle { width, height },
-            // Intermediate scene frame will be rendered in HDR render target.
-            pixel_kind: PixelKind::RGBA16F,
-            min_filter: MinificationFilter::Nearest,
-            mag_filter: MagnificationFilter::Nearest,
-            mip_count: 1,
-            s_wrap_mode: Default::default(),
-            t_wrap_mode: Default::default(),
-            r_wrap_mode: Default::default(),
-            anisotropy: 1.0,
-            data: None,
-        })?;
+        let depth_stencil = server.create_2d_render_target(PixelKind::D24S8, width, height)?;
+        // Intermediate scene frame will be rendered in HDR render target.
+        let hdr_frame_texture =
+            server.create_2d_render_target(PixelKind::RGBA16F, width, height)?;
 
         let hdr_scene_framebuffer = server.create_frame_buffer(
             Some(Attachment {
@@ -758,21 +733,11 @@ fn make_ui_frame_buffer(
         data: None,
     })?;
 
-    let depth_stencil = server.create_texture(GpuTextureDescriptor {
-        kind: GpuTextureKind::Rectangle {
-            width: frame_size.x as usize,
-            height: frame_size.y as usize,
-        },
-        pixel_kind: PixelKind::D24S8,
-        min_filter: MinificationFilter::Nearest,
-        mag_filter: MagnificationFilter::Nearest,
-        mip_count: 1,
-        s_wrap_mode: Default::default(),
-        t_wrap_mode: Default::default(),
-        r_wrap_mode: Default::default(),
-        anisotropy: 1.0,
-        data: None,
-    })?;
+    let depth_stencil = server.create_2d_render_target(
+        PixelKind::D24S8,
+        frame_size.x as usize,
+        frame_size.y as usize,
+    )?;
 
     server.create_frame_buffer(
         Some(Attachment {

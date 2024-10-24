@@ -31,10 +31,7 @@ use crate::{
             },
             geometry_buffer::GeometryBuffer,
             gpu_program::{GpuProgram, UniformLocation},
-            gpu_texture::{
-                GpuTexture, GpuTextureDescriptor, GpuTextureKind, MagnificationFilter,
-                MinificationFilter, PixelKind, WrapMode,
-            },
+            gpu_texture::{GpuTexture, PixelKind},
             server::GraphicsServer,
             uniform::StaticUniformBuffer,
             DrawParameters, ElementRange,
@@ -81,18 +78,7 @@ impl BloomRenderer {
         width: usize,
         height: usize,
     ) -> Result<Self, FrameworkError> {
-        let frame = server.create_texture(GpuTextureDescriptor {
-            kind: GpuTextureKind::Rectangle { width, height },
-            pixel_kind: PixelKind::RGBA16F,
-            min_filter: MinificationFilter::Nearest,
-            mag_filter: MagnificationFilter::Nearest,
-            mip_count: 1,
-            s_wrap_mode: WrapMode::ClampToEdge,
-            t_wrap_mode: WrapMode::ClampToEdge,
-            r_wrap_mode: WrapMode::ClampToEdge,
-            anisotropy: 1.0,
-            data: None,
-        })?;
+        let frame = server.create_2d_render_target(PixelKind::RGBA16F, width, height)?;
 
         Ok(Self {
             shader: Shader::new(server)?,
