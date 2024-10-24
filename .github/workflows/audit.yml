@@ -23,15 +23,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # Actions-rs/install is unmaintained but works for now.
-      # Alternatives for when it breaks:
-      #  - dtolnay/install - not a full replacement - only supports crates he uses (not audit currently)
-      #  - baptiste0928/cargo-install - looks like it just compiles the crate and then caches it for subsequent runs
-      #  - just `cargo install` and caching it
-      - uses: actions-rs/install@v0.1
-        with:
-          crate: cargo-audit
-          version: latest
       - run: cargo audit --version
       # RUSTSEC-2020-0097: xcb - Soundness issue with base::Error
       # RUSTSEC-2022-0048: xml-rs is Unmaintained
