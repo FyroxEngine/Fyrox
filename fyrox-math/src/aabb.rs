@@ -19,7 +19,8 @@
 // SOFTWARE.
 
 use crate::Matrix4Ext;
-use nalgebra::{Matrix4, Vector3};
+use nalgebra::{Matrix4, Vector2, Vector3, Vector4};
+use rectutils::{OptionRect, Rect};
 
 #[derive(Copy, Clone, Debug)]
 pub struct AxisAlignedBoundingBox {
@@ -318,12 +319,33 @@ impl AxisAlignedBoundingBox {
             ),
         ]
     }
+
+    #[inline]
+    pub fn project(&self, view_projection: &Matrix4<f32>, viewport: &Rect<i32>) -> Rect<f32> {
+        let mut rect_builder = OptionRect::default();
+        for corner in self.corners() {
+            let clip_space = view_projection * Vector4::new(corner.x, corner.y, corner.z, 1.0);
+            let ndc_space = clip_space.xyz() / clip_space.w.abs();
+            let mut normalized_screen_space =
+                Vector2::new((ndc_space.x + 1.0) / 2.0, (1.0 - ndc_space.y) / 2.0);
+            normalized_screen_space.x = normalized_screen_space.x.clamp(0.0, 1.0);
+            normalized_screen_space.y = normalized_screen_space.y.clamp(0.0, 1.0);
+            let screen_space_corner = Vector2::new(
+                (normalized_screen_space.x * viewport.size.x as f32) + viewport.position.x as f32,
+                (normalized_screen_space.y * viewport.size.y as f32) + viewport.position.y as f32,
+            );
+
+            rect_builder.push(screen_space_corner);
+        }
+        rect_builder.unwrap()
+    }
 }
 
 #[cfg(test)]
 mod test {
     use crate::aabb::AxisAlignedBoundingBox;
-    use nalgebra::{Matrix4, Vector3};
+    use nalgebra::{Matrix4, Point3, Vector2, Vector3};
+    use rectutils::Rect;
 
     #[test]
     fn test_aabb_transform() {
@@ -558,5 +580,45 @@ mod test {
 
         assert_eq!(_boxes[7].min, Vector3::new(0.0, 0.0, 0.0));
         assert_eq!(_boxes[7].max, Vector3::new(1.0, 1.0, 1.0));
+    }
+
+    #[test]
+    fn test_aabb_projection() {
+        let viewport = Rect::new(0, 0, 1000, 1000);
+        let view_projection = Matrix4::new_perspective(1.0, 90.0f32.to_radians(), 0.025, 1000.0)
+            * Matrix4::look_at_rh(
+                &Default::default(),
+                &Point3::new(0.0, 0.0, 1.0),
+                &Vector3::y_axis(),
+            );
+
+        let aabb = AxisAlignedBoundingBox::unit();
+        let rect = aabb.project(&view_projection, &viewport);
+        assert_eq!(rect.position, Vector2::new(0.0, 0.0));
+        assert_eq!(rect.size, Vector2::new(1000.0, 1000.0));
+
+        let aabb = AxisAlignedBoundingBox::from_min_max(
+            Vector3::new(-0.5, 0.0, -0.5),
+            Vector3::new(0.5, 0.5, 0.5),
+        );
+        let rect = aabb.project(&view_projection, &viewport);
+        assert_eq!(rect.position, Vector2::new(0.0, 0.0));
+        assert_eq!(rect.size, Vector2::new(1000.0, 500.0));
+
+        let aabb = AxisAlignedBoundingBox::from_min_max(
+            Vector3::new(-0.5, 0.25, -0.5),
+            Vector3::new(0.5, 0.5, 0.5),
+        );
+        let rect = aabb.project(&view_projection, &viewport);
+        assert_eq!(rect.position, Vector2::new(0.0, 0.0));
+        assert_eq!(rect.size, Vector2::new(1000.0, 250.0));
+
+        let aabb = AxisAlignedBoundingBox::from_min_max(
+            Vector3::new(-10.0, -10.0, -20.0),
+            Vector3::new(10.0, 10.0, 10.0),
+        );
+        let rect = aabb.project(&view_projection, &viewport);
+        assert_eq!(rect.position, Vector2::new(0.0, 0.0));
+        assert_eq!(rect.size, Vector2::new(1000.0, 1000.0));
     }
 }

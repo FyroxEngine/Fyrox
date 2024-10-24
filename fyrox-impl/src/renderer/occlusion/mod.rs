@@ -25,10 +25,10 @@ mod optimizer;
 
 use crate::{
     core::{
-        algebra::{Matrix4, Vector2, Vector3, Vector4},
+        algebra::{Matrix4, Vector2, Vector3},
         array_as_u8_slice,
         color::Color,
-        math::{aabb::AxisAlignedBoundingBox, OptionRect, Rect, Vector3Ext},
+        math::{aabb::AxisAlignedBoundingBox, Rect, Vector3Ext},
         pool::Handle,
         ImmutableString,
     },
@@ -143,29 +143,6 @@ impl TileBuffer {
             tile.count = 0;
         }
     }
-}
-
-fn screen_space_rect(
-    aabb: AxisAlignedBoundingBox,
-    view_projection: &Matrix4<f32>,
-    viewport: &Rect<i32>,
-) -> Rect<f32> {
-    let mut rect_builder = OptionRect::default();
-    for corner in aabb.corners() {
-        let clip_space = view_projection * Vector4::new(corner.x, corner.y, corner.z, 1.0);
-        let ndc_space = clip_space.xyz() / clip_space.w.abs();
-        let mut normalized_screen_space =
-            Vector2::new((ndc_space.x + 1.0) / 2.0, (1.0 - ndc_space.y) / 2.0);
-        normalized_screen_space.x = normalized_screen_space.x.clamp(0.0, 1.0);
-        normalized_screen_space.y = normalized_screen_space.y.clamp(0.0, 1.0);
-        let screen_space_corner = Vector2::new(
-            (normalized_screen_space.x * viewport.size.x as f32) + viewport.position.x as f32,
-            (normalized_screen_space.y * viewport.size.y as f32) + viewport.position.y as f32,
-        );
-
-        rect_builder.push(screen_space_corner);
-    }
-    rect_builder.unwrap()
 }
 
 fn inflated_world_aabb(graph: &Graph, object: Handle<Node>) -> Option<AxisAlignedBoundingBox> {
@@ -324,7 +301,7 @@ impl OcclusionTester {
             };
 
             let aabb = node_ref.world_bounding_box();
-            let rect = screen_space_rect(aabb, &self.view_projection, viewport);
+            let rect = aabb.project(&self.view_projection, viewport);
 
             if debug_renderer.is_some() {
                 debug_renderer::draw_rect(&rect, &mut lines, Color::WHITE);
