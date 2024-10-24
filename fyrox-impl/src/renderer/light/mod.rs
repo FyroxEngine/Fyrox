@@ -188,7 +188,7 @@ impl DeferredLightRenderer {
                 server,
             )?,
             sphere: <dyn GeometryBuffer>::from_surface_data(
-                &SurfaceData::make_sphere(6, 6, 1.0, &Matrix4::identity()),
+                &SurfaceData::make_sphere(10, 10, 1.0, &Matrix4::identity()),
                 BufferUsage::StaticDraw,
                 server,
             )?,
@@ -541,74 +541,47 @@ impl DeferredLightRenderer {
 
             let mut light_view_projection = Matrix4::identity();
 
-            // Mark lighted areas in stencil buffer to do light calculations only on them.
+            // Mark lit areas in stencil buffer to do light calculations only on them.
             let uniform_buffer = uniform_buffer_cache.write(
                 StaticUniformBuffer::<256>::new().with(&(view_projection * bounding_shape_matrix)),
             )?;
 
-            pass_stats += frame_buffer.draw(
-                &**bounding_shape,
-                viewport,
-                &*self.flat_shader.program,
-                &DrawParameters {
-                    cull_face: Some(CullFace::Front),
-                    color_write: ColorMask::all(false),
-                    depth_write: false,
-                    stencil_test: Some(StencilFunc {
-                        func: CompareFunc::Always,
-                        ..Default::default()
-                    }),
-                    stencil_op: StencilOp {
-                        zfail: StencilAction::Incr,
-                        ..Default::default()
-                    },
-                    depth_test: Some(CompareFunc::Less),
-                    blend: None,
-                    scissor_box: None,
-                },
-                &[ResourceBindGroup {
-                    bindings: &[ResourceBinding::Buffer {
-                        buffer: uniform_buffer,
-                        binding: BufferLocation::Auto {
-                            shader_location: self.flat_shader.uniform_buffer_binding,
+            for (cull_face, stencil_action) in [
+                (CullFace::Front, StencilAction::Incr),
+                (CullFace::Back, StencilAction::Decr),
+            ] {
+                pass_stats += frame_buffer.draw(
+                    &**bounding_shape,
+                    viewport,
+                    &*self.flat_shader.program,
+                    &DrawParameters {
+                        cull_face: Some(cull_face),
+                        color_write: ColorMask::all(false),
+                        depth_write: false,
+                        stencil_test: Some(StencilFunc {
+                            func: CompareFunc::Always,
+                            ..Default::default()
+                        }),
+                        stencil_op: StencilOp {
+                            zfail: stencil_action,
+                            ..Default::default()
                         },
-                        data_usage: Default::default(),
-                    }],
-                }],
-                ElementRange::Full,
-            )?;
-
-            pass_stats += frame_buffer.draw(
-                &**bounding_shape,
-                viewport,
-                &*self.flat_shader.program,
-                &DrawParameters {
-                    cull_face: Some(CullFace::Back),
-                    color_write: ColorMask::all(false),
-                    depth_write: false,
-                    stencil_test: Some(StencilFunc {
-                        func: CompareFunc::Always,
-                        ..Default::default()
-                    }),
-                    stencil_op: StencilOp {
-                        zfail: StencilAction::Decr,
-                        ..Default::default()
+                        depth_test: Some(CompareFunc::Less),
+                        blend: None,
+                        scissor_box: None,
                     },
-                    depth_test: Some(CompareFunc::Less),
-                    blend: None,
-                    scissor_box: None,
-                },
-                &[ResourceBindGroup {
-                    bindings: &[ResourceBinding::Buffer {
-                        buffer: uniform_buffer,
-                        binding: BufferLocation::Auto {
-                            shader_location: self.flat_shader.uniform_buffer_binding,
-                        },
-                        data_usage: Default::default(),
+                    &[ResourceBindGroup {
+                        bindings: &[ResourceBinding::Buffer {
+                            buffer: uniform_buffer,
+                            binding: BufferLocation::Auto {
+                                shader_location: self.flat_shader.uniform_buffer_binding,
+                            },
+                            data_usage: Default::default(),
+                        }],
                     }],
-                }],
-                ElementRange::Full,
-            )?;
+                    ElementRange::Full,
+                )?;
+            }
 
             // Directional light sources cannot be optimized via occlusion culling, because they're
             // usually cover the entire screen anyway. TODO: This might still be optimizable, but
@@ -635,7 +608,7 @@ impl DeferredLightRenderer {
                                 func: CompareFunc::NotEqual,
                                 ..Default::default()
                             }),
-                            depth_test: Some(CompareFunc::Less),
+                            depth_test: None,
                             blend: None,
                             stencil_op: Default::default(),
                             scissor_box: None,
