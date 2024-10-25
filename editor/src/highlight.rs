@@ -23,7 +23,6 @@ use crate::{
         core::{
             algebra::{Matrix4, Vector3},
             color::Color,
-            math::Matrix4Ext,
             pool::Handle,
             sstorage::ImmutableString,
         },
@@ -230,12 +229,6 @@ impl SceneRenderPass for HighlightRenderPass {
             self.framebuffer
                 .clear(ctx.viewport, Some(Color::TRANSPARENT), Some(1.0), None);
 
-            let view_projection = ctx.camera.view_projection_matrix();
-            let inv_view = ctx.camera.inv_view_matrix().unwrap();
-
-            let camera_up = inv_view.up();
-            let camera_side = inv_view.side();
-
             stats += render_bundle_storage.render_to_frame_buffer(
                 ctx.server,
                 ctx.geometry_cache,
@@ -246,12 +239,6 @@ impl SceneRenderPass for HighlightRenderPass {
                     texture_cache: ctx.texture_cache,
                     render_pass_name: &render_pass_name,
                     frame_buffer: &mut *self.framebuffer,
-                    view_projection_matrix: &view_projection,
-                    camera_position: &ctx.camera.global_position(),
-                    camera_up_vector: &camera_up,
-                    camera_side_vector: &camera_side,
-                    z_near: ctx.camera.projection().z_near(),
-                    z_far: ctx.camera.projection().z_far(),
                     use_pom: false,
                     light_position: &Default::default(),
                     fallback_resources: ctx.fallback_resources,

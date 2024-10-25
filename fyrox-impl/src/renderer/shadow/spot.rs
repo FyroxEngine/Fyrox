@@ -22,7 +22,7 @@ use crate::{
     core::{
         algebra::{Matrix4, Vector3},
         color::Color,
-        math::{Matrix4Ext, Rect},
+        math::Rect,
     },
     renderer::{
         bundle::{
@@ -145,7 +145,6 @@ impl SpotShadowMapRenderer {
 
         framebuffer.clear(viewport, None, Some(1.0), None);
 
-        let light_view_projection = light_projection_matrix * light_view_matrix;
         let bundle_storage = RenderDataBundleStorage::from_graph(
             graph,
             ObserverInfo {
@@ -161,10 +160,6 @@ impl SpotShadowMapRenderer {
             },
         );
 
-        let inv_view = light_view_matrix.try_inverse().unwrap();
-        let camera_up = inv_view.up();
-        let camera_side = inv_view.side();
-
         statistics += bundle_storage.render_to_frame_buffer(
             server,
             geom_cache,
@@ -178,17 +173,11 @@ impl SpotShadowMapRenderer {
                 viewport,
                 uniform_buffer_cache,
                 uniform_memory_allocator,
-                view_projection_matrix: &light_view_projection,
-                camera_position: &Default::default(),
-                camera_up_vector: &camera_up,
-                camera_side_vector: &camera_side,
-                z_near,
                 use_pom: false,
                 light_position: &Default::default(),
                 fallback_resources,
                 ambient_light: Color::WHITE, // TODO
                 scene_depth: None,
-                z_far,
             },
         )?;
 

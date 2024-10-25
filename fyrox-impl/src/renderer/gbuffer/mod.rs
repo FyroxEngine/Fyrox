@@ -33,7 +33,7 @@ use crate::{
     core::{
         algebra::{Matrix4, Vector2},
         color::Color,
-        math::{Matrix4Ext, Rect},
+        math::Rect,
         sstorage::ImmutableString,
     },
     renderer::{
@@ -232,11 +232,6 @@ impl GBuffer {
             Some(0),
         );
 
-        let inv_view = camera.inv_view_matrix().unwrap();
-
-        let camera_up = inv_view.up();
-        let camera_side = inv_view.side();
-
         let grid_cell = self
             .occlusion_tester
             .grid_cache
@@ -260,17 +255,11 @@ impl GBuffer {
                 viewport,
                 uniform_buffer_cache,
                 uniform_memory_allocator,
-                view_projection_matrix: &view_projection,
-                camera_position: &camera.global_position(),
-                camera_up_vector: &camera_up,
-                camera_side_vector: &camera_side,
-                z_near: camera.projection().z_near(),
                 use_pom: quality_settings.use_parallax_mapping,
                 light_position: &Default::default(),
                 fallback_resources,
                 ambient_light: Color::WHITE, // TODO
                 scene_depth: None,           // TODO. Add z-pre-pass.
-                z_far: camera.projection().z_far(),
             },
         )?;
 

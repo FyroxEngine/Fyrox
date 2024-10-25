@@ -22,7 +22,7 @@ use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
         color::Color,
-        math::{aabb::AxisAlignedBoundingBox, frustum::Frustum, Matrix4Ext, Rect},
+        math::{aabb::AxisAlignedBoundingBox, frustum::Frustum, Rect},
     },
     renderer::{
         bundle::{
@@ -244,10 +244,6 @@ impl CsmRenderer {
                 aabb.min.x, aabb.max.x, aabb.min.y, aabb.max.y, aabb.min.z, aabb.max.z,
             );
 
-            let inv_view = light_view_matrix.try_inverse().unwrap();
-            let camera_up = inv_view.up();
-            let camera_side = inv_view.side();
-
             let light_view_projection = cascade_projection_matrix * light_view_matrix;
             self.cascades[i].view_proj_matrix = light_view_projection;
             self.cascades[i].z_far = z_far;
@@ -284,17 +280,11 @@ impl CsmRenderer {
                     viewport,
                     uniform_buffer_cache,
                     uniform_memory_allocator,
-                    view_projection_matrix: &light_view_projection,
-                    camera_position: &camera.global_position(),
-                    camera_up_vector: &camera_up,
-                    camera_side_vector: &camera_side,
-                    z_near,
                     use_pom: false,
                     light_position: &Default::default(),
                     fallback_resources,
                     ambient_light: Color::WHITE, // TODO
                     scene_depth: None,
-                    z_far,
                 },
             )?;
         }

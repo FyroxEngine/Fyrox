@@ -18,16 +18,17 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::renderer::bundle::RenderDataBundleStorageOptions;
-use crate::renderer::FallbackResources;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector3},
         color::Color,
-        math::{Matrix4Ext, Rect},
+        math::Rect,
     },
     renderer::{
-        bundle::{BundleRenderContext, ObserverInfo, RenderDataBundleStorage},
+        bundle::{
+            BundleRenderContext, ObserverInfo, RenderDataBundleStorage,
+            RenderDataBundleStorageOptions,
+        },
         cache::{
             shader::ShaderCache,
             texture::TextureCache,
@@ -37,17 +38,17 @@ use crate::{
             error::FrameworkError,
             framebuffer::{Attachment, AttachmentKind, FrameBuffer},
             gpu_texture::{
-                CubeMapFace, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
-                PixelKind, WrapMode,
+                CubeMapFace, GpuTexture, GpuTextureDescriptor, GpuTextureKind, MagnificationFilter,
+                MinificationFilter, PixelKind, WrapMode,
             },
             server::GraphicsServer,
         },
         shadow::cascade_size,
-        GeometryCache, RenderPassStatistics, ShadowMapPrecision, POINT_SHADOW_PASS_NAME,
+        FallbackResources, GeometryCache, RenderPassStatistics, ShadowMapPrecision,
+        POINT_SHADOW_PASS_NAME,
     },
     scene::graph::Graph,
 };
-use fyrox_graphics::gpu_texture::GpuTextureDescriptor;
 use std::{cell::RefCell, rc::Rc};
 
 pub struct PointShadowMapRenderer {
@@ -222,11 +223,6 @@ impl PointShadowMapRenderer {
                 &Point3::from(light_look_at),
                 &face.up,
             );
-            let light_view_projection_matrix = light_projection_matrix * light_view_matrix;
-
-            let inv_view = light_view_matrix.try_inverse().unwrap();
-            let camera_up = inv_view.up();
-            let camera_side = inv_view.side();
 
             let bundle_storage = RenderDataBundleStorage::from_graph(
                 graph,
@@ -256,17 +252,11 @@ impl PointShadowMapRenderer {
                     viewport,
                     uniform_buffer_cache,
                     uniform_memory_allocator,
-                    view_projection_matrix: &light_view_projection_matrix,
-                    camera_position: &Default::default(),
-                    camera_up_vector: &camera_up,
-                    camera_side_vector: &camera_side,
-                    z_near,
                     use_pom: false,
                     light_position: &light_pos,
                     fallback_resources,
                     ambient_light: Color::WHITE, // TODO
                     scene_depth: None,
-                    z_far,
                 },
             )?;
         }

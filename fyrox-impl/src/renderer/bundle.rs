@@ -79,6 +79,7 @@ use crate::{
     },
 };
 use fxhash::{FxBuildHasher, FxHashMap, FxHasher};
+use fyrox_core::math::Matrix4Ext;
 use fyrox_graph::{SceneGraph, SceneGraphNode};
 use std::{
     cell::RefCell,
@@ -154,20 +155,12 @@ pub struct BundleRenderContext<'a> {
     pub uniform_memory_allocator: &'a mut UniformMemoryAllocator,
 
     // Built-in uniforms.
-    pub view_projection_matrix: &'a Matrix4<f32>,
     pub use_pom: bool,
     pub light_position: &'a Vector3<f32>,
     pub ambient_light: Color,
     // TODO: Add depth pre-pass to remove Option here. Current architecture allows only forward
     // renderer to have access to depth buffer that is available from G-Buffer.
     pub scene_depth: Option<&'a Rc<RefCell<dyn GpuTexture>>>,
-
-    pub camera_position: &'a Vector3<f32>,
-    pub camera_up_vector: &'a Vector3<f32>,
-    pub camera_side_vector: &'a Vector3<f32>,
-    pub z_near: f32,
-    pub z_far: f32,
-
     pub fallback_resources: &'a FallbackResources,
 }
 
@@ -354,6 +347,7 @@ impl RenderDataBundle {
     /// Writes all the required uniform data of the bundle to uniform memory allocator.
     pub fn write_uniforms(
         &self,
+        view_projection_matrix: &Matrix4<f32>,
         render_context: &mut BundleRenderContext,
     ) -> Option<BundleUniformData> {
         let mut material_state = self.material.state();
@@ -404,7 +398,7 @@ impl RenderDataBundle {
         for instance in self.instances.iter() {
             let instance_buffer = StaticUniformBuffer::<1024>::new()
                 .with(&instance.world_transform)
-                .with(&(render_context.view_projection_matrix * instance.world_transform))
+                .with(&(view_projection_matrix * instance.world_transform))
                 .with(&(instance.blend_shapes_weights.len() as i32))
                 .with(&(!instance.bone_matrices.is_empty()))
                 .with_slice_with_max_size(
@@ -733,6 +727,7 @@ pub struct LightSource {
 #[derive(Default)]
 pub struct RenderDataBundleStorage {
     bundle_map: FxHashMap<u64, usize>,
+    pub observer_info: ObserverInfo,
     /// A sorted list of bundles.
     pub bundles: Vec<RenderDataBundle>,
     pub light_sources: Vec<LightSource>,
@@ -764,6 +759,7 @@ impl RenderDataBundleStorage {
         let capacity = graph.node_count() as usize;
         let mut storage = Self {
             bundle_map: FxHashMap::with_capacity_and_hasher(capacity, FxBuildHasher::default()),
+            observer_info: observer_info.clone(),
             bundles: Vec::with_capacity(capacity),
             light_sources: Default::default(),
         };
@@ -938,14 +934,22 @@ impl RenderDataBundleStorage {
             .allocate(lights_data);
 
         // Upload camera uniforms.
+        let inv_view = self
+            .observer_info
+            .view_matrix
+            .try_inverse()
+            .unwrap_or_default();
+        let view_projection = self.observer_info.projection_matrix * self.observer_info.view_matrix;
+        let camera_up = inv_view.up();
+        let camera_side = inv_view.side();
         let camera_uniforms = StaticUniformBuffer::<512>::new()
-            .with(render_context.view_projection_matrix)
-            .with(render_context.camera_position)
-            .with(render_context.camera_up_vector)
-            .with(render_context.camera_side_vector)
-            .with(&render_context.z_near)
-            .with(&render_context.z_far)
-            .with(&(render_context.z_far - render_context.z_near));
+            .with(&view_projection)
+            .with(&self.observer_info.observer_position)
+            .with(&camera_up)
+            .with(&camera_side)
+            .with(&self.observer_info.z_near)
+            .with(&self.observer_info.z_far)
+            .with(&(self.observer_info.z_far - self.observer_info.z_near));
         let camera_block = render_context
             .uniform_memory_allocator
             .allocate(camera_uniforms);
@@ -978,12 +982,14 @@ impl RenderDataBundleStorage {
     {
         let global_uniforms = self.write_global_uniform_blocks(&mut render_context);
 
+        let view_projection = self.observer_info.projection_matrix * self.observer_info.view_matrix;
         let mut bundle_uniform_data_set = Vec::with_capacity(self.bundles.len());
         for bundle in self.bundles.iter() {
             if !bundle_filter(bundle) {
                 continue;
             }
-            bundle_uniform_data_set.push(bundle.write_uniforms(&mut render_context));
+            bundle_uniform_data_set
+                .push(bundle.write_uniforms(&view_projection, &mut render_context));
         }
         render_context.uniform_memory_allocator.upload(server)?;
 

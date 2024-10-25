@@ -21,11 +21,7 @@
 //! Forward renderer is used to render transparent meshes and meshes with custom blending options.
 
 use crate::{
-    core::{
-        color::Color,
-        math::{Matrix4Ext, Rect},
-        sstorage::ImmutableString,
-    },
+    core::{color::Color, math::Rect, sstorage::ImmutableString},
     renderer::{
         bundle::{BundleRenderContext, RenderDataBundleStorage},
         cache::{
@@ -39,7 +35,7 @@ use crate::{
         },
         FallbackResources, GeometryCache, QualitySettings, RenderPassStatistics,
     },
-    scene::{camera::Camera, mesh::RenderPath},
+    scene::mesh::RenderPath,
 };
 use std::{cell::RefCell, rc::Rc};
 
@@ -47,9 +43,8 @@ pub(crate) struct ForwardRenderer {
     render_pass_name: ImmutableString,
 }
 
-pub(crate) struct ForwardRenderContext<'a, 'b> {
+pub(crate) struct ForwardRenderContext<'a> {
     pub state: &'a dyn GraphicsServer,
-    pub camera: &'b Camera,
     pub geom_cache: &'a mut GeometryCache,
     pub texture_cache: &'a mut TextureCache,
     pub shader_cache: &'a mut ShaderCache,
@@ -79,7 +74,6 @@ impl ForwardRenderer {
 
         let ForwardRenderContext {
             state,
-            camera,
             geom_cache,
             texture_cache,
             shader_cache,
@@ -94,13 +88,6 @@ impl ForwardRenderer {
             uniform_memory_allocator,
         } = args;
 
-        let view_projection = camera.view_projection_matrix();
-
-        let inv_view = camera.inv_view_matrix().unwrap();
-
-        let camera_up = inv_view.up();
-        let camera_side = inv_view.side();
-
         statistics += bundle_storage.render_to_frame_buffer(
             state,
             geom_cache,
@@ -114,12 +101,6 @@ impl ForwardRenderer {
                 viewport,
                 uniform_buffer_cache,
                 uniform_memory_allocator,
-                view_projection_matrix: &view_projection,
-                camera_position: &camera.global_position(),
-                camera_up_vector: &camera_up,
-                camera_side_vector: &camera_side,
-                z_near: camera.projection().z_near(),
-                z_far: camera.projection().z_far(),
                 use_pom: quality_settings.use_parallax_mapping,
                 light_position: &Default::default(),
                 fallback_resources,
