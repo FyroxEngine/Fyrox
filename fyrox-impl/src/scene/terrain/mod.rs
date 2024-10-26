@@ -2616,7 +2616,7 @@ impl NodeTrait for Terrain {
                 let quad_tree = chunk.quad_tree.lock();
                 let levels = (0..=quad_tree.max_level)
                     .map(|n| {
-                        ctx.z_far
+                        ctx.observer_info.z_far
                             * ((quad_tree.max_level - n) as f32 / quad_tree.max_level as f32)
                                 .powf(3.0)
                     })
@@ -2635,7 +2635,7 @@ impl NodeTrait for Terrain {
                     self.height_map_size(),
                     self.chunk_size(),
                     ctx.frustum,
-                    *ctx.observer_position,
+                    ctx.observer_info.observer_position,
                     &levels,
                     &mut selection,
                 );

@@ -504,7 +504,8 @@ impl NodeTrait for ParticleSystem {
     }
 
     fn collect_render_data(&self, ctx: &mut RenderContext) -> RdcControlFlow {
-        if !self.should_be_rendered(ctx.frustum) || self.is_distance_clipped(ctx.observer_position)
+        if !self.should_be_rendered(ctx.frustum)
+            || self.is_distance_clipped(&ctx.observer_info.observer_position)
         {
             return RdcControlFlow::Continue;
         }
@@ -514,6 +515,7 @@ impl NodeTrait for ParticleSystem {
         }
 
         let distance_to_observer = ctx
+            .observer_info
             .observer_position
             .metric_distance(&self.global_position());
 
@@ -529,7 +531,7 @@ impl NodeTrait for ParticleSystem {
                 let actual_position = particle.position + self.base.global_position();
                 particle
                     .sqr_distance_to_camera
-                    .set((*ctx.observer_position - actual_position).norm_squared());
+                    .set((ctx.observer_info.observer_position - actual_position).norm_squared());
                 sorted_particles.push(i as u32);
             }
         }

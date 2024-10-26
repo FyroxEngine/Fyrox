@@ -173,11 +173,7 @@ impl BatchContainer {
 
             let descendant = &ctx.graph[descendant_handle];
             descendant.collect_render_data(&mut RenderContext {
-                observer_position: ctx.observer_position,
-                z_near: ctx.z_near,
-                z_far: ctx.z_far,
-                view_matrix: ctx.view_matrix,
-                projection_matrix: ctx.projection_matrix,
+                observer_info: ctx.observer_info,
                 frustum: None,
                 storage: self,
                 graph: ctx.graph,

@@ -107,16 +107,7 @@ pub struct ObserverInfo {
 /// Render context is used to collect render data from the scene nodes. It provides all required information about
 /// the observer (camera, light source virtual camera, etc.), that could be used for culling.
 pub struct RenderContext<'a> {
-    /// World-space position of the observer.
-    pub observer_position: &'a Vector3<f32>,
-    /// Location of the near clipping plane.
-    pub z_near: f32,
-    /// Location of the far clipping plane.
-    pub z_far: f32,
-    /// View matrix of the observer.
-    pub view_matrix: &'a Matrix4<f32>,
-    /// Projection matrix of the observer.
-    pub projection_matrix: &'a Matrix4<f32>,
+    pub observer_info: &'a ObserverInfo,
     /// Frustum of the observer, it is built using observer's view and projection matrix. Use the frustum to do
     /// frustum culling.
     pub frustum: Option<&'a Frustum>,
@@ -138,6 +129,7 @@ impl<'a> RenderContext<'a> {
         let granularity = 1000.0;
         u64::MAX
             - (self
+                .observer_info
                 .view_matrix
                 .transform_point(&(global_position.into()))
                 .z
@@ -837,11 +829,7 @@ impl RenderDataBundleStorage {
         }
 
         let mut ctx = RenderContext {
-            observer_position: &observer_info.observer_position,
-            z_near: observer_info.z_near,
-            z_far: observer_info.z_far,
-            view_matrix: &observer_info.view_matrix,
-            projection_matrix: &observer_info.projection_matrix,
+            observer_info: &observer_info,
             frustum: Some(&frustum),
             storage: &mut storage,
             graph,
