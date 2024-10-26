@@ -1534,7 +1534,6 @@ impl Renderer {
                     quality_settings: &self.quality_settings,
                     fallback_resources: &self.fallback_resources,
                     scene_depth: depth,
-                    uniform_buffer_cache: &mut self.uniform_buffer_cache,
                     ambient_light: scene.rendering_options.ambient_lighting_color,
                     uniform_memory_allocator: &mut self.uniform_memory_allocator,
                 })?;

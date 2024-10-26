@@ -253,7 +253,6 @@ impl GBuffer {
                 render_pass_name: &self.render_pass_name,
                 frame_buffer: &mut *self.framebuffer,
                 viewport,
-                uniform_buffer_cache,
                 uniform_memory_allocator,
                 use_pom: quality_settings.use_parallax_mapping,
                 light_position: &Default::default(),

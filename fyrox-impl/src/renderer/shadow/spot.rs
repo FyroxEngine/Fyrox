@@ -29,11 +29,7 @@ use crate::{
             BundleRenderContext, ObserverInfo, RenderDataBundleStorage,
             RenderDataBundleStorageOptions,
         },
-        cache::{
-            shader::ShaderCache,
-            texture::TextureCache,
-            uniform::{UniformBufferCache, UniformMemoryAllocator},
-        },
+        cache::{shader::ShaderCache, texture::TextureCache, uniform::UniformMemoryAllocator},
         framework::{
             error::FrameworkError,
             framebuffer::{Attachment, AttachmentKind, FrameBuffer},
@@ -133,7 +129,6 @@ impl SpotShadowMapRenderer {
         shader_cache: &mut ShaderCache,
         texture_cache: &mut TextureCache,
         fallback_resources: &FallbackResources,
-        uniform_buffer_cache: &mut UniformBufferCache,
         uniform_memory_allocator: &mut UniformMemoryAllocator,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut statistics = RenderPassStatistics::default();
@@ -171,7 +166,6 @@ impl SpotShadowMapRenderer {
                 render_pass_name: &SPOT_SHADOW_PASS_NAME,
                 frame_buffer: framebuffer,
                 viewport,
-                uniform_buffer_cache,
                 uniform_memory_allocator,
                 use_pom: false,
                 light_position: &Default::default(),

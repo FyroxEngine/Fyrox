@@ -43,7 +43,7 @@ use crate::{
             geometry::GeometryCache,
             shader::ShaderCache,
             texture::TextureCache,
-            uniform::{UniformBlockLocation, UniformBufferCache, UniformMemoryAllocator},
+            uniform::{UniformBlockLocation, UniformMemoryAllocator},
             TimeToLive,
         },
         framework::{
@@ -151,7 +151,6 @@ pub struct BundleRenderContext<'a> {
     pub render_pass_name: &'a ImmutableString,
     pub frame_buffer: &'a mut dyn FrameBuffer,
     pub viewport: Rect<i32>,
-    pub uniform_buffer_cache: &'a mut UniformBufferCache,
     pub uniform_memory_allocator: &'a mut UniformMemoryAllocator,
 
     // Built-in uniforms.

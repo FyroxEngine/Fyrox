@@ -670,7 +670,6 @@ impl DeferredLightRenderer {
                             shader_cache,
                             textures,
                             fallback_resources,
-                            uniform_buffer_cache,
                             uniform_memory_allocator,
                         )?;
 
@@ -689,7 +688,6 @@ impl DeferredLightRenderer {
                                     shader_cache,
                                     texture_cache: textures,
                                     fallback_resources,
-                                    uniform_buffer_cache,
                                     uniform_memory_allocator,
                                 })?;
 
@@ -706,7 +704,6 @@ impl DeferredLightRenderer {
                             shader_cache,
                             texture_cache: textures,
                             fallback_resources,
-                            uniform_buffer_cache,
                             uniform_memory_allocator,
                         })?;
 

@@ -29,11 +29,7 @@ use crate::{
             BundleRenderContext, ObserverInfo, RenderDataBundleStorage,
             RenderDataBundleStorageOptions,
         },
-        cache::{
-            shader::ShaderCache,
-            texture::TextureCache,
-            uniform::{UniformBufferCache, UniformMemoryAllocator},
-        },
+        cache::{shader::ShaderCache, texture::TextureCache, uniform::UniformMemoryAllocator},
         framework::{
             error::FrameworkError,
             framebuffer::{Attachment, AttachmentKind, FrameBuffer},
@@ -74,7 +70,6 @@ pub(crate) struct PointShadowMapRenderContext<'a> {
     pub shader_cache: &'a mut ShaderCache,
     pub texture_cache: &'a mut TextureCache,
     pub fallback_resources: &'a FallbackResources,
-    pub uniform_buffer_cache: &'a mut UniformBufferCache,
     pub uniform_memory_allocator: &'a mut UniformMemoryAllocator,
 }
 
@@ -199,7 +194,6 @@ impl PointShadowMapRenderer {
             shader_cache,
             texture_cache,
             fallback_resources,
-            uniform_buffer_cache,
             uniform_memory_allocator,
         } = args;
 
@@ -250,7 +244,6 @@ impl PointShadowMapRenderer {
                     render_pass_name: &POINT_SHADOW_PASS_NAME,
                     frame_buffer: framebuffer,
                     viewport,
-                    uniform_buffer_cache,
                     uniform_memory_allocator,
                     use_pom: false,
                     light_position: &light_pos,

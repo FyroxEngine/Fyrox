@@ -24,11 +24,7 @@ use crate::{
     core::{color::Color, math::Rect, sstorage::ImmutableString},
     renderer::{
         bundle::{BundleRenderContext, RenderDataBundleStorage},
-        cache::{
-            shader::ShaderCache,
-            texture::TextureCache,
-            uniform::{UniformBufferCache, UniformMemoryAllocator},
-        },
+        cache::{shader::ShaderCache, texture::TextureCache, uniform::UniformMemoryAllocator},
         framework::{
             error::FrameworkError, framebuffer::FrameBuffer, gpu_texture::GpuTexture,
             server::GraphicsServer,
@@ -54,7 +50,6 @@ pub(crate) struct ForwardRenderContext<'a> {
     pub quality_settings: &'a QualitySettings,
     pub fallback_resources: &'a FallbackResources,
     pub scene_depth: Rc<RefCell<dyn GpuTexture>>,
-    pub uniform_buffer_cache: &'a mut UniformBufferCache,
     pub ambient_light: Color,
     pub uniform_memory_allocator: &'a mut UniformMemoryAllocator,
 }
@@ -83,7 +78,6 @@ impl ForwardRenderer {
             quality_settings,
             fallback_resources,
             scene_depth,
-            uniform_buffer_cache,
             ambient_light,
             uniform_memory_allocator,
         } = args;
@@ -99,7 +93,6 @@ impl ForwardRenderer {
                 render_pass_name: &self.render_pass_name,
                 frame_buffer: framebuffer,
                 viewport,
-                uniform_buffer_cache,
                 uniform_memory_allocator,
                 use_pom: quality_settings.use_parallax_mapping,
                 light_position: &Default::default(),

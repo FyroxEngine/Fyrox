@@ -30,10 +30,8 @@ use crate::{
             RenderDataBundleStorage, RenderDataBundleStorageOptions,
         },
         cache::{
-            geometry::GeometryCache,
-            shader::ShaderCache,
-            texture::TextureCache,
-            uniform::{UniformBufferCache, UniformMemoryAllocator},
+            geometry::GeometryCache, shader::ShaderCache, texture::TextureCache,
+            uniform::UniformMemoryAllocator,
         },
         framework::{
             error::FrameworkError,
@@ -110,7 +108,6 @@ pub(crate) struct CsmRenderContext<'a, 'c> {
     pub shader_cache: &'a mut ShaderCache,
     pub texture_cache: &'a mut TextureCache,
     pub fallback_resources: &'a FallbackResources,
-    pub uniform_buffer_cache: &'a mut UniformBufferCache,
     pub uniform_memory_allocator: &'a mut UniformMemoryAllocator,
 }
 
@@ -159,7 +156,6 @@ impl CsmRenderer {
             shader_cache,
             texture_cache,
             fallback_resources,
-            uniform_buffer_cache,
             uniform_memory_allocator,
         } = ctx;
 
@@ -278,7 +274,6 @@ impl CsmRenderer {
                     render_pass_name: &DIRECTIONAL_SHADOW_PASS_NAME,
                     frame_buffer: framebuffer,
                     viewport,
-                    uniform_buffer_cache,
                     uniform_memory_allocator,
                     use_pom: false,
                     light_position: &Default::default(),
