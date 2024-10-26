@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::renderer::make_viewport_matrix;
 use crate::{
     core::{
         algebra::{Matrix3, Matrix4, Vector2, Vector3},
@@ -198,18 +199,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
 
         let viewport = Rect::new(0, 0, self.width, self.height);
 
-        let frame_matrix = Matrix4::new_orthographic(
-            0.0,
-            viewport.w() as f32,
-            viewport.h() as f32,
-            0.0,
-            -1.0,
-            1.0,
-        ) * Matrix4::new_nonuniform_scaling(&Vector3::new(
-            viewport.w() as f32,
-            viewport.h() as f32,
-            0.0,
-        ));
+        let frame_matrix = make_viewport_matrix(viewport);
 
         self.framebuffer.clear(
             viewport,

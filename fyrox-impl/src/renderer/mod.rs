@@ -617,7 +617,8 @@ impl AssociatedSceneData {
     }
 }
 
-pub(crate) fn make_viewport_matrix(viewport: Rect<i32>) -> Matrix4<f32> {
+/// Creates a view-projection matrix that projects unit quad a screen with the specified viewport.
+pub fn make_viewport_matrix(viewport: Rect<i32>) -> Matrix4<f32> {
     Matrix4::new_orthographic(
         0.0,
         viewport.w() as f32,
@@ -865,18 +866,7 @@ fn blit_pixels(
     viewport: Rect<i32>,
     quad: &dyn GeometryBuffer,
 ) -> Result<DrawCallStatistics, FrameworkError> {
-    let matrix = Matrix4::new_orthographic(
-        0.0,
-        viewport.w() as f32,
-        viewport.h() as f32,
-        0.0,
-        -1.0,
-        1.0,
-    ) * Matrix4::new_nonuniform_scaling(&Vector3::new(
-        viewport.w() as f32,
-        viewport.h() as f32,
-        0.0,
-    ));
+    let matrix = make_viewport_matrix(viewport);
     let uniform_buffer =
         uniform_buffer_cache.write(StaticUniformBuffer::<256>::new().with(&matrix))?;
     framebuffer.draw(

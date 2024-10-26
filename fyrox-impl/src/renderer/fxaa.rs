@@ -19,17 +19,14 @@
 // SOFTWARE.
 
 use crate::{
-    core::{
-        algebra::{Matrix4, Vector2, Vector3},
-        math::Rect,
-        sstorage::ImmutableString,
-    },
+    core::{algebra::Vector2, math::Rect, sstorage::ImmutableString},
+    renderer::make_viewport_matrix,
     renderer::{
         cache::uniform::UniformBufferCache,
         framework::{
             buffer::BufferUsage,
             error::FrameworkError,
-            framebuffer::{FrameBuffer, ResourceBindGroup, ResourceBinding},
+            framebuffer::{BufferLocation, FrameBuffer, ResourceBindGroup, ResourceBinding},
             geometry_buffer::GeometryBuffer,
             gpu_program::{GpuProgram, UniformLocation},
             gpu_texture::GpuTexture,
@@ -41,7 +38,6 @@ use crate::{
     },
     scene::mesh::surface::SurfaceData,
 };
-use fyrox_graphics::framebuffer::BufferLocation;
 use std::{cell::RefCell, rc::Rc};
 
 struct FxaaShader {
@@ -91,18 +87,7 @@ impl FxaaRenderer {
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut statistics = RenderPassStatistics::default();
 
-        let frame_matrix = Matrix4::new_orthographic(
-            0.0,
-            viewport.w() as f32,
-            viewport.h() as f32,
-            0.0,
-            -1.0,
-            1.0,
-        ) * Matrix4::new_nonuniform_scaling(&Vector3::new(
-            viewport.w() as f32,
-            viewport.h() as f32,
-            0.0,
-        ));
+        let frame_matrix = make_viewport_matrix(viewport);
 
         statistics += frame_buffer.draw(
             &*self.quad,

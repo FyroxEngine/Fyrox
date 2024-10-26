@@ -20,16 +20,11 @@
 
 use crate::{
     fyrox::{
-        core::{
-            algebra::{Matrix4, Vector3},
-            color::Color,
-            pool::Handle,
-            sstorage::ImmutableString,
-        },
+        core::{color::Color, pool::Handle, sstorage::ImmutableString},
         fxhash::FxHashSet,
         graph::{BaseSceneGraph, SceneGraph},
         renderer::{
-            bundle::{BundleRenderContext, RenderContext, RenderDataBundleStorage},
+            bundle::{BundleRenderContext, ObserverInfo, RenderContext, RenderDataBundleStorage},
             framework::{
                 buffer::BufferUsage,
                 error::FrameworkError,
@@ -45,13 +40,12 @@ use crate::{
                 BlendFactor, BlendFunc, BlendParameters, CompareFunc, DrawParameters, ElementRange,
                 GeometryBufferExt,
             },
-            RenderPassStatistics, SceneRenderPass, SceneRenderPassContext,
+            make_viewport_matrix, RenderPassStatistics, SceneRenderPass, SceneRenderPassContext,
         },
         scene::{mesh::surface::SurfaceData, node::Node, Scene},
     },
     Editor,
 };
-use fyrox::renderer::bundle::ObserverInfo;
 use std::{any::TypeId, cell::RefCell, rc::Rc};
 
 struct EdgeDetectShader {
@@ -255,18 +249,7 @@ impl SceneRenderPass for HighlightRenderPass {
 
         // Render full screen quad with edge detect shader to draw outline of selected objects.
         {
-            let frame_matrix = Matrix4::new_orthographic(
-                0.0,
-                ctx.viewport.w() as f32,
-                ctx.viewport.h() as f32,
-                0.0,
-                -1.0,
-                1.0,
-            ) * Matrix4::new_nonuniform_scaling(&Vector3::new(
-                ctx.viewport.w() as f32,
-                ctx.viewport.h() as f32,
-                0.0,
-            ));
+            let frame_matrix = make_viewport_matrix(ctx.viewport);
             let shader = &self.edge_detect_shader;
             let frame_texture = self.framebuffer.color_attachments()[0].texture.clone();
             ctx.framebuffer.draw(

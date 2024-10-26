@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::renderer::bundle::{LightSource, LightSourceKind};
+use crate::renderer::make_viewport_matrix;
 use crate::{
     core::{
         algebra::{Isometry3, Matrix4, Point3, Translation, Vector3},
@@ -136,19 +137,7 @@ impl LightVolumeRenderer {
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();
 
-        let frame_matrix = Matrix4::new_orthographic(
-            0.0,
-            viewport.w() as f32,
-            viewport.h() as f32,
-            0.0,
-            -1.0,
-            1.0,
-        ) * Matrix4::new_nonuniform_scaling(&Vector3::new(
-            viewport.w() as f32,
-            viewport.h() as f32,
-            0.0,
-        ));
-
+        let frame_matrix = make_viewport_matrix(viewport);
         let position = view.transform_point(&Point3::from(light.position)).coords;
 
         match light.kind {

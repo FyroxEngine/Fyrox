@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::renderer::make_viewport_matrix;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3},
@@ -301,18 +302,7 @@ impl DeferredLightRenderer {
         let frustum = Frustum::from_view_projection_matrix(camera.view_projection_matrix())
             .unwrap_or_default();
 
-        let frame_matrix = Matrix4::new_orthographic(
-            0.0,
-            viewport.w() as f32,
-            viewport.h() as f32,
-            0.0,
-            -1.0,
-            1.0,
-        ) * Matrix4::new_nonuniform_scaling(&Vector3::new(
-            viewport.w() as f32,
-            viewport.h() as f32,
-            0.0,
-        ));
+        let frame_matrix = make_viewport_matrix(viewport);
 
         let projection_matrix = camera.projection_matrix();
         let view_projection = camera.view_projection_matrix();

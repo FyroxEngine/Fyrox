@@ -20,7 +20,7 @@
 
 use crate::{
     core::{
-        algebra::{Matrix4, Vector2, Vector3},
+        algebra::{Matrix4, Vector2},
         color::Color,
         math::Rect,
         transmute_slice, value_as_u8_slice,
@@ -95,12 +95,7 @@ impl LumBuffer {
     }
 
     fn matrix(&self) -> Matrix4<f32> {
-        Matrix4::new_orthographic(0.0, self.size as f32, self.size as f32, 0.0, -1.0, 1.0)
-            * Matrix4::new_nonuniform_scaling(&Vector3::new(
-                self.size as f32,
-                self.size as f32,
-                0.0,
-            ))
+        make_viewport_matrix(Rect::new(0, 0, self.size as i32, self.size as i32))
     }
 
     fn texture(&self) -> Rc<RefCell<dyn GpuTexture>> {
