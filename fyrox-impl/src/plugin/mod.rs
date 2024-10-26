@@ -300,6 +300,9 @@ pub trait Plugin: BasePlugin + Visit + Reflect {
     /// info).
     fn update(&mut self, #[allow(unused_variables)] context: &mut PluginContext) {}
 
+    /// called after all Plugin and Script updates
+    fn post_update(&mut self, #[allow(unused_variables)] context: &mut PluginContext) {}
+
     /// The method is called when the main window receives an event from the OS. The main use of
     /// the method is to respond to some external events, for example an event from keyboard or
     /// gamepad. See [`Event`] docs for more info.
