@@ -248,9 +248,15 @@ pub struct QualitySettings {
     /// Whether to use bloom effect.
     pub use_bloom: bool,
 
-    /// Whether to use occlusion culling technique or not.
+    /// Whether to use occlusion culling for geometry or not. Warning: this is experimental feature
+    /// that may have bugs and unstable behavior. Disabled by default.
     #[serde(default)]
     pub use_occlusion_culling: bool,
+
+    /// Whether to use occlusion culling for light sources or not. Warning: this is experimental
+    /// feature that may have bugs and unstable behavior. Disabled by default.
+    #[serde(default)]
+    pub use_light_occlusion_culling: bool,
 }
 
 impl Default for QualitySettings {
@@ -287,10 +293,12 @@ impl QualitySettings {
 
             use_bloom: true,
 
-            use_occlusion_culling: true,
             use_parallax_mapping: true,
 
             csm_settings: Default::default(),
+
+            use_occlusion_culling: false,
+            use_light_occlusion_culling: false,
         }
     }
 
@@ -321,7 +329,6 @@ impl QualitySettings {
 
             use_bloom: true,
 
-            use_occlusion_culling: true,
             use_parallax_mapping: true,
 
             csm_settings: CsmSettings {
@@ -330,6 +337,9 @@ impl QualitySettings {
                 precision: ShadowMapPrecision::Full,
                 pcf: true,
             },
+
+            use_occlusion_culling: false,
+            use_light_occlusion_culling: false,
         }
     }
 
@@ -360,7 +370,6 @@ impl QualitySettings {
 
             use_bloom: true,
 
-            use_occlusion_culling: true,
             use_parallax_mapping: false,
 
             csm_settings: CsmSettings {
@@ -369,6 +378,9 @@ impl QualitySettings {
                 precision: ShadowMapPrecision::Full,
                 pcf: false,
             },
+
+            use_occlusion_culling: false,
+            use_light_occlusion_culling: false,
         }
     }
 
@@ -399,7 +411,6 @@ impl QualitySettings {
 
             use_bloom: false,
 
-            use_occlusion_culling: true,
             use_parallax_mapping: false,
 
             csm_settings: CsmSettings {
@@ -408,6 +419,9 @@ impl QualitySettings {
                 precision: ShadowMapPrecision::Half,
                 pcf: false,
             },
+
+            use_occlusion_culling: false,
+            use_light_occlusion_culling: false,
         }
     }
 }
