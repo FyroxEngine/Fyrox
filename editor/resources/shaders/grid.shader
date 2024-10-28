@@ -131,7 +131,8 @@
 
                 void main()
                 {
-                    float t = -nearPoint.y / max(farPoint.y - nearPoint.y, 0.000001);
+                    float denominator = farPoint.y - nearPoint.y;
+                    float t = denominator != 0.0 ? -nearPoint.y / denominator : 0.0;
 
                     vec3 fragPos3D = nearPoint + t * (farPoint - nearPoint);
 
