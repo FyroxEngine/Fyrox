@@ -30,10 +30,10 @@ use crate::{
         parking_lot::Mutex,
         pool::Handle,
         reflect::prelude::*,
+        type_traits::prelude::*,
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::{prelude::*, PodVecView},
-        TypeUuidProvider,
     },
     material::MaterialResourceExtension,
     material::{Material, MaterialProperty, MaterialResource},
@@ -1035,7 +1035,7 @@ impl BrushContext {
 /// count the number of pixels needed to render the vertices of that part of the terrain, which means that they
 /// overlap with their neighbors just as chunks overlap. Two adjacent blocks share vertices along their edge,
 /// so they also share pixels in the height map data.
-#[derive(Debug, Reflect, Clone)]
+#[derive(Debug, Reflect, Clone, ComponentProvider)]
 pub struct Terrain {
     base: Base,
 
@@ -2508,8 +2508,6 @@ fn validate_block_size(x: u32, size: Vector2<u32>) -> Result<(), String> {
 }
 
 impl NodeTrait for Terrain {
-    crate::impl_query_component!();
-
     fn validate(&self, _: &Scene) -> Result<(), String> {
         let h_size = self.height_map_size();
         validate_height_map_size(h_size.x, h_size)?;

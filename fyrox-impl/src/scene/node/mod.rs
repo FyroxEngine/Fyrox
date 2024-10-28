@@ -134,44 +134,6 @@ pub struct UpdateContext<'a> {
     pub sound_context: &'a mut SoundContext,
 }
 
-/// Implements [`NodeTrait::query_component_ref`] and [`NodeTrait::query_component_mut`] in a much
-/// shorter way.
-#[macro_export]
-macro_rules! impl_query_component {
-    ($($comp_field:ident: $comp_type:ty),*) => {
-        fn query_component_ref(&self, type_id: std::any::TypeId) -> Option<&dyn std::any::Any> {
-            if type_id == std::any::TypeId::of::<Self>() {
-                return Some(self);
-            }
-
-            $(
-                if type_id == std::any::TypeId::of::<$comp_type>() {
-                    return Some(&self.$comp_field)
-                }
-            )*
-
-            None
-        }
-
-        fn query_component_mut(
-            &mut self,
-            type_id: std::any::TypeId,
-        ) -> Option<&mut dyn std::any::Any> {
-            if type_id == std::any::TypeId::of::<Self>() {
-                return Some(self);
-            }
-
-            $(
-                if type_id == std::any::TypeId::of::<$comp_type>() {
-                    return Some(&mut self.$comp_field)
-                }
-            )*
-
-            None
-        }
-    };
-}
-
 /// An enumeration, that contains all possible render data collection strategies.
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
 pub enum RdcControlFlow {
@@ -182,13 +144,7 @@ pub enum RdcControlFlow {
 }
 
 /// A main trait for any scene graph node.
-pub trait NodeTrait: BaseNodeTrait + Reflect + Visit {
-    /// Allows a node to provide access to inner components.
-    fn query_component_ref(&self, type_id: TypeId) -> Option<&dyn Any>;
-
-    /// Allows a node to provide access to inner components.
-    fn query_component_mut(&mut self, type_id: TypeId) -> Option<&mut dyn Any>;
-
+pub trait NodeTrait: BaseNodeTrait + Reflect + Visit + ComponentProvider {
     /// Returns axis-aligned bounding box in **local space** of the node.
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox;
 

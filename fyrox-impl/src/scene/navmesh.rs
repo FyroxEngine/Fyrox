@@ -28,10 +28,10 @@ use crate::{
         parking_lot::RwLock,
         pool::Handle,
         reflect::prelude::*,
+        type_traits::prelude::*,
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
-        TypeUuidProvider,
     },
     scene::{
         base::{Base, BaseBuilder},
@@ -150,7 +150,7 @@ impl Visit for Container {
 ///     scene.graph[handle].as_navigational_mesh_mut()
 /// }
 /// ```
-#[derive(Debug, Clone, Visit, Reflect, Default)]
+#[derive(Debug, Clone, Visit, Reflect, Default, ComponentProvider)]
 pub struct NavigationalMesh {
     base: Base,
     #[reflect(read_only)]
@@ -178,8 +178,6 @@ impl DerefMut for NavigationalMesh {
 }
 
 impl NodeTrait for NavigationalMesh {
-    crate::impl_query_component!();
-
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.base.local_bounding_box()
     }

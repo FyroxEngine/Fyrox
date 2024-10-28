@@ -33,10 +33,10 @@ use crate::{
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
         reflect::prelude::*,
+        type_traits::prelude::*,
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::{Visit, VisitResult, Visitor},
-        TypeUuidProvider,
     },
     scene::{
         base::Base,
@@ -125,8 +125,9 @@ impl CsmOptions {
 }
 
 /// See module docs.
-#[derive(Default, Debug, Visit, Reflect, Clone)]
+#[derive(Default, Debug, Visit, Reflect, Clone, ComponentProvider)]
 pub struct DirectionalLight {
+    #[component(include)]
     base_light: BaseLight,
     /// See [`CsmOptions`].
     pub csm_options: InheritableVariable<CsmOptions>,
@@ -174,8 +175,6 @@ impl DirectionalLight {
 }
 
 impl NodeTrait for DirectionalLight {
-    crate::impl_query_component!(base_light: BaseLight);
-
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         AxisAlignedBoundingBox::default()
     }

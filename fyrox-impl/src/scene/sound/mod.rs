@@ -26,10 +26,10 @@ use crate::{
         math::{aabb::AxisAlignedBoundingBox, m4x4_approx_eq},
         pool::Handle,
         reflect::prelude::*,
+        type_traits::prelude::*,
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
-        TypeUuidProvider,
     },
     define_with,
     scene::{
@@ -70,7 +70,7 @@ pub mod context;
 pub mod listener;
 
 /// Sound source.
-#[derive(Visit, Reflect, Debug)]
+#[derive(Visit, Reflect, Debug, ComponentProvider)]
 pub struct Sound {
     base: Base,
 
@@ -386,8 +386,6 @@ impl Sound {
 }
 
 impl NodeTrait for Sound {
-    crate::impl_query_component!();
-
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         AxisAlignedBoundingBox::unit()
     }

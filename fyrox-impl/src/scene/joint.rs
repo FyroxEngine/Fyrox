@@ -27,10 +27,10 @@ use crate::{
         math::{aabb::AxisAlignedBoundingBox, m4x4_approx_eq},
         pool::Handle,
         reflect::prelude::*,
+        type_traits::prelude::*,
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
-        TypeUuidProvider,
     },
     scene::{
         base::{Base, BaseBuilder},
@@ -212,7 +212,7 @@ impl JointLocalFrames {
 
 /// Joint is used to restrict motion of two rigid bodies. There are numerous examples of joints in
 /// real life: door hinge, ball joints in human arms, etc.
-#[derive(Visit, Reflect, Debug)]
+#[derive(Visit, Reflect, Debug, ComponentProvider)]
 pub struct Joint {
     base: Base,
 
@@ -355,8 +355,6 @@ impl Joint {
 }
 
 impl NodeTrait for Joint {
-    crate::impl_query_component!();
-
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.base.local_bounding_box()
     }

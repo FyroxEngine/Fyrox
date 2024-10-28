@@ -36,10 +36,10 @@ use crate::{
         parking_lot::Mutex,
         pool::Handle,
         reflect::prelude::*,
+        type_traits::prelude::*,
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
-        TypeUuidProvider,
     },
     scene::{
         base::{Base, BaseBuilder},
@@ -151,7 +151,7 @@ pub(crate) enum ApplyAction {
 ///
 /// Rigid body that does not move for some time will go asleep. This means that the body will not
 /// move unless it is woken up by some other moving body. This feature allows to save CPU resources.
-#[derive(Visit, Reflect)]
+#[derive(Visit, Reflect, ComponentProvider)]
 pub struct RigidBody {
     base: Base,
 
@@ -527,8 +527,6 @@ impl RigidBody {
 }
 
 impl NodeTrait for RigidBody {
-    crate::impl_query_component!();
-
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.base.local_bounding_box()
     }

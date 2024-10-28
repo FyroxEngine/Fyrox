@@ -23,7 +23,6 @@
 //!
 //! See [`Rectangle`] docs for more info.
 
-use crate::scene::node::RdcControlFlow;
 use crate::{
     core::{
         algebra::{Point3, Vector2, Vector3},
@@ -31,10 +30,10 @@ use crate::{
         math::{aabb::AxisAlignedBoundingBox, Rect, TriangleDefinition},
         pool::Handle,
         reflect::prelude::*,
+        type_traits::prelude::*,
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
-        TypeUuidProvider,
     },
     material::{self, Material, MaterialResource},
     renderer::{self, bundle::RenderContext},
@@ -45,7 +44,7 @@ use crate::{
             VertexAttributeDataType, VertexAttributeDescriptor, VertexAttributeUsage, VertexTrait,
         },
         mesh::RenderPath,
-        node::{Node, NodeTrait},
+        node::{Node, NodeTrait, RdcControlFlow},
     },
 };
 use bytemuck::{Pod, Zeroable};
@@ -163,7 +162,7 @@ impl Hash for RectangleVertex {
 /// image, but just changing portion for rendering. Keep in mind that the coordinates are normalized
 /// which means `[0; 0]` corresponds to top-left corner of the texture and `[1; 1]` corresponds to
 /// right-bottom corner.
-#[derive(Reflect, Debug, Clone)]
+#[derive(Reflect, Debug, Clone, ComponentProvider)]
 pub struct Rectangle {
     base: Base,
 
@@ -276,8 +275,6 @@ impl Rectangle {
 }
 
 impl NodeTrait for Rectangle {
-    crate::impl_query_component!();
-
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         AxisAlignedBoundingBox::unit()
     }

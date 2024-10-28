@@ -24,9 +24,9 @@ use crate::{
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
         reflect::prelude::*,
+        type_traits::prelude::*,
         uuid::{uuid, Uuid},
         visitor::prelude::*,
-        TypeUuidProvider,
     },
     scene::{
         base::{Base, BaseBuilder},
@@ -38,7 +38,7 @@ use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};
 
 /// A simplest possible node which represents point in space.
-#[derive(Clone, Reflect, Default, Debug)]
+#[derive(Clone, Reflect, Default, Debug, ComponentProvider)]
 pub struct Pivot {
     base: Base,
 }
@@ -70,8 +70,6 @@ impl DerefMut for Pivot {
 }
 
 impl NodeTrait for Pivot {
-    crate::impl_query_component!();
-
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.base.local_bounding_box()
     }

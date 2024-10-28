@@ -21,8 +21,6 @@
 //! Contains all structures and methods to create and manage particle systems. See [`ParticleSystem`] docs for more
 //! info and usage examples.
 
-use crate::scene::mesh::buffer::VertexTrait;
-use crate::scene::node::RdcControlFlow;
 use crate::{
     core::{
         algebra::{Point3, Vector2, Vector3},
@@ -30,10 +28,10 @@ use crate::{
         math::{aabb::AxisAlignedBoundingBox, TriangleDefinition},
         pool::Handle,
         reflect::prelude::*,
+        type_traits::prelude::*,
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
-        TypeUuidProvider,
     },
     material::{self, Material, MaterialResource},
     rand::{prelude::StdRng, Error, RngCore, SeedableRng},
@@ -41,7 +39,9 @@ use crate::{
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
+        mesh::buffer::VertexTrait,
         mesh::RenderPath,
+        node::RdcControlFlow,
         node::{Node, NodeTrait, UpdateContext},
         particle_system::{
             draw::Vertex,
@@ -218,7 +218,7 @@ impl Visit for ParticleSystemRng {
 ///     .build(graph);
 /// }
 /// ```
-#[derive(Debug, Clone, Reflect)]
+#[derive(Debug, Clone, Reflect, ComponentProvider)]
 pub struct ParticleSystem {
     base: Base,
 
@@ -480,8 +480,6 @@ impl Default for ParticleSystem {
 }
 
 impl NodeTrait for ParticleSystem {
-    crate::impl_query_component!();
-
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         AxisAlignedBoundingBox::unit()
     }

@@ -31,11 +31,11 @@ use crate::{
         math::{aabb::AxisAlignedBoundingBox, frustum::Frustum, ray::Ray, Rect},
         pool::Handle,
         reflect::prelude::*,
+        type_traits::prelude::*,
         uuid::{uuid, Uuid},
         uuid_provider,
         variable::InheritableVariable,
         visitor::{Visit, VisitResult, Visitor},
-        TypeUuidProvider,
     },
     graph::BaseSceneGraph,
     resource::texture::{
@@ -352,7 +352,7 @@ impl Default for Exposure {
 ///
 /// Each camera forces engine to re-render same scene one more time, which may cause almost double load
 /// of your GPU.
-#[derive(Debug, Visit, Reflect, Clone)]
+#[derive(Debug, Visit, Reflect, Clone, ComponentProvider)]
 pub struct Camera {
     base: Base,
 
@@ -735,8 +735,6 @@ impl Camera {
 }
 
 impl NodeTrait for Camera {
-    crate::impl_query_component!();
-
     /// Returns current **local-space** bounding box.
     #[inline]
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {

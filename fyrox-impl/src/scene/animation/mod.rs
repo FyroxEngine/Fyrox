@@ -27,10 +27,10 @@ use crate::{
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
         reflect::prelude::*,
+        type_traits::prelude::*,
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
-        TypeUuidProvider,
     },
     generic_animation::value::{BoundValueCollection, TrackValue, ValueBinding},
     scene::{
@@ -242,10 +242,12 @@ impl BoundValueCollectionExt for BoundValueCollection {
 /// The example creates a bounce animation first - it is a simple animation that animates position of a given node
 /// (`animated_node`). Only then it creates an animation player node with an animation container with a single animation.
 /// To understand why this is so complicated, see the docs of [`Animation`].
-#[derive(Visit, Reflect, Clone, Debug)]
+#[derive(Visit, Reflect, Clone, Debug, ComponentProvider)]
 pub struct AnimationPlayer {
     base: Base,
+    #[component(include)]
     animations: InheritableVariable<AnimationContainer>,
+    #[component(include)]
     auto_apply: bool,
 }
 
@@ -317,11 +319,6 @@ impl DerefMut for AnimationPlayer {
 }
 
 impl NodeTrait for AnimationPlayer {
-    crate::impl_query_component!(
-        animations: InheritableVariable<AnimationContainer>,
-        auto_apply: bool
-    );
-
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.base.local_bounding_box()
     }

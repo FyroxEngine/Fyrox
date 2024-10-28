@@ -26,10 +26,10 @@ use crate::{
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
         reflect::prelude::*,
+        type_traits::prelude::*,
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
-        TypeUuidProvider,
     },
     scene::{
         animation::prelude::*,
@@ -210,10 +210,12 @@ impl LayerMaskExt for LayerMask {
 ///         .build(graph)
 /// }
 /// ```
-#[derive(Visit, Reflect, Clone, Debug, Default)]
+#[derive(Visit, Reflect, Clone, Debug, Default, ComponentProvider)]
 pub struct AnimationBlendingStateMachine {
     base: Base,
+    #[component(include)]
     machine: InheritableVariable<Machine>,
+    #[component(include)]
     animation_player: InheritableVariable<Handle<Node>>,
 }
 
@@ -267,11 +269,6 @@ impl DerefMut for AnimationBlendingStateMachine {
 }
 
 impl NodeTrait for AnimationBlendingStateMachine {
-    crate::impl_query_component!(
-        machine: InheritableVariable<Machine>,
-        animation_player: InheritableVariable<Handle<Node>>
-    );
-
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.base.local_bounding_box()
     }

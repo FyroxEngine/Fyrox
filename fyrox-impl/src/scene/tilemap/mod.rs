@@ -648,8 +648,6 @@ impl DerefMut for TileMap {
 }
 
 impl NodeTrait for TileMap {
-    crate::impl_query_component!();
-
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         let rect = self.bounding_rect();
 

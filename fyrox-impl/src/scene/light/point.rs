@@ -43,10 +43,10 @@ use crate::{
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
         reflect::prelude::*,
+        type_traits::prelude::*,
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::{Visit, VisitResult, Visitor},
-        TypeUuidProvider,
     },
     scene::{
         base::Base,
@@ -60,8 +60,9 @@ use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};
 
 /// See module docs.
-#[derive(Debug, Reflect, Clone, Visit)]
+#[derive(Debug, Reflect, Clone, Visit, ComponentProvider)]
 pub struct PointLight {
+    #[component(include)]
     base_light: BaseLight,
 
     #[reflect(min_value = 0.0, step = 0.001)]
@@ -130,8 +131,6 @@ impl PointLight {
 }
 
 impl NodeTrait for PointLight {
-    crate::impl_query_component!(base_light: BaseLight);
-
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         AxisAlignedBoundingBox::from_radius(*self.radius)
     }

@@ -30,10 +30,10 @@ use crate::{
         math::{aabb::AxisAlignedBoundingBox, Rect, TriangleDefinition},
         pool::Handle,
         reflect::prelude::*,
+        type_traits::prelude::*,
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::{Visit, VisitResult, Visitor},
-        TypeUuidProvider,
     },
     material,
     material::{Material, MaterialResource},
@@ -154,7 +154,7 @@ impl VertexTrait for SpriteVertex {
 /// **does not** reuse it. Ideally, you should reuse the shared material across multiple instances
 /// to get best possible performance. Otherwise, each your sprite will be put in a separate batch
 /// which will force your GPU to render a single sprite in dedicated draw call which is quite slow.
-#[derive(Debug, Reflect, Clone)]
+#[derive(Debug, Reflect, Clone, ComponentProvider)]
 pub struct Sprite {
     base: Base,
 
@@ -293,8 +293,6 @@ impl Sprite {
 }
 
 impl NodeTrait for Sprite {
-    crate::impl_query_component!();
-
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         AxisAlignedBoundingBox::from_radius(*self.size)
     }

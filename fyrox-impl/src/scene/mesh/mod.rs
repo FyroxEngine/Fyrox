@@ -33,7 +33,6 @@ use crate::{
         type_traits::prelude::*,
         variable::InheritableVariable,
         visitor::prelude::*,
-        TypeUuidProvider,
     },
     graph::{BaseSceneGraph, SceneGraph},
     material::MaterialResource,
@@ -312,7 +311,7 @@ impl RenderDataBundleStorageTrait for BatchContainer {
 ///
 /// This example creates a unit cube surface with default material and then creates a mesh with this surface. If you need to create
 /// custom surface, see [`crate::scene::mesh::surface::SurfaceData`] docs for more info.
-#[derive(Debug, Reflect, Clone, Visit)]
+#[derive(Debug, Reflect, Clone, Visit, ComponentProvider)]
 pub struct Mesh {
     #[visit(rename = "Common")]
     base: Base,
@@ -540,8 +539,6 @@ fn extend_aabb_from_vertex_buffer(
 }
 
 impl NodeTrait for Mesh {
-    crate::impl_query_component!();
-
     /// Returns current bounding box. Bounding box presented in *local coordinates*
     /// WARNING: This method does *not* includes bounds of bones!
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {

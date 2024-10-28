@@ -28,10 +28,10 @@ use crate::{
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
         reflect::prelude::*,
+        type_traits::prelude::*,
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
-        TypeUuidProvider,
     },
     resource::texture::TextureResource,
     scene::{
@@ -104,7 +104,7 @@ use std::ops::{Deref, DerefMut};
 ///         .build(graph)
 /// }
 /// ```
-#[derive(Debug, Visit, Default, Clone, Reflect)]
+#[derive(Debug, Visit, Default, Clone, Reflect, ComponentProvider)]
 pub struct Decal {
     base: Base,
 
@@ -211,8 +211,6 @@ impl Decal {
 }
 
 impl NodeTrait for Decal {
-    crate::impl_query_component!();
-
     /// Returns current **local-space** bounding box.
     #[inline]
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {

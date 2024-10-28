@@ -28,9 +28,9 @@ use crate::{
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
         reflect::prelude::*,
+        type_traits::prelude::*,
         uuid::{uuid, Uuid},
         visitor::prelude::*,
-        TypeUuidProvider,
     },
     scene::{
         base::{Base, BaseBuilder},
@@ -55,7 +55,7 @@ use std::ops::{Deref, DerefMut};
 ///
 /// 2D sound sources (with spatial blend == 0.0) are not influenced by listener's position and
 /// orientation.
-#[derive(Visit, Reflect, Default, Clone, Debug)]
+#[derive(Visit, Reflect, Default, Clone, Debug, ComponentProvider)]
 pub struct Listener {
     base: Base,
 }
@@ -81,8 +81,6 @@ impl TypeUuidProvider for Listener {
 }
 
 impl NodeTrait for Listener {
-    crate::impl_query_component!();
-
     /// Returns local bounding box of the listener, since listener cannot have any bounds -
     /// returned bounding box is collapsed into a point.
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {

@@ -28,14 +28,13 @@ use crate::{
         math::{aabb::AxisAlignedBoundingBox, Matrix4Ext},
         pool::Handle,
         reflect::prelude::*,
+        type_traits::prelude::*,
         uuid::{uuid, Uuid},
         uuid_provider,
         variable::InheritableVariable,
         visitor::prelude::*,
-        TypeUuidProvider,
     },
     graph::BaseSceneGraph,
-    impl_query_component,
     scene::{
         base::{Base, BaseBuilder},
         collider::Collider,
@@ -227,7 +226,7 @@ impl Limb {
 /// to create a ragdoll is to use the editor, and the ragdoll wizard in particular. However, if
 /// you're brave enough you can read this code <https://github.com/FyroxEngine/Fyrox/blob/master/editor/src/utils/ragdoll.rs> -
 /// it creates a ragdoll using a humanoid skeleton.  
-#[derive(Clone, Reflect, Visit, Debug, Default)]
+#[derive(Clone, Reflect, Visit, Debug, Default, ComponentProvider)]
 #[visit(optional)]
 pub struct Ragdoll {
     base: Base,
@@ -268,8 +267,6 @@ impl TypeUuidProvider for Ragdoll {
 }
 
 impl NodeTrait for Ragdoll {
-    impl_query_component!();
-
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.base.local_bounding_box()
     }

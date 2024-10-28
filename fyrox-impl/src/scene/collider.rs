@@ -29,10 +29,10 @@ use crate::{
         num_traits::{NumCast, One, ToPrimitive, Zero},
         pool::Handle,
         reflect::prelude::*,
+        type_traits::prelude::*,
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
-        TypeUuidProvider,
     },
     scene::{
         base::{Base, BaseBuilder},
@@ -545,7 +545,7 @@ impl ColliderShape {
 
 /// Collider is a geometric entity that can be attached to a rigid body to allow participate it
 /// participate in contact generation, collision response and proximity queries.
-#[derive(Reflect, Visit, Debug)]
+#[derive(Reflect, Visit, Debug, ComponentProvider)]
 pub struct Collider {
     base: Base,
 
@@ -850,8 +850,6 @@ impl Collider {
 }
 
 impl NodeTrait for Collider {
-    crate::impl_query_component!();
-
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.base.local_bounding_box()
     }
