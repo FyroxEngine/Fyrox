@@ -367,6 +367,39 @@ impl NodeMessage {
     }
 }
 
+#[derive(Clone, Debug)]
+struct TransformWrapper {
+    transform: Transform,
+    node_handle: Handle<Node>,
+    sender: Option<Sender<NodeMessage>>,
+}
+
+impl Visit for TransformWrapper {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        self.transform.visit(name, visitor)
+    }
+}
+
+impl Deref for TransformWrapper {
+    type Target = Transform;
+
+    fn deref(&self) -> &Self::Target {
+        &self.transform
+    }
+}
+
+impl DerefMut for TransformWrapper {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        if let Some(sender) = self.sender.as_ref() {
+            Log::verify(sender.send(NodeMessage {
+                node: self.node_handle,
+                kind: NodeMessageKind::TransformChanged,
+            }))
+        }
+        &mut self.transform
+    }
+}
+
 /// Base scene graph node is a simplest possible node, it is used to build more complex ones using composition.
 /// It contains all fundamental properties for each scene graph nodes, like local and global transforms, name,
 /// lifetime, etc. Base node is a building block for all complex node hierarchies - it contains list of children
@@ -403,8 +436,8 @@ pub struct Base {
     #[reflect(setter = "set_name_internal")]
     pub(crate) name: ImmutableString,
 
-    #[reflect(setter = "set_local_transform")]
-    local_transform: Transform,
+    #[reflect(setter = "set_local_transform", deref)]
+    local_transform: TransformWrapper,
 
     #[reflect(setter = "set_visibility")]
     visibility: InheritableVariable<bool>,
@@ -539,8 +572,10 @@ impl Base {
         script_message_sender: Sender<NodeScriptMessage>,
     ) {
         self.self_handle = self_handle;
-        self.message_sender = Some(message_sender);
+        self.message_sender = Some(message_sender.clone());
         self.script_message_sender = Some(script_message_sender);
+        self.local_transform.sender = Some(message_sender);
+        self.local_transform.node_handle = self_handle;
         // Kick off initial hierarchical property propagation.
         self.notify(self.self_handle, NodeMessageKind::TransformChanged);
         self.notify(self.self_handle, NodeMessageKind::VisibilityChanged);
@@ -558,15 +593,13 @@ impl Base {
     /// some local spatial properties, such as position, rotation, scale, etc.
     #[inline]
     pub fn local_transform_mut(&mut self) -> &mut Transform {
-        self.transform_modified.set(true);
-        self.notify(self.self_handle, NodeMessageKind::TransformChanged);
         &mut self.local_transform
     }
 
     /// Sets new local transform of a node.
     #[inline]
     pub fn set_local_transform(&mut self, transform: Transform) {
-        self.local_transform = transform;
+        self.local_transform.transform = transform;
         self.notify(self.self_handle, NodeMessageKind::TransformChanged);
     }
 
@@ -1345,7 +1378,11 @@ impl BaseBuilder {
             message_sender: None,
             name: self.name.into(),
             children: self.children,
-            local_transform: self.local_transform,
+            local_transform: TransformWrapper {
+                transform: self.local_transform,
+                node_handle: Default::default(),
+                sender: None,
+            },
             lifetime: self.lifetime.into(),
             visibility: self.visibility.into(),
             global_visibility: Cell::new(true),
