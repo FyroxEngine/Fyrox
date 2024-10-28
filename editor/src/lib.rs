@@ -3013,9 +3013,12 @@ fn update(editor: &mut Editor, window_target: &EventLoopWindowTarget<()>) {
 
         editor.update(FIXED_TIMESTEP);
 
-        editor
-            .engine
-            .post_update(FIXED_TIMESTEP, &Default::default(), &mut editor.game_loop_data.lag, window_target);
+        editor.engine.post_update(
+            FIXED_TIMESTEP,
+            &Default::default(),
+            &mut editor.game_loop_data.lag,
+            window_target,
+        );
 
         if need_reload_plugins {
             let on_plugin_reloaded = |plugin: &dyn Plugin| {

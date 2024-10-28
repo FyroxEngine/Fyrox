@@ -1750,7 +1750,13 @@ impl Engine {
     ///
     /// Normally, this is called from `Engine::update()`.
     /// You should only call this manually if you don't use that method.
-    pub fn post_update(&mut self, dt: f32, ui_update_switches: &UiUpdateSwitches, lag: &mut f32, window_target: &EventLoopWindowTarget<()>) {
+    pub fn post_update(
+        &mut self,
+        dt: f32,
+        ui_update_switches: &UiUpdateSwitches,
+        lag: &mut f32,
+        window_target: &EventLoopWindowTarget<()>,
+    ) {
         if let GraphicsContext::Initialized(ref ctx) = self.graphics_context {
             let inner_size = ctx.window.inner_size();
             let window_size = Vector2::new(inner_size.width as f32, inner_size.height as f32);
@@ -1969,7 +1975,6 @@ impl Engine {
         let time = instant::Instant::now();
 
         if self.plugins_enabled {
-
             let mut context = PluginContext {
                 scenes: &mut self.scenes,
                 resource_manager: &self.resource_manager,
