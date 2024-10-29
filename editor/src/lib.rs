@@ -132,7 +132,7 @@ use crate::{
         window::{Icon, WindowAttributes},
     },
     highlight::HighlightRenderPass,
-    inspector::Inspector,
+    inspector::InspectorPlugin,
     interaction::{
         move_mode::MoveInteractionMode,
         navmesh::{EditNavmeshMode, NavmeshPanel},
@@ -508,7 +508,6 @@ pub struct Editor {
     pub settings: Settings,
     pub path_fixer: PathFixer,
     pub material_editor: MaterialEditor,
-    pub inspector: Inspector,
     pub curve_editor: CurveEditorWindow,
     pub audio_panel: AudioPanel,
     pub absm_editor: AbsmEditor,
@@ -621,7 +620,7 @@ impl Editor {
         let world_outliner = WorldViewer::new(ctx, message_sender.clone(), &settings);
         let command_stack_viewer = CommandStackViewer::new(ctx, message_sender.clone());
         let log = LogPanel::new(ctx, log_message_receiver);
-        let inspector = Inspector::new(ctx, message_sender.clone());
+        let inspector_plugin = InspectorPlugin::new(ctx, message_sender.clone());
         let animation_editor = AnimationEditor::new(ctx);
         let absm_editor = AbsmEditor::new(ctx, message_sender.clone());
         let particle_system_control_panel =
@@ -675,7 +674,7 @@ impl Editor {
                                                                     )
                                                                     .with_content(
                                                                         TileContent::Window(
-                                                                            inspector.window,
+                                                                            inspector_plugin.window,
                                                                         ),
                                                                     )
                                                                     .build(ctx),
@@ -839,7 +838,6 @@ impl Editor {
             settings,
             path_fixer,
             material_editor,
-            inspector,
             curve_editor,
             audio_panel,
             save_scene_dialog,
@@ -859,7 +857,8 @@ impl Editor {
             doc_window,
             plugins: EditorPluginsContainer::new()
                 .with(ColliderShapePlugin::default())
-                .with(TileMapEditorPlugin::default()),
+                .with(TileMapEditorPlugin::default())
+                .with(inspector_plugin),
             // Apparently, some window managers (like Wayland), does not send `Focused` event after the window
             // was created. So we must assume that the editor is focused by default, otherwise editor's thread
             // will sleep forever and the window won't come up.
@@ -1173,6 +1172,7 @@ impl Editor {
         let current_scene_entry = self.scenes.current_scene_entry_mut();
 
         self.configurator.handle_ui_message(message, engine);
+        let inspector = self.plugins.get::<InspectorPlugin>();
         self.menu.handle_ui_message(
             message,
             MenuContext {
@@ -1180,7 +1180,7 @@ impl Editor {
                 game_scene: current_scene_entry,
                 panels: Panels {
                     scene_frame: self.scene_viewer.frame(),
-                    inspector_window: self.inspector.window,
+                    inspector_window: inspector.window,
                     world_outliner_window: self.world_viewer.window,
                     asset_window: self.asset_browser.window,
                     light_panel: self.light_panel.window,
@@ -1247,14 +1247,6 @@ impl Editor {
         let current_scene_entry = self.scenes.current_scene_entry_mut();
 
         if let Some(current_scene_entry) = current_scene_entry {
-            self.inspector.handle_ui_message(
-                message,
-                &current_scene_entry.selection,
-                &mut *current_scene_entry.controller,
-                engine,
-                &self.message_sender,
-            );
-
             if let Some(game_scene) = current_scene_entry.controller.downcast_mut::<GameScene>() {
                 let graph = &mut engine.scenes[game_scene.scene].graph;
                 self.animation_editor.handle_ui_message(
@@ -1588,7 +1580,6 @@ impl Editor {
         self.world_viewer.on_mode_changed(ui, &self.mode);
         self.asset_browser.on_mode_changed(ui, &self.mode);
         self.command_stack_viewer.on_mode_changed(ui, &self.mode);
-        self.inspector.on_mode_changed(ui, &self.mode);
         self.audio_panel.on_mode_changed(ui, &self.mode);
         self.navmesh_panel.on_mode_changed(ui, &self.mode);
         self.menu.on_mode_changed(ui, &self.mode);
@@ -1618,12 +1609,6 @@ impl Editor {
                     engine,
                 ),
                 engine.user_interfaces.first_mut(),
-            );
-            self.inspector.sync_to_model(
-                &current_scene_entry.selection,
-                &*current_scene_entry.controller,
-                engine,
-                &self.message_sender,
             );
 
             if let Some(game_scene) = current_scene_entry.controller.downcast_mut::<GameScene>() {
@@ -1686,7 +1671,6 @@ impl Editor {
                 );
             }
         } else {
-            self.inspector.clear(engine.user_interfaces.first());
             self.world_viewer.clear(engine.user_interfaces.first());
         }
     }
@@ -2630,8 +2614,9 @@ impl Editor {
     where
         P: Plugin + 'static,
     {
-        *self.inspector.property_editors.context_type_id.lock() = plugin.type_id();
-        self.inspector
+        let inspector = self.plugins.get::<InspectorPlugin>();
+        *inspector.property_editors.context_type_id.lock() = plugin.type_id();
+        inspector
             .property_editors
             .merge(plugin.register_property_editors());
         self.engine.add_plugin(plugin)
@@ -2669,8 +2654,9 @@ impl Editor {
         P: DynamicPlugin + 'static,
     {
         let plugin = self.engine.add_dynamic_plugin_custom(plugin);
-        *self.inspector.property_editors.context_type_id.lock() = plugin.type_id();
-        self.inspector
+        let inspector = self.plugins.get::<InspectorPlugin>();
+        *inspector.property_editors.context_type_id.lock() = plugin.type_id();
+        inspector
             .property_editors
             .merge(plugin.register_property_editors());
         Ok(())
@@ -2993,7 +2979,8 @@ fn update(editor: &mut Editor, window_target: &EventLoopWindowTarget<()>) {
                     editor.message_sender.send(Message::ForceSync);
 
                     // Remove property editors that were created from the plugin.
-                    let mut definitions = editor.inspector.property_editors.definitions_mut();
+                    let inspector = editor.plugins.get_mut::<InspectorPlugin>();
+                    let mut definitions = inspector.property_editors.definitions_mut();
 
                     let mut to_be_removed = Vec::new();
                     for (type_id, entry) in &mut *definitions {
@@ -3022,9 +3009,9 @@ fn update(editor: &mut Editor, window_target: &EventLoopWindowTarget<()>) {
 
         if need_reload_plugins {
             let on_plugin_reloaded = |plugin: &dyn Plugin| {
-                *editor.inspector.property_editors.context_type_id.lock() = plugin.type_id();
-                editor
-                    .inspector
+                let inspector = editor.plugins.get_mut::<InspectorPlugin>();
+                *inspector.property_editors.context_type_id.lock() = plugin.type_id();
+                inspector
                     .property_editors
                     .merge(plugin.register_property_editors());
             };

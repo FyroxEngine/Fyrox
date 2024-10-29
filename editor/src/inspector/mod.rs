@@ -25,8 +25,7 @@ use crate::{
         core::{
             color::Color,
             log::{Log, MessageKind},
-            pool::ErasedHandle,
-            pool::Handle,
+            pool::{ErasedHandle, Handle},
             reflect::prelude::*,
         },
         engine::SerializationContext,
@@ -51,11 +50,12 @@ use crate::{
     inspector::editors::make_property_editors_container,
     load_image,
     message::MessageSender,
+    plugin::EditorPlugin,
     scene::{controller::SceneController, GameScene, Selection},
     send_sync_message,
     ui_scene::UiScene,
     utils::window_content,
-    Brush, Engine, Message, Mode, WidgetMessage, WrapMode, MSG_SYNC_FLAG,
+    Brush, Editor, Message, WidgetMessage, WrapMode, MSG_SYNC_FLAG,
 };
 use std::{any::Any, sync::Arc};
 
@@ -91,7 +91,7 @@ impl InspectorEnvironment for EditorEnvironment {
     }
 }
 
-pub struct Inspector {
+pub struct InspectorPlugin {
     /// Allows you to register your property editors for custom types.
     pub property_editors: Arc<PropertyEditorDefinitionContainer>,
     pub(crate) window: Handle<UiNode>,
@@ -157,7 +157,7 @@ fn is_out_of_sync(sync_errors: &[InspectorError]) -> bool {
         .any(|err| matches!(err, &InspectorError::OutOfSync))
 }
 
-impl Inspector {
+impl InspectorPlugin {
     pub fn new(ctx: &mut BuildContext, sender: MessageSender) -> Self {
         let property_editors = Arc::new(make_property_editors_container(sender));
 
@@ -263,52 +263,6 @@ impl Inspector {
         ctx.sync(obj, ui, 0, true, Default::default())
     }
 
-    pub fn sync_to_model(
-        &mut self,
-        editor_selection: &Selection,
-        controller: &dyn SceneController,
-        engine: &mut Engine,
-        sender: &MessageSender,
-    ) {
-        let mut need_clear = true;
-
-        let ui = engine.user_interfaces.first_mut();
-
-        ui.send_message(WidgetMessage::visibility(
-            self.warning_text,
-            MessageDirection::ToWidget,
-            editor_selection.len() > 1,
-        ));
-
-        controller.first_selected_entity(editor_selection, &engine.scenes, &mut |entity| {
-            if let Err(errors) = self.sync_to(entity, ui) {
-                if is_out_of_sync(&errors) {
-                    let available_animations =
-                        fetch_available_animations(editor_selection, controller, &engine.scenes);
-
-                    self.change_context(
-                        entity,
-                        ui,
-                        engine.resource_manager.clone(),
-                        engine.serialization_context.clone(),
-                        &available_animations,
-                        sender,
-                    );
-
-                    need_clear = false;
-                } else {
-                    print_errors(&errors);
-                }
-            } else {
-                need_clear = false;
-            }
-        });
-
-        if need_clear {
-            self.clear(ui);
-        }
-    }
-
     fn change_context(
         &mut self,
         obj: &dyn Reflect,
@@ -353,42 +307,100 @@ impl Inspector {
         );
     }
 
-    pub fn clear(&self, ui: &UserInterface) {
+    fn clear(&self, ui: &UserInterface) {
         ui.send_message(InspectorMessage::context(
             self.inspector,
             MessageDirection::ToWidget,
             Default::default(),
         ));
     }
+}
 
-    pub fn on_mode_changed(&mut self, ui: &UserInterface, mode: &Mode) {
+impl EditorPlugin for InspectorPlugin {
+    fn on_sync_to_model(&mut self, editor: &mut Editor) {
+        let ui = editor.engine.user_interfaces.first_mut();
+
+        let Some(entry) = editor.scenes.current_scene_entry_mut() else {
+            self.clear(ui);
+            return;
+        };
+
+        let mut need_clear = true;
+
+        ui.send_message(WidgetMessage::visibility(
+            self.warning_text,
+            MessageDirection::ToWidget,
+            entry.selection.len() > 1,
+        ));
+
+        entry.controller.first_selected_entity(
+            &entry.selection,
+            &editor.engine.scenes,
+            &mut |entity| {
+                if let Err(errors) = self.sync_to(entity, ui) {
+                    if is_out_of_sync(&errors) {
+                        let available_animations = fetch_available_animations(
+                            &entry.selection,
+                            &*entry.controller,
+                            &editor.engine.scenes,
+                        );
+
+                        self.change_context(
+                            entity,
+                            ui,
+                            editor.engine.resource_manager.clone(),
+                            editor.engine.serialization_context.clone(),
+                            &available_animations,
+                            &editor.message_sender,
+                        );
+
+                        need_clear = false;
+                    } else {
+                        print_errors(&errors);
+                    }
+                } else {
+                    need_clear = false;
+                }
+            },
+        );
+
+        if need_clear {
+            self.clear(ui);
+        }
+    }
+
+    fn on_mode_changed(&mut self, editor: &mut Editor) {
+        let ui = editor.engine.user_interfaces.first();
+
         ui.send_message(WidgetMessage::enabled(
             window_content(self.window, ui),
             MessageDirection::ToWidget,
-            mode.is_edit(),
+            editor.mode.is_edit(),
         ));
     }
 
-    pub fn handle_ui_message(
-        &mut self,
-        message: &UiMessage,
-        editor_selection: &Selection,
-        controller: &mut dyn SceneController,
-        engine: &mut Engine,
-        sender: &MessageSender,
-    ) {
+    fn on_ui_message(&mut self, message: &mut UiMessage, editor: &mut Editor) {
+        let Some(entry) = editor.scenes.current_scene_entry_mut() else {
+            return;
+        };
+
         if message.destination() == self.inspector
             && message.direction() == MessageDirection::FromWidget
         {
             if let Some(InspectorMessage::PropertyChanged(args)) =
                 message.data::<InspectorMessage>()
             {
-                controller.on_property_changed(args, editor_selection, engine);
+                entry
+                    .controller
+                    .on_property_changed(args, &entry.selection, &mut editor.engine);
             }
         } else if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.docs_button {
-                if let Some(doc) = controller.provide_docs(editor_selection, engine) {
-                    sender.send(Message::ShowDocumentation(doc));
+                if let Some(doc) = entry
+                    .controller
+                    .provide_docs(&entry.selection, &editor.engine)
+                {
+                    editor.message_sender.send(Message::ShowDocumentation(doc));
                 }
             }
         }

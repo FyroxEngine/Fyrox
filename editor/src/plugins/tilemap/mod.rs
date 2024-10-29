@@ -28,6 +28,7 @@ mod preview;
 pub mod tile_set_import;
 pub mod tileset;
 
+use crate::inspector::InspectorPlugin;
 use crate::{
     command::SetPropertyCommand,
     fyrox::{
@@ -642,12 +643,11 @@ impl EditorPlugin for TileMapEditorPlugin {
             .preview_generators
             .add(TileSet::type_uuid(), TileSetPreview);
 
-        editor
-            .inspector
+        let inspector = editor.plugins.get_mut::<InspectorPlugin>();
+        inspector
             .property_editors
             .insert(TilesPropertyEditorDefinition);
-        editor
-            .inspector
+        inspector
             .property_editors
             .insert(InheritablePropertyEditorDefinition::<Tiles>::new());
     }
@@ -689,13 +689,15 @@ impl EditorPlugin for TileMapEditorPlugin {
     fn on_ui_message(&mut self, message: &mut UiMessage, editor: &mut Editor) {
         let ui = editor.engine.user_interfaces.first_mut();
 
+        let inspector = editor.plugins.get::<InspectorPlugin>();
+
         if let Some(tile_set_editor) = self.tile_set_editor.take() {
             self.tile_set_editor = tile_set_editor.handle_ui_message(
                 message,
                 ui,
                 &editor.engine.resource_manager,
                 &editor.message_sender,
-                editor.inspector.property_editors.clone(),
+                inspector.property_editors.clone(),
                 editor.engine.serialization_context.clone(),
             );
         }
