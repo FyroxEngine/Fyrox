@@ -187,6 +187,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use crate::plugin::EditorPluginsContainer;
 use crate::plugins::tilemap::TileMapEditorPlugin;
 pub use message::Message;
 
@@ -523,7 +524,7 @@ pub struct Editor {
     pub docking_manager: Handle<UiNode>,
     pub node_removal_dialog: NodeRemovalDialog,
     pub engine: Engine,
-    pub plugins: Vec<Option<Box<dyn EditorPlugin>>>,
+    pub plugins: EditorPluginsContainer,
     pub focused: bool,
     pub update_loop_state: UpdateLoopState,
     pub is_suspended: bool,
@@ -856,10 +857,9 @@ impl Editor {
             audio_preview_panel,
             node_removal_dialog,
             doc_window,
-            plugins: vec![
-                Some(Box::new(ColliderShapePlugin::default())),
-                Some(Box::new(TileMapEditorPlugin::default())),
-            ],
+            plugins: EditorPluginsContainer::new()
+                .with(ColliderShapePlugin::default())
+                .with(TileMapEditorPlugin::default()),
             // Apparently, some window managers (like Wayland), does not send `Focused` event after the window
             // was created. So we must assume that the editor is focused by default, otherwise editor's thread
             // will sleep forever and the window won't come up.
@@ -1827,11 +1827,11 @@ impl Editor {
     pub fn is_in_preview_mode(&mut self) -> bool {
         let mut is_any_plugin_in_preview_mode = false;
         let mut i = 0;
-        while i < self.plugins.len() {
-            if let Some(plugin) = self.plugins.get_mut(i).and_then(|p| p.take()) {
+        while i < self.plugins.0.len() {
+            if let Some(plugin) = self.plugins.0.get_mut(i).and_then(|p| p.take()) {
                 is_any_plugin_in_preview_mode |= plugin.is_in_preview_mode(self);
 
-                if let Some(entry) = self.plugins.get_mut(i) {
+                if let Some(entry) = self.plugins.0.get_mut(i) {
                     *entry = Some(plugin);
                 }
             }
@@ -2680,7 +2680,7 @@ impl Editor {
     where
         P: EditorPlugin + 'static,
     {
-        self.plugins.push(Some(Box::new(plugin)));
+        self.plugins.add(plugin);
     }
 
     pub fn is_active(&self) -> bool {

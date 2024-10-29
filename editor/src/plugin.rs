@@ -20,6 +20,21 @@
 
 use crate::fyrox::gui::message::UiMessage;
 use crate::{Editor, Message};
+use std::any::Any;
+
+pub trait BaseEditorPlugin: Any {
+    fn as_any(&self) -> &dyn Any;
+    fn as_any_mut(&mut self) -> &mut dyn Any;
+}
+
+impl<T: EditorPlugin> BaseEditorPlugin for T {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+}
 
 /// Editor plugin allows you to extend editor functionality with custom tools. It provides a standard way of interaction
 /// between your plugin and built-in editor's functionality.
@@ -40,7 +55,7 @@ use crate::{Editor, Message};
 /// The editor usually operates on scenes (there could be multiple opened scenes, but only one active) and any modification of
 /// their content **must** be done via _commands_. [Command](https://en.wikipedia.org/wiki/Command_pattern) is a standard
 /// pattern that encapsulates an action. Command pattern is used for undo/redo functionality.
-pub trait EditorPlugin {
+pub trait EditorPlugin: BaseEditorPlugin {
     /// This method is called right after the editor was fully initialized. It is guaranteed to be called only once.
     fn on_start(&mut self, #[allow(unused_variables)] editor: &mut Editor) {}
 
@@ -111,11 +126,11 @@ pub trait EditorPlugin {
 macro_rules! for_each_plugin {
     ($container:expr => $func:ident($($param:expr),*)) => {{
         let mut i = 0;
-        while i < $container.len() {
-            if let Some(mut plugin) = $container.get_mut(i).and_then(|p| p.take()) {
+        while i < $container.0.len() {
+            if let Some(mut plugin) = $container.0.get_mut(i).and_then(|p| p.take()) {
                 plugin.$func($($param),*);
 
-                if let Some(entry) = $container.get_mut(i) {
+                if let Some(entry) = $container.0.get_mut(i) {
                     *entry = Some(plugin);
                 }
             }
@@ -123,4 +138,45 @@ macro_rules! for_each_plugin {
             i += 1;
         }
     }};
+}
+
+#[derive(Default)]
+pub struct EditorPluginsContainer(pub Vec<Option<Box<dyn EditorPlugin>>>);
+
+impl EditorPluginsContainer {
+    pub fn new() -> Self {
+        Default::default()
+    }
+
+    pub fn with<T: EditorPlugin>(mut self, plugin: T) -> Self {
+        self.0.push(Some(Box::new(plugin)));
+        self
+    }
+
+    pub fn add<T: EditorPlugin>(&mut self, plugin: T) -> &mut Self {
+        self.0.push(Some(Box::new(plugin)));
+        self
+    }
+
+    pub fn get<T>(&self) -> Option<&T>
+    where
+        T: EditorPlugin,
+    {
+        self.0.iter().find_map(|container| {
+            container
+                .as_ref()
+                .and_then(|plugin| plugin.as_any().downcast_ref::<T>())
+        })
+    }
+
+    pub fn get_mut<T>(&mut self) -> Option<&mut T>
+    where
+        T: EditorPlugin,
+    {
+        self.0.iter_mut().find_map(|container| {
+            container
+                .as_mut()
+                .and_then(|plugin| plugin.as_any_mut().downcast_mut::<T>())
+        })
+    }
 }
