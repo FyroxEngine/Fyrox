@@ -995,7 +995,7 @@ pub struct PhysicsWorld {
     // A container of colliders.
     #[visit(skip)]
     #[reflect(hidden)]
-    colliders: ColliderSet,
+    pub(crate) colliders: ColliderSet,
     // A container of impulse joints.
     #[visit(skip)]
     #[reflect(hidden)]
@@ -1627,8 +1627,7 @@ impl PhysicsWorld {
             return;
         }
 
-        let anything_changed =
-            collider_node.transform_modified.get() || collider_node.needs_sync_model();
+        let anything_changed = collider_node.needs_sync_model();
 
         // Important notes!
         // 1) The collider node may lack backing native physics collider in case if it
@@ -1638,15 +1637,6 @@ impl PhysicsWorld {
         if collider_node.native.get() != ColliderHandle::invalid() {
             if anything_changed {
                 if let Some(native) = self.colliders.get_mut(collider_node.native.get()) {
-                    if collider_node.transform_modified.get() {
-                        native.set_position_wrt_parent(Isometry3 {
-                            rotation: **collider_node.local_transform().rotation(),
-                            translation: Translation3 {
-                                vector: **collider_node.local_transform().position(),
-                            },
-                        });
-                    }
-
                     collider_node
                         .restitution
                         .try_sync_model(|v| native.set_restitution(v));

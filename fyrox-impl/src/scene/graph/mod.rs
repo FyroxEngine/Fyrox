@@ -875,7 +875,7 @@ impl Graph {
         let new_global_transform = parent_global_transform * node.local_transform().matrix();
 
         // TODO: Detect changes from user code here.
-        node.sync_transform(
+        node.on_global_transform_changed(
             &new_global_transform,
             &mut SyncContext {
                 nodes,
@@ -956,7 +956,7 @@ impl Graph {
     // Performance of this method is detached from the amount of scene nodes in the graph and only
     // correlates with the amount of changing nodes, allowing to have large scene graphs with tons
     // of static nodes.
-    pub(crate) fn process_node_messages(&mut self) {
+    pub(crate) fn process_node_messages(&mut self, switches: Option<&GraphUpdateSwitches>) {
         bitflags! {
             #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
             struct Flags: u8 {
@@ -971,6 +971,19 @@ impl Graph {
         let mut roots = FxHashMap::default();
 
         while let Ok(message) = self.message_receiver.try_recv() {
+            if let NodeMessageKind::TransformChanged = message.kind {
+                if let Some(node) = self.pool.try_borrow(message.node) {
+                    node.on_local_transform_changed(&mut SyncContext {
+                        nodes: &self.pool,
+                        physics: &mut self.physics,
+                        physics2d: &mut self.physics2d,
+                        sound_context: &mut self.sound_context,
+                        switches,
+                    })
+                }
+            }
+
+            // Prepare for hierarchy propagation.
             let message_flag = match message.kind {
                 NodeMessageKind::TransformChanged => Flags::TRANSFORM_CHANGED,
                 NodeMessageKind::VisibilityChanged => Flags::VISIBILITY_CHANGED,
@@ -1063,8 +1076,6 @@ impl Graph {
         delete_dead_nodes: bool,
     ) {
         if let Some((ticket, mut node)) = self.pool.try_take_reserve(handle) {
-            node.transform_modified.set(false);
-
             let mut is_alive = node.is_alive();
 
             if node.is_globally_enabled() {
@@ -1109,7 +1120,7 @@ impl Graph {
         }
 
         let last_time = instant::Instant::now();
-        self.process_node_messages();
+        self.process_node_messages(Some(&switches));
         self.performance_statistics.hierarchical_properties_time =
             instant::Instant::now() - last_time;
 

@@ -449,7 +449,11 @@ impl NodeTrait for RigidBody {
         context.physics2d.sync_to_rigid_body_node(self_handle, self);
     }
 
-    fn sync_transform(&self, new_global_transform: &Matrix4<f32>, context: &mut SyncContext) {
+    fn on_global_transform_changed(
+        &self,
+        new_global_transform: &Matrix4<f32>,
+        context: &mut SyncContext,
+    ) {
         if !m4x4_approx_eq(new_global_transform, &self.global_transform()) {
             context
                 .physics2d

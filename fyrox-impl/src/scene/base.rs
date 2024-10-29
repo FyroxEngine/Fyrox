@@ -468,9 +468,6 @@ pub struct Base {
     #[reflect(setter = "set_frustum_culling")]
     frustum_culling: InheritableVariable<bool>,
 
-    #[reflect(hidden)]
-    pub(crate) transform_modified: Cell<bool>,
-
     // When `true` it means that this node is instance of `resource`.
     // More precisely - this node is root of whole descendant nodes
     // hierarchy which was instantiated from resource.
@@ -1396,7 +1393,6 @@ impl BaseBuilder {
             mobility: self.mobility.into(),
             tag: self.tag.into(),
             properties: Default::default(),
-            transform_modified: Cell::new(false),
             frustum_culling: self.frustum_culling.into(),
             cast_shadows: self.cast_shadows.into(),
             scripts: self.scripts,

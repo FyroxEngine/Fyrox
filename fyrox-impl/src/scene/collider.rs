@@ -45,6 +45,7 @@ use crate::{
         Scene,
     },
 };
+use fyrox_core::algebra::{Isometry3, Translation3};
 use fyrox_core::uuid_provider;
 use fyrox_graph::BaseSceneGraph;
 use rapier3d::geometry::{self, ColliderHandle};
@@ -876,6 +877,19 @@ impl NodeTrait for Collider {
         if graph.physics.remove_collider(self.native.get()) {
             // Remove native collider when detaching a collider node from rigid body node.
             self.native.set(ColliderHandle::invalid());
+        }
+    }
+
+    fn on_local_transform_changed(&self, context: &mut SyncContext) {
+        if self.native.get() != ColliderHandle::invalid() {
+            if let Some(native) = context.physics.colliders.get_mut(self.native.get()) {
+                native.set_position_wrt_parent(Isometry3 {
+                    rotation: **self.local_transform().rotation(),
+                    translation: Translation3 {
+                        vector: **self.local_transform().position(),
+                    },
+                });
+            }
         }
     }
 

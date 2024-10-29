@@ -575,7 +575,11 @@ impl NodeTrait for Mesh {
         Self::type_uuid()
     }
 
-    fn sync_transform(&self, _new_global_transform: &Matrix4<f32>, context: &mut SyncContext) {
+    fn on_global_transform_changed(
+        &self,
+        _new_global_transform: &Matrix4<f32>,
+        context: &mut SyncContext,
+    ) {
         if self.surfaces.iter().any(|s| !s.bones.is_empty()) {
             let mut world_aabb = self
                 .local_bounding_box()

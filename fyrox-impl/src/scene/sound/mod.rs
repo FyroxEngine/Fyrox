@@ -414,7 +414,11 @@ impl NodeTrait for Sound {
         )
     }
 
-    fn sync_transform(&self, new_global_transform: &Matrix4<f32>, context: &mut SyncContext) {
+    fn on_global_transform_changed(
+        &self,
+        new_global_transform: &Matrix4<f32>,
+        context: &mut SyncContext,
+    ) {
         if !m4x4_approx_eq(new_global_transform, &self.global_transform()) {
             context.sound_context.set_sound_position(self);
         }

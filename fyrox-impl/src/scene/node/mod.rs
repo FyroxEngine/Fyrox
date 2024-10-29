@@ -181,12 +181,15 @@ pub trait NodeTrait: BaseNodeTrait + Reflect + Visit + ComponentProvider {
     }
 
     /// Called when node's global transform changes.
-    fn sync_transform(
+    fn on_global_transform_changed(
         &self,
         #[allow(unused_variables)] new_global_transform: &Matrix4<f32>,
-        _context: &mut SyncContext,
+        #[allow(unused_variables)] context: &mut SyncContext,
     ) {
     }
+
+    /// Called when node's local transform changed.
+    fn on_local_transform_changed(&self, #[allow(unused_variables)] context: &mut SyncContext) {}
 
     /// The methods is used to manage lifetime of scene nodes, depending on their internal logic.
     fn is_alive(&self) -> bool {

@@ -2201,7 +2201,7 @@ impl Engine {
             // "teleportation" bug (when an object is drawn at (0,0,0) for one frame and on the one
             // draws where it should be).
             for scene in self.scenes.iter_mut() {
-                scene.graph.process_node_messages();
+                scene.graph.process_node_messages(None);
             }
 
             ctx.renderer.render_and_swap_buffers(

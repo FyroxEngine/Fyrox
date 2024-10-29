@@ -383,7 +383,11 @@ impl NodeTrait for Joint {
             .sync_to_joint_node(context.nodes, self_handle, self);
     }
 
-    fn sync_transform(&self, new_global_transform: &Matrix4<f32>, _context: &mut SyncContext) {
+    fn on_global_transform_changed(
+        &self,
+        new_global_transform: &Matrix4<f32>,
+        _context: &mut SyncContext,
+    ) {
         if *self.auto_rebind && !m4x4_approx_eq(new_global_transform, &self.global_transform()) {
             self.local_frames.borrow_mut().take();
         }
