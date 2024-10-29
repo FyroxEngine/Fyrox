@@ -1340,6 +1340,8 @@ impl Graph {
     {
         let mut copy = Self {
             sound_context: self.sound_context.deep_clone(),
+            physics: self.physics.clone(),
+            physics2d: self.physics2d.clone(),
             ..Default::default()
         };
 

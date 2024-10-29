@@ -1016,6 +1016,17 @@ pub struct PhysicsWorld {
     debug_render_pipeline: Mutex<DebugRenderPipeline>,
 }
 
+impl Clone for PhysicsWorld {
+    fn clone(&self) -> Self {
+        PhysicsWorld {
+            enabled: self.enabled.clone(),
+            integration_parameters: self.integration_parameters.clone(),
+            gravity: self.gravity.clone(),
+            ..Default::default()
+        }
+    }
+}
+
 fn isometry_from_global_transform(transform: &Matrix4<f32>) -> Isometry3<f32> {
     Isometry3 {
         translation: Translation3::new(transform[12], transform[13], transform[14]),
