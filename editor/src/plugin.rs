@@ -158,7 +158,7 @@ impl EditorPluginsContainer {
         self
     }
 
-    pub fn get<T>(&self) -> Option<&T>
+    pub fn try_get<T>(&self) -> Option<&T>
     where
         T: EditorPlugin,
     {
@@ -169,7 +169,15 @@ impl EditorPluginsContainer {
         })
     }
 
-    pub fn get_mut<T>(&mut self) -> Option<&mut T>
+    pub fn get<T>(&self) -> &T
+    where
+        T: EditorPlugin,
+    {
+        self.try_get()
+            .unwrap_or_else(|| panic!("There's no plugin with {} name", std::any::type_name::<T>()))
+    }
+
+    pub fn try_get_mut<T>(&mut self) -> Option<&mut T>
     where
         T: EditorPlugin,
     {
@@ -178,5 +186,13 @@ impl EditorPluginsContainer {
                 .as_mut()
                 .and_then(|plugin| plugin.as_any_mut().downcast_mut::<T>())
         })
+    }
+
+    pub fn get_mut<T>(&mut self) -> &mut T
+    where
+        T: EditorPlugin,
+    {
+        self.try_get_mut()
+            .unwrap_or_else(|| panic!("There's no plugin with {} name", std::any::type_name::<T>()))
     }
 }
