@@ -602,6 +602,12 @@ impl PartialEq for InspectorContext {
     }
 }
 
+fn object_type_id(object: &dyn Reflect) -> TypeId {
+    let mut object_type_id = None;
+    object.as_any(&mut |any| object_type_id = Some(any.type_id()));
+    object_type_id.unwrap()
+}
+
 impl Default for InspectorContext {
     fn default() -> Self {
         Self {
@@ -969,7 +975,7 @@ impl InspectorContext {
             property_definitions: definition_container,
             sync_flag,
             environment,
-            object_type_id: object.type_id(),
+            object_type_id: object_type_id(object),
             name_column_width,
         }
     }
@@ -993,7 +999,7 @@ impl InspectorContext {
         generate_property_string_values: bool,
         filter: PropertyFilter,
     ) -> Result<(), Vec<InspectorError>> {
-        if object.type_id() != self.object_type_id {
+        if object_type_id(object) != self.object_type_id {
             return Err(vec![InspectorError::OutOfSync]);
         }
 
