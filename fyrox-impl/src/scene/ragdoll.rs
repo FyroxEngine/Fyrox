@@ -43,6 +43,7 @@ use crate::{
         rigidbody::{RigidBody, RigidBodyType},
     },
 };
+use fyrox_graph::SceneGraphNode;
 use std::{
     any::{type_name, Any, TypeId},
     ops::{Deref, DerefMut},
@@ -287,7 +288,7 @@ impl NodeTrait for Ragdoll {
             if let Some(character_rigid_body) = ctx
                 .nodes
                 .try_borrow_mut(*self.character_rigid_body)
-                .and_then(|n| n.query_component_mut::<RigidBody>())
+                .and_then(|n| n.component_mut::<RigidBody>())
             {
                 new_lin_vel = Some(character_rigid_body.lin_vel());
                 new_ang_vel = Some(character_rigid_body.ang_vel());
@@ -413,7 +414,7 @@ impl NodeTrait for Ragdoll {
             if let Some(character_rigid_body) = ctx
                 .nodes
                 .try_borrow_mut(*self.character_rigid_body)
-                .and_then(|n| n.query_component_mut::<RigidBody>())
+                .and_then(|n| n.component_mut::<RigidBody>())
             {
                 if *self.is_active {
                     character_rigid_body.set_lin_vel(Default::default());

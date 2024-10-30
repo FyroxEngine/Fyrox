@@ -821,7 +821,7 @@ fn read_triangle(
 }
 
 fn has_hull(node: &Node) -> bool {
-    node.query_component_ref::<Mesh>().is_some()
+    node.component_ref::<Mesh>().is_some()
 }
 
 fn precise_ray_test(
@@ -832,7 +832,7 @@ fn precise_ray_test(
     let mut closest_distance = f32::MAX;
     let mut closest_point = None;
 
-    if let Some(mesh) = node.query_component_ref::<Mesh>() {
+    if let Some(mesh) = node.component_ref::<Mesh>() {
         let transform = mesh.global_transform();
 
         for surface in mesh.surfaces().iter() {

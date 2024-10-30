@@ -42,7 +42,7 @@ use crate::{
 };
 use fyrox_core::algebra::{Isometry3, Vector3};
 use fyrox_core::uuid_provider;
-use fyrox_graph::BaseSceneGraph;
+use fyrox_graph::{BaseSceneGraph, SceneGraphNode};
 use rapier2d::na::UnitQuaternion;
 use rapier3d::dynamics::ImpulseJointHandle;
 use std::cell::RefCell;
@@ -395,7 +395,7 @@ impl NodeTrait for Joint {
 
     fn validate(&self, scene: &Scene) -> Result<(), String> {
         if let Some(body1) = scene.graph.try_get(self.body1()) {
-            if body1.query_component_ref::<RigidBody>().is_none() {
+            if body1.component_ref::<RigidBody>().is_none() {
                 return Err("First body of 3D Joint must be an \
                     instance of 3D Rigid Body!"
                     .to_string());
@@ -407,7 +407,7 @@ impl NodeTrait for Joint {
         }
 
         if let Some(body2) = scene.graph.try_get(self.body2()) {
-            if body2.query_component_ref::<RigidBody>().is_none() {
+            if body2.component_ref::<RigidBody>().is_none() {
                 return Err("Second body of 3D Joint must be an instance \
                     of 3D Rigid Body!"
                     .to_string());

@@ -479,62 +479,6 @@ impl Node {
         self.0.as_any_ref_mut().downcast_mut::<T>()
     }
 
-    /// Allows a node to provide access to a component of specified type.
-    ///
-    /// # Example
-    ///
-    /// A good example is a light source node, it gives access to internal `BaseLight`:
-    ///
-    /// ```rust
-    /// # use fyrox_impl::scene::light::BaseLight;
-    /// # use fyrox_impl::scene::light::directional::DirectionalLight;
-    /// # use fyrox_impl::scene::node::{Node};
-    ///
-    /// fn base_light_ref(directional_light: &Node) -> &BaseLight {
-    ///     directional_light.query_component_ref::<BaseLight>().expect("Must have base light")
-    /// }
-    ///
-    /// ```
-    ///
-    /// Some nodes could also provide access to inner components, check documentation of a node.
-    #[inline]
-    pub fn query_component_ref<T>(&self) -> Option<&T>
-    where
-        T: 'static,
-    {
-        self.0
-            .query_component_ref(TypeId::of::<T>())
-            .and_then(|c| c.downcast_ref::<T>())
-    }
-
-    /// Allows a node to provide access to a component of specified type.
-    ///
-    /// # Example
-    ///
-    /// A good example is a light source node, it gives access to internal `BaseLight`:
-    ///
-    /// ```rust
-    /// # use fyrox_impl::scene::light::BaseLight;
-    /// # use fyrox_impl::scene::light::directional::DirectionalLight;
-    /// # use fyrox_impl::scene::node::{Node};
-    ///
-    /// fn base_light_mut(directional_light: &mut Node) -> &mut BaseLight {
-    ///     directional_light.query_component_mut::<BaseLight>().expect("Must have base light")
-    /// }
-    ///
-    /// ```
-    ///
-    /// Some nodes could also provide access to inner components, check documentation of a node.
-    #[inline]
-    pub fn query_component_mut<T>(&mut self) -> Option<&mut T>
-    where
-        T: 'static,
-    {
-        self.0
-            .query_component_mut(TypeId::of::<T>())
-            .and_then(|c| c.downcast_mut::<T>())
-    }
-
     pub(crate) fn mark_inheritable_variables_as_modified(&mut self) {
         variable::mark_inheritable_properties_modified(self, &[TypeId::of::<UntypedResource>()])
     }
