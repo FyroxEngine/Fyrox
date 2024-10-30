@@ -117,6 +117,7 @@ use crate::{
     },
     message::MessageSender,
 };
+use fyrox::scene::particle_system::CoordinateSystem;
 use fyrox::scene::tilemap::brush::{TileMapBrush, TileMapBrushResource};
 use fyrox::scene::tilemap::tileset::TileCollider;
 
@@ -405,6 +406,7 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
     container.register_inheritable_enum::<DistanceModel, _>();
     container.register_inheritable_enum::<sound::Renderer, _>();
     container.register_inheritable_enum::<RenderPath, _>();
+    container.register_inheritable_enum::<CoordinateSystem, _>();
 
     container.insert(EnumPropertyEditorDefinition::<Vec<ScriptRecord>>::new_optional());
     container.insert(VecCollectionPropertyEditorDefinition::<ScriptRecord>::new());
