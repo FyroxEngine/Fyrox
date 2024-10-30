@@ -82,6 +82,8 @@ pub enum CurveEditorMessage {
     ChangeSelectedKeysValue(f32),
     ChangeSelectedKeysLocation(f32),
     RemoveSelection,
+    CopySelection,
+    PasteSelection,
     // Position in screen coordinates.
     AddKey(Vector2<f32>),
 }
@@ -100,6 +102,8 @@ impl CurveEditorMessage {
     define_constructor!(CurveEditorMessage:ChangeSelectedKeysValue => fn change_selected_keys_value(f32), layout: false);
     define_constructor!(CurveEditorMessage:ChangeSelectedKeysLocation => fn change_selected_keys_location(f32), layout: false);
     define_constructor!(CurveEditorMessage:AddKey => fn add_key(Vector2<f32>), layout: false);
+    define_constructor!(CurveEditorMessage:CopySelection => fn copy_selection(), layout: false);
+    define_constructor!(CurveEditorMessage:PasteSelection => fn paste_selection(), layout: false);
 }
 
 /// Highlight zone in values space.
@@ -447,6 +451,9 @@ pub struct CurveEditor {
     #[visit(skip)]
     #[reflect(hidden)]
     zoom_to_fit_timer: Option<usize>,
+    #[visit(skip)]
+    #[reflect(hidden)]
+    clipboard: Vec<(Vector2<f32>, CurveKeyKind)>,
 }
 
 crate::define_widget_deref!(CurveEditor);
@@ -464,6 +471,8 @@ struct ContextMenu {
     key_properties: Handle<UiNode>,
     key_value: Handle<UiNode>,
     key_location: Handle<UiNode>,
+    copy_keys: Handle<UiNode>,
+    paste_keys: Handle<UiNode>,
 }
 
 #[derive(Clone, Debug)]
@@ -922,6 +931,51 @@ impl Control for CurveEditor {
                         CurveEditorMessage::HighlightZones(zones) => {
                             self.highlight_zones.clone_from(zones);
                         }
+                        CurveEditorMessage::CopySelection => {
+                            if let Some(Selection::Keys { keys }) = self.selection.as_ref() {
+                                let menu_pos =
+                                    ui.node(self.context_menu.widget.handle()).screen_position();
+                                let local_menu_pos = self.screen_to_curve_space(menu_pos);
+
+                                self.clipboard.clear();
+                                for key in keys {
+                                    for curve in self.curves.iter() {
+                                        if let Some(key) = curve.key_ref(*key) {
+                                            self.clipboard.push((
+                                                key.position - local_menu_pos,
+                                                key.kind.clone(),
+                                            ));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        CurveEditorMessage::PasteSelection => {
+                            if !self.clipboard.is_empty() {
+                                let menu_pos =
+                                    ui.node(self.context_menu.widget.handle()).screen_position();
+                                let local_menu_pos = self.screen_to_curve_space(menu_pos);
+
+                                let mut selection = FxHashSet::default();
+                                for (offset, kind) in self.clipboard.iter().cloned() {
+                                    for curve in self.curves.iter_mut() {
+                                        let id = Uuid::new_v4();
+
+                                        selection.insert(id);
+
+                                        curve.add(CurveKeyView {
+                                            position: local_menu_pos + offset,
+                                            kind: kind.clone(),
+                                            id,
+                                        });
+                                    }
+                                }
+
+                                self.set_selection(Some(Selection::Keys { keys: selection }), ui);
+                                self.sort_keys();
+                                self.send_curves(ui);
+                            }
+                        }
                     }
                 }
             }
@@ -968,6 +1022,16 @@ impl Control for CurveEditor {
                     self.handle,
                     MessageDirection::ToWidget,
                     false,
+                ));
+            } else if message.destination() == self.context_menu.copy_keys {
+                ui.send_message(CurveEditorMessage::copy_selection(
+                    self.handle,
+                    MessageDirection::ToWidget,
+                ));
+            } else if message.destination() == self.context_menu.paste_keys {
+                ui.send_message(CurveEditorMessage::paste_selection(
+                    self.handle,
+                    MessageDirection::ToWidget,
                 ));
             }
         } else if let Some(NumericUpDownMessage::<f32>::Value(value)) = message.data() {
@@ -1734,6 +1798,8 @@ impl CurveEditorBuilder {
         let key_properties;
         let key_value;
         let key_location;
+        let copy_keys;
+        let paste_keys;
         let context_menu = ContextMenuBuilder::new(
             PopupBuilder::new(WidgetBuilder::new()).with_content(
                 StackPanelBuilder::new(
@@ -1835,6 +1901,18 @@ impl CurveEditorBuilder {
                                 .with_content(MenuItemContent::text("Zoom To Fit"))
                                 .build(ctx);
                             zoom_to_fit
+                        })
+                        .with_child({
+                            copy_keys = MenuItemBuilder::new(WidgetBuilder::new())
+                                .with_content(MenuItemContent::text("Copy Selected Keys"))
+                                .build(ctx);
+                            copy_keys
+                        })
+                        .with_child({
+                            paste_keys = MenuItemBuilder::new(WidgetBuilder::new())
+                                .with_content(MenuItemContent::text("Paste Keys"))
+                                .build(ctx);
+                            paste_keys
                         }),
                 )
                 .build(ctx),
@@ -1881,6 +1959,8 @@ impl CurveEditorBuilder {
                 key_properties,
                 key_value,
                 key_location,
+                copy_keys,
+                paste_keys,
             },
             view_bounds: self.view_bounds,
             show_x_values: self.show_x_values,
@@ -1890,6 +1970,7 @@ impl CurveEditorBuilder {
             max_zoom: self.max_zoom,
             highlight_zones: self.highlight_zones,
             zoom_to_fit_timer: None,
+            clipboard: Default::default(),
         };
 
         ctx.add_node(UiNode::new(editor))
