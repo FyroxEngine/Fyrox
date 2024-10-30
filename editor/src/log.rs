@@ -43,6 +43,7 @@ use crate::fyrox::{
         BuildContext, HorizontalAlignment, Orientation, RcUiNodeHandle, Thickness, UiNode,
     },
 };
+use crate::settings::Settings;
 use crate::{
     gui::{make_dropdown_list_option, make_image_button_with_tooltip},
     load_image, Brush, Color, DropdownListBuilder, Engine,
@@ -232,14 +233,34 @@ impl LogPanel {
         self.context_menu.handle_ui_message(message, engine);
     }
 
-    pub fn update(&mut self, engine: &mut Engine) {
-        let mut count = engine
-            .user_interfaces
-            .first_mut()
+    pub fn update(&mut self, settings: &Settings, engine: &mut Engine) {
+        let ui = engine.user_interfaces.first();
+
+        let existing_items = ui
             .node(self.messages)
             .cast::<ListView>()
-            .map(|v| v.items().len())
-            .unwrap_or_default();
+            .map(|v| v.items())
+            .unwrap();
+
+        let mut count = existing_items.len();
+
+        if count > settings.general.max_log_entries {
+            let delta = count - settings.general.max_log_entries;
+            // Remove every item in the head of the list of entries to keep the amount of entries
+            // in the limits.
+            //
+            // TODO: This is suboptimal, because it creates a message per each excessive entry, which
+            //  might be slow to process in case of large amount of messages.
+            for item in existing_items.iter().take(delta) {
+                ui.send_message(ListViewMessage::remove_item(
+                    self.messages,
+                    MessageDirection::ToWidget,
+                    *item,
+                ));
+            }
+
+            count -= delta;
+        }
 
         let mut item_to_bring_into_view = Handle::NONE;
 

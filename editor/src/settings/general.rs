@@ -54,6 +54,17 @@ pub struct GeneralSettings {
     )]
     #[serde(default = "default_generate_previews")]
     pub generate_previews: bool,
+
+    #[reflect(
+        description = "Maximum amount of log entries. Large values could harm performance and \
+        increase memory usage. Typical values are 200-500."
+    )]
+    #[serde(default = "default_max_log_entries")]
+    pub max_log_entries: usize,
+}
+
+fn default_max_log_entries() -> usize {
+    256
 }
 
 fn default_suspension_state() -> bool {
@@ -105,6 +116,7 @@ impl Default for GeneralSettings {
             script_editor: default_script_editor(),
             max_history_entries: default_max_history_entries(),
             generate_previews: default_generate_previews(),
+            max_log_entries: default_max_log_entries(),
         }
     }
 }

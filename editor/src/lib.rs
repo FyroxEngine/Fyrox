@@ -2250,7 +2250,7 @@ impl Editor {
 
         self.handle_modes();
 
-        self.log.update(&mut self.engine);
+        self.log.update(&self.settings, &mut self.engine);
         self.material_editor.update(&mut self.engine);
         self.asset_browser
             .update(&mut self.engine, &self.message_sender);
