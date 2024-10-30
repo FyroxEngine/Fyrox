@@ -92,7 +92,7 @@ pub mod selection;
 pub mod windows;
 
 pub struct SettingsWindow {
-    window: Handle<UiNode>,
+    pub window: Handle<UiNode>,
     ok: Handle<UiNode>,
     default: Handle<UiNode>,
     inspector: Handle<UiNode>,

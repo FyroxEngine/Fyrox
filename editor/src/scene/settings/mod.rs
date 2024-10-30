@@ -95,7 +95,7 @@ impl SceneSettingsWindow {
     }
 
     pub fn open(&self, ui: &UserInterface) {
-        ui.send_message(WindowMessage::open_modal(
+        ui.send_message(WindowMessage::open(
             self.window,
             MessageDirection::ToWidget,
             true,

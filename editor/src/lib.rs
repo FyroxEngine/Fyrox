@@ -612,6 +612,7 @@ impl Editor {
         let menu = Menu::new(&mut engine, message_sender.clone(), &settings);
         let light_panel = LightPanel::new(&mut engine, message_sender.clone());
         let audio_panel = AudioPanel::new(&mut engine, message_sender.clone());
+        let material_editor = MaterialEditor::new(&mut engine, message_sender.clone());
 
         let ctx = &mut engine.user_interfaces.first_mut().build_ctx();
         let navmesh_panel = NavmeshPanel::new(scene_viewer.frame(), ctx, message_sender.clone());
@@ -632,6 +633,7 @@ impl Editor {
         let doc_window = DocWindow::new(ctx);
         let node_removal_dialog = NodeRemovalDialog::new(ctx);
         let ragdoll_wizard = RagdollWizard::new(ctx, message_sender.clone());
+        let scene_settings = SceneSettingsWindow::new(ctx, message_sender.clone());
 
         let docking_manager;
         let root_grid = GridBuilder::new(
@@ -762,6 +764,9 @@ impl Editor {
                             navmesh_panel.window,
                             doc_window.window,
                             light_panel.window,
+                            menu.file_menu.settings.window,
+                            scene_settings.window,
+                            material_editor.window,
                         ])
                         .build(ctx);
                     docking_manager
@@ -799,10 +804,6 @@ impl Editor {
         let save_scene_dialog = SaveSceneConfirmationDialog::new(ctx);
 
         let build_window = BuildWindow::new(ctx);
-
-        let scene_settings = SceneSettingsWindow::new(ctx, message_sender.clone());
-
-        let material_editor = MaterialEditor::new(&mut engine, message_sender.clone());
 
         if let Some(layout) = settings.windows.layout.as_ref() {
             engine
