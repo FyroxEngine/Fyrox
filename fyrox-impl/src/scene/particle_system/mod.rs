@@ -518,6 +518,18 @@ impl ParticleSystem {
         *self.visible_distance
     }
 
+    /// Sets a new coordinate system for the particles in the particle system. See [`CoordinateSystem`]
+    /// docs for more info.
+    pub fn set_coordinate_system(&mut self, coordinate_system: CoordinateSystem) {
+        self.coordinate_system
+            .set_value_and_mark_modified(coordinate_system);
+    }
+
+    /// Returns current coordinate system of the particle system.
+    pub fn coordinate_system(&self) -> CoordinateSystem {
+        *self.coordinate_system
+    }
+
     fn is_distance_clipped(&self, point: &Vector3<f32>) -> bool {
         point.metric_distance(&self.global_position())
             > (*self.visible_distance + Self::FADEOUT_MARGIN)
