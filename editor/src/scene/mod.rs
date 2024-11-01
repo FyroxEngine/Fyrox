@@ -420,8 +420,8 @@ impl GameScene {
     ) -> bool {
         if let Some(selection) = editor_selection.as_graph() {
             for node in selection.nodes() {
-                for descendant in graph.traverse_handle_iter(*node) {
-                    for reference in graph.find_references_to(descendant) {
+                for (descendant_handle, _) in graph.traverse_iter(*node) {
+                    for reference in graph.find_references_to(descendant_handle) {
                         if !selection.contains(reference) {
                             return true;
                         }
@@ -611,7 +611,8 @@ impl SceneController for GameScene {
 
                             let nodes = scene
                                 .graph
-                                .traverse_handle_iter(instance)
+                                .traverse_iter(instance)
+                                .map(|(handle, _)| handle)
                                 .collect::<FxHashSet<Handle<Node>>>();
 
                             self.preview_instance = Some(PreviewInstance { instance, nodes });
@@ -912,7 +913,7 @@ impl SceneController for GameScene {
         }
 
         let node_overrides = self.graph_switches.node_overrides.as_mut().unwrap();
-        for handle in scene.graph.traverse_handle_iter(self.editor_objects_root) {
+        for (handle, _) in scene.graph.traverse_iter(self.editor_objects_root) {
             node_overrides.insert(handle);
         }
 

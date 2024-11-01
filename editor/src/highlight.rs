@@ -22,7 +22,7 @@ use crate::{
     fyrox::{
         core::{color::Color, pool::Handle, sstorage::ImmutableString},
         fxhash::FxHashSet,
-        graph::{BaseSceneGraph, SceneGraph},
+        graph::BaseSceneGraph,
         renderer::{
             bundle::{BundleRenderContext, ObserverInfo, RenderContext, RenderDataBundleStorage},
             framework::{
@@ -46,6 +46,7 @@ use crate::{
     },
     Editor,
 };
+use fyrox::graph::SceneGraph;
 use std::{any::TypeId, cell::RefCell, rc::Rc};
 
 struct EdgeDetectShader {
@@ -213,10 +214,8 @@ impl SceneRenderPass for HighlightRenderPass {
 
             for &root_node_handle in self.nodes_to_highlight.iter() {
                 if ctx.scene.graph.is_valid_handle(root_node_handle) {
-                    for node_handle in ctx.scene.graph.traverse_handle_iter(root_node_handle) {
-                        if let Some(node) = ctx.scene.graph.try_get(node_handle) {
-                            node.collect_render_data(&mut render_context);
-                        }
+                    for (_, node) in ctx.scene.graph.traverse_iter(root_node_handle) {
+                        node.collect_render_data(&mut render_context);
                     }
                 }
             }

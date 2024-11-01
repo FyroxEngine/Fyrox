@@ -125,7 +125,12 @@ pub trait LayerMaskExt {
 
 impl LayerMaskExt for LayerMask {
     fn from_hierarchy(graph: &Graph, root: Handle<Node>) -> Self {
-        Self::from(graph.traverse_handle_iter(root).collect::<Vec<_>>())
+        Self::from(
+            graph
+                .traverse_iter(root)
+                .map(|(handle, _)| handle)
+                .collect::<Vec<_>>(),
+        )
     }
 }
 

@@ -33,7 +33,7 @@ use crate::{
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, UiNode, UserInterface,
 };
-use fyrox_graph::{BaseSceneGraph, SceneGraph};
+use fyrox_graph::SceneGraph;
 use std::ops::{Deref, DerefMut};
 
 /// A widget, that handles keyboard navigation on its descendant widgets using Tab key. It should
@@ -104,14 +104,12 @@ impl Control for NavigationLayer {
             // Collect all descendant widgets, that supports Tab navigation.
             let mut tab_list = Vec::new();
             for &child in self.children() {
-                for descendant in ui.traverse_handle_iter(child) {
-                    let descendant_ref = ui.node(descendant);
-
+                for (descendant_handle, descendant_ref) in ui.traverse_iter(child) {
                     if !*descendant_ref.tab_stop && descendant_ref.is_globally_visible() {
                         if let Some(tab_index) = *descendant_ref.tab_index {
                             tab_list.push(OrderedHandle {
                                 tab_index,
-                                handle: descendant,
+                                handle: descendant_handle,
                             });
                         }
                     }

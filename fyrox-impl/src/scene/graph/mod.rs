@@ -556,8 +556,8 @@ impl Graph {
         let mut old_new_mapping = NodeHandleMap::default();
 
         let to_copy = self
-            .traverse_handle_iter(node_handle)
-            .map(|node| (node, self.pool[node].children.clone()))
+            .traverse_iter(node_handle)
+            .map(|(descendant_handle, descendant)| (descendant_handle, descendant.children.clone()))
             .collect::<Vec<_>>();
 
         let mut root_handle = Handle::NONE;

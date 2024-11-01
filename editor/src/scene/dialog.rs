@@ -159,8 +159,7 @@ impl NodeRemovalDialog {
 
         let selection = selection_to_delete(editor_selection, game_scene);
         for root in selection.nodes.iter() {
-            for node_handle in graph.traverse_handle_iter(*root) {
-                let node = &graph[node_handle];
+            for (node_handle, node) in graph.traverse_iter(*root) {
                 for reference_handle in graph.find_references_to(node_handle) {
                     let reference = &graph[reference_handle];
                     text += &format!(

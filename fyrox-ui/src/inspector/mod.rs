@@ -783,10 +783,9 @@ impl PropertyFilter {
 fn assign_tab_indices(container: Handle<UiNode>, ui: &mut UserInterface) {
     let mut counter = 0;
     let mut widgets_list = Vec::new();
-    for descendant in ui.traverse_handle_iter(container) {
-        let descendant_ref = ui.node(descendant);
+    for (descendant_handle, descendant_ref) in ui.traverse_iter(container) {
         if descendant_ref.accepts_input {
-            widgets_list.push((descendant, counter));
+            widgets_list.push((descendant_handle, counter));
             counter += 1;
         }
     }

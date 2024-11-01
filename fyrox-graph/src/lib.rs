@@ -981,7 +981,7 @@ pub trait SceneGraph: BaseSceneGraph {
     fn traverse_iter(
         &self,
         from: Handle<Self::Node>,
-    ) -> GraphTraverseIterator<'_, Self, Self::Node> {
+    ) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)> {
         GraphTraverseIterator {
             graph: self,
             stack: vec![from],
@@ -993,11 +993,8 @@ pub trait SceneGraph: BaseSceneGraph {
     fn traverse_handle_iter(
         &self,
         from: Handle<Self::Node>,
-    ) -> GraphHandleTraverseIterator<'_, Self, Self::Node> {
-        GraphHandleTraverseIterator {
-            graph: self,
-            stack: vec![from],
-        }
+    ) -> impl Iterator<Item = Handle<Self::Node>> {
+        self.traverse_iter(from).map(|(handle, _)| handle)
     }
 
     /// This method checks integrity of the graph and restores it if needed. For example, if a node
@@ -1034,7 +1031,7 @@ pub trait SceneGraph: BaseSceneGraph {
         for (instance_root, resource) in instances.iter().cloned() {
             // Step 1. Find and remove orphaned nodes.
             let mut nodes_to_delete = Vec::new();
-            for node in self.traverse_iter(instance_root) {
+            for (_, node) in self.traverse_iter(instance_root) {
                 if let Some(resource) = node.resource() {
                     let kind = resource.kind().clone();
                     if let Some(model) = resource.state().data() {
@@ -1318,7 +1315,7 @@ where
     G: SceneGraph<Node = N>,
     N: SceneGraphNode,
 {
-    type Item = &'a N;
+    type Item = (Handle<N>, &'a N);
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -1329,35 +1326,9 @@ where
                 self.stack.push(*child_handle);
             }
 
-            return Some(node);
+            return Some((handle, node));
         }
 
-        None
-    }
-}
-
-/// Iterator that traverses tree in depth and returns handles to nodes.
-pub struct GraphHandleTraverseIterator<'a, G: ?Sized, N> {
-    graph: &'a G,
-    stack: Vec<Handle<N>>,
-}
-
-impl<'a, G, N> Iterator for GraphHandleTraverseIterator<'a, G, N>
-where
-    G: SceneGraph<Node = N>,
-    N: SceneGraphNode,
-{
-    type Item = Handle<N>;
-
-    #[inline]
-    fn next(&mut self) -> Option<Self::Item> {
-        if let Some(handle) = self.stack.pop() {
-            for child_handle in self.graph.node(handle).children() {
-                self.stack.push(*child_handle);
-            }
-
-            return Some(handle);
-        }
         None
     }
 }

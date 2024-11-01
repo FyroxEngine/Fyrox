@@ -165,12 +165,11 @@ struct BatchContainer {
 
 impl BatchContainer {
     fn fill(&mut self, from: Handle<Node>, ctx: &mut RenderContext) {
-        for descendant_handle in ctx.graph.traverse_handle_iter(from) {
+        for (descendant_handle, descendant) in ctx.graph.traverse_iter(from) {
             if descendant_handle == from {
                 continue;
             }
 
-            let descendant = &ctx.graph[descendant_handle];
             descendant.collect_render_data(&mut RenderContext {
                 observer_info: ctx.observer_info,
                 frustum: None,
