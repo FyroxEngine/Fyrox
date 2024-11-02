@@ -446,7 +446,7 @@ mod test {
         let mut object = MyStruct::default();
 
         some_bool_value.apply_to_object(&mut object, "some_bool", ValueType::Bool);
-        assert_eq!(object.some_bool, true);
+        assert!(object.some_bool);
 
         some_property_value.apply_to_object(&mut object, "some_property", ValueType::F32);
         assert_eq!(object.some_property, 123.0);

@@ -64,6 +64,8 @@ use crate::{
     },
 };
 use fxhash::FxHashMap;
+use fyrox_core::algebra::Point3;
+use fyrox_core::math;
 use fyrox_ui::{UiNode, UserInterface};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -363,6 +365,20 @@ pub trait ModelResourceExtension: Sized {
         orientation: UnitQuaternion<f32>,
     ) -> Handle<Node>;
 
+    /// Instantiates a prefab and places it at specified position, orientation, scale in global
+    /// coordinates and attaches it to the specified parent. This method automatically calculates
+    /// required local position, rotation, scaling for the instance so it will remain at the same
+    /// place in world space after attachment. This method could be useful if you need to instantiate
+    /// an object at some other object.
+    fn instantiate_and_attach(
+        &self,
+        scene: &mut Scene,
+        parent: Handle<Node>,
+        position: Vector3<f32>,
+        face_towards: Vector3<f32>,
+        scale: Vector3<f32>,
+    ) -> Handle<Node>;
+
     /// Tries to retarget animations from given model resource to a node hierarchy starting
     /// from `root` on a given scene.
     ///
@@ -484,6 +500,43 @@ impl ModelResourceExtension for ModelResource {
             .with_rotation(orientation)
             .with_position(position)
             .finish()
+    }
+
+    fn instantiate_and_attach(
+        &self,
+        scene: &mut Scene,
+        parent: Handle<Node>,
+        position: Vector3<f32>,
+        face_towards: Vector3<f32>,
+        scale: Vector3<f32>,
+    ) -> Handle<Node> {
+        let parent_scale = scene.graph.global_scale(parent);
+
+        let parent_inv_transform = scene.graph[parent]
+            .global_transform()
+            .try_inverse()
+            .unwrap_or_default();
+
+        let local_position = parent_inv_transform
+            .transform_point(&Point3::from(position))
+            .coords;
+
+        let local_rotation =
+            math::vector_to_quat(parent_inv_transform.transform_vector(&face_towards));
+
+        // Discard parent's scale.
+        let local_scale = scale.component_div(&parent_scale);
+
+        let instance = self
+            .begin_instantiation(scene)
+            .with_position(local_position)
+            .with_rotation(local_rotation)
+            .with_scale(local_scale)
+            .finish();
+
+        scene.graph.link_nodes(instance, parent);
+
+        instance
     }
 
     fn retarget_animations_directly(&self, root: Handle<Node>, graph: &Graph) -> Vec<Animation> {
