@@ -348,14 +348,14 @@ impl Visit for ScriptRecord {
 }
 
 #[allow(clippy::enum_variant_names)] // STFU
-#[derive(PartialEq, Eq, Hash, Copy, Clone)]
+#[derive(PartialEq, Eq, Hash, Copy, Clone, Debug)]
 pub(crate) enum NodeMessageKind {
     TransformChanged,
     VisibilityChanged,
     EnabledFlagChanged,
 }
 
-#[derive(PartialEq, Eq, Hash, Copy, Clone)]
+#[derive(PartialEq, Eq, Hash, Copy, Clone, Debug)]
 pub(crate) struct NodeMessage {
     pub node: Handle<Node>,
     pub kind: NodeMessageKind,
@@ -368,35 +368,52 @@ impl NodeMessage {
 }
 
 #[derive(Clone, Debug)]
-struct TransformWrapper {
-    transform: Transform,
+struct TrackedProperty<T> {
+    property: T,
+    node_message_kind: NodeMessageKind,
     node_handle: Handle<Node>,
     sender: Option<Sender<NodeMessage>>,
 }
 
-impl Visit for TransformWrapper {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        self.transform.visit(name, visitor)
+impl<T> TrackedProperty<T> {
+    fn unbound(property: T, kind: NodeMessageKind) -> Self {
+        Self {
+            property,
+            node_message_kind: kind,
+            node_handle: Default::default(),
+            sender: None,
+        }
+    }
+
+    fn set_message_data(&mut self, sender: Sender<NodeMessage>, node_handle: Handle<Node>) {
+        self.sender = Some(sender);
+        self.node_handle = node_handle;
     }
 }
 
-impl Deref for TransformWrapper {
-    type Target = Transform;
+impl<T: Visit> Visit for TrackedProperty<T> {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        self.property.visit(name, visitor)
+    }
+}
+
+impl<T> Deref for TrackedProperty<T> {
+    type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        &self.transform
+        &self.property
     }
 }
 
-impl DerefMut for TransformWrapper {
+impl<T> DerefMut for TrackedProperty<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         if let Some(sender) = self.sender.as_ref() {
             Log::verify(sender.send(NodeMessage {
                 node: self.node_handle,
-                kind: NodeMessageKind::TransformChanged,
+                kind: self.node_message_kind,
             }))
         }
-        &mut self.transform
+        &mut self.property
     }
 }
 
@@ -436,11 +453,14 @@ pub struct Base {
     #[reflect(setter = "set_name_internal")]
     pub(crate) name: ImmutableString,
 
-    #[reflect(setter = "set_local_transform", deref)]
-    local_transform: TransformWrapper,
+    #[reflect(deref)]
+    local_transform: TrackedProperty<Transform>,
 
-    #[reflect(setter = "set_visibility")]
-    visibility: InheritableVariable<bool>,
+    #[reflect(deref)]
+    visibility: TrackedProperty<InheritableVariable<bool>>,
+
+    #[reflect(deref)]
+    enabled: TrackedProperty<InheritableVariable<bool>>,
 
     #[reflect(
         description = "Maximum amount of Some(time) that node will \"live\" or None if the node has unlimited lifetime."
@@ -513,9 +533,6 @@ pub struct Base {
     // Use it at your own risk only when you're completely sure what you are doing.
     pub(crate) scripts: Vec<ScriptRecord>,
 
-    #[reflect(setter = "set_enabled")]
-    enabled: InheritableVariable<bool>,
-
     #[reflect(hidden)]
     pub(crate) global_enabled: Cell<bool>,
 }
@@ -571,8 +588,11 @@ impl Base {
         self.self_handle = self_handle;
         self.message_sender = Some(message_sender.clone());
         self.script_message_sender = Some(script_message_sender);
-        self.local_transform.sender = Some(message_sender);
-        self.local_transform.node_handle = self_handle;
+        self.local_transform
+            .set_message_data(message_sender.clone(), self_handle);
+        self.visibility
+            .set_message_data(message_sender.clone(), self_handle);
+        self.enabled.set_message_data(message_sender, self_handle);
         // Kick off initial hierarchical property propagation.
         self.notify(self.self_handle, NodeMessageKind::TransformChanged);
         self.notify(self.self_handle, NodeMessageKind::VisibilityChanged);
@@ -596,7 +616,7 @@ impl Base {
     /// Sets new local transform of a node.
     #[inline]
     pub fn set_local_transform(&mut self, transform: Transform) {
-        self.local_transform.transform = transform;
+        self.local_transform.property = transform;
         self.notify(self.self_handle, NodeMessageKind::TransformChanged);
     }
 
@@ -697,15 +717,13 @@ impl Base {
     /// Sets local visibility of a node.
     #[inline]
     pub fn set_visibility(&mut self, visibility: bool) -> bool {
-        let old = self.visibility.set_value_and_mark_modified(visibility);
-        self.notify(self.self_handle, NodeMessageKind::VisibilityChanged);
-        old
+        self.visibility.set_value_and_mark_modified(visibility)
     }
 
     /// Returns local visibility of a node.
     #[inline]
     pub fn visibility(&self) -> bool {
-        *self.visibility
+        *self.visibility.property
     }
 
     /// Returns current **local-space** bounding box. Keep in mind that this value is just
@@ -1066,9 +1084,7 @@ impl Base {
     /// returns `true`.
     #[inline]
     pub fn set_enabled(&mut self, enabled: bool) -> bool {
-        let old = self.enabled.set_value_and_mark_modified(enabled);
-        self.notify(self.self_handle, NodeMessageKind::EnabledFlagChanged);
-        old
+        self.enabled.set_value_and_mark_modified(enabled)
     }
 
     /// Returns `true` if the node is enabled, `false` - otherwise. The return value does **not** include the state
@@ -1076,7 +1092,7 @@ impl Base {
     /// the state of parent nodes, use [`Self::is_globally_enabled`] method.
     #[inline]
     pub fn is_enabled(&self) -> bool {
-        *self.enabled
+        *self.enabled.property
     }
 
     /// Returns `true` if the node and every parent up in hierarchy is enabled, `false` - otherwise. This method
@@ -1375,13 +1391,19 @@ impl BaseBuilder {
             message_sender: None,
             name: self.name.into(),
             children: self.children,
-            local_transform: TransformWrapper {
-                transform: self.local_transform,
-                node_handle: Default::default(),
-                sender: None,
-            },
+            local_transform: TrackedProperty::unbound(
+                self.local_transform,
+                NodeMessageKind::TransformChanged,
+            ),
             lifetime: self.lifetime.into(),
-            visibility: self.visibility.into(),
+            visibility: TrackedProperty::unbound(
+                self.visibility.into(),
+                NodeMessageKind::VisibilityChanged,
+            ),
+            enabled: TrackedProperty::unbound(
+                self.enabled.into(),
+                NodeMessageKind::EnabledFlagChanged,
+            ),
             global_visibility: Cell::new(true),
             parent: Handle::NONE,
             global_transform: Cell::new(Matrix4::identity()),
@@ -1397,7 +1419,7 @@ impl BaseBuilder {
             cast_shadows: self.cast_shadows.into(),
             scripts: self.scripts,
             instance_id: SceneNodeId(Uuid::new_v4()),
-            enabled: self.enabled.into(),
+
             global_enabled: Cell::new(true),
         }
     }
