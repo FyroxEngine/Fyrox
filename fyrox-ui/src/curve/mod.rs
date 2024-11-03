@@ -883,35 +883,37 @@ impl Control for CurveEditor {
                         }
                         CurveEditorMessage::AddKey(screen_pos) => {
                             let local_pos = self.screen_to_curve_space(*screen_pos);
-                            let dest_curve = if let Some(selection) = self.selection.as_ref() {
-                                match selection {
-                                    Selection::Keys { keys } => {
-                                        self.curves.iter_mut().find(|curve| {
-                                            for key in curve.keys() {
-                                                if keys.contains(&key.id) {
-                                                    return true;
-                                                }
+
+                            let mut curves = Vec::new();
+                            if let Some(selection) = self.selection.as_ref() {
+                                if let Selection::Keys { keys } = selection {
+                                    curves.extend(self.curves.iter_mut().filter(|curve| {
+                                        for key in curve.keys() {
+                                            if keys.contains(&key.id) {
+                                                return true;
                                             }
-                                            false
-                                        })
-                                    }
-                                    Selection::LeftTangent { .. } => None,
-                                    Selection::RightTangent { .. } => None,
+                                        }
+                                        false
+                                    }));
                                 }
                             } else {
-                                self.curves.curves.first_mut()
+                                curves.extend(self.curves.curves.iter_mut());
                             };
 
-                            if let Some(dest_curve) = dest_curve {
-                                dest_curve.add(CurveKeyView {
+                            let mut added_keys = FxHashSet::default();
+                            for curve in curves {
+                                let id = Uuid::new_v4();
+                                curve.add(CurveKeyView {
                                     position: local_pos,
                                     kind: CurveKeyKind::Linear,
-                                    id: Uuid::new_v4(),
+                                    id,
                                 });
-                                self.set_selection(None, ui);
-                                self.sort_keys();
-                                self.send_curves(ui);
+                                added_keys.insert(id);
                             }
+
+                            self.set_selection(Some(Selection::Keys { keys: added_keys }), ui);
+                            self.sort_keys();
+                            self.send_curves(ui);
                         }
                         CurveEditorMessage::ZoomToFit { after_layout } => {
                             if *after_layout {
