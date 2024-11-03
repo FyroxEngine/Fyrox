@@ -558,9 +558,11 @@ impl Control for CurveEditor {
         if message.destination() == self.handle {
             if let Some(msg) = message.data::<WidgetMessage>() {
                 match msg {
-                    WidgetMessage::KeyUp(KeyCode::Delete) => {
-                        self.remove_selection(ui);
-                    }
+                    WidgetMessage::KeyUp(code) => match code {
+                        KeyCode::Delete => self.remove_selection(ui),
+                        KeyCode::KeyF => self.zoom_to_fit(&ui.sender()),
+                        _ => (),
+                    },
                     WidgetMessage::MouseMove { pos, state } => {
                         let is_dragging = self
                             .operation_context
