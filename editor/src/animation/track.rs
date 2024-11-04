@@ -1001,7 +1001,7 @@ impl TrackList {
             }
         } else if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination() == self.context_menu.remove_track {
-                if let Some(animation) = selected_animation {
+                if selected_animation.is_some() {
                     let mut commands = vec![Command::new(ChangeSelectionCommand::new(
                         Selection::new(AnimationSelection {
                             animation_player: selection.animation_player,
@@ -1013,16 +1013,10 @@ impl TrackList {
 
                     for entity in selection.entities.iter() {
                         if let SelectedEntity::Track(id) = entity {
-                            let index = animation
-                                .tracks()
-                                .iter()
-                                .position(|t| t.id() == *id)
-                                .unwrap();
-
                             commands.push(Command::new(RemoveTrackCommand::new(
                                 selection.animation_player,
                                 selection.animation,
-                                index,
+                                *id,
                             )));
                         }
                     }

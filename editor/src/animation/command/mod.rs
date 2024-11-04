@@ -110,20 +110,20 @@ impl<N: Debug + 'static> CommandTrait for AddTrackCommand<N> {
 pub struct RemoveTrackCommand<N: Debug + 'static> {
     animation_player: Handle<N>,
     animation: Handle<Animation<Handle<N>>>,
-    index: usize,
-    track: Option<Track<Handle<N>>>,
+    id: Uuid,
+    track: Option<(usize, Track<Handle<N>>)>,
 }
 
 impl<N: Debug + 'static> RemoveTrackCommand<N> {
     pub fn new(
         animation_player: Handle<N>,
         animation: Handle<Animation<Handle<N>>>,
-        index: usize,
+        id: Uuid,
     ) -> Self {
         Self {
             animation_player,
             animation,
-            index,
+            id,
             track: None,
         }
     }
@@ -135,15 +135,20 @@ impl<N: Debug + 'static> CommandTrait for RemoveTrackCommand<N> {
     }
 
     fn execute(&mut self, context: &mut dyn CommandContext) {
-        self.track = Some(
-            fetch_animations_container(self.animation_player, context)[self.animation]
-                .remove_track(self.index),
-        );
+        let animation =
+            &mut fetch_animations_container(self.animation_player, context)[self.animation];
+        let index = animation
+            .tracks_mut()
+            .iter()
+            .position(|t| t.id() == self.id)
+            .unwrap();
+        self.track = Some((index, animation.remove_track(index)));
     }
 
     fn revert(&mut self, context: &mut dyn CommandContext) {
+        let (index, track) = self.track.take().unwrap();
         fetch_animations_container(self.animation_player, context)[self.animation]
-            .insert_track(self.index, self.track.take().unwrap());
+            .insert_track(index, track);
     }
 }
 
