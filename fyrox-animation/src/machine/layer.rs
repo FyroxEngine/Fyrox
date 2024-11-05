@@ -316,12 +316,13 @@ impl<T: EntityId> MachineLayer<T> {
                     handle: self.active_state,
                     name: state.name.clone(),
                 },
-                events: self.nodes[state.root].collect_animation_events(
-                    &self.nodes,
-                    params,
-                    animations,
-                    strategy,
-                ),
+                events: self
+                    .nodes
+                    .try_borrow(state.root)
+                    .map(|root| {
+                        root.collect_animation_events(&self.nodes, params, animations, strategy)
+                    })
+                    .unwrap_or_default(),
             };
         } else if let Some(transition) = self.transitions.try_borrow(self.active_transition) {
             if let (Some(source_state), Some(dest_state)) = (
