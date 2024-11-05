@@ -1872,17 +1872,15 @@ impl PhysicsWorld {
         &self,
         collider: ColliderHandle,
     ) -> impl Iterator<Item = IntersectionPair> + '_ {
-        self.narrow_phase.intersection_pairs_with(collider).map(
-            |(collider1, collider2, intersecting)| IntersectionPair {
-                collider1: Handle::decode_from_u128(
-                    self.colliders.get(collider1).unwrap().user_data,
-                ),
-                collider2: Handle::decode_from_u128(
-                    self.colliders.get(collider2).unwrap().user_data,
-                ),
-                has_any_active_contact: intersecting,
-            },
-        )
+        self.narrow_phase
+            .intersection_pairs_with(collider)
+            .filter_map(|(collider1, collider2, intersecting)| {
+                Some(IntersectionPair {
+                    collider1: Handle::decode_from_u128(self.colliders.get(collider1)?.user_data),
+                    collider2: Handle::decode_from_u128(self.colliders.get(collider2)?.user_data),
+                    has_any_active_contact: intersecting,
+                })
+            })
     }
 
     /// Contacts checks between two regular colliders
