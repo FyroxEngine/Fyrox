@@ -115,6 +115,8 @@ pub struct GridDimension {
     /// For Auto rows and columns this is initially the number of nodes in that row or column,
     /// and then it is reduced as nodes are measured.
     /// This is zero for all non-Auto rows and columns.
+    #[visit(skip)]
+    #[reflect(hidden)]
     unmeasured_node_count: usize,
 }
 
