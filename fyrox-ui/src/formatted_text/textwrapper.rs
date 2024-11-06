@@ -100,14 +100,13 @@ impl<S: LineSink> TextWrapper for LetterWrap<S> {
             self.sink.push_line(self.start..self.position, self.width);
             self.start = self.position; // Next line starts after the newline
             self.width = 0.0;
-        } else {
-            self.position += 1;
-            self.width += advance;
         }
     }
 
     fn finish(&mut self) {
-        self.sink.push_line(self.start..self.position, self.width);
+        if self.start != self.position {
+            self.sink.push_line(self.start..self.position, self.width);
+        }
     }
 }
 
@@ -176,5 +175,87 @@ impl<S: LineSink> TextWrapper for WordWrap<S> {
 
     fn finish(&mut self) {
         self.sink.push_line(self.start..self.position, self.width);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct Sink(f32, Vec<(Range<usize>, f32)>);
+
+    impl Sink {
+        fn new(width: f32) -> Self {
+            Self(width, Vec::default())
+        }
+        fn result(&self) -> &[(Range<usize>, f32)] {
+            self.1.as_slice()
+        }
+    }
+
+    impl LineSink for Sink {
+        fn push_line(&mut self, range: Range<usize>, width: f32) {
+            self.1.push((range, width));
+        }
+
+        fn max_width(&self) -> f32 {
+            self.0
+        }
+    }
+
+    fn wrap<W: TextWrapper>(wrap: &mut W, text: &str) {
+        for c in text.chars() {
+            wrap.push(c, 1.0);
+        }
+        wrap.finish();
+    }
+
+    #[test]
+    fn one_line_no_wrap() {
+        let mut w = NoWrap::new(Sink::new(10.0));
+        wrap(&mut w, "One line");
+        assert_eq!(w.sink.result(), &[(0..8, 8.0)]);
+    }
+    #[test]
+    fn two_line_no_wrap() {
+        let mut w = NoWrap::new(Sink::new(10.0));
+        wrap(&mut w, "Two\nline");
+        assert_eq!(w.sink.result(), &[(0..3, 3.0), (4..8, 4.0)]);
+    }
+    #[test]
+    fn one_line_letter() {
+        let mut w = LetterWrap::new(Sink::new(8.0));
+        wrap(&mut w, "One line");
+        assert_eq!(w.sink.result(), &[(0..8, 8.0)]);
+    }
+    #[test]
+    fn two_line_letter() {
+        let mut w = LetterWrap::new(Sink::new(8.0));
+        wrap(&mut w, "Two line!");
+        assert_eq!(w.sink.result(), &[(0..8, 8.0), (8..9, 1.0)]);
+    }
+    #[test]
+    fn new_line_letter() {
+        let mut w = LetterWrap::new(Sink::new(8.0));
+        wrap(&mut w, "Two\nline");
+        assert_eq!(w.sink.result(), &[(0..4, 4.0), (4..8, 4.0)]);
+    }
+    #[test]
+    fn one_line_word() {
+        let mut w = WordWrap::new(Sink::new(8.0));
+        wrap(&mut w, "One line");
+        assert_eq!(w.sink.result(), &[(0..8, 8.0)]);
+    }
+    #[test]
+    fn two_line_word() {
+        let mut w = WordWrap::new(Sink::new(8.0));
+        wrap(&mut w, "Two line!");
+        assert_eq!(w.sink.result(), &[(0..4, 4.0), (4..9, 5.0)]);
+    }
+    #[test]
+    fn new_line_word() {
+        let mut w = WordWrap::new(Sink::new(8.0));
+        wrap(&mut w, "Two\nline");
+        assert_eq!(w.sink.result(), &[(0..4, 4.0), (4..8, 4.0)]);
     }
 }

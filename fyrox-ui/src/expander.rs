@@ -305,7 +305,7 @@ impl ExpanderBuilder {
                             .with_child(grid)
                             .with_child(self.content),
                     )
-                    .add_column(Column::auto())
+                    .add_column(Column::stretch())
                     .add_row(Row::auto())
                     .add_row(Row::stretch())
                     .build(ctx),

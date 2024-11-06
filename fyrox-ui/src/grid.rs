@@ -25,8 +25,8 @@
 
 use crate::{
     core::{
-        algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-        uuid_provider, variable::InheritableVariable, visitor::prelude::*,
+        algebra::Vector2, log::Log, math::Rect, pool::Handle, reflect::prelude::*,
+        type_traits::prelude::*, uuid_provider, variable::InheritableVariable, visitor::prelude::*,
     },
     define_constructor,
     draw::{CommandTexture, Draw, DrawingContext},
@@ -34,6 +34,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
 };
+use core::f32;
 use fyrox_graph::BaseSceneGraph;
 use std::{
     cell::RefCell,
@@ -81,12 +82,16 @@ impl GridMessage {
     Clone, Copy, PartialEq, Eq, Debug, Reflect, Visit, Default, AsRefStr, EnumString, VariantNames,
 )]
 pub enum SizeMode {
-    /// Strict size of the dimension.
+    /// The desired size of this dimension must be provided in advance,
+    /// and it will always be rendered with exactly that size, regardless of what nodes it contains.
     #[default]
     Strict,
-    /// Size of the dimension will match the size of the inner content.
+    /// The desired size of this dimension is the maximum of the desired sizes of all the nodes when
+    /// they are measured with infinite available size.
     Auto,
-    /// Size of the dimension will stretch to fit available bounds.
+    /// The size of this dimension is determined by subtracting the desired size of the other rows/columns
+    /// from the total available size, if the available size is finite.
+    /// If the total available size is infinite, then Stretch is equivalent to Auto.
     Stretch,
 }
 
@@ -97,13 +102,22 @@ uuid_provider!(SizeMode = "9c5dfbce-5df2-4a7f-8c57-c4473743a718");
 pub struct GridDimension {
     /// Current size mode of the dimension.
     pub size_mode: SizeMode,
-    /// Desired size of the dimension. Makes sense only if size mode is [`SizeMode::Strict`].
+    /// Desired size of the dimension. This must be supplied if [`SizeMode::Strict`],
+    /// and it is automatically calculated if [`SizeMode::Auto`].
+    /// If [`SizeMode::Stretch`]. this represents the size of the dimension before excess space is added.
     pub desired_size: f32,
     /// Measured size of the dimension. It could be considered as "output" parameter of the dimension
-    /// that will be filled after measurement layout step.
+    /// that will be filled after measurement layout step. It is used to calculate the grid's desired size.
     pub actual_size: f32,
     /// Local position along the axis of the dimension after arrangement step.
     pub location: f32,
+    /// The number of children in this dimension that still need to be measured before the size is known.
+    /// For Auto rows and columns this is initially the number of nodes in that row or column,
+    /// and then it is reduced as nodes are measured.
+    /// This is zero for all non-Auto rows and columns.
+    #[visit(skip)]
+    #[reflect(hidden)]
+    unmeasured_node_count: usize,
 }
 
 uuid_provider!(GridDimension = "5e894900-c14a-4eb6-acb9-1636efead4b4");
@@ -116,6 +130,7 @@ impl GridDimension {
             desired_size,
             actual_size: 0.0,
             location: 0.0,
+            unmeasured_node_count: 0,
         }
     }
 
@@ -132,6 +147,23 @@ impl GridDimension {
     /// Creates new [`GridDimension`] with [`SizeMode::Auto`].
     pub fn auto() -> Self {
         Self::generic(SizeMode::Auto, 0.0)
+    }
+
+    fn update_size(&mut self, node_size: f32, available_size: f32) {
+        match self.size_mode {
+            SizeMode::Strict => (),
+            SizeMode::Auto => {
+                self.desired_size = self.desired_size.max(node_size);
+                self.actual_size = self.desired_size;
+            }
+            SizeMode::Stretch => {
+                if available_size.is_finite() {
+                    self.actual_size = self.desired_size + available_size;
+                } else {
+                    self.actual_size = node_size;
+                }
+            }
+        }
     }
 }
 
@@ -237,16 +269,41 @@ crate::define_widget_deref!(Grid);
 pub struct Cell {
     /// A set of nodes of the cell.
     pub nodes: Vec<Handle<UiNode>>,
-    /// Current width constraint of the cell.
-    pub width_constraint: Option<f32>,
-    /// Current height constraint of the cell.
-    pub height_constraint: Option<f32>,
     /// Vertical location of the cell (row number).
     pub row_index: usize,
     /// Horizontal location of the cell (column number).
     pub column_index: usize,
 }
 
+/// ```text
+///                Strict   Auto   Stretch
+///               +-------+-------+-------+
+///               |       |       |       |
+///        Strict |   0   |   0   |   2   |
+///               |       |       |       |
+///               +-------+-------+-------+
+///               |       |       |       |
+///          Auto |   0   |   0   |   2   |
+///               |       |       |       |
+///               +-------+-------+-------+
+///               |       |       |       |
+///       Stretch |   3   |   1   |   3   |
+///               |       |       |       |
+///               +-------+-------+-------+
+/// ```
+/// Group 0 represents all nodes with no stretch. They can be measured without needing any
+/// desired size information from other nodes, and so they are always measured first.
+///
+/// Group 1 is special because it contains all the remaining auto-width nodes
+/// after group 0 has been measured, and group 1 may blocked from being measured
+/// due to group 2 not yet being measured to provide the desired size of the
+/// remaining auto rows.
+///
+/// In order to allow measurement to proceed in that situation, group 1 may be forced
+/// to measure despite not yet knowing its true vertical available size.
+/// The width information gained from the measurement of group 1 makes it possible to
+/// measure group 2, and then group 1 will be measured a second time to get its
+/// correct desired height. Group 1 is the only group that is ever measured twice.
 fn group_index(row_size_mode: SizeMode, column_size_mode: SizeMode) -> usize {
     match (row_size_mode, column_size_mode) {
         (SizeMode::Strict, SizeMode::Strict)
@@ -259,56 +316,36 @@ fn group_index(row_size_mode: SizeMode, column_size_mode: SizeMode) -> usize {
     }
 }
 
-fn choose_constraint(dimension: &GridDimension, available_size: f32) -> Option<f32> {
+fn choose_constraint(dimension: &GridDimension, available_size: f32) -> f32 {
     match dimension.size_mode {
-        SizeMode::Strict => Some(dimension.desired_size),
-        SizeMode::Auto => Some(available_size),
-        SizeMode::Stretch => None,
-    }
-}
-
-fn choose_actual_size(
-    dimension: &GridDimension,
-    cell_size: f32,
-    available_size: f32,
-    stretch_size: f32,
-) -> f32 {
-    let current_actual_size = dimension.actual_size;
-    match dimension.size_mode {
+        // Strict always has a constraint of its desired size.
         SizeMode::Strict => dimension.desired_size,
-        SizeMode::Auto => current_actual_size.max(cell_size),
-        SizeMode::Stretch => current_actual_size.max(if available_size.is_infinite() {
-            cell_size
-        } else {
-            stretch_size
-        }),
+        // For Stretch rows and columns, the available size is whatever size is not used up
+        // by the other rows and columns.
+        // First we give the node the desired size, which is most likely zero for a Stretch row/column,
+        // then we expand it to include the available size.
+        SizeMode::Stretch => dimension.desired_size + available_size,
+        // Auto means being free to choose whatever size the widget pleases.
+        // If the constraint were set to `available_size` then the widget might choose
+        // to use all of that size and crowd out all other cells of the grid.
+        // A constraint of infinity encourages the node to pick a more reasonable size.
+        SizeMode::Auto => f32::INFINITY,
     }
 }
 
-fn calc_total_size_of_non_stretch_dims(
-    dims: &[GridDimension],
-    children: &[Handle<UiNode>],
-    ui: &UserInterface,
-    desired_size_fetcher: fn(&UiNode, usize) -> Option<f32>,
-) -> f32 {
-    let mut preset_size = 0.0;
-
-    for (i, dim) in dims.iter().enumerate() {
-        if dim.size_mode == SizeMode::Strict {
-            preset_size += dim.desired_size;
-        } else if dim.size_mode == SizeMode::Auto {
-            let mut dim_size = 0.0f32;
-            for child_handle in children {
-                let child = ui.nodes.borrow(*child_handle);
-                if let Some(desired_size) = (desired_size_fetcher)(child, i) {
-                    dim_size = dim_size.max(desired_size);
-                }
-            }
-            preset_size += dim_size;
-        }
+fn calc_total_size_of_non_stretch_dims(dims: &[GridDimension]) -> Option<f32> {
+    if dims.iter().all(|d| d.size_mode != SizeMode::Stretch) {
+        // If there are no stretch rows/columns, then the value we return will never be used.
+        Some(0.0) // Arbitrarily choose 0.0, but it should not matter.
+    } else if dims.iter().all(|d| d.unmeasured_node_count == 0) {
+        // We have at least one stretch, so seriously calculate the size
+        // This requires that all the autos be already measured.
+        Some(dims.iter().map(|d| d.desired_size).sum())
+    } else {
+        // We have at least one stretch but not all the autos are measured
+        // so we fail.
+        None
     }
-
-    preset_size
 }
 
 fn count_stretch_dims(dims: &[GridDimension]) -> usize {
@@ -322,90 +359,68 @@ fn count_stretch_dims(dims: &[GridDimension]) -> usize {
 }
 
 fn calc_avg_size_for_stretch_dim(
-    dims: &[GridDimension],
-    children: &[Handle<UiNode>],
+    dims: &RefCell<Vec<GridDimension>>,
     available_size: f32,
-    ui: &UserInterface,
-    desired_size_fetcher: fn(&UiNode, usize) -> Option<f32>,
-) -> f32 {
-    let preset_size = calc_total_size_of_non_stretch_dims(dims, children, ui, desired_size_fetcher);
-
-    let rest_width = available_size - preset_size;
-
-    let stretch_sized_dims = count_stretch_dims(dims);
+) -> Option<f32> {
+    if available_size.is_infinite() {
+        // If we have limitless available size, then short-circuit to avoid the possibility
+        // of returning None due to missing Auto measurements. Measuring Auto nodes does not matter
+        // when available_size is infinite, and returning None might force an unnecessary double-measure.
+        return Some(available_size);
+    }
+    let dims = dims.borrow();
+    let stretch_sized_dims = count_stretch_dims(&dims);
     if stretch_sized_dims > 0 {
-        rest_width / stretch_sized_dims as f32
+        let rest_size = available_size - calc_total_size_of_non_stretch_dims(&dims)?;
+        Some(rest_size / stretch_sized_dims as f32)
     } else {
-        0.0
-    }
-}
-
-fn fetch_width(child: &UiNode, i: usize) -> Option<f32> {
-    if child.column() == i && child.visibility() {
-        Some(child.desired_size().x)
-    } else {
-        None
-    }
-}
-
-fn fetch_height(child: &UiNode, i: usize) -> Option<f32> {
-    if child.row() == i && child.visibility() {
-        Some(child.desired_size().y)
-    } else {
-        None
+        // If there are no stretch nodes in this row/column, then this result will never be used.
+        Some(0.0) // Choose 0.0 arbitrarily.
     }
 }
 
 fn arrange_dims(dims: &mut [GridDimension], final_size: f32) {
-    let mut preset_width = 0.0;
-    for dim in dims.iter() {
-        if dim.size_mode == SizeMode::Auto || dim.size_mode == SizeMode::Strict {
-            preset_width += dim.actual_size;
-        }
-    }
+    // Every row/column has a desired size, so summing all the desired sizes is correct.
+    // Strict rows/columns have their desired size set when building the grid.
+    // Auto rows/columns are calculated in the measure step.
+    // Stretch rows/columns default to zero.
+    let preset_width: f32 = dims.iter().map(|d| d.desired_size).sum();
 
     let stretch_count = count_stretch_dims(dims);
-    let avg_size = if stretch_count > 0 {
+    let avg_stretch = if stretch_count > 0 {
         (final_size - preset_width) / stretch_count as f32
     } else {
+        // Since stretch_count is zero, this value will never be used.
         0.0
     };
 
     let mut location = 0.0;
     for dim in dims.iter_mut() {
         dim.location = location;
-        location += match dim.size_mode {
-            SizeMode::Strict | SizeMode::Auto => dim.actual_size,
-            SizeMode::Stretch => avg_size,
+        dim.actual_size = match dim.size_mode {
+            SizeMode::Strict | SizeMode::Auto => dim.desired_size,
+            SizeMode::Stretch => dim.desired_size + avg_stretch,
         };
+        location += dim.actual_size;
     }
 }
 
 uuid_provider!(Grid = "98ce15e2-bd62-497d-a37b-9b1cb4a1918c");
 
-impl Control for Grid {
-    fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
-        let mut rows = self.rows.borrow_mut();
-        let mut columns = self.columns.borrow_mut();
+impl Grid {
+    fn initialize_measure(&self, ui: &UserInterface) {
+        self.calc_needed_measurements(ui);
+
         let mut groups = self.groups.borrow_mut();
-        let mut cells = self.cells.borrow_mut();
-
-        // In case of no rows or columns, grid acts like default panel.
-        if columns.is_empty() || rows.is_empty() {
-            return self.widget.measure_override(ui, available_size);
-        }
-
-        for row in rows.iter_mut() {
-            row.actual_size = 0.0;
-        }
-        for column in columns.iter_mut() {
-            column.actual_size = 0.0;
-        }
         for group in groups.iter_mut() {
             group.clear();
         }
+
+        let mut cells = self.cells.borrow_mut();
         cells.clear();
 
+        let rows = self.rows.borrow();
+        let columns = self.columns.borrow();
         for (column_index, column) in columns.iter().enumerate() {
             for (row_index, row) in rows.iter().enumerate() {
                 groups[group_index(row.size_mode, column.size_mode)].push(cells.len());
@@ -414,75 +429,190 @@ impl Control for Grid {
                     nodes: self
                         .children()
                         .iter()
-                        .filter_map(|&c| {
-                            let child_ref = ui.node(c);
-                            if child_ref.row() == row_index && child_ref.column() == column_index {
-                                Some(c)
-                            } else {
-                                None
-                            }
+                        .copied()
+                        .filter(|&c| {
+                            let Some(child_ref) = ui.try_get(c) else {
+                                return false;
+                            };
+                            child_ref.row() == row_index && child_ref.column() == column_index
                         })
                         .collect(),
-                    width_constraint: choose_constraint(column, available_size.x),
-                    height_constraint: choose_constraint(row, available_size.y),
                     row_index,
                     column_index,
                 })
             }
         }
-
-        for group in groups.iter() {
-            for &cell_index in group.iter() {
-                let cell = &cells[cell_index];
-
-                let stretch_sized_width = calc_avg_size_for_stretch_dim(
-                    &columns,
-                    self.children(),
-                    available_size.x,
-                    ui,
-                    fetch_width,
-                );
-
-                let stretch_sized_height = calc_avg_size_for_stretch_dim(
-                    &rows,
-                    self.children(),
-                    available_size.y,
-                    ui,
-                    fetch_height,
-                );
-
-                let child_constraint = Vector2::new(
-                    cell.width_constraint.unwrap_or(stretch_sized_width),
-                    cell.height_constraint.unwrap_or(stretch_sized_height),
-                );
-
-                let mut cell_size = Vector2::<f32>::default();
-                for &node in cell.nodes.iter() {
-                    ui.measure_node(node, child_constraint);
-                    let node_ref = ui.node(node);
-                    let desired_size = node_ref.desired_size();
-                    cell_size.x = cell_size.x.max(desired_size.x);
-                    cell_size.y = cell_size.y.max(desired_size.y);
-                }
-
-                let column = &mut columns[cell.column_index];
-                column.actual_size =
-                    choose_actual_size(column, cell_size.x, available_size.x, stretch_sized_width);
-
-                let row = &mut rows[cell.row_index];
-                row.actual_size =
-                    choose_actual_size(row, cell_size.y, available_size.y, stretch_sized_height);
+    }
+    fn calc_needed_measurements(&self, ui: &UserInterface) {
+        let mut rows = self.rows.borrow_mut();
+        let mut cols = self.columns.borrow_mut();
+        for dim in rows.iter_mut().chain(cols.iter_mut()) {
+            dim.unmeasured_node_count = 0;
+            match dim.size_mode {
+                SizeMode::Auto => dim.desired_size = 0.0,
+                SizeMode::Strict => dim.actual_size = dim.desired_size,
+                SizeMode::Stretch => (),
             }
         }
+        for handle in self.children() {
+            let Some(node) = ui.try_get(*handle) else {
+                continue;
+            };
+            let Some(row) = rows.get_mut(node.row()) else {
+                Log::err(format!(
+                    "Node row out of bounds: {} row:{}, column:{}",
+                    node.type_name(),
+                    node.row(),
+                    node.column()
+                ));
+                continue;
+            };
+            let Some(col) = cols.get_mut(node.column()) else {
+                Log::err(format!(
+                    "Node column out of bounds: {} row:{}, column:{}",
+                    node.type_name(),
+                    node.row(),
+                    node.column()
+                ));
+                continue;
+            };
+            if col.size_mode == SizeMode::Auto {
+                col.unmeasured_node_count += 1
+            }
+            if row.size_mode == SizeMode::Auto {
+                row.unmeasured_node_count += 1
+            }
+        }
+    }
+    fn measure_width_and_height(
+        &self,
+        child: Handle<UiNode>,
+        ui: &UserInterface,
+        available_size: Vector2<f32>,
+        measure_width: bool,
+        measure_height: bool,
+    ) {
+        let Some(node) = ui.try_get(child) else {
+            return;
+        };
+        let mut rows = self.rows.borrow_mut();
+        let mut cols = self.columns.borrow_mut();
+        let Some(row) = rows.get_mut(node.row()) else {
+            return;
+        };
+        let Some(col) = cols.get_mut(node.column()) else {
+            return;
+        };
+        let constraint = Vector2::new(
+            choose_constraint(col, available_size.x),
+            choose_constraint(row, available_size.y),
+        );
+        ui.measure_node(child, constraint);
+        if measure_width {
+            col.update_size(node.desired_size().x, available_size.x);
+            if col.size_mode == SizeMode::Auto {
+                col.unmeasured_node_count -= 1;
+            }
+        }
+        if measure_height {
+            row.update_size(node.desired_size().y, available_size.y);
+            if row.size_mode == SizeMode::Auto {
+                row.unmeasured_node_count -= 1;
+            }
+        }
+    }
+    fn measure_group_width(
+        &self,
+        group: &[usize],
+        ui: &UserInterface,
+        available_size: Vector2<f32>,
+    ) {
+        let cells = self.cells.borrow();
+        for cell in group.iter().map(|&i| &cells[i]) {
+            for n in cell.nodes.iter() {
+                self.measure_width_and_height(*n, ui, available_size, true, false);
+            }
+        }
+    }
+    fn measure_group_height(
+        &self,
+        group: &[usize],
+        ui: &UserInterface,
+        available_size: Vector2<f32>,
+    ) {
+        let cells = self.cells.borrow();
+        for cell in group.iter().map(|&i| &cells[i]) {
+            for n in cell.nodes.iter() {
+                self.measure_width_and_height(*n, ui, available_size, false, true);
+            }
+        }
+    }
+    fn measure_group(&self, group: &[usize], ui: &UserInterface, available_size: Vector2<f32>) {
+        let cells = self.cells.borrow();
+        for cell in group.iter().map(|&i| &cells[i]) {
+            for n in cell.nodes.iter() {
+                self.measure_width_and_height(*n, ui, available_size, true, true);
+            }
+        }
+    }
+}
 
-        let mut desired_size = Vector2::default();
-        // Step 4. Calculate desired size of grid.
-        for column in columns.iter() {
-            desired_size.x += column.actual_size;
+impl Control for Grid {
+    fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
+        // In case of no rows or columns, grid acts like default panel.
+        if self.columns.borrow().is_empty() || self.rows.borrow().is_empty() {
+            return self.widget.measure_override(ui, available_size);
         }
-        for row in rows.iter() {
-            desired_size.y += row.actual_size;
+
+        self.initialize_measure(ui);
+
+        let groups = self.groups.borrow_mut();
+
+        // Start by measuring all the nodes with no stretch in either dimension: group 0
+        self.measure_group(&groups[0], ui, available_size);
+
+        if let Some(space_y) = calc_avg_size_for_stretch_dim(&self.rows, available_size.y) {
+            // Measuring group 0 was enough to allow us to calculate the needed stretch along the height of the grid,
+            // so use that stretch to measure group 1 (auto width, stretch height).
+            self.measure_group(&groups[1], ui, Vector2::new(available_size.x, space_y));
+            // Measuring group 0 and group 1 guarantees that we have measured all the auto-width nodes, so this is safe to unwrap.
+            let space_x = calc_avg_size_for_stretch_dim(&self.columns, available_size.x).unwrap();
+            // Use the calculated horizontal stretch to measure all the remaining nodes.
+            self.measure_group(&groups[2], ui, Vector2::new(space_x, available_size.y));
+            self.measure_group(&groups[3], ui, Vector2::new(space_x, space_y));
+        } else if let Some(space_x) = calc_avg_size_for_stretch_dim(&self.columns, available_size.x)
+        {
+            // We were unable to calculate the vertical stretch, but we can calculate the horizontal stretch,
+            // so use the horizontal stretch to measure group 2 (stretch width, strict/auto height).
+            // We know that group 1 is empty, since group 1 has auto width and we have not yet measured group 1.
+            self.measure_group(&groups[2], ui, Vector2::new(space_x, available_size.y));
+            // Measuring group 0 and group 2 guarantees that we have measured all the auto-height nodes, so this is safe to unwrap.
+            let space_y = calc_avg_size_for_stretch_dim(&self.rows, available_size.y).unwrap();
+            // Use the calculated vertical stretch to measure the remaining nodes.
+            self.measure_group(&groups[3], ui, Vector2::new(space_x, space_y));
+        } else {
+            // We could not calculate either the vertical stretch or the horizontal stretch.
+            // The only horizontal autos we have not measured are in group 1 (auto width, stretch height),
+            // so we are forced to measure group 1 as it if had auto height, just so it can provide its width to its column.
+            // The desired height provided by this measurement is ignored.
+            self.measure_group_width(&groups[1], ui, Vector2::new(f32::INFINITY, f32::INFINITY));
+            // Measuring group 0 and group 1 guarantees that we have measured all the auto-width nodes, so this is safe to unwrap.
+            let space_x = calc_avg_size_for_stretch_dim(&self.columns, available_size.x).unwrap();
+            // Use the calculated horizontal stretch to measure group 2 (stretch width, strict/auto height).
+            self.measure_group(&groups[2], ui, Vector2::new(space_x, available_size.y));
+            // Measuring group 0 and group 2 guarantees that we have measured all the auto-height nodes, so this is safe to unwrap.
+            let space_y = calc_avg_size_for_stretch_dim(&self.rows, available_size.y).unwrap();
+            // Now that we finally have the vertical stretch amount, we can properly measure group 1 (auto width, stretch height).
+            // This is the only time we measure a node twice. The first time was just to discover the width.
+            // This measurement is just for height, now that we can give the node the true available veritical size.
+            self.measure_group_height(&groups[1], ui, Vector2::new(available_size.x, space_y));
+            self.measure_group(&groups[3], ui, Vector2::new(space_x, space_y));
         }
+
+        let desired_size = Vector2::<f32>::new(
+            self.columns.borrow().iter().map(|c| c.actual_size).sum(),
+            self.rows.borrow().iter().map(|r| r.actual_size).sum(),
+        );
         desired_size
     }
 

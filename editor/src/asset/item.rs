@@ -326,13 +326,14 @@ impl AssetItemBuilder {
                                         .with_margin(Thickness::uniform(1.0))
                                         .on_row(1),
                                 )
+                                .with_wrap(WrapMode::Letter)
                                 .with_horizontal_text_alignment(HorizontalAlignment::Center)
                                 .with_text(path.file_name().unwrap_or_default().to_string_lossy())
                                 .build(ctx),
                             ),
                     )
-                    .add_column(Column::auto())
-                    .add_row(Row::stretch())
+                    .add_column(Column::strict(64.0))
+                    .add_row(Row::strict(64.0))
                     .add_row(Row::auto())
                     .build(ctx),
                 )

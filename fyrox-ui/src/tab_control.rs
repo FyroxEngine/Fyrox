@@ -528,9 +528,9 @@ impl TabControlBuilder {
                 .with_child(headers_container)
                 .with_child(content_container),
         )
-        .add_column(Column::auto())
+        .add_column(Column::stretch())
         .add_row(Row::auto())
-        .add_row(Row::auto())
+        .add_row(Row::stretch())
         .build(ctx);
 
         let tc = TabControl {
