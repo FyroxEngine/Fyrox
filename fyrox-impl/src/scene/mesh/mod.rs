@@ -457,11 +457,13 @@ impl Mesh {
             let data = data.data_ref();
             if surface.bones().is_empty() {
                 for view in data.vertex_buffer.iter() {
+                    let Ok(vertex_pos) = view.read_3_f32(VertexAttributeUsage::Position) else {
+                        break;
+                    };
+
                     bounding_box.add_point(
                         self.global_transform()
-                            .transform_point(&Point3::from(
-                                view.read_3_f32(VertexAttributeUsage::Position).unwrap(),
-                            ))
+                            .transform_point(&Point3::from(vertex_pos))
                             .coords,
                     );
                 }
@@ -481,20 +483,20 @@ impl Mesh {
 
                 for view in data.vertex_buffer.iter() {
                     let mut position = Vector3::default();
-                    for (&bone_index, &weight) in view
-                        .read_4_u8(VertexAttributeUsage::BoneIndices)
-                        .unwrap()
-                        .iter()
-                        .zip(
-                            view.read_4_f32(VertexAttributeUsage::BoneWeight)
-                                .unwrap()
-                                .iter(),
-                        )
-                    {
+
+                    let Ok(vertex_pos) = view.read_3_f32(VertexAttributeUsage::Position) else {
+                        break;
+                    };
+                    let Ok(bone_indices) = view.read_4_u8(VertexAttributeUsage::BoneIndices) else {
+                        break;
+                    };
+                    let Ok(bone_weights) = view.read_4_f32(VertexAttributeUsage::BoneWeight) else {
+                        break;
+                    };
+
+                    for (&bone_index, &weight) in bone_indices.iter().zip(bone_weights.iter()) {
                         position += bone_matrices[bone_index as usize]
-                            .transform_point(&Point3::from(
-                                view.read_3_f32(VertexAttributeUsage::Position).unwrap(),
-                            ))
+                            .transform_point(&Point3::from(vertex_pos))
                             .coords
                             .scale(weight);
                     }
