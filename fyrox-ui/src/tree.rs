@@ -775,7 +775,7 @@ impl TreeBuilder {
                     panel
                 }),
         )
-        .add_column(Column::auto())
+        .add_column(Column::stretch())
         .add_row(Row::strict(24.0))
         .add_row(Row::stretch())
         .build(ctx);
