@@ -25,8 +25,8 @@
 
 use crate::{
     core::{
-        algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-        uuid_provider, variable::InheritableVariable, visitor::prelude::*,
+        algebra::Vector2, log::Log, math::Rect, pool::Handle, reflect::prelude::*,
+        type_traits::prelude::*, uuid_provider, variable::InheritableVariable, visitor::prelude::*,
     },
     define_constructor,
     draw::{CommandTexture, Draw, DrawingContext},
@@ -115,6 +115,8 @@ pub struct GridDimension {
     /// For Auto rows and columns this is initially the number of nodes in that row or column,
     /// and then it is reduced as nodes are measured.
     /// This is zero for all non-Auto rows and columns.
+    #[visit(skip)]
+    #[reflect(hidden)]
     unmeasured_node_count: usize,
 }
 
@@ -456,8 +458,24 @@ impl Grid {
             let Some(node) = ui.try_get(*handle) else {
                 continue;
             };
-            let row = &mut rows[node.row()];
-            let col = &mut cols[node.column()];
+            let Some(row) = rows.get_mut(node.row()) else {
+                Log::err(format!(
+                    "Node row out of bounds: {} row:{}, column:{}",
+                    node.type_name(),
+                    node.row(),
+                    node.column()
+                ));
+                continue;
+            };
+            let Some(col) = cols.get_mut(node.column()) else {
+                Log::err(format!(
+                    "Node column out of bounds: {} row:{}, column:{}",
+                    node.type_name(),
+                    node.row(),
+                    node.column()
+                ));
+                continue;
+            };
             if col.size_mode == SizeMode::Auto {
                 col.unmeasured_node_count += 1
             }
@@ -479,8 +497,12 @@ impl Grid {
         };
         let mut rows = self.rows.borrow_mut();
         let mut cols = self.columns.borrow_mut();
-        let row = &mut rows[node.row()];
-        let col = &mut cols[node.column()];
+        let Some(row) = rows.get_mut(node.row()) else {
+            return;
+        };
+        let Some(col) = cols.get_mut(node.column()) else {
+            return;
+        };
         let constraint = Vector2::new(
             choose_constraint(col, available_size.x),
             choose_constraint(row, available_size.y),
