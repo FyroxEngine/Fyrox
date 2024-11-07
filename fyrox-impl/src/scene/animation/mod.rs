@@ -48,7 +48,7 @@ pub mod spritesheet;
 /// Scene specific animation.
 pub type Animation = crate::generic_animation::Animation<Handle<Node>>;
 /// Scene specific animation track.
-pub type Track = crate::generic_animation::track::Track<Handle<Node>>;
+pub type Track = crate::generic_animation::track::Track;
 /// Scene specific animation container.
 pub type AnimationContainer = crate::generic_animation::AnimationContainer<Handle<Node>>;
 /// Scene specific animation pose.

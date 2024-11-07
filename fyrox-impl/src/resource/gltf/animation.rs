@@ -185,15 +185,15 @@ impl ImportedTrack {
             false
         }
     }
-    fn into_track(self) -> Track<Handle<Node>> {
+    fn into_track(self) -> (Handle<Node>, Track) {
         let mut data = TrackDataContainer::new(self.target.kind());
         for (i, curve) in self.curves.into_vec().into_iter().enumerate() {
             data.curves_mut()[i] = Curve::from(curve);
         }
-        let mut track = Track::new(data, self.target.value_binding());
-        track.set_target(self.target.handle);
-        track.set_enabled(true);
-        track
+        (
+            self.target.handle,
+            Track::new(data, self.target.value_binding()),
+        )
     }
 }
 
@@ -224,7 +224,8 @@ impl ImportedAnimation {
         result.set_name(self.name);
         result.set_time_slice(self.start..self.end);
         for t in self.tracks {
-            result.add_track(t.into_track());
+            let (node, track) = t.into_track();
+            result.add_track(node, track);
         }
         result
     }

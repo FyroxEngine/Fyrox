@@ -28,29 +28,33 @@ use crate::{
     core::{
         algebra::{UnitQuaternion, Vector3},
         math::wrapf,
-        pool::{Handle, Pool, Ticket},
+        pool::{ErasedHandle, Handle, Pool, Ticket},
         reflect::prelude::*,
-        uuid::Uuid,
+        type_traits::prelude::*,
+        uuid::{uuid, Uuid},
         visitor::{Visit, VisitResult, Visitor},
+        ImmutableString, NameProvider,
     },
     track::Track,
 };
-use core::ImmutableString;
-use fyrox_core::{NameProvider, TypeUuidProvider};
-use std::hash::Hash;
+use fxhash::FxHashMap;
+use fyrox_resource::{Resource, ResourceData};
 use std::{
+    any::Any,
     collections::VecDeque,
+    error::Error,
     fmt::Debug,
+    hash::Hash,
     ops::{Index, IndexMut, Range},
+    path::Path,
 };
+use value::{nlerp, TrackValue, ValueBinding};
 
+use crate::track::TrackBinding;
 pub use fyrox_core as core;
-use fyrox_core::pool::ErasedHandle;
-use fyrox_core::uuid::uuid;
-
+use fyrox_resource::untyped::ResourceKind;
 pub use pose::{AnimationPose, NodePose};
 pub use signal::{AnimationEvent, AnimationSignal};
-use value::{nlerp, TrackValue, ValueBinding};
 
 pub mod container;
 pub mod machine;
@@ -59,6 +63,85 @@ pub mod signal;
 pub mod spritesheet;
 pub mod track;
 pub mod value;
+
+#[derive(Default, Debug, Reflect, Clone, PartialEq, TypeUuidProvider)]
+#[type_uuid(id = "044d9f7c-5c6c-4b29-8de9-d0d975a48256")]
+pub struct AnimationData {
+    pub tracks: Vec<Track>,
+}
+
+impl AnimationData {
+    /// Adds new track to the animation. Animation can have unlimited number of tracks, each track is responsible
+    /// for animation of a single scene node.
+    pub fn add_track(&mut self, track: Track) {
+        self.tracks.push(track);
+    }
+
+    /// Removes a track at given index.
+    pub fn remove_track(&mut self, index: usize) -> Track {
+        self.tracks.remove(index)
+    }
+
+    /// Inserts a track at given index.
+    pub fn insert_track(&mut self, index: usize, track: Track) {
+        self.tracks.insert(index, track)
+    }
+
+    /// Removes last track from the list of tracks of the animation.
+    pub fn pop_track(&mut self) -> Option<Track> {
+        self.tracks.pop()
+    }
+
+    /// Returns a reference to tracks container.
+    pub fn tracks(&self) -> &[Track] {
+        &self.tracks
+    }
+
+    /// Returns a mutable reference to the track container.
+    pub fn tracks_mut(&mut self) -> &mut [Track] {
+        &mut self.tracks
+    }
+
+    /// Removes all tracks from the animation for which the given `filter` closure returns `false`. Could be useful
+    /// to remove undesired animation tracks.
+    pub fn retain_tracks<F>(&mut self, filter: F)
+    where
+        F: FnMut(&Track) -> bool,
+    {
+        self.tracks.retain(filter)
+    }
+}
+
+impl Visit for AnimationData {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        self.tracks.visit(name, visitor)
+    }
+}
+
+impl ResourceData for AnimationData {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn type_uuid(&self) -> Uuid {
+        <AnimationData as TypeUuidProvider>::type_uuid()
+    }
+
+    fn save(&mut self, _path: &Path) -> Result<(), Box<dyn Error>> {
+        // TODO
+        Ok(())
+    }
+
+    fn can_be_saved(&self) -> bool {
+        true
+    }
+}
+
+pub type AnimationDataResource = Resource<AnimationData>;
 
 /// # Overview
 ///
@@ -188,7 +271,8 @@ pub mod value;
 pub struct Animation<T: EntityId> {
     #[visit(optional)]
     name: ImmutableString,
-    tracks: Vec<Track<T>>,
+    tracks_data: AnimationDataResource,
+    track_bindings: FxHashMap<Uuid, TrackBinding<T>>,
     time_position: f32,
     #[visit(optional)]
     time_slice: Range<f32>,
@@ -224,7 +308,7 @@ impl<T: EntityId> TypeUuidProvider for Animation<T> {
 
 /// Identifier of an entity, that can be animated.
 pub trait EntityId:
-    Default + Copy + Reflect + Visit + PartialEq + Eq + Hash + Debug + Ord + PartialEq + 'static
+    Default + Send + Copy + Reflect + Visit + PartialEq + Eq + Hash + Debug + Ord + PartialEq + 'static
 {
 }
 
@@ -284,7 +368,7 @@ impl<T: EntityId> Clone for Animation<T> {
     fn clone(&self) -> Self {
         Self {
             name: self.name.clone(),
-            tracks: self.tracks.clone(),
+            tracks_data: self.tracks_data.clone(),
             speed: self.speed,
             time_position: self.time_position,
             looped: self.looped,
@@ -296,6 +380,7 @@ impl<T: EntityId> Clone for Animation<T> {
             time_slice: self.time_slice.clone(),
             root_motion: self.root_motion.clone(),
             max_event_capacity: 32,
+            track_bindings: self.track_bindings.clone(),
         }
     }
 }
@@ -321,25 +406,8 @@ impl<T: EntityId> Animation<T> {
         self.name.as_ref()
     }
 
-    /// Adds new track to the animation. Animation can have unlimited number of tracks, each track is responsible
-    /// for animation of a single scene node.
-    pub fn add_track(&mut self, track: Track<T>) {
-        self.tracks.push(track);
-    }
-
-    /// Removes a track at given index.
-    pub fn remove_track(&mut self, index: usize) -> Track<T> {
-        self.tracks.remove(index)
-    }
-
-    /// Inserts a track at given index.
-    pub fn insert_track(&mut self, index: usize, track: Track<T>) {
-        self.tracks.insert(index, track)
-    }
-
-    /// Removes last track from the list of tracks of the animation.
-    pub fn pop_track(&mut self) -> Option<Track<T>> {
-        self.tracks.pop()
+    pub fn tracks_data(&self) -> &AnimationDataResource {
+        &self.tracks_data
     }
 
     /// Calculates new length of the animation based on the content of its tracks. It looks for the most "right"
@@ -347,17 +415,16 @@ impl<T: EntityId> Animation<T> {
     /// in case if you formed animation from code using just curves and don't know the actual length of the
     /// animation.
     pub fn fit_length_to_content(&mut self) {
+        let state = self.tracks_data.state();
+        let Some(tracks_data) = state.data_ref() else {
+            return;
+        };
         self.time_slice.start = 0.0;
-        for track in self.tracks.iter_mut() {
+        for track in tracks_data.tracks.iter() {
             if track.time_length() > self.time_slice.end {
                 self.time_slice.end = track.time_length();
             }
         }
-    }
-
-    /// Returns a reference to tracks container.
-    pub fn tracks(&self) -> &[Track<T>] {
-        &self.tracks
     }
 
     /// Sets new time position of the animation. The actual time position the animation will have after the call,
@@ -436,7 +503,13 @@ impl<T: EntityId> Animation<T> {
     }
 
     fn update_root_motion(&mut self, prev_time_position: f32) {
-        fn fetch_position_at_time<T: EntityId>(tracks: &[Track<T>], time: f32) -> Vector3<f32> {
+        let state = self.tracks_data.state();
+        let Some(tracks_data) = state.data_ref() else {
+            return;
+        };
+        let tracks = &tracks_data.tracks;
+
+        fn fetch_position_at_time(tracks: &[Track], time: f32) -> Vector3<f32> {
             tracks
                 .iter()
                 .find(|track| track.binding() == &ValueBinding::Position)
@@ -451,10 +524,7 @@ impl<T: EntityId> Animation<T> {
                 .unwrap_or_default()
         }
 
-        fn fetch_rotation_at_time<T: EntityId>(
-            tracks: &[Track<T>],
-            time: f32,
-        ) -> UnitQuaternion<f32> {
+        fn fetch_rotation_at_time(tracks: &[Track], time: f32) -> UnitQuaternion<f32> {
             tracks
                 .iter()
                 .find(|track| track.binding() == &ValueBinding::Rotation)
@@ -499,9 +569,9 @@ impl<T: EntityId> Animation<T> {
                             if let TrackValue::Vector3(pose_position) = bound_value.value {
                                 if new_loop_cycle_started {
                                     root_motion.prev_position =
-                                        fetch_position_at_time(&self.tracks, cycle_start_time);
+                                        fetch_position_at_time(tracks, cycle_start_time);
                                     root_motion.position_offset_remainder = Some(
-                                        fetch_position_at_time(&self.tracks, cycle_end_time)
+                                        fetch_position_at_time(tracks, cycle_end_time)
                                             - pose_position,
                                     );
                                 } else {
@@ -536,7 +606,7 @@ impl<T: EntityId> Animation<T> {
 
                                 // Reset position so the root won't move.
                                 let start_position =
-                                    fetch_position_at_time(&self.tracks, self.time_slice.start);
+                                    fetch_position_at_time(tracks, self.time_slice.start);
 
                                 bound_value.value = TrackValue::Vector3(Vector3::new(
                                     if root_motion_settings.ignore_x_movement {
@@ -562,9 +632,9 @@ impl<T: EntityId> Animation<T> {
                                 if !root_motion_settings.ignore_rotations {
                                     if new_loop_cycle_started {
                                         root_motion.prev_rotation =
-                                            fetch_rotation_at_time(&self.tracks, cycle_start_time);
+                                            fetch_rotation_at_time(tracks, cycle_start_time);
                                         root_motion.rotation_remainder = Some(
-                                            fetch_rotation_at_time(&self.tracks, cycle_end_time)
+                                            fetch_rotation_at_time(tracks, cycle_end_time)
                                                 .inverse()
                                                 * pose_rotation,
                                         );
@@ -584,7 +654,7 @@ impl<T: EntityId> Animation<T> {
 
                                     // Reset rotation so the root won't rotate.
                                     bound_value.value = TrackValue::UnitQuaternion(
-                                        fetch_rotation_at_time(&self.tracks, self.time_slice.start),
+                                        fetch_rotation_at_time(tracks, self.time_slice.start),
                                     );
                                 }
                             }
@@ -686,9 +756,20 @@ impl<T: EntityId> Animation<T> {
         self.enabled
     }
 
-    /// Returns a mutable reference to the track container.
-    pub fn tracks_mut(&mut self) -> &mut [Track<T>] {
-        &mut self.tracks
+    pub fn add_track(&mut self, target: T, track: Track) {
+        let mut state = self.tracks_data.state();
+        let Some(tracks_data) = state.data() else {
+            return;
+        };
+        let id = track.id();
+        tracks_data.tracks.push(track);
+        self.track_bindings.insert(
+            id,
+            TrackBinding {
+                enabled: true,
+                target,
+            },
+        );
     }
 
     /// Adds a new animation signal to the animation. See [`AnimationSignal`] docs for more info and examples.
@@ -722,36 +803,21 @@ impl<T: EntityId> Animation<T> {
         &mut self.signals
     }
 
-    /// Removes all tracks from the animation for which the given `filter` closure returns `false`. Could be useful
-    /// to remove undesired animation tracks.
-    pub fn retain_tracks<F>(&mut self, filter: F)
-    where
-        F: FnMut(&Track<T>) -> bool,
-    {
-        self.tracks.retain(filter)
-    }
-
     /// Tries to find all tracks that refer to a given node and enables or disables them.
     pub fn set_node_track_enabled(&mut self, handle: T, enabled: bool) {
-        for track in self.tracks.iter_mut() {
+        for track in self.track_bindings.values_mut() {
             if track.target() == handle {
                 track.set_enabled(enabled);
             }
         }
     }
 
-    /// Returns an iterator that yields a number of references to tracks that refer to a given node.
-    pub fn tracks_of(&self, handle: T) -> impl Iterator<Item = &Track<T>> {
-        self.tracks
-            .iter()
-            .filter(move |track| track.target() == handle)
+    pub fn track_bindings(&self) -> &FxHashMap<Uuid, TrackBinding<T>> {
+        &self.track_bindings
     }
 
-    /// Returns an iterator that yields a number of references to tracks that refer to a given node.
-    pub fn tracks_of_mut(&mut self, handle: T) -> impl Iterator<Item = &mut Track<T>> {
-        self.tracks
-            .iter_mut()
-            .filter(move |track| track.target() == handle)
+    pub fn track_bindings_mut(&mut self) -> &mut FxHashMap<Uuid, TrackBinding<T>> {
+        &mut self.track_bindings
     }
 
     /// Tries to find a layer by its name. Returns index of the signal and its reference.
@@ -781,15 +847,24 @@ impl<T: EntityId> Animation<T> {
 
     /// Removes all tracks from the animation.
     pub fn remove_tracks(&mut self) {
-        self.tracks.clear();
+        self.track_bindings.clear();
     }
 
     fn update_pose(&mut self) {
+        let state = self.tracks_data.state();
+        let Some(tracks_data) = state.data_ref() else {
+            return;
+        };
+
         self.pose.reset();
-        for track in self.tracks.iter() {
-            if track.is_enabled() {
+        for track in tracks_data.tracks.iter() {
+            let Some(binding) = self.track_bindings.get(&track.id()) else {
+                continue;
+            };
+
+            if binding.is_enabled() {
                 if let Some(bound_value) = track.fetch(self.time_position) {
-                    self.pose.add_to_node_pose(track.target(), bound_value);
+                    self.pose.add_to_node_pose(binding.target(), bound_value);
                 }
             }
         }
@@ -805,7 +880,7 @@ impl<T: EntityId> Default for Animation<T> {
     fn default() -> Self {
         Self {
             name: Default::default(),
-            tracks: Vec::new(),
+            tracks_data: Resource::new_ok(ResourceKind::Embedded, AnimationData::default()),
             speed: 1.0,
             time_position: 0.0,
             enabled: true,
@@ -817,6 +892,7 @@ impl<T: EntityId> Default for Animation<T> {
             time_slice: Default::default(),
             root_motion: None,
             max_event_capacity: 32,
+            track_bindings: Default::default(),
         }
     }
 }
