@@ -28,24 +28,76 @@ use crate::{
 };
 use std::fmt::Debug;
 
+/// Track binding contains a handle to a target object that will be animated by an animation track.
+/// Additionally, the binding could be disabled to temporarily prevent animation from affecting the
+/// target.
+#[derive(Debug, Visit, Reflect, Clone, PartialEq)]
+pub struct TrackBinding<T: EntityId> {
+    /// The binding could be disabled to temporarily prevent animation from affecting the target.
+    pub enabled: bool,
+    /// A target bound to a track. The actual track id is stored as a key in hash map of bindings in
+    /// the animation.
+    pub target: T,
+}
+
+impl<T: EntityId> Default for TrackBinding<T> {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            target: Default::default(),
+        }
+    }
+}
+
+impl<T: EntityId> TrackBinding<T> {
+    /// Creates a new enabled track binding.
+    pub fn new(target: T) -> Self {
+        Self {
+            enabled: true,
+            target,
+        }
+    }
+
+    /// Sets a handle of a node that will be animated.
+    pub fn set_target(&mut self, target: T) {
+        self.target = target;
+    }
+
+    /// Returns a handle of a node that will be animated.
+    pub fn target(&self) -> T {
+        self.target
+    }
+
+    /// Enables or disables the track. Disabled tracks won't animate their nodes/properties.
+    pub fn set_enabled(&mut self, enabled: bool) {
+        self.enabled = enabled;
+    }
+
+    /// Returns `true` if the track is enabled, `false` - otherwise.
+    pub fn is_enabled(&self) -> bool {
+        self.enabled
+    }
+
+    /// Sets target of the track.
+    pub fn with_target(mut self, target: T) -> Self {
+        self.target = target;
+        self
+    }
+}
+
 /// Track is responsible in animating a property of a single scene node. The track consists up to 4 parametric curves
 /// that contains the actual property data. Parametric curves allows the engine to perform various interpolations between
 /// key values.
 #[derive(Debug, Reflect, Clone, PartialEq)]
-pub struct Track<T: EntityId> {
-    binding: ValueBinding,
-    frames: TrackDataContainer,
-    enabled: bool,
-    target: T,
-    id: Uuid,
+pub struct Track {
+    pub(super) binding: ValueBinding,
+    pub(super) frames: TrackDataContainer,
+    pub(super) id: Uuid,
 }
 
-impl<T: EntityId> Visit for Track<T> {
+impl Visit for Track {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut region = visitor.enter_region(name)?;
-
-        self.target.visit("Node", &mut region)?;
-        self.enabled.visit("Enabled", &mut region)?;
 
         let _ = self.binding.visit("Binding", &mut region); // Backward compatibility
         let _ = self.id.visit("Id", &mut region); // Backward compatibility
@@ -55,19 +107,17 @@ impl<T: EntityId> Visit for Track<T> {
     }
 }
 
-impl<T: EntityId> Default for Track<T> {
+impl Default for Track {
     fn default() -> Self {
         Self {
             binding: ValueBinding::Position,
             frames: TrackDataContainer::default(),
-            enabled: true,
-            target: Default::default(),
             id: Uuid::new_v4(),
         }
     }
 }
 
-impl<T: EntityId> Track<T> {
+impl Track {
     /// Creates a new track that will animate a property in the given binding. The `container` must have enough parametric
     /// curves to be able to produces property values.
     pub fn new(container: TrackDataContainer, binding: ValueBinding) -> Self {
@@ -105,30 +155,14 @@ impl<T: EntityId> Track<T> {
         }
     }
 
-    /// Sets target of the track.
-    pub fn with_target(mut self, target: T) -> Self {
-        self.target = target;
-        self
-    }
-
     /// Sets new track binding. See [`ValueBinding`] docs for more info.
-    pub fn set_binding(&mut self, binding: ValueBinding) {
+    pub fn set_value_binding(&mut self, binding: ValueBinding) {
         self.binding = binding;
     }
 
     /// Returns current track binding.
-    pub fn binding(&self) -> &ValueBinding {
+    pub fn value_binding(&self) -> &ValueBinding {
         &self.binding
-    }
-
-    /// Sets a handle of a node that will be animated.
-    pub fn set_target(&mut self, target: T) {
-        self.target = target;
-    }
-
-    /// Returns a handle of a node that will be animated.
-    pub fn target(&self) -> T {
-        self.target
     }
 
     /// Returns a reference to the data container.
@@ -152,16 +186,6 @@ impl<T: EntityId> Track<T> {
             binding: self.binding.clone(),
             value: v,
         })
-    }
-
-    /// Enables or disables the track. Disabled tracks won't animate their nodes/properties.
-    pub fn set_enabled(&mut self, enabled: bool) {
-        self.enabled = enabled;
-    }
-
-    /// Returns `true` if the track is enabled, `false` - otherwise.
-    pub fn is_enabled(&self) -> bool {
-        self.enabled
     }
 
     /// Returns length of the track in seconds.

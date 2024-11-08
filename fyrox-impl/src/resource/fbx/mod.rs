@@ -78,6 +78,7 @@ use crate::{
     utils::{self, raw_mesh::RawMeshBuilder},
 };
 use fxhash::{FxHashMap, FxHashSet};
+use fyrox_animation::track::TrackBinding;
 use fyrox_resource::io::ResourceIo;
 use fyrox_resource::untyped::ResourceKind;
 use std::{cmp::Ordering, path::Path};
@@ -750,7 +751,6 @@ async fn convert_model(
 
         // Convert to engine format
         let mut translation_track = Track::new_position();
-        translation_track.set_target(node_handle);
         if let Some(lcl_translation) = lcl_translation {
             fill_track(
                 &mut translation_track,
@@ -764,7 +764,6 @@ async fn convert_model(
         }
 
         let mut rotation_track = Track::new_rotation();
-        rotation_track.set_target(node_handle);
         if let Some(lcl_rotation) = lcl_rotation {
             fill_track(
                 &mut rotation_track,
@@ -778,16 +777,15 @@ async fn convert_model(
         }
 
         let mut scale_track = Track::new_scale();
-        scale_track.set_target(node_handle);
         if let Some(lcl_scale) = lcl_scale {
             fill_track(&mut scale_track, fbx_scene, lcl_scale, model.scale, |v| v);
         } else {
             add_vec3_key(&mut scale_track, model.scale);
         }
 
-        animation.add_track(translation_track);
-        animation.add_track(rotation_track);
-        animation.add_track(scale_track);
+        animation.add_track_with_binding(TrackBinding::new(node_handle), translation_track);
+        animation.add_track_with_binding(TrackBinding::new(node_handle), rotation_track);
+        animation.add_track_with_binding(TrackBinding::new(node_handle), scale_track);
     }
 
     animation.fit_length_to_content();
@@ -829,7 +827,7 @@ async fn convert(
     }
 
     // Do not create animation player if there's no animation content.
-    if !animation.tracks().is_empty() {
+    if !animation.tracks_data().data_ref().tracks().is_empty() {
         let mut animations_container = AnimationContainer::new();
         animations_container.add(animation);
         AnimationPlayerBuilder::new(BaseBuilder::new().with_name("AnimationPlayer"))

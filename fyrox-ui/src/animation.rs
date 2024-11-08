@@ -65,7 +65,7 @@ impl AnimationPlayerMessage {
 /// UI-specific animation.
 pub type Animation = crate::generic_animation::Animation<Handle<UiNode>>;
 /// UI-specific animation track.
-pub type Track = crate::generic_animation::track::Track<Handle<UiNode>>;
+pub type Track = crate::generic_animation::track::Track;
 /// UI-specific animation container.
 pub type AnimationContainer = crate::generic_animation::AnimationContainer<Handle<UiNode>>;
 /// UI-specific animation pose.

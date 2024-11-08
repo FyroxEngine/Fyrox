@@ -38,6 +38,7 @@ use crate::{
     scene::{commands::GameSceneContext, Selection},
     ui_scene::commands::UiSceneContext,
 };
+use fyrox::generic_animation::track::TrackBinding;
 use std::{
     fmt::Debug,
     ops::{IndexMut, Range},
@@ -73,19 +74,22 @@ pub fn fetch_animations_container<N: Debug + 'static>(
 pub struct AddTrackCommand<N: Debug + 'static> {
     animation_player: Handle<N>,
     animation: Handle<Animation<Handle<N>>>,
-    track: Option<Track<Handle<N>>>,
+    track: Option<Track>,
+    binding: TrackBinding<Handle<N>>,
 }
 
 impl<N: Debug + 'static> AddTrackCommand<N> {
     pub fn new(
         animation_player: Handle<N>,
         animation: Handle<Animation<Handle<N>>>,
-        track: Track<Handle<N>>,
+        track: Track,
+        binding: TrackBinding<Handle<N>>,
     ) -> Self {
         Self {
             animation_player,
             animation,
             track: Some(track),
+            binding,
         }
     }
 }
@@ -97,12 +101,16 @@ impl<N: Debug + 'static> CommandTrait for AddTrackCommand<N> {
 
     fn execute(&mut self, context: &mut dyn CommandContext) {
         fetch_animations_container(self.animation_player, context)[self.animation]
-            .add_track(self.track.take().unwrap());
+            .add_track_with_binding(self.binding.clone(), self.track.take().unwrap());
     }
 
     fn revert(&mut self, context: &mut dyn CommandContext) {
-        self.track =
-            fetch_animations_container(self.animation_player, context)[self.animation].pop_track();
+        let (binding, track) = fetch_animations_container(self.animation_player, context)
+            [self.animation]
+            .pop_track_with_binding()
+            .unwrap();
+        self.binding = binding;
+        self.track = Some(track);
     }
 }
 
@@ -111,7 +119,8 @@ pub struct RemoveTrackCommand<N: Debug + 'static> {
     animation_player: Handle<N>,
     animation: Handle<Animation<Handle<N>>>,
     id: Uuid,
-    track: Option<(usize, Track<Handle<N>>)>,
+    #[allow(clippy::type_complexity)]
+    track: Option<(usize, (TrackBinding<Handle<N>>, Track))>,
 }
 
 impl<N: Debug + 'static> RemoveTrackCommand<N> {
@@ -138,17 +147,22 @@ impl<N: Debug + 'static> CommandTrait for RemoveTrackCommand<N> {
         let animation =
             &mut fetch_animations_container(self.animation_player, context)[self.animation];
         let index = animation
+            .tracks_data()
+            .state()
+            .data()
+            .unwrap()
             .tracks_mut()
             .iter()
             .position(|t| t.id() == self.id)
             .unwrap();
-        self.track = Some((index, animation.remove_track(index)));
+        self.track = Some((index, animation.remove_track_with_binding(index).unwrap()));
     }
 
     fn revert(&mut self, context: &mut dyn CommandContext) {
-        let (index, track) = self.track.take().unwrap();
-        fetch_animations_container(self.animation_player, context)[self.animation]
-            .insert_track(index, track);
+        let (index, (binding, track)) = self.track.take().unwrap();
+        let animation =
+            &mut fetch_animations_container(self.animation_player, context)[self.animation];
+        animation.insert_track_with_binding(index, binding, track);
     }
 }
 
@@ -161,9 +175,13 @@ pub struct ReplaceTrackCurveCommand<N: Debug + 'static> {
 
 impl<N: Debug + 'static> ReplaceTrackCurveCommand<N> {
     fn swap(&mut self, context: &mut dyn CommandContext) {
-        for track in
-            fetch_animations_container(self.animation_player, context)[self.animation].tracks_mut()
-        {
+        let animation =
+            &mut fetch_animations_container(self.animation_player, context)[self.animation];
+
+        let mut tracks_data_state = animation.tracks_data().state();
+        let tracks_data = tracks_data_state.data().unwrap();
+
+        for track in tracks_data.tracks_mut() {
             for curve in track.data_container_mut().curves_mut() {
                 if curve.id() == self.curve.id() {
                     std::mem::swap(&mut self.curve, curve);
@@ -601,9 +619,8 @@ pub struct SetTrackEnabledCommand<N: Debug + 'static> {
 impl<N: Debug + 'static> SetTrackEnabledCommand<N> {
     fn swap(&mut self, context: &mut dyn CommandContext) {
         let track = fetch_animation(self.animation_player_handle, self.animation_handle, context)
-            .tracks_mut()
-            .iter_mut()
-            .find(|t| t.id() == self.track)
+            .track_bindings_mut()
+            .get_mut(&self.track)
             .unwrap();
 
         let old = track.is_enabled();
@@ -637,9 +654,8 @@ pub struct SetTrackTargetCommand<N: Debug + 'static> {
 impl<N: Debug + 'static> SetTrackTargetCommand<N> {
     fn swap(&mut self, context: &mut dyn CommandContext) {
         let track = fetch_animation(self.animation_player_handle, self.animation_handle, context)
-            .tracks_mut()
-            .iter_mut()
-            .find(|t| t.id() == self.track)
+            .track_bindings_mut()
+            .get_mut(&self.track)
             .unwrap();
 
         let old = track.target();
@@ -663,28 +679,33 @@ impl<N: Debug + 'static> CommandTrait for SetTrackTargetCommand<N> {
 }
 
 #[derive(Debug)]
-pub struct SetTrackBindingCommand<N: Debug + 'static> {
+pub struct SetTrackValueBindingCommand<N: Debug + 'static> {
     pub animation_player_handle: Handle<N>,
     pub animation_handle: Handle<Animation<Handle<N>>>,
     pub track: Uuid,
     pub binding: ValueBinding,
 }
 
-impl<N: Debug + 'static> SetTrackBindingCommand<N> {
+impl<N: Debug + 'static> SetTrackValueBindingCommand<N> {
     fn swap(&mut self, context: &mut dyn CommandContext) {
-        let track = fetch_animation(self.animation_player_handle, self.animation_handle, context)
+        let animation =
+            fetch_animation(self.animation_player_handle, self.animation_handle, context);
+        let mut tracks_data_state = animation.tracks_data().state();
+        let tracks_data = tracks_data_state.data().unwrap();
+
+        let track = tracks_data
             .tracks_mut()
             .iter_mut()
             .find(|t| t.id() == self.track)
             .unwrap();
 
-        let old = track.binding().clone();
-        track.set_binding(self.binding.clone());
+        let old = track.value_binding().clone();
+        track.set_value_binding(self.binding.clone());
         self.binding = old;
     }
 }
 
-impl<N: Debug + 'static> CommandTrait for SetTrackBindingCommand<N> {
+impl<N: Debug + 'static> CommandTrait for SetTrackValueBindingCommand<N> {
     fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Set Track Binding".to_string()
     }

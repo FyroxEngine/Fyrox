@@ -24,8 +24,8 @@ use crate::{
     animation::{
         animation_container_ref,
         command::{
-            AddTrackCommand, RemoveTrackCommand, SetTrackBindingCommand, SetTrackEnabledCommand,
-            SetTrackTargetCommand,
+            AddTrackCommand, RemoveTrackCommand, SetTrackEnabledCommand, SetTrackTargetCommand,
+            SetTrackValueBindingCommand,
         },
         selection::{AnimationSelection, SelectedEntity},
     },
@@ -91,6 +91,7 @@ use crate::{
     },
     send_sync_message, utils,
 };
+use fyrox::generic_animation::track::TrackBinding;
 use fyrox::renderer::framework::DrawParameters;
 use fyrox::scene::mesh::buffer::{TriangleBuffer, VertexBuffer};
 use std::{
@@ -884,21 +885,24 @@ impl TrackList {
                             sender.do_command(AddTrackCommand::new(
                                 selection.animation_player,
                                 selection.animation,
-                                Track::new_position().with_target(self.selected_node.into()),
+                                Track::new_position(),
+                                TrackBinding::new(self.selected_node.into()),
                             ));
                         }
                         PropertyBindingMode::Rotation => {
                             sender.do_command(AddTrackCommand::new(
                                 selection.animation_player,
                                 selection.animation,
-                                Track::new_rotation().with_target(self.selected_node.into()),
+                                Track::new_rotation(),
+                                TrackBinding::new(self.selected_node.into()),
                             ));
                         }
                         PropertyBindingMode::Scale => {
                             sender.do_command(AddTrackCommand::new(
                                 selection.animation_player,
                                 selection.animation,
-                                Track::new_scale().with_target(self.selected_node.into()),
+                                Track::new_scale(),
+                                TrackBinding::new(self.selected_node.into()),
                             ));
                         }
                     }
@@ -936,7 +940,7 @@ impl TrackList {
                                 let types = type_id_to_supported_type(property_type);
 
                                 if let Some((track_value_kind, actual_value_type)) = types {
-                                    let mut track = Track::new(
+                                    let track = Track::new(
                                         TrackDataContainer::new(track_value_kind),
                                         ValueBinding::Property {
                                             name: property_path.path.clone().into(),
@@ -944,12 +948,11 @@ impl TrackList {
                                         },
                                     );
 
-                                    track.set_target(self.selected_node.into());
-
                                     sender.do_command(AddTrackCommand::new(
                                         selection.animation_player,
                                         selection.animation,
                                         track,
+                                        TrackBinding::new(self.selected_node.into()),
                                     ));
                                 }
                             }
@@ -1048,13 +1051,17 @@ impl TrackList {
                         .iter()
                         .filter_map(|e| match e {
                             SelectedEntity::Track(track_id) => {
-                                let index = animation
+                                let state = animation.tracks_data().state();
+                                let tracks_data = state.data_ref()?;
+                                let binding = animation.track_bindings().get(track_id)?;
+
+                                let index = tracks_data
                                     .tracks()
                                     .iter()
                                     .position(|t| t.id() == *track_id)
                                     .unwrap();
 
-                                let mut track = animation.tracks()[index].clone();
+                                let mut track = tracks_data.tracks()[index].clone();
 
                                 track.set_id(Uuid::new_v4());
 
@@ -1062,6 +1069,7 @@ impl TrackList {
                                     selection.animation_player,
                                     selection.animation,
                                     track,
+                                    TrackBinding::new(binding.target),
                                 )))
                             }
                             _ => None,
@@ -1078,11 +1086,7 @@ impl TrackList {
                         .node(message.destination())
                         .query_component::<TrackView>()
                     {
-                        if animation
-                            .tracks()
-                            .iter()
-                            .any(|t| t.id() == track_view_ref.id)
-                        {
+                        if animation.track_bindings().contains_key(&track_view_ref.id) {
                             sender.do_command(SetTrackEnabledCommand {
                                 animation_player_handle: selection.animation_player,
                                 animation_handle: selection.animation,
@@ -1170,13 +1174,9 @@ impl TrackList {
             return;
         };
 
-        if let Some(track) = animation
-            .tracks()
-            .iter()
-            .find(|t| t.id() == first_selected_track)
-        {
+        if let Some(binding) = animation.track_bindings().get(&first_selected_track) {
             self.context_menu.property_rebinding_selector =
-                Self::open_property_selector(graph, track.target(), ui);
+                Self::open_property_selector(graph, binding.target(), ui);
         }
     }
 
@@ -1195,15 +1195,11 @@ impl TrackList {
             return;
         };
 
-        let Some(track) = animation
-            .tracks()
-            .iter()
-            .find(|t| t.id() == first_selected_track)
-        else {
+        let Some(binding) = animation.track_bindings().get(&first_selected_track) else {
             return;
         };
 
-        let Some(node) = graph.try_get(track.target()) else {
+        let Some(node) = graph.try_get(binding.target()) else {
             Log::err("Invalid node handle!");
             return;
         };
@@ -1216,7 +1212,7 @@ impl TrackList {
                 let types = type_id_to_supported_type(property_type);
 
                 if let Some((_, actual_value_type)) = types {
-                    sender.do_command(SetTrackBindingCommand {
+                    sender.do_command(SetTrackValueBindingCommand {
                         animation_player_handle: selection.animation_player,
                         animation_handle: selection.animation,
                         track: first_selected_track,
@@ -1254,17 +1250,22 @@ impl TrackList {
         G: SceneGraph<Node = N>,
         N: SceneGraphNode,
     {
+        let state = animation.tracks_data().state();
+        let Some(tracks_data) = state.data_ref() else {
+            return;
+        };
+
         if Handle::<Animation<Handle<N>>>::from(self.selected_animation) != selection.animation {
             self.clear(ui);
             self.selected_animation = selection.animation.into();
         }
 
-        match animation.tracks().len().cmp(&self.track_views.len()) {
+        match tracks_data.tracks().len().cmp(&self.track_views.len()) {
             Ordering::Less => {
                 for track_view in self.track_views.clone().values() {
                     let track_view_ref = ui.node(*track_view);
                     let track_view_data = track_view_ref.query_component::<TrackView>().unwrap();
-                    if animation
+                    if tracks_data
                         .tracks()
                         .iter()
                         .all(|t| t.id() != track_view_data.id)
@@ -1323,48 +1324,55 @@ impl TrackList {
                 // Nothing to do.
             }
             Ordering::Greater => {
-                for model_track in animation.tracks().iter() {
+                for model_track in tracks_data.tracks().iter() {
+                    let Some(model_track_binding) =
+                        animation.track_bindings().get(&model_track.id())
+                    else {
+                        continue;
+                    };
+
                     if self
                         .track_views
                         .values()
                         .map(|v| ui.node(*v))
                         .all(|v| v.query_component::<TrackView>().unwrap().id != model_track.id())
                     {
-                        let parent_group = match self.group_views.entry(model_track.target().into())
-                        {
-                            Entry::Occupied(entry) => *entry.get(),
-                            Entry::Vacant(entry) => {
-                                let ctx = &mut ui.build_ctx();
-                                let group = TreeBuilder::new(WidgetBuilder::new())
-                                    .with_content(
-                                        TextBuilder::new(
-                                            WidgetBuilder::new()
-                                                .with_vertical_alignment(VerticalAlignment::Center),
+                        let parent_group =
+                            match self.group_views.entry(model_track_binding.target().into()) {
+                                Entry::Occupied(entry) => *entry.get(),
+                                Entry::Vacant(entry) => {
+                                    let ctx = &mut ui.build_ctx();
+                                    let group = TreeBuilder::new(WidgetBuilder::new())
+                                        .with_content(
+                                            TextBuilder::new(
+                                                WidgetBuilder::new().with_vertical_alignment(
+                                                    VerticalAlignment::Center,
+                                                ),
+                                            )
+                                            .with_text(format!(
+                                                "{} ({}:{})",
+                                                graph
+                                                    .try_get(model_track_binding.target())
+                                                    .map(|n| n.name())
+                                                    .unwrap_or_default(),
+                                                model_track_binding.target().index(),
+                                                model_track_binding.target().generation()
+                                            ))
+                                            .build(ctx),
                                         )
-                                        .with_text(format!(
-                                            "{} ({}:{})",
-                                            graph
-                                                .try_get(model_track.target())
-                                                .map(|n| n.name())
-                                                .unwrap_or_default(),
-                                            model_track.target().index(),
-                                            model_track.target().generation()
-                                        ))
-                                        .build(ctx),
-                                    )
-                                    .build(ctx);
-                                send_sync_message(
-                                    ui,
-                                    TreeRootMessage::add_item(
-                                        self.tree_root,
-                                        MessageDirection::ToWidget,
-                                        group,
-                                    ),
-                                );
+                                        .build(ctx);
+                                    send_sync_message(
+                                        ui,
+                                        TreeRootMessage::add_item(
+                                            self.tree_root,
+                                            MessageDirection::ToWidget,
+                                            group,
+                                        ),
+                                    );
 
-                                *entry.insert(group)
-                            }
-                        };
+                                    *entry.insert(group)
+                                }
+                            };
 
                         let ctx = &mut ui.build_ctx();
 
@@ -1453,10 +1461,10 @@ impl TrackList {
                             )
                             .with_items(curves),
                         )
-                        .with_track_enabled(model_track.is_enabled())
+                        .with_track_enabled(model_track_binding.is_enabled())
                         .with_id(model_track.id())
-                        .with_target(model_track.target().into())
-                        .with_name(format!("{}", model_track.binding()))
+                        .with_target(model_track_binding.target().into())
+                        .with_name(format!("{}", model_track.value_binding()))
                         .build(ctx);
 
                         send_sync_message(
@@ -1513,23 +1521,30 @@ impl TrackList {
             ),
         );
 
-        for track_model in animation.tracks() {
-            if let Some(track_view) = self.track_views.get(&track_model.id()) {
+        for model_track in tracks_data.tracks() {
+            let Some(model_track_binding) = animation.track_bindings().get(&model_track.id())
+            else {
+                continue;
+            };
+
+            if let Some(track_view) = self.track_views.get(&model_track.id()) {
                 let track_view_ref = ui.node(*track_view).query_component::<TrackView>().unwrap();
-                if track_view_ref.track_enabled != track_model.is_enabled() {
+                if track_view_ref.track_enabled != model_track_binding.is_enabled() {
                     send_sync_message(
                         ui,
                         TrackViewMessage::track_enabled(
                             *track_view,
                             MessageDirection::ToWidget,
-                            track_model.is_enabled(),
+                            model_track_binding.is_enabled(),
                         ),
                     );
                 }
 
                 let mut validation_result = Ok(());
-                if let Some(target) = graph.try_get(track_model.target()) {
-                    if let Some(parent_group) = self.group_views.get(&track_model.target().into()) {
+                if let Some(target) = graph.try_get(model_track_binding.target()) {
+                    if let Some(parent_group) =
+                        self.group_views.get(&model_track_binding.target().into())
+                    {
                         send_sync_message(
                             ui,
                             TextMessage::text(
@@ -1541,8 +1556,8 @@ impl TrackList {
                                 format!(
                                     "{} ({}:{})",
                                     target.name(),
-                                    track_model.target().index(),
-                                    track_model.target().generation()
+                                    model_track_binding.target().index(),
+                                    model_track_binding.target().generation()
                                 ),
                             ),
                         );
@@ -1553,11 +1568,12 @@ impl TrackList {
                         TrackViewMessage::track_name(
                             *track_view,
                             MessageDirection::ToWidget,
-                            format!("{}", track_model.binding()),
+                            format!("{}", model_track.value_binding()),
                         ),
                     );
 
-                    if let ValueBinding::Property { name, value_type } = track_model.binding() {
+                    if let ValueBinding::Property { name, value_type } = model_track.value_binding()
+                    {
                         target.resolve_path(name, &mut |result| match result {
                             Ok(value) => {
                                 let mut property_type = TypeId::of::<u32>();
