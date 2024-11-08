@@ -69,7 +69,6 @@ use crate::{
     SceneContainer, Settings,
 };
 use std::{
-    cmp::Ordering,
     ops::Deref,
     sync::mpsc::{self, Receiver},
 };
@@ -573,6 +572,16 @@ impl SceneViewer {
     }
 }
 
+fn fetch_tab_id(tab: &Tab) -> Uuid {
+    tab.user_data
+        .as_ref()
+        .unwrap()
+        .0
+        .downcast_ref::<Uuid>()
+        .cloned()
+        .unwrap()
+}
+
 impl SceneViewer {
     pub fn window(&self) -> Handle<UiNode> {
         self.window
@@ -770,21 +779,39 @@ impl SceneViewer {
                 && message.direction() == MessageDirection::FromWidget
             {
                 match msg {
-                    TabControlMessage::CloseTab(tab_index) => {
-                        if let Some(entry) = scenes.try_get(*tab_index) {
-                            if entry.need_save() {
-                                self.sender.send(Message::OpenSaveSceneConfirmationDialog {
-                                    id: entry.id,
-                                    action: SaveSceneConfirmationDialogAction::CloseScene(entry.id),
-                                });
-                            } else {
-                                self.sender.send(Message::CloseScene(entry.id));
+                    TabControlMessage::CloseTabByUuid(uuid) => {
+                        if let Some(tab_id) = ui
+                            .node(self.tab_control)
+                            .component_ref::<TabControl>()
+                            .expect("Must be TabControl!")
+                            .get_tab_by_uuid(*uuid)
+                            .map(fetch_tab_id)
+                        {
+                            if let Some(entry) = scenes.entry_by_scene_id(tab_id) {
+                                if entry.need_save() {
+                                    self.sender.send(Message::OpenSaveSceneConfirmationDialog {
+                                        id: entry.id,
+                                        action: SaveSceneConfirmationDialogAction::CloseScene(
+                                            entry.id,
+                                        ),
+                                    });
+                                } else {
+                                    self.sender.send(Message::CloseScene(entry.id));
+                                }
                             }
                         }
                     }
-                    TabControlMessage::ActiveTab(Some(active_tab)) => {
-                        if let Some(entry) = scenes.try_get(*active_tab) {
-                            self.sender.send(Message::SetCurrentScene(entry.id));
+                    TabControlMessage::ActiveTabUuid(Some(uuid)) => {
+                        let tab_id = ui
+                            .node(self.tab_control)
+                            .component_ref::<TabControl>()
+                            .expect("Must be TabControl!")
+                            .get_tab_by_uuid(*uuid)
+                            .map(fetch_tab_id);
+                        if let Some(tab_id) = tab_id {
+                            if let Some(entry) = scenes.entry_by_scene_id(tab_id) {
+                                self.sender.send(Message::SetCurrentScene(entry.id));
+                            }
                         }
                     }
                     _ => (),
@@ -920,15 +947,6 @@ impl SceneViewer {
 
     pub fn sync_to_model(&self, scenes: &SceneContainer, engine: &mut Engine) {
         // Sync tabs first.
-        fn fetch_tab_id(tab: &Tab) -> Uuid {
-            tab.user_data
-                .as_ref()
-                .unwrap()
-                .0
-                .downcast_ref::<Uuid>()
-                .cloned()
-                .unwrap()
-        }
 
         let tabs = engine
             .user_interfaces
@@ -938,58 +956,47 @@ impl SceneViewer {
             .expect("Must be TabControl!")
             .tabs
             .clone();
-        match tabs.len().cmp(&scenes.len()) {
-            Ordering::Less => {
-                // Some scenes were added.
-                for entry in scenes.iter() {
-                    if tabs.iter().all(|tab| fetch_tab_id(tab) != entry.id) {
-                        let header =
-                            TextBuilder::new(WidgetBuilder::new().with_margin(Thickness {
-                                left: 4.0,
-                                top: 2.0,
-                                right: 4.0,
-                                bottom: 2.0,
-                            }))
-                            .with_text(entry.name())
-                            .build(&mut engine.user_interfaces.first_mut().build_ctx());
-
-                        send_sync_message(
-                            engine.user_interfaces.first(),
-                            TabControlMessage::add_tab(
-                                self.tab_control,
-                                MessageDirection::ToWidget,
-                                TabDefinition {
-                                    header,
-                                    content: Default::default(),
-                                    can_be_closed: true,
-                                    user_data: Some(TabUserData::new(entry.id)),
-                                },
-                            ),
-                        );
-                    }
-                }
-            }
-            Ordering::Equal => {
-                // Nothing to do.
-            }
-            Ordering::Greater => {
-                // Some scenes were removed.
-                for (tab_index, tab) in tabs.iter().enumerate() {
-                    let tab_scene = fetch_tab_id(tab);
-                    if scenes.iter().all(|s| tab_scene != s.id) {
-                        send_sync_message(
-                            engine.user_interfaces.first(),
-                            TabControlMessage::remove_tab(
-                                self.tab_control,
-                                MessageDirection::ToWidget,
-                                tab_index,
-                            ),
-                        );
-                    }
-                }
+        // Remove any excess tabs.
+        for tab in tabs.iter() {
+            let tab_scene = fetch_tab_id(tab);
+            if scenes.iter().all(|s| tab_scene != s.id) {
+                send_sync_message(
+                    engine.user_interfaces.first(),
+                    TabControlMessage::remove_tab_by_uuid(
+                        self.tab_control,
+                        MessageDirection::ToWidget,
+                        tab.uuid,
+                    ),
+                );
             }
         }
+        // Add any missing tabs.
+        for entry in scenes.iter() {
+            if tabs.iter().all(|tab| fetch_tab_id(tab) != entry.id) {
+                let header = TextBuilder::new(WidgetBuilder::new().with_margin(Thickness {
+                    left: 4.0,
+                    top: 2.0,
+                    right: 4.0,
+                    bottom: 2.0,
+                }))
+                .with_text(entry.name())
+                .build(&mut engine.user_interfaces.first_mut().build_ctx());
 
+                send_sync_message(
+                    engine.user_interfaces.first(),
+                    TabControlMessage::add_tab(
+                        self.tab_control,
+                        MessageDirection::ToWidget,
+                        TabDefinition {
+                            header,
+                            content: Default::default(),
+                            can_be_closed: true,
+                            user_data: Some(TabUserData::new(entry.id)),
+                        },
+                    ),
+                );
+            }
+        }
         for tab in tabs.iter() {
             if let Some(scene) = scenes.entry_by_scene_id(fetch_tab_id(tab)) {
                 engine
@@ -1007,14 +1014,34 @@ impl SceneViewer {
             }
         }
 
-        send_sync_message(
-            engine.user_interfaces.first(),
-            TabControlMessage::active_tab(
-                self.tab_control,
-                MessageDirection::ToWidget,
-                scenes.current_scene_index(),
+        match scenes.current_scene_entry_ref().map(|e| e.id) {
+            Some(scene_uuid) => {
+                // Try to find the tab for the current scene.
+                // If we cannot find it, do nothing because the correct tab will be activated elsewhere.
+                if let Some(tab_uuid) = tabs
+                    .iter()
+                    .find(|t| fetch_tab_id(t) == scene_uuid)
+                    .map(|t| t.uuid)
+                {
+                    send_sync_message(
+                        engine.user_interfaces.first(),
+                        TabControlMessage::active_tab_uuid(
+                            self.tab_control,
+                            MessageDirection::ToWidget,
+                            Some(tab_uuid),
+                        ),
+                    )
+                }
+            }
+            None => send_sync_message(
+                engine.user_interfaces.first(),
+                TabControlMessage::active_tab_uuid(
+                    self.tab_control,
+                    MessageDirection::ToWidget,
+                    None,
+                ),
             ),
-        );
+        }
 
         // Then sync to the current scene.
         if let Some(entry) = scenes.current_scene_entry_ref() {

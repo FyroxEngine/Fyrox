@@ -300,9 +300,10 @@ impl TrackValue {
 /// cases for the most used properties and a generic one for arbitrary properties. Arbitrary properties are set using
 /// reflection system, while the special cases handles bindings to standard properties (such as position, scaling, or
 /// rotation) for optimization. Reflection is quite slow to be used as the universal property setting mechanism.  
-#[derive(Clone, Visit, Reflect, Debug, PartialEq, Eq)]
+#[derive(Default, Clone, Visit, Reflect, Debug, PartialEq, Eq)]
 pub enum ValueBinding {
     /// A binding to position of a scene node.
+    #[default]
     Position,
     /// A binding to scale of a scene node.
     Scale,

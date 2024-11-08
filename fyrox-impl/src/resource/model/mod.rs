@@ -249,17 +249,30 @@ pub trait AnimationSource {
                     // Remap animation track nodes from resource to instance. This is required
                     // because we've made a plain copy and it has tracks with node handles mapped
                     // to nodes of internal scene.
-                    for (i, ref_track) in src_anim.tracks().iter().enumerate() {
-                        let ref_node = &model_graph.node(ref_track.target());
-                        let track = &mut anim_copy.tracks_mut()[i];
+                    let src_anim_track_data = src_anim.tracks_data().state();
+                    let Some(src_anim_track_data) = src_anim_track_data.data_ref() else {
+                        continue;
+                    };
+
+                    for ref_track in src_anim_track_data.tracks.iter() {
+                        let Some(ref_track_binding) =
+                            src_anim.track_bindings().get(&ref_track.id())
+                        else {
+                            continue;
+                        };
+
+                        let ref_node = &model_graph.node(ref_track_binding.target);
+                        let track_binding = anim_copy
+                            .track_bindings_mut()
+                            .get_mut(&ref_track.id())
+                            .unwrap();
                         // Find instantiated node that corresponds to node in resource
                         match graph.find_by_name(root, ref_node.name()) {
                             Some((instance_node, _)) => {
-                                // One-to-one track mapping so there is [i] indexing.
-                                track.set_target(instance_node);
+                                track_binding.set_target(instance_node);
                             }
                             None => {
-                                track.set_target(Default::default());
+                                track_binding.set_target(Default::default());
                                 Log::writeln(
                                     MessageKind::Error,
                                     format!(

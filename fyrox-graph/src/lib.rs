@@ -254,6 +254,21 @@ where
             return;
         }
 
+        entity.as_hash_map_mut(&mut |hash_map| {
+            if let Some(hash_map) = hash_map {
+                for i in 0..hash_map.reflect_len() {
+                    if let Some(item) = hash_map.reflect_get_nth_value_mut(i) {
+                        self.remap_handles_internal(item, node_name, ignored_types);
+                    }
+                }
+                mapped = true;
+            }
+        });
+
+        if mapped {
+            return;
+        }
+
         // Continue remapping recursively for every compound field.
         entity.fields_mut(&mut |fields| {
             for field in fields {
@@ -348,6 +363,28 @@ where
                 for i in 0..array.reflect_len() {
                     // Sparse arrays (like Pool) could have empty entries.
                     if let Some(item) = array.reflect_index_mut(i) {
+                        self.remap_inheritable_handles_internal(
+                            item,
+                            node_name,
+                            // Propagate mapping flag - it means that we're inside inheritable variable. In this
+                            // case we will map handles.
+                            do_map,
+                            ignored_types,
+                        );
+                    }
+                }
+                mapped = true;
+            }
+        });
+
+        if mapped {
+            return;
+        }
+
+        entity.as_hash_map_mut(&mut |result| {
+            if let Some(hash_map) = result {
+                for i in 0..hash_map.reflect_len() {
+                    if let Some(item) = hash_map.reflect_get_nth_value_mut(i) {
                         self.remap_inheritable_handles_internal(
                             item,
                             node_name,

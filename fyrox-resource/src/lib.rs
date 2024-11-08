@@ -139,6 +139,14 @@ where
             None
         }
     }
+
+    pub fn data_ref(&self) -> Option<&T> {
+        if let ResourceState::Ok(ref data) = self.guard.state {
+            ResourceData::as_any(&**data).downcast_ref::<T>()
+        } else {
+            None
+        }
+    }
 }
 
 /// A resource of particular data type. It is a typed wrapper around [`UntypedResource`] which

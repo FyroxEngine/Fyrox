@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use super::iter::*;
+use super::simplify::*;
 use crate::core::algebra::{Quaternion, Unit, UnitQuaternion, Vector3};
 use crate::core::log::Log;
 use crate::core::math::curve::{Curve, CurveKey, CurveKeyKind};
@@ -30,14 +32,12 @@ use crate::scene::animation::Animation;
 use crate::scene::graph::Graph;
 use crate::scene::mesh::Mesh;
 use crate::scene::node::Node;
+use fyrox_animation::track::TrackBinding;
 use fyrox_graph::BaseSceneGraph;
 use gltf::animation::util::ReadOutputs;
 use gltf::animation::Channel;
 use gltf::animation::{Interpolation, Property};
 use gltf::Buffer;
-
-use super::iter::*;
-use super::simplify::*;
 
 type Result<T> = std::result::Result<T, ()>;
 
@@ -185,15 +185,15 @@ impl ImportedTrack {
             false
         }
     }
-    fn into_track(self) -> Track<Handle<Node>> {
+    fn into_track(self) -> (Handle<Node>, Track) {
         let mut data = TrackDataContainer::new(self.target.kind());
         for (i, curve) in self.curves.into_vec().into_iter().enumerate() {
             data.curves_mut()[i] = Curve::from(curve);
         }
-        let mut track = Track::new(data, self.target.value_binding());
-        track.set_target(self.target.handle);
-        track.set_enabled(true);
-        track
+        (
+            self.target.handle,
+            Track::new(data, self.target.value_binding()),
+        )
     }
 }
 
@@ -224,7 +224,8 @@ impl ImportedAnimation {
         result.set_name(self.name);
         result.set_time_slice(self.start..self.end);
         for t in self.tracks {
-            result.add_track(t.into_track());
+            let (node, track) = t.into_track();
+            result.add_track_with_binding(TrackBinding::new(node), track);
         }
         result
     }
