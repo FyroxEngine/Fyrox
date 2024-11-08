@@ -28,9 +28,15 @@ use crate::{
 };
 use std::fmt::Debug;
 
+/// Track binding contains a handle to a target object that will be animated by an animation track.
+/// Additionally, the binding could be disabled to temporarily prevent animation from affecting the
+/// target.
 #[derive(Debug, Visit, Reflect, Clone, PartialEq)]
 pub struct TrackBinding<T: EntityId> {
+    /// The binding could be disabled to temporarily prevent animation from affecting the target.
     pub enabled: bool,
+    /// A target bound to a track. The actual track id is stored as a key in hash map of bindings in
+    /// the animation.
     pub target: T,
 }
 

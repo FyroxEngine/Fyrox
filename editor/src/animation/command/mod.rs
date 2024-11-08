@@ -119,6 +119,7 @@ pub struct RemoveTrackCommand<N: Debug + 'static> {
     animation_player: Handle<N>,
     animation: Handle<Animation<Handle<N>>>,
     id: Uuid,
+    #[allow(clippy::type_complexity)]
     track: Option<(usize, (TrackBinding<Handle<N>>, Track))>,
 }
 

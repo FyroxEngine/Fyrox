@@ -65,9 +65,13 @@ pub mod spritesheet;
 pub mod track;
 pub mod value;
 
+/// A container for animation tracks. Multiple animations can share the same container to reduce
+/// memory consumption. It could be extremely useful in case of many instances of a little amount
+/// of kinds of animated models.
 #[derive(Default, Debug, Reflect, Clone, PartialEq, TypeUuidProvider)]
 #[type_uuid(id = "044d9f7c-5c6c-4b29-8de9-d0d975a48256")]
 pub struct AnimationTracksData {
+    /// Tracks of the animation. See [`Track`] docs for more info.
     pub tracks: Vec<Track>,
 }
 
@@ -142,6 +146,7 @@ impl ResourceData for AnimationTracksData {
     }
 }
 
+/// A resource that holds animation tracks. This resource can be shared across multiple animations.
 pub type AnimationTracksDataResource = Resource<AnimationTracksData>;
 
 /// # Overview
@@ -459,6 +464,14 @@ impl<T: EntityId> Animation<T> {
         self.name.as_ref()
     }
 
+    /// Sets a new source of data for animation tracks. Keep in mind, that all existing track bindings
+    /// stored in the animation could become invalid, if the new resource does not have tracks with
+    /// the same ids that the bindings has.
+    pub fn set_tracks_data(&mut self, resource: AnimationTracksDataResource) {
+        self.tracks_data = resource;
+    }
+
+    /// Returns a reference to the current animation tracks resource.
     pub fn tracks_data(&self) -> &AnimationTracksDataResource {
         &self.tracks_data
     }
@@ -822,6 +835,13 @@ impl<T: EntityId> Animation<T> {
         self.track_bindings.insert(id, binding);
     }
 
+    /// Removes last track from the current tracks data resource and the respective binding to it
+    /// from the animation. This method will fail if the resource is not loaded, or if there's no
+    /// tracks in it. It will also fail if there's no respective binding to the track in the
+    /// animation.
+    ///
+    /// Keep in mind, that this method modifies the tracks data resource, which might be used by
+    /// some other animation.
     pub fn pop_track_with_binding(&mut self) -> Option<(TrackBinding<T>, Track)> {
         let mut state = self.tracks_data.state();
         let tracks_data = state.data()?;
@@ -830,6 +850,13 @@ impl<T: EntityId> Animation<T> {
         Some((binding, track))
     }
 
+    /// Removes the specified track from the current tracks data resource and the respective binding
+    /// to it from the animation. This method will fail if the resource is not loaded, or if there's
+    /// no tracks in it. It will also fail if there's no respective binding to the track in the
+    /// animation.
+    ///
+    /// Keep in mind, that this method modifies the tracks data resource, which might be used by
+    /// some other animation.
     pub fn remove_track_with_binding(&mut self, index: usize) -> Option<(TrackBinding<T>, Track)> {
         let mut state = self.tracks_data.state();
         let tracks_data = state.data()?;
@@ -838,6 +865,10 @@ impl<T: EntityId> Animation<T> {
         Some((binding, track))
     }
 
+    /// Inserts a new track in the tracks data resource and creates a new binding to it.
+    ///
+    /// Keep in mind, that this method modifies the tracks data resource, which might be used by
+    /// some other animation.
     pub fn insert_track_with_binding(
         &mut self,
         index: usize,
@@ -892,10 +923,14 @@ impl<T: EntityId> Animation<T> {
         }
     }
 
+    /// Returns a reference to the current set of track bindings used by the animation. The returned
+    /// hash map contains `(track_id -> binding)` pairs.
     pub fn track_bindings(&self) -> &FxHashMap<Uuid, TrackBinding<T>> {
         &self.track_bindings
     }
 
+    /// Returns a reference to the current set of track bindings used by the animation. The returned
+    /// hash map contains `(track_id -> binding)` pairs.
     pub fn track_bindings_mut(&mut self) -> &mut FxHashMap<Uuid, TrackBinding<T>> {
         &mut self.track_bindings
     }
