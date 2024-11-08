@@ -50,6 +50,7 @@ use std::{
 };
 use value::{nlerp, TrackValue, ValueBinding};
 
+use crate::container::TrackDataContainer;
 use crate::track::TrackBinding;
 pub use fyrox_core as core;
 use fyrox_resource::untyped::ResourceKind;
@@ -66,11 +67,11 @@ pub mod value;
 
 #[derive(Default, Debug, Reflect, Clone, PartialEq, TypeUuidProvider)]
 #[type_uuid(id = "044d9f7c-5c6c-4b29-8de9-d0d975a48256")]
-pub struct AnimationData {
+pub struct AnimationTracksData {
     pub tracks: Vec<Track>,
 }
 
-impl AnimationData {
+impl AnimationTracksData {
     /// Adds new track to the animation. Animation can have unlimited number of tracks, each track is responsible
     /// for animation of a single scene node.
     pub fn add_track(&mut self, track: Track) {
@@ -112,13 +113,13 @@ impl AnimationData {
     }
 }
 
-impl Visit for AnimationData {
+impl Visit for AnimationTracksData {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         self.tracks.visit(name, visitor)
     }
 }
 
-impl ResourceData for AnimationData {
+impl ResourceData for AnimationTracksData {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -128,7 +129,7 @@ impl ResourceData for AnimationData {
     }
 
     fn type_uuid(&self) -> Uuid {
-        <AnimationData as TypeUuidProvider>::type_uuid()
+        <AnimationTracksData as TypeUuidProvider>::type_uuid()
     }
 
     fn save(&mut self, _path: &Path) -> Result<(), Box<dyn Error>> {
@@ -141,7 +142,7 @@ impl ResourceData for AnimationData {
     }
 }
 
-pub type AnimationDataResource = Resource<AnimationData>;
+pub type AnimationTracksDataResource = Resource<AnimationTracksData>;
 
 /// # Overview
 ///
@@ -267,37 +268,89 @@ pub type AnimationDataResource = Resource<AnimationData>;
 /// The code above creates a simple animation that moves a node along X axis in various ways. The usage of the animation
 /// is only for the sake of completeness of the example. In the real games you need to add the animation to an animation
 /// player scene node and it will do the job for you.
-#[derive(Debug, Reflect, Visit, PartialEq)]
+#[derive(Debug, Reflect, PartialEq)]
 pub struct Animation<T: EntityId> {
-    #[visit(optional)]
     name: ImmutableString,
-    tracks_data: AnimationDataResource,
+    tracks_data: AnimationTracksDataResource,
     track_bindings: FxHashMap<Uuid, TrackBinding<T>>,
     time_position: f32,
-    #[visit(optional)]
     time_slice: Range<f32>,
     speed: f32,
     looped: bool,
     enabled: bool,
     signals: Vec<AnimationSignal>,
-
-    #[visit(optional)]
     root_motion_settings: Option<RootMotionSettings<T>>,
+    max_event_capacity: usize,
 
     #[reflect(hidden)]
-    #[visit(skip)]
     root_motion: Option<RootMotion>,
-
     // Non-serialized
     #[reflect(hidden)]
-    #[visit(skip)]
     pose: AnimationPose<T>,
     // Non-serialized
     #[reflect(hidden)]
-    #[visit(skip)]
     events: VecDeque<AnimationEvent>,
-    #[visit(optional)]
-    max_event_capacity: usize,
+}
+
+#[derive(Visit, Default)]
+struct OldTrack<T: EntityId> {
+    binding: ValueBinding,
+    frames: TrackDataContainer,
+    enabled: bool,
+    node: T,
+    id: Uuid,
+}
+
+impl<T: EntityId> Visit for Animation<T> {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        let mut region = visitor.enter_region(name)?;
+
+        // Backward compatibility.
+        let mut old_tracks = Vec::<OldTrack<T>>::new();
+        if region.is_reading() {
+            if old_tracks.visit("Tracks", &mut region).is_ok() {
+                let mut tracks_data = AnimationTracksData::default();
+                for old_track in old_tracks {
+                    self.track_bindings.insert(
+                        old_track.id,
+                        TrackBinding {
+                            enabled: old_track.enabled,
+                            target: old_track.node,
+                        },
+                    );
+                    tracks_data.tracks.push(Track {
+                        binding: old_track.binding,
+                        frames: old_track.frames,
+                        id: old_track.id,
+                    });
+                }
+                self.tracks_data =
+                    AnimationTracksDataResource::new_ok(ResourceKind::Embedded, tracks_data);
+            } else {
+                self.tracks_data.visit("TracksData", &mut region)?;
+                self.track_bindings.visit("TrackBindings", &mut region)?;
+            }
+        } else {
+            self.tracks_data.visit("TracksData", &mut region)?;
+            self.track_bindings.visit("TrackBindings", &mut region)?;
+        }
+
+        let _ = self.name.visit("Name", &mut region);
+        self.time_position.visit("TimePosition", &mut region)?;
+        let _ = self.time_slice.visit("TimeSlice", &mut region);
+        self.speed.visit("Speed", &mut region)?;
+        self.looped.visit("Looped", &mut region)?;
+        self.enabled.visit("Enabled", &mut region)?;
+        self.signals.visit("Signals", &mut region)?;
+        let _ = self
+            .max_event_capacity
+            .visit("MaxEventCapacity", &mut region);
+        let _ = self
+            .root_motion_settings
+            .visit("RootMotionSettings", &mut region);
+
+        Ok(())
+    }
 }
 
 impl<T: EntityId> TypeUuidProvider for Animation<T> {
@@ -406,7 +459,7 @@ impl<T: EntityId> Animation<T> {
         self.name.as_ref()
     }
 
-    pub fn tracks_data(&self) -> &AnimationDataResource {
+    pub fn tracks_data(&self) -> &AnimationTracksDataResource {
         &self.tracks_data
     }
 
@@ -880,7 +933,7 @@ impl<T: EntityId> Default for Animation<T> {
     fn default() -> Self {
         Self {
             name: Default::default(),
-            tracks_data: Resource::new_ok(ResourceKind::Embedded, AnimationData::default()),
+            tracks_data: Resource::new_ok(ResourceKind::Embedded, AnimationTracksData::default()),
             speed: 1.0,
             time_position: 0.0,
             enabled: true,

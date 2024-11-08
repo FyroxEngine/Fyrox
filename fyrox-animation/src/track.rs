@@ -76,9 +76,9 @@ impl<T: EntityId> TrackBinding<T> {
 /// key values.
 #[derive(Debug, Reflect, Clone, PartialEq)]
 pub struct Track {
-    binding: ValueBinding,
-    frames: TrackDataContainer,
-    id: Uuid,
+    pub(super) binding: ValueBinding,
+    pub(super) frames: TrackDataContainer,
+    pub(super) id: Uuid,
 }
 
 impl Visit for Track {
