@@ -190,6 +190,7 @@ impl BoundValueCollectionExt for BoundValueCollection {
 /// next code snippet is for you.
 ///
 /// ```rust
+/// # use fyrox_animation::track::TrackBinding;
 /// # use fyrox_impl::{
 /// #     core::{
 /// #         math::curve::{Curve, CurveKey, CurveKeyKind},
@@ -211,13 +212,12 @@ impl BoundValueCollectionExt for BoundValueCollection {
 ///         CurveKey::new(0.6, 0.0, CurveKeyKind::Linear),
 ///     ]);
 ///
-///     // Create a track that will animated the node using the curve above.
+///     // Create a track that will animate the node using the curve above.
 ///     let mut track = Track::new(frames_container, ValueBinding::Position);
-///     track.set_target(animated_node);
-///
+
 ///     // Finally create an animation and set its time slice and turn it on.
 ///     let mut animation = Animation::default();
-///     animation.add_track_with_binding(track);
+///     animation.add_track_with_binding(TrackBinding::new(animated_node),track);
 ///     animation.set_time_slice(0.0..0.6);
 ///     animation.set_enabled(true);
 ///     animation

@@ -226,18 +226,18 @@ pub type AnimationTracksDataResource = Resource<AnimationTracksData>;
 /// a guide **only** if you need to create procedural animations:
 ///
 /// ```rust
-/// use fyrox_animation::{
-///     container::{TrackDataContainer, TrackValueKind},
-///     track::Track,
-///     value::ValueBinding,
-///     Animation,
-///     core::{
-///         math::curve::{Curve, CurveKey, CurveKeyKind},
-///         pool::Handle,
-///     },
-/// };
-/// use fyrox_core::pool::ErasedHandle;
-///
+/// # use fyrox_animation::{
+/// #     container::{TrackDataContainer, TrackValueKind},
+/// #     track::Track,
+/// #     value::ValueBinding,
+/// #     Animation,
+/// #     core::{
+/// #         math::curve::{Curve, CurveKey, CurveKeyKind},
+/// #         pool::Handle,
+/// #     },
+/// # };
+/// # use fyrox_animation::track::TrackBinding;
+/// # use fyrox_core::pool::ErasedHandle;
 /// fn create_animation(target: ErasedHandle) -> Animation<ErasedHandle> {
 ///     let mut frames_container = TrackDataContainer::new(TrackValueKind::Vector3);
 ///
@@ -248,13 +248,12 @@ pub type AnimationTracksDataResource = Resource<AnimationTracksData>;
 ///         CurveKey::new(1.0, 3.0, CurveKeyKind::Linear),
 ///     ]);
 ///
-///     // Create a track that will animated the node using the curve above.
+///     // Create a track that will animate the node using the curve above.
 ///     let mut track = Track::new(frames_container, ValueBinding::Position);
-///     track.set_target(target);
 ///
 ///     // Finally create an animation and set its time slice and turn it on.
 ///     let mut animation = Animation::default();
-///     animation.add_track_with_binding(track);
+///     animation.add_track_with_binding(TrackBinding::new(target), track);
 ///     animation.set_time_slice(0.0..1.0);
 ///     animation.set_enabled(true);
 ///
