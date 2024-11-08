@@ -217,7 +217,7 @@ impl BoundValueCollectionExt for BoundValueCollection {
 ///
 ///     // Finally create an animation and set its time slice and turn it on.
 ///     let mut animation = Animation::default();
-///     animation.add_track(track);
+///     animation.add_track_with_binding(track);
 ///     animation.set_time_slice(0.0..0.6);
 ///     animation.set_enabled(true);
 ///     animation

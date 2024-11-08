@@ -44,6 +44,14 @@ impl<T: EntityId> Default for TrackBinding<T> {
 }
 
 impl<T: EntityId> TrackBinding<T> {
+    /// Creates a new enabled track binding.
+    pub fn new(target: T) -> Self {
+        Self {
+            enabled: true,
+            target,
+        }
+    }
+
     /// Sets a handle of a node that will be animated.
     pub fn set_target(&mut self, target: T) {
         self.target = target;
@@ -142,12 +150,12 @@ impl Track {
     }
 
     /// Sets new track binding. See [`ValueBinding`] docs for more info.
-    pub fn set_binding(&mut self, binding: ValueBinding) {
+    pub fn set_value_binding(&mut self, binding: ValueBinding) {
         self.binding = binding;
     }
 
     /// Returns current track binding.
-    pub fn binding(&self) -> &ValueBinding {
+    pub fn value_binding(&self) -> &ValueBinding {
         &self.binding
     }
 

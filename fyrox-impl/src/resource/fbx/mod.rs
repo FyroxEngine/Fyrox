@@ -78,6 +78,7 @@ use crate::{
     utils::{self, raw_mesh::RawMeshBuilder},
 };
 use fxhash::{FxHashMap, FxHashSet};
+use fyrox_animation::track::TrackBinding;
 use fyrox_resource::io::ResourceIo;
 use fyrox_resource::untyped::ResourceKind;
 use std::{cmp::Ordering, path::Path};
@@ -782,9 +783,9 @@ async fn convert_model(
             add_vec3_key(&mut scale_track, model.scale);
         }
 
-        animation.add_track(node_handle, translation_track);
-        animation.add_track(node_handle, rotation_track);
-        animation.add_track(node_handle, scale_track);
+        animation.add_track_with_binding(TrackBinding::new(node_handle), translation_track);
+        animation.add_track_with_binding(TrackBinding::new(node_handle), rotation_track);
+        animation.add_track_with_binding(TrackBinding::new(node_handle), scale_track);
     }
 
     animation.fit_length_to_content();

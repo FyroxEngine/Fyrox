@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use super::iter::*;
+use super::simplify::*;
 use crate::core::algebra::{Quaternion, Unit, UnitQuaternion, Vector3};
 use crate::core::log::Log;
 use crate::core::math::curve::{Curve, CurveKey, CurveKeyKind};
@@ -30,14 +32,12 @@ use crate::scene::animation::Animation;
 use crate::scene::graph::Graph;
 use crate::scene::mesh::Mesh;
 use crate::scene::node::Node;
+use fyrox_animation::track::TrackBinding;
 use fyrox_graph::BaseSceneGraph;
 use gltf::animation::util::ReadOutputs;
 use gltf::animation::Channel;
 use gltf::animation::{Interpolation, Property};
 use gltf::Buffer;
-
-use super::iter::*;
-use super::simplify::*;
 
 type Result<T> = std::result::Result<T, ()>;
 
@@ -225,7 +225,7 @@ impl ImportedAnimation {
         result.set_time_slice(self.start..self.end);
         for t in self.tracks {
             let (node, track) = t.into_track();
-            result.add_track(node, track);
+            result.add_track_with_binding(TrackBinding::new(node), track);
         }
         result
     }

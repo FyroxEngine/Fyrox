@@ -249,7 +249,7 @@ pub type AnimationTracksDataResource = Resource<AnimationTracksData>;
 ///
 ///     // Finally create an animation and set its time slice and turn it on.
 ///     let mut animation = Animation::default();
-///     animation.add_track(track);
+///     animation.add_track_with_binding(track);
 ///     animation.set_time_slice(0.0..1.0);
 ///     animation.set_enabled(true);
 ///
@@ -565,7 +565,7 @@ impl<T: EntityId> Animation<T> {
         fn fetch_position_at_time(tracks: &[Track], time: f32) -> Vector3<f32> {
             tracks
                 .iter()
-                .find(|track| track.binding() == &ValueBinding::Position)
+                .find(|track| track.value_binding() == &ValueBinding::Position)
                 .and_then(|track| track.fetch(time))
                 .and_then(|value| {
                     if let TrackValue::Vector3(position) = value.value {
@@ -580,7 +580,7 @@ impl<T: EntityId> Animation<T> {
         fn fetch_rotation_at_time(tracks: &[Track], time: f32) -> UnitQuaternion<f32> {
             tracks
                 .iter()
-                .find(|track| track.binding() == &ValueBinding::Rotation)
+                .find(|track| track.value_binding() == &ValueBinding::Rotation)
                 .and_then(|track| track.fetch(time))
                 .and_then(|value| {
                     if let TrackValue::UnitQuaternion(rotation) = value.value {
@@ -809,20 +809,47 @@ impl<T: EntityId> Animation<T> {
         self.enabled
     }
 
-    pub fn add_track(&mut self, target: T, track: Track) {
+    /// Adds a new track to the animation track data container and binds it with the specified target.
+    /// Keep in mind, that this method will modify potentially shared track data container, which might
+    /// affect other animations using it.
+    pub fn add_track_with_binding(&mut self, binding: TrackBinding<T>, track: Track) {
         let mut state = self.tracks_data.state();
         let Some(tracks_data) = state.data() else {
             return;
         };
         let id = track.id();
         tracks_data.tracks.push(track);
-        self.track_bindings.insert(
-            id,
-            TrackBinding {
-                enabled: true,
-                target,
-            },
-        );
+        self.track_bindings.insert(id, binding);
+    }
+
+    pub fn pop_track_with_binding(&mut self) -> Option<(TrackBinding<T>, Track)> {
+        let mut state = self.tracks_data.state();
+        let tracks_data = state.data()?;
+        let track = tracks_data.tracks.pop()?;
+        let binding = self.track_bindings.remove(&track.id())?;
+        Some((binding, track))
+    }
+
+    pub fn remove_track_with_binding(&mut self, index: usize) -> Option<(TrackBinding<T>, Track)> {
+        let mut state = self.tracks_data.state();
+        let tracks_data = state.data()?;
+        let track = tracks_data.tracks.remove(index);
+        let binding = self.track_bindings.remove(&track.id())?;
+        Some((binding, track))
+    }
+
+    pub fn insert_track_with_binding(
+        &mut self,
+        index: usize,
+        binding: TrackBinding<T>,
+        track: Track,
+    ) {
+        let mut state = self.tracks_data.state();
+        let Some(tracks_data) = state.data() else {
+            return;
+        };
+        assert!(self.track_bindings.insert(track.id(), binding).is_none());
+        tracks_data.tracks.insert(index, track);
     }
 
     /// Adds a new animation signal to the animation. See [`AnimationSignal`] docs for more info and examples.

@@ -468,9 +468,9 @@ impl AnimationEditor {
                         animation.rewind();
 
                         let animation_targets = animation
-                            .tracks()
-                            .iter()
-                            .map(|t| t.target())
+                            .track_bindings()
+                            .values()
+                            .map(|binding| binding.target())
                             .collect::<FxHashSet<_>>();
 
                         self.enter_preview_mode(
@@ -689,6 +689,11 @@ impl AnimationEditor {
                 self.track_list
                     .sync_to_model(animation, graph, &selection, ui);
 
+                let animation_tracks_data_state = animation.tracks_data().state();
+                let Some(animation_tracks_data) = animation_tracks_data_state.data_ref() else {
+                    return;
+                };
+
                 send_sync_message(
                     ui,
                     CurveEditorMessage::hightlight_zones(
@@ -729,7 +734,8 @@ impl AnimationEditor {
                         SelectedEntity::Track(track_id) => {
                             // If a track is selected, show all its curves at once. This way it will
                             // be easier to edit complex values, such as Vector2/3/4.
-                            if let Some(track) = animation
+
+                            if let Some(track) = animation_tracks_data
                                 .tracks()
                                 .iter()
                                 .find(|track| &track.id() == track_id)
@@ -748,7 +754,7 @@ impl AnimationEditor {
                         }
                         SelectedEntity::Curve(curve_id) => {
                             if let Some((index, selected_curve)) =
-                                animation.tracks().iter().find_map(|t| {
+                                animation_tracks_data.tracks().iter().find_map(|t| {
                                     t.data_container().curves_ref().iter().enumerate().find_map(
                                         |(i, c)| {
                                             if &c.id() == curve_id {
@@ -772,7 +778,7 @@ impl AnimationEditor {
                     }
                 }
                 let mut background_curves = Vec::<Curve>::new();
-                for track in animation.tracks() {
+                for track in animation_tracks_data.tracks() {
                     for curve in track.data_container().curves_ref() {
                         if !selected_curves.iter().any(|(_, c)| c.id == curve.id) {
                             background_curves.push(curve.clone());

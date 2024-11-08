@@ -255,8 +255,8 @@ impl Toolbar {
                         animation_container_ref(graph, selection.absm_node_handle)
                     {
                         for animation in animations.iter() {
-                            for track in animation.tracks() {
-                                unique_nodes.insert(track.target());
+                            for track_binding in animation.track_bindings().values() {
+                                unique_nodes.insert(track_binding.target());
                             }
                         }
                     }

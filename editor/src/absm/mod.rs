@@ -571,8 +571,8 @@ impl AbsmEditor {
 
                         let mut animation_targets = FxHashSet::default();
                         for animation in animations.iter_mut() {
-                            for track in animation.tracks() {
-                                animation_targets.insert(track.target());
+                            for track_binding in animation.track_bindings().values() {
+                                animation_targets.insert(track_binding.target());
                             }
                         }
 
