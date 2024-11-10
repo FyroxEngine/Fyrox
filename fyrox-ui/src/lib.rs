@@ -190,7 +190,6 @@
 //! crate is OS- and GAPI-agnostic and do not create native OS windows and cannot draw anything on screen.
 //! For more specific examples, please see `examples` of the crate.
 
-#![forbid(unsafe_code)]
 #![allow(irrefutable_let_patterns)]
 #![allow(clippy::float_cmp)]
 #![allow(clippy::upper_case_acronyms)]
@@ -2778,11 +2777,17 @@ impl UserInterface {
 
         // Sort by Z index. This uses stable sort, so every child node with the same z index will
         // remain on its position.
-        let mbc = self.nodes.begin_multi_borrow();
-        if let Ok(mut parent) = mbc.try_get_mut(parent_handle) {
-            parent
-                .children
-                .sort_by_key(|handle| mbc.try_get(*handle).map(|c| *c.z_index).unwrap_or_default());
+        // SAFETY: It is safe to have second mutable reference to the nodes here, because we won't
+        // modify the size of the container, and we won't borrow the same node as mutable twice.
+        let nodes = unsafe { &mut *(&mut self.nodes as *mut Pool<UiNode, WidgetContainer>) };
+        if let Some(parent) = self.nodes.try_borrow_mut(parent_handle) {
+            parent.children.sort_by_key(|handle| {
+                assert_ne!(*handle, parent_handle);
+                nodes
+                    .try_borrow(*handle)
+                    .map(|c| *c.z_index)
+                    .unwrap_or_default()
+            });
         };
     }
 
