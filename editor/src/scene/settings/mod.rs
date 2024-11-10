@@ -53,6 +53,8 @@ use crate::{
 use crate::command::make_command;
 use crate::fyrox::core::reflect::Reflect;
 use crate::scene::commands::GameSceneContext;
+use fyrox::graph::{BaseSceneGraph, SceneGraph};
+use fyrox::gui::window::Window;
 use std::sync::Arc;
 
 pub struct SceneSettingsWindow {
@@ -104,7 +106,15 @@ impl SceneSettingsWindow {
     }
 
     pub fn sync_to_model(&self, game_scene: &GameScene, engine: &mut Engine) {
-        let ui = &mut engine.user_interfaces.first_mut();
+        let ui = engine.user_interfaces.first_mut();
+        if !ui
+            .try_get_of_type::<Window>(self.window)
+            .unwrap()
+            .is_globally_visible()
+        {
+            return;
+        }
+
         let scene = &engine.scenes[game_scene.scene];
 
         let context = InspectorContext::from_object(
