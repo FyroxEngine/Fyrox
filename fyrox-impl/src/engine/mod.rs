@@ -95,6 +95,7 @@ use crate::{
     window::{Window, WindowBuilder},
 };
 use fxhash::{FxHashMap, FxHashSet};
+use fyrox_animation::AnimationTracksData;
 use fyrox_sound::{
     buffer::{loader::SoundBufferLoader, SoundBuffer},
     renderer::hrtf::{HrirSphereLoader, HrirSphereResourceData},
@@ -1210,6 +1211,7 @@ pub(crate) fn initialize_resource_manager_loaders(
     state.constructors_container.add::<SurfaceData>();
     state.constructors_container.add::<TileSet>();
     state.constructors_container.add::<TileMapBrush>();
+    state.constructors_container.add::<AnimationTracksData>();
 
     let loaders = &mut state.loaders;
     loaders.set(model_loader);
