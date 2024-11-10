@@ -24,6 +24,7 @@
 
 #![warn(missing_docs)]
 
+use crate::widget::WidgetMessage;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -120,6 +121,11 @@ impl Control for SearchBar {
                     *self.text_box,
                     MessageDirection::ToWidget,
                     text.clone(),
+                ));
+            } else if let Some(WidgetMessage::Focus) = message.data() {
+                ui.send_message(WidgetMessage::focus(
+                    *self.text_box,
+                    MessageDirection::ToWidget,
                 ));
             }
         }
