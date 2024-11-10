@@ -743,7 +743,7 @@ impl RagdollPreset {
         try_make_ball_joint(
             right_up_leg,
             hips,
-            "RagdollLeftUpLegHipsBallJoint",
+            "RagdollRightUpLegHipsBallJoint",
             Some(BallJointLimits {
                 x: (-80.0f32).to_radians()..80.0f32.to_radians(),
                 y: (-80.0f32).to_radians()..80.0f32.to_radians(),
