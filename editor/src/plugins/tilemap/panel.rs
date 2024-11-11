@@ -194,7 +194,7 @@ impl TileMapPanel {
             ctx,
             width,
             height,
-            load_image(include_bytes!("../../../resources/brush.png")),
+            load_image!("../../../resources/brush.png"),
             "Draw with active brush.",
             Some(0),
         );
@@ -202,7 +202,7 @@ impl TileMapPanel {
             ctx,
             width,
             height,
-            load_image(include_bytes!("../../../resources/eraser.png")),
+            load_image!("../../../resources/eraser.png"),
             "Erase with active brush.",
             Some(1),
         );
@@ -210,7 +210,7 @@ impl TileMapPanel {
             ctx,
             width,
             height,
-            load_image(include_bytes!("../../../resources/fill.png")),
+            load_image!("../../../resources/fill.png"),
             "Flood fill with random tiles from current brush.",
             Some(2),
         );
@@ -218,7 +218,7 @@ impl TileMapPanel {
             ctx,
             width,
             height,
-            load_image(include_bytes!("../../../resources/pipette.png")),
+            load_image!("../../../resources/pipette.png"),
             "Pick tiles for drawing from the tile map.",
             Some(3),
         );
@@ -226,7 +226,7 @@ impl TileMapPanel {
             ctx,
             width,
             height,
-            load_image(include_bytes!("../../../resources/rect_fill.png")),
+            load_image!("../../../resources/rect_fill.png"),
             "Fill the rectangle using the current brush.",
             Some(4),
         );
@@ -234,7 +234,7 @@ impl TileMapPanel {
             ctx,
             width,
             height,
-            load_image(include_bytes!("../../../resources/nine_slice.png")),
+            load_image!("../../../resources/nine_slice.png"),
             "Draw rectangles with fixed corners, but stretchable sides.",
             Some(5),
         );
@@ -242,7 +242,7 @@ impl TileMapPanel {
             ctx,
             width,
             height,
-            load_image(include_bytes!("../../../resources/line.png")),
+            load_image!("../../../resources/line.png"),
             "Draw a line using random tiles from the given brush.",
             Some(6),
         );

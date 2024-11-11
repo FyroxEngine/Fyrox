@@ -196,9 +196,7 @@ impl Control for SceneItem {
                                 .on_row(0)
                                 .on_column(2),
                         )
-                        .with_opt_texture(load_image(include_bytes!(
-                            "../../../resources/warning.png"
-                        )))
+                        .with_opt_texture(load_image!("../../../resources/warning.png"))
                         .build(&mut ui.build_ctx());
 
                         ui.send_message(WidgetMessage::link(

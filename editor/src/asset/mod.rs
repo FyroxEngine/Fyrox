@@ -620,7 +620,7 @@ impl AssetBrowser {
             ctx,
             18.0,
             18.0,
-            load_image(include_bytes!("../../resources/reimport.png")),
+            load_image!("../../resources/reimport.png"),
             "Refresh",
             Some(1),
         );
@@ -819,7 +819,7 @@ impl AssetBrowser {
             WidgetBuilder::new().with_context_menu(self.context_menu.menu.clone()),
         )
         .with_icon(if is_dir {
-            load_image(include_bytes!("../../resources/folder.png"))
+            load_image!("../../resources/folder.png")
         } else {
             None
         })
@@ -924,9 +924,7 @@ impl AssetBrowser {
             let asset_item = AssetItemBuilder::new(
                 WidgetBuilder::new().with_context_menu(self.context_menu.menu.clone()),
             )
-            .with_icon(load_image(include_bytes!(
-                "../../resources/folder_return.png"
-            )))
+            .with_icon(load_image!("../../resources/folder_return.png"))
             .with_path(parent_path)
             .build(
                 resource_manager.clone(),

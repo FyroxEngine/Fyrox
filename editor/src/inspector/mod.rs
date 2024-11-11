@@ -207,7 +207,7 @@ impl InspectorPlugin {
                                             ctx,
                                             18.0,
                                             18.0,
-                                            load_image(include_bytes!("../../resources/doc.png")),
+                                            load_image!("../../resources/doc.png"),
                                             "Open Documentation",
                                             Some(0),
                                         );

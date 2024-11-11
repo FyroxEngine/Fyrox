@@ -48,7 +48,7 @@ use crate::fyrox::{
     scene::node::Node,
 };
 use crate::{
-    load_image,
+    load_image_internal,
     message::MessageSender,
     scene::selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
     world::graph::item::SceneItem,
@@ -292,7 +292,7 @@ fn make_icon(data: &[u8], color: Color, ctx: &mut BuildContext) -> Handle<UiNode
             .with_margin(Thickness::uniform(1.0))
             .with_background(Brush::Solid(color)),
     )
-    .with_opt_texture(load_image(data))
+    .with_opt_texture(load_image_internal(data))
     .build(ctx)
 }
 

@@ -158,7 +158,7 @@ impl Toolbar {
                                 .with_margin(Thickness::uniform(1.0))
                                 .with_background(BRUSH_BRIGHT),
                         )
-                        .with_opt_texture(load_image(include_bytes!("../../resources/filter.png")))
+                        .with_opt_texture(load_image!("../../resources/filter.png"))
                         .build(ctx),
                     )
                     .build(ctx);

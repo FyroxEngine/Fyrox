@@ -286,9 +286,9 @@ where
                                         .with_height(16.0)
                                         .with_margin(Thickness::uniform(1.0)),
                                 )
-                                .with_opt_texture(load_image(include_bytes!(
+                                .with_opt_texture(load_image!(
                                     "../../../resources/sound_source.png"
-                                )))
+                                ))
                                 .build(ctx),
                             )
                             .with_child({

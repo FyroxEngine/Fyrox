@@ -285,7 +285,7 @@ impl AssetPreviewGenerator for SoundPreview {
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
     ) -> Option<UntypedResource> {
-        load_image(include_bytes!("../../../resources/sound.png"))
+        load_image!("../../../resources/sound.png")
     }
 }
 
@@ -410,7 +410,7 @@ impl AssetPreviewGenerator for ModelPreview {
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
     ) -> Option<UntypedResource> {
-        load_image(include_bytes!("../../../resources/model.png"))
+        load_image!("../../../resources/model.png")
     }
 }
 
@@ -451,7 +451,7 @@ impl AssetPreviewGenerator for SurfaceDataPreview {
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
     ) -> Option<UntypedResource> {
-        load_image(include_bytes!("../../../resources/model.png"))
+        load_image!("../../../resources/model.png")
     }
 }
 
@@ -495,7 +495,7 @@ impl AssetPreviewGenerator for ShaderPreview {
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
     ) -> Option<UntypedResource> {
-        load_image(include_bytes!("../../../resources/shader.png"))
+        load_image!("../../../resources/shader.png")
     }
 }
 
@@ -539,7 +539,7 @@ impl AssetPreviewGenerator for MaterialPreview {
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
     ) -> Option<UntypedResource> {
-        load_image(include_bytes!("../../../resources/material.png"))
+        load_image!("../../../resources/material.png")
     }
 }
 
@@ -570,7 +570,7 @@ impl AssetPreviewGenerator for HrirPreview {
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
     ) -> Option<UntypedResource> {
-        load_image(include_bytes!("../../../resources/hrir.png"))
+        load_image!("../../../resources/hrir.png")
     }
 }
 
@@ -600,7 +600,7 @@ impl AssetPreviewGenerator for CurvePreview {
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
     ) -> Option<UntypedResource> {
-        load_image(include_bytes!("../../../resources/curve.png"))
+        load_image!("../../../resources/curve.png")
     }
 }
 
@@ -678,7 +678,7 @@ impl AssetPreviewGenerator for FontPreview {
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
     ) -> Option<UntypedResource> {
-        load_image(include_bytes!("../../../resources/font.png"))
+        load_image!("../../../resources/font.png")
     }
 }
 
@@ -713,6 +713,6 @@ impl AssetPreviewGenerator for UserInterfacePreview {
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
     ) -> Option<UntypedResource> {
-        load_image(include_bytes!("../../../resources/ui.png"))
+        load_image!("../../../resources/ui.png")
     }
 }

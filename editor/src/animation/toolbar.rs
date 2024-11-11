@@ -470,9 +470,7 @@ impl Toolbar {
                                             .with_margin(Thickness::uniform(1.0))
                                             .with_background(BRUSH_BRIGHT),
                                     )
-                                    .with_opt_texture(load_image(include_bytes!(
-                                        "../../resources/import.png"
-                                    )))
+                                    .with_opt_texture(load_image!("../../resources/import.png"))
                                     .build(ctx),
                                 )
                                 .build(ctx);
@@ -500,9 +498,7 @@ impl Toolbar {
                                             .with_margin(Thickness::uniform(1.0))
                                             .with_background(BRUSH_BRIGHT),
                                     )
-                                    .with_opt_texture(load_image(include_bytes!(
-                                        "../../resources/reimport.png"
-                                    )))
+                                    .with_opt_texture(load_image!("../../resources/reimport.png"))
                                     .build(ctx),
                                 )
                                 .build(ctx);
@@ -529,9 +525,7 @@ impl Toolbar {
                                             .with_margin(Thickness::uniform(1.0))
                                             .with_background(BRUSH_BRIGHT),
                                     )
-                                    .with_opt_texture(load_image(include_bytes!(
-                                        "../../resources/rename.png"
-                                    )))
+                                    .with_opt_texture(load_image!("../../resources/rename.png"))
                                     .build(ctx),
                                 )
                                 .build(ctx);
@@ -584,9 +578,7 @@ impl Toolbar {
                                             .with_margin(Thickness::uniform(1.0))
                                             .with_background(BRUSH_BRIGHT),
                                     )
-                                    .with_opt_texture(load_image(include_bytes!(
-                                        "../../resources/copy.png"
-                                    )))
+                                    .with_opt_texture(load_image!("../../resources/copy.png"))
                                     .build(ctx),
                                 )
                                 .build(ctx);
@@ -640,9 +632,7 @@ impl Toolbar {
                                         .with_margin(Thickness::uniform(1.0))
                                         .with_background(BRUSH_BRIGHT),
                                 )
-                                .with_opt_texture(load_image(include_bytes!(
-                                    "../../resources/speed.png"
-                                )))
+                                .with_opt_texture(load_image!("../../resources/speed.png"))
                                 .build(ctx),
                             )
                             .with_child({
@@ -668,9 +658,7 @@ impl Toolbar {
                                         .with_margin(Thickness::uniform(1.0))
                                         .with_background(BRUSH_BRIGHT),
                                 )
-                                .with_opt_texture(load_image(include_bytes!(
-                                    "../../resources/time.png"
-                                )))
+                                .with_opt_texture(load_image!("../../resources/time.png"))
                                 .build(ctx),
                             )
                             .with_child({

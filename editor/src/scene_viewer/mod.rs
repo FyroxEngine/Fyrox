@@ -111,7 +111,7 @@ impl GridSnappingMenu {
                     ctx,
                     22.0,
                     22.0,
-                    load_image(include_bytes!("../../resources/grid_snapping.png")),
+                    load_image!("../../resources/grid_snapping.png"),
                     "Snapping Options",
                     None,
                 );
@@ -420,9 +420,7 @@ impl SceneViewer {
                                                 0, 200, 0,
                                             ))),
                                     )
-                                    .with_opt_texture(load_image(include_bytes!(
-                                        "../../resources/play.png"
-                                    )))
+                                    .with_opt_texture(load_image!("../../resources/play.png"))
                                     .build(ctx),
                                 )
                                 .build(ctx);
@@ -445,9 +443,7 @@ impl SceneViewer {
                                                 200, 0, 0,
                                             ))),
                                     )
-                                    .with_opt_texture(load_image(include_bytes!(
-                                        "../../resources/stop.png"
-                                    )))
+                                    .with_opt_texture(load_image!("../../resources/stop.png"))
                                     .build(ctx),
                                 )
                                 .build(ctx);

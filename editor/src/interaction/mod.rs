@@ -42,7 +42,7 @@ use crate::{
         },
         scene::{camera::Projection, graph::Graph, node::Node},
     },
-    load_image,
+    load_image_internal,
     message::MessageSender,
     scene::{controller::SceneController, Selection},
     settings::Settings,
@@ -231,7 +231,7 @@ pub fn make_interaction_mode_button(
                 .with_width(23.0)
                 .with_height(23.0),
         )
-        .with_opt_texture(load_image(image))
+        .with_opt_texture(load_image_internal(image))
         .build(ctx),
     )
     .build(ctx)

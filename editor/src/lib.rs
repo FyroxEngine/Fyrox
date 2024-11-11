@@ -201,7 +201,7 @@ lazy_static! {
     static ref EDITOR_TEXTURE_CACHE: Mutex<FxHashMap<usize, TextureResource>> = Default::default();
 }
 
-pub fn load_texture(data: &[u8]) -> Option<TextureResource> {
+pub fn load_texture_internal(data: &[u8]) -> Option<TextureResource> {
     let mut cache = EDITOR_TEXTURE_CACHE.lock();
 
     // Editor use data that is embedded in the binary, so each such piece of data will have fixed
@@ -227,8 +227,22 @@ pub fn load_texture(data: &[u8]) -> Option<TextureResource> {
     }
 }
 
-pub fn load_image(data: &[u8]) -> Option<UntypedResource> {
-    Some(load_texture(data)?.into())
+pub fn load_image_internal(data: &[u8]) -> Option<UntypedResource> {
+    Some(load_texture_internal(data)?.into())
+}
+
+#[macro_export]
+macro_rules! load_texture {
+    ($file:expr $(,)?) => {
+        $crate::load_texture_internal(include_bytes!($file))
+    };
+}
+
+#[macro_export]
+macro_rules! load_image {
+    ($file:expr $(,)?) => {
+        $crate::load_image_internal(include_bytes!($file))
+    };
 }
 
 lazy_static! {

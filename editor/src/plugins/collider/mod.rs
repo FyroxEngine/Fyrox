@@ -272,7 +272,7 @@ fn make_handle(scene: &mut Scene, root: Handle<Node>, visible: bool) -> Handle<N
 
     material.bind(
         "diffuseTexture",
-        load_texture(include_bytes!("../../../resources/circle.png")),
+        load_texture!("../../../resources/circle.png"),
     );
 
     let handle = SpriteBuilder::new(BaseBuilder::new().with_visibility(visible))

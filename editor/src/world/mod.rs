@@ -245,9 +245,7 @@ impl WorldViewer {
                                             ctx,
                                             size,
                                             size,
-                                            load_image(include_bytes!(
-                                                "../../resources/collapse.png"
-                                            )),
+                                            load_image!("../../resources/collapse.png"),
                                             "Collapse Everything",
                                             Some(0),
                                         );
@@ -258,9 +256,7 @@ impl WorldViewer {
                                             ctx,
                                             size,
                                             size,
-                                            load_image(include_bytes!(
-                                                "../../resources/expand.png"
-                                            )),
+                                            load_image!("../../resources/expand.png"),
                                             "Expand Everything",
                                             Some(1),
                                         );
@@ -271,9 +267,7 @@ impl WorldViewer {
                                             ctx,
                                             size,
                                             size,
-                                            load_image(include_bytes!(
-                                                "../../resources/locate.png"
-                                            )),
+                                            load_image!("../../resources/locate.png"),
                                             "Locate Selection",
                                             Some(2),
                                         );

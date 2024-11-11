@@ -93,6 +93,6 @@ impl AssetPreviewGenerator for TileSetPreview {
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
     ) -> Option<UntypedResource> {
-        load_image(include_bytes!("../../../resources/tile_set.png"))
+        load_image!("../../../resources/tile_set.png")
     }
 }
