@@ -84,6 +84,7 @@ use crate::{
             color::Color,
             futures::executor::block_on,
             log::{Log, MessageKind},
+            parking_lot::Mutex,
             pool::Handle,
             task::TaskPool,
             uuid::Uuid,
@@ -150,8 +151,8 @@ use crate::{
     overlay::OverlayRenderPass,
     particle::ParticleSystemPreviewControlPanel,
     physics::ColliderControlPanel,
-    plugin::EditorPlugin,
-    plugins::collider::ColliderShapePlugin,
+    plugin::{EditorPlugin, EditorPluginsContainer},
+    plugins::{collider::ColliderShapePlugin, tilemap::TileMapEditorPlugin},
     scene::{
         commands::{
             make_delete_selection_command, ChangeSelectionCommand, GameSceneContext, PasteCommand,
@@ -172,6 +173,7 @@ use crate::{
     utils::{doc::DocWindow, path_fixer::PathFixer, ragdoll::RagdollWizard},
     world::{graph::menu::SceneNodeContextMenu, graph::EditorSceneWrapper, WorldViewer},
 };
+pub use message::Message;
 use std::{
     cell::RefCell,
     collections::VecDeque,
@@ -187,10 +189,6 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::plugin::EditorPluginsContainer;
-use crate::plugins::tilemap::TileMapEditorPlugin;
-pub use message::Message;
-
 pub const FIXED_TIMESTEP: f32 = 1.0 / 60.0;
 pub const MSG_SYNC_FLAG: u64 = 1;
 
@@ -199,15 +197,34 @@ pub fn send_sync_message(ui: &UserInterface, mut msg: UiMessage) {
     ui.send_message(msg);
 }
 
+lazy_static! {
+    static ref EDITOR_TEXTURE_CACHE: Mutex<FxHashMap<usize, TextureResource>> = Default::default();
+}
+
 pub fn load_texture(data: &[u8]) -> Option<TextureResource> {
-    TextureResource::load_from_memory(
-        Default::default(),
-        data,
-        TextureImportOptions::default()
-            .with_compression(CompressionOptions::NoCompression)
-            .with_minification_filter(TextureMinificationFilter::Linear),
-    )
-    .ok()
+    let mut cache = EDITOR_TEXTURE_CACHE.lock();
+
+    // Editor use data that is embedded in the binary, so each such piece of data will have fixed
+    // location in memory. This fact allows us to cache the resources and skip redundant loading if
+    // they're already loaded.
+    let id = data.as_ptr() as usize;
+
+    if let Some(existing) = cache.get(&id) {
+        Some(existing.clone())
+    } else {
+        let texture = TextureResource::load_from_memory(
+            Default::default(),
+            data,
+            TextureImportOptions::default()
+                .with_compression(CompressionOptions::NoCompression)
+                .with_minification_filter(TextureMinificationFilter::Linear),
+        )
+        .ok()?;
+
+        cache.insert(id, texture.clone());
+
+        Some(texture)
+    }
 }
 
 pub fn load_image(data: &[u8]) -> Option<UntypedResource> {
