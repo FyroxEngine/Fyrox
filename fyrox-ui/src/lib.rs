@@ -190,6 +190,7 @@
 //! crate is OS- and GAPI-agnostic and do not create native OS windows and cannot draw anything on screen.
 //! For more specific examples, please see `examples` of the crate.
 
+#![forbid(unsafe_code)]
 #![allow(irrefutable_let_patterns)]
 #![allow(clippy::float_cmp)]
 #![allow(clippy::upper_case_acronyms)]
@@ -614,6 +615,7 @@ pub enum LayoutEvent {
     MeasurementInvalidated(Handle<UiNode>),
     ArrangementInvalidated(Handle<UiNode>),
     VisibilityChanged(Handle<UiNode>),
+    ZIndexChanged(Handle<UiNode>),
 }
 
 #[derive(Clone, Debug, Visit, Reflect, Default)]
@@ -711,6 +713,8 @@ pub struct UserInterface {
     layout_events_sender: Sender<LayoutEvent>,
     need_update_global_transform: bool,
     #[reflect(hidden)]
+    z_index_update_set: FxHashSet<Handle<UiNode>>,
+    #[reflect(hidden)]
     pub default_font: FontResource,
     #[reflect(hidden)]
     double_click_entries: FxHashMap<MouseButton, DoubleClickEntry>,
@@ -793,6 +797,7 @@ impl Clone for UserInterface {
             layout_events_receiver,
             layout_events_sender,
             need_update_global_transform: self.need_update_global_transform,
+            z_index_update_set: self.z_index_update_set.clone(),
             default_font: self.default_font.clone(),
             double_click_entries: self.double_click_entries.clone(),
             double_click_time_slice: self.double_click_time_slice,
@@ -1089,6 +1094,7 @@ impl UserInterface {
             layout_events_receiver,
             layout_events_sender,
             need_update_global_transform: Default::default(),
+            z_index_update_set: Default::default(),
             default_font: BUILT_IN_FONT.resource(),
             double_click_entries: Default::default(),
             double_click_time_slice: 0.5, // 500 ms is standard in most operating systems.
@@ -1235,7 +1241,25 @@ impl UserInterface {
                 LayoutEvent::VisibilityChanged(node) => {
                     self.update_global_visibility(node);
                 }
+                LayoutEvent::ZIndexChanged(node) => {
+                    if let Some(node_ref) = self.nodes.try_borrow(node) {
+                        // Z index affects the location of the node in its parent's children list.
+                        // Hash set will remove duplicate requests of z-index updates, thus improving
+                        // performance.
+                        self.z_index_update_set.insert(node_ref.parent);
+                    }
+                }
             }
+        }
+
+        // Do z-index sorting.
+        for node_handle in self.z_index_update_set.drain() {
+            let mbc = self.nodes.begin_multi_borrow();
+            if let Ok(mut node) = mbc.try_get_mut(node_handle) {
+                node.children.sort_by_key(|handle| {
+                    mbc.try_get(*handle).map(|c| *c.z_index).unwrap_or_default()
+                });
+            };
         }
     }
 
@@ -1777,31 +1801,6 @@ impl UserInterface {
 
                 if let Some(msg) = message.data::<WidgetMessage>() {
                     match msg {
-                        WidgetMessage::ZIndex(_) => {
-                            // Keep order of children of a parent node of a node that changed z-index
-                            // the same as z-index of children.
-                            if let Some(parent) =
-                                self.try_get(message.destination()).map(|n| n.parent())
-                            {
-                                self.stack.clear();
-                                for child in self.nodes.borrow(parent).children() {
-                                    self.stack.push(*child);
-                                }
-
-                                let nodes = &mut self.nodes;
-                                self.stack.sort_by(|a, b| {
-                                    let z_a = nodes.borrow(*a).z_index();
-                                    let z_b = nodes.borrow(*b).z_index();
-                                    z_a.cmp(&z_b)
-                                });
-
-                                let parent = self.nodes.borrow_mut(parent);
-                                parent.clear_children();
-                                for child in self.stack.iter() {
-                                    parent.add_child(*child, false);
-                                }
-                            }
-                        }
                         WidgetMessage::Focus => {
                             if self.nodes.is_valid_handle(message.destination())
                                 && message.direction() == MessageDirection::ToWidget
@@ -2774,21 +2773,6 @@ impl UserInterface {
         self.isolate_node(child_handle);
         self.nodes[child_handle].set_parent(parent_handle);
         self.nodes[parent_handle].add_child(child_handle, in_front);
-
-        // Sort by Z index. This uses stable sort, so every child node with the same z index will
-        // remain on its position.
-        // SAFETY: It is safe to have second mutable reference to the nodes here, because we won't
-        // modify the size of the container, and we won't borrow the same node as mutable twice.
-        let nodes = unsafe { &mut *(&mut self.nodes as *mut Pool<UiNode, WidgetContainer>) };
-        if let Some(parent) = self.nodes.try_borrow_mut(parent_handle) {
-            parent.children.sort_by_key(|handle| {
-                assert_ne!(*handle, parent_handle);
-                nodes
-                    .try_borrow(*handle)
-                    .map(|c| *c.z_index)
-                    .unwrap_or_default()
-            });
-        };
     }
 
     #[inline]
@@ -2970,6 +2954,7 @@ impl UserInterface {
             widget.handle = handle;
             widget.layout_events_sender = Some(self.layout_events_sender.clone());
             widget.invalidate_layout();
+            widget.notify_z_index_changed();
         }
     }
 
@@ -3109,6 +3094,7 @@ impl BaseSceneGraph for UserInterface {
         node.handle = node_handle;
         self.methods_registry.register(node);
         node.invalidate_layout();
+        node.notify_z_index_changed();
         self.layout_events_sender
             .send(LayoutEvent::VisibilityChanged(node_handle))
             .unwrap();

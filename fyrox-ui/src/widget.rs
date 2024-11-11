@@ -1003,6 +1003,14 @@ impl Widget {
         self.invalidate_arrange();
     }
 
+    pub(crate) fn notify_z_index_changed(&self) {
+        if let Some(sender) = self.layout_events_sender.as_ref() {
+            sender
+                .send(LayoutEvent::ZIndexChanged(self.handle))
+                .unwrap()
+        }
+    }
+
     /// Invalidates measurement results of the widget. **WARNING**: Do not use this method, unless you understand what you're
     /// doing, it will cause new measurement pass for this widget which could be quite heavy and doing so on every frame for
     /// multiple widgets **will** cause severe performance issues.
@@ -1068,6 +1076,7 @@ impl Widget {
     #[inline]
     pub fn set_z_index(&mut self, z_index: usize) -> &mut Self {
         self.z_index.set_value_and_mark_modified(z_index);
+        self.notify_z_index_changed();
         self
     }
 
@@ -1420,7 +1429,7 @@ impl Widget {
                     }
                     WidgetMessage::ZIndex(index) => {
                         if *self.z_index != *index {
-                            self.z_index.set_value_and_mark_modified(*index);
+                            self.set_z_index(*index);
                             self.invalidate_layout();
                         }
                     }
