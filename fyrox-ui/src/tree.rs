@@ -1096,12 +1096,13 @@ impl TreeRoot {
                 return;
             }
 
-            let Some((parent_handle, parent)) = ui.find_component_up::<Tree>(item.parent()) else {
-                return;
-            };
+            let (parent_handle, parent_items, parent_ancestor, is_parent_root) = ui
+                .find_component_up::<Tree>(item.parent())
+                .map(|(tree_handle, tree)| (tree_handle, &tree.items, tree.parent, false))
+                .unwrap_or_else(|| (self.handle, &self.items, self.parent, true));
 
             let Some(selected_item_position) =
-                parent.items.iter().position(|c| *c == *selected_item)
+                parent_items.iter().position(|c| *c == *selected_item)
             else {
                 return;
             };
@@ -1110,7 +1111,7 @@ impl TreeRoot {
                 Direction::Up => {
                     if let Some(prev) = selected_item_position
                         .checked_sub(1)
-                        .and_then(|prev| parent.items.get(prev))
+                        .and_then(|prev| parent_items.get(prev))
                     {
                         let mut last_descendant_item = None;
                         let mut queue = VecDeque::new();
@@ -1127,7 +1128,7 @@ impl TreeRoot {
                         if let Some(last_descendant_item) = last_descendant_item {
                             self.select(ui, last_descendant_item);
                         }
-                    } else {
+                    } else if !is_parent_root {
                         self.select(ui, parent_handle);
                     }
                 }
@@ -1135,12 +1136,12 @@ impl TreeRoot {
                     if let (Some(first_item), true) = (item.items.first(), item.is_expanded) {
                         self.select(ui, *first_item);
                     } else if let Some(next) =
-                        parent.items.get(selected_item_position.saturating_add(1))
+                        parent_items.get(selected_item_position.saturating_add(1))
                     {
                         self.select(ui, *next);
                     } else {
                         let mut current_ancestor = parent_handle;
-                        let mut current_ancestor_parent = parent.parent();
+                        let mut current_ancestor_parent = parent_ancestor;
                         while let Some((ancestor_handle, ancestor)) =
                             ui.find_component_up::<Tree>(current_ancestor_parent)
                         {
