@@ -42,6 +42,7 @@ use crate::{
 // Re-export some the fyrox_sound entities.
 pub use fyrox_sound::{
     buffer::{
+        generic::Samples,
         loader::{SoundBufferImportOptions, SoundBufferLoader},
         DataSource, SoundBuffer, SoundBufferResource, SoundBufferResourceLoadError,
     },

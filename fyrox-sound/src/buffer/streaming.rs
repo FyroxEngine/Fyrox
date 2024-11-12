@@ -47,6 +47,7 @@
 //! Streaming buffer cannot be shared across multiple source. On attempt to create a source with a streaming
 //! buffer that already in use you'll get error.
 
+use crate::buffer::generic::Samples;
 use crate::{
     buffer::{generic::GenericBuffer, DataSource, RawStreamingDataSource},
     decoder::Decoder,
@@ -192,7 +193,7 @@ impl StreamingBuffer {
 
         Ok(Self {
             generic: GenericBuffer {
-                samples,
+                samples: Samples(samples),
                 sample_rate: streaming_source.sample_rate(),
                 channel_count: streaming_source.channel_count(),
                 channel_duration_in_samples: streaming_source.channel_duration_in_samples(),

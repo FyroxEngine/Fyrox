@@ -94,6 +94,7 @@ use crate::{
 use fyrox::generic_animation::track::TrackBinding;
 use fyrox::renderer::framework::DrawParameters;
 use fyrox::scene::mesh::buffer::{TriangleBuffer, VertexBuffer};
+use fyrox::scene::sound::Samples;
 use std::{
     any::TypeId,
     cmp::Ordering,
@@ -1113,6 +1114,7 @@ impl TrackList {
                         && type_id != TypeId::of::<TriangleBuffer>()
                         // Makes no sense to animate drawing parameters.
                         && type_id != TypeId::of::<DrawParameters>()
+                        && type_id != TypeId::of::<Samples>()
                 });
             });
         }
