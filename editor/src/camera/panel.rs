@@ -18,23 +18,23 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::graph::SceneGraph;
-use crate::fyrox::gui::{HorizontalAlignment, Thickness};
-use crate::fyrox::{
-    core::pool::Handle,
-    engine::Engine,
-    gui::{
-        check_box::{CheckBoxBuilder, CheckBoxMessage},
-        message::{MessageDirection, UiMessage},
-        stack_panel::StackPanelBuilder,
-        text::TextBuilder,
-        widget::WidgetBuilder,
-        window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, Orientation, UiNode, VerticalAlignment,
-    },
-    scene::{camera::Camera, node::Node},
-};
 use crate::{
+    fyrox::{
+        core::pool::Handle,
+        engine::Engine,
+        graph::SceneGraph,
+        gui::{
+            check_box::{CheckBoxBuilder, CheckBoxMessage},
+            message::{MessageDirection, UiMessage},
+            stack_panel::StackPanelBuilder,
+            text::TextBuilder,
+            widget::WidgetBuilder,
+            window::{WindowBuilder, WindowMessage, WindowTitle},
+            BuildContext, Orientation, UiNode, VerticalAlignment,
+        },
+        gui::{HorizontalAlignment, Thickness},
+        scene::{camera::Camera, node::Node},
+    },
     scene::{GameScene, Selection},
     send_sync_message, Message,
 };
@@ -49,31 +49,36 @@ pub struct CameraPreviewControlPanel {
 impl CameraPreviewControlPanel {
     pub fn new(scene_viewer_frame: Handle<UiNode>, ctx: &mut BuildContext) -> Self {
         let preview;
-        let window = WindowBuilder::new(WidgetBuilder::new().with_name("CameraPanel"))
-            .with_title(WindowTitle::text("Camera Preview"))
-            .with_content(
-                StackPanelBuilder::new(
-                    WidgetBuilder::new()
-                        .with_margin(Thickness::uniform(1.0))
-                        .with_child({
-                            preview = CheckBoxBuilder::new(WidgetBuilder::new())
-                                .with_content(
-                                    TextBuilder::new(
-                                        WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
-                                    )
-                                    .with_text("Preview")
-                                    .with_vertical_text_alignment(VerticalAlignment::Center)
-                                    .build(ctx),
+        let window = WindowBuilder::new(
+            WidgetBuilder::new()
+                .with_width(200.0)
+                .with_height(50.0)
+                .with_name("CameraPanel"),
+        )
+        .with_title(WindowTitle::text("Camera Preview"))
+        .with_content(
+            StackPanelBuilder::new(
+                WidgetBuilder::new()
+                    .with_margin(Thickness::uniform(1.0))
+                    .with_child({
+                        preview = CheckBoxBuilder::new(WidgetBuilder::new())
+                            .with_content(
+                                TextBuilder::new(
+                                    WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
                                 )
-                                .build(ctx);
-                            preview
-                        }),
-                )
-                .with_orientation(Orientation::Vertical)
-                .build(ctx),
+                                .with_text("Preview")
+                                .with_vertical_text_alignment(VerticalAlignment::Center)
+                                .build(ctx),
+                            )
+                            .build(ctx);
+                        preview
+                    }),
             )
-            .open(false)
-            .build(ctx);
+            .with_orientation(Orientation::Vertical)
+            .build(ctx),
+        )
+        .open(false)
+        .build(ctx);
 
         Self {
             window,
