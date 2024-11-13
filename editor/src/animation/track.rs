@@ -872,7 +872,7 @@ impl TrackList {
                     match self.property_binding_mode {
                         PropertyBindingMode::Generic => {
                             self.property_selector =
-                                Self::open_property_selector(graph, (*first).into(), ui);
+                                Self::open_property_selector(graph, (*first).into(), None, ui);
                         }
                         PropertyBindingMode::Position => {
                             sender.do_command(AddTrackCommand::new(
@@ -1096,6 +1096,7 @@ impl TrackList {
     fn open_property_selector<G, N>(
         graph: &G,
         node: Handle<N>,
+        existing_binding: Option<&ValueBinding>,
         ui: &mut UserInterface,
     ) -> Handle<UiNode>
     where
@@ -1141,6 +1142,21 @@ impl TrackList {
 
             UnitQuaternion<f32>
         })))
+        .with_selected_property_paths(
+            existing_binding
+                .and_then(|binding| {
+                    if let ValueBinding::Property { name, value_type } = binding {
+                        Some(vec![PropertyDescriptorData {
+                            name: name.to_string(),
+                            path: name.to_string(),
+                            type_id: value_type.into_type_id(),
+                        }])
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or_default(),
+        )
         .with_property_descriptors(descriptors)
         .build(&mut ui.build_ctx());
 
@@ -1168,10 +1184,25 @@ impl TrackList {
             return;
         };
 
-        if let Some(binding) = animation.track_bindings().get(&first_selected_track) {
-            self.context_menu.property_rebinding_selector =
-                Self::open_property_selector(graph, binding.target(), ui);
-        }
+        let tracks_data_state = animation.tracks_data().state();
+        let Some(tracks_data) = tracks_data_state.data_ref() else {
+            return;
+        };
+
+        let Some(binding) = animation.track_bindings().get(&first_selected_track) else {
+            return;
+        };
+
+        let Some(track) = tracks_data
+            .tracks
+            .iter()
+            .find(|track| track.id() == first_selected_track)
+        else {
+            return;
+        };
+
+        self.context_menu.property_rebinding_selector =
+            Self::open_property_selector(graph, binding.target(), Some(track.value_binding()), ui);
     }
 
     fn rebind_property<G, N>(
