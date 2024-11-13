@@ -715,7 +715,6 @@ pub struct LightSource {
 
 /// Bundle storage handles bundle generation for a scene before rendering. It is used to optimize
 /// rendering by reducing amount of state changes of OpenGL context.
-#[derive(Default)]
 pub struct RenderDataBundleStorage {
     bundle_map: FxHashMap<u64, usize>,
     pub observer_info: ObserverInfo,
@@ -737,6 +736,15 @@ impl Default for RenderDataBundleStorageOptions {
 }
 
 impl RenderDataBundleStorage {
+    pub fn new_empty(observer_info: ObserverInfo) -> Self {
+        Self {
+            bundle_map: Default::default(),
+            observer_info,
+            bundles: Default::default(),
+            light_sources: Default::default(),
+        }
+    }
+
     /// Creates a new render bundle storage from the given graph and observer info. It "asks" every node in the
     /// graph one-by-one to give render data which is then put in the storage, sorted and ready for rendering.
     /// Frustum culling is done on scene node side ([`crate::scene::node::NodeTrait::collect_render_data`]).
