@@ -35,8 +35,10 @@ use crate::{
             border::BorderBuilder,
             check_box::{CheckBoxBuilder, CheckBoxMessage},
             color::{ColorFieldBuilder, ColorFieldMessage},
+            dock::DockingManagerMessage,
             grid::{Column, GridBuilder, Row},
             image::{Image, ImageBuilder, ImageMessage},
+            inspector::editors::inherit::InheritablePropertyEditorDefinition,
             list_view::{ListView, ListViewBuilder, ListViewMessage},
             matrix::{MatrixEditorBuilder, MatrixEditorMessage},
             menu::{ContextMenuBuilder, MenuItemBuilder, MenuItemContent, MenuItemMessage},
@@ -51,12 +53,12 @@ use crate::{
                 Vec4EditorBuilder, Vec4EditorMessage,
             },
             widget::{WidgetBuilder, WidgetMessage},
-            window::{WindowBuilder, WindowTitle},
+            window::{WindowBuilder, WindowMessage, WindowTitle},
             BuildContext, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
         },
         material::{
             shader::{Shader, ShaderResourceKind},
-            MaterialProperty, MaterialResource, MaterialResourceBinding,
+            MaterialProperty, MaterialResource, MaterialResourceBinding, MaterialTextureBinding,
         },
         renderer::framework::gpu_program::{ShaderProperty, ShaderPropertyKind},
         resource::texture::Texture,
@@ -68,17 +70,23 @@ use crate::{
             },
         },
     },
-    inspector::editors::resource::{ResourceFieldBuilder, ResourceFieldMessage},
+    inspector::{
+        editors::resource::{ResourceFieldBuilder, ResourceFieldMessage},
+        InspectorPlugin,
+    },
     message::MessageSender,
+    plugin::EditorPlugin,
+    plugins::material::editor::MaterialPropertyEditorDefinition,
     preview::PreviewPanel,
     scene::commands::material::{
         SetMaterialBindingCommand, SetMaterialPropertyGroupPropertyValueCommand,
         SetMaterialShaderCommand,
     },
-    send_sync_message, Engine, Message,
+    send_sync_message, Editor, Engine, Message,
 };
-use fyrox::material::MaterialTextureBinding;
 use std::sync::Arc;
+
+pub mod editor;
 
 struct TextureContextMenu {
     popup: RcUiNodeHandle,
@@ -336,6 +344,20 @@ impl MaterialEditor {
             material: None,
             shader,
         }
+    }
+
+    pub fn destroy(self, docking_manager: Handle<UiNode>, engine: &mut Engine) {
+        self.preview.destroy(engine);
+        let ui = engine.user_interfaces.first();
+        ui.send_message(DockingManagerMessage::remove_floating_window(
+            docking_manager,
+            MessageDirection::ToWidget,
+            self.window,
+        ));
+        ui.send_message(WidgetMessage::remove(
+            self.window,
+            MessageDirection::ToWidget,
+        ));
     }
 
     pub fn set_material(&mut self, material: Option<MaterialResource>, engine: &mut Engine) {
@@ -898,5 +920,80 @@ impl MaterialEditor {
 
     pub fn update(&mut self, engine: &mut Engine) {
         self.preview.update(engine)
+    }
+}
+
+#[derive(Default)]
+pub struct MaterialPlugin {
+    material_editor: Option<MaterialEditor>,
+}
+
+impl EditorPlugin for MaterialPlugin {
+    fn on_start(&mut self, editor: &mut Editor) {
+        let container = &editor.plugins.get_mut::<InspectorPlugin>().property_editors;
+        container.insert(MaterialPropertyEditorDefinition {
+            sender: Mutex::new(editor.message_sender.clone()),
+        });
+        container.insert(InheritablePropertyEditorDefinition::<MaterialResource>::new());
+    }
+
+    fn on_sync_to_model(&mut self, editor: &mut Editor) {
+        let Some(material_editor) = self.material_editor.as_mut() else {
+            return;
+        };
+
+        material_editor.sync_to_model(editor.engine.user_interfaces.first_mut());
+    }
+
+    fn on_ui_message(&mut self, message: &mut UiMessage, editor: &mut Editor) {
+        let Some(mut material_editor) = self.material_editor.take() else {
+            return;
+        };
+
+        material_editor.handle_ui_message(message, &mut editor.engine, &editor.message_sender);
+
+        if let Some(WindowMessage::Close) = message.data() {
+            if message.destination() == material_editor.window {
+                material_editor.destroy(editor.docking_manager, &mut editor.engine);
+                return;
+            }
+        }
+
+        self.material_editor = Some(material_editor);
+    }
+
+    fn on_update(&mut self, editor: &mut Editor) {
+        let Some(material_editor) = self.material_editor.as_mut() else {
+            return;
+        };
+
+        material_editor.update(&mut editor.engine);
+    }
+
+    fn on_message(&mut self, message: &Message, editor: &mut Editor) {
+        let Message::OpenMaterialEditor(material) = message else {
+            return;
+        };
+
+        let engine = &mut editor.engine;
+
+        let material_editor = self
+            .material_editor
+            .get_or_insert_with(|| MaterialEditor::new(engine, editor.message_sender.clone()));
+
+        material_editor.set_material(Some(material.clone()), engine);
+
+        let ui = engine.user_interfaces.first_mut();
+        ui.send_message(WindowMessage::open(
+            material_editor.window,
+            MessageDirection::ToWidget,
+            true,
+            true,
+        ));
+        ui.send_message(DockingManagerMessage::add_floating_window(
+            editor.docking_manager,
+            MessageDirection::ToWidget,
+            material_editor.window,
+        ));
     }
 }

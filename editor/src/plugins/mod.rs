@@ -19,4 +19,5 @@
 // SOFTWARE.
 
 pub mod collider;
+pub mod material;
 pub mod tilemap;

@@ -46,7 +46,6 @@ pub mod inspector;
 pub mod interaction;
 pub mod light;
 pub mod log;
-pub mod material;
 pub mod menu;
 pub mod mesh;
 pub mod message;
@@ -66,6 +65,7 @@ pub mod world;
 
 pub use fyrox;
 
+use crate::plugins::material::MaterialPlugin;
 use crate::{
     absm::AbsmEditor,
     animation::AnimationEditor,
@@ -144,7 +144,6 @@ use crate::{
     },
     light::LightPanel,
     log::LogPanel,
-    material::MaterialEditor,
     menu::{Menu, MenuContext, Panels},
     mesh::{MeshControlPanel, SurfaceDataViewer},
     message::MessageSender,
@@ -538,7 +537,6 @@ pub struct Editor {
     pub navmesh_panel: NavmeshPanel,
     pub settings: Settings,
     pub path_fixer: PathFixer,
-    pub material_editor: MaterialEditor,
     pub curve_editor: CurveEditorWindow,
     pub audio_panel: AudioPanel,
     pub absm_editor: AbsmEditor,
@@ -643,7 +641,6 @@ impl Editor {
         let menu = Menu::new(&mut engine, message_sender.clone(), &settings);
         let light_panel = LightPanel::new(&mut engine, message_sender.clone());
         let audio_panel = AudioPanel::new(&mut engine, message_sender.clone());
-        let material_editor = MaterialEditor::new(&mut engine, message_sender.clone());
 
         let ctx = &mut engine.user_interfaces.first_mut().build_ctx();
         let navmesh_panel = NavmeshPanel::new(scene_viewer.frame(), ctx, message_sender.clone());
@@ -797,7 +794,6 @@ impl Editor {
                             light_panel.window,
                             menu.file_menu.settings.window,
                             scene_settings.window,
-                            material_editor.window,
                         ])
                         .build(ctx);
                     docking_manager
@@ -869,7 +865,6 @@ impl Editor {
             validation_message_box,
             settings,
             path_fixer,
-            material_editor,
             curve_editor,
             audio_panel,
             save_scene_dialog,
@@ -890,6 +885,7 @@ impl Editor {
             plugins: EditorPluginsContainer::new()
                 .with(ColliderShapePlugin::default())
                 .with(TileMapEditorPlugin::default())
+                .with(MaterialPlugin::default())
                 .with(inspector_plugin),
             // Apparently, some window managers (like Wayland), does not send `Focused` event after the window
             // was created. So we must assume that the editor is focused by default, otherwise editor's thread
@@ -1439,9 +1435,6 @@ impl Editor {
                     &self.message_sender,
                 );
             }
-
-            self.material_editor
-                .handle_ui_message(message, engine, &self.message_sender);
         }
 
         if let Some(MessageBoxMessage::Close(result)) = message.data() {
@@ -1669,8 +1662,7 @@ impl Editor {
                     engine.user_interfaces.first_mut(),
                     &self.settings,
                 );
-                self.material_editor
-                    .sync_to_model(engine.user_interfaces.first_mut());
+
                 self.audio_panel
                     .sync_to_model(&current_scene_entry.selection, game_scene, engine);
                 self.navmesh_panel.sync_to_model(
@@ -2151,22 +2143,6 @@ impl Editor {
         ));
     }
 
-    fn open_material_editor(&mut self, material: MaterialResource) {
-        let engine = &mut self.engine;
-
-        self.material_editor.set_material(Some(material), engine);
-
-        engine
-            .user_interfaces
-            .first_mut()
-            .send_message(WindowMessage::open(
-                self.material_editor.window,
-                MessageDirection::ToWidget,
-                true,
-                true,
-            ));
-    }
-
     fn poll_ui_messages(&mut self) -> usize {
         let mut processed = 0;
 
@@ -2282,7 +2258,6 @@ impl Editor {
         self.handle_modes();
 
         self.log.update(&self.settings, &mut self.engine);
-        self.material_editor.update(&mut self.engine);
         self.asset_browser
             .update(&mut self.engine, &self.message_sender);
         if let Some(export_window) = self.export_window.as_mut() {
@@ -2463,7 +2438,6 @@ impl Editor {
                             &self.message_sender,
                         );
                     }
-                    Message::OpenMaterialEditor(material) => self.open_material_editor(material),
                     Message::OpenNodeRemovalDialog => {
                         if let Some(entry) = self.scenes.current_scene_entry_ref() {
                             // TODO

@@ -21,10 +21,7 @@
 use crate::{
     fyrox::{
         asset::{untyped::UntypedResource, Resource},
-        core::{
-            parking_lot::Mutex,
-            pool::{ErasedHandle, Handle},
-        },
+        core::pool::{ErasedHandle, Handle},
         gui::{
             self,
             font::FontResource,
@@ -38,10 +35,7 @@ use crate::{
             },
             UiNode, UserInterface,
         },
-        material::{
-            shader::{Shader, ShaderResource},
-            MaterialResource,
-        },
+        material::shader::{Shader, ShaderResource},
         renderer::framework::PolygonFillMode,
         resource::{
             curve::{CurveResource, CurveResourceState},
@@ -77,6 +71,7 @@ use crate::{
                 BatchingMode, RenderPath,
             },
             node::Node,
+            particle_system::CoordinateSystem,
             particle_system::{
                 emitter::{
                     base::BaseEmitter, cuboid::CuboidEmitter, cylinder::CylinderEmitter,
@@ -97,6 +92,8 @@ use crate::{
                 SoundBufferResource, Status,
             },
             terrain::{Chunk, Layer},
+            tilemap::brush::{TileMapBrush, TileMapBrushResource},
+            tilemap::tileset::TileCollider,
             tilemap::{tileset::TileSet, Tile},
             transform::Transform,
         },
@@ -108,7 +105,6 @@ use crate::{
         },
         font::FontPropertyEditorDefinition,
         handle::{EntityKind, NodeHandlePropertyEditorDefinition},
-        material::MaterialPropertyEditorDefinition,
         resource::ResourceFieldPropertyEditorDefinition,
         script::ScriptPropertyEditorDefinition,
         spritesheet::SpriteSheetFramesContainerEditorDefinition,
@@ -117,14 +113,10 @@ use crate::{
     },
     message::MessageSender,
 };
-use fyrox::scene::particle_system::CoordinateSystem;
-use fyrox::scene::tilemap::brush::{TileMapBrush, TileMapBrushResource};
-use fyrox::scene::tilemap::tileset::TileCollider;
 
 pub mod animation;
 pub mod font;
 pub mod handle;
-pub mod material;
 pub mod resource;
 pub mod script;
 pub mod spritesheet;
@@ -227,11 +219,6 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
     container.insert(InheritablePropertyEditorDefinition::<Option<UntypedResource>>::new());
     container.register_inheritable_vec_collection::<Option<TextureResource>>();
     container.register_inheritable_vec_collection::<Option<UntypedResource>>();
-
-    container.insert(MaterialPropertyEditorDefinition {
-        sender: Mutex::new(sender.clone()),
-    });
-    container.insert(InheritablePropertyEditorDefinition::<MaterialResource>::new());
 
     container.insert(InheritablePropertyEditorDefinition::<Handle<Node>>::new());
     container.register_inheritable_vec_collection::<Handle<Node>>();
