@@ -32,12 +32,11 @@ use crate::stats::StatisticsWindow;
 
 pub struct UtilsMenu {
     pub menu: Handle<UiNode>,
-    open_path_fixer: Handle<UiNode>,
-    open_curve_editor: Handle<UiNode>,
-    absm_editor: Handle<UiNode>,
-    animation_editor: Handle<UiNode>,
-    ragdoll_wizard: Handle<UiNode>,
-    rendering_statistics: Handle<UiNode>,
+    pub open_path_fixer: Handle<UiNode>,
+    pub open_curve_editor: Handle<UiNode>,
+    pub absm_editor: Handle<UiNode>,
+    pub animation_editor: Handle<UiNode>,
+    pub rendering_statistics: Handle<UiNode>,
 }
 
 impl UtilsMenu {
@@ -46,7 +45,6 @@ impl UtilsMenu {
         let open_curve_editor;
         let absm_editor;
         let animation_editor;
-        let ragdoll_wizard;
         let rendering_statistics;
         let menu = create_root_menu_item(
             "Utils",
@@ -68,10 +66,6 @@ impl UtilsMenu {
                     animation_editor
                 },
                 {
-                    ragdoll_wizard = create_menu_item("Ragdoll Wizard", vec![], ctx);
-                    ragdoll_wizard
-                },
-                {
                     rendering_statistics = create_menu_item("Rendering Statistics", vec![], ctx);
                     rendering_statistics
                 },
@@ -85,7 +79,6 @@ impl UtilsMenu {
             open_curve_editor,
             absm_editor,
             animation_editor,
-            ragdoll_wizard,
             rendering_statistics,
         }
     }
@@ -110,8 +103,6 @@ impl UtilsMenu {
                 panels.absm_editor.open(ui);
             } else if message.destination() == self.animation_editor {
                 panels.animation_editor.open(ui);
-            } else if message.destination() == self.ragdoll_wizard {
-                panels.ragdoll_wizard.open(ui);
             } else if message.destination() == self.rendering_statistics {
                 *panels.statistics_window = Some(StatisticsWindow::new(
                     &mut ui.build_ctx(),

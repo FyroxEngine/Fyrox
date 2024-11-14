@@ -39,7 +39,6 @@ use crate::{
     send_sync_message,
     settings::Settings,
     stats::StatisticsWindow,
-    utils::ragdoll::RagdollWizard,
     AbsmEditor, CurveEditorWindow, Engine, Mode, SceneSettingsWindow,
 };
 use std::path::PathBuf;
@@ -58,13 +57,13 @@ pub mod view;
 
 pub struct Menu {
     pub menu: Handle<UiNode>,
-    create_entity_menu: CreateEntityRootMenu,
-    edit_menu: EditMenu,
+    pub create_entity_menu: CreateEntityRootMenu,
+    pub edit_menu: EditMenu,
     pub file_menu: FileMenu,
-    view_menu: ViewMenu,
-    message_sender: MessageSender,
-    utils_menu: UtilsMenu,
-    help_menu: HelpMenu,
+    pub view_menu: ViewMenu,
+    pub message_sender: MessageSender,
+    pub utils_menu: UtilsMenu,
+    pub help_menu: HelpMenu,
 }
 
 pub struct Panels<'b> {
@@ -83,7 +82,6 @@ pub struct Panels<'b> {
     pub absm_editor: &'b AbsmEditor,
     pub scene_settings: &'b SceneSettingsWindow,
     pub animation_editor: &'b AnimationEditor,
-    pub ragdoll_wizard: &'b RagdollWizard,
     pub export_window: &'b mut Option<ExportWindow>,
     pub statistics_window: &'b mut Option<StatisticsWindow>,
 }

@@ -33,7 +33,6 @@ use std::{fs::File, io::Read, path::Path};
 
 pub mod doc;
 pub mod path_fixer;
-pub mod ragdoll;
 
 /// True if `a` and `b` have the same length, and every element of `a` is equal to some element of `b`
 /// and every element of `b` is equal to some element of `a`.

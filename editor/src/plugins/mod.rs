@@ -20,4 +20,5 @@
 
 pub mod collider;
 pub mod material;
+pub mod ragdoll;
 pub mod tilemap;

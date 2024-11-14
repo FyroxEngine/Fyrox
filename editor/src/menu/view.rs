@@ -36,16 +36,16 @@ use crate::{
 
 pub struct ViewMenu {
     pub menu: Handle<UiNode>,
-    inspector: Handle<UiNode>,
-    world_viewer: Handle<UiNode>,
-    asset_browser: Handle<UiNode>,
-    light_panel: Handle<UiNode>,
-    log_panel: Handle<UiNode>,
-    nav_mesh: Handle<UiNode>,
-    audio: Handle<UiNode>,
-    command_stack: Handle<UiNode>,
-    save_layout: Handle<UiNode>,
-    load_layout: Handle<UiNode>,
+    pub inspector: Handle<UiNode>,
+    pub world_viewer: Handle<UiNode>,
+    pub asset_browser: Handle<UiNode>,
+    pub light_panel: Handle<UiNode>,
+    pub log_panel: Handle<UiNode>,
+    pub nav_mesh: Handle<UiNode>,
+    pub audio: Handle<UiNode>,
+    pub command_stack: Handle<UiNode>,
+    pub save_layout: Handle<UiNode>,
+    pub load_layout: Handle<UiNode>,
 }
 
 fn switch_window_state(window: Handle<UiNode>, ui: &UserInterface, center: bool) {

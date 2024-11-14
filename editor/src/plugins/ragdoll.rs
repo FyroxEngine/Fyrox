@@ -18,51 +18,54 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::command::{Command, CommandGroup};
-use crate::fyrox::graph::{BaseSceneGraph, SceneGraph};
-use crate::fyrox::{
-    core::{
-        algebra::{UnitQuaternion, Vector3},
-        log::Log,
-        math::Matrix4Ext,
-        pool::Handle,
-        reflect::prelude::*,
-    },
-    gui::{
-        button::{ButtonBuilder, ButtonMessage},
-        grid::{Column, GridBuilder, Row},
-        inspector::{InspectorBuilder, InspectorContext, InspectorMessage, PropertyAction},
-        message::{MessageDirection, UiMessage},
-        scroll_viewer::ScrollViewerBuilder,
-        stack_panel::StackPanelBuilder,
-        utils::make_simple_tooltip,
-        widget::WidgetBuilder,
-        window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
-    },
-    scene::{
-        base::BaseBuilder,
-        collider::{ColliderBuilder, ColliderShape, InteractionGroups},
-        graph::Graph,
-        joint::{BallJoint, JointBuilder, JointParams, RevoluteJoint},
-        node::Node,
-        ragdoll::{Limb, RagdollBuilder},
-        rigidbody::{RigidBodyBuilder, RigidBodyType},
-        transform::TransformBuilder,
-    },
-};
 use crate::{
+    command::{Command, CommandGroup},
+    fyrox::{
+        core::{
+            algebra::{UnitQuaternion, Vector3},
+            log::Log,
+            math::Matrix4Ext,
+            pool::Handle,
+            reflect::prelude::*,
+            some_or_return,
+        },
+        graph::{BaseSceneGraph, SceneGraph},
+        gui::{
+            button::{ButtonBuilder, ButtonMessage},
+            grid::{Column, GridBuilder, Row},
+            inspector::{InspectorBuilder, InspectorContext, InspectorMessage, PropertyAction},
+            menu::MenuItemMessage,
+            message::{MessageDirection, UiMessage},
+            scroll_viewer::ScrollViewerBuilder,
+            stack_panel::StackPanelBuilder,
+            utils::make_simple_tooltip,
+            widget::WidgetBuilder,
+            window::{WindowBuilder, WindowMessage, WindowTitle},
+            BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+        },
+        scene::{
+            base::BaseBuilder,
+            collider::{ColliderBuilder, ColliderShape, InteractionGroups},
+            graph::Graph,
+            joint::{BallJoint, JointBuilder, JointParams, RevoluteJoint},
+            node::Node,
+            ragdoll::{Limb, RagdollBuilder},
+            rigidbody::{RigidBodyBuilder, RigidBodyType},
+            transform::TransformBuilder,
+        },
+    },
     inspector::editors::make_property_editors_container,
+    menu::create_menu_item,
     message::MessageSender,
+    plugin::EditorPlugin,
     scene::{
         commands::{graph::AddModelCommand, ChangeSelectionCommand},
         GameScene, Selection,
     },
     world::graph::selection::GraphSelection,
-    MSG_SYNC_FLAG,
+    Editor, MSG_SYNC_FLAG,
 };
-use std::ops::Range;
-use std::sync::Arc;
+use std::{ops::Range, sync::Arc};
 
 #[derive(Reflect, Debug)]
 pub struct RagdollPreset {
@@ -1217,5 +1220,50 @@ impl RagdollWizard {
                 }
             }
         }
+    }
+}
+
+#[derive(Default)]
+pub struct RagdollPlugin {
+    ragdoll_wizard: Option<RagdollWizard>,
+    open_ragdoll_wizard: Handle<UiNode>,
+}
+
+impl RagdollPlugin {
+    fn on_open_ragdoll_wizard_clicked(&mut self, editor: &mut Editor) {
+        let ui = editor.engine.user_interfaces.first_mut();
+        let ctx = &mut ui.build_ctx();
+        let wizard = self
+            .ragdoll_wizard
+            .get_or_insert_with(|| RagdollWizard::new(ctx, editor.message_sender.clone()));
+        wizard.open(ui);
+    }
+}
+
+impl EditorPlugin for RagdollPlugin {
+    fn on_start(&mut self, editor: &mut Editor) {
+        let ui = editor.engine.user_interfaces.first_mut();
+        let ctx = &mut ui.build_ctx();
+        self.open_ragdoll_wizard = create_menu_item("Ragdoll Wizard", vec![], ctx);
+        ui.send_message(MenuItemMessage::add_item(
+            editor.menu.utils_menu.menu,
+            MessageDirection::ToWidget,
+            self.open_ragdoll_wizard,
+        ));
+    }
+
+    fn on_ui_message(&mut self, message: &mut UiMessage, editor: &mut Editor) {
+        if let Some(MenuItemMessage::Click) = message.data() {
+            if message.destination() == self.open_ragdoll_wizard {
+                self.on_open_ragdoll_wizard_clicked(editor)
+            }
+        }
+
+        let ui = editor.engine.user_interfaces.first_mut();
+        let wizard = some_or_return!(self.ragdoll_wizard.as_mut());
+        let current_scene = some_or_return!(editor.scenes.current_scene_entry_mut());
+        let game_scene = some_or_return!(current_scene.controller.downcast_mut::<GameScene>());
+        let graph = &mut editor.engine.scenes[game_scene.scene].graph;
+        wizard.handle_ui_message(message, ui, graph, game_scene, &editor.message_sender);
     }
 }

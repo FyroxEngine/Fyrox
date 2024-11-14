@@ -37,10 +37,10 @@ use crate::{
 
 pub struct EditMenu {
     pub menu: Handle<UiNode>,
-    undo: Handle<UiNode>,
-    redo: Handle<UiNode>,
-    copy: Handle<UiNode>,
-    paste: Handle<UiNode>,
+    pub undo: Handle<UiNode>,
+    pub redo: Handle<UiNode>,
+    pub copy: Handle<UiNode>,
+    pub paste: Handle<UiNode>,
 }
 
 impl EditMenu {

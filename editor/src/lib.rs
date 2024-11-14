@@ -66,6 +66,7 @@ pub mod world;
 pub use fyrox;
 
 use crate::plugins::material::MaterialPlugin;
+use crate::plugins::ragdoll::RagdollPlugin;
 use crate::{
     absm::AbsmEditor,
     animation::AnimationEditor,
@@ -169,7 +170,7 @@ use crate::{
         commands::graph::PasteWidgetCommand, menu::WidgetContextMenu,
         utils::UiSceneWorldViewerDataProvider, UiScene,
     },
-    utils::{doc::DocWindow, path_fixer::PathFixer, ragdoll::RagdollWizard},
+    utils::{doc::DocWindow, path_fixer::PathFixer},
     world::{graph::menu::SceneNodeContextMenu, graph::EditorSceneWrapper, WorldViewer},
 };
 pub use message::Message;
@@ -556,7 +557,6 @@ pub struct Editor {
     pub focused: bool,
     pub update_loop_state: UpdateLoopState,
     pub is_suspended: bool,
-    pub ragdoll_wizard: RagdollWizard,
     pub scene_node_context_menu: Rc<RefCell<SceneNodeContextMenu>>,
     pub widget_context_menu: Rc<RefCell<WidgetContextMenu>>,
     pub collider_control_panel: ColliderControlPanel,
@@ -660,7 +660,6 @@ impl Editor {
         let collider_control_panel = ColliderControlPanel::new(scene_viewer.frame(), ctx);
         let doc_window = DocWindow::new(ctx);
         let node_removal_dialog = NodeRemovalDialog::new(ctx);
-        let ragdoll_wizard = RagdollWizard::new(ctx, message_sender.clone());
         let scene_settings = SceneSettingsWindow::new(ctx, message_sender.clone());
 
         let docking_manager;
@@ -886,6 +885,7 @@ impl Editor {
                 .with(ColliderShapePlugin::default())
                 .with(TileMapEditorPlugin::default())
                 .with(MaterialPlugin::default())
+                .with(RagdollPlugin::default())
                 .with(inspector_plugin),
             // Apparently, some window managers (like Wayland), does not send `Focused` event after the window
             // was created. So we must assume that the editor is focused by default, otherwise editor's thread
@@ -893,7 +893,6 @@ impl Editor {
             focused: true,
             update_loop_state: UpdateLoopState::default(),
             is_suspended: false,
-            ragdoll_wizard,
             scene_node_context_menu,
             widget_context_menu,
             collider_control_panel,
@@ -1222,7 +1221,6 @@ impl Editor {
                     command_stack_panel: self.command_stack_viewer.window,
                     scene_settings: &self.scene_settings,
                     animation_editor: &self.animation_editor,
-                    ragdoll_wizard: &self.ragdoll_wizard,
                     export_window: &mut self.export_window,
                     statistics_window: &mut self.statistics_window,
                 },
@@ -1294,13 +1292,6 @@ impl Editor {
                     graph,
                     engine.user_interfaces.first_mut(),
                     game_scene.graph_switches.node_overrides.as_mut().unwrap(),
-                );
-                self.ragdoll_wizard.handle_ui_message(
-                    message,
-                    engine.user_interfaces.first_mut(),
-                    graph,
-                    game_scene,
-                    &self.message_sender,
                 );
                 self.particle_system_control_panel.handle_ui_message(
                     message,
