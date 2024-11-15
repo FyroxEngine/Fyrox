@@ -61,7 +61,6 @@ pub enum Message {
     Exit {
         force: bool,
     },
-    OpenSettings,
     OpenAnimationEditor,
     OpenAbsmEditor,
     OpenMaterialEditor(MaterialResource),

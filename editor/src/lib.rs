@@ -67,6 +67,7 @@ pub use fyrox;
 
 use crate::plugins::material::MaterialPlugin;
 use crate::plugins::ragdoll::RagdollPlugin;
+use crate::plugins::settings::SettingsPlugin;
 use crate::{
     absm::AbsmEditor,
     animation::AnimationEditor,
@@ -791,7 +792,6 @@ impl Editor {
                             navmesh_panel.window,
                             doc_window.window,
                             light_panel.window,
-                            menu.file_menu.settings.window,
                             scene_settings.window,
                         ])
                         .build(ctx);
@@ -886,6 +886,7 @@ impl Editor {
                 .with(TileMapEditorPlugin::default())
                 .with(MaterialPlugin::default())
                 .with(RagdollPlugin::default())
+                .with(SettingsPlugin::default())
                 .with(inspector_plugin),
             // Apparently, some window managers (like Wayland), does not send `Focused` event after the window
             // was created. So we must assume that the editor is focused by default, otherwise editor's thread
@@ -2421,13 +2422,6 @@ impl Editor {
                     Message::Configure { working_directory } => {
                         self.configure(working_directory);
                         needs_sync = true;
-                    }
-                    Message::OpenSettings => {
-                        self.menu.file_menu.settings.open(
-                            self.engine.user_interfaces.first_mut(),
-                            &self.settings,
-                            &self.message_sender,
-                        );
                     }
                     Message::OpenNodeRemovalDialog => {
                         if let Some(entry) = self.scenes.current_scene_entry_ref() {

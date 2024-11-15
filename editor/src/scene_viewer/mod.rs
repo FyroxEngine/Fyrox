@@ -714,16 +714,6 @@ impl SceneViewer {
             } else if message.destination() == self.stop {
                 self.sender.send(Message::SwitchToEditMode);
             }
-        } else if let Some(WidgetMessage::MouseDown { button, .. }) =
-            message.data::<WidgetMessage>()
-        {
-            for &mode_button in self.interaction_modes.values() {
-                if ui.is_node_child_of(message.destination(), mode_button)
-                    && *button == MouseButton::Right
-                {
-                    self.sender.send(Message::OpenSettings);
-                }
-            }
         } else if let Some(DropdownListMessage::SelectionChanged(Some(index))) = message.data() {
             if message.direction == MessageDirection::FromWidget {
                 if message.destination() == self.camera_projection {
