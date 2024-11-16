@@ -129,3 +129,14 @@ impl CanvasBuilder {
         ui.add_node(UiNode::new(canvas))
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::canvas::CanvasBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| CanvasBuilder::new(WidgetBuilder::new()).build(ctx));
+    }
+}

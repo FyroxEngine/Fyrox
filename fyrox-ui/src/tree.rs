@@ -1208,3 +1208,15 @@ impl TreeRootBuilder {
         ctx.add_node(UiNode::new(tree))
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::tree::{TreeBuilder, TreeRootBuilder};
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| TreeRootBuilder::new(WidgetBuilder::new()).build(ctx));
+        test_widget_deletion(|ctx| TreeBuilder::new(WidgetBuilder::new()).build(ctx));
+    }
+}

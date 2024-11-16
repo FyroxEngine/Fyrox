@@ -791,7 +791,13 @@ impl<T: NumericType> NumericUpDownBuilder<T> {
 
 #[cfg(test)]
 mod test {
-    use crate::numeric::{saturating_add, saturating_sub};
+
+    use crate::numeric::NumericUpDownBuilder;
+    use crate::{
+        numeric::{saturating_add, saturating_sub},
+        test::test_widget_deletion,
+        widget::WidgetBuilder,
+    };
 
     #[test]
     fn test_saturating_add() {
@@ -836,5 +842,12 @@ mod test {
         assert_eq!(saturating_sub(1.0, 1.0), 0.0);
         assert_eq!(saturating_sub(f32::MIN, 1.0), f32::MIN);
         assert_eq!(saturating_sub(f32::MAX, 1.0), f32::MAX - 1.0);
+    }
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| {
+            NumericUpDownBuilder::<f32>::new(WidgetBuilder::new()).build(ctx)
+        });
     }
 }

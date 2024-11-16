@@ -706,3 +706,14 @@ impl TabControlBuilder {
         ctx.add_node(UiNode::new(tc))
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::tab_control::TabControlBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| TabControlBuilder::new(WidgetBuilder::new()).build(ctx));
+    }
+}

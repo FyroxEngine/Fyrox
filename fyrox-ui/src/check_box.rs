@@ -486,4 +486,11 @@ mod test {
         // We must get response from check box.
         assert_eq!(ui.poll_message(), Some(input_message.reverse()));
     }
+
+    use crate::test::test_widget_deletion;
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| CheckBoxBuilder::new(WidgetBuilder::new()).build(ctx));
+    }
 }

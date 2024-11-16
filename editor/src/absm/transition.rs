@@ -218,3 +218,16 @@ impl TransitionBuilder {
         ctx.add_node(UiNode::new(transition))
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::absm::transition::TransitionBuilder;
+    use fyrox::{gui::test::test_widget_deletion, gui::widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| {
+            TransitionBuilder::new(WidgetBuilder::new()).build(Default::default(), ctx)
+        });
+    }
+}

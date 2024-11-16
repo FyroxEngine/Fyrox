@@ -295,3 +295,14 @@ impl AudioBusViewBuilder {
         ctx.add_node(UiNode::new(view))
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::audio::bus::AudioBusViewBuilder;
+    use fyrox::{gui::test::test_widget_deletion, gui::widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| AudioBusViewBuilder::new(WidgetBuilder::new()).build(ctx));
+    }
+}

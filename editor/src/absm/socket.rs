@@ -239,3 +239,14 @@ impl SocketBuilder {
         ctx.add_node(UiNode::new(socket))
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::absm::socket::SocketBuilder;
+    use fyrox::{gui::test::test_widget_deletion, gui::widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| SocketBuilder::new(WidgetBuilder::new()).build(ctx));
+    }
+}

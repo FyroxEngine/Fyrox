@@ -177,3 +177,14 @@ impl UuidEditorBuilder {
         ctx.add_node(UiNode::new(uuid_editor))
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::uuid::UuidEditorBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| UuidEditorBuilder::new(WidgetBuilder::new()).build(ctx));
+    }
+}

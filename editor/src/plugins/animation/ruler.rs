@@ -473,3 +473,14 @@ impl RulerBuilder {
         ctx.add_node(UiNode::new(ruler))
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::plugins::animation::ruler::RulerBuilder;
+    use fyrox::{gui::test::test_widget_deletion, gui::widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| RulerBuilder::new(WidgetBuilder::new()).build(ctx));
+    }
+}

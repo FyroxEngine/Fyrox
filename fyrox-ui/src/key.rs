@@ -519,3 +519,15 @@ impl KeyBindingEditorBuilder {
         ctx.add_node(UiNode::new(editor))
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::key::{HotKeyEditorBuilder, KeyBindingEditorBuilder};
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| KeyBindingEditorBuilder::new(WidgetBuilder::new()).build(ctx));
+        test_widget_deletion(|ctx| HotKeyEditorBuilder::new(WidgetBuilder::new()).build(ctx));
+    }
+}

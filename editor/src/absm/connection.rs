@@ -146,7 +146,7 @@ impl ConnectionBuilder {
     }
 
     pub fn build(self, canvas: Handle<UiNode>, ctx: &mut BuildContext) -> Handle<UiNode> {
-        let canvas_ref = &ctx[canvas];
+        let canvas_ref = ctx.try_get_node(canvas);
 
         let connection = Connection {
             widget: self
@@ -157,15 +157,30 @@ impl ConnectionBuilder {
             segment: Segment {
                 source: self.source_socket,
                 source_pos: canvas_ref
-                    .screen_to_local(fetch_node_screen_center(self.source_socket, ctx)),
+                    .map(|c| c.screen_to_local(fetch_node_screen_center(self.source_socket, ctx)))
+                    .unwrap_or_default(),
                 dest: self.dest_socket,
                 dest_pos: canvas_ref
-                    .screen_to_local(fetch_node_screen_center(self.dest_socket, ctx)),
+                    .map(|c| c.screen_to_local(fetch_node_screen_center(self.dest_socket, ctx)))
+                    .unwrap_or_default(),
             },
             source_node: self.source_node,
             dest_node: self.dest_node,
         };
 
         ctx.add_node(UiNode::new(connection))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::absm::connection::ConnectionBuilder;
+    use fyrox::{gui::test::test_widget_deletion, gui::widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| {
+            ConnectionBuilder::new(WidgetBuilder::new()).build(Default::default(), ctx)
+        });
     }
 }

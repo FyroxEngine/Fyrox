@@ -309,3 +309,20 @@ impl PropertyEditorDefinition for MaterialPropertyEditorDefinition {
         None
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::plugins::material::editor::MaterialFieldEditorBuilder;
+    use fyrox::{gui::test::test_widget_deletion, gui::widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| {
+            MaterialFieldEditorBuilder::new(WidgetBuilder::new()).build(
+                ctx,
+                Default::default(),
+                Default::default(),
+            )
+        });
+    }
+}

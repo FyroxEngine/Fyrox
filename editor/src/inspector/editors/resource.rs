@@ -421,3 +421,20 @@ where
         None
     }
 }
+
+#[cfg(test)]
+mod test {
+
+    use crate::inspector::editors::resource::ResourceFieldBuilder;
+    use fyrox::asset::manager::ResourceManager;
+    use fyrox::resource::model::Model;
+    use fyrox::{gui::test::test_widget_deletion, gui::widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| {
+            ResourceFieldBuilder::<Model>::new(WidgetBuilder::new(), Default::default())
+                .build(ctx, ResourceManager::new(Default::default()))
+        });
+    }
+}

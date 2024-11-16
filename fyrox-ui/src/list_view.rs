@@ -614,3 +614,14 @@ fn generate_item_containers(
         .map(|&item| generate_item_container(ctx, item))
         .collect()
 }
+
+#[cfg(test)]
+mod test {
+    use crate::list_view::ListViewBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| ListViewBuilder::new(WidgetBuilder::new()).build(ctx));
+    }
+}

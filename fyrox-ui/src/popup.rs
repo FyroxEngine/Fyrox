@@ -621,3 +621,14 @@ impl PopupBuilder {
         ctx.add_node(UiNode::new(popup))
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::popup::PopupBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| PopupBuilder::new(WidgetBuilder::new()).build(ctx));
+    }
+}

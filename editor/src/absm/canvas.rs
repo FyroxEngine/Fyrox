@@ -655,3 +655,14 @@ impl AbsmCanvasBuilder {
         ctx.add_node(UiNode::new(canvas))
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::absm::canvas::AbsmCanvasBuilder;
+    use fyrox::{gui::test::test_widget_deletion, gui::widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| AbsmCanvasBuilder::new(WidgetBuilder::new()).build(ctx));
+    }
+}

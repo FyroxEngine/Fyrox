@@ -300,3 +300,14 @@ where
         ctx.add_node(UiNode::new(node))
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::rect::RectEditorBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| RectEditorBuilder::<f32>::new(WidgetBuilder::new()).build(ctx));
+    }
+}

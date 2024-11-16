@@ -231,3 +231,14 @@ impl PathEditorBuilder {
         ctx.add_node(UiNode::new(canvas))
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::path::PathEditorBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| PathEditorBuilder::new(WidgetBuilder::new()).build(ctx));
+    }
+}

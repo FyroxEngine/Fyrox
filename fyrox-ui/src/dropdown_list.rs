@@ -509,3 +509,14 @@ impl DropdownListBuilder {
         ctx.add_node(dropdown_list)
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::dropdown_list::DropdownListBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| DropdownListBuilder::new(WidgetBuilder::new()).build(ctx));
+    }
+}

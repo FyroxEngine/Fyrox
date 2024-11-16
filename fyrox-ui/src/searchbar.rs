@@ -275,3 +275,14 @@ impl SearchBarBuilder {
         ctx.add_node(UiNode::new(search_bar))
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::selector::SelectorBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| SelectorBuilder::new(WidgetBuilder::new()).build(ctx));
+    }
+}

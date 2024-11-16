@@ -1260,3 +1260,15 @@ fn keyboard_navigation(
 
     false
 }
+
+#[cfg(test)]
+mod test {
+    use crate::menu::{MenuBuilder, MenuItemBuilder};
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| MenuBuilder::new(WidgetBuilder::new()).build(ctx));
+        test_widget_deletion(|ctx| MenuItemBuilder::new(WidgetBuilder::new()).build(ctx));
+    }
+}

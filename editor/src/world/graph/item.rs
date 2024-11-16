@@ -361,3 +361,18 @@ impl SceneItemBuilder {
         ctx.add_node(UiNode::new(item))
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::world::graph::item::SceneItemBuilder;
+    use fyrox::gui::tree::TreeBuilder;
+    use fyrox::{gui::test::test_widget_deletion, gui::widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| {
+            SceneItemBuilder::new(TreeBuilder::new(WidgetBuilder::new()))
+                .build(ctx, Default::default())
+        });
+    }
+}

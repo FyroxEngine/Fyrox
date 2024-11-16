@@ -150,3 +150,14 @@ impl ThumbBuilder {
         ctx.add_node(UiNode::new(ruler))
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::plugins::animation::thumb::ThumbBuilder;
+    use fyrox::{gui::test::test_widget_deletion, gui::widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| ThumbBuilder::new(WidgetBuilder::new()).build(ctx));
+    }
+}

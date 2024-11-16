@@ -362,3 +362,16 @@ impl AbsmEventProviderBuilder {
         ctx.add_node(UiNode::new(provider))
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::absm::AnimationBlendingStateMachineBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| {
+            AnimationBlendingStateMachineBuilder::new(WidgetBuilder::new()).build(ctx)
+        });
+    }
+}

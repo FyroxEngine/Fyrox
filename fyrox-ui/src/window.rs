@@ -1452,3 +1452,14 @@ impl WindowBuilder {
         handle
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::window::WindowBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| WindowBuilder::new(WidgetBuilder::new()).build(ctx));
+    }
+}

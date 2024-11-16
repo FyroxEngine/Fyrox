@@ -410,3 +410,14 @@ impl ButtonBuilder {
         ctx.add_node(node)
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::button::ButtonBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| ButtonBuilder::new(WidgetBuilder::new()).build(ctx));
+    }
+}

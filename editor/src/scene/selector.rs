@@ -603,3 +603,18 @@ impl NodeSelectorWindowBuilder {
         ctx.add_node(UiNode::new(window))
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::scene::selector::{NodeSelectorBuilder, NodeSelectorWindowBuilder};
+    use fyrox::gui::window::WindowBuilder;
+    use fyrox::{gui::test::test_widget_deletion, gui::widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| NodeSelectorBuilder::new(WidgetBuilder::new()).build(ctx));
+        test_widget_deletion(|ctx| {
+            NodeSelectorWindowBuilder::new(WindowBuilder::new(WidgetBuilder::new())).build(ctx)
+        });
+    }
+}

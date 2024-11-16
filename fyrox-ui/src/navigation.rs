@@ -184,3 +184,14 @@ impl NavigationLayerBuilder {
         ui.add_node(UiNode::new(navigation_layer))
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::navigation::NavigationLayerBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| NavigationLayerBuilder::new(WidgetBuilder::new()).build(ctx));
+    }
+}

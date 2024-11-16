@@ -245,3 +245,14 @@ impl PropertyEditorDefinition for FontPropertyEditorDefinition {
         None
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::inspector::editors::font::FontFieldBuilder;
+    use fyrox::{gui::test::test_widget_deletion, gui::widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| FontFieldBuilder::new(WidgetBuilder::new()).build(ctx));
+    }
+}

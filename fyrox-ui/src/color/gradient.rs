@@ -652,3 +652,16 @@ impl ColorPointsCanvasBuilder {
         }))
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::color::gradient::ColorGradientEditorBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| {
+            ColorGradientEditorBuilder::new(WidgetBuilder::new()).build(ctx)
+        });
+    }
+}

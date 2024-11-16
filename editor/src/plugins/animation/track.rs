@@ -1640,3 +1640,17 @@ impl TrackList {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::plugins::animation::track::TrackViewBuilder;
+    use fyrox::gui::tree::TreeBuilder;
+    use fyrox::{gui::test::test_widget_deletion, gui::widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| {
+            TrackViewBuilder::new(TreeBuilder::new(WidgetBuilder::new())).build(ctx)
+        });
+    }
+}

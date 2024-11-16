@@ -521,3 +521,16 @@ fn request_name_sync(sender: &MessageSender, editor: Handle<UiNode>, handle: Era
         handle,
     });
 }
+
+#[cfg(test)]
+mod test {
+    use crate::inspector::editors::handle::HandlePropertyEditorBuilder;
+    use fyrox::{gui::test::test_widget_deletion, gui::widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| {
+            HandlePropertyEditorBuilder::new(WidgetBuilder::new(), Default::default()).build(ctx)
+        });
+    }
+}

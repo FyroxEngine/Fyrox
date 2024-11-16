@@ -3408,13 +3408,33 @@ impl ResourceData for UserInterface {
     }
 }
 
+pub mod test {
+    use crate::{
+        core::{algebra::Vector2, pool::Handle},
+        message::MessageDirection,
+        widget::WidgetMessage,
+        BuildContext, UiNode, UserInterface,
+    };
+
+    pub fn test_widget_deletion(constructor: impl FnOnce(&mut BuildContext) -> Handle<UiNode>) {
+        let screen_size = Vector2::new(100.0, 100.0);
+        let mut ui = UserInterface::new(screen_size);
+        let widget = constructor(&mut ui.build_ctx());
+        ui.send_message(WidgetMessage::remove(widget, MessageDirection::ToWidget));
+        ui.update(screen_size, 1.0 / 60.0, &Default::default());
+        while ui.poll_message().is_some() {}
+        // Only root node must be alive.
+        assert_eq!(ui.nodes().alive_count(), 1);
+    }
+}
+
 #[cfg(test)]
-mod test {
-    use crate::message::{ButtonState, KeyCode};
+mod test_inner {
     use crate::{
         border::BorderBuilder,
         core::algebra::{Rotation2, UnitComplex, Vector2},
         message::MessageDirection,
+        message::{ButtonState, KeyCode},
         text_box::TextBoxBuilder,
         transform_size,
         widget::{WidgetBuilder, WidgetMessage},

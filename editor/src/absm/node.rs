@@ -516,3 +516,15 @@ where
         ctx.add_node(UiNode::new(node))
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::absm::node::AbsmNodeBuilder;
+    use fyrox::scene::node::Node;
+    use fyrox::{gui::test::test_widget_deletion, gui::widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| AbsmNodeBuilder::<Node>::new(WidgetBuilder::new()).build(ctx));
+    }
+}

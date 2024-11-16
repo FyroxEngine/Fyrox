@@ -937,3 +937,14 @@ impl TileBuilder {
         ctx.add_node(UiNode::new(tile))
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::dock::TileBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| TileBuilder::new(WidgetBuilder::new()).build(ctx));
+    }
+}

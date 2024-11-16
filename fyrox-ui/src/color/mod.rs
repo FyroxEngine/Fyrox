@@ -1287,3 +1287,17 @@ impl ColorFieldBuilder {
         ctx.add_node(UiNode::new(field))
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::color::{AlphaBarBuilder, ColorFieldBuilder, ColorPickerBuilder, HueBarBuilder};
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| ColorFieldBuilder::new(WidgetBuilder::new()).build(ctx));
+        test_widget_deletion(|ctx| ColorPickerBuilder::new(WidgetBuilder::new()).build(ctx));
+        test_widget_deletion(|ctx| HueBarBuilder::new(WidgetBuilder::new()).build(ctx));
+        test_widget_deletion(|ctx| AlphaBarBuilder::new(WidgetBuilder::new()).build(ctx));
+    }
+}

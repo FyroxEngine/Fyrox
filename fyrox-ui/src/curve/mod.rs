@@ -1980,3 +1980,12 @@ impl CurveEditorBuilder {
         ctx.add_node(UiNode::new(editor))
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::{curve::CurveEditorBuilder, test::test_widget_deletion, widget::WidgetBuilder};
+    #[test]
+    fn test_curve_editor_deletion() {
+        test_widget_deletion(|ctx| CurveEditorBuilder::new(WidgetBuilder::new()).build(ctx));
+    }
+}

@@ -1202,3 +1202,14 @@ impl InspectorBuilder {
         ctx.add_node(UiNode::new(canvas))
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::inspector::InspectorBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| InspectorBuilder::new(WidgetBuilder::new()).build(ctx));
+    }
+}

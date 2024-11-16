@@ -472,3 +472,14 @@ fn draw_image(
     let texture = CommandTexture::Texture(image.clone());
     drawing_context.commit(clip_bounds, background, texture, None);
 }
+
+#[cfg(test)]
+mod test {
+    use crate::nine_patch::NinePatchBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| NinePatchBuilder::new(WidgetBuilder::new()).build(ctx));
+    }
+}

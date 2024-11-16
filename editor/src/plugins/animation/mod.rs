@@ -639,17 +639,8 @@ impl AnimationEditor {
         }
     }
 
-    pub fn destroy<G, N>(
-        mut self,
-        graph: &mut G,
-        ui: &UserInterface,
-        node_overrides: &mut FxHashSet<Handle<N>>,
-        docking_manager: Handle<UiNode>,
-    ) where
-        G: SceneGraph<Node = N>,
-        N: SceneGraphNode<SceneGraph = G>,
-    {
-        self.try_leave_preview_mode(graph, ui, node_overrides);
+    pub fn destroy(self, ui: &UserInterface, docking_manager: Handle<UiNode>) {
+        self.toolbar.destroy(ui);
         ui.send_message(DockingManagerMessage::remove_floating_window(
             docking_manager,
             MessageDirection::ToWidget,
@@ -970,55 +961,47 @@ impl EditorPlugin for AnimationEditorPlugin {
             }
         }
 
-        let entry = some_or_return!(editor.scenes.current_scene_entry_mut());
         let mut animation_editor = some_or_return!(self.animation_editor.take());
-        let ui = editor.engine.user_interfaces.first_mut();
-        if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
-            let graph = &mut editor.engine.scenes[game_scene.scene].graph;
-            animation_editor.handle_ui_message(
-                message,
-                &entry.selection,
-                graph,
-                game_scene.scene_content_root,
-                ui,
-                &editor.engine.resource_manager,
-                &editor.message_sender,
-                game_scene.graph_switches.node_overrides.as_mut().unwrap(),
-            );
-        } else if let Some(ui_scene) = entry.controller.downcast_mut::<UiScene>() {
-            let ui_root = ui_scene.ui.root();
-            animation_editor.handle_ui_message(
-                message,
-                &entry.selection,
-                &mut ui_scene.ui,
-                ui_root,
-                ui,
-                &editor.engine.resource_manager,
-                &editor.message_sender,
-                ui_scene.ui_update_switches.node_overrides.as_mut().unwrap(),
-            );
-        }
 
         if let Some(WindowMessage::Close) = message.data() {
             if message.destination() == animation_editor.window {
-                if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
-                    let engine = &mut editor.engine;
-                    animation_editor.destroy(
-                        &mut engine.scenes[game_scene.scene].graph,
-                        engine.user_interfaces.first(),
-                        game_scene.graph_switches.node_overrides.as_mut().unwrap(),
-                        editor.docking_manager,
-                    );
-                    return;
-                } else if let Some(ui_scene) = entry.controller.downcast_mut::<UiScene>() {
-                    animation_editor.destroy(
-                        &mut ui_scene.ui,
-                        editor.engine.user_interfaces.first(),
-                        ui_scene.ui_update_switches.node_overrides.as_mut().unwrap(),
-                        editor.docking_manager,
-                    );
-                    return;
-                }
+                self.on_leave_preview_mode(editor);
+
+                animation_editor.destroy(
+                    editor.engine.user_interfaces.first(),
+                    editor.docking_manager,
+                );
+
+                return;
+            }
+        }
+
+        if let Some(entry) = editor.scenes.current_scene_entry_mut() {
+            let ui = editor.engine.user_interfaces.first_mut();
+            if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
+                let graph = &mut editor.engine.scenes[game_scene.scene].graph;
+                animation_editor.handle_ui_message(
+                    message,
+                    &entry.selection,
+                    graph,
+                    game_scene.scene_content_root,
+                    ui,
+                    &editor.engine.resource_manager,
+                    &editor.message_sender,
+                    game_scene.graph_switches.node_overrides.as_mut().unwrap(),
+                );
+            } else if let Some(ui_scene) = entry.controller.downcast_mut::<UiScene>() {
+                let ui_root = ui_scene.ui.root();
+                animation_editor.handle_ui_message(
+                    message,
+                    &entry.selection,
+                    &mut ui_scene.ui,
+                    ui_root,
+                    ui,
+                    &editor.engine.resource_manager,
+                    &editor.message_sender,
+                    ui_scene.ui_update_switches.node_overrides.as_mut().unwrap(),
+                );
             }
         }
 
@@ -1050,6 +1033,7 @@ impl EditorPlugin for AnimationEditorPlugin {
     }
 
     fn on_update(&mut self, editor: &mut Editor) {
+        dbg!(editor.engine.user_interfaces.first().nodes().alive_count());
         let entry = some_or_return!(editor.scenes.current_scene_entry_mut());
         let animation_editor = some_or_return!(self.animation_editor.as_mut());
         if let Some(game_scene) = entry.controller.downcast_ref::<GameScene>() {
@@ -1102,5 +1086,25 @@ impl EditorPlugin for AnimationEditorPlugin {
                 ui_scene.ui_update_switches.node_overrides.as_mut().unwrap(),
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::plugins::animation::AnimationEditor;
+    use fyrox::core::algebra::Vector2;
+    use fyrox::core::pool::Handle;
+    use fyrox::gui::UserInterface;
+
+    #[test]
+    fn test_deletion() {
+        let screen_size = Vector2::new(100.0, 100.0);
+        let mut ui = UserInterface::new(screen_size);
+        let editor = AnimationEditor::new(&mut ui.build_ctx());
+        editor.destroy(&ui, Handle::NONE);
+        ui.update(screen_size, 1.0 / 60.0, &Default::default());
+        while ui.poll_message().is_some() {}
+        // Only root node must be alive.
+        assert_eq!(ui.nodes().alive_count(), 1);
     }
 }

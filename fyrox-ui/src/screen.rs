@@ -173,3 +173,14 @@ impl ScreenBuilder {
         ui.add_node(UiNode::new(screen))
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::screen::ScreenBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| ScreenBuilder::new(WidgetBuilder::new()).build(ctx));
+    }
+}

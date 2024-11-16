@@ -1100,6 +1100,8 @@ fn setup_filebrowser_fs_watcher(
 
 #[cfg(test)]
 mod test {
+    use crate::file_browser::FileBrowserBuilder;
+    use crate::test::test_widget_deletion;
     use crate::{
         core::pool::Handle,
         file_browser::{build_tree, find_tree},
@@ -1111,6 +1113,11 @@ mod test {
     use fyrox_core::parking_lot::Mutex;
     use std::path::PathBuf;
     use std::sync::Arc;
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| FileBrowserBuilder::new(WidgetBuilder::new()).build(ctx));
+    }
 
     #[test]
     fn test_find_tree() {

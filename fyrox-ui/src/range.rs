@@ -314,3 +314,14 @@ where
         ctx.add_node(UiNode::new(editor))
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::range::RangeEditorBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| RangeEditorBuilder::<f32>::new(WidgetBuilder::new()).build(ctx));
+    }
+}

@@ -318,3 +318,14 @@ impl ExpanderBuilder {
         ctx.add_node(e)
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::expander::ExpanderBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| ExpanderBuilder::new(WidgetBuilder::new()).build(ctx));
+    }
+}

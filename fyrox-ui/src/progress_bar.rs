@@ -212,3 +212,14 @@ impl ProgressBarBuilder {
         ctx.add_node(UiNode::new(progress_bar))
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::progress_bar::ProgressBarBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| ProgressBarBuilder::new(WidgetBuilder::new()).build(ctx));
+    }
+}

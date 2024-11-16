@@ -306,3 +306,14 @@ impl WrapPanelBuilder {
         ui.add_node(self.build_node())
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::wrap_panel::WrapPanelBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| WrapPanelBuilder::new(WidgetBuilder::new()).build(ctx));
+    }
+}

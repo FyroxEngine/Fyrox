@@ -351,3 +351,14 @@ impl BorderBuilder {
         ctx.add_node(UiNode::new(self.build_border()))
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::border::BorderBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| BorderBuilder::new(WidgetBuilder::new()).build(ctx));
+    }
+}

@@ -266,3 +266,14 @@ impl DockingManagerBuilder {
         ctx.add_node(UiNode::new(docking_manager))
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::dock::DockingManagerBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| DockingManagerBuilder::new(WidgetBuilder::new()).build(ctx));
+    }
+}

@@ -284,3 +284,14 @@ impl StackPanelBuilder {
         ctx.add_node(self.build_node())
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::stack_panel::StackPanelBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| StackPanelBuilder::new(WidgetBuilder::new()).build(ctx));
+    }
+}

@@ -594,3 +594,14 @@ impl TextBuilder {
         ui.add_node(UiNode::new(text))
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::text::TextBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| TextBuilder::new(WidgetBuilder::new()).build(ctx));
+    }
+}

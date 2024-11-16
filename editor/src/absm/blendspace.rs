@@ -970,3 +970,17 @@ impl BlendSpaceEditor {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::absm::blendspace::{BlendSpaceFieldBuilder, BlendSpaceFieldPointBuilder};
+    use fyrox::{gui::test::test_widget_deletion, gui::widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| {
+            BlendSpaceFieldPointBuilder::new(WidgetBuilder::new(), 0).build(ctx)
+        });
+        test_widget_deletion(|ctx| BlendSpaceFieldBuilder::new(WidgetBuilder::new()).build(ctx));
+    }
+}

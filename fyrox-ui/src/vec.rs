@@ -368,3 +368,14 @@ pub type Vec3EditorBuilder<T> = VecEditorBuilder<T, 3>;
 pub type Vec4EditorBuilder<T> = VecEditorBuilder<T, 4>;
 pub type Vec5EditorBuilder<T> = VecEditorBuilder<T, 5>;
 pub type Vec6EditorBuilder<T> = VecEditorBuilder<T, 6>;
+
+#[cfg(test)]
+mod test {
+    use crate::vec::Vec2EditorBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| Vec2EditorBuilder::<f32>::new(WidgetBuilder::new()).build(ctx));
+    }
+}

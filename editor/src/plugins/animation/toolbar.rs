@@ -329,6 +329,13 @@ impl RootMotionDropdownArea {
         }
     }
 
+    pub fn destroy(self, ui: &UserInterface) {
+        ui.send_message(WidgetMessage::remove(
+            self.popup,
+            MessageDirection::ToWidget,
+        ));
+    }
+
     pub fn sync_to_model<G, N>(
         &self,
         animation: &Animation<Handle<N>>,
@@ -798,7 +805,7 @@ impl Toolbar {
         )
         .build(ctx);
 
-        let file_selector = FileSelectorBuilder::new(
+        let import_file_selector = FileSelectorBuilder::new(
             WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
                 .open(false)
                 .with_title(WindowTitle::text("Select Animation To Import")),
@@ -832,7 +839,7 @@ impl Toolbar {
             import,
             reimport,
             node_selector,
-            import_file_selector: file_selector,
+            import_file_selector,
             selected_import_root: Default::default(),
             looping,
             enabled,
@@ -840,6 +847,18 @@ impl Toolbar {
             root_motion_dropdown_area,
             import_mode: ImportMode::Import,
         }
+    }
+
+    pub fn destroy(self, ui: &UserInterface) {
+        ui.send_message(WidgetMessage::remove(
+            self.node_selector,
+            MessageDirection::ToWidget,
+        ));
+        ui.send_message(WidgetMessage::remove(
+            self.import_file_selector,
+            MessageDirection::ToWidget,
+        ));
+        self.root_motion_dropdown_area.destroy(ui);
     }
 
     pub fn handle_ui_message<G, N>(

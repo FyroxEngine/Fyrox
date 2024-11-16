@@ -362,3 +362,17 @@ impl DecoratorBuilder {
         ui.add_node(node)
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::border::BorderBuilder;
+    use crate::decorator::DecoratorBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| {
+            DecoratorBuilder::new(BorderBuilder::new(WidgetBuilder::new())).build(ctx)
+        });
+    }
+}

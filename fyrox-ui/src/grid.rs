@@ -791,3 +791,14 @@ impl GridBuilder {
         ui.add_node(UiNode::new(grid))
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::grid::GridBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| GridBuilder::new(WidgetBuilder::new()).build(ctx));
+    }
+}

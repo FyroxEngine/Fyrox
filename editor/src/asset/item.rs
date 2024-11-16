@@ -347,3 +347,18 @@ impl AssetItemBuilder {
         ctx.add_node(UiNode::new(item))
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::asset::item::AssetItemBuilder;
+    use fyrox::asset::manager::ResourceManager;
+    use fyrox::{gui::test::test_widget_deletion, gui::widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        let rm = ResourceManager::new(Default::default());
+        test_widget_deletion(|ctx| {
+            AssetItemBuilder::new(WidgetBuilder::new()).build(rm, Default::default(), ctx)
+        });
+    }
+}

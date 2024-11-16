@@ -451,3 +451,17 @@ impl FileSelectorFieldBuilder {
         ctx.add_node(UiNode::new(field))
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::file_browser::FileSelectorBuilder;
+    use crate::window::WindowBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| {
+            FileSelectorBuilder::new(WindowBuilder::new(WidgetBuilder::new())).build(ctx)
+        });
+    }
+}

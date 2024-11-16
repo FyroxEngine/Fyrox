@@ -726,3 +726,18 @@ impl PropertySelectorWindowBuilder {
         ctx.add_node(UiNode::new(window))
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::scene::property::{PropertySelectorBuilder, PropertySelectorWindowBuilder};
+    use fyrox::gui::window::WindowBuilder;
+    use fyrox::{gui::test::test_widget_deletion, gui::widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| PropertySelectorBuilder::new(WidgetBuilder::new()).build(ctx));
+        test_widget_deletion(|ctx| {
+            PropertySelectorWindowBuilder::new(WindowBuilder::new(WidgetBuilder::new())).build(ctx)
+        });
+    }
+}
