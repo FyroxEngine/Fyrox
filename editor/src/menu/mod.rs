@@ -19,7 +19,6 @@
 // SOFTWARE.
 
 use crate::{
-    animation::AnimationEditor,
     export::ExportWindow,
     fyrox::{
         core::{algebra::Vector2, pool::Handle},
@@ -81,7 +80,6 @@ pub struct Panels<'b> {
     pub curve_editor: &'b CurveEditorWindow,
     pub absm_editor: &'b AbsmEditor,
     pub scene_settings: &'b SceneSettingsWindow,
-    pub animation_editor: &'b AnimationEditor,
     pub export_window: &'b mut Option<ExportWindow>,
     pub statistics_window: &'b mut Option<StatisticsWindow>,
 }

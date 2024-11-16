@@ -31,7 +31,6 @@
 extern crate lazy_static;
 
 pub mod absm;
-pub mod animation;
 pub mod asset;
 pub mod audio;
 pub mod build;
@@ -65,12 +64,12 @@ pub mod world;
 
 pub use fyrox;
 
+use crate::plugins::animation::AnimationEditorPlugin;
 use crate::plugins::material::MaterialPlugin;
 use crate::plugins::ragdoll::RagdollPlugin;
 use crate::plugins::settings::SettingsPlugin;
 use crate::{
     absm::AbsmEditor,
-    animation::AnimationEditor,
     asset::AssetBrowser,
     audio::{preview::AudioPreviewPanel, AudioPanel},
     build::BuildWindow,
@@ -545,7 +544,6 @@ pub struct Editor {
     pub mode: Mode,
     pub build_window: BuildWindow,
     pub scene_settings: SceneSettingsWindow,
-    pub animation_editor: AnimationEditor,
     pub particle_system_control_panel: ParticleSystemPreviewControlPanel,
     pub camera_control_panel: CameraPreviewControlPanel,
     pub mesh_control_panel: MeshControlPanel,
@@ -651,7 +649,6 @@ impl Editor {
         let command_stack_viewer = CommandStackViewer::new(ctx, message_sender.clone());
         let log = LogPanel::new(ctx, log_message_receiver);
         let inspector_plugin = InspectorPlugin::new(ctx, message_sender.clone());
-        let animation_editor = AnimationEditor::new(ctx);
         let absm_editor = AbsmEditor::new(ctx, message_sender.clone());
         let particle_system_control_panel =
             ParticleSystemPreviewControlPanel::new(scene_viewer.frame(), ctx);
@@ -782,7 +779,6 @@ impl Editor {
                                 .build(ctx)
                         }))
                         .with_floating_windows(vec![
-                            animation_editor.window,
                             absm_editor.window,
                             particle_system_control_panel.window,
                             camera_control_panel.window,
@@ -844,7 +840,6 @@ impl Editor {
 
         let editor = Self {
             docking_manager,
-            animation_editor,
             engine,
             navmesh_panel,
             scene_viewer,
@@ -887,6 +882,7 @@ impl Editor {
                 .with(MaterialPlugin::default())
                 .with(RagdollPlugin::default())
                 .with(SettingsPlugin::default())
+                .with(AnimationEditorPlugin::default())
                 .with(inspector_plugin),
             // Apparently, some window managers (like Wayland), does not send `Focused` event after the window
             // was created. So we must assume that the editor is focused by default, otherwise editor's thread
@@ -1221,7 +1217,6 @@ impl Editor {
                     absm_editor: &self.absm_editor,
                     command_stack_panel: self.command_stack_viewer.window,
                     scene_settings: &self.scene_settings,
-                    animation_editor: &self.animation_editor,
                     export_window: &mut self.export_window,
                     statistics_window: &mut self.statistics_window,
                 },
@@ -1276,16 +1271,6 @@ impl Editor {
         if let Some(current_scene_entry) = current_scene_entry {
             if let Some(game_scene) = current_scene_entry.controller.downcast_mut::<GameScene>() {
                 let graph = &mut engine.scenes[game_scene.scene].graph;
-                self.animation_editor.handle_ui_message(
-                    message,
-                    &current_scene_entry.selection,
-                    graph,
-                    game_scene.scene_content_root,
-                    engine.user_interfaces.first_mut(),
-                    &engine.resource_manager,
-                    &self.message_sender,
-                    game_scene.graph_switches.node_overrides.as_mut().unwrap(),
-                );
                 self.absm_editor.handle_ui_message(
                     message,
                     &self.message_sender,
@@ -1387,17 +1372,6 @@ impl Editor {
                     .handle_ui_message(message, game_scene, engine);
             } else if let Some(ui_scene) = current_scene_entry.controller.downcast_mut::<UiScene>()
             {
-                let ui_root = ui_scene.ui.root();
-                self.animation_editor.handle_ui_message(
-                    message,
-                    &current_scene_entry.selection,
-                    &mut ui_scene.ui,
-                    ui_root,
-                    engine.user_interfaces.first_mut(),
-                    &engine.resource_manager,
-                    &self.message_sender,
-                    ui_scene.ui_update_switches.node_overrides.as_mut().unwrap(),
-                );
                 self.absm_editor.handle_ui_message(
                     message,
                     &self.message_sender,
@@ -1629,11 +1603,6 @@ impl Editor {
             );
 
             if let Some(game_scene) = current_scene_entry.controller.downcast_mut::<GameScene>() {
-                self.animation_editor.sync_to_model(
-                    &current_scene_entry.selection,
-                    engine.user_interfaces.first_mut(),
-                    &engine.scenes[game_scene.scene].graph,
-                );
                 self.absm_editor.sync_to_model(
                     &current_scene_entry.selection,
                     &engine.scenes[game_scene.scene].graph,
@@ -1664,11 +1633,6 @@ impl Editor {
                 );
             } else if let Some(ui_scene) = current_scene_entry.controller.downcast_mut::<UiScene>()
             {
-                self.animation_editor.sync_to_model(
-                    &current_scene_entry.selection,
-                    engine.user_interfaces.first_mut(),
-                    &ui_scene.ui,
-                );
                 self.absm_editor.sync_to_model(
                     &current_scene_entry.selection,
                     &ui_scene.ui,
@@ -1797,11 +1761,6 @@ impl Editor {
                     .leave_preview_mode(game_scene, engine);
                 self.audio_preview_panel
                     .leave_preview_mode(game_scene, engine);
-                self.animation_editor.try_leave_preview_mode(
-                    &mut engine.scenes[game_scene.scene].graph,
-                    engine.user_interfaces.first(),
-                    game_scene.graph_switches.node_overrides.as_mut().unwrap(),
-                );
                 self.absm_editor.try_leave_preview_mode(
                     &entry.selection,
                     &mut engine.scenes[game_scene.scene].graph,
@@ -1809,11 +1768,6 @@ impl Editor {
                     game_scene.graph_switches.node_overrides.as_mut().unwrap(),
                 );
             } else if let Some(ui_scene) = entry.controller.downcast_mut::<UiScene>() {
-                self.animation_editor.try_leave_preview_mode(
-                    &mut ui_scene.ui,
-                    self.engine.user_interfaces.first(),
-                    ui_scene.ui_update_switches.node_overrides.as_mut().unwrap(),
-                );
                 self.absm_editor.try_leave_preview_mode(
                     &entry.selection,
                     &mut ui_scene.ui,
@@ -1822,6 +1776,8 @@ impl Editor {
                 );
             }
         }
+
+        for_each_plugin!(self.plugins => on_leave_preview_mode(self));
     }
 
     pub fn is_in_preview_mode(&mut self) -> bool {
@@ -1848,7 +1804,6 @@ impl Editor {
         self.particle_system_control_panel.is_in_preview_mode()
             || self.camera_control_panel.is_in_preview_mode()
             || self.audio_preview_panel.is_in_preview_mode()
-            || self.animation_editor.is_in_preview_mode()
             || self.absm_editor.is_in_preview_mode()
             || self.light_panel.is_in_preview_mode()
             || self.export_window.is_some()
@@ -2039,7 +1994,6 @@ impl Editor {
         }
 
         self.world_viewer.clear(ui);
-        self.animation_editor.clear(ui);
         self.absm_editor.clear(ui);
 
         self.poll_ui_messages();
@@ -2048,6 +2002,9 @@ impl Editor {
 
         self.scene_viewer
             .on_current_scene_changed(self.scenes.current_scene_entry_mut(), &mut self.engine);
+
+        for_each_plugin!(self.plugins => on_scene_changed(self));
+
         self.sync_to_model();
         self.poll_ui_messages();
     }
@@ -2268,20 +2225,9 @@ impl Editor {
                 }
 
                 self.light_panel.update(game_scene, &mut self.engine);
-                self.animation_editor.update(
-                    &entry.selection,
-                    self.engine.user_interfaces.first(),
-                    &self.engine.scenes[game_scene.scene].graph,
-                );
                 self.audio_preview_panel
                     .update(&entry.selection, game_scene, &self.engine);
                 self.scene_viewer.update(game_scene, &mut self.engine);
-            } else if let Some(ui_scene) = entry.controller.downcast_ref::<UiScene>() {
-                self.animation_editor.update(
-                    &entry.selection,
-                    self.engine.user_interfaces.first(),
-                    &ui_scene.ui,
-                );
             }
         }
 
@@ -2340,12 +2286,6 @@ impl Editor {
                             game_scene,
                             &mut self.engine,
                         );
-                        self.animation_editor.handle_message(
-                            &message,
-                            &mut self.engine.scenes[game_scene.scene].graph,
-                            self.engine.user_interfaces.first(),
-                            game_scene.graph_switches.node_overrides.as_mut().unwrap(),
-                        );
                         self.absm_editor.handle_message(
                             &message,
                             &entry.selection,
@@ -2354,12 +2294,6 @@ impl Editor {
                             game_scene.graph_switches.node_overrides.as_mut().unwrap(),
                         );
                     } else if let Some(ui_scene) = entry.controller.downcast_mut::<UiScene>() {
-                        self.animation_editor.handle_message(
-                            &message,
-                            &mut ui_scene.ui,
-                            self.engine.user_interfaces.first(),
-                            ui_scene.ui_update_switches.node_overrides.as_mut().unwrap(),
-                        );
                         self.absm_editor.handle_message(
                             &message,
                             &entry.selection,
@@ -2480,10 +2414,6 @@ impl Editor {
                                     .send(Message::SaveScene { id: scene.id, path })
                             }
                         }
-                    }
-                    Message::OpenAnimationEditor => {
-                        self.animation_editor
-                            .open(self.engine.user_interfaces.first());
                     }
                     Message::OpenAbsmEditor => {
                         self.absm_editor.open(self.engine.user_interfaces.first())

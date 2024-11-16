@@ -49,16 +49,16 @@ use crate::fyrox::{
     },
     resource::model::AnimationSource,
 };
-use crate::{
-    animation::{
-        command::{
-            AddAnimationCommand, RemoveAnimationCommand, ReplaceAnimationCommand,
-            SetAnimationEnabledCommand, SetAnimationLoopingCommand, SetAnimationNameCommand,
-            SetAnimationRootMotionSettingsCommand, SetAnimationSpeedCommand,
-            SetAnimationTimeSliceCommand,
-        },
-        selection::AnimationSelection,
+use crate::plugins::animation::{
+    command::{
+        AddAnimationCommand, RemoveAnimationCommand, ReplaceAnimationCommand,
+        SetAnimationEnabledCommand, SetAnimationLoopingCommand, SetAnimationNameCommand,
+        SetAnimationRootMotionSettingsCommand, SetAnimationSpeedCommand,
+        SetAnimationTimeSliceCommand,
     },
+    selection::AnimationSelection,
+};
+use crate::{
     command::{Command, CommandGroup},
     gui::make_dropdown_list_option_universal,
     load_image,
@@ -470,7 +470,7 @@ impl Toolbar {
                                             .with_margin(Thickness::uniform(1.0))
                                             .with_background(BRUSH_BRIGHT),
                                     )
-                                    .with_opt_texture(load_image!("../../resources/import.png"))
+                                    .with_opt_texture(load_image!("../../../resources/import.png"))
                                     .build(ctx),
                                 )
                                 .build(ctx);
@@ -498,7 +498,9 @@ impl Toolbar {
                                             .with_margin(Thickness::uniform(1.0))
                                             .with_background(BRUSH_BRIGHT),
                                     )
-                                    .with_opt_texture(load_image!("../../resources/reimport.png"))
+                                    .with_opt_texture(load_image!(
+                                        "../../../resources/reimport.png"
+                                    ))
                                     .build(ctx),
                                 )
                                 .build(ctx);
@@ -525,7 +527,7 @@ impl Toolbar {
                                             .with_margin(Thickness::uniform(1.0))
                                             .with_background(BRUSH_BRIGHT),
                                     )
-                                    .with_opt_texture(load_image!("../../resources/rename.png"))
+                                    .with_opt_texture(load_image!("../../../resources/rename.png"))
                                     .build(ctx),
                                 )
                                 .build(ctx);
@@ -578,7 +580,7 @@ impl Toolbar {
                                             .with_margin(Thickness::uniform(1.0))
                                             .with_background(BRUSH_BRIGHT),
                                     )
-                                    .with_opt_texture(load_image!("../../resources/copy.png"))
+                                    .with_opt_texture(load_image!("../../../resources/copy.png"))
                                     .build(ctx),
                                 )
                                 .build(ctx);
@@ -632,7 +634,7 @@ impl Toolbar {
                                         .with_margin(Thickness::uniform(1.0))
                                         .with_background(BRUSH_BRIGHT),
                                 )
-                                .with_opt_texture(load_image!("../../resources/speed.png"))
+                                .with_opt_texture(load_image!("../../../resources/speed.png"))
                                 .build(ctx),
                             )
                             .with_child({
@@ -658,7 +660,7 @@ impl Toolbar {
                                         .with_margin(Thickness::uniform(1.0))
                                         .with_background(BRUSH_BRIGHT),
                                 )
-                                .with_opt_texture(load_image!("../../resources/time.png"))
+                                .with_opt_texture(load_image!("../../../resources/time.png"))
                                 .build(ctx),
                             )
                             .with_child({

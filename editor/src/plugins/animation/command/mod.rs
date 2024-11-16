@@ -32,8 +32,8 @@ use crate::fyrox::{
     },
     graph::{BaseSceneGraph, SceneGraphNode},
 };
+use crate::plugins::animation::selection::AnimationSelection;
 use crate::{
-    animation::selection::AnimationSelection,
     command::{CommandContext, CommandTrait},
     scene::{commands::GameSceneContext, Selection},
     ui_scene::commands::UiSceneContext,

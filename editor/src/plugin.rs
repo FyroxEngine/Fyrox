@@ -72,6 +72,11 @@ pub trait EditorPlugin: BaseEditorPlugin {
     /// [`crate::Mode::Edit`].
     fn on_mode_changed(&mut self, #[allow(unused_variables)] editor: &mut Editor) {}
 
+    /// This method is called when active scene was changed. It could happen if a user opens or loads
+    /// a new scene, closes existing scene so the active scene changes to previous in the list of
+    /// scenes (if any).
+    fn on_scene_changed(&mut self, #[allow(unused_variables)] editor: &mut Editor) {}
+
     /// This method is called when a UI message was extracted from the message queue. It should be used to react to user
     /// changes, for example a user could click a button, then a [`fyrox::gui::button::ButtonMessage::Click`] will be
     /// passed to this method. It then can be used to perform some other action.
@@ -96,6 +101,12 @@ pub trait EditorPlugin: BaseEditorPlugin {
     /// This method is called when the editor continues its execution. See [`Self::on_suspended`] method for more info
     /// about suspension.
     fn on_resumed(&mut self, #[allow(unused_variables)] editor: &mut Editor) {}
+
+    /// This method is called when the editor leaves preview mode. Usually this method is used to
+    /// rollback scene changes to the state in which scene objects were before entering the preview
+    /// mode. This method is typically called by the editor before execution of any command and before
+    /// saving (to prevent "leakage" of preview mode changes into the saved scene).
+    fn on_leave_preview_mode(&mut self, #[allow(unused_variables)] editor: &mut Editor) {}
 
     /// This method is used to tell the editor, whether your plugin is in preview mode or not. Preview mode is a special
     /// state of the editor, when it modifies a content of some scene every frame and discards these changes when the
