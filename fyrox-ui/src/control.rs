@@ -49,6 +49,10 @@ pub trait BaseControl: Send + 'static {
     fn type_name(&self) -> &'static str;
 
     fn id(&self) -> Uuid;
+
+    /// Returns total amount of memory used by this widget (in bytes), in other words it returns
+    /// `size_of::<WidgetType>()`.
+    fn self_size(&self) -> usize;
 }
 
 impl<T> BaseControl for T
@@ -73,6 +77,10 @@ where
 
     fn id(&self) -> Uuid {
         Self::type_uuid()
+    }
+
+    fn self_size(&self) -> usize {
+        size_of::<T>()
     }
 }
 
