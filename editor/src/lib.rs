@@ -68,6 +68,7 @@ use crate::plugins::animation::AnimationEditorPlugin;
 use crate::plugins::material::MaterialPlugin;
 use crate::plugins::ragdoll::RagdollPlugin;
 use crate::plugins::settings::SettingsPlugin;
+use crate::plugins::stats::UiStatisticsPlugin;
 use crate::{
     absm::AbsmEditor,
     asset::AssetBrowser,
@@ -883,6 +884,7 @@ impl Editor {
                 .with(RagdollPlugin::default())
                 .with(SettingsPlugin::default())
                 .with(AnimationEditorPlugin::default())
+                .with(UiStatisticsPlugin::default())
                 .with(inspector_plugin),
             // Apparently, some window managers (like Wayland), does not send `Focused` event after the window
             // was created. So we must assume that the editor is focused by default, otherwise editor's thread

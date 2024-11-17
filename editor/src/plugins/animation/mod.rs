@@ -1033,7 +1033,6 @@ impl EditorPlugin for AnimationEditorPlugin {
     }
 
     fn on_update(&mut self, editor: &mut Editor) {
-        dbg!(editor.engine.user_interfaces.first().nodes().alive_count());
         let entry = some_or_return!(editor.scenes.current_scene_entry_mut());
         let animation_editor = some_or_return!(self.animation_editor.as_mut());
         if let Some(game_scene) = entry.controller.downcast_ref::<GameScene>() {

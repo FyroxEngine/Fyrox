@@ -23,4 +23,5 @@ pub mod collider;
 pub mod material;
 pub mod ragdoll;
 pub mod settings;
+pub mod stats;
 pub mod tilemap;
