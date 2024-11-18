@@ -199,6 +199,8 @@ where
 }
 
 impl AnimationEditor {
+    const WINDOW_NAME: &'static str = "AnimationEditor";
+
     pub fn new(ctx: &mut BuildContext) -> Self {
         let curve_editor;
         let ruler;
@@ -268,7 +270,7 @@ impl AnimationEditor {
 
         let window = WindowBuilder::new(
             WidgetBuilder::new()
-                .with_name("AnimationEditor")
+                .with_name(Self::WINDOW_NAME)
                 .with_width(600.0)
                 .with_height(500.0),
         )
@@ -924,9 +926,23 @@ pub struct AnimationEditorPlugin {
     open_animation_editor: Handle<UiNode>,
 }
 
+impl AnimationEditorPlugin {
+    fn get_or_create_animation_editor(&mut self, ui: &mut UserInterface) -> &mut AnimationEditor {
+        self.animation_editor
+            .get_or_insert_with(|| AnimationEditor::new(&mut ui.build_ctx()))
+    }
+}
+
 impl EditorPlugin for AnimationEditorPlugin {
     fn on_start(&mut self, editor: &mut Editor) {
         let ui = editor.engine.user_interfaces.first_mut();
+
+        if let Some(layout) = editor.settings.windows.layout.as_ref() {
+            if layout.has_window(AnimationEditor::WINDOW_NAME) {
+                self.get_or_create_animation_editor(ui);
+            }
+        }
+
         let ctx = &mut ui.build_ctx();
         self.open_animation_editor = create_menu_item("Animation Editor", vec![], ctx);
         ui.send_message(MenuItemMessage::add_item(
@@ -1053,9 +1069,7 @@ impl EditorPlugin for AnimationEditorPlugin {
     fn on_message(&mut self, message: &Message, editor: &mut Editor) {
         if let Message::OpenAnimationEditor = message {
             let ui = editor.engine.user_interfaces.first_mut();
-            let animation_editor = self
-                .animation_editor
-                .get_or_insert_with(|| AnimationEditor::new(&mut ui.build_ctx()));
+            let animation_editor = self.get_or_create_animation_editor(ui);
 
             animation_editor.open(ui);
 
