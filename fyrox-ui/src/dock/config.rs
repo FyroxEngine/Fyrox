@@ -90,6 +90,23 @@ pub struct TileDescriptor {
     pub content: TileContentDescriptor,
 }
 
+impl TileContentDescriptor {
+    pub fn has_window(&self, window: &str) -> bool {
+        match self {
+            TileContentDescriptor::Empty => false,
+            TileContentDescriptor::Window(window_name) => window_name.as_str() == window,
+            TileContentDescriptor::SplitTiles(tiles) => {
+                for tile in tiles.children.iter() {
+                    if tile.content.has_window(window) {
+                        return true;
+                    }
+                }
+                false
+            }
+        }
+    }
+}
+
 impl TileDescriptor {
     pub(super) fn from_tile_handle(handle: Handle<UiNode>, ui: &UserInterface) -> Self {
         ui.try_get(handle)
@@ -182,4 +199,12 @@ pub struct FloatingWindowDescriptor {
 pub struct DockingManagerLayoutDescriptor {
     pub floating_windows: Vec<FloatingWindowDescriptor>,
     pub root_tile_descriptor: Option<TileDescriptor>,
+}
+
+impl DockingManagerLayoutDescriptor {
+    pub fn has_window<S: AsRef<str>>(&self, window: S) -> bool {
+        self.root_tile_descriptor
+            .as_ref()
+            .map_or(false, |desc| desc.content.has_window(window.as_ref()))
+    }
 }
