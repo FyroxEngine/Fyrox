@@ -39,21 +39,25 @@ use crate::fyrox::{
         BuildContext, UiNode, UserInterface,
     },
 };
-use crate::{
-    absm::{
-        blendspace::BlendSpaceEditor,
-        command::blend::{AddBlendSpacePointCommand, AddInputCommand, AddPoseSourceCommand},
-        node::{AbsmNode, AbsmNodeMessage},
-        parameter::ParameterPanel,
-        selection::AbsmSelection,
-        state_graph::StateGraphViewer,
-        state_viewer::StateViewer,
-        toolbar::{Toolbar, ToolbarAction},
-    },
-    message::MessageSender,
-    scene::Selection,
-    Message,
+use crate::menu::create_menu_item;
+use crate::plugin::EditorPlugin;
+use crate::plugins::absm::{
+    blendspace::BlendSpaceEditor,
+    command::blend::{AddBlendSpacePointCommand, AddInputCommand, AddPoseSourceCommand},
+    node::{AbsmNode, AbsmNodeMessage},
+    parameter::ParameterPanel,
+    selection::AbsmSelection,
+    state_graph::StateGraphViewer,
+    state_viewer::StateViewer,
+    toolbar::{Toolbar, ToolbarAction},
 };
+use crate::scene::GameScene;
+use crate::ui_scene::UiScene;
+use crate::{message::MessageSender, scene::Selection, Editor, Message};
+use fyrox::core::some_or_return;
+use fyrox::gui::dock::DockingManagerMessage;
+use fyrox::gui::menu::MenuItemMessage;
+use fyrox::gui::widget::WidgetMessage;
 use std::{any::Any, fmt::Debug};
 
 mod blendspace;
@@ -197,6 +201,8 @@ pub struct AbsmEditor {
 }
 
 impl AbsmEditor {
+    const WINDOW_NAME: &'static str = "AsbmEditor";
+
     pub fn new(ctx: &mut BuildContext, sender: MessageSender) -> Self {
         let state_graph_viewer = StateGraphViewer::new(ctx);
         let state_viewer = StateViewer::new(ctx);
@@ -249,7 +255,7 @@ impl AbsmEditor {
 
         let window = WindowBuilder::new(
             WidgetBuilder::new()
-                .with_name("AsbmEditor")
+                .with_name(Self::WINDOW_NAME)
                 .with_width(800.0)
                 .with_height(500.0),
         )
@@ -390,6 +396,22 @@ impl AbsmEditor {
         {
             self.try_leave_preview_mode(editor_selection, graph, ui, node_overrides);
         }
+    }
+
+    fn destroy(self, ui: &UserInterface, docking_manager: Handle<UiNode>) {
+        ui.send_message(DockingManagerMessage::remove_floating_window(
+            docking_manager,
+            MessageDirection::ToWidget,
+            self.window,
+        ));
+        ui.send_message(WidgetMessage::remove(
+            self.blend_space_editor.window,
+            MessageDirection::ToWidget,
+        ));
+        ui.send_message(WidgetMessage::remove(
+            self.window,
+            MessageDirection::ToWidget,
+        ));
     }
 
     pub fn sync_to_model<P, G, N>(
@@ -684,5 +706,210 @@ impl AbsmEditor {
                 }
             }
         }
+    }
+}
+
+#[derive(Default)]
+pub struct AbsmEditorPlugin {
+    absm_editor: Option<AbsmEditor>,
+    open_absm_editor: Handle<UiNode>,
+}
+
+impl AbsmEditorPlugin {
+    fn get_or_create_absm_editor(
+        &mut self,
+        ui: &mut UserInterface,
+        sender: &MessageSender,
+    ) -> &mut AbsmEditor {
+        self.absm_editor
+            .get_or_insert_with(|| AbsmEditor::new(&mut ui.build_ctx(), sender.clone()))
+    }
+}
+
+impl EditorPlugin for AbsmEditorPlugin {
+    fn on_start(&mut self, editor: &mut Editor) {
+        let ui = editor.engine.user_interfaces.first_mut();
+
+        if let Some(layout) = editor.settings.windows.layout.as_ref() {
+            if layout.has_window(AbsmEditor::WINDOW_NAME) {
+                self.get_or_create_absm_editor(ui, &editor.message_sender);
+            }
+        }
+
+        let ctx = &mut ui.build_ctx();
+        self.open_absm_editor = create_menu_item("ABSM Editor", vec![], ctx);
+        ui.send_message(MenuItemMessage::add_item(
+            editor.menu.utils_menu.menu,
+            MessageDirection::ToWidget,
+            self.open_absm_editor,
+        ));
+    }
+
+    fn on_sync_to_model(&mut self, editor: &mut Editor) {
+        let entry = some_or_return!(editor.scenes.current_scene_entry_mut());
+        let absm_editor = some_or_return!(self.absm_editor.as_mut());
+        let ui = editor.engine.user_interfaces.first_mut();
+        if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
+            let graph = &editor.engine.scenes[game_scene.scene].graph;
+            absm_editor.sync_to_model(&entry.selection, graph, ui);
+        } else if let Some(ui_scene) = entry.controller.downcast_mut::<UiScene>() {
+            absm_editor.sync_to_model(&entry.selection, &ui_scene.ui, ui);
+        }
+    }
+
+    fn on_scene_changed(&mut self, editor: &mut Editor) {
+        let absm_editor = some_or_return!(self.absm_editor.as_mut());
+        let ui = editor.engine.user_interfaces.first_mut();
+        absm_editor.clear(ui);
+    }
+
+    fn on_ui_message(&mut self, message: &mut UiMessage, editor: &mut Editor) {
+        if let Some(MenuItemMessage::Click) = message.data() {
+            if message.destination() == self.open_absm_editor {
+                editor.message_sender.send(Message::OpenAbsmEditor);
+            }
+        }
+
+        let mut absm_editor = some_or_return!(self.absm_editor.take());
+
+        if let Some(WindowMessage::Close) = message.data() {
+            if message.destination() == absm_editor.window {
+                self.on_leave_preview_mode(editor);
+
+                absm_editor.destroy(
+                    editor.engine.user_interfaces.first(),
+                    editor.docking_manager,
+                );
+
+                return;
+            }
+        }
+
+        if let Some(entry) = editor.scenes.current_scene_entry_mut() {
+            let ui = editor.engine.user_interfaces.first_mut();
+            if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
+                let graph = &mut editor.engine.scenes[game_scene.scene].graph;
+                absm_editor.handle_ui_message(
+                    message,
+                    &editor.message_sender,
+                    &entry.selection,
+                    graph,
+                    ui,
+                    game_scene.graph_switches.node_overrides.as_mut().unwrap(),
+                );
+            } else if let Some(ui_scene) = entry.controller.downcast_mut::<UiScene>() {
+                absm_editor.handle_ui_message(
+                    message,
+                    &editor.message_sender,
+                    &entry.selection,
+                    &mut ui_scene.ui,
+                    ui,
+                    ui_scene.ui_update_switches.node_overrides.as_mut().unwrap(),
+                );
+            }
+        }
+
+        self.absm_editor = Some(absm_editor);
+    }
+
+    fn on_leave_preview_mode(&mut self, editor: &mut Editor) {
+        let entry = some_or_return!(editor.scenes.current_scene_entry_mut());
+        let absm_editor = some_or_return!(self.absm_editor.as_mut());
+        if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
+            let engine = &mut editor.engine;
+            absm_editor.try_leave_preview_mode(
+                &entry.selection,
+                &mut engine.scenes[game_scene.scene].graph,
+                engine.user_interfaces.first_mut(),
+                game_scene.graph_switches.node_overrides.as_mut().unwrap(),
+            );
+        } else if let Some(ui_scene) = entry.controller.downcast_mut::<UiScene>() {
+            absm_editor.try_leave_preview_mode(
+                &entry.selection,
+                &mut ui_scene.ui,
+                editor.engine.user_interfaces.first_mut(),
+                ui_scene.ui_update_switches.node_overrides.as_mut().unwrap(),
+            );
+        }
+    }
+
+    fn is_in_preview_mode(&self, _editor: &Editor) -> bool {
+        let absm_editor = some_or_return!(self.absm_editor.as_ref(), false);
+        absm_editor.is_in_preview_mode()
+    }
+
+    fn on_update(&mut self, editor: &mut Editor) {
+        let entry = some_or_return!(editor.scenes.current_scene_entry_mut());
+        let absm_editor = some_or_return!(self.absm_editor.as_mut());
+        if let Some(game_scene) = entry.controller.downcast_ref::<GameScene>() {
+            absm_editor.update(
+                &entry.selection,
+                &mut editor.engine.scenes[game_scene.scene].graph,
+                editor.engine.user_interfaces.first_mut(),
+            );
+        } else if let Some(ui_scene) = entry.controller.downcast_mut::<UiScene>() {
+            absm_editor.update(
+                &entry.selection,
+                &mut ui_scene.ui,
+                editor.engine.user_interfaces.first_mut(),
+            );
+        }
+    }
+
+    fn on_message(&mut self, message: &Message, editor: &mut Editor) {
+        if let Message::OpenAbsmEditor = message {
+            let ui = editor.engine.user_interfaces.first_mut();
+            let absm_editor = self.get_or_create_absm_editor(ui, &editor.message_sender);
+
+            absm_editor.open(ui);
+
+            ui.send_message(DockingManagerMessage::add_floating_window(
+                editor.docking_manager,
+                MessageDirection::ToWidget,
+                absm_editor.window,
+            ));
+
+            self.on_sync_to_model(editor);
+        }
+
+        let entry = some_or_return!(editor.scenes.current_scene_entry_mut());
+        let absm_editor = some_or_return!(self.absm_editor.as_mut());
+        if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
+            absm_editor.handle_message(
+                message,
+                &entry.selection,
+                &mut editor.engine.scenes[game_scene.scene].graph,
+                editor.engine.user_interfaces.first_mut(),
+                game_scene.graph_switches.node_overrides.as_mut().unwrap(),
+            );
+        } else if let Some(ui_scene) = entry.controller.downcast_mut::<UiScene>() {
+            absm_editor.handle_message(
+                message,
+                &entry.selection,
+                &mut ui_scene.ui,
+                editor.engine.user_interfaces.first_mut(),
+                ui_scene.ui_update_switches.node_overrides.as_mut().unwrap(),
+            );
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::plugins::absm::AbsmEditor;
+    use fyrox::core::algebra::Vector2;
+    use fyrox::core::pool::Handle;
+    use fyrox::gui::UserInterface;
+
+    #[test]
+    fn test_deletion() {
+        let screen_size = Vector2::new(100.0, 100.0);
+        let mut ui = UserInterface::new(screen_size);
+        let editor = AbsmEditor::new(&mut ui.build_ctx(), Default::default());
+        editor.destroy(&ui, Handle::NONE);
+        ui.update(screen_size, 1.0 / 60.0, &Default::default());
+        while ui.poll_message().is_some() {}
+        // Only root node must be alive.
+        assert_eq!(ui.nodes().alive_count(), 1);
     }
 }

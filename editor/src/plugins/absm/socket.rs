@@ -242,7 +242,7 @@ impl SocketBuilder {
 
 #[cfg(test)]
 mod test {
-    use crate::absm::socket::SocketBuilder;
+    use crate::plugins::absm::socket::SocketBuilder;
     use fyrox::{gui::test::test_widget_deletion, gui::widget::WidgetBuilder};
 
     #[test]

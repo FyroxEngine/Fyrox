@@ -38,24 +38,24 @@ use crate::fyrox::{
     },
 };
 use crate::message::MessageSender;
-use crate::{
-    absm::{
-        canvas::{AbsmCanvasBuilder, AbsmCanvasMessage},
-        command::{
-            blend::{
-                SetBlendAnimationByIndexInputPoseSourceCommand,
-                SetBlendAnimationsPoseSourceCommand, SetBlendSpacePoseSourceCommand,
-            },
-            MovePoseNodeCommand,
+use crate::plugins::absm::{
+    canvas::{AbsmCanvasBuilder, AbsmCanvasMessage},
+    command::{
+        blend::{
+            SetBlendAnimationByIndexInputPoseSourceCommand, SetBlendAnimationsPoseSourceCommand,
+            SetBlendSpacePoseSourceCommand,
         },
-        connection::{Connection, ConnectionBuilder},
-        fetch_selection,
-        node::{AbsmNode, AbsmNodeBuilder, AbsmNodeMessage},
-        selection::{AbsmSelection, SelectedEntity},
-        socket::{Socket, SocketBuilder, SocketDirection},
-        state_viewer::context::{CanvasContextMenu, ConnectionContextMenu, NodeContextMenu},
-        NORMAL_BACKGROUND, NORMAL_ROOT_COLOR, SELECTED_BACKGROUND, SELECTED_ROOT_COLOR,
+        MovePoseNodeCommand,
     },
+    connection::{Connection, ConnectionBuilder},
+    fetch_selection,
+    node::{AbsmNode, AbsmNodeBuilder, AbsmNodeMessage},
+    selection::{AbsmSelection, SelectedEntity},
+    socket::{Socket, SocketBuilder, SocketDirection},
+    state_viewer::context::{CanvasContextMenu, ConnectionContextMenu, NodeContextMenu},
+    NORMAL_BACKGROUND, NORMAL_ROOT_COLOR, SELECTED_BACKGROUND, SELECTED_ROOT_COLOR,
+};
+use crate::{
     scene::{commands::ChangeSelectionCommand, Selection},
     send_sync_message,
 };

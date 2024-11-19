@@ -18,10 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::absm::{
-    selectable::{Selectable, SelectableMessage},
-    BORDER_COLOR, NORMAL_BACKGROUND, SELECTED_BACKGROUND,
-};
 use crate::fyrox::{
     core::{
         color::Color, pool::Handle, reflect::prelude::*, type_traits::prelude::*, uuid::uuid,
@@ -41,6 +37,10 @@ use crate::fyrox::{
         BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
         VerticalAlignment,
     },
+};
+use crate::plugins::absm::{
+    selectable::{Selectable, SelectableMessage},
+    BORDER_COLOR, NORMAL_BACKGROUND, SELECTED_BACKGROUND,
 };
 use std::{
     fmt::{Debug, Formatter},
@@ -519,7 +519,7 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::absm::node::AbsmNodeBuilder;
+    use crate::plugins::absm::node::AbsmNodeBuilder;
     use fyrox::scene::node::Node;
     use fyrox::{gui::test::test_widget_deletion, gui::widget::WidgetBuilder};
 

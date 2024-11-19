@@ -25,8 +25,9 @@ use crate::fyrox::{
         node::blendspace::BlendSpacePoint, BlendPose, IndexedBlendInput, PoseNode,
     },
 };
+use crate::plugins::absm::command::fetch_machine;
 use crate::{
-    absm::command::fetch_machine, command::CommandTrait, define_push_element_to_collection_command,
+    command::CommandTrait, define_push_element_to_collection_command,
     define_set_collection_element_command,
 };
 use std::fmt::Debug;

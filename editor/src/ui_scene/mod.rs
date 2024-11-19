@@ -53,9 +53,9 @@ use crate::fyrox::{
     resource::texture::{TextureKind, TextureResource, TextureResourceExtension},
     scene::SceneContainer,
 };
+use crate::plugins::absm::{command::fetch_machine, selection::SelectedEntity};
 use crate::plugins::animation::{self, command::fetch_animations_container};
 use crate::{
-    absm::{command::fetch_machine, selection::SelectedEntity},
     asset::item::AssetItem,
     command::{make_command, Command, CommandGroup, CommandStack},
     inspector::editors::handle::HandlePropertyEditorMessage,

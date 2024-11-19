@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use super::fetch_state_node_model_handle;
 use crate::fyrox::{
     core::pool::Handle,
     generic_animation::machine::{Machine, State, Transition},
@@ -31,17 +32,17 @@ use crate::fyrox::{
         BuildContext, RcUiNodeHandle, UiNode, UserInterface,
     },
 };
-use crate::{
-    absm::{
-        canvas::{AbsmCanvas, AbsmCanvasMessage, Mode},
-        command::{
-            AddStateCommand, AddTransitionCommand, DeleteStateCommand, DeleteTransitionCommand,
-            SetMachineEntryStateCommand,
-        },
-        node::{AbsmNode, AbsmNodeMessage},
-        selection::SelectedEntity,
-        transition::TransitionView,
+use crate::plugins::absm::{
+    canvas::{AbsmCanvas, AbsmCanvasMessage, Mode},
+    command::{
+        AddStateCommand, AddTransitionCommand, DeleteStateCommand, DeleteTransitionCommand,
+        SetMachineEntryStateCommand,
     },
+    node::{AbsmNode, AbsmNodeMessage},
+    selection::SelectedEntity,
+    transition::TransitionView,
+};
+use crate::{
     command::{Command, CommandGroup},
     menu::create_menu_item,
     message::MessageSender,
@@ -49,8 +50,6 @@ use crate::{
 };
 use fyrox::gui::menu::ContextMenuBuilder;
 use std::fmt::Debug;
-
-use super::fetch_state_node_model_handle;
 
 pub struct CanvasContextMenu {
     create_state: Handle<UiNode>,

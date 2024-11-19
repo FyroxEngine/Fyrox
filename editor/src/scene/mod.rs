@@ -18,14 +18,14 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::plugins::absm::{
+    command::fetch_machine,
+    selection::{AbsmSelection, SelectedEntity},
+};
 use crate::plugins::animation::{
     self, command::fetch_animations_container, selection::AnimationSelection,
 };
 use crate::{
-    absm::{
-        command::fetch_machine,
-        selection::{AbsmSelection, SelectedEntity},
-    },
     asset::item::AssetItem,
     audio::AudioBusSelection,
     camera::{CameraController, PickingOptions},

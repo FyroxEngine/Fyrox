@@ -31,17 +31,17 @@ use crate::fyrox::{
         BuildContext, Thickness, UiNode, UserInterface,
     },
 };
+use crate::plugins::absm::{
+    canvas::{AbsmCanvas, AbsmCanvasBuilder, AbsmCanvasMessage},
+    command::{AddTransitionCommand, MoveStateNodeCommand},
+    fetch_selection,
+    node::{AbsmNode, AbsmNodeBuilder, AbsmNodeMessage},
+    selection::{AbsmSelection, SelectedEntity},
+    state_graph::context::{CanvasContextMenu, NodeContextMenu, TransitionContextMenu},
+    transition::{TransitionBuilder, TransitionMessage, TransitionView},
+    NORMAL_BACKGROUND, NORMAL_ROOT_COLOR, SELECTED_BACKGROUND, SELECTED_ROOT_COLOR,
+};
 use crate::{
-    absm::{
-        canvas::{AbsmCanvas, AbsmCanvasBuilder, AbsmCanvasMessage},
-        command::{AddTransitionCommand, MoveStateNodeCommand},
-        fetch_selection,
-        node::{AbsmNode, AbsmNodeBuilder, AbsmNodeMessage},
-        selection::{AbsmSelection, SelectedEntity},
-        state_graph::context::{CanvasContextMenu, NodeContextMenu, TransitionContextMenu},
-        transition::{TransitionBuilder, TransitionMessage, TransitionView},
-        NORMAL_BACKGROUND, NORMAL_ROOT_COLOR, SELECTED_BACKGROUND, SELECTED_ROOT_COLOR,
-    },
     command::{Command, CommandGroup},
     message::MessageSender,
     scene::{commands::ChangeSelectionCommand, Selection},

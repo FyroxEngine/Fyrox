@@ -35,19 +35,19 @@ use crate::fyrox::{
         BuildContext, RcUiNodeHandle, UiNode, UserInterface,
     },
 };
-use crate::{
-    absm::{
-        command::{
-            blend::{
-                SetBlendAnimationByIndexInputPoseSourceCommand,
-                SetBlendAnimationsPoseSourceCommand, SetBlendSpacePoseSourceCommand,
-            },
-            AddPoseNodeCommand, DeletePoseNodeCommand, SetStateRootPoseCommand,
+use crate::plugins::absm::{
+    command::{
+        blend::{
+            SetBlendAnimationByIndexInputPoseSourceCommand, SetBlendAnimationsPoseSourceCommand,
+            SetBlendSpacePoseSourceCommand,
         },
-        connection::Connection,
-        node::AbsmNode,
-        selection::SelectedEntity,
+        AddPoseNodeCommand, DeletePoseNodeCommand, SetStateRootPoseCommand,
     },
+    connection::Connection,
+    node::AbsmNode,
+    selection::SelectedEntity,
+};
+use crate::{
     command::{Command, CommandGroup},
     menu::create_menu_item,
     message::MessageSender,

@@ -39,36 +39,34 @@ use crate::fyrox::{
         BuildContext, Control, UiNode, UserInterface,
     },
 };
-use crate::{
-    absm::{
-        connection::{self, Connection},
-        node::AbsmBaseNode,
-        segment::SegmentMessage,
-        selectable::{Selectable, SelectableMessage},
-        socket::{Socket, SocketDirection, SocketMessage},
-        transition::{self, TransitionView},
-    },
-    utils::fetch_node_screen_center_ui,
+use crate::plugins::absm::{
+    connection::{self, Connection},
+    node::AbsmBaseNode,
+    segment::SegmentMessage,
+    selectable::{Selectable, SelectableMessage},
+    socket::{Socket, SocketDirection, SocketMessage},
+    transition::{self, TransitionView},
 };
+use crate::utils::fetch_node_screen_center_ui;
 use std::{
     cell::Cell,
     ops::{Deref, DerefMut},
 };
 
 #[derive(Debug, Clone, PartialEq, Visit, Reflect, Default)]
-pub(super) struct Entry {
+pub(crate) struct Entry {
     pub node: Handle<UiNode>,
     pub initial_position: Vector2<f32>,
 }
 
 #[derive(Debug, Clone, PartialEq, Visit, Reflect, Default)]
-pub(super) struct DragContext {
+pub(crate) struct DragContext {
     initial_cursor_position: Vector2<f32>,
     entries: Vec<Entry>,
 }
 
 #[derive(Debug, Clone, PartialEq, Visit, Reflect)]
-pub(super) enum Mode {
+pub(crate) enum Mode {
     Normal,
     Drag {
         drag_context: DragContext,
@@ -86,7 +84,7 @@ pub(super) enum Mode {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub(super) enum AbsmCanvasMessage {
+pub(crate) enum AbsmCanvasMessage {
     SwitchMode(Mode),
     CommitTransition {
         source_node: Handle<UiNode>,
@@ -658,7 +656,7 @@ impl AbsmCanvasBuilder {
 
 #[cfg(test)]
 mod test {
-    use crate::absm::canvas::AbsmCanvasBuilder;
+    use crate::plugins::absm::canvas::AbsmCanvasBuilder;
     use fyrox::{gui::test::test_widget_deletion, gui::widget::WidgetBuilder};
 
     #[test]

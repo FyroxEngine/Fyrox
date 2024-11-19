@@ -38,7 +38,7 @@ use crate::{
     send_sync_message,
     settings::Settings,
     stats::StatisticsWindow,
-    AbsmEditor, CurveEditorWindow, Engine, Mode, SceneSettingsWindow,
+    CurveEditorWindow, Engine, Mode, SceneSettingsWindow,
 };
 use std::path::PathBuf;
 
@@ -78,7 +78,6 @@ pub struct Panels<'b> {
     pub configurator_window: Handle<UiNode>,
     pub path_fixer: Handle<UiNode>,
     pub curve_editor: &'b CurveEditorWindow,
-    pub absm_editor: &'b AbsmEditor,
     pub scene_settings: &'b SceneSettingsWindow,
     pub export_window: &'b mut Option<ExportWindow>,
     pub statistics_window: &'b mut Option<StatisticsWindow>,

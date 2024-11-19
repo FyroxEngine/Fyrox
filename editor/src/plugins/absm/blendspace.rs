@@ -50,18 +50,13 @@ use crate::fyrox::{
         UserInterface, VerticalAlignment, BRUSH_DARK, BRUSH_LIGHT, BRUSH_LIGHTEST,
     },
 };
-use crate::{
-    absm::{
-        command::blend::{
-            AddBlendSpacePointCommand, RemoveBlendSpacePointCommand,
-            SetBlendSpacePointPositionCommand,
-        },
-        selection::{AbsmSelection, SelectedEntity},
+use crate::plugins::absm::{
+    command::blend::{
+        AddBlendSpacePointCommand, RemoveBlendSpacePointCommand, SetBlendSpacePointPositionCommand,
     },
-    menu::create_menu_item,
-    message::MessageSender,
-    send_sync_message,
+    selection::{AbsmSelection, SelectedEntity},
 };
+use crate::{menu::create_menu_item, message::MessageSender, send_sync_message};
 use fyrox::gui::menu::ContextMenuBuilder;
 use std::{
     cell::Cell,
@@ -973,7 +968,7 @@ impl BlendSpaceEditor {
 
 #[cfg(test)]
 mod test {
-    use crate::absm::blendspace::{BlendSpaceFieldBuilder, BlendSpaceFieldPointBuilder};
+    use crate::plugins::absm::blendspace::{BlendSpaceFieldBuilder, BlendSpaceFieldPointBuilder};
     use fyrox::{gui::test::test_widget_deletion, gui::widget::WidgetBuilder};
 
     #[test]

@@ -18,34 +18,32 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::plugins::tilemap::tileset::TileSetTileView;
-use crate::{
-    absm::selectable::{Selectable, SelectableMessage},
-    fyrox::{
-        core::{
-            algebra::{Matrix3, Point2, Vector2},
-            color::Color,
-            math::{OptionRect, Rect},
-            pool::Handle,
-            reflect::prelude::*,
-            type_traits::prelude::*,
-            visitor::prelude::*,
-        },
-        graph::{BaseSceneGraph, SceneGraph},
-        gui::{
-            brush::Brush,
-            define_constructor, define_widget_deref,
-            draw::{CommandTexture, Draw, DrawingContext},
-            message::{KeyCode, MessageDirection, MouseButton, UiMessage},
-            widget::{Widget, WidgetBuilder, WidgetMessage},
-            BuildContext, Control, UiNode, UserInterface,
-        },
-        scene::tilemap::{
-            brush::{BrushTile, TileMapBrush},
-            tileset::TileSetResource,
-        },
+use crate::fyrox::{
+    core::{
+        algebra::{Matrix3, Point2, Vector2},
+        color::Color,
+        math::{OptionRect, Rect},
+        pool::Handle,
+        reflect::prelude::*,
+        type_traits::prelude::*,
+        visitor::prelude::*,
+    },
+    graph::{BaseSceneGraph, SceneGraph},
+    gui::{
+        brush::Brush,
+        define_constructor, define_widget_deref,
+        draw::{CommandTexture, Draw, DrawingContext},
+        message::{KeyCode, MessageDirection, MouseButton, UiMessage},
+        widget::{Widget, WidgetBuilder, WidgetMessage},
+        BuildContext, Control, UiNode, UserInterface,
+    },
+    scene::tilemap::{
+        brush::{BrushTile, TileMapBrush},
+        tileset::TileSetResource,
     },
 };
+use crate::plugins::absm::selectable::{Selectable, SelectableMessage};
+use crate::plugins::tilemap::tileset::TileSetTileView;
 use fyrox::scene::tilemap::tileset::TileDefinitionHandle;
 use std::ops::{Deref, DerefMut};
 

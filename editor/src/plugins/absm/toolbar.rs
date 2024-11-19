@@ -39,13 +39,13 @@ use crate::fyrox::{
         BRUSH_BRIGHT,
     },
 };
+use crate::plugins::absm::{
+    animation_container_ref,
+    command::{AddLayerCommand, RemoveLayerCommand, SetLayerMaskCommand, SetLayerNameCommand},
+    fetch_selection, machine_container_ref,
+    selection::AbsmSelection,
+};
 use crate::{
-    absm::{
-        animation_container_ref,
-        command::{AddLayerCommand, RemoveLayerCommand, SetLayerMaskCommand, SetLayerNameCommand},
-        fetch_selection, machine_container_ref,
-        selection::AbsmSelection,
-    },
     command::{Command, CommandGroup},
     gui::make_dropdown_list_option,
     load_image,
@@ -158,7 +158,7 @@ impl Toolbar {
                                 .with_margin(Thickness::uniform(1.0))
                                 .with_background(BRUSH_BRIGHT),
                         )
-                        .with_opt_texture(load_image!("../../resources/filter.png"))
+                        .with_opt_texture(load_image!("../../../resources/filter.png"))
                         .build(ctx),
                     )
                     .build(ctx);

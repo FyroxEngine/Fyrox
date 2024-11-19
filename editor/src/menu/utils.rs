@@ -34,7 +34,6 @@ pub struct UtilsMenu {
     pub menu: Handle<UiNode>,
     pub open_path_fixer: Handle<UiNode>,
     pub open_curve_editor: Handle<UiNode>,
-    pub absm_editor: Handle<UiNode>,
     pub rendering_statistics: Handle<UiNode>,
 }
 
@@ -42,7 +41,6 @@ impl UtilsMenu {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let open_path_fixer;
         let open_curve_editor;
-        let absm_editor;
         let rendering_statistics;
         let menu = create_root_menu_item(
             "Utils",
@@ -56,10 +54,6 @@ impl UtilsMenu {
                     open_curve_editor
                 },
                 {
-                    absm_editor = create_menu_item("ABSM Editor", vec![], ctx);
-                    absm_editor
-                },
-                {
                     rendering_statistics = create_menu_item("Rendering Statistics", vec![], ctx);
                     rendering_statistics
                 },
@@ -71,7 +65,6 @@ impl UtilsMenu {
             menu,
             open_path_fixer,
             open_curve_editor,
-            absm_editor,
             rendering_statistics,
         }
     }
@@ -92,8 +85,6 @@ impl UtilsMenu {
                 ));
             } else if message.destination() == self.open_curve_editor {
                 panels.curve_editor.open(ui);
-            } else if message.destination() == self.absm_editor {
-                panels.absm_editor.open(ui);
             } else if message.destination() == self.rendering_statistics {
                 *panels.statistics_window = Some(StatisticsWindow::new(
                     &mut ui.build_ctx(),

@@ -39,13 +39,11 @@ use crate::fyrox::{
         BuildContext, Control, UiNode, UserInterface,
     },
 };
-use crate::{
-    absm::{
-        segment::Segment,
-        selectable::{Selectable, SelectableMessage},
-    },
-    utils::fetch_node_center,
+use crate::plugins::absm::{
+    segment::Segment,
+    selectable::{Selectable, SelectableMessage},
 };
+use crate::utils::fetch_node_center;
 use std::ops::{Deref, DerefMut};
 
 const PICKED_COLOR: Color = Color::opaque(100, 100, 100);
@@ -221,7 +219,7 @@ impl TransitionBuilder {
 
 #[cfg(test)]
 mod test {
-    use crate::absm::transition::TransitionBuilder;
+    use crate::plugins::absm::transition::TransitionBuilder;
     use fyrox::{gui::test::test_widget_deletion, gui::widget::WidgetBuilder};
 
     #[test]

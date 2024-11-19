@@ -39,10 +39,10 @@ use crate::fyrox::{
         BuildContext, UiNode, UserInterface,
     },
 };
+use crate::plugins::absm::command::fetch_machine;
 use crate::{
-    absm::command::fetch_machine, command::make_command,
-    inspector::editors::make_property_editors_container, message::MessageSender, Message,
-    MessageDirection, MSG_SYNC_FLAG,
+    command::make_command, inspector::editors::make_property_editors_container,
+    message::MessageSender, Message, MessageDirection, MSG_SYNC_FLAG,
 };
 use std::sync::Arc;
 

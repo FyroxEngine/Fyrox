@@ -32,7 +32,8 @@ use crate::fyrox::{
         BuildContext, Control, UiNode, UserInterface,
     },
 };
-use crate::{absm::segment::Segment, utils::fetch_node_screen_center};
+use crate::plugins::absm::segment::Segment;
+use crate::utils::fetch_node_screen_center;
 use std::ops::{Deref, DerefMut};
 
 const PICKED_BRUSH: Brush = Brush::Solid(Color::opaque(100, 100, 100));
@@ -174,7 +175,7 @@ impl ConnectionBuilder {
 
 #[cfg(test)]
 mod test {
-    use crate::absm::connection::ConnectionBuilder;
+    use crate::plugins::absm::connection::ConnectionBuilder;
     use fyrox::{gui::test::test_widget_deletion, gui::widget::WidgetBuilder};
 
     #[test]

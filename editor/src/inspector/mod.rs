@@ -18,8 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::plugins::absm::animation_container_ref;
 use crate::{
-    absm::animation_container_ref,
     fyrox::{
         asset::manager::ResourceManager,
         core::{
