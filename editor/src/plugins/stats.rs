@@ -64,7 +64,9 @@ impl EditorPlugin for UiStatisticsPlugin {
         if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination() == self.open_ui_stats && self.window.is_none() {
                 let ctx = &mut ui.build_ctx();
-                self.text = TextBuilder::new(WidgetBuilder::new()).build(ctx);
+                self.text =
+                    TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
+                        .build(ctx);
                 self.window =
                     WindowBuilder::new(WidgetBuilder::new().with_width(200.0).with_height(100.0))
                         .with_title(WindowTitle::text("Editor UI Statistics"))
@@ -115,9 +117,10 @@ impl EditorPlugin for UiStatisticsPlugin {
             self.text,
             MessageDirection::ToWidget,
             format!(
-                "Widget Count: {}\nMemory Used: {:.3} Mb.",
+                "Widget Count: {}\nMemory Used: {:.3} Mb.\nDrawing Commands: {}",
                 ui.nodes().alive_count(),
-                total_memory as f32 / (1024.0 * 1024.0)
+                total_memory as f32 / (1024.0 * 1024.0),
+                ui.get_drawing_context().get_commands().len()
             ),
         ));
     }
