@@ -23,6 +23,7 @@ pub mod animation;
 pub mod collider;
 pub mod curve_editor;
 pub mod material;
+pub mod path_fixer;
 pub mod ragdoll;
 pub mod settings;
 pub mod stats;

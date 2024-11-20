@@ -76,7 +76,6 @@ pub struct Panels<'b> {
     pub world_outliner_window: Handle<UiNode>,
     pub asset_window: Handle<UiNode>,
     pub configurator_window: Handle<UiNode>,
-    pub path_fixer: Handle<UiNode>,
     pub scene_settings: &'b SceneSettingsWindow,
     pub export_window: &'b mut Option<ExportWindow>,
     pub statistics_window: &'b mut Option<StatisticsWindow>,

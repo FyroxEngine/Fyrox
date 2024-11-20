@@ -62,13 +62,7 @@ pub mod world;
 
 pub use fyrox;
 
-use crate::plugins::absm::AbsmEditorPlugin;
-use crate::plugins::animation::AnimationEditorPlugin;
-use crate::plugins::curve_editor::CurveEditorPlugin;
-use crate::plugins::material::MaterialPlugin;
-use crate::plugins::ragdoll::RagdollPlugin;
-use crate::plugins::settings::SettingsPlugin;
-use crate::plugins::stats::UiStatisticsPlugin;
+use crate::plugins::path_fixer::PathFixerPlugin;
 use crate::{
     asset::AssetBrowser,
     audio::{preview::AudioPreviewPanel, AudioPanel},
@@ -151,7 +145,11 @@ use crate::{
     particle::ParticleSystemPreviewControlPanel,
     physics::ColliderControlPanel,
     plugin::{EditorPlugin, EditorPluginsContainer},
-    plugins::{collider::ColliderShapePlugin, tilemap::TileMapEditorPlugin},
+    plugins::{
+        absm::AbsmEditorPlugin, animation::AnimationEditorPlugin, collider::ColliderShapePlugin,
+        curve_editor::CurveEditorPlugin, material::MaterialPlugin, ragdoll::RagdollPlugin,
+        settings::SettingsPlugin, stats::UiStatisticsPlugin, tilemap::TileMapEditorPlugin,
+    },
     scene::{
         commands::{
             make_delete_selection_command, ChangeSelectionCommand, GameSceneContext, PasteCommand,
@@ -169,7 +167,7 @@ use crate::{
         commands::graph::PasteWidgetCommand, menu::WidgetContextMenu,
         utils::UiSceneWorldViewerDataProvider, UiScene,
     },
-    utils::{doc::DocWindow, path_fixer::PathFixer},
+    utils::doc::DocWindow,
     world::{graph::menu::SceneNodeContextMenu, graph::EditorSceneWrapper, WorldViewer},
 };
 pub use message::Message;
@@ -537,7 +535,6 @@ pub struct Editor {
     pub validation_message_box: Handle<UiNode>,
     pub navmesh_panel: NavmeshPanel,
     pub settings: Settings,
-    pub path_fixer: PathFixer,
     pub audio_panel: AudioPanel,
     pub mode: Mode,
     pub build_window: BuildWindow,
@@ -814,7 +811,6 @@ impl Editor {
         .with_buttons(MessageBoxButtons::Ok)
         .build(ctx);
 
-        let path_fixer = PathFixer::new(ctx);
         let save_scene_dialog = SaveSceneConfirmationDialog::new(ctx);
         let build_window = BuildWindow::new(ctx);
         if let Some(layout) = settings.windows.layout.as_ref() {
@@ -848,7 +844,6 @@ impl Editor {
             command_stack_viewer,
             validation_message_box,
             settings,
-            path_fixer,
             audio_panel,
             save_scene_dialog,
             mode: Mode::Edit,
@@ -874,6 +869,7 @@ impl Editor {
                 .with(AbsmEditorPlugin::default())
                 .with(UiStatisticsPlugin::default())
                 .with(CurveEditorPlugin::default())
+                .with(PathFixerPlugin::default())
                 .with(inspector_plugin),
             // Apparently, some window managers (like Wayland), does not send `Focused` event after the window
             // was created. So we must assume that the editor is focused by default, otherwise editor's thread
@@ -1203,7 +1199,6 @@ impl Editor {
                     navmesh_panel: self.navmesh_panel.window,
                     audio_panel: self.audio_panel.window,
                     configurator_window: self.configurator.window,
-                    path_fixer: self.path_fixer.window,
                     command_stack_panel: self.command_stack_viewer.window,
                     scene_settings: &self.scene_settings,
                     export_window: &mut self.export_window,
@@ -1226,12 +1221,6 @@ impl Editor {
         self.asset_browser
             .handle_ui_message(message, engine, self.message_sender.clone());
         self.command_stack_viewer.handle_ui_message(message);
-        self.path_fixer.handle_ui_message(
-            message,
-            engine.user_interfaces.first_mut(),
-            engine.serialization_context.clone(),
-            engine.resource_manager.clone(),
-        );
         self.scene_viewer.handle_ui_message(
             message,
             engine,
@@ -2194,8 +2183,6 @@ impl Editor {
                 for_each_plugin!(self.plugins => on_message(&message, self));
 
                 editor_messages_processed_count += 1;
-                self.path_fixer
-                    .handle_message(&message, self.engine.user_interfaces.first());
 
                 self.save_scene_dialog
                     .handle_message(&message, &self.message_sender);

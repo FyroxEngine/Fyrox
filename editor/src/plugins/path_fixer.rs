@@ -21,34 +21,40 @@
 //! Special utility that allows you to fix paths to resources. It is very useful if you've
 //! moved a resource in a file system, but a scene has old path.
 
-use crate::fyrox::asset::untyped::ResourceKind;
-use crate::fyrox::graph::{BaseSceneGraph, SceneGraph};
-use crate::fyrox::{
-    asset::{manager::ResourceManager, untyped::UntypedResource},
-    core::{
-        color::Color, futures::executor::block_on, pool::Handle, replace_slashes, visitor::Visitor,
+use crate::{
+    fyrox::{
+        asset::{manager::ResourceManager, untyped::ResourceKind, untyped::UntypedResource},
+        core::{
+            color::Color, futures::executor::block_on, pool::Handle, replace_slashes,
+            some_or_return, visitor::Visitor,
+        },
+        engine::SerializationContext,
+        graph::{BaseSceneGraph, SceneGraph},
+        gui::{
+            border::BorderBuilder,
+            brush::Brush,
+            button::{ButtonBuilder, ButtonMessage},
+            decorator::DecoratorBuilder,
+            file_browser::{FileSelectorBuilder, FileSelectorMessage},
+            formatted_text::WrapMode,
+            grid::{Column, GridBuilder, Row},
+            list_view::{ListView, ListViewBuilder, ListViewMessage},
+            menu::MenuItemMessage,
+            message::{MessageDirection, UiMessage},
+            stack_panel::StackPanelBuilder,
+            text::{Text, TextBuilder, TextMessage},
+            widget::{WidgetBuilder, WidgetMessage},
+            window::{WindowBuilder, WindowMessage, WindowTitle},
+            BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+            VerticalAlignment,
+        },
+        scene::{Scene, SceneLoader},
     },
-    engine::SerializationContext,
-    gui::{
-        border::BorderBuilder,
-        brush::Brush,
-        button::{ButtonBuilder, ButtonMessage},
-        decorator::DecoratorBuilder,
-        file_browser::{FileSelectorBuilder, FileSelectorMessage},
-        formatted_text::WrapMode,
-        grid::{Column, GridBuilder, Row},
-        list_view::{ListView, ListViewBuilder, ListViewMessage},
-        message::{MessageDirection, UiMessage},
-        stack_panel::StackPanelBuilder,
-        text::{Text, TextBuilder, TextMessage},
-        widget::{WidgetBuilder, WidgetMessage},
-        window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
-        VerticalAlignment,
-    },
-    scene::{Scene, SceneLoader},
+    make_scene_file_filter,
+    menu::create_menu_item,
+    plugin::EditorPlugin,
+    Editor, Message,
 };
-use crate::{make_scene_file_filter, Message};
 use std::{
     path::{Path, PathBuf},
     sync::Arc,
@@ -74,7 +80,10 @@ pub struct PathFixer {
 
 fn find_file(name: &Path) -> Vec<PathBuf> {
     let mut files = Vec::new();
-    for dir in fyrox::walkdir::WalkDir::new(".").into_iter().flatten() {
+    for dir in fyrox::walkdir::WalkDir::new("../../..")
+        .into_iter()
+        .flatten()
+    {
         let path = dir.path();
         if let Some(file_name) = path.file_name() {
             if file_name == name {
@@ -216,6 +225,7 @@ impl PathFixer {
                 .add_column(Column::stretch())
                 .build(ctx),
             )
+            .with_remove_on_close(true)
             .build(ctx);
 
         Self {
@@ -269,13 +279,24 @@ impl PathFixer {
         ));
     }
 
+    fn destroy(self, ui: &UserInterface) {
+        ui.send_message(WidgetMessage::remove(
+            self.new_path_selector,
+            MessageDirection::ToWidget,
+        ));
+        ui.send_message(WidgetMessage::remove(
+            self.scene_selector,
+            MessageDirection::ToWidget,
+        ));
+    }
+
     pub fn handle_ui_message(
-        &mut self,
+        mut self,
         message: &UiMessage,
         ui: &mut UserInterface,
         serialization_context: Arc<SerializationContext>,
         resource_manager: ResourceManager,
-    ) {
+    ) -> Option<Self> {
         if let Some(FileSelectorMessage::Commit(path)) = message.data::<FileSelectorMessage>() {
             if message.destination() == self.scene_selector {
                 let message;
@@ -492,7 +513,14 @@ impl PathFixer {
                     self.selection.is_some(),
                 ));
             }
+        } else if let Some(WindowMessage::Close) = message.data() {
+            if message.destination() == self.window {
+                self.destroy(ui);
+                return None;
+            }
         }
+
+        Some(self)
     }
 
     pub fn handle_message(&mut self, message: &Message, ui: &UserInterface) {
@@ -508,5 +536,64 @@ impl PathFixer {
                 Some(working_directory.to_owned()),
             ));
         }
+    }
+
+    fn open(&self, ui: &UserInterface) {
+        ui.send_message(WindowMessage::open_modal(
+            self.window,
+            MessageDirection::ToWidget,
+            true,
+            true,
+        ));
+    }
+}
+
+#[derive(Default)]
+pub struct PathFixerPlugin {
+    path_fixer: Option<PathFixer>,
+    open_path_fixer: Handle<UiNode>,
+}
+
+impl PathFixerPlugin {
+    fn on_open_curve_editor_clicked(&mut self, editor: &mut Editor) {
+        let ui = editor.engine.user_interfaces.first_mut();
+        let ctx = &mut ui.build_ctx();
+        let path_fixer = self.path_fixer.get_or_insert_with(|| PathFixer::new(ctx));
+        path_fixer.open(ui);
+    }
+}
+
+impl EditorPlugin for PathFixerPlugin {
+    fn on_start(&mut self, editor: &mut Editor) {
+        let ui = editor.engine.user_interfaces.first_mut();
+        let ctx = &mut ui.build_ctx();
+        self.open_path_fixer = create_menu_item("Path Fixer", vec![], ctx);
+        ui.send_message(MenuItemMessage::add_item(
+            editor.menu.utils_menu.menu,
+            MessageDirection::ToWidget,
+            self.open_path_fixer,
+        ));
+    }
+
+    fn on_ui_message(&mut self, message: &mut UiMessage, editor: &mut Editor) {
+        if let Some(MenuItemMessage::Click) = message.data() {
+            if message.destination() == self.open_path_fixer {
+                self.on_open_curve_editor_clicked(editor)
+            }
+        }
+        let path_fixer = some_or_return!(self.path_fixer.take());
+        let ui = editor.engine.user_interfaces.first_mut();
+        self.path_fixer = path_fixer.handle_ui_message(
+            message,
+            ui,
+            editor.engine.serialization_context.clone(),
+            editor.engine.resource_manager.clone(),
+        );
+    }
+
+    fn on_message(&mut self, message: &Message, editor: &mut Editor) {
+        let path_fixer = some_or_return!(self.path_fixer.as_mut());
+        let ui = editor.engine.user_interfaces.first_mut();
+        path_fixer.handle_message(message, ui);
     }
 }
