@@ -328,6 +328,9 @@ pub struct Window {
     /// `can_close` is also `true`.
     #[visit(optional)] // Backward compatibility
     pub close_by_esc: bool,
+    /// If `true`, then the window will be deleted after closing.
+    #[visit(optional)] // Backward compatibility
+    pub remove_on_close: bool,
 }
 
 const GRIP_SIZE: f32 = 6.0;
@@ -748,6 +751,12 @@ impl Control for Window {
                                 false,
                             ));
                             ui.remove_picking_restriction(self.handle());
+                            if self.remove_on_close {
+                                ui.send_message(WidgetMessage::remove(
+                                    self.handle,
+                                    MessageDirection::ToWidget,
+                                ));
+                            }
                         }
                     }
                     &WindowMessage::Minimize(minimized) => {
@@ -1016,6 +1025,8 @@ pub struct WindowBuilder {
     /// If `true`, then the window can be closed using `Esc` key. Default is `true`. Works only if
     /// `can_close` is also `true`.
     pub close_by_esc: bool,
+    /// If `true`, then the window will be deleted after closing.
+    pub remove_on_close: bool,
 }
 
 /// Window title can be either text or node.
@@ -1204,6 +1215,7 @@ impl WindowBuilder {
             can_resize: true,
             safe_border_size: Some(Vector2::new(25.0, 20.0)),
             close_by_esc: true,
+            remove_on_close: false,
         }
     }
 
@@ -1283,6 +1295,12 @@ impl WindowBuilder {
     /// is also `true`.
     pub fn with_close_by_esc(mut self, close: bool) -> Self {
         self.close_by_esc = close;
+        self
+    }
+
+    /// Defines, whether the window should be deleted after closing or not. Default is `false`.
+    pub fn with_remove_on_close(mut self, close: bool) -> Self {
+        self.remove_on_close = close;
         self
     }
 
@@ -1434,6 +1452,7 @@ impl WindowBuilder {
             title_grid,
             prev_bounds: None,
             close_by_esc: self.close_by_esc,
+            remove_on_close: self.remove_on_close,
         }
     }
 
