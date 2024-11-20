@@ -292,7 +292,8 @@ pub fn make_save_file_selector(
     FileSelectorBuilder::new(
         WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
             .with_title(WindowTitle::text("Save Scene As"))
-            .open(false),
+            .open(false)
+            .with_remove_on_close(true),
     )
     .with_mode(FileBrowserMode::Save { default_file_name })
     .with_path("./")

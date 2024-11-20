@@ -176,9 +176,6 @@ impl SceneNodeContextMenu {
         .build(ctx);
         let menu = RcUiNodeHandle::new(menu, ctx.sender());
 
-        // TODO: Not sure if this is the right place for this dialog.
-        let save_as_prefab_dialog = make_save_file_selector(ctx, PathBuf::from("unnamed.rgs"));
-
         Self {
             create_child_entity_menu,
             menu,
@@ -186,7 +183,7 @@ impl SceneNodeContextMenu {
             copy_selection,
             placement_target: Default::default(),
             save_as_prefab,
-            save_as_prefab_dialog,
+            save_as_prefab_dialog: Default::default(),
             replace_with_menu,
             paste,
             make_root,
@@ -310,23 +307,22 @@ impl SceneNodeContextMenu {
                         }
                     }
                 } else if message.destination() == self.save_as_prefab {
-                    engine
-                        .user_interfaces
-                        .first_mut()
-                        .send_message(WindowMessage::open_modal(
-                            self.save_as_prefab_dialog,
-                            MessageDirection::ToWidget,
-                            true,
-                            true,
-                        ));
-                    engine
-                        .user_interfaces
-                        .first_mut()
-                        .send_message(FileSelectorMessage::root(
-                            self.save_as_prefab_dialog,
-                            MessageDirection::ToWidget,
-                            Some(std::env::current_dir().unwrap()),
-                        ));
+                    let ui = engine.user_interfaces.first_mut();
+
+                    self.save_as_prefab_dialog =
+                        make_save_file_selector(&mut ui.build_ctx(), PathBuf::from("unnamed.rgs"));
+
+                    ui.send_message(WindowMessage::open_modal(
+                        self.save_as_prefab_dialog,
+                        MessageDirection::ToWidget,
+                        true,
+                        true,
+                    ));
+                    ui.send_message(FileSelectorMessage::root(
+                        self.save_as_prefab_dialog,
+                        MessageDirection::ToWidget,
+                        Some(std::env::current_dir().unwrap()),
+                    ));
                 } else if message.destination() == self.make_root {
                     if let Some(graph_selection) = editor_selection.as_graph() {
                         if let Some(first) = graph_selection.nodes.first() {

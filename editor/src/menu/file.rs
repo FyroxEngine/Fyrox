@@ -242,13 +242,6 @@ impl FileMenu {
                         path: path.to_owned(),
                     });
                 }
-                engine
-                    .user_interfaces
-                    .first_mut()
-                    .send_message(WidgetMessage::remove(
-                        self.save_file_selector,
-                        MessageDirection::ToWidget,
-                    ));
                 self.save_file_selector = Handle::NONE;
             } else if message.destination() == self.load_file_selector {
                 sender.send(Message::LoadScene(path.to_owned()));
