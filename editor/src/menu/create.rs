@@ -23,11 +23,8 @@ use crate::{
     create_terrain_layer_material,
     fyrox::{
         asset::untyped::ResourceKind,
-        core::{
-            algebra::{Matrix4, Vector3},
-            math::TriangleDefinition,
-            pool::Handle,
-        },
+        core::{algebra::Vector3, math::TriangleDefinition, pool::Handle},
+        engine::Engine,
         gui::{
             menu::MenuItemMessage, message::MessageDirection, message::UiMessage,
             widget::WidgetMessage, BuildContext, UiNode, UserInterface,
@@ -42,10 +39,7 @@ use crate::{
                 directional::DirectionalLightBuilder, point::PointLightBuilder,
                 spot::SpotLightBuilder, BaseLightBuilder,
             },
-            mesh::{
-                surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
-                MeshBuilder,
-            },
+            mesh::{surface, surface::SurfaceBuilder, MeshBuilder},
             navmesh::NavigationalMeshBuilder,
             node::Node,
             particle_system::{
@@ -72,7 +66,6 @@ use crate::{
     ui_scene::UiScene,
     Mode,
 };
-use fyrox::engine::Engine;
 
 pub struct CreateEntityRootMenu {
     pub menu: Handle<UiNode>,
@@ -388,10 +381,9 @@ impl CreateEntityMenu {
                     if message.destination() == self.create_cube {
                         Some(
                             MeshBuilder::new(BaseBuilder::new().with_name("Cube"))
-                                .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_ok(
-                                    ResourceKind::Embedded,
-                                    SurfaceData::make_cube(Matrix4::identity()),
-                                ))
+                                .with_surfaces(vec![SurfaceBuilder::new(
+                                    surface::CUBE.resource.clone(),
+                                )
                                 .with_material(placeholder_material())
                                 .build()])
                                 .build_node(),
@@ -426,10 +418,9 @@ impl CreateEntityMenu {
                     } else if message.destination() == self.create_cone {
                         Some(
                             MeshBuilder::new(BaseBuilder::new().with_name("Cone"))
-                                .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_ok(
-                                    ResourceKind::Embedded,
-                                    SurfaceData::make_cone(16, 0.5, 1.0, &Matrix4::identity()),
-                                ))
+                                .with_surfaces(vec![SurfaceBuilder::new(
+                                    surface::CONE.resource.clone(),
+                                )
                                 .with_material(placeholder_material())
                                 .build()])
                                 .build_node(),
@@ -437,16 +428,9 @@ impl CreateEntityMenu {
                     } else if message.destination() == self.create_cylinder {
                         Some(
                             MeshBuilder::new(BaseBuilder::new().with_name("Cylinder"))
-                                .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_ok(
-                                    ResourceKind::Embedded,
-                                    SurfaceData::make_cylinder(
-                                        16,
-                                        0.5,
-                                        1.0,
-                                        true,
-                                        &Matrix4::identity(),
-                                    ),
-                                ))
+                                .with_surfaces(vec![SurfaceBuilder::new(
+                                    surface::CYLINDER.resource.clone(),
+                                )
                                 .with_material(placeholder_material())
                                 .build()])
                                 .build_node(),
@@ -454,10 +438,9 @@ impl CreateEntityMenu {
                     } else if message.destination() == self.create_sphere {
                         Some(
                             MeshBuilder::new(BaseBuilder::new().with_name("Sphere"))
-                                .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_ok(
-                                    ResourceKind::Embedded,
-                                    SurfaceData::make_sphere(16, 16, 0.5, &Matrix4::identity()),
-                                ))
+                                .with_surfaces(vec![SurfaceBuilder::new(
+                                    surface::SPHERE.resource.clone(),
+                                )
                                 .with_material(placeholder_material())
                                 .build()])
                                 .build_node(),
@@ -465,10 +448,9 @@ impl CreateEntityMenu {
                     } else if message.destination() == self.create_quad {
                         Some(
                             MeshBuilder::new(BaseBuilder::new().with_name("Quad"))
-                                .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_ok(
-                                    ResourceKind::Embedded,
-                                    SurfaceData::make_quad(&Matrix4::identity()),
-                                ))
+                                .with_surfaces(vec![SurfaceBuilder::new(
+                                    surface::QUAD.resource.clone(),
+                                )
                                 .with_material(placeholder_material())
                                 .build()])
                                 .build_node(),
