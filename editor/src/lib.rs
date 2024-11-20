@@ -36,7 +36,6 @@ pub mod build;
 pub mod camera;
 pub mod command;
 pub mod configurator;
-pub mod curve_editor;
 pub mod export;
 pub mod gui;
 pub mod highlight;
@@ -65,6 +64,7 @@ pub use fyrox;
 
 use crate::plugins::absm::AbsmEditorPlugin;
 use crate::plugins::animation::AnimationEditorPlugin;
+use crate::plugins::curve_editor::CurveEditorPlugin;
 use crate::plugins::material::MaterialPlugin;
 use crate::plugins::ragdoll::RagdollPlugin;
 use crate::plugins::settings::SettingsPlugin;
@@ -76,7 +76,6 @@ use crate::{
     camera::panel::CameraPreviewControlPanel,
     command::{panel::CommandStackViewer, Command, CommandTrait},
     configurator::Configurator,
-    curve_editor::CurveEditorWindow,
     export::ExportWindow,
     fyrox::{
         asset::{io::FsResourceIo, manager::ResourceManager, untyped::UntypedResource},
@@ -539,7 +538,6 @@ pub struct Editor {
     pub navmesh_panel: NavmeshPanel,
     pub settings: Settings,
     pub path_fixer: PathFixer,
-    pub curve_editor: CurveEditorWindow,
     pub audio_panel: AudioPanel,
     pub mode: Mode,
     pub build_window: BuildWindow,
@@ -640,7 +638,6 @@ impl Editor {
         let menu = Menu::new(&mut engine, message_sender.clone(), &settings);
         let light_panel = LightPanel::new(&mut engine, message_sender.clone());
         let audio_panel = AudioPanel::new(&mut engine, message_sender.clone());
-
         let ctx = &mut engine.user_interfaces.first_mut().build_ctx();
         let navmesh_panel = NavmeshPanel::new(scene_viewer.frame(), ctx, message_sender.clone());
         let scene_node_context_menu = Rc::new(RefCell::new(SceneNodeContextMenu::new(ctx)));
@@ -818,13 +815,8 @@ impl Editor {
         .build(ctx);
 
         let path_fixer = PathFixer::new(ctx);
-
-        let curve_editor = CurveEditorWindow::new(ctx);
-
         let save_scene_dialog = SaveSceneConfirmationDialog::new(ctx);
-
         let build_window = BuildWindow::new(ctx);
-
         if let Some(layout) = settings.windows.layout.as_ref() {
             engine
                 .user_interfaces
@@ -857,7 +849,6 @@ impl Editor {
             validation_message_box,
             settings,
             path_fixer,
-            curve_editor,
             audio_panel,
             save_scene_dialog,
             mode: Mode::Edit,
@@ -882,6 +873,7 @@ impl Editor {
                 .with(AnimationEditorPlugin::default())
                 .with(AbsmEditorPlugin::default())
                 .with(UiStatisticsPlugin::default())
+                .with(CurveEditorPlugin::default())
                 .with(inspector_plugin),
             // Apparently, some window managers (like Wayland), does not send `Focused` event after the window
             // was created. So we must assume that the editor is focused by default, otherwise editor's thread
@@ -1212,7 +1204,6 @@ impl Editor {
                     audio_panel: self.audio_panel.window,
                     configurator_window: self.configurator.window,
                     path_fixer: self.path_fixer.window,
-                    curve_editor: &self.curve_editor,
                     command_stack_panel: self.command_stack_viewer.window,
                     scene_settings: &self.scene_settings,
                     export_window: &mut self.export_window,
@@ -1235,7 +1226,6 @@ impl Editor {
         self.asset_browser
             .handle_ui_message(message, engine, self.message_sender.clone());
         self.command_stack_viewer.handle_ui_message(message);
-        self.curve_editor.handle_ui_message(message, engine);
         self.path_fixer.handle_ui_message(
             message,
             engine.user_interfaces.first_mut(),

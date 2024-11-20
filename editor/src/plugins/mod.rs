@@ -21,6 +21,7 @@
 pub mod absm;
 pub mod animation;
 pub mod collider;
+pub mod curve_editor;
 pub mod material;
 pub mod ragdoll;
 pub mod settings;
