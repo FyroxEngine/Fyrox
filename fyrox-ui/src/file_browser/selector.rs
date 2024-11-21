@@ -38,6 +38,7 @@ use crate::{
     VerticalAlignment,
 };
 use fyrox_core::uuid_provider;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
 use std::{
     ops::{Deref, DerefMut},
@@ -70,6 +71,20 @@ pub struct FileSelector {
     pub browser: Handle<UiNode>,
     pub ok: Handle<UiNode>,
     pub cancel: Handle<UiNode>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for FileSelector {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("File Selector", |ui| {
+                FileSelectorBuilder::new(WindowBuilder::new(
+                    WidgetBuilder::new().with_name("File Selector"),
+                ))
+                .build(&mut ui.build_ctx())
+                .into()
+            })
+            .with_group("File System")
+    }
 }
 
 impl Deref for FileSelector {
@@ -313,6 +328,18 @@ pub struct FileSelectorField {
     path_field: Handle<UiNode>,
     select: Handle<UiNode>,
     file_selector: Handle<UiNode>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for FileSelectorField {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("File Selector Field", |ui| {
+                FileSelectorFieldBuilder::new(WidgetBuilder::new().with_name("File Selector Field"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("File System")
+    }
 }
 
 define_widget_deref!(FileSelectorField);

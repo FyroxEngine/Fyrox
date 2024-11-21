@@ -38,6 +38,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, UiNode, UserInterface, VerticalAlignment,
 };
 use fyrox_core::uuid_provider;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::{
     cell::RefCell,
     ops::{Deref, DerefMut},
@@ -329,6 +330,19 @@ pub struct Text {
     pub widget: Widget,
     /// [`FormattedText`] instance that is used to layout text and generate drawing commands.
     pub formatted_text: RefCell<FormattedText>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for Text {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Text", |ui| {
+                TextBuilder::new(WidgetBuilder::new().with_name("Text"))
+                    .with_text("Text")
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Visual")
+    }
 }
 
 crate::define_widget_deref!(Text);

@@ -50,6 +50,7 @@ use crate::{
         node::{Node, NodeTrait, UpdateContext},
     },
 };
+use fyrox_graph::constructor::ConstructorProvider;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -735,16 +736,17 @@ impl Camera {
     }
 }
 
-impl NodeTrait for Camera {
-    fn constructor() -> NodeConstructor
-    where
-        Self: Sized + Default,
-    {
-        NodeConstructor::new::<Self>().with_variant("Camera", || {
-            CameraBuilder::new(BaseBuilder::new().with_name("Camera")).build_node()
+impl ConstructorProvider<Node, Graph> for Camera {
+    fn constructor() -> NodeConstructor {
+        NodeConstructor::new::<Self>().with_variant("Camera", |_| {
+            CameraBuilder::new(BaseBuilder::new().with_name("Camera"))
+                .build_node()
+                .into()
         })
     }
+}
 
+impl NodeTrait for Camera {
     /// Returns current **local-space** bounding box.
     #[inline]
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {

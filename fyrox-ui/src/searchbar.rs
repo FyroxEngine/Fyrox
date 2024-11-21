@@ -45,6 +45,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
     VerticalAlignment, BRUSH_BRIGHTEST, BRUSH_DARKER, BRUSH_LIGHT, BRUSH_LIGHTEST,
 };
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::ops::{Deref, DerefMut};
 
 /// A set of messages that can be used to get the state of a search bar.
@@ -104,6 +105,18 @@ pub struct SearchBar {
     pub text_box: InheritableVariable<Handle<UiNode>>,
     /// A handle of a button, that is used to clear the text.
     pub clear: InheritableVariable<Handle<UiNode>>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for SearchBar {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Search Bar", |ui| {
+                SearchBarBuilder::new(WidgetBuilder::new().with_name("Search Bar"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Input")
+    }
 }
 
 define_widget_deref!(SearchBar);

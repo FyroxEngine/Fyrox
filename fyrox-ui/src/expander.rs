@@ -36,6 +36,7 @@ use crate::{
 };
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::ops::{Deref, DerefMut};
 
 /// A set messages that can be used to either alternate the state of an [`Expander`] widget, or to listen for
@@ -163,6 +164,18 @@ pub struct Expander {
     pub expander: InheritableVariable<Handle<UiNode>>,
     /// A flag, that indicates whether the expander is expanded or collapsed.
     pub is_expanded: InheritableVariable<bool>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for Expander {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Expander", |ui| {
+                ExpanderBuilder::new(WidgetBuilder::new().with_name("Expander"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Visual")
+    }
 }
 
 crate::define_widget_deref!(Expander);

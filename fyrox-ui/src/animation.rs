@@ -37,6 +37,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
 };
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};
 
@@ -165,6 +166,16 @@ pub struct AnimationPlayer {
     pub(crate) animations: InheritableVariable<AnimationContainer>,
     #[component(include)]
     auto_apply: bool,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for AnimationPlayer {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>().with_variant("Animation Player", |ui| {
+            AnimationPlayerBuilder::new(WidgetBuilder::new().with_name("Animation Player"))
+                .build(&mut ui.build_ctx())
+                .into()
+        })
+    }
 }
 
 impl Default for AnimationPlayer {

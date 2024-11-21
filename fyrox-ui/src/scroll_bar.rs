@@ -45,6 +45,7 @@ use crate::{
 };
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};
 
@@ -177,6 +178,18 @@ pub struct ScrollBar {
     pub value_text: InheritableVariable<Handle<UiNode>>,
     /// Current value precison in decimal places.
     pub value_precision: InheritableVariable<usize>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for ScrollBar {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Scroll Bar", |ui| {
+                ScrollBarBuilder::new(WidgetBuilder::new().with_name("Scroll Bar"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Input")
+    }
 }
 
 crate::define_widget_deref!(ScrollBar);

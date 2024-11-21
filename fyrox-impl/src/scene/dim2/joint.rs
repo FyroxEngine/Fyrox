@@ -42,6 +42,7 @@ use crate::{
     },
 };
 use fyrox_core::uuid_provider;
+use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::{BaseSceneGraph, SceneGraphNode};
 use rapier2d::dynamics::ImpulseJointHandle;
 use std::{
@@ -282,30 +283,32 @@ impl Joint {
     }
 }
 
-impl NodeTrait for Joint {
-    fn constructor() -> NodeConstructor
-    where
-        Self: Sized + Default,
-    {
+impl ConstructorProvider<Node, Graph> for Joint {
+    fn constructor() -> NodeConstructor {
         NodeConstructor::new::<Self>()
-            .with_variant("Ball Joint 2D", || {
+            .with_variant("Ball Joint 2D", |_| {
                 JointBuilder::new(BaseBuilder::new().with_name("Ball Joint 2D"))
                     .with_params(JointParams::BallJoint(Default::default()))
                     .build_node()
+                    .into()
             })
-            .with_variant("Prismatic Joint 2D", || {
+            .with_variant("Prismatic Joint 2D", |_| {
                 JointBuilder::new(BaseBuilder::new().with_name("Prismatic Joint 2D"))
                     .with_params(JointParams::PrismaticJoint(Default::default()))
                     .build_node()
+                    .into()
             })
-            .with_variant("Fixed Joint 2D", || {
+            .with_variant("Fixed Joint 2D", |_| {
                 JointBuilder::new(BaseBuilder::new().with_name("Fixed Joint 2D"))
                     .with_params(JointParams::FixedJoint(Default::default()))
                     .build_node()
+                    .into()
             })
             .with_group("Physics 2D")
     }
+}
 
+impl NodeTrait for Joint {
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.base.local_bounding_box()
     }

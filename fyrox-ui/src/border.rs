@@ -34,6 +34,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, MessageDirection, Thickness, UiNode, UserInterface, BRUSH_PRIMARY,
 };
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::ops::{Deref, DerefMut};
 
 /// The Border widget provides a stylized, static border around its child widget. Below is an example of creating a 1 pixel
@@ -112,6 +113,18 @@ pub struct Border {
     /// children nodes layout won't be affected by the corner radius.
     #[visit(optional)]
     pub pad_by_corner_radius: InheritableVariable<bool>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for Border {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Border", |ui| {
+                BorderBuilder::new(WidgetBuilder::new().with_name("Border"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Visual")
+    }
 }
 
 crate::define_widget_deref!(Border);

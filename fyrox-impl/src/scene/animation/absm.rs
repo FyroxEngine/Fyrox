@@ -40,6 +40,7 @@ use crate::{
         Scene,
     },
 };
+use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::{BaseSceneGraph, SceneGraph, SceneGraphNode};
 use std::ops::{Deref, DerefMut};
 
@@ -274,13 +275,10 @@ impl DerefMut for AnimationBlendingStateMachine {
     }
 }
 
-impl NodeTrait for AnimationBlendingStateMachine {
-    fn constructor() -> NodeConstructor
-    where
-        Self: Sized + Default,
-    {
+impl ConstructorProvider<Node, Graph> for AnimationBlendingStateMachine {
+    fn constructor() -> NodeConstructor {
         NodeConstructor::new::<Self>()
-            .with_variant("Animation Blending State Machine", || {
+            .with_variant("Animation Blending State Machine", |_| {
                 let mut machine = Machine::default();
 
                 let mut layer = MachineLayer::new();
@@ -293,10 +291,13 @@ impl NodeTrait for AnimationBlendingStateMachine {
                 )
                 .with_machine(machine)
                 .build_node()
+                .into()
             })
             .with_group("Animation")
     }
+}
 
+impl NodeTrait for AnimationBlendingStateMachine {
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.base.local_bounding_box()
     }

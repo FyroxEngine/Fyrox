@@ -42,6 +42,7 @@ use crate::{
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, RcUiNodeHandle, UiNode, UserInterface,
 };
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
 use std::{
     cell::Cell,
@@ -63,6 +64,20 @@ impl ColorGradientEditorMessage {
 pub struct ColorGradientField {
     widget: Widget,
     color_gradient: ColorGradient,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for ColorGradientField {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Color Gradient Field", |ui| {
+                ColorGradientFieldBuilder::new(
+                    WidgetBuilder::new().with_name("Color Gradient Field"),
+                )
+                .build(&mut ui.build_ctx())
+                .into()
+            })
+            .with_group("Color")
+    }
 }
 
 define_widget_deref!(ColorGradientField);
@@ -180,6 +195,20 @@ pub struct ColorGradientEditor {
     remove_point: Handle<UiNode>,
     context_menu_target: Cell<Handle<UiNode>>,
     context_menu_open_position: Cell<Vector2<f32>>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for ColorGradientEditor {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Color Gradient Editor", |ui| {
+                ColorGradientEditorBuilder::new(
+                    WidgetBuilder::new().with_name("Color Gradient Editor"),
+                )
+                .build(&mut ui.build_ctx())
+                .into()
+            })
+            .with_group("Color")
+    }
 }
 
 define_widget_deref!(ColorGradientEditor);
@@ -485,6 +514,18 @@ pub struct ColorPoint {
     pub widget: Widget,
     pub location: f32,
     pub dragging: bool,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for ColorPoint {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Color Point", |ui| {
+                ColorPointBuilder::new(WidgetBuilder::new().with_name("Color Point"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Color")
+    }
 }
 
 define_widget_deref!(ColorPoint);

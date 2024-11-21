@@ -36,6 +36,7 @@ use crate::{
 };
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
 use std::{
     cell::RefCell,
@@ -94,6 +95,18 @@ pub struct WrapPanel {
     #[visit(skip)]
     #[reflect(hidden)]
     pub lines: RefCell<Vec<Line>>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for WrapPanel {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Wrap Panel", |ui| {
+                WrapPanelBuilder::new(WidgetBuilder::new().with_name("Wrap Panel"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Layout")
+    }
 }
 
 crate::define_widget_deref!(WrapPanel);

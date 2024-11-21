@@ -41,6 +41,7 @@ use crate::{
     BuildContext, Control, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use fyrox_core::uuid_provider;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
 use std::{
     ops::{Deref, DerefMut},
@@ -128,6 +129,18 @@ pub struct AlphaBar {
     pub orientation: Orientation,
     pub alpha: f32,
     pub is_picking: bool,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for AlphaBar {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Alpha Bar", |ui| {
+                AlphaBarBuilder::new(WidgetBuilder::new().with_name("Alpha Bar"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Color")
+    }
 }
 
 crate::define_widget_deref!(AlphaBar);
@@ -393,6 +406,18 @@ pub struct HueBar {
     pub hue: f32,
 }
 
+impl ConstructorProvider<UiNode, UserInterface> for HueBar {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Hue Bar", |ui| {
+                HueBarBuilder::new(WidgetBuilder::new().with_name("Hue Bar"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Color")
+    }
+}
+
 crate::define_widget_deref!(HueBar);
 
 impl HueBar {
@@ -543,6 +568,20 @@ pub struct SaturationBrightnessField {
     pub hue: f32,
     pub saturation: f32,
     pub brightness: f32,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for SaturationBrightnessField {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Saturation Brightness Field", |ui| {
+                SaturationBrightnessFieldBuilder::new(
+                    WidgetBuilder::new().with_name("Saturation Brightness Field"),
+                )
+                .build(&mut ui.build_ctx())
+                .into()
+            })
+            .with_group("Color")
+    }
 }
 
 crate::define_widget_deref!(SaturationBrightnessField);
@@ -752,6 +791,18 @@ pub struct ColorPicker {
     pub color_mark: Handle<UiNode>,
     pub color: Color,
     pub hsv: Hsv,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for ColorPicker {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Color Picker", |ui| {
+                ColorPickerBuilder::new(WidgetBuilder::new().with_name("Color Picker"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Color")
+    }
 }
 
 crate::define_widget_deref!(ColorPicker);
@@ -1157,6 +1208,18 @@ pub struct ColorField {
     pub popup: Handle<UiNode>,
     pub picker: Handle<UiNode>,
     pub color: Color,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for ColorField {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Color Field", |ui| {
+                ColorFieldBuilder::new(WidgetBuilder::new().with_name("Color Field"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Color")
+    }
 }
 
 crate::define_widget_deref!(ColorField);

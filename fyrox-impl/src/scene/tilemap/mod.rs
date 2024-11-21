@@ -52,6 +52,7 @@ use crate::{
     },
 };
 use fxhash::{FxHashMap, FxHashSet};
+use fyrox_graph::constructor::ConstructorProvider;
 use std::ops::{Deref, DerefMut};
 
 struct BresenhamLineIter {
@@ -648,18 +649,19 @@ impl DerefMut for TileMap {
     }
 }
 
-impl NodeTrait for TileMap {
-    fn constructor() -> NodeConstructor
-    where
-        Self: Sized + Default,
-    {
+impl ConstructorProvider<Node, Graph> for TileMap {
+    fn constructor() -> NodeConstructor {
         NodeConstructor::new::<Self>()
-            .with_variant("Tile Map", || {
-                TileMapBuilder::new(BaseBuilder::new().with_name("Tile Map")).build_node()
+            .with_variant("Tile Map", |_| {
+                TileMapBuilder::new(BaseBuilder::new().with_name("Tile Map"))
+                    .build_node()
+                    .into()
             })
             .with_group("2D")
     }
+}
 
+impl NodeTrait for TileMap {
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         let rect = self.bounding_rect();
 

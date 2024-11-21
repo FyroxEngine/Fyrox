@@ -22,6 +22,8 @@
 
 //! Graph utilities and common algorithms.
 
+pub mod constructor;
+
 use fxhash::FxHashMap;
 use fyrox_core::pool::ErasedHandle;
 use fyrox_core::{

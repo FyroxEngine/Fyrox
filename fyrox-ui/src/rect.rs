@@ -38,6 +38,7 @@ use crate::{
     BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use fyrox_core::variable::InheritableVariable;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::{
     fmt::Debug,
     ops::{Deref, DerefMut},
@@ -136,6 +137,21 @@ where
     pub size: InheritableVariable<Handle<UiNode>>,
     /// Current value of the rect editor.
     pub value: InheritableVariable<Rect<T>>,
+}
+
+impl<T: NumericType> ConstructorProvider<UiNode, UserInterface> for RectEditor<T> {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant(
+                format!("Rect Editor<{}>", std::any::type_name::<T>()),
+                |ui| {
+                    RectEditorBuilder::<T>::new(WidgetBuilder::new())
+                        .build(&mut ui.build_ctx())
+                        .into()
+                },
+            )
+            .with_group("Rect")
+    }
 }
 
 impl<T> Deref for RectEditor<T>

@@ -33,6 +33,7 @@ use crate::{
     BuildContext, Control, UiNode, UserInterface,
 };
 use fyrox_animation::machine::Parameter;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::{SceneGraph, SceneGraphNode};
 use std::ops::{Deref, DerefMut};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
@@ -129,6 +130,20 @@ pub struct AnimationBlendingStateMachine {
     machine: InheritableVariable<Machine>,
     #[component(include)]
     animation_player: InheritableVariable<Handle<UiNode>>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for AnimationBlendingStateMachine {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Animation Blending State Machine", |ui| {
+                AnimationBlendingStateMachineBuilder::new(
+                    WidgetBuilder::new().with_name("Animation Blending State Machine"),
+                )
+                .build(&mut ui.build_ctx())
+                .into()
+            })
+            .with_group("Animation")
+    }
 }
 
 impl AnimationBlendingStateMachine {
@@ -278,6 +293,18 @@ pub struct AbsmEventProvider {
     widget: Widget,
     actions: InheritableVariable<Vec<EventAction>>,
     absm: InheritableVariable<Handle<UiNode>>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for AbsmEventProvider {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Absm Event Provider", |ui| {
+                AbsmEventProviderBuilder::new(WidgetBuilder::new().with_name("Absm Event Provider"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Animation")
+    }
 }
 
 define_widget_deref!(AbsmEventProvider);

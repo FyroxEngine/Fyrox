@@ -54,6 +54,7 @@ use crate::{
 };
 use bytemuck::{Pod, Zeroable};
 use fyrox_core::value_as_u8_slice;
+use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};
 
@@ -293,16 +294,17 @@ impl Sprite {
     }
 }
 
-impl NodeTrait for Sprite {
-    fn constructor() -> NodeConstructor
-    where
-        Self: Sized + Default,
-    {
-        NodeConstructor::new::<Self>().with_variant("Sprite (3D)", || {
-            SpriteBuilder::new(BaseBuilder::new().with_name("Sprite")).build_node()
+impl ConstructorProvider<Node, Graph> for Sprite {
+    fn constructor() -> NodeConstructor {
+        NodeConstructor::new::<Self>().with_variant("Sprite (3D)", |_| {
+            SpriteBuilder::new(BaseBuilder::new().with_name("Sprite"))
+                .build_node()
+                .into()
         })
     }
+}
 
+impl NodeTrait for Sprite {
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         AxisAlignedBoundingBox::from_radius(*self.size)
     }

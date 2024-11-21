@@ -45,6 +45,7 @@ use crate::{
 use fyrox_core::algebra::Vector3;
 use fyrox_core::math::TriangleDefinition;
 use fyrox_core::parking_lot::{RwLockReadGuard, RwLockWriteGuard};
+use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::BaseSceneGraph;
 use std::{
     ops::{Deref, DerefMut},
@@ -180,12 +181,9 @@ impl DerefMut for NavigationalMesh {
     }
 }
 
-impl NodeTrait for NavigationalMesh {
-    fn constructor() -> NodeConstructor
-    where
-        Self: Sized + Default,
-    {
-        NodeConstructor::new::<Self>().with_variant("Navmesh", || {
+impl ConstructorProvider<Node, Graph> for NavigationalMesh {
+    fn constructor() -> NodeConstructor {
+        NodeConstructor::new::<Self>().with_variant("Navmesh", |_| {
             let navmesh = Navmesh::new(
                 vec![TriangleDefinition([0, 1, 2]), TriangleDefinition([0, 2, 3])],
                 vec![
@@ -199,9 +197,12 @@ impl NodeTrait for NavigationalMesh {
             NavigationalMeshBuilder::new(BaseBuilder::new().with_name("Navmesh"))
                 .with_navmesh(navmesh)
                 .build_node()
+                .into()
         })
     }
+}
 
+impl NodeTrait for NavigationalMesh {
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.base.local_bounding_box()
     }

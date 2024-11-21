@@ -36,6 +36,7 @@ use crate::{
 };
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_resource::untyped::UntypedResource;
 use std::ops::{Deref, DerefMut};
 
@@ -188,6 +189,23 @@ pub struct Image {
     pub uv_rect: InheritableVariable<Rect<f32>>,
     /// Defines whether to use checkerboard background or not.
     pub checkerboard_background: InheritableVariable<bool>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for Image {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Image", |ui| {
+                ImageBuilder::new(
+                    WidgetBuilder::new()
+                        .with_height(32.0)
+                        .with_width(32.0)
+                        .with_name("Image"),
+                )
+                .build(&mut ui.build_ctx())
+                .into()
+            })
+            .with_group("Visual")
+    }
 }
 
 crate::define_widget_deref!(Image);

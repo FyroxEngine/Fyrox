@@ -32,6 +32,7 @@ use crate::{
     BuildContext, Control, Thickness, UiNode, UserInterface,
 };
 use fyrox_core::uuid_provider;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::{BaseSceneGraph, SceneGraph};
 use std::{
     cell::Cell,
@@ -124,6 +125,18 @@ pub struct Tile {
     pub splitter: Handle<UiNode>,
     pub dragging_splitter: bool,
     pub drop_anchor: Cell<Handle<UiNode>>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for Tile {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Tile", |ui| {
+                TileBuilder::new(WidgetBuilder::new().with_name("Tile"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Layout")
+    }
 }
 
 crate::define_widget_deref!(Tile);

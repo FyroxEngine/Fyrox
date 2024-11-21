@@ -39,6 +39,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, MouseButton, Thickness, UiNode, UserInterface,
     VerticalAlignment, BRUSH_BRIGHT, BRUSH_BRIGHT_BLUE, BRUSH_DARKEST, BRUSH_LIGHT, BRUSH_TEXT,
 };
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::ops::{Deref, DerefMut};
 
 /// A set of possible check box messages.
@@ -160,6 +161,18 @@ pub struct CheckBox {
     pub uncheck_mark: InheritableVariable<Handle<UiNode>>,
     /// Check mark that is used when the state is `None`.
     pub undefined_mark: InheritableVariable<Handle<UiNode>>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for CheckBox {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("CheckBox", |ui| {
+                CheckBoxBuilder::new(WidgetBuilder::new().with_name("CheckBox"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Input")
+    }
 }
 
 crate::define_widget_deref!(CheckBox);

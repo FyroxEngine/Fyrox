@@ -37,6 +37,7 @@ use crate::{
     BuildContext, Control, MessageDirection, MouseButton, Orientation, Thickness, UiNode,
     UserInterface, WidgetMessage,
 };
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
 use std::{
     fmt::Debug,
@@ -93,6 +94,18 @@ pub enum BitFieldMessage<T: BitContainer> {
 
 impl<T: BitContainer> BitFieldMessage<T> {
     define_constructor!(BitFieldMessage:Value => fn value(T), layout: false);
+}
+
+impl<T: BitContainer> ConstructorProvider<UiNode, UserInterface> for BitField<T> {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant(format!("Bit Field<{}>", std::any::type_name::<T>()), |ui| {
+                BitFieldBuilder::<T>::new(WidgetBuilder::new())
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Bit")
+    }
 }
 
 #[derive(Default, Clone, Reflect, Visit, Debug, ComponentProvider)]

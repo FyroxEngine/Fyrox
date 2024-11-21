@@ -36,6 +36,7 @@ use crate::{
 };
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::ops::{Deref, DerefMut};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
@@ -201,6 +202,18 @@ pub struct VectorImage {
     pub widget: Widget,
     /// Current set of primitives that will be drawn.
     pub primitives: InheritableVariable<Vec<Primitive>>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for VectorImage {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Vector Image", |ui| {
+                VectorImageBuilder::new(WidgetBuilder::new())
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Visual")
+    }
 }
 
 crate::define_widget_deref!(VectorImage);

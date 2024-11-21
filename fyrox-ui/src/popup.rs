@@ -35,6 +35,7 @@ use crate::{
     BuildContext, Control, RestrictionEntry, Thickness, UiNode, UserInterface, BRUSH_DARKEST,
     BRUSH_PRIMARY,
 };
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};
 
@@ -319,6 +320,18 @@ pub struct Popup {
     pub smart_placement: InheritableVariable<bool>,
     /// The destination for Event messages that relay messages from the children of this popup.
     pub owner: Handle<UiNode>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for Popup {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Popup", |ui| {
+                PopupBuilder::new(WidgetBuilder::new().with_name("Popup"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Layout")
+    }
 }
 
 crate::define_widget_deref!(Popup);

@@ -25,7 +25,6 @@
 #![warn(missing_docs)]
 
 use crate::resource::model::Model;
-use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     asset::untyped::UntypedResource,
     core::{
@@ -146,57 +145,6 @@ pub enum RdcControlFlow {
 
 /// A main trait for any scene graph node.
 pub trait NodeTrait: BaseNodeTrait + Reflect + Visit + ComponentProvider {
-    /// A method that returns node constructor for a particular node type. See [`NodeConstructor`]
-    /// docs for more info.
-    ///
-    /// ## Examples
-    ///
-    /// ```rust
-    /// # use fyrox_impl::{
-    /// #     core::{
-    /// #         math::aabb::AxisAlignedBoundingBox, reflect::prelude::*, type_traits::prelude::*,
-    /// #         visitor::prelude::*,
-    /// #     },
-    /// #     scene::{
-    /// #         base::Base,
-    /// #         node::{constructor::NodeConstructor, Node, NodeTrait},
-    /// #     },
-    /// # };
-    /// #
-    /// #[derive(Visit, Reflect, Clone, Debug, Default, ComponentProvider)]
-    /// struct MyNode {
-    ///     base: Base,
-    /// }
-    ///
-    /// impl NodeTrait for MyNode {
-    ///     fn constructor() -> NodeConstructor
-    ///     where
-    ///         Self: Sized + Default,
-    ///     {
-    ///         NodeConstructor::new::<Self>()
-    ///             // Provide variants for the editor. It will be shown in the `Create` menu.
-    ///             .with_variant("My Node", || {
-    ///                 Node::new(MyNode {
-    ///                     base: Default::default(),
-    ///                 })
-    ///             })
-    ///             .with_group("Custom Nodes")
-    ///     }
-    ///     # fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
-    ///     #     todo!()
-    ///     # }
-    ///     # fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
-    ///     #     todo!()
-    ///     # }
-    ///     # fn id(&self) -> Uuid {
-    ///     #     todo!()
-    ///     # }
-    /// }
-    /// ```
-    fn constructor() -> NodeConstructor
-    where
-        Self: Sized + Default;
-
     /// Returns axis-aligned bounding box in **local space** of the node.
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox;
 
@@ -377,6 +325,12 @@ pub trait NodeTrait: BaseNodeTrait + Reflect + Visit + ComponentProvider {
 /// consumption, only disk space usage is reduced.
 #[derive(Debug)]
 pub struct Node(Box<dyn NodeTrait>);
+
+impl<T: NodeTrait> From<T> for Node {
+    fn from(value: T) -> Self {
+        Self(Box::new(value))
+    }
+}
 
 impl Clone for Node {
     fn clone(&self) -> Self {

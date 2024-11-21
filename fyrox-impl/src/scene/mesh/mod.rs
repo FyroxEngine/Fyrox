@@ -62,6 +62,7 @@ use crate::{
     },
 };
 use fxhash::{FxHashMap, FxHasher};
+use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_resource::untyped::ResourceKind;
 use std::{
     cell::Cell,
@@ -550,30 +551,29 @@ fn placeholder_material() -> MaterialResource {
     MaterialResource::new_ok(ResourceKind::Embedded, material)
 }
 
-impl NodeTrait for Mesh {
-    fn constructor() -> NodeConstructor
-    where
-        Self: Sized + Default,
-    {
+impl ConstructorProvider<Node, Graph> for Mesh {
+    fn constructor() -> NodeConstructor {
         NodeConstructor::new::<Self>()
-            .with_variant("Empty", || {
-                MeshBuilder::new(BaseBuilder::new()).build_node()
+            .with_variant("Empty", |_| {
+                MeshBuilder::new(BaseBuilder::new()).build_node().into()
             })
-            .with_variant("Cube", || {
+            .with_variant("Cube", |_| {
                 MeshBuilder::new(BaseBuilder::new().with_name("Cube"))
                     .with_surfaces(vec![SurfaceBuilder::new(surface::CUBE.resource.clone())
                         .with_material(placeholder_material())
                         .build()])
                     .build_node()
+                    .into()
             })
-            .with_variant("Cone", || {
+            .with_variant("Cone", |_| {
                 MeshBuilder::new(BaseBuilder::new().with_name("Cone"))
                     .with_surfaces(vec![SurfaceBuilder::new(surface::CONE.resource.clone())
                         .with_material(placeholder_material())
                         .build()])
                     .build_node()
+                    .into()
             })
-            .with_variant("Cylinder", || {
+            .with_variant("Cylinder", |_| {
                 MeshBuilder::new(BaseBuilder::new().with_name("Cylinder"))
                     .with_surfaces(vec![SurfaceBuilder::new(
                         surface::CYLINDER.resource.clone(),
@@ -581,24 +581,29 @@ impl NodeTrait for Mesh {
                     .with_material(placeholder_material())
                     .build()])
                     .build_node()
+                    .into()
             })
-            .with_variant("Sphere", || {
+            .with_variant("Sphere", |_| {
                 MeshBuilder::new(BaseBuilder::new().with_name("Sphere"))
                     .with_surfaces(vec![SurfaceBuilder::new(surface::SPHERE.resource.clone())
                         .with_material(placeholder_material())
                         .build()])
                     .build_node()
+                    .into()
             })
-            .with_variant("Quad", || {
+            .with_variant("Quad", |_| {
                 MeshBuilder::new(BaseBuilder::new().with_name("Quad"))
                     .with_surfaces(vec![SurfaceBuilder::new(surface::QUAD.resource.clone())
                         .with_material(placeholder_material())
                         .build()])
                     .build_node()
+                    .into()
             })
             .with_group("Mesh")
     }
+}
 
+impl NodeTrait for Mesh {
     /// Returns current bounding box. Bounding box presented in *local coordinates*
     /// WARNING: This method does *not* includes bounds of bones!
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {

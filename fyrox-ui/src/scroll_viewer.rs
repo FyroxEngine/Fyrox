@@ -38,6 +38,7 @@ use crate::{
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, Orientation, UiNode, UserInterface,
 };
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};
 
@@ -178,6 +179,18 @@ pub struct ScrollViewer {
     pub v_scroll_speed: f32,
     /// Current horizontal scrolling speed.
     pub h_scroll_speed: f32,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for ScrollViewer {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Scroll Viewer", |ui| {
+                ScrollViewerBuilder::new(WidgetBuilder::new().with_name("Scroll Viewer"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Layout")
+    }
 }
 
 crate::define_widget_deref!(ScrollViewer);

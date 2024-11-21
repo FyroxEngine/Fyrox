@@ -32,6 +32,7 @@ use crate::{
     BuildContext, Control, UiNode, UserInterface,
 };
 use fyrox_core::variable::InheritableVariable;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
 use fyrox_resource::untyped::UntypedResource;
 use std::ops::{Deref, DerefMut};
@@ -50,6 +51,18 @@ pub struct NinePatch {
     pub left_margin_pixel: InheritableVariable<u32>,
     pub right_margin_pixel: InheritableVariable<u32>,
     pub top_margin_pixel: InheritableVariable<u32>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for NinePatch {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Nine Patch", |ui| {
+                NinePatchBuilder::new(WidgetBuilder::new().with_name("Nine Patch"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Visual")
+    }
 }
 
 crate::define_widget_deref!(NinePatch);

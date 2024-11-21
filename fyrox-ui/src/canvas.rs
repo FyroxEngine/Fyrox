@@ -33,6 +33,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
 };
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::ops::{Deref, DerefMut};
 
 /// Canvas widget allows its children to have an arbitrary position on an imaginable infinite plane, it also
@@ -73,6 +74,18 @@ use std::ops::{Deref, DerefMut};
 pub struct Canvas {
     /// Base widget of the canvas.
     pub widget: Widget,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for Canvas {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Canvas", |ui| {
+                CanvasBuilder::new(WidgetBuilder::new().with_name("Canvas"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Layout")
+    }
 }
 
 crate::define_widget_deref!(Canvas);

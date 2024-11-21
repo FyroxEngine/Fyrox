@@ -51,6 +51,7 @@ use crate::{
         Scene,
     },
 };
+use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::{BaseSceneGraph, SceneGraph};
 use rapier2d::prelude::RigidBodyHandle;
 use std::{
@@ -423,18 +424,19 @@ impl RigidBody {
     }
 }
 
-impl NodeTrait for RigidBody {
-    fn constructor() -> NodeConstructor
-    where
-        Self: Sized + Default,
-    {
+impl ConstructorProvider<Node, Graph> for RigidBody {
+    fn constructor() -> NodeConstructor {
         NodeConstructor::new::<Self>()
-            .with_variant("Rigid Body", || {
-                RigidBodyBuilder::new(BaseBuilder::new().with_name("Rigid Body 2D")).build_node()
+            .with_variant("Rigid Body", |_| {
+                RigidBodyBuilder::new(BaseBuilder::new().with_name("Rigid Body 2D"))
+                    .build_node()
+                    .into()
             })
             .with_group("Physics 2D")
     }
+}
 
+impl NodeTrait for RigidBody {
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.base.local_bounding_box()
     }

@@ -32,6 +32,7 @@ use crate::{
     widget::WidgetBuilder,
     BuildContext, Control, Thickness, UiNode, UserInterface, Widget,
 };
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::ops::{Deref, DerefMut};
 
 fn make_numeric_input<T: NumericType>(
@@ -112,6 +113,23 @@ where
     #[reflect(hidden)]
     #[visit(skip)]
     pub step: SVector<T, D>,
+}
+
+impl<T: NumericType, const D: usize> ConstructorProvider<UiNode, UserInterface>
+    for VecEditor<T, D>
+{
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant(
+                format!("Vec Editor<{}, {}>", std::any::type_name::<T>(), D),
+                |ui| {
+                    VecEditorBuilder::<T, D>::new(WidgetBuilder::new().with_name("Vec Editor"))
+                        .build(&mut ui.build_ctx())
+                        .into()
+                },
+            )
+            .with_group("Vector")
+    }
 }
 
 impl<T, const D: usize> Default for VecEditor<T, D>

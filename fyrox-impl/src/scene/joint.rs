@@ -43,6 +43,7 @@ use crate::{
 };
 use fyrox_core::algebra::{Isometry3, Vector3};
 use fyrox_core::uuid_provider;
+use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::{BaseSceneGraph, SceneGraphNode};
 use rapier2d::na::UnitQuaternion;
 use rapier3d::dynamics::ImpulseJointHandle;
@@ -355,35 +356,38 @@ impl Joint {
     }
 }
 
-impl NodeTrait for Joint {
-    fn constructor() -> NodeConstructor
-    where
-        Self: Sized + Default,
-    {
+impl ConstructorProvider<Node, Graph> for Joint {
+    fn constructor() -> NodeConstructor {
         NodeConstructor::new::<Self>()
-            .with_variant("Revolute Joint", || {
+            .with_variant("Revolute Joint", |_| {
                 JointBuilder::new(BaseBuilder::new().with_name("Revolute Joint"))
                     .with_params(JointParams::RevoluteJoint(Default::default()))
                     .build_node()
+                    .into()
             })
-            .with_variant("Ball Joint", || {
+            .with_variant("Ball Joint", |_| {
                 JointBuilder::new(BaseBuilder::new().with_name("Ball Joint"))
                     .with_params(JointParams::BallJoint(Default::default()))
                     .build_node()
+                    .into()
             })
-            .with_variant("Prismatic Joint", || {
+            .with_variant("Prismatic Joint", |_| {
                 JointBuilder::new(BaseBuilder::new().with_name("Prismatic Joint"))
                     .with_params(JointParams::PrismaticJoint(Default::default()))
                     .build_node()
+                    .into()
             })
-            .with_variant("Fixed Joint", || {
+            .with_variant("Fixed Joint", |_| {
                 JointBuilder::new(BaseBuilder::new().with_name("Fixed Joint"))
                     .with_params(JointParams::FixedJoint(Default::default()))
                     .build_node()
+                    .into()
             })
             .with_group("Physics")
     }
+}
 
+impl NodeTrait for Joint {
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.base.local_bounding_box()
     }

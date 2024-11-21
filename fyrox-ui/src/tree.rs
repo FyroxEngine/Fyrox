@@ -43,6 +43,7 @@ use crate::{
     BRUSH_DARK, BRUSH_DIM_BLUE,
 };
 use fyrox_core::uuid_provider;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::{BaseSceneGraph, SceneGraph, SceneGraphNode};
 use std::collections::VecDeque;
 use std::ops::{Deref, DerefMut};
@@ -376,6 +377,18 @@ pub struct Tree {
     /// A flag, that defines whether the tree should always show its expander, even if there's no
     /// children elements, or not.
     pub always_show_expander: bool,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for Tree {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Tree", |ui| {
+                TreeBuilder::new(WidgetBuilder::new().with_name("Tree"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Visual")
+    }
 }
 
 crate::define_widget_deref!(Tree);
@@ -902,6 +915,18 @@ pub struct TreeRoot {
     pub items: Vec<Handle<UiNode>>,
     /// Selected items of the tree root.
     pub selected: Vec<Handle<UiNode>>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for TreeRoot {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Tree Root", |ui| {
+                TreeRootBuilder::new(WidgetBuilder::new().with_name("Tree Root"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Visual")
+    }
 }
 
 crate::define_widget_deref!(TreeRoot);

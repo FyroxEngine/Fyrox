@@ -32,6 +32,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
 };
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::{
     cell::Cell,
     ops::{Deref, DerefMut},
@@ -115,6 +116,18 @@ pub struct Screen {
     #[visit(skip)]
     #[reflect(hidden)]
     pub last_screen_size: Cell<Vector2<f32>>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for Screen {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Screen", |ui| {
+                ScreenBuilder::new(WidgetBuilder::new().with_name("Screen"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Layout")
+    }
 }
 
 crate::define_widget_deref!(Screen);

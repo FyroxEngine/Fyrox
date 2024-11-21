@@ -42,6 +42,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
     VerticalAlignment, BRUSH_BRIGHTEST, BRUSH_DARK, BRUSH_LIGHT, BRUSH_LIGHTEST,
 };
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::{
     any::Any,
     cmp::Ordering,
@@ -260,6 +261,18 @@ pub struct TabControl {
     pub headers_container: Handle<UiNode>,
     /// A brush, that will be used to highlight active tab.
     pub active_tab_brush: Brush,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for TabControl {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Tab Control", |ui| {
+                TabControlBuilder::new(WidgetBuilder::new().with_name("Tab Control"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Layout")
+    }
 }
 
 crate::define_widget_deref!(TabControl);

@@ -44,6 +44,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, Orientation, RestrictionEntry, Thickness, UiNode,
     UserInterface, VerticalAlignment, BRUSH_BRIGHT, BRUSH_BRIGHT_BLUE, BRUSH_PRIMARY,
 };
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::{BaseSceneGraph, SceneGraph, SceneGraphNode};
 use std::any::TypeId;
 use std::{
@@ -182,6 +183,18 @@ pub struct Menu {
     active: bool,
     #[component(include)]
     items: ItemsContainer,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for Menu {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Menu", |ui| {
+                MenuBuilder::new(WidgetBuilder::new().with_name("Menu"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Input")
+    }
 }
 
 crate::define_widget_deref!(Menu);
@@ -393,6 +406,18 @@ pub struct MenuItem {
     pub is_selected: InheritableVariable<bool>,
     /// An arrow primitive that is used to indicate that there's sub-items in the menu item.
     pub arrow: InheritableVariable<Handle<UiNode>>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for MenuItem {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Menu Item", |ui| {
+                MenuItemBuilder::new(WidgetBuilder::new().with_name("Menu Item"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Input")
+    }
 }
 
 crate::define_widget_deref!(MenuItem);
@@ -1082,6 +1107,20 @@ pub struct ContextMenu {
     pub popup: Popup,
     /// Parent menu item of the context menu. Allows you to build chained context menus.
     pub parent_menu_item: Handle<UiNode>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for ContextMenu {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Context Menu", |ui| {
+                ContextMenuBuilder::new(PopupBuilder::new(
+                    WidgetBuilder::new().with_name("Context Menu"),
+                ))
+                .build(&mut ui.build_ctx())
+                .into()
+            })
+            .with_group("Input")
+    }
 }
 
 impl Deref for ContextMenu {

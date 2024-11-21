@@ -46,6 +46,7 @@ use crate::{
     VerticalAlignment, BRUSH_DARK, BRUSH_LIGHT,
 };
 use fyrox_core::variable::InheritableVariable;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
 use std::{
     cmp::Ordering,
@@ -291,6 +292,23 @@ pub struct NumericUpDown<T: NumericType> {
     pub drag_context: Option<DragContext<T>>,
     /// Defines how movement in Y axis will be translated in the actual value change. It is some sort of a scaling modifier.
     pub drag_value_scaling: InheritableVariable<f32>,
+}
+
+impl<T: NumericType> ConstructorProvider<UiNode, UserInterface> for NumericUpDown<T> {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant(
+                format!("Numeric Up Down<{}>", std::any::type_name::<T>()),
+                |ui| {
+                    NumericUpDownBuilder::<T>::new(
+                        WidgetBuilder::new().with_name("Numeric Up Down"),
+                    )
+                    .build(&mut ui.build_ctx())
+                    .into()
+                },
+            )
+            .with_group("Numeric")
+    }
 }
 
 impl<T: NumericType> Deref for NumericUpDown<T> {

@@ -170,6 +170,7 @@ use crate::{
     utils::doc::DocWindow,
     world::{graph::menu::SceneNodeContextMenu, graph::EditorSceneWrapper, WorldViewer},
 };
+use fyrox::gui::constructor::new_widget_constructor_container;
 pub use message::Message;
 use std::{
     cell::RefCell,
@@ -610,7 +611,7 @@ impl Editor {
             resource_manager: ResourceManager::new(task_pool.clone()),
             serialization_context,
             task_pool,
-            widget_constructors: Arc::new(Default::default()),
+            widget_constructors: Arc::new(new_widget_constructor_container()),
         })
         .unwrap();
 
@@ -639,9 +640,13 @@ impl Editor {
         let navmesh_panel = NavmeshPanel::new(scene_viewer.frame(), ctx, message_sender.clone());
         let scene_node_context_menu = Rc::new(RefCell::new(SceneNodeContextMenu::new(
             &engine.serialization_context,
+            &engine.widget_constructors,
             ctx,
         )));
-        let widget_context_menu = Rc::new(RefCell::new(WidgetContextMenu::new(ctx)));
+        let widget_context_menu = Rc::new(RefCell::new(WidgetContextMenu::new(
+            &engine.widget_constructors,
+            ctx,
+        )));
         let world_outliner = WorldViewer::new(ctx, message_sender.clone(), &settings);
         let command_stack_viewer = CommandStackViewer::new(ctx, message_sender.clone());
         let log = LogPanel::new(ctx, log_message_receiver);

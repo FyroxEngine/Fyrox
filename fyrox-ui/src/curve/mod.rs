@@ -52,6 +52,7 @@ use crate::{
     BRUSH_BRIGHT, BRUSH_LIGHT,
 };
 use fxhash::FxHashSet;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
 use std::{
     cell::{Cell, RefCell},
@@ -454,6 +455,18 @@ pub struct CurveEditor {
     #[visit(skip)]
     #[reflect(hidden)]
     clipboard: Vec<(Vector2<f32>, CurveKeyKind)>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for CurveEditor {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Curve Editor", |ui| {
+                CurveEditorBuilder::new(WidgetBuilder::new().with_name("Curve Editor"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Input")
+    }
 }
 
 crate::define_widget_deref!(CurveEditor);

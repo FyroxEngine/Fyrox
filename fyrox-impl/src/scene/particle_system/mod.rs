@@ -53,6 +53,7 @@ use crate::{
         },
     },
 };
+use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::BaseSceneGraph;
 use std::{
     cmp::Ordering,
@@ -545,12 +546,9 @@ impl Default for ParticleSystem {
     }
 }
 
-impl NodeTrait for ParticleSystem {
-    fn constructor() -> NodeConstructor
-    where
-        Self: Sized + Default,
-    {
-        NodeConstructor::new::<Self>().with_variant("Particle System", || {
+impl ConstructorProvider<Node, Graph> for ParticleSystem {
+    fn constructor() -> NodeConstructor {
+        NodeConstructor::new::<Self>().with_variant("Particle System", |_| {
             ParticleSystemBuilder::new(BaseBuilder::new().with_name("ParticleSystem"))
                 .with_emitters(vec![SphereEmitterBuilder::new(
                     BaseEmitterBuilder::new()
@@ -560,9 +558,12 @@ impl NodeTrait for ParticleSystem {
                 .with_radius(1.0)
                 .build()])
                 .build_node()
+                .into()
         })
     }
+}
 
+impl NodeTrait for ParticleSystem {
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         AxisAlignedBoundingBox::unit()
     }

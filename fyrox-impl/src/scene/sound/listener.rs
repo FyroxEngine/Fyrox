@@ -39,6 +39,7 @@ use crate::{
         node::{Node, NodeTrait, SyncContext},
     },
 };
+use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};
 
@@ -81,18 +82,19 @@ impl TypeUuidProvider for Listener {
     }
 }
 
-impl NodeTrait for Listener {
-    fn constructor() -> NodeConstructor
-    where
-        Self: Sized + Default,
-    {
+impl ConstructorProvider<Node, Graph> for Listener {
+    fn constructor() -> NodeConstructor {
         NodeConstructor::new::<Self>()
-            .with_variant("Listener", || {
-                ListenerBuilder::new(BaseBuilder::new().with_name("Listener")).build_node()
+            .with_variant("Listener", |_| {
+                ListenerBuilder::new(BaseBuilder::new().with_name("Listener"))
+                    .build_node()
+                    .into()
             })
             .with_group("Sound")
     }
+}
 
+impl NodeTrait for Listener {
     /// Returns local bounding box of the listener, since listener cannot have any bounds -
     /// returned bounding box is collapsed into a point.
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {

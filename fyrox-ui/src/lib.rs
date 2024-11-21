@@ -327,6 +327,7 @@ use fyrox_graph::{
 pub use node::*;
 pub use thickness::*;
 
+use crate::constructor::new_widget_constructor_container;
 pub use fyrox_animation as generic_animation;
 use fyrox_core::pool::ErasedHandle;
 
@@ -2942,7 +2943,7 @@ impl UserInterface {
     ) -> Result<Self, VisitError> {
         Self::load_from_file_ex(
             path,
-            Arc::new(WidgetConstructorContainer::new()),
+            Arc::new(new_widget_constructor_container()),
             resource_manager,
             &FsResourceIo,
         )

@@ -37,6 +37,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
     VerticalAlignment, BRUSH_DARKER, BRUSH_LIGHT, BRUSH_LIGHTER, BRUSH_LIGHTEST,
 };
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::{
     cell::RefCell,
     ops::{Deref, DerefMut},
@@ -131,6 +132,23 @@ pub struct Button {
     /// hold or not. Default is `false` (disabled).
     #[visit(optional)]
     pub repeat_clicks_on_hold: InheritableVariable<bool>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for Button {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Button", |ui| {
+                ButtonBuilder::new(
+                    WidgetBuilder::new()
+                        .with_width(100.0)
+                        .with_height(20.0)
+                        .with_name("Button"),
+                )
+                .build(&mut ui.build_ctx())
+                .into()
+            })
+            .with_group("Input")
+    }
 }
 
 crate::define_widget_deref!(Button);

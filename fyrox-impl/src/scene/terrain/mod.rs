@@ -78,6 +78,7 @@ mod quadtree;
 
 use crate::scene::node::constructor::NodeConstructor;
 pub use brushstroke::*;
+use fyrox_graph::constructor::ConstructorProvider;
 
 /// Current implementation version marker.
 pub const VERSION: u8 = 2;
@@ -2514,21 +2515,21 @@ fn create_terrain_layer_material() -> MaterialResource {
     MaterialResource::new_ok(Default::default(), material)
 }
 
-impl NodeTrait for Terrain {
-    fn constructor() -> NodeConstructor
-    where
-        Self: Sized + Default,
-    {
-        NodeConstructor::new::<Self>().with_variant("Terrain", || {
+impl ConstructorProvider<Node, Graph> for Terrain {
+    fn constructor() -> NodeConstructor {
+        NodeConstructor::new::<Self>().with_variant("Terrain", |_| {
             TerrainBuilder::new(BaseBuilder::new().with_name("Terrain"))
                 .with_layers(vec![Layer {
                     material: create_terrain_layer_material(),
                     ..Default::default()
                 }])
                 .build_node()
+                .into()
         })
     }
+}
 
+impl NodeTrait for Terrain {
     /// Returns pre-cached bounding axis-aligned bounding box of the terrain. Keep in mind that
     /// if you're modified terrain, bounding box will be recalculated and it is not fast.
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {

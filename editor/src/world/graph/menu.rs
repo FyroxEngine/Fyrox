@@ -55,6 +55,7 @@ use crate::{
     Engine, Message, MessageDirection, PasteCommand,
 };
 use fyrox::engine::SerializationContext;
+use fyrox::gui::constructor::WidgetConstructorContainer;
 use std::{any::TypeId, path::PathBuf};
 
 pub struct SceneNodeContextMenu {
@@ -96,7 +97,11 @@ fn resource_path_of_first_selected_node(
 }
 
 impl SceneNodeContextMenu {
-    pub fn new(serialization_context: &SerializationContext, ctx: &mut BuildContext) -> Self {
+    pub fn new(
+        serialization_context: &SerializationContext,
+        widget_constructors_container: &WidgetConstructorContainer,
+        ctx: &mut BuildContext,
+    ) -> Self {
         let delete_selection;
         let copy_selection;
         let save_as_prefab;
@@ -105,9 +110,12 @@ impl SceneNodeContextMenu {
         let open_asset;
         let reset_inheritable_properties;
 
-        let create_child_entity_menu = CreateEntityMenu::new(serialization_context, ctx);
-        let create_parent_entity_menu = CreateEntityMenu::new(serialization_context, ctx);
-        let replace_with_menu = CreateEntityMenu::new(serialization_context, ctx);
+        let create_child_entity_menu =
+            CreateEntityMenu::new(serialization_context, widget_constructors_container, ctx);
+        let create_parent_entity_menu =
+            CreateEntityMenu::new(serialization_context, widget_constructors_container, ctx);
+        let replace_with_menu =
+            CreateEntityMenu::new(serialization_context, widget_constructors_container, ctx);
 
         let menu = ContextMenuBuilder::new(
             PopupBuilder::new(WidgetBuilder::new().with_visibility(false)).with_content(
@@ -206,6 +214,7 @@ impl SceneNodeContextMenu {
             sender,
             controller,
             editor_selection,
+            engine,
         ) {
             if let Some(graph_selection) = editor_selection.as_graph() {
                 if let Some(parent) = graph_selection.nodes().first() {
@@ -217,6 +226,7 @@ impl SceneNodeContextMenu {
             sender,
             controller,
             editor_selection,
+            engine,
         ) {
             if let Some(graph_selection) = editor_selection.as_graph() {
                 if let Some(first) = graph_selection.nodes().first() {
@@ -258,10 +268,13 @@ impl SceneNodeContextMenu {
                     }
                 }
             }
-        } else if let Some(replacement) =
-            self.replace_with_menu
-                .handle_ui_message(message, sender, controller, editor_selection)
-        {
+        } else if let Some(replacement) = self.replace_with_menu.handle_ui_message(
+            message,
+            sender,
+            controller,
+            editor_selection,
+            engine,
+        ) {
             if let Some(graph_selection) = editor_selection.as_graph() {
                 if let Some(first) = graph_selection.nodes().first() {
                     sender.do_command(ReplaceNodeCommand {

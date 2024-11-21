@@ -39,6 +39,7 @@ use crate::{
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, Thickness, UiNode, UserInterface, BRUSH_DARK, BRUSH_LIGHT,
 };
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};
 
@@ -250,6 +251,18 @@ pub struct ListView {
     pub scroll_viewer: InheritableVariable<Handle<UiNode>>,
 }
 
+impl ConstructorProvider<UiNode, UserInterface> for ListView {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("List View", |ui| {
+                ListViewBuilder::new(WidgetBuilder::new().with_name("List View"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Input")
+    }
+}
+
 crate::define_widget_deref!(ListView);
 
 impl ListView {
@@ -319,6 +332,19 @@ impl ListView {
 pub struct ListViewItem {
     /// Base widget of the list view item.
     pub widget: Widget,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for ListViewItem {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("List View Item", |ui: &mut UserInterface| {
+                ui.add_node(UiNode::new(ListViewItem {
+                    widget: WidgetBuilder::new().with_name("List View Item").build(),
+                }))
+                .into()
+            })
+            .with_group("Input")
+    }
 }
 
 crate::define_widget_deref!(ListViewItem);

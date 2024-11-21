@@ -122,7 +122,11 @@ impl Menu {
     pub fn new(engine: &mut Engine, message_sender: MessageSender, settings: &Settings) -> Self {
         let file_menu = FileMenu::new(engine, settings);
         let ctx = &mut engine.user_interfaces.first_mut().build_ctx();
-        let create_entity_menu = CreateEntityRootMenu::new(&engine.serialization_context, ctx);
+        let create_entity_menu = CreateEntityRootMenu::new(
+            &engine.serialization_context,
+            &engine.widget_constructors,
+            ctx,
+        );
         let edit_menu = EditMenu::new(ctx);
         let view_menu = ViewMenu::new(ctx);
         let utils_menu = UtilsMenu::new(ctx);

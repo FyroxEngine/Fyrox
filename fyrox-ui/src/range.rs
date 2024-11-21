@@ -34,6 +34,7 @@ use crate::{
     BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use fyrox_core::variable::InheritableVariable;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::ops::{Deref, DerefMut, Range};
 
 /// A set of messages, that can be used to modify/fetch the state of a [`RangeEditor`] widget instance.
@@ -128,6 +129,21 @@ where
     pub start: InheritableVariable<Handle<UiNode>>,
     /// A handle to numeric field that is used to show/modify end value of current range.
     pub end: InheritableVariable<Handle<UiNode>>,
+}
+
+impl<T: NumericType> ConstructorProvider<UiNode, UserInterface> for RangeEditor<T> {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant(
+                format!("Range Editor<{}>", std::any::type_name::<T>()),
+                |ui| {
+                    RangeEditorBuilder::<T>::new(WidgetBuilder::new().with_name("Range Editor"))
+                        .build(&mut ui.build_ctx())
+                        .into()
+                },
+            )
+            .with_group("Range")
+    }
 }
 
 impl<T> Deref for RangeEditor<T>

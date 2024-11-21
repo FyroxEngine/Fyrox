@@ -44,6 +44,7 @@ use crate::{
         rigidbody::{RigidBody, RigidBodyType},
     },
 };
+use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::SceneGraphNode;
 use std::{
     any::{type_name, Any, TypeId},
@@ -268,18 +269,19 @@ impl TypeUuidProvider for Ragdoll {
     }
 }
 
-impl NodeTrait for Ragdoll {
-    fn constructor() -> NodeConstructor
-    where
-        Self: Sized + Default,
-    {
+impl ConstructorProvider<Node, Graph> for Ragdoll {
+    fn constructor() -> NodeConstructor {
         NodeConstructor::new::<Self>()
-            .with_variant("Ragdoll", || {
-                RagdollBuilder::new(BaseBuilder::new().with_name("Ragdoll")).build_node()
+            .with_variant("Ragdoll", |_| {
+                RagdollBuilder::new(BaseBuilder::new().with_name("Ragdoll"))
+                    .build_node()
+                    .into()
             })
             .with_group("Physics")
     }
+}
 
+impl NodeTrait for Ragdoll {
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.base.local_bounding_box()
     }

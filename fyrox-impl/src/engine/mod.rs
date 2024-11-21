@@ -29,6 +29,7 @@ pub mod task;
 
 mod hotreload;
 
+use crate::scene::node::constructor::new_node_constructor_container;
 use crate::{
     asset::{
         event::ResourceEvent,
@@ -138,7 +139,7 @@ impl SerializationContext {
     /// Creates default serialization context.
     pub fn new() -> Self {
         Self {
-            node_constructors: NodeConstructorContainer::new(),
+            node_constructors: new_node_constructor_container(),
             script_constructors: ScriptConstructorContainer::new(),
         }
     }
@@ -1259,6 +1260,7 @@ impl Engine {
     /// # };
     /// # use std::sync::Arc;
     /// # use fyrox_core::task::TaskPool;
+    /// use fyrox_ui::constructor::new_widget_constructor_container;
     ///
     /// let mut window_attributes = WindowAttributes::default();
     /// window_attributes.title = "Some title".to_string();
@@ -1274,7 +1276,7 @@ impl Engine {
     ///     resource_manager: ResourceManager::new(task_pool.clone()),
     ///     serialization_context: Arc::new(SerializationContext::new()),
     ///     task_pool,
-    ///     widget_constructors: Arc::new(Default::default()),
+    ///     widget_constructors: Arc::new(new_widget_constructor_container()),
     /// })
     /// .unwrap();
     /// ```
@@ -2283,7 +2285,6 @@ impl Engine {
         resource_manager: &ResourceManager,
         plugin: &dyn Plugin,
     ) {
-        *widget_constructors.context_type_id.lock() = plugin.type_id();
         plugin.register(PluginRegistrationContext {
             serialization_context,
             widget_constructors,

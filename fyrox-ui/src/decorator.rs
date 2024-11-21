@@ -23,6 +23,7 @@
 
 #![warn(missing_docs)]
 
+use crate::widget::WidgetBuilder;
 use crate::{
     border::{Border, BorderBuilder},
     brush::Brush,
@@ -39,6 +40,7 @@ use crate::{
 };
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::ops::{Deref, DerefMut};
 
 /// A set of messages that is used to modify [`Decorator`] widgets state.
@@ -125,6 +127,20 @@ pub struct Decorator {
     pub is_selected: InheritableVariable<bool>,
     /// Whether the decorator should react to mouse clicks and switch its state to `Pressed` or not.
     pub is_pressable: InheritableVariable<bool>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for Decorator {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Decorator", |ui| {
+                DecoratorBuilder::new(BorderBuilder::new(
+                    WidgetBuilder::new().with_name("Decorator"),
+                ))
+                .build(&mut ui.build_ctx())
+                .into()
+            })
+            .with_group("Visual")
+    }
 }
 
 impl Deref for Decorator {

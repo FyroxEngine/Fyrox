@@ -48,6 +48,7 @@ use crate::{
 };
 use fyrox_core::algebra::{Isometry2, Translation2, UnitComplex};
 use fyrox_core::uuid_provider;
+use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::{BaseSceneGraph, SceneGraphNode};
 use rapier2d::geometry::ColliderHandle;
 use std::{
@@ -568,20 +569,20 @@ impl Collider {
     }
 }
 
-impl NodeTrait for Collider {
-    fn constructor() -> NodeConstructor
-    where
-        Self: Sized + Default,
-    {
+impl ConstructorProvider<Node, Graph> for Collider {
+    fn constructor() -> NodeConstructor {
         NodeConstructor::new::<Self>()
-            .with_variant("Collider", || {
+            .with_variant("Collider", |_| {
                 ColliderBuilder::new(BaseBuilder::new().with_name("Collider 2D"))
                     .with_shape(ColliderShape::Cuboid(Default::default()))
                     .build_node()
+                    .into()
             })
             .with_group("Physics 2D")
     }
+}
 
+impl NodeTrait for Collider {
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.base.local_bounding_box()
     }

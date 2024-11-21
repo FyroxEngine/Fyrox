@@ -34,6 +34,7 @@ use crate::{
     BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use fyrox_core::uuid_provider;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::ops::{Deref, DerefMut};
 
 /// A set of messages that is used to fetch or modify values of [`UuidEditor`] widgets.
@@ -74,6 +75,18 @@ pub struct UuidEditor {
     value: Uuid,
     text: Handle<UiNode>,
     generate: Handle<UiNode>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for UuidEditor {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Uuid Editor", |ui| {
+                UuidEditorBuilder::new(WidgetBuilder::new().with_name("Uuid Editor"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Input")
+    }
 }
 
 define_widget_deref!(UuidEditor);

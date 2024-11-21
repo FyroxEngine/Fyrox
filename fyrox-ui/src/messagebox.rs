@@ -44,6 +44,7 @@ use crate::{
 };
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::ops::{Deref, DerefMut};
 
 /// A set of messages that can be used to communicate with message boxes.
@@ -187,6 +188,20 @@ pub struct MessageBox {
     pub cancel: InheritableVariable<Handle<UiNode>>,
     /// A handle of text widget.
     pub text: InheritableVariable<Handle<UiNode>>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for MessageBox {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Message Box", |ui| {
+                MessageBoxBuilder::new(WindowBuilder::new(
+                    WidgetBuilder::new().with_name("Message Box"),
+                ))
+                .build(&mut ui.build_ctx())
+                .into()
+            })
+            .with_group("Input")
+    }
 }
 
 impl Deref for MessageBox {

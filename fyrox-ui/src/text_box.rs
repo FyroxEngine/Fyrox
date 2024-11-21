@@ -48,6 +48,7 @@ use crate::{
     BRUSH_DARKER, BRUSH_TEXT,
 };
 use copypasta::ClipboardProvider;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::{
     cell::RefCell,
     fmt::{Debug, Formatter},
@@ -456,6 +457,19 @@ pub struct TextBox {
     #[visit(skip)]
     #[reflect(hidden)]
     pub recent: Vec<char>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for TextBox {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Text Box", |ui| {
+                TextBoxBuilder::new(WidgetBuilder::new().with_name("Text Box"))
+                    .with_text("Text")
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Input")
+    }
 }
 
 impl Debug for TextBox {

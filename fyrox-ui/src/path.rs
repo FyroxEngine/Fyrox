@@ -38,6 +38,7 @@ use crate::{
 };
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::{
     ops::{Deref, DerefMut},
     path::Path,
@@ -92,6 +93,18 @@ pub struct PathEditor {
     pub selector: InheritableVariable<Handle<UiNode>>,
     /// Current path.
     pub path: InheritableVariable<PathBuf>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for PathEditor {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Path Editor", |ui| {
+                PathEditorBuilder::new(WidgetBuilder::new().with_name("Path Editor"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Input")
+    }
 }
 
 crate::define_widget_deref!(PathEditor);

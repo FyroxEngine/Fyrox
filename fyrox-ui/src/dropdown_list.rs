@@ -39,6 +39,7 @@ use crate::{
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, Thickness, UiNode, UserInterface, BRUSH_DARKER, BRUSH_LIGHT,
 };
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
 use std::{
     ops::{Deref, DerefMut},
@@ -202,6 +203,18 @@ pub struct DropdownList {
     pub close_on_selection: InheritableVariable<bool>,
     /// A handle to an inner Grid widget, that holds currently selected item and other decorators.
     pub main_grid: InheritableVariable<Handle<UiNode>>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for DropdownList {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Dropdown List", |ui| {
+                DropdownListBuilder::new(WidgetBuilder::new().with_name("Dropdown List"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Input")
+    }
 }
 
 crate::define_widget_deref!(DropdownList);

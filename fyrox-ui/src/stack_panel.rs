@@ -35,6 +35,7 @@ use crate::{
 };
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};
 
@@ -121,6 +122,18 @@ pub struct StackPanel {
     pub widget: Widget,
     /// Current orientation of the stack panel.
     pub orientation: InheritableVariable<Orientation>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for StackPanel {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Stack Panel", |ui| {
+                StackPanelBuilder::new(WidgetBuilder::new().with_name("Stack Panel"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Layout")
+    }
 }
 
 crate::define_widget_deref!(StackPanel);

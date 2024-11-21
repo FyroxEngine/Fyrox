@@ -50,6 +50,7 @@ use crate::{
 };
 use bytemuck::{Pod, Zeroable};
 use fyrox_core::value_as_u8_slice;
+use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::BaseSceneGraph;
 use std::{
     hash::{Hash, Hasher},
@@ -275,18 +276,19 @@ impl Rectangle {
     }
 }
 
-impl NodeTrait for Rectangle {
-    fn constructor() -> NodeConstructor
-    where
-        Self: Sized + Default,
-    {
+impl ConstructorProvider<Node, Graph> for Rectangle {
+    fn constructor() -> NodeConstructor {
         NodeConstructor::new::<Self>()
-            .with_variant("Rectangle (2D Sprite)", || {
-                RectangleBuilder::new(BaseBuilder::new().with_name("Sprite (2D)")).build_node()
+            .with_variant("Rectangle (2D Sprite)", |_| {
+                RectangleBuilder::new(BaseBuilder::new().with_name("Sprite (2D)"))
+                    .build_node()
+                    .into()
             })
             .with_group("2D")
     }
+}
 
+impl NodeTrait for Rectangle {
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         AxisAlignedBoundingBox::unit()
     }

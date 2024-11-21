@@ -58,6 +58,7 @@ use crate::{
         node::{Node, NodeTrait},
     },
 };
+use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};
 
@@ -132,22 +133,22 @@ impl PointLight {
     }
 }
 
-impl NodeTrait for PointLight {
-    fn constructor() -> NodeConstructor
-    where
-        Self: Sized + Default,
-    {
+impl ConstructorProvider<Node, Graph> for PointLight {
+    fn constructor() -> NodeConstructor {
         NodeConstructor::new::<Self>()
-            .with_variant("Point Light", || {
+            .with_variant("Point Light", |_| {
                 PointLightBuilder::new(BaseLightBuilder::new(
                     BaseBuilder::new().with_name("PointLight"),
                 ))
                 .with_radius(10.0)
                 .build_node()
+                .into()
             })
             .with_group("Light")
     }
+}
 
+impl NodeTrait for PointLight {
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         AxisAlignedBoundingBox::from_radius(*self.radius)
     }

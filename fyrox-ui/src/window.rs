@@ -41,6 +41,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, RestrictionEntry, Thickness, UiNode, UserInterface,
     VerticalAlignment, BRUSH_BRIGHT, BRUSH_DARKER, BRUSH_LIGHT, BRUSH_LIGHTEST,
 };
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::{BaseSceneGraph, SceneGraph};
 use std::{
     cell::RefCell,
@@ -331,6 +332,18 @@ pub struct Window {
     /// If `true`, then the window will be deleted after closing.
     #[visit(optional)] // Backward compatibility
     pub remove_on_close: bool,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for Window {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Window", |ui| {
+                WindowBuilder::new(WidgetBuilder::new().with_name("Window"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Layout")
+    }
 }
 
 const GRIP_SIZE: f32 = 6.0;

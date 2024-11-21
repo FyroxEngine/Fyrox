@@ -48,6 +48,7 @@ use crate::{
         node::{Node, NodeTrait},
     },
 };
+use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
@@ -175,21 +176,21 @@ impl DirectionalLight {
     }
 }
 
-impl NodeTrait for DirectionalLight {
-    fn constructor() -> NodeConstructor
-    where
-        Self: Sized + Default,
-    {
+impl ConstructorProvider<Node, Graph> for DirectionalLight {
+    fn constructor() -> NodeConstructor {
         NodeConstructor::new::<Self>()
-            .with_variant("Directional Light", || {
+            .with_variant("Directional Light", |_| {
                 DirectionalLightBuilder::new(BaseLightBuilder::new(
                     BaseBuilder::new().with_name("DirectionalLight"),
                 ))
                 .build_node()
+                .into()
             })
             .with_group("Light")
     }
+}
 
+impl NodeTrait for DirectionalLight {
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         AxisAlignedBoundingBox::default()
     }

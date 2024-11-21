@@ -28,7 +28,7 @@ use crate::{
             menu::MenuItemMessage, message::MessageDirection, message::UiMessage,
             widget::WidgetMessage, BuildContext, UiNode, UserInterface,
         },
-        scene::{node::constructor::Constructor, node::Node},
+        scene::node::Node,
     },
     menu::{create_menu_item, create_root_menu_item, ui::UiMenu},
     message::MessageSender,
@@ -40,6 +40,10 @@ use crate::{
     ui_scene::UiScene,
     Mode,
 };
+use fyrox::core::log::Log;
+use fyrox::graph::constructor::{VariantConstructor, VariantResult};
+use fyrox::gui::constructor::WidgetConstructorContainer;
+use fyrox::scene::graph::Graph;
 
 pub struct CreateEntityRootMenu {
     pub menu: Handle<UiNode>,
@@ -47,8 +51,13 @@ pub struct CreateEntityRootMenu {
 }
 
 impl CreateEntityRootMenu {
-    pub fn new(serialization_context: &SerializationContext, ctx: &mut BuildContext) -> Self {
-        let sub_menus = CreateEntityMenu::new(serialization_context, ctx);
+    pub fn new(
+        serialization_context: &SerializationContext,
+        widget_constructors_container: &WidgetConstructorContainer,
+        ctx: &mut BuildContext,
+    ) -> Self {
+        let sub_menus =
+            CreateEntityMenu::new(serialization_context, widget_constructors_container, ctx);
 
         let menu = create_root_menu_item("Create", sub_menus.root_items.clone(), ctx);
 
@@ -61,11 +70,11 @@ impl CreateEntityRootMenu {
         sender: &MessageSender,
         controller: &mut dyn SceneController,
         selection: &Selection,
-        engine: &Engine,
+        engine: &mut Engine,
     ) {
         if let Some(node) = self
             .sub_menus
-            .handle_ui_message(message, sender, controller, selection)
+            .handle_ui_message(message, sender, controller, selection, engine)
         {
             if let Some(game_scene) = controller.downcast_ref::<GameScene>() {
                 let scene = &engine.scenes[game_scene.scene];
@@ -103,12 +112,16 @@ impl CreateEntityRootMenu {
 pub struct CreateEntityMenu {
     ui_menu: UiMenu,
     pub root_items: Vec<Handle<UiNode>>,
-    constructor_views: FxHashMap<Handle<UiNode>, Constructor>,
+    constructor_views: FxHashMap<Handle<UiNode>, VariantConstructor<Node, Graph>>,
 }
 
 impl CreateEntityMenu {
-    pub fn new(serialization_context: &SerializationContext, ctx: &mut BuildContext) -> Self {
-        let ui_menu = UiMenu::new(UiMenu::default_entries(), "UI", ctx);
+    pub fn new(
+        serialization_context: &SerializationContext,
+        widget_constructor_container: &WidgetConstructorContainer,
+        ctx: &mut BuildContext,
+    ) -> Self {
+        let ui_menu = UiMenu::new(widget_constructor_container, "UI", ctx);
 
         let mut root_items = vec![ui_menu.menu];
         let mut groups = FxHashMap::default();
@@ -116,7 +129,7 @@ impl CreateEntityMenu {
         let constructors = serialization_context.node_constructors.map();
         for constructor in constructors.values() {
             for variant in constructor.variants.iter() {
-                let item = create_menu_item(variant.name, vec![], ctx);
+                let item = create_menu_item(&variant.name, vec![], ctx);
                 constructor_views.insert(item, variant.constructor.clone());
                 if constructor.group.is_empty() {
                     root_items.push(item);
@@ -154,6 +167,10 @@ impl CreateEntityMenu {
         ));
 
         for widget in self.root_items.iter() {
+            if *widget == self.ui_menu.menu {
+                continue;
+            }
+
             ui.send_message(WidgetMessage::enabled(
                 *widget,
                 MessageDirection::ToWidget,
@@ -168,15 +185,21 @@ impl CreateEntityMenu {
         sender: &MessageSender,
         controller: &mut dyn SceneController,
         selection: &Selection,
+        engine: &mut Engine,
     ) -> Option<Node> {
         if let Some(ui_scene) = controller.downcast_mut::<UiScene>() {
             self.ui_menu
                 .handle_ui_message(sender, message, ui_scene, selection);
-        }
-
-        if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
-            if let Some(constructor) = self.constructor_views.get(&message.destination()) {
-                return Some(constructor());
+        } else if let Some(game_scene) = controller.downcast_mut::<GameScene>() {
+            let graph = &mut engine.scenes[game_scene.scene].graph;
+            if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
+                if let Some(constructor) = self.constructor_views.get(&message.destination()) {
+                    if let VariantResult::Owned(node) = constructor(graph) {
+                        return Some(node);
+                    } else {
+                        Log::err("Unsupported");
+                    }
+                }
             }
         }
 

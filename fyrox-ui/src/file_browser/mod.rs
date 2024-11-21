@@ -57,6 +57,7 @@ mod selector;
 
 use fyrox_core::parking_lot::Mutex;
 use fyrox_core::uuid_provider;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
 use notify::Watcher;
 pub use selector::*;
@@ -151,6 +152,18 @@ pub struct FileBrowser {
     #[visit(skip)]
     #[reflect(hidden)]
     pub watcher: Option<(notify::RecommendedWatcher, thread::JoinHandle<()>)>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for FileBrowser {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("File Browser", |ui| {
+                FileBrowserBuilder::new(WidgetBuilder::new().with_name("File Browser"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("File System")
+    }
 }
 
 impl Clone for FileBrowser {

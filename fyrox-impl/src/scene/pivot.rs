@@ -35,6 +35,7 @@ use crate::{
         node::{Node, NodeTrait},
     },
 };
+use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};
 
@@ -70,16 +71,17 @@ impl DerefMut for Pivot {
     }
 }
 
-impl NodeTrait for Pivot {
-    fn constructor() -> NodeConstructor
-    where
-        Self: Sized + Default,
-    {
-        NodeConstructor::new::<Self>().with_variant("Pivot", || {
-            PivotBuilder::new(BaseBuilder::new().with_name("Pivot")).build_node()
+impl ConstructorProvider<Node, Graph> for Pivot {
+    fn constructor() -> NodeConstructor {
+        NodeConstructor::new::<Self>().with_variant("Pivot", |_| {
+            PivotBuilder::new(BaseBuilder::new().with_name("Pivot"))
+                .build_node()
+                .into()
         })
     }
+}
 
+impl NodeTrait for Pivot {
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.base.local_bounding_box()
     }

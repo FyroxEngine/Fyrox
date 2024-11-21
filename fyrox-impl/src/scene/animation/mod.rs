@@ -40,6 +40,7 @@ use crate::{
         node::{Node, NodeTrait, UpdateContext},
     },
 };
+use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};
 
@@ -319,18 +320,19 @@ impl DerefMut for AnimationPlayer {
     }
 }
 
-impl NodeTrait for AnimationPlayer {
-    fn constructor() -> NodeConstructor
-    where
-        Self: Sized + Default,
-    {
+impl ConstructorProvider<Node, Graph> for AnimationPlayer {
+    fn constructor() -> NodeConstructor {
         NodeConstructor::new::<Self>()
-            .with_variant("Animation Player", || {
-                AnimationPlayerBuilder::new(BaseBuilder::new()).build_node()
+            .with_variant("Animation Player", |_| {
+                AnimationPlayerBuilder::new(BaseBuilder::new())
+                    .build_node()
+                    .into()
             })
             .with_group("Animation")
     }
+}
 
+impl NodeTrait for AnimationPlayer {
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.base.local_bounding_box()
     }

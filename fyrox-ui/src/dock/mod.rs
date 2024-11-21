@@ -36,6 +36,7 @@ use crate::{
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, UiNode, UserInterface,
 };
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::{BaseSceneGraph, SceneGraph};
 use std::{
     cell::RefCell,
@@ -74,6 +75,18 @@ impl DockingManagerMessage {
 pub struct DockingManager {
     pub widget: Widget,
     pub floating_windows: RefCell<Vec<Handle<UiNode>>>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for DockingManager {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Docking Manager", |ui| {
+                DockingManagerBuilder::new(WidgetBuilder::new().with_name("Docking Manager"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Layout")
+    }
 }
 
 crate::define_widget_deref!(DockingManager);

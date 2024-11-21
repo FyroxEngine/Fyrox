@@ -35,6 +35,7 @@ use crate::{
     BuildContext, Control, UiNode, UserInterface,
 };
 use core::f32;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
 use std::{
     cell::RefCell,
@@ -259,6 +260,18 @@ pub struct Grid {
     #[visit(skip)]
     #[reflect(hidden)]
     pub groups: RefCell<[Vec<usize>; 4]>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for Grid {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Grid", |ui| {
+                GridBuilder::new(WidgetBuilder::new().with_name("Grid"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Layout")
+    }
 }
 
 crate::define_widget_deref!(Grid);

@@ -38,6 +38,7 @@ use crate::{
 };
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::{Display, Formatter},
@@ -181,6 +182,18 @@ pub struct HotKeyEditor {
     text: InheritableVariable<Handle<UiNode>>,
     value: InheritableVariable<HotKey>,
     editing: InheritableVariable<bool>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for HotKeyEditor {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Hot Key Editor", |ui| {
+                HotKeyEditorBuilder::new(WidgetBuilder::new().with_name("Hot Key Editor"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Input")
+    }
 }
 
 define_widget_deref!(HotKeyEditor);
@@ -398,6 +411,18 @@ pub struct KeyBindingEditor {
     text: InheritableVariable<Handle<UiNode>>,
     value: InheritableVariable<KeyBinding>,
     editing: InheritableVariable<bool>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for KeyBindingEditor {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Key Binding Editor", |ui| {
+                KeyBindingEditorBuilder::new(WidgetBuilder::new().with_name("Key Binding Editor"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Input")
+    }
 }
 
 define_widget_deref!(KeyBindingEditor);

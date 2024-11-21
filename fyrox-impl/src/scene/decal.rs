@@ -22,7 +22,6 @@
 //!
 //! For more info see [`Decal`]
 
-use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
         color::Color,
@@ -35,12 +34,14 @@ use crate::{
         visitor::prelude::*,
     },
     resource::texture::TextureResource,
+    scene::node::constructor::NodeConstructor,
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
         node::{Node, NodeTrait},
     },
 };
+use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};
 
@@ -211,16 +212,17 @@ impl Decal {
     }
 }
 
-impl NodeTrait for Decal {
-    fn constructor() -> NodeConstructor
-    where
-        Self: Sized + Default,
-    {
-        NodeConstructor::new::<Self>().with_variant("Decal", || {
-            DecalBuilder::new(BaseBuilder::new().with_name("Decal")).build_node()
+impl ConstructorProvider<Node, Graph> for Decal {
+    fn constructor() -> NodeConstructor {
+        NodeConstructor::new::<Self>().with_variant("Decal", |_| {
+            DecalBuilder::new(BaseBuilder::new().with_name("Decal"))
+                .build_node()
+                .into()
         })
     }
+}
 
+impl NodeTrait for Decal {
     /// Returns current **local-space** bounding box.
     #[inline]
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {

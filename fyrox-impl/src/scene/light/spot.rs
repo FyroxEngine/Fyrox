@@ -65,6 +65,7 @@ use crate::{
         node::{Node, NodeTrait},
     },
 };
+use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};
 
@@ -218,13 +219,10 @@ impl SpotLight {
     }
 }
 
-impl NodeTrait for SpotLight {
-    fn constructor() -> NodeConstructor
-    where
-        Self: Sized + Default,
-    {
+impl ConstructorProvider<Node, Graph> for SpotLight {
+    fn constructor() -> NodeConstructor {
         NodeConstructor::new::<Self>()
-            .with_variant("Spot Light", || {
+            .with_variant("Spot Light", |_| {
                 SpotLightBuilder::new(BaseLightBuilder::new(
                     BaseBuilder::new().with_name("SpotLight"),
                 ))
@@ -232,10 +230,13 @@ impl NodeTrait for SpotLight {
                 .with_hotspot_cone_angle(45.0f32.to_radians())
                 .with_falloff_angle_delta(2.0f32.to_radians())
                 .build_node()
+                .into()
             })
             .with_group("Light")
     }
+}
 
+impl NodeTrait for SpotLight {
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         AxisAlignedBoundingBox::from_radius(self.distance())
     }

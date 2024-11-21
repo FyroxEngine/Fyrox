@@ -42,6 +42,7 @@ use crate::{
     world::WorldViewerItemContextMenu,
     Engine, Message, MessageDirection,
 };
+use fyrox::gui::constructor::WidgetConstructorContainer;
 use fyrox::gui::menu::ContextMenuBuilder;
 use std::path::PathBuf;
 
@@ -77,14 +78,17 @@ fn resource_path_of_first_selected_node(
 }
 
 impl WidgetContextMenu {
-    pub fn new(ctx: &mut BuildContext) -> Self {
+    pub fn new(
+        widget_constructors_container: &WidgetConstructorContainer,
+        ctx: &mut BuildContext,
+    ) -> Self {
         let delete_selection;
         let copy_selection;
         let paste;
         let make_root;
         let open_asset;
 
-        let widgets_menu = UiMenu::new(UiMenu::default_entries(), "Create Child Widget", ctx);
+        let widgets_menu = UiMenu::new(widget_constructors_container, "Create Child Widget", ctx);
 
         let menu = ContextMenuBuilder::new(
             PopupBuilder::new(WidgetBuilder::new().with_visibility(false)).with_content(

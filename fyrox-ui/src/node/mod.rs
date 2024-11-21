@@ -46,6 +46,12 @@ pub mod container;
 /// contains all the interesting stuff and detailed description for each method.
 pub struct UiNode(pub Box<dyn Control>);
 
+impl<T: Control> From<T> for UiNode {
+    fn from(value: T) -> Self {
+        Self(Box::new(value))
+    }
+}
+
 uuid_provider!(UiNode = "d9b45ecc-91b0-40ea-a92a-4a7dee4667c9");
 
 impl ComponentProvider for UiNode {
