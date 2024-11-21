@@ -391,6 +391,8 @@ pub struct MenuItem {
     pub decorator: InheritableVariable<Handle<UiNode>>,
     /// Is this item selected or not.
     pub is_selected: InheritableVariable<bool>,
+    /// An arrow primitive that is used to indicate that there's sub-items in the menu item.
+    pub arrow: InheritableVariable<Handle<UiNode>>,
 }
 
 crate::define_widget_deref!(MenuItem);
@@ -399,6 +401,14 @@ impl MenuItem {
     fn is_opened(&self, ui: &UserInterface) -> bool {
         ui.try_get_of_type::<ContextMenu>(*self.items_panel)
             .map_or(false, |items_panel| *items_panel.popup.is_open)
+    }
+
+    fn sync_arrow_visibility(&self, ui: &UserInterface) {
+        ui.send_message(WidgetMessage::visibility(
+            *self.arrow,
+            MessageDirection::ToWidget,
+            !self.items_container.is_empty(),
+        ));
     }
 }
 
@@ -636,6 +646,9 @@ impl Control for MenuItem {
                             *self.panel,
                         ));
                         self.items_container.push(*item);
+                        if self.items_container.len() == 1 {
+                            self.sync_arrow_visibility(ui);
+                        }
                     }
                     MenuItemMessage::RemoveItem(item) => {
                         if let Some(position) =
@@ -647,6 +660,10 @@ impl Control for MenuItem {
                                 *item,
                                 MessageDirection::ToWidget,
                             ));
+
+                            if self.items_container.is_empty() {
+                                self.sync_arrow_visibility(ui);
+                            }
                         }
                     }
                     MenuItemMessage::Items(items) => {
@@ -668,6 +685,8 @@ impl Control for MenuItem {
                         self.items_container
                             .items
                             .set_value_and_mark_modified(items.clone());
+
+                        self.sync_arrow_visibility(ui);
                     }
                 }
             }
@@ -918,6 +937,7 @@ impl<'a, 'b> MenuItemBuilder<'a, 'b> {
 
     /// Finishes menu item building and adds it to the user interface.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+        let mut arrow_widget = Handle::NONE;
         let content = match self.content {
             None => Handle::NONE,
             Some(MenuItemContent::Text {
@@ -949,22 +969,25 @@ impl<'a, 'b> MenuItemBuilder<'a, 'b> {
                         .with_text(shortcut)
                         .build(ctx),
                     )
-                    .with_child(if arrow {
-                        VectorImageBuilder::new(
-                            WidgetBuilder::new()
-                                .with_visibility(!self.items.is_empty())
-                                .on_row(1)
-                                .on_column(3)
-                                .with_width(8.0)
-                                .with_height(8.0)
-                                .with_foreground(BRUSH_BRIGHT)
-                                .with_horizontal_alignment(HorizontalAlignment::Center)
-                                .with_vertical_alignment(VerticalAlignment::Center),
-                        )
-                        .with_primitives(make_arrow_primitives(ArrowDirection::Right, 8.0))
-                        .build(ctx)
-                    } else {
-                        Handle::NONE
+                    .with_child({
+                        arrow_widget = if arrow {
+                            VectorImageBuilder::new(
+                                WidgetBuilder::new()
+                                    .with_visibility(!self.items.is_empty())
+                                    .on_row(1)
+                                    .on_column(3)
+                                    .with_width(8.0)
+                                    .with_height(8.0)
+                                    .with_foreground(BRUSH_BRIGHT)
+                                    .with_horizontal_alignment(HorizontalAlignment::Center)
+                                    .with_vertical_alignment(VerticalAlignment::Center),
+                            )
+                            .with_primitives(make_arrow_primitives(ArrowDirection::Right, 8.0))
+                            .build(ctx)
+                        } else {
+                            Handle::NONE
+                        };
+                        arrow_widget
                     }),
             )
             .add_row(Row::stretch())
@@ -1035,6 +1058,7 @@ impl<'a, 'b> MenuItemBuilder<'a, 'b> {
             clickable_when_not_empty: false.into(),
             decorator: decorator.into(),
             is_selected: Default::default(),
+            arrow: arrow_widget.into(),
         };
 
         let handle = ctx.add_node(UiNode::new(menu));
