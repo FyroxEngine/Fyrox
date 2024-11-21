@@ -21,6 +21,9 @@
 //! Contains all structures and methods to create and manage particle systems. See [`ParticleSystem`] docs for more
 //! info and usage examples.
 
+use crate::scene::node::constructor::NodeConstructor;
+use crate::scene::particle_system::emitter::base::BaseEmitterBuilder;
+use crate::scene::particle_system::emitter::sphere::SphereEmitterBuilder;
 use crate::{
     core::{
         algebra::{Point3, Vector2, Vector3},
@@ -543,6 +546,23 @@ impl Default for ParticleSystem {
 }
 
 impl NodeTrait for ParticleSystem {
+    fn constructor() -> NodeConstructor
+    where
+        Self: Sized + Default,
+    {
+        NodeConstructor::new::<Self>().with_variant("Particle System", || {
+            ParticleSystemBuilder::new(BaseBuilder::new().with_name("ParticleSystem"))
+                .with_emitters(vec![SphereEmitterBuilder::new(
+                    BaseEmitterBuilder::new()
+                        .with_max_particles(100)
+                        .resurrect_particles(true),
+                )
+                .with_radius(1.0)
+                .build()])
+                .build_node()
+        })
+    }
+
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         AxisAlignedBoundingBox::unit()
     }

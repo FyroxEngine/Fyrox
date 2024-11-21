@@ -637,7 +637,10 @@ impl Editor {
         let audio_panel = AudioPanel::new(&mut engine, message_sender.clone());
         let ctx = &mut engine.user_interfaces.first_mut().build_ctx();
         let navmesh_panel = NavmeshPanel::new(scene_viewer.frame(), ctx, message_sender.clone());
-        let scene_node_context_menu = Rc::new(RefCell::new(SceneNodeContextMenu::new(ctx)));
+        let scene_node_context_menu = Rc::new(RefCell::new(SceneNodeContextMenu::new(
+            &engine.serialization_context,
+            ctx,
+        )));
         let widget_context_menu = Rc::new(RefCell::new(WidgetContextMenu::new(ctx)));
         let world_outliner = WorldViewer::new(ctx, message_sender.clone(), &settings);
         let command_stack_viewer = CommandStackViewer::new(ctx, message_sender.clone());

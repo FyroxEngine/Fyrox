@@ -20,6 +20,7 @@
 
 //! Joint is used to restrict motion of two rigid bodies.
 
+use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
         algebra::{Isometry2, Matrix4, UnitComplex, Vector2},
@@ -282,6 +283,29 @@ impl Joint {
 }
 
 impl NodeTrait for Joint {
+    fn constructor() -> NodeConstructor
+    where
+        Self: Sized + Default,
+    {
+        NodeConstructor::new::<Self>()
+            .with_variant("Ball Joint 2D", || {
+                JointBuilder::new(BaseBuilder::new().with_name("Ball Joint 2D"))
+                    .with_params(JointParams::BallJoint(Default::default()))
+                    .build_node()
+            })
+            .with_variant("Prismatic Joint 2D", || {
+                JointBuilder::new(BaseBuilder::new().with_name("Prismatic Joint 2D"))
+                    .with_params(JointParams::PrismaticJoint(Default::default()))
+                    .build_node()
+            })
+            .with_variant("Fixed Joint 2D", || {
+                JointBuilder::new(BaseBuilder::new().with_name("Fixed Joint 2D"))
+                    .with_params(JointParams::FixedJoint(Default::default()))
+                    .build_node()
+            })
+            .with_group("Physics 2D")
+    }
+
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.base.local_bounding_box()
     }

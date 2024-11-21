@@ -20,7 +20,6 @@
 
 //! A special container that is able to create nodes by their type UUID.
 
-use crate::scene::tilemap::TileMap;
 use crate::{
     core::{
         parking_lot::{Mutex, MutexGuard},
@@ -43,17 +42,75 @@ use crate::{
         sound::{listener::Listener, Sound},
         sprite::Sprite,
         terrain::Terrain,
+        tilemap::TileMap,
     },
 };
 use fxhash::FxHashMap;
+use std::sync::Arc;
 
-/// Node constructor.
+/// Shared closure that creates a node of some type.
+pub type Constructor = Arc<dyn Fn() -> Node + Send + Sync>;
+
+/// Constructor variant.
+pub struct Variant {
+    /// Name of the variant.
+    pub name: &'static str,
+    /// Boxed type constructor.
+    pub constructor: Constructor,
+}
+
+/// Node constructor creates scene nodes in various states.
 pub struct NodeConstructor {
-    /// A simple type alias for boxed node constructor.
-    closure: Box<dyn FnMut() -> Node + Send>,
+    /// A boxed type constructor that returns a node in default state. This constructor is used at
+    /// deserialization stage.
+    pub default: Constructor,
+
+    /// A set of node constructors that returns specific variants of the same node type. Could be
+    /// used to pre-define specific variations of nodes, for example a [`Mesh`] node could have
+    /// different surfaces (sphere, cube, cone, etc.). It is used by the editor, this collection must
+    /// have at least one item to be shown in the editor.
+    pub variants: Vec<Variant>,
+
+    /// Name of the group the type belongs to.
+    pub group: &'static str,
 
     /// A name of the assembly this node constructor is from.
     pub assembly_name: &'static str,
+}
+
+impl NodeConstructor {
+    /// Creates a new node constructor with default values for the given scene node type. This method
+    /// automatically creates default constructor, but leaves potential variants empty (nothing will
+    /// be shown in the editor, use [`Self::with_variant`] to add potential variant of the constructor).
+    pub fn new<T>() -> Self
+    where
+        T: NodeTrait + Default,
+    {
+        Self {
+            default: Arc::new(|| Node::new(T::default())),
+            variants: vec![],
+            group: "",
+            assembly_name: T::type_assembly_name(),
+        }
+    }
+
+    /// Sets a desired group for the constructor. See [`NodeTrait::constructor`] docs for examples.
+    pub fn with_group(mut self, group: &'static str) -> Self {
+        self.group = group;
+        self
+    }
+
+    /// Adds a new constructor variant. See [`NodeTrait::constructor`] docs for examples.
+    pub fn with_variant<F>(mut self, name: &'static str, variant: F) -> Self
+    where
+        F: Fn() -> Node + Send + Sync + 'static,
+    {
+        self.variants.push(Variant {
+            name,
+            constructor: Arc::new(variant),
+        });
+        self
+    }
 }
 
 /// A special container that is able to create nodes by their type UUID.
@@ -101,14 +158,7 @@ impl NodeConstructorContainer {
     where
         T: TypeUuidProvider + NodeTrait + Default,
     {
-        let previous = self.map.lock().insert(
-            T::type_uuid(),
-            NodeConstructor {
-                closure: Box::new(|| Node::new(T::default())),
-                assembly_name: T::type_assembly_name(),
-            },
-        );
-
+        let previous = self.map.lock().insert(T::type_uuid(), T::constructor());
         assert!(previous.is_none());
     }
 
@@ -125,7 +175,7 @@ impl NodeConstructorContainer {
     /// Makes an attempt to create a node using provided type UUID. It may fail if there is no
     /// node constructor for specified type UUID.
     pub fn try_create(&self, type_uuid: &Uuid) -> Option<Node> {
-        self.map.lock().get_mut(type_uuid).map(|c| (c.closure)())
+        self.map.lock().get_mut(type_uuid).map(|c| (c.default)())
     }
 
     /// Returns total amount of constructors.

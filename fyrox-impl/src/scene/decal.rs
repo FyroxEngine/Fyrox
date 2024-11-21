@@ -22,6 +22,7 @@
 //!
 //! For more info see [`Decal`]
 
+use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
         color::Color,
@@ -211,6 +212,15 @@ impl Decal {
 }
 
 impl NodeTrait for Decal {
+    fn constructor() -> NodeConstructor
+    where
+        Self: Sized + Default,
+    {
+        NodeConstructor::new::<Self>().with_variant("Decal", || {
+            DecalBuilder::new(BaseBuilder::new().with_name("Decal")).build_node()
+        })
+    }
+
     /// Returns current **local-space** bounding box.
     #[inline]
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {

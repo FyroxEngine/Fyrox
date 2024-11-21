@@ -24,6 +24,7 @@
 pub mod brush;
 pub mod tileset;
 
+use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
         algebra::{Vector2, Vector3},
@@ -648,6 +649,17 @@ impl DerefMut for TileMap {
 }
 
 impl NodeTrait for TileMap {
+    fn constructor() -> NodeConstructor
+    where
+        Self: Sized + Default,
+    {
+        NodeConstructor::new::<Self>()
+            .with_variant("Tile Map", || {
+                TileMapBuilder::new(BaseBuilder::new().with_name("Tile Map")).build_node()
+            })
+            .with_group("2D")
+    }
+
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         let rect = self.bounding_rect();
 

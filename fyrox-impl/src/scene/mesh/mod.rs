@@ -21,7 +21,12 @@
 //! Contains all structures and methods to create and manage mesh scene graph nodes. See [`Mesh`] docs for more info
 //! and usage examples.
 
-use crate::material::{MaterialResourceBinding, MaterialResourceExtension, MaterialTextureBinding};
+use crate::material::{
+    Material, MaterialResourceBinding, MaterialResourceExtension, MaterialTextureBinding,
+};
+use crate::resource::texture::PLACEHOLDER;
+use crate::scene::mesh::surface::SurfaceBuilder;
+use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector3, Vector4},
@@ -539,7 +544,61 @@ fn extend_aabb_from_vertex_buffer(
     }
 }
 
+fn placeholder_material() -> MaterialResource {
+    let mut material = Material::standard();
+    material.bind("diffuseTexture", PLACEHOLDER.resource());
+    MaterialResource::new_ok(ResourceKind::Embedded, material)
+}
+
 impl NodeTrait for Mesh {
+    fn constructor() -> NodeConstructor
+    where
+        Self: Sized + Default,
+    {
+        NodeConstructor::new::<Self>()
+            .with_variant("Empty", || {
+                MeshBuilder::new(BaseBuilder::new()).build_node()
+            })
+            .with_variant("Cube", || {
+                MeshBuilder::new(BaseBuilder::new().with_name("Cube"))
+                    .with_surfaces(vec![SurfaceBuilder::new(surface::CUBE.resource.clone())
+                        .with_material(placeholder_material())
+                        .build()])
+                    .build_node()
+            })
+            .with_variant("Cone", || {
+                MeshBuilder::new(BaseBuilder::new().with_name("Cone"))
+                    .with_surfaces(vec![SurfaceBuilder::new(surface::CONE.resource.clone())
+                        .with_material(placeholder_material())
+                        .build()])
+                    .build_node()
+            })
+            .with_variant("Cylinder", || {
+                MeshBuilder::new(BaseBuilder::new().with_name("Cylinder"))
+                    .with_surfaces(vec![SurfaceBuilder::new(
+                        surface::CYLINDER.resource.clone(),
+                    )
+                    .with_material(placeholder_material())
+                    .build()])
+                    .build_node()
+            })
+            .with_variant("Sphere", || {
+                MeshBuilder::new(BaseBuilder::new().with_name("Sphere"))
+                    .with_surfaces(vec![SurfaceBuilder::new(surface::SPHERE.resource.clone())
+                        .with_material(placeholder_material())
+                        .build()])
+                    .build_node()
+            })
+            .with_variant("Quad", || {
+                MeshBuilder::new(BaseBuilder::new().with_name("Quad"))
+                    .with_surfaces(vec![SurfaceBuilder::new(surface::QUAD.resource.clone())
+                        .with_material(placeholder_material())
+                        .build()])
+                    .build_node()
+            })
+            .with_group("Mesh")
+    }
+
     /// Returns current bounding box. Bounding box presented in *local coordinates*
     /// WARNING: This method does *not* includes bounds of bones!
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {

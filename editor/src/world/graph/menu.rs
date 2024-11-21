@@ -54,6 +54,7 @@ use crate::{
     world::WorldViewerItemContextMenu,
     Engine, Message, MessageDirection, PasteCommand,
 };
+use fyrox::engine::SerializationContext;
 use std::{any::TypeId, path::PathBuf};
 
 pub struct SceneNodeContextMenu {
@@ -95,7 +96,7 @@ fn resource_path_of_first_selected_node(
 }
 
 impl SceneNodeContextMenu {
-    pub fn new(ctx: &mut BuildContext) -> Self {
+    pub fn new(serialization_context: &SerializationContext, ctx: &mut BuildContext) -> Self {
         let delete_selection;
         let copy_selection;
         let save_as_prefab;
@@ -104,11 +105,9 @@ impl SceneNodeContextMenu {
         let open_asset;
         let reset_inheritable_properties;
 
-        let (create_child_entity_menu, create_child_entity_menu_root_items) =
-            CreateEntityMenu::new(ctx);
-        let (create_parent_entity_menu, create_parent_entity_menu_root_items) =
-            CreateEntityMenu::new(ctx);
-        let (replace_with_menu, replace_with_menu_root_items) = CreateEntityMenu::new(ctx);
+        let create_child_entity_menu = CreateEntityMenu::new(serialization_context, ctx);
+        let create_parent_entity_menu = CreateEntityMenu::new(serialization_context, ctx);
+        let replace_with_menu = CreateEntityMenu::new(serialization_context, ctx);
 
         let menu = ContextMenuBuilder::new(
             PopupBuilder::new(WidgetBuilder::new().with_visibility(false)).with_content(
@@ -137,7 +136,7 @@ impl SceneNodeContextMenu {
                                 WidgetBuilder::new().with_min_size(Vector2::new(120.0, 22.0)),
                             )
                             .with_content(MenuItemContent::text("Create Parent"))
-                            .with_items(create_parent_entity_menu_root_items)
+                            .with_items(create_parent_entity_menu.root_items.clone())
                             .build(ctx),
                         )
                         .with_child(
@@ -145,7 +144,7 @@ impl SceneNodeContextMenu {
                                 WidgetBuilder::new().with_min_size(Vector2::new(120.0, 22.0)),
                             )
                             .with_content(MenuItemContent::text("Create Child"))
-                            .with_items(create_child_entity_menu_root_items)
+                            .with_items(create_child_entity_menu.root_items.clone())
                             .build(ctx),
                         )
                         .with_child({
@@ -157,7 +156,7 @@ impl SceneNodeContextMenu {
                                 WidgetBuilder::new().with_min_size(Vector2::new(120.0, 22.0)),
                             )
                             .with_content(MenuItemContent::text("Replace With"))
-                            .with_items(replace_with_menu_root_items)
+                            .with_items(replace_with_menu.root_items.clone())
                             .build(ctx),
                         )
                         .with_child({

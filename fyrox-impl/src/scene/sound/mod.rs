@@ -57,6 +57,7 @@ pub use fyrox_sound::{
     source::Status,
 };
 
+use crate::scene::node::constructor::NodeConstructor;
 use crate::scene::Scene;
 use fyrox_graph::BaseSceneGraph;
 use fyrox_resource::state::ResourceState;
@@ -387,6 +388,17 @@ impl Sound {
 }
 
 impl NodeTrait for Sound {
+    fn constructor() -> NodeConstructor
+    where
+        Self: Sized + Default,
+    {
+        NodeConstructor::new::<Self>()
+            .with_variant("Sound Source", || {
+                SoundBuilder::new(BaseBuilder::new().with_name("Sound Source")).build_node()
+            })
+            .with_group("Sound")
+    }
+
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         AxisAlignedBoundingBox::unit()
     }

@@ -28,6 +28,7 @@
 //! using [`RigidBody::wake_up`]. By default any external action does **not** wakes up rigid body.
 //! You can also explicitly tell to rigid body that it cannot sleep, by calling
 //! [`RigidBody::set_can_sleep`] with `false` value.
+use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
         algebra::{Matrix4, Vector3},
@@ -527,6 +528,17 @@ impl RigidBody {
 }
 
 impl NodeTrait for RigidBody {
+    fn constructor() -> NodeConstructor
+    where
+        Self: Sized + Default,
+    {
+        NodeConstructor::new::<Self>()
+            .with_variant("Rigid Body", || {
+                RigidBodyBuilder::new(BaseBuilder::new().with_name("Rigid Body")).build_node()
+            })
+            .with_group("Physics")
+    }
+
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.base.local_bounding_box()
     }

@@ -23,6 +23,7 @@
 //!
 //! See [`Rectangle`] docs for more info.
 
+use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
         algebra::{Point3, Vector2, Vector3},
@@ -275,6 +276,17 @@ impl Rectangle {
 }
 
 impl NodeTrait for Rectangle {
+    fn constructor() -> NodeConstructor
+    where
+        Self: Sized + Default,
+    {
+        NodeConstructor::new::<Self>()
+            .with_variant("Rectangle (2D Sprite)", || {
+                RectangleBuilder::new(BaseBuilder::new().with_name("Sprite (2D)")).build_node()
+            })
+            .with_group("2D")
+    }
+
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         AxisAlignedBoundingBox::unit()
     }

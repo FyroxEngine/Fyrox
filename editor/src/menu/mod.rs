@@ -42,14 +42,10 @@ use crate::{
 };
 use std::path::PathBuf;
 
-pub mod animation;
 pub mod create;
-pub mod dim2;
 pub mod edit;
 pub mod file;
 pub mod help;
-pub mod physics;
-pub mod physics2d;
 pub mod ui;
 pub mod utils;
 pub mod view;
@@ -126,7 +122,7 @@ impl Menu {
     pub fn new(engine: &mut Engine, message_sender: MessageSender, settings: &Settings) -> Self {
         let file_menu = FileMenu::new(engine, settings);
         let ctx = &mut engine.user_interfaces.first_mut().build_ctx();
-        let create_entity_menu = CreateEntityRootMenu::new(ctx);
+        let create_entity_menu = CreateEntityRootMenu::new(&engine.serialization_context, ctx);
         let edit_menu = EditMenu::new(ctx);
         let view_menu = ViewMenu::new(ctx);
         let utils_menu = UtilsMenu::new(ctx);

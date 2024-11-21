@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 //! A simplest possible node which represents point in space.
+use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
         math::aabb::AxisAlignedBoundingBox,
@@ -70,6 +71,15 @@ impl DerefMut for Pivot {
 }
 
 impl NodeTrait for Pivot {
+    fn constructor() -> NodeConstructor
+    where
+        Self: Sized + Default,
+    {
+        NodeConstructor::new::<Self>().with_variant("Pivot", || {
+            PivotBuilder::new(BaseBuilder::new().with_name("Pivot")).build_node()
+        })
+    }
+
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.base.local_bounding_box()
     }

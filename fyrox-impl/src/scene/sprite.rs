@@ -22,6 +22,7 @@
 //!
 //! For more info see [`Sprite`].
 
+use crate::scene::node::constructor::NodeConstructor;
 use crate::scene::node::RdcControlFlow;
 use crate::{
     core::{
@@ -293,6 +294,15 @@ impl Sprite {
 }
 
 impl NodeTrait for Sprite {
+    fn constructor() -> NodeConstructor
+    where
+        Self: Sized + Default,
+    {
+        NodeConstructor::new::<Self>().with_variant("Sprite (3D)", || {
+            SpriteBuilder::new(BaseBuilder::new().with_name("Sprite")).build_node()
+        })
+    }
+
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         AxisAlignedBoundingBox::from_radius(*self.size)
     }

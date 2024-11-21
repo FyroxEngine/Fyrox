@@ -37,6 +37,8 @@
 //! can easily ruin performance of your game, especially on low-end hardware. Light
 //! scattering is relatively heavy too.
 
+use crate::scene::base::BaseBuilder;
+use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
         color::Color,
@@ -131,6 +133,21 @@ impl PointLight {
 }
 
 impl NodeTrait for PointLight {
+    fn constructor() -> NodeConstructor
+    where
+        Self: Sized + Default,
+    {
+        NodeConstructor::new::<Self>()
+            .with_variant("Point Light", || {
+                PointLightBuilder::new(BaseLightBuilder::new(
+                    BaseBuilder::new().with_name("PointLight"),
+                ))
+                .with_radius(10.0)
+                .build_node()
+            })
+            .with_group("Light")
+    }
+
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         AxisAlignedBoundingBox::from_radius(*self.radius)
     }

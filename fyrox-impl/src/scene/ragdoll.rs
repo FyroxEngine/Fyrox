@@ -22,6 +22,7 @@
 //! of a mesh. Ragdolls are used mostly for body physics. See [`Ragdoll`] docs for more info and
 //! usage examples.
 
+use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector3},
@@ -268,6 +269,17 @@ impl TypeUuidProvider for Ragdoll {
 }
 
 impl NodeTrait for Ragdoll {
+    fn constructor() -> NodeConstructor
+    where
+        Self: Sized + Default,
+    {
+        NodeConstructor::new::<Self>()
+            .with_variant("Ragdoll", || {
+                RagdollBuilder::new(BaseBuilder::new().with_name("Ragdoll")).build_node()
+            })
+            .with_group("Physics")
+    }
+
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.base.local_bounding_box()
     }

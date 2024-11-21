@@ -20,6 +20,7 @@
 
 //! Contains all methods and structures to create and manage cameras. See [`Camera`] docs for more info.
 
+use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     asset::{
         embedded_data_source, manager::BuiltInResource, state::LoadError, untyped::ResourceKind,
@@ -735,6 +736,15 @@ impl Camera {
 }
 
 impl NodeTrait for Camera {
+    fn constructor() -> NodeConstructor
+    where
+        Self: Sized + Default,
+    {
+        NodeConstructor::new::<Self>().with_variant("Camera", || {
+            CameraBuilder::new(BaseBuilder::new().with_name("Camera")).build_node()
+        })
+    }
+
     /// Returns current **local-space** bounding box.
     #[inline]
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {

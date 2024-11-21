@@ -21,6 +21,7 @@
 //! Animation blending state machine is a node that takes multiple animations from an animation player and
 //! mixes them in arbitrary way into one animation. See [`AnimationBlendingStateMachine`] docs for more info.
 
+use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
         math::aabb::AxisAlignedBoundingBox,
@@ -274,6 +275,28 @@ impl DerefMut for AnimationBlendingStateMachine {
 }
 
 impl NodeTrait for AnimationBlendingStateMachine {
+    fn constructor() -> NodeConstructor
+    where
+        Self: Sized + Default,
+    {
+        NodeConstructor::new::<Self>()
+            .with_variant("Animation Blending State Machine", || {
+                let mut machine = Machine::default();
+
+                let mut layer = MachineLayer::new();
+                layer.set_name("Base Layer");
+
+                machine.add_layer(layer);
+
+                AnimationBlendingStateMachineBuilder::new(
+                    BaseBuilder::new().with_name("Animation Blending State Machine"),
+                )
+                .with_machine(machine)
+                .build_node()
+            })
+            .with_group("Animation")
+    }
+
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.base.local_bounding_box()
     }

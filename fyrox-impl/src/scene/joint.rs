@@ -20,6 +20,7 @@
 
 //! Joint is used to restrict motion of two rigid bodies.
 
+use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
         algebra::Matrix4,
@@ -355,6 +356,34 @@ impl Joint {
 }
 
 impl NodeTrait for Joint {
+    fn constructor() -> NodeConstructor
+    where
+        Self: Sized + Default,
+    {
+        NodeConstructor::new::<Self>()
+            .with_variant("Revolute Joint", || {
+                JointBuilder::new(BaseBuilder::new().with_name("Revolute Joint"))
+                    .with_params(JointParams::RevoluteJoint(Default::default()))
+                    .build_node()
+            })
+            .with_variant("Ball Joint", || {
+                JointBuilder::new(BaseBuilder::new().with_name("Ball Joint"))
+                    .with_params(JointParams::BallJoint(Default::default()))
+                    .build_node()
+            })
+            .with_variant("Prismatic Joint", || {
+                JointBuilder::new(BaseBuilder::new().with_name("Prismatic Joint"))
+                    .with_params(JointParams::PrismaticJoint(Default::default()))
+                    .build_node()
+            })
+            .with_variant("Fixed Joint", || {
+                JointBuilder::new(BaseBuilder::new().with_name("Fixed Joint"))
+                    .with_params(JointParams::FixedJoint(Default::default()))
+                    .build_node()
+            })
+            .with_group("Physics")
+    }
+
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.base.local_bounding_box()
     }

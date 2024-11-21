@@ -42,6 +42,8 @@
 //! Light scattering feature may significantly impact performance on low-end
 //! hardware!
 
+use crate::scene::base::BaseBuilder;
+use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector3},
@@ -217,6 +219,23 @@ impl SpotLight {
 }
 
 impl NodeTrait for SpotLight {
+    fn constructor() -> NodeConstructor
+    where
+        Self: Sized + Default,
+    {
+        NodeConstructor::new::<Self>()
+            .with_variant("Spot Light", || {
+                SpotLightBuilder::new(BaseLightBuilder::new(
+                    BaseBuilder::new().with_name("SpotLight"),
+                ))
+                .with_distance(10.0)
+                .with_hotspot_cone_angle(45.0f32.to_radians())
+                .with_falloff_angle_delta(2.0f32.to_radians())
+                .build_node()
+            })
+            .with_group("Light")
+    }
+
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         AxisAlignedBoundingBox::from_radius(self.distance())
     }

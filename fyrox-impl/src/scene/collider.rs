@@ -21,6 +21,7 @@
 //! Collider is a geometric entity that can be attached to a rigid body to allow participate it
 //! participate in contact generation, collision response and proximity queries.
 
+use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
         algebra::Vector3,
@@ -851,6 +852,19 @@ impl Collider {
 }
 
 impl NodeTrait for Collider {
+    fn constructor() -> NodeConstructor
+    where
+        Self: Sized + Default,
+    {
+        NodeConstructor::new::<Self>()
+            .with_variant("Collider", || {
+                ColliderBuilder::new(BaseBuilder::new().with_name("Collider"))
+                    .with_shape(ColliderShape::Cuboid(Default::default()))
+                    .build_node()
+            })
+            .with_group("Physics")
+    }
+
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.base.local_bounding_box()
     }

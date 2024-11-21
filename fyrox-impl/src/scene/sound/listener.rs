@@ -23,6 +23,7 @@
 //!
 //! See [`Listener`] docs for more info.
 
+use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
         math::aabb::AxisAlignedBoundingBox,
@@ -81,6 +82,17 @@ impl TypeUuidProvider for Listener {
 }
 
 impl NodeTrait for Listener {
+    fn constructor() -> NodeConstructor
+    where
+        Self: Sized + Default,
+    {
+        NodeConstructor::new::<Self>()
+            .with_variant("Listener", || {
+                ListenerBuilder::new(BaseBuilder::new().with_name("Listener")).build_node()
+            })
+            .with_group("Sound")
+    }
+
     /// Returns local bounding box of the listener, since listener cannot have any bounds -
     /// returned bounding box is collapsed into a point.
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {

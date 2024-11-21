@@ -21,6 +21,7 @@
 //! Animation player is a node that contains multiple animations. It updates and plays all the animations.
 //! See [`AnimationPlayer`] docs for more info.
 
+use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
         log::{Log, MessageKind},
@@ -319,6 +320,17 @@ impl DerefMut for AnimationPlayer {
 }
 
 impl NodeTrait for AnimationPlayer {
+    fn constructor() -> NodeConstructor
+    where
+        Self: Sized + Default,
+    {
+        NodeConstructor::new::<Self>()
+            .with_variant("Animation Player", || {
+                AnimationPlayerBuilder::new(BaseBuilder::new()).build_node()
+            })
+            .with_group("Animation")
+    }
+
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.base.local_bounding_box()
     }
