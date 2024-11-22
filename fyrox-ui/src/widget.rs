@@ -42,11 +42,41 @@ use crate::{
 use fyrox_core::{parking_lot::Mutex, variable::InheritableVariable};
 use fyrox_graph::BaseSceneGraph;
 use fyrox_resource::Resource;
+use std::cmp::Ordering;
+use std::fmt::{Debug, Formatter};
 use std::{
     any::Any,
     cell::{Cell, RefCell},
     sync::{mpsc::Sender, Arc},
 };
+
+/// Sorting predicate that is used to sort widgets by some criteria.
+#[derive(Clone)]
+pub struct SortingPredicate(
+    pub Arc<dyn Fn(Handle<UiNode>, Handle<UiNode>, &UserInterface) -> Ordering + Send + Sync>,
+);
+
+impl SortingPredicate {
+    /// Creates new sorting predicate.
+    pub fn new<F>(func: F) -> Self
+    where
+        F: Fn(Handle<UiNode>, Handle<UiNode>, &UserInterface) -> Ordering + Send + Sync + 'static,
+    {
+        Self(Arc::new(func))
+    }
+}
+
+impl Debug for SortingPredicate {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "SortingPredicate")
+    }
+}
+
+impl PartialEq for SortingPredicate {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::eq(self.0.as_ref(), other.0.as_ref())
+    }
+}
 
 /// A set of messages for any kind of widgets (including user controls). These messages provides basic
 /// communication elements of the UI library.
@@ -394,6 +424,10 @@ pub enum WidgetMessage {
         /// unique identifier for touch event
         id: u64,
     },
+    /// Sorts children widgets of a widget.
+    ///
+    /// Direction: **To UI**.
+    SortChildren(SortingPredicate),
 }
 
 impl WidgetMessage {
@@ -679,6 +713,11 @@ impl WidgetMessage {
         /// Creates [`WidgetMessage::DoubleTap`] message. This method is for internal use only, and should not
         /// be used anywhere else.
         WidgetMessage:DoubleTap => fn double_tap(pos: Vector2<f32>, force: Option<Force>, id: u64), layout: false
+    );
+
+    define_constructor!(
+          /// Creates [`MenuItemMessage::Sort`] message.
+        WidgetMessage:SortChildren => fn sort_children(SortingPredicate), layout: false
     );
 }
 
@@ -1339,7 +1378,7 @@ impl Widget {
 
     /// Handles incoming [`WidgetMessage`]s. This method **must** be called in [`crate::control::Control::handle_routed_message`]
     /// of any derived widgets!
-    pub fn handle_routed_message(&mut self, _ui: &mut UserInterface, msg: &mut UiMessage) {
+    pub fn handle_routed_message(&mut self, ui: &mut UserInterface, msg: &mut UiMessage) {
         if msg.destination() == self.handle() && msg.direction() == MessageDirection::ToWidget {
             if let Some(msg) = msg.data::<WidgetMessage>() {
                 match msg {
@@ -1432,6 +1471,11 @@ impl Widget {
                             self.set_z_index(*index);
                             self.invalidate_layout();
                         }
+                    }
+                    WidgetMessage::SortChildren(predicate) => {
+                        self.children
+                            .sort_unstable_by(|a, b| predicate.0(*a, *b, ui));
+                        self.invalidate_layout();
                     }
                     _ => (),
                 }
