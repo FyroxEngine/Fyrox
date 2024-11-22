@@ -543,10 +543,12 @@ fn close_menu_chain(from: Handle<UiNode>, ui: &UserInterface) {
         let popup_handle = ui.find_handle_up(handle, &mut |n| n.has_component::<ContextMenu>());
 
         if let Some(panel) = ui.try_get_of_type::<ContextMenu>(popup_handle) {
-            ui.send_message(PopupMessage::close(
-                popup_handle,
-                MessageDirection::ToWidget,
-            ));
+            if *panel.popup.is_open {
+                ui.send_message(PopupMessage::close(
+                    popup_handle,
+                    MessageDirection::ToWidget,
+                ));
+            }
 
             // Continue search from parent menu item of popup.
             handle = panel.parent_menu_item;
@@ -706,26 +708,32 @@ impl Control for MenuItem {
                         }
                     }
                     MenuItemMessage::Close { deselect } => {
-                        ui.send_message(PopupMessage::close(
-                            *self.items_panel,
-                            MessageDirection::ToWidget,
-                        ));
+                        if let Some(panel) =
+                            ui.node(*self.items_panel).query_component::<ContextMenu>()
+                        {
+                            if *panel.popup.is_open {
+                                ui.send_message(PopupMessage::close(
+                                    *self.items_panel,
+                                    MessageDirection::ToWidget,
+                                ));
 
-                        if *deselect && *self.is_selected {
-                            ui.send_message(MenuItemMessage::select(
-                                self.handle,
-                                MessageDirection::ToWidget,
-                                false,
-                            ));
-                        }
+                                if *deselect && *self.is_selected {
+                                    ui.send_message(MenuItemMessage::select(
+                                        self.handle,
+                                        MessageDirection::ToWidget,
+                                        false,
+                                    ));
+                                }
 
-                        // Recursively deselect everything in the sub-items container.
-                        for &item in &*self.items_container.items {
-                            ui.send_message(MenuItemMessage::close(
-                                item,
-                                MessageDirection::ToWidget,
-                                true,
-                            ));
+                                // Recursively deselect everything in the sub-items container.
+                                for &item in &*self.items_container.items {
+                                    ui.send_message(MenuItemMessage::close(
+                                        item,
+                                        MessageDirection::ToWidget,
+                                        true,
+                                    ));
+                                }
+                            }
                         }
                     }
                     MenuItemMessage::Click => {}
@@ -826,11 +834,16 @@ impl Control for MenuItem {
                 }
 
                 if !found {
-                    ui.send_message(MenuItemMessage::close(
-                        self.handle(),
-                        MessageDirection::ToWidget,
-                        true,
-                    ));
+                    if let Some(panel) = ui.node(*self.items_panel).query_component::<ContextMenu>()
+                    {
+                        if *panel.popup.is_open {
+                            ui.send_message(MenuItemMessage::close(
+                                self.handle(),
+                                MessageDirection::ToWidget,
+                                true,
+                            ));
+                        }
+                    }
                 }
             }
         }
@@ -851,10 +864,12 @@ impl Control for MenuItem {
                         if !is_any_menu_item_contains_point(ui, ui.cursor_position())
                             && find_menu(self.parent(), ui).is_none()
                         {
-                            ui.send_message(PopupMessage::close(
-                                *self.items_panel,
-                                MessageDirection::ToWidget,
-                            ));
+                            if *panel.popup.is_open {
+                                ui.send_message(PopupMessage::close(
+                                    *self.items_panel,
+                                    MessageDirection::ToWidget,
+                                ));
+                            }
 
                             // Close all other popups.
                             close_menu_chain(self.parent(), ui);
