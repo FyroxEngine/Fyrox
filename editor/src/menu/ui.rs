@@ -1,4 +1,3 @@
-use fyrox::core::log::Log;
 // Copyright (c) 2019-present Dmitry Stepanov and Fyrox Engine contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -18,21 +17,23 @@ use fyrox::core::log::Log;
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
-use crate::fyrox::{
-    core::pool::Handle,
-    fxhash::FxHashMap,
-    gui::{menu::MenuItemMessage, message::UiMessage, BuildContext, UiNode},
-};
+
 use crate::{
+    fyrox::{
+        core::{log::Log, pool::Handle},
+        fxhash::FxHashMap,
+        graph::constructor::{VariantConstructor, VariantResult},
+        gui::{
+            constructor::WidgetConstructorContainer, menu::MenuItemMessage,
+            message::MessageDirection, message::UiMessage, BuildContext, UiNode, UserInterface,
+        },
+    },
     menu::create_menu_item,
     message::MessageSender,
     scene::Selection,
     ui_scene::{commands::graph::AddWidgetCommand, UiScene},
 };
-use fyrox::graph::constructor::{VariantConstructor, VariantResult};
-use fyrox::gui::constructor::WidgetConstructorContainer;
-use fyrox::gui::message::MessageDirection;
-use fyrox::gui::UserInterface;
+use fyrox::gui::menu::SortingPredicate;
 
 pub struct UiMenu {
     pub menu: Handle<UiNode>,
@@ -61,18 +62,24 @@ impl UiMenu {
                         root_items.push(group);
                         group
                     });
-                    ctx.sender()
-                        .send(MenuItemMessage::add_item(
-                            group,
-                            MessageDirection::ToWidget,
-                            item,
-                        ))
-                        .unwrap()
+                    ctx.inner().send_message(MenuItemMessage::add_item(
+                        group,
+                        MessageDirection::ToWidget,
+                        item,
+                    ));
                 }
             }
         }
 
-        let menu = create_menu_item(name, root_items, ctx);
+        let menu = create_menu_item(name, root_items.clone(), ctx);
+
+        for root_item in root_items.iter().chain(&[menu]) {
+            ctx.inner().send_message(MenuItemMessage::sort(
+                *root_item,
+                MessageDirection::ToWidget,
+                SortingPredicate::sort_by_text(),
+            ))
+        }
 
         Self {
             menu,

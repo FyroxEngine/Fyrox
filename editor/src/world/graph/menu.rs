@@ -56,6 +56,7 @@ use crate::{
 };
 use fyrox::engine::SerializationContext;
 use fyrox::gui::constructor::WidgetConstructorContainer;
+use fyrox::gui::menu::SortingPredicate;
 use std::{any::TypeId, path::PathBuf};
 
 pub struct SceneNodeContextMenu {
@@ -109,6 +110,9 @@ impl SceneNodeContextMenu {
         let make_root;
         let open_asset;
         let reset_inheritable_properties;
+        let create_parent;
+        let create_child;
+        let replace_with;
 
         let create_child_entity_menu =
             CreateEntityMenu::new(serialization_context, widget_constructors_container, ctx);
@@ -139,34 +143,37 @@ impl SceneNodeContextMenu {
                             save_as_prefab = create_menu_item("Save As Prefab...", vec![], ctx);
                             save_as_prefab
                         })
-                        .with_child(
-                            MenuItemBuilder::new(
+                        .with_child({
+                            create_parent = MenuItemBuilder::new(
                                 WidgetBuilder::new().with_min_size(Vector2::new(120.0, 22.0)),
                             )
                             .with_content(MenuItemContent::text("Create Parent"))
                             .with_items(create_parent_entity_menu.root_items.clone())
-                            .build(ctx),
-                        )
-                        .with_child(
-                            MenuItemBuilder::new(
+                            .build(ctx);
+                            create_parent
+                        })
+                        .with_child({
+                            create_child = MenuItemBuilder::new(
                                 WidgetBuilder::new().with_min_size(Vector2::new(120.0, 22.0)),
                             )
                             .with_content(MenuItemContent::text("Create Child"))
                             .with_items(create_child_entity_menu.root_items.clone())
-                            .build(ctx),
-                        )
+                            .build(ctx);
+                            create_child
+                        })
                         .with_child({
                             make_root = create_menu_item("Make Root", vec![], ctx);
                             make_root
                         })
-                        .with_child(
-                            MenuItemBuilder::new(
+                        .with_child({
+                            replace_with = MenuItemBuilder::new(
                                 WidgetBuilder::new().with_min_size(Vector2::new(120.0, 22.0)),
                             )
                             .with_content(MenuItemContent::text("Replace With"))
                             .with_items(replace_with_menu.root_items.clone())
-                            .build(ctx),
-                        )
+                            .build(ctx);
+                            replace_with
+                        })
                         .with_child({
                             open_asset = create_menu_item("Open Asset", vec![], ctx);
                             open_asset
@@ -182,6 +189,14 @@ impl SceneNodeContextMenu {
         )
         .build(ctx);
         let menu = RcUiNodeHandle::new(menu, ctx.sender());
+
+        for item in [create_child, create_parent, replace_with] {
+            ctx.inner().send_message(MenuItemMessage::sort(
+                item,
+                MessageDirection::ToWidget,
+                SortingPredicate::sort_by_text(),
+            ))
+        }
 
         Self {
             create_child_entity_menu,

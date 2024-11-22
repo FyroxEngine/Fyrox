@@ -43,6 +43,7 @@ use crate::{
 use fyrox::core::log::Log;
 use fyrox::graph::constructor::{VariantConstructor, VariantResult};
 use fyrox::gui::constructor::WidgetConstructorContainer;
+use fyrox::gui::menu::SortingPredicate;
 use fyrox::scene::graph::Graph;
 
 pub struct CreateEntityRootMenu {
@@ -60,6 +61,12 @@ impl CreateEntityRootMenu {
             CreateEntityMenu::new(serialization_context, widget_constructors_container, ctx);
 
         let menu = create_root_menu_item("Create", sub_menus.root_items.clone(), ctx);
+
+        ctx.inner().send_message(MenuItemMessage::sort(
+            menu,
+            MessageDirection::ToWidget,
+            SortingPredicate::sort_by_text(),
+        ));
 
         Self { menu, sub_menus }
     }
@@ -148,6 +155,14 @@ impl CreateEntityMenu {
                         .unwrap()
                 }
             }
+        }
+
+        for root_item in root_items.iter() {
+            ctx.inner().send_message(MenuItemMessage::sort(
+                *root_item,
+                MessageDirection::ToWidget,
+                SortingPredicate::sort_by_text(),
+            ))
         }
 
         Self {
