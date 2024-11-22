@@ -170,11 +170,13 @@ pub struct AnimationPlayer {
 
 impl ConstructorProvider<UiNode, UserInterface> for AnimationPlayer {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
-        GraphNodeConstructor::new::<Self>().with_variant("Animation Player", |ui| {
-            AnimationPlayerBuilder::new(WidgetBuilder::new().with_name("Animation Player"))
-                .build(&mut ui.build_ctx())
-                .into()
-        })
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Animation Player", |ui| {
+                AnimationPlayerBuilder::new(WidgetBuilder::new().with_name("Animation Player"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Animation")
     }
 }
 
