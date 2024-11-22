@@ -40,14 +40,20 @@ use crate::{
     text::TextBuilder,
     utils::{make_arrow_primitives, ArrowDirection},
     vector_image::VectorImageBuilder,
+    widget,
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, HorizontalAlignment, Orientation, RestrictionEntry, Thickness, UiNode,
     UserInterface, VerticalAlignment, BRUSH_BRIGHT, BRUSH_BRIGHT_BLUE, BRUSH_PRIMARY,
 };
-use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
-use fyrox_graph::{BaseSceneGraph, SceneGraph, SceneGraphNode};
-use std::any::TypeId;
+use fyrox_graph::{
+    constructor::{ConstructorProvider, GraphNodeConstructor},
+    BaseSceneGraph, SceneGraph, SceneGraphNode,
+};
+use std::cmp::Ordering;
+use std::fmt::{Debug, Formatter};
+use std::sync::Arc;
 use std::{
+    any::TypeId,
     ops::{Deref, DerefMut},
     sync::mpsc::Sender,
 };
@@ -73,8 +79,59 @@ impl MenuMessage {
     );
 }
 
+/// A predicate that is used to sort menu items.
+#[derive(Clone)]
+pub struct SortingPredicate(
+    pub Arc<dyn Fn(&MenuItemContent, &MenuItemContent, &UserInterface) -> Ordering + Send + Sync>,
+);
+
+impl SortingPredicate {
+    /// Creates new sorting predicate.
+    pub fn new<F>(func: F) -> Self
+    where
+        F: Fn(&MenuItemContent, &MenuItemContent, &UserInterface) -> Ordering
+            + Send
+            + Sync
+            + 'static,
+    {
+        Self(Arc::new(func))
+    }
+
+    /// Creates new sorting predicate that sorts menu items by their textual content. This predicate
+    /// won't work with custom menu item content!
+    pub fn sort_by_text() -> Self {
+        Self::new(|a, b, _| {
+            if let MenuItemContent::Text { text: a_text, .. } = a {
+                if let MenuItemContent::Text { text: b_text, .. } = b {
+                    return a_text.cmp(b_text);
+                }
+            }
+
+            if let MenuItemContent::TextCentered(a_text) = a {
+                if let MenuItemContent::TextCentered(b_text) = b {
+                    return a_text.cmp(b_text);
+                }
+            }
+
+            Ordering::Equal
+        })
+    }
+}
+
+impl Debug for SortingPredicate {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "SortingPredicate")
+    }
+}
+
+impl PartialEq for SortingPredicate {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::eq(self.0.as_ref(), other.0.as_ref())
+    }
+}
+
 /// A set of messages that can be used to manipulate a [`MenuItem`] widget at runtime.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum MenuItemMessage {
     /// Opens the menu item's popup with inner items.
     Open,
@@ -93,6 +150,8 @@ pub enum MenuItemMessage {
     Items(Vec<Handle<UiNode>>),
     /// Selects/deselects the item.
     Select(bool),
+    /// Sorts menu items by the given predicate.
+    Sort(SortingPredicate),
 }
 
 impl MenuItemMessage {
@@ -123,6 +182,10 @@ impl MenuItemMessage {
     define_constructor!(
           /// Creates [`MenuItemMessage::Select`] message.
         MenuItemMessage:Select => fn select(bool), layout: false
+    );
+    define_constructor!(
+          /// Creates [`MenuItemMessage::Sort`] message.
+        MenuItemMessage:Sort => fn sort(SortingPredicate), layout: false
     );
 }
 
@@ -406,6 +469,8 @@ pub struct MenuItem {
     pub is_selected: InheritableVariable<bool>,
     /// An arrow primitive that is used to indicate that there's sub-items in the menu item.
     pub arrow: InheritableVariable<Handle<UiNode>>,
+    /// Content of the menu item with which it was created.
+    pub content: InheritableVariable<Option<MenuItemContent>>,
 }
 
 impl ConstructorProvider<UiNode, UserInterface> for MenuItem {
@@ -713,6 +778,25 @@ impl Control for MenuItem {
 
                         self.sync_arrow_visibility(ui);
                     }
+                    MenuItemMessage::Sort(predicate) => {
+                        let predicate = predicate.clone();
+                        ui.send_message(WidgetMessage::sort_children(
+                            *self.panel,
+                            MessageDirection::ToWidget,
+                            widget::SortingPredicate::new(move |a, b, ui| {
+                                let item_a = ui.try_get_of_type::<MenuItem>(a).unwrap();
+                                let item_b = ui.try_get_of_type::<MenuItem>(b).unwrap();
+
+                                if let (Some(a_content), Some(b_content)) =
+                                    (item_a.content.as_ref(), item_b.content.as_ref())
+                                {
+                                    predicate.0(a_content, b_content, ui)
+                                } else {
+                                    Ordering::Equal
+                                }
+                            }),
+                        ));
+                    }
                 }
             }
         }
@@ -844,7 +928,8 @@ impl MenuBuilder {
 
 /// Allows you to set a content of a menu item either from a pre-built "layout" with icon/text/shortcut/arrow or a custom
 /// widget.
-pub enum MenuItemContent<'a, 'b> {
+#[derive(Clone, Debug, Visit, Reflect, PartialEq)]
+pub enum MenuItemContent {
     /// Quick-n-dirty way of building elements. It can cover most of use cases - it builds classic menu item:
     ///
     /// ```text
@@ -855,9 +940,9 @@ pub enum MenuItemContent<'a, 'b> {
     /// ```
     Text {
         /// Text of the menu item.
-        text: &'a str,
+        text: String,
         /// Shortcut of the menu item.
-        shortcut: &'b str,
+        shortcut: String,
         /// Icon of the menu item. Usually it is a [`crate::image::Image`] or [`crate::vector_image::VectorImage`] widget instance.
         icon: Handle<UiNode>,
         /// Create an arrow or not.
@@ -871,59 +956,65 @@ pub enum MenuItemContent<'a, 'b> {
     ///  |          text          |
     ///  |________________________|
     /// ```
-    TextCentered(&'a str),
+    TextCentered(String),
     /// Allows to put any node into menu item. It allows to customize menu item how needed - i.e. put image in it, or other user
     /// control.
     Node(Handle<UiNode>),
 }
 
-impl<'a, 'b> MenuItemContent<'a, 'b> {
+impl Default for MenuItemContent {
+    fn default() -> Self {
+        Self::TextCentered(Default::default())
+    }
+}
+
+impl MenuItemContent {
     /// Creates a menu item content with a text, a shortcut and an arrow (with no icon).
-    pub fn text_with_shortcut(text: &'a str, shortcut: &'b str) -> Self {
+    pub fn text_with_shortcut(text: impl AsRef<str>, shortcut: impl AsRef<str>) -> Self {
         MenuItemContent::Text {
-            text,
-            shortcut,
+            text: text.as_ref().to_owned(),
+            shortcut: shortcut.as_ref().to_owned(),
             icon: Default::default(),
             arrow: true,
         }
     }
 
     /// Creates a menu item content with a text and an arrow (with no icon or shortcut).
-    pub fn text(text: &'a str) -> Self {
+    pub fn text(text: impl AsRef<str>) -> Self {
         MenuItemContent::Text {
-            text,
-            shortcut: "",
+            text: text.as_ref().to_owned(),
+            shortcut: Default::default(),
             icon: Default::default(),
             arrow: true,
         }
     }
 
     /// Creates a menu item content with a text only (with no icon, shortcut, arrow).
-    pub fn text_no_arrow(text: &'a str) -> Self {
+    pub fn text_no_arrow(text: impl AsRef<str>) -> Self {
         MenuItemContent::Text {
-            text,
-            shortcut: "",
+            text: text.as_ref().to_owned(),
+            shortcut: Default::default(),
             icon: Default::default(),
             arrow: false,
         }
     }
 
     /// Creates a menu item content with only horizontally and vertically centered text.
-    pub fn text_centered(text: &'a str) -> Self {
-        MenuItemContent::TextCentered(text)
+    pub fn text_centered(text: impl AsRef<str>) -> Self {
+        MenuItemContent::TextCentered(text.as_ref().to_owned())
     }
 }
 
 /// Menu builder creates [`MenuItem`] widgets and adds them to the user interface.
-pub struct MenuItemBuilder<'a, 'b> {
+pub struct MenuItemBuilder {
     widget_builder: WidgetBuilder,
     items: Vec<Handle<UiNode>>,
-    content: Option<MenuItemContent<'a, 'b>>,
+    content: Option<MenuItemContent>,
     back: Option<Handle<UiNode>>,
     clickable_when_not_empty: bool,
 }
 
-impl<'a, 'b> MenuItemBuilder<'a, 'b> {
+impl MenuItemBuilder {
     /// Creates new menu item builder instance.
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
@@ -936,7 +1027,7 @@ impl<'a, 'b> MenuItemBuilder<'a, 'b> {
     }
 
     /// Sets the desired content of the menu item. In most cases [`MenuItemContent::text_no_arrow`] is enough here.
-    pub fn with_content(mut self, content: MenuItemContent<'a, 'b>) -> Self {
+    pub fn with_content(mut self, content: MenuItemContent) -> Self {
         self.content = Some(content);
         self
     }
@@ -963,7 +1054,7 @@ impl<'a, 'b> MenuItemBuilder<'a, 'b> {
     /// Finishes menu item building and adds it to the user interface.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let mut arrow_widget = Handle::NONE;
-        let content = match self.content {
+        let content = match self.content.as_ref() {
             None => Handle::NONE,
             Some(MenuItemContent::Text {
                 text,
@@ -972,7 +1063,7 @@ impl<'a, 'b> MenuItemBuilder<'a, 'b> {
                 arrow,
             }) => GridBuilder::new(
                 WidgetBuilder::new()
-                    .with_child(icon)
+                    .with_child(*icon)
                     .with_child(
                         TextBuilder::new(
                             WidgetBuilder::new()
@@ -995,7 +1086,7 @@ impl<'a, 'b> MenuItemBuilder<'a, 'b> {
                         .build(ctx),
                     )
                     .with_child({
-                        arrow_widget = if arrow {
+                        arrow_widget = if *arrow {
                             VectorImageBuilder::new(
                                 WidgetBuilder::new()
                                     .with_visibility(!self.items.is_empty())
@@ -1031,7 +1122,7 @@ impl<'a, 'b> MenuItemBuilder<'a, 'b> {
                     .with_vertical_text_alignment(VerticalAlignment::Center)
                     .build(ctx)
             }
-            Some(MenuItemContent::Node(node)) => node,
+            Some(MenuItemContent::Node(node)) => *node,
         };
 
         let decorator = self.back.unwrap_or_else(|| {
@@ -1084,6 +1175,7 @@ impl<'a, 'b> MenuItemBuilder<'a, 'b> {
             decorator: decorator.into(),
             is_selected: Default::default(),
             arrow: arrow_widget.into(),
+            content: self.content.into(),
         };
 
         let handle = ctx.add_node(UiNode::new(menu));
