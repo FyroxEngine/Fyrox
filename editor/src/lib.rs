@@ -560,6 +560,7 @@ pub struct Editor {
     pub export_window: Option<ExportWindow>,
     pub statistics_window: Option<StatisticsWindow>,
     pub surface_data_viewer: Option<SurfaceDataViewer>,
+    pub processed_ui_messages: usize,
 }
 
 impl Editor {
@@ -893,6 +894,7 @@ impl Editor {
             export_window: None,
             statistics_window: None,
             surface_data_viewer: None,
+            processed_ui_messages: 0,
         };
 
         if let Some(data) = startup_data {
@@ -2178,11 +2180,13 @@ impl Editor {
             overlay_pass.borrow_mut().pictogram_size = self.settings.debugging.pictogram_size;
         }
 
+        self.processed_ui_messages = 0;
         let mut iterations = 1;
         while iterations > 0 {
             iterations -= 1;
 
             let ui_messages_processed_count = self.poll_ui_messages();
+            self.processed_ui_messages += ui_messages_processed_count;
 
             let mut needs_sync = false;
 

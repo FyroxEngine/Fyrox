@@ -117,10 +117,12 @@ impl EditorPlugin for UiStatisticsPlugin {
             self.text,
             MessageDirection::ToWidget,
             format!(
-                "Widget Count: {}\nMemory Used: {:.3} Mb.\nDrawing Commands: {}",
+                "Widget Count: {}\nMemory Used: {:.3} Mb.\n\
+                Drawing Commands: {}\nProcessed Messages: {}\n",
                 ui.nodes().alive_count(),
                 total_memory as f32 / (1024.0 * 1024.0),
-                ui.get_drawing_context().get_commands().len()
+                ui.get_drawing_context().get_commands().len(),
+                editor.processed_ui_messages
             ),
         ));
     }
