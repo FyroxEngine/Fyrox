@@ -18,30 +18,28 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::command::{Command, CommandGroup, SetPropertyCommand};
-use crate::fyrox::graph::{BaseSceneGraph, SceneGraph};
-use crate::fyrox::{
-    core::{algebra::Vector3, pool::Handle, reflect::Reflect},
-    engine::Engine,
-    gui::{
-        button::{ButtonBuilder, ButtonMessage},
-        message::{MessageDirection, UiMessage},
-        stack_panel::StackPanelBuilder,
-        utils::make_simple_tooltip,
-        widget::WidgetBuilder,
-        window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, HorizontalAlignment, Thickness, UiNode, VerticalAlignment,
-    },
-    scene::{
-        collider::{Collider, ColliderShape},
-        node::Node,
-    },
-};
-use crate::scene::commands::GameSceneContext;
 use crate::{
+    command::{Command, CommandGroup, SetPropertyCommand},
+    fyrox::{
+        core::{algebra::Vector3, pool::Handle, reflect::Reflect},
+        engine::Engine,
+        graph::{BaseSceneGraph, SceneGraph},
+        gui::{
+            button::{ButtonBuilder, ButtonMessage},
+            message::{MessageDirection, UiMessage},
+            stack_panel::StackPanelBuilder,
+            utils::make_simple_tooltip,
+            widget::{WidgetBuilder, WidgetMessage},
+            window::{WindowBuilder, WindowMessage, WindowTitle},
+            BuildContext, HorizontalAlignment, Thickness, UiNode, UserInterface, VerticalAlignment,
+        },
+        scene::{
+            collider::{Collider, ColliderShape},
+            node::Node,
+        },
+    },
     message::MessageSender,
-    scene::{GameScene, Selection},
-    Message,
+    scene::{commands::GameSceneContext, GameScene, Selection},
 };
 
 pub struct ColliderControlPanel {
@@ -81,6 +79,7 @@ impl ColliderControlPanel {
                 .with_height(50.0)
                 .with_name("ColliderControlPanel"),
         )
+        .open(false)
         .with_title(WindowTitle::text("Collider Control Panel"))
         .with_content(
             StackPanelBuilder::new(
@@ -109,49 +108,24 @@ impl ColliderControlPanel {
         }
     }
 
-    pub fn handle_message(
-        &self,
-        message: &Message,
-        engine: &Engine,
-        game_scene: &GameScene,
-        selection: &Selection,
-    ) {
-        if let Message::SelectionChanged { .. } = message {
-            let mut collider_selected = false;
+    pub fn open(&self, ui: &UserInterface) {
+        ui.send_message(WindowMessage::open_and_align(
+            self.window,
+            MessageDirection::ToWidget,
+            self.scene_frame,
+            HorizontalAlignment::Right,
+            VerticalAlignment::Top,
+            Thickness::uniform(1.0),
+            false,
+            false,
+        ));
+    }
 
-            if let Some(selection) = selection.as_graph() {
-                for selected in selection.nodes() {
-                    let scene = &engine.scenes[game_scene.scene];
-
-                    collider_selected =
-                        scene.graph.try_get_of_type::<Collider>(*selected).is_some();
-                }
-            }
-
-            if collider_selected {
-                engine
-                    .user_interfaces
-                    .first()
-                    .send_message(WindowMessage::open_and_align(
-                        self.window,
-                        MessageDirection::ToWidget,
-                        self.scene_frame,
-                        HorizontalAlignment::Right,
-                        VerticalAlignment::Top,
-                        Thickness::uniform(1.0),
-                        false,
-                        false,
-                    ));
-            } else {
-                engine
-                    .user_interfaces
-                    .first()
-                    .send_message(WindowMessage::close(
-                        self.window,
-                        MessageDirection::ToWidget,
-                    ));
-            }
-        }
+    pub fn destroy(self, ui: &UserInterface) {
+        ui.send_message(WidgetMessage::remove(
+            self.window,
+            MessageDirection::ToWidget,
+        ));
     }
 
     pub fn handle_ui_message(

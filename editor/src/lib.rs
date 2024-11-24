@@ -47,7 +47,6 @@ pub mod mesh;
 pub mod message;
 pub mod overlay;
 pub mod particle;
-pub mod physics;
 pub mod plugin;
 pub mod plugins;
 pub mod preview;
@@ -141,10 +140,9 @@ use crate::{
     message::MessageSender,
     overlay::OverlayRenderPass,
     particle::ParticleSystemPreviewControlPanel,
-    physics::ColliderControlPanel,
     plugin::{EditorPlugin, EditorPluginsContainer},
     plugins::{
-        absm::AbsmEditorPlugin, animation::AnimationEditorPlugin, collider::ColliderShapePlugin,
+        absm::AbsmEditorPlugin, animation::AnimationEditorPlugin, collider::ColliderPlugin,
         curve_editor::CurveEditorPlugin, material::MaterialPlugin, ragdoll::RagdollPlugin,
         settings::SettingsPlugin, stats::UiStatisticsPlugin, tilemap::TileMapEditorPlugin,
     },
@@ -553,7 +551,6 @@ pub struct Editor {
     pub is_suspended: bool,
     pub scene_node_context_menu: Rc<RefCell<SceneNodeContextMenu>>,
     pub widget_context_menu: Rc<RefCell<WidgetContextMenu>>,
-    pub collider_control_panel: ColliderControlPanel,
     pub overlay_pass: Option<Rc<RefCell<OverlayRenderPass>>>,
     pub highlighter: Option<Rc<RefCell<HighlightRenderPass>>>,
     pub export_window: Option<ExportWindow>,
@@ -656,7 +653,6 @@ impl Editor {
         let camera_control_panel = CameraPreviewControlPanel::new(scene_viewer.frame(), ctx);
         let mesh_control_panel = MeshControlPanel::new(scene_viewer.frame(), ctx);
         let audio_preview_panel = AudioPreviewPanel::new(scene_viewer.frame(), ctx);
-        let collider_control_panel = ColliderControlPanel::new(scene_viewer.frame(), ctx);
         let doc_window = DocWindow::new(ctx);
         let node_removal_dialog = NodeRemovalDialog::new(ctx);
         let scene_settings = SceneSettingsWindow::new(ctx, message_sender.clone());
@@ -784,7 +780,6 @@ impl Editor {
                             camera_control_panel.window,
                             mesh_control_panel.window,
                             audio_preview_panel.window,
-                            collider_control_panel.window,
                             navmesh_panel.window,
                             doc_window.window,
                             light_panel.window,
@@ -868,7 +863,7 @@ impl Editor {
             node_removal_dialog,
             doc_window,
             plugins: EditorPluginsContainer::new()
-                .with(ColliderShapePlugin::default())
+                .with(ColliderPlugin::default())
                 .with(TileMapEditorPlugin::default())
                 .with(MaterialPlugin::default())
                 .with(RagdollPlugin::default())
@@ -887,7 +882,6 @@ impl Editor {
             is_suspended: false,
             scene_node_context_menu,
             widget_context_menu,
-            collider_control_panel,
             overlay_pass: None,
             highlighter: None,
             export_window: None,
@@ -1273,13 +1267,6 @@ impl Editor {
                     &current_scene_entry.selection,
                     game_scene,
                     engine,
-                    &self.message_sender,
-                );
-                self.collider_control_panel.handle_ui_message(
-                    message,
-                    engine,
-                    game_scene,
-                    &current_scene_entry.selection,
                     &self.message_sender,
                 );
                 self.audio_preview_panel.handle_ui_message(
@@ -2217,12 +2204,6 @@ impl Editor {
                             &entry.selection,
                             game_scene,
                             &mut self.engine,
-                        );
-                        self.collider_control_panel.handle_message(
-                            &message,
-                            &self.engine,
-                            game_scene,
-                            &entry.selection,
                         );
                         self.audio_preview_panel.handle_message(
                             &message,

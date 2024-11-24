@@ -29,6 +29,7 @@ mod cuboid;
 mod cuboid2d;
 mod cylinder;
 mod dummy;
+mod panel;
 mod segment;
 mod segment2d;
 mod triangle;
@@ -45,19 +46,29 @@ use crate::{
             math::{plane::Plane, Matrix4Ext},
             pool::Handle,
             reflect::Reflect,
+            some_or_return,
             type_traits::prelude::*,
             Uuid,
         },
         engine::Engine,
         graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
-        gui::{BuildContext, UiNode},
+        gui::{
+            dock::DockingManagerMessage,
+            message::{MessageDirection, UiMessage},
+            BuildContext, UiNode,
+        },
         material::{
             shader::{ShaderResource, ShaderResourceExtension},
             Material, MaterialResource,
         },
         scene::{
-            base::BaseBuilder, collider::Collider, collider::ColliderShape, dim2, node::Node,
-            sprite::SpriteBuilder, Scene,
+            base::BaseBuilder,
+            collider::{Collider, ColliderShape},
+            dim2,
+            node::Node,
+            sprite::Sprite,
+            sprite::SpriteBuilder,
+            Scene,
         },
     },
     interaction::{
@@ -71,14 +82,13 @@ use crate::{
         ball::BallShapeGizmo, ball2d::Ball2DShapeGizmo, capsule::CapsuleShapeGizmo,
         capsule2d::Capsule2DShapeGizmo, cone::ConeShapeGizmo, cuboid::CuboidShapeGizmo,
         cuboid2d::Cuboid2DShapeGizmo, cylinder::CylinderShapeGizmo, dummy::DummyShapeGizmo,
-        segment::SegmentShapeGizmo, segment2d::Segment2DShapeGizmo, triangle::TriangleShapeGizmo,
-        triangle2d::Triangle2DShapeGizmo,
+        panel::ColliderControlPanel, segment::SegmentShapeGizmo, segment2d::Segment2DShapeGizmo,
+        triangle::TriangleShapeGizmo, triangle2d::Triangle2DShapeGizmo,
     },
     scene::{commands::GameSceneContext, controller::SceneController, GameScene, Selection},
     settings::Settings,
     Editor, Message,
 };
-use fyrox::scene::sprite::Sprite;
 
 fn try_get_collider_shape(collider: Handle<Node>, scene: &Scene) -> Option<ColliderShape> {
     scene
@@ -662,21 +672,28 @@ impl InteractionMode for ColliderShapeInteractionMode {
 }
 
 #[derive(Default)]
-pub struct ColliderShapePlugin {}
+pub struct ColliderPlugin {
+    panel: Option<ColliderControlPanel>,
+}
 
-impl EditorPlugin for ColliderShapePlugin {
+impl EditorPlugin for ColliderPlugin {
+    fn on_ui_message(&mut self, message: &mut UiMessage, editor: &mut Editor) {
+        let entry = some_or_return!(editor.scenes.current_scene_entry_mut());
+        let game_scene = some_or_return!(entry.controller.downcast_mut::<GameScene>());
+        let panel = some_or_return!(self.panel.as_mut());
+        panel.handle_ui_message(
+            message,
+            &editor.engine,
+            game_scene,
+            &entry.selection,
+            &editor.message_sender,
+        );
+    }
+
     fn on_message(&mut self, message: &Message, editor: &mut Editor) {
-        let Some(entry) = editor.scenes.current_scene_entry_mut() else {
-            return;
-        };
-
-        let Some(selection) = entry.selection.as_graph() else {
-            return;
-        };
-
-        let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() else {
-            return;
-        };
+        let entry = some_or_return!(editor.scenes.current_scene_entry_mut());
+        let selection = some_or_return!(entry.selection.as_graph());
+        let game_scene = some_or_return!(entry.controller.downcast_mut::<GameScene>());
 
         let scene = &mut editor.engine.scenes[game_scene.scene];
 
@@ -688,36 +705,50 @@ impl EditorPlugin for ColliderShapePlugin {
                 mode.shape_gizmo.destroy(scene);
             }
 
-            for node_handle in selection.nodes().iter() {
-                if let Some(collider) = scene.graph.try_get(*node_handle) {
-                    if collider.component_ref::<Collider>().is_none()
-                        && collider
-                            .component_ref::<dim2::collider::Collider>()
-                            .is_none()
-                    {
-                        continue;
-                    }
+            let first_selected_collider = selection.nodes().iter().find(|h| {
+                scene.graph.has_component::<Collider>(**h)
+                    || scene.graph.has_component::<dim2::collider::Collider>(**h)
+            });
 
-                    let shape_gizmo = make_shape_gizmo(
-                        *node_handle,
-                        scene,
-                        game_scene.editor_objects_root,
-                        false,
-                    );
+            if let Some(first_selected_collider) = first_selected_collider {
+                let shape_gizmo = make_shape_gizmo(
+                    *first_selected_collider,
+                    scene,
+                    game_scene.editor_objects_root,
+                    false,
+                );
 
-                    let move_gizmo = MoveGizmo::new(game_scene, &mut editor.engine);
+                let move_gizmo = MoveGizmo::new(game_scene, &mut editor.engine);
 
-                    entry.interaction_modes.add(ColliderShapeInteractionMode {
-                        collider: *node_handle,
-                        shape_gizmo,
-                        move_gizmo,
-                        drag_context: None,
-                        selected_handle: Default::default(),
-                        message_sender: editor.message_sender.clone(),
-                    });
+                entry.interaction_modes.add(ColliderShapeInteractionMode {
+                    collider: *first_selected_collider,
+                    shape_gizmo,
+                    move_gizmo,
+                    drag_context: None,
+                    selected_handle: Default::default(),
+                    message_sender: editor.message_sender.clone(),
+                });
 
-                    break;
+                if self.panel.is_none() {
+                    let ui = editor.engine.user_interfaces.first_mut();
+                    let panel =
+                        ColliderControlPanel::new(editor.scene_viewer.frame(), &mut ui.build_ctx());
+                    ui.send_message(DockingManagerMessage::add_floating_window(
+                        editor.docking_manager,
+                        MessageDirection::ToWidget,
+                        panel.window,
+                    ));
+                    panel.open(ui);
+                    self.panel = Some(panel);
                 }
+            } else if let Some(panel) = self.panel.take() {
+                let ui = editor.engine.user_interfaces.first();
+                ui.send_message(DockingManagerMessage::remove_floating_window(
+                    editor.docking_manager,
+                    MessageDirection::ToWidget,
+                    panel.window,
+                ));
+                panel.destroy(ui);
             }
         }
     }
