@@ -68,7 +68,7 @@ pub struct GraphNodeConstructor<Node, Ctx> {
     pub default: Constructor<Node>,
 
     /// A set of node constructors that returns specific variants of the same node type. Could be
-    /// used to pre-define specific variations of nodes, for example a [`Mesh`] node could have
+    /// used to pre-define specific variations of nodes, for example a `Mesh` node could have
     /// different surfaces (sphere, cube, cone, etc.). It is used by the editor, this collection must
     /// have at least one item to be shown in the editor.
     pub variants: Vec<Variant<Node, Ctx>>,
@@ -97,13 +97,13 @@ impl<Node, Ctx> GraphNodeConstructor<Node, Ctx> {
         }
     }
 
-    /// Sets a desired group for the constructor. See [`NodeTrait::constructor`] docs for examples.
+    /// Sets a desired group for the constructor.
     pub fn with_group(mut self, group: &'static str) -> Self {
         self.group = group;
         self
     }
 
-    /// Adds a new constructor variant. See [`NodeTrait::constructor`] docs for examples.
+    /// Adds a new constructor variant.
     pub fn with_variant<F>(mut self, name: impl AsRef<str>, variant: F) -> Self
     where
         F: Fn(&mut Ctx) -> VariantResult<Node> + Send + Sync + 'static,

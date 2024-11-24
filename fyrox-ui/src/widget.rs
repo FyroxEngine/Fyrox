@@ -716,7 +716,7 @@ impl WidgetMessage {
     );
 
     define_constructor!(
-          /// Creates [`MenuItemMessage::Sort`] message.
+          /// Creates [`WidgetMessage::SortChildren`] message.
         WidgetMessage:SortChildren => fn sort_children(SortingPredicate), layout: false
     );
 }
