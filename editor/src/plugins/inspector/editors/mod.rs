@@ -18,6 +18,19 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::plugins::inspector::editors::{
+    animation::{
+        AnimationContainerPropertyEditorDefinition, AnimationPropertyEditorDefinition,
+        MachinePropertyEditorDefinition,
+    },
+    font::FontPropertyEditorDefinition,
+    handle::{EntityKind, NodeHandlePropertyEditorDefinition},
+    resource::ResourceFieldPropertyEditorDefinition,
+    script::ScriptPropertyEditorDefinition,
+    spritesheet::SpriteSheetFramesContainerEditorDefinition,
+    surface::SurfaceDataPropertyEditorDefinition,
+    texture::TexturePropertyEditorDefinition,
+};
 use crate::{
     fyrox::{
         asset::{untyped::UntypedResource, Resource},
@@ -97,19 +110,6 @@ use crate::{
             tilemap::{tileset::TileSet, Tile},
             transform::Transform,
         },
-    },
-    inspector::editors::{
-        animation::{
-            AnimationContainerPropertyEditorDefinition, AnimationPropertyEditorDefinition,
-            MachinePropertyEditorDefinition,
-        },
-        font::FontPropertyEditorDefinition,
-        handle::{EntityKind, NodeHandlePropertyEditorDefinition},
-        resource::ResourceFieldPropertyEditorDefinition,
-        script::ScriptPropertyEditorDefinition,
-        spritesheet::SpriteSheetFramesContainerEditorDefinition,
-        surface::SurfaceDataPropertyEditorDefinition,
-        texture::TexturePropertyEditorDefinition,
     },
     message::MessageSender,
 };

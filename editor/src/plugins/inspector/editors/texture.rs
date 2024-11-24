@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::asset::item::AssetItem;
 use crate::fyrox::graph::BaseSceneGraph;
 use crate::fyrox::{
     asset::manager::ResourceManager,
@@ -42,7 +43,7 @@ use crate::fyrox::{
     },
     resource::texture::{Texture, TextureResource},
 };
-use crate::{asset::item::AssetItem, inspector::EditorEnvironment};
+use crate::plugins::inspector::EditorEnvironment;
 use std::{
     any::TypeId,
     fmt::{Debug, Formatter},

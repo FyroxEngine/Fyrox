@@ -45,10 +45,8 @@ use crate::fyrox::{
         BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
 };
-use crate::{
-    asset::item::AssetItem, inspector::EditorEnvironment, load_image, message::MessageSender,
-    Message,
-};
+use crate::plugins::inspector::EditorEnvironment;
+use crate::{asset::item::AssetItem, load_image, message::MessageSender, Message};
 use fyrox::core::PhantomDataSendSync;
 use std::{
     any::TypeId,
@@ -287,7 +285,7 @@ where
                                         .with_margin(Thickness::uniform(1.0)),
                                 )
                                 .with_opt_texture(load_image!(
-                                    "../../../resources/sound_source.png"
+                                    "../../../../resources/sound_source.png"
                                 ))
                                 .build(ctx),
                             )
@@ -425,7 +423,7 @@ where
 #[cfg(test)]
 mod test {
 
-    use crate::inspector::editors::resource::ResourceFieldBuilder;
+    use crate::plugins::inspector::editors::resource::ResourceFieldBuilder;
     use fyrox::asset::manager::ResourceManager;
     use fyrox::resource::model::Model;
     use fyrox::{gui::test::test_widget_deletion, gui::widget::WidgetBuilder};

@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::plugins::inspector::EditorEnvironment;
 use crate::{
     asset::item::AssetItem,
     fyrox::{
@@ -45,7 +46,6 @@ use crate::{
         },
         scene::mesh::surface::{SurfaceData, SurfaceResource},
     },
-    inspector::EditorEnvironment,
     message::MessageSender,
     Message,
 };

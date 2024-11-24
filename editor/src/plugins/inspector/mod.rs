@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::plugins::absm::animation_container_ref;
+use crate::plugins::inspector::editors::make_property_editors_container;
 use crate::{
     fyrox::{
         asset::manager::ResourceManager,
@@ -47,7 +48,6 @@ use crate::{
         scene::SceneContainer,
     },
     gui::make_image_button_with_tooltip,
-    inspector::editors::make_property_editors_container,
     load_image,
     message::MessageSender,
     plugin::EditorPlugin,
@@ -207,7 +207,7 @@ impl InspectorPlugin {
                                             ctx,
                                             18.0,
                                             18.0,
-                                            load_image!("../../resources/doc.png"),
+                                            load_image!("../../../resources/doc.png"),
                                             "Open Documentation",
                                             Some(0),
                                         );

@@ -55,10 +55,10 @@ use crate::fyrox::{
 };
 use crate::plugins::absm::{command::fetch_machine, selection::SelectedEntity};
 use crate::plugins::animation::{self, command::fetch_animations_container};
+use crate::plugins::inspector::editors::handle::HandlePropertyEditorMessage;
 use crate::{
     asset::item::AssetItem,
     command::{make_command, Command, CommandGroup, CommandStack},
-    inspector::editors::handle::HandlePropertyEditorMessage,
     message::MessageSender,
     scene::{
         commands::ChangeSelectionCommand, controller::SceneController, selector::HierarchyNode,

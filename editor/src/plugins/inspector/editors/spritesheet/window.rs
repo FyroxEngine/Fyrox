@@ -44,7 +44,7 @@ use crate::fyrox::{
     },
     scene::animation::spritesheet::prelude::*,
 };
-use crate::inspector::editors::spritesheet::SpriteSheetFramesPropertyEditorMessage;
+use crate::plugins::inspector::editors::spritesheet::SpriteSheetFramesPropertyEditorMessage;
 use std::{
     ops::{Deref, DerefMut},
     sync::{mpsc::Sender, Arc},

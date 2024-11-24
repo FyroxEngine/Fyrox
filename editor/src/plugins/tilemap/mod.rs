@@ -28,7 +28,7 @@ mod preview;
 pub mod tile_set_import;
 pub mod tileset;
 
-use crate::inspector::InspectorPlugin;
+use crate::plugins::inspector::InspectorPlugin;
 use crate::{
     command::SetPropertyCommand,
     fyrox::{

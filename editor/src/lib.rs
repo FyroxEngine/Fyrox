@@ -39,7 +39,6 @@ pub mod configurator;
 pub mod export;
 pub mod gui;
 pub mod highlight;
-pub mod inspector;
 pub mod interaction;
 pub mod light;
 pub mod log;
@@ -127,7 +126,6 @@ use crate::{
         window::{Icon, WindowAttributes},
     },
     highlight::HighlightRenderPass,
-    inspector::InspectorPlugin,
     interaction::{
         move_mode::MoveInteractionMode,
         navmesh::{EditNavmeshMode, NavmeshPanel},
@@ -172,6 +170,7 @@ use crate::{
 };
 use fyrox::gui::constructor::new_widget_constructor_container;
 pub use message::Message;
+use plugins::inspector::InspectorPlugin;
 use std::{
     cell::RefCell,
     collections::VecDeque,

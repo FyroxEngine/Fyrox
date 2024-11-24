@@ -71,7 +71,7 @@ use std::sync::Arc;
 fn make_property_editors_container(
     sender: MessageSender,
 ) -> Arc<PropertyEditorDefinitionContainer> {
-    let container = crate::inspector::editors::make_property_editors_container(sender);
+    let container = crate::plugins::inspector::editors::make_property_editors_container(sender);
 
     container.insert(InspectablePropertyEditorDefinition::<GeneralSettings>::new());
     container.insert(InspectablePropertyEditorDefinition::<GraphicsSettings>::new());

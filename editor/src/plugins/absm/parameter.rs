@@ -40,9 +40,9 @@ use crate::fyrox::{
     },
 };
 use crate::plugins::absm::command::fetch_machine;
+use crate::plugins::inspector::editors::make_property_editors_container;
 use crate::{
-    command::make_command, inspector::editors::make_property_editors_container,
-    message::MessageSender, Message, MessageDirection, MSG_SYNC_FLAG,
+    command::make_command, message::MessageSender, Message, MessageDirection, MSG_SYNC_FLAG,
 };
 use std::sync::Arc;
 

@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::plugins::inspector::editors::resource::{ResourceFieldBuilder, ResourceFieldMessage};
 use crate::{
     audio::bus::{AudioBusView, AudioBusViewBuilder, AudioBusViewMessage},
     command::CommandGroup,
@@ -41,7 +42,6 @@ use crate::{
         scene::sound::{AudioBus, AudioBusGraph, DistanceModel, HrirSphereResourceData, Renderer},
     },
     gui::make_dropdown_list_option,
-    inspector::editors::resource::{ResourceFieldBuilder, ResourceFieldMessage},
     message::MessageSender,
     scene::{
         commands::{

@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::plugins::inspector::editors::make_property_editors_container;
 use crate::{
     command::make_command,
     fyrox::{
@@ -47,7 +48,6 @@ use crate::{
         },
         utils::lightmap::Lightmap,
     },
-    inspector::editors::make_property_editors_container,
     message::MessageSender,
     scene::commands::GameSceneContext,
     GameScene, Message, MessageDirection, MSG_SYNC_FLAG,

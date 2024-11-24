@@ -248,7 +248,7 @@ impl PropertyEditorDefinition for FontPropertyEditorDefinition {
 
 #[cfg(test)]
 mod test {
-    use crate::inspector::editors::font::FontFieldBuilder;
+    use crate::plugins::inspector::editors::font::FontFieldBuilder;
     use fyrox::{gui::test::test_widget_deletion, gui::widget::WidgetBuilder};
 
     #[test]

@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::plugins::inspector::editors::make_property_editors_container;
 use crate::{
     command::{Command, CommandGroup},
     fyrox::{
@@ -54,7 +55,6 @@ use crate::{
             transform::TransformBuilder,
         },
     },
-    inspector::editors::make_property_editors_container,
     menu::create_menu_item,
     message::MessageSender,
     plugin::EditorPlugin,

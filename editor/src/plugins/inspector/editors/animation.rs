@@ -38,7 +38,8 @@ use crate::fyrox::{
         widget::WidgetBuilder,
     },
 };
-use crate::{gui::make_dropdown_list_option_universal, inspector::EditorEnvironment, Message};
+use crate::plugins::inspector::EditorEnvironment;
+use crate::{gui::make_dropdown_list_option_universal, Message};
 use std::{
     any::TypeId,
     fmt::{Debug, Formatter},

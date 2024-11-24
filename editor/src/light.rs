@@ -38,10 +38,8 @@ use crate::fyrox::{
         CancellationToken, Lightmap, LightmapGenerationError, LightmapInputData, ProgressIndicator,
     },
 };
-use crate::{
-    inspector::editors::make_property_editors_container, message::MessageSender, scene::GameScene,
-    Engine, MSG_SYNC_FLAG,
-};
+use crate::plugins::inspector::editors::make_property_editors_container;
+use crate::{message::MessageSender, scene::GameScene, Engine, MSG_SYNC_FLAG};
 use std::{
     path::PathBuf,
     sync::mpsc::{Receiver, Sender},

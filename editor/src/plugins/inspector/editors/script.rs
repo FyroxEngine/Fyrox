@@ -48,9 +48,9 @@ use crate::fyrox::{
     },
     script::Script,
 };
+use crate::plugins::inspector::EditorEnvironment;
 use crate::{
     gui::make_dropdown_list_option,
-    inspector::EditorEnvironment,
     send_sync_message,
     settings::{general::ScriptEditor, SettingsData},
     DropdownListBuilder, MSG_SYNC_FLAG,

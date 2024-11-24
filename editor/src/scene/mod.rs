@@ -25,6 +25,9 @@ use crate::plugins::absm::{
 use crate::plugins::animation::{
     self, command::fetch_animations_container, selection::AnimationSelection,
 };
+use crate::plugins::inspector::{
+    editors::handle::HandlePropertyEditorMessage, handlers::node::SceneNodePropertyChangedHandler,
+};
 use crate::{
     asset::item::AssetItem,
     audio::AudioBusSelection,
@@ -79,10 +82,6 @@ use crate::{
         },
     },
     highlight::HighlightRenderPass,
-    inspector::{
-        editors::handle::HandlePropertyEditorMessage,
-        handlers::node::SceneNodePropertyChangedHandler,
-    },
     interaction::navmesh::selection::NavmeshSelection,
     message::MessageSender,
     scene::{

@@ -42,7 +42,7 @@ use crate::fyrox::{
     },
     scene::animation::spritesheet::prelude::*,
 };
-use crate::inspector::editors::spritesheet::window::SpriteSheetFramesEditorWindow;
+use crate::plugins::inspector::editors::spritesheet::window::SpriteSheetFramesEditorWindow;
 use std::{
     any::TypeId,
     ops::{Deref, DerefMut},

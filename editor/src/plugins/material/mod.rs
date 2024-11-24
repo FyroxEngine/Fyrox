@@ -18,6 +18,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::plugins::inspector::{
+    editors::resource::{ResourceFieldBuilder, ResourceFieldMessage},
+    InspectorPlugin,
+};
 use crate::{
     asset::item::AssetItem,
     fyrox::{
@@ -68,10 +72,6 @@ use crate::{
                 MeshBuilder,
             },
         },
-    },
-    inspector::{
-        editors::resource::{ResourceFieldBuilder, ResourceFieldMessage},
-        InspectorPlugin,
     },
     message::MessageSender,
     plugin::EditorPlugin,
