@@ -935,7 +935,7 @@ impl TileBuilder {
                 .with_child(grid)
                 .with_child(splitter)
                 .with_children(children)
-                .build(),
+                .build(ctx),
             left_anchor,
             right_anchor,
             top_anchor,

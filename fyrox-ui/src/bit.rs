@@ -277,7 +277,7 @@ where
                 .build(ctx);
 
         let canvas = BitField {
-            widget: self.widget_builder.with_child(panel).build(),
+            widget: self.widget_builder.with_child(panel).build(ctx),
             value: self.value,
             bit_switches,
         };

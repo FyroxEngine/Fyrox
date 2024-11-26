@@ -216,7 +216,7 @@ impl ProgressBarBuilder {
         ctx.link(canvas, body);
 
         let progress_bar = ProgressBar {
-            widget: self.widget_builder.with_child(body).build(),
+            widget: self.widget_builder.with_child(body).build(ctx),
             progress: self.progress.into(),
             indicator: indicator.into(),
             body: body.into(),

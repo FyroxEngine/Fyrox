@@ -496,7 +496,7 @@ where
         .build(ctx);
 
         let node = AbsmNode {
-            widget: self.widget_builder.with_child(background).build(),
+            widget: self.widget_builder.with_child(background).build(ctx),
             background,
             selectable: Default::default(),
             model_handle: self.model_handle,

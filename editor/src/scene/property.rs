@@ -43,6 +43,8 @@ use crate::fyrox::{
         BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
     },
 };
+use fyrox::gui::style::resource::StyleResourceExt;
+use fyrox::gui::style::Style;
 use std::{
     any::TypeId,
     ops::{Deref, DerefMut},
@@ -471,7 +473,7 @@ impl PropertySelectorBuilder {
                 .with_child(
                     BorderBuilder::new(
                         WidgetBuilder::new()
-                            .with_background(fyrox::gui::BRUSH_DARK)
+                            .with_background(ctx.style.get_or_default(Style::BRUSH_DARK))
                             .on_row(1)
                             .on_column(0)
                             .with_child(scroll_viewer),
@@ -485,7 +487,7 @@ impl PropertySelectorBuilder {
         .build(ctx);
 
         let selector = PropertySelector {
-            widget: self.widget_builder.with_child(content).build(),
+            widget: self.widget_builder.with_child(content).build(ctx),
             selected_property_paths: self.selected_property_paths,
             tree_root,
             search_bar,

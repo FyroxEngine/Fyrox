@@ -303,9 +303,9 @@ impl AnimationPlayerBuilder {
     }
 
     /// Creates an instance of [`AnimationPlayer`] node.
-    pub fn build_node(self) -> UiNode {
+    pub fn build_node(self, ctx: &BuildContext) -> UiNode {
         UiNode::new(AnimationPlayer {
-            widget: self.widget_builder.with_need_update(true).build(),
+            widget: self.widget_builder.with_need_update(true).build(ctx),
             animations: self.animations.into(),
             auto_apply: self.auto_apply,
         })
@@ -313,7 +313,7 @@ impl AnimationPlayerBuilder {
 
     /// Creates an instance of [`AnimationPlayer`] node and adds it to the given user interface.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
-        ctx.add_node(self.build_node())
+        ctx.add_node(self.build_node(ctx))
     }
 }
 

@@ -319,7 +319,7 @@ where
                     .build(ctx),
                 )
                 .with_allow_drop(true)
-                .build(),
+                .build(ctx),
             name,
             resource_manager,
             resource: self.resource,

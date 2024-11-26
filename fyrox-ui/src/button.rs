@@ -22,6 +22,8 @@
 
 #![warn(missing_docs)]
 
+use crate::style::resource::StyleResourceExt;
+use crate::style::Style;
 use crate::{
     border::BorderBuilder,
     core::{
@@ -35,7 +37,7 @@ use crate::{
     text::TextBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
-    VerticalAlignment, BRUSH_DARKER, BRUSH_LIGHT, BRUSH_LIGHTER, BRUSH_LIGHTEST,
+    VerticalAlignment,
 };
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::{
@@ -385,21 +387,20 @@ impl ButtonBuilder {
     /// Finishes building a button.
     pub fn build_node(self, ctx: &mut BuildContext) -> UiNode {
         let content = self.content.map(|c| c.build(ctx)).unwrap_or_default();
-
         let back = self.back.unwrap_or_else(|| {
             DecoratorBuilder::new(
                 BorderBuilder::new(
                     WidgetBuilder::new()
-                        .with_foreground(BRUSH_DARKER)
+                        .with_foreground(ctx.style.get_or_default(Style::BRUSH_DARKER))
                         .with_child(content),
                 )
                 .with_pad_by_corner_radius(false)
                 .with_corner_radius(4.0)
                 .with_stroke_thickness(Thickness::uniform(1.0)),
             )
-            .with_normal_brush(BRUSH_LIGHT)
-            .with_hover_brush(BRUSH_LIGHTER)
-            .with_pressed_brush(BRUSH_LIGHTEST)
+            .with_normal_brush(ctx.style.get_or_default(Style::BRUSH_LIGHT))
+            .with_hover_brush(ctx.style.get_or_default(Style::BRUSH_LIGHTER))
+            .with_pressed_brush(ctx.style.get_or_default(Style::BRUSH_LIGHTEST))
             .build(ctx)
         });
 
@@ -413,7 +414,7 @@ impl ButtonBuilder {
                 .with_accepts_input(true)
                 .with_need_update(true)
                 .with_child(back)
-                .build(),
+                .build(ctx),
             decorator: back.into(),
             content: content.into(),
             repeat_interval: self.repeat_interval.into(),

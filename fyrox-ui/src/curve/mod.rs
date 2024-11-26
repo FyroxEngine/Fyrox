@@ -19,6 +19,8 @@
 // SOFTWARE.
 
 use crate::message::CursorIcon;
+use crate::style::resource::StyleResourceExt;
+use crate::style::Style;
 use crate::{
     brush::Brush,
     core::{
@@ -49,7 +51,6 @@ use crate::{
     text::TextBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
-    BRUSH_BRIGHT, BRUSH_LIGHT,
 };
 use fxhash::FxHashSet;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
@@ -372,11 +373,11 @@ pub struct CurvesContainer {
 }
 
 impl CurvesContainer {
-    pub fn from_native(curves: &[Curve]) -> Self {
+    pub fn from_native(brush: Brush, curves: &[Curve]) -> Self {
         Self {
             curves: curves
                 .iter()
-                .map(|curve| CurveKeyViewContainer::new(curve, BRUSH_BRIGHT))
+                .map(|curve| CurveKeyViewContainer::new(curve, brush.clone()))
                 .collect::<Vec<_>>(),
         }
     }
@@ -431,6 +432,7 @@ pub struct CurveEditor {
     selected_key_brush: Brush,
     key_size: f32,
     grid_brush: Brush,
+    background_curve_brush: Brush,
     #[visit(skip)]
     #[reflect(hidden)]
     operation_context: Option<OperationContext>,
@@ -861,10 +863,11 @@ impl Control for CurveEditor {
                 {
                     match msg {
                         CurveEditorMessage::SyncBackground(curves) => {
-                            self.background_curves = CurvesContainer::from_native(curves);
+                            self.background_curves =
+                                CurvesContainer::from_native(self.key_brush.clone(), curves);
 
                             for curve in self.background_curves.iter_mut() {
-                                curve.brush = BRUSH_LIGHT;
+                                curve.brush = self.background_curve_brush.clone();
                             }
                         }
                         CurveEditorMessage::Sync(curves) => {
@@ -874,7 +877,8 @@ impl Control for CurveEditor {
                                 .map(|curve| (curve.id(), curve.brush.clone()))
                                 .collect::<Vec<_>>();
 
-                            self.curves = CurvesContainer::from_native(curves);
+                            self.curves =
+                                CurvesContainer::from_native(self.key_brush.clone(), curves);
 
                             self.colorize(&color_map);
                         }
@@ -1798,12 +1802,15 @@ impl CurveEditorBuilder {
     }
 
     pub fn build(mut self, ctx: &mut BuildContext) -> Handle<UiNode> {
-        let mut background_curves = CurvesContainer::from_native(&self.curves);
+        let background_curve_brush = ctx.style.get_or_default::<Brush>(Style::BRUSH_LIGHT);
+        let key_brush = Brush::Solid(Color::opaque(140, 140, 140));
+
+        let mut background_curves = CurvesContainer::from_native(key_brush.clone(), &self.curves);
         for curve in background_curves.iter_mut() {
-            curve.brush = BRUSH_LIGHT;
+            curve.brush = background_curve_brush.clone();
         }
 
-        let curves = CurvesContainer::from_native(&self.curves);
+        let curves = CurvesContainer::from_native(key_brush.clone(), &self.curves);
 
         let add_key;
         let remove;
@@ -1939,7 +1946,7 @@ impl CurveEditorBuilder {
         let context_menu = RcUiNodeHandle::new(context_menu, ctx.sender());
 
         if self.widget_builder.foreground.is_none() {
-            self.widget_builder.foreground = Some(BRUSH_BRIGHT)
+            self.widget_builder.foreground = Some(ctx.style.get_or_default(Style::BRUSH_BRIGHT))
         }
 
         let editor = CurveEditor {
@@ -1948,11 +1955,11 @@ impl CurveEditorBuilder {
                 .with_context_menu(context_menu.clone())
                 .with_preview_messages(true)
                 .with_need_update(true)
-                .build(),
+                .build(ctx),
             background_curves,
             curves,
             curve_transform: Default::default(),
-            key_brush: Brush::Solid(Color::opaque(140, 140, 140)),
+            key_brush,
             selected_key_brush: Brush::Solid(Color::opaque(220, 220, 220)),
             key_size: 8.0,
             handle_radius: 36.0,
@@ -1988,6 +1995,7 @@ impl CurveEditorBuilder {
             highlight_zones: self.highlight_zones,
             zoom_to_fit_timer: None,
             clipboard: Default::default(),
+            background_curve_brush,
         };
 
         ctx.add_node(UiNode::new(editor))

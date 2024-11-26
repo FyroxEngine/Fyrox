@@ -184,7 +184,7 @@ impl FontFieldBuilder {
                     .build(ctx);
                 text_preview
             })
-            .build();
+            .build(ctx);
 
         let editor = FontField {
             widget,

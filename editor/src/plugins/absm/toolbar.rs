@@ -36,7 +36,6 @@ use crate::fyrox::{
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
-        BRUSH_BRIGHT,
     },
 };
 use crate::plugins::absm::{
@@ -57,6 +56,8 @@ use crate::{
     },
     send_sync_message,
 };
+use fyrox::gui::style::resource::StyleResourceExt;
+use fyrox::gui::style::Style;
 
 pub struct Toolbar {
     pub panel: Handle<UiNode>,
@@ -156,7 +157,7 @@ impl Toolbar {
                                 .with_width(18.0)
                                 .with_height(18.0)
                                 .with_margin(Thickness::uniform(1.0))
-                                .with_background(BRUSH_BRIGHT),
+                                .with_background(ctx.style.get_or_default(Style::BRUSH_BRIGHT)),
                         )
                         .with_opt_texture(load_image!("../../../resources/filter.png"))
                         .build(ctx),

@@ -578,11 +578,11 @@ impl TextBuilder {
     }
 
     /// Finishes text widget creation and registers it in the user interface, returning its handle to you.
-    pub fn build(mut self, ui: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(mut self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let font = if let Some(font) = self.font {
             font
         } else {
-            ui.default_font()
+            ctx.default_font()
         };
 
         if self.widget_builder.foreground.is_none() {
@@ -590,7 +590,7 @@ impl TextBuilder {
         }
 
         let text = Text {
-            widget: self.widget_builder.build(),
+            widget: self.widget_builder.build(ctx),
             formatted_text: RefCell::new(
                 FormattedTextBuilder::new(font)
                     .with_text(self.text.unwrap_or_default())
@@ -605,7 +605,7 @@ impl TextBuilder {
                     .build(),
             ),
         };
-        ui.add_node(UiNode::new(text))
+        ctx.add_node(UiNode::new(text))
     }
 }
 

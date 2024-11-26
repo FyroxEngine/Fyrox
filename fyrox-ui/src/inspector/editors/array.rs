@@ -285,7 +285,7 @@ where
                 .build(ctx);
 
         let ce = ArrayEditor {
-            widget: self.widget_builder.with_child(panel).build(),
+            widget: self.widget_builder.with_child(panel).build(ctx),
             items,
         };
 

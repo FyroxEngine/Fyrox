@@ -511,7 +511,7 @@ impl PaletteWidgetBuilder {
                 .with_allow_drop(true)
                 .with_clip_to_bounds(false)
                 .with_children(self.tiles.iter().cloned())
-                .build(),
+                .build(ctx),
             tiles: self.tiles,
             view_position: Default::default(),
             zoom: 1.0,
@@ -638,7 +638,7 @@ impl BrushTileViewBuilder {
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         ctx.add_node(UiNode::new(BrushTileView {
-            widget: self.widget_builder.build(),
+            widget: self.widget_builder.build(ctx),
             selectable: Default::default(),
             definition_handle: self.definition_id,
             local_position: self.local_position,

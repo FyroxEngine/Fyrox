@@ -41,7 +41,7 @@ use crate::{
             message::{MessageDirection, UiMessage},
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
-            BuildContext, UiNode, UserInterface, BRUSH_DARK, BRUSH_PRIMARY,
+            BuildContext, UiNode, UserInterface,
         },
         resource::model::AnimationSource,
     },
@@ -64,6 +64,8 @@ use crate::{
     ui_scene::UiScene,
     Editor, Message,
 };
+use fyrox::gui::style::resource::StyleResourceExt;
+use fyrox::gui::style::Style;
 use std::any::{Any, TypeId};
 
 pub mod command;
@@ -232,7 +234,9 @@ impl AnimationEditor {
                                         .with_child({
                                             curve_editor = CurveEditorBuilder::new(
                                                 WidgetBuilder::new()
-                                                    .with_background(BRUSH_DARK)
+                                                    .with_background(
+                                                        ctx.style.get_or_default(Style::BRUSH_DARK),
+                                                    )
                                                     .on_row(1),
                                             )
                                             .with_show_x_values(false)
@@ -726,7 +730,7 @@ impl AnimationEditor {
                                 animation.time_slice().end - animation.time_slice().start,
                                 200000.0,
                             ),
-                            brush: BRUSH_PRIMARY,
+                            brush: ui.style.get_or_default(Style::BRUSH_PRIMARY),
                         }],
                     ),
                 );

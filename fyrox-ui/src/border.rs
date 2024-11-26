@@ -23,6 +23,8 @@
 //! The Border widget provides a stylized, static border around its child widget. See [`Border`] docs for more info and
 //! usage examples.
 
+use crate::style::resource::StyleResourceExt;
+use crate::style::Style;
 use crate::{
     core::{
         algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
@@ -32,7 +34,7 @@ use crate::{
     draw::{CommandTexture, Draw, DrawingContext},
     message::UiMessage,
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, MessageDirection, Thickness, UiNode, UserInterface, BRUSH_PRIMARY,
+    BuildContext, Control, MessageDirection, Thickness, UiNode, UserInterface,
 };
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::ops::{Deref, DerefMut};
@@ -347,12 +349,12 @@ impl BorderBuilder {
     }
 
     /// Creates a [`Border`] widget, but does not add it to the user interface. Also see [`Self::build`] docs.
-    pub fn build_border(mut self) -> Border {
+    pub fn build_border(mut self, ctx: &BuildContext) -> Border {
         if self.widget_builder.foreground.is_none() {
-            self.widget_builder.foreground = Some(BRUSH_PRIMARY);
+            self.widget_builder.foreground = Some(ctx.style.get_or_default(Style::BRUSH_PRIMARY));
         }
         Border {
-            widget: self.widget_builder.build(),
+            widget: self.widget_builder.build(ctx),
             stroke_thickness: self.stroke_thickness.into(),
             corner_radius: self.corner_radius.into(),
             pad_by_corner_radius: self.pad_by_corner_radius.into(),
@@ -361,7 +363,7 @@ impl BorderBuilder {
 
     /// Finishes border building and adds it to the user interface. See examples in [`Border`] docs.
     pub fn build(self, ctx: &mut BuildContext<'_>) -> Handle<UiNode> {
-        ctx.add_node(UiNode::new(self.build_border()))
+        ctx.add_node(UiNode::new(self.build_border(ctx)))
     }
 }
 

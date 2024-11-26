@@ -134,7 +134,7 @@ impl SpriteSheetFramesPropertyEditor {
         .build(ctx);
 
         ctx.add_node(UiNode::new(Self {
-            widget: WidgetBuilder::new().with_child(grid).build(),
+            widget: WidgetBuilder::new().with_child(grid).build(ctx),
             edit_button,
             container,
         }))

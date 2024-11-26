@@ -323,7 +323,7 @@ impl ExpanderBuilder {
                     .add_row(Row::stretch())
                     .build(ctx),
                 )
-                .build(),
+                .build(ctx),
             content: self.content.into(),
             expander: expander.into(),
             is_expanded: self.is_expanded.into(),

@@ -83,12 +83,14 @@ mod test {
     use fyrox_core::ImmutableString;
     use fyrox_sound::source::Status;
     use fyrox_ui::widget::{Widget, WidgetBuilder};
+    use fyrox_ui::UserInterface;
 
     #[test]
     fn test_assembly_names() {
+        let mut ui = UserInterface::new(Default::default());
         let var = ImmutableString::new("Foobar");
         let base = BaseBuilder::new().build_base();
-        let widget = WidgetBuilder::new().build();
+        let widget = WidgetBuilder::new().build(&ui.build_ctx());
         let status = Status::Stopped;
 
         assert_eq!(var.assembly_name(), "fyrox-core");

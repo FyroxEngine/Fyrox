@@ -554,7 +554,7 @@ impl TileSetTileViewBuilder {
                 .widget_builder
                 .with_allow_drag(true)
                 .with_child(decorator)
-                .build(),
+                .build(ctx),
             definition_handle: tile_handle,
             image,
         }))

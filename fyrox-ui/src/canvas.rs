@@ -135,11 +135,11 @@ impl CanvasBuilder {
     }
 
     /// Finishes canvas widget building and adds the instance to the user interface and returns its handle.
-    pub fn build(self, ui: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let canvas = Canvas {
-            widget: self.widget_builder.build(),
+            widget: self.widget_builder.build(ctx),
         };
-        ui.add_node(UiNode::new(canvas))
+        ctx.add_node(UiNode::new(canvas))
     }
 }
 

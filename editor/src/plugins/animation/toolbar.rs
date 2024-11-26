@@ -45,7 +45,7 @@ use crate::fyrox::{
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
-        VerticalAlignment, BRUSH_BRIGHT, BRUSH_LIGHT,
+        VerticalAlignment,
     },
     resource::model::AnimationSource,
 };
@@ -70,6 +70,8 @@ use crate::{
     },
     send_sync_message,
 };
+use fyrox::gui::style::resource::StyleResourceExt;
+use fyrox::gui::style::Style;
 use std::path::Path;
 
 enum ImportMode {
@@ -424,7 +426,7 @@ impl Toolbar {
         let panel = BorderBuilder::new(
             WidgetBuilder::new()
                 .on_row(0)
-                .with_foreground(BRUSH_LIGHT)
+                .with_foreground(ctx.style.get_or_default(Style::BRUSH_LIGHT))
                 .with_child(
                     StackPanelBuilder::new(
                         WidgetBuilder::new()
@@ -475,7 +477,9 @@ impl Toolbar {
                                             .with_width(18.0)
                                             .with_height(18.0)
                                             .with_margin(Thickness::uniform(1.0))
-                                            .with_background(BRUSH_BRIGHT),
+                                            .with_background(
+                                                ctx.style.get_or_default(Style::BRUSH_BRIGHT),
+                                            ),
                                     )
                                     .with_opt_texture(load_image!("../../../resources/import.png"))
                                     .build(ctx),
@@ -503,7 +507,9 @@ impl Toolbar {
                                             .with_width(18.0)
                                             .with_height(18.0)
                                             .with_margin(Thickness::uniform(1.0))
-                                            .with_background(BRUSH_BRIGHT),
+                                            .with_background(
+                                                ctx.style.get_or_default(Style::BRUSH_BRIGHT),
+                                            ),
                                     )
                                     .with_opt_texture(load_image!(
                                         "../../../resources/reimport.png"
@@ -532,7 +538,9 @@ impl Toolbar {
                                             .with_width(18.0)
                                             .with_height(18.0)
                                             .with_margin(Thickness::uniform(1.0))
-                                            .with_background(BRUSH_BRIGHT),
+                                            .with_background(
+                                                ctx.style.get_or_default(Style::BRUSH_BRIGHT),
+                                            ),
                                     )
                                     .with_opt_texture(load_image!("../../../resources/rename.png"))
                                     .build(ctx),
@@ -585,7 +593,9 @@ impl Toolbar {
                                             .with_width(18.0)
                                             .with_height(18.0)
                                             .with_margin(Thickness::uniform(1.0))
-                                            .with_background(BRUSH_BRIGHT),
+                                            .with_background(
+                                                ctx.style.get_or_default(Style::BRUSH_BRIGHT),
+                                            ),
                                     )
                                     .with_opt_texture(load_image!("../../../resources/copy.png"))
                                     .build(ctx),
@@ -639,7 +649,9 @@ impl Toolbar {
                                         .with_width(18.0)
                                         .with_height(18.0)
                                         .with_margin(Thickness::uniform(1.0))
-                                        .with_background(BRUSH_BRIGHT),
+                                        .with_background(
+                                            ctx.style.get_or_default(Style::BRUSH_BRIGHT),
+                                        ),
                                 )
                                 .with_opt_texture(load_image!("../../../resources/speed.png"))
                                 .build(ctx),
@@ -665,7 +677,9 @@ impl Toolbar {
                                         .with_width(18.0)
                                         .with_height(18.0)
                                         .with_margin(Thickness::uniform(1.0))
-                                        .with_background(BRUSH_BRIGHT),
+                                        .with_background(
+                                            ctx.style.get_or_default(Style::BRUSH_BRIGHT),
+                                        ),
                                 )
                                 .with_opt_texture(load_image!("../../../resources/time.png"))
                                 .build(ctx),
@@ -748,7 +762,9 @@ impl Toolbar {
                                 .with_content(
                                     VectorImageBuilder::new(
                                         WidgetBuilder::new()
-                                            .with_foreground(BRUSH_BRIGHT)
+                                            .with_foreground(
+                                                ctx.style.get_or_default(Style::BRUSH_BRIGHT),
+                                            )
                                             .with_tooltip(make_simple_tooltip(ctx, "Play/Pause")),
                                     )
                                     .with_primitives(vec![
@@ -779,9 +795,9 @@ impl Toolbar {
                                         .with_tooltip(make_simple_tooltip(ctx, "Stop Playback")),
                                 )
                                 .with_content(
-                                    VectorImageBuilder::new(
-                                        WidgetBuilder::new().with_foreground(BRUSH_BRIGHT),
-                                    )
+                                    VectorImageBuilder::new(WidgetBuilder::new().with_foreground(
+                                        ctx.style.get_or_default(Style::BRUSH_BRIGHT),
+                                    ))
                                     .with_primitives(vec![Primitive::RectangleFilled {
                                         rect: Rect::new(0.0, 0.0, 16.0, 16.0),
                                     }])

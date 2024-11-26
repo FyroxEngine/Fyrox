@@ -54,6 +54,8 @@ use crate::{
     world::graph::item::SceneItem,
     Message, UiMessage, UiNode, UserInterface, VerticalAlignment,
 };
+use fyrox::gui::style::resource::StyleResourceExt;
+use fyrox::gui::style::Style;
 use std::{
     any::TypeId,
     fmt::Debug,
@@ -170,14 +172,14 @@ impl Control for HandlePropertyEditor {
                             ));
 
                             let color = if self.value.is_none() {
-                                Color::ORANGE
+                                Brush::Solid(Color::ORANGE)
                             } else {
-                                fyrox::gui::COLOR_FOREGROUND
+                                ui.style.get_or_default(Style::BRUSH_FOREGROUND)
                             };
                             ui.send_message(WidgetMessage::foreground(
                                 self.text,
                                 MessageDirection::ToWidget,
-                                Brush::Solid(color),
+                                color,
                             ));
                         } else {
                             ui.send_message(TextMessage::text(
@@ -412,7 +414,7 @@ impl HandlePropertyEditorBuilder {
                 .with_preview_messages(true)
                 .with_allow_drop(true)
                 .with_child(grid)
-                .build(),
+                .build(ctx),
             text,
             value: self.value,
             sender: self.sender,

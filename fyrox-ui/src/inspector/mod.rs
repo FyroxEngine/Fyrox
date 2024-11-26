@@ -1207,7 +1207,7 @@ impl InspectorBuilder {
             widget: self
                 .widget_builder
                 .with_child(self.context.stack_panel)
-                .build(),
+                .build(ctx),
             context: self.context,
         };
         ctx.add_node(UiNode::new(canvas))

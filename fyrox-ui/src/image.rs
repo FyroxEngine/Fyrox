@@ -343,13 +343,13 @@ impl ImageBuilder {
     }
 
     /// Builds the [`Image`] widget, but does not add it to the UI.
-    pub fn build_node(mut self) -> UiNode {
+    pub fn build_node(mut self, ctx: &BuildContext) -> UiNode {
         if self.widget_builder.background.is_none() {
             self.widget_builder.background = Some(Brush::Solid(Color::WHITE))
         }
 
         let image = Image {
-            widget: self.widget_builder.build(),
+            widget: self.widget_builder.build(ctx),
             texture: self.texture.into(),
             flip: self.flip.into(),
             uv_rect: self.uv_rect.into(),
@@ -360,7 +360,7 @@ impl ImageBuilder {
 
     /// Builds the [`Image`] widget and adds it to the UI and returns its handle.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
-        ctx.add_node(self.build_node())
+        ctx.add_node(self.build_node(ctx))
     }
 }
 

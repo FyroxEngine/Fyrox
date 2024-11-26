@@ -39,13 +39,14 @@ use crate::fyrox::{
         popup::{Placement, PopupMessage},
         stack_panel::StackPanelBuilder,
         widget::{Widget, WidgetBuilder, WidgetMessage},
-        BuildContext, Control, RcUiNodeHandle, UiNode, UserInterface, BRUSH_BRIGHT, BRUSH_DARKER,
-        BRUSH_LIGHTER, BRUSH_LIGHTEST,
+        BuildContext, Control, RcUiNodeHandle, UiNode, UserInterface,
     },
 };
 use crate::menu::create_menu_item;
 use fyrox::gui::curve::{CurveTransformCell, STANDARD_GRID_SIZE};
 use fyrox::gui::menu::ContextMenuBuilder;
+use fyrox::gui::style::resource::StyleResourceExt;
+use fyrox::gui::style::Style;
 use std::{
     cell::{Cell, RefCell},
     fmt::{Debug, Formatter},
@@ -263,9 +264,9 @@ impl Control for Ruler {
                 Vector2::new(x, local_bounds.h()),
             ]);
             let brush = if signal.selected {
-                BRUSH_BRIGHT
+                ctx.style.get_or_default(Style::BRUSH_BRIGHT)
             } else {
-                BRUSH_LIGHTEST
+                ctx.style.get_or_default(Style::BRUSH_LIGHTEST)
             };
             ctx.commit(self.clip_bounds(), brush, CommandTexture::None, None);
         }
@@ -459,9 +460,9 @@ impl RulerBuilder {
                 .widget_builder
                 .with_preview_messages(true)
                 .with_context_menu(context_menu.menu.clone())
-                .with_background(BRUSH_DARKER)
-                .with_foreground(BRUSH_LIGHTER)
-                .build(),
+                .with_background(ctx.style.get_or_default(Style::BRUSH_DARKER))
+                .with_foreground(ctx.style.get_or_default(Style::BRUSH_LIGHTER))
+                .build(ctx),
             transform: Default::default(),
             text: RefCell::new(FormattedTextBuilder::new(ctx.default_font()).build()),
             value: self.value,

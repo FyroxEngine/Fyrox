@@ -468,7 +468,7 @@ impl FileSelectorFieldBuilder {
                     .add_column(Column::auto())
                     .build(ctx),
                 )
-                .build(),
+                .build(ctx),
             path: self.path,
             path_field,
             select,

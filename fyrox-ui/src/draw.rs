@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::font::FontHeight;
+use crate::style::resource::StyleResource;
 use crate::{
     brush::Brush,
     core::{
@@ -768,6 +769,7 @@ pub struct DrawingContext {
     pub transform_stack: TransformStack,
     opacity_stack: Vec<f32>,
     triangles_to_commit: usize,
+    pub style: StyleResource,
 }
 
 fn get_line_thickness_vector(a: Vector2<f32>, b: Vector2<f32>, thickness: f32) -> Vector2<f32> {
@@ -775,12 +777,6 @@ fn get_line_thickness_vector(a: Vector2<f32>, b: Vector2<f32>, thickness: f32) -
         Vector2::new(dir.y, -dir.x).scale(thickness * 0.5)
     } else {
         Vector2::default()
-    }
-}
-
-impl Default for DrawingContext {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -809,7 +805,7 @@ impl Draw for DrawingContext {
 }
 
 impl DrawingContext {
-    pub fn new() -> DrawingContext {
+    pub fn new(style: StyleResource) -> DrawingContext {
         DrawingContext {
             vertex_buffer: Vec::new(),
             triangle_buffer: Vec::new(),
@@ -817,6 +813,7 @@ impl DrawingContext {
             triangles_to_commit: 0,
             opacity_stack: vec![1.0],
             transform_stack: Default::default(),
+            style,
         }
     }
 

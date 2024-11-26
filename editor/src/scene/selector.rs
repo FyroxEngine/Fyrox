@@ -47,6 +47,8 @@ use crate::{
     utils::make_node_name,
 };
 use fyrox::gui::message::KeyCode;
+use fyrox::gui::style::resource::StyleResourceExt;
+use fyrox::gui::style::Style;
 use std::{
     ops::{Deref, DerefMut},
     sync::mpsc::Sender,
@@ -357,7 +359,7 @@ impl NodeSelectorBuilder {
                 .with_child(
                     BorderBuilder::new(
                         WidgetBuilder::new()
-                            .with_background(fyrox::gui::BRUSH_DARK)
+                            .with_background(ctx.style.get_or_default(Style::BRUSH_DARK))
                             .on_row(1)
                             .on_column(0)
                             .with_child({
@@ -378,7 +380,7 @@ impl NodeSelectorBuilder {
         .build(ctx);
 
         let selector = NodeSelector {
-            widget: self.widget_builder.with_child(content).build(),
+            widget: self.widget_builder.with_child(content).build(ctx),
             tree_root,
             search_bar,
             selected: Default::default(),

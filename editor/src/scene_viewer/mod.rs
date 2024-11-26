@@ -48,7 +48,7 @@ use crate::{
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
             BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
-            VerticalAlignment, BRUSH_BRIGHT_BLUE, BRUSH_DARKEST,
+            VerticalAlignment,
         },
         renderer::framework::PolygonFillMode,
         resource::texture::TextureResource,
@@ -68,6 +68,8 @@ use crate::{
     DropdownListBuilder, GameScene, Message, Mode, SaveSceneConfirmationDialogAction,
     SceneContainer, Settings,
 };
+use fyrox::gui::style::resource::StyleResourceExt;
+use fyrox::gui::style::Style;
 use std::{
     ops::Deref,
     sync::mpsc::{self, Receiver},
@@ -215,7 +217,7 @@ impl GridSnappingMenu {
                         ui.send_message(DecoratorMessage::selected_brush(
                             *button.decorator,
                             MessageDirection::ToWidget,
-                            BRUSH_BRIGHT_BLUE,
+                            ui.style.get_or_default(Style::BRUSH_BRIGHT_BLUE),
                         ));
 
                         ui.send_message(DecoratorMessage::select(
@@ -464,7 +466,7 @@ impl SceneViewer {
         let no_scene_reminder = TextBuilder::new(
             WidgetBuilder::new()
                 .with_hit_test_visibility(false)
-                .with_foreground(BRUSH_DARKEST),
+                .with_foreground(ctx.style.get_or_default(Style::BRUSH_DARKEST)),
         )
         .with_text("No scene loaded. Create a new scene (File -> New Scene) or load existing (File -> Load Scene)")
         .with_vertical_text_alignment(VerticalAlignment::Center)

@@ -176,12 +176,12 @@ impl NavigationLayerBuilder {
 
     /// Finishes navigation layer widget building and adds the instance to the user interface and
     /// returns its handle.
-    pub fn build(self, ui: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let navigation_layer = NavigationLayer {
-            widget: self.widget_builder.build(),
+            widget: self.widget_builder.build(ctx),
             bring_into_view: self.bring_into_view.into(),
         };
-        ui.add_node(UiNode::new(navigation_layer))
+        ctx.add_node(UiNode::new(navigation_layer))
     }
 }
 

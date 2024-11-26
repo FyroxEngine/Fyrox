@@ -639,7 +639,7 @@ impl AbsmCanvasBuilder {
                 .widget_builder
                 .with_preview_messages(true)
                 .with_clip_to_bounds(false)
-                .build(),
+                .build(ctx),
             selection: Default::default(),
             view_position: Default::default(),
             initial_view_position: Default::default(),

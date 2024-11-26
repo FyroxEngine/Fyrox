@@ -31,6 +31,7 @@ use fyrox_core::{
     ImmutableString, Uuid,
 };
 use fyrox_resource::{io::ResourceIo, manager::BuiltInResource};
+use lazy_static::lazy_static;
 use std::path::Path;
 
 #[derive(Visit, Reflect, Debug, Clone)]
@@ -75,6 +76,12 @@ impl_casts!(f32 => Number);
 impl_casts!(Thickness => Thickness);
 impl_casts!(Color => Color);
 impl_casts!(Brush => Brush);
+
+lazy_static! {
+    pub static ref DEFAULT_STYLE: BuiltInResource<Style> = BuiltInResource::new_no_source(
+        StyleResource::new_ok("__DEFAULT_STYLE__".into(), Style::default_style())
+    );
+}
 
 #[derive(Visit, Reflect, Default, Debug, TypeUuidProvider)]
 #[type_uuid(id = "38a63b49-d765-4c01-8fb5-202cc43d607e")]

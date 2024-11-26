@@ -23,6 +23,8 @@
 
 #![warn(missing_docs)]
 
+use crate::style::resource::StyleResourceExt;
+use crate::style::Style;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -37,7 +39,7 @@ use crate::{
     scroll_viewer::{ScrollViewer, ScrollViewerBuilder, ScrollViewerMessage},
     stack_panel::StackPanelBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, Thickness, UiNode, UserInterface, BRUSH_DARK, BRUSH_LIGHT,
+    BuildContext, Control, Thickness, UiNode, UserInterface,
 };
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
@@ -338,10 +340,12 @@ impl ConstructorProvider<UiNode, UserInterface> for ListViewItem {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
         GraphNodeConstructor::new::<Self>()
             .with_variant("List View Item", |ui: &mut UserInterface| {
-                ui.add_node(UiNode::new(ListViewItem {
-                    widget: WidgetBuilder::new().with_name("List View Item").build(),
-                }))
-                .into()
+                let node = UiNode::new(ListViewItem {
+                    widget: WidgetBuilder::new()
+                        .with_name("List View Item")
+                        .build(&ui.build_ctx()),
+                });
+                ui.add_node(node).into()
             })
             .with_group("Input")
     }
@@ -585,10 +589,11 @@ impl ListViewBuilder {
             ctx.link(item_container, panel);
         }
 
+        let style = &ctx.style;
         let back = BorderBuilder::new(
             WidgetBuilder::new()
-                .with_background(BRUSH_DARK)
-                .with_foreground(BRUSH_LIGHT),
+                .with_background(style.get_or_default(Style::BRUSH_DARK))
+                .with_foreground(style.get_or_default(Style::BRUSH_LIGHT)),
         )
         .with_stroke_thickness(Thickness::uniform(1.0))
         .build(ctx);
@@ -611,7 +616,7 @@ impl ListViewBuilder {
                 .widget_builder
                 .with_accepts_input(true)
                 .with_child(back)
-                .build(),
+                .build(ctx),
             selection: Default::default(),
             item_containers: item_containers.into(),
             items: self.items.into(),
@@ -625,7 +630,7 @@ impl ListViewBuilder {
 
 fn generate_item_container(ctx: &mut BuildContext, item: Handle<UiNode>) -> Handle<UiNode> {
     let item = ListViewItem {
-        widget: WidgetBuilder::new().with_child(item).build(),
+        widget: WidgetBuilder::new().with_child(item).build(ctx),
     };
 
     ctx.add_node(UiNode::new(item))

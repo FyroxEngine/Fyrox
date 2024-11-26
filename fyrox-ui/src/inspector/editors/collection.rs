@@ -438,7 +438,7 @@ where
                 .widget_builder
                 .with_preview_messages(true)
                 .with_child(panel)
-                .build(),
+                .build(ctx),
             add: self.add,
             items,
             panel,

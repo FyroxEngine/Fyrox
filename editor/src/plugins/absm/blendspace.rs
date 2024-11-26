@@ -47,7 +47,7 @@ use crate::fyrox::{
         widget::{Widget, WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, Control, HorizontalAlignment, RcUiNodeHandle, Thickness, UiNode,
-        UserInterface, VerticalAlignment, BRUSH_DARK, BRUSH_LIGHT, BRUSH_LIGHTEST,
+        UserInterface, VerticalAlignment,
     },
 };
 use crate::plugins::absm::{
@@ -58,6 +58,8 @@ use crate::plugins::absm::{
 };
 use crate::{menu::create_menu_item, message::MessageSender, send_sync_message};
 use fyrox::gui::menu::ContextMenuBuilder;
+use fyrox::gui::style::resource::StyleResourceExt;
+use fyrox::gui::style::Style;
 use std::{
     cell::Cell,
     fmt::{Debug, Formatter},
@@ -170,7 +172,7 @@ fn make_points<P: Iterator<Item = Vector2<f32>>>(
             BlendSpaceFieldPointBuilder::new(
                 WidgetBuilder::new()
                     .with_context_menu(context_menu.clone())
-                    .with_background(BRUSH_LIGHTEST)
+                    .with_background(ctx.style.get_or_default(Style::BRUSH_LIGHTEST))
                     .with_foreground(Brush::Solid(Color::WHITE))
                     .with_desired_position(p),
                 i,
@@ -527,14 +529,14 @@ impl BlendSpaceFieldBuilder {
                 .with_clip_to_bounds(false)
                 .with_preview_messages(true)
                 .with_context_menu(menu.clone())
-                .build(),
+                .build(ctx),
             points: Default::default(),
             min_values: self.min_values,
             max_values: self.max_values,
             snap_step: self.snap_step,
             point_positions: Default::default(),
             triangles: Default::default(),
-            grid_brush: BRUSH_LIGHT,
+            grid_brush: ctx.style.get_or_default(Style::BRUSH_LIGHT),
             sampling_point: Vector2::new(0.25, 0.5),
             drag_context: None,
             field_context_menu: ContextMenu {
@@ -630,7 +632,7 @@ impl BlendSpaceFieldPointBuilder {
                 )
                 .with_width(10.0)
                 .with_height(10.0)
-                .build(),
+                .build(ctx),
             selected: false,
         };
 
@@ -656,8 +658,8 @@ impl BlendSpaceEditor {
                 .on_row(0)
                 .on_column(1)
                 .with_margin(Thickness::uniform(15.0))
-                .with_foreground(BRUSH_LIGHTEST)
-                .with_background(BRUSH_DARK),
+                .with_foreground(ctx.style.get_or_default(Style::BRUSH_LIGHTEST))
+                .with_background(ctx.style.get_or_default(Style::BRUSH_DARK)),
         )
         .build(ctx);
 

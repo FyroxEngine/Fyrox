@@ -387,14 +387,14 @@ impl AlphaBarBuilder {
         self
     }
 
-    pub fn build(self, ui: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let canvas = AlphaBar {
-            widget: self.widget_builder.build(),
+            widget: self.widget_builder.build(ctx),
             orientation: self.orientation,
             alpha: self.alpha,
             is_picking: false,
         };
-        ui.add_node(UiNode::new(canvas))
+        ctx.add_node(UiNode::new(canvas))
     }
 }
 
@@ -550,14 +550,14 @@ impl HueBarBuilder {
         self
     }
 
-    pub fn build(self, ui: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let bar = HueBar {
-            widget: self.widget_builder.build(),
+            widget: self.widget_builder.build(ctx),
             orientation: self.orientation,
             is_picking: false,
             hue: self.hue,
         };
-        ui.add_node(UiNode::new(bar))
+        ctx.add_node(UiNode::new(bar))
     }
 }
 
@@ -763,15 +763,15 @@ impl SaturationBrightnessFieldBuilder {
         self
     }
 
-    pub fn build(self, ui: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let bar = SaturationBrightnessField {
-            widget: self.widget_builder.build(),
+            widget: self.widget_builder.build(ctx),
             is_picking: false,
             saturation: self.saturation,
             brightness: self.brightness,
             hue: self.hue,
         };
-        ui.add_node(UiNode::new(bar))
+        ctx.add_node(UiNode::new(bar))
     }
 }
 
@@ -1180,7 +1180,7 @@ impl ColorPickerBuilder {
                 .add_row(Row::auto())
                 .build(ctx),
             )
-            .build();
+            .build(ctx);
 
         let picker = ColorPicker {
             widget,
@@ -1342,7 +1342,7 @@ impl ColorFieldBuilder {
             .build(ctx);
 
         let field = ColorField {
-            widget: self.widget_builder.with_preview_messages(true).build(),
+            widget: self.widget_builder.with_preview_messages(true).build(ctx),
             popup,
             picker,
             color: self.color,

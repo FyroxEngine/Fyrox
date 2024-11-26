@@ -321,7 +321,7 @@ impl HotKeyEditorBuilder {
             .build(ctx);
 
         let editor = HotKeyEditor {
-            widget: self.widget_builder.with_child(text).build(),
+            widget: self.widget_builder.with_child(text).build(ctx),
             text: text.into(),
             editing: false.into(),
             value: self.value.into(),
@@ -535,7 +535,7 @@ impl KeyBindingEditorBuilder {
             .build(ctx);
 
         let editor = KeyBindingEditor {
-            widget: self.widget_builder.with_child(text).build(),
+            widget: self.widget_builder.with_child(text).build(ctx),
             text: text.into(),
             editing: false.into(),
             value: self.value.into(),

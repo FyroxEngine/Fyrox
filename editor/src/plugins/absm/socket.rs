@@ -227,7 +227,7 @@ impl SocketBuilder {
         .build(ctx);
 
         let socket = Socket {
-            widget: self.widget_builder.with_child(grid).build(),
+            widget: self.widget_builder.with_child(grid).build(ctx),
             click_position: Default::default(),
             parent_node: self.parent_node,
             direction: self.direction,

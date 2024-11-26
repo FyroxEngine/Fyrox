@@ -185,7 +185,7 @@ impl SurfaceDataPropertyEditor {
                     .build(ctx),
             )
             .with_allow_drop(true)
-            .build();
+            .build(ctx);
 
         let editor = Self {
             widget,

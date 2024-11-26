@@ -201,7 +201,7 @@ impl TransitionBuilder {
                 .with_foreground(NORMAL_BRUSH.clone())
                 .with_clip_to_bounds(false)
                 .with_need_update(true)
-                .build(),
+                .build(ctx),
             segment: Segment {
                 source: self.source,
                 source_pos: fetch_node_center(self.source, ctx),

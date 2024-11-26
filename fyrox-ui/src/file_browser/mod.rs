@@ -1045,7 +1045,7 @@ impl FileBrowserBuilder {
             .widget_builder
             .with_need_update(true)
             .with_child(grid)
-            .build();
+            .build(ctx);
 
         let the_path = match &self.root {
             Some(path) => path.clone(),

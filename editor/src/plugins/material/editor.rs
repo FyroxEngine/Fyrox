@@ -248,7 +248,7 @@ impl MaterialFieldEditorBuilder {
                     .add_column(Column::auto())
                     .build(ctx),
                 )
-                .build(),
+                .build(ctx),
             edit,
             sender,
             material,

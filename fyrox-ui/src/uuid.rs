@@ -181,7 +181,7 @@ impl UuidEditorBuilder {
         .build(ctx);
 
         let uuid_editor = UuidEditor {
-            widget: self.widget_builder.with_child(grid).build(),
+            widget: self.widget_builder.with_child(grid).build(ctx),
             value: self.value,
             text,
             generate,

@@ -154,7 +154,7 @@ impl ConnectionBuilder {
                 .widget_builder
                 .with_foreground(NORMAL_BRUSH)
                 .with_clip_to_bounds(false)
-                .build(),
+                .build(ctx),
             segment: Segment {
                 source: self.source_socket,
                 source_pos: canvas_ref

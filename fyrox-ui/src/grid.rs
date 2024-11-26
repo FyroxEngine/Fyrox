@@ -791,9 +791,9 @@ impl GridBuilder {
     }
 
     /// Creates new [`Grid`] widget instance and adds it to the user interface.
-    pub fn build(self, ui: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let grid = Grid {
-            widget: self.widget_builder.build(),
+            widget: self.widget_builder.build(ctx),
             rows: RefCell::new(self.rows).into(),
             columns: RefCell::new(self.columns).into(),
             draw_border: self.draw_border.into(),
@@ -801,7 +801,7 @@ impl GridBuilder {
             cells: Default::default(),
             groups: Default::default(),
         };
-        ui.add_node(UiNode::new(grid))
+        ctx.add_node(UiNode::new(grid))
     }
 }
 

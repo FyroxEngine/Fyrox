@@ -35,11 +35,13 @@ use crate::fyrox::{
         utils::make_simple_tooltip,
         widget::{Widget, WidgetBuilder},
         BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
-        VerticalAlignment, BRUSH_LIGHTER,
+        VerticalAlignment,
     },
     scene::sound::{AudioBus, AudioBusGraph},
 };
 use crate::gui::make_dropdown_list_option;
+use fyrox::gui::style::resource::StyleResourceExt;
+use fyrox::gui::style::Style;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -136,12 +138,12 @@ fn make_items(buses: &[(Handle<AudioBus>, String)], ctx: &mut BuildContext) -> V
 
 fn make_effect_names(names: &[String], ctx: &mut BuildContext) -> Vec<Handle<UiNode>> {
     if names.is_empty() {
-        vec![
-            TextBuilder::new(WidgetBuilder::new().with_foreground(BRUSH_LIGHTER))
-                .with_text("No Effects")
-                .with_horizontal_text_alignment(HorizontalAlignment::Center)
-                .build(ctx),
-        ]
+        vec![TextBuilder::new(
+            WidgetBuilder::new().with_foreground(ctx.style.get_or_default(Style::BRUSH_LIGHTER)),
+        )
+        .with_text("No Effects")
+        .with_horizontal_text_alignment(HorizontalAlignment::Center)
+        .build(ctx)]
     } else {
         names
             .iter()
@@ -281,7 +283,7 @@ impl AudioBusViewBuilder {
                     ))
                     .build(ctx),
                 )
-                .build(),
+                .build(ctx),
             bus: self.bus,
             parent_bus_selector,
             possible_parent_buses: self

@@ -24,6 +24,8 @@
 
 #![warn(missing_docs)]
 
+use crate::style::resource::StyleResourceExt;
+use crate::style::Style;
 use crate::{
     border::BorderBuilder,
     core::{
@@ -37,7 +39,7 @@ use crate::{
     popup::{Placement, PopupBuilder, PopupMessage},
     utils::{make_arrow_non_uniform_size, ArrowDirection},
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, Thickness, UiNode, UserInterface, BRUSH_DARKER, BRUSH_LIGHT,
+    BuildContext, Control, Thickness, UiNode, UserInterface,
 };
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
@@ -493,23 +495,23 @@ impl DropdownListBuilder {
                 .add_column(Column::auto())
                 .build(ctx);
 
+        let border = BorderBuilder::new(
+            WidgetBuilder::new()
+                .with_background(ctx.style.get_or_default(Style::BRUSH_DARKER))
+                .with_foreground(ctx.style.get_or_default(Style::BRUSH_LIGHT))
+                .with_child(main_grid),
+        )
+        .with_pad_by_corner_radius(false)
+        .with_corner_radius(4.0)
+        .build(ctx);
+
         let dropdown_list = UiNode::new(DropdownList {
             widget: self
                 .widget_builder
                 .with_accepts_input(true)
                 .with_preview_messages(true)
-                .with_child(
-                    BorderBuilder::new(
-                        WidgetBuilder::new()
-                            .with_background(BRUSH_DARKER)
-                            .with_foreground(BRUSH_LIGHT)
-                            .with_child(main_grid),
-                    )
-                    .with_pad_by_corner_radius(false)
-                    .with_corner_radius(4.0)
-                    .build(ctx),
-                )
-                .build(),
+                .with_child(border)
+                .build(ctx),
             popup: popup.into(),
             items: self.items.into(),
             list_view: items_control.into(),

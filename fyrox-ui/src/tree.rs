@@ -23,7 +23,6 @@
 
 #![warn(missing_docs)]
 
-use crate::message::KeyCode;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -35,12 +34,14 @@ use crate::{
     decorator::{DecoratorBuilder, DecoratorMessage},
     define_constructor,
     grid::{Column, GridBuilder, Row},
+    message::KeyCode,
     message::{MessageDirection, UiMessage},
     stack_panel::StackPanelBuilder,
+    style::resource::StyleResourceExt,
+    style::Style,
     utils::{make_arrow, ArrowDirection},
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, MouseButton, Thickness, UiNode, UserInterface, VerticalAlignment,
-    BRUSH_DARK, BRUSH_DIM_BLUE,
 };
 use fyrox_core::uuid_provider;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
@@ -761,8 +762,8 @@ impl TreeBuilder {
                     .with_foreground(Brush::Solid(Color::TRANSPARENT))
                     .with_background(Brush::Solid(Color::TRANSPARENT)),
             ))
-            .with_selected_brush(BRUSH_DIM_BLUE)
-            .with_hover_brush(BRUSH_DARK)
+            .with_selected_brush(ctx.style.get_or_default(Style::BRUSH_DIM_BLUE))
+            .with_hover_brush(ctx.style.get_or_default(Style::BRUSH_DARK))
             .with_normal_brush(Brush::Solid(Color::TRANSPARENT))
             .with_pressed_brush(Brush::Solid(Color::TRANSPARENT))
             .with_pressable(false)
@@ -799,7 +800,7 @@ impl TreeBuilder {
                 .with_allow_drag(true)
                 .with_allow_drop(true)
                 .with_child(grid)
-                .build(),
+                .build(ctx),
             content: self.content,
             panel,
             is_expanded: self.is_expanded,
@@ -1224,7 +1225,7 @@ impl TreeRootBuilder {
                 .build(ctx);
 
         let tree = TreeRoot {
-            widget: self.widget_builder.with_child(panel).build(),
+            widget: self.widget_builder.with_child(panel).build(ctx),
             panel,
             items: self.items,
             selected: Default::default(),

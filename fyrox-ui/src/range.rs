@@ -321,7 +321,7 @@ where
                     .add_row(Row::stretch())
                     .build(ctx),
                 )
-                .build(),
+                .build(ctx),
             value: self.value.into(),
             start: start.into(),
             end: end.into(),

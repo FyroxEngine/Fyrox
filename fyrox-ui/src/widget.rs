@@ -34,19 +34,21 @@ use crate::{
         visitor::prelude::*,
         ImmutableString,
     },
+    core::{parking_lot::Mutex, variable::InheritableVariable},
     define_constructor,
     message::{CursorIcon, Force, KeyCode, MessageDirection, UiMessage},
-    HorizontalAlignment, LayoutEvent, MouseButton, MouseState, RcUiNodeHandle, Thickness, UiNode,
-    UserInterface, VerticalAlignment, BRUSH_FOREGROUND, BRUSH_PRIMARY,
+    style::resource::StyleResourceExt,
+    style::Style,
+    BuildContext, HorizontalAlignment, LayoutEvent, MouseButton, MouseState, RcUiNodeHandle,
+    Thickness, UiNode, UserInterface, VerticalAlignment,
 };
-use fyrox_core::{parking_lot::Mutex, variable::InheritableVariable};
 use fyrox_graph::BaseSceneGraph;
 use fyrox_resource::Resource;
-use std::cmp::Ordering;
-use std::fmt::{Debug, Formatter};
 use std::{
     any::Any,
     cell::{Cell, RefCell},
+    cmp::Ordering,
+    fmt::{Debug, Formatter},
     sync::{mpsc::Sender, Arc},
 };
 
@@ -424,6 +426,7 @@ pub enum WidgetMessage {
         /// unique identifier for touch event
         id: u64,
     },
+
     /// Sorts children widgets of a widget.
     ///
     /// Direction: **To UI**.
@@ -716,7 +719,7 @@ impl WidgetMessage {
     );
 
     define_constructor!(
-          /// Creates [`WidgetMessage::SortChildren`] message.
+        /// Creates [`WidgetMessage::SortChildren`] message.
         WidgetMessage:SortChildren => fn sort_children(SortingPredicate), layout: false
     );
 }
@@ -2168,7 +2171,7 @@ impl WidgetBuilder {
     }
 
     /// Finishes building of the base widget.
-    pub fn build(self) -> Widget {
+    pub fn build(self, ctx: &BuildContext) -> Widget {
         Widget {
             handle: Default::default(),
             name: self.name.into(),
@@ -2185,11 +2188,11 @@ impl WidgetBuilder {
                 .into(),
             background: self
                 .background
-                .unwrap_or_else(|| BRUSH_PRIMARY.clone())
+                .unwrap_or_else(|| ctx.style.get_or_default(Style::BRUSH_PRIMARY))
                 .into(),
             foreground: self
                 .foreground
-                .unwrap_or_else(|| BRUSH_FOREGROUND.clone())
+                .unwrap_or_else(|| ctx.style.get_or_default(Style::BRUSH_FOREGROUND))
                 .into(),
             row: self.row.into(),
             column: self.column.into(),

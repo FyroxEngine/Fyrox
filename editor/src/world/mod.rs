@@ -47,7 +47,7 @@ use crate::{
             window::{WindowBuilder, WindowTitle},
             wrap_panel::WrapPanelBuilder,
             BuildContext, Orientation, RcUiNodeHandle, Thickness, UiNode, UserInterface,
-            VerticalAlignment, BRUSH_BRIGHT_BLUE, BRUSH_PRIMARY,
+            VerticalAlignment,
         },
     },
     gui::make_image_button_with_tooltip,
@@ -58,6 +58,8 @@ use crate::{
     world::graph::item::{DropAnchor, SceneItem, SceneItemBuilder, SceneItemMessage},
     Mode, Settings,
 };
+use fyrox::gui::style::resource::StyleResourceExt;
+use fyrox::gui::style::Style;
 use rust_fuzzy_search::fuzzy_compare;
 use std::{
     borrow::Cow,
@@ -156,7 +158,7 @@ fn make_graph_node_item(
     .with_text_brush(if is_instance {
         Brush::Solid(Color::opaque(160, 160, 200))
     } else {
-        Brush::Solid(fyrox::gui::COLOR_FOREGROUND)
+        ctx.style.get_or_default(Style::BRUSH_FOREGROUND)
     })
     .with_name(name.deref().to_owned())
     .with_entity_handle(handle)
@@ -370,10 +372,11 @@ impl WorldViewer {
         let element = ButtonBuilder::new(WidgetBuilder::new().with_height(16.0))
             .with_back(
                 DecoratorBuilder::new(BorderBuilder::new(
-                    WidgetBuilder::new().with_foreground(BRUSH_PRIMARY),
+                    WidgetBuilder::new()
+                        .with_foreground(ctx.style.get_or_default(Style::BRUSH_PRIMARY)),
                 ))
-                .with_normal_brush(BRUSH_PRIMARY)
-                .with_hover_brush(BRUSH_BRIGHT_BLUE)
+                .with_normal_brush(ctx.style.get_or_default(Style::BRUSH_PRIMARY))
+                .with_hover_brush(ctx.style.get_or_default(Style::BRUSH_BRIGHT_BLUE))
                 .build(ctx),
             )
             .with_content(

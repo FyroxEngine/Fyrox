@@ -307,7 +307,7 @@ where
                     .add_column(Column::stretch())
                     .build(ctx),
                 )
-                .build(),
+                .build(ctx),
             value: self.value.into(),
             position: position.into(),
             size: size.into(),

@@ -304,9 +304,9 @@ impl WrapPanelBuilder {
     }
 
     /// Finishes wrap panel building and returns its instance.
-    pub fn build_node(self) -> UiNode {
+    pub fn build_node(self, ctx: &BuildContext) -> UiNode {
         let stack_panel = WrapPanel {
-            widget: self.widget_builder.build(),
+            widget: self.widget_builder.build(ctx),
             orientation: self.orientation.unwrap_or(Orientation::Vertical).into(),
             lines: Default::default(),
         };
@@ -315,8 +315,8 @@ impl WrapPanelBuilder {
     }
 
     /// Finishes wrap panel building, adds it to the user interface and returns its handle.
-    pub fn build(self, ui: &mut BuildContext) -> Handle<UiNode> {
-        ui.add_node(self.build_node())
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+        ctx.add_node(self.build_node(ctx))
     }
 }
 

@@ -232,17 +232,17 @@ impl AnimationBlendingStateMachineBuilder {
     }
 
     /// Creates new node.
-    pub fn build_node(self) -> UiNode {
+    pub fn build_node(self, ctx: &BuildContext) -> UiNode {
         UiNode::new(AnimationBlendingStateMachine {
-            widget: self.widget_builder.with_need_update(true).build(),
+            widget: self.widget_builder.with_need_update(true).build(ctx),
             machine: self.machine.into(),
             animation_player: self.animation_player.into(),
         })
     }
 
     /// Creates new node and adds it to the user interface.
-    pub fn build(self, ui: &mut BuildContext) -> Handle<UiNode> {
-        ui.add_node(self.build_node())
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+        ctx.add_node(self.build_node(ctx))
     }
 }
 
@@ -381,7 +381,7 @@ impl AbsmEventProviderBuilder {
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let provider = AbsmEventProvider {
-            widget: self.widget_builder.build(),
+            widget: self.widget_builder.build(ctx),
             actions: self.actions.into(),
             absm: self.absm.into(),
         };

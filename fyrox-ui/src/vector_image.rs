@@ -165,8 +165,10 @@ impl Primitive {
 /// #     core::{algebra::Vector2, pool::Handle},
 /// #     vector_image::{Primitive, VectorImageBuilder},
 /// #     widget::WidgetBuilder,
-/// #     BuildContext, UiNode, BRUSH_BRIGHT,
+/// #     BuildContext, UiNode,
 /// # };
+/// # use fyrox_ui::style::resource::StyleResourceExt;
+/// # use fyrox_ui::style::Style;
 /// #
 /// fn make_cross_vector_image(
 ///     ctx: &mut BuildContext,
@@ -176,7 +178,7 @@ impl Primitive {
 ///     VectorImageBuilder::new(
 ///         WidgetBuilder::new()
 ///             // Color of the image is defined by the foreground brush of the base widget.
-///             .with_foreground(BRUSH_BRIGHT),
+///             .with_foreground(ctx.style.get_or_default(Style::BRUSH_BRIGHT)),
 ///     )
 ///     .with_primitives(vec![
 ///         Primitive::Line {
@@ -325,9 +327,9 @@ impl VectorImageBuilder {
     }
 
     /// Builds the vector image widget.
-    pub fn build_node(self) -> UiNode {
+    pub fn build_node(self, ctx: &BuildContext) -> UiNode {
         let image = VectorImage {
-            widget: self.widget_builder.build(),
+            widget: self.widget_builder.build(ctx),
             primitives: self.primitives.into(),
         };
         UiNode::new(image)
@@ -335,7 +337,7 @@ impl VectorImageBuilder {
 
     /// Finishes vector image building and adds it to the user interface.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
-        ctx.add_node(self.build_node())
+        ctx.add_node(self.build_node(ctx))
     }
 }
 

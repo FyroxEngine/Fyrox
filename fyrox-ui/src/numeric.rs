@@ -22,6 +22,8 @@
 
 #![warn(missing_docs)]
 
+use crate::style::resource::StyleResourceExt;
+use crate::style::Style;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -43,7 +45,7 @@ use crate::{
     utils::{make_arrow, ArrowDirection},
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
-    VerticalAlignment, BRUSH_DARK, BRUSH_LIGHT,
+    VerticalAlignment,
 };
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
@@ -734,8 +736,8 @@ impl<T: NumericType> NumericUpDownBuilder<T> {
         let field;
         let back = BorderBuilder::new(
             WidgetBuilder::new()
-                .with_background(BRUSH_DARK)
-                .with_foreground(BRUSH_LIGHT),
+                .with_background(ctx.style.get_or_default(Style::BRUSH_DARK))
+                .with_foreground(ctx.style.get_or_default(Style::BRUSH_LIGHT)),
         )
         .with_corner_radius(4.0)
         .with_pad_by_corner_radius(false)
@@ -789,7 +791,7 @@ impl<T: NumericType> NumericUpDownBuilder<T> {
         ctx.link(grid, back);
 
         let node = NumericUpDown {
-            widget: self.widget_builder.with_child(back).build(),
+            widget: self.widget_builder.with_child(back).build(ctx),
             increase: increase.into(),
             decrease: decrease.into(),
             field: field.into(),

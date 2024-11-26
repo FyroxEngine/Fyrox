@@ -61,7 +61,7 @@ use crate::{
             window::{WindowBuilder, WindowMessage, WindowTitle},
             wrap_panel::WrapPanelBuilder,
             BuildContext, HorizontalAlignment, Orientation, RcUiNodeHandle, Thickness, UiNode,
-            UserInterface, VerticalAlignment, BRUSH_DARK,
+            UserInterface, VerticalAlignment,
         },
         resource::{model::Model, texture::Texture},
         scene::sound::SoundBuffer,
@@ -74,6 +74,8 @@ use crate::{
     utils::window_content,
     Message, Mode,
 };
+use fyrox::gui::style::resource::StyleResourceExt;
+use fyrox::gui::style::Style;
 use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::fs::File;
 use std::io::Write;
@@ -659,7 +661,7 @@ impl AssetBrowser {
                         .with_child(
                             BorderBuilder::new(
                                 WidgetBuilder::new()
-                                    .with_background(BRUSH_DARK)
+                                    .with_background(ctx.style.get_or_default(Style::BRUSH_DARK))
                                     .with_child({
                                         folder_browser = FileBrowserBuilder::new(
                                             WidgetBuilder::new()

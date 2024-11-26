@@ -42,6 +42,8 @@ use crate::fyrox::{
     },
 };
 use crate::{load_image, message::MessageSender, utils::make_node_name, Message};
+use fyrox::gui::style::resource::StyleResourceExt;
+use fyrox::gui::style::Style;
 use std::{
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
@@ -323,7 +325,7 @@ impl SceneItemBuilder {
                         WidgetBuilder::new()
                             .with_foreground(
                                 self.text_brush
-                                    .unwrap_or(Brush::Solid(fyrox::gui::COLOR_FOREGROUND)),
+                                    .unwrap_or(ctx.style.get_or_default(Style::BRUSH_FOREGROUND)),
                             )
                             .with_margin(Thickness::left(1.0))
                             .on_column(1)

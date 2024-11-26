@@ -272,7 +272,7 @@ impl DockingManagerBuilder {
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let docking_manager = DockingManager {
-            widget: self.widget_builder.with_preview_messages(true).build(),
+            widget: self.widget_builder.with_preview_messages(true).build(ctx),
             floating_windows: RefCell::new(self.floating_windows),
         };
 

@@ -235,7 +235,7 @@ impl PathEditorBuilder {
                 .widget_builder
                 .with_child(grid)
                 .with_preview_messages(true)
-                .build(),
+                .build(ctx),
             text_field: text_field.into(),
             select: select.into(),
             selector: Default::default(),

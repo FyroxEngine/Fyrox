@@ -21,7 +21,6 @@
 //! The Window widget provides a standard window that can contain another widget. See [`Window`] docs
 //! for more info and usage examples.
 
-use crate::font::FontResource;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -32,14 +31,17 @@ use crate::{
     },
     decorator::DecoratorBuilder,
     define_constructor,
+    font::FontResource,
     grid::{Column, GridBuilder, Row},
     message::{CursorIcon, KeyCode, MessageDirection, UiMessage},
     navigation::NavigationLayerBuilder,
+    style::resource::StyleResourceExt,
+    style::Style,
     text::{Text, TextBuilder, TextMessage},
     vector_image::{Primitive, VectorImageBuilder},
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, HorizontalAlignment, RestrictionEntry, Thickness, UiNode, UserInterface,
-    VerticalAlignment, BRUSH_BRIGHT, BRUSH_DARKER, BRUSH_LIGHT, BRUSH_LIGHTEST,
+    VerticalAlignment,
 };
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::{BaseSceneGraph, SceneGraph};
@@ -1135,7 +1137,7 @@ fn make_mark(ctx: &mut BuildContext, button: HeaderButton) -> Handle<UiNode> {
             })
             .with_width(size)
             .with_height(size)
-            .with_foreground(BRUSH_BRIGHT),
+            .with_foreground(ctx.style.get_or_default(Style::BRUSH_BRIGHT)),
     )
     .with_primitives(match button {
         HeaderButton::Close => {
@@ -1202,8 +1204,8 @@ fn make_header_button(ctx: &mut BuildContext, button: HeaderButton) -> Handle<Ui
                     .with_corner_radius(4.0),
             )
             .with_normal_brush(Brush::Solid(Color::TRANSPARENT))
-            .with_hover_brush(BRUSH_LIGHT)
-            .with_pressed_brush(BRUSH_LIGHTEST)
+            .with_hover_brush(ctx.style.get_or_default(Style::BRUSH_LIGHT))
+            .with_pressed_brush(ctx.style.get_or_default(Style::BRUSH_LIGHTEST))
             .build(ctx),
         )
         .with_content(make_mark(ctx, button))
@@ -1322,14 +1324,13 @@ impl WindowBuilder {
         let minimize_button;
         let maximize_button;
         let close_button;
-
         let title;
         let title_grid;
         let header = BorderBuilder::new(
             WidgetBuilder::new()
                 .with_horizontal_alignment(HorizontalAlignment::Stretch)
                 .with_height(22.0)
-                .with_background(BRUSH_DARKER)
+                .with_background(ctx.style.get_or_default(Style::BRUSH_DARKER))
                 .with_child({
                     title_grid = GridBuilder::new(
                         WidgetBuilder::new()
@@ -1401,39 +1402,37 @@ impl WindowBuilder {
         .with_stroke_thickness(Thickness::uniform(0.0))
         .build(ctx);
 
+        let border = BorderBuilder::new(
+            WidgetBuilder::new()
+                .with_foreground(ctx.style.get_or_default(Style::BRUSH_DARKER))
+                .with_child(
+                    GridBuilder::new(
+                        WidgetBuilder::new()
+                            .with_child(
+                                NavigationLayerBuilder::new(
+                                    WidgetBuilder::new().on_row(1).with_child(self.content),
+                                )
+                                .build(ctx),
+                            )
+                            .with_child(header),
+                    )
+                    .add_column(Column::stretch())
+                    .add_row(Row::auto())
+                    .add_row(Row::stretch())
+                    .build(ctx),
+                ),
+        )
+        .with_pad_by_corner_radius(false)
+        .with_corner_radius(4.0)
+        .with_stroke_thickness(Thickness::uniform(1.0))
+        .build(ctx);
+
         Window {
             widget: self
                 .widget_builder
                 .with_visibility(self.open)
-                .with_child(
-                    BorderBuilder::new(
-                        WidgetBuilder::new()
-                            .with_foreground(BRUSH_DARKER)
-                            .with_child(
-                                GridBuilder::new(
-                                    WidgetBuilder::new()
-                                        .with_child(
-                                            NavigationLayerBuilder::new(
-                                                WidgetBuilder::new()
-                                                    .on_row(1)
-                                                    .with_child(self.content),
-                                            )
-                                            .build(ctx),
-                                        )
-                                        .with_child(header),
-                                )
-                                .add_column(Column::stretch())
-                                .add_row(Row::auto())
-                                .add_row(Row::stretch())
-                                .build(ctx),
-                            ),
-                    )
-                    .with_pad_by_corner_radius(false)
-                    .with_corner_radius(4.0)
-                    .with_stroke_thickness(Thickness::uniform(1.0))
-                    .build(ctx),
-                )
-                .build(),
+                .with_child(border)
+                .build(ctx),
             mouse_click_pos: Vector2::default(),
             initial_position: Vector2::default(),
             initial_size: Default::default(),

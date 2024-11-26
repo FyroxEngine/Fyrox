@@ -36,10 +36,12 @@ use crate::fyrox::{
         draw::{CommandTexture, Draw, DrawingContext},
         message::{MessageDirection, UiMessage},
         widget::{Widget, WidgetBuilder},
-        BuildContext, Control, UiNode, UserInterface, BRUSH_BRIGHT,
+        BuildContext, Control, UiNode, UserInterface,
     },
 };
 use fyrox::gui::curve::CurveTransformCell;
+use fyrox::gui::style::resource::StyleResourceExt;
+use fyrox::gui::style::Style;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -141,8 +143,8 @@ impl ThumbBuilder {
             widget: self
                 .widget_builder
                 .with_hit_test_visibility(false)
-                .with_foreground(BRUSH_BRIGHT)
-                .build(),
+                .with_foreground(ctx.style.get_or_default(Style::BRUSH_BRIGHT))
+                .build(ctx),
             transform: CurveTransformCell::default(),
             position: 0.0,
         };

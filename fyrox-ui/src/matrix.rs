@@ -293,7 +293,7 @@ where
             .build(ctx);
 
         let node = MatrixEditor {
-            widget: self.widget_builder.with_child(grid).build(),
+            widget: self.widget_builder.with_child(grid).build(ctx),
             fields,
             value: self.value,
             min: self.min,

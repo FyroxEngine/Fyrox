@@ -108,7 +108,7 @@ impl DropdownMenuBuilder {
             .build(ctx);
 
         let dropdown_menu = DropdownMenu {
-            widget: self.widget_builder.with_child(self.header).build(),
+            widget: self.widget_builder.with_child(self.header).build(ctx),
             popup,
         };
         ctx.add_node(UiNode::new(dropdown_menu))

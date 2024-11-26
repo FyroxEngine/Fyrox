@@ -329,39 +329,11 @@ pub use node::*;
 pub use thickness::*;
 
 use crate::constructor::new_widget_constructor_container;
+use crate::style::resource::{StyleResource, StyleResourceExt};
+use crate::style::{Style, DEFAULT_STYLE};
 pub use fyrox_animation as generic_animation;
 use fyrox_core::pool::ErasedHandle;
-
-// TODO: Make this part of UserInterface struct.
-pub const COLOR_COAL_BLACK: Color = Color::opaque(10, 10, 10);
-pub const COLOR_DARKEST: Color = Color::opaque(20, 20, 20);
-pub const COLOR_DARKER: Color = Color::opaque(30, 30, 30);
-pub const COLOR_DARK: Color = Color::opaque(40, 40, 40);
-pub const COLOR_PRIMARY: Color = Color::opaque(50, 50, 50);
-pub const COLOR_LIGHT: Color = Color::opaque(70, 70, 70);
-pub const COLOR_LIGHTER: Color = Color::opaque(85, 85, 85);
-pub const COLOR_LIGHTEST: Color = Color::opaque(100, 100, 100);
-pub const COLOR_BRIGHT: Color = Color::opaque(130, 130, 130);
-pub const COLOR_BRIGHTEST: Color = Color::opaque(160, 160, 160);
-pub const COLOR_BRIGHT_BLUE: Color = Color::opaque(80, 118, 178);
-pub const COLOR_DIM_BLUE: Color = Color::opaque(66, 99, 149);
-pub const COLOR_TEXT: Color = Color::opaque(220, 220, 220);
-pub const COLOR_FOREGROUND: Color = Color::WHITE;
-
-pub const BRUSH_COAL_BLACK: Brush = Brush::Solid(COLOR_COAL_BLACK);
-pub const BRUSH_DARKEST: Brush = Brush::Solid(COLOR_DARKEST);
-pub const BRUSH_DARKER: Brush = Brush::Solid(COLOR_DARKER);
-pub const BRUSH_DARK: Brush = Brush::Solid(COLOR_DARK);
-pub const BRUSH_PRIMARY: Brush = Brush::Solid(COLOR_PRIMARY);
-pub const BRUSH_LIGHT: Brush = Brush::Solid(COLOR_LIGHT);
-pub const BRUSH_LIGHTER: Brush = Brush::Solid(COLOR_LIGHTER);
-pub const BRUSH_LIGHTEST: Brush = Brush::Solid(COLOR_LIGHTEST);
-pub const BRUSH_BRIGHT: Brush = Brush::Solid(COLOR_BRIGHT);
-pub const BRUSH_BRIGHTEST: Brush = Brush::Solid(COLOR_BRIGHTEST);
-pub const BRUSH_BRIGHT_BLUE: Brush = Brush::Solid(COLOR_BRIGHT_BLUE);
-pub const BRUSH_DIM_BLUE: Brush = Brush::Solid(COLOR_DIM_BLUE);
-pub const BRUSH_TEXT: Brush = Brush::Solid(COLOR_TEXT);
-pub const BRUSH_FOREGROUND: Brush = Brush::Solid(COLOR_FOREGROUND);
+use fyrox_resource::untyped::ResourceKind;
 
 #[derive(Default, Reflect, Debug)]
 pub(crate) struct RcUiNodeHandleInner {
@@ -691,6 +663,7 @@ pub struct UserInterface {
     captured_node: Handle<UiNode>,
     keyboard_focus_node: Handle<UiNode>,
     cursor_position: Vector2<f32>,
+    pub style: StyleResource,
     #[reflect(hidden)]
     receiver: Receiver<UiMessage>,
     #[reflect(hidden)]
@@ -784,6 +757,7 @@ impl Clone for UserInterface {
             captured_node: self.captured_node,
             keyboard_focus_node: self.keyboard_focus_node,
             cursor_position: self.cursor_position,
+            style: StyleResource::new_ok(ResourceKind::Embedded, Style::default_style()),
             receiver,
             sender,
             stack: self.stack.clone(),
@@ -1070,6 +1044,7 @@ impl UserInterface {
         screen_size: Vector2<f32>,
     ) -> UserInterface {
         let (layout_events_sender, layout_events_receiver) = mpsc::channel();
+        let style = StyleResource::new_ok(ResourceKind::Embedded, Style::default_style());
         let mut ui = UserInterface {
             screen_size,
             sender,
@@ -1079,9 +1054,10 @@ impl UserInterface {
             root_canvas: Handle::NONE,
             nodes: Pool::new(),
             cursor_position: Vector2::new(0.0, 0.0),
-            drawing_context: DrawingContext::new(),
+            drawing_context: DrawingContext::new(style.clone()),
             picked_node: Handle::NONE,
             prev_picked_node: Handle::NONE,
+            style,
             keyboard_focus_node: Handle::NONE,
             stack: Default::default(),
             picking_stack: Default::default(),
@@ -1101,9 +1077,10 @@ impl UserInterface {
             double_click_entries: Default::default(),
             double_click_time_slice: 0.5, // 500 ms is standard in most operating systems.
         };
-        ui.root_canvas = ui.add_node(UiNode::new(Canvas {
-            widget: WidgetBuilder::new().build(),
-        }));
+        let root_node = UiNode::new(Canvas {
+            widget: WidgetBuilder::new().build(&ui.build_ctx()),
+        });
+        ui.root_canvas = ui.add_node(root_node);
         ui.keyboard_focus_node = ui.root_canvas;
         ui
     }
@@ -1400,7 +1377,9 @@ impl UserInterface {
                 self.drawing_context.push_rounded_rect(&bounds, 1.0, 2.0, 6);
                 self.drawing_context.commit(
                     bounds,
-                    Brush::Solid(COLOR_BRIGHT_BLUE),
+                    DEFAULT_STYLE
+                        .resource
+                        .get_or_default(Style::BRUSH_BRIGHT_BLUE),
                     CommandTexture::None,
                     None,
                 );

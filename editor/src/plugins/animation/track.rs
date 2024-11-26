@@ -72,7 +72,7 @@ use crate::{
             widget::{Widget, WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
             BuildContext, Control, Orientation, RcUiNodeHandle, Thickness, UiNode, UserInterface,
-            VerticalAlignment, BRUSH_BRIGHT, BRUSH_TEXT,
+            VerticalAlignment,
         },
         resource::texture::TextureBytes,
     },
@@ -92,6 +92,8 @@ use crate::{
     send_sync_message, utils,
 };
 use fyrox::generic_animation::track::TrackBinding;
+use fyrox::gui::style::resource::StyleResourceExt;
+use fyrox::gui::style::Style;
 use fyrox::renderer::framework::DrawParameters;
 use fyrox::scene::mesh::buffer::{TriangleBuffer, VertexBuffer};
 use fyrox::scene::sound::Samples;
@@ -370,7 +372,7 @@ impl Control for TrackView {
                             self.name_text,
                             MessageDirection::ToWidget,
                             if result.is_ok() {
-                                BRUSH_TEXT
+                                ui.style.get_or_default(Style::BRUSH_TEXT)
                             } else {
                                 Brush::Solid(Color::RED)
                             },
@@ -548,7 +550,7 @@ impl Toolbar {
                     .with_content(
                         ImageBuilder::new(
                             WidgetBuilder::new()
-                                .with_background(BRUSH_BRIGHT)
+                                .with_background(ctx.style.get_or_default(Style::BRUSH_BRIGHT))
                                 .with_width(16.0)
                                 .with_height(16.0),
                         )
@@ -568,7 +570,7 @@ impl Toolbar {
                     .with_content(
                         ImageBuilder::new(
                             WidgetBuilder::new()
-                                .with_background(BRUSH_BRIGHT)
+                                .with_background(ctx.style.get_or_default(Style::BRUSH_BRIGHT))
                                 .with_width(16.0)
                                 .with_height(16.0),
                         )

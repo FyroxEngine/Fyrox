@@ -23,6 +23,8 @@
 
 #![warn(missing_docs)]
 
+use crate::style::resource::StyleResourceExt;
+use crate::style::Style;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -43,7 +45,7 @@ use crate::{
     widget,
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, HorizontalAlignment, Orientation, RestrictionEntry, Thickness, UiNode,
-    UserInterface, VerticalAlignment, BRUSH_BRIGHT, BRUSH_BRIGHT_BLUE, BRUSH_PRIMARY,
+    UserInterface, VerticalAlignment,
 };
 use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
@@ -913,7 +915,7 @@ impl MenuBuilder {
 
         let back = BorderBuilder::new(
             WidgetBuilder::new()
-                .with_background(BRUSH_PRIMARY)
+                .with_background(ctx.style.get_or_default(Style::BRUSH_PRIMARY))
                 .with_child(
                     StackPanelBuilder::new(
                         WidgetBuilder::new().with_children(self.items.iter().cloned()),
@@ -929,7 +931,7 @@ impl MenuBuilder {
                 .widget_builder
                 .with_handle_os_events(true)
                 .with_child(back)
-                .build(),
+                .build(ctx),
             active: false,
             items: ItemsContainer {
                 items: self.items.into(),
@@ -1109,7 +1111,7 @@ impl MenuItemBuilder {
                                     .on_column(3)
                                     .with_width(8.0)
                                     .with_height(8.0)
-                                    .with_foreground(BRUSH_BRIGHT)
+                                    .with_foreground(ctx.style.get_or_default(Style::BRUSH_BRIGHT))
                                     .with_horizontal_alignment(HorizontalAlignment::Center)
                                     .with_vertical_alignment(VerticalAlignment::Center),
                             )
@@ -1145,9 +1147,9 @@ impl MenuItemBuilder {
                 BorderBuilder::new(WidgetBuilder::new())
                     .with_stroke_thickness(Thickness::uniform(0.0)),
             )
-            .with_hover_brush(BRUSH_BRIGHT_BLUE)
-            .with_selected_brush(BRUSH_BRIGHT_BLUE)
-            .with_normal_brush(BRUSH_PRIMARY)
+            .with_hover_brush(ctx.style.get_or_default(Style::BRUSH_BRIGHT_BLUE))
+            .with_selected_brush(ctx.style.get_or_default(Style::BRUSH_BRIGHT_BLUE))
+            .with_normal_brush(ctx.style.get_or_default(Style::BRUSH_PRIMARY))
             .with_pressed_brush(Brush::Solid(Color::TRANSPARENT))
             .with_pressable(false)
             .build(ctx)
@@ -1178,7 +1180,7 @@ impl MenuItemBuilder {
                 .with_handle_os_events(true)
                 .with_preview_messages(true)
                 .with_child(decorator)
-                .build(),
+                .build(ctx),
             items_panel: items_panel.into(),
             items_container: ItemsContainer {
                 items: self.items.into(),

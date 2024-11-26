@@ -509,7 +509,7 @@ impl ScrollViewerBuilder {
                     .add_column(Column::auto())
                     .build(ctx),
                 )
-                .build(),
+                .build(ctx),
             content: self.content,
             v_scroll_bar,
             h_scroll_bar,

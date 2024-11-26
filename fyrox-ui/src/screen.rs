@@ -178,12 +178,12 @@ impl ScreenBuilder {
 
     /// Finishes building a [`Screen`] widget instance and adds it to the user interface, returning a
     /// handle to the instance.
-    pub fn build(self, ui: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let screen = Screen {
-            widget: self.widget_builder.with_need_update(true).build(),
+            widget: self.widget_builder.with_need_update(true).build(ctx),
             last_screen_size: Cell::new(Default::default()),
         };
-        ui.add_node(UiNode::new(screen))
+        ctx.add_node(UiNode::new(screen))
     }
 }
 

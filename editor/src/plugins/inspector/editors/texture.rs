@@ -162,7 +162,7 @@ impl TextureEditorBuilder {
                 .build(ctx);
                 image
             })
-            .build();
+            .build(ctx);
 
         let editor = TextureEditor {
             widget,

@@ -422,7 +422,7 @@ impl NinePatchBuilder {
         self.top_margin_pixel = Some(margin);
         self
     }
-    pub fn build(mut self, ui: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(mut self, ctx: &mut BuildContext) -> Handle<UiNode> {
         if self.widget_builder.background.is_none() {
             self.widget_builder.background = Some(Brush::Solid(Color::WHITE))
         }
@@ -459,7 +459,7 @@ impl NinePatchBuilder {
         };
 
         let grid = NinePatch {
-            widget: self.widget_builder.build(),
+            widget: self.widget_builder.build(ctx),
             texture: self.texture.into(),
             bottom_margin_pixel: bottom_margin_pixel.into(),
             bottom_margin_uv: bottom_margin_uv.into(),
@@ -470,7 +470,7 @@ impl NinePatchBuilder {
             top_margin_pixel: top_margin_pixel.into(),
             top_margin_uv: top_margin_uv.into(),
         };
-        ui.add_node(UiNode::new(grid))
+        ctx.add_node(UiNode::new(grid))
     }
 }
 fn draw_image(

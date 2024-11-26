@@ -174,7 +174,7 @@ impl ColorGradientFieldBuilder {
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let field = ColorGradientField {
-            widget: self.widget_builder.build(),
+            widget: self.widget_builder.build(ctx),
             color_gradient: self.color_gradient,
         };
 
@@ -483,7 +483,7 @@ impl ColorGradientEditorBuilder {
                 .with_preview_messages(true)
                 .with_context_menu(context_menu.clone())
                 .with_child(grid)
-                .build(),
+                .build(ctx),
             points_canvas,
             gradient_field,
             selector_field,
@@ -641,7 +641,7 @@ impl ColorPointBuilder {
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         ctx.add_node(UiNode::new(ColorPoint {
-            widget: self.widget_builder.build(),
+            widget: self.widget_builder.build(ctx),
             location: self.location,
             dragging: false,
         }))
@@ -689,7 +689,7 @@ impl ColorPointsCanvasBuilder {
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         ctx.add_node(UiNode::new(ColorPointsCanvas {
-            widget: self.widget_builder.build(),
+            widget: self.widget_builder.build(ctx),
         }))
     }
 }

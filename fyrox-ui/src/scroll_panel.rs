@@ -399,9 +399,9 @@ impl ScrollPanelBuilder {
     }
 
     /// Finishes scroll panel building and adds it to the user interface.
-    pub fn build(self, ui: &mut BuildContext) -> Handle<UiNode> {
-        ui.add_node(UiNode::new(ScrollPanel {
-            widget: self.widget_builder.build(),
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+        ctx.add_node(UiNode::new(ScrollPanel {
+            widget: self.widget_builder.build(ctx),
             scroll: self.scroll_value,
             vertical_scroll_allowed: self.vertical_scroll_allowed.unwrap_or(true),
             horizontal_scroll_allowed: self.horizontal_scroll_allowed.unwrap_or(false),

@@ -265,7 +265,7 @@ impl ScriptPropertyEditorBuilder {
                 .widget_builder
                 .with_preview_messages(true)
                 .with_child(inspector)
-                .build(),
+                .build(ctx),
             selected_script_uuid: script_uuid,
             variant_selector,
             open_in_ide_button,

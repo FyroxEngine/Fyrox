@@ -62,6 +62,12 @@ pub enum Brush {
     },
 }
 
+impl From<Color> for Brush {
+    fn from(color: Color) -> Self {
+        Brush::Solid(color)
+    }
+}
+
 uuid_provider!(Brush = "eceb3805-73b6-47e0-8582-38a01f7b70e1");
 
 impl Default for Brush {
