@@ -1,0 +1,177 @@
+// Copyright (c) 2019-present Dmitry Stepanov and Fyrox Engine contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+use crate::style::{IntoPrimitive, Style, StyleProperty};
+use fyrox_core::log::Log;
+use fyrox_core::{
+    io::FileLoadError,
+    type_traits::prelude::*,
+    visitor::prelude::*,
+    visitor::{VisitError, Visitor},
+    ImmutableString, Uuid,
+};
+use fyrox_resource::{
+    io::ResourceIo,
+    loader::{BoxedLoaderFuture, LoaderPayload, ResourceLoader},
+    state::LoadError,
+    Resource, ResourceData,
+};
+use std::{
+    any::Any,
+    error::Error,
+    fmt::{Display, Formatter},
+    path::{Path, PathBuf},
+    sync::Arc,
+};
+
+/// An error that may occur during tile set resource loading.
+#[derive(Debug)]
+pub enum StyleResourceError {
+    /// An i/o error has occurred.
+    Io(FileLoadError),
+
+    /// An error that may occur due to version incompatibilities.
+    Visit(VisitError),
+}
+
+impl Display for StyleResourceError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Io(v) => {
+                write!(f, "A file load error has occurred {v:?}")
+            }
+            Self::Visit(v) => {
+                write!(
+                    f,
+                    "An error that may occur due to version incompatibilities. {v:?}"
+                )
+            }
+        }
+    }
+}
+
+impl From<FileLoadError> for StyleResourceError {
+    fn from(e: FileLoadError) -> Self {
+        Self::Io(e)
+    }
+}
+
+impl From<VisitError> for StyleResourceError {
+    fn from(e: VisitError) -> Self {
+        Self::Visit(e)
+    }
+}
+
+impl ResourceData for Style {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn type_uuid(&self) -> Uuid {
+        <Self as TypeUuidProvider>::type_uuid()
+    }
+
+    fn save(&mut self, path: &Path) -> Result<(), Box<dyn Error>> {
+        let mut visitor = Visitor::new();
+        self.visit("Style", &mut visitor)?;
+        visitor.save_binary(path)?;
+        Ok(())
+    }
+
+    fn can_be_saved(&self) -> bool {
+        true
+    }
+}
+
+pub struct StyleLoader;
+
+impl ResourceLoader for StyleLoader {
+    fn extensions(&self) -> &[&str] {
+        &["style"]
+    }
+
+    fn data_type_uuid(&self) -> Uuid {
+        <Style as TypeUuidProvider>::type_uuid()
+    }
+
+    fn load(&self, path: PathBuf, io: Arc<dyn ResourceIo>) -> BoxedLoaderFuture {
+        Box::pin(async move {
+            let tile_set = Style::from_file(&path, io.as_ref())
+                .await
+                .map_err(LoadError::new)?;
+            Ok(LoaderPayload::new(tile_set))
+        })
+    }
+}
+
+pub type StyleResource = Resource<Style>;
+
+pub trait StyleResourceExt {
+    fn set(&self, name: impl Into<ImmutableString>, property: impl Into<StyleProperty>);
+    fn get<P>(&self, name: impl Into<ImmutableString>) -> Option<P>
+    where
+        StyleProperty: IntoPrimitive<P>;
+    fn get_or_default<P>(&self, name: impl Into<ImmutableString>) -> P
+    where
+        P: Default,
+        StyleProperty: IntoPrimitive<P>;
+}
+
+impl StyleResourceExt for StyleResource {
+    fn set(&self, name: impl Into<ImmutableString>, property: impl Into<StyleProperty>) {
+        let mut state = self.state();
+        if let Some(data) = state.data() {
+            data.set(name, property);
+        } else {
+            Log::err("Unable to set style property, because the resource is invalid!")
+        }
+    }
+
+    fn get<P>(&self, name: impl Into<ImmutableString>) -> Option<P>
+    where
+        StyleProperty: IntoPrimitive<P>,
+    {
+        let state = self.state();
+        if let Some(data) = state.data_ref() {
+            data.get(name)
+        } else {
+            Log::err("Unable to get style property, because the resource is invalid!");
+            None
+        }
+    }
+
+    fn get_or_default<P>(&self, name: impl Into<ImmutableString>) -> P
+    where
+        P: Default,
+        StyleProperty: IntoPrimitive<P>,
+    {
+        let state = self.state();
+        if let Some(data) = state.data_ref() {
+            data.get_or_default(name)
+        } else {
+            Log::err("Unable to get style property, because the resource is invalid!");
+            P::default()
+        }
+    }
+}
