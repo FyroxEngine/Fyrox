@@ -29,7 +29,6 @@ pub mod task;
 
 mod hotreload;
 
-use crate::scene::node::constructor::new_node_constructor_container;
 use crate::{
     asset::{
         event::ResourceEvent,
@@ -56,6 +55,7 @@ use crate::{
         constructor::WidgetConstructorContainer,
         font::{loader::FontLoader, Font, BUILT_IN_FONT},
         loader::UserInterfaceLoader,
+        style::{self, resource::StyleLoader, Style},
         UiContainer, UiUpdateSwitches, UserInterface,
     },
     material::{
@@ -80,7 +80,10 @@ use crate::{
         graph::{GraphUpdateSwitches, NodePool},
         mesh::surface::{self, SurfaceData, SurfaceDataLoader},
         navmesh,
-        node::{constructor::NodeConstructorContainer, Node},
+        node::{
+            constructor::{new_node_constructor_container, NodeConstructorContainer},
+            Node,
+        },
         sound::SoundEngine,
         tilemap::{
             brush::{TileMapBrush, TileMapBrushLoader},
@@ -1177,6 +1180,7 @@ pub(crate) fn initialize_resource_manager_loaders(
     state.built_in_resources.add(BUILT_IN_FONT.clone());
 
     state.built_in_resources.add(texture::PLACEHOLDER.clone());
+    state.built_in_resources.add(style::DEFAULT_STYLE.clone());
 
     for material in [
         &*material::STANDARD,
@@ -1213,6 +1217,7 @@ pub(crate) fn initialize_resource_manager_loaders(
     state.constructors_container.add::<TileSet>();
     state.constructors_container.add::<TileMapBrush>();
     state.constructors_container.add::<AnimationTracksData>();
+    state.constructors_container.add::<Style>();
 
     let loaders = &mut state.loaders;
     loaders.set(model_loader);
@@ -1237,6 +1242,7 @@ pub(crate) fn initialize_resource_manager_loaders(
         resource_manager: resource_manager.clone(),
     });
     state.loaders.set(TileMapBrushLoader {});
+    state.loaders.set(StyleLoader);
 }
 
 impl Engine {
