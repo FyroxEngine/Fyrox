@@ -20,6 +20,7 @@
 
 pub mod resource;
 
+use crate::button::Button;
 use crate::{
     brush::Brush,
     style::resource::{StyleResource, StyleResourceError},
@@ -108,6 +109,7 @@ impl Style {
     pub fn default_style() -> Style {
         let mut style = Self::default();
         style
+            // Global
             .set(Self::BRUSH_DARKEST, Brush::Solid(Color::opaque(20, 20, 20)))
             .set(Self::BRUSH_DARKER, Brush::Solid(Color::opaque(30, 30, 30)))
             .set(Self::BRUSH_DARK, Brush::Solid(Color::opaque(40, 40, 40)))
@@ -135,7 +137,10 @@ impl Style {
                 Brush::Solid(Color::opaque(66, 99, 149)),
             )
             .set(Self::BRUSH_TEXT, Brush::Solid(Color::opaque(220, 220, 220)))
-            .set(Self::BRUSH_FOREGROUND, Brush::Solid(Color::WHITE));
+            .set(Self::BRUSH_FOREGROUND, Brush::Solid(Color::WHITE))
+            // Button
+            .set(Button::CORNER_RADIUS, 4.0f32)
+            .set(Button::BORDER_THICKNESS, Thickness::uniform(1.0));
         style
     }
 

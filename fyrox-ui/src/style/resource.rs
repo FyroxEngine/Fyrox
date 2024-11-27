@@ -132,6 +132,9 @@ pub trait StyleResourceExt {
     fn get<P>(&self, name: impl Into<ImmutableString>) -> Option<P>
     where
         StyleProperty: IntoPrimitive<P>;
+    fn get_or<P>(&self, name: impl Into<ImmutableString>, default: P) -> P
+    where
+        StyleProperty: IntoPrimitive<P>;
     fn get_or_default<P>(&self, name: impl Into<ImmutableString>) -> P
     where
         P: Default,
@@ -159,6 +162,13 @@ impl StyleResourceExt for StyleResource {
             Log::err("Unable to get style property, because the resource is invalid!");
             None
         }
+    }
+
+    fn get_or<P>(&self, name: impl Into<ImmutableString>, default: P) -> P
+    where
+        StyleProperty: IntoPrimitive<P>,
+    {
+        self.get(name).unwrap_or(default)
     }
 
     fn get_or_default<P>(&self, name: impl Into<ImmutableString>) -> P

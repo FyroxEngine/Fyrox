@@ -22,8 +22,7 @@
 
 #![warn(missing_docs)]
 
-use crate::style::resource::StyleResourceExt;
-use crate::style::Style;
+use crate::border::BorderMessage;
 use crate::{
     border::BorderBuilder,
     core::{
@@ -34,6 +33,7 @@ use crate::{
     define_constructor,
     font::FontResource,
     message::{KeyCode, MessageDirection, UiMessage},
+    style::{resource::StyleResourceExt, Style},
     text::TextBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
@@ -136,6 +136,13 @@ pub struct Button {
     pub repeat_clicks_on_hold: InheritableVariable<bool>,
 }
 
+impl Button {
+    /// A name of style property, that defines corner radius of a button.
+    pub const CORNER_RADIUS: &'static str = "Button.CornerRadius";
+    /// A name of style property, that defines border thickness of a button.
+    pub const BORDER_THICKNESS: &'static str = "Button.BorderThickness";
+}
+
 impl ConstructorProvider<UiNode, UserInterface> for Button {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
         GraphNodeConstructor::new::<Self>()
@@ -174,40 +181,53 @@ impl Control for Button {
         self.widget.handle_routed_message(ui, message);
 
         if let Some(msg) = message.data::<WidgetMessage>() {
-            if message.destination() == self.handle()
-                || self.has_descendant(message.destination(), ui)
-            {
-                match msg {
-                    WidgetMessage::MouseDown { .. }
-                    | WidgetMessage::TouchStarted { .. }
-                    | WidgetMessage::TouchMoved { .. } => {
-                        ui.capture_mouse(self.handle);
-                        message.set_handled(true);
-                        if *self.repeat_clicks_on_hold {
-                            self.repeat_timer.replace(Some(*self.repeat_interval));
+            if message.destination() == self.handle() {
+                if self.has_descendant(message.destination(), ui) {
+                    match msg {
+                        WidgetMessage::MouseDown { .. }
+                        | WidgetMessage::TouchStarted { .. }
+                        | WidgetMessage::TouchMoved { .. } => {
+                            ui.capture_mouse(self.handle);
+                            message.set_handled(true);
+                            if *self.repeat_clicks_on_hold {
+                                self.repeat_timer.replace(Some(*self.repeat_interval));
+                            }
                         }
-                    }
-                    WidgetMessage::MouseUp { .. } | WidgetMessage::TouchEnded { .. } => {
-                        ui.send_message(ButtonMessage::click(
-                            self.handle(),
-                            MessageDirection::FromWidget,
-                        ));
-                        ui.release_mouse_capture();
-                        message.set_handled(true);
-                        self.repeat_timer.replace(None);
-                    }
-                    WidgetMessage::KeyDown(key_code) => {
-                        if !message.handled()
-                            && (*key_code == KeyCode::Enter || *key_code == KeyCode::Space)
-                        {
+                        WidgetMessage::MouseUp { .. } | WidgetMessage::TouchEnded { .. } => {
                             ui.send_message(ButtonMessage::click(
-                                self.handle,
+                                self.handle(),
                                 MessageDirection::FromWidget,
                             ));
+                            ui.release_mouse_capture();
                             message.set_handled(true);
+                            self.repeat_timer.replace(None);
                         }
+                        WidgetMessage::KeyDown(key_code) => {
+                            if !message.handled()
+                                && (*key_code == KeyCode::Enter || *key_code == KeyCode::Space)
+                            {
+                                ui.send_message(ButtonMessage::click(
+                                    self.handle,
+                                    MessageDirection::FromWidget,
+                                ));
+                                message.set_handled(true);
+                            }
+                        }
+                        _ => (),
                     }
-                    _ => (),
+                }
+
+                if let WidgetMessage::Style(style) = msg {
+                    ui.send_message(BorderMessage::stroke_thickness(
+                        *self.decorator,
+                        MessageDirection::ToWidget,
+                        style.get_or(Self::BORDER_THICKNESS, Thickness::uniform(1.0)),
+                    ));
+                    ui.send_message(BorderMessage::corner_radius(
+                        *self.decorator,
+                        MessageDirection::ToWidget,
+                        style.get_or(Self::CORNER_RADIUS, 4.0f32),
+                    ));
                 }
             }
         } else if let Some(msg) = message.data::<ButtonMessage>() {
@@ -395,8 +415,11 @@ impl ButtonBuilder {
                         .with_child(content),
                 )
                 .with_pad_by_corner_radius(false)
-                .with_corner_radius(4.0)
-                .with_stroke_thickness(Thickness::uniform(1.0)),
+                .with_corner_radius(ctx.style.get_or(Button::CORNER_RADIUS, 4.0f32))
+                .with_stroke_thickness(
+                    ctx.style
+                        .get_or(Button::BORDER_THICKNESS, Thickness::uniform(1.0)),
+                ),
             )
             .with_normal_brush(ctx.style.get_or_default(Style::BRUSH_LIGHT))
             .with_hover_brush(ctx.style.get_or_default(Style::BRUSH_LIGHTER))

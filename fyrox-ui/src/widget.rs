@@ -23,6 +23,7 @@
 
 #![warn(missing_docs)]
 
+use crate::style::resource::StyleResource;
 use crate::{
     brush::Brush,
     core::{
@@ -431,6 +432,9 @@ pub enum WidgetMessage {
     ///
     /// Direction: **To UI**.
     SortChildren(SortingPredicate),
+
+    /// Applies a style to the widget.
+    Style(StyleResource),
 }
 
 impl WidgetMessage {
@@ -721,6 +725,11 @@ impl WidgetMessage {
     define_constructor!(
         /// Creates [`WidgetMessage::SortChildren`] message.
         WidgetMessage:SortChildren => fn sort_children(SortingPredicate), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::Style`] message.
+        WidgetMessage:Style => fn style(StyleResource), layout: false
     );
 }
 
