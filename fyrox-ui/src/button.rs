@@ -181,42 +181,44 @@ impl Control for Button {
         self.widget.handle_routed_message(ui, message);
 
         if let Some(msg) = message.data::<WidgetMessage>() {
-            if message.destination() == self.handle() {
-                if self.has_descendant(message.destination(), ui) {
-                    match msg {
-                        WidgetMessage::MouseDown { .. }
-                        | WidgetMessage::TouchStarted { .. }
-                        | WidgetMessage::TouchMoved { .. } => {
-                            ui.capture_mouse(self.handle);
-                            message.set_handled(true);
-                            if *self.repeat_clicks_on_hold {
-                                self.repeat_timer.replace(Some(*self.repeat_interval));
-                            }
+            if message.destination() == self.handle()
+                || self.has_descendant(message.destination(), ui)
+            {
+                match msg {
+                    WidgetMessage::MouseDown { .. }
+                    | WidgetMessage::TouchStarted { .. }
+                    | WidgetMessage::TouchMoved { .. } => {
+                        ui.capture_mouse(self.handle);
+                        message.set_handled(true);
+                        if *self.repeat_clicks_on_hold {
+                            self.repeat_timer.replace(Some(*self.repeat_interval));
                         }
-                        WidgetMessage::MouseUp { .. } | WidgetMessage::TouchEnded { .. } => {
+                    }
+                    WidgetMessage::MouseUp { .. } | WidgetMessage::TouchEnded { .. } => {
+                        ui.send_message(ButtonMessage::click(
+                            self.handle(),
+                            MessageDirection::FromWidget,
+                        ));
+                        ui.release_mouse_capture();
+                        message.set_handled(true);
+                        self.repeat_timer.replace(None);
+                    }
+                    WidgetMessage::KeyDown(key_code) => {
+                        if !message.handled()
+                            && (*key_code == KeyCode::Enter || *key_code == KeyCode::Space)
+                        {
                             ui.send_message(ButtonMessage::click(
-                                self.handle(),
+                                self.handle,
                                 MessageDirection::FromWidget,
                             ));
-                            ui.release_mouse_capture();
                             message.set_handled(true);
-                            self.repeat_timer.replace(None);
                         }
-                        WidgetMessage::KeyDown(key_code) => {
-                            if !message.handled()
-                                && (*key_code == KeyCode::Enter || *key_code == KeyCode::Space)
-                            {
-                                ui.send_message(ButtonMessage::click(
-                                    self.handle,
-                                    MessageDirection::FromWidget,
-                                ));
-                                message.set_handled(true);
-                            }
-                        }
-                        _ => (),
                     }
+                    _ => (),
                 }
+            }
 
+            if message.destination() == self.handle() {
                 if let WidgetMessage::Style(style) = msg {
                     ui.send_message(BorderMessage::stroke_thickness(
                         *self.decorator,
