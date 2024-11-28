@@ -151,6 +151,7 @@ impl<T: NumericType> NumericUpDownMessage<T> {
             data: Box::new(precision),
             destination,
             direction,
+            routing_strategy: Default::default(),
             perform_layout: Default::default(),
             flags: 0,
         }

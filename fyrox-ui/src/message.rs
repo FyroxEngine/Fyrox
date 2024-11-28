@@ -107,6 +107,7 @@ macro_rules! define_constructor {
                 data: Box::new($inner::$inner_var),
                 destination,
                 direction,
+                routing_strategy: Default::default(),
                 perform_layout: std::cell::Cell::new($perform_layout),
                 flags: 0
             }
@@ -122,6 +123,7 @@ macro_rules! define_constructor {
                 data: Box::new($inner::$inner_var(value)),
                 destination,
                 direction,
+                routing_strategy: Default::default(),
                 perform_layout: std::cell::Cell::new($perform_layout),
                 flags: 0
             }
@@ -137,6 +139,7 @@ macro_rules! define_constructor {
                 data: Box::new($inner::$inner_var { $($params),+ }),
                 destination,
                 direction,
+                routing_strategy: Default::default(),
                 perform_layout: std::cell::Cell::new($perform_layout),
                 flags: 0
             }
@@ -205,6 +208,18 @@ where
     fn clone_box(&self) -> Box<dyn MessageData> {
         Box::new(self.clone())
     }
+}
+
+/// Defines a way of how the message will behave in the widget tree after it was delivered to
+/// the destination node.
+#[derive(Default, Copy, Clone, Debug, PartialEq)]
+pub enum RoutingStrategy {
+    /// A message will be passed to every ancestor widget in the hierarchy until the root.
+    #[default]
+    BubbleUp,
+    /// A message will be passed directly to a widget directly and won't be passed to any other
+    /// widget (message preview mechanism will still be used).
+    Direct,
 }
 
 /// Message is basic communication element that is used to deliver information to widget or to user code.
@@ -289,6 +304,10 @@ pub struct UiMessage {
     /// Indicates the direction of the message. See [`MessageDirection`] docs for more info.
     pub direction: MessageDirection,
 
+    /// Defines a way of how the message will behave in the widget tree after it was delivered to
+    /// the destination node. Default is bubble routing. See [`RoutingStrategy`] for more info.
+    pub routing_strategy: RoutingStrategy,
+
     /// Whether or not message requires layout to be calculated first.
     ///
     /// ## Motivation
@@ -333,6 +352,7 @@ impl Clone for UiMessage {
             data: self.data.clone_box(),
             destination: self.destination,
             direction: self.direction,
+            routing_strategy: self.routing_strategy,
             perform_layout: self.perform_layout.clone(),
             flags: self.flags,
         }
@@ -344,6 +364,7 @@ impl PartialEq for UiMessage {
         self.handled == other.handled
             && self.data.compare(&*other.data)
             && self.destination == other.destination
+            && self.routing_strategy == other.routing_strategy
             && self.direction == other.direction
             && self.perform_layout == other.perform_layout
             && self.flags == other.flags
@@ -358,6 +379,7 @@ impl UiMessage {
             data: Box::new(data),
             destination: Default::default(),
             direction: MessageDirection::ToWidget,
+            routing_strategy: Default::default(),
             perform_layout: Cell::new(false),
             flags: 0,
         }
@@ -387,6 +409,12 @@ impl UiMessage {
         self
     }
 
+    /// Sets the desired routing strategy.
+    pub fn with_routing_strategy(mut self, routing_strategy: RoutingStrategy) -> Self {
+        self.routing_strategy = routing_strategy;
+        self
+    }
+
     /// Sets the desired flags of the message.
     pub fn with_flags(mut self, flags: u64) -> Self {
         self.flags = flags;
@@ -405,6 +433,7 @@ impl UiMessage {
             data: self.data.clone_box(),
             destination: self.destination,
             direction: self.direction.reverse(),
+            routing_strategy: self.routing_strategy,
             perform_layout: self.perform_layout.clone(),
             flags: self.flags,
         }

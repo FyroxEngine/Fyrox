@@ -329,6 +329,7 @@ pub use node::*;
 pub use thickness::*;
 
 use crate::constructor::new_widget_constructor_container;
+use crate::message::RoutingStrategy;
 use crate::style::resource::{StyleResource, StyleResourceExt};
 use crate::style::{Style, DEFAULT_STYLE};
 pub use fyrox_animation as generic_animation;
@@ -1778,7 +1779,14 @@ impl UserInterface {
                     }
                 }
 
-                self.bubble_message(&mut message);
+                match message.routing_strategy {
+                    RoutingStrategy::BubbleUp => self.bubble_message(&mut message),
+                    RoutingStrategy::Direct => {
+                        let (ticket, mut node) = self.nodes.take_reserve(message.destination());
+                        node.handle_routed_message(self, &mut message);
+                        self.nodes.put_back(ticket, node);
+                    }
+                }
 
                 if let Some(msg) = message.data::<WidgetMessage>() {
                     match msg {
