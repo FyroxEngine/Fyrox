@@ -319,7 +319,7 @@ impl EnumPropertyEditorBuilder {
                 .widget_builder
                 .with_preview_messages(true)
                 .with_child(inspector)
-                .build(),
+                .build(ctx),
             variant_selector: self.variant_selector,
             inspector,
             definition: definition.clone(),

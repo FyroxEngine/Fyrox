@@ -28,6 +28,7 @@
 //! using [`RigidBody::wake_up`]. By default any external action does **not** wakes up rigid body.
 //! You can also explicitly tell to rigid body that it cannot sleep, by calling
 //! [`RigidBody::set_can_sleep`] with `false` value.
+use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
         algebra::{Matrix4, Vector3},
@@ -50,6 +51,7 @@ use crate::{
     },
 };
 use fyrox_core::uuid_provider;
+use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::{BaseSceneGraph, SceneGraph};
 use rapier3d::{dynamics, prelude::RigidBodyHandle};
 use std::{
@@ -523,6 +525,18 @@ impl RigidBody {
             || self.dominance.need_sync()
             || self.gravity_scale.need_sync()
             || self.reset_forces.get()
+    }
+}
+
+impl ConstructorProvider<Node, Graph> for RigidBody {
+    fn constructor() -> NodeConstructor {
+        NodeConstructor::new::<Self>()
+            .with_variant("Rigid Body", |_| {
+                RigidBodyBuilder::new(BaseBuilder::new().with_name("Rigid Body"))
+                    .build_node()
+                    .into()
+            })
+            .with_group("Physics")
     }
 }
 

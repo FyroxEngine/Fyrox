@@ -18,34 +18,32 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::plugins::tilemap::tileset::TileSetTileView;
-use crate::{
-    absm::selectable::{Selectable, SelectableMessage},
-    fyrox::{
-        core::{
-            algebra::{Matrix3, Point2, Vector2},
-            color::Color,
-            math::{OptionRect, Rect},
-            pool::Handle,
-            reflect::prelude::*,
-            type_traits::prelude::*,
-            visitor::prelude::*,
-        },
-        graph::{BaseSceneGraph, SceneGraph},
-        gui::{
-            brush::Brush,
-            define_constructor, define_widget_deref,
-            draw::{CommandTexture, Draw, DrawingContext},
-            message::{KeyCode, MessageDirection, MouseButton, UiMessage},
-            widget::{Widget, WidgetBuilder, WidgetMessage},
-            BuildContext, Control, UiNode, UserInterface,
-        },
-        scene::tilemap::{
-            brush::{BrushTile, TileMapBrush},
-            tileset::TileSetResource,
-        },
+use crate::fyrox::{
+    core::{
+        algebra::{Matrix3, Point2, Vector2},
+        color::Color,
+        math::{OptionRect, Rect},
+        pool::Handle,
+        reflect::prelude::*,
+        type_traits::prelude::*,
+        visitor::prelude::*,
+    },
+    graph::{BaseSceneGraph, SceneGraph},
+    gui::{
+        brush::Brush,
+        define_constructor, define_widget_deref,
+        draw::{CommandTexture, Draw, DrawingContext},
+        message::{KeyCode, MessageDirection, MouseButton, UiMessage},
+        widget::{Widget, WidgetBuilder, WidgetMessage},
+        BuildContext, Control, UiNode, UserInterface,
+    },
+    scene::tilemap::{
+        brush::{BrushTile, TileMapBrush},
+        tileset::TileSetResource,
     },
 };
+use crate::plugins::absm::selectable::{Selectable, SelectableMessage};
+use crate::plugins::tilemap::tileset::TileSetTileView;
 use fyrox::scene::tilemap::tileset::TileDefinitionHandle;
 use std::ops::{Deref, DerefMut};
 
@@ -513,7 +511,7 @@ impl PaletteWidgetBuilder {
                 .with_allow_drop(true)
                 .with_clip_to_bounds(false)
                 .with_children(self.tiles.iter().cloned())
-                .build(),
+                .build(ctx),
             tiles: self.tiles,
             view_position: Default::default(),
             zoom: 1.0,
@@ -640,7 +638,7 @@ impl BrushTileViewBuilder {
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         ctx.add_node(UiNode::new(BrushTileView {
-            widget: self.widget_builder.build(),
+            widget: self.widget_builder.build(ctx),
             selectable: Default::default(),
             definition_handle: self.definition_id,
             local_position: self.local_position,

@@ -22,6 +22,7 @@
 
 #![warn(missing_docs)]
 
+use crate::border::BorderMessage;
 use crate::{
     border::BorderBuilder,
     core::{
@@ -32,11 +33,13 @@ use crate::{
     define_constructor,
     font::FontResource,
     message::{KeyCode, MessageDirection, UiMessage},
+    style::{resource::StyleResourceExt, Style},
     text::TextBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
-    VerticalAlignment, BRUSH_DARKER, BRUSH_LIGHT, BRUSH_LIGHTER, BRUSH_LIGHTEST,
+    VerticalAlignment,
 };
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::{
     cell::RefCell,
     ops::{Deref, DerefMut},
@@ -133,6 +136,30 @@ pub struct Button {
     pub repeat_clicks_on_hold: InheritableVariable<bool>,
 }
 
+impl Button {
+    /// A name of style property, that defines corner radius of a button.
+    pub const CORNER_RADIUS: &'static str = "Button.CornerRadius";
+    /// A name of style property, that defines border thickness of a button.
+    pub const BORDER_THICKNESS: &'static str = "Button.BorderThickness";
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for Button {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Button", |ui| {
+                ButtonBuilder::new(
+                    WidgetBuilder::new()
+                        .with_width(100.0)
+                        .with_height(20.0)
+                        .with_name("Button"),
+                )
+                .build(&mut ui.build_ctx())
+                .into()
+            })
+            .with_group("Input")
+    }
+}
+
 crate::define_widget_deref!(Button);
 
 impl Control for Button {
@@ -188,6 +215,21 @@ impl Control for Button {
                         }
                     }
                     _ => (),
+                }
+            }
+
+            if message.destination() == self.handle() {
+                if let WidgetMessage::Style(style) = msg {
+                    ui.send_message(BorderMessage::stroke_thickness(
+                        *self.decorator,
+                        MessageDirection::ToWidget,
+                        style.get_or(Self::BORDER_THICKNESS, Thickness::uniform(1.0)),
+                    ));
+                    ui.send_message(BorderMessage::corner_radius(
+                        *self.decorator,
+                        MessageDirection::ToWidget,
+                        style.get_or(Self::CORNER_RADIUS, 4.0f32),
+                    ));
                 }
             }
         } else if let Some(msg) = message.data::<ButtonMessage>() {
@@ -367,21 +409,23 @@ impl ButtonBuilder {
     /// Finishes building a button.
     pub fn build_node(self, ctx: &mut BuildContext) -> UiNode {
         let content = self.content.map(|c| c.build(ctx)).unwrap_or_default();
-
         let back = self.back.unwrap_or_else(|| {
             DecoratorBuilder::new(
                 BorderBuilder::new(
                     WidgetBuilder::new()
-                        .with_foreground(BRUSH_DARKER)
+                        .with_foreground(ctx.style.get_or_default(Style::BRUSH_DARKER))
                         .with_child(content),
                 )
                 .with_pad_by_corner_radius(false)
-                .with_corner_radius(4.0)
-                .with_stroke_thickness(Thickness::uniform(1.0)),
+                .with_corner_radius(ctx.style.get_or(Button::CORNER_RADIUS, 4.0f32))
+                .with_stroke_thickness(
+                    ctx.style
+                        .get_or(Button::BORDER_THICKNESS, Thickness::uniform(1.0)),
+                ),
             )
-            .with_normal_brush(BRUSH_LIGHT)
-            .with_hover_brush(BRUSH_LIGHTER)
-            .with_pressed_brush(BRUSH_LIGHTEST)
+            .with_normal_brush(ctx.style.get_or_default(Style::BRUSH_LIGHT))
+            .with_hover_brush(ctx.style.get_or_default(Style::BRUSH_LIGHTER))
+            .with_pressed_brush(ctx.style.get_or_default(Style::BRUSH_LIGHTEST))
             .build(ctx)
         });
 
@@ -395,7 +439,7 @@ impl ButtonBuilder {
                 .with_accepts_input(true)
                 .with_need_update(true)
                 .with_child(back)
-                .build(),
+                .build(ctx),
             decorator: back.into(),
             content: content.into(),
             repeat_interval: self.repeat_interval.into(),
@@ -408,5 +452,16 @@ impl ButtonBuilder {
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let node = self.build_node(ctx);
         ctx.add_node(node)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::button::ButtonBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| ButtonBuilder::new(WidgetBuilder::new()).build(ctx));
     }
 }

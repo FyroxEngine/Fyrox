@@ -19,7 +19,6 @@
 // SOFTWARE.
 
 use crate::{
-    animation::AnimationEditor,
     export::ExportWindow,
     fyrox::{
         core::{algebra::Vector2, pool::Handle},
@@ -39,32 +38,27 @@ use crate::{
     send_sync_message,
     settings::Settings,
     stats::StatisticsWindow,
-    utils::ragdoll::RagdollWizard,
-    AbsmEditor, CurveEditorWindow, Engine, Mode, SceneSettingsWindow,
+    Engine, Mode, SceneSettingsWindow,
 };
 use std::path::PathBuf;
 
-pub mod animation;
 pub mod create;
-pub mod dim2;
 pub mod edit;
 pub mod file;
 pub mod help;
-pub mod physics;
-pub mod physics2d;
 pub mod ui;
 pub mod utils;
 pub mod view;
 
 pub struct Menu {
     pub menu: Handle<UiNode>,
-    create_entity_menu: CreateEntityRootMenu,
-    edit_menu: EditMenu,
+    pub create_entity_menu: CreateEntityRootMenu,
+    pub edit_menu: EditMenu,
     pub file_menu: FileMenu,
-    view_menu: ViewMenu,
-    message_sender: MessageSender,
-    utils_menu: UtilsMenu,
-    help_menu: HelpMenu,
+    pub view_menu: ViewMenu,
+    pub message_sender: MessageSender,
+    pub utils_menu: UtilsMenu,
+    pub help_menu: HelpMenu,
 }
 
 pub struct Panels<'b> {
@@ -78,12 +72,7 @@ pub struct Panels<'b> {
     pub world_outliner_window: Handle<UiNode>,
     pub asset_window: Handle<UiNode>,
     pub configurator_window: Handle<UiNode>,
-    pub path_fixer: Handle<UiNode>,
-    pub curve_editor: &'b CurveEditorWindow,
-    pub absm_editor: &'b AbsmEditor,
     pub scene_settings: &'b SceneSettingsWindow,
-    pub animation_editor: &'b AnimationEditor,
-    pub ragdoll_wizard: &'b RagdollWizard,
     pub export_window: &'b mut Option<ExportWindow>,
     pub statistics_window: &'b mut Option<StatisticsWindow>,
 }
@@ -133,7 +122,11 @@ impl Menu {
     pub fn new(engine: &mut Engine, message_sender: MessageSender, settings: &Settings) -> Self {
         let file_menu = FileMenu::new(engine, settings);
         let ctx = &mut engine.user_interfaces.first_mut().build_ctx();
-        let create_entity_menu = CreateEntityRootMenu::new(ctx);
+        let create_entity_menu = CreateEntityRootMenu::new(
+            &engine.serialization_context,
+            &engine.widget_constructors,
+            ctx,
+        );
         let edit_menu = EditMenu::new(ctx);
         let view_menu = ViewMenu::new(ctx);
         let utils_menu = UtilsMenu::new(ctx);

@@ -21,7 +21,12 @@
 //! Contains all structures and methods to create and manage mesh scene graph nodes. See [`Mesh`] docs for more info
 //! and usage examples.
 
-use crate::material::{MaterialResourceBinding, MaterialResourceExtension, MaterialTextureBinding};
+use crate::material::{
+    Material, MaterialResourceBinding, MaterialResourceExtension, MaterialTextureBinding,
+};
+use crate::resource::texture::PLACEHOLDER;
+use crate::scene::mesh::surface::SurfaceBuilder;
+use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector3, Vector4},
@@ -57,6 +62,7 @@ use crate::{
     },
 };
 use fxhash::{FxHashMap, FxHasher};
+use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_resource::untyped::ResourceKind;
 use std::{
     cell::Cell,
@@ -536,6 +542,64 @@ fn extend_aabb_from_vertex_buffer(
         for i in 0..vertex_buffer.vertex_count() as usize {
             bounding_box.add_point(*position_attribute_view.get(i).unwrap());
         }
+    }
+}
+
+fn placeholder_material() -> MaterialResource {
+    let mut material = Material::standard();
+    material.bind("diffuseTexture", PLACEHOLDER.resource());
+    MaterialResource::new_ok(ResourceKind::Embedded, material)
+}
+
+impl ConstructorProvider<Node, Graph> for Mesh {
+    fn constructor() -> NodeConstructor {
+        NodeConstructor::new::<Self>()
+            .with_variant("Empty", |_| {
+                MeshBuilder::new(BaseBuilder::new()).build_node().into()
+            })
+            .with_variant("Cube", |_| {
+                MeshBuilder::new(BaseBuilder::new().with_name("Cube"))
+                    .with_surfaces(vec![SurfaceBuilder::new(surface::CUBE.resource.clone())
+                        .with_material(placeholder_material())
+                        .build()])
+                    .build_node()
+                    .into()
+            })
+            .with_variant("Cone", |_| {
+                MeshBuilder::new(BaseBuilder::new().with_name("Cone"))
+                    .with_surfaces(vec![SurfaceBuilder::new(surface::CONE.resource.clone())
+                        .with_material(placeholder_material())
+                        .build()])
+                    .build_node()
+                    .into()
+            })
+            .with_variant("Cylinder", |_| {
+                MeshBuilder::new(BaseBuilder::new().with_name("Cylinder"))
+                    .with_surfaces(vec![SurfaceBuilder::new(
+                        surface::CYLINDER.resource.clone(),
+                    )
+                    .with_material(placeholder_material())
+                    .build()])
+                    .build_node()
+                    .into()
+            })
+            .with_variant("Sphere", |_| {
+                MeshBuilder::new(BaseBuilder::new().with_name("Sphere"))
+                    .with_surfaces(vec![SurfaceBuilder::new(surface::SPHERE.resource.clone())
+                        .with_material(placeholder_material())
+                        .build()])
+                    .build_node()
+                    .into()
+            })
+            .with_variant("Quad", |_| {
+                MeshBuilder::new(BaseBuilder::new().with_name("Quad"))
+                    .with_surfaces(vec![SurfaceBuilder::new(surface::QUAD.resource.clone())
+                        .with_material(placeholder_material())
+                        .build()])
+                    .build_node()
+                    .into()
+            })
+            .with_group("Mesh")
     }
 }
 

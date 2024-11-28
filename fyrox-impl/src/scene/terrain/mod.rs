@@ -76,7 +76,9 @@ pub mod brushstroke;
 mod geometry;
 mod quadtree;
 
+use crate::scene::node::constructor::NodeConstructor;
 pub use brushstroke::*;
+use fyrox_graph::constructor::ConstructorProvider;
 
 /// Current implementation version marker.
 pub const VERSION: u8 = 2;
@@ -2507,35 +2509,27 @@ fn validate_block_size(x: u32, size: Vector2<u32>) -> Result<(), String> {
     ))
 }
 
-impl NodeTrait for Terrain {
-    fn validate(&self, _: &Scene) -> Result<(), String> {
-        let h_size = self.height_map_size();
-        validate_height_map_size(h_size.x, h_size)?;
-        validate_height_map_size(h_size.y, h_size)?;
-        let b_size = self.block_size();
-        validate_block_size(b_size.x, b_size)?;
-        validate_block_size(b_size.y, b_size)?;
-        if b_size.x - 1 > h_size.x - 3 {
-            return Err(format!(
-                "Block size ({}, {}): {} is too large for height map. Consider: {}",
-                b_size.x,
-                b_size.y,
-                b_size.x,
-                h_size.x - 2
-            ));
-        }
-        if b_size.y - 1 > h_size.y - 3 {
-            return Err(format!(
-                "Block size ({}, {}): {} is too large for height map. Consider: {}",
-                b_size.x,
-                b_size.y,
-                b_size.y,
-                h_size.y - 2
-            ));
-        }
-        Ok(())
-    }
+fn create_terrain_layer_material() -> MaterialResource {
+    let mut material = Material::standard_terrain();
+    material.set_property("texCoordScale", Vector2::new(10.0, 10.0));
+    MaterialResource::new_ok(Default::default(), material)
+}
 
+impl ConstructorProvider<Node, Graph> for Terrain {
+    fn constructor() -> NodeConstructor {
+        NodeConstructor::new::<Self>().with_variant("Terrain", |_| {
+            TerrainBuilder::new(BaseBuilder::new().with_name("Terrain"))
+                .with_layers(vec![Layer {
+                    material: create_terrain_layer_material(),
+                    ..Default::default()
+                }])
+                .build_node()
+                .into()
+        })
+    }
+}
+
+impl NodeTrait for Terrain {
     /// Returns pre-cached bounding axis-aligned bounding box of the terrain. Keep in mind that
     /// if you're modified terrain, bounding box will be recalculated and it is not fast.
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
@@ -2721,6 +2715,34 @@ impl NodeTrait for Terrain {
         for chunk in self.chunks.iter() {
             chunk.debug_draw(&self.global_transform(), ctx)
         }
+    }
+
+    fn validate(&self, _: &Scene) -> Result<(), String> {
+        let h_size = self.height_map_size();
+        validate_height_map_size(h_size.x, h_size)?;
+        validate_height_map_size(h_size.y, h_size)?;
+        let b_size = self.block_size();
+        validate_block_size(b_size.x, b_size)?;
+        validate_block_size(b_size.y, b_size)?;
+        if b_size.x - 1 > h_size.x - 3 {
+            return Err(format!(
+                "Block size ({}, {}): {} is too large for height map. Consider: {}",
+                b_size.x,
+                b_size.y,
+                b_size.x,
+                h_size.x - 2
+            ));
+        }
+        if b_size.y - 1 > h_size.y - 3 {
+            return Err(format!(
+                "Block size ({}, {}): {} is too large for height map. Consider: {}",
+                b_size.x,
+                b_size.y,
+                b_size.y,
+                h_size.y - 2
+            ));
+        }
+        Ok(())
     }
 }
 

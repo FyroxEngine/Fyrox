@@ -38,6 +38,7 @@ use crate::{
 };
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::{
     ops::{Deref, DerefMut},
     path::Path,
@@ -92,6 +93,18 @@ pub struct PathEditor {
     pub selector: InheritableVariable<Handle<UiNode>>,
     /// Current path.
     pub path: InheritableVariable<PathBuf>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for PathEditor {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Path Editor", |ui| {
+                PathEditorBuilder::new(WidgetBuilder::new().with_name("Path Editor"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Input")
+    }
 }
 
 crate::define_widget_deref!(PathEditor);
@@ -222,12 +235,23 @@ impl PathEditorBuilder {
                 .widget_builder
                 .with_child(grid)
                 .with_preview_messages(true)
-                .build(),
+                .build(ctx),
             text_field: text_field.into(),
             select: select.into(),
             selector: Default::default(),
             path: self.path.into(),
         };
         ctx.add_node(UiNode::new(canvas))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::path::PathEditorBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| PathEditorBuilder::new(WidgetBuilder::new()).build(ctx));
     }
 }

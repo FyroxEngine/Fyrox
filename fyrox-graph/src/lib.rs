@@ -22,6 +22,8 @@
 
 //! Graph utilities and common algorithms.
 
+pub mod constructor;
+
 use fxhash::FxHashMap;
 use fyrox_core::pool::ErasedHandle;
 use fyrox_core::{
@@ -606,6 +608,12 @@ pub trait SceneGraphNode: AbstractSceneNode + Clone + 'static {
         ComponentProvider::query_component_mut(self, TypeId::of::<T>())
             .and_then(|c| c.downcast_mut())
     }
+
+    /// Checks if the node has a component of given type.
+    #[inline]
+    fn has_component<T: Any>(&self) -> bool {
+        self.component_ref::<T>().is_some()
+    }
 }
 
 pub trait PrefabData: TypedResourceData + 'static {
@@ -804,6 +812,16 @@ pub trait SceneGraph: BaseSceneGraph {
         self.try_get_mut(handle)
             .and_then(|n| n.query_component_mut(TypeId::of::<T>()))
             .and_then(|c| c.downcast_mut())
+    }
+
+    /// Tries to borrow a node by the given handle and checks if it has a component of the specified
+    /// type.
+    #[inline]
+    fn has_component<T>(&self, handle: Handle<Self::Node>) -> bool
+    where
+        T: 'static,
+    {
+        self.try_get_of_type::<T>(handle).is_some()
     }
 
     /// Searches for a node down the tree starting from the specified node using the specified closure. Returns a tuple

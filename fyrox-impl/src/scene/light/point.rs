@@ -37,6 +37,8 @@
 //! can easily ruin performance of your game, especially on low-end hardware. Light
 //! scattering is relatively heavy too.
 
+use crate::scene::base::BaseBuilder;
+use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
         color::Color,
@@ -56,6 +58,7 @@ use crate::{
         node::{Node, NodeTrait},
     },
 };
+use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};
 
@@ -127,6 +130,21 @@ impl PointLight {
     /// Returns current value of shadow bias.
     pub fn shadow_bias(&self) -> f32 {
         *self.shadow_bias
+    }
+}
+
+impl ConstructorProvider<Node, Graph> for PointLight {
+    fn constructor() -> NodeConstructor {
+        NodeConstructor::new::<Self>()
+            .with_variant("Point Light", |_| {
+                PointLightBuilder::new(BaseLightBuilder::new(
+                    BaseBuilder::new().with_name("PointLight"),
+                ))
+                .with_radius(10.0)
+                .build_node()
+                .into()
+            })
+            .with_group("Light")
     }
 }
 

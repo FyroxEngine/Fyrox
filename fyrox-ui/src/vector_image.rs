@@ -36,6 +36,7 @@ use crate::{
 };
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::ops::{Deref, DerefMut};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
@@ -164,8 +165,10 @@ impl Primitive {
 /// #     core::{algebra::Vector2, pool::Handle},
 /// #     vector_image::{Primitive, VectorImageBuilder},
 /// #     widget::WidgetBuilder,
-/// #     BuildContext, UiNode, BRUSH_BRIGHT,
+/// #     BuildContext, UiNode,
 /// # };
+/// # use fyrox_ui::style::resource::StyleResourceExt;
+/// # use fyrox_ui::style::Style;
 /// #
 /// fn make_cross_vector_image(
 ///     ctx: &mut BuildContext,
@@ -175,7 +178,7 @@ impl Primitive {
 ///     VectorImageBuilder::new(
 ///         WidgetBuilder::new()
 ///             // Color of the image is defined by the foreground brush of the base widget.
-///             .with_foreground(BRUSH_BRIGHT),
+///             .with_foreground(ctx.style.get_or_default(Style::BRUSH_BRIGHT)),
 ///     )
 ///     .with_primitives(vec![
 ///         Primitive::Line {
@@ -201,6 +204,18 @@ pub struct VectorImage {
     pub widget: Widget,
     /// Current set of primitives that will be drawn.
     pub primitives: InheritableVariable<Vec<Primitive>>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for VectorImage {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Vector Image", |ui| {
+                VectorImageBuilder::new(WidgetBuilder::new())
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Visual")
+    }
 }
 
 crate::define_widget_deref!(VectorImage);
@@ -312,9 +327,9 @@ impl VectorImageBuilder {
     }
 
     /// Builds the vector image widget.
-    pub fn build_node(self) -> UiNode {
+    pub fn build_node(self, ctx: &BuildContext) -> UiNode {
         let image = VectorImage {
-            widget: self.widget_builder.build(),
+            widget: self.widget_builder.build(ctx),
             primitives: self.primitives.into(),
         };
         UiNode::new(image)
@@ -322,6 +337,17 @@ impl VectorImageBuilder {
 
     /// Finishes vector image building and adds it to the user interface.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
-        ctx.add_node(self.build_node())
+        ctx.add_node(self.build_node(ctx))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::vector_image::VectorImageBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| VectorImageBuilder::new(WidgetBuilder::new()).build(ctx));
     }
 }

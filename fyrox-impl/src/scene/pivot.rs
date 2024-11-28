@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 //! A simplest possible node which represents point in space.
+use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
         math::aabb::AxisAlignedBoundingBox,
@@ -34,6 +35,7 @@ use crate::{
         node::{Node, NodeTrait},
     },
 };
+use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};
 
@@ -66,6 +68,16 @@ impl TypeUuidProvider for Pivot {
 impl DerefMut for Pivot {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.base
+    }
+}
+
+impl ConstructorProvider<Node, Graph> for Pivot {
+    fn constructor() -> NodeConstructor {
+        NodeConstructor::new::<Self>().with_variant("Pivot", |_| {
+            PivotBuilder::new(BaseBuilder::new().with_name("Pivot"))
+                .build_node()
+                .into()
+        })
     }
 }
 

@@ -21,6 +21,7 @@
 //! Navigational mesh (navmesh for short) is a surface which can be used for path finding. See [`NavigationalMesh`] docs
 //! for more info and usage examples.
 
+use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
         color::Color,
@@ -41,7 +42,10 @@ use crate::{
     },
     utils::navmesh::Navmesh,
 };
+use fyrox_core::algebra::Vector3;
+use fyrox_core::math::TriangleDefinition;
 use fyrox_core::parking_lot::{RwLockReadGuard, RwLockWriteGuard};
+use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::BaseSceneGraph;
 use std::{
     ops::{Deref, DerefMut},
@@ -174,6 +178,27 @@ impl Deref for NavigationalMesh {
 impl DerefMut for NavigationalMesh {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.base
+    }
+}
+
+impl ConstructorProvider<Node, Graph> for NavigationalMesh {
+    fn constructor() -> NodeConstructor {
+        NodeConstructor::new::<Self>().with_variant("Navmesh", |_| {
+            let navmesh = Navmesh::new(
+                vec![TriangleDefinition([0, 1, 2]), TriangleDefinition([0, 2, 3])],
+                vec![
+                    Vector3::new(-1.0, 0.0, 1.0),
+                    Vector3::new(1.0, 0.0, 1.0),
+                    Vector3::new(1.0, 0.0, -1.0),
+                    Vector3::new(-1.0, 0.0, -1.0),
+                ],
+            );
+
+            NavigationalMeshBuilder::new(BaseBuilder::new().with_name("Navmesh"))
+                .with_navmesh(navmesh)
+                .build_node()
+                .into()
+        })
     }
 }
 

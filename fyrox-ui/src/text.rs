@@ -38,6 +38,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, UiNode, UserInterface, VerticalAlignment,
 };
 use fyrox_core::uuid_provider;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::{
     cell::RefCell,
     ops::{Deref, DerefMut},
@@ -331,6 +332,19 @@ pub struct Text {
     pub formatted_text: RefCell<FormattedText>,
 }
 
+impl ConstructorProvider<UiNode, UserInterface> for Text {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Text", |ui| {
+                TextBuilder::new(WidgetBuilder::new().with_name("Text"))
+                    .with_text("Text")
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Visual")
+    }
+}
+
 crate::define_widget_deref!(Text);
 
 uuid_provider!(Text = "22f7f502-7622-4ecb-8c5f-ba436e7ee823");
@@ -564,11 +578,11 @@ impl TextBuilder {
     }
 
     /// Finishes text widget creation and registers it in the user interface, returning its handle to you.
-    pub fn build(mut self, ui: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(mut self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let font = if let Some(font) = self.font {
             font
         } else {
-            ui.default_font()
+            ctx.default_font()
         };
 
         if self.widget_builder.foreground.is_none() {
@@ -576,7 +590,7 @@ impl TextBuilder {
         }
 
         let text = Text {
-            widget: self.widget_builder.build(),
+            widget: self.widget_builder.build(ctx),
             formatted_text: RefCell::new(
                 FormattedTextBuilder::new(font)
                     .with_text(self.text.unwrap_or_default())
@@ -591,6 +605,17 @@ impl TextBuilder {
                     .build(),
             ),
         };
-        ui.add_node(UiNode::new(text))
+        ctx.add_node(UiNode::new(text))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::text::TextBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| TextBuilder::new(WidgetBuilder::new()).build(ctx));
     }
 }

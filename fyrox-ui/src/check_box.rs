@@ -24,6 +24,8 @@
 
 #![warn(missing_docs)]
 
+use crate::style::resource::StyleResourceExt;
+use crate::style::Style;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -37,8 +39,9 @@ use crate::{
     vector_image::{Primitive, VectorImageBuilder},
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, HorizontalAlignment, MouseButton, Thickness, UiNode, UserInterface,
-    VerticalAlignment, BRUSH_BRIGHT, BRUSH_BRIGHT_BLUE, BRUSH_DARKEST, BRUSH_LIGHT, BRUSH_TEXT,
+    VerticalAlignment,
 };
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::ops::{Deref, DerefMut};
 
 /// A set of possible check box messages.
@@ -160,6 +163,18 @@ pub struct CheckBox {
     pub uncheck_mark: InheritableVariable<Handle<UiNode>>,
     /// Check mark that is used when the state is `None`.
     pub undefined_mark: InheritableVariable<Handle<UiNode>>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for CheckBox {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("CheckBox", |ui| {
+                CheckBoxBuilder::new(WidgetBuilder::new().with_name("CheckBox"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Input")
+    }
 }
 
 crate::define_widget_deref!(CheckBox);
@@ -336,7 +351,7 @@ impl CheckBoxBuilder {
 
             BorderBuilder::new(
                 WidgetBuilder::new()
-                    .with_background(BRUSH_BRIGHT_BLUE)
+                    .with_background(ctx.style.get_or_default(Style::BRUSH_BRIGHT_BLUE))
                     .with_child(
                         VectorImageBuilder::new(
                             WidgetBuilder::new()
@@ -345,7 +360,7 @@ impl CheckBoxBuilder {
                                 // Give some padding to ensure primitives don't get too cut off
                                 .with_width(size + 1.0)
                                 .with_height(size + 1.0)
-                                .with_foreground(BRUSH_TEXT),
+                                .with_foreground(ctx.style.get_or_default(Style::BRUSH_TEXT)),
                         )
                         .with_primitives({
                             vec![
@@ -391,7 +406,7 @@ impl CheckBoxBuilder {
             BorderBuilder::new(
                 WidgetBuilder::new()
                     .with_margin(Thickness::uniform(4.0))
-                    .with_background(BRUSH_BRIGHT)
+                    .with_background(ctx.style.get_or_default(Style::BRUSH_BRIGHT))
                     .with_foreground(Brush::Solid(Color::TRANSPARENT)),
             )
             .with_pad_by_corner_radius(false)
@@ -408,8 +423,8 @@ impl CheckBoxBuilder {
             BorderBuilder::new(
                 WidgetBuilder::new()
                     .with_vertical_alignment(VerticalAlignment::Center)
-                    .with_background(BRUSH_DARKEST)
-                    .with_foreground(BRUSH_LIGHT),
+                    .with_background(ctx.style.get_or_default(Style::BRUSH_DARKEST))
+                    .with_foreground(ctx.style.get_or_default(Style::BRUSH_LIGHT)),
             )
             .with_pad_by_corner_radius(false)
             .with_corner_radius(3.0)
@@ -445,7 +460,7 @@ impl CheckBoxBuilder {
                 .widget_builder
                 .with_accepts_input(true)
                 .with_child(grid)
-                .build(),
+                .build(ctx),
             checked: self.checked.into(),
             check_mark: check_mark.into(),
             uncheck_mark: uncheck_mark.into(),
@@ -485,5 +500,12 @@ mod test {
         assert_eq!(ui.poll_message(), Some(input_message.clone()));
         // We must get response from check box.
         assert_eq!(ui.poll_message(), Some(input_message.reverse()));
+    }
+
+    use crate::test::test_widget_deletion;
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| CheckBoxBuilder::new(WidgetBuilder::new()).build(ctx));
     }
 }

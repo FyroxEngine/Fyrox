@@ -42,6 +42,7 @@ use crate::{
 // Re-export some the fyrox_sound entities.
 pub use fyrox_sound::{
     buffer::{
+        generic::Samples,
         loader::{SoundBufferImportOptions, SoundBufferLoader},
         DataSource, SoundBuffer, SoundBufferResource, SoundBufferResourceLoadError,
     },
@@ -56,7 +57,9 @@ pub use fyrox_sound::{
     source::Status,
 };
 
+use crate::scene::node::constructor::NodeConstructor;
 use crate::scene::Scene;
+use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::BaseSceneGraph;
 use fyrox_resource::state::ResourceState;
 use fyrox_sound::source::SoundSource;
@@ -382,6 +385,18 @@ impl Sound {
     /// Returns the name of an audio bus to which the sound is attached.
     pub fn audio_bus(&self) -> &str {
         &self.audio_bus
+    }
+}
+
+impl ConstructorProvider<Node, Graph> for Sound {
+    fn constructor() -> NodeConstructor {
+        NodeConstructor::new::<Self>()
+            .with_variant("Sound Source", |_| {
+                SoundBuilder::new(BaseBuilder::new().with_name("Sound Source"))
+                    .build_node()
+                    .into()
+            })
+            .with_group("Sound")
     }
 }
 

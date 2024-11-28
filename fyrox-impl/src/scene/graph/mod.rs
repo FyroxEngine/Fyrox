@@ -1739,6 +1739,11 @@ impl BaseSceneGraph for Graph {
         self.isolate_node(child);
         self.pool[child].parent = parent;
         self.pool[parent].children.push(child);
+
+        // Force update of global transform of the node being attached.
+        self.message_sender
+            .send(NodeMessage::new(child, NodeMessageKind::TransformChanged))
+            .unwrap();
     }
 
     #[inline]

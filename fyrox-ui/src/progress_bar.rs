@@ -38,6 +38,7 @@ use crate::{
 };
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::ops::{Deref, DerefMut};
 
 /// A set of messages that can be used to modify the state of a progress bar.
@@ -100,6 +101,18 @@ pub struct ProgressBar {
     pub indicator: InheritableVariable<Handle<UiNode>>,
     /// Container widget of the bar of the progress bar.
     pub body: InheritableVariable<Handle<UiNode>>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for ProgressBar {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Progress Bar", |ui| {
+                ProgressBarBuilder::new(WidgetBuilder::new().with_name("Progress Bar"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Visual")
+    }
 }
 
 crate::define_widget_deref!(ProgressBar);
@@ -203,12 +216,23 @@ impl ProgressBarBuilder {
         ctx.link(canvas, body);
 
         let progress_bar = ProgressBar {
-            widget: self.widget_builder.with_child(body).build(),
+            widget: self.widget_builder.with_child(body).build(ctx),
             progress: self.progress.into(),
             indicator: indicator.into(),
             body: body.into(),
         };
 
         ctx.add_node(UiNode::new(progress_bar))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::progress_bar::ProgressBarBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| ProgressBarBuilder::new(WidgetBuilder::new()).build(ctx));
     }
 }

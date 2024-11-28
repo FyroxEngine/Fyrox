@@ -21,6 +21,7 @@
 //! Build context is used to decouple explicit UI state modification. See [`BuildContext`] docs for
 //! more info.
 
+use crate::style::resource::StyleResource;
 use crate::{
     core::pool::Handle, font::FontResource, message::UiMessage, RestrictionEntry, UiNode,
     UserInterface,
@@ -78,7 +79,7 @@ use std::{
 /// impl MyWidgetBuilder {
 ///     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
 ///         let my_widget = MyWidget {
-///             widget: self.widget_builder.build(),
+///             widget: self.widget_builder.build(ctx),
 ///         };
 ///
 ///         ctx.add_node(UiNode::new(my_widget))
@@ -87,6 +88,7 @@ use std::{
 /// ```
 pub struct BuildContext<'a> {
     ui: &'a mut UserInterface,
+    pub style: StyleResource,
 }
 
 impl<'a> Index<Handle<UiNode>> for BuildContext<'a> {
@@ -105,7 +107,10 @@ impl<'a> IndexMut<Handle<UiNode>> for BuildContext<'a> {
 
 impl<'a> From<&'a mut UserInterface> for BuildContext<'a> {
     fn from(ui: &'a mut UserInterface) -> Self {
-        Self { ui }
+        Self {
+            style: ui.style.clone(),
+            ui,
+        }
     }
 }
 

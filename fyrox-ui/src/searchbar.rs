@@ -24,6 +24,9 @@
 
 #![warn(missing_docs)]
 
+use crate::style::resource::StyleResourceExt;
+use crate::style::Style;
+use crate::widget::WidgetMessage;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -42,8 +45,9 @@ use crate::{
     vector_image::{Primitive, VectorImageBuilder},
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
-    VerticalAlignment, BRUSH_BRIGHTEST, BRUSH_DARKER, BRUSH_LIGHT, BRUSH_LIGHTEST,
+    VerticalAlignment,
 };
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::ops::{Deref, DerefMut};
 
 /// A set of messages that can be used to get the state of a search bar.
@@ -105,6 +109,18 @@ pub struct SearchBar {
     pub clear: InheritableVariable<Handle<UiNode>>,
 }
 
+impl ConstructorProvider<UiNode, UserInterface> for SearchBar {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Search Bar", |ui| {
+                SearchBarBuilder::new(WidgetBuilder::new().with_name("Search Bar"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Input")
+    }
+}
+
 define_widget_deref!(SearchBar);
 
 uuid_provider!(SearchBar = "23db1179-0e07-493d-98fd-2b3c0c795215");
@@ -120,6 +136,11 @@ impl Control for SearchBar {
                     *self.text_box,
                     MessageDirection::ToWidget,
                     text.clone(),
+                ));
+            } else if let Some(WidgetMessage::Focus) = message.data() {
+                ui.send_message(WidgetMessage::focus(
+                    *self.text_box,
+                    MessageDirection::ToWidget,
                 ));
             }
         }
@@ -169,8 +190,8 @@ impl SearchBarBuilder {
         let clear;
         let content = BorderBuilder::new(
             WidgetBuilder::new()
-                .with_foreground(BRUSH_LIGHT)
-                .with_background(BRUSH_DARKER)
+                .with_foreground(ctx.style.get_or_default(Style::BRUSH_LIGHT))
+                .with_background(ctx.style.get_or_default(Style::BRUSH_DARKER))
                 .with_child(
                     GridBuilder::new(
                         WidgetBuilder::new()
@@ -181,7 +202,9 @@ impl SearchBarBuilder {
                                         .with_width(12.0)
                                         .with_height(12.0)
                                         .with_vertical_alignment(VerticalAlignment::Center)
-                                        .with_foreground(BRUSH_LIGHTEST)
+                                        .with_foreground(
+                                            ctx.style.get_or_default(Style::BRUSH_LIGHTEST),
+                                        )
                                         .with_margin(Thickness {
                                             left: 2.0,
                                             top: 2.0,
@@ -239,7 +262,9 @@ impl SearchBarBuilder {
                                             .with_vertical_alignment(VerticalAlignment::Center)
                                             .with_height(8.0)
                                             .with_width(8.0)
-                                            .with_foreground(BRUSH_BRIGHTEST),
+                                            .with_foreground(
+                                                ctx.style.get_or_default(Style::BRUSH_BRIGHTEST),
+                                            ),
                                     )
                                     .with_primitives(make_cross_primitive(8.0, 2.0))
                                     .build(ctx),
@@ -261,11 +286,22 @@ impl SearchBarBuilder {
         .build(ctx);
 
         let search_bar = SearchBar {
-            widget: self.widget_builder.with_child(content).build(),
+            widget: self.widget_builder.with_child(content).build(ctx),
             text_box: text_box.into(),
             clear: clear.into(),
         };
 
         ctx.add_node(UiNode::new(search_bar))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::selector::SelectorBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| SelectorBuilder::new(WidgetBuilder::new()).build(ctx));
     }
 }

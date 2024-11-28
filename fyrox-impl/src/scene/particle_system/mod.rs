@@ -21,6 +21,9 @@
 //! Contains all structures and methods to create and manage particle systems. See [`ParticleSystem`] docs for more
 //! info and usage examples.
 
+use crate::scene::node::constructor::NodeConstructor;
+use crate::scene::particle_system::emitter::base::BaseEmitterBuilder;
+use crate::scene::particle_system::emitter::sphere::SphereEmitterBuilder;
 use crate::{
     core::{
         algebra::{Point3, Vector2, Vector3},
@@ -50,6 +53,7 @@ use crate::{
         },
     },
 };
+use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::BaseSceneGraph;
 use std::{
     cmp::Ordering,
@@ -539,6 +543,23 @@ impl ParticleSystem {
 impl Default for ParticleSystem {
     fn default() -> Self {
         ParticleSystemBuilder::new(BaseBuilder::new()).build_particle_system()
+    }
+}
+
+impl ConstructorProvider<Node, Graph> for ParticleSystem {
+    fn constructor() -> NodeConstructor {
+        NodeConstructor::new::<Self>().with_variant("Particle System", |_| {
+            ParticleSystemBuilder::new(BaseBuilder::new().with_name("ParticleSystem"))
+                .with_emitters(vec![SphereEmitterBuilder::new(
+                    BaseEmitterBuilder::new()
+                        .with_max_particles(100)
+                        .resurrect_particles(true),
+                )
+                .with_radius(1.0)
+                .build()])
+                .build_node()
+                .into()
+        })
     }
 }
 

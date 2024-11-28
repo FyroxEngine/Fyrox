@@ -45,7 +45,26 @@
 
 use crate::{buffer::DataSource, decoder::Decoder};
 use fyrox_core::{reflect::prelude::*, visitor::prelude::*};
+use std::ops::{Deref, DerefMut};
 use std::time::Duration;
+
+/// Samples container.
+#[derive(Debug, Default, Visit, Reflect)]
+pub struct Samples(pub Vec<f32>);
+
+impl Deref for Samples {
+    type Target = Vec<f32>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for Samples {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
 
 /// Generic sound buffer that contains decoded samples and allows random access.
 #[derive(Debug, Default, Visit, Reflect)]
@@ -54,7 +73,7 @@ pub struct GenericBuffer {
     /// For streaming buffers it contains only small part of decoded data
     /// (usually something around 1 sec).
     #[visit(skip)]
-    pub(crate) samples: Vec<f32>,
+    pub(crate) samples: Samples,
     #[visit(skip)]
     pub(crate) channel_count: usize,
     #[visit(skip)]
@@ -90,7 +109,7 @@ impl GenericBuffer {
                 } else {
                     Ok(Self {
                         channel_duration_in_samples: samples.len() / channel_count,
-                        samples,
+                        samples: Samples(samples),
                         channel_count,
                         sample_rate,
                     })
@@ -125,7 +144,7 @@ impl GenericBuffer {
                     sample_rate: decoder.get_sample_rate(),
                     channel_count: decoder.get_channel_count(),
                     channel_duration_in_samples: decoder.channel_duration_in_samples(),
-                    samples: decoder.into_samples(),
+                    samples: Samples(decoder.into_samples()),
                 })
             }
         }

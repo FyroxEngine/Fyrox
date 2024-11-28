@@ -24,6 +24,8 @@
 #![warn(missing_docs)]
 
 use crate::font::FontResource;
+use crate::style::resource::StyleResourceExt;
+use crate::style::Style;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -41,10 +43,11 @@ use crate::{
     utils::{make_arrow, ArrowDirection},
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
-    VerticalAlignment, BRUSH_DARK, BRUSH_LIGHT, BRUSH_LIGHTER, BRUSH_LIGHTEST,
+    VerticalAlignment,
 };
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};
 
@@ -177,6 +180,18 @@ pub struct ScrollBar {
     pub value_text: InheritableVariable<Handle<UiNode>>,
     /// Current value precison in decimal places.
     pub value_precision: InheritableVariable<usize>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for ScrollBar {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Scroll Bar", |ui| {
+                ScrollBarBuilder::new(WidgetBuilder::new().with_name("Scroll Bar"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Input")
+    }
 }
 
 crate::define_widget_deref!(ScrollBar);
@@ -616,9 +631,9 @@ impl ScrollBarBuilder {
                 .with_pad_by_corner_radius(false)
                 .with_stroke_thickness(Thickness::uniform(1.0)),
             )
-            .with_normal_brush(BRUSH_LIGHT)
-            .with_hover_brush(BRUSH_LIGHTER)
-            .with_pressed_brush(BRUSH_LIGHTEST)
+            .with_normal_brush(ctx.style.get_or_default(Style::BRUSH_LIGHT))
+            .with_hover_brush(ctx.style.get_or_default(Style::BRUSH_LIGHTER))
+            .with_pressed_brush(ctx.style.get_or_default(Style::BRUSH_LIGHTEST))
             .build(ctx)
         });
 
@@ -695,14 +710,16 @@ impl ScrollBarBuilder {
         .build(ctx);
 
         let body = self.body.unwrap_or_else(|| {
-            BorderBuilder::new(WidgetBuilder::new().with_background(BRUSH_DARK))
-                .with_stroke_thickness(Thickness::uniform(1.0))
-                .build(ctx)
+            BorderBuilder::new(
+                WidgetBuilder::new().with_background(ctx.style.get_or_default(Style::BRUSH_DARK)),
+            )
+            .with_stroke_thickness(Thickness::uniform(1.0))
+            .build(ctx)
         });
         ctx.link(grid, body);
 
         let node = UiNode::new(ScrollBar {
-            widget: self.widget_builder.with_child(body).build(),
+            widget: self.widget_builder.with_child(body).build(ctx),
             min: min.into(),
             max: max.into(),
             value: value.into(),
@@ -718,5 +735,16 @@ impl ScrollBarBuilder {
             value_precision: self.value_precision.into(),
         });
         ctx.add_node(node)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::scroll_bar::ScrollBarBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| ScrollBarBuilder::new(WidgetBuilder::new()).build(ctx));
     }
 }

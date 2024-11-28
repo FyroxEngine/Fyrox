@@ -253,6 +253,7 @@ pub mod scroll_viewer;
 pub mod searchbar;
 pub mod selector;
 pub mod stack_panel;
+pub mod style;
 pub mod tab_control;
 pub mod text;
 pub mod text_box;
@@ -327,39 +328,13 @@ use fyrox_graph::{
 pub use node::*;
 pub use thickness::*;
 
+use crate::constructor::new_widget_constructor_container;
+use crate::message::RoutingStrategy;
+use crate::style::resource::{StyleResource, StyleResourceExt};
+use crate::style::{Style, DEFAULT_STYLE};
 pub use fyrox_animation as generic_animation;
 use fyrox_core::pool::ErasedHandle;
-
-// TODO: Make this part of UserInterface struct.
-pub const COLOR_COAL_BLACK: Color = Color::opaque(10, 10, 10);
-pub const COLOR_DARKEST: Color = Color::opaque(20, 20, 20);
-pub const COLOR_DARKER: Color = Color::opaque(30, 30, 30);
-pub const COLOR_DARK: Color = Color::opaque(40, 40, 40);
-pub const COLOR_PRIMARY: Color = Color::opaque(50, 50, 50);
-pub const COLOR_LIGHT: Color = Color::opaque(70, 70, 70);
-pub const COLOR_LIGHTER: Color = Color::opaque(85, 85, 85);
-pub const COLOR_LIGHTEST: Color = Color::opaque(100, 100, 100);
-pub const COLOR_BRIGHT: Color = Color::opaque(130, 130, 130);
-pub const COLOR_BRIGHTEST: Color = Color::opaque(160, 160, 160);
-pub const COLOR_BRIGHT_BLUE: Color = Color::opaque(80, 118, 178);
-pub const COLOR_DIM_BLUE: Color = Color::opaque(66, 99, 149);
-pub const COLOR_TEXT: Color = Color::opaque(220, 220, 220);
-pub const COLOR_FOREGROUND: Color = Color::WHITE;
-
-pub const BRUSH_COAL_BLACK: Brush = Brush::Solid(COLOR_COAL_BLACK);
-pub const BRUSH_DARKEST: Brush = Brush::Solid(COLOR_DARKEST);
-pub const BRUSH_DARKER: Brush = Brush::Solid(COLOR_DARKER);
-pub const BRUSH_DARK: Brush = Brush::Solid(COLOR_DARK);
-pub const BRUSH_PRIMARY: Brush = Brush::Solid(COLOR_PRIMARY);
-pub const BRUSH_LIGHT: Brush = Brush::Solid(COLOR_LIGHT);
-pub const BRUSH_LIGHTER: Brush = Brush::Solid(COLOR_LIGHTER);
-pub const BRUSH_LIGHTEST: Brush = Brush::Solid(COLOR_LIGHTEST);
-pub const BRUSH_BRIGHT: Brush = Brush::Solid(COLOR_BRIGHT);
-pub const BRUSH_BRIGHTEST: Brush = Brush::Solid(COLOR_BRIGHTEST);
-pub const BRUSH_BRIGHT_BLUE: Brush = Brush::Solid(COLOR_BRIGHT_BLUE);
-pub const BRUSH_DIM_BLUE: Brush = Brush::Solid(COLOR_DIM_BLUE);
-pub const BRUSH_TEXT: Brush = Brush::Solid(COLOR_TEXT);
-pub const BRUSH_FOREGROUND: Brush = Brush::Solid(COLOR_FOREGROUND);
+use fyrox_resource::untyped::ResourceKind;
 
 #[derive(Default, Reflect, Debug)]
 pub(crate) struct RcUiNodeHandleInner {
@@ -615,6 +590,7 @@ pub enum LayoutEvent {
     MeasurementInvalidated(Handle<UiNode>),
     ArrangementInvalidated(Handle<UiNode>),
     VisibilityChanged(Handle<UiNode>),
+    ZIndexChanged(Handle<UiNode>),
 }
 
 #[derive(Clone, Debug, Visit, Reflect, Default)]
@@ -688,6 +664,7 @@ pub struct UserInterface {
     captured_node: Handle<UiNode>,
     keyboard_focus_node: Handle<UiNode>,
     cursor_position: Vector2<f32>,
+    pub style: StyleResource,
     #[reflect(hidden)]
     receiver: Receiver<UiMessage>,
     #[reflect(hidden)]
@@ -711,6 +688,8 @@ pub struct UserInterface {
     #[reflect(hidden)]
     layout_events_sender: Sender<LayoutEvent>,
     need_update_global_transform: bool,
+    #[reflect(hidden)]
+    z_index_update_set: FxHashSet<Handle<UiNode>>,
     #[reflect(hidden)]
     pub default_font: FontResource,
     #[reflect(hidden)]
@@ -779,6 +758,7 @@ impl Clone for UserInterface {
             captured_node: self.captured_node,
             keyboard_focus_node: self.keyboard_focus_node,
             cursor_position: self.cursor_position,
+            style: StyleResource::new_ok(ResourceKind::Embedded, Style::default_style()),
             receiver,
             sender,
             stack: self.stack.clone(),
@@ -794,6 +774,7 @@ impl Clone for UserInterface {
             layout_events_receiver,
             layout_events_sender,
             need_update_global_transform: self.need_update_global_transform,
+            z_index_update_set: self.z_index_update_set.clone(),
             default_font: self.default_font.clone(),
             double_click_entries: self.double_click_entries.clone(),
             double_click_time_slice: self.double_click_time_slice,
@@ -1064,6 +1045,7 @@ impl UserInterface {
         screen_size: Vector2<f32>,
     ) -> UserInterface {
         let (layout_events_sender, layout_events_receiver) = mpsc::channel();
+        let style = StyleResource::new_ok(ResourceKind::Embedded, Style::default_style());
         let mut ui = UserInterface {
             screen_size,
             sender,
@@ -1073,9 +1055,10 @@ impl UserInterface {
             root_canvas: Handle::NONE,
             nodes: Pool::new(),
             cursor_position: Vector2::new(0.0, 0.0),
-            drawing_context: DrawingContext::new(),
+            drawing_context: DrawingContext::new(style.clone()),
             picked_node: Handle::NONE,
             prev_picked_node: Handle::NONE,
+            style,
             keyboard_focus_node: Handle::NONE,
             stack: Default::default(),
             picking_stack: Default::default(),
@@ -1090,13 +1073,15 @@ impl UserInterface {
             layout_events_receiver,
             layout_events_sender,
             need_update_global_transform: Default::default(),
+            z_index_update_set: Default::default(),
             default_font: BUILT_IN_FONT.resource(),
             double_click_entries: Default::default(),
             double_click_time_slice: 0.5, // 500 ms is standard in most operating systems.
         };
-        ui.root_canvas = ui.add_node(UiNode::new(Canvas {
-            widget: WidgetBuilder::new().build(),
-        }));
+        let root_node = UiNode::new(Canvas {
+            widget: WidgetBuilder::new().build(&ui.build_ctx()),
+        });
+        ui.root_canvas = ui.add_node(root_node);
         ui.keyboard_focus_node = ui.root_canvas;
         ui
     }
@@ -1236,7 +1221,25 @@ impl UserInterface {
                 LayoutEvent::VisibilityChanged(node) => {
                     self.update_global_visibility(node);
                 }
+                LayoutEvent::ZIndexChanged(node) => {
+                    if let Some(node_ref) = self.nodes.try_borrow(node) {
+                        // Z index affects the location of the node in its parent's children list.
+                        // Hash set will remove duplicate requests of z-index updates, thus improving
+                        // performance.
+                        self.z_index_update_set.insert(node_ref.parent);
+                    }
+                }
             }
+        }
+
+        // Do z-index sorting.
+        for node_handle in self.z_index_update_set.drain() {
+            let mbc = self.nodes.begin_multi_borrow();
+            if let Ok(mut node) = mbc.try_get_mut(node_handle) {
+                node.children.sort_by_key(|handle| {
+                    mbc.try_get(*handle).map(|c| *c.z_index).unwrap_or_default()
+                });
+            };
         }
     }
 
@@ -1375,7 +1378,9 @@ impl UserInterface {
                 self.drawing_context.push_rounded_rect(&bounds, 1.0, 2.0, 6);
                 self.drawing_context.commit(
                     bounds,
-                    Brush::Solid(COLOR_BRIGHT_BLUE),
+                    DEFAULT_STYLE
+                        .resource
+                        .get_or_default(Style::BRUSH_BRIGHT_BLUE),
                     CommandTexture::None,
                     None,
                 );
@@ -1774,35 +1779,17 @@ impl UserInterface {
                     }
                 }
 
-                self.bubble_message(&mut message);
+                match message.routing_strategy {
+                    RoutingStrategy::BubbleUp => self.bubble_message(&mut message),
+                    RoutingStrategy::Direct => {
+                        let (ticket, mut node) = self.nodes.take_reserve(message.destination());
+                        node.handle_routed_message(self, &mut message);
+                        self.nodes.put_back(ticket, node);
+                    }
+                }
 
                 if let Some(msg) = message.data::<WidgetMessage>() {
                     match msg {
-                        WidgetMessage::ZIndex(_) => {
-                            // Keep order of children of a parent node of a node that changed z-index
-                            // the same as z-index of children.
-                            if let Some(parent) =
-                                self.try_get(message.destination()).map(|n| n.parent())
-                            {
-                                self.stack.clear();
-                                for child in self.nodes.borrow(parent).children() {
-                                    self.stack.push(*child);
-                                }
-
-                                let nodes = &mut self.nodes;
-                                self.stack.sort_by(|a, b| {
-                                    let z_a = nodes.borrow(*a).z_index();
-                                    let z_b = nodes.borrow(*b).z_index();
-                                    z_a.cmp(&z_b)
-                                });
-
-                                let parent = self.nodes.borrow_mut(parent);
-                                parent.clear_children();
-                                for child in self.stack.iter() {
-                                    parent.add_child(*child, false);
-                                }
-                            }
-                        }
                         WidgetMessage::Focus => {
                             if self.nodes.is_valid_handle(message.destination())
                                 && message.direction() == MessageDirection::ToWidget
@@ -2775,15 +2762,6 @@ impl UserInterface {
         self.isolate_node(child_handle);
         self.nodes[child_handle].set_parent(parent_handle);
         self.nodes[parent_handle].add_child(child_handle, in_front);
-
-        // Sort by Z index. This uses stable sort, so every child node with the same z index will
-        // remain on its position.
-        let mbc = self.nodes.begin_multi_borrow();
-        if let Ok(mut parent) = mbc.try_get_mut(parent_handle) {
-            parent
-                .children
-                .sort_by_key(|handle| mbc.try_get(*handle).map(|c| *c.z_index).unwrap_or_default());
-        };
     }
 
     #[inline]
@@ -2953,7 +2931,7 @@ impl UserInterface {
     ) -> Result<Self, VisitError> {
         Self::load_from_file_ex(
             path,
-            Arc::new(WidgetConstructorContainer::new()),
+            Arc::new(new_widget_constructor_container()),
             resource_manager,
             &FsResourceIo,
         )
@@ -2965,6 +2943,7 @@ impl UserInterface {
             widget.handle = handle;
             widget.layout_events_sender = Some(self.layout_events_sender.clone());
             widget.invalidate_layout();
+            widget.notify_z_index_changed();
         }
     }
 
@@ -3104,6 +3083,7 @@ impl BaseSceneGraph for UserInterface {
         node.handle = node_handle;
         self.methods_registry.register(node);
         node.invalidate_layout();
+        node.notify_z_index_changed();
         self.layout_events_sender
             .send(LayoutEvent::VisibilityChanged(node_handle))
             .unwrap();
@@ -3417,13 +3397,33 @@ impl ResourceData for UserInterface {
     }
 }
 
+pub mod test {
+    use crate::{
+        core::{algebra::Vector2, pool::Handle},
+        message::MessageDirection,
+        widget::WidgetMessage,
+        BuildContext, UiNode, UserInterface,
+    };
+
+    pub fn test_widget_deletion(constructor: impl FnOnce(&mut BuildContext) -> Handle<UiNode>) {
+        let screen_size = Vector2::new(100.0, 100.0);
+        let mut ui = UserInterface::new(screen_size);
+        let widget = constructor(&mut ui.build_ctx());
+        ui.send_message(WidgetMessage::remove(widget, MessageDirection::ToWidget));
+        ui.update(screen_size, 1.0 / 60.0, &Default::default());
+        while ui.poll_message().is_some() {}
+        // Only root node must be alive.
+        assert_eq!(ui.nodes().alive_count(), 1);
+    }
+}
+
 #[cfg(test)]
-mod test {
-    use crate::message::{ButtonState, KeyCode};
+mod test_inner {
     use crate::{
         border::BorderBuilder,
         core::algebra::{Rotation2, UnitComplex, Vector2},
         message::MessageDirection,
+        message::{ButtonState, KeyCode},
         text_box::TextBoxBuilder,
         transform_size,
         widget::{WidgetBuilder, WidgetMessage},

@@ -23,6 +23,8 @@
 
 #![warn(missing_docs)]
 
+use crate::style::resource::StyleResourceExt;
+use crate::style::Style;
 use crate::{
     border::BorderBuilder,
     core::{
@@ -32,9 +34,9 @@ use crate::{
     define_constructor,
     message::{ButtonState, KeyCode, MessageDirection, OsEvent, UiMessage},
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, RestrictionEntry, Thickness, UiNode, UserInterface, BRUSH_DARKEST,
-    BRUSH_PRIMARY,
+    BuildContext, Control, RestrictionEntry, Thickness, UiNode, UserInterface,
 };
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};
 
@@ -321,6 +323,18 @@ pub struct Popup {
     pub owner: Handle<UiNode>,
 }
 
+impl ConstructorProvider<UiNode, UserInterface> for Popup {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Popup", |ui| {
+                PopupBuilder::new(WidgetBuilder::new().with_name("Popup"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Layout")
+    }
+}
+
 crate::define_widget_deref!(Popup);
 
 fn adjust_placement_position(
@@ -589,10 +603,12 @@ impl PopupBuilder {
     /// Builds the popup widget, but does not add it to the user interface. Could be useful if you're making your
     /// own derived version of the popup.
     pub fn build_popup(self, ctx: &mut BuildContext) -> Popup {
+        let style = &ctx.style;
+
         let body = BorderBuilder::new(
             WidgetBuilder::new()
-                .with_background(BRUSH_PRIMARY)
-                .with_foreground(BRUSH_DARKEST)
+                .with_background(style.get_or_default(Style::BRUSH_PRIMARY))
+                .with_foreground(style.get_or_default(Style::BRUSH_DARKEST))
                 .with_child(self.content),
         )
         .with_stroke_thickness(Thickness::uniform(1.0))
@@ -604,7 +620,7 @@ impl PopupBuilder {
                 .with_child(body)
                 .with_visibility(false)
                 .with_handle_os_events(true)
-                .build(),
+                .build(ctx),
             placement: self.placement.into(),
             stays_open: self.stays_open.into(),
             is_open: false.into(),
@@ -619,5 +635,16 @@ impl PopupBuilder {
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let popup = self.build_popup(ctx);
         ctx.add_node(UiNode::new(popup))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::popup::PopupBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| PopupBuilder::new(WidgetBuilder::new()).build(ctx));
     }
 }

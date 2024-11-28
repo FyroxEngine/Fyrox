@@ -24,6 +24,7 @@
 pub mod brush;
 pub mod tileset;
 
+use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
         algebra::{Vector2, Vector3},
@@ -51,6 +52,7 @@ use crate::{
     },
 };
 use fxhash::{FxHashMap, FxHashSet};
+use fyrox_graph::constructor::ConstructorProvider;
 use std::ops::{Deref, DerefMut};
 
 struct BresenhamLineIter {
@@ -644,6 +646,18 @@ impl Deref for TileMap {
 impl DerefMut for TileMap {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.base
+    }
+}
+
+impl ConstructorProvider<Node, Graph> for TileMap {
+    fn constructor() -> NodeConstructor {
+        NodeConstructor::new::<Self>()
+            .with_variant("Tile Map", |_| {
+                TileMapBuilder::new(BaseBuilder::new().with_name("Tile Map"))
+                    .build_node()
+                    .into()
+            })
+            .with_group("2D")
     }
 }
 

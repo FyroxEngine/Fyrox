@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use fyrox::gui::style::resource::StyleResourceExt;
+use fyrox::gui::style::Style;
 use fyrox::{
     core::{parking_lot::Mutex, pool::Handle},
     gui::{
@@ -31,7 +33,6 @@ use fyrox::{
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
-        BRUSH_DARKEST,
     },
 };
 use std::{
@@ -77,7 +78,7 @@ impl BuildWindow {
                                 WidgetBuilder::new()
                                     .on_row(1)
                                     .with_margin(Thickness::uniform(2.0))
-                                    .with_background(BRUSH_DARKEST)
+                                    .with_background(ctx.style.get_or_default(Style::BRUSH_DARKEST))
                                     .with_child({
                                         scroll_viewer =
                                             ScrollViewerBuilder::new(WidgetBuilder::new())

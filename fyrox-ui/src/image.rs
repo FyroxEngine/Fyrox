@@ -36,6 +36,7 @@ use crate::{
 };
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_resource::untyped::UntypedResource;
 use std::ops::{Deref, DerefMut};
 
@@ -190,6 +191,23 @@ pub struct Image {
     pub checkerboard_background: InheritableVariable<bool>,
 }
 
+impl ConstructorProvider<UiNode, UserInterface> for Image {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Image", |ui| {
+                ImageBuilder::new(
+                    WidgetBuilder::new()
+                        .with_height(32.0)
+                        .with_width(32.0)
+                        .with_name("Image"),
+                )
+                .build(&mut ui.build_ctx())
+                .into()
+            })
+            .with_group("Visual")
+    }
+}
+
 crate::define_widget_deref!(Image);
 
 uuid_provider!(Image = "18e18d0f-cb84-4ac1-8050-3480a2ec3de5");
@@ -325,13 +343,13 @@ impl ImageBuilder {
     }
 
     /// Builds the [`Image`] widget, but does not add it to the UI.
-    pub fn build_node(mut self) -> UiNode {
+    pub fn build_node(mut self, ctx: &BuildContext) -> UiNode {
         if self.widget_builder.background.is_none() {
             self.widget_builder.background = Some(Brush::Solid(Color::WHITE))
         }
 
         let image = Image {
-            widget: self.widget_builder.build(),
+            widget: self.widget_builder.build(ctx),
             texture: self.texture.into(),
             flip: self.flip.into(),
             uv_rect: self.uv_rect.into(),
@@ -342,6 +360,17 @@ impl ImageBuilder {
 
     /// Builds the [`Image`] widget and adds it to the UI and returns its handle.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
-        ctx.add_node(self.build_node())
+        ctx.add_node(self.build_node(ctx))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::image::ImageBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| ImageBuilder::new(WidgetBuilder::new()).build(ctx));
     }
 }

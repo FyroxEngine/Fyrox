@@ -22,6 +22,7 @@
 //! of a mesh. Ragdolls are used mostly for body physics. See [`Ragdoll`] docs for more info and
 //! usage examples.
 
+use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector3},
@@ -43,6 +44,7 @@ use crate::{
         rigidbody::{RigidBody, RigidBodyType},
     },
 };
+use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::SceneGraphNode;
 use std::{
     any::{type_name, Any, TypeId},
@@ -264,6 +266,18 @@ impl DerefMut for Ragdoll {
 impl TypeUuidProvider for Ragdoll {
     fn type_uuid() -> Uuid {
         uuid!("f4441683-dcef-472d-9d7d-4adca4579107")
+    }
+}
+
+impl ConstructorProvider<Node, Graph> for Ragdoll {
+    fn constructor() -> NodeConstructor {
+        NodeConstructor::new::<Self>()
+            .with_variant("Ragdoll", |_| {
+                RagdollBuilder::new(BaseBuilder::new().with_name("Ragdoll"))
+                    .build_node()
+                    .into()
+            })
+            .with_group("Physics")
     }
 }
 

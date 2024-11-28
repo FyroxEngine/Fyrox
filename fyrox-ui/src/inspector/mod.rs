@@ -51,6 +51,7 @@ use crate::{
     BuildContext, Control, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use copypasta::ClipboardProvider;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::{BaseSceneGraph, SceneGraph};
 use std::{
     any::{Any, TypeId},
@@ -479,6 +480,16 @@ pub struct Inspector {
     #[reflect(hidden)]
     #[visit(skip)]
     pub context: InspectorContext,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for Inspector {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>().with_variant("Inspector", |ui| {
+            InspectorBuilder::new(WidgetBuilder::new().with_name("Inspector"))
+                .build(&mut ui.build_ctx())
+                .into()
+        })
+    }
 }
 
 crate::define_widget_deref!(Inspector);
@@ -1196,9 +1207,20 @@ impl InspectorBuilder {
             widget: self
                 .widget_builder
                 .with_child(self.context.stack_panel)
-                .build(),
+                .build(ctx),
             context: self.context,
         };
         ctx.add_node(UiNode::new(canvas))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::inspector::InspectorBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| InspectorBuilder::new(WidgetBuilder::new()).build(ctx));
     }
 }

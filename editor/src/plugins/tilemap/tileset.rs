@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::plugins::inspector::EditorEnvironment;
 use crate::{
     asset::item::AssetItem,
     command::{make_command, Command, CommandGroup},
@@ -55,7 +56,6 @@ use crate::{
         resource::texture::Texture,
         scene::tilemap::tileset::{TileDefinition, TileSet, TileSetResource},
     },
-    inspector::EditorEnvironment,
     message::MessageSender,
     plugins::tilemap::{
         commands::{AddTileCommand, RemoveTileCommand},
@@ -554,7 +554,7 @@ impl TileSetTileViewBuilder {
                 .widget_builder
                 .with_allow_drag(true)
                 .with_child(decorator)
-                .build(),
+                .build(ctx),
             definition_handle: tile_handle,
             image,
         }))

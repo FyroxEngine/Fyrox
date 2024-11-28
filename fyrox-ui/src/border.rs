@@ -23,6 +23,8 @@
 //! The Border widget provides a stylized, static border around its child widget. See [`Border`] docs for more info and
 //! usage examples.
 
+use crate::style::resource::StyleResourceExt;
+use crate::style::Style;
 use crate::{
     core::{
         algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
@@ -32,8 +34,9 @@ use crate::{
     draw::{CommandTexture, Draw, DrawingContext},
     message::UiMessage,
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, MessageDirection, Thickness, UiNode, UserInterface, BRUSH_PRIMARY,
+    BuildContext, Control, MessageDirection, Thickness, UiNode, UserInterface,
 };
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::ops::{Deref, DerefMut};
 
 /// The Border widget provides a stylized, static border around its child widget. Below is an example of creating a 1 pixel
@@ -112,6 +115,18 @@ pub struct Border {
     /// children nodes layout won't be affected by the corner radius.
     #[visit(optional)]
     pub pad_by_corner_radius: InheritableVariable<bool>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for Border {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Border", |ui| {
+                BorderBuilder::new(WidgetBuilder::new().with_name("Border"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Visual")
+    }
 }
 
 crate::define_widget_deref!(Border);
@@ -334,12 +349,12 @@ impl BorderBuilder {
     }
 
     /// Creates a [`Border`] widget, but does not add it to the user interface. Also see [`Self::build`] docs.
-    pub fn build_border(mut self) -> Border {
+    pub fn build_border(mut self, ctx: &BuildContext) -> Border {
         if self.widget_builder.foreground.is_none() {
-            self.widget_builder.foreground = Some(BRUSH_PRIMARY);
+            self.widget_builder.foreground = Some(ctx.style.get_or_default(Style::BRUSH_PRIMARY));
         }
         Border {
-            widget: self.widget_builder.build(),
+            widget: self.widget_builder.build(ctx),
             stroke_thickness: self.stroke_thickness.into(),
             corner_radius: self.corner_radius.into(),
             pad_by_corner_radius: self.pad_by_corner_radius.into(),
@@ -348,6 +363,17 @@ impl BorderBuilder {
 
     /// Finishes border building and adds it to the user interface. See examples in [`Border`] docs.
     pub fn build(self, ctx: &mut BuildContext<'_>) -> Handle<UiNode> {
-        ctx.add_node(UiNode::new(self.build_border()))
+        ctx.add_node(UiNode::new(self.build_border(ctx)))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::border::BorderBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| BorderBuilder::new(WidgetBuilder::new()).build(ctx));
     }
 }
