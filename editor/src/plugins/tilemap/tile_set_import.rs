@@ -22,7 +22,7 @@ use crate::{
     asset::item::AssetItem,
     fyrox::{
         asset::untyped::ResourceKind,
-        core::{algebra::Vector2, math::Rect, pool::Handle},
+        core::{algebra::Vector2, pool::Handle},
         graph::BaseSceneGraph,
         gui::{
             button::ButtonMessage,
@@ -197,6 +197,7 @@ impl TileSetImporter {
     fn update_tiles(&mut self) {
         self.tiles.clear();
 
+        /* TODO
         if let Some(material) = self.material.as_ref() {
             for y in 0..self.size.y {
                 for x in 0..self.size.x {
@@ -216,6 +217,7 @@ impl TileSetImporter {
                 }
             }
         }
+        */
     }
 
     pub fn destroy(self, ui: &UserInterface) {

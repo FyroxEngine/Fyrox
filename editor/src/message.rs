@@ -33,7 +33,7 @@ use crate::{
     scene::Selection,
     SaveSceneConfirmationDialogAction,
 };
-use fyrox::scene::tilemap::tileset::TileSetResource;
+use fyrox::scene::tilemap::{brush::TileMapBrushResource, tileset::TileSetResource};
 use std::{path::PathBuf, sync::mpsc::Sender};
 
 #[derive(Debug)]
@@ -66,6 +66,7 @@ pub enum Message {
     OpenAbsmEditor,
     OpenMaterialEditor(MaterialResource),
     OpenTileSetEditor(TileSetResource),
+    OpenTileMapBrushEditor(TileMapBrushResource),
     OpenNodeRemovalDialog,
     ShowInAssetBrowser(PathBuf),
     LocateObject {

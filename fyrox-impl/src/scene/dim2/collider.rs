@@ -23,16 +23,19 @@
 
 use crate::{
     core::{
-        algebra::Vector2,
+        algebra::{Isometry2, Translation2, UnitComplex, Vector2},
         log::Log,
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
         reflect::prelude::*,
         type_traits::prelude::*,
         uuid::{uuid, Uuid},
+        uuid_provider,
         variable::InheritableVariable,
         visitor::prelude::*,
+        ImmutableString, TypeUuidProvider,
     },
+    graph::{BaseSceneGraph, SceneGraphNode},
     scene::{
         base::{Base, BaseBuilder},
         collider::InteractionGroups,
@@ -45,9 +48,6 @@ use crate::{
         Scene,
     },
 };
-use fyrox_core::algebra::{Isometry2, Translation2, UnitComplex};
-use fyrox_core::uuid_provider;
-use fyrox_graph::{BaseSceneGraph, SceneGraphNode};
 use rapier2d::geometry::ColliderHandle;
 use std::{
     cell::Cell,
@@ -196,7 +196,7 @@ pub enum ColliderShape {
     /// See [`HeightfieldShape`] docs.
     Heightfield(HeightfieldShape),
     /// See [`TileMapShape`] docs.
-    TileMap(TileMapShape),
+    TileMap(TileMapShape, ImmutableString),
 }
 
 uuid_provider!(ColliderShape = "4615485f-f8db-4405-b4a5-437e74b3f5b8");
@@ -647,7 +647,7 @@ impl NodeTrait for Collider {
                     );
                 }
             }
-            ColliderShape::TileMap(tile_map) => {
+            ColliderShape::TileMap(tile_map, _) => {
                 if !scene.graph.is_valid_handle(tile_map.tile_map.0) {
                     message += &format!(
                         "Tile map shape data handle {} is invalid!",
@@ -715,7 +715,7 @@ impl ColliderBuilder {
         self
     }
 
-    /// Sets desired friction value.    
+    /// Sets desired friction value.
     pub fn with_friction(mut self, friction: f32) -> Self {
         self.friction = friction;
         self
@@ -727,7 +727,7 @@ impl ColliderBuilder {
         self
     }
 
-    /// Sets desired solver groups.    
+    /// Sets desired solver groups.
     pub fn with_solver_groups(mut self, solver_groups: InteractionGroups) -> Self {
         self.solver_groups = solver_groups;
         self

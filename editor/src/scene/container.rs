@@ -365,7 +365,52 @@ impl EditorSceneEntry {
         self.controller.on_mouse_wheel(amount, engine, settings)
     }
 
-    pub fn on_mouse_leave(&mut self, engine: &mut Engine, settings: &Settings) {
+    /// Called when the mouse enters the scene viewer.
+    pub fn on_mouse_enter(
+        &mut self,
+        screen_bounds: Rect<f32>,
+        engine: &mut Engine,
+        settings: &Settings,
+    ) {
+        if let Some(interaction_mode) = self
+            .current_interaction_mode
+            .and_then(|id| self.interaction_modes.get_mut(&id))
+        {
+            interaction_mode.on_mouse_enter(
+                &self.selection,
+                &mut *self.controller,
+                engine,
+                screen_bounds.size,
+                settings,
+            );
+        }
+    }
+
+    /// Called when the moue leaves the scene viewer.
+    pub fn on_mouse_leave(
+        &mut self,
+        screen_bounds: Rect<f32>,
+        engine: &mut Engine,
+        settings: &Settings,
+    ) {
+        let last_pos = self
+            .last_mouse_pos
+            .unwrap_or_else(|| engine.user_interfaces.first().cursor_position());
+        let rel_pos = last_pos - screen_bounds.position;
+
+        if let Some(interaction_mode) = self
+            .current_interaction_mode
+            .and_then(|id| self.interaction_modes.get_mut(&id))
+        {
+            interaction_mode.on_mouse_leave(
+                rel_pos,
+                &self.selection,
+                &mut *self.controller,
+                engine,
+                screen_bounds.size,
+                settings,
+            );
+        }
         self.controller.on_mouse_leave(engine, settings)
     }
 

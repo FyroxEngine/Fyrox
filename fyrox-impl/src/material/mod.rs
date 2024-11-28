@@ -799,6 +799,11 @@ impl Material {
         Self::from_shader(ShaderResource::standard_terrain())
     }
 
+    /// Creates new instance of standard tile material.
+    pub fn standard_tile() -> Self {
+        Self::from_shader(ShaderResource::standard_tile())
+    }
+
     /// Creates a new material instance with given shader. By default, a material does not store any
     /// resource bindings. In this case the renderer will use shader default values for rendering.
     /// Materials could be considered as container with values that overwrites shader values.
@@ -1084,7 +1089,7 @@ pub trait MaterialResourceExtension {
     ///
     /// You must use this method to create materials, if you want hot reloading to be reliable and
     /// prevent random crashes. Unlike [`Resource::new_ok`], this method ensures that correct vtable
-    /// is used.  
+    /// is used.
     fn new(material: Material) -> Self;
 
     /// Creates a deep copy of the material resource.

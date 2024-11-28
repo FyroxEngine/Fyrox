@@ -852,8 +852,11 @@ impl SceneViewer {
                                 message.set_handled(true);
                             }
                         }
+                        WidgetMessage::MouseEnter => {
+                            entry.on_mouse_enter(screen_bounds, engine, settings);
+                        }
                         WidgetMessage::MouseLeave => {
-                            entry.on_mouse_leave(engine, settings);
+                            entry.on_mouse_leave(screen_bounds, engine, settings);
                         }
                         WidgetMessage::DragOver(handle) => {
                             entry.on_drag_over(handle, screen_bounds, engine, settings);

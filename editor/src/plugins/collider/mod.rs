@@ -250,7 +250,7 @@ fn make_shape_gizmo(
             ColliderShape::Triangle(_) => Box::new(Triangle2DShapeGizmo::new(root, visible, scene)),
             ColliderShape::Trimesh(_)
             | ColliderShape::Heightfield(_)
-            | ColliderShape::TileMap(_) => Box::new(DummyShapeGizmo),
+            | ColliderShape::TileMap(_, _) => Box::new(DummyShapeGizmo),
         }
     } else {
         Box::new(DummyShapeGizmo)

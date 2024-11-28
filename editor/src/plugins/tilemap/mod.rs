@@ -20,15 +20,30 @@
 
 #![allow(clippy::collapsible_match)] // STFU
 
+mod colliders_tab;
 mod commands;
+mod handle_editor;
 mod misc;
 pub mod palette;
 pub mod panel;
+mod panel_preview;
 mod preview;
+mod properties_tab;
+mod tile_bounds_editor;
+mod tile_inspector;
+mod tile_prop_editor;
 pub mod tile_set_import;
 pub mod tileset;
+use colliders_tab::*;
+use handle_editor::*;
+use palette::PaletteWidget;
+use panel::TileMapPanel;
+use panel_preview::*;
+use properties_tab::*;
+pub use tile_bounds_editor::*;
+use tile_inspector::*;
+pub use tile_prop_editor::*;
 
-use crate::inspector::InspectorPlugin;
 use crate::{
     command::SetPropertyCommand,
     fyrox::{
@@ -38,41 +53,93 @@ use crate::{
             math::{plane::Plane, Matrix4Ext, Rect},
             parking_lot::Mutex,
             pool::Handle,
+            reflect::prelude::*,
             type_traits::prelude::*,
+            visitor::prelude::*,
             Uuid,
         },
         engine::Engine,
         graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
         gui::{
             button::ButtonBuilder,
-            inspector::editors::inherit::InheritablePropertyEditorDefinition, key::HotKey,
-            message::KeyCode, message::MessageDirection, message::UiMessage,
-            utils::make_simple_tooltip, widget::WidgetBuilder, widget::WidgetMessage, BuildContext,
-            Thickness, UiNode,
+            inspector::editors::inherit::InheritablePropertyEditorDefinition,
+            key::HotKey,
+            message::{KeyCode, MessageDirection, UiMessage},
+            utils::make_simple_tooltip,
+            widget::{WidgetBuilder, WidgetMessage},
+            BuildContext, Thickness, UiNode,
         },
         scene::{
             debug::Line,
             node::Node,
             tilemap::{
-                brush::{BrushTile, TileMapBrush},
-                tileset::TileSet,
-                Tile, TileMap, Tiles,
+                brush::TileMapBrush,
+                tileset::{TileSet, TileSetResource},
+                RandomTileSource, RepeatTileSource, Stamp, Tile, TileMap, TileResource, Tiles,
+                TilesUpdate,
             },
             Scene,
         },
     },
+    inspector::InspectorPlugin,
     interaction::{make_interaction_mode_button, InteractionMode},
+    load_image,
     message::MessageSender,
     plugin::EditorPlugin,
     plugins::tilemap::{
-        misc::TilesPropertyEditorDefinition, palette::PaletteMessage, panel::TileMapPanel,
-        preview::TileSetPreview, tileset::TileSetEditor,
+        misc::TilesPropertyEditorDefinition, palette::PaletteMessage, preview::TileSetPreview,
+        tileset::TileSetEditor,
     },
     scene::{commands::GameSceneContext, controller::SceneController, GameScene, Selection},
     settings::Settings,
     Editor, Message,
 };
-use std::sync::Arc;
+use fyrox::{
+    asset::untyped::UntypedResource,
+    core::{log::Log, parking_lot::MutexGuard, ImmutableString},
+    fxhash::FxHashSet,
+    gui::{
+        border::BorderBuilder, brush::Brush, decorator::DecoratorBuilder, image::ImageBuilder,
+        UserInterface, BRUSH_BRIGHT_BLUE, BRUSH_DARKER, BRUSH_LIGHT, BRUSH_LIGHTER, BRUSH_LIGHTEST,
+    },
+    scene::tilemap::{
+        tileset::{TileCollider, TileMaterialBounds},
+        TileDefinitionHandle, TilePaletteStage, TransTilesUpdate,
+    },
+};
+use std::{
+    ops::{Deref, DerefMut},
+    sync::Arc,
+};
+
+lazy_static! {
+    static ref BRUSH_IMAGE: Option<UntypedResource> =
+        load_image(include_bytes!("../../../resources/brush.png"));
+    static ref ERASER_IMAGE: Option<UntypedResource> =
+        load_image(include_bytes!("../../../resources/eraser.png"));
+    static ref FILL_IMAGE: Option<UntypedResource> =
+        load_image(include_bytes!("../../../resources/fill.png"));
+    static ref PICK_IMAGE: Option<UntypedResource> =
+        load_image(include_bytes!("../../../resources/pipette.png"));
+    static ref RECT_FILL_IMAGE: Option<UntypedResource> =
+        load_image(include_bytes!("../../../resources/rect_fill.png"));
+    static ref NINE_SLICE_IMAGE: Option<UntypedResource> =
+        load_image(include_bytes!("../../../resources/nine_slice.png"));
+    static ref LINE_IMAGE: Option<UntypedResource> =
+        load_image(include_bytes!("../../../resources/line.png"));
+    static ref TURN_LEFT_IMAGE: Option<UntypedResource> =
+        load_image(include_bytes!("../../../resources/turn_left.png"));
+    static ref TURN_RIGHT_IMAGE: Option<UntypedResource> =
+        load_image(include_bytes!("../../../resources/turn_right.png"));
+    static ref FLIP_X_IMAGE: Option<UntypedResource> =
+        load_image(include_bytes!("../../../resources/flip_x.png"));
+    static ref FLIP_Y_IMAGE: Option<UntypedResource> =
+        load_image(include_bytes!("../../../resources/flip_y.png"));
+    static ref RANDOM_IMAGE: Option<UntypedResource> =
+        load_image(include_bytes!("../../../resources/die.png"));
+    static ref PALETTE_IMAGE: Option<UntypedResource> =
+        load_image(include_bytes!("../../../resources/palette.png"));
+}
 
 fn make_button(
     title: &str,
@@ -92,38 +159,104 @@ fn make_button(
     .build(ctx)
 }
 
+#[derive(Default, Clone, Copy, Debug, PartialEq, Eq, Visit, Reflect)]
 pub enum DrawingMode {
+    #[default]
     Draw,
     Erase,
     FloodFill,
-    Pick {
-        click_grid_position: Option<Vector2<i32>>,
-    },
-    RectFill {
-        click_grid_position: Option<Vector2<i32>>,
-    },
-    NineSlice {
-        click_grid_position: Option<Vector2<i32>>,
-    },
-    Line {
-        click_grid_position: Option<Vector2<i32>>,
-    },
+    Pick,
+    RectFill,
+    NineSlice,
+    Line,
+    Material,
+    Property,
+    Color,
+    Collider,
 }
 
 struct InteractionContext {
-    previous_tiles: Tiles,
+    changed_tiles: TilesUpdate,
+}
+
+#[derive(Clone, Default, Debug, PartialEq)]
+enum MouseMode {
+    #[default]
+    None,
+    Dragging {
+        initial_position: Vector2<f32>,
+        offset: Vector2<i32>,
+    },
+    Drawing {
+        start_tile: Vector2<i32>,
+        end_tile: Vector2<i32>,
+    },
+}
+
+#[derive(Debug, PartialEq, Clone)]
+struct OpenTilePanelMessage {
+    resource: TileResource,
+    center: Option<TileDefinitionHandle>,
+}
+
+impl OpenTilePanelMessage {
+    fn message(resource: TileResource, center: Option<TileDefinitionHandle>) -> UiMessage {
+        UiMessage::with_data(Self { resource, center })
+    }
+}
+
+fn make_drawing_mode_button(
+    ctx: &mut BuildContext,
+    width: f32,
+    height: f32,
+    image: Option<UntypedResource>,
+    tooltip: &str,
+    tab_index: Option<usize>,
+) -> Handle<UiNode> {
+    ButtonBuilder::new(
+        WidgetBuilder::new()
+            .with_tab_index(tab_index)
+            .with_tooltip(make_simple_tooltip(ctx, tooltip))
+            .with_margin(Thickness::uniform(1.0)),
+    )
+    .with_back(
+        DecoratorBuilder::new(
+            BorderBuilder::new(WidgetBuilder::new().with_foreground(BRUSH_DARKER))
+                .with_pad_by_corner_radius(false)
+                .with_corner_radius(4.0)
+                .with_stroke_thickness(Thickness::uniform(1.0)),
+        )
+        .with_selected_brush(BRUSH_BRIGHT_BLUE)
+        .with_normal_brush(BRUSH_LIGHT)
+        .with_hover_brush(BRUSH_LIGHTER)
+        .with_pressed_brush(BRUSH_LIGHTEST)
+        .build(ctx),
+    )
+    .with_content(
+        ImageBuilder::new(
+            WidgetBuilder::new()
+                .with_background(Brush::Solid(Color::opaque(180, 180, 180)))
+                .with_margin(Thickness::uniform(2.0))
+                .with_width(width)
+                .with_height(height),
+        )
+        .with_opt_texture(image)
+        .build(ctx),
+    )
+    .build(ctx)
 }
 
 #[derive(TypeUuidProvider)]
 #[type_uuid(id = "33fa8ef9-a29c-45d4-a493-79571edd870a")]
 pub struct TileMapInteractionMode {
     tile_map: Handle<Node>,
-    brush: Arc<Mutex<TileMapBrush>>,
-    brush_position: Vector2<i32>,
-    interaction_context: Option<InteractionContext>,
+    state: TileDrawStateRef,
+    panel: Handle<UiNode>,
+    brush_position: Option<Vector2<i32>>,
+    click_grid_position: Option<Vector2<i32>>,
     sender: MessageSender,
-    drawing_mode: DrawingMode,
-    drawing_modes_panel: Handle<UiNode>,
+    update: TransTilesUpdate,
+    mode: MouseMode,
 }
 
 impl TileMapInteractionMode {
@@ -147,6 +280,9 @@ impl TileMapInteractionMode {
         ray.plane_intersection_point(&plane)
             .map(|intersection| tile_map.world_to_grid(intersection))
     }
+    fn sync_to_state(&mut self, ui: &mut UserInterface) {
+        // TODO
+    }
 }
 
 impl InteractionMode for TileMapInteractionMode {
@@ -164,44 +300,33 @@ impl InteractionMode for TileMapInteractionMode {
         };
 
         let scene = &mut engine.scenes[game_scene.scene];
+        /* TODO
+                let brush = self.brush.lock();
 
-        let brush = self.brush.lock();
+                if let Some(grid_coord) = self.pick_grid(scene, game_scene, mouse_position, frame_size) {
+                    let Some(tile_map) = scene.graph.try_get_mut_of_type::<TileMap>(self.tile_map) else {
+                        return;
+                    };
 
-        if let Some(grid_coord) = self.pick_grid(scene, game_scene, mouse_position, frame_size) {
-            let Some(tile_map) = scene.graph.try_get_mut_of_type::<TileMap>(self.tile_map) else {
-                return;
-            };
+                    self.interaction_context = Some(InteractionContext {
+                        previous_tiles: tile_map.tiles().clone(),
+                    });
 
-            self.interaction_context = Some(InteractionContext {
-                previous_tiles: tile_map.tiles().clone(),
-            });
+                    self.brush_position = grid_coord;
+                    self.click_grid_position = Some(grid_coord);
 
-            self.brush_position = grid_coord;
-
-            match self.drawing_mode {
-                DrawingMode::Draw => tile_map.tiles.draw(grid_coord, &brush),
-                DrawingMode::Erase => {
-                    tile_map.tiles.erase(grid_coord, &brush);
+                    match self.drawing_mode {
+                        DrawingMode::Draw => tile_map.tiles.draw(grid_coord, &brush),
+                        DrawingMode::Erase => {
+                            tile_map.tiles.erase(grid_coord, &brush);
+                        }
+                        DrawingMode::FloodFill => {
+                            tile_map.tiles.flood_fill(grid_coord, &brush);
+                        }
+                        _ => (),
+                    }
                 }
-                DrawingMode::FloodFill => {
-                    tile_map.tiles.flood_fill(grid_coord, &brush);
-                }
-                DrawingMode::RectFill {
-                    ref mut click_grid_position,
-                }
-                | DrawingMode::Pick {
-                    ref mut click_grid_position,
-                }
-                | DrawingMode::NineSlice {
-                    ref mut click_grid_position,
-                }
-                | DrawingMode::Line {
-                    ref mut click_grid_position,
-                } => {
-                    *click_grid_position = Some(grid_coord);
-                }
-            }
-        }
+        */
     }
 
     fn on_left_mouse_button_up(
@@ -225,85 +350,83 @@ impl InteractionMode for TileMapInteractionMode {
         let Some(tile_map) = scene.graph.try_get_mut_of_type::<TileMap>(tile_map_handle) else {
             return;
         };
-
-        if let Some(interaction_context) = self.interaction_context.take() {
-            if let Some(grid_coord) = grid_coord {
-                let mut brush = self.brush.lock();
-                match self.drawing_mode {
-                    DrawingMode::Pick {
-                        click_grid_position,
-                    } => {
-                        if let Some(click_grid_position) = click_grid_position {
-                            brush.tiles.clear();
-                            let selected_rect = Rect::from_points(grid_coord, click_grid_position);
-                            for y in selected_rect.position.y
-                                ..(selected_rect.position.y + selected_rect.size.y)
-                            {
-                                for x in selected_rect.position.x
-                                    ..(selected_rect.position.x + selected_rect.size.x)
-                                {
-                                    let position = Vector2::new(x, y);
-                                    if let Some(tile) = tile_map.tiles().get(&position) {
-                                        brush.tiles.push(BrushTile {
-                                            definition_handle: tile.definition_handle,
-                                            local_position: position - selected_rect.position,
-                                            id: Uuid::new_v4(),
-                                        })
+        /* TODO
+                if let Some(interaction_context) = self.interaction_context.take() {
+                    if let Some(grid_coord) = grid_coord {
+                        let mut brush = self.brush.lock();
+                        match self.drawing_mode {
+                            DrawingMode::Pick => {
+                                if let Some(click_grid_position) = self.click_grid_position {
+                                    brush.clear();
+                                    let selected_rect = Rect::from_points(grid_coord, click_grid_position);
+                                    for y in selected_rect.position.y
+                                        ..(selected_rect.position.y + selected_rect.size.y)
+                                    {
+                                        for x in selected_rect.position.x
+                                            ..(selected_rect.position.x + selected_rect.size.x)
+                                        {
+                                            let position = Vector2::new(x, y);
+                                            if let Some(tile) = tile_map.tiles().get(&position) {
+                                                let pos = position - selected_rect.position;
+                                                brush.insert(&pos, tile.definition_handle);
+                                            }
+                                        }
                                     }
                                 }
                             }
+                            DrawingMode::RectFill => {
+                                if let Some(click_grid_position) = self.click_grid_position {
+                                    interaction_context.changed_tiles.clear();
+                                    let source = if self.random_mode {
+                                        interaction_context.changed_tiles.rect_fill(
+                                            Rect::from_points(grid_coord, click_grid_position),
+                                            &RandomTileSource(&*brush),
+                                        );
+                                    } else {
+                                        interaction_context.changed_tiles.rect_fill(
+                                            Rect::from_points(grid_coord, click_grid_position),
+                                            &RepeatTileSource::new(&*brush),
+                                        );
+                                    };
+                                }
+                            }
+                            DrawingMode::NineSlice => {
+                                if let Some(click_grid_position) = self.click_grid_position {
+                                    tile_map.tiles.nine_slice(
+                                        Rect::from_points(grid_coord, click_grid_position),
+                                        &brush,
+                                    )
+                                }
+                            }
+                            DrawingMode::Line => {
+                                if let Some(click_grid_position) = self.click_grid_position {
+                                    tile_map.tiles.draw_line_with_brush(
+                                        self.brush_position,
+                                        click_grid_position,
+                                        &brush,
+                                    );
+                                }
+                            }
+                            _ => (),
                         }
                     }
-                    DrawingMode::RectFill {
-                        click_grid_position,
-                    } => {
-                        if let Some(click_grid_position) = click_grid_position {
-                            tile_map.tiles.rect_fill(
-                                Rect::from_points(grid_coord, click_grid_position),
-                                &brush,
-                            );
-                        }
-                    }
-                    DrawingMode::NineSlice {
-                        click_grid_position,
-                    } => {
-                        if let Some(click_grid_position) = click_grid_position {
-                            tile_map.tiles.nine_slice(
-                                Rect::from_points(grid_coord, click_grid_position),
-                                &brush,
-                            )
-                        }
-                    }
-                    DrawingMode::Line {
-                        click_grid_position,
-                    } => {
-                        if let Some(click_grid_position) = click_grid_position {
-                            tile_map.tiles.draw_line_with_brush(
-                                self.brush_position,
-                                click_grid_position,
-                                &brush,
-                            );
-                        }
-                    }
-                    _ => (),
-                }
-            }
 
-            if !matches!(self.drawing_mode, DrawingMode::Pick { .. }) {
-                let new_tiles = tile_map.tiles().clone();
-                tile_map.set_tiles(interaction_context.previous_tiles);
-                self.sender.do_command(SetPropertyCommand::new(
-                    "tiles".to_string(),
-                    Box::new(new_tiles),
-                    move |ctx| {
-                        ctx.get_mut::<GameSceneContext>()
-                            .scene
-                            .graph
-                            .node_mut(tile_map_handle)
-                    },
-                ));
-            }
-        }
+                    if !matches!(self.drawing_mode, DrawingMode::Pick { .. }) {
+                        let new_tiles = tile_map.tiles().clone();
+                        tile_map.set_tiles(interaction_context.previous_tiles);
+                        self.sender.do_command(SetPropertyCommand::new(
+                            "tiles".to_string(),
+                            Box::new(new_tiles),
+                            move |ctx| {
+                                ctx.get_mut::<GameSceneContext>()
+                                    .scene
+                                    .graph
+                                    .node_mut(tile_map_handle)
+                            },
+                        ));
+                    }
+                }
+        */
     }
 
     fn on_mouse_move(
@@ -321,28 +444,29 @@ impl InteractionMode for TileMapInteractionMode {
         };
 
         let scene = &mut engine.scenes[game_scene.scene];
+        /*
+                let brush = self.brush.lock();
 
-        let brush = self.brush.lock();
+                if let Some(grid_coord) = self.pick_grid(scene, game_scene, mouse_position, frame_size) {
+                    let Some(tile_map) = scene.graph.try_get_mut_of_type::<TileMap>(self.tile_map) else {
+                        return;
+                    };
 
-        if let Some(grid_coord) = self.pick_grid(scene, game_scene, mouse_position, frame_size) {
-            let Some(tile_map) = scene.graph.try_get_mut_of_type::<TileMap>(self.tile_map) else {
-                return;
-            };
+                    self.brush_position = grid_coord;
 
-            self.brush_position = grid_coord;
-
-            if self.interaction_context.is_some() {
-                match self.drawing_mode {
-                    DrawingMode::Draw => tile_map.tiles.draw(grid_coord, &brush),
-                    DrawingMode::Erase => {
-                        tile_map.tiles.erase(grid_coord, &brush);
-                    }
-                    _ => {
-                        // Do nothing
+                    if self.interaction_context.is_some() {
+                        match self.drawing_mode {
+                            DrawingMode::Draw => tile_map.tiles.draw(grid_coord, &brush),
+                            DrawingMode::Erase => {
+                                tile_map.tiles.erase(grid_coord, &brush);
+                            }
+                            _ => {
+                                // Do nothing
+                            }
+                        }
                     }
                 }
-            }
-        }
+        */
     }
 
     fn update(
@@ -383,171 +507,160 @@ impl InteractionMode for TileMapInteractionMode {
         for x in -size..size {
             draw_line(Vector2::new(x, -size), Vector2::new(x, size), Color::WHITE);
         }
-
-        match self.drawing_mode {
-            DrawingMode::Draw | DrawingMode::Erase => {
-                self.brush.lock().draw_outline(
-                    &mut scene.drawing_context,
-                    self.brush_position,
-                    &transform,
-                    Color::RED,
-                );
-            }
-            DrawingMode::FloodFill => {
-                scene.drawing_context.draw_rectangle(
-                    0.5,
-                    0.5,
-                    transform
-                        * Matrix4::new_translation(
-                            &(self.brush_position.cast::<f32>().to_homogeneous()
-                                + Vector3::new(0.5, 0.5, 0.0)),
-                        ),
-                    Color::RED,
-                );
-            }
-            DrawingMode::Line {
-                click_grid_position,
-            } => {
-                if self.interaction_context.is_some() {
-                    if let Some(click_grid_position) = click_grid_position {
-                        for point in [click_grid_position, self.brush_position] {
-                            scene.drawing_context.draw_rectangle(
-                                0.5,
-                                0.5,
-                                transform
-                                    * Matrix4::new_translation(
-                                        &(point.cast::<f32>().to_homogeneous()
-                                            + Vector3::new(0.5, 0.5, 0.0)),
-                                    ),
-                                Color::RED,
-                            );
-                        }
+        /* TODO
+                match self.drawing_mode {
+                    DrawingMode::Draw | DrawingMode::Erase => {
+                        self.brush.lock().draw_outline(
+                            &mut scene.drawing_context,
+                            self.brush_position,
+                            &transform,
+                            Color::RED,
+                        );
                     }
-                }
-            }
-            DrawingMode::Pick {
-                click_grid_position,
-            }
-            | DrawingMode::RectFill {
-                click_grid_position,
-            }
-            | DrawingMode::NineSlice {
-                click_grid_position,
-            } => {
-                if self.interaction_context.is_some() {
-                    if let Some(click_grid_position) = click_grid_position {
-                        let rect = Rect::from_points(click_grid_position, self.brush_position);
-                        let position = rect.position.cast::<f32>();
-                        let half_size = rect.size.cast::<f32>().scale(0.5);
-
+                    DrawingMode::FloodFill => {
                         scene.drawing_context.draw_rectangle(
-                            half_size.x,
-                            half_size.y,
+                            0.5,
+                            0.5,
                             transform
                                 * Matrix4::new_translation(
-                                    &(position + half_size).to_homogeneous(),
+                                    &(self.brush_position.cast::<f32>().to_homogeneous()
+                                        + Vector3::new(0.5, 0.5, 0.0)),
                                 ),
                             Color::RED,
                         );
                     }
-                }
-            }
-        }
+                    DrawingMode::Line {
+                        click_grid_position,
+                    } => {
+                        if self.interaction_context.is_some() {
+                            if let Some(click_grid_position) = click_grid_position {
+                                for point in [click_grid_position, self.brush_position] {
+                                    scene.drawing_context.draw_rectangle(
+                                        0.5,
+                                        0.5,
+                                        transform
+                                            * Matrix4::new_translation(
+                                                &(point.cast::<f32>().to_homogeneous()
+                                                    + Vector3::new(0.5, 0.5, 0.0)),
+                                            ),
+                                        Color::RED,
+                                    );
+                                }
+                            }
+                        }
+                    }
+                    DrawingMode::Pick {
+                        click_grid_position,
+                    }
+                    | DrawingMode::RectFill {
+                        click_grid_position,
+                    }
+                    | DrawingMode::NineSlice {
+                        click_grid_position,
+                    } => {
+                        if self.interaction_context.is_some() {
+                            if let Some(click_grid_position) = click_grid_position {
+                                let rect = Rect::from_points(click_grid_position, self.brush_position);
+                                let position = rect.position.cast::<f32>();
+                                let half_size = rect.size.cast::<f32>().scale(0.5);
 
-        let brush = self.brush.lock();
+                                scene.drawing_context.draw_rectangle(
+                                    half_size.x,
+                                    half_size.y,
+                                    transform
+                                        * Matrix4::new_translation(
+                                            &(position + half_size).to_homogeneous(),
+                                        ),
+                                    Color::RED,
+                                );
+                            }
+                        }
+                    }
+                }
 
-        tile_map.overlay_tiles.clear();
-        match self.drawing_mode {
-            DrawingMode::Draw => {
-                for tile in brush.tiles.iter() {
-                    tile_map.overlay_tiles.insert(Tile {
-                        position: self.brush_position + tile.local_position,
-                        definition_handle: tile.definition_handle,
-                    });
-                }
-            }
-            DrawingMode::Erase => {}
-            DrawingMode::FloodFill => {
-                let tiles = tile_map
-                    .tiles
-                    .flood_fill_immutable(self.brush_position, &brush);
-                for tile in tiles {
-                    tile_map.overlay_tiles.insert(tile);
-                }
-            }
-            DrawingMode::Pick { .. } => {}
-            DrawingMode::RectFill {
-                click_grid_position,
-            } => {
-                if self.interaction_context.is_some() {
-                    if let Some(click_grid_position) = click_grid_position {
-                        tile_map.overlay_tiles.rect_fill(
-                            Rect::from_points(self.brush_position, click_grid_position),
-                            &brush,
-                        );
+                let brush = self.brush.lock();
+
+                tile_map.overlay_tiles.clear();
+                match self.drawing_mode {
+                    DrawingMode::Draw => {
+                        for tile in brush.tiles.iter() {
+                            tile_map.overlay_tiles.insert(Tile {
+                                position: self.brush_position + tile.local_position,
+                                definition_handle: tile.definition_handle,
+                            });
+                        }
+                    }
+                    DrawingMode::Erase => {}
+                    DrawingMode::FloodFill => {
+                        let tiles = tile_map
+                            .tiles
+                            .flood_fill_immutable(self.brush_position, &brush);
+                        for tile in tiles {
+                            tile_map.overlay_tiles.insert(tile);
+                        }
+                    }
+                    DrawingMode::Pick { .. } => {}
+                    DrawingMode::RectFill {
+                        click_grid_position,
+                    } => {
+                        if self.interaction_context.is_some() {
+                            if let Some(click_grid_position) = click_grid_position {
+                                tile_map.overlay_tiles.rect_fill(
+                                    Rect::from_points(self.brush_position, click_grid_position),
+                                    &brush,
+                                );
+                            }
+                        }
+                    }
+                    DrawingMode::NineSlice {
+                        click_grid_position,
+                    } => {
+                        if self.interaction_context.is_some() {
+                            if let Some(click_grid_position) = click_grid_position {
+                                tile_map.overlay_tiles.nine_slice(
+                                    Rect::from_points(self.brush_position, click_grid_position),
+                                    &brush,
+                                );
+                            }
+                        }
+                    }
+                    DrawingMode::Line {
+                        click_grid_position,
+                    } => {
+                        if self.interaction_context.is_some() {
+                            if let Some(click_grid_position) = click_grid_position {
+                                tile_map.overlay_tiles.draw_line_with_brush(
+                                    self.brush_position,
+                                    click_grid_position,
+                                    &brush,
+                                );
+                            }
+                        }
                     }
                 }
-            }
-            DrawingMode::NineSlice {
-                click_grid_position,
-            } => {
-                if self.interaction_context.is_some() {
-                    if let Some(click_grid_position) = click_grid_position {
-                        tile_map.overlay_tiles.nine_slice(
-                            Rect::from_points(self.brush_position, click_grid_position),
-                            &brush,
-                        );
-                    }
-                }
-            }
-            DrawingMode::Line {
-                click_grid_position,
-            } => {
-                if self.interaction_context.is_some() {
-                    if let Some(click_grid_position) = click_grid_position {
-                        tile_map.overlay_tiles.draw_line_with_brush(
-                            self.brush_position,
-                            click_grid_position,
-                            &brush,
-                        );
-                    }
-                }
-            }
-        }
+        */
     }
 
     fn activate(&mut self, _controller: &dyn SceneController, engine: &mut Engine) {
-        engine
-            .user_interfaces
-            .first()
-            .send_message(WidgetMessage::enabled(
-                self.drawing_modes_panel,
+        if self.panel.is_some() {
+            let ui = engine.user_interfaces.first_mut();
+            ui.send_message(WidgetMessage::visibility(
+                self.panel,
                 MessageDirection::ToWidget,
                 true,
             ));
+        }
     }
 
-    fn deactivate(&mut self, controller: &dyn SceneController, engine: &mut Engine) {
-        engine
-            .user_interfaces
-            .first()
-            .send_message(WidgetMessage::enabled(
-                self.drawing_modes_panel,
+    fn deactivate(&mut self, _controller: &dyn SceneController, engine: &mut Engine) {
+        if self.panel.is_some() {
+            let ui = engine.user_interfaces.first_mut();
+            ui.send_message(WidgetMessage::visibility(
+                self.panel,
                 MessageDirection::ToWidget,
                 false,
             ));
-
-        let Some(game_scene) = controller.downcast_ref::<GameScene>() else {
-            return;
-        };
-
-        let scene = &mut engine.scenes[game_scene.scene];
-
-        let Some(tile_map) = scene.graph.try_get_mut_of_type::<TileMap>(self.tile_map) else {
-            return;
-        };
-
-        tile_map.overlay_tiles.clear();
+        }
     }
 
     fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<UiNode> {
@@ -570,27 +683,29 @@ impl InteractionMode for TileMapInteractionMode {
         _engine: &mut Engine,
         _settings: &Settings,
     ) -> bool {
-        if let HotKey::Some { code, .. } = hotkey {
-            match *code {
-                KeyCode::AltLeft => {
-                    self.drawing_mode = DrawingMode::Pick {
-                        click_grid_position: None,
-                    };
-                    return true;
+        /*
+                if let HotKey::Some { code, .. } = hotkey {
+                    match *code {
+                        KeyCode::AltLeft => {
+                            self.drawing_mode = DrawingMode::Pick {
+                                click_grid_position: None,
+                            };
+                            return true;
+                        }
+                        KeyCode::ShiftLeft => {
+                            self.drawing_mode = DrawingMode::Erase;
+                            return true;
+                        }
+                        KeyCode::ControlLeft => {
+                            self.drawing_mode = DrawingMode::RectFill {
+                                click_grid_position: None,
+                            };
+                            return true;
+                        }
+                        _ => (),
+                    }
                 }
-                KeyCode::ShiftLeft => {
-                    self.drawing_mode = DrawingMode::Erase;
-                    return true;
-                }
-                KeyCode::ControlLeft => {
-                    self.drawing_mode = DrawingMode::RectFill {
-                        click_grid_position: None,
-                    };
-                    return true;
-                }
-                _ => (),
-            }
-        }
+        */
         false
     }
 
@@ -601,6 +716,7 @@ impl InteractionMode for TileMapInteractionMode {
         _engine: &mut Engine,
         _settings: &Settings,
     ) -> bool {
+        /*
         if let HotKey::Some { code, .. } = hotkey {
             match *code {
                 KeyCode::AltLeft => {
@@ -624,16 +740,208 @@ impl InteractionMode for TileMapInteractionMode {
                 _ => (),
             }
         }
+        */
         false
     }
 }
 
 #[derive(Default)]
 pub struct TileMapEditorPlugin {
+    state: TileDrawStateRef,
     tile_set_editor: Option<TileSetEditor>,
-    brush: Arc<Mutex<TileMapBrush>>,
     panel: Option<TileMapPanel>,
     tile_map: Handle<Node>,
+}
+
+#[derive(Default, Debug, Clone, Visit)]
+pub struct TileDrawState {
+    /// True if the state has been changed and the change has not yet caused the UI to update.
+    dirty: bool,
+    tile_set: Option<TileSetResource>,
+    stamp: Stamp,
+    drawing_mode: DrawingMode,
+    active_prop: Option<Uuid>,
+    draw_value: DrawValue,
+    random_mode: bool,
+    selection: TileDrawSelection,
+}
+
+#[derive(Debug, Clone, Visit, Reflect)]
+pub enum DrawValue {
+    I8(i8),
+    I32(i32),
+    F32(f32),
+    String(ImmutableString),
+    Color(Color),
+    Material(TileMaterialBounds),
+    Collider(TileCollider),
+}
+
+impl Default for DrawValue {
+    fn default() -> Self {
+        Self::I32(0)
+    }
+}
+
+#[derive(Debug, Default, Clone, Visit)]
+pub struct TileDrawStateRef(Arc<Mutex<TileDrawState>>);
+pub struct TileDrawStateGuard<'a>(MutexGuard<'a, TileDrawState>);
+pub struct TileDrawStateGuardMut<'a>(MutexGuard<'a, TileDrawState>);
+
+impl<'a> Deref for TileDrawStateGuard<'a> {
+    type Target = TileDrawState;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<'a> Deref for TileDrawStateGuardMut<'a> {
+    type Target = TileDrawState;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<'a> DerefMut for TileDrawStateGuardMut<'a> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl TileDrawStateRef {
+    pub fn lock(&self) -> TileDrawStateGuard {
+        TileDrawStateGuard(self.0.lock())
+    }
+    pub fn lock_mut(&self) -> TileDrawStateGuardMut {
+        self.lock().into_mut()
+    }
+    pub fn check_dirty(&self) -> bool {
+        let mut state = self.0.lock();
+        let dirty = state.dirty;
+        state.dirty = false;
+        dirty
+    }
+}
+
+impl<'a> TileDrawStateGuard<'a> {
+    pub fn into_mut(self) -> TileDrawStateGuardMut<'a> {
+        let mut result = TileDrawStateGuardMut(self.0);
+        result.dirty = true;
+        result
+    }
+}
+
+#[derive(Default, Debug, Clone, Visit)]
+struct TileDrawSelection {
+    pub source: SelectionSource,
+    pub page: Vector2<i32>,
+    pub positions: FxHashSet<Vector2<i32>>,
+    pub tiles: Tiles,
+}
+
+impl TileDrawState {
+    /// True if the current selection is not empty
+    #[inline]
+    pub fn has_selection(&self) -> bool {
+        !self.selection.positions.is_empty()
+    }
+    /// The handle of the palette widget that is currently being used to select tiles, or else Handle::NONE.
+    #[inline]
+    pub fn selection_palette(&self) -> Handle<UiNode> {
+        match self.selection.source {
+            SelectionSource::Widget(h) => h,
+            _ => Handle::NONE,
+        }
+    }
+    /// The handle of the tile map node that is currently being used to select tiles, or else Handle::NONE.
+    #[inline]
+    pub fn selection_node(&self) -> Handle<Node> {
+        match self.selection.source {
+            SelectionSource::Node(h) => h,
+            _ => Handle::NONE,
+        }
+    }
+    #[inline]
+    pub fn set_palette(&mut self, handle: Handle<UiNode>) {
+        self.selection.source = SelectionSource::Widget(handle);
+    }
+    #[inline]
+    pub fn set_node(&mut self, handle: Handle<Node>) {
+        self.selection.source = SelectionSource::Node(handle);
+    }
+    #[inline]
+    pub fn selection_tiles(&self) -> &Tiles {
+        &self.selection.tiles
+    }
+    #[inline]
+    pub fn selection_tiles_mut(&mut self) -> &mut Tiles {
+        &mut self.selection.tiles
+    }
+    #[inline]
+    pub fn selection_positions(&self) -> &FxHashSet<Vector2<i32>> {
+        &self.selection.positions
+    }
+    #[inline]
+    pub fn selection_positions_mut(&mut self) -> &mut FxHashSet<Vector2<i32>> {
+        &mut self.selection.positions
+    }
+    #[inline]
+    pub fn clear_selection(&mut self) {
+        self.stamp.clear();
+        self.selection.positions.clear();
+        self.selection.tiles.clear();
+        self.selection.source = SelectionSource::None;
+    }
+    #[inline]
+    pub fn update_stamp(&mut self, tile_set: Option<TileSetResource>) {
+        self.tile_set = tile_set;
+        self.stamp
+            .build(self.selection.tiles.iter().map(|(&x, &y)| (x, y)));
+    }
+}
+
+#[derive(Default, Debug, Copy, Clone, Eq, PartialEq, Visit)]
+pub enum SelectionSource {
+    #[default]
+    None,
+    Widget(Handle<UiNode>),
+    Node(Handle<Node>),
+}
+
+impl TileMapEditorPlugin {
+    fn initialize_tile_map_panel(
+        &mut self,
+        resource: TileResource,
+        center: Option<TileDefinitionHandle>,
+        ui: &mut UserInterface,
+        sender: &MessageSender,
+    ) {
+        if let Some(panel) = &mut self.panel {
+            panel.to_top(ui);
+        } else if let Some(editor) = &self.tile_set_editor {
+            let panel = TileMapPanel::new(&mut ui.build_ctx(), self.state.clone(), sender.clone());
+            panel.align(editor.window, ui);
+            self.panel = Some(panel);
+        }
+        if let Some(panel) = &mut self.panel {
+            panel.set_resource(resource, ui);
+            if let Some(focus) = center {
+                panel.set_focus(focus, ui);
+            }
+        }
+    }
+    fn update_state(&mut self) {
+        let state = self.state.lock();
+        if match &state.drawing_mode {
+            DrawingMode::Pick => false,
+            DrawingMode::Color | DrawingMode::Property => self.tile_set_editor.is_none(),
+            _ => self.panel.is_none(),
+        } {
+            state.into_mut().drawing_mode = DrawingMode::Pick;
+        }
+    }
 }
 
 impl EditorPlugin for TileMapEditorPlugin {
@@ -642,21 +950,24 @@ impl EditorPlugin for TileMapEditorPlugin {
             .asset_browser
             .preview_generators
             .add(TileSet::type_uuid(), TileSetPreview);
-
-        let inspector = editor.plugins.get_mut::<InspectorPlugin>();
-        inspector
-            .property_editors
-            .insert(TilesPropertyEditorDefinition);
-        inspector
-            .property_editors
-            .insert(InheritablePropertyEditorDefinition::<Tiles>::new());
     }
 
     fn on_sync_to_model(&mut self, editor: &mut Editor) {
         let ui = editor.engine.user_interfaces.first_mut();
 
+        let palette = self.state.lock().selection_palette();
+        if let Some(palette) = ui
+            .try_get_mut(palette)
+            .and_then(|p| p.cast_mut::<PaletteWidget>())
+        {
+            palette.sync_selection_to_model();
+        }
+
         if let Some(tile_set_editor) = self.tile_set_editor.as_mut() {
             tile_set_editor.sync_to_model(ui);
+        }
+        if let Some(panel) = self.panel.as_mut() {
+            panel.sync_to_state(ui);
         }
 
         let Some(entry) = editor.scenes.current_scene_entry_mut() else {
@@ -689,26 +1000,21 @@ impl EditorPlugin for TileMapEditorPlugin {
     fn on_ui_message(&mut self, message: &mut UiMessage, editor: &mut Editor) {
         let ui = editor.engine.user_interfaces.first_mut();
 
-        let inspector = editor.plugins.get::<InspectorPlugin>();
-
         if let Some(tile_set_editor) = self.tile_set_editor.take() {
             self.tile_set_editor = tile_set_editor.handle_ui_message(
                 message,
                 ui,
                 &editor.engine.resource_manager,
                 &editor.message_sender,
-                inspector.property_editors.clone(),
                 editor.engine.serialization_context.clone(),
             );
         }
 
-        if let Some(panel) = self.panel.take() {
-            if let Some(PaletteMessage::ActiveBrush(brush)) = message.data() {
-                if message.destination() == panel.palette {
-                    *self.brush.lock() = brush.clone();
-                }
-            }
+        if let Some(OpenTilePanelMessage { resource, center }) = message.data() {
+            self.initialize_tile_map_panel(resource.clone(), *center, ui, &editor.message_sender);
+        }
 
+        if let Some(panel) = self.panel.take() {
             let editor_scene_entry = editor.scenes.current_scene_entry_mut();
 
             let tile_map = editor_scene_entry
@@ -736,20 +1042,50 @@ impl EditorPlugin for TileMapEditorPlugin {
             tile_set_editor.update();
         }
 
-        if let Some(panel) = self.panel.as_mut() {
-            panel.update(
-                editor.engine.user_interfaces.first(),
-                editor.scenes.current_scene_entry_ref(),
-            );
+        self.update_state();
+
+        if self.state.check_dirty() {
+            if let Some(tile_set_editor) = self.tile_set_editor.as_mut() {
+                tile_set_editor.sync_to_state(editor.engine.user_interfaces.first_mut());
+            }
+            if let Some(panel) = self.panel.as_mut() {
+                panel.sync_to_state(editor.engine.user_interfaces.first_mut());
+            }
+            if let Some(interaction_mode) = editor
+                .scenes
+                .current_scene_entry_mut()
+                .and_then(|s| s.interaction_modes.of_type_mut::<TileMapInteractionMode>())
+            {
+                interaction_mode.sync_to_state(editor.engine.user_interfaces.first_mut());
+            }
         }
     }
 
     fn on_message(&mut self, message: &Message, editor: &mut Editor) {
         let ui = editor.engine.user_interfaces.first_mut();
 
-        if let Message::OpenTileSetEditor(tile_set) = message {
-            let tile_set_editor = TileSetEditor::new(tile_set.clone(), &mut ui.build_ctx());
-            self.tile_set_editor = Some(tile_set_editor);
+        let tile_set: Option<TileResource> = if let Message::OpenTileSetEditor(tile_set) = message {
+            Some(TileResource::TileSet(tile_set.clone()))
+        } else if let Message::OpenTileMapBrushEditor(brush) = message {
+            Some(TileResource::Brush(brush.clone()))
+        } else {
+            None
+        };
+
+        if let Some(tile_set) = tile_set {
+            if self.tile_set_editor.is_none() {
+                let tile_set_editor = TileSetEditor::new(
+                    tile_set.clone(),
+                    self.state.clone(),
+                    editor.message_sender.clone(),
+                    editor.engine.resource_manager.clone(),
+                    &mut ui.build_ctx(),
+                );
+                self.tile_set_editor = Some(tile_set_editor);
+            } else if let Some(editor) = &mut self.tile_set_editor {
+                editor.set_tile_resource(tile_set.clone(), ui);
+            }
+            self.initialize_tile_map_panel(tile_set, None, ui, &editor.message_sender);
         }
 
         let Some(entry) = editor.scenes.current_scene_entry_mut() else {
@@ -771,40 +1107,49 @@ impl EditorPlugin for TileMapEditorPlugin {
                 .interaction_modes
                 .remove_typed::<TileMapInteractionMode>();
 
-            if let Some(panel) = self.panel.take() {
-                panel.destroy(ui);
-            }
+            let mut tile_map: Option<&TileMap> = None;
+            let mut handle = Handle::NONE;
 
             for node_handle in selection.nodes().iter() {
-                if let Some(tile_map) = scene.graph.try_get(*node_handle) {
-                    let Some(tile_map) = tile_map.component_ref::<TileMap>() else {
+                if let Some(node) = scene.graph.try_get(*node_handle) {
+                    let Some(t) = node.component_ref::<TileMap>() else {
                         continue;
                     };
 
+                    tile_map = Some(t);
+                    handle = *node_handle;
+
                     self.tile_map = *node_handle;
-
-                    let panel = TileMapPanel::new(
-                        &mut ui.build_ctx(),
-                        editor.scene_viewer.frame(),
-                        tile_map,
-                    );
-
-                    let drawing_modes_panel = panel.drawing_modes_panel;
-
-                    self.panel = Some(panel);
-
-                    entry.interaction_modes.add(TileMapInteractionMode {
-                        tile_map: *node_handle,
-                        brush: self.brush.clone(),
-                        brush_position: Default::default(),
-                        interaction_context: None,
-                        sender: editor.message_sender.clone(),
-                        drawing_mode: DrawingMode::Draw,
-                        drawing_modes_panel,
-                    });
 
                     break;
                 }
+            }
+            if let Some(tile_map) = tile_map {
+                if let Some(panel) = &mut self.panel {
+                    panel.set_tile_map(tile_map, ui);
+                    panel.to_top(ui);
+                } else {
+                    let mut panel = TileMapPanel::new(
+                        &mut ui.build_ctx(),
+                        self.state.clone(),
+                        editor.message_sender.clone(),
+                    );
+                    panel.align(editor.scene_viewer.frame(), ui);
+                    panel.set_tile_map(tile_map, ui);
+                    self.panel = Some(panel);
+                }
+                entry.interaction_modes.add(TileMapInteractionMode {
+                    tile_map: handle,
+                    panel: self.panel.as_ref().unwrap().window,
+                    state: self.state.clone(),
+                    click_grid_position: None,
+                    brush_position: None,
+                    sender: editor.message_sender.clone(),
+                    mode: MouseMode::None,
+                    update: TransTilesUpdate::default(),
+                });
+            } else if let Some(panel) = &mut self.panel {
+                panel.set_visibility(false, ui);
             }
         }
     }

@@ -36,7 +36,7 @@ use crate::{
         reflect::prelude::*,
         variable::{InheritableVariable, VariableFlags},
         visitor::prelude::*,
-        BiDirHashMap,
+        BiDirHashMap, ImmutableString,
     },
     graph::{BaseSceneGraph, SceneGraphNode},
     scene::{
@@ -53,7 +53,7 @@ use crate::{
             Graph, NodePool,
         },
         node::{Node, NodeTrait},
-        tilemap::{tileset::TileCollider, TileMap},
+        tilemap::{tileset::TileCollider, TileMap, TilePaletteStage},
     },
 };
 pub use rapier2d::geometry::shape::*;
@@ -326,6 +326,7 @@ fn tile_map_to_collider_shape(
     tile_map_shape: &TileMapShape,
     owner_inv_transform: Matrix4<f32>,
     nodes: &NodePool,
+    collider_name: ImmutableString,
 ) -> Option<SharedShape> {
     let tile_map_handle = tile_map_shape.tile_map.0;
     let tile_map = nodes
@@ -343,12 +344,15 @@ fn tile_map_to_collider_shape(
     let mut vertices = Vec::new();
     let mut triangles = Vec::new();
 
-    for tile in tile_map.tiles().values() {
-        let Some(tile_definition) = tile_set.tiles.try_borrow(tile.definition_handle) else {
+    for tile in tile_map.iter() {
+        let Some(tile_definition) =
+            tile_set.get_tile_data(TilePaletteStage::Tiles, tile.definition_handle)
+        else {
             continue;
         };
 
-        match tile_definition.collider {
+        let collider_uuid = tile_set.collider_name_to_uuid(collider_name.clone())?;
+        match tile_definition.collider.get(&collider_uuid)? {
             TileCollider::None => {}
             TileCollider::Rectangle => {
                 let origin = vertices.len() as u32;
@@ -422,8 +426,8 @@ fn collider_shape_into_native_shape(
         ColliderShape::Heightfield(_) => {
             None // TODO
         }
-        ColliderShape::TileMap(tilemap) => {
-            tile_map_to_collider_shape(tilemap, owner_inv_transform, nodes)
+        ColliderShape::TileMap(tilemap, name) => {
+            tile_map_to_collider_shape(tilemap, owner_inv_transform, nodes, name.clone())
         }
     }
 }

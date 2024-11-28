@@ -20,7 +20,7 @@
 
 use crate::{
     asset::item::AssetItem,
-    command::{make_command, Command, CommandGroup},
+    command::{make_command, Command, CommandGroup, CommandTrait},
     fyrox::{
         asset::{manager::ResourceManager, untyped::ResourceKind, ResourceData},
         core::{
@@ -44,8 +44,7 @@ use crate::{
             list_view::{ListView, ListViewBuilder, ListViewMessage},
             message::{MessageDirection, UiMessage},
             stack_panel::StackPanelBuilder,
-            widget::Widget,
-            widget::{WidgetBuilder, WidgetMessage},
+            widget::{Widget, WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
             wrap_panel::WrapPanelBuilder,
             BuildContext, Control, Orientation, Thickness, UiNode, UserInterface,
@@ -53,114 +52,316 @@ use crate::{
         },
         material::{Material, MaterialResource},
         resource::texture::Texture,
-        scene::tilemap::tileset::{TileDefinition, TileSet, TileSetResource},
+        scene::tilemap::{
+            tileset::{TileDefinition, TileSet, TileSetResource},
+            TileDefinitionHandle,
+        },
     },
-    inspector::EditorEnvironment,
+    inspector::{editors::resource::ResourceFieldBuilder, EditorEnvironment},
     message::MessageSender,
-    plugins::tilemap::{
-        commands::{AddTileCommand, RemoveTileCommand},
-        make_button,
-        tile_set_import::{ImportResult, TileSetImporter},
-    },
+    plugins::tilemap::tile_set_import::{ImportResult, TileSetImporter},
     Message,
 };
-use fyrox::core::algebra::Vector2;
-use fyrox::graph::SceneGraph;
-use fyrox::scene::tilemap::tileset::TileDefinitionHandle;
+use fyrox::{
+    core::algebra::Vector2,
+    gui::{
+        color::{ColorFieldBuilder, ColorFieldMessage},
+        grid::SizeMode,
+        scroll_viewer::ScrollViewerBuilder,
+        tab_control::{TabControlBuilder, TabDefinition},
+        text::TextMessage,
+        vec::Vec2EditorBuilder,
+    },
+    resource::texture::TextureKind,
+    scene::tilemap::{
+        brush::TileMapBrushResource, tileset::TileSetPageSource, TileDataUpdate, TileResource,
+        TileSetUpdate,
+    },
+};
+use fyrox::{graph::SceneGraph, gui::text::TextBuilder};
+use palette::{PaletteWidget, PaletteWidgetBuilder, DEFAULT_MATERIAL_COLOR};
 use std::{
     ops::{Deref, DerefMut},
     sync::Arc,
 };
 
+use super::*;
+use commands::*;
+
+const TAB_MARGIN: Thickness = Thickness {
+    left: 10.0,
+    top: 2.0,
+    right: 10.0,
+    bottom: 2.0,
+};
+
 pub struct TileSetEditor {
-    window: Handle<UiNode>,
-    tiles: Handle<UiNode>,
-    tile_set: TileSetResource,
-    import: Handle<UiNode>,
+    pub window: Handle<UiNode>,
+    state: TileDrawStateRef,
+    page: Option<Vector2<i32>>,
+    tile_resource: TileResource,
+    color_field: Handle<UiNode>,
+    cell_position: Handle<UiNode>,
+    tab_control: Handle<UiNode>,
+    pages_palette: Handle<UiNode>,
+    tiles_palette: Handle<UiNode>,
+    open_control: Handle<UiNode>,
     remove: Handle<UiNode>,
-    remove_all: Handle<UiNode>,
-    selection: Option<TileDefinitionHandle>,
-    need_save: bool,
-    tile_set_importer: Option<TileSetImporter>,
-    inspector: Handle<UiNode>,
+    all_pages: Handle<UiNode>,
+    all_tiles: Handle<UiNode>,
+    tile_inspector: TileInspector,
+    properties_tab: PropertiesTab,
+    colliders_tab: CollidersTab,
+}
+
+fn make_tab(name: &str, content: Handle<UiNode>, ctx: &mut BuildContext) -> TabDefinition {
+    TabDefinition {
+        header: TextBuilder::new(WidgetBuilder::new().with_margin(TAB_MARGIN))
+            .with_text(name)
+            .build(ctx),
+        content,
+        can_be_closed: false,
+        user_data: None,
+    }
+}
+
+fn make_button(
+    title: &str,
+    tooltip: &str,
+    row: usize,
+    column: usize,
+    ctx: &mut BuildContext,
+) -> Handle<UiNode> {
+    ButtonBuilder::new(
+        WidgetBuilder::new()
+            .on_row(row)
+            .on_column(column)
+            .with_height(24.0)
+            .with_margin(Thickness::uniform(1.0))
+            .with_tooltip(make_simple_tooltip(ctx, tooltip)),
+    )
+    .with_text(title)
+    .build(ctx)
+}
+
+fn send_visibility(ui: &UserInterface, destination: Handle<UiNode>, visible: bool) {
+    ui.send_message(WidgetMessage::visibility(
+        destination,
+        MessageDirection::ToWidget,
+        visible,
+    ));
+}
+
+fn tile_set_to_title(tile_set: &TileResource) -> String {
+    match tile_set {
+        TileResource::Empty => "Missing Resource".into(),
+        TileResource::TileSet(_) => {
+            let mut result = String::new();
+            result.push_str("Tile Set: ");
+            result.push_str(
+                tile_set
+                    .path()
+                    .map(|x| x.to_string_lossy().into_owned())
+                    .unwrap_or_else(|| "Error".into())
+                    .as_ref(),
+            );
+            result
+        }
+        TileResource::Brush(_) => {
+            let mut result = String::new();
+            result.push_str("Tile Map Brush: ");
+            result.push_str(
+                tile_set
+                    .path()
+                    .map(|x| x.to_string_lossy().into_owned())
+                    .unwrap_or_else(|| "Error".into())
+                    .as_ref(),
+            );
+            result
+        }
+    }
 }
 
 impl TileSetEditor {
-    pub fn new(tile_set: TileSetResource, ctx: &mut BuildContext) -> Self {
-        let import;
+    pub fn new(
+        tile_resource: TileResource,
+        state: TileDrawStateRef,
+        sender: MessageSender,
+        resource_manager: ResourceManager,
+        ctx: &mut BuildContext,
+    ) -> Self {
+        let state_guard = state.lock();
         let remove;
-        let remove_all;
-        let buttons = StackPanelBuilder::new(
+        let all_pages;
+        let all_tiles;
+        let cell_position = TextBuilder::new(WidgetBuilder::new()).build(ctx);
+        let open_control = make_button(
+            "Palette",
+            "Open the tile palette control window.",
+            0,
+            0,
+            ctx,
+        );
+        let page_buttons = GridBuilder::new(
             WidgetBuilder::new()
-                .on_row(0)
+                .on_row(1)
+                .with_child(open_control)
                 .with_child({
-                    import = make_button(
-                        "Import...",
-                        "Import tile set from a sprite sheet.",
-                        true,
-                        ctx,
-                    );
-                    import
+                    all_pages = make_button("All Pages", "Select all pages.", 0, 1, ctx);
+                    all_pages
                 })
                 .with_child({
-                    remove = make_button("Remove", "Remove selected tile.", false, ctx);
+                    all_tiles = make_button("All Tiles", "Select all tiles.", 0, 2, ctx);
+                    all_tiles
+                })
+                .with_child({
+                    remove = make_button("Delete", "Remove selected tile.", 0, 3, ctx);
                     remove
-                })
-                .with_child({
-                    remove_all = make_button("Remove All", "Remove all tiles.", true, ctx);
-                    remove_all
                 }),
         )
-        .with_orientation(Orientation::Horizontal)
+        .add_row(Row::auto())
+        .add_column(Column::stretch())
+        .add_column(Column::stretch())
+        .add_column(Column::stretch())
+        .add_column(Column::stretch())
         .build(ctx);
 
-        let tiles = ListViewBuilder::new(
+        let color_label = TextBuilder::new(WidgetBuilder::new())
+            .with_text("Material Tint")
+            .build(ctx);
+        let color_field = ColorFieldBuilder::new(WidgetBuilder::new().on_column(1))
+            .with_color(DEFAULT_MATERIAL_COLOR)
+            .build(ctx);
+        let color_control = GridBuilder::new(
+            WidgetBuilder::new()
+                .on_row(2)
+                .with_child(color_label)
+                .with_child(color_field),
+        )
+        .add_row(Row::auto())
+        .add_column(Column::strict(FIELD_LABEL_WIDTH))
+        .add_column(Column::stretch())
+        .build(ctx);
+
+        let pages_palette = PaletteWidgetBuilder::new(
             WidgetBuilder::new()
                 .with_margin(Thickness::uniform(1.0))
                 .with_allow_drop(true),
+            sender.clone(),
+            state.clone(),
         )
-        .with_items_panel(
-            WrapPanelBuilder::new(
-                WidgetBuilder::new().with_vertical_alignment(VerticalAlignment::Top),
-            )
-            .with_orientation(Orientation::Horizontal)
-            .build(ctx),
-        )
+        .with_resource(tile_resource.clone())
+        .with_kind(TilePaletteStage::Pages)
+        .with_editable(true)
         .build(ctx);
 
-        let inspector = InspectorBuilder::new(
+        let tiles_palette = PaletteWidgetBuilder::new(
             WidgetBuilder::new()
+                .with_margin(Thickness::uniform(1.0))
+                .with_allow_drop(true),
+            sender.clone(),
+            state.clone(),
+        )
+        .with_resource(tile_resource.clone())
+        .with_kind(TilePaletteStage::Tiles)
+        .with_editable(true)
+        .build(ctx);
+
+        let tile_inspector = TileInspector::new(
+            state.clone(),
+            pages_palette,
+            tiles_palette,
+            tile_resource.clone(),
+            resource_manager,
+            sender,
+            ctx,
+        );
+
+        let tile_panel = GridBuilder::new(
+            WidgetBuilder::new()
+                .with_child(
+                    BorderBuilder::new(
+                        WidgetBuilder::new()
+                            .with_margin(Thickness::uniform(2.0))
+                            .on_row(0)
+                            .with_child(pages_palette),
+                    )
+                    .build(ctx),
+                )
+                .with_child(
+                    BorderBuilder::new(
+                        WidgetBuilder::new()
+                            .with_margin(Thickness::uniform(2.0))
+                            .on_row(1)
+                            .with_child(tiles_palette),
+                    )
+                    .build(ctx),
+                ),
+        )
+        .add_row(Row::stretch())
+        .add_row(Row::generic(SizeMode::Stretch, 200.0))
+        .add_column(Column::stretch())
+        .build(ctx);
+
+        let inspector_scroll = ScrollViewerBuilder::new(
+            WidgetBuilder::new()
+                .with_margin(Thickness {
+                    top: 10.0,
+                    bottom: 1.0,
+                    left: 2.0,
+                    right: 2.0,
+                })
+                .on_row(3),
+        )
+        .with_content(tile_inspector.handle())
+        .build(ctx);
+
+        let side_panel = BorderBuilder::new(
+            WidgetBuilder::new()
+                .with_foreground(Brush::Solid(Color::BLACK))
                 .on_column(1)
-                .with_width(270.0)
-                .with_visibility(false),
+                .with_margin(Thickness::uniform(4.0))
+                .with_child(
+                    GridBuilder::new(
+                        WidgetBuilder::new()
+                            .with_margin(Thickness::uniform(2.0))
+                            .with_child(cell_position)
+                            .with_child(page_buttons)
+                            .with_child(color_control)
+                            .with_child(inspector_scroll),
+                    )
+                    .add_row(Row::auto())
+                    .add_row(Row::auto())
+                    .add_row(Row::auto())
+                    .add_row(Row::stretch())
+                    .add_column(Column::strict(400.0))
+                    .build(ctx),
+                ),
         )
         .build(ctx);
 
-        let split_panel = GridBuilder::new(
+        let tile_tab = GridBuilder::new(
             WidgetBuilder::new()
-                .with_child(tiles)
-                .with_child(inspector)
-                .on_row(1),
+                .with_child(tile_panel)
+                .with_child(side_panel),
         )
         .add_column(Column::stretch())
         .add_column(Column::auto())
         .add_row(Row::stretch())
         .build(ctx);
 
-        let content = GridBuilder::new(
-            WidgetBuilder::new()
-                .with_child(buttons)
-                .with_child(split_panel),
-        )
-        .add_row(Row::auto())
-        .add_row(Row::stretch())
-        .add_column(Column::stretch())
-        .build(ctx);
+        let properties_tab = PropertiesTab::new(tile_resource.clone(), ctx);
+        let colliders_tab = CollidersTab::new(tile_resource.clone(), ctx);
+        let tab_control = TabControlBuilder::new(WidgetBuilder::new())
+            .with_tab(make_tab("Tiles", tile_tab, ctx))
+            .with_tab(make_tab("Properties", properties_tab.handle(), ctx))
+            .with_tab(make_tab("Collision", colliders_tab.handle(), ctx))
+            .build(ctx);
 
-        let window = WindowBuilder::new(WidgetBuilder::new().with_width(550.0).with_height(400.0))
+        let window = WindowBuilder::new(WidgetBuilder::new().with_width(800.0).with_height(600.0))
             .open(false)
-            .with_title(WindowTitle::text("Tile Set Editor"))
-            .with_content(content)
+            .with_title(WindowTitle::text(tile_set_to_title(&tile_resource)))
+            .with_content(tab_control)
             .build(ctx);
 
         ctx.sender()
@@ -172,17 +373,24 @@ impl TileSetEditor {
             ))
             .unwrap();
 
+        drop(state_guard);
         let mut editor = Self {
             window,
-            tiles,
-            tile_set,
-            import,
+            page: None,
+            properties_tab,
+            colliders_tab,
+            state,
+            tab_control,
+            color_field,
+            cell_position,
+            pages_palette,
+            tiles_palette,
+            tile_resource,
+            open_control,
             remove,
-            remove_all,
-            selection: Default::default(),
-            need_save: false,
-            tile_set_importer: None,
-            inspector,
+            all_pages,
+            all_tiles,
+            tile_inspector,
         };
 
         editor.sync_to_model(ctx.inner_mut());
@@ -190,94 +398,102 @@ impl TileSetEditor {
         editor
     }
 
-    fn destroy(mut self, ui: &UserInterface) {
+    pub fn set_tile_resource(&mut self, tile_set: TileResource, ui: &mut UserInterface) {
+        ui.send_message(WindowMessage::title(
+            self.window,
+            MessageDirection::ToWidget,
+            WindowTitle::text(tile_set_to_title(&tile_set)),
+        ));
+        let mut state = self.state.lock_mut();
+        if state.selection_palette() == self.pages_palette
+            || state.selection_palette() == self.tiles_palette
+        {
+            state.clear_selection();
+        }
+        drop(state);
+        match &tile_set {
+            TileResource::Empty => self.init_empty(ui),
+            TileResource::TileSet(resource) => self.init_tile_set(resource, ui),
+            TileResource::Brush(resource) => self.init_brush(resource, ui),
+        }
+        ui.send_message(PaletteMessage::set_page(
+            self.pages_palette,
+            MessageDirection::ToWidget,
+            tile_set.clone(),
+            None,
+        ));
+        ui.send_message(PaletteMessage::set_page(
+            self.tiles_palette,
+            MessageDirection::ToWidget,
+            tile_set,
+            None,
+        ));
+    }
+
+    fn init_empty(&mut self, ui: &mut UserInterface) {
+        // TODO
+    }
+
+    fn init_tile_set(&mut self, resource: &TileSetResource, ui: &mut UserInterface) {
+        // TODO
+    }
+
+    fn init_brush(&mut self, resource: &TileMapBrushResource, ui: &mut UserInterface) {
+        // TODO
+    }
+
+    fn destroy(self, ui: &UserInterface) {
         ui.send_message(WidgetMessage::remove(
             self.window,
             MessageDirection::ToWidget,
         ));
+    }
 
-        if let Some(importer) = self.tile_set_importer.take() {
-            importer.destroy(ui);
+    fn cell_position(&self) -> String {
+        let state = self.state.lock();
+        if state.selection_palette() == self.pages_palette
+            || state.selection_palette() == self.tiles_palette
+        {
+            state
+                .selection_positions()
+                .iter()
+                .map(|p| format!("({},{})", p.x, p.y))
+                .collect::<Vec<_>>()
+                .join(", ")
+        } else {
+            String::default()
         }
+    }
+
+    pub fn sync_to_state(&mut self, ui: &mut UserInterface) {
+        self.tile_inspector.sync_to_state(ui);
+        let cell_position = self.cell_position();
+        ui.send_message(TextMessage::text(
+            self.cell_position,
+            MessageDirection::ToWidget,
+            cell_position,
+        ));
+        ui.send_message(PaletteMessage::sync_to_state(
+            self.pages_palette,
+            MessageDirection::ToWidget,
+        ));
+        ui.send_message(PaletteMessage::sync_to_state(
+            self.tiles_palette,
+            MessageDirection::ToWidget,
+        ));
     }
 
     pub fn sync_to_model(&mut self, ui: &mut UserInterface) {
-        let tile_set = self.tile_set.data_ref();
-        let tile_views = ui
-            .node(self.tiles)
-            .component_ref::<ListView>()
-            .unwrap()
-            .items
-            .clone();
-
-        fn view_definition_id(
-            ui: &UserInterface,
-            tile_view: Handle<UiNode>,
-        ) -> TileDefinitionHandle {
-            ui.try_get_of_type::<TileSetTileView>(tile_view)
-                .unwrap()
-                .definition_handle
+        if let TileResource::TileSet(r) = &self.tile_resource {
+            let tile_set = r.data_ref();
+            self.properties_tab.sync_to_model(&tile_set, ui);
+            self.colliders_tab.sync_to_model(&tile_set, ui);
         }
-
-        for tile_view in tile_views.iter() {
-            if !tile_set
-                .tiles
-                .is_valid_handle(view_definition_id(ui, *tile_view))
-            {
-                ui.send_message(ListViewMessage::remove_item(
-                    self.tiles,
-                    MessageDirection::ToWidget,
-                    *tile_view,
-                ));
-            }
-        }
-
-        for (tile_handle, tile) in tile_set.tiles.pair_iter() {
-            if let Some(tile_view) = tile_views
-                .iter()
-                .find(|tile_view| view_definition_id(ui, **tile_view) == tile_handle)
-            {
-                ui.send_message(ImageMessage::uv_rect(
-                    *tile_view,
-                    MessageDirection::ToWidget,
-                    tile.uv_rect,
-                ));
-            } else {
-                let ctx = &mut ui.build_ctx();
-                let tile_view =
-                    TileSetTileViewBuilder::new(WidgetBuilder::new()).build(tile_handle, tile, ctx);
-
-                ui.send_message(ListViewMessage::add_item(
-                    self.tiles,
-                    MessageDirection::ToWidget,
-                    tile_view,
-                ));
-            }
-        }
-
-        if let Some(selection) = self.selection {
-            if let Some(tile_definition) = tile_set.tiles.try_borrow(selection) {
-                let ctx = ui
-                    .node(self.inspector)
-                    .cast::<Inspector>()
-                    .unwrap()
-                    .context()
-                    .clone();
-
-                if let Err(sync_errors) = ctx.sync(tile_definition, ui, 0, true, Default::default())
-                {
-                    for error in sync_errors {
-                        Log::err(format!("Failed to sync property. Reason: {error:?}"))
-                    }
-                }
-            }
-        }
+        self.tile_inspector.sync_to_model(ui);
     }
 
     fn try_save(&self) {
-        if let ResourceKind::External(path) = self.tile_set.kind() {
-            Log::verify(self.tile_set.data_ref().save(&path));
-        }
+        Log::verify(self.tile_resource.save());
     }
 
     pub fn handle_ui_message(
@@ -286,277 +502,101 @@ impl TileSetEditor {
         ui: &mut UserInterface,
         resource_manager: &ResourceManager,
         sender: &MessageSender,
-        property_editors: Arc<PropertyEditorDefinitionContainer>,
         serialization_context: Arc<SerializationContext>,
     ) -> Option<Self> {
-        if let Some(importer) = self.tile_set_importer.take() {
-            match importer.handle_ui_message(message, ui) {
-                ImportResult::None(importer) => {
-                    self.tile_set_importer = Some(importer);
-                }
-                ImportResult::Closed => {}
-                ImportResult::TileSet(tiles) => {
-                    let commands = tiles
-                        .into_iter()
-                        .map(|tile| {
-                            Command::new(AddTileCommand {
-                                tile_set: self.tile_set.clone(),
-                                tile: Some(tile),
-                                handle: Default::default(),
-                            })
-                        })
-                        .collect::<Vec<_>>();
-                    if !commands.is_empty() {
-                        sender.do_command(CommandGroup::from(commands));
-                        self.need_save = true;
-                    }
-                }
-            }
+        self.tile_inspector.handle_ui_message(message, ui, sender);
+        if let TileResource::TileSet(r) = &self.tile_resource {
+            self.properties_tab
+                .handle_ui_message(r.clone(), message, ui, sender);
+            self.colliders_tab
+                .handle_ui_message(r.clone(), message, ui, sender);
         }
-
         if let Some(WindowMessage::Close) = message.data() {
             if message.destination() == self.window {
                 self.try_save();
                 self.destroy(ui);
                 return None;
             }
-        } else if let Some(WidgetMessage::Drop(dropped)) = message.data() {
-            if message.destination() == self.tiles {
-                if let Some(item) = ui.node(*dropped).cast::<AssetItem>() {
-                    let position = self
-                        .tile_set
-                        .data_ref()
-                        .find_free_location(Vector2::repeat(0));
-                    if let Some(material) = item.resource::<Material>() {
-                        sender.do_command(AddTileCommand {
-                            tile_set: self.tile_set.clone(),
-                            tile: Some(TileDefinition {
-                                material,
-                                uv_rect: Rect::new(0.0, 0.0, 1.0, 1.0),
-                                collider: Default::default(),
-                                color: Default::default(),
-                                position,
-                                properties: Default::default(),
-                            }),
-                            handle: Default::default(),
-                        });
-                        self.need_save = true;
-                    } else if let Some(texture) = item.resource::<Texture>() {
-                        let mut material = Material::standard_2d();
-                        material.bind("diffuseTexture", texture);
-
-                        let material = MaterialResource::new_ok(ResourceKind::Embedded, material);
-
-                        sender.do_command(AddTileCommand {
-                            tile_set: self.tile_set.clone(),
-                            tile: Some(TileDefinition {
-                                material,
-                                uv_rect: Rect::new(0.0, 0.0, 1.0, 1.0),
-                                collider: Default::default(),
-                                color: Default::default(),
-                                position,
-                                properties: Default::default(),
-                            }),
-                            handle: Default::default(),
-                        });
-                        self.need_save = true;
-                    }
-                }
+        } else if let Some(PaletteMessage::SetPage { .. }) = message.data() {
+            if message.destination() == self.pages_palette
+                && message.direction() == MessageDirection::FromWidget
+            {
+                ui.send_message(
+                    message
+                        .clone()
+                        .with_destination(self.tiles_palette)
+                        .with_direction(MessageDirection::ToWidget),
+                );
+                self.sync_to_state(ui);
+            }
+        } else if let Some(ColorFieldMessage::Color(color)) = message.data() {
+            if message.destination() == self.color_field
+                && message.direction() == MessageDirection::FromWidget
+            {
+                ui.send_message(PaletteMessage::material_color(
+                    self.tiles_palette,
+                    MessageDirection::ToWidget,
+                    *color,
+                ));
             }
         } else if let Some(ButtonMessage::Click) = message.data() {
-            if message.destination() == self.import {
-                self.tile_set_importer = Some(TileSetImporter::new(&mut ui.build_ctx()));
+            if message.destination() == self.open_control {
+                ui.send_message(OpenTilePanelMessage::message(
+                    self.tile_resource.clone(),
+                    None,
+                ));
             } else if message.destination() == self.remove {
-                if let Some(selection) = self.selection {
-                    sender.do_command(RemoveTileCommand {
-                        tile_set: self.tile_set.clone(),
-                        handle: selection,
-                        tile: None,
-                    });
-                    self.need_save = true;
-                }
-            } else if message.destination() == self.remove_all {
-                let mut commands = Vec::new();
-
-                for (handle, _) in self.tile_set.data_ref().tiles.pair_iter() {
-                    commands.push(Command::new(RemoveTileCommand {
-                        tile_set: self.tile_set.clone(),
-                        handle,
-                        tile: None,
-                    }));
-                }
-
-                if !commands.is_empty() {
-                    sender.do_command(CommandGroup::from(commands));
-                    self.need_save = true;
-                }
-            }
-        } else if let Some(ListViewMessage::SelectionChanged(selection)) = message.data() {
-            if message.destination() == self.tiles
-                && message.direction() == MessageDirection::FromWidget
-            {
-                let selected_index = selection.first().cloned();
-                let selection = ui
-                    .try_get_of_type::<ListView>(self.tiles)
-                    .and_then(|list| selected_index.and_then(|i| list.items.get(i).cloned()))
-                    .and_then(|handle| ui.try_get_of_type::<TileSetTileView>(handle))
-                    .map(|view| view.definition_handle);
-
-                self.selection = selection;
-
-                ui.send_message(WidgetMessage::enabled(
-                    self.remove,
+                self.do_delete_command(ui, sender);
+            } else if message.destination() == self.all_tiles {
+                ui.send_message(PaletteMessage::select_all(
+                    self.tiles_palette,
                     MessageDirection::ToWidget,
-                    self.selection.is_some(),
                 ));
-
-                ui.send_message(WidgetMessage::visibility(
-                    self.inspector,
+            } else if message.destination() == self.all_pages {
+                ui.send_message(PaletteMessage::select_all(
+                    self.pages_palette,
                     MessageDirection::ToWidget,
-                    self.selection.is_some(),
                 ));
-
-                if let Some(selection) = selection {
-                    let tile_set = self.tile_set.data_ref();
-                    if let Some(tile_definition) = tile_set
-                        .as_loaded_ref()
-                        .and_then(|tile_set| tile_set.tiles.try_borrow(selection))
-                    {
-                        let env = Arc::new(EditorEnvironment {
-                            resource_manager: resource_manager.clone(),
-                            serialization_context,
-                            available_animations: Default::default(),
-                            sender: sender.clone(),
-                        });
-
-                        let context = InspectorContext::from_object(
-                            tile_definition,
-                            &mut ui.build_ctx(),
-                            property_editors,
-                            Some(env),
-                            1,
-                            0,
-                            true,
-                            Default::default(),
-                            80.0,
-                        );
-
-                        ui.send_message(InspectorMessage::context(
-                            self.inspector,
-                            MessageDirection::ToWidget,
-                            context,
-                        ));
-                    } else {
-                        ui.send_message(InspectorMessage::context(
-                            self.inspector,
-                            MessageDirection::ToWidget,
-                            Default::default(),
-                        ));
-                    }
-                }
-            }
-        } else if let Some(InspectorMessage::PropertyChanged(args)) = message.data() {
-            if message.destination() == self.inspector
-                && message.direction() == MessageDirection::FromWidget
-            {
-                if let Some(selection) = self.selection {
-                    let tile_set = self.tile_set.clone();
-                    sender.send(Message::DoCommand(
-                        make_command(args, move |_| {
-                            // FIXME: HACK!
-                            let tile_set = unsafe {
-                                std::mem::transmute::<&'_ mut TileSet, &'static mut TileSet>(
-                                    &mut *tile_set.data_ref(),
-                                )
-                            };
-
-                            &mut tile_set.tiles[selection]
-                        })
-                        .unwrap(),
-                    ));
-                }
             }
         }
-
         Some(self)
     }
 
-    pub fn update(&mut self) {
-        if self.need_save {
-            self.try_save();
-            self.need_save = false;
+    fn do_delete_command(&mut self, ui: &mut UserInterface, sender: &MessageSender) {
+        let state = self.state.lock();
+        let palette = state.selection_palette();
+        if palette == self.pages_palette {
+            let sel = state.selection_positions().clone();
+            drop(state);
+            let commands = sel
+                .iter()
+                .filter_map(|p| self.delete_page(*p))
+                .collect::<Vec<_>>();
+            sender.do_command(CommandGroup::from(commands).with_custom_name("Delete Pages"));
+        } else if palette == self.tiles_palette {
+            ui.send_message(PaletteMessage::delete(
+                self.tiles_palette,
+                MessageDirection::ToWidget,
+            ));
         }
     }
-}
 
-#[derive(Clone, Debug, Visit, Reflect, TypeUuidProvider, ComponentProvider)]
-#[type_uuid(id = "0acb6bea-ce7b-42bd-bd05-542a6e519330")]
-pub struct TileSetTileView {
-    widget: Widget,
-    pub definition_handle: TileDefinitionHandle,
-    image: Handle<UiNode>,
-}
-
-define_widget_deref!(TileSetTileView);
-
-impl Control for TileSetTileView {
-    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
-        self.widget.handle_routed_message(ui, message);
-
-        if let Some(ImageMessage::UvRect(uv_rect)) = message.data() {
-            if message.destination() == self.handle
-                && message.direction() == MessageDirection::FromWidget
-            {
-                ui.send_message(ImageMessage::uv_rect(
-                    self.image,
-                    MessageDirection::ToWidget,
-                    *uv_rect,
-                ));
-            }
+    fn delete_page(&mut self, position: Vector2<i32>) -> Option<Command> {
+        match &self.tile_resource {
+            TileResource::Empty => None,
+            TileResource::TileSet(tile_set) => Some(Command::new(SetTileSetPageCommand {
+                tile_set: tile_set.clone(),
+                position,
+                page: None,
+            })),
+            TileResource::Brush(brush) => Some(Command::new(SetBrushPageCommand {
+                brush: brush.clone(),
+                position,
+                page: None,
+            })),
         }
     }
-}
 
-pub struct TileSetTileViewBuilder {
-    widget_builder: WidgetBuilder,
-}
-
-impl TileSetTileViewBuilder {
-    pub fn new(widget_builder: WidgetBuilder) -> Self {
-        Self { widget_builder }
-    }
-
-    pub fn build(
-        self,
-        tile_handle: TileDefinitionHandle,
-        tile: &TileDefinition,
-        ctx: &mut BuildContext,
-    ) -> Handle<UiNode> {
-        let texture = tile.material.data_ref().texture("diffuseTexture");
-
-        let image = ImageBuilder::new(
-            WidgetBuilder::new()
-                .with_width(52.0)
-                .with_height(52.0)
-                .with_margin(Thickness::uniform(2.0)),
-        )
-        .with_uv_rect(tile.uv_rect)
-        .with_opt_texture(texture.map(|t| t.into()))
-        .build(ctx);
-
-        let decorator =
-            DecoratorBuilder::new(BorderBuilder::new(WidgetBuilder::new().with_child(image)))
-                .with_selected_brush(Brush::Solid(Color::RED))
-                .build(ctx);
-
-        ctx.add_node(UiNode::new(TileSetTileView {
-            widget: self
-                .widget_builder
-                .with_allow_drag(true)
-                .with_child(decorator)
-                .build(),
-            definition_handle: tile_handle,
-            image,
-        }))
-    }
+    // TODO: Is this needed?
+    pub fn update(&mut self) {}
 }

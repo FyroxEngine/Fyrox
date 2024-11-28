@@ -24,6 +24,7 @@ use crate::{
     core::{
         algebra::{Matrix3, Point2, Vector2},
         color::Color,
+        log::Log,
         math::{self, Rect, TriangleDefinition},
     },
     font::FontResource,
@@ -716,8 +717,8 @@ pub trait Draw {
             let k = nx as f32 / (nw) as f32;
             let x = local_left_bottom.x + k * w;
             self.push_line(
-                Vector2::new(x, local_left_bottom.y + cell_size.y),
-                Vector2::new(x, local_right_top.y - cell_size.y),
+                Vector2::new(x, local_left_bottom.y - cell_size.y),
+                Vector2::new(x, local_right_top.y + cell_size.y),
                 1.0 / zoom,
             );
         }
@@ -742,8 +743,8 @@ impl Default for TransformStack {
 impl TransformStack {
     #[inline]
     pub fn push(&mut self, matrix: Matrix3<f32>) {
-        self.transform = matrix;
-        self.stack.push(matrix);
+        self.stack
+            .push(std::mem::replace(&mut self.transform, matrix));
     }
 
     /// Returns the transformation matrix that will be used to transform vertices of drawing context.
@@ -753,9 +754,24 @@ impl TransformStack {
     }
 
     #[inline]
+    pub fn len(&self) -> usize {
+        self.stack.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.stack.is_empty()
+    }
+
+    pub fn content(&self) -> Vec<Matrix3<f32>> {
+        self.stack.clone()
+    }
+
+    #[inline]
     pub fn pop(&mut self) {
         if let Some(top) = self.stack.pop() {
             self.transform = top;
+        } else {
+            Log::err("TransformStack pop failure.")
         }
     }
 }

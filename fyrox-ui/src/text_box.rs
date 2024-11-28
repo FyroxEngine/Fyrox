@@ -1325,6 +1325,7 @@ impl Control for TextBox {
                                     true
                                 }
                             }
+                            self.selection_range.set_value_and_mark_modified(None);
                             if !text_equals(&text, new_text) {
                                 text.set_text(new_text);
                                 drop(text);
