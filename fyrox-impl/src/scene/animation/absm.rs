@@ -21,6 +21,7 @@
 //! Animation blending state machine is a node that takes multiple animations from an animation player and
 //! mixes them in arbitrary way into one animation. See [`AnimationBlendingStateMachine`] docs for more info.
 
+use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
         math::aabb::AxisAlignedBoundingBox,
@@ -39,6 +40,7 @@ use crate::{
         Scene,
     },
 };
+use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::{BaseSceneGraph, SceneGraph, SceneGraphNode};
 use std::ops::{Deref, DerefMut};
 
@@ -270,6 +272,28 @@ impl Deref for AnimationBlendingStateMachine {
 impl DerefMut for AnimationBlendingStateMachine {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.base
+    }
+}
+
+impl ConstructorProvider<Node, Graph> for AnimationBlendingStateMachine {
+    fn constructor() -> NodeConstructor {
+        NodeConstructor::new::<Self>()
+            .with_variant("Animation Blending State Machine", |_| {
+                let mut machine = Machine::default();
+
+                let mut layer = MachineLayer::new();
+                layer.set_name("Base Layer");
+
+                machine.add_layer(layer);
+
+                AnimationBlendingStateMachineBuilder::new(
+                    BaseBuilder::new().with_name("Animation Blending State Machine"),
+                )
+                .with_machine(machine)
+                .build_node()
+                .into()
+            })
+            .with_group("Animation")
     }
 }
 

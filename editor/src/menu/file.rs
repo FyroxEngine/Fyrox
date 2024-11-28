@@ -36,27 +36,25 @@ use crate::{
     menu::{create_menu_item, create_menu_item_shortcut, create_root_menu_item},
     message::MessageSender,
     scene::container::EditorSceneEntry,
-    settings::{recent::RecentFiles, Settings, SettingsWindow},
+    settings::{recent::RecentFiles, Settings},
     Engine, Message, Mode, Panels, SaveSceneConfirmationDialogAction,
 };
 use std::path::PathBuf;
 
 pub struct FileMenu {
     pub menu: Handle<UiNode>,
-    new_scene: Handle<UiNode>,
-    new_ui_scene: Handle<UiNode>,
+    pub new_scene: Handle<UiNode>,
+    pub new_ui_scene: Handle<UiNode>,
     pub save: Handle<UiNode>,
     pub save_as: Handle<UiNode>,
     pub save_all: Handle<UiNode>,
-    load: Handle<UiNode>,
+    pub load: Handle<UiNode>,
     pub close_scene: Handle<UiNode>,
-    exit: Handle<UiNode>,
-    pub open_settings: Handle<UiNode>,
-    configure: Handle<UiNode>,
+    pub exit: Handle<UiNode>,
+    pub configure: Handle<UiNode>,
     pub save_file_selector: Handle<UiNode>,
     pub load_file_selector: Handle<UiNode>,
-    configure_message: Handle<UiNode>,
-    pub settings: SettingsWindow,
+    pub configure_message: Handle<UiNode>,
     pub recent_files_container: Handle<UiNode>,
     pub recent_files: Vec<Handle<UiNode>>,
     pub open_scene_settings: Handle<UiNode>,
@@ -83,7 +81,6 @@ impl FileMenu {
         let save_all;
         let close_scene;
         let load;
-        let open_settings;
         let open_scene_settings;
         let configure;
         let exit;
@@ -136,10 +133,6 @@ impl FileMenu {
                     close_scene
                 },
                 {
-                    open_settings = create_menu_item("Editor Settings...", vec![], ctx);
-                    open_settings
-                },
-                {
                     open_scene_settings = create_menu_item("Scene Settings...", vec![], ctx);
                     open_scene_settings
                 },
@@ -183,10 +176,8 @@ impl FileMenu {
             close_scene,
             load,
             exit,
-            open_settings,
             configure,
             configure_message,
-            settings: SettingsWindow::new(engine),
             recent_files_container,
             recent_files,
             open_scene_settings,
@@ -243,9 +234,6 @@ impl FileMenu {
         settings: &mut Settings,
         panels: &mut Panels,
     ) {
-        self.settings
-            .handle_message(message, engine, settings, sender);
-
         if let Some(FileSelectorMessage::Commit(path)) = message.data::<FileSelectorMessage>() {
             if message.destination() == self.save_file_selector {
                 if let Some(game_scene) = entry {
@@ -254,13 +242,6 @@ impl FileMenu {
                         path: path.to_owned(),
                     });
                 }
-                engine
-                    .user_interfaces
-                    .first_mut()
-                    .send_message(WidgetMessage::remove(
-                        self.save_file_selector,
-                        MessageDirection::ToWidget,
-                    ));
                 self.save_file_selector = Handle::NONE;
             } else if message.destination() == self.load_file_selector {
                 sender.send(Message::LoadScene(path.to_owned()));
@@ -336,9 +317,6 @@ impl FileMenu {
                     ExportWindow::new(&mut engine.user_interfaces.first_mut().build_ctx());
                 export_window.open(engine.user_interfaces.first());
                 *panels.export_window = Some(export_window);
-            } else if message.destination() == self.open_settings {
-                self.settings
-                    .open(engine.user_interfaces.first_mut(), settings, sender);
             } else if message.destination() == self.open_scene_settings {
                 panels.scene_settings.open(engine.user_interfaces.first());
             } else if let Some(recent_file) = self

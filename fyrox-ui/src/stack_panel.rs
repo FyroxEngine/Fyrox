@@ -35,6 +35,7 @@ use crate::{
 };
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};
 
@@ -121,6 +122,18 @@ pub struct StackPanel {
     pub widget: Widget,
     /// Current orientation of the stack panel.
     pub orientation: InheritableVariable<Orientation>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for StackPanel {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Stack Panel", |ui| {
+                StackPanelBuilder::new(WidgetBuilder::new().with_name("Stack Panel"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Layout")
+    }
 }
 
 crate::define_widget_deref!(StackPanel);
@@ -266,21 +279,32 @@ impl StackPanelBuilder {
     }
 
     /// Finishes stack panel building.
-    pub fn build_stack_panel(self) -> StackPanel {
+    pub fn build_stack_panel(self, ctx: &BuildContext) -> StackPanel {
         StackPanel {
-            widget: self.widget_builder.build(),
+            widget: self.widget_builder.build(ctx),
             orientation: self.orientation.unwrap_or(Orientation::Vertical).into(),
         }
     }
 
     /// Finishes stack panel building and wraps the result in a UI node.
-    pub fn build_node(self) -> UiNode {
-        UiNode::new(self.build_stack_panel())
+    pub fn build_node(self, ctx: &BuildContext) -> UiNode {
+        UiNode::new(self.build_stack_panel(ctx))
     }
 
     /// Finishes stack panel building and adds the new stack panel widget instance to the user interface and
     /// returns its handle.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
-        ctx.add_node(self.build_node())
+        ctx.add_node(self.build_node(ctx))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::stack_panel::StackPanelBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| StackPanelBuilder::new(WidgetBuilder::new()).build(ctx));
     }
 }

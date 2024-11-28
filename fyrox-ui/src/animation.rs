@@ -37,6 +37,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
 };
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};
 
@@ -167,6 +168,18 @@ pub struct AnimationPlayer {
     auto_apply: bool,
 }
 
+impl ConstructorProvider<UiNode, UserInterface> for AnimationPlayer {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Animation Player", |ui| {
+                AnimationPlayerBuilder::new(WidgetBuilder::new().with_name("Animation Player"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Animation")
+    }
+}
+
 impl Default for AnimationPlayer {
     fn default() -> Self {
         Self {
@@ -290,9 +303,9 @@ impl AnimationPlayerBuilder {
     }
 
     /// Creates an instance of [`AnimationPlayer`] node.
-    pub fn build_node(self) -> UiNode {
+    pub fn build_node(self, ctx: &BuildContext) -> UiNode {
         UiNode::new(AnimationPlayer {
-            widget: self.widget_builder.with_need_update(true).build(),
+            widget: self.widget_builder.with_need_update(true).build(ctx),
             animations: self.animations.into(),
             auto_apply: self.auto_apply,
         })
@@ -300,6 +313,17 @@ impl AnimationPlayerBuilder {
 
     /// Creates an instance of [`AnimationPlayer`] node and adds it to the given user interface.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
-        ctx.add_node(self.build_node())
+        ctx.add_node(self.build_node(ctx))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::animation::AnimationPlayerBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| AnimationPlayerBuilder::new(WidgetBuilder::new()).build(ctx));
     }
 }

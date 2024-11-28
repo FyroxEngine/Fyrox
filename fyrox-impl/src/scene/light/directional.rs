@@ -35,18 +35,20 @@ use crate::{
         reflect::prelude::*,
         type_traits::prelude::*,
         uuid::{uuid, Uuid},
+        uuid_provider,
         variable::InheritableVariable,
         visitor::{Visit, VisitResult, Visitor},
     },
     scene::{
-        base::Base,
+        base::{Base, BaseBuilder},
         debug::SceneDrawingContext,
         graph::Graph,
         light::{BaseLight, BaseLightBuilder},
+        node::constructor::NodeConstructor,
         node::{Node, NodeTrait},
     },
 };
-use fyrox_core::uuid_provider;
+use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
@@ -171,6 +173,20 @@ impl DirectionalLight {
     /// Returns a reference to base light.
     pub fn base_light_mut(&mut self) -> &mut BaseLight {
         &mut self.base_light
+    }
+}
+
+impl ConstructorProvider<Node, Graph> for DirectionalLight {
+    fn constructor() -> NodeConstructor {
+        NodeConstructor::new::<Self>()
+            .with_variant("Directional Light", |_| {
+                DirectionalLightBuilder::new(BaseLightBuilder::new(
+                    BaseBuilder::new().with_name("DirectionalLight"),
+                ))
+                .build_node()
+                .into()
+            })
+            .with_group("Light")
     }
 }
 

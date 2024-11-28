@@ -33,6 +33,7 @@ use crate::{
     BuildContext, Control, UiNode, UserInterface,
 };
 use fyrox_animation::machine::Parameter;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::{SceneGraph, SceneGraphNode};
 use std::ops::{Deref, DerefMut};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
@@ -131,6 +132,20 @@ pub struct AnimationBlendingStateMachine {
     animation_player: InheritableVariable<Handle<UiNode>>,
 }
 
+impl ConstructorProvider<UiNode, UserInterface> for AnimationBlendingStateMachine {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Animation Blending State Machine", |ui| {
+                AnimationBlendingStateMachineBuilder::new(
+                    WidgetBuilder::new().with_name("Animation Blending State Machine"),
+                )
+                .build(&mut ui.build_ctx())
+                .into()
+            })
+            .with_group("Animation")
+    }
+}
+
 impl AnimationBlendingStateMachine {
     /// Sets new state machine to the node.
     pub fn set_machine(&mut self, machine: Machine) {
@@ -217,17 +232,17 @@ impl AnimationBlendingStateMachineBuilder {
     }
 
     /// Creates new node.
-    pub fn build_node(self) -> UiNode {
+    pub fn build_node(self, ctx: &BuildContext) -> UiNode {
         UiNode::new(AnimationBlendingStateMachine {
-            widget: self.widget_builder.with_need_update(true).build(),
+            widget: self.widget_builder.with_need_update(true).build(ctx),
             machine: self.machine.into(),
             animation_player: self.animation_player.into(),
         })
     }
 
     /// Creates new node and adds it to the user interface.
-    pub fn build(self, ui: &mut BuildContext) -> Handle<UiNode> {
-        ui.add_node(self.build_node())
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+        ctx.add_node(self.build_node(ctx))
     }
 }
 
@@ -278,6 +293,18 @@ pub struct AbsmEventProvider {
     widget: Widget,
     actions: InheritableVariable<Vec<EventAction>>,
     absm: InheritableVariable<Handle<UiNode>>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for AbsmEventProvider {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Absm Event Provider", |ui| {
+                AbsmEventProviderBuilder::new(WidgetBuilder::new().with_name("Absm Event Provider"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Animation")
+    }
 }
 
 define_widget_deref!(AbsmEventProvider);
@@ -354,11 +381,24 @@ impl AbsmEventProviderBuilder {
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let provider = AbsmEventProvider {
-            widget: self.widget_builder.build(),
+            widget: self.widget_builder.build(ctx),
             actions: self.actions.into(),
             absm: self.absm.into(),
         };
 
         ctx.add_node(UiNode::new(provider))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::absm::AnimationBlendingStateMachineBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| {
+            AnimationBlendingStateMachineBuilder::new(WidgetBuilder::new()).build(ctx)
+        });
     }
 }

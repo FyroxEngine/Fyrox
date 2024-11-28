@@ -20,6 +20,7 @@
 
 //! Joint is used to restrict motion of two rigid bodies.
 
+use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
         algebra::{Isometry2, Matrix4, UnitComplex, Vector2},
@@ -41,6 +42,7 @@ use crate::{
     },
 };
 use fyrox_core::uuid_provider;
+use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::{BaseSceneGraph, SceneGraphNode};
 use rapier2d::dynamics::ImpulseJointHandle;
 use std::{
@@ -278,6 +280,31 @@ impl Joint {
     /// Returns true if contacts between connected bodies is enabled, false - otherwise.
     pub fn is_contacts_enabled(&self) -> bool {
         *self.contacts_enabled
+    }
+}
+
+impl ConstructorProvider<Node, Graph> for Joint {
+    fn constructor() -> NodeConstructor {
+        NodeConstructor::new::<Self>()
+            .with_variant("Ball Joint 2D", |_| {
+                JointBuilder::new(BaseBuilder::new().with_name("Ball Joint 2D"))
+                    .with_params(JointParams::BallJoint(Default::default()))
+                    .build_node()
+                    .into()
+            })
+            .with_variant("Prismatic Joint 2D", |_| {
+                JointBuilder::new(BaseBuilder::new().with_name("Prismatic Joint 2D"))
+                    .with_params(JointParams::PrismaticJoint(Default::default()))
+                    .build_node()
+                    .into()
+            })
+            .with_variant("Fixed Joint 2D", |_| {
+                JointBuilder::new(BaseBuilder::new().with_name("Fixed Joint 2D"))
+                    .with_params(JointParams::FixedJoint(Default::default()))
+                    .build_node()
+                    .into()
+            })
+            .with_group("Physics 2D")
     }
 }
 

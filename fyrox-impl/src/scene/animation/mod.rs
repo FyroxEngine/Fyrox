@@ -21,6 +21,7 @@
 //! Animation player is a node that contains multiple animations. It updates and plays all the animations.
 //! See [`AnimationPlayer`] docs for more info.
 
+use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
         log::{Log, MessageKind},
@@ -39,6 +40,7 @@ use crate::{
         node::{Node, NodeTrait, UpdateContext},
     },
 };
+use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};
 
@@ -315,6 +317,18 @@ impl Deref for AnimationPlayer {
 impl DerefMut for AnimationPlayer {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.base
+    }
+}
+
+impl ConstructorProvider<Node, Graph> for AnimationPlayer {
+    fn constructor() -> NodeConstructor {
+        NodeConstructor::new::<Self>()
+            .with_variant("Animation Player", |_| {
+                AnimationPlayerBuilder::new(BaseBuilder::new())
+                    .build_node()
+                    .into()
+            })
+            .with_group("Animation")
     }
 }
 

@@ -175,7 +175,7 @@ impl InheritablePropertyEditorBuilder {
         .build(ctx);
 
         ctx.add_node(UiNode::new(InheritablePropertyEditor {
-            widget: self.widget_builder.with_child(grid).build(),
+            widget: self.widget_builder.with_child(grid).build(ctx),
             revert,
             inner_editor: self.inner_editor,
         }))

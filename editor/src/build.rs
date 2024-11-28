@@ -31,10 +31,11 @@ use crate::fyrox::{
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
-        BRUSH_DARKEST,
     },
 };
 use crate::{message::MessageSender, Message};
+use fyrox::gui::style::resource::StyleResourceExt;
+use fyrox::gui::style::Style;
 use std::{
     io::{BufRead, BufReader},
     process::ChildStderr,
@@ -78,7 +79,7 @@ impl BuildWindow {
                                 WidgetBuilder::new()
                                     .on_row(1)
                                     .with_margin(Thickness::uniform(2.0))
-                                    .with_background(BRUSH_DARKEST)
+                                    .with_background(ctx.style.get_or_default(Style::BRUSH_DARKEST))
                                     .with_child({
                                         scroll_viewer =
                                             ScrollViewerBuilder::new(WidgetBuilder::new())

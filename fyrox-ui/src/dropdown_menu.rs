@@ -29,6 +29,7 @@ use crate::{
     BuildContext, Control, UiNode, UserInterface,
 };
 use std::ops::{Deref, DerefMut};
+use std::sync::mpsc::Sender;
 
 /// A simple widget that opens a popup when clicked. It could be used to create drop down menus that
 /// consolidates content of a group.
@@ -44,6 +45,15 @@ pub struct DropdownMenu {
 crate::define_widget_deref!(DropdownMenu);
 
 impl Control for DropdownMenu {
+    fn on_remove(&self, sender: &Sender<UiMessage>) {
+        sender
+            .send(WidgetMessage::remove(
+                self.popup,
+                MessageDirection::ToWidget,
+            ))
+            .unwrap()
+    }
+
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
@@ -98,9 +108,20 @@ impl DropdownMenuBuilder {
             .build(ctx);
 
         let dropdown_menu = DropdownMenu {
-            widget: self.widget_builder.with_child(self.header).build(),
+            widget: self.widget_builder.with_child(self.header).build(ctx),
             popup,
         };
         ctx.add_node(UiNode::new(dropdown_menu))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::dropdown_menu::DropdownMenuBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| DropdownMenuBuilder::new(WidgetBuilder::new()).build(ctx));
     }
 }

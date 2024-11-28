@@ -48,7 +48,7 @@ use crate::{
             window::{WindowBuilder, WindowMessage, WindowTitle},
             wrap_panel::WrapPanelBuilder,
             BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
-            VerticalAlignment, BRUSH_DARKER, BRUSH_LIGHT,
+            VerticalAlignment,
         },
     },
     gui::make_dropdown_list_option,
@@ -57,6 +57,8 @@ use crate::{
 };
 use cargo_metadata::{camino::Utf8Path, Metadata};
 use fyrox::graph::SceneGraph;
+use fyrox::gui::style::resource::StyleResourceExt;
+use fyrox::gui::style::Style;
 use std::{
     ffi::OsStr,
     fmt::{Display, Formatter},
@@ -826,7 +828,7 @@ impl ExportWindow {
             WidgetBuilder::new()
                 .on_row(3)
                 .with_margin(Thickness::uniform(2.0))
-                .with_background(BRUSH_LIGHT)
+                .with_background(ctx.style.get_or_default(Style::BRUSH_LIGHT))
                 .with_child(
                     ScrollViewerBuilder::new(
                         WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),
@@ -862,7 +864,7 @@ impl ExportWindow {
                     BorderBuilder::new(
                         WidgetBuilder::new()
                             .on_row(1)
-                            .with_background(BRUSH_DARKER)
+                            .with_background(ctx.style.get_or_default(Style::BRUSH_DARKER))
                             .with_margin(Thickness::uniform(2.0))
                             .with_child({
                                 log_scroll_viewer = ScrollViewerBuilder::new(

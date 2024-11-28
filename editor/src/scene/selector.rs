@@ -18,32 +18,37 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::graph::BaseSceneGraph;
-use crate::fyrox::graph::{SceneGraph, SceneGraphNode};
-use crate::fyrox::{
-    core::{
-        algebra::Vector2, parking_lot::Mutex, pool::ErasedHandle, pool::Handle,
-        reflect::prelude::*, type_traits::prelude::*, uuid_provider, visitor::prelude::*,
+use crate::{
+    fyrox::{
+        core::{
+            algebra::Vector2, parking_lot::Mutex, pool::ErasedHandle, pool::Handle,
+            reflect::prelude::*, type_traits::prelude::*, uuid_provider, visitor::prelude::*,
+        },
+        graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
+        gui::{
+            border::BorderBuilder,
+            button::{ButtonBuilder, ButtonMessage},
+            define_constructor, define_widget_deref,
+            draw::DrawingContext,
+            grid::{Column, GridBuilder, Row},
+            message::{MessageDirection, OsEvent, UiMessage},
+            scroll_viewer::ScrollViewerBuilder,
+            scroll_viewer::ScrollViewerMessage,
+            searchbar::{SearchBarBuilder, SearchBarMessage},
+            stack_panel::StackPanelBuilder,
+            text::TextBuilder,
+            tree::{Tree, TreeBuilder, TreeRootBuilder, TreeRootMessage},
+            widget::{Widget, WidgetBuilder, WidgetMessage},
+            window::{Window, WindowBuilder, WindowMessage},
+            BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode,
+            UserInterface,
+        },
     },
-    gui::{
-        border::BorderBuilder,
-        button::{ButtonBuilder, ButtonMessage},
-        define_constructor, define_widget_deref,
-        draw::DrawingContext,
-        grid::{Column, GridBuilder, Row},
-        message::{MessageDirection, OsEvent, UiMessage},
-        scroll_viewer::ScrollViewerBuilder,
-        scroll_viewer::ScrollViewerMessage,
-        searchbar::{SearchBarBuilder, SearchBarMessage},
-        stack_panel::StackPanelBuilder,
-        text::TextBuilder,
-        tree::{Tree, TreeBuilder, TreeRootBuilder, TreeRootMessage},
-        widget::{Widget, WidgetBuilder, WidgetMessage},
-        window::{Window, WindowBuilder, WindowMessage},
-        BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
-    },
+    utils::make_node_name,
 };
-use crate::utils::make_node_name;
+use fyrox::gui::message::KeyCode;
+use fyrox::gui::style::resource::StyleResourceExt;
+use fyrox::gui::style::Style;
 use std::{
     ops::{Deref, DerefMut},
     sync::mpsc::Sender,
@@ -143,11 +148,13 @@ pub enum NodeSelectorMessage {
     #[allow(dead_code)] // Might be used in the future.
     Hierarchy(HierarchyNode),
     Selection(Vec<ErasedHandle>),
+    ChooseFocus,
 }
 
 impl NodeSelectorMessage {
     define_constructor!(NodeSelectorMessage:Hierarchy => fn hierarchy(HierarchyNode), layout: false);
     define_constructor!(NodeSelectorMessage:Selection => fn selection(Vec<ErasedHandle>), layout: false);
+    define_constructor!(NodeSelectorMessage:ChooseFocus => fn choose_focus(), layout: false);
 }
 
 #[derive(Clone)]
@@ -218,6 +225,13 @@ impl Control for NodeSelector {
 
                             ui.send_message(message.reverse());
                         }
+                    }
+                    NodeSelectorMessage::ChooseFocus => {
+                        ui.send_message(WidgetMessage::focus(
+                            self.search_bar,
+                            MessageDirection::ToWidget,
+                        ));
+                        self.sync_selection(ui);
                     }
                 }
             }
@@ -329,7 +343,7 @@ impl NodeSelectorBuilder {
             .map(|h| vec![h.make_view(ctx)])
             .unwrap_or_default();
 
-        let tree_root = TreeRootBuilder::new(WidgetBuilder::new())
+        let tree_root = TreeRootBuilder::new(WidgetBuilder::new().with_tab_index(Some(1)))
             .with_items(items)
             .build(ctx);
         let search_bar;
@@ -337,13 +351,15 @@ impl NodeSelectorBuilder {
         let content = GridBuilder::new(
             WidgetBuilder::new()
                 .with_child({
-                    search_bar = SearchBarBuilder::new(WidgetBuilder::new()).build(ctx);
+                    search_bar =
+                        SearchBarBuilder::new(WidgetBuilder::new().with_tab_index(Some(0)))
+                            .build(ctx);
                     search_bar
                 })
                 .with_child(
                     BorderBuilder::new(
                         WidgetBuilder::new()
-                            .with_background(fyrox::gui::BRUSH_DARK)
+                            .with_background(ctx.style.get_or_default(Style::BRUSH_DARK))
                             .on_row(1)
                             .on_column(0)
                             .with_child({
@@ -364,7 +380,7 @@ impl NodeSelectorBuilder {
         .build(ctx);
 
         let selector = NodeSelector {
-            widget: self.widget_builder.with_child(content).build(),
+            widget: self.widget_builder.with_child(content).build(ctx),
             tree_root,
             search_bar,
             selected: Default::default(),
@@ -398,6 +414,25 @@ impl DerefMut for NodeSelectorWindow {
     }
 }
 
+impl NodeSelectorWindow {
+    fn confirm(&self, ui: &UserInterface) {
+        ui.send_message(NodeSelectorMessage::selection(
+            self.handle,
+            MessageDirection::FromWidget,
+            ui.node(self.selector)
+                .query_component::<NodeSelector>()
+                .unwrap()
+                .selected
+                .clone(),
+        ));
+
+        ui.send_message(WindowMessage::close(
+            self.handle,
+            MessageDirection::ToWidget,
+        ));
+    }
+}
+
 uuid_provider!(NodeSelectorWindow = "5bb00f15-d6ec-4f0e-af7e-9472b0e290b4");
 
 impl Control for NodeSelectorWindow {
@@ -426,20 +461,7 @@ impl Control for NodeSelectorWindow {
 
         if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.ok {
-                ui.send_message(NodeSelectorMessage::selection(
-                    self.handle,
-                    MessageDirection::FromWidget,
-                    ui.node(self.selector)
-                        .query_component::<NodeSelector>()
-                        .unwrap()
-                        .selected
-                        .clone(),
-                ));
-
-                ui.send_message(WindowMessage::close(
-                    self.handle,
-                    MessageDirection::ToWidget,
-                ));
+                self.confirm(ui);
             } else if message.destination() == self.cancel {
                 ui.send_message(WindowMessage::close(
                     self.handle,
@@ -465,6 +487,22 @@ impl Control for NodeSelectorWindow {
                         !selection.is_empty(),
                     ));
                 }
+            }
+        } else if let Some(WindowMessage::Open { .. })
+        | Some(WindowMessage::OpenAt { .. })
+        | Some(WindowMessage::OpenModal { .. })
+        | Some(WindowMessage::OpenAndAlign { .. }) = message.data()
+        {
+            ui.send_message(NodeSelectorMessage::choose_focus(
+                self.selector,
+                MessageDirection::ToWidget,
+            ));
+        } else if let Some(WidgetMessage::KeyDown(KeyCode::Enter | KeyCode::NumpadEnter)) =
+            message.data()
+        {
+            if !message.handled() {
+                self.confirm(ui);
+                message.set_handled(true);
             }
         }
     }
@@ -525,7 +563,8 @@ impl NodeSelectorWindowBuilder {
                                     WidgetBuilder::new()
                                         .with_enabled(false)
                                         .with_width(100.0)
-                                        .with_margin(Thickness::uniform(1.0)),
+                                        .with_margin(Thickness::uniform(1.0))
+                                        .with_tab_index(Some(2)),
                                 )
                                 .with_text("OK")
                                 .build(ctx);
@@ -535,7 +574,8 @@ impl NodeSelectorWindowBuilder {
                                 cancel = ButtonBuilder::new(
                                     WidgetBuilder::new()
                                         .with_width(100.0)
-                                        .with_margin(Thickness::uniform(1.0)),
+                                        .with_margin(Thickness::uniform(1.0))
+                                        .with_tab_index(Some(3)),
                                 )
                                 .with_text("Cancel")
                                 .build(ctx);
@@ -563,5 +603,20 @@ impl NodeSelectorWindowBuilder {
         };
 
         ctx.add_node(UiNode::new(window))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::scene::selector::{NodeSelectorBuilder, NodeSelectorWindowBuilder};
+    use fyrox::gui::window::WindowBuilder;
+    use fyrox::{gui::test::test_widget_deletion, gui::widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| NodeSelectorBuilder::new(WidgetBuilder::new()).build(ctx));
+        test_widget_deletion(|ctx| {
+            NodeSelectorWindowBuilder::new(WindowBuilder::new(WidgetBuilder::new())).build(ctx)
+        });
     }
 }

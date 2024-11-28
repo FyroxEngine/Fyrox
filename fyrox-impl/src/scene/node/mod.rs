@@ -326,6 +326,12 @@ pub trait NodeTrait: BaseNodeTrait + Reflect + Visit + ComponentProvider {
 #[derive(Debug)]
 pub struct Node(Box<dyn NodeTrait>);
 
+impl<T: NodeTrait> From<T> for Node {
+    fn from(value: T) -> Self {
+        Self(Box::new(value))
+    }
+}
+
 impl Clone for Node {
     fn clone(&self) -> Self {
         self.0.clone_box()

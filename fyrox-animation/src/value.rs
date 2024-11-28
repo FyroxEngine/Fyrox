@@ -30,6 +30,7 @@ use crate::core::{
     visitor::prelude::*,
     ImmutableString,
 };
+use std::any::TypeId;
 use std::{
     any,
     any::Any,
@@ -135,6 +136,60 @@ pub enum ValueType {
     UnitQuaternionF32,
     /// `UnitQuaternion<f64>`
     UnitQuaternionF64,
+}
+
+impl ValueType {
+    /// Converts the value type into its respective type id.
+    pub fn into_type_id(self) -> TypeId {
+        match self {
+            ValueType::Bool => TypeId::of::<bool>(),
+            ValueType::F32 => TypeId::of::<f32>(),
+            ValueType::F64 => TypeId::of::<f64>(),
+            ValueType::U64 => TypeId::of::<u64>(),
+            ValueType::I64 => TypeId::of::<i64>(),
+            ValueType::U32 => TypeId::of::<u32>(),
+            ValueType::I32 => TypeId::of::<i32>(),
+            ValueType::U16 => TypeId::of::<u16>(),
+            ValueType::I16 => TypeId::of::<i16>(),
+            ValueType::U8 => TypeId::of::<u8>(),
+            ValueType::I8 => TypeId::of::<i8>(),
+            ValueType::Vector2Bool => TypeId::of::<Vector2<bool>>(),
+            ValueType::Vector2F32 => TypeId::of::<Vector2<f32>>(),
+            ValueType::Vector2F64 => TypeId::of::<Vector2<f64>>(),
+            ValueType::Vector2U64 => TypeId::of::<Vector2<u64>>(),
+            ValueType::Vector2I64 => TypeId::of::<Vector2<i64>>(),
+            ValueType::Vector2U32 => TypeId::of::<Vector2<u32>>(),
+            ValueType::Vector2I32 => TypeId::of::<Vector2<i32>>(),
+            ValueType::Vector2U16 => TypeId::of::<Vector2<u16>>(),
+            ValueType::Vector2I16 => TypeId::of::<Vector2<i16>>(),
+            ValueType::Vector2U8 => TypeId::of::<Vector2<u8>>(),
+            ValueType::Vector2I8 => TypeId::of::<Vector2<i8>>(),
+            ValueType::Vector3Bool => TypeId::of::<Vector3<bool>>(),
+            ValueType::Vector3F32 => TypeId::of::<Vector3<f32>>(),
+            ValueType::Vector3F64 => TypeId::of::<Vector3<f64>>(),
+            ValueType::Vector3U64 => TypeId::of::<Vector3<u64>>(),
+            ValueType::Vector3I64 => TypeId::of::<Vector3<i64>>(),
+            ValueType::Vector3U32 => TypeId::of::<Vector3<u32>>(),
+            ValueType::Vector3I32 => TypeId::of::<Vector3<i32>>(),
+            ValueType::Vector3U16 => TypeId::of::<Vector3<u16>>(),
+            ValueType::Vector3I16 => TypeId::of::<Vector3<i16>>(),
+            ValueType::Vector3U8 => TypeId::of::<Vector3<u8>>(),
+            ValueType::Vector3I8 => TypeId::of::<Vector3<i8>>(),
+            ValueType::Vector4Bool => TypeId::of::<Vector4<bool>>(),
+            ValueType::Vector4F32 => TypeId::of::<Vector4<f32>>(),
+            ValueType::Vector4F64 => TypeId::of::<Vector4<f64>>(),
+            ValueType::Vector4U64 => TypeId::of::<Vector4<u64>>(),
+            ValueType::Vector4I64 => TypeId::of::<Vector4<i64>>(),
+            ValueType::Vector4U32 => TypeId::of::<Vector4<u32>>(),
+            ValueType::Vector4I32 => TypeId::of::<Vector4<i32>>(),
+            ValueType::Vector4U16 => TypeId::of::<Vector4<u16>>(),
+            ValueType::Vector4I16 => TypeId::of::<Vector4<i16>>(),
+            ValueType::Vector4U8 => TypeId::of::<Vector4<u8>>(),
+            ValueType::Vector4I8 => TypeId::of::<Vector4<i8>>(),
+            ValueType::UnitQuaternionF32 => TypeId::of::<UnitQuaternion<f32>>(),
+            ValueType::UnitQuaternionF64 => TypeId::of::<UnitQuaternion<f64>>(),
+        }
+    }
 }
 
 impl Default for ValueType {

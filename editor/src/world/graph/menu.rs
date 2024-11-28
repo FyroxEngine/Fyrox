@@ -54,6 +54,9 @@ use crate::{
     world::WorldViewerItemContextMenu,
     Engine, Message, MessageDirection, PasteCommand,
 };
+use fyrox::engine::SerializationContext;
+use fyrox::gui::constructor::WidgetConstructorContainer;
+use fyrox::gui::menu::SortingPredicate;
 use std::{any::TypeId, path::PathBuf};
 
 pub struct SceneNodeContextMenu {
@@ -95,7 +98,11 @@ fn resource_path_of_first_selected_node(
 }
 
 impl SceneNodeContextMenu {
-    pub fn new(ctx: &mut BuildContext) -> Self {
+    pub fn new(
+        serialization_context: &SerializationContext,
+        widget_constructors_container: &WidgetConstructorContainer,
+        ctx: &mut BuildContext,
+    ) -> Self {
         let delete_selection;
         let copy_selection;
         let save_as_prefab;
@@ -103,12 +110,16 @@ impl SceneNodeContextMenu {
         let make_root;
         let open_asset;
         let reset_inheritable_properties;
+        let create_parent;
+        let create_child;
+        let replace_with;
 
-        let (create_child_entity_menu, create_child_entity_menu_root_items) =
-            CreateEntityMenu::new(ctx);
-        let (create_parent_entity_menu, create_parent_entity_menu_root_items) =
-            CreateEntityMenu::new(ctx);
-        let (replace_with_menu, replace_with_menu_root_items) = CreateEntityMenu::new(ctx);
+        let create_child_entity_menu =
+            CreateEntityMenu::new(serialization_context, widget_constructors_container, ctx);
+        let create_parent_entity_menu =
+            CreateEntityMenu::new(serialization_context, widget_constructors_container, ctx);
+        let replace_with_menu =
+            CreateEntityMenu::new(serialization_context, widget_constructors_container, ctx);
 
         let menu = ContextMenuBuilder::new(
             PopupBuilder::new(WidgetBuilder::new().with_visibility(false)).with_content(
@@ -132,34 +143,37 @@ impl SceneNodeContextMenu {
                             save_as_prefab = create_menu_item("Save As Prefab...", vec![], ctx);
                             save_as_prefab
                         })
-                        .with_child(
-                            MenuItemBuilder::new(
+                        .with_child({
+                            create_parent = MenuItemBuilder::new(
                                 WidgetBuilder::new().with_min_size(Vector2::new(120.0, 22.0)),
                             )
                             .with_content(MenuItemContent::text("Create Parent"))
-                            .with_items(create_parent_entity_menu_root_items)
-                            .build(ctx),
-                        )
-                        .with_child(
-                            MenuItemBuilder::new(
+                            .with_items(create_parent_entity_menu.root_items.clone())
+                            .build(ctx);
+                            create_parent
+                        })
+                        .with_child({
+                            create_child = MenuItemBuilder::new(
                                 WidgetBuilder::new().with_min_size(Vector2::new(120.0, 22.0)),
                             )
                             .with_content(MenuItemContent::text("Create Child"))
-                            .with_items(create_child_entity_menu_root_items)
-                            .build(ctx),
-                        )
+                            .with_items(create_child_entity_menu.root_items.clone())
+                            .build(ctx);
+                            create_child
+                        })
                         .with_child({
                             make_root = create_menu_item("Make Root", vec![], ctx);
                             make_root
                         })
-                        .with_child(
-                            MenuItemBuilder::new(
+                        .with_child({
+                            replace_with = MenuItemBuilder::new(
                                 WidgetBuilder::new().with_min_size(Vector2::new(120.0, 22.0)),
                             )
                             .with_content(MenuItemContent::text("Replace With"))
-                            .with_items(replace_with_menu_root_items)
-                            .build(ctx),
-                        )
+                            .with_items(replace_with_menu.root_items.clone())
+                            .build(ctx);
+                            replace_with
+                        })
                         .with_child({
                             open_asset = create_menu_item("Open Asset", vec![], ctx);
                             open_asset
@@ -176,8 +190,13 @@ impl SceneNodeContextMenu {
         .build(ctx);
         let menu = RcUiNodeHandle::new(menu, ctx.sender());
 
-        // TODO: Not sure if this is the right place for this dialog.
-        let save_as_prefab_dialog = make_save_file_selector(ctx, PathBuf::from("unnamed.rgs"));
+        for item in [create_child, create_parent, replace_with] {
+            ctx.inner().send_message(MenuItemMessage::sort(
+                item,
+                MessageDirection::ToWidget,
+                SortingPredicate::sort_by_text(),
+            ))
+        }
 
         Self {
             create_child_entity_menu,
@@ -186,7 +205,7 @@ impl SceneNodeContextMenu {
             copy_selection,
             placement_target: Default::default(),
             save_as_prefab,
-            save_as_prefab_dialog,
+            save_as_prefab_dialog: Default::default(),
             replace_with_menu,
             paste,
             make_root,
@@ -210,6 +229,7 @@ impl SceneNodeContextMenu {
             sender,
             controller,
             editor_selection,
+            engine,
         ) {
             if let Some(graph_selection) = editor_selection.as_graph() {
                 if let Some(parent) = graph_selection.nodes().first() {
@@ -221,6 +241,7 @@ impl SceneNodeContextMenu {
             sender,
             controller,
             editor_selection,
+            engine,
         ) {
             if let Some(graph_selection) = editor_selection.as_graph() {
                 if let Some(first) = graph_selection.nodes().first() {
@@ -262,10 +283,13 @@ impl SceneNodeContextMenu {
                     }
                 }
             }
-        } else if let Some(replacement) =
-            self.replace_with_menu
-                .handle_ui_message(message, sender, controller, editor_selection)
-        {
+        } else if let Some(replacement) = self.replace_with_menu.handle_ui_message(
+            message,
+            sender,
+            controller,
+            editor_selection,
+            engine,
+        ) {
             if let Some(graph_selection) = editor_selection.as_graph() {
                 if let Some(first) = graph_selection.nodes().first() {
                     sender.do_command(ReplaceNodeCommand {
@@ -310,23 +334,22 @@ impl SceneNodeContextMenu {
                         }
                     }
                 } else if message.destination() == self.save_as_prefab {
-                    engine
-                        .user_interfaces
-                        .first_mut()
-                        .send_message(WindowMessage::open_modal(
-                            self.save_as_prefab_dialog,
-                            MessageDirection::ToWidget,
-                            true,
-                            true,
-                        ));
-                    engine
-                        .user_interfaces
-                        .first_mut()
-                        .send_message(FileSelectorMessage::root(
-                            self.save_as_prefab_dialog,
-                            MessageDirection::ToWidget,
-                            Some(std::env::current_dir().unwrap()),
-                        ));
+                    let ui = engine.user_interfaces.first_mut();
+
+                    self.save_as_prefab_dialog =
+                        make_save_file_selector(&mut ui.build_ctx(), PathBuf::from("unnamed.rgs"));
+
+                    ui.send_message(WindowMessage::open_modal(
+                        self.save_as_prefab_dialog,
+                        MessageDirection::ToWidget,
+                        true,
+                        true,
+                    ));
+                    ui.send_message(FileSelectorMessage::root(
+                        self.save_as_prefab_dialog,
+                        MessageDirection::ToWidget,
+                        Some(std::env::current_dir().unwrap()),
+                    ));
                 } else if message.destination() == self.make_root {
                     if let Some(graph_selection) = editor_selection.as_graph() {
                         if let Some(first) = graph_selection.nodes.first() {

@@ -32,6 +32,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
 };
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::{
     cell::Cell,
     ops::{Deref, DerefMut},
@@ -117,6 +118,18 @@ pub struct Screen {
     pub last_screen_size: Cell<Vector2<f32>>,
 }
 
+impl ConstructorProvider<UiNode, UserInterface> for Screen {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Screen", |ui| {
+                ScreenBuilder::new(WidgetBuilder::new().with_name("Screen"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Layout")
+    }
+}
+
 crate::define_widget_deref!(Screen);
 
 uuid_provider!(Screen = "3bc7649f-a1ba-49be-bc4e-e0624654e40c");
@@ -165,11 +178,22 @@ impl ScreenBuilder {
 
     /// Finishes building a [`Screen`] widget instance and adds it to the user interface, returning a
     /// handle to the instance.
-    pub fn build(self, ui: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let screen = Screen {
-            widget: self.widget_builder.with_need_update(true).build(),
+            widget: self.widget_builder.with_need_update(true).build(ctx),
             last_screen_size: Cell::new(Default::default()),
         };
-        ui.add_node(UiNode::new(screen))
+        ctx.add_node(UiNode::new(screen))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::screen::ScreenBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| ScreenBuilder::new(WidgetBuilder::new()).build(ctx));
     }
 }

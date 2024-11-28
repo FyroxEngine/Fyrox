@@ -35,6 +35,7 @@ use crate::{
     BuildContext, Control, UiNode, UserInterface,
 };
 use core::f32;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
 use std::{
     cell::RefCell,
@@ -259,6 +260,18 @@ pub struct Grid {
     #[visit(skip)]
     #[reflect(hidden)]
     pub groups: RefCell<[Vec<usize>; 4]>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for Grid {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Grid", |ui| {
+                GridBuilder::new(WidgetBuilder::new().with_name("Grid"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Layout")
+    }
 }
 
 crate::define_widget_deref!(Grid);
@@ -778,9 +791,9 @@ impl GridBuilder {
     }
 
     /// Creates new [`Grid`] widget instance and adds it to the user interface.
-    pub fn build(self, ui: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let grid = Grid {
-            widget: self.widget_builder.build(),
+            widget: self.widget_builder.build(ctx),
             rows: RefCell::new(self.rows).into(),
             columns: RefCell::new(self.columns).into(),
             draw_border: self.draw_border.into(),
@@ -788,6 +801,17 @@ impl GridBuilder {
             cells: Default::default(),
             groups: Default::default(),
         };
-        ui.add_node(UiNode::new(grid))
+        ctx.add_node(UiNode::new(grid))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::grid::GridBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| GridBuilder::new(WidgetBuilder::new()).build(ctx));
     }
 }

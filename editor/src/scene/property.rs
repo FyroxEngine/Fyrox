@@ -18,7 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::graph::BaseSceneGraph;
 use crate::fyrox::{
     core::{
         algebra::Vector2, make_pretty_type_name, parking_lot::Mutex, pool::Handle,
@@ -26,14 +25,15 @@ use crate::fyrox::{
         visitor::prelude::*,
     },
     fxhash::FxHashSet,
+    graph::BaseSceneGraph,
     gui::{
         border::BorderBuilder,
         button::{ButtonBuilder, ButtonMessage},
         define_constructor, define_widget_deref,
         draw::DrawingContext,
         grid::{Column, GridBuilder, Row},
-        message::{MessageDirection, OsEvent, UiMessage},
-        scroll_viewer::ScrollViewerBuilder,
+        message::{KeyCode, MessageDirection, OsEvent, UiMessage},
+        scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
         searchbar::{SearchBarBuilder, SearchBarMessage},
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
@@ -43,6 +43,8 @@ use crate::fyrox::{
         BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
     },
 };
+use fyrox::gui::style::resource::StyleResourceExt;
+use fyrox::gui::style::Style;
 use std::{
     any::TypeId,
     ops::{Deref, DerefMut},
@@ -52,10 +54,12 @@ use std::{
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PropertySelectorMessage {
     Selection(Vec<PropertyDescriptorData>),
+    ChooseFocus,
 }
 
 impl PropertySelectorMessage {
     define_constructor!(PropertySelectorMessage:Selection => fn selection(Vec<PropertyDescriptorData>), layout: false);
+    define_constructor!(PropertySelectorMessage:ChooseFocus => fn choose_focus(), layout: false);
 }
 
 pub struct PropertyDescriptor {
@@ -296,14 +300,60 @@ pub struct PropertySelector {
     widget: Widget,
     #[reflect(hidden)]
     #[visit(skip)]
-    selected_property_path: Vec<PropertyDescriptorData>,
+    selected_property_paths: Vec<PropertyDescriptorData>,
     tree_root: Handle<UiNode>,
     search_bar: Handle<UiNode>,
+    scroll_viewer: Handle<UiNode>,
 }
 
 define_widget_deref!(PropertySelector);
 
 uuid_provider!(PropertySelector = "8e58e123-48a1-4e18-9e90-fd35a1669bdc");
+
+impl PropertySelector {
+    fn find_selected_tree_items(&self, ui: &UserInterface) -> Vec<Handle<UiNode>> {
+        let mut stack = vec![self.tree_root];
+        let mut selected_trees = Vec::new();
+
+        while let Some(node_handle) = stack.pop() {
+            let node = ui.node(node_handle);
+
+            if let Some(tree) = node.query_component::<Tree>() {
+                if self.selected_property_paths.iter().any(|path| {
+                    path.path
+                        == tree
+                            .user_data_cloned::<PropertyDescriptorData>()
+                            .unwrap()
+                            .path
+                }) {
+                    selected_trees.push(node_handle);
+                }
+            }
+
+            stack.extend_from_slice(node.children());
+        }
+
+        selected_trees
+    }
+
+    fn sync_selection(&self, ui: &UserInterface) {
+        let selected_trees = self.find_selected_tree_items(ui);
+
+        if let Some(first) = selected_trees.first() {
+            ui.send_message(ScrollViewerMessage::bring_into_view(
+                self.scroll_viewer,
+                MessageDirection::ToWidget,
+                *first,
+            ))
+        }
+
+        ui.send_message(TreeRootMessage::select(
+            self.tree_root,
+            MessageDirection::ToWidget,
+            selected_trees,
+        ));
+    }
+}
 
 impl Control for PropertySelector {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
@@ -327,13 +377,25 @@ impl Control for PropertySelector {
                         .collect(),
                 ));
             }
-        } else if let Some(PropertySelectorMessage::Selection(selection)) = message.data() {
+        } else if let Some(msg) = message.data::<PropertySelectorMessage>() {
             if message.destination() == self.handle
                 && message.direction() == MessageDirection::ToWidget
-                && &self.selected_property_path != selection
             {
-                self.selected_property_path.clone_from(selection);
-                ui.send_message(message.reverse());
+                match msg {
+                    PropertySelectorMessage::Selection(selection) => {
+                        if &self.selected_property_paths != selection {
+                            self.selected_property_paths.clone_from(selection);
+                            ui.send_message(message.reverse());
+                        }
+                    }
+                    PropertySelectorMessage::ChooseFocus => {
+                        ui.send_message(WidgetMessage::focus(
+                            self.search_bar,
+                            MessageDirection::ToWidget,
+                        ));
+                        self.sync_selection(ui);
+                    }
+                }
             }
         } else if let Some(SearchBarMessage::Text(filter_text)) = message.data() {
             if message.destination() == self.search_bar
@@ -349,6 +411,7 @@ pub struct PropertySelectorBuilder {
     widget_builder: WidgetBuilder,
     property_descriptors: Vec<PropertyDescriptor>,
     allowed_types: Option<FxHashSet<TypeId>>,
+    selected_property_paths: Vec<PropertyDescriptorData>,
 }
 
 impl PropertySelectorBuilder {
@@ -357,6 +420,7 @@ impl PropertySelectorBuilder {
             widget_builder,
             property_descriptors: Default::default(),
             allowed_types: Default::default(),
+            selected_property_paths: Default::default(),
         }
     }
 
@@ -370,9 +434,29 @@ impl PropertySelectorBuilder {
         self
     }
 
+    pub fn with_selected_property_paths(mut self, paths: Vec<PropertyDescriptorData>) -> Self {
+        self.selected_property_paths = paths;
+        self
+    }
+
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let tree_root;
         let search_bar;
+
+        let scroll_viewer =
+            ScrollViewerBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
+                .with_content({
+                    tree_root = TreeRootBuilder::new(WidgetBuilder::new().with_tab_index(Some(1)))
+                        .with_items(make_views_for_property_descriptor_collection(
+                            ctx,
+                            &self.property_descriptors,
+                            self.allowed_types.as_ref(),
+                        ))
+                        .build(ctx);
+                    tree_root
+                })
+                .build(ctx);
+
         let content = GridBuilder::new(
             WidgetBuilder::new()
                 .with_child({
@@ -380,7 +464,8 @@ impl PropertySelectorBuilder {
                         WidgetBuilder::new()
                             .on_row(0)
                             .on_column(0)
-                            .with_margin(Thickness::uniform(1.0)),
+                            .with_margin(Thickness::uniform(1.0))
+                            .with_tab_index(Some(0)),
                     )
                     .build(ctx);
                     search_bar
@@ -388,25 +473,10 @@ impl PropertySelectorBuilder {
                 .with_child(
                     BorderBuilder::new(
                         WidgetBuilder::new()
-                            .with_background(fyrox::gui::BRUSH_DARK)
+                            .with_background(ctx.style.get_or_default(Style::BRUSH_DARK))
                             .on_row(1)
                             .on_column(0)
-                            .with_child(
-                                ScrollViewerBuilder::new(
-                                    WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
-                                )
-                                .with_content({
-                                    tree_root = TreeRootBuilder::new(WidgetBuilder::new())
-                                        .with_items(make_views_for_property_descriptor_collection(
-                                            ctx,
-                                            &self.property_descriptors,
-                                            self.allowed_types.as_ref(),
-                                        ))
-                                        .build(ctx);
-                                    tree_root
-                                })
-                                .build(ctx),
-                            ),
+                            .with_child(scroll_viewer),
                     )
                     .build(ctx),
                 ),
@@ -417,10 +487,11 @@ impl PropertySelectorBuilder {
         .build(ctx);
 
         let selector = PropertySelector {
-            widget: self.widget_builder.with_child(content).build(),
-            selected_property_path: Default::default(),
+            widget: self.widget_builder.with_child(content).build(ctx),
+            selected_property_paths: self.selected_property_paths,
             tree_root,
             search_bar,
+            scroll_viewer,
         };
 
         ctx.add_node(UiNode::new(selector))
@@ -453,6 +524,24 @@ impl DerefMut for PropertySelectorWindow {
     }
 }
 
+impl PropertySelectorWindow {
+    pub fn confirm(&self, ui: &UserInterface) {
+        ui.send_message(PropertySelectorMessage::selection(
+            self.handle,
+            MessageDirection::FromWidget,
+            ui.node(self.selector)
+                .query_component::<PropertySelector>()
+                .unwrap()
+                .selected_property_paths
+                .clone(),
+        ));
+        ui.send_message(WindowMessage::close(
+            self.handle,
+            MessageDirection::ToWidget,
+        ));
+    }
+}
+
 uuid_provider!(PropertySelectorWindow = "725e4a10-eca6-4345-9833-d54dae2f20f2");
 
 impl Control for PropertySelectorWindow {
@@ -481,20 +570,7 @@ impl Control for PropertySelectorWindow {
 
         if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.ok {
-                ui.send_message(PropertySelectorMessage::selection(
-                    self.handle,
-                    MessageDirection::FromWidget,
-                    ui.node(self.selector)
-                        .query_component::<PropertySelector>()
-                        .unwrap()
-                        .selected_property_path
-                        .clone(),
-                ));
-
-                ui.send_message(WindowMessage::close(
-                    self.handle,
-                    MessageDirection::ToWidget,
-                ));
+                self.confirm(ui);
             } else if message.destination() == self.cancel {
                 ui.send_message(WindowMessage::close(
                     self.handle,
@@ -517,6 +593,22 @@ impl Control for PropertySelectorWindow {
                     enabled,
                 ));
             }
+        } else if let Some(WindowMessage::Open { .. })
+        | Some(WindowMessage::OpenAt { .. })
+        | Some(WindowMessage::OpenModal { .. })
+        | Some(WindowMessage::OpenAndAlign { .. }) = message.data()
+        {
+            ui.send_message(PropertySelectorMessage::choose_focus(
+                self.selector,
+                MessageDirection::ToWidget,
+            ));
+        } else if let Some(WidgetMessage::KeyDown(KeyCode::Enter | KeyCode::NumpadEnter)) =
+            message.data()
+        {
+            if !message.handled() {
+                self.confirm(ui);
+                message.set_handled(true);
+            }
         }
     }
 
@@ -538,6 +630,7 @@ pub struct PropertySelectorWindowBuilder {
     window_builder: WindowBuilder,
     property_descriptors: Vec<PropertyDescriptor>,
     allowed_types: Option<FxHashSet<TypeId>>,
+    selected_property_paths: Vec<PropertyDescriptorData>,
 }
 
 impl PropertySelectorWindowBuilder {
@@ -546,6 +639,7 @@ impl PropertySelectorWindowBuilder {
             window_builder,
             property_descriptors: Default::default(),
             allowed_types: None,
+            selected_property_paths: Default::default(),
         }
     }
 
@@ -556,6 +650,11 @@ impl PropertySelectorWindowBuilder {
 
     pub fn with_property_descriptors(mut self, descriptors: Vec<PropertyDescriptor>) -> Self {
         self.property_descriptors = descriptors;
+        self
+    }
+
+    pub fn with_selected_property_paths(mut self, paths: Vec<PropertyDescriptorData>) -> Self {
+        self.selected_property_paths = paths;
         self
     }
 
@@ -572,6 +671,7 @@ impl PropertySelectorWindowBuilder {
                             .on_column(0)
                             .with_margin(Thickness::uniform(1.0)),
                     )
+                    .with_selected_property_paths(self.selected_property_paths)
                     .with_allowed_types(self.allowed_types.clone())
                     .with_property_descriptors(self.property_descriptors)
                     .build(ctx);
@@ -589,7 +689,8 @@ impl PropertySelectorWindowBuilder {
                                     WidgetBuilder::new()
                                         .with_enabled(false)
                                         .with_width(100.0)
-                                        .with_margin(Thickness::uniform(1.0)),
+                                        .with_margin(Thickness::uniform(1.0))
+                                        .with_tab_index(Some(2)),
                                 )
                                 .with_text("OK")
                                 .build(ctx);
@@ -599,7 +700,8 @@ impl PropertySelectorWindowBuilder {
                                 cancel = ButtonBuilder::new(
                                     WidgetBuilder::new()
                                         .with_width(100.0)
-                                        .with_margin(Thickness::uniform(1.0)),
+                                        .with_margin(Thickness::uniform(1.0))
+                                        .with_tab_index(Some(3)),
                                 )
                                 .with_text("Cancel")
                                 .build(ctx);
@@ -611,7 +713,7 @@ impl PropertySelectorWindowBuilder {
                 ),
         )
         .add_row(Row::stretch())
-        .add_row(Row::strict(22.0))
+        .add_row(Row::strict(26.0))
         .add_column(Column::stretch())
         .build(ctx);
 
@@ -624,5 +726,20 @@ impl PropertySelectorWindowBuilder {
         };
 
         ctx.add_node(UiNode::new(window))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::scene::property::{PropertySelectorBuilder, PropertySelectorWindowBuilder};
+    use fyrox::gui::window::WindowBuilder;
+    use fyrox::{gui::test::test_widget_deletion, gui::widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| PropertySelectorBuilder::new(WidgetBuilder::new()).build(ctx));
+        test_widget_deletion(|ctx| {
+            PropertySelectorWindowBuilder::new(WindowBuilder::new(WidgetBuilder::new())).build(ctx)
+        });
     }
 }

@@ -57,6 +57,7 @@ mod selector;
 
 use fyrox_core::parking_lot::Mutex;
 use fyrox_core::uuid_provider;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
 use notify::Watcher;
 pub use selector::*;
@@ -151,6 +152,18 @@ pub struct FileBrowser {
     #[visit(skip)]
     #[reflect(hidden)]
     pub watcher: Option<(notify::RecommendedWatcher, thread::JoinHandle<()>)>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for FileBrowser {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("File Browser", |ui| {
+                FileBrowserBuilder::new(WidgetBuilder::new().with_name("File Browser"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("File System")
+    }
 }
 
 impl Clone for FileBrowser {
@@ -1032,7 +1045,7 @@ impl FileBrowserBuilder {
             .widget_builder
             .with_need_update(true)
             .with_child(grid)
-            .build();
+            .build(ctx);
 
         let the_path = match &self.root {
             Some(path) => path.clone(),
@@ -1100,6 +1113,8 @@ fn setup_filebrowser_fs_watcher(
 
 #[cfg(test)]
 mod test {
+    use crate::file_browser::FileBrowserBuilder;
+    use crate::test::test_widget_deletion;
     use crate::{
         core::pool::Handle,
         file_browser::{build_tree, find_tree},
@@ -1111,6 +1126,11 @@ mod test {
     use fyrox_core::parking_lot::Mutex;
     use std::path::PathBuf;
     use std::sync::Arc;
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| FileBrowserBuilder::new(WidgetBuilder::new()).build(ctx));
+    }
 
     #[test]
     fn test_find_tree() {

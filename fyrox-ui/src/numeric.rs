@@ -22,6 +22,8 @@
 
 #![warn(missing_docs)]
 
+use crate::style::resource::StyleResourceExt;
+use crate::style::Style;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -43,9 +45,10 @@ use crate::{
     utils::{make_arrow, ArrowDirection},
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
-    VerticalAlignment, BRUSH_DARK, BRUSH_LIGHT,
+    VerticalAlignment,
 };
 use fyrox_core::variable::InheritableVariable;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
 use std::{
     cmp::Ordering,
@@ -148,6 +151,7 @@ impl<T: NumericType> NumericUpDownMessage<T> {
             data: Box::new(precision),
             destination,
             direction,
+            routing_strategy: Default::default(),
             perform_layout: Default::default(),
             flags: 0,
         }
@@ -291,6 +295,23 @@ pub struct NumericUpDown<T: NumericType> {
     pub drag_context: Option<DragContext<T>>,
     /// Defines how movement in Y axis will be translated in the actual value change. It is some sort of a scaling modifier.
     pub drag_value_scaling: InheritableVariable<f32>,
+}
+
+impl<T: NumericType> ConstructorProvider<UiNode, UserInterface> for NumericUpDown<T> {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant(
+                format!("Numeric Up Down<{}>", std::any::type_name::<T>()),
+                |ui| {
+                    NumericUpDownBuilder::<T>::new(
+                        WidgetBuilder::new().with_name("Numeric Up Down"),
+                    )
+                    .build(&mut ui.build_ctx())
+                    .into()
+                },
+            )
+            .with_group("Numeric")
+    }
 }
 
 impl<T: NumericType> Deref for NumericUpDown<T> {
@@ -716,8 +737,8 @@ impl<T: NumericType> NumericUpDownBuilder<T> {
         let field;
         let back = BorderBuilder::new(
             WidgetBuilder::new()
-                .with_background(BRUSH_DARK)
-                .with_foreground(BRUSH_LIGHT),
+                .with_background(ctx.style.get_or_default(Style::BRUSH_DARK))
+                .with_foreground(ctx.style.get_or_default(Style::BRUSH_LIGHT)),
         )
         .with_corner_radius(4.0)
         .with_pad_by_corner_radius(false)
@@ -771,7 +792,7 @@ impl<T: NumericType> NumericUpDownBuilder<T> {
         ctx.link(grid, back);
 
         let node = NumericUpDown {
-            widget: self.widget_builder.with_child(back).build(),
+            widget: self.widget_builder.with_child(back).build(ctx),
             increase: increase.into(),
             decrease: decrease.into(),
             field: field.into(),
@@ -791,7 +812,13 @@ impl<T: NumericType> NumericUpDownBuilder<T> {
 
 #[cfg(test)]
 mod test {
-    use crate::numeric::{saturating_add, saturating_sub};
+
+    use crate::numeric::NumericUpDownBuilder;
+    use crate::{
+        numeric::{saturating_add, saturating_sub},
+        test::test_widget_deletion,
+        widget::WidgetBuilder,
+    };
 
     #[test]
     fn test_saturating_add() {
@@ -836,5 +863,12 @@ mod test {
         assert_eq!(saturating_sub(1.0, 1.0), 0.0);
         assert_eq!(saturating_sub(f32::MIN, 1.0), f32::MIN);
         assert_eq!(saturating_sub(f32::MAX, 1.0), f32::MAX - 1.0);
+    }
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| {
+            NumericUpDownBuilder::<f32>::new(WidgetBuilder::new()).build(ctx)
+        });
     }
 }

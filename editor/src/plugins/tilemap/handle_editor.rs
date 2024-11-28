@@ -199,7 +199,7 @@ impl TileHandleEditorBuilder {
         .build(ctx);
 
         ctx.add_node(UiNode::new(TileHandleEditor {
-            widget: self.widget_builder.with_child(content).build(),
+            widget: self.widget_builder.with_child(content).build(ctx),
             value: self.value,
             field,
             goto_button,

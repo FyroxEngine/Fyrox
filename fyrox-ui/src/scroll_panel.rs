@@ -37,6 +37,7 @@ use crate::{
     BuildContext, Control, UiNode, UserInterface,
 };
 use fyrox_core::uuid_provider;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};
 
@@ -175,6 +176,18 @@ pub struct ScrollPanel {
     pub vertical_scroll_allowed: bool,
     /// A flag, that defines whether the horizontal scrolling is allowed or not.
     pub horizontal_scroll_allowed: bool,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for ScrollPanel {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Scroll Panel", |ui| {
+                ScrollPanelBuilder::new(WidgetBuilder::new().with_name("Scroll Panel"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Layout")
+    }
 }
 
 crate::define_widget_deref!(ScrollPanel);
@@ -386,12 +399,23 @@ impl ScrollPanelBuilder {
     }
 
     /// Finishes scroll panel building and adds it to the user interface.
-    pub fn build(self, ui: &mut BuildContext) -> Handle<UiNode> {
-        ui.add_node(UiNode::new(ScrollPanel {
-            widget: self.widget_builder.build(),
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+        ctx.add_node(UiNode::new(ScrollPanel {
+            widget: self.widget_builder.build(ctx),
             scroll: self.scroll_value,
             vertical_scroll_allowed: self.vertical_scroll_allowed.unwrap_or(true),
             horizontal_scroll_allowed: self.horizontal_scroll_allowed.unwrap_or(false),
         }))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::scroll_panel::ScrollPanelBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| ScrollPanelBuilder::new(WidgetBuilder::new()).build(ctx));
     }
 }

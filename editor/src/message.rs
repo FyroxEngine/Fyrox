@@ -34,6 +34,7 @@ use crate::{
     SaveSceneConfirmationDialogAction,
 };
 use fyrox::scene::tilemap::{brush::TileMapBrushResource, tileset::TileSetResource};
+use std::sync::mpsc::channel;
 use std::{path::PathBuf, sync::mpsc::Sender};
 
 #[derive(Debug)]
@@ -61,7 +62,6 @@ pub enum Message {
     Exit {
         force: bool,
     },
-    OpenSettings,
     OpenAnimationEditor,
     OpenAbsmEditor,
     OpenMaterialEditor(MaterialResource),
@@ -108,6 +108,13 @@ pub enum Message {
 
 #[derive(Clone, Debug)]
 pub struct MessageSender(pub Sender<Message>);
+
+impl Default for MessageSender {
+    fn default() -> Self {
+        let (rx, _) = channel();
+        Self(rx)
+    }
+}
 
 unsafe impl Send for MessageSender {}
 unsafe impl Sync for MessageSender {}

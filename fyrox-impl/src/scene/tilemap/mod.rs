@@ -22,17 +22,19 @@
 //! build game worlds quickly and easily. See [`TileMap`] docs for more info and usage examples.
 
 pub mod brush;
-use brush::*;
 mod resource_grid;
 mod tile_rect;
 mod tile_source;
 pub mod tileset;
-use tileset::*;
 mod transform;
 mod update;
-pub use resource_grid::*;
+
+use brush::*;
+use fyrox_graph::constructor::ConstructorProvider;
+use resource_grid::*;
 pub use tile_rect::*;
 pub use tile_source::*;
+use tileset::*;
 pub use transform::*;
 pub use update::*;
 
@@ -73,7 +75,7 @@ use std::{
     path::PathBuf,
 };
 
-use super::dim2::rectangle::RectangleVertex;
+use super::{dim2::rectangle::RectangleVertex, node::constructor::NodeConstructor};
 
 use crate::lazy_static::*;
 
@@ -953,6 +955,18 @@ impl Deref for TileMap {
 impl DerefMut for TileMap {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.base
+    }
+}
+
+impl ConstructorProvider<Node, Graph> for TileMap {
+    fn constructor() -> NodeConstructor {
+        NodeConstructor::new::<Self>()
+            .with_variant("Tile Map", |_| {
+                TileMapBuilder::new(BaseBuilder::new().with_name("Tile Map"))
+                    .build_node()
+                    .into()
+            })
+            .with_group("2D")
     }
 }
 

@@ -19,11 +19,8 @@
 // SOFTWARE.
 
 use crate::{
-    inspector::editors::{
-        material::{MaterialFieldEditorBuilder, MaterialFieldMessage},
-        resource::ResourceFieldBuilder,
-    },
-    load_image, send_sync_message, MSG_SYNC_FLAG,
+    plugins::material::editor::{MaterialFieldEditorBuilder, MaterialFieldMessage},
+    send_sync_message, MSG_SYNC_FLAG,
 };
 use fyrox::{
     asset::manager::ResourceManager,
@@ -87,15 +84,17 @@ fn make_draw_button(
     )
     .with_back(
         DecoratorBuilder::new(
-            BorderBuilder::new(WidgetBuilder::new().with_foreground(BRUSH_DARKER))
-                .with_pad_by_corner_radius(false)
-                .with_corner_radius(2.0)
-                .with_stroke_thickness(Thickness::uniform(1.0)),
+            BorderBuilder::new(
+                WidgetBuilder::new().with_foreground(ctx.style.get_or_default(Style::BRUSH_DARKER)),
+            )
+            .with_pad_by_corner_radius(false)
+            .with_corner_radius(2.0)
+            .with_stroke_thickness(Thickness::uniform(1.0)),
         )
-        .with_selected_brush(BRUSH_BRIGHT_BLUE)
-        .with_normal_brush(BRUSH_LIGHT)
-        .with_hover_brush(BRUSH_LIGHTER)
-        .with_pressed_brush(BRUSH_LIGHTEST)
+        .with_selected_brush(ctx.style.get_or_default(Style::BRUSH_BRIGHT_BLUE))
+        .with_normal_brush(ctx.style.get_or_default(Style::BRUSH_LIGHT))
+        .with_hover_brush(ctx.style.get_or_default(Style::BRUSH_LIGHTER))
+        .with_pressed_brush(ctx.style.get_or_default(Style::BRUSH_LIGHTEST))
         .build(ctx),
     )
     .with_content(

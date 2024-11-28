@@ -41,6 +41,7 @@ use crate::{
     BuildContext, Control, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use fyrox_core::uuid_provider;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
 use std::{
     ops::{Deref, DerefMut},
@@ -128,6 +129,18 @@ pub struct AlphaBar {
     pub orientation: Orientation,
     pub alpha: f32,
     pub is_picking: bool,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for AlphaBar {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Alpha Bar", |ui| {
+                AlphaBarBuilder::new(WidgetBuilder::new().with_name("Alpha Bar"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Color")
+    }
 }
 
 crate::define_widget_deref!(AlphaBar);
@@ -374,14 +387,14 @@ impl AlphaBarBuilder {
         self
     }
 
-    pub fn build(self, ui: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let canvas = AlphaBar {
-            widget: self.widget_builder.build(),
+            widget: self.widget_builder.build(ctx),
             orientation: self.orientation,
             alpha: self.alpha,
             is_picking: false,
         };
-        ui.add_node(UiNode::new(canvas))
+        ctx.add_node(UiNode::new(canvas))
     }
 }
 
@@ -391,6 +404,18 @@ pub struct HueBar {
     pub orientation: Orientation,
     pub is_picking: bool,
     pub hue: f32,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for HueBar {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Hue Bar", |ui| {
+                HueBarBuilder::new(WidgetBuilder::new().with_name("Hue Bar"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Color")
+    }
 }
 
 crate::define_widget_deref!(HueBar);
@@ -525,14 +550,14 @@ impl HueBarBuilder {
         self
     }
 
-    pub fn build(self, ui: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let bar = HueBar {
-            widget: self.widget_builder.build(),
+            widget: self.widget_builder.build(ctx),
             orientation: self.orientation,
             is_picking: false,
             hue: self.hue,
         };
-        ui.add_node(UiNode::new(bar))
+        ctx.add_node(UiNode::new(bar))
     }
 }
 
@@ -543,6 +568,20 @@ pub struct SaturationBrightnessField {
     pub hue: f32,
     pub saturation: f32,
     pub brightness: f32,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for SaturationBrightnessField {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Saturation Brightness Field", |ui| {
+                SaturationBrightnessFieldBuilder::new(
+                    WidgetBuilder::new().with_name("Saturation Brightness Field"),
+                )
+                .build(&mut ui.build_ctx())
+                .into()
+            })
+            .with_group("Color")
+    }
 }
 
 crate::define_widget_deref!(SaturationBrightnessField);
@@ -724,15 +763,15 @@ impl SaturationBrightnessFieldBuilder {
         self
     }
 
-    pub fn build(self, ui: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let bar = SaturationBrightnessField {
-            widget: self.widget_builder.build(),
+            widget: self.widget_builder.build(ctx),
             is_picking: false,
             saturation: self.saturation,
             brightness: self.brightness,
             hue: self.hue,
         };
-        ui.add_node(UiNode::new(bar))
+        ctx.add_node(UiNode::new(bar))
     }
 }
 
@@ -752,6 +791,18 @@ pub struct ColorPicker {
     pub color_mark: Handle<UiNode>,
     pub color: Color,
     pub hsv: Hsv,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for ColorPicker {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Color Picker", |ui| {
+                ColorPickerBuilder::new(WidgetBuilder::new().with_name("Color Picker"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Color")
+    }
 }
 
 crate::define_widget_deref!(ColorPicker);
@@ -1129,7 +1180,7 @@ impl ColorPickerBuilder {
                 .add_row(Row::auto())
                 .build(ctx),
             )
-            .build();
+            .build(ctx);
 
         let picker = ColorPicker {
             widget,
@@ -1157,6 +1208,18 @@ pub struct ColorField {
     pub popup: Handle<UiNode>,
     pub picker: Handle<UiNode>,
     pub color: Color,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for ColorField {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Color Field", |ui| {
+                ColorFieldBuilder::new(WidgetBuilder::new().with_name("Color Field"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Color")
+    }
 }
 
 crate::define_widget_deref!(ColorField);
@@ -1279,11 +1342,25 @@ impl ColorFieldBuilder {
             .build(ctx);
 
         let field = ColorField {
-            widget: self.widget_builder.with_preview_messages(true).build(),
+            widget: self.widget_builder.with_preview_messages(true).build(ctx),
             popup,
             picker,
             color: self.color,
         };
         ctx.add_node(UiNode::new(field))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::color::{AlphaBarBuilder, ColorFieldBuilder, ColorPickerBuilder, HueBarBuilder};
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| ColorFieldBuilder::new(WidgetBuilder::new()).build(ctx));
+        test_widget_deletion(|ctx| ColorPickerBuilder::new(WidgetBuilder::new()).build(ctx));
+        test_widget_deletion(|ctx| HueBarBuilder::new(WidgetBuilder::new()).build(ctx));
+        test_widget_deletion(|ctx| AlphaBarBuilder::new(WidgetBuilder::new()).build(ctx));
     }
 }

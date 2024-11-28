@@ -18,5 +18,14 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+pub mod absm;
+pub mod animation;
 pub mod collider;
+pub mod curve_editor;
+pub mod inspector;
+pub mod material;
+pub mod path_fixer;
+pub mod ragdoll;
+pub mod settings;
+pub mod stats;
 pub mod tilemap;

@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::plugins::inspector::EditorEnvironment;
 use crate::{
     asset::item::AssetItem,
     command::{make_command, Command, CommandGroup, CommandTrait},
@@ -57,7 +58,6 @@ use crate::{
             TileDefinitionHandle,
         },
     },
-    inspector::{editors::resource::ResourceFieldBuilder, EditorEnvironment},
     message::MessageSender,
     plugins::tilemap::tile_set_import::{ImportResult, TileSetImporter},
     Message,

@@ -32,6 +32,7 @@ use crate::{
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, Thickness, UiNode, UserInterface,
 };
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::ops::{Deref, DerefMut};
 
 #[derive(Debug, PartialEq, Clone)]
@@ -73,6 +74,18 @@ pub struct Selector {
     current: InheritableVariable<Option<usize>>,
     prev: InheritableVariable<Handle<UiNode>>,
     next: InheritableVariable<Handle<UiNode>>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for Selector {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Selector", |ui| {
+                SelectorBuilder::new(WidgetBuilder::new().with_name("Selector"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Input")
+    }
 }
 
 define_widget_deref!(Selector);
@@ -240,7 +253,7 @@ impl SelectorBuilder {
         .build(ctx);
 
         let selector = Selector {
-            widget: self.widget_builder.with_child(grid).build(),
+            widget: self.widget_builder.with_child(grid).build(ctx),
             items: self.items.into(),
             items_panel: items_panel.into(),
             prev: prev.into(),
@@ -249,5 +262,16 @@ impl SelectorBuilder {
         };
 
         ctx.add_node(UiNode::new(selector))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::selector::SelectorBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| SelectorBuilder::new(WidgetBuilder::new()).build(ctx));
     }
 }

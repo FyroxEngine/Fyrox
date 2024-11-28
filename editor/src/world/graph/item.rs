@@ -42,6 +42,8 @@ use crate::fyrox::{
     },
 };
 use crate::{load_image, message::MessageSender, utils::make_node_name, Message};
+use fyrox::gui::style::resource::StyleResourceExt;
+use fyrox::gui::style::Style;
 use std::{
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
@@ -196,9 +198,7 @@ impl Control for SceneItem {
                                 .on_row(0)
                                 .on_column(2),
                         )
-                        .with_opt_texture(load_image(include_bytes!(
-                            "../../../resources/warning.png"
-                        )))
+                        .with_opt_texture(load_image!("../../../resources/warning.png"))
                         .build(&mut ui.build_ctx());
 
                         ui.send_message(WidgetMessage::link(
@@ -325,7 +325,7 @@ impl SceneItemBuilder {
                         WidgetBuilder::new()
                             .with_foreground(
                                 self.text_brush
-                                    .unwrap_or(Brush::Solid(fyrox::gui::COLOR_FOREGROUND)),
+                                    .unwrap_or(ctx.style.get_or_default(Style::BRUSH_FOREGROUND)),
                             )
                             .with_margin(Thickness::left(1.0))
                             .on_column(1)
@@ -361,5 +361,20 @@ impl SceneItemBuilder {
         };
 
         ctx.add_node(UiNode::new(item))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::world::graph::item::SceneItemBuilder;
+    use fyrox::gui::tree::TreeBuilder;
+    use fyrox::{gui::test::test_widget_deletion, gui::widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| {
+            SceneItemBuilder::new(TreeBuilder::new(WidgetBuilder::new()))
+                .build(ctx, Default::default())
+        });
     }
 }

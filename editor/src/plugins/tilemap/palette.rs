@@ -1208,7 +1208,7 @@ impl PaletteWidgetBuilder {
                 .widget_builder
                 .with_allow_drop(true)
                 .with_clip_to_bounds(false)
-                .build(),
+                .build(ctx),
             sender: self.sender,
             state: self.state,
             overlay: PaletteOverlay::default(),

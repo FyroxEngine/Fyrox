@@ -42,6 +42,8 @@
 //! Light scattering feature may significantly impact performance on low-end
 //! hardware!
 
+use crate::scene::base::BaseBuilder;
+use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector3},
@@ -63,6 +65,7 @@ use crate::{
         node::{Node, NodeTrait},
     },
 };
+use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};
 
@@ -213,6 +216,23 @@ impl SpotLight {
     #[inline]
     pub fn cookie_texture_ref(&self) -> Option<&TextureResource> {
         self.cookie_texture.as_ref()
+    }
+}
+
+impl ConstructorProvider<Node, Graph> for SpotLight {
+    fn constructor() -> NodeConstructor {
+        NodeConstructor::new::<Self>()
+            .with_variant("Spot Light", |_| {
+                SpotLightBuilder::new(BaseLightBuilder::new(
+                    BaseBuilder::new().with_name("SpotLight"),
+                ))
+                .with_distance(10.0)
+                .with_hotspot_cone_angle(45.0f32.to_radians())
+                .with_falloff_angle_delta(2.0f32.to_radians())
+                .build_node()
+                .into()
+            })
+            .with_group("Light")
     }
 }
 

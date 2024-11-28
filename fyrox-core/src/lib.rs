@@ -54,6 +54,7 @@ use std::{
 use bytemuck::Pod;
 pub mod color;
 pub mod color_gradient;
+pub mod early;
 pub mod io;
 pub mod log;
 pub mod math;

@@ -45,9 +45,9 @@ use crate::{
     text::TextMessage,
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, HorizontalAlignment, UiNode, UserInterface, VerticalAlignment,
-    BRUSH_DARKER, BRUSH_TEXT,
 };
 use copypasta::ClipboardProvider;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::{
     cell::RefCell,
     fmt::{Debug, Formatter},
@@ -117,6 +117,8 @@ pub enum VerticalDirection {
 }
 
 pub use crate::formatted_text::Position;
+use crate::style::resource::StyleResourceExt;
+use crate::style::Style;
 
 /// Defines the way, how the text box widget will commit the text that was typed in
 #[derive(
@@ -456,6 +458,19 @@ pub struct TextBox {
     #[visit(skip)]
     #[reflect(hidden)]
     pub recent: Vec<char>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for TextBox {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Text Box", |ui| {
+                TextBoxBuilder::new(WidgetBuilder::new().with_name("Text Box"))
+                    .with_text("Text")
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Input")
+    }
 }
 
 impl Debug for TextBox {
@@ -1615,11 +1630,13 @@ impl TextBoxBuilder {
 
     /// Creates a new [`TextBox`] instance and adds it to the user interface.
     pub fn build(mut self, ctx: &mut BuildContext) -> Handle<UiNode> {
+        let style = &ctx.style;
+
         if self.widget_builder.foreground.is_none() {
-            self.widget_builder.foreground = Some(BRUSH_TEXT);
+            self.widget_builder.foreground = Some(style.get_or_default(Style::BRUSH_TEXT));
         }
         if self.widget_builder.background.is_none() {
-            self.widget_builder.background = Some(BRUSH_DARKER);
+            self.widget_builder.background = Some(style.get_or_default(Style::BRUSH_DARKER));
         }
         if self.widget_builder.cursor.is_none() {
             self.widget_builder.cursor = Some(CursorIcon::Text);
@@ -1630,7 +1647,7 @@ impl TextBoxBuilder {
                 .widget_builder
                 .with_accepts_input(true)
                 .with_need_update(true)
-                .build(),
+                .build(ctx),
             caret_position: Position::default().into(),
             caret_visible: false.into(),
             blink_timer: 0.0.into(),
@@ -1665,5 +1682,16 @@ impl TextBoxBuilder {
         };
 
         ctx.add_node(UiNode::new(text_box))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::text_box::TextBoxBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| TextBoxBuilder::new(WidgetBuilder::new()).build(ctx));
     }
 }

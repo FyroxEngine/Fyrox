@@ -23,6 +23,7 @@
 //!
 //! See [`Listener`] docs for more info.
 
+use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
         math::aabb::AxisAlignedBoundingBox,
@@ -38,6 +39,7 @@ use crate::{
         node::{Node, NodeTrait, SyncContext},
     },
 };
+use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};
 
@@ -77,6 +79,18 @@ impl DerefMut for Listener {
 impl TypeUuidProvider for Listener {
     fn type_uuid() -> Uuid {
         uuid!("2c7dabc1-5666-4256-b020-01532701e4c6")
+    }
+}
+
+impl ConstructorProvider<Node, Graph> for Listener {
+    fn constructor() -> NodeConstructor {
+        NodeConstructor::new::<Self>()
+            .with_variant("Listener", |_| {
+                ListenerBuilder::new(BaseBuilder::new().with_name("Listener"))
+                    .build_node()
+                    .into()
+            })
+            .with_group("Sound")
     }
 }
 

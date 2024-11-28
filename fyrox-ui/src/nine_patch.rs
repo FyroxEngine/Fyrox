@@ -32,6 +32,7 @@ use crate::{
     BuildContext, Control, UiNode, UserInterface,
 };
 use fyrox_core::variable::InheritableVariable;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
 use fyrox_resource::untyped::UntypedResource;
 use std::ops::{Deref, DerefMut};
@@ -50,6 +51,18 @@ pub struct NinePatch {
     pub left_margin_pixel: InheritableVariable<u32>,
     pub right_margin_pixel: InheritableVariable<u32>,
     pub top_margin_pixel: InheritableVariable<u32>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for NinePatch {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Nine Patch", |ui| {
+                NinePatchBuilder::new(WidgetBuilder::new().with_name("Nine Patch"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Visual")
+    }
 }
 
 crate::define_widget_deref!(NinePatch);
@@ -409,7 +422,7 @@ impl NinePatchBuilder {
         self.top_margin_pixel = Some(margin);
         self
     }
-    pub fn build(mut self, ui: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(mut self, ctx: &mut BuildContext) -> Handle<UiNode> {
         if self.widget_builder.background.is_none() {
             self.widget_builder.background = Some(Brush::Solid(Color::WHITE))
         }
@@ -446,7 +459,7 @@ impl NinePatchBuilder {
         };
 
         let grid = NinePatch {
-            widget: self.widget_builder.build(),
+            widget: self.widget_builder.build(ctx),
             texture: self.texture.into(),
             bottom_margin_pixel: bottom_margin_pixel.into(),
             bottom_margin_uv: bottom_margin_uv.into(),
@@ -457,7 +470,7 @@ impl NinePatchBuilder {
             top_margin_pixel: top_margin_pixel.into(),
             top_margin_uv: top_margin_uv.into(),
         };
-        ui.add_node(UiNode::new(grid))
+        ctx.add_node(UiNode::new(grid))
     }
 }
 fn draw_image(
@@ -471,4 +484,15 @@ fn draw_image(
     drawing_context.push_rect_filled(&bounds, Some(tex_coords));
     let texture = CommandTexture::Texture(image.clone());
     drawing_context.commit(clip_bounds, background, texture, None);
+}
+
+#[cfg(test)]
+mod test {
+    use crate::nine_patch::NinePatchBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| NinePatchBuilder::new(WidgetBuilder::new()).build(ctx));
+    }
 }

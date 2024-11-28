@@ -34,7 +34,7 @@ use fyrox::{
 };
 use std::ops::{Deref, DerefMut};
 
-use crate::{load_image, plugins::tilemap::make_drawing_mode_button};
+use super::*;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum TileBoundsMessage {
@@ -248,7 +248,7 @@ impl TileBoundsEditorBuilder {
             ctx,
             width,
             height,
-            load_image(include_bytes!("../../../resources/turn_left.png")),
+            TURN_LEFT_IMAGE.clone(),
             "Rotate left 90 degrees.",
             Some(0),
         );
@@ -256,7 +256,7 @@ impl TileBoundsEditorBuilder {
             ctx,
             width,
             height,
-            load_image(include_bytes!("../../../resources/turn_right.png")),
+            TURN_RIGHT_IMAGE.clone(),
             "Rotate right 90 degrees.",
             Some(0),
         );
@@ -264,7 +264,7 @@ impl TileBoundsEditorBuilder {
             ctx,
             width,
             height,
-            load_image(include_bytes!("../../../resources/flip_x.png")),
+            FLIP_X_IMAGE.clone(),
             "Flip along the x-axis.",
             Some(0),
         );
@@ -272,7 +272,7 @@ impl TileBoundsEditorBuilder {
             ctx,
             width,
             height,
-            load_image(include_bytes!("../../../resources/flip_y.png")),
+            FLIP_Y_IMAGE.clone(),
             "Flip along the y-axis.",
             Some(0),
         );
@@ -292,7 +292,7 @@ impl TileBoundsEditorBuilder {
         )
         .build(ctx);
         ctx.add_node(UiNode::new(TileBoundsEditor {
-            widget: self.widget_builder.with_child(content).build(),
+            widget: self.widget_builder.with_child(content).build(ctx),
             value: None,
             value_area,
             left_top,

@@ -40,8 +40,7 @@ use fyrox::{
         utils::make_simple_tooltip,
         widget::{Widget, WidgetBuilder},
         BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
-        VerticalAlignment, BRUSH_BRIGHT_BLUE, BRUSH_DARKER, BRUSH_LIGHT, BRUSH_LIGHTER,
-        BRUSH_LIGHTEST,
+        VerticalAlignment,
     },
     scene::tilemap::tileset::*,
 };
@@ -418,15 +417,17 @@ fn make_paint_button(tab_index: Option<usize>, ctx: &mut BuildContext) -> Handle
     )
     .with_back(
         DecoratorBuilder::new(
-            BorderBuilder::new(WidgetBuilder::new().with_foreground(BRUSH_DARKER))
-                .with_pad_by_corner_radius(false)
-                .with_corner_radius(4.0)
-                .with_stroke_thickness(Thickness::uniform(1.0)),
+            BorderBuilder::new(
+                WidgetBuilder::new().with_foreground(ctx.style.get_or_default(Style::BRUSH_DARKER)),
+            )
+            .with_pad_by_corner_radius(false)
+            .with_corner_radius(4.0)
+            .with_stroke_thickness(Thickness::uniform(1.0)),
         )
-        .with_selected_brush(BRUSH_BRIGHT_BLUE)
-        .with_normal_brush(BRUSH_LIGHT)
-        .with_hover_brush(BRUSH_LIGHTER)
-        .with_pressed_brush(BRUSH_LIGHTEST)
+        .with_selected_brush(ctx.style.get_or_default(Style::BRUSH_BRIGHT_BLUE))
+        .with_normal_brush(ctx.style.get_or_default(Style::BRUSH_LIGHT))
+        .with_hover_brush(ctx.style.get_or_default(Style::BRUSH_LIGHTER))
+        .with_pressed_brush(ctx.style.get_or_default(Style::BRUSH_LIGHTEST))
         .build(ctx),
     )
     .with_content(
@@ -515,10 +516,12 @@ fn build_nine_button(
     .with_text(specs.name.as_str())
     .with_back(
         DecoratorBuilder::new(
-            BorderBuilder::new(WidgetBuilder::new().with_foreground(BRUSH_DARKER))
-                .with_pad_by_corner_radius(false)
-                .with_corner_radius(4.0)
-                .with_stroke_thickness(Thickness::uniform(1.0)),
+            BorderBuilder::new(
+                WidgetBuilder::new().with_foreground(ctx.style.get_or_default(Style::BRUSH_DARKER)),
+            )
+            .with_pad_by_corner_radius(false)
+            .with_corner_radius(4.0)
+            .with_stroke_thickness(Thickness::uniform(1.0)),
         )
         .with_selected_brush(specs.selected_brush())
         .with_normal_brush(specs.normal_brush())
@@ -650,7 +653,7 @@ impl TilePropertyEditorBuilder {
             TileSetPropertyType::NineSlice => DrawValue::I8(0),
         };
         ctx.add_node(UiNode::new(TilePropertyEditor {
-            widget: self.widget_builder.with_child(content).build(),
+            widget: self.widget_builder.with_child(content).build(ctx),
             tile_set: self.tile_set,
             prop_type: self.prop_layer.prop_type,
             property_id: self.prop_layer.uuid,

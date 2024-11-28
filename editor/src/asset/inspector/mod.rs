@@ -37,9 +37,8 @@ use crate::fyrox::{
         BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
     },
 };
-use crate::{
-    inspector::editors::make_property_editors_container, message::MessageSender, MSG_SYNC_FLAG,
-};
+use crate::plugins::inspector::editors::make_property_editors_container;
+use crate::{message::MessageSender, MSG_SYNC_FLAG};
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;

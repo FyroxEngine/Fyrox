@@ -23,7 +23,6 @@
 
 #![warn(missing_docs)]
 
-use crate::message::KeyCode;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -35,14 +34,17 @@ use crate::{
     decorator::{DecoratorBuilder, DecoratorMessage},
     define_constructor,
     grid::{Column, GridBuilder, Row},
+    message::KeyCode,
     message::{MessageDirection, UiMessage},
     stack_panel::StackPanelBuilder,
+    style::resource::StyleResourceExt,
+    style::Style,
     utils::{make_arrow, ArrowDirection},
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, MouseButton, Thickness, UiNode, UserInterface, VerticalAlignment,
-    BRUSH_DARK, BRUSH_DIM_BLUE,
 };
 use fyrox_core::uuid_provider;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::{BaseSceneGraph, SceneGraph, SceneGraphNode};
 use std::collections::VecDeque;
 use std::ops::{Deref, DerefMut};
@@ -376,6 +378,18 @@ pub struct Tree {
     /// A flag, that defines whether the tree should always show its expander, even if there's no
     /// children elements, or not.
     pub always_show_expander: bool,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for Tree {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Tree", |ui| {
+                TreeBuilder::new(WidgetBuilder::new().with_name("Tree"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Visual")
+    }
 }
 
 crate::define_widget_deref!(Tree);
@@ -748,8 +762,8 @@ impl TreeBuilder {
                     .with_foreground(Brush::Solid(Color::TRANSPARENT))
                     .with_background(Brush::Solid(Color::TRANSPARENT)),
             ))
-            .with_selected_brush(BRUSH_DIM_BLUE)
-            .with_hover_brush(BRUSH_DARK)
+            .with_selected_brush(ctx.style.get_or_default(Style::BRUSH_DIM_BLUE))
+            .with_hover_brush(ctx.style.get_or_default(Style::BRUSH_DARK))
             .with_normal_brush(Brush::Solid(Color::TRANSPARENT))
             .with_pressed_brush(Brush::Solid(Color::TRANSPARENT))
             .with_pressable(false)
@@ -786,7 +800,7 @@ impl TreeBuilder {
                 .with_allow_drag(true)
                 .with_allow_drop(true)
                 .with_child(grid)
-                .build(),
+                .build(ctx),
             content: self.content,
             panel,
             is_expanded: self.is_expanded,
@@ -902,6 +916,18 @@ pub struct TreeRoot {
     pub items: Vec<Handle<UiNode>>,
     /// Selected items of the tree root.
     pub selected: Vec<Handle<UiNode>>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for TreeRoot {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Tree Root", |ui| {
+                TreeRootBuilder::new(WidgetBuilder::new().with_name("Tree Root"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Visual")
+    }
 }
 
 crate::define_widget_deref!(TreeRoot);
@@ -1096,12 +1122,13 @@ impl TreeRoot {
                 return;
             }
 
-            let Some((parent_handle, parent)) = ui.find_component_up::<Tree>(item.parent()) else {
-                return;
-            };
+            let (parent_handle, parent_items, parent_ancestor, is_parent_root) = ui
+                .find_component_up::<Tree>(item.parent())
+                .map(|(tree_handle, tree)| (tree_handle, &tree.items, tree.parent, false))
+                .unwrap_or_else(|| (self.handle, &self.items, self.parent, true));
 
             let Some(selected_item_position) =
-                parent.items.iter().position(|c| *c == *selected_item)
+                parent_items.iter().position(|c| *c == *selected_item)
             else {
                 return;
             };
@@ -1110,7 +1137,7 @@ impl TreeRoot {
                 Direction::Up => {
                     if let Some(prev) = selected_item_position
                         .checked_sub(1)
-                        .and_then(|prev| parent.items.get(prev))
+                        .and_then(|prev| parent_items.get(prev))
                     {
                         let mut last_descendant_item = None;
                         let mut queue = VecDeque::new();
@@ -1127,7 +1154,7 @@ impl TreeRoot {
                         if let Some(last_descendant_item) = last_descendant_item {
                             self.select(ui, last_descendant_item);
                         }
-                    } else {
+                    } else if !is_parent_root {
                         self.select(ui, parent_handle);
                     }
                 }
@@ -1135,12 +1162,12 @@ impl TreeRoot {
                     if let (Some(first_item), true) = (item.items.first(), item.is_expanded) {
                         self.select(ui, *first_item);
                     } else if let Some(next) =
-                        parent.items.get(selected_item_position.saturating_add(1))
+                        parent_items.get(selected_item_position.saturating_add(1))
                     {
                         self.select(ui, *next);
                     } else {
                         let mut current_ancestor = parent_handle;
-                        let mut current_ancestor_parent = parent.parent();
+                        let mut current_ancestor_parent = parent_ancestor;
                         while let Some((ancestor_handle, ancestor)) =
                             ui.find_component_up::<Tree>(current_ancestor_parent)
                         {
@@ -1198,12 +1225,24 @@ impl TreeRootBuilder {
                 .build(ctx);
 
         let tree = TreeRoot {
-            widget: self.widget_builder.with_child(panel).build(),
+            widget: self.widget_builder.with_child(panel).build(ctx),
             panel,
             items: self.items,
             selected: Default::default(),
         };
 
         ctx.add_node(UiNode::new(tree))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::tree::{TreeBuilder, TreeRootBuilder};
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| TreeRootBuilder::new(WidgetBuilder::new()).build(ctx));
+        test_widget_deletion(|ctx| TreeBuilder::new(WidgetBuilder::new()).build(ctx));
     }
 }

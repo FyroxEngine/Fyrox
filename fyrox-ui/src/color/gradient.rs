@@ -42,6 +42,7 @@ use crate::{
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, RcUiNodeHandle, UiNode, UserInterface,
 };
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
 use std::{
     cell::Cell,
@@ -63,6 +64,20 @@ impl ColorGradientEditorMessage {
 pub struct ColorGradientField {
     widget: Widget,
     color_gradient: ColorGradient,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for ColorGradientField {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Color Gradient Field", |ui| {
+                ColorGradientFieldBuilder::new(
+                    WidgetBuilder::new().with_name("Color Gradient Field"),
+                )
+                .build(&mut ui.build_ctx())
+                .into()
+            })
+            .with_group("Color")
+    }
 }
 
 define_widget_deref!(ColorGradientField);
@@ -159,7 +174,7 @@ impl ColorGradientFieldBuilder {
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let field = ColorGradientField {
-            widget: self.widget_builder.build(),
+            widget: self.widget_builder.build(ctx),
             color_gradient: self.color_gradient,
         };
 
@@ -180,6 +195,20 @@ pub struct ColorGradientEditor {
     remove_point: Handle<UiNode>,
     context_menu_target: Cell<Handle<UiNode>>,
     context_menu_open_position: Cell<Vector2<f32>>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for ColorGradientEditor {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Color Gradient Editor", |ui| {
+                ColorGradientEditorBuilder::new(
+                    WidgetBuilder::new().with_name("Color Gradient Editor"),
+                )
+                .build(&mut ui.build_ctx())
+                .into()
+            })
+            .with_group("Color")
+    }
 }
 
 define_widget_deref!(ColorGradientEditor);
@@ -454,7 +483,7 @@ impl ColorGradientEditorBuilder {
                 .with_preview_messages(true)
                 .with_context_menu(context_menu.clone())
                 .with_child(grid)
-                .build(),
+                .build(ctx),
             points_canvas,
             gradient_field,
             selector_field,
@@ -485,6 +514,18 @@ pub struct ColorPoint {
     pub widget: Widget,
     pub location: f32,
     pub dragging: bool,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for ColorPoint {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Color Point", |ui| {
+                ColorPointBuilder::new(WidgetBuilder::new().with_name("Color Point"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Color")
+    }
 }
 
 define_widget_deref!(ColorPoint);
@@ -600,7 +641,7 @@ impl ColorPointBuilder {
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         ctx.add_node(UiNode::new(ColorPoint {
-            widget: self.widget_builder.build(),
+            widget: self.widget_builder.build(ctx),
             location: self.location,
             dragging: false,
         }))
@@ -648,7 +689,20 @@ impl ColorPointsCanvasBuilder {
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         ctx.add_node(UiNode::new(ColorPointsCanvas {
-            widget: self.widget_builder.build(),
+            widget: self.widget_builder.build(ctx),
         }))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::color::gradient::ColorGradientEditorBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| {
+            ColorGradientEditorBuilder::new(WidgetBuilder::new()).build(ctx)
+        });
     }
 }

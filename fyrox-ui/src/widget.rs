@@ -23,6 +23,7 @@
 
 #![warn(missing_docs)]
 
+use crate::style::resource::StyleResource;
 use crate::{
     brush::Brush,
     core::{
@@ -34,19 +35,51 @@ use crate::{
         visitor::prelude::*,
         ImmutableString,
     },
+    core::{parking_lot::Mutex, variable::InheritableVariable},
     define_constructor,
     message::{CursorIcon, Force, KeyCode, MessageDirection, UiMessage},
-    HorizontalAlignment, LayoutEvent, MouseButton, MouseState, RcUiNodeHandle, Thickness, UiNode,
-    UserInterface, VerticalAlignment, BRUSH_FOREGROUND, BRUSH_PRIMARY,
+    style::resource::StyleResourceExt,
+    style::Style,
+    BuildContext, HorizontalAlignment, LayoutEvent, MouseButton, MouseState, RcUiNodeHandle,
+    Thickness, UiNode, UserInterface, VerticalAlignment,
 };
-use fyrox_core::{parking_lot::Mutex, variable::InheritableVariable};
 use fyrox_graph::BaseSceneGraph;
 use fyrox_resource::Resource;
 use std::{
     any::Any,
     cell::{Cell, RefCell},
+    cmp::Ordering,
+    fmt::{Debug, Formatter},
     sync::{mpsc::Sender, Arc},
 };
+
+/// Sorting predicate that is used to sort widgets by some criteria.
+#[derive(Clone)]
+pub struct SortingPredicate(
+    pub Arc<dyn Fn(Handle<UiNode>, Handle<UiNode>, &UserInterface) -> Ordering + Send + Sync>,
+);
+
+impl SortingPredicate {
+    /// Creates new sorting predicate.
+    pub fn new<F>(func: F) -> Self
+    where
+        F: Fn(Handle<UiNode>, Handle<UiNode>, &UserInterface) -> Ordering + Send + Sync + 'static,
+    {
+        Self(Arc::new(func))
+    }
+}
+
+impl Debug for SortingPredicate {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "SortingPredicate")
+    }
+}
+
+impl PartialEq for SortingPredicate {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::eq(self.0.as_ref(), other.0.as_ref())
+    }
+}
 
 /// A set of messages for any kind of widgets (including user controls). These messages provides basic
 /// communication elements of the UI library.
@@ -394,6 +427,14 @@ pub enum WidgetMessage {
         /// unique identifier for touch event
         id: u64,
     },
+
+    /// Sorts children widgets of a widget.
+    ///
+    /// Direction: **To UI**.
+    SortChildren(SortingPredicate),
+
+    /// Applies a style to the widget.
+    Style(StyleResource),
 }
 
 impl WidgetMessage {
@@ -679,6 +720,16 @@ impl WidgetMessage {
         /// Creates [`WidgetMessage::DoubleTap`] message. This method is for internal use only, and should not
         /// be used anywhere else.
         WidgetMessage:DoubleTap => fn double_tap(pos: Vector2<f32>, force: Option<Force>, id: u64), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::SortChildren`] message.
+        WidgetMessage:SortChildren => fn sort_children(SortingPredicate), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::Style`] message.
+        WidgetMessage:Style => fn style(StyleResource), layout: false
     );
 }
 
@@ -1003,6 +1054,14 @@ impl Widget {
         self.invalidate_arrange();
     }
 
+    pub(crate) fn notify_z_index_changed(&self) {
+        if let Some(sender) = self.layout_events_sender.as_ref() {
+            sender
+                .send(LayoutEvent::ZIndexChanged(self.handle))
+                .unwrap()
+        }
+    }
+
     /// Invalidates measurement results of the widget. **WARNING**: Do not use this method, unless you understand what you're
     /// doing, it will cause new measurement pass for this widget which could be quite heavy and doing so on every frame for
     /// multiple widgets **will** cause severe performance issues.
@@ -1068,6 +1127,7 @@ impl Widget {
     #[inline]
     pub fn set_z_index(&mut self, z_index: usize) -> &mut Self {
         self.z_index.set_value_and_mark_modified(z_index);
+        self.notify_z_index_changed();
         self
     }
 
@@ -1330,7 +1390,7 @@ impl Widget {
 
     /// Handles incoming [`WidgetMessage`]s. This method **must** be called in [`crate::control::Control::handle_routed_message`]
     /// of any derived widgets!
-    pub fn handle_routed_message(&mut self, _ui: &mut UserInterface, msg: &mut UiMessage) {
+    pub fn handle_routed_message(&mut self, ui: &mut UserInterface, msg: &mut UiMessage) {
         if msg.destination() == self.handle() && msg.direction() == MessageDirection::ToWidget {
             if let Some(msg) = msg.data::<WidgetMessage>() {
                 match msg {
@@ -1420,9 +1480,14 @@ impl Widget {
                     }
                     WidgetMessage::ZIndex(index) => {
                         if *self.z_index != *index {
-                            self.z_index.set_value_and_mark_modified(*index);
+                            self.set_z_index(*index);
                             self.invalidate_layout();
                         }
+                    }
+                    WidgetMessage::SortChildren(predicate) => {
+                        self.children
+                            .sort_unstable_by(|a, b| predicate.0(*a, *b, ui));
+                        self.invalidate_layout();
                     }
                     _ => (),
                 }
@@ -2115,7 +2180,7 @@ impl WidgetBuilder {
     }
 
     /// Finishes building of the base widget.
-    pub fn build(self) -> Widget {
+    pub fn build(self, ctx: &BuildContext) -> Widget {
         Widget {
             handle: Default::default(),
             name: self.name.into(),
@@ -2132,11 +2197,11 @@ impl WidgetBuilder {
                 .into(),
             background: self
                 .background
-                .unwrap_or_else(|| BRUSH_PRIMARY.clone())
+                .unwrap_or_else(|| ctx.style.get_or_default(Style::BRUSH_PRIMARY))
                 .into(),
             foreground: self
                 .foreground
-                .unwrap_or_else(|| BRUSH_FOREGROUND.clone())
+                .unwrap_or_else(|| ctx.style.get_or_default(Style::BRUSH_FOREGROUND))
                 .into(),
             row: self.row.into(),
             column: self.column.into(),

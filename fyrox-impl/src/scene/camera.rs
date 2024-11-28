@@ -20,6 +20,7 @@
 
 //! Contains all methods and structures to create and manage cameras. See [`Camera`] docs for more info.
 
+use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     asset::{
         embedded_data_source, manager::BuiltInResource, state::LoadError, untyped::ResourceKind,
@@ -49,6 +50,7 @@ use crate::{
         node::{Node, NodeTrait, UpdateContext},
     },
 };
+use fyrox_graph::constructor::ConstructorProvider;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -731,6 +733,16 @@ impl Camera {
     /// Returns current exposure value.
     pub fn exposure(&self) -> Exposure {
         *self.exposure
+    }
+}
+
+impl ConstructorProvider<Node, Graph> for Camera {
+    fn constructor() -> NodeConstructor {
+        NodeConstructor::new::<Self>().with_variant("Camera", |_| {
+            CameraBuilder::new(BaseBuilder::new().with_name("Camera"))
+                .build_node()
+                .into()
+        })
     }
 }
 

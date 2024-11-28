@@ -20,8 +20,8 @@
 
 //! User Interface loader.
 
+use crate::constructor::new_widget_constructor_container;
 use crate::{
-    constructor::WidgetConstructorContainer,
     core::{uuid::Uuid, TypeUuidProvider},
     UserInterface,
 };
@@ -53,7 +53,7 @@ impl ResourceLoader for UserInterfaceLoader {
             let io = io.as_ref();
             let ui = UserInterface::load_from_file_ex(
                 &path,
-                Arc::new(WidgetConstructorContainer::new()),
+                Arc::new(new_widget_constructor_container()),
                 resource_manager,
                 io,
             )

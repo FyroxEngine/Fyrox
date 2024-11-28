@@ -38,6 +38,7 @@ use crate::{
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, Orientation, UiNode, UserInterface,
 };
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};
 
@@ -178,6 +179,18 @@ pub struct ScrollViewer {
     pub v_scroll_speed: f32,
     /// Current horizontal scrolling speed.
     pub h_scroll_speed: f32,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for ScrollViewer {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Scroll Viewer", |ui| {
+                ScrollViewerBuilder::new(WidgetBuilder::new().with_name("Scroll Viewer"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Layout")
+    }
 }
 
 crate::define_widget_deref!(ScrollViewer);
@@ -496,7 +509,7 @@ impl ScrollViewerBuilder {
                     .add_column(Column::auto())
                     .build(ctx),
                 )
-                .build(),
+                .build(ctx),
             content: self.content,
             v_scroll_bar,
             h_scroll_bar,
@@ -505,5 +518,16 @@ impl ScrollViewerBuilder {
             h_scroll_speed: self.h_scroll_speed,
         };
         ctx.add_node(UiNode::new(sv))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::scroll_viewer::ScrollViewerBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| ScrollViewerBuilder::new(WidgetBuilder::new()).build(ctx));
     }
 }

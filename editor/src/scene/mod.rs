@@ -18,12 +18,17 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::plugins::absm::{
+    command::fetch_machine,
+    selection::{AbsmSelection, SelectedEntity},
+};
+use crate::plugins::animation::{
+    self, command::fetch_animations_container, selection::AnimationSelection,
+};
+use crate::plugins::inspector::{
+    editors::handle::HandlePropertyEditorMessage, handlers::node::SceneNodePropertyChangedHandler,
+};
 use crate::{
-    absm::{
-        command::fetch_machine,
-        selection::{AbsmSelection, SelectedEntity},
-    },
-    animation::{self, command::fetch_animations_container, selection::AnimationSelection},
     asset::item::AssetItem,
     audio::AudioBusSelection,
     camera::{CameraController, PickingOptions},
@@ -77,10 +82,6 @@ use crate::{
         },
     },
     highlight::HighlightRenderPass,
-    inspector::{
-        editors::handle::HandlePropertyEditorMessage,
-        handlers::node::SceneNodePropertyChangedHandler,
-    },
     interaction::navmesh::selection::NavmeshSelection,
     message::MessageSender,
     scene::{

@@ -41,7 +41,7 @@ use crate::{
             text::TextBuilder,
             widget::{Widget, WidgetBuilder, WidgetMessage},
             BuildContext, Control, HorizontalAlignment, RcUiNodeHandle, Thickness, UiNode,
-            UserInterface, BRUSH_DARKER, BRUSH_DARKEST,
+            UserInterface,
         },
         material::Material,
         scene::tilemap::{brush::TileMapBrush, tileset::TileSet},
@@ -49,6 +49,8 @@ use crate::{
     message::MessageSender,
     Message,
 };
+use fyrox::gui::style::resource::StyleResourceExt;
+use fyrox::gui::style::Style;
 use std::{
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
@@ -287,14 +289,14 @@ fn make_tooltip(ctx: &mut BuildContext, text: &str) -> RcUiNodeHandle {
     let handle = BorderBuilder::new(
         WidgetBuilder::new()
             .with_visibility(false)
-            .with_foreground(BRUSH_DARKEST)
+            .with_foreground(ctx.style.get_or_default(Style::BRUSH_DARKEST))
             .with_background(Brush::Solid(Color::opaque(230, 230, 230)))
             .with_max_size(Vector2::new(300.0, f32::INFINITY))
             .with_child(
                 TextBuilder::new(
                     WidgetBuilder::new()
                         .with_margin(Thickness::uniform(2.0))
-                        .with_foreground(BRUSH_DARKER),
+                        .with_foreground(ctx.style.get_or_default(Style::BRUSH_DARKER)),
                 )
                 .with_wrap(WrapMode::Letter)
                 .with_text(text)
@@ -370,7 +372,7 @@ impl AssetItemBuilder {
                     .add_row(Row::auto())
                     .build(ctx),
                 )
-                .build(),
+                .build(ctx),
             path,
             preview,
             selected: false,
@@ -378,5 +380,20 @@ impl AssetItemBuilder {
             resource_manager: Some(resource_manager),
         };
         ctx.add_node(UiNode::new(item))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::asset::item::AssetItemBuilder;
+    use fyrox::asset::manager::ResourceManager;
+    use fyrox::{gui::test::test_widget_deletion, gui::widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        let rm = ResourceManager::new(Default::default());
+        test_widget_deletion(|ctx| {
+            AssetItemBuilder::new(WidgetBuilder::new()).build(rm, Default::default(), ctx)
+        });
     }
 }

@@ -176,11 +176,22 @@ impl NavigationLayerBuilder {
 
     /// Finishes navigation layer widget building and adds the instance to the user interface and
     /// returns its handle.
-    pub fn build(self, ui: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let navigation_layer = NavigationLayer {
-            widget: self.widget_builder.build(),
+            widget: self.widget_builder.build(ctx),
             bring_into_view: self.bring_into_view.into(),
         };
-        ui.add_node(UiNode::new(navigation_layer))
+        ctx.add_node(UiNode::new(navigation_layer))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::navigation::NavigationLayerBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| NavigationLayerBuilder::new(WidgetBuilder::new()).build(ctx));
     }
 }

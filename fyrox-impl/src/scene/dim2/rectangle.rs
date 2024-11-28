@@ -23,6 +23,7 @@
 //!
 //! See [`Rectangle`] docs for more info.
 
+use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
         algebra::{Point3, Vector2, Vector3},
@@ -49,6 +50,7 @@ use crate::{
 };
 use bytemuck::{Pod, Zeroable};
 use fyrox_core::value_as_u8_slice;
+use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::BaseSceneGraph;
 use std::{
     hash::{Hash, Hasher},
@@ -271,6 +273,18 @@ impl Rectangle {
     /// The default value is `(0, 0, 1, 1)` rectangle which corresponds to entire texture.
     pub fn set_uv_rect(&mut self, uv_rect: Rect<f32>) -> Rect<f32> {
         self.uv_rect.set_value_and_mark_modified(uv_rect)
+    }
+}
+
+impl ConstructorProvider<Node, Graph> for Rectangle {
+    fn constructor() -> NodeConstructor {
+        NodeConstructor::new::<Self>()
+            .with_variant("Rectangle (2D Sprite)", |_| {
+                RectangleBuilder::new(BaseBuilder::new().with_name("Sprite (2D)"))
+                    .build_node()
+                    .into()
+            })
+            .with_group("2D")
     }
 }
 

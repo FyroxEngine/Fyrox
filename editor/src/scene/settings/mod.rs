@@ -18,41 +18,41 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::{
-    core::{color::Color, pool::Handle},
-    engine::Engine,
-    gui::{
-        inspector::{
-            editors::{
-                enumeration::EnumPropertyEditorDefinition, PropertyEditorDefinitionContainer,
-            },
-            InspectorBuilder, InspectorContext, InspectorMessage, PropertyFilter,
-        },
-        message::UiMessage,
-        scroll_viewer::ScrollViewerBuilder,
-        widget::WidgetBuilder,
-        window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, UiNode, UserInterface,
-    },
-    resource::texture::TextureResource,
-    scene::{
-        dim2,
-        graph::{
-            physics::{IntegrationParameters, PhysicsWorld},
-            Graph, NodePool,
-        },
-        SceneRenderingOptions,
-    },
-    utils::lightmap::Lightmap,
-};
+use crate::plugins::inspector::editors::make_property_editors_container;
 use crate::{
-    inspector::editors::make_property_editors_container, message::MessageSender, GameScene,
-    Message, MessageDirection, MSG_SYNC_FLAG,
+    command::make_command,
+    fyrox::{
+        core::{color::Color, pool::Handle, reflect::Reflect},
+        engine::Engine,
+        gui::{
+            inspector::{
+                editors::{
+                    enumeration::EnumPropertyEditorDefinition, PropertyEditorDefinitionContainer,
+                },
+                InspectorBuilder, InspectorContext, InspectorMessage, PropertyFilter,
+            },
+            message::UiMessage,
+            scroll_viewer::ScrollViewerBuilder,
+            widget::WidgetBuilder,
+            window::{WindowBuilder, WindowMessage, WindowTitle},
+            BuildContext, UiNode, UserInterface,
+        },
+        resource::texture::TextureResource,
+        scene::{
+            dim2,
+            graph::{
+                physics::{IntegrationParameters, PhysicsWorld},
+                Graph, NodePool,
+            },
+            SceneRenderingOptions,
+        },
+        utils::lightmap::Lightmap,
+    },
+    message::MessageSender,
+    scene::commands::GameSceneContext,
+    GameScene, Message, MessageDirection, MSG_SYNC_FLAG,
 };
-
-use crate::command::make_command;
-use crate::fyrox::core::reflect::Reflect;
-use crate::scene::commands::GameSceneContext;
+use fyrox::{graph::SceneGraph, gui::window::Window};
 use std::sync::Arc;
 
 pub struct SceneSettingsWindow {
@@ -104,7 +104,15 @@ impl SceneSettingsWindow {
     }
 
     pub fn sync_to_model(&self, game_scene: &GameScene, engine: &mut Engine) {
-        let ui = &mut engine.user_interfaces.first_mut();
+        let ui = engine.user_interfaces.first_mut();
+        if !ui
+            .try_get_of_type::<Window>(self.window)
+            .unwrap()
+            .is_globally_visible()
+        {
+            return;
+        }
+
         let scene = &engine.scenes[game_scene.scene];
 
         let context = InspectorContext::from_object(

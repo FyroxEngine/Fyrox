@@ -123,41 +123,41 @@ impl<'a> WorldViewerDataProvider for UiSceneWorldViewerDataProvider<'a> {
 
         // Containers
         if node.cast::<Canvas>().is_some() {
-            load_image(include_bytes!("../../resources/canvas-icon.png"))
+            load_image!("../../resources/canvas-icon.png")
         } else if node.cast::<Screen>().is_some() {
-            load_image(include_bytes!("../../resources/screen-icon.png"))
+            load_image!("../../resources/screen-icon.png")
         } else if node.cast::<Grid>().is_some() {
-            load_image(include_bytes!("../../resources/grid-icon.png"))
+            load_image!("../../resources/grid-icon.png")
         } else if node.cast::<StackPanel>().is_some() {
-            load_image(include_bytes!("../../resources/stackPanel-icon.png"))
+            load_image!("../../resources/stackPanel-icon.png")
         } else if node.cast::<Window>().is_some() {
-            load_image(include_bytes!("../../resources/window-icon.png"))
+            load_image!("../../resources/window-icon.png")
         } else if node.cast::<MessageBox>().is_some() {
-            load_image(include_bytes!("../../resources/messageBox-icon.png"))
+            load_image!("../../resources/messageBox-icon.png")
         } else if node.cast::<Menu>().is_some() {
-            load_image(include_bytes!("../../resources/menu-icon.png"))
+            load_image!("../../resources/menu-icon.png")
         } else if node.cast::<Popup>().is_some() {
-            load_image(include_bytes!("../../resources/popup-icon.png"))
+            load_image!("../../resources/popup-icon.png")
         }
         // Visual
         else if node.cast::<Text>().is_some() {
-            load_image(include_bytes!("../../resources/text-icon.png"))
+            load_image!("../../resources/text-icon.png")
         } else if node.cast::<Image>().is_some() {
-            load_image(include_bytes!("../../resources/image-icon.png"))
+            load_image!("../../resources/image-icon.png")
         } else if node.cast::<Border>().is_some() {
-            load_image(include_bytes!("../../resources/border-icon.png"))
+            load_image!("../../resources/border-icon.png")
         }
         // Controls
         else if node.cast::<Button>().is_some() {
-            load_image(include_bytes!("../../resources/button-icon.png"))
+            load_image!("../../resources/button-icon.png")
         } else if node.cast::<CheckBox>().is_some() {
-            load_image(include_bytes!("../../resources/checkbox-icon.png"))
+            load_image!("../../resources/checkbox-icon.png")
         } else if node.cast::<ListView>().is_some() {
-            load_image(include_bytes!("../../resources/list-icon.png"))
+            load_image!("../../resources/list-icon.png")
         } else if node.cast::<FileBrowser>().is_some() {
-            load_image(include_bytes!("../../resources/fileBrowser-icon.png"))
+            load_image!("../../resources/fileBrowser-icon.png")
         } else if node.cast::<Inspector>().is_some() {
-            load_image(include_bytes!("../../resources/inspector-icon.png"))
+            load_image!("../../resources/inspector-icon.png")
         } else {
             None
         }

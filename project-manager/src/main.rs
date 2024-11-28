@@ -31,6 +31,7 @@ use crate::{
     settings::Settings,
     utils::{is_production_ready, load_image, make_button},
 };
+use fyrox::gui::constructor::new_widget_constructor_container;
 use fyrox::{
     asset::manager::ResourceManager,
     core::{
@@ -51,7 +52,6 @@ use fyrox::{
         brush::Brush,
         button::{ButtonBuilder, ButtonMessage},
         check_box::{CheckBoxBuilder, CheckBoxMessage},
-        constructor::WidgetConstructorContainer,
         decorator::DecoratorBuilder,
         font::Font,
         formatted_text::WrapMode,
@@ -90,7 +90,7 @@ fn main() {
         resource_manager: ResourceManager::new(task_pool.clone()),
         serialization_context,
         task_pool,
-        widget_constructors: Arc::new(WidgetConstructorContainer::new()),
+        widget_constructors: Arc::new(new_widget_constructor_container()),
     })
     .unwrap();
 

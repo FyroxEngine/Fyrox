@@ -38,6 +38,7 @@ use crate::{
     VerticalAlignment,
 };
 use fyrox_core::uuid_provider;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
 use std::{
     ops::{Deref, DerefMut},
@@ -70,6 +71,20 @@ pub struct FileSelector {
     pub browser: Handle<UiNode>,
     pub ok: Handle<UiNode>,
     pub cancel: Handle<UiNode>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for FileSelector {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("File Selector", |ui| {
+                FileSelectorBuilder::new(WindowBuilder::new(
+                    WidgetBuilder::new().with_name("File Selector"),
+                ))
+                .build(&mut ui.build_ctx())
+                .into()
+            })
+            .with_group("File System")
+    }
 }
 
 impl Deref for FileSelector {
@@ -315,6 +330,18 @@ pub struct FileSelectorField {
     file_selector: Handle<UiNode>,
 }
 
+impl ConstructorProvider<UiNode, UserInterface> for FileSelectorField {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("File Selector Field", |ui| {
+                FileSelectorFieldBuilder::new(WidgetBuilder::new().with_name("File Selector Field"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("File System")
+    }
+}
+
 define_widget_deref!(FileSelectorField);
 
 uuid_provider!(FileSelectorField = "2dbda730-8a60-4f62-aee8-2ff0ccd15bf2");
@@ -441,7 +468,7 @@ impl FileSelectorFieldBuilder {
                     .add_column(Column::auto())
                     .build(ctx),
                 )
-                .build(),
+                .build(ctx),
             path: self.path,
             path_field,
             select,
@@ -449,5 +476,19 @@ impl FileSelectorFieldBuilder {
         };
 
         ctx.add_node(UiNode::new(field))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::file_browser::FileSelectorBuilder;
+    use crate::window::WindowBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| {
+            FileSelectorBuilder::new(WindowBuilder::new(WidgetBuilder::new())).build(ctx)
+        });
     }
 }

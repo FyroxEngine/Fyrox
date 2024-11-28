@@ -32,12 +32,12 @@ use crate::{
     },
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget},
-    gui::constructor::WidgetConstructorContainer,
     plugin::Plugin,
     utils::translate_event,
     window::WindowAttributes,
 };
 use clap::Parser;
+use fyrox_ui::constructor::new_widget_constructor_container;
 use std::{
     ops::{Deref, DerefMut},
     sync::Arc,
@@ -100,7 +100,7 @@ impl Executor {
             resource_manager: ResourceManager::new(task_pool.clone()),
             serialization_context,
             task_pool,
-            widget_constructors: Arc::new(WidgetConstructorContainer::new()),
+            widget_constructors: Arc::new(new_widget_constructor_container()),
         })
         .unwrap();
 

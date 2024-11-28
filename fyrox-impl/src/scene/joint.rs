@@ -20,6 +20,7 @@
 
 //! Joint is used to restrict motion of two rigid bodies.
 
+use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
         algebra::Matrix4,
@@ -42,6 +43,7 @@ use crate::{
 };
 use fyrox_core::algebra::{Isometry3, Vector3};
 use fyrox_core::uuid_provider;
+use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::{BaseSceneGraph, SceneGraphNode};
 use rapier2d::na::UnitQuaternion;
 use rapier3d::dynamics::ImpulseJointHandle;
@@ -351,6 +353,37 @@ impl Joint {
     /// Returns true if automatic rebinding of the joint is enabled or not.
     pub fn is_auto_rebinding_enabled(&self) -> bool {
         *self.auto_rebind
+    }
+}
+
+impl ConstructorProvider<Node, Graph> for Joint {
+    fn constructor() -> NodeConstructor {
+        NodeConstructor::new::<Self>()
+            .with_variant("Revolute Joint", |_| {
+                JointBuilder::new(BaseBuilder::new().with_name("Revolute Joint"))
+                    .with_params(JointParams::RevoluteJoint(Default::default()))
+                    .build_node()
+                    .into()
+            })
+            .with_variant("Ball Joint", |_| {
+                JointBuilder::new(BaseBuilder::new().with_name("Ball Joint"))
+                    .with_params(JointParams::BallJoint(Default::default()))
+                    .build_node()
+                    .into()
+            })
+            .with_variant("Prismatic Joint", |_| {
+                JointBuilder::new(BaseBuilder::new().with_name("Prismatic Joint"))
+                    .with_params(JointParams::PrismaticJoint(Default::default()))
+                    .build_node()
+                    .into()
+            })
+            .with_variant("Fixed Joint", |_| {
+                JointBuilder::new(BaseBuilder::new().with_name("Fixed Joint"))
+                    .with_params(JointParams::FixedJoint(Default::default()))
+                    .build_node()
+                    .into()
+            })
+            .with_group("Physics")
     }
 }
 

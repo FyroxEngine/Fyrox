@@ -35,6 +35,8 @@ mod tile_prop_editor;
 pub mod tile_set_import;
 pub mod tileset;
 use colliders_tab::*;
+use fyrox::gui::style::resource::StyleResourceExt;
+use fyrox::gui::style::Style;
 use handle_editor::*;
 use palette::PaletteWidget;
 use panel::TileMapPanel;
@@ -44,6 +46,7 @@ pub use tile_bounds_editor::*;
 use tile_inspector::*;
 pub use tile_prop_editor::*;
 
+use crate::plugins::inspector::InspectorPlugin;
 use crate::{
     command::SetPropertyCommand,
     fyrox::{
@@ -81,7 +84,6 @@ use crate::{
             Scene,
         },
     },
-    inspector::InspectorPlugin,
     interaction::{make_interaction_mode_button, InteractionMode},
     load_image,
     message::MessageSender,
@@ -100,7 +102,7 @@ use fyrox::{
     fxhash::FxHashSet,
     gui::{
         border::BorderBuilder, brush::Brush, decorator::DecoratorBuilder, image::ImageBuilder,
-        UserInterface, BRUSH_BRIGHT_BLUE, BRUSH_DARKER, BRUSH_LIGHT, BRUSH_LIGHTER, BRUSH_LIGHTEST,
+        UserInterface,
     },
     scene::tilemap::{
         tileset::{TileCollider, TileMaterialBounds},
@@ -113,32 +115,24 @@ use std::{
 };
 
 lazy_static! {
-    static ref BRUSH_IMAGE: Option<UntypedResource> =
-        load_image(include_bytes!("../../../resources/brush.png"));
-    static ref ERASER_IMAGE: Option<UntypedResource> =
-        load_image(include_bytes!("../../../resources/eraser.png"));
-    static ref FILL_IMAGE: Option<UntypedResource> =
-        load_image(include_bytes!("../../../resources/fill.png"));
-    static ref PICK_IMAGE: Option<UntypedResource> =
-        load_image(include_bytes!("../../../resources/pipette.png"));
+    static ref BRUSH_IMAGE: Option<UntypedResource> = load_image!("../../../resources/brush.png");
+    static ref ERASER_IMAGE: Option<UntypedResource> = load_image!("../../../resources/eraser.png");
+    static ref FILL_IMAGE: Option<UntypedResource> = load_image!("../../../resources/fill.png");
+    static ref PICK_IMAGE: Option<UntypedResource> = load_image!("../../../resources/pipette.png");
     static ref RECT_FILL_IMAGE: Option<UntypedResource> =
-        load_image(include_bytes!("../../../resources/rect_fill.png"));
+        load_image!("../../../resources/rect_fill.png");
     static ref NINE_SLICE_IMAGE: Option<UntypedResource> =
-        load_image(include_bytes!("../../../resources/nine_slice.png"));
-    static ref LINE_IMAGE: Option<UntypedResource> =
-        load_image(include_bytes!("../../../resources/line.png"));
+        load_image!("../../../resources/nine_slice.png");
+    static ref LINE_IMAGE: Option<UntypedResource> = load_image!("../../../resources/line.png");
     static ref TURN_LEFT_IMAGE: Option<UntypedResource> =
-        load_image(include_bytes!("../../../resources/turn_left.png"));
+        load_image!("../../../resources/turn_left.png");
     static ref TURN_RIGHT_IMAGE: Option<UntypedResource> =
-        load_image(include_bytes!("../../../resources/turn_right.png"));
-    static ref FLIP_X_IMAGE: Option<UntypedResource> =
-        load_image(include_bytes!("../../../resources/flip_x.png"));
-    static ref FLIP_Y_IMAGE: Option<UntypedResource> =
-        load_image(include_bytes!("../../../resources/flip_y.png"));
-    static ref RANDOM_IMAGE: Option<UntypedResource> =
-        load_image(include_bytes!("../../../resources/die.png"));
+        load_image!("../../../resources/turn_right.png");
+    static ref FLIP_X_IMAGE: Option<UntypedResource> = load_image!("../../../resources/flip_x.png");
+    static ref FLIP_Y_IMAGE: Option<UntypedResource> = load_image!("../../../resources/flip_y.png");
+    static ref RANDOM_IMAGE: Option<UntypedResource> = load_image!("../../../resources/die.png");
     static ref PALETTE_IMAGE: Option<UntypedResource> =
-        load_image(include_bytes!("../../../resources/palette.png"));
+        load_image!("../../../resources/palette.png");
 }
 
 fn make_button(
@@ -221,15 +215,17 @@ fn make_drawing_mode_button(
     )
     .with_back(
         DecoratorBuilder::new(
-            BorderBuilder::new(WidgetBuilder::new().with_foreground(BRUSH_DARKER))
-                .with_pad_by_corner_radius(false)
-                .with_corner_radius(4.0)
-                .with_stroke_thickness(Thickness::uniform(1.0)),
+            BorderBuilder::new(
+                WidgetBuilder::new().with_foreground(ctx.style.get_or_default(Style::BRUSH_DARKER)),
+            )
+            .with_pad_by_corner_radius(false)
+            .with_corner_radius(4.0)
+            .with_stroke_thickness(Thickness::uniform(1.0)),
         )
-        .with_selected_brush(BRUSH_BRIGHT_BLUE)
-        .with_normal_brush(BRUSH_LIGHT)
-        .with_hover_brush(BRUSH_LIGHTER)
-        .with_pressed_brush(BRUSH_LIGHTEST)
+        .with_selected_brush(ctx.style.get_or_default(Style::BRUSH_BRIGHT_BLUE))
+        .with_normal_brush(ctx.style.get_or_default(Style::BRUSH_LIGHT))
+        .with_hover_brush(ctx.style.get_or_default(Style::BRUSH_LIGHTER))
+        .with_pressed_brush(ctx.style.get_or_default(Style::BRUSH_LIGHTEST))
         .build(ctx),
     )
     .with_content(

@@ -26,8 +26,8 @@ use crate::menu::{create_menu_item, create_root_menu_item};
 
 pub struct HelpMenu {
     pub menu: Handle<UiNode>,
-    open_book: Handle<UiNode>,
-    open_api_reference: Handle<UiNode>,
+    pub open_book: Handle<UiNode>,
+    pub open_api_reference: Handle<UiNode>,
 }
 
 impl HelpMenu {

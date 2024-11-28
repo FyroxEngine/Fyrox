@@ -217,9 +217,9 @@ impl PreviewPanel {
                                                         .with_height(18.0)
                                                         .with_margin(Thickness::uniform(2.0)),
                                                 )
-                                                .with_opt_texture(load_image(include_bytes!(
+                                                .with_opt_texture(load_image!(
                                                     "../resources/fit.png"
-                                                )))
+                                                ))
                                                 .build(ctx),
                                             )
                                             .build(ctx);

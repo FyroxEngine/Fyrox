@@ -48,7 +48,7 @@ use crate::{
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
             BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
-            VerticalAlignment, BRUSH_BRIGHT_BLUE, BRUSH_DARKEST,
+            VerticalAlignment,
         },
         renderer::framework::PolygonFillMode,
         resource::texture::TextureResource,
@@ -68,6 +68,8 @@ use crate::{
     DropdownListBuilder, GameScene, Message, Mode, SaveSceneConfirmationDialogAction,
     SceneContainer, Settings,
 };
+use fyrox::gui::style::resource::StyleResourceExt;
+use fyrox::gui::style::Style;
 use std::{
     ops::Deref,
     sync::mpsc::{self, Receiver},
@@ -111,7 +113,7 @@ impl GridSnappingMenu {
                     ctx,
                     22.0,
                     22.0,
-                    load_image(include_bytes!("../../resources/grid_snapping.png")),
+                    load_image!("../../resources/grid_snapping.png"),
                     "Snapping Options",
                     None,
                 );
@@ -215,7 +217,7 @@ impl GridSnappingMenu {
                         ui.send_message(DecoratorMessage::selected_brush(
                             *button.decorator,
                             MessageDirection::ToWidget,
-                            BRUSH_BRIGHT_BLUE,
+                            ui.style.get_or_default(Style::BRUSH_BRIGHT_BLUE),
                         ));
 
                         ui.send_message(DecoratorMessage::select(
@@ -420,9 +422,7 @@ impl SceneViewer {
                                                 0, 200, 0,
                                             ))),
                                     )
-                                    .with_opt_texture(load_image(include_bytes!(
-                                        "../../resources/play.png"
-                                    )))
+                                    .with_opt_texture(load_image!("../../resources/play.png"))
                                     .build(ctx),
                                 )
                                 .build(ctx);
@@ -445,9 +445,7 @@ impl SceneViewer {
                                                 200, 0, 0,
                                             ))),
                                     )
-                                    .with_opt_texture(load_image(include_bytes!(
-                                        "../../resources/stop.png"
-                                    )))
+                                    .with_opt_texture(load_image!("../../resources/stop.png"))
                                     .build(ctx),
                                 )
                                 .build(ctx);
@@ -468,7 +466,7 @@ impl SceneViewer {
         let no_scene_reminder = TextBuilder::new(
             WidgetBuilder::new()
                 .with_hit_test_visibility(false)
-                .with_foreground(BRUSH_DARKEST),
+                .with_foreground(ctx.style.get_or_default(Style::BRUSH_DARKEST)),
         )
         .with_text("No scene loaded. Create a new scene (File -> New Scene) or load existing (File -> Load Scene)")
         .with_vertical_text_alignment(VerticalAlignment::Center)
@@ -717,16 +715,6 @@ impl SceneViewer {
                 self.sender.send(Message::SwitchToBuildMode);
             } else if message.destination() == self.stop {
                 self.sender.send(Message::SwitchToEditMode);
-            }
-        } else if let Some(WidgetMessage::MouseDown { button, .. }) =
-            message.data::<WidgetMessage>()
-        {
-            for &mode_button in self.interaction_modes.values() {
-                if ui.is_node_child_of(message.destination(), mode_button)
-                    && *button == MouseButton::Right
-                {
-                    self.sender.send(Message::OpenSettings);
-                }
             }
         } else if let Some(DropdownListMessage::SelectionChanged(Some(index))) = message.data() {
             if message.direction == MessageDirection::FromWidget {

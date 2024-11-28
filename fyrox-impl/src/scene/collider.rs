@@ -21,6 +21,7 @@
 //! Collider is a geometric entity that can be attached to a rigid body to allow participate it
 //! participate in contact generation, collision response and proximity queries.
 
+use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
         algebra::Vector3,
@@ -47,6 +48,7 @@ use crate::{
 };
 use fyrox_core::algebra::{Isometry3, Translation3};
 use fyrox_core::uuid_provider;
+use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::{BaseSceneGraph, SceneGraphNode};
 use rapier3d::geometry::{self, ColliderHandle};
 use std::{
@@ -847,6 +849,19 @@ impl Collider {
             || self.solver_groups.need_sync()
             || self.friction_combine_rule.need_sync()
             || self.restitution_combine_rule.need_sync()
+    }
+}
+
+impl ConstructorProvider<Node, Graph> for Collider {
+    fn constructor() -> NodeConstructor {
+        NodeConstructor::new::<Self>()
+            .with_variant("Collider", |_| {
+                ColliderBuilder::new(BaseBuilder::new().with_name("Collider"))
+                    .with_shape(ColliderShape::Cuboid(Default::default()))
+                    .build_node()
+                    .into()
+            })
+            .with_group("Physics")
     }
 }
 

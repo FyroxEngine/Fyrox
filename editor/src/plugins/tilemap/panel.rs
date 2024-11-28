@@ -49,8 +49,7 @@ use crate::{
             window::{WindowBuilder, WindowMessage, WindowTitle},
             wrap_panel::WrapPanelBuilder,
             BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
-            VerticalAlignment, BRUSH_BRIGHT_BLUE, BRUSH_DARKER, BRUSH_LIGHT, BRUSH_LIGHTER,
-            BRUSH_LIGHTEST,
+            VerticalAlignment,
         },
         scene::{
             node::Node,

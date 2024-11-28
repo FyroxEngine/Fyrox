@@ -36,6 +36,7 @@ use crate::{
 };
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
 use std::{
     cell::RefCell,
@@ -94,6 +95,18 @@ pub struct WrapPanel {
     #[visit(skip)]
     #[reflect(hidden)]
     pub lines: RefCell<Vec<Line>>,
+}
+
+impl ConstructorProvider<UiNode, UserInterface> for WrapPanel {
+    fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
+        GraphNodeConstructor::new::<Self>()
+            .with_variant("Wrap Panel", |ui| {
+                WrapPanelBuilder::new(WidgetBuilder::new().with_name("Wrap Panel"))
+                    .build(&mut ui.build_ctx())
+                    .into()
+            })
+            .with_group("Layout")
+    }
 }
 
 crate::define_widget_deref!(WrapPanel);
@@ -291,9 +304,9 @@ impl WrapPanelBuilder {
     }
 
     /// Finishes wrap panel building and returns its instance.
-    pub fn build_node(self) -> UiNode {
+    pub fn build_node(self, ctx: &BuildContext) -> UiNode {
         let stack_panel = WrapPanel {
-            widget: self.widget_builder.build(),
+            widget: self.widget_builder.build(ctx),
             orientation: self.orientation.unwrap_or(Orientation::Vertical).into(),
             lines: Default::default(),
         };
@@ -302,7 +315,18 @@ impl WrapPanelBuilder {
     }
 
     /// Finishes wrap panel building, adds it to the user interface and returns its handle.
-    pub fn build(self, ui: &mut BuildContext) -> Handle<UiNode> {
-        ui.add_node(self.build_node())
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+        ctx.add_node(self.build_node(ctx))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::wrap_panel::WrapPanelBuilder;
+    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| WrapPanelBuilder::new(WidgetBuilder::new()).build(ctx));
     }
 }

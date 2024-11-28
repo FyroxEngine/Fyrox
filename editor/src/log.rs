@@ -137,7 +137,7 @@ impl LogPanel {
                                             ctx,
                                             24.0,
                                             24.0,
-                                            load_image(include_bytes!("../resources/clear.png")),
+                                            load_image!("../resources/clear.png"),
                                             "Clear the log.",
                                             Some(0),
                                         );
