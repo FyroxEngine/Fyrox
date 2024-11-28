@@ -582,18 +582,18 @@ impl MaterialEditor {
                             MaterialProperty::Color(value) => value.send(ui, item),
                         }
                     }
-
-                    send_sync_message(
-                        ui,
-                        ResourceFieldMessage::value(
-                            self.shader,
-                            MessageDirection::ToWidget,
-                            Some(material.shader().clone()),
-                        ),
-                    );
                 }
             }
         }
+
+        send_sync_message(
+            ui,
+            ResourceFieldMessage::value(
+                self.shader,
+                MessageDirection::ToWidget,
+                Some(material.shader().clone()),
+            ),
+        );
     }
 
     pub fn handle_ui_message(
