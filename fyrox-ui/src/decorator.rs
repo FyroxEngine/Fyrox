@@ -285,6 +285,15 @@ impl Control for Decorator {
                     _ => {}
                 }
             }
+
+            if message.destination() == self.handle() {
+                if let WidgetMessage::Style(style) = msg {
+                    self.normal_brush.update(style);
+                    self.hover_brush.update(style);
+                    self.pressed_brush.update(style);
+                    self.selected_brush.update(style);
+                }
+            }
         }
     }
 }
