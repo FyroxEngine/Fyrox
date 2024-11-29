@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::style::{IntoPrimitive, Style, StyleProperty};
+use crate::style::{IntoPrimitive, Style, StyleProperty, StyledProperty};
 use fyrox_core::log::Log;
 use fyrox_core::{
     io::FileLoadError,
@@ -139,6 +139,18 @@ pub trait StyleResourceExt {
     where
         P: Default,
         StyleProperty: IntoPrimitive<P>;
+    fn property<P>(&self, name: impl Into<ImmutableString>) -> StyledProperty<P>
+    where
+        P: Default,
+        StyleProperty: IntoPrimitive<P>;
+    fn value_or_property<P>(
+        &self,
+        value: Option<P>,
+        name: impl Into<ImmutableString>,
+    ) -> StyledProperty<P>
+    where
+        P: Default,
+        StyleProperty: IntoPrimitive<P>;
 }
 
 impl StyleResourceExt for StyleResource {
@@ -182,6 +194,30 @@ impl StyleResourceExt for StyleResource {
         } else {
             Log::err("Unable to get style property, because the resource is invalid!");
             P::default()
+        }
+    }
+
+    fn property<P>(&self, name: impl Into<ImmutableString>) -> StyledProperty<P>
+    where
+        P: Default,
+        StyleProperty: IntoPrimitive<P>,
+    {
+        let name = name.into();
+        StyledProperty::new(self.get_or_default(name.clone()), name)
+    }
+
+    fn value_or_property<P>(
+        &self,
+        value: Option<P>,
+        name: impl Into<ImmutableString>,
+    ) -> StyledProperty<P>
+    where
+        P: Default,
+        StyleProperty: IntoPrimitive<P>,
+    {
+        match value {
+            None => self.property(name),
+            Some(value) => StyledProperty::new(value, name.into()),
         }
     }
 }

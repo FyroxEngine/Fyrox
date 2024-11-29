@@ -60,6 +60,8 @@ pub mod world;
 
 pub use fyrox;
 
+use crate::asset::item::AssetItem;
+use crate::plugins::absm::AbsmEditor;
 use crate::{
     asset::AssetBrowser,
     audio::{preview::AudioPreviewPanel, AudioPanel},
@@ -569,8 +571,64 @@ impl Editor {
 
         Log::add_listener(log_message_sender);
 
-        let dark_style = StyleResource::new_ok(ResourceKind::Embedded, Style::dark_style());
-        let light_style = StyleResource::new_ok(ResourceKind::Embedded, Style::light_style());
+        let mut dark_style = Style::dark_style();
+        dark_style
+            .set(
+                WorldViewer::INSTANCE_BRUSH,
+                Brush::Solid(Color::opaque(160, 160, 200)),
+            )
+            .set(
+                AssetItem::SELECTED_FOREGROUND,
+                Brush::Solid(Color::opaque(200, 220, 240)),
+            )
+            .set(
+                AssetItem::SELECTED_BACKGROUND,
+                Brush::Solid(Color::opaque(100, 100, 100)),
+            )
+            .set(
+                AssetItem::DESELECTED_BRUSH,
+                Brush::Solid(Color::TRANSPARENT),
+            )
+            .set(ExportWindow::TITLE_BRUSH, Brush::Solid(Color::CORN_SILK))
+            .set(
+                AbsmEditor::NORMAL_ROOT_COLOR,
+                Brush::Solid(Color::opaque(40, 80, 0)),
+            )
+            .set(
+                AbsmEditor::SELECTED_ROOT_COLOR,
+                Brush::Solid(Color::opaque(60, 100, 0)),
+            );
+
+        let dark_style = StyleResource::new_ok(ResourceKind::Embedded, dark_style);
+        let mut light_style = Style::light_style();
+        light_style
+            .set(
+                WorldViewer::INSTANCE_BRUSH,
+                Brush::Solid(Color::opaque(160, 160, 200)),
+            )
+            .set(
+                AssetItem::SELECTED_FOREGROUND,
+                Brush::Solid(Color::opaque(200, 220, 240)),
+            )
+            .set(
+                AssetItem::SELECTED_BACKGROUND,
+                Brush::Solid(Color::opaque(100, 100, 100)),
+            )
+            .set(
+                AssetItem::DESELECTED_BRUSH,
+                Brush::Solid(Color::TRANSPARENT),
+            )
+            .set(ExportWindow::TITLE_BRUSH, Brush::Solid(Color::CORN_SILK))
+            .set(
+                AbsmEditor::NORMAL_ROOT_COLOR,
+                Brush::Solid(Color::opaque(40, 80, 0)),
+            )
+            .set(
+                AbsmEditor::SELECTED_ROOT_COLOR,
+                Brush::Solid(Color::opaque(60, 100, 0)),
+            );
+
+        let light_style = StyleResource::new_ok(ResourceKind::Embedded, light_style);
         let styles = [
             (EditorStyle::Dark, dark_style),
             (EditorStyle::Light, light_style),

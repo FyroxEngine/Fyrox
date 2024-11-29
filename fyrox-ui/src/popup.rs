@@ -607,8 +607,8 @@ impl PopupBuilder {
 
         let body = BorderBuilder::new(
             WidgetBuilder::new()
-                .with_background(style.get_or_default(Style::BRUSH_PRIMARY))
-                .with_foreground(style.get_or_default(Style::BRUSH_DARKEST))
+                .with_background(style.property(Style::BRUSH_PRIMARY))
+                .with_foreground(style.property(Style::BRUSH_DARKEST))
                 .with_child(self.content),
         )
         .with_stroke_thickness(Thickness::uniform(1.0))

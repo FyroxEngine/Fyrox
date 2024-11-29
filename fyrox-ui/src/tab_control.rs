@@ -24,7 +24,7 @@
 #![warn(missing_docs)]
 
 use crate::style::resource::StyleResourceExt;
-use crate::style::Style;
+use crate::style::{Style, StyledProperty};
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -44,6 +44,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
     VerticalAlignment,
 };
+use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::{
     any::Any,
@@ -262,7 +263,7 @@ pub struct TabControl {
     /// A handle of a widget, that holds headers of every tab.
     pub headers_container: Handle<UiNode>,
     /// A brush, that will be used to highlight active tab.
-    pub active_tab_brush: Brush,
+    pub active_tab_brush: InheritableVariable<StyledProperty<Brush>>,
 }
 
 impl ConstructorProvider<UiNode, UserInterface> for TabControl {
@@ -465,7 +466,7 @@ impl Control for TabControl {
                         let header = Header::build(
                             definition,
                             false,
-                            self.active_tab_brush.clone(),
+                            (*self.active_tab_brush).clone(),
                             &mut ui.build_ctx(),
                         );
 
@@ -506,7 +507,7 @@ impl Control for TabControl {
 pub struct TabControlBuilder {
     widget_builder: WidgetBuilder,
     tabs: Vec<TabDefinition>,
-    active_tab_brush: Option<Brush>,
+    active_tab_brush: Option<StyledProperty<Brush>>,
     initial_tab: usize,
 }
 
@@ -534,7 +535,7 @@ impl Header {
     fn build(
         tab_definition: &TabDefinition,
         selected: bool,
-        active_tab_brush: Brush,
+        active_tab_brush: StyledProperty<Brush>,
         ctx: &mut BuildContext,
     ) -> Self {
         let close_button;
@@ -546,10 +547,10 @@ impl Header {
                     BorderBuilder::new(WidgetBuilder::new())
                         .with_stroke_thickness(Thickness::uniform(0.0)),
                 )
-                .with_normal_brush(ctx.style.get_or_default(Style::BRUSH_DARK))
+                .with_normal_brush(ctx.style.property(Style::BRUSH_DARK))
                 .with_selected_brush(active_tab_brush)
-                .with_pressed_brush(ctx.style.get_or_default(Style::BRUSH_LIGHTEST))
-                .with_hover_brush(ctx.style.get_or_default(Style::BRUSH_LIGHT))
+                .with_pressed_brush(ctx.style.property(Style::BRUSH_LIGHTEST))
+                .with_hover_brush(ctx.style.property(Style::BRUSH_LIGHT))
                 .with_selected(selected)
                 .build(ctx);
                 decorator
@@ -575,8 +576,8 @@ impl Header {
                                             .with_pad_by_corner_radius(false)
                                             .with_stroke_thickness(Thickness::uniform(0.0)),
                                     )
-                                    .with_normal_brush(Brush::Solid(Color::TRANSPARENT))
-                                    .with_hover_brush(ctx.style.get_or_default(Style::BRUSH_DARK))
+                                    .with_normal_brush(Brush::Solid(Color::TRANSPARENT).into())
+                                    .with_hover_brush(ctx.style.property(Style::BRUSH_DARK))
                                     .build(ctx),
                                 )
                                 .with_content(
@@ -587,7 +588,7 @@ impl Header {
                                             .with_width(8.0)
                                             .with_height(8.0)
                                             .with_foreground(
-                                                ctx.style.get_or_default(Style::BRUSH_BRIGHTEST),
+                                                ctx.style.property(Style::BRUSH_BRIGHTEST),
                                             ),
                                     )
                                     .with_primitives(make_cross_primitive(8.0, 2.0))
@@ -634,7 +635,7 @@ impl TabControlBuilder {
     }
 
     /// Sets a desired brush for active tab.
-    pub fn with_active_tab_brush(mut self, brush: Brush) -> Self {
+    pub fn with_active_tab_brush(mut self, brush: StyledProperty<Brush>) -> Self {
         self.active_tab_brush = Some(brush);
         self
     }
@@ -651,7 +652,7 @@ impl TabControlBuilder {
 
         let active_tab_brush = self
             .active_tab_brush
-            .unwrap_or_else(|| ctx.style.get_or_default::<Brush>(Style::BRUSH_LIGHTEST));
+            .unwrap_or_else(|| ctx.style.property::<Brush>(Style::BRUSH_LIGHTEST));
 
         let tab_headers = self
             .tabs
@@ -696,7 +697,7 @@ impl TabControlBuilder {
 
         let border = BorderBuilder::new(
             WidgetBuilder::new()
-                .with_background(ctx.style.get_or_default(Style::BRUSH_DARK))
+                .with_background(ctx.style.property(Style::BRUSH_DARK))
                 .with_child(grid),
         )
         .build(ctx);
@@ -724,7 +725,7 @@ impl TabControlBuilder {
                 .collect(),
             content_container,
             headers_container,
-            active_tab_brush,
+            active_tab_brush: active_tab_brush.into(),
         };
 
         ctx.add_node(UiNode::new(tc))

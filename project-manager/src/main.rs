@@ -293,7 +293,7 @@ impl ProjectManager {
                         WidgetBuilder::new()
                             .on_column(0)
                             .with_margin(Thickness::uniform(2.0))
-                            .with_foreground(Brush::Solid(Color::RED)),
+                            .with_foreground(Brush::Solid(Color::RED).into()),
                     )
                     .with_text(
                         "Rust is not installed, please click the button at the right \

@@ -625,15 +625,15 @@ impl ScrollBarBuilder {
         let indicator = self.indicator.unwrap_or_else(|| {
             DecoratorBuilder::new(
                 BorderBuilder::new(
-                    WidgetBuilder::new().with_foreground(Brush::Solid(Color::TRANSPARENT)),
+                    WidgetBuilder::new().with_foreground(Brush::Solid(Color::TRANSPARENT).into()),
                 )
                 .with_corner_radius(8.0)
                 .with_pad_by_corner_radius(false)
                 .with_stroke_thickness(Thickness::uniform(1.0)),
             )
-            .with_normal_brush(ctx.style.get_or_default(Style::BRUSH_LIGHT))
-            .with_hover_brush(ctx.style.get_or_default(Style::BRUSH_LIGHTER))
-            .with_pressed_brush(ctx.style.get_or_default(Style::BRUSH_LIGHTEST))
+            .with_normal_brush(ctx.style.property(Style::BRUSH_LIGHT))
+            .with_hover_brush(ctx.style.property(Style::BRUSH_LIGHTER))
+            .with_pressed_brush(ctx.style.property(Style::BRUSH_LIGHTEST))
             .build(ctx)
         });
 
@@ -711,7 +711,7 @@ impl ScrollBarBuilder {
 
         let body = self.body.unwrap_or_else(|| {
             BorderBuilder::new(
-                WidgetBuilder::new().with_background(ctx.style.get_or_default(Style::BRUSH_DARK)),
+                WidgetBuilder::new().with_background(ctx.style.property(Style::BRUSH_DARK)),
             )
             .with_stroke_thickness(Thickness::uniform(1.0))
             .build(ctx)

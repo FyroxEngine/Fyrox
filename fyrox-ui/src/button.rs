@@ -420,7 +420,7 @@ impl ButtonBuilder {
             DecoratorBuilder::new(
                 BorderBuilder::new(
                     WidgetBuilder::new()
-                        .with_foreground(ctx.style.get_or_default(Style::BRUSH_DARKER))
+                        .with_foreground(ctx.style.property(Style::BRUSH_DARKER))
                         .with_child(content),
                 )
                 .with_pad_by_corner_radius(false)
@@ -430,9 +430,9 @@ impl ButtonBuilder {
                         .get_or(Button::BORDER_THICKNESS, Thickness::uniform(1.0)),
                 ),
             )
-            .with_normal_brush(ctx.style.get_or_default(Style::BRUSH_LIGHT))
-            .with_hover_brush(ctx.style.get_or_default(Style::BRUSH_LIGHTER))
-            .with_pressed_brush(ctx.style.get_or_default(Style::BRUSH_LIGHTEST))
+            .with_normal_brush(ctx.style.property(Style::BRUSH_LIGHT))
+            .with_hover_brush(ctx.style.property(Style::BRUSH_LIGHTER))
+            .with_pressed_brush(ctx.style.property(Style::BRUSH_LIGHTEST))
             .build(ctx)
         });
 

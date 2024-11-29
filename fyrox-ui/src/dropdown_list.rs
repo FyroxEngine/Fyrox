@@ -497,8 +497,8 @@ impl DropdownListBuilder {
 
         let border = BorderBuilder::new(
             WidgetBuilder::new()
-                .with_background(ctx.style.get_or_default(Style::BRUSH_DARKER))
-                .with_foreground(ctx.style.get_or_default(Style::BRUSH_LIGHT))
+                .with_background(ctx.style.property(Style::BRUSH_DARKER))
+                .with_foreground(ctx.style.property(Style::BRUSH_LIGHT))
                 .with_child(main_grid),
         )
         .with_pad_by_corner_radius(false)

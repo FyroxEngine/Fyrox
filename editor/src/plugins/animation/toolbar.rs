@@ -426,7 +426,7 @@ impl Toolbar {
         let panel = BorderBuilder::new(
             WidgetBuilder::new()
                 .on_row(0)
-                .with_foreground(ctx.style.get_or_default(Style::BRUSH_LIGHT))
+                .with_foreground(ctx.style.property(Style::BRUSH_LIGHT))
                 .with_child(
                     StackPanelBuilder::new(
                         WidgetBuilder::new()
@@ -478,7 +478,7 @@ impl Toolbar {
                                             .with_height(18.0)
                                             .with_margin(Thickness::uniform(1.0))
                                             .with_background(
-                                                ctx.style.get_or_default(Style::BRUSH_BRIGHT),
+                                                ctx.style.property(Style::BRUSH_BRIGHT),
                                             ),
                                     )
                                     .with_opt_texture(load_image!("../../../resources/import.png"))
@@ -508,7 +508,7 @@ impl Toolbar {
                                             .with_height(18.0)
                                             .with_margin(Thickness::uniform(1.0))
                                             .with_background(
-                                                ctx.style.get_or_default(Style::BRUSH_BRIGHT),
+                                                ctx.style.property(Style::BRUSH_BRIGHT),
                                             ),
                                     )
                                     .with_opt_texture(load_image!(
@@ -539,7 +539,7 @@ impl Toolbar {
                                             .with_height(18.0)
                                             .with_margin(Thickness::uniform(1.0))
                                             .with_background(
-                                                ctx.style.get_or_default(Style::BRUSH_BRIGHT),
+                                                ctx.style.property(Style::BRUSH_BRIGHT),
                                             ),
                                     )
                                     .with_opt_texture(load_image!("../../../resources/rename.png"))
@@ -594,7 +594,7 @@ impl Toolbar {
                                             .with_height(18.0)
                                             .with_margin(Thickness::uniform(1.0))
                                             .with_background(
-                                                ctx.style.get_or_default(Style::BRUSH_BRIGHT),
+                                                ctx.style.property(Style::BRUSH_BRIGHT),
                                             ),
                                     )
                                     .with_opt_texture(load_image!("../../../resources/copy.png"))
@@ -649,9 +649,7 @@ impl Toolbar {
                                         .with_width(18.0)
                                         .with_height(18.0)
                                         .with_margin(Thickness::uniform(1.0))
-                                        .with_background(
-                                            ctx.style.get_or_default(Style::BRUSH_BRIGHT),
-                                        ),
+                                        .with_background(ctx.style.property(Style::BRUSH_BRIGHT)),
                                 )
                                 .with_opt_texture(load_image!("../../../resources/speed.png"))
                                 .build(ctx),
@@ -677,9 +675,7 @@ impl Toolbar {
                                         .with_width(18.0)
                                         .with_height(18.0)
                                         .with_margin(Thickness::uniform(1.0))
-                                        .with_background(
-                                            ctx.style.get_or_default(Style::BRUSH_BRIGHT),
-                                        ),
+                                        .with_background(ctx.style.property(Style::BRUSH_BRIGHT)),
                                 )
                                 .with_opt_texture(load_image!("../../../resources/time.png"))
                                 .build(ctx),
@@ -763,7 +759,7 @@ impl Toolbar {
                                     VectorImageBuilder::new(
                                         WidgetBuilder::new()
                                             .with_foreground(
-                                                ctx.style.get_or_default(Style::BRUSH_BRIGHT),
+                                                ctx.style.property(Style::BRUSH_BRIGHT),
                                             )
                                             .with_tooltip(make_simple_tooltip(ctx, "Play/Pause")),
                                     )
@@ -795,9 +791,11 @@ impl Toolbar {
                                         .with_tooltip(make_simple_tooltip(ctx, "Stop Playback")),
                                 )
                                 .with_content(
-                                    VectorImageBuilder::new(WidgetBuilder::new().with_foreground(
-                                        ctx.style.get_or_default(Style::BRUSH_BRIGHT),
-                                    ))
+                                    VectorImageBuilder::new(
+                                        WidgetBuilder::new().with_foreground(
+                                            ctx.style.property(Style::BRUSH_BRIGHT),
+                                        ),
+                                    )
                                     .with_primitives(vec![Primitive::RectangleFilled {
                                         rect: Rect::new(0.0, 0.0, 16.0, 16.0),
                                     }])

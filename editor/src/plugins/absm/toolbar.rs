@@ -157,7 +157,7 @@ impl Toolbar {
                                 .with_width(18.0)
                                 .with_height(18.0)
                                 .with_margin(Thickness::uniform(1.0))
-                                .with_background(ctx.style.get_or_default(Style::BRUSH_BRIGHT)),
+                                .with_background(ctx.style.property(Style::BRUSH_BRIGHT)),
                         )
                         .with_opt_texture(load_image!("../../../resources/filter.png"))
                         .build(ctx),

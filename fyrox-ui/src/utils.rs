@@ -86,7 +86,7 @@ pub fn make_arrow_non_uniform_size(
 ) -> Handle<UiNode> {
     VectorImageBuilder::new(
         WidgetBuilder::new()
-            .with_foreground(ctx.style.get_or_default(Style::BRUSH_BRIGHT))
+            .with_foreground(ctx.style.property(Style::BRUSH_BRIGHT))
             .with_width(width)
             .with_height(height)
             .with_horizontal_alignment(HorizontalAlignment::Center)
@@ -130,7 +130,7 @@ pub fn make_cross(ctx: &mut BuildContext, size: f32, thickness: f32) -> Handle<U
             .with_vertical_alignment(VerticalAlignment::Center)
             .with_width(size)
             .with_height(size)
-            .with_foreground(ctx.style.get_or_default(Style::BRUSH_BRIGHT)),
+            .with_foreground(ctx.style.property(Style::BRUSH_BRIGHT)),
     )
     .with_primitives(make_cross_primitive(size, thickness))
     .build(ctx)
@@ -140,14 +140,14 @@ pub fn make_simple_tooltip(ctx: &mut BuildContext, text: &str) -> RcUiNodeHandle
     let handle = BorderBuilder::new(
         WidgetBuilder::new()
             .with_visibility(false)
-            .with_foreground(ctx.style.get_or_default(Style::BRUSH_DARKEST))
-            .with_background(Brush::Solid(Color::opaque(230, 230, 230)))
+            .with_foreground(ctx.style.property(Style::BRUSH_DARKEST))
+            .with_background(Brush::Solid(Color::opaque(230, 230, 230)).into())
             .with_max_size(Vector2::new(300.0, f32::INFINITY))
             .with_child(
                 TextBuilder::new(
                     WidgetBuilder::new()
                         .with_margin(Thickness::uniform(2.0))
-                        .with_foreground(ctx.style.get_or_default(Style::BRUSH_DARKER)),
+                        .with_foreground(ctx.style.property(Style::BRUSH_DARKER)),
                 )
                 .with_wrap(WrapMode::Word)
                 .with_text(text)

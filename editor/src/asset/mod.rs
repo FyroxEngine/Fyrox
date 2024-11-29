@@ -35,14 +35,13 @@ use crate::{
             untyped::{ResourceHeader, ResourceKind, UntypedResource},
         },
         core::{
-            color::Color, futures::executor::block_on, log::Log, make_relative_path,
+            futures::executor::block_on, log::Log, make_relative_path,
             parking_lot::lock_api::Mutex, pool::Handle, TypeUuidProvider, Uuid,
         },
         engine::Engine,
         graph::BaseSceneGraph,
         gui::{
             border::BorderBuilder,
-            brush::Brush,
             button::{ButtonBuilder, ButtonMessage},
             copypasta::ClipboardProvider,
             file_browser::{FileBrowserBuilder, FileBrowserMessage, Filter},
@@ -661,7 +660,7 @@ impl AssetBrowser {
                         .with_child(
                             BorderBuilder::new(
                                 WidgetBuilder::new()
-                                    .with_background(ctx.style.get_or_default(Style::BRUSH_DARK))
+                                    .with_background(ctx.style.property(Style::BRUSH_DARK))
                                     .with_child({
                                         folder_browser = FileBrowserBuilder::new(
                                             WidgetBuilder::new()
@@ -712,7 +711,7 @@ impl AssetBrowser {
                             BorderBuilder::new(
                                 WidgetBuilder::new()
                                     .on_column(2)
-                                    .with_foreground(Brush::Solid(Color::opaque(80, 80, 80)))
+                                    .with_foreground(ctx.style.property(Style::BRUSH_LIGHTER))
                                     .with_child(
                                         GridBuilder::new(
                                             WidgetBuilder::new()

@@ -139,7 +139,7 @@ fn make_items(buses: &[(Handle<AudioBus>, String)], ctx: &mut BuildContext) -> V
 fn make_effect_names(names: &[String], ctx: &mut BuildContext) -> Vec<Handle<UiNode>> {
     if names.is_empty() {
         vec![TextBuilder::new(
-            WidgetBuilder::new().with_foreground(ctx.style.get_or_default(Style::BRUSH_LIGHTER)),
+            WidgetBuilder::new().with_foreground(ctx.style.property(Style::BRUSH_LIGHTER)),
         )
         .with_text("No Effects")
         .with_horizontal_text_alignment(HorizontalAlignment::Center)

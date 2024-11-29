@@ -109,7 +109,7 @@ fn send_background(ui: &UserInterface, destination: Handle<UiNode>, color: Color
     ui.send_message(WidgetMessage::background(
         destination,
         MessageDirection::ToWidget,
-        Brush::Solid(color),
+        Brush::Solid(color).into(),
     ));
 }
 
@@ -834,7 +834,7 @@ pub fn make_default_anchor(ctx: &mut BuildContext, row: usize, column: usize) ->
             .on_row(row)
             .on_column(column)
             .with_draw_on_top(true)
-            .with_background(Brush::Solid(DEFAULT_ANCHOR_COLOR)),
+            .with_background(Brush::Solid(DEFAULT_ANCHOR_COLOR).into()),
     )
     .build(ctx)
 }

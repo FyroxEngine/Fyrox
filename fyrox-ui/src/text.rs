@@ -204,13 +204,13 @@ impl TextMessage {
 /// #
 /// fn create_text_with_background(ui: &mut UserInterface, text: &str) -> Handle<UiNode> {
 ///     let text_widget =
-///         TextBuilder::new(WidgetBuilder::new().with_foreground(Brush::Solid(Color::RED)))
+///         TextBuilder::new(WidgetBuilder::new().with_foreground(Brush::Solid(Color::RED).into()))
 ///             .with_text(text)
 ///             .build(&mut ui.build_ctx());
 ///     BorderBuilder::new(
 ///         WidgetBuilder::new()
 ///             .with_child(text_widget) // <-- Text is now a child of the border
-///             .with_background(Brush::Solid(Color::opaque(50, 50, 50))),
+///             .with_background(Brush::Solid(Color::opaque(50, 50, 50)).into()),
 ///     )
 ///     .build(&mut ui.build_ctx())
 /// }
@@ -230,7 +230,7 @@ impl TextMessage {
 /// # };
 /// fn create_text(ui: &mut UserInterface, text: &str) -> Handle<UiNode> {
 ///     //               vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-///     TextBuilder::new(WidgetBuilder::new().with_foreground(Brush::Solid(Color::RED)))
+///     TextBuilder::new(WidgetBuilder::new().with_foreground(Brush::Solid(Color::RED).into()))
 ///         .with_text(text)
 ///         .build(&mut ui.build_ctx())
 /// }
@@ -277,7 +277,7 @@ impl TextMessage {
 /// # };
 /// #
 /// fn create_red_text_with_black_shadows(ui: &mut UserInterface, text: &str) -> Handle<UiNode> {
-///     TextBuilder::new(WidgetBuilder::new().with_foreground(Brush::Solid(Color::RED)))
+///     TextBuilder::new(WidgetBuilder::new().with_foreground(Brush::Solid(Color::RED).into()))
 ///         .with_text(text)
 ///         // Enable shadows.
 ///         .with_shadow(true)
@@ -588,7 +588,7 @@ impl TextBuilder {
         };
 
         if self.widget_builder.foreground.is_none() {
-            self.widget_builder.foreground = Some(ctx.style.get_or_default(Style::BRUSH_TEXT));
+            self.widget_builder.foreground = Some(ctx.style.property(Style::BRUSH_TEXT));
         }
 
         let text = Text {

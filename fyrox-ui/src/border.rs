@@ -90,8 +90,8 @@ use std::ops::{Deref, DerefMut};
 ///
 /// BorderBuilder::new(
 ///     WidgetBuilder::new()
-///         .with_foreground(Brush::Solid(Color::opaque(0, 0, 200)))
-///         .with_background(Brush::Solid(Color::opaque(200, 0, 0)))
+///         .with_foreground(Brush::Solid(Color::opaque(0, 0, 200)).into())
+///         .with_background(Brush::Solid(Color::opaque(200, 0, 0)).into())
 ///         .with_child(
 ///             TextBuilder::new(WidgetBuilder::new())
 ///                 .with_text("I'm boxed in Blue and backed in Red!")
@@ -351,7 +351,7 @@ impl BorderBuilder {
     /// Creates a [`Border`] widget, but does not add it to the user interface. Also see [`Self::build`] docs.
     pub fn build_border(mut self, ctx: &BuildContext) -> Border {
         if self.widget_builder.foreground.is_none() {
-            self.widget_builder.foreground = Some(ctx.style.get_or_default(Style::BRUSH_PRIMARY));
+            self.widget_builder.foreground = Some(ctx.style.property(Style::BRUSH_PRIMARY));
         }
         Border {
             widget: self.widget_builder.build(ctx),

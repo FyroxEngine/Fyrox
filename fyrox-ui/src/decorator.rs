@@ -24,7 +24,7 @@
 #![warn(missing_docs)]
 
 use crate::style::resource::StyleResourceExt;
-use crate::style::Style;
+use crate::style::{Style, StyledProperty};
 use crate::widget::WidgetBuilder;
 use crate::{
     border::{Border, BorderBuilder},
@@ -50,13 +50,13 @@ pub enum DecoratorMessage {
     /// This message is used to switch a decorator in a `Selected` state or not.
     Select(bool),
     /// Sets a new brush for `Hovered` state.
-    HoverBrush(Brush),
+    HoverBrush(StyledProperty<Brush>),
     /// Sets a new brush for `Normal` state.
-    NormalBrush(Brush),
+    NormalBrush(StyledProperty<Brush>),
     /// Sets a new brush for `Pressed` state.
-    PressedBrush(Brush),
+    PressedBrush(StyledProperty<Brush>),
     /// Sets a new brush for `Selected` state.
-    SelectedBrush(Brush),
+    SelectedBrush(StyledProperty<Brush>),
 }
 
 impl DecoratorMessage {
@@ -66,19 +66,19 @@ impl DecoratorMessage {
     );
     define_constructor!(
         /// Creates a [`DecoratorMessage::HoverBrush`] message.
-        DecoratorMessage:HoverBrush => fn hover_brush(Brush), layout: false
+        DecoratorMessage:HoverBrush => fn hover_brush(StyledProperty<Brush>), layout: false
     );
     define_constructor!(
         /// Creates a [`DecoratorMessage::NormalBrush`] message.
-        DecoratorMessage:NormalBrush => fn normal_brush(Brush), layout: false
+        DecoratorMessage:NormalBrush => fn normal_brush(StyledProperty<Brush>), layout: false
     );
     define_constructor!(
         /// Creates a [`DecoratorMessage::PressedBrush`] message.
-        DecoratorMessage:PressedBrush => fn pressed_brush(Brush), layout: false
+        DecoratorMessage:PressedBrush => fn pressed_brush(StyledProperty<Brush>), layout: false
     );
     define_constructor!(
         /// Creates a [`DecoratorMessage::SelectedBrush`] message.
-        DecoratorMessage:SelectedBrush => fn selected_brush(Brush), layout: false
+        DecoratorMessage:SelectedBrush => fn selected_brush(StyledProperty<Brush>), layout: false
     );
 }
 
@@ -107,7 +107,7 @@ impl DecoratorMessage {
 /// # };
 /// fn create_decorator(ctx: &mut BuildContext) -> Handle<UiNode> {
 ///     DecoratorBuilder::new(BorderBuilder::new(WidgetBuilder::new()))
-///         .with_hover_brush(Brush::Solid(Color::opaque(0, 255, 0)))
+///         .with_hover_brush(Brush::Solid(Color::opaque(0, 255, 0)).into())
 ///         .build(ctx)
 /// }
 /// ```
@@ -117,13 +117,13 @@ pub struct Decorator {
     #[component(include)]
     pub border: Border,
     /// Current brush used for `Normal` state.
-    pub normal_brush: InheritableVariable<Brush>,
+    pub normal_brush: InheritableVariable<StyledProperty<Brush>>,
     /// Current brush used for `Hovered` state.
-    pub hover_brush: InheritableVariable<Brush>,
+    pub hover_brush: InheritableVariable<StyledProperty<Brush>>,
     /// Current brush used for `Pressed` state.
-    pub pressed_brush: InheritableVariable<Brush>,
+    pub pressed_brush: InheritableVariable<StyledProperty<Brush>>,
     /// Current brush used for `Selected` state.
-    pub selected_brush: InheritableVariable<Brush>,
+    pub selected_brush: InheritableVariable<StyledProperty<Brush>>,
     /// Whether the decorator is in `Selected` state or not.
     pub is_selected: InheritableVariable<bool>,
     /// Whether the decorator should react to mouse clicks and switch its state to `Pressed` or not.
@@ -292,10 +292,10 @@ impl Control for Decorator {
 /// Creates [`Decorator`] widget instances and adds them to the user interface.
 pub struct DecoratorBuilder {
     border_builder: BorderBuilder,
-    normal_brush: Option<Brush>,
-    hover_brush: Option<Brush>,
-    pressed_brush: Option<Brush>,
-    selected_brush: Option<Brush>,
+    normal_brush: Option<StyledProperty<Brush>>,
+    hover_brush: Option<StyledProperty<Brush>>,
+    pressed_brush: Option<StyledProperty<Brush>>,
+    selected_brush: Option<StyledProperty<Brush>>,
     pressable: bool,
     selected: bool,
 }
@@ -315,25 +315,25 @@ impl DecoratorBuilder {
     }
 
     /// Sets a desired brush for `Normal` state.
-    pub fn with_normal_brush(mut self, brush: Brush) -> Self {
+    pub fn with_normal_brush(mut self, brush: StyledProperty<Brush>) -> Self {
         self.normal_brush = Some(brush);
         self
     }
 
     /// Sets a desired brush for `Hovered` state.
-    pub fn with_hover_brush(mut self, brush: Brush) -> Self {
+    pub fn with_hover_brush(mut self, brush: StyledProperty<Brush>) -> Self {
         self.hover_brush = Some(brush);
         self
     }
 
     /// Sets a desired brush for `Pressed` state.
-    pub fn with_pressed_brush(mut self, brush: Brush) -> Self {
+    pub fn with_pressed_brush(mut self, brush: StyledProperty<Brush>) -> Self {
         self.pressed_brush = Some(brush);
         self
     }
 
     /// Sets a desired brush for `Selected` state.
-    pub fn with_selected_brush(mut self, brush: Brush) -> Self {
+    pub fn with_selected_brush(mut self, brush: StyledProperty<Brush>) -> Self {
         self.selected_brush = Some(brush);
         self
     }
@@ -354,28 +354,28 @@ impl DecoratorBuilder {
     pub fn build(mut self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let normal_brush = self
             .normal_brush
-            .unwrap_or_else(|| ctx.style.get_or_default::<Brush>(Style::BRUSH_LIGHT));
+            .unwrap_or_else(|| ctx.style.property::<Brush>(Style::BRUSH_LIGHT));
         let hover_brush = self
             .hover_brush
-            .unwrap_or_else(|| ctx.style.get_or_default::<Brush>(Style::BRUSH_LIGHTER));
+            .unwrap_or_else(|| ctx.style.property::<Brush>(Style::BRUSH_LIGHTER));
         let pressed_brush = self
             .pressed_brush
-            .unwrap_or_else(|| ctx.style.get_or_default::<Brush>(Style::BRUSH_LIGHTEST));
+            .unwrap_or_else(|| ctx.style.property::<Brush>(Style::BRUSH_LIGHTEST));
         let selected_brush = self
             .selected_brush
-            .unwrap_or_else(|| ctx.style.get_or_default::<Brush>(Style::BRUSH_BRIGHT));
+            .unwrap_or_else(|| ctx.style.property::<Brush>(Style::BRUSH_BRIGHT));
 
         if self.border_builder.widget_builder.foreground.is_none() {
-            let brush = ctx.style.get(Style::BRUSH_DARKER);
-            self.border_builder.widget_builder.foreground = brush;
+            let brush = ctx.style.property(Style::BRUSH_DARKER);
+            self.border_builder.widget_builder.foreground = Some(brush);
         }
 
         let mut border = self.border_builder.build_border(ctx);
 
         if self.selected {
-            border.set_background(selected_brush.clone());
+            *border.background = selected_brush.clone();
         } else {
-            border.set_background(normal_brush.clone());
+            *border.background = normal_brush.clone();
         }
 
         let node = UiNode::new(Decorator {

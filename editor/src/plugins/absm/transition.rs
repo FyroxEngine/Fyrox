@@ -44,15 +44,9 @@ use crate::plugins::absm::{
     selectable::{Selectable, SelectableMessage},
 };
 use crate::utils::fetch_node_center;
+use fyrox::gui::style::resource::StyleResourceExt;
+use fyrox::gui::style::Style;
 use std::ops::{Deref, DerefMut};
-
-const PICKED_COLOR: Color = Color::opaque(100, 100, 100);
-const NORMAL_COLOR: Color = Color::opaque(80, 80, 80);
-const SELECTED_COLOR: Color = Color::opaque(120, 120, 120);
-
-const PICKED_BRUSH: Brush = Brush::Solid(PICKED_COLOR);
-const NORMAL_BRUSH: Brush = Brush::Solid(NORMAL_COLOR);
-const SELECTED_BRUSH: Brush = Brush::Solid(SELECTED_COLOR);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TransitionMessage {
@@ -79,9 +73,9 @@ impl TransitionView {
             self.handle(),
             MessageDirection::ToWidget,
             if self.selectable.selected {
-                SELECTED_BRUSH.clone()
+                ui.style.property(Style::BRUSH_BRIGHT)
             } else {
-                NORMAL_BRUSH.clone()
+                ui.style.property(Style::BRUSH_LIGHTER)
             },
         ));
     }
@@ -117,16 +111,16 @@ uuid_provider!(TransitionView = "01798aee-8fe5-4480-a69d-8e5b95c3cc96");
 
 impl Control for TransitionView {
     fn draw(&self, drawing_context: &mut DrawingContext) {
-        let color = if let Brush::Solid(color) = self.foreground() {
-            color
+        let brush = if let Brush::Solid(color) = self.foreground() {
+            Brush::Solid(color + Color::from(Hsv::new(180.0, 100.0, 50.0 * self.activity_factor)))
         } else {
-            NORMAL_COLOR
+            drawing_context.style.get_or_default(Style::BRUSH_LIGHTER)
         };
 
         draw_transition(
             drawing_context,
             self.clip_bounds(),
-            Brush::Solid(color + Color::from(Hsv::new(180.0, 100.0, 50.0 * self.activity_factor))),
+            brush,
             self.segment.source_pos,
             self.segment.dest_pos,
         );
@@ -144,7 +138,7 @@ impl Control for TransitionView {
                     ui.send_message(WidgetMessage::foreground(
                         self.handle(),
                         MessageDirection::ToWidget,
-                        PICKED_BRUSH.clone(),
+                        ui.style.property(Style::BRUSH_LIGHTEST),
                     ));
                 }
                 WidgetMessage::MouseLeave => {
@@ -198,7 +192,7 @@ impl TransitionBuilder {
         let transition = TransitionView {
             widget: self
                 .widget_builder
-                .with_foreground(NORMAL_BRUSH.clone())
+                .with_foreground(ctx.style.property(Style::BRUSH_LIGHTEST))
                 .with_clip_to_bounds(false)
                 .with_need_update(true)
                 .build(ctx),

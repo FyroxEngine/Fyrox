@@ -1137,7 +1137,7 @@ fn make_mark(ctx: &mut BuildContext, button: HeaderButton) -> Handle<UiNode> {
             })
             .with_width(size)
             .with_height(size)
-            .with_foreground(ctx.style.get_or_default(Style::BRUSH_BRIGHT)),
+            .with_foreground(ctx.style.property(Style::BRUSH_BRIGHT)),
     )
     .with_primitives(match button {
         HeaderButton::Close => {
@@ -1203,9 +1203,9 @@ fn make_header_button(ctx: &mut BuildContext, button: HeaderButton) -> Handle<Ui
                     .with_pad_by_corner_radius(false)
                     .with_corner_radius(4.0),
             )
-            .with_normal_brush(Brush::Solid(Color::TRANSPARENT))
-            .with_hover_brush(ctx.style.get_or_default(Style::BRUSH_LIGHT))
-            .with_pressed_brush(ctx.style.get_or_default(Style::BRUSH_LIGHTEST))
+            .with_normal_brush(Brush::Solid(Color::TRANSPARENT).into())
+            .with_hover_brush(ctx.style.property(Style::BRUSH_LIGHT))
+            .with_pressed_brush(ctx.style.property(Style::BRUSH_LIGHTEST))
             .build(ctx),
         )
         .with_content(make_mark(ctx, button))
@@ -1330,7 +1330,7 @@ impl WindowBuilder {
             WidgetBuilder::new()
                 .with_horizontal_alignment(HorizontalAlignment::Stretch)
                 .with_height(22.0)
-                .with_background(ctx.style.get_or_default(Style::BRUSH_DARKER))
+                .with_background(ctx.style.property(Style::BRUSH_DARKER))
                 .with_child({
                     title_grid = GridBuilder::new(
                         WidgetBuilder::new()
@@ -1404,7 +1404,7 @@ impl WindowBuilder {
 
         let border = BorderBuilder::new(
             WidgetBuilder::new()
-                .with_foreground(ctx.style.get_or_default(Style::BRUSH_DARKER))
+                .with_foreground(ctx.style.property(Style::BRUSH_DARKER))
                 .with_child(
                     GridBuilder::new(
                         WidgetBuilder::new()

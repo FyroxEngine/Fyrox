@@ -383,7 +383,7 @@ fn create_color_points(
                     .with_context_menu(point_context_menu.clone())
                     .with_cursor(Some(CursorIcon::EwResize))
                     .with_width(6.0)
-                    .with_foreground(Brush::Solid(pt.color())),
+                    .with_foreground(Brush::Solid(pt.color()).into()),
             )
             .with_location(pt.location())
             .build(ctx)
@@ -613,7 +613,7 @@ impl Control for ColorPoint {
 
 impl ColorPoint {
     fn color(&self) -> Color {
-        if let Brush::Solid(color) = *self.foreground {
+        if let Brush::Solid(color) = self.foreground.property {
             color
         } else {
             unreachable!()

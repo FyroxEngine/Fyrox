@@ -190,8 +190,8 @@ impl SearchBarBuilder {
         let clear;
         let content = BorderBuilder::new(
             WidgetBuilder::new()
-                .with_foreground(ctx.style.get_or_default(Style::BRUSH_LIGHT))
-                .with_background(ctx.style.get_or_default(Style::BRUSH_DARKER))
+                .with_foreground(ctx.style.property(Style::BRUSH_LIGHT))
+                .with_background(ctx.style.property(Style::BRUSH_DARKER))
                 .with_child(
                     GridBuilder::new(
                         WidgetBuilder::new()
@@ -202,9 +202,7 @@ impl SearchBarBuilder {
                                         .with_width(12.0)
                                         .with_height(12.0)
                                         .with_vertical_alignment(VerticalAlignment::Center)
-                                        .with_foreground(
-                                            ctx.style.get_or_default(Style::BRUSH_BRIGHT),
-                                        )
+                                        .with_foreground(ctx.style.property(Style::BRUSH_BRIGHT))
                                         .with_margin(Thickness {
                                             left: 2.0,
                                             top: 2.0,
@@ -252,7 +250,7 @@ impl SearchBarBuilder {
                                             .with_pad_by_corner_radius(false)
                                             .with_corner_radius(4.0),
                                     )
-                                    .with_normal_brush(Brush::Solid(Color::TRANSPARENT))
+                                    .with_normal_brush(Brush::Solid(Color::TRANSPARENT).into())
                                     .build(ctx),
                                 )
                                 .with_content(
@@ -263,7 +261,7 @@ impl SearchBarBuilder {
                                             .with_height(8.0)
                                             .with_width(8.0)
                                             .with_foreground(
-                                                ctx.style.get_or_default(Style::BRUSH_BRIGHTEST),
+                                                ctx.style.property(Style::BRUSH_BRIGHTEST),
                                             ),
                                     )
                                     .with_primitives(make_cross_primitive(8.0, 2.0))

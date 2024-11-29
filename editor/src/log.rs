@@ -48,7 +48,7 @@ use crate::{
     gui::{make_dropdown_list_option, make_image_button_with_tooltip},
     load_image,
     settings::Settings,
-    Brush, Color, DropdownListBuilder, Engine,
+    DropdownListBuilder, Engine,
 };
 use std::sync::mpsc::Receiver;
 
@@ -276,20 +276,24 @@ impl LogPanel {
             let item = BorderBuilder::new(
                 WidgetBuilder::new()
                     .with_background(if count % 2 == 0 {
-                        ctx.style.get_or_default(Style::BRUSH_LIGHT)
+                        ctx.style.property(Style::BRUSH_LIGHT)
                     } else {
-                        ctx.style.get_or_default(Style::BRUSH_DARK)
+                        ctx.style.property(Style::BRUSH_DARK)
                     })
                     .with_child(
                         TextBuilder::new(
                             WidgetBuilder::new()
                                 .with_context_menu(self.context_menu.menu.clone())
                                 .with_margin(Thickness::uniform(1.0))
-                                .with_foreground(Brush::Solid(match msg.kind {
-                                    MessageKind::Information => Color::ANTIQUE_WHITE,
-                                    MessageKind::Warning => Color::GOLD,
-                                    MessageKind::Error => Color::RED,
-                                })),
+                                .with_foreground(match msg.kind {
+                                    MessageKind::Information => {
+                                        ctx.style.property(Style::BRUSH_INFORMATION)
+                                    }
+                                    MessageKind::Warning => {
+                                        ctx.style.property(Style::BRUSH_WARNING)
+                                    }
+                                    MessageKind::Error => ctx.style.property(Style::BRUSH_ERROR),
+                                }),
                         )
                         .with_text(text)
                         .with_wrap(WrapMode::Word)

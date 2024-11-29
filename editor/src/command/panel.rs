@@ -19,9 +19,8 @@
 // SOFTWARE.
 
 use crate::fyrox::{
-    core::{color::Color, pool::Handle},
+    core::pool::Handle,
     gui::{
-        brush::Brush,
         button::ButtonMessage,
         grid::{Column, GridBuilder, Row},
         list_view::{ListViewBuilder, ListViewMessage},
@@ -38,6 +37,8 @@ use crate::{
     gui::make_image_button_with_tooltip, load_image, message::MessageSender, send_sync_message,
     utils::window_content, Message, Mode,
 };
+use fyrox::gui::style::resource::StyleResourceExt;
+use fyrox::gui::style::Style;
 
 pub struct CommandStackViewer {
     pub window: Handle<UiNode>,
@@ -154,12 +155,12 @@ impl CommandStackViewer {
             .map(|(i, name)| {
                 let brush = if let Some(top) = top {
                     if (0..=top).contains(&i) {
-                        Brush::Solid(Color::opaque(255, 255, 255))
+                        ui.style.property(Style::BRUSH_TEXT)
                     } else {
-                        Brush::Solid(Color::opaque(100, 100, 100))
+                        ui.style.property(Style::BRUSH_LIGHTEST)
                     }
                 } else {
-                    Brush::Solid(Color::opaque(100, 100, 100))
+                    ui.style.property(Style::BRUSH_LIGHTEST)
                 };
 
                 TextBuilder::new(

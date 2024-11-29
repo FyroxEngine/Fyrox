@@ -235,7 +235,7 @@ impl AnimationEditor {
                                             curve_editor = CurveEditorBuilder::new(
                                                 WidgetBuilder::new()
                                                     .with_background(
-                                                        ctx.style.get_or_default(Style::BRUSH_DARK),
+                                                        ctx.style.property(Style::BRUSH_DARK),
                                                     )
                                                     .on_row(1),
                                             )

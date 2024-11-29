@@ -280,7 +280,7 @@ pub type FilterCallback = dyn FnMut(char) -> bool + Send;
 /// # };
 /// fn create_text(ui: &mut UserInterface, text: &str) -> Handle<UiNode> {
 ///     //                  vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-///     TextBoxBuilder::new(WidgetBuilder::new().with_foreground(Brush::Solid(Color::RED)))
+///     TextBoxBuilder::new(WidgetBuilder::new().with_foreground(Brush::Solid(Color::RED).into()))
 ///         .with_text(text)
 ///         .build(&mut ui.build_ctx())
 /// }
@@ -1632,10 +1632,10 @@ impl TextBoxBuilder {
         let style = &ctx.style;
 
         if self.widget_builder.foreground.is_none() {
-            self.widget_builder.foreground = Some(style.get_or_default(Style::BRUSH_TEXT));
+            self.widget_builder.foreground = Some(style.property(Style::BRUSH_TEXT));
         }
         if self.widget_builder.background.is_none() {
-            self.widget_builder.background = Some(style.get_or_default(Style::BRUSH_DARKER));
+            self.widget_builder.background = Some(style.property(Style::BRUSH_DARKER));
         }
         if self.widget_builder.cursor.is_none() {
             self.widget_builder.cursor = Some(CursorIcon::Text);

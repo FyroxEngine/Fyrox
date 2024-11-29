@@ -43,7 +43,7 @@ use crate::fyrox::{
 };
 use crate::{load_image, message::MessageSender, utils::make_node_name, Message};
 use fyrox::gui::style::resource::StyleResourceExt;
-use fyrox::gui::style::Style;
+use fyrox::gui::style::{Style, StyledProperty};
 use std::{
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
@@ -270,7 +270,7 @@ pub struct SceneItemBuilder {
     entity_handle: ErasedHandle,
     name: String,
     icon: Option<UntypedResource>,
-    text_brush: Option<Brush>,
+    text_brush: Option<StyledProperty<Brush>>,
 }
 
 impl SceneItemBuilder {
@@ -299,7 +299,7 @@ impl SceneItemBuilder {
         self
     }
 
-    pub fn with_text_brush(mut self, brush: Brush) -> Self {
+    pub fn with_text_brush(mut self, brush: StyledProperty<Brush>) -> Self {
         self.text_brush = Some(brush);
         self
     }
@@ -325,7 +325,7 @@ impl SceneItemBuilder {
                         WidgetBuilder::new()
                             .with_foreground(
                                 self.text_brush
-                                    .unwrap_or(ctx.style.get_or_default(Style::BRUSH_TEXT)),
+                                    .unwrap_or(ctx.style.property(Style::BRUSH_TEXT)),
                             )
                             .with_margin(Thickness::left(1.0))
                             .on_column(1)

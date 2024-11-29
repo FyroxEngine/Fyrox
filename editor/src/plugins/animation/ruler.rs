@@ -460,8 +460,8 @@ impl RulerBuilder {
                 .widget_builder
                 .with_preview_messages(true)
                 .with_context_menu(context_menu.menu.clone())
-                .with_background(ctx.style.get_or_default(Style::BRUSH_DARKER))
-                .with_foreground(ctx.style.get_or_default(Style::BRUSH_LIGHTER))
+                .with_background(ctx.style.property(Style::BRUSH_DARKER))
+                .with_foreground(ctx.style.property(Style::BRUSH_LIGHTER))
                 .build(ctx),
             transform: Default::default(),
             text: RefCell::new(FormattedTextBuilder::new(ctx.default_font()).build()),

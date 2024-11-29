@@ -20,9 +20,9 @@
 
 use crate::fyrox::{
     asset::untyped::UntypedResource,
-    core::{color::Color, parking_lot::Mutex, pool::Handle},
+    core::{parking_lot::Mutex, pool::Handle},
     gui::{
-        border::BorderBuilder, brush::Brush, button::ButtonBuilder, decorator::DecoratorBuilder,
+        border::BorderBuilder, button::ButtonBuilder, decorator::DecoratorBuilder,
         image::ImageBuilder, text::TextBuilder, utils::make_simple_tooltip, widget::WidgetBuilder,
         BuildContext, HorizontalAlignment, Thickness, UiNode, VerticalAlignment,
     },
@@ -111,7 +111,7 @@ pub fn make_image_button_with_tooltip(
     .with_content(
         ImageBuilder::new(
             WidgetBuilder::new()
-                .with_background(ctx.style.get_or_default(Style::BRUSH_BRIGHTEST))
+                .with_background(ctx.style.property(Style::BRUSH_BRIGHTEST))
                 .with_margin(Thickness::uniform(2.0))
                 .with_width(width)
                 .with_height(height),

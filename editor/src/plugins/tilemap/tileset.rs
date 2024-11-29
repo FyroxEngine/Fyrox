@@ -546,7 +546,7 @@ impl TileSetTileViewBuilder {
 
         let decorator =
             DecoratorBuilder::new(BorderBuilder::new(WidgetBuilder::new().with_child(image)))
-                .with_selected_brush(Brush::Solid(Color::RED))
+                .with_selected_brush(Brush::Solid(Color::RED).into())
                 .build(ctx);
 
         ctx.add_node(UiNode::new(TileSetTileView {

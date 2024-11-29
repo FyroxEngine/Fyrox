@@ -473,7 +473,7 @@ impl PropertySelectorBuilder {
                 .with_child(
                     BorderBuilder::new(
                         WidgetBuilder::new()
-                            .with_background(ctx.style.get_or_default(Style::BRUSH_DARK))
+                            .with_background(ctx.style.property(Style::BRUSH_DARK))
                             .on_row(1)
                             .on_column(0)
                             .with_child(scroll_viewer),

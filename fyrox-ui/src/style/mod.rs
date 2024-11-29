@@ -21,6 +21,7 @@
 pub mod resource;
 
 use crate::button::Button;
+use crate::style::resource::StyleResourceExt;
 use crate::{
     brush::Brush,
     style::resource::{StyleResource, StyleResourceError},
@@ -33,6 +34,7 @@ use fyrox_core::{
 };
 use fyrox_resource::{io::ResourceIo, manager::BuiltInResource};
 use lazy_static::lazy_static;
+use std::ops::{Deref, DerefMut};
 use std::path::Path;
 
 #[derive(Visit, Reflect, Debug, Clone)]
@@ -84,6 +86,66 @@ lazy_static! {
     );
 }
 
+#[derive(Clone, Debug, Default, Reflect)]
+pub struct StyledProperty<T> {
+    pub property: T,
+    #[reflect(hidden)]
+    pub name: ImmutableString,
+}
+
+impl<T> From<T> for StyledProperty<T> {
+    fn from(property: T) -> Self {
+        Self {
+            property,
+            name: Default::default(),
+        }
+    }
+}
+
+impl<T: PartialEq> PartialEq for StyledProperty<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.property == other.property
+    }
+}
+
+impl<T> StyledProperty<T> {
+    pub fn new(property: T, name: impl Into<ImmutableString>) -> Self {
+        Self {
+            property,
+            name: name.into(),
+        }
+    }
+
+    pub fn update(&mut self, style: &StyleResource)
+    where
+        StyleProperty: IntoPrimitive<T>,
+    {
+        if let Some(property) = style.get(self.name.clone()) {
+            self.property = property;
+        }
+    }
+}
+
+impl<T> Deref for StyledProperty<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.property
+    }
+}
+
+impl<T> DerefMut for StyledProperty<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.property
+    }
+}
+
+impl<T: Visit> Visit for StyledProperty<T> {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        self.property.visit(name, visitor)
+    }
+}
+
 #[derive(Visit, Reflect, Default, Debug, TypeUuidProvider)]
 #[type_uuid(id = "38a63b49-d765-4c01-8fb5-202cc43d607e")]
 pub struct Style {
@@ -96,6 +158,7 @@ impl Style {
     pub const BRUSH_DARKER: &'static str = "Global.Brush.Darker";
     pub const BRUSH_DARK: &'static str = "Global.Brush.Dark";
     pub const BRUSH_PRIMARY: &'static str = "Global.Brush.Primary";
+    pub const BRUSH_LIGHTER_PRIMARY: &'static str = "Global.Brush.LighterPrimary";
     pub const BRUSH_LIGHT: &'static str = "Global.Brush.Light";
     pub const BRUSH_LIGHTER: &'static str = "Global.Brush.Lighter";
     pub const BRUSH_LIGHTEST: &'static str = "Global.Brush.Lightest";
@@ -105,6 +168,10 @@ impl Style {
     pub const BRUSH_DIM_BLUE: &'static str = "Global.Brush.DimBlue";
     pub const BRUSH_TEXT: &'static str = "Global.Brush.Text";
     pub const BRUSH_FOREGROUND: &'static str = "Global.Brush.Foreground";
+    pub const BRUSH_INFORMATION: &'static str = "Global.Brush.Information";
+    pub const BRUSH_WARNING: &'static str = "Global.Brush.Warning";
+    pub const BRUSH_ERROR: &'static str = "Global.Brush.Error";
+    pub const BRUSH_OK: &'static str = "Global.Brush.Ok";
 
     pub fn dark_style() -> Style {
         let mut style = Self::default();
@@ -114,6 +181,10 @@ impl Style {
             .set(Self::BRUSH_DARKER, Brush::Solid(Color::repeat_opaque(30)))
             .set(Self::BRUSH_DARK, Brush::Solid(Color::repeat_opaque(40)))
             .set(Self::BRUSH_PRIMARY, Brush::Solid(Color::repeat_opaque(50)))
+            .set(
+                Self::BRUSH_LIGHTER_PRIMARY,
+                Brush::Solid(Color::repeat_opaque(60)),
+            )
             .set(Self::BRUSH_LIGHT, Brush::Solid(Color::repeat_opaque(70)))
             .set(Self::BRUSH_LIGHTER, Brush::Solid(Color::repeat_opaque(85)))
             .set(
@@ -135,6 +206,10 @@ impl Style {
             )
             .set(Self::BRUSH_TEXT, Brush::Solid(Color::opaque(220, 220, 220)))
             .set(Self::BRUSH_FOREGROUND, Brush::Solid(Color::WHITE))
+            .set(Self::BRUSH_INFORMATION, Brush::Solid(Color::ANTIQUE_WHITE))
+            .set(Self::BRUSH_WARNING, Brush::Solid(Color::GOLD))
+            .set(Self::BRUSH_ERROR, Brush::Solid(Color::RED))
+            .set(Self::BRUSH_OK, Brush::Solid(Color::GREEN))
             // Button
             .set(Button::CORNER_RADIUS, 4.0f32)
             .set(Button::BORDER_THICKNESS, Thickness::uniform(1.0));
@@ -149,6 +224,10 @@ impl Style {
             .set(Self::BRUSH_DARKER, Brush::Solid(Color::repeat_opaque(150)))
             .set(Self::BRUSH_DARK, Brush::Solid(Color::repeat_opaque(160)))
             .set(Self::BRUSH_PRIMARY, Brush::Solid(Color::repeat_opaque(170)))
+            .set(
+                Self::BRUSH_LIGHTER_PRIMARY,
+                Brush::Solid(Color::repeat_opaque(180)),
+            )
             .set(Self::BRUSH_LIGHT, Brush::Solid(Color::repeat_opaque(190)))
             .set(Self::BRUSH_LIGHTER, Brush::Solid(Color::repeat_opaque(205)))
             .set(
@@ -170,6 +249,9 @@ impl Style {
             )
             .set(Self::BRUSH_TEXT, Brush::Solid(Color::repeat_opaque(0)))
             .set(Self::BRUSH_FOREGROUND, Brush::Solid(Color::WHITE))
+            .set(Self::BRUSH_INFORMATION, Brush::Solid(Color::ANTIQUE_WHITE))
+            .set(Self::BRUSH_WARNING, Brush::Solid(Color::GOLD))
+            .set(Self::BRUSH_ERROR, Brush::Solid(Color::RED))
             // Button
             .set(Button::CORNER_RADIUS, 4.0f32)
             .set(Button::BORDER_THICKNESS, Thickness::uniform(1.0));

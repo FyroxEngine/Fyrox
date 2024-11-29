@@ -21,15 +21,14 @@
 use crate::{
     fyrox::{
         core::{
-            color::Color,
             log::{Log, LogMessage, MessageKind},
             pool::Handle,
             reflect::prelude::*,
         },
         graph::BaseSceneGraph,
+        graph::SceneGraph,
         gui::{
             border::BorderBuilder,
-            brush::Brush,
             button::{ButtonBuilder, ButtonMessage},
             decorator::DecoratorBuilder,
             dropdown_list::{DropdownListBuilder, DropdownListMessage},
@@ -43,6 +42,8 @@ use crate::{
             message::{MessageDirection, UiMessage},
             scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
             stack_panel::StackPanelBuilder,
+            style::resource::StyleResourceExt,
+            style::Style,
             text::TextBuilder,
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
@@ -56,9 +57,6 @@ use crate::{
     Message,
 };
 use cargo_metadata::{camino::Utf8Path, Metadata};
-use fyrox::graph::SceneGraph;
-use fyrox::gui::style::resource::StyleResourceExt;
-use fyrox::gui::style::Style;
 use std::{
     ffi::OsStr,
     fmt::{Display, Formatter},
@@ -722,7 +720,7 @@ fn make_title_text(text: &str, row: usize, ctx: &mut BuildContext) -> Handle<UiN
     TextBuilder::new(
         WidgetBuilder::new()
             .on_row(row)
-            .with_foreground(Brush::Solid(Color::CORN_SILK))
+            .with_foreground(ctx.style.property(ExportWindow::TITLE_BRUSH))
             .with_margin(Thickness::uniform(2.0)),
     )
     .with_font_size(14.0)
@@ -731,6 +729,8 @@ fn make_title_text(text: &str, row: usize, ctx: &mut BuildContext) -> Handle<UiN
 }
 
 impl ExportWindow {
+    pub const TITLE_BRUSH: &'static str = "ExportWindow.TitleBrush";
+
     pub fn new(ctx: &mut BuildContext) -> Self {
         let instructions =
             "Select the target directory in which you want to export the current project. You can \
@@ -828,7 +828,7 @@ impl ExportWindow {
             WidgetBuilder::new()
                 .on_row(3)
                 .with_margin(Thickness::uniform(2.0))
-                .with_background(ctx.style.get_or_default(Style::BRUSH_LIGHT))
+                .with_background(ctx.style.property(Style::BRUSH_LIGHT))
                 .with_child(
                     ScrollViewerBuilder::new(
                         WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),
@@ -864,7 +864,7 @@ impl ExportWindow {
                     BorderBuilder::new(
                         WidgetBuilder::new()
                             .on_row(1)
-                            .with_background(ctx.style.get_or_default(Style::BRUSH_DARKER))
+                            .with_background(ctx.style.property(Style::BRUSH_DARKER))
                             .with_margin(Thickness::uniform(2.0))
                             .with_child({
                                 log_scroll_viewer = ScrollViewerBuilder::new(
@@ -1113,15 +1113,15 @@ impl ExportWindow {
         if let Some(log_message_receiver) = self.log_message_receiver.as_mut() {
             while let Ok(message) = log_message_receiver.try_recv() {
                 let ctx = &mut ui.build_ctx();
-                let color = match message.kind {
-                    MessageKind::Information => Color::ANTIQUE_WHITE,
-                    MessageKind::Warning => Color::ORANGE,
-                    MessageKind::Error => Color::RED,
+                let foreground = match message.kind {
+                    MessageKind::Information => ctx.style.property(Style::BRUSH_INFORMATION),
+                    MessageKind::Warning => ctx.style.property(Style::BRUSH_WARNING),
+                    MessageKind::Error => ctx.style.property(Style::BRUSH_ERROR),
                 };
                 let entry = TextBuilder::new(
                     WidgetBuilder::new()
                         .with_margin(Thickness::uniform(1.0))
-                        .with_foreground(Brush::Solid(color)),
+                        .with_foreground(foreground),
                 )
                 .with_wrap(WrapMode::Letter)
                 .with_text(format!("> {}", message.content))

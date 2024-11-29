@@ -351,7 +351,7 @@ impl CheckBoxBuilder {
 
             BorderBuilder::new(
                 WidgetBuilder::new()
-                    .with_background(ctx.style.get_or_default(Style::BRUSH_BRIGHT_BLUE))
+                    .with_background(ctx.style.property(Style::BRUSH_BRIGHT_BLUE))
                     .with_child(
                         VectorImageBuilder::new(
                             WidgetBuilder::new()
@@ -360,7 +360,7 @@ impl CheckBoxBuilder {
                                 // Give some padding to ensure primitives don't get too cut off
                                 .with_width(size + 1.0)
                                 .with_height(size + 1.0)
-                                .with_foreground(ctx.style.get_or_default(Style::BRUSH_TEXT)),
+                                .with_foreground(ctx.style.property(Style::BRUSH_TEXT)),
                         )
                         .with_primitives({
                             vec![
@@ -392,8 +392,8 @@ impl CheckBoxBuilder {
                     .with_margin(Thickness::uniform(3.0))
                     .with_width(10.0)
                     .with_height(9.0)
-                    .with_background(Brush::Solid(Color::TRANSPARENT))
-                    .with_foreground(Brush::Solid(Color::TRANSPARENT)),
+                    .with_background(Brush::Solid(Color::TRANSPARENT).into())
+                    .with_foreground(Brush::Solid(Color::TRANSPARENT).into()),
             )
             .with_pad_by_corner_radius(false)
             .with_corner_radius(3.0)
@@ -406,8 +406,8 @@ impl CheckBoxBuilder {
             BorderBuilder::new(
                 WidgetBuilder::new()
                     .with_margin(Thickness::uniform(4.0))
-                    .with_background(ctx.style.get_or_default(Style::BRUSH_BRIGHT))
-                    .with_foreground(Brush::Solid(Color::TRANSPARENT)),
+                    .with_background(ctx.style.property(Style::BRUSH_BRIGHT))
+                    .with_foreground(Brush::Solid(Color::TRANSPARENT).into()),
             )
             .with_pad_by_corner_radius(false)
             .with_corner_radius(3.0)
@@ -423,8 +423,8 @@ impl CheckBoxBuilder {
             BorderBuilder::new(
                 WidgetBuilder::new()
                     .with_vertical_alignment(VerticalAlignment::Center)
-                    .with_background(ctx.style.get_or_default(Style::BRUSH_DARKEST))
-                    .with_foreground(ctx.style.get_or_default(Style::BRUSH_LIGHT)),
+                    .with_background(ctx.style.property(Style::BRUSH_DARKEST))
+                    .with_foreground(ctx.style.property(Style::BRUSH_LIGHT)),
             )
             .with_pad_by_corner_radius(false)
             .with_corner_radius(3.0)

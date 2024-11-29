@@ -759,13 +759,13 @@ impl TreeBuilder {
         let item_background = self.back.unwrap_or_else(|| {
             DecoratorBuilder::new(BorderBuilder::new(
                 WidgetBuilder::new()
-                    .with_foreground(Brush::Solid(Color::TRANSPARENT))
-                    .with_background(Brush::Solid(Color::TRANSPARENT)),
+                    .with_foreground(Brush::Solid(Color::TRANSPARENT).into())
+                    .with_background(Brush::Solid(Color::TRANSPARENT).into()),
             ))
-            .with_selected_brush(ctx.style.get_or_default(Style::BRUSH_DIM_BLUE))
-            .with_hover_brush(ctx.style.get_or_default(Style::BRUSH_DARK))
-            .with_normal_brush(Brush::Solid(Color::TRANSPARENT))
-            .with_pressed_brush(Brush::Solid(Color::TRANSPARENT))
+            .with_selected_brush(ctx.style.property(Style::BRUSH_DIM_BLUE))
+            .with_hover_brush(ctx.style.property(Style::BRUSH_DARK))
+            .with_normal_brush(Brush::Solid(Color::TRANSPARENT).into())
+            .with_pressed_brush(Brush::Solid(Color::TRANSPARENT).into())
             .with_pressable(false)
             .build(ctx)
         });
@@ -841,7 +841,7 @@ fn build_expander(
     .with_background(
         BorderBuilder::new(
             WidgetBuilder::new()
-                .with_background(Brush::Solid(Color::TRANSPARENT))
+                .with_background(Brush::Solid(Color::TRANSPARENT).into())
                 .with_min_size(Vector2::new(10.0, 4.0)),
         )
         .with_stroke_thickness(Thickness::zero())

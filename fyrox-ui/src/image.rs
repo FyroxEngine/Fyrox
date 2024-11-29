@@ -345,7 +345,7 @@ impl ImageBuilder {
     /// Builds the [`Image`] widget, but does not add it to the UI.
     pub fn build_node(mut self, ctx: &BuildContext) -> UiNode {
         if self.widget_builder.background.is_none() {
-            self.widget_builder.background = Some(Brush::Solid(Color::WHITE))
+            self.widget_builder.background = Some(Brush::Solid(Color::WHITE).into())
         }
 
         let image = Image {

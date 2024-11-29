@@ -23,12 +23,13 @@
 
 #![warn(missing_docs)]
 
+use crate::style::resource::StyleResourceExt;
+use crate::style::Style;
 use crate::{
     border::BorderBuilder,
-    brush::Brush,
     canvas::CanvasBuilder,
     core::{
-        algebra::Vector2, color::Color, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
+        algebra::Vector2, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
         visitor::prelude::*,
     },
     define_constructor,
@@ -206,7 +207,7 @@ impl ProgressBarBuilder {
 
         let indicator = self.indicator.unwrap_or_else(|| {
             BorderBuilder::new(
-                WidgetBuilder::new().with_background(Brush::Solid(Color::opaque(180, 180, 180))),
+                WidgetBuilder::new().with_background(ctx.style.property(Style::BRUSH_BRIGHTEST)),
             )
             .build(ctx)
         });

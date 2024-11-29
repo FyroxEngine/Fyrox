@@ -217,7 +217,7 @@ impl GridSnappingMenu {
                         ui.send_message(DecoratorMessage::selected_brush(
                             *button.decorator,
                             MessageDirection::ToWidget,
-                            ui.style.get_or_default(Style::BRUSH_BRIGHT_BLUE),
+                            ui.style.property(Style::BRUSH_BRIGHT_BLUE),
                         ));
 
                         ui.send_message(DecoratorMessage::select(
@@ -418,9 +418,9 @@ impl SceneViewer {
                                             .with_width(16.0)
                                             .with_height(16.0)
                                             .with_margin(Thickness::uniform(4.0))
-                                            .with_background(Brush::Solid(Color::opaque(
-                                                0, 200, 0,
-                                            ))),
+                                            .with_background(
+                                                Brush::Solid(Color::opaque(0, 200, 0)).into(),
+                                            ),
                                     )
                                     .with_opt_texture(load_image!("../../resources/play.png"))
                                     .build(ctx),
@@ -441,9 +441,9 @@ impl SceneViewer {
                                             .with_width(16.0)
                                             .with_height(16.0)
                                             .with_margin(Thickness::uniform(4.0))
-                                            .with_background(Brush::Solid(Color::opaque(
-                                                200, 0, 0,
-                                            ))),
+                                            .with_background(
+                                                Brush::Solid(Color::opaque(200, 0, 0)).into(),
+                                            ),
                                     )
                                     .with_opt_texture(load_image!("../../resources/stop.png"))
                                     .build(ctx),
@@ -466,7 +466,7 @@ impl SceneViewer {
         let no_scene_reminder = TextBuilder::new(
             WidgetBuilder::new()
                 .with_hit_test_visibility(false)
-                .with_foreground(ctx.style.get_or_default(Style::BRUSH_DARKEST)),
+                .with_foreground(ctx.style.property(Style::BRUSH_DARKEST)),
         )
         .with_text("No scene loaded. Create a new scene (File -> New Scene) or load existing (File -> Load Scene)")
         .with_vertical_text_alignment(VerticalAlignment::Center)
@@ -520,12 +520,16 @@ impl SceneViewer {
                                             selection_frame = BorderBuilder::new(
                                                 WidgetBuilder::new()
                                                     .with_visibility(false)
-                                                    .with_background(Brush::Solid(
-                                                        Color::from_rgba(255, 255, 255, 40),
-                                                    ))
-                                                    .with_foreground(Brush::Solid(Color::opaque(
-                                                        0, 255, 0,
-                                                    ))),
+                                                    .with_background(
+                                                        Brush::Solid(Color::from_rgba(
+                                                            255, 255, 255, 40,
+                                                        ))
+                                                        .into(),
+                                                    )
+                                                    .with_foreground(
+                                                        Brush::Solid(Color::opaque(0, 255, 0))
+                                                            .into(),
+                                                    ),
                                             )
                                             .with_stroke_thickness(Thickness::uniform(1.0))
                                             .build(ctx);

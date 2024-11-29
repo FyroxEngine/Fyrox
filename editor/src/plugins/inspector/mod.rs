@@ -24,7 +24,6 @@ use crate::{
     fyrox::{
         asset::manager::ResourceManager,
         core::{
-            color::Color,
             log::{Log, MessageKind},
             pool::{ErasedHandle, Handle},
             reflect::prelude::*,
@@ -55,8 +54,10 @@ use crate::{
     send_sync_message,
     ui_scene::UiScene,
     utils::window_content,
-    Brush, Editor, Message, WidgetMessage, WrapMode, MSG_SYNC_FLAG,
+    Editor, Message, WidgetMessage, WrapMode, MSG_SYNC_FLAG,
 };
+use fyrox::gui::style::resource::StyleResourceExt;
+use fyrox::gui::style::Style;
 use std::{any::Any, sync::Arc};
 
 pub mod editors;
@@ -179,7 +180,7 @@ impl InspectorPlugin {
                                 WidgetBuilder::new()
                                     .with_visibility(false)
                                     .with_margin(Thickness::left(4.0))
-                                    .with_foreground(Brush::Solid(Color::RED))
+                                    .with_foreground(ctx.style.property(Style::BRUSH_ERROR))
                                     .on_row(0),
                             )
                             .with_wrap(WrapMode::Word)
