@@ -60,7 +60,6 @@ pub mod world;
 
 pub use fyrox;
 
-use crate::plugins::path_fixer::PathFixerPlugin;
 use crate::{
     asset::AssetBrowser,
     audio::{preview::AudioPreviewPanel, AudioPanel},
@@ -70,7 +69,10 @@ use crate::{
     configurator::Configurator,
     export::ExportWindow,
     fyrox::{
-        asset::{io::FsResourceIo, manager::ResourceManager, untyped::UntypedResource},
+        asset::{
+            io::FsResourceIo, manager::ResourceManager, untyped::ResourceKind,
+            untyped::UntypedResource,
+        },
         core::{
             algebra::{Matrix3, Vector2},
             color::Color,
@@ -92,6 +94,7 @@ use crate::{
         gui::{
             brush::Brush,
             button::ButtonBuilder,
+            constructor::new_widget_constructor_container,
             dock::{
                 DockingManager, DockingManagerBuilder, DockingManagerMessage, TileBuilder,
                 TileContent,
@@ -106,6 +109,7 @@ use crate::{
             messagebox::{
                 MessageBoxBuilder, MessageBoxButtons, MessageBoxMessage, MessageBoxResult,
             },
+            style::{resource::StyleResource, Style},
             text::TextBuilder,
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
@@ -143,8 +147,9 @@ use crate::{
     plugin::{EditorPlugin, EditorPluginsContainer},
     plugins::{
         absm::AbsmEditorPlugin, animation::AnimationEditorPlugin, collider::ColliderPlugin,
-        curve_editor::CurveEditorPlugin, material::MaterialPlugin, ragdoll::RagdollPlugin,
-        settings::SettingsPlugin, stats::UiStatisticsPlugin, tilemap::TileMapEditorPlugin,
+        curve_editor::CurveEditorPlugin, material::MaterialPlugin, path_fixer::PathFixerPlugin,
+        ragdoll::RagdollPlugin, settings::SettingsPlugin, stats::UiStatisticsPlugin,
+        tilemap::TileMapEditorPlugin,
     },
     scene::{
         commands::{
@@ -156,8 +161,7 @@ use crate::{
         GameScene, Selection,
     },
     scene_viewer::SceneViewer,
-    settings::build::BuildCommand,
-    settings::Settings,
+    settings::{build::BuildCommand, general::EditorStyle, Settings},
     stats::{StatisticsWindow, StatisticsWindowAction},
     ui_scene::{
         commands::graph::PasteWidgetCommand, menu::WidgetContextMenu,
@@ -166,7 +170,6 @@ use crate::{
     utils::doc::DocWindow,
     world::{graph::menu::SceneNodeContextMenu, graph::EditorSceneWrapper, WorldViewer},
 };
-use fyrox::gui::constructor::new_widget_constructor_container;
 pub use message::Message;
 use plugins::inspector::InspectorPlugin;
 use std::{
@@ -557,6 +560,7 @@ pub struct Editor {
     pub statistics_window: Option<StatisticsWindow>,
     pub surface_data_viewer: Option<SurfaceDataViewer>,
     pub processed_ui_messages: usize,
+    pub styles: FxHashMap<EditorStyle, StyleResource>,
 }
 
 impl Editor {
@@ -564,6 +568,15 @@ impl Editor {
         let (log_message_sender, log_message_receiver) = channel();
 
         Log::add_listener(log_message_sender);
+
+        let dark_style = StyleResource::new_ok(ResourceKind::Embedded, Style::dark_style());
+        let light_style = StyleResource::new_ok(ResourceKind::Embedded, Style::light_style());
+        let styles = [
+            (EditorStyle::Dark, dark_style),
+            (EditorStyle::Light, light_style),
+        ]
+        .into_iter()
+        .collect::<FxHashMap<_, _>>();
 
         let mut settings = Settings::default();
 
@@ -623,10 +636,12 @@ impl Editor {
                     .unwrap();
         }
 
-        let configurator = Configurator::new(
-            message_sender.clone(),
-            &mut engine.user_interfaces.first_mut().build_ctx(),
-        );
+        let ui = engine.user_interfaces.first_mut();
+        if let Some(style) = styles.get(&settings.general.style) {
+            ui.set_style(style.clone());
+        }
+
+        let configurator = Configurator::new(message_sender.clone(), &mut ui.build_ctx());
 
         let scene_viewer = SceneViewer::new(&mut engine, message_sender.clone(), &mut settings);
         let asset_browser = AssetBrowser::new(&mut engine);
@@ -888,6 +903,7 @@ impl Editor {
             statistics_window: None,
             surface_data_viewer: None,
             processed_ui_messages: 0,
+            styles,
         };
 
         if let Some(data) = startup_data {
@@ -2397,7 +2413,14 @@ impl Editor {
             }
         }
 
-        self.settings.update();
+        if self.settings.try_save() {
+            let ui = self.engine.user_interfaces.first_mut();
+            if let Some(style) = self.styles.get(&self.settings.general.style) {
+                if style != ui.style() {
+                    ui.set_style(style.clone());
+                }
+            }
+        }
     }
 
     fn save_layout(&mut self) {

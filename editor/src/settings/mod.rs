@@ -122,10 +122,13 @@ impl Settings {
         Log::verify(self.settings.save());
     }
 
-    pub fn update(&mut self) {
+    pub fn try_save(&mut self) -> bool {
         if self.need_save {
             self.need_save = false;
             Log::verify(self.settings.save());
+            true
+        } else {
+            false
         }
     }
 }

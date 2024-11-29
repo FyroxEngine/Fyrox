@@ -758,7 +758,7 @@ impl Clone for UserInterface {
             captured_node: self.captured_node,
             keyboard_focus_node: self.keyboard_focus_node,
             cursor_position: self.cursor_position,
-            style: StyleResource::new_ok(ResourceKind::Embedded, Style::default_style()),
+            style: StyleResource::new_ok(ResourceKind::Embedded, Style::dark_style()),
             receiver,
             sender,
             stack: self.stack.clone(),
@@ -1045,7 +1045,7 @@ impl UserInterface {
         screen_size: Vector2<f32>,
     ) -> UserInterface {
         let (layout_events_sender, layout_events_receiver) = mpsc::channel();
-        let style = StyleResource::new_ok(ResourceKind::Embedded, Style::default_style());
+        let style = StyleResource::new_ok(ResourceKind::Embedded, Style::dark_style());
         let mut ui = UserInterface {
             screen_size,
             sender,
@@ -1312,6 +1312,30 @@ impl UserInterface {
                 handle = node.parent();
             }
         }
+    }
+
+    pub fn style(&self) -> &StyleResource {
+        &self.style
+    }
+
+    pub fn set_style(&mut self, style: StyleResource) {
+        self.style = style;
+
+        fn notify_depth_first(node: Handle<UiNode>, ui: &UserInterface) {
+            if let Some(node_ref) = ui.try_get(node) {
+                for child in node_ref.children.iter() {
+                    notify_depth_first(*child, ui);
+                }
+
+                ui.send_message(WidgetMessage::style(
+                    node,
+                    MessageDirection::ToWidget,
+                    ui.style.clone(),
+                ));
+            }
+        }
+
+        notify_depth_first(self.root_canvas, self);
     }
 
     pub fn cursor(&self) -> CursorIcon {

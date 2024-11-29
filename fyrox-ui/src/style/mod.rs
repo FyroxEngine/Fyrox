@@ -80,7 +80,7 @@ impl_casts!(Brush => Brush);
 
 lazy_static! {
     pub static ref DEFAULT_STYLE: BuiltInResource<Style> = BuiltInResource::new_no_source(
-        StyleResource::new_ok("__DEFAULT_STYLE__".into(), Style::default_style())
+        StyleResource::new_ok("__DEFAULT_STYLE__".into(), Style::dark_style())
     );
 }
 
@@ -106,27 +106,24 @@ impl Style {
     pub const BRUSH_TEXT: &'static str = "Global.Brush.Text";
     pub const BRUSH_FOREGROUND: &'static str = "Global.Brush.Foreground";
 
-    pub fn default_style() -> Style {
+    pub fn dark_style() -> Style {
         let mut style = Self::default();
         style
             // Global
-            .set(Self::BRUSH_DARKEST, Brush::Solid(Color::opaque(20, 20, 20)))
-            .set(Self::BRUSH_DARKER, Brush::Solid(Color::opaque(30, 30, 30)))
-            .set(Self::BRUSH_DARK, Brush::Solid(Color::opaque(40, 40, 40)))
-            .set(Self::BRUSH_PRIMARY, Brush::Solid(Color::opaque(50, 50, 50)))
-            .set(Self::BRUSH_LIGHT, Brush::Solid(Color::opaque(70, 70, 70)))
-            .set(Self::BRUSH_LIGHTER, Brush::Solid(Color::opaque(85, 85, 85)))
+            .set(Self::BRUSH_DARKEST, Brush::Solid(Color::repeat_opaque(20)))
+            .set(Self::BRUSH_DARKER, Brush::Solid(Color::repeat_opaque(30)))
+            .set(Self::BRUSH_DARK, Brush::Solid(Color::repeat_opaque(40)))
+            .set(Self::BRUSH_PRIMARY, Brush::Solid(Color::repeat_opaque(50)))
+            .set(Self::BRUSH_LIGHT, Brush::Solid(Color::repeat_opaque(70)))
+            .set(Self::BRUSH_LIGHTER, Brush::Solid(Color::repeat_opaque(85)))
             .set(
                 Self::BRUSH_LIGHTEST,
-                Brush::Solid(Color::opaque(100, 100, 100)),
+                Brush::Solid(Color::repeat_opaque(100)),
             )
-            .set(
-                Self::BRUSH_BRIGHT,
-                Brush::Solid(Color::opaque(130, 130, 130)),
-            )
+            .set(Self::BRUSH_BRIGHT, Brush::Solid(Color::repeat_opaque(130)))
             .set(
                 Self::BRUSH_BRIGHTEST,
-                Brush::Solid(Color::opaque(160, 160, 160)),
+                Brush::Solid(Color::repeat_opaque(160)),
             )
             .set(
                 Self::BRUSH_BRIGHT_BLUE,
@@ -137,6 +134,41 @@ impl Style {
                 Brush::Solid(Color::opaque(66, 99, 149)),
             )
             .set(Self::BRUSH_TEXT, Brush::Solid(Color::opaque(220, 220, 220)))
+            .set(Self::BRUSH_FOREGROUND, Brush::Solid(Color::WHITE))
+            // Button
+            .set(Button::CORNER_RADIUS, 4.0f32)
+            .set(Button::BORDER_THICKNESS, Thickness::uniform(1.0));
+        style
+    }
+
+    pub fn light_style() -> Style {
+        let mut style = Self::default();
+        style
+            // Global
+            .set(Self::BRUSH_DARKEST, Brush::Solid(Color::repeat_opaque(140)))
+            .set(Self::BRUSH_DARKER, Brush::Solid(Color::repeat_opaque(150)))
+            .set(Self::BRUSH_DARK, Brush::Solid(Color::repeat_opaque(160)))
+            .set(Self::BRUSH_PRIMARY, Brush::Solid(Color::repeat_opaque(170)))
+            .set(Self::BRUSH_LIGHT, Brush::Solid(Color::repeat_opaque(190)))
+            .set(Self::BRUSH_LIGHTER, Brush::Solid(Color::repeat_opaque(205)))
+            .set(
+                Self::BRUSH_LIGHTEST,
+                Brush::Solid(Color::repeat_opaque(220)),
+            )
+            .set(Self::BRUSH_BRIGHT, Brush::Solid(Color::repeat_opaque(40)))
+            .set(
+                Self::BRUSH_BRIGHTEST,
+                Brush::Solid(Color::repeat_opaque(30)),
+            )
+            .set(
+                Self::BRUSH_BRIGHT_BLUE,
+                Brush::Solid(Color::opaque(80, 118, 178)),
+            )
+            .set(
+                Self::BRUSH_DIM_BLUE,
+                Brush::Solid(Color::opaque(66, 99, 149)),
+            )
+            .set(Self::BRUSH_TEXT, Brush::Solid(Color::repeat_opaque(0)))
             .set(Self::BRUSH_FOREGROUND, Brush::Solid(Color::WHITE))
             // Button
             .set(Button::CORNER_RADIUS, 4.0f32)

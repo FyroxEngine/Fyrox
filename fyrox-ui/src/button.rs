@@ -23,6 +23,7 @@
 #![warn(missing_docs)]
 
 use crate::border::BorderMessage;
+use crate::style::resource::StyleResource;
 use crate::{
     border::BorderBuilder,
     core::{
@@ -162,6 +163,21 @@ impl ConstructorProvider<UiNode, UserInterface> for Button {
 
 crate::define_widget_deref!(Button);
 
+impl Button {
+    fn apply_style(&self, style: &StyleResource, ui: &UserInterface) {
+        ui.send_message(BorderMessage::stroke_thickness(
+            *self.decorator,
+            MessageDirection::ToWidget,
+            style.get_or(Self::BORDER_THICKNESS, Thickness::uniform(1.0)),
+        ));
+        ui.send_message(BorderMessage::corner_radius(
+            *self.decorator,
+            MessageDirection::ToWidget,
+            style.get_or(Self::CORNER_RADIUS, 4.0f32),
+        ));
+    }
+}
+
 impl Control for Button {
     fn update(&mut self, dt: f32, ui: &mut UserInterface) {
         let mut repeat_timer = self.repeat_timer.borrow_mut();
@@ -220,16 +236,7 @@ impl Control for Button {
 
             if message.destination() == self.handle() {
                 if let WidgetMessage::Style(style) = msg {
-                    ui.send_message(BorderMessage::stroke_thickness(
-                        *self.decorator,
-                        MessageDirection::ToWidget,
-                        style.get_or(Self::BORDER_THICKNESS, Thickness::uniform(1.0)),
-                    ));
-                    ui.send_message(BorderMessage::corner_radius(
-                        *self.decorator,
-                        MessageDirection::ToWidget,
-                        style.get_or(Self::CORNER_RADIUS, 4.0f32),
-                    ));
+                    self.apply_style(style, ui);
                 }
             }
         } else if let Some(msg) = message.data::<ButtonMessage>() {

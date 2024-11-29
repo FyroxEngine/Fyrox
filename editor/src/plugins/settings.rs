@@ -20,6 +20,7 @@
 
 //! Settings window plugin.
 
+use crate::settings::general::EditorStyle;
 use crate::{
     fyrox::{
         core::{log::Log, pool::Handle, some_or_return},
@@ -78,6 +79,7 @@ fn make_property_editors_container(
     container.insert(InspectablePropertyEditorDefinition::<SelectionSettings>::new());
     container.insert(EnumPropertyEditorDefinition::<ShadowMapPrecision>::new());
     container.insert(EnumPropertyEditorDefinition::<ScriptEditor>::new());
+    container.insert(EnumPropertyEditorDefinition::<EditorStyle>::new());
     container.insert(InspectablePropertyEditorDefinition::<DebuggingSettings>::new());
     container.insert(InspectablePropertyEditorDefinition::<CsmSettings>::new());
     container.insert(InspectablePropertyEditorDefinition::<QualitySettings>::new());

@@ -18,37 +18,38 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::graph::BaseSceneGraph;
-use crate::fyrox::{
-    core::{
-        log::{LogMessage, MessageKind},
-        pool::Handle,
-    },
-    gui::{
-        border::BorderBuilder,
-        button::ButtonMessage,
-        copypasta::ClipboardProvider,
-        dropdown_list::DropdownListMessage,
-        formatted_text::WrapMode,
-        grid::{Column, GridBuilder, Row},
-        list_view::{ListView, ListViewBuilder, ListViewMessage},
-        menu::{MenuItemBuilder, MenuItemContent, MenuItemMessage},
-        message::{MessageDirection, UiMessage},
-        popup::{Placement, PopupBuilder, PopupMessage},
-        scroll_viewer::ScrollViewerBuilder,
-        stack_panel::StackPanelBuilder,
-        text::{Text, TextBuilder},
-        widget::WidgetBuilder,
-        window::{WindowBuilder, WindowTitle},
-        BuildContext, HorizontalAlignment, Orientation, RcUiNodeHandle, Thickness, UiNode,
-    },
-};
-use crate::settings::Settings;
 use crate::{
+    fyrox::{
+        core::{
+            log::{LogMessage, MessageKind},
+            pool::Handle,
+        },
+        graph::BaseSceneGraph,
+        gui::{
+            border::BorderBuilder,
+            button::ButtonMessage,
+            copypasta::ClipboardProvider,
+            dropdown_list::DropdownListMessage,
+            formatted_text::WrapMode,
+            grid::{Column, GridBuilder, Row},
+            list_view::{ListView, ListViewBuilder, ListViewMessage},
+            menu::{ContextMenuBuilder, MenuItemBuilder, MenuItemContent, MenuItemMessage},
+            message::{MessageDirection, UiMessage},
+            popup::{Placement, PopupBuilder, PopupMessage},
+            scroll_viewer::ScrollViewerBuilder,
+            stack_panel::StackPanelBuilder,
+            style::{resource::StyleResourceExt, Style},
+            text::{Text, TextBuilder},
+            widget::WidgetBuilder,
+            window::{WindowBuilder, WindowTitle},
+            BuildContext, HorizontalAlignment, Orientation, RcUiNodeHandle, Thickness, UiNode,
+        },
+    },
     gui::{make_dropdown_list_option, make_image_button_with_tooltip},
-    load_image, Brush, Color, DropdownListBuilder, Engine,
+    load_image,
+    settings::Settings,
+    Brush, Color, DropdownListBuilder, Engine,
 };
-use fyrox::gui::menu::ContextMenuBuilder;
 use std::sync::mpsc::Receiver;
 
 struct ContextMenu {
@@ -274,11 +275,11 @@ impl LogPanel {
             let ctx = &mut engine.user_interfaces.first_mut().build_ctx();
             let item = BorderBuilder::new(
                 WidgetBuilder::new()
-                    .with_background(Brush::Solid(if count % 2 == 0 {
-                        Color::opaque(70, 70, 70)
+                    .with_background(if count % 2 == 0 {
+                        ctx.style.get_or_default(Style::BRUSH_LIGHT)
                     } else {
-                        Color::opaque(40, 40, 40)
-                    }))
+                        ctx.style.get_or_default(Style::BRUSH_DARK)
+                    })
                     .with_child(
                         TextBuilder::new(
                             WidgetBuilder::new()

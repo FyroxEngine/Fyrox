@@ -325,7 +325,7 @@ impl SceneItemBuilder {
                         WidgetBuilder::new()
                             .with_foreground(
                                 self.text_brush
-                                    .unwrap_or(ctx.style.get_or_default(Style::BRUSH_FOREGROUND)),
+                                    .unwrap_or(ctx.style.get_or_default(Style::BRUSH_TEXT)),
                             )
                             .with_margin(Thickness::left(1.0))
                             .on_column(1)

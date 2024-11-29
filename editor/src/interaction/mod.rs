@@ -229,7 +229,7 @@ pub fn make_interaction_mode_button(
     .with_content(
         ImageBuilder::new(
             WidgetBuilder::new()
-                .with_background(Brush::Solid(Color::opaque(220, 220, 220)))
+                .with_background(ctx.style.get_or_default(Style::BRUSH_TEXT))
                 .with_margin(Thickness::uniform(2.0))
                 .with_width(23.0)
                 .with_height(23.0),

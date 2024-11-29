@@ -23,6 +23,8 @@
 
 #![warn(missing_docs)]
 
+use crate::style::resource::StyleResourceExt;
+use crate::style::Style;
 use crate::{
     brush::Brush,
     core::{
@@ -586,7 +588,7 @@ impl TextBuilder {
         };
 
         if self.widget_builder.foreground.is_none() {
-            self.widget_builder.foreground = Some(Brush::Solid(Color::opaque(220, 220, 220)));
+            self.widget_builder.foreground = Some(ctx.style.get_or_default(Style::BRUSH_TEXT));
         }
 
         let text = Text {

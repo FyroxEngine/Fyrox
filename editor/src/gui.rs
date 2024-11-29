@@ -27,6 +27,8 @@ use crate::fyrox::{
         BuildContext, HorizontalAlignment, Thickness, UiNode, VerticalAlignment,
     },
 };
+use fyrox::gui::style::resource::StyleResourceExt;
+use fyrox::gui::style::Style;
 use std::sync::Arc;
 
 pub fn make_dropdown_list_option_universal<T: Send + 'static>(
@@ -109,7 +111,7 @@ pub fn make_image_button_with_tooltip(
     .with_content(
         ImageBuilder::new(
             WidgetBuilder::new()
-                .with_background(Brush::Solid(Color::opaque(180, 180, 180)))
+                .with_background(ctx.style.get_or_default(Style::BRUSH_BRIGHTEST))
                 .with_margin(Thickness::uniform(2.0))
                 .with_width(width)
                 .with_height(height),

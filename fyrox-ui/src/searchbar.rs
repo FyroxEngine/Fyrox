@@ -203,7 +203,7 @@ impl SearchBarBuilder {
                                         .with_height(12.0)
                                         .with_vertical_alignment(VerticalAlignment::Center)
                                         .with_foreground(
-                                            ctx.style.get_or_default(Style::BRUSH_LIGHTEST),
+                                            ctx.style.get_or_default(Style::BRUSH_BRIGHT),
                                         )
                                         .with_margin(Thickness {
                                             left: 2.0,

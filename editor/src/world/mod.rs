@@ -158,7 +158,7 @@ fn make_graph_node_item(
     .with_text_brush(if is_instance {
         Brush::Solid(Color::opaque(160, 160, 200))
     } else {
-        ctx.style.get_or_default(Style::BRUSH_FOREGROUND)
+        ctx.style.get_or_default(Style::BRUSH_TEXT)
     })
     .with_name(name.deref().to_owned())
     .with_entity_handle(handle)

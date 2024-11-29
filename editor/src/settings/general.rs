@@ -18,9 +18,32 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::core::{reflect::prelude::*, uuid_provider};
+use crate::fyrox::core::{reflect::prelude::*, type_traits::prelude::*, uuid_provider};
 use serde::{Deserialize, Serialize};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
+
+#[derive(
+    Copy,
+    Clone,
+    Hash,
+    PartialOrd,
+    PartialEq,
+    Eq,
+    Ord,
+    Debug,
+    Serialize,
+    Deserialize,
+    Reflect,
+    AsRefStr,
+    EnumString,
+    VariantNames,
+    TypeUuidProvider,
+)]
+#[type_uuid(id = "35e8d30d-1213-4d87-905e-19d48550e6d5")]
+pub enum EditorStyle {
+    Dark,
+    Light,
+}
 
 #[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Reflect)]
 pub struct GeneralSettings {
@@ -61,6 +84,13 @@ pub struct GeneralSettings {
     )]
     #[serde(default = "default_max_log_entries")]
     pub max_log_entries: usize,
+
+    #[serde(default = "default_style")]
+    pub style: EditorStyle,
+}
+
+fn default_style() -> EditorStyle {
+    EditorStyle::Dark
 }
 
 fn default_max_log_entries() -> usize {
@@ -117,6 +147,7 @@ impl Default for GeneralSettings {
             max_history_entries: default_max_history_entries(),
             generate_previews: default_generate_previews(),
             max_log_entries: default_max_log_entries(),
+            style: EditorStyle::Dark,
         }
     }
 }
