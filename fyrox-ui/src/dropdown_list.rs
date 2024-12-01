@@ -24,8 +24,6 @@
 
 #![warn(missing_docs)]
 
-use crate::style::resource::StyleResourceExt;
-use crate::style::Style;
 use crate::{
     border::BorderBuilder,
     core::{
@@ -37,12 +35,15 @@ use crate::{
     list_view::{ListViewBuilder, ListViewMessage},
     message::{KeyCode, MessageDirection, UiMessage},
     popup::{Placement, PopupBuilder, PopupMessage},
+    style::{resource::StyleResourceExt, Style},
     utils::{make_arrow_non_uniform_size, ArrowDirection},
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, Thickness, UiNode, UserInterface,
 };
-use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
-use fyrox_graph::BaseSceneGraph;
+use fyrox_graph::{
+    constructor::{ConstructorProvider, GraphNodeConstructor},
+    BaseSceneGraph,
+};
 use std::{
     ops::{Deref, DerefMut},
     sync::mpsc::Sender,
@@ -383,6 +384,14 @@ impl Control for DropdownList {
 }
 
 impl DropdownList {
+    /// A name of style property, that defines corner radius of a dropdown list.
+    pub const CORNER_RADIUS: &'static str = "DropdownList.CornerRadius";
+
+    /// Returns a style of the widget. This style contains only widget-specific properties.
+    pub fn style() -> Style {
+        Style::default().with(Self::CORNER_RADIUS, 4.0f32)
+    }
+
     fn sync_selected_item_preview(&mut self, ui: &mut UserInterface) {
         // Copy node from current selection in list view. This is not
         // always suitable because if an item has some visual behaviour
@@ -502,7 +511,7 @@ impl DropdownListBuilder {
                 .with_child(main_grid),
         )
         .with_pad_by_corner_radius(false)
-        .with_corner_radius(4.0)
+        .with_corner_radius(ctx.style.property(DropdownList::CORNER_RADIUS))
         .build(ctx);
 
         let dropdown_list = UiNode::new(DropdownList {

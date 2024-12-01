@@ -531,7 +531,7 @@ impl SceneViewer {
                                                             .into(),
                                                     ),
                                             )
-                                            .with_stroke_thickness(Thickness::uniform(1.0))
+                                            .with_stroke_thickness(Thickness::uniform(1.0).into())
                                             .build(ctx);
                                             selection_frame
                                         }))

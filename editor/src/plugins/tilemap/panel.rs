@@ -141,8 +141,8 @@ fn make_drawing_mode_button(
                 WidgetBuilder::new().with_foreground(ctx.style.property(Style::BRUSH_DARKER)),
             )
             .with_pad_by_corner_radius(false)
-            .with_corner_radius(4.0)
-            .with_stroke_thickness(Thickness::uniform(1.0)),
+            .with_corner_radius(4.0f32.into())
+            .with_stroke_thickness(Thickness::uniform(1.0).into()),
         )
         .with_selected_brush(ctx.style.property(Style::BRUSH_BRIGHT_BLUE))
         .with_normal_brush(ctx.style.property(Style::BRUSH_LIGHT))

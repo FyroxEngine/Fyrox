@@ -1453,7 +1453,7 @@ impl TrackList {
                                                         ),
                                                 )
                                                 .with_pad_by_corner_radius(false)
-                                                .with_corner_radius(2.0)
+                                                .with_corner_radius(2.0f32.into())
                                                 .build(ctx),
                                             )
                                             .with_child(

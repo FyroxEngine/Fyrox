@@ -809,7 +809,7 @@ impl Toolbar {
                     .build(ctx),
                 ),
         )
-        .with_stroke_thickness(Thickness::uniform(1.0))
+        .with_stroke_thickness(Thickness::uniform(1.0).into())
         .build(ctx);
 
         let node_selector = NodeSelectorWindowBuilder::new(

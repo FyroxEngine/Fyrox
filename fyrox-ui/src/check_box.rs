@@ -24,8 +24,6 @@
 
 #![warn(missing_docs)]
 
-use crate::style::resource::StyleResourceExt;
-use crate::style::Style;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -36,6 +34,7 @@ use crate::{
     define_constructor,
     grid::{Column, GridBuilder, Row},
     message::{KeyCode, MessageDirection, UiMessage},
+    style::{resource::StyleResourceExt, Style},
     vector_image::{Primitive, VectorImageBuilder},
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, HorizontalAlignment, MouseButton, Thickness, UiNode, UserInterface,
@@ -163,6 +162,23 @@ pub struct CheckBox {
     pub uncheck_mark: InheritableVariable<Handle<UiNode>>,
     /// Check mark that is used when the state is `None`.
     pub undefined_mark: InheritableVariable<Handle<UiNode>>,
+}
+
+impl CheckBox {
+    /// A name of style property, that defines corner radius of a checkbox.
+    pub const CORNER_RADIUS: &'static str = "CheckBox.CornerRadius";
+    /// A name of style property, that defines border thickness of a checkbox.
+    pub const BORDER_THICKNESS: &'static str = "CheckBox.BorderThickness";
+    /// A name of style property, that defines border thickness of a checkbox.
+    pub const CHECK_MARK_SIZE: &'static str = "CheckBox.CheckMarkSize";
+
+    /// Returns a style of the widget. This style contains only widget-specific properties.
+    pub fn style() -> Style {
+        Style::default()
+            .with(Self::CORNER_RADIUS, 4.0f32)
+            .with(Self::BORDER_THICKNESS, Thickness::uniform(1.0))
+            .with(Self::CHECK_MARK_SIZE, 7.0f32)
+    }
 }
 
 impl ConstructorProvider<UiNode, UserInterface> for CheckBox {
@@ -346,7 +362,7 @@ impl CheckBoxBuilder {
     /// Finishes check box building and adds it to the user interface.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let check_mark = self.check_mark.unwrap_or_else(|| {
-            let size = 7.0;
+            let size = *ctx.style.property(CheckBox::CHECK_MARK_SIZE);
             let half_size = size * 0.5;
 
             BorderBuilder::new(
@@ -380,8 +396,8 @@ impl CheckBoxBuilder {
                     ),
             )
             .with_pad_by_corner_radius(false)
-            .with_corner_radius(3.0)
-            .with_stroke_thickness(Thickness::uniform(0.0))
+            .with_corner_radius(ctx.style.property(CheckBox::CORNER_RADIUS))
+            .with_stroke_thickness(Thickness::uniform(0.0).into())
             .build(ctx)
         });
         ctx[check_mark].set_visibility(self.checked.unwrap_or(false));
@@ -396,8 +412,8 @@ impl CheckBoxBuilder {
                     .with_foreground(Brush::Solid(Color::TRANSPARENT).into()),
             )
             .with_pad_by_corner_radius(false)
-            .with_corner_radius(3.0)
-            .with_stroke_thickness(Thickness::uniform(0.0))
+            .with_corner_radius(ctx.style.property(CheckBox::CORNER_RADIUS))
+            .with_stroke_thickness(Thickness::uniform(0.0).into())
             .build(ctx)
         });
         ctx[uncheck_mark].set_visibility(!self.checked.unwrap_or(true));
@@ -410,7 +426,7 @@ impl CheckBoxBuilder {
                     .with_foreground(Brush::Solid(Color::TRANSPARENT).into()),
             )
             .with_pad_by_corner_radius(false)
-            .with_corner_radius(3.0)
+            .with_corner_radius(ctx.style.property(CheckBox::CORNER_RADIUS))
             .build(ctx)
         });
         ctx[undefined_mark].set_visibility(self.checked.is_none());
@@ -427,8 +443,8 @@ impl CheckBoxBuilder {
                     .with_foreground(ctx.style.property(Style::BRUSH_LIGHT)),
             )
             .with_pad_by_corner_radius(false)
-            .with_corner_radius(3.0)
-            .with_stroke_thickness(Thickness::uniform(1.0))
+            .with_corner_radius(ctx.style.property(CheckBox::CORNER_RADIUS))
+            .with_stroke_thickness(ctx.style.property(CheckBox::BORDER_THICKNESS))
             .build(ctx)
         });
 

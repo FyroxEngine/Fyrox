@@ -844,7 +844,7 @@ fn build_expander(
                 .with_background(Brush::Solid(Color::TRANSPARENT).into())
                 .with_min_size(Vector2::new(10.0, 4.0)),
         )
-        .with_stroke_thickness(Thickness::zero())
+        .with_stroke_thickness(Thickness::zero().into())
         .build(ctx),
     )
     .checked(Some(is_expanded))

@@ -644,7 +644,7 @@ fn make_button(
             BorderBuilder::new(
                 WidgetBuilder::new().with_foreground(ctx.style.property(Style::BRUSH_LIGHTER)),
             )
-            .with_corner_radius(2.0)
+            .with_corner_radius(2.0f32.into())
             .with_pad_by_corner_radius(false),
         )
         .with_normal_brush(ctx.style.property(Style::BRUSH_PRIMARY))
@@ -738,9 +738,9 @@ impl<T: NumericType> NumericUpDownBuilder<T> {
                 .with_background(ctx.style.property(Style::BRUSH_DARK))
                 .with_foreground(ctx.style.property(Style::BRUSH_LIGHT)),
         )
-        .with_corner_radius(4.0)
+        .with_corner_radius(4.0f32.into())
         .with_pad_by_corner_radius(false)
-        .with_stroke_thickness(Thickness::uniform(1.0))
+        .with_stroke_thickness(Thickness::uniform(1.0).into())
         .build(ctx);
 
         let text = format!("{:.1$}", self.value, self.precision);

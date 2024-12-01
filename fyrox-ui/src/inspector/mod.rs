@@ -682,7 +682,7 @@ fn make_expander_check_box(
                 .with_vertical_alignment(VerticalAlignment::Center)
                 .with_min_size(Vector2::new(4.0, 4.0)),
         )
-        .with_stroke_thickness(Thickness::zero())
+        .with_stroke_thickness(Thickness::zero().into())
         .build(ctx),
     )
     .with_content(

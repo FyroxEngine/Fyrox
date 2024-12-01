@@ -905,7 +905,7 @@ impl TileBuilder {
                     _ => None,
                 }),
         )
-        .with_stroke_thickness(Thickness::uniform(0.0))
+        .with_stroke_thickness(Thickness::uniform(0.0).into())
         .build(ctx);
 
         if let TileContent::Window(window) = self.content {

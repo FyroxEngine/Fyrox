@@ -235,7 +235,7 @@ impl SelectorBuilder {
                             .with_children(self.items.clone())
                             .on_column(1),
                     )
-                    .with_stroke_thickness(Thickness::uniform(0.0))
+                    .with_stroke_thickness(Thickness::uniform(0.0).into())
                     .build(ctx);
                     items_panel
                 })

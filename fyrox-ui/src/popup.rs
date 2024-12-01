@@ -611,7 +611,7 @@ impl PopupBuilder {
                 .with_foreground(style.property(Style::BRUSH_DARKEST))
                 .with_child(self.content),
         )
-        .with_stroke_thickness(Thickness::uniform(1.0))
+        .with_stroke_thickness(Thickness::uniform(1.0).into())
         .build(ctx);
 
         Popup {

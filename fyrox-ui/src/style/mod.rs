@@ -20,11 +20,12 @@
 
 pub mod resource;
 
-use crate::button::Button;
-use crate::style::resource::StyleResourceExt;
 use crate::{
     brush::Brush,
-    style::resource::{StyleResource, StyleResourceError},
+    button::Button,
+    check_box::CheckBox,
+    dropdown_list::DropdownList,
+    style::resource::{StyleResource, StyleResourceError, StyleResourceExt},
     Thickness,
 };
 use fxhash::FxHashMap;
@@ -211,8 +212,9 @@ impl Style {
             .set(Self::BRUSH_ERROR, Brush::Solid(Color::RED))
             .set(Self::BRUSH_OK, Brush::Solid(Color::GREEN))
             // Button
-            .set(Button::CORNER_RADIUS, 4.0f32)
-            .set(Button::BORDER_THICKNESS, Thickness::uniform(1.0));
+            .merge(&Button::style())
+            .merge(&CheckBox::style())
+            .merge(&DropdownList::style());
         style
     }
 
@@ -252,14 +254,32 @@ impl Style {
             .set(Self::BRUSH_INFORMATION, Brush::Solid(Color::ANTIQUE_WHITE))
             .set(Self::BRUSH_WARNING, Brush::Solid(Color::GOLD))
             .set(Self::BRUSH_ERROR, Brush::Solid(Color::RED))
-            // Button
-            .set(Button::CORNER_RADIUS, 4.0f32)
-            .set(Button::BORDER_THICKNESS, Thickness::uniform(1.0));
+            .merge(&Button::style())
+            .merge(&CheckBox::style())
+            .merge(&DropdownList::style());
         style
+    }
+
+    pub fn with(
+        mut self,
+        name: impl Into<ImmutableString>,
+        property: impl Into<StyleProperty>,
+    ) -> Self {
+        self.set(name, property);
+        self
     }
 
     pub fn set_parent(&mut self, parent: Option<StyleResource>) {
         self.parent = parent;
+    }
+
+    pub fn merge(&mut self, other: &Self) -> &mut Self {
+        for (k, v) in other.variables.iter() {
+            if !self.variables.contains_key(k) {
+                self.variables.insert(k.clone(), v.clone());
+            }
+        }
+        self
     }
 
     pub fn set(

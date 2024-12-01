@@ -256,7 +256,7 @@ fn make_project_item(name: &str, path: &Path, ctx: &mut BuildContext) -> Handle<
                     .build(ctx),
                 ),
         )
-        .with_corner_radius(4.0),
+        .with_corner_radius(4.0f32.into()),
     )
     .build(ctx)
 }

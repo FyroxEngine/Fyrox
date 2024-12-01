@@ -248,7 +248,7 @@ impl SearchBarBuilder {
                                     DecoratorBuilder::new(
                                         BorderBuilder::new(WidgetBuilder::new())
                                             .with_pad_by_corner_radius(false)
-                                            .with_corner_radius(4.0),
+                                            .with_corner_radius(4.0f32.into()),
                                     )
                                     .with_normal_brush(Brush::Solid(Color::TRANSPARENT).into())
                                     .build(ctx),
@@ -278,9 +278,9 @@ impl SearchBarBuilder {
                     .build(ctx),
                 ),
         )
-        .with_corner_radius(4.0)
+        .with_corner_radius(4.0f32.into())
         .with_pad_by_corner_radius(false)
-        .with_stroke_thickness(Thickness::uniform(1.0))
+        .with_stroke_thickness(Thickness::uniform(1.0).into())
         .build(ctx);
 
         let search_bar = SearchBar {

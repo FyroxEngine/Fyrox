@@ -1199,9 +1199,9 @@ fn make_header_button(ctx: &mut BuildContext, button: HeaderButton) -> Handle<Ui
         .with_back(
             DecoratorBuilder::new(
                 BorderBuilder::new(WidgetBuilder::new())
-                    .with_stroke_thickness(Thickness::uniform(0.0))
+                    .with_stroke_thickness(Thickness::uniform(0.0).into())
                     .with_pad_by_corner_radius(false)
-                    .with_corner_radius(4.0),
+                    .with_corner_radius(4.0f32.into()),
             )
             .with_normal_brush(Brush::Solid(Color::TRANSPARENT).into())
             .with_hover_brush(ctx.style.property(Style::BRUSH_LIGHT))
@@ -1398,8 +1398,8 @@ impl WindowBuilder {
                 .on_row(0),
         )
         .with_pad_by_corner_radius(false)
-        .with_corner_radius(4.0)
-        .with_stroke_thickness(Thickness::uniform(0.0))
+        .with_corner_radius(4.0f32.into())
+        .with_stroke_thickness(Thickness::uniform(0.0).into())
         .build(ctx);
 
         let border = BorderBuilder::new(
@@ -1423,8 +1423,8 @@ impl WindowBuilder {
                 ),
         )
         .with_pad_by_corner_radius(false)
-        .with_corner_radius(4.0)
-        .with_stroke_thickness(Thickness::uniform(1.0))
+        .with_corner_radius(4.0f32.into())
+        .with_stroke_thickness(Thickness::uniform(1.0).into())
         .build(ctx);
 
         Window {

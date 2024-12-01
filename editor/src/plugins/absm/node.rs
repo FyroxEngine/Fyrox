@@ -271,7 +271,7 @@ where
                         ui.send_message(BorderMessage::stroke_thickness(
                             self.background,
                             MessageDirection::ToWidget,
-                            thickness,
+                            thickness.into(),
                         ));
                         ui.send_message(WidgetMessage::foreground(
                             self.background,
@@ -477,8 +477,8 @@ where
                                     ),
                             )
                             .with_pad_by_corner_radius(false)
-                            .with_corner_radius(12.0)
-                            .with_stroke_thickness(Thickness::zero())
+                            .with_corner_radius(12.0f32.into())
+                            .with_stroke_thickness(Thickness::zero().into())
                             .build(ctx)
                         })
                         .unwrap_or_default(),
@@ -505,7 +505,7 @@ where
                 .with_child(grid2),
         )
         .with_pad_by_corner_radius(false)
-        .with_corner_radius(12.0)
+        .with_corner_radius(12.0f32.into())
         .build(ctx);
 
         let node = AbsmNode {

@@ -50,7 +50,7 @@ pub fn make_dropdown_list_option_universal<T: Send + 'static>(
                         .build(ctx),
                 ),
         )
-        .with_corner_radius(4.0)
+        .with_corner_radius(4.0f32.into())
         .with_pad_by_corner_radius(false),
     )
     .build(ctx)
@@ -67,7 +67,7 @@ pub fn make_dropdown_list_option(ctx: &mut BuildContext, name: &str) -> Handle<U
                     .build(ctx),
             ),
         )
-        .with_corner_radius(4.0)
+        .with_corner_radius(4.0f32.into())
         .with_pad_by_corner_radius(false),
     )
     .build(ctx)
@@ -88,7 +88,7 @@ pub fn make_dropdown_list_option_with_height(
                     .build(ctx),
             ),
         )
-        .with_corner_radius(4.0)
+        .with_corner_radius(4.0f32.into())
         .with_pad_by_corner_radius(false),
     )
     .build(ctx)

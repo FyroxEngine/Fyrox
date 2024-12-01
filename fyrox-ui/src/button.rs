@@ -22,8 +22,6 @@
 
 #![warn(missing_docs)]
 
-use crate::border::BorderMessage;
-use crate::style::resource::StyleResource;
 use crate::{
     border::BorderBuilder,
     core::{
@@ -142,6 +140,13 @@ impl Button {
     pub const CORNER_RADIUS: &'static str = "Button.CornerRadius";
     /// A name of style property, that defines border thickness of a button.
     pub const BORDER_THICKNESS: &'static str = "Button.BorderThickness";
+
+    /// Returns a style of the widget. This style contains only widget-specific properties.
+    pub fn style() -> Style {
+        Style::default()
+            .with(Self::CORNER_RADIUS, 4.0f32)
+            .with(Self::BORDER_THICKNESS, Thickness::uniform(1.0))
+    }
 }
 
 impl ConstructorProvider<UiNode, UserInterface> for Button {
@@ -162,21 +167,6 @@ impl ConstructorProvider<UiNode, UserInterface> for Button {
 }
 
 crate::define_widget_deref!(Button);
-
-impl Button {
-    fn apply_style(&self, style: &StyleResource, ui: &UserInterface) {
-        ui.send_message(BorderMessage::stroke_thickness(
-            *self.decorator,
-            MessageDirection::ToWidget,
-            style.get_or(Self::BORDER_THICKNESS, Thickness::uniform(1.0)),
-        ));
-        ui.send_message(BorderMessage::corner_radius(
-            *self.decorator,
-            MessageDirection::ToWidget,
-            style.get_or(Self::CORNER_RADIUS, 4.0f32),
-        ));
-    }
-}
 
 impl Control for Button {
     fn update(&mut self, dt: f32, ui: &mut UserInterface) {
@@ -231,12 +221,6 @@ impl Control for Button {
                         }
                     }
                     _ => (),
-                }
-            }
-
-            if message.destination() == self.handle() {
-                if let WidgetMessage::Style(style) = msg {
-                    self.apply_style(style, ui);
                 }
             }
         } else if let Some(msg) = message.data::<ButtonMessage>() {
@@ -424,11 +408,8 @@ impl ButtonBuilder {
                         .with_child(content),
                 )
                 .with_pad_by_corner_radius(false)
-                .with_corner_radius(ctx.style.get_or(Button::CORNER_RADIUS, 4.0f32))
-                .with_stroke_thickness(
-                    ctx.style
-                        .get_or(Button::BORDER_THICKNESS, Thickness::uniform(1.0)),
-                ),
+                .with_corner_radius(ctx.style.property(Button::CORNER_RADIUS))
+                .with_stroke_thickness(ctx.style.property(Button::BORDER_THICKNESS)),
             )
             .with_normal_brush(ctx.style.property(Style::BRUSH_LIGHT))
             .with_hover_brush(ctx.style.property(Style::BRUSH_LIGHTER))

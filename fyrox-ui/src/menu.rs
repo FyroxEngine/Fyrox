@@ -1145,7 +1145,7 @@ impl MenuItemBuilder {
         let decorator = self.back.unwrap_or_else(|| {
             DecoratorBuilder::new(
                 BorderBuilder::new(WidgetBuilder::new())
-                    .with_stroke_thickness(Thickness::uniform(0.0)),
+                    .with_stroke_thickness(Thickness::uniform(0.0).into()),
             )
             .with_hover_brush(ctx.style.property(Style::BRUSH_BRIGHT_BLUE))
             .with_selected_brush(ctx.style.property(Style::BRUSH_BRIGHT_BLUE))
