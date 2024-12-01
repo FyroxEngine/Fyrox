@@ -60,7 +60,7 @@ use std::ops::{Deref, DerefMut};
 ///             )
 ///     )
 ///     //You can also use Thickness::uniform(1.0)
-///     .with_stroke_thickness(Thickness {left: 1.0, right: 1.0, top: 1.0, bottom: 1.0})
+///     .with_stroke_thickness(Thickness {left: 1.0, right: 1.0, top: 1.0, bottom: 1.0}.into())
 ///     .build(&mut ui.build_ctx());
 /// }
 /// ```
@@ -97,7 +97,7 @@ use std::ops::{Deref, DerefMut};
 ///                 .build(&mut ui.build_ctx())
 ///         )
 /// )
-/// .with_stroke_thickness(Thickness {left: 2.0, right: 2.0, top: 2.0, bottom: 2.0})
+/// .with_stroke_thickness(Thickness {left: 2.0, right: 2.0, top: 2.0, bottom: 2.0}.into())
 /// .build(&mut ui.build_ctx());
 /// ```
 #[derive(Default, Clone, Visit, Reflect, Debug, TypeUuidProvider, ComponentProvider)]

@@ -18,31 +18,44 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#![warn(missing_docs)]
+
+//! Style allows to change visual appearance of widgets in centralized manner. It can be considered
+//! as a storage for properties, that defines visual appearance. See [`Style`] docs for more info
+//! and usage examples.
+
 pub mod resource;
 
 use crate::{
     brush::Brush,
     button::Button,
     check_box::CheckBox,
+    core::{
+        color::Color, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*,
+        ImmutableString, Uuid,
+    },
     dropdown_list::DropdownList,
     style::resource::{StyleResource, StyleResourceError, StyleResourceExt},
     Thickness,
 };
 use fxhash::FxHashMap;
-use fyrox_core::{
-    color::Color, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*,
-    ImmutableString, Uuid,
-};
 use fyrox_resource::{io::ResourceIo, manager::BuiltInResource};
 use lazy_static::lazy_static;
-use std::ops::{Deref, DerefMut};
-use std::path::Path;
+use std::{
+    ops::{Deref, DerefMut},
+    path::Path,
+};
 
+/// A set of potential values for styled properties.
 #[derive(Visit, Reflect, Debug, Clone)]
 pub enum StyleProperty {
+    /// A numeric property.
     Number(f32),
+    /// A thickness property, that defines width of four sides of a rectangles.
     Thickness(Thickness),
+    /// A color property.
     Color(Color),
+    /// A brush property, that defines how to render an arbitrary surface (solid, with gradient, etc.).
     Brush(Brush),
 }
 
@@ -52,7 +65,9 @@ impl Default for StyleProperty {
     }
 }
 
+/// A trait that provides a method that translates [`StyleProperty`] into a specific primitive value.
 pub trait IntoPrimitive<T> {
+    /// Tries to convert self into a primitive value `T`.
     fn into_primitive(self) -> Option<T>;
 }
 
@@ -82,14 +97,21 @@ impl_casts!(Color => Color);
 impl_casts!(Brush => Brush);
 
 lazy_static! {
+    /// Default style of the library.
     pub static ref DEFAULT_STYLE: BuiltInResource<Style> = BuiltInResource::new_no_source(
         StyleResource::new_ok("__DEFAULT_STYLE__".into(), Style::dark_style())
     );
 }
 
+/// A property, that can bind its value to a style. Why can't we just fetch the actual value from
+/// the style and why do we need to store the value as well? The answer is flexibility. In this
+/// approach style becomes not necessary and the value can be hardcoded. Also, the values of such
+/// properties can be updated individually.
 #[derive(Clone, Debug, Default, Reflect)]
 pub struct StyledProperty<T> {
+    /// Property value.
     pub property: T,
+    /// Name of the property in a style table.
     #[reflect(hidden)]
     pub name: ImmutableString,
 }
@@ -110,6 +132,7 @@ impl<T: PartialEq> PartialEq for StyledProperty<T> {
 }
 
 impl<T> StyledProperty<T> {
+    /// Creates a new styled property with the given value and the name.
     pub fn new(property: T, name: impl Into<ImmutableString>) -> Self {
         Self {
             property,
@@ -117,6 +140,8 @@ impl<T> StyledProperty<T> {
         }
     }
 
+    /// Tries to sync the property value with its respective value in the given style. This method
+    /// will fail if the given style does not contain the property.
     pub fn update(&mut self, style: &StyleResource)
     where
         StyleProperty: IntoPrimitive<T>,
@@ -147,6 +172,77 @@ impl<T: Visit> Visit for StyledProperty<T> {
     }
 }
 
+/// Style is a simple container for a named properties. Styles can be based off some other style, thus
+/// allowing cascaded styling. Such cascading allows to define some base style with common properties
+/// and then create any amount of derived styles. For example, you can define a style for Button widget
+/// with corner radius, font size, border thickness and then create two derived styles for light and
+/// dark themes that will define colors and brushes. Light or dark theme does not affect all of those
+/// base properties, but has different colors.
+///
+/// Styles can contain only specific types of properties (see [`StyleProperty`] enumeration), any
+/// more complex properties can be built using these primitives.
+///
+/// There are three major ways of widgets styling:
+///
+/// 1) During widget building stage - this way involves [`crate::BuildContext`]'s style field. This
+/// field defines a style for all widgets that will be built with the context.
+/// 2) Message-based style changes - this way is based on [`crate::widget::WidgetMessage::Style`] message
+/// that can be sent to a particular widget (or hierarchy) to force them to update styled properties.
+/// 3) Global style changes - this way is based on [`crate::UserInterface::set_style`] method, that
+/// sends the specified style to all widgets, forcing them to update styled properties.
+///
+/// The most used methods are 1 and 3. The following examples should clarify how to use these
+/// approaches.
+///
+/// ## Examples
+///
+/// The following example shows how to use a style during widget building stage:
+///
+/// ```rust
+/// # use fyrox_ui::{
+/// #     button::{Button, ButtonBuilder},
+/// #     style::{resource::StyleResource, Style},
+/// #     widget::WidgetBuilder,
+/// #     Thickness, UserInterface,
+/// # };
+/// # use fyrox_resource::untyped::ResourceKind;
+/// #
+/// fn build_with_style(ui: &mut UserInterface) {
+///     // The context will use UI style by default. You can override it using `ui.set_style(..)`.
+///     let ctx = &mut ui.build_ctx();
+///
+///     // Create a style resource first and assign it to the build context. All widgets built with
+///     // the context will use this style.
+///     let style = Style::light_style()
+///         .with(Button::CORNER_RADIUS, 6.0f32)
+///         .with(Button::BORDER_THICKNESS, Thickness::uniform(3.0));
+///
+///     ctx.style = StyleResource::new_ok(ResourceKind::Embedded, style);
+///
+///     // The button will have corner radius of 6.0 points and border thickness of 3.0 points on
+///     // each side.
+///     ButtonBuilder::new(WidgetBuilder::new()).build(ctx);
+/// }
+/// ```
+///
+/// To change UI style globally after it was built, use something like this:
+///
+/// ```rust
+/// use fyrox_ui::{
+///     button::Button,
+///     style::{resource::StyleResource, Style},
+///     Thickness, UserInterface,
+/// };
+/// use fyrox_resource::untyped::ResourceKind;
+///
+/// fn apply_style(ui: &mut UserInterface) {
+///     let style = Style::light_style()
+///         .with(Button::CORNER_RADIUS, 3.0f32)
+///         .with(Button::BORDER_THICKNESS, Thickness::uniform(1.0));
+///
+///     ui.set_style(StyleResource::new_ok(ResourceKind::Embedded, style));
+/// }
+/// ```
 #[derive(Visit, Reflect, Default, Debug, TypeUuidProvider)]
 #[type_uuid(id = "38a63b49-d765-4c01-8fb5-202cc43d607e")]
 pub struct Style {
@@ -155,25 +251,44 @@ pub struct Style {
 }
 
 impl Style {
+    /// The name of the darkest brush.
     pub const BRUSH_DARKEST: &'static str = "Global.Brush.Darkest";
+    /// The name of the darker brush.
     pub const BRUSH_DARKER: &'static str = "Global.Brush.Darker";
+    /// The name of the dark brush.
     pub const BRUSH_DARK: &'static str = "Global.Brush.Dark";
+    /// The name of the primary brush that is used for the major amount of surface.
     pub const BRUSH_PRIMARY: &'static str = "Global.Brush.Primary";
+    /// The name of the slightly lighter primary brush.
     pub const BRUSH_LIGHTER_PRIMARY: &'static str = "Global.Brush.LighterPrimary";
+    /// The name of the light brush.
     pub const BRUSH_LIGHT: &'static str = "Global.Brush.Light";
+    /// The name of the lighter brush.
     pub const BRUSH_LIGHTER: &'static str = "Global.Brush.Lighter";
+    /// The name of the lightest brush.
     pub const BRUSH_LIGHTEST: &'static str = "Global.Brush.Lightest";
+    /// The name of the bright brush.
     pub const BRUSH_BRIGHT: &'static str = "Global.Brush.Bright";
+    /// The name of the brightest brush.
     pub const BRUSH_BRIGHTEST: &'static str = "Global.Brush.Brightest";
+    /// The name of the bright blue brush.
     pub const BRUSH_BRIGHT_BLUE: &'static str = "Global.Brush.BrightBlue";
+    /// The name of the dim blue brush.
     pub const BRUSH_DIM_BLUE: &'static str = "Global.Brush.DimBlue";
+    /// The name of the text brush.
     pub const BRUSH_TEXT: &'static str = "Global.Brush.Text";
+    /// The name of the foreground brush.
     pub const BRUSH_FOREGROUND: &'static str = "Global.Brush.Foreground";
+    /// The name of the information brush.
     pub const BRUSH_INFORMATION: &'static str = "Global.Brush.Information";
+    /// The name of the warning brush.
     pub const BRUSH_WARNING: &'static str = "Global.Brush.Warning";
+    /// The name of the error brush.
     pub const BRUSH_ERROR: &'static str = "Global.Brush.Error";
+    /// The name of the ok brush.
     pub const BRUSH_OK: &'static str = "Global.Brush.Ok";
 
+    /// Creates a new dark style.
     pub fn dark_style() -> Style {
         let mut style = Self::default();
         style
@@ -218,6 +333,7 @@ impl Style {
         style
     }
 
+    /// Creates a new light style.
     pub fn light_style() -> Style {
         let mut style = Self::default();
         style
@@ -260,6 +376,17 @@ impl Style {
         style
     }
 
+    /// The same as [`Self::set`], but takes self as value and essentially allows chained calls in
+    /// builder-like style:
+    ///
+    /// ```rust
+    /// # use fyrox_core::color::Color;
+    /// # use fyrox_ui::brush::Brush;
+    /// # use fyrox_ui::style::Style;
+    /// Style::default()
+    ///     .with("SomeProperty", 0.2f32)
+    ///     .with("SomeOtherProperty", Brush::Solid(Color::WHITE));
+    /// ```
     pub fn with(
         mut self,
         name: impl Into<ImmutableString>,
@@ -269,10 +396,19 @@ impl Style {
         self
     }
 
+    /// Sets the parent style for this style. Parent style will be used at attempt to fetch properties
+    /// that aren't present in this style.
     pub fn set_parent(&mut self, parent: Option<StyleResource>) {
         self.parent = parent;
     }
 
+    /// Returns parent style of this style.
+    pub fn parent(&self) -> Option<&StyleResource> {
+        self.parent.as_ref()
+    }
+
+    /// Merges current style with some other style. This method does not overwrite existing values,
+    /// instead it only adds missing values from the other style.
     pub fn merge(&mut self, other: &Self) -> &mut Self {
         for (k, v) in other.variables.iter() {
             if !self.variables.contains_key(k) {
@@ -282,6 +418,17 @@ impl Style {
         self
     }
 
+    /// Registers a new property with the given name and value:
+    ///
+    /// ```rust
+    /// # use fyrox_core::color::Color;
+    /// # use fyrox_ui::brush::Brush;
+    /// # use fyrox_ui::style::Style;
+    /// let mut style = Style::default();
+    /// style
+    ///     .set("SomeProperty", 0.2f32)
+    ///     .set("SomeOtherProperty", Brush::Solid(Color::WHITE));
+    /// ```
     pub fn set(
         &mut self,
         name: impl Into<ImmutableString>,
@@ -291,6 +438,8 @@ impl Style {
         self
     }
 
+    /// Tries to fetch a property with the given name. If the property is not found, this method will
+    /// try to search in the parent style (the search is recursive).
     pub fn get_raw(&self, name: impl Into<ImmutableString>) -> Option<StyleProperty> {
         let name = name.into();
         if let Some(property) = self.variables.get(&name) {
@@ -304,6 +453,9 @@ impl Style {
         None
     }
 
+    /// Tries to fetch a property with the given name and perform type casting to the requested type.
+    /// If the property is not found, this method will try to search in the parent style (the search
+    /// is recursive).
     pub fn get<P>(&self, name: impl Into<ImmutableString>) -> Option<P>
     where
         StyleProperty: IntoPrimitive<P>,
@@ -312,6 +464,9 @@ impl Style {
             .and_then(|property| property.into_primitive())
     }
 
+    /// Tries to fetch a property with the given name. If the property is not found, this method will
+    /// try to search in the parent style (the search is recursive). If there's no such property at
+    /// all, this method will return its default value (define by [`Default`] trait).
     pub fn get_or_default<P>(&self, name: impl Into<ImmutableString>) -> P
     where
         P: Default,
@@ -322,6 +477,23 @@ impl Style {
             .unwrap_or_default()
     }
 
+    fn get_or<P>(&self, name: impl Into<ImmutableString>, default: P) -> P
+    where
+        StyleProperty: IntoPrimitive<P>,
+    {
+        self.get(name).unwrap_or(default)
+    }
+
+    fn property<P>(&self, name: impl Into<ImmutableString>) -> StyledProperty<P>
+    where
+        P: Default,
+        StyleProperty: IntoPrimitive<P>,
+    {
+        let name = name.into();
+        StyledProperty::new(self.get_or_default(name.clone()), name)
+    }
+
+    /// Tries to load a style from the given path.
     pub async fn from_file(path: &Path, io: &dyn ResourceIo) -> Result<Self, StyleResourceError> {
         let bytes = io.load_file(path).await?;
         let mut visitor = Visitor::load_from_memory(&bytes)?;
