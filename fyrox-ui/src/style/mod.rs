@@ -477,14 +477,17 @@ impl Style {
             .unwrap_or_default()
     }
 
-    fn get_or<P>(&self, name: impl Into<ImmutableString>, default: P) -> P
+    /// Tries to fetch a property with the given name or, if not found, returns the given default value.
+    pub fn get_or<P>(&self, name: impl Into<ImmutableString>, default: P) -> P
     where
         StyleProperty: IntoPrimitive<P>,
     {
         self.get(name).unwrap_or(default)
     }
 
-    fn property<P>(&self, name: impl Into<ImmutableString>) -> StyledProperty<P>
+    /// Tries to find a property with the given name or takes the default value of the property's type
+    /// and wraps it into [`StyledProperty`], essentially binding the value to the style property.
+    pub fn property<P>(&self, name: impl Into<ImmutableString>) -> StyledProperty<P>
     where
         P: Default,
         StyleProperty: IntoPrimitive<P>,
