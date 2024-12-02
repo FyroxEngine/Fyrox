@@ -428,7 +428,6 @@ impl<T: VertexDataProvider> Graph<T> {
     /// This implementation is fast and allows for multiple searches in parallel, but does not attempt to find the optimal route
     ///
     /// **See `Graph<T>.max_search_iterations`** to change the maximum amount of search iterations
-
     pub fn build_indexed_path(
         &self,
         from: usize,

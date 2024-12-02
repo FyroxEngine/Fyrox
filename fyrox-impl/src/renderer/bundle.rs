@@ -121,7 +121,7 @@ pub struct RenderContext<'a> {
     pub render_pass_name: &'a ImmutableString,
 }
 
-impl<'a> RenderContext<'a> {
+impl RenderContext<'_> {
     /// Calculates sorting index using of the given point by transforming it in the view space and
     /// using Z coordinate. This index could be used for back-to-front sorting to prevent blending
     /// issues.

@@ -127,7 +127,7 @@ struct GlyphMetrics<'a> {
     size: f32,
 }
 
-impl<'a> GlyphMetrics<'a> {
+impl GlyphMetrics<'_> {
     fn ascender(&self) -> f32 {
         self.font.ascender(self.size)
     }
@@ -185,7 +185,7 @@ struct WrapSink<'a> {
     max_width: f32,
 }
 
-impl<'a> LineSink for WrapSink<'a> {
+impl LineSink for WrapSink<'_> {
     fn push_line(&mut self, range: Range<usize>, width: f32) {
         let mut line = TextLine::new();
         line.begin = range.start;

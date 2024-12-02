@@ -216,7 +216,6 @@ impl BoundValueCollectionExt for BoundValueCollection {
 ///
 ///     // Create a track that will animate the node using the curve above.
 ///     let mut track = Track::new(frames_container, ValueBinding::Position);
-
 ///     // Finally create an animation and set its time slice and turn it on.
 ///     let mut animation = Animation::default();
 ///     animation.add_track_with_binding(TrackBinding::new(animated_node),track);

@@ -544,7 +544,7 @@ impl Lightmap {
                         data.geometry_buffer.iter().map(|t| t.0),
                         uv_spacing,
                     )
-                    .ok_or_else(|| LightmapGenerationError::InvalidIndex)?;
+                    .ok_or(LightmapGenerationError::InvalidIndex)?;
                     patch.data_id = data.content_hash();
 
                     apply_surface_data_patch(data, &patch);

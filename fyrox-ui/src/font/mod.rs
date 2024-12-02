@@ -91,7 +91,7 @@ impl Atlas {
 
         match self.char_map.get(&unicode) {
             Some(glyph_index) => {
-                return self.glyphs.get(*glyph_index);
+                self.glyphs.get(*glyph_index)
             }
             None => {
                 // Char might be missing, because it wasn't requested earlier. Try to find

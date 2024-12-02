@@ -49,7 +49,7 @@ pub struct Property<'a> {
     pub field: &'a args::FieldArgs,
 }
 
-impl<'a> Property<'a> {
+impl Property<'_> {
     pub fn quote(&self) -> TokenStream2 {
         let Property { ident, value, .. } = self;
 

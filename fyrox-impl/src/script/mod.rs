@@ -260,7 +260,7 @@ where
 /// a plugin of certain type. See [`PluginsRefMut::of_type_ref`] and [`PluginsRefMut::of_type_mut`].
 pub struct PluginsRefMut<'a>(pub &'a mut [PluginContainer]);
 
-impl<'a> Deref for PluginsRefMut<'a> {
+impl Deref for PluginsRefMut<'_> {
     type Target = [PluginContainer];
 
     fn deref(&self) -> &Self::Target {
@@ -268,13 +268,13 @@ impl<'a> Deref for PluginsRefMut<'a> {
     }
 }
 
-impl<'a> DerefMut for PluginsRefMut<'a> {
+impl DerefMut for PluginsRefMut<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.0
     }
 }
 
-impl<'a> PluginsRefMut<'a> {
+impl PluginsRefMut<'_> {
     /// Searches for a plugin of the given type `T`.
     #[inline]
     pub fn of_type_ref<T>(&self) -> Option<&T>
@@ -400,7 +400,7 @@ pub struct ScriptContext<'a, 'b, 'c> {
     pub script_index: usize,
 }
 
-impl<'a, 'b, 'c> UniversalScriptContext for ScriptContext<'a, 'b, 'c> {
+impl UniversalScriptContext for ScriptContext<'_, '_, '_> {
     fn node(&mut self) -> Option<&mut Node> {
         self.scene.graph.try_get_mut(self.handle)
     }
@@ -476,7 +476,7 @@ pub struct ScriptMessageContext<'a, 'b, 'c> {
     pub script_index: usize,
 }
 
-impl<'a, 'b, 'c> UniversalScriptContext for ScriptMessageContext<'a, 'b, 'c> {
+impl UniversalScriptContext for ScriptMessageContext<'_, '_, '_> {
     fn node(&mut self) -> Option<&mut Node> {
         self.scene.graph.try_get_mut(self.handle)
     }
@@ -543,7 +543,7 @@ pub struct ScriptDeinitContext<'a, 'b, 'c> {
     pub script_index: usize,
 }
 
-impl<'a, 'b, 'c> UniversalScriptContext for ScriptDeinitContext<'a, 'b, 'c> {
+impl UniversalScriptContext for ScriptDeinitContext<'_, '_, '_> {
     fn node(&mut self) -> Option<&mut Node> {
         self.scene.graph.try_get_mut(self.node_handle)
     }

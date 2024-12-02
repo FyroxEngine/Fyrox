@@ -39,7 +39,7 @@ where
     phantom: PhantomData<&'b ()>,
 }
 
-impl<'a, 'b, T> Debug for Ref<'a, 'b, T>
+impl<T> Debug for Ref<'_, '_, T>
 where
     T: ?Sized + Debug,
 {
@@ -48,7 +48,7 @@ where
     }
 }
 
-impl<'a, 'b, T> Deref for Ref<'a, 'b, T>
+impl<T> Deref for Ref<'_, '_, T>
 where
     T: ?Sized,
 {
@@ -59,7 +59,7 @@ where
     }
 }
 
-impl<'a, 'b, T> Drop for Ref<'a, 'b, T>
+impl<T> Drop for Ref<'_, '_, T>
 where
     T: ?Sized,
 {
@@ -77,7 +77,7 @@ where
     phantom: PhantomData<&'b ()>,
 }
 
-impl<'a, 'b, T> Debug for RefMut<'a, 'b, T>
+impl<T> Debug for RefMut<'_, '_, T>
 where
     T: ?Sized + Debug,
 {
@@ -86,7 +86,7 @@ where
     }
 }
 
-impl<'a, 'b, T> Deref for RefMut<'a, 'b, T>
+impl<T> Deref for RefMut<'_, '_, T>
 where
     T: ?Sized,
 {
@@ -97,7 +97,7 @@ where
     }
 }
 
-impl<'a, 'b, T> DerefMut for RefMut<'a, 'b, T>
+impl<T> DerefMut for RefMut<'_, '_, T>
 where
     T: ?Sized,
 {
@@ -106,7 +106,7 @@ where
     }
 }
 
-impl<'a, 'b, T> Drop for RefMut<'a, 'b, T>
+impl<T> Drop for RefMut<'_, '_, T>
 where
     T: ?Sized,
 {
@@ -186,7 +186,7 @@ impl<T> Display for MultiBorrowError<T> {
     }
 }
 
-impl<'a, T, P> Drop for MultiBorrowContext<'a, T, P>
+impl<T, P> Drop for MultiBorrowContext<'_, T, P>
 where
     T: Sized,
     P: PayloadContainer<Element = T> + 'static,

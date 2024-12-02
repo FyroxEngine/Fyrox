@@ -320,7 +320,7 @@ mod test {
     #[derive(Debug, PartialEq, Default, Visit, Clone)]
     struct WalkAction;
 
-    impl<'a> Behavior<'a> for WalkAction {
+    impl Behavior<'_> for WalkAction {
         type Context = Environment;
 
         fn tick(&mut self, context: &mut Self::Context) -> Status {
@@ -340,7 +340,7 @@ mod test {
     #[derive(Debug, PartialEq, Default, Visit, Clone)]
     struct OpenDoorAction;
 
-    impl<'a> Behavior<'a> for OpenDoorAction {
+    impl Behavior<'_> for OpenDoorAction {
         type Context = Environment;
 
         fn tick(&mut self, context: &mut Self::Context) -> Status {
@@ -355,7 +355,7 @@ mod test {
     #[derive(Debug, PartialEq, Default, Visit, Clone)]
     struct StepThroughAction;
 
-    impl<'a> Behavior<'a> for StepThroughAction {
+    impl Behavior<'_> for StepThroughAction {
         type Context = Environment;
 
         fn tick(&mut self, context: &mut Self::Context) -> Status {
@@ -375,7 +375,7 @@ mod test {
     #[derive(Debug, PartialEq, Default, Visit, Clone)]
     struct CloseDoorAction;
 
-    impl<'a> Behavior<'a> for CloseDoorAction {
+    impl Behavior<'_> for CloseDoorAction {
         type Context = Environment;
 
         fn tick(&mut self, context: &mut Self::Context) -> Status {
@@ -412,7 +412,7 @@ mod test {
         done: bool,
     }
 
-    impl<'a> Behavior<'a> for BotBehavior {
+    impl Behavior<'_> for BotBehavior {
         type Context = Environment;
 
         fn tick(&mut self, context: &mut Self::Context) -> Status {

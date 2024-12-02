@@ -112,7 +112,7 @@ pub struct FieldInfo<'a, 'b> {
     pub precision: Option<usize>,
 }
 
-impl<'a, 'b> FieldInfo<'a, 'b> {
+impl FieldInfo<'_, '_> {
     /// Tries to cast a value to a given type.
     pub fn cast_value<T: 'static>(&self) -> Result<&T, CastError> {
         match self.value.as_any().downcast_ref::<T>() {
@@ -126,7 +126,7 @@ impl<'a, 'b> FieldInfo<'a, 'b> {
     }
 }
 
-impl<'a, 'b> fmt::Debug for FieldInfo<'a, 'b> {
+impl fmt::Debug for FieldInfo<'_, '_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("PropertyInfo")
             .field("owner_type_id", &self.owner_type_id)
@@ -143,7 +143,7 @@ impl<'a, 'b> fmt::Debug for FieldInfo<'a, 'b> {
     }
 }
 
-impl<'a, 'b> PartialEq<Self> for FieldInfo<'a, 'b> {
+impl PartialEq<Self> for FieldInfo<'_, '_> {
     fn eq(&self, other: &Self) -> bool {
         let value_ptr_a = self.value as *const _ as *const ();
         let value_ptr_b = other.value as *const _ as *const ();
@@ -407,7 +407,7 @@ pub enum ReflectPathError<'a> {
     NotAnArray,
 }
 
-impl<'a> Display for ReflectPathError<'a> {
+impl Display for ReflectPathError<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             ReflectPathError::UnclosedBrackets { s } => {

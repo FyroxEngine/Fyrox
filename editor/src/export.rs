@@ -184,7 +184,7 @@ fn make_command(program: &str) -> std::process::Command {
 }
 
 fn read_metadata() -> Result<Metadata, String> {
-    return match make_command("cargo")
+    match make_command("cargo")
         .arg("metadata")
         .stdout(Stdio::piped())
         .spawn()
@@ -199,7 +199,7 @@ fn read_metadata() -> Result<Metadata, String> {
             Err(err) => Err(format!("Unable to fetch project metadata. Reason {err:?}")),
         },
         Err(err) => Err(format!("Unable to fetch project metadata. Reason {err:?}")),
-    };
+    }
 }
 
 fn prepare_build_dir(path: &Path) -> Result<(), String> {
