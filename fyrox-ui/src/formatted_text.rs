@@ -20,12 +20,14 @@
 
 use crate::{
     brush::Brush,
-    core::{algebra::Vector2, color::Color, math::Rect, reflect::prelude::*, visitor::prelude::*},
+    core::{
+        algebra::Vector2, color::Color, math::Rect, reflect::prelude::*, uuid_provider,
+        variable::InheritableVariable, visitor::prelude::*,
+    },
     font::{Font, FontGlyph, FontResource},
+    style::StyledProperty,
     HorizontalAlignment, VerticalAlignment,
 };
-use fyrox_core::uuid_provider;
-use fyrox_core::variable::InheritableVariable;
 use std::ops::Range;
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
@@ -220,7 +222,7 @@ pub struct FormattedText {
     wrap: InheritableVariable<WrapMode>,
     mask_char: InheritableVariable<Option<char>>,
     #[visit(rename = "Height")]
-    font_size: InheritableVariable<f32>,
+    font_size: InheritableVariable<StyledProperty<f32>>,
     pub shadow: InheritableVariable<bool>,
     pub shadow_brush: InheritableVariable<Brush>,
     pub shadow_dilation: InheritableVariable<f32>,
@@ -372,7 +374,7 @@ impl FormattedText {
         };
         let mut metrics = GlyphMetrics {
             font,
-            size: *self.font_size,
+            size: **self.font_size,
         };
         let mut caret_pos = Vector2::default();
         let position = self.nearest_valid_position(position);
@@ -394,6 +396,7 @@ impl FormattedText {
     }
 
     pub fn local_to_position(&self, point: Vector2<f32>) -> Position {
+        let font_size = **self.font_size();
         let font = self.get_font();
         let mut state = font.state();
         let Some(font) = state.data() else {
@@ -401,7 +404,7 @@ impl FormattedText {
         };
         let mut metrics = GlyphMetrics {
             font,
-            size: self.font_size(),
+            size: font_size,
         };
         let y = point.y;
 
@@ -425,7 +428,7 @@ impl FormattedText {
             if let Some(advance) = raw_text.get(char_index).map(|c| metrics.advance(*c)) {
                 glyph_x += advance;
             } else {
-                glyph_x += self.font_size();
+                glyph_x += font_size;
             }
             let dist = (x - glyph_x).abs();
             if dist < min_dist {
@@ -452,11 +455,11 @@ impl FormattedText {
         self
     }
 
-    pub fn font_size(&self) -> f32 {
-        *self.font_size
+    pub fn font_size(&self) -> &StyledProperty<f32> {
+        &self.font_size
     }
 
-    pub fn set_font_size(&mut self, font_size: f32) -> &mut Self {
+    pub fn set_font_size(&mut self, font_size: StyledProperty<f32>) -> &mut Self {
         self.font_size.set_value_and_mark_modified(font_size);
         self
     }
@@ -519,7 +522,7 @@ impl FormattedText {
         if let Some(font) = self.font.state().data() {
             let mut metrics = GlyphMetrics {
                 font,
-                size: self.font_size(),
+                size: **self.font_size(),
             };
             for index in range {
                 // We can't trust the range values, check to prevent panic.
@@ -601,7 +604,7 @@ impl FormattedText {
         };
         let mut metrics = GlyphMetrics {
             font,
-            size: self.font_size(),
+            size: **self.font_size(),
         };
         let line_height: f32 = metrics.ascender();
 
@@ -618,7 +621,7 @@ impl FormattedText {
                     LetterWrap::new(sink),
                     self.text.len(),
                     mask,
-                    *self.font_size,
+                    **self.font_size,
                 ),
                 WrapMode::Word => wrap_mask(WordWrap::new(sink), self.text.len(), mask, advance),
             }
@@ -743,7 +746,7 @@ pub struct FormattedTextBuilder {
     shadow_brush: Brush,
     shadow_dilation: f32,
     shadow_offset: Vector2<f32>,
-    font_size: f32,
+    font_size: StyledProperty<f32>,
 }
 
 impl FormattedTextBuilder {
@@ -762,7 +765,7 @@ impl FormattedTextBuilder {
             shadow_brush: Brush::Solid(Color::BLACK),
             shadow_dilation: 1.0,
             shadow_offset: Vector2::new(1.0, 1.0),
-            font_size: 14.0,
+            font_size: 14.0f32.into(),
         }
     }
 
@@ -786,7 +789,7 @@ impl FormattedTextBuilder {
         self
     }
 
-    pub fn with_font_size(mut self, font_size: f32) -> Self {
+    pub fn with_font_size(mut self, font_size: StyledProperty<f32>) -> Self {
         self.font_size = font_size;
         self
     }

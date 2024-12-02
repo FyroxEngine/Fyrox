@@ -384,7 +384,7 @@ impl WorldViewer {
                     } else {
                         format!("{name} >")
                     })
-                    .with_font_size(11.0)
+                    .with_font_size(11.0.into())
                     .build(ctx),
             )
             .build(ctx);

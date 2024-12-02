@@ -21,6 +21,7 @@
 //! The Window widget provides a standard window that can contain another widget. See [`Window`] docs
 //! for more info and usage examples.
 
+use crate::style::StyledProperty;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -927,7 +928,7 @@ impl Control for Window {
                                         ui.send_message(TextMessage::font_size(
                                             self.title,
                                             MessageDirection::ToWidget,
-                                            *font_size,
+                                            font_size.clone(),
                                         ));
                                     }
                                 } else {
@@ -937,11 +938,14 @@ impl Control for Window {
                                     ));
                                     let font =
                                         font.clone().unwrap_or_else(|| ui.default_font.clone());
+                                    let ctx = &mut ui.build_ctx();
                                     self.title = make_text_title(
-                                        &mut ui.build_ctx(),
+                                        ctx,
                                         text,
                                         font,
-                                        (*font_size).unwrap_or(14.0),
+                                        font_size.clone().unwrap_or_else(|| {
+                                            ctx.style.property(Style::FONT_SIZE)
+                                        }),
                                     );
                                     ui.send_message(WidgetMessage::link(
                                         self.title,
@@ -1058,8 +1062,9 @@ pub enum WindowTitle {
         text: String,
         /// Optional font, if [`None`], then the default font will be used.
         font: Option<FontResource>,
-        /// Optional size of the text. Default is [`None`] (in this case default size will be used).
-        font_size: Option<f32>,
+        /// Optional size of the text. Default is [`None`] (in this case default size defined by the
+        /// current style will be used).
+        font_size: Option<StyledProperty<f32>>,
     },
     Node(Handle<UiNode>),
 }
@@ -1084,7 +1089,11 @@ impl WindowTitle {
     }
 
     /// A shortcut to create [`WindowTitle::Text`] with custom font and size.
-    pub fn text_with_font_size<P: AsRef<str>>(text: P, font: FontResource, size: f32) -> Self {
+    pub fn text_with_font_size<P: AsRef<str>>(
+        text: P,
+        font: FontResource,
+        size: StyledProperty<f32>,
+    ) -> Self {
         WindowTitle::Text {
             text: text.as_ref().to_owned(),
             font: Some(font),
@@ -1102,7 +1111,7 @@ fn make_text_title(
     ctx: &mut BuildContext,
     text: &str,
     font: FontResource,
-    size: f32,
+    size: StyledProperty<f32>,
 ) -> Handle<UiNode> {
     TextBuilder::new(
         WidgetBuilder::new()
@@ -1347,7 +1356,9 @@ impl WindowBuilder {
                                             ctx,
                                             &text,
                                             font.unwrap_or_else(|| ctx.default_font()),
-                                            font_size.unwrap_or(14.0),
+                                            font_size.unwrap_or_else(|| {
+                                                ctx.style.property(Style::FONT_SIZE)
+                                            }),
                                         ),
                                     },
                                 };

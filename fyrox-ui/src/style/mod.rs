@@ -287,12 +287,25 @@ impl Style {
     pub const BRUSH_ERROR: &'static str = "Global.Brush.Error";
     /// The name of the ok brush.
     pub const BRUSH_OK: &'static str = "Global.Brush.Ok";
+    /// The name of the font size property.
+    pub const FONT_SIZE: &'static str = "Global.Font.Size";
+
+    fn base_style() -> Style {
+        let mut style = Self::default();
+
+        style
+            .set(Self::FONT_SIZE, 14.0f32)
+            .merge(&Button::style())
+            .merge(&CheckBox::style())
+            .merge(&DropdownList::style());
+
+        style
+    }
 
     /// Creates a new dark style.
     pub fn dark_style() -> Style {
-        let mut style = Self::default();
+        let mut style = Self::base_style();
         style
-            // Global
             .set(Self::BRUSH_DARKEST, Brush::Solid(Color::repeat_opaque(20)))
             .set(Self::BRUSH_DARKER, Brush::Solid(Color::repeat_opaque(30)))
             .set(Self::BRUSH_DARK, Brush::Solid(Color::repeat_opaque(40)))
@@ -325,19 +338,14 @@ impl Style {
             .set(Self::BRUSH_INFORMATION, Brush::Solid(Color::ANTIQUE_WHITE))
             .set(Self::BRUSH_WARNING, Brush::Solid(Color::GOLD))
             .set(Self::BRUSH_ERROR, Brush::Solid(Color::RED))
-            .set(Self::BRUSH_OK, Brush::Solid(Color::GREEN))
-            // Button
-            .merge(&Button::style())
-            .merge(&CheckBox::style())
-            .merge(&DropdownList::style());
+            .set(Self::BRUSH_OK, Brush::Solid(Color::GREEN));
         style
     }
 
     /// Creates a new light style.
     pub fn light_style() -> Style {
-        let mut style = Self::default();
+        let mut style = Self::base_style();
         style
-            // Global
             .set(Self::BRUSH_DARKEST, Brush::Solid(Color::repeat_opaque(140)))
             .set(Self::BRUSH_DARKER, Brush::Solid(Color::repeat_opaque(150)))
             .set(Self::BRUSH_DARK, Brush::Solid(Color::repeat_opaque(160)))
@@ -369,10 +377,7 @@ impl Style {
             .set(Self::BRUSH_FOREGROUND, Brush::Solid(Color::WHITE))
             .set(Self::BRUSH_INFORMATION, Brush::Solid(Color::ANTIQUE_WHITE))
             .set(Self::BRUSH_WARNING, Brush::Solid(Color::GOLD))
-            .set(Self::BRUSH_ERROR, Brush::Solid(Color::RED))
-            .merge(&Button::style())
-            .merge(&CheckBox::style())
-            .merge(&DropdownList::style());
+            .set(Self::BRUSH_ERROR, Brush::Solid(Color::RED));
         style
     }
 

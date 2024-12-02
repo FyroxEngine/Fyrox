@@ -22,6 +22,7 @@
 
 #![warn(missing_docs)]
 
+use crate::style::StyledProperty;
 use crate::{
     border::BorderBuilder,
     core::{
@@ -276,8 +277,8 @@ pub enum ButtonContent {
         text: String,
         /// Optional font of the button. If [`None`], the default font will be used.
         font: Option<FontResource>,
-        /// Font size of the text. Default is 14.0
-        size: f32,
+        /// Font size of the text. Default is 14.0 (defined by default style of the crate).
+        size: Option<StyledProperty<f32>>,
     },
     /// Arbitrary widget handle. It could be any widget handle, for example a handle of [`crate::image::Image`]
     /// widget.
@@ -290,7 +291,7 @@ impl ButtonContent {
         Self::Text {
             text: s.as_ref().to_owned(),
             font: None,
-            size: 14.0,
+            size: None,
         }
     }
 
@@ -299,16 +300,20 @@ impl ButtonContent {
         Self::Text {
             text: s.as_ref().to_owned(),
             font: Some(font),
-            size: 14.0,
+            size: None,
         }
     }
 
     /// Creates [`ButtonContent::Text`] with custom font and size.
-    pub fn text_with_font_size<S: AsRef<str>>(s: S, font: FontResource, size: f32) -> Self {
+    pub fn text_with_font_size<S: AsRef<str>>(
+        s: S,
+        font: FontResource,
+        size: StyledProperty<f32>,
+    ) -> Self {
         Self::Text {
             text: s.as_ref().to_owned(),
             font: Some(font),
-            size,
+            size: Some(size),
         }
     }
 
@@ -324,7 +329,10 @@ impl ButtonContent {
                 .with_horizontal_text_alignment(HorizontalAlignment::Center)
                 .with_vertical_text_alignment(VerticalAlignment::Center)
                 .with_font(font.clone().unwrap_or_else(|| ctx.default_font()))
-                .with_font_size(*size)
+                .with_font_size(
+                    size.clone()
+                        .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE)),
+                )
                 .build(ctx),
             Self::Node(node) => *node,
         }
@@ -365,7 +373,12 @@ impl ButtonBuilder {
     }
 
     /// Sets the content of the button to be [`ButtonContent::Text`] (text with a custom font and size).
-    pub fn with_text_and_font_size(mut self, text: &str, font: FontResource, size: f32) -> Self {
+    pub fn with_text_and_font_size(
+        mut self,
+        text: &str,
+        font: FontResource,
+        size: StyledProperty<f32>,
+    ) -> Self {
         self.content = Some(ButtonContent::text_with_font_size(text, font, size));
         self
     }

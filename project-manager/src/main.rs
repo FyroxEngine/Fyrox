@@ -226,7 +226,7 @@ fn make_project_item(name: &str, path: &Path, ctx: &mut BuildContext) -> Handle<
                                                         VerticalAlignment::Center,
                                                     ),
                                             )
-                                            .with_font_size(18.0)
+                                            .with_font_size(18.0.into())
                                             .with_text(name)
                                             .build(ctx),
                                         )
@@ -239,7 +239,7 @@ fn make_project_item(name: &str, path: &Path, ctx: &mut BuildContext) -> Handle<
                                                         VerticalAlignment::Center,
                                                     ),
                                             )
-                                            .with_font_size(13.0)
+                                            .with_font_size(13.0.into())
                                             .with_text(path.to_string_lossy())
                                             .build(ctx),
                                         ),
@@ -299,7 +299,7 @@ impl ProjectManager {
                         "Rust is not installed, please click the button at the right \
                         and follow build instructions for your platform.",
                     )
-                    .with_font_size(18.0)
+                    .with_font_size(18.0.into())
                     .with_wrap(WrapMode::Word)
                     .build(ctx),
                 )

@@ -25,7 +25,7 @@
 
 use crate::font::FontResource;
 use crate::style::resource::StyleResourceExt;
-use crate::style::Style;
+use crate::style::{Style, StyledProperty};
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -480,7 +480,7 @@ pub struct ScrollBarBuilder {
     show_value: bool,
     value_precision: usize,
     font: Option<FontResource>,
-    font_size: f32,
+    font_size: Option<StyledProperty<f32>>,
 }
 
 impl ScrollBarBuilder {
@@ -500,7 +500,7 @@ impl ScrollBarBuilder {
             show_value: false,
             value_precision: 3,
             font: None,
-            font_size: 14.0,
+            font_size: None,
         }
     }
 
@@ -577,8 +577,8 @@ impl ScrollBarBuilder {
     }
 
     /// Sets the desired font size.
-    pub fn with_font_size(mut self, size: f32) -> Self {
-        self.font_size = size;
+    pub fn with_font_size(mut self, size: StyledProperty<f32>) -> Self {
+        self.font_size = Some(size);
         self
     }
 
@@ -668,7 +668,10 @@ impl ScrollBarBuilder {
                     }),
             )
             .with_font(self.font.unwrap_or_else(|| ctx.default_font()))
-            .with_font_size(self.font_size)
+            .with_font_size(
+                self.font_size
+                    .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE)),
+            )
             .with_text(format!("{:.1$}", value, self.value_precision))
             .build(ctx);
 

@@ -23,23 +23,22 @@
 
 #![warn(missing_docs)]
 
-use crate::style::resource::StyleResourceExt;
-use crate::style::Style;
+use crate::style::StyledProperty;
 use crate::{
     brush::Brush,
     core::{
         algebra::Vector2, color::Color, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-        visitor::prelude::*,
+        uuid_provider, visitor::prelude::*,
     },
     define_constructor,
     draw::DrawingContext,
     font::FontResource,
     formatted_text::{FormattedText, FormattedTextBuilder, WrapMode},
     message::{MessageDirection, UiMessage},
+    style::{resource::StyleResourceExt, Style},
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, HorizontalAlignment, UiNode, UserInterface, VerticalAlignment,
 };
-use fyrox_core::uuid_provider;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::{
     cell::RefCell,
@@ -71,7 +70,7 @@ pub enum TextMessage {
     /// Used to set how much the shadows will be offset from the widget. See [Text](Text#shadows) for usage examples.
     ShadowOffset(Vector2<f32>),
     /// Used to set font height of the widget.
-    FontSize(f32),
+    FontSize(StyledProperty<f32>),
 }
 
 impl TextMessage {
@@ -122,7 +121,7 @@ impl TextMessage {
 
     define_constructor!(
         /// Creates new [`TextMessage::FontSize`] message.
-        TextMessage:FontSize => fn font_size(f32), layout: false
+        TextMessage:FontSize => fn font_size(StyledProperty<f32>), layout: false
     );
 }
 
@@ -252,7 +251,7 @@ impl TextMessage {
 ///     TextBuilder::new(WidgetBuilder::new())
 ///         .with_font(resource_manager.request::<Font>("path/to/your/font.ttf"))
 ///         .with_text(text)
-///         .with_font_size(20.0)
+///         .with_font_size(20.0f32.into())
 ///         .build(&mut ui.build_ctx())
 /// }
 /// ```
@@ -439,9 +438,9 @@ impl Control for Text {
                             self.invalidate_layout();
                         }
                     }
-                    &TextMessage::FontSize(height) => {
+                    TextMessage::FontSize(height) => {
                         if text_ref.font_size() != height {
-                            text_ref.set_font_size(height);
+                            text_ref.set_font_size(height.clone());
                             drop(text_ref);
                             self.invalidate_layout();
                         }
@@ -491,7 +490,7 @@ pub struct TextBuilder {
     shadow_brush: Brush,
     shadow_dilation: f32,
     shadow_offset: Vector2<f32>,
-    font_size: f32,
+    font_size: Option<StyledProperty<f32>>,
 }
 
 impl TextBuilder {
@@ -508,7 +507,7 @@ impl TextBuilder {
             shadow_brush: Brush::Solid(Color::BLACK),
             shadow_dilation: 1.0,
             shadow_offset: Vector2::new(1.0, 1.0),
-            font_size: 14.0,
+            font_size: None,
         }
     }
 
@@ -537,8 +536,8 @@ impl TextBuilder {
     }
 
     /// Sets the desired height of the text.
-    pub fn with_font_size(mut self, font_size: f32) -> Self {
-        self.font_size = font_size;
+    pub fn with_font_size(mut self, font_size: StyledProperty<f32>) -> Self {
+        self.font_size = Some(font_size);
         self
     }
 
@@ -603,7 +602,10 @@ impl TextBuilder {
                     .with_shadow_brush(self.shadow_brush)
                     .with_shadow_dilation(self.shadow_dilation)
                     .with_shadow_offset(self.shadow_offset)
-                    .with_font_size(self.font_size)
+                    .with_font_size(
+                        self.font_size
+                            .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE)),
+                    )
                     .build(),
             ),
         };

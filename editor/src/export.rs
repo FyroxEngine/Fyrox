@@ -723,7 +723,6 @@ fn make_title_text(text: &str, row: usize, ctx: &mut BuildContext) -> Handle<UiN
             .with_foreground(ctx.style.property(ExportWindow::TITLE_BRUSH))
             .with_margin(Thickness::uniform(2.0)),
     )
-    .with_font_size(14.0)
     .with_text(text)
     .build(ctx)
 }
@@ -778,7 +777,6 @@ impl ExportWindow {
                                                     HorizontalAlignment::Center,
                                                 )
                                                 .with_text(p)
-                                                .with_font_size(14.0)
                                                 .build(ctx),
                                         ),
                                 ))
