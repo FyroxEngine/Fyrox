@@ -21,7 +21,8 @@
 use crate::{
     build::BuildWindow,
     project::ProjectWizard,
-    settings::Settings,
+    settings::{Project, Settings},
+    utils,
     utils::{is_production_ready, load_image, make_button},
 };
 use fyrox::{
@@ -32,6 +33,7 @@ use fyrox::{
         button::{ButtonBuilder, ButtonMessage},
         check_box::{CheckBoxBuilder, CheckBoxMessage},
         decorator::DecoratorBuilder,
+        file_browser::{FileBrowserMode, FileSelectorBuilder, FileSelectorMessage, Filter},
         formatted_text::WrapMode,
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
@@ -44,6 +46,7 @@ use fyrox::{
         text::TextBuilder,
         utils::make_simple_tooltip,
         widget::{WidgetBuilder, WidgetMessage},
+        window::{WindowBuilder, WindowMessage},
         BuildContext, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
 };
@@ -64,6 +67,7 @@ pub struct ProjectManager {
     pub settings: Settings,
     project_wizard: Option<ProjectWizard>,
     build_window: Option<BuildWindow>,
+    import_project_dialog: Handle<UiNode>,
 }
 
 fn make_project_item(name: &str, path: &Path, ctx: &mut BuildContext) -> Handle<UiNode> {
@@ -272,6 +276,7 @@ impl ProjectManager {
             settings,
             project_wizard: None,
             build_window: None,
+            import_project_dialog: Default::default(),
         }
     }
 
@@ -290,11 +295,64 @@ impl ProjectManager {
         }
     }
 
+    fn try_import(&mut self, path: &Path, ui: &mut UserInterface) {
+        let manifest_path = utils::folder_to_manifest_path(path.clone());
+
+        let metadata = match utils::read_crate_metadata(&manifest_path) {
+            Ok(metadata) => metadata,
+            Err(err) => {
+                Log::err(format!(
+                    "Failed to read manifest at {}: {}",
+                    manifest_path.display(),
+                    err
+                ));
+                return;
+            }
+        };
+
+        if !utils::has_fyrox_in_deps(&metadata) {
+            Log::err(format!("{manifest_path:?} is not a Fyrox project."));
+            return;
+        }
+
+        if let Some(game_package) = metadata
+            .workspace_packages()
+            .iter()
+            .find(|package| package.id.repr.contains("game#"))
+        {
+            self.settings.projects.push(Project {
+                manifest_path,
+                name: game_package.name.clone(),
+                hot_reload: false,
+            });
+            self.refresh(ui);
+        } else {
+            Log::err(format!(
+                "{manifest_path:?} does not contain a game package!"
+            ));
+            return;
+        }
+    }
+
     fn on_button_click(&mut self, button: Handle<UiNode>, ui: &mut UserInterface) {
         if button == self.create {
             self.project_wizard = Some(ProjectWizard::new(&mut ui.build_ctx()));
         } else if button == self.import {
-            // TODO: Import project.
+            let ctx = &mut ui.build_ctx();
+            self.import_project_dialog = FileSelectorBuilder::new(
+                WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
+                    .open(false)
+                    .with_remove_on_close(true),
+            )
+            .with_filter(Filter::new(|path| path.is_dir()))
+            .with_mode(FileBrowserMode::Open)
+            .build(ctx);
+            ui.send_message(WindowMessage::open_modal(
+                self.import_project_dialog,
+                MessageDirection::ToWidget,
+                true,
+                true,
+            ));
         } else if button == self.download {
             let _ = open::that("https://rustup.rs/");
         }
@@ -383,6 +441,10 @@ impl ProjectManager {
                 && message.direction() == MessageDirection::FromWidget
             {
                 // TODO: Switch to respective mode.
+            }
+        } else if let Some(FileSelectorMessage::Commit(path)) = message.data() {
+            if message.destination() == self.import_project_dialog {
+                self.try_import(path, ui);
             }
         }
     }

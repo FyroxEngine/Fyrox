@@ -21,6 +21,7 @@
 use crate::{
     make_button,
     settings::{Project, Settings},
+    utils,
     utils::make_dropdown_list_option,
 };
 use fyrox::{
@@ -214,7 +215,7 @@ impl ProjectWizard {
             GridBuilder::new(WidgetBuilder::new().with_child(grid).with_child(buttons))
                 .add_row(Row::stretch())
                 .add_row(Row::auto())
-                .add_column(Column::auto())
+                .add_column(Column::stretch())
                 .build(ctx);
 
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(160.0))
@@ -273,20 +274,8 @@ impl ProjectWizard {
                     self.vcs.as_str(),
                     true,
                 );
-                let manifest_path = self
-                    .path
-                    .join(&self.name)
-                    .join("Cargo.toml")
-                    .canonicalize()
-                    .unwrap_or_default()
-                    .to_string_lossy()
-                    .to_string();
-                // Remove "\\?\" prefix on Windows, otherwise it will be impossible to compile anything,
-                // because there are some quirks on Unicode path handling on Windows and any path starting
-                // from two slashes will not work correctly as a working directory for a child process.
-                let manifest_path = manifest_path.replace(r"\\?\", r"");
                 settings.projects.push(Project {
-                    manifest_path: manifest_path.into(),
+                    manifest_path: utils::folder_to_manifest_path(&self.path.join(&self.name)),
                     name: self.name.clone(),
                     hot_reload: false,
                 });

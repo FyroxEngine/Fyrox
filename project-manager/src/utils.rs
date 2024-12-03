@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use cargo_metadata::Metadata;
 use fyrox::{
     asset::untyped::UntypedResource,
     core::pool::Handle,
@@ -31,7 +32,11 @@ use fyrox::{
         TextureResourceExtension,
     },
 };
-use std::process::Command;
+use std::{
+    path::{Path, PathBuf},
+    process::Command,
+    process::Stdio,
+};
 
 pub fn is_tool_installed(name: &str) -> bool {
     let Ok(output) = Command::new(name).output() else {
@@ -99,4 +104,47 @@ pub fn load_image(data: &[u8]) -> Option<UntypedResource> {
         .ok()?
         .into(),
     )
+}
+
+pub fn folder_to_manifest_path(path: &Path) -> PathBuf {
+    let manifest_path = path
+        .join("Cargo.toml")
+        .canonicalize()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .to_string();
+    // Remove "\\?\" prefix on Windows, otherwise it will be impossible to compile anything,
+    // because there are some quirks on Unicode path handling on Windows and any path starting
+    // from two slashes will not work correctly as a working directory for a child process.
+    manifest_path.replace(r"\\?\", r"").into()
+}
+
+pub fn read_crate_metadata(manifest_path: &Path) -> Result<Metadata, String> {
+    match Command::new("cargo")
+        .arg("metadata")
+        .arg("--manifest-path")
+        .arg(manifest_path)
+        .stdout(Stdio::piped())
+        .spawn()
+    {
+        Ok(handle) => match handle.wait_with_output() {
+            Ok(output) => match serde_json::from_slice::<Metadata>(&output.stdout) {
+                Ok(metadata) => Ok(metadata),
+                Err(err) => Err(format!(
+                    "Unable to parse workspace metadata. Reason {err:?}"
+                )),
+            },
+            Err(err) => Err(format!("Unable to fetch project metadata. Reason {err:?}")),
+        },
+        Err(err) => Err(format!("Unable to fetch project metadata. Reason {err:?}")),
+    }
+}
+
+pub fn has_fyrox_in_deps(metadata: &Metadata) -> bool {
+    metadata.packages.iter().any(|package| {
+        package
+            .dependencies
+            .iter()
+            .any(|dependency| dependency.name == "fyrox")
+    })
 }
