@@ -139,25 +139,7 @@ impl BuildProfile {
         BuildProfile {
             name: "Debug (HR)".to_string(),
             build_commands: vec![
-                // Build the game plugin DLL first.
-                BuildCommand {
-                    command: "cargo".to_string(),
-                    args: vec![
-                        "build".to_string(),
-                        "--package".to_string(),
-                        "game_dylib".to_string(),
-                        "--no-default-features".to_string(),
-                        "--features".to_string(),
-                        "dylib-engine".to_string(),
-                        "--profile".to_string(),
-                        "dev-hot-reload".to_string(),
-                    ],
-                    environment_variables: vec![EnvironmentVariable {
-                        name: "RUSTFLAGS".to_string(),
-                        value: "-C prefer-dynamic=yes".to_string(),
-                    }],
-                },
-                // Build the executor.
+                Self::build_game(), // Build the executor.
                 BuildCommand {
                     command: "cargo".to_string(),
                     args: vec![
@@ -176,25 +158,8 @@ impl BuildProfile {
                     }],
                 },
             ],
-            run_command:
             // Run only executor, it will load the game plugin DLL.
-            BuildCommand {
-                command: "cargo".to_string(),
-                args: vec![
-                    "run".to_string(),
-                    "--package".to_string(),
-                    "executor".to_string(),
-                    "--no-default-features".to_string(),
-                    "--features".to_string(),
-                    "dylib".to_string(),
-                    "--profile".to_string(),
-                    "dev-hot-reload".to_string(),
-                ],
-                environment_variables: vec![EnvironmentVariable {
-                    name: "RUSTFLAGS".to_string(),
-                    value: "-C prefer-dynamic=yes".to_string(),
-                }],
-            },
+            run_command: Self::run_hot_reload("executor"),
         }
     }
 
@@ -204,4 +169,93 @@ impl BuildProfile {
         release_hot_reloading.add_arg("--release");
         release_hot_reloading
     }
+
+    fn build_game() -> BuildCommand {
+        // Build the game plugin DLL first.
+        BuildCommand {
+            command: "cargo".to_string(),
+            args: vec![
+                "build".to_string(),
+                "--package".to_string(),
+                "game_dylib".to_string(),
+                "--no-default-features".to_string(),
+                "--features".to_string(),
+                "dylib-engine".to_string(),
+                "--profile".to_string(),
+                "dev-hot-reload".to_string(),
+            ],
+            environment_variables: vec![EnvironmentVariable {
+                name: "RUSTFLAGS".to_string(),
+                value: "-C prefer-dynamic=yes".to_string(),
+            }],
+        }
+    }
+
+    fn run_hot_reload(package_name: &str) -> BuildCommand {
+        BuildCommand {
+            command: "cargo".to_string(),
+            args: vec![
+                "run".to_string(),
+                "--package".to_string(),
+                package_name.to_string(),
+                "--no-default-features".to_string(),
+                "--features".to_string(),
+                "dylib".to_string(),
+                "--profile".to_string(),
+                "dev-hot-reload".to_string(),
+            ],
+            environment_variables: vec![EnvironmentVariable {
+                name: "RUSTFLAGS".to_string(),
+                value: "-C prefer-dynamic=yes".to_string(),
+            }],
+        }
+    }
+
+    pub fn debug_editor_hot_reloading() -> Self {
+        BuildProfile {
+            name: "Debug Editor (HR)".to_string(),
+            build_commands: vec![Self::build_game()],
+            run_command: Self::run_hot_reload("editor"),
+        }
+    }
+
+    pub fn release_editor_hot_reloading() -> Self {
+        let mut release_hot_reloading = Self::debug_editor_hot_reloading();
+        release_hot_reloading.name = "Release Editor (HR)".to_string();
+        release_hot_reloading.add_arg("--release");
+        release_hot_reloading
+    }
+
+    pub fn debug_editor() -> Self {
+        BuildProfile {
+            name: "Debug Editor".to_string(),
+            build_commands: vec![BuildCommand {
+                command: "cargo".to_string(),
+                args: vec![
+                    "build".to_string(),
+                    "--package".to_string(),
+                    "editor".to_string(),
+                ],
+                environment_variables: vec![],
+            }],
+            run_command: BuildCommand {
+                command: "cargo".to_string(),
+                args: vec![
+                    "run".to_string(),
+                    "--package".to_string(),
+                    "editor".to_string(),
+                ],
+                environment_variables: vec![],
+            },
+        }
+    }
+
+    pub fn release_editor() -> Self {
+        let mut release = Self::debug_editor();
+        release.name = "Release Editor".to_string();
+        release.add_arg("--release");
+        release
+    }
+
+    //run --package editor --no-default-features --features dylib --profile dev-hot-reload
 }

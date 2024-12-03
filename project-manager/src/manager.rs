@@ -52,7 +52,7 @@ use fyrox::{
     },
 };
 use fyrox_build_tools::{BuildCommand, BuildProfile};
-use std::{collections::VecDeque, path::Path, path::PathBuf, process::Stdio};
+use std::{collections::VecDeque, path::Path, path::PathBuf};
 
 enum Mode {
     Normal,
@@ -488,22 +488,12 @@ impl ProjectManager {
         if let Some(index) = self.selection {
             if let Some(project) = self.settings.projects.get(index) {
                 if button == self.edit {
-                    let mut new_process = std::process::Command::new("cargo");
-                    new_process
-                        .current_dir(project.manifest_path.parent().unwrap())
-                        .stderr(Stdio::piped())
-                        .args(["run", "--package", "editor"]);
-
-                    match new_process.spawn() {
-                        Ok(mut new_process) => {
-                            let mut build_window = BuildWindow::new("editor", &mut ui.build_ctx());
-
-                            build_window.listen(new_process.stderr.take().unwrap(), ui);
-
-                            self.build_window = Some(build_window);
-                        }
-                        Err(e) => Log::err(format!("Failed to start the editor: {e:?}")),
-                    }
+                    let profile = if project.hot_reload {
+                        BuildProfile::debug_editor_hot_reloading()
+                    } else {
+                        BuildProfile::debug_editor()
+                    };
+                    self.run_build_profile("editor", &profile, ui);
                 } else if button == self.run {
                     let profile = if project.hot_reload {
                         BuildProfile::debug_hot_reloading()
