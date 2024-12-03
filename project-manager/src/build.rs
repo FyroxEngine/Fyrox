@@ -18,8 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use fyrox::gui::style::resource::StyleResourceExt;
-use fyrox::gui::style::Style;
 use fyrox::{
     core::{parking_lot::Mutex, pool::Handle},
     gui::{
@@ -29,6 +27,7 @@ use fyrox::{
         message::{MessageDirection, UiMessage},
         scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
         stack_panel::StackPanelBuilder,
+        style::{resource::StyleResourceExt, Style},
         text::{TextBuilder, TextMessage},
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowMessage, WindowTitle},
@@ -55,7 +54,7 @@ pub struct BuildWindow {
 }
 
 impl BuildWindow {
-    pub fn new(ctx: &mut BuildContext) -> Self {
+    pub fn new(project: &str, ctx: &mut BuildContext) -> Self {
         let log_text;
         let stop;
         let scroll_viewer;
@@ -70,7 +69,7 @@ impl BuildWindow {
                             TextBuilder::new(
                                 WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
                             )
-                            .with_text("Please wait while your game is building...\nLog:")
+                            .with_text(format!("Please wait while the {project} is building..."))
                             .build(ctx),
                         )
                         .with_child(
@@ -120,7 +119,7 @@ impl BuildWindow {
                 .add_column(Column::stretch())
                 .build(ctx),
             )
-            .with_title(WindowTitle::text("Building the Game..."))
+            .with_title(WindowTitle::text(format!("Building the {project}...")))
             .build(ctx);
 
         Self {

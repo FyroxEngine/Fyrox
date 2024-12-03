@@ -22,8 +22,7 @@ use crate::{
     build::BuildWindow,
     project::ProjectWizard,
     settings::{Project, Settings},
-    utils,
-    utils::{is_production_ready, load_image, make_button},
+    utils::{self, is_production_ready, load_image, make_button},
 };
 use fyrox::{
     core::{color::Color, log::Log, pool::Handle},
@@ -43,11 +42,13 @@ use fyrox::{
         screen::ScreenBuilder,
         searchbar::{SearchBarBuilder, SearchBarMessage},
         stack_panel::StackPanelBuilder,
+        style::{resource::StyleResourceExt, Style},
         text::TextBuilder,
         utils::make_simple_tooltip,
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage},
-        BuildContext, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
+        BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+        VerticalAlignment,
     },
 };
 use std::{path::Path, process::Stdio};
@@ -70,7 +71,12 @@ pub struct ProjectManager {
     import_project_dialog: Handle<UiNode>,
 }
 
-fn make_project_item(name: &str, path: &Path, ctx: &mut BuildContext) -> Handle<UiNode> {
+fn make_project_item(
+    name: &str,
+    path: &Path,
+    hot_reload: bool,
+    ctx: &mut BuildContext,
+) -> Handle<UiNode> {
     let icon = ImageBuilder::new(
         WidgetBuilder::new()
             .with_margin(Thickness::uniform(4.0))
@@ -112,20 +118,41 @@ fn make_project_item(name: &str, path: &Path, ctx: &mut BuildContext) -> Handle<
     .add_row(Row::auto())
     .build(ctx);
 
+    let hot_reload = ImageBuilder::new(
+        WidgetBuilder::new()
+            .on_row(0)
+            .on_column(2)
+            .with_width(18.0)
+            .with_height(18.0)
+            .with_margin(Thickness::uniform(2.0))
+            .with_visibility(hot_reload)
+            .with_horizontal_alignment(HorizontalAlignment::Right)
+            .with_vertical_alignment(VerticalAlignment::Top),
+    )
+    .with_opt_texture(load_image(include_bytes!("../resources/flame.png")))
+    .build(ctx);
+
     DecoratorBuilder::new(
         BorderBuilder::new(
             WidgetBuilder::new()
                 .with_margin(Thickness::uniform(1.0))
                 .with_child(
-                    GridBuilder::new(WidgetBuilder::new().with_child(icon).with_child(item))
-                        .add_column(Column::auto())
-                        .add_column(Column::stretch())
-                        .add_row(Row::auto())
-                        .build(ctx),
+                    GridBuilder::new(
+                        WidgetBuilder::new()
+                            .with_child(icon)
+                            .with_child(item)
+                            .with_child(hot_reload),
+                    )
+                    .add_column(Column::auto())
+                    .add_column(Column::stretch())
+                    .add_column(Column::auto())
+                    .add_row(Row::auto())
+                    .build(ctx),
                 ),
         )
         .with_corner_radius(4.0f32.into()),
     )
+    .with_selected_brush(ctx.style.property(Style::BRUSH_BRIGHT_BLUE))
     .build(ctx)
 }
 
@@ -133,7 +160,14 @@ fn make_project_items(settings: &Settings, ctx: &mut BuildContext) -> Vec<Handle
     settings
         .projects
         .iter()
-        .map(|project| make_project_item(&project.name, &project.manifest_path, ctx))
+        .map(|project| {
+            make_project_item(
+                &project.name,
+                &project.manifest_path,
+                project.hot_reload,
+                ctx,
+            )
+        })
         .collect::<Vec<_>>()
 }
 
@@ -178,8 +212,12 @@ impl ProjectManager {
         .add_row(Row::auto())
         .build(ctx);
 
-        let create = make_button("+ Create", 100.0, 25.0, 0, ctx);
-        let import = make_button("Import", 100.0, 25.0, 1, ctx);
+        let create_tooltip = "Opens a new dialog window that creates a new project with specified \
+        settings.";
+        let import_tooltip = "Allows you to import an existing project in the project manager.";
+
+        let create = make_button("+ Create", 100.0, 25.0, 0, Some(create_tooltip), ctx);
+        let import = make_button("Import", 100.0, 25.0, 1, Some(import_tooltip), ctx);
         let search_bar = SearchBarBuilder::new(
             WidgetBuilder::new()
                 .with_tab_index(Some(2))
@@ -200,20 +238,37 @@ impl ProjectManager {
         .with_orientation(Orientation::Horizontal)
         .build(ctx);
 
-        let edit = make_button("Edit", 100.0, 25.0, 3, ctx);
-        let run = make_button("Run", 100.0, 25.0, 4, ctx);
-        let delete = make_button("Delete", 100.0, 25.0, 5, ctx);
-        let hot_reload = CheckBoxBuilder::new(WidgetBuilder::new().with_tooltip(
-            make_simple_tooltip(ctx, "Run the project with code hot reloading support. \
-            Significantly reduces iteration times, but might result in subtle bugs due to experimental \
-            and unsafe nature of code hot reloading."),
-        ))
-            .build(ctx);
+        let edit_tooltip = "Build the editor and run it.";
+        let run_tooltip = "Build the game and run it.";
+        let delete_tooltip = "Delete the entire project with all its assets. \
+        WARNING: This is irreversible operation and permanently deletes your project!";
+
+        let edit = make_button("Edit", 130.0, 25.0, 3, Some(edit_tooltip), ctx);
+        let run = make_button("Run", 130.0, 25.0, 4, Some(run_tooltip), ctx);
+        let delete = make_button("Delete", 130.0, 25.0, 5, Some(delete_tooltip), ctx);
+        let hot_reload = CheckBoxBuilder::new(
+            WidgetBuilder::new()
+                .with_margin(Thickness::uniform(1.0))
+                .with_tooltip(make_simple_tooltip(
+                    ctx,
+                    "Run the project with code hot reloading support. \
+            Significantly reduces iteration times, but might result in subtle bugs due to \
+            experimental and unsafe nature of code hot reloading.",
+                )),
+        )
+        .with_content(
+            TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::left(2.0)))
+                .with_font_size(16.0f32.into())
+                .with_text("Hot Reloading")
+                .build(ctx),
+        )
+        .build(ctx);
 
         let project_controls = StackPanelBuilder::new(
             WidgetBuilder::new()
                 .with_enabled(false)
                 .on_column(1)
+                .with_child(hot_reload)
                 .with_child(edit)
                 .with_child(run)
                 .with_child(delete),
@@ -296,7 +351,7 @@ impl ProjectManager {
     }
 
     fn try_import(&mut self, path: &Path, ui: &mut UserInterface) {
-        let manifest_path = utils::folder_to_manifest_path(path.clone());
+        let manifest_path = utils::folder_to_manifest_path(path);
 
         let metadata = match utils::read_crate_metadata(&manifest_path) {
             Ok(metadata) => metadata,
@@ -330,7 +385,6 @@ impl ProjectManager {
             Log::err(format!(
                 "{manifest_path:?} does not contain a game package!"
             ));
-            return;
         }
     }
 
@@ -368,7 +422,7 @@ impl ProjectManager {
 
                     match new_process.spawn() {
                         Ok(mut new_process) => {
-                            let mut build_window = BuildWindow::new(&mut ui.build_ctx());
+                            let mut build_window = BuildWindow::new("editor", &mut ui.build_ctx());
 
                             build_window.listen(new_process.stderr.take().unwrap(), ui);
 
@@ -385,7 +439,7 @@ impl ProjectManager {
 
                     match new_process.spawn() {
                         Ok(mut new_process) => {
-                            let mut build_window = BuildWindow::new(&mut ui.build_ctx());
+                            let mut build_window = BuildWindow::new("game", &mut ui.build_ctx());
 
                             build_window.listen(new_process.stderr.take().unwrap(), ui);
 
@@ -436,11 +490,16 @@ impl ProjectManager {
                 // TODO: Filter projects.
                 self.refresh(ui);
             }
-        } else if let Some(CheckBoxMessage::Check(Some(_value))) = message.data() {
+        } else if let Some(CheckBoxMessage::Check(Some(value))) = message.data() {
             if message.destination() == self.hot_reload
                 && message.direction() == MessageDirection::FromWidget
             {
-                // TODO: Switch to respective mode.
+                if let Some(selection) = self.selection {
+                    if let Some(project) = self.settings.projects.get_mut(selection) {
+                        project.hot_reload = *value;
+                        self.refresh(ui);
+                    }
+                }
             }
         } else if let Some(FileSelectorMessage::Commit(path)) = message.data() {
             if message.destination() == self.import_project_dialog {

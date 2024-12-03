@@ -178,8 +178,8 @@ impl ProjectWizard {
         .with_selected(1)
         .build(ctx);
 
-        let create = make_button("Create", 100.0, 22.0, 0, ctx);
-        let cancel = make_button("Cancel", 100.0, 22.0, 0, ctx);
+        let create = make_button("Create", 100.0, 22.0, 0, None, ctx);
+        let cancel = make_button("Cancel", 100.0, 22.0, 0, None, ctx);
         let buttons = StackPanelBuilder::new(
             WidgetBuilder::new()
                 .on_row(1)

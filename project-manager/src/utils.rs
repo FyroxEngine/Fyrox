@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use cargo_metadata::Metadata;
+use fyrox::gui::utils::make_simple_tooltip;
 use fyrox::{
     asset::untyped::UntypedResource,
     core::pool::Handle,
@@ -72,24 +73,29 @@ pub fn make_button(
     width: f32,
     height: f32,
     tab_index: usize,
+    tooltip: Option<&str>,
     ctx: &mut BuildContext,
 ) -> Handle<UiNode> {
-    ButtonBuilder::new(
-        WidgetBuilder::new()
-            .with_width(width)
-            .with_height(height)
-            .with_tab_index(Some(tab_index))
-            .with_margin(Thickness::uniform(1.0)),
-    )
-    .with_content(
-        TextBuilder::new(WidgetBuilder::new())
-            .with_text(text)
-            .with_font_size(16.0.into())
-            .with_vertical_text_alignment(VerticalAlignment::Center)
-            .with_horizontal_text_alignment(HorizontalAlignment::Center)
-            .build(ctx),
-    )
-    .build(ctx)
+    let mut widget_builder = WidgetBuilder::new()
+        .with_width(width)
+        .with_height(height)
+        .with_tab_index(Some(tab_index))
+        .with_margin(Thickness::uniform(1.0));
+
+    if let Some(tooltip) = tooltip {
+        widget_builder = widget_builder.with_tooltip(make_simple_tooltip(ctx, tooltip));
+    }
+
+    ButtonBuilder::new(widget_builder)
+        .with_content(
+            TextBuilder::new(WidgetBuilder::new())
+                .with_text(text)
+                .with_font_size(16.0.into())
+                .with_vertical_text_alignment(VerticalAlignment::Center)
+                .with_horizontal_text_alignment(HorizontalAlignment::Center)
+                .build(ctx),
+        )
+        .build(ctx)
 }
 
 pub fn load_image(data: &[u8]) -> Option<UntypedResource> {
