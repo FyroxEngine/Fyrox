@@ -25,7 +25,7 @@ use crate::{
     utils::{self, is_production_ready, load_image, make_button},
 };
 use fyrox::{
-    core::{color::Color, log::Log, pool::Handle},
+    core::{color::Color, log::Log, pool::Handle, some_or_return},
     gui::{
         border::BorderBuilder,
         brush::Brush,
@@ -51,7 +51,17 @@ use fyrox::{
         VerticalAlignment,
     },
 };
-use std::{path::Path, process::Stdio};
+use fyrox_build_tools::{BuildCommand, BuildProfile};
+use std::{collections::VecDeque, path::Path, path::PathBuf, process::Stdio};
+
+enum Mode {
+    Normal,
+    Build {
+        queue: VecDeque<BuildCommand>,
+        process: Option<std::process::Child>,
+        current_dir: PathBuf,
+    },
+}
 
 pub struct ProjectManager {
     create: Handle<UiNode>,
@@ -69,6 +79,7 @@ pub struct ProjectManager {
     project_wizard: Option<ProjectWizard>,
     build_window: Option<BuildWindow>,
     import_project_dialog: Handle<UiNode>,
+    mode: Mode,
 }
 
 fn make_project_item(
@@ -332,6 +343,7 @@ impl ProjectManager {
             project_wizard: None,
             build_window: None,
             import_project_dialog: Default::default(),
+            mode: Mode::Normal,
         }
     }
 
@@ -344,7 +356,69 @@ impl ProjectManager {
         ))
     }
 
+    fn handle_modes(&mut self, ui: &mut UserInterface) {
+        let Mode::Build {
+            ref mut process,
+            ref mut queue,
+            ref current_dir,
+        } = self.mode
+        else {
+            return;
+        };
+
+        let build_window = some_or_return!(self.build_window.as_mut());
+
+        if process.is_none() {
+            if let Some(build_command) = queue.pop_front() {
+                Log::info(format!("Trying to run build command: {build_command}"));
+
+                let mut command = build_command.make_command();
+
+                command.current_dir(current_dir);
+
+                match command.spawn() {
+                    Ok(mut new_process) => {
+                        build_window.listen(new_process.stderr.take().unwrap(), ui);
+
+                        *process = Some(new_process);
+                    }
+                    Err(e) => Log::err(format!("Failed to enter build mode: {e:?}")),
+                }
+            } else {
+                Log::warn("Empty build command queue!");
+                self.mode = Mode::Normal;
+                return;
+            }
+        }
+
+        if let Some(process_ref) = process {
+            match process_ref.try_wait() {
+                Ok(status) => {
+                    if let Some(status) = status {
+                        // https://doc.rust-lang.org/cargo/commands/cargo-build.html#exit-status
+                        let err_code = 101;
+                        let code = status.code().unwrap_or(err_code);
+                        if code == err_code {
+                            Log::err("Failed to build the game!");
+                            self.mode = Mode::Normal;
+                        } else if queue.is_empty() {
+                            build_window.reset(ui);
+                            build_window.close(ui);
+                        } else {
+                            build_window.reset(ui);
+                            // Continue on next command.
+                            *process = None;
+                        }
+                    }
+                }
+                Err(err) => Log::err(format!("Failed to wait for game process: {err:?}")),
+            }
+        }
+    }
+
     pub fn update(&mut self, ui: &mut UserInterface) {
+        self.handle_modes(ui);
+
         if let Some(build_window) = self.build_window.as_mut() {
             build_window.update(ui);
         }
@@ -431,22 +505,12 @@ impl ProjectManager {
                         Err(e) => Log::err(format!("Failed to start the editor: {e:?}")),
                     }
                 } else if button == self.run {
-                    let mut new_process = std::process::Command::new("cargo");
-                    new_process
-                        .current_dir(project.manifest_path.parent().unwrap())
-                        .stderr(Stdio::piped())
-                        .args(["run", "--package", "executor"]);
-
-                    match new_process.spawn() {
-                        Ok(mut new_process) => {
-                            let mut build_window = BuildWindow::new("game", &mut ui.build_ctx());
-
-                            build_window.listen(new_process.stderr.take().unwrap(), ui);
-
-                            self.build_window = Some(build_window);
-                        }
-                        Err(e) => Log::err(format!("Failed to start the game: {e:?}")),
-                    }
+                    let profile = if project.hot_reload {
+                        BuildProfile::debug_hot_reloading()
+                    } else {
+                        BuildProfile::debug()
+                    };
+                    self.run_build_profile("game", &profile, ui);
                 } else if button == self.delete {
                     if let Some(dir) = project.manifest_path.parent() {
                         let _ = std::fs::remove_dir_all(dir);
@@ -456,6 +520,23 @@ impl ProjectManager {
                 }
             }
         }
+    }
+
+    fn run_build_profile(
+        &mut self,
+        name: &str,
+        build_profile: &BuildProfile,
+        ui: &mut UserInterface,
+    ) {
+        let index = some_or_return!(self.selection);
+        let project = some_or_return!(self.settings.projects.get(index));
+
+        self.mode = Mode::Build {
+            queue: build_profile.build_and_run_queue(),
+            process: None,
+            current_dir: project.manifest_path.parent().unwrap().into(),
+        };
+        self.build_window = Some(BuildWindow::new(name, &mut ui.build_ctx()));
     }
 
     pub fn handle_ui_message(&mut self, message: &UiMessage, ui: &mut UserInterface) {

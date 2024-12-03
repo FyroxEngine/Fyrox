@@ -20,6 +20,7 @@
 
 //! Settings window plugin.
 
+use crate::settings::build::BuildSettings;
 use crate::settings::general::EditorStyle;
 use crate::{
     fyrox::{
@@ -52,7 +53,6 @@ use crate::{
     message::MessageSender,
     plugin::EditorPlugin,
     settings::{
-        build::{BuildCommand, BuildProfile, BuildSettings, EnvironmentVariable},
         camera::CameraSettings,
         debugging::DebuggingSettings,
         general::{GeneralSettings, ScriptEditor},
@@ -67,6 +67,7 @@ use crate::{
     },
     Editor, MSG_SYNC_FLAG,
 };
+use fyrox_build_tools::{BuildCommand, BuildProfile, EnvironmentVariable};
 use std::sync::Arc;
 
 fn make_property_editors_container(

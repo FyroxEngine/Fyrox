@@ -90,9 +90,7 @@ impl Atlas {
         let border = 2;
 
         match self.char_map.get(&unicode) {
-            Some(glyph_index) => {
-                self.glyphs.get(*glyph_index)
-            }
+            Some(glyph_index) => self.glyphs.get(*glyph_index),
             None => {
                 // Char might be missing, because it wasn't requested earlier. Try to find
                 // it in the inner font and render/pack it.

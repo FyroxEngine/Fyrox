@@ -18,13 +18,14 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::settings::build::BuildSettings;
 use crate::{
     fyrox::core::{log::Log, reflect::prelude::*},
     settings::{
-        build::BuildSettings, camera::CameraSettings, debugging::DebuggingSettings,
-        general::GeneralSettings, graphics::GraphicsSettings, keys::KeyBindings,
-        model::ModelSettings, move_mode::MoveInteractionModeSettings, navmesh::NavmeshSettings,
-        recent::RecentFiles, rotate_mode::RotateInteractionModeSettings, scene::SceneSettings,
+        camera::CameraSettings, debugging::DebuggingSettings, general::GeneralSettings,
+        graphics::GraphicsSettings, keys::KeyBindings, model::ModelSettings,
+        move_mode::MoveInteractionModeSettings, navmesh::NavmeshSettings, recent::RecentFiles,
+        rotate_mode::RotateInteractionModeSettings, scene::SceneSettings,
         selection::SelectionSettings, windows::WindowsSettings,
     },
 };

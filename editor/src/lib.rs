@@ -163,7 +163,7 @@ use crate::{
         GameScene, Selection,
     },
     scene_viewer::SceneViewer,
-    settings::{build::BuildCommand, general::EditorStyle, Settings},
+    settings::{general::EditorStyle, Settings},
     stats::{StatisticsWindow, StatisticsWindowAction},
     ui_scene::{
         commands::graph::PasteWidgetCommand, menu::WidgetContextMenu,
@@ -172,6 +172,7 @@ use crate::{
     utils::doc::DocWindow,
     world::{graph::menu::SceneNodeContextMenu, graph::EditorSceneWrapper, WorldViewer},
 };
+use fyrox_build_tools::BuildCommand;
 pub use message::Message;
 use plugins::inspector::InspectorPlugin;
 use std::{
@@ -179,7 +180,6 @@ use std::{
     collections::VecDeque,
     io::{BufRead, BufReader},
     path::{Path, PathBuf},
-    process::Stdio,
     rc::Rc,
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -1498,22 +1498,11 @@ impl Editor {
             build_profile.run_command
         ));
 
-        let mut process = std::process::Command::new(&build_profile.run_command.command);
+        let mut command = build_profile.run_command.make_command();
 
-        process
-            .stdout(Stdio::piped())
-            .args(build_profile.run_command.args.iter())
-            .envs(
-                build_profile
-                    .run_command
-                    .environment_variables
-                    .iter()
-                    .map(|v| (&v.name, &v.value)),
-            );
+        command.arg("--").arg("--override-scene").arg(path);
 
-        process.arg("--").arg("--override-scene").arg(path);
-
-        match process.spawn() {
+        match command.spawn() {
             Ok(mut process) => {
                 let active = Arc::new(AtomicBool::new(true));
 
@@ -2140,21 +2129,10 @@ impl Editor {
                 ref mut queue,
             } => {
                 if process.is_none() {
-                    if let Some(command) = queue.pop_front() {
-                        Log::info(format!("Trying to run build command: {command}"));
+                    if let Some(build_command) = queue.pop_front() {
+                        Log::info(format!("Trying to run build command: {build_command}"));
 
-                        let mut new_process = std::process::Command::new(&command.command);
-                        new_process
-                            .stderr(Stdio::piped())
-                            .args(command.args.iter())
-                            .envs(
-                                command
-                                    .environment_variables
-                                    .iter()
-                                    .map(|v| (&v.name, &v.value)),
-                            );
-
-                        match new_process.spawn() {
+                        match build_command.make_command().spawn() {
                             Ok(mut new_process) => {
                                 self.build_window.listen(
                                     new_process.stderr.take().unwrap(),
