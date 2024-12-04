@@ -140,6 +140,7 @@ pub fn make_simple_tooltip(ctx: &mut BuildContext, text: &str) -> RcUiNodeHandle
     let handle = BorderBuilder::new(
         WidgetBuilder::new()
             .with_visibility(false)
+            .with_hit_test_visibility(false)
             .with_foreground(ctx.style.property(Style::BRUSH_DARKEST))
             .with_background(Brush::Solid(Color::opaque(230, 230, 230)).into())
             .with_max_size(Vector2::new(300.0, f32::INFINITY))
