@@ -58,7 +58,7 @@ fn main() {
         graphics_context_params: GraphicsContextParams {
             window_attributes,
             vsync: true,
-            msaa_sample_count: None,
+            msaa_sample_count: Some(2),
         },
         resource_manager: ResourceManager::new(task_pool.clone()),
         serialization_context,
@@ -88,6 +88,10 @@ fn main() {
                     engine
                         .initialize_graphics_context(window_target)
                         .expect("Unable to initialize graphics context!");
+                    engine
+                        .graphics_context
+                        .as_initialized_mut()
+                        .set_window_icon_from_memory(include_bytes!("../resources/icon.png"));
                 }
                 Event::Suspended => {
                     engine

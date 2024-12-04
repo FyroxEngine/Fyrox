@@ -47,8 +47,7 @@ use fyrox::{
         utils::make_simple_tooltip,
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage},
-        BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
-        VerticalAlignment,
+        BuildContext, HorizontalAlignment, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
 };
 use fyrox_build_tools::{BuildCommand, BuildProfile};
@@ -227,26 +226,63 @@ impl ProjectManager {
         settings.";
         let import_tooltip = "Allows you to import an existing project in the project manager.";
 
-        let create = make_button("+ Create", 100.0, 25.0, 0, Some(create_tooltip), ctx);
-        let import = make_button("Import", 100.0, 25.0, 1, Some(import_tooltip), ctx);
+        let create = make_button("+ Create", 100.0, 25.0, 0, 0, 0, Some(create_tooltip), ctx);
+        let import = make_button("Import", 100.0, 25.0, 1, 0, 1, Some(import_tooltip), ctx);
         let search_bar = SearchBarBuilder::new(
             WidgetBuilder::new()
+                .on_column(2)
                 .with_tab_index(Some(2))
                 .with_margin(Thickness::uniform(1.0))
-                .with_height(25.0)
-                .with_width(200.0),
+                .with_height(25.0),
         )
         .build(ctx);
 
-        let toolbar = StackPanelBuilder::new(
+        let log = GridBuilder::new(
+            WidgetBuilder::new()
+                .with_vertical_alignment(VerticalAlignment::Center)
+                .on_column(3)
+                .with_child(
+                    ImageBuilder::new(
+                        WidgetBuilder::new()
+                            .with_margin(Thickness::uniform(1.0))
+                            .with_width(18.0)
+                            .with_height(18.0)
+                            .on_column(0),
+                    )
+                    .with_opt_texture(load_image(include_bytes!("../resources/caution.png")))
+                    .build(ctx),
+                )
+                .with_child(
+                    TextBuilder::new(
+                        WidgetBuilder::new()
+                            .on_column(1)
+                            .with_margin(Thickness::uniform(1.0))
+                            .with_vertical_alignment(VerticalAlignment::Center)
+                            .with_foreground(Brush::Solid(Color::GOLD).into()),
+                    )
+                    .with_text("2")
+                    .build(ctx),
+                ),
+        )
+        .add_column(Column::auto())
+        .add_column(Column::auto())
+        .add_row(Row::auto())
+        .build(ctx);
+
+        let toolbar = GridBuilder::new(
             WidgetBuilder::new()
                 .with_enabled(is_ready)
                 .on_row(1)
                 .with_child(create)
                 .with_child(import)
-                .with_child(search_bar),
+                .with_child(search_bar)
+                .with_child(log),
         )
-        .with_orientation(Orientation::Horizontal)
+        .add_column(Column::auto())
+        .add_column(Column::auto())
+        .add_column(Column::stretch())
+        .add_column(Column::auto())
+        .add_row(Row::auto())
         .build(ctx);
 
         let edit_tooltip = "Build the editor and run it.";
@@ -254,9 +290,9 @@ impl ProjectManager {
         let delete_tooltip = "Delete the entire project with all its assets. \
         WARNING: This is irreversible operation and permanently deletes your project!";
 
-        let edit = make_button("Edit", 130.0, 25.0, 3, Some(edit_tooltip), ctx);
-        let run = make_button("Run", 130.0, 25.0, 4, Some(run_tooltip), ctx);
-        let delete = make_button("Delete", 130.0, 25.0, 5, Some(delete_tooltip), ctx);
+        let edit = make_button("Edit", 130.0, 25.0, 3, 0, 0, Some(edit_tooltip), ctx);
+        let run = make_button("Run", 130.0, 25.0, 4, 0, 0, Some(run_tooltip), ctx);
+        let delete = make_button("Delete", 130.0, 25.0, 5, 0, 0, Some(delete_tooltip), ctx);
         let hot_reload = CheckBoxBuilder::new(
             WidgetBuilder::new()
                 .with_margin(Thickness::uniform(1.0))

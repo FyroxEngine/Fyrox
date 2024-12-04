@@ -68,15 +68,20 @@ pub fn make_dropdown_list_option(ctx: &mut BuildContext, name: &str) -> Handle<U
     .build(ctx)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn make_button(
     text: &str,
     width: f32,
     height: f32,
     tab_index: usize,
+    row: usize,
+    column: usize,
     tooltip: Option<&str>,
     ctx: &mut BuildContext,
 ) -> Handle<UiNode> {
     let mut widget_builder = WidgetBuilder::new()
+        .on_row(row)
+        .on_column(column)
         .with_width(width)
         .with_height(height)
         .with_tab_index(Some(tab_index))
