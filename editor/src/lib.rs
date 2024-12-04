@@ -123,12 +123,12 @@ use crate::{
         },
         plugin::{dylib::DyLibDynamicPlugin, DynamicPlugin, Plugin, PluginContainer},
         resource::texture::{
-            CompressionOptions, TextureImportOptions, TextureKind, TextureMinificationFilter,
-            TextureResource, TextureResourceExtension,
+            CompressionOptions, TextureImportOptions, TextureMinificationFilter, TextureResource,
+            TextureResourceExtension,
         },
         scene::{graph::GraphUpdateSwitches, mesh::Mesh, Scene, SceneLoader},
         utils::{translate_cursor_icon, translate_event},
-        window::{Icon, WindowAttributes},
+        window::WindowAttributes,
     },
     highlight::HighlightRenderPass,
     interaction::{
@@ -2555,20 +2555,7 @@ impl Editor {
 
         let graphics_context = engine.graphics_context.as_initialized_mut();
 
-        if let Ok(icon_img) = TextureResource::load_from_memory(
-            "../resources/icon.png".into(),
-            include_bytes!("../resources/icon.png"),
-            TextureImportOptions::default()
-                .with_compression(CompressionOptions::NoCompression)
-                .with_minification_filter(TextureMinificationFilter::Linear),
-        ) {
-            let data = icon_img.data_ref();
-            if let TextureKind::Rectangle { width, height } = data.kind() {
-                if let Ok(img) = Icon::from_rgba(data.data().to_vec(), width, height) {
-                    graphics_context.window.set_window_icon(Some(img));
-                }
-            }
-        }
+        graphics_context.set_window_icon_from_memory(include_bytes!("../resources/icon.png"));
 
         // High-DPI screen support
         Log::info(format!(

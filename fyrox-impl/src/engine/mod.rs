@@ -29,6 +29,10 @@ pub mod task;
 
 mod hotreload;
 
+use crate::resource::texture::{
+    CompressionOptions, TextureImportOptions, TextureMinificationFilter, TextureResource,
+    TextureResourceExtension,
+};
 use crate::{
     asset::{
         event::ResourceEvent,
@@ -117,6 +121,7 @@ use std::{
     },
     time::Duration,
 };
+use winit::window::Icon;
 use winit::{
     dpi::{Position, Size},
     event_loop::EventLoopWindowTarget,
@@ -180,6 +185,33 @@ pub struct InitializedGraphicsContext {
     pub renderer: Renderer,
 
     params: GraphicsContextParams,
+}
+
+impl InitializedGraphicsContext {
+    /// Tries to set a new icon for the window from the given data source. The data source must contain
+    /// some of the supported texture types data (png, bmp, jpg images). You can call this method
+    /// with [`include_bytes`] macro to pass file's data directly.
+    pub fn set_window_icon_from_memory(&mut self, data: &[u8]) {
+        if let Ok(texture) = TextureResource::load_from_memory(
+            ResourceKind::Embedded,
+            data,
+            TextureImportOptions::default()
+                .with_compression(CompressionOptions::NoCompression)
+                .with_minification_filter(TextureMinificationFilter::Linear),
+        ) {
+            self.set_window_icon_from_texture(&texture);
+        }
+    }
+
+    /// Tries to set a new icon for the window using the given texture.
+    pub fn set_window_icon_from_texture(&mut self, texture: &TextureResource) {
+        let data = texture.data_ref();
+        if let TextureKind::Rectangle { width, height } = data.kind() {
+            if let Ok(img) = Icon::from_rgba(data.data().to_vec(), width, height) {
+                self.window.set_window_icon(Some(img));
+            }
+        }
+    }
 }
 
 /// Graphics context of the engine, it could be in two main states:
