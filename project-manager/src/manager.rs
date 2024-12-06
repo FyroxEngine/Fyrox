@@ -162,7 +162,7 @@ fn make_project_item(
         )
         .with_corner_radius(4.0f32.into()),
     )
-    .with_selected_brush(ctx.style.property(Style::BRUSH_BRIGHT_BLUE))
+    .with_selected_brush(ctx.style.property(Style::BRUSH_DIM_BLUE))
     .build(ctx)
 }
 
@@ -589,6 +589,14 @@ impl ProjectManager {
                     MessageDirection::ToWidget,
                     !selection.is_empty(),
                 ));
+
+                if let Some(project) = self.selection.and_then(|i| self.settings.projects.get(i)) {
+                    ui.send_message(CheckBoxMessage::checked(
+                        self.hot_reload,
+                        MessageDirection::ToWidget,
+                        Some(project.hot_reload),
+                    ));
+                }
             }
         } else if let Some(SearchBarMessage::Text(_filter)) = message.data() {
             if message.destination() == self.search_bar
@@ -603,8 +611,10 @@ impl ProjectManager {
             {
                 if let Some(selection) = self.selection {
                     if let Some(project) = self.settings.projects.get_mut(selection) {
-                        project.hot_reload = *value;
-                        self.refresh(ui);
+                        if project.hot_reload != *value {
+                            project.hot_reload = *value;
+                            self.refresh(ui);
+                        }
                     }
                 }
             }

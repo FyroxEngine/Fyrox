@@ -30,6 +30,7 @@ use crate::{manager::ProjectManager, utils::make_button};
 use fyrox::{
     asset::manager::ResourceManager,
     core::{
+        algebra::Matrix3,
         instant::Instant,
         log::{Log, MessageKind},
         task::TaskPool,
@@ -40,11 +41,23 @@ use fyrox::{
     },
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
-    gui::{constructor::new_widget_constructor_container, font::Font},
+    gui::{
+        constructor::new_widget_constructor_container, font::Font, message::MessageDirection,
+        widget::WidgetMessage, UserInterface,
+    },
     utils::translate_event,
     window::WindowAttributes,
 };
 use std::sync::Arc;
+
+fn set_ui_scaling(ui: &UserInterface, scale: f32) {
+    // High-DPI screen support
+    ui.send_message(WidgetMessage::render_transform(
+        ui.root(),
+        MessageDirection::ToWidget,
+        Matrix3::new_scaling(scale),
+    ));
+}
 
 fn main() {
     let mut window_attributes = WindowAttributes::default();
@@ -88,10 +101,13 @@ fn main() {
                     engine
                         .initialize_graphics_context(window_target)
                         .expect("Unable to initialize graphics context!");
-                    engine
-                        .graphics_context
-                        .as_initialized_mut()
+                    let graphics_context = engine.graphics_context.as_initialized_mut();
+                    graphics_context
                         .set_window_icon_from_memory(include_bytes!("../resources/icon.png"));
+                    set_ui_scaling(
+                        engine.user_interfaces.first(),
+                        graphics_context.window.scale_factor() as f32,
+                    );
                 }
                 Event::Suspended => {
                     engine
@@ -130,6 +146,10 @@ fn main() {
                                     format!("Unable to set frame size: {e:?}"),
                                 );
                             }
+                        }
+                        WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
+                            let ui = engine.user_interfaces.first_mut();
+                            set_ui_scaling(ui, scale_factor as f32);
                         }
                         WindowEvent::RedrawRequested => {
                             engine.render().unwrap();
