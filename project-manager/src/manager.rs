@@ -79,12 +79,14 @@ pub struct ProjectManager {
     build_window: Option<BuildWindow>,
     import_project_dialog: Handle<UiNode>,
     mode: Mode,
+    search_text: String,
 }
 
 fn make_project_item(
     name: &str,
     path: &Path,
     hot_reload: bool,
+    visible: bool,
     ctx: &mut BuildContext,
 ) -> Handle<UiNode> {
     let icon = ImageBuilder::new(
@@ -145,6 +147,7 @@ fn make_project_item(
     DecoratorBuilder::new(
         BorderBuilder::new(
             WidgetBuilder::new()
+                .with_visibility(visible)
                 .with_margin(Thickness::uniform(1.0))
                 .with_child(
                     GridBuilder::new(
@@ -166,15 +169,26 @@ fn make_project_item(
     .build(ctx)
 }
 
-fn make_project_items(settings: &Settings, ctx: &mut BuildContext) -> Vec<Handle<UiNode>> {
+fn make_project_items(
+    settings: &Settings,
+    search_text: &str,
+    ctx: &mut BuildContext,
+) -> Vec<Handle<UiNode>> {
     settings
         .projects
         .iter()
         .map(|project| {
+            let visible = search_text.is_empty()
+                || project
+                    .name
+                    .to_lowercase()
+                    .contains(&search_text.to_lowercase());
+
             make_project_item(
                 &project.name,
                 &project.manifest_path,
                 project.hot_reload,
+                visible,
                 ctx,
             )
         })
@@ -329,7 +343,7 @@ impl ProjectManager {
                 .with_margin(Thickness::uniform(1.0))
                 .on_column(0),
         )
-        .with_items(make_project_items(&settings, ctx))
+        .with_items(make_project_items(&settings, "", ctx))
         .build(ctx);
 
         let inner_content = GridBuilder::new(
@@ -380,11 +394,12 @@ impl ProjectManager {
             build_window: None,
             import_project_dialog: Default::default(),
             mode: Mode::Normal,
+            search_text: Default::default(),
         }
     }
 
     fn refresh(&mut self, ui: &mut UserInterface) {
-        let items = make_project_items(&self.settings, &mut ui.build_ctx());
+        let items = make_project_items(&self.settings, &self.search_text, &mut ui.build_ctx());
         ui.send_message(ListViewMessage::items(
             self.projects,
             MessageDirection::ToWidget,
@@ -598,11 +613,11 @@ impl ProjectManager {
                     ));
                 }
             }
-        } else if let Some(SearchBarMessage::Text(_filter)) = message.data() {
+        } else if let Some(SearchBarMessage::Text(filter)) = message.data() {
             if message.destination() == self.search_bar
                 && message.direction() == MessageDirection::FromWidget
             {
-                // TODO: Filter projects.
+                self.search_text = filter.clone();
                 self.refresh(ui);
             }
         } else if let Some(CheckBoxMessage::Check(Some(value))) = message.data() {
