@@ -721,6 +721,7 @@ impl Editor {
             ctx,
             log_message_receiver,
             load_image!("../resources/clear.png"),
+            true,
         );
         let inspector_plugin = InspectorPlugin::new(ctx, message_sender.clone());
         let particle_system_control_panel =

@@ -27,6 +27,7 @@ mod settings;
 mod utils;
 
 use crate::{manager::ProjectManager, utils::make_button};
+use fyrox::utils::translate_cursor_icon;
 use fyrox::{
     asset::manager::ResourceManager,
     core::{
@@ -133,6 +134,11 @@ fn main() {
                     }
 
                     if let GraphicsContext::Initialized(ref ctx) = engine.graphics_context {
+                        let window = &ctx.window;
+                        window.set_cursor_icon(translate_cursor_icon(
+                            engine.user_interfaces.first_mut().cursor(),
+                        ));
+
                         ctx.window.request_redraw();
                     }
                 }

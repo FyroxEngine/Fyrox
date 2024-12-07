@@ -24,6 +24,8 @@ use crate::{
     settings::{Project, Settings},
     utils::{self, is_production_ready, load_image, make_button},
 };
+use fyrox::gui::log::LogPanel;
+use fyrox::gui::text::TextMessage;
 use fyrox::{
     core::{color::Color, log::Log, pool::Handle, some_or_return},
     gui::{
@@ -51,7 +53,10 @@ use fyrox::{
     },
 };
 use fyrox_build_tools::{BuildCommand, BuildProfile};
-use std::{collections::VecDeque, path::Path, path::PathBuf};
+use std::{
+    collections::VecDeque,
+    path::{Path, PathBuf},
+};
 
 enum Mode {
     Normal,
@@ -80,6 +85,9 @@ pub struct ProjectManager {
     import_project_dialog: Handle<UiNode>,
     mode: Mode,
     search_text: String,
+    log: LogPanel,
+    open_log: Handle<UiNode>,
+    message_count: Handle<UiNode>,
 }
 
 fn make_project_item(
@@ -199,6 +207,11 @@ impl ProjectManager {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let settings = Settings::load();
 
+        let (sender, receiver) = std::sync::mpsc::channel();
+        Log::add_listener(sender);
+
+        let log = LogPanel::new(ctx, receiver, None, false);
+
         let is_ready = is_production_ready();
 
         let download = ButtonBuilder::new(
@@ -251,37 +264,44 @@ impl ProjectManager {
         )
         .build(ctx);
 
-        let log = GridBuilder::new(
-            WidgetBuilder::new()
-                .with_vertical_alignment(VerticalAlignment::Center)
-                .on_column(3)
-                .with_child(
-                    ImageBuilder::new(
-                        WidgetBuilder::new()
-                            .with_margin(Thickness::uniform(1.0))
-                            .with_width(18.0)
-                            .with_height(18.0)
-                            .on_column(0),
-                    )
-                    .with_opt_texture(load_image(include_bytes!("../resources/caution.png")))
-                    .build(ctx),
+        let message_count;
+        let open_log = ButtonBuilder::new(WidgetBuilder::new().on_column(3))
+            .with_content(
+                GridBuilder::new(
+                    WidgetBuilder::new()
+                        .with_vertical_alignment(VerticalAlignment::Center)
+                        .with_child(
+                            ImageBuilder::new(
+                                WidgetBuilder::new()
+                                    .with_margin(Thickness::uniform(1.0))
+                                    .with_width(18.0)
+                                    .with_height(18.0)
+                                    .on_column(0),
+                            )
+                            .with_opt_texture(load_image(include_bytes!(
+                                "../resources/caution.png"
+                            )))
+                            .build(ctx),
+                        )
+                        .with_child({
+                            message_count = TextBuilder::new(
+                                WidgetBuilder::new()
+                                    .on_column(1)
+                                    .with_margin(Thickness::uniform(1.0))
+                                    .with_vertical_alignment(VerticalAlignment::Center)
+                                    .with_foreground(Brush::Solid(Color::GOLD).into()),
+                            )
+                            .with_text("2")
+                            .build(ctx);
+                            message_count
+                        }),
                 )
-                .with_child(
-                    TextBuilder::new(
-                        WidgetBuilder::new()
-                            .on_column(1)
-                            .with_margin(Thickness::uniform(1.0))
-                            .with_vertical_alignment(VerticalAlignment::Center)
-                            .with_foreground(Brush::Solid(Color::GOLD).into()),
-                    )
-                    .with_text("2")
-                    .build(ctx),
-                ),
-        )
-        .add_column(Column::auto())
-        .add_column(Column::auto())
-        .add_row(Row::auto())
-        .build(ctx);
+                .add_column(Column::auto())
+                .add_column(Column::auto())
+                .add_row(Row::auto())
+                .build(ctx),
+            )
+            .build(ctx);
 
         let toolbar = GridBuilder::new(
             WidgetBuilder::new()
@@ -290,7 +310,7 @@ impl ProjectManager {
                 .with_child(create)
                 .with_child(import)
                 .with_child(search_bar)
-                .with_child(log),
+                .with_child(open_log),
         )
         .add_column(Column::auto())
         .add_column(Column::auto())
@@ -395,6 +415,9 @@ impl ProjectManager {
             import_project_dialog: Default::default(),
             mode: Mode::Normal,
             search_text: Default::default(),
+            log,
+            open_log,
+            message_count,
         }
     }
 
@@ -469,6 +492,13 @@ impl ProjectManager {
 
     pub fn update(&mut self, ui: &mut UserInterface) {
         self.handle_modes(ui);
+        if self.log.update(65536, ui) {
+            ui.send_message(TextMessage::text(
+                self.message_count,
+                MessageDirection::ToWidget,
+                self.log.message_count.to_string(),
+            ));
+        }
 
         if let Some(build_window) = self.build_window.as_mut() {
             build_window.update(ui);
@@ -534,6 +564,8 @@ impl ProjectManager {
             ));
         } else if button == self.download {
             let _ = open::that("https://rustup.rs/");
+        } else if button == self.open_log {
+            self.log.open(ui);
         }
 
         if let Some(index) = self.selection {
@@ -586,6 +618,8 @@ impl ProjectManager {
                 self.refresh(ui);
             }
         }
+
+        self.log.handle_ui_message(message, ui);
 
         if let Some(build_window) = self.build_window.as_mut() {
             build_window.handle_ui_message(message, ui);

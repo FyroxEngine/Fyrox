@@ -34,13 +34,15 @@ use crate::{
     style::{resource::StyleResourceExt, Style},
     text::{Text, TextBuilder},
     utils::{make_dropdown_list_option, make_image_button_with_tooltip},
-    widget::WidgetBuilder,
-    window::{WindowBuilder, WindowTitle},
+    widget::{WidgetBuilder, WidgetMessage},
+    window::{WindowBuilder, WindowMessage, WindowTitle},
     BuildContext, HorizontalAlignment, Orientation, RcUiNodeHandle, Thickness, UiNode,
     UserInterface,
 };
-use fyrox_core::log::{LogMessage, MessageKind};
-use fyrox_core::pool::Handle;
+use fyrox_core::{
+    log::{LogMessage, MessageKind},
+    pool::Handle,
+};
 use fyrox_graph::BaseSceneGraph;
 use fyrox_resource::untyped::UntypedResource;
 use std::sync::mpsc::Receiver;
@@ -104,6 +106,7 @@ pub struct LogPanel {
     severity: MessageKind,
     severity_list: Handle<UiNode>,
     context_menu: ContextMenu,
+    pub message_count: usize,
 }
 
 impl LogPanel {
@@ -111,79 +114,86 @@ impl LogPanel {
         ctx: &mut BuildContext,
         message_receiver: Receiver<LogMessage>,
         clear_icon: Option<UntypedResource>,
+        open: bool,
     ) -> Self {
         let messages;
         let clear;
         let severity_list;
-        let window = WindowBuilder::new(WidgetBuilder::new().with_name("LogPanel"))
-            .can_minimize(false)
-            .with_title(WindowTitle::text("Message Log"))
-            .with_content(
-                GridBuilder::new(
-                    WidgetBuilder::new()
-                        .with_child(
-                            StackPanelBuilder::new(
-                                WidgetBuilder::new()
-                                    .with_horizontal_alignment(HorizontalAlignment::Left)
-                                    .on_row(0)
-                                    .on_column(0)
-                                    .with_child({
-                                        clear = make_image_button_with_tooltip(
-                                            ctx,
-                                            24.0,
-                                            24.0,
-                                            clear_icon,
-                                            "Clear the log.",
-                                            Some(0),
-                                        );
-                                        clear
-                                    })
-                                    .with_child({
-                                        severity_list = DropdownListBuilder::new(
-                                            WidgetBuilder::new()
-                                                .with_tab_index(Some(1))
-                                                .with_width(120.0)
-                                                .with_margin(Thickness::uniform(1.0)),
-                                        )
-                                        .with_items(vec![
-                                            make_dropdown_list_option(ctx, "Info+"),
-                                            make_dropdown_list_option(ctx, "Warnings+"),
-                                            make_dropdown_list_option(ctx, "Errors"),
-                                        ])
-                                        // Warnings+
-                                        .with_selected(1)
-                                        .build(ctx);
-                                        severity_list
-                                    }),
+        let window = WindowBuilder::new(
+            WidgetBuilder::new()
+                .with_width(400.0)
+                .with_height(200.0)
+                .with_name("LogPanel"),
+        )
+        .can_minimize(false)
+        .open(open)
+        .with_title(WindowTitle::text("Message Log"))
+        .with_content(
+            GridBuilder::new(
+                WidgetBuilder::new()
+                    .with_child(
+                        StackPanelBuilder::new(
+                            WidgetBuilder::new()
+                                .with_horizontal_alignment(HorizontalAlignment::Left)
+                                .on_row(0)
+                                .on_column(0)
+                                .with_child({
+                                    clear = make_image_button_with_tooltip(
+                                        ctx,
+                                        24.0,
+                                        24.0,
+                                        clear_icon,
+                                        "Clear the log.",
+                                        Some(0),
+                                    );
+                                    clear
+                                })
+                                .with_child({
+                                    severity_list = DropdownListBuilder::new(
+                                        WidgetBuilder::new()
+                                            .with_tab_index(Some(1))
+                                            .with_width(120.0)
+                                            .with_margin(Thickness::uniform(1.0)),
+                                    )
+                                    .with_items(vec![
+                                        make_dropdown_list_option(ctx, "Info+"),
+                                        make_dropdown_list_option(ctx, "Warnings+"),
+                                        make_dropdown_list_option(ctx, "Errors"),
+                                    ])
+                                    // Warnings+
+                                    .with_selected(1)
+                                    .build(ctx);
+                                    severity_list
+                                }),
+                        )
+                        .with_orientation(Orientation::Horizontal)
+                        .build(ctx),
+                    )
+                    .with_child({
+                        messages = ListViewBuilder::new(
+                            WidgetBuilder::new()
+                                .with_margin(Thickness::uniform(1.0))
+                                .on_row(1)
+                                .on_column(0),
+                        )
+                        .with_scroll_viewer(
+                            ScrollViewerBuilder::new(
+                                WidgetBuilder::new().with_margin(Thickness::uniform(3.0)),
                             )
-                            .with_orientation(Orientation::Horizontal)
+                            .with_horizontal_scroll_allowed(true)
+                            .with_vertical_scroll_allowed(true)
                             .build(ctx),
                         )
-                        .with_child({
-                            messages = ListViewBuilder::new(
-                                WidgetBuilder::new()
-                                    .with_margin(Thickness::uniform(1.0))
-                                    .on_row(1)
-                                    .on_column(0),
-                            )
-                            .with_scroll_viewer(
-                                ScrollViewerBuilder::new(
-                                    WidgetBuilder::new().with_margin(Thickness::uniform(3.0)),
-                                )
-                                .with_horizontal_scroll_allowed(true)
-                                .with_vertical_scroll_allowed(true)
-                                .build(ctx),
-                            )
-                            .build(ctx);
-                            messages
-                        }),
-                )
-                .add_row(Row::strict(26.0))
-                .add_row(Row::stretch())
-                .add_column(Column::stretch())
-                .build(ctx),
+                        .build(ctx);
+                        messages
+                    }),
             )
-            .build(ctx);
+            .add_row(Row::strict(26.0))
+            .add_row(Row::stretch())
+            .add_column(Column::stretch())
+            .build(ctx),
+        )
+        .build(ctx);
 
         let context_menu = ContextMenu::new(ctx);
 
@@ -195,7 +205,35 @@ impl LogPanel {
             severity: MessageKind::Warning,
             severity_list,
             context_menu,
+            message_count: 0,
         }
+    }
+
+    pub fn destroy(self, ui: &UserInterface) {
+        ui.send_message(WidgetMessage::remove(
+            self.context_menu.menu.handle(),
+            MessageDirection::ToWidget,
+        ));
+        ui.send_message(WidgetMessage::remove(
+            self.window,
+            MessageDirection::ToWidget,
+        ));
+    }
+
+    pub fn open(&self, ui: &UserInterface) {
+        ui.send_message(WindowMessage::open(
+            self.window,
+            MessageDirection::ToWidget,
+            true,
+            true,
+        ));
+    }
+
+    pub fn close(&self, ui: &UserInterface) {
+        ui.send_message(WindowMessage::close(
+            self.window,
+            MessageDirection::ToWidget,
+        ));
     }
 
     pub fn handle_ui_message(&mut self, message: &UiMessage, ui: &mut UserInterface) {
@@ -225,7 +263,7 @@ impl LogPanel {
         self.context_menu.handle_ui_message(message, ui);
     }
 
-    pub fn update(&mut self, max_log_entries: usize, ui: &mut UserInterface) {
+    pub fn update(&mut self, max_log_entries: usize, ui: &mut UserInterface) -> bool {
         let existing_items = ui
             .node(self.messages)
             .cast::<ListView>()
@@ -254,10 +292,15 @@ impl LogPanel {
 
         let mut item_to_bring_into_view = Handle::NONE;
 
+        let mut received_anything = false;
+
         while let Ok(msg) = self.receiver.try_recv() {
             if msg.kind < self.severity {
                 continue;
             }
+
+            self.message_count += 1;
+            received_anything = true;
 
             let text = format!("[{:.2}s] {}", msg.time.as_secs_f32(), msg.content);
 
@@ -309,5 +352,7 @@ impl LogPanel {
                 item_to_bring_into_view,
             ));
         }
+
+        received_anything
     }
 }
