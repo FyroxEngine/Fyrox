@@ -46,7 +46,6 @@ use crate::{
         },
         scene::SceneContainer,
     },
-    gui::make_image_button_with_tooltip,
     load_image,
     message::MessageSender,
     plugin::EditorPlugin,
@@ -58,6 +57,7 @@ use crate::{
 };
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
+use fyrox::gui::utils::make_image_button_with_tooltip;
 use std::{any::Any, sync::Arc};
 
 pub mod editors;

@@ -76,7 +76,6 @@ use crate::{
         },
         resource::texture::TextureBytes,
     },
-    gui::make_image_button_with_tooltip,
     load_image,
     menu::create_menu_item,
     message::MessageSender,
@@ -94,6 +93,7 @@ use crate::{
 use fyrox::generic_animation::track::TrackBinding;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
+use fyrox::gui::utils::make_image_button_with_tooltip;
 use fyrox::renderer::framework::DrawParameters;
 use fyrox::scene::mesh::buffer::{TriangleBuffer, VertexBuffer};
 use fyrox::scene::sound::Samples;

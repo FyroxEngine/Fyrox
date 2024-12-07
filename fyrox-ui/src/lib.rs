@@ -233,6 +233,7 @@ pub mod inspector;
 pub mod key;
 pub mod list_view;
 pub mod loader;
+pub mod log;
 pub mod matrix;
 pub mod menu;
 pub mod message;

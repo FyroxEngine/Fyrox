@@ -52,11 +52,11 @@ use crate::{
             VerticalAlignment,
         },
     },
-    gui::make_dropdown_list_option,
     message::MessageSender,
     Message,
 };
 use cargo_metadata::{camino::Utf8Path, Metadata};
+use fyrox::gui::utils::make_dropdown_list_option;
 use std::{
     ffi::OsStr,
     fmt::{Display, Formatter},

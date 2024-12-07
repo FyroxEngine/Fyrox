@@ -54,10 +54,6 @@ use crate::{
         resource::texture::TextureResource,
         scene::camera::Projection,
     },
-    gui::{
-        make_dropdown_list_option, make_dropdown_list_option_universal,
-        make_dropdown_list_option_with_height, make_image_button_with_tooltip,
-    },
     load_image,
     message::MessageSender,
     scene::container::EditorSceneEntry,
@@ -70,6 +66,10 @@ use crate::{
 };
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
+use fyrox::gui::utils::{
+    make_dropdown_list_option, make_dropdown_list_option_universal,
+    make_dropdown_list_option_with_height, make_image_button_with_tooltip,
+};
 use std::{
     ops::Deref,
     sync::mpsc::{self, Receiver},

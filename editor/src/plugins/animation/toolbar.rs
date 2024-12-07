@@ -60,7 +60,6 @@ use crate::plugins::animation::{
 };
 use crate::{
     command::{Command, CommandGroup},
-    gui::make_dropdown_list_option_universal,
     load_image,
     message::MessageSender,
     scene::{
@@ -72,6 +71,7 @@ use crate::{
 };
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
+use fyrox::gui::utils::make_dropdown_list_option_universal;
 use std::path::Path;
 
 enum ImportMode {

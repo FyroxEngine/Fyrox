@@ -37,11 +37,9 @@ pub mod camera;
 pub mod command;
 pub mod configurator;
 pub mod export;
-pub mod gui;
 pub mod highlight;
 pub mod interaction;
 pub mod light;
-pub mod log;
 pub mod menu;
 pub mod mesh;
 pub mod message;
@@ -140,7 +138,6 @@ use crate::{
         terrain::TerrainInteractionMode,
     },
     light::LightPanel,
-    log::LogPanel,
     menu::{Menu, MenuContext, Panels},
     mesh::{MeshControlPanel, SurfaceDataViewer},
     message::MessageSender,
@@ -172,6 +169,7 @@ use crate::{
     utils::doc::DocWindow,
     world::{graph::menu::SceneNodeContextMenu, graph::EditorSceneWrapper, WorldViewer},
 };
+use fyrox::gui::log::LogPanel;
 use fyrox_build_tools::BuildCommand;
 pub use message::Message;
 use plugins::inspector::InspectorPlugin;
@@ -719,7 +717,11 @@ impl Editor {
         )));
         let world_outliner = WorldViewer::new(ctx, message_sender.clone(), &settings);
         let command_stack_viewer = CommandStackViewer::new(ctx, message_sender.clone());
-        let log = LogPanel::new(ctx, log_message_receiver);
+        let log = LogPanel::new(
+            ctx,
+            log_message_receiver,
+            load_image!("../resources/clear.png"),
+        );
         let inspector_plugin = InspectorPlugin::new(ctx, message_sender.clone());
         let particle_system_control_panel =
             ParticleSystemPreviewControlPanel::new(scene_viewer.frame(), ctx);
@@ -1289,12 +1291,18 @@ impl Editor {
             self.surface_data_viewer = surface_data_viewer.handle_ui_message(message, engine);
         }
 
-        self.build_window.handle_ui_message(
-            message,
-            &self.message_sender,
-            engine.user_interfaces.first(),
-        );
-        self.log.handle_ui_message(message, engine);
+        let ui = engine.user_interfaces.first_mut();
+        self.build_window
+            .handle_ui_message(message, &self.message_sender, ui);
+        if let Some(export_window) = self.export_window.as_mut() {
+            export_window.handle_ui_message(message, ui, &self.message_sender);
+        }
+        if let Some(stats) = self.statistics_window.as_ref() {
+            if let StatisticsWindowAction::Remove = stats.handle_ui_message(message, ui) {
+                self.statistics_window.take();
+            }
+        }
+        self.log.handle_ui_message(message, ui);
         self.asset_browser
             .handle_ui_message(message, engine, self.message_sender.clone());
         self.command_stack_viewer.handle_ui_message(message);
@@ -1305,20 +1313,6 @@ impl Editor {
             &mut self.settings,
             &self.mode,
         );
-        if let Some(export_window) = self.export_window.as_mut() {
-            export_window.handle_ui_message(
-                message,
-                engine.user_interfaces.first_mut(),
-                &self.message_sender,
-            );
-        }
-        if let Some(stats) = self.statistics_window.as_ref() {
-            if let StatisticsWindowAction::Remove =
-                stats.handle_ui_message(message, engine.user_interfaces.first())
-            {
-                self.statistics_window.take();
-            }
-        }
 
         let current_scene_entry = self.scenes.current_scene_entry_mut();
 
@@ -2189,12 +2183,14 @@ impl Editor {
 
         self.handle_modes();
 
-        self.log.update(&self.settings, &mut self.engine);
+        let ui = self.engine.user_interfaces.first_mut();
+        self.log.update(self.settings.general.max_log_entries, ui);
+        if let Some(export_window) = self.export_window.as_mut() {
+            export_window.update(ui);
+        }
+
         self.asset_browser
             .update(&mut self.engine, &self.message_sender);
-        if let Some(export_window) = self.export_window.as_mut() {
-            export_window.update(self.engine.user_interfaces.first_mut());
-        }
         if let Some(surface_data_viewer) = self.surface_data_viewer.as_mut() {
             surface_data_viewer.update(&mut self.engine);
         }

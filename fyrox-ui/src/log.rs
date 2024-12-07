@@ -19,37 +19,30 @@
 // SOFTWARE.
 
 use crate::{
-    fyrox::{
-        core::{
-            log::{LogMessage, MessageKind},
-            pool::Handle,
-        },
-        graph::BaseSceneGraph,
-        gui::{
-            border::BorderBuilder,
-            button::ButtonMessage,
-            copypasta::ClipboardProvider,
-            dropdown_list::DropdownListMessage,
-            formatted_text::WrapMode,
-            grid::{Column, GridBuilder, Row},
-            list_view::{ListView, ListViewBuilder, ListViewMessage},
-            menu::{ContextMenuBuilder, MenuItemBuilder, MenuItemContent, MenuItemMessage},
-            message::{MessageDirection, UiMessage},
-            popup::{Placement, PopupBuilder, PopupMessage},
-            scroll_viewer::ScrollViewerBuilder,
-            stack_panel::StackPanelBuilder,
-            style::{resource::StyleResourceExt, Style},
-            text::{Text, TextBuilder},
-            widget::WidgetBuilder,
-            window::{WindowBuilder, WindowTitle},
-            BuildContext, HorizontalAlignment, Orientation, RcUiNodeHandle, Thickness, UiNode,
-        },
-    },
-    gui::{make_dropdown_list_option, make_image_button_with_tooltip},
-    load_image,
-    settings::Settings,
-    DropdownListBuilder, Engine,
+    border::BorderBuilder,
+    button::ButtonMessage,
+    copypasta::ClipboardProvider,
+    dropdown_list::{DropdownListBuilder, DropdownListMessage},
+    formatted_text::WrapMode,
+    grid::{Column, GridBuilder, Row},
+    list_view::{ListView, ListViewBuilder, ListViewMessage},
+    menu::{ContextMenuBuilder, MenuItemBuilder, MenuItemContent, MenuItemMessage},
+    message::{MessageDirection, UiMessage},
+    popup::{Placement, PopupBuilder, PopupMessage},
+    scroll_viewer::ScrollViewerBuilder,
+    stack_panel::StackPanelBuilder,
+    style::{resource::StyleResourceExt, Style},
+    text::{Text, TextBuilder},
+    utils::{make_dropdown_list_option, make_image_button_with_tooltip},
+    widget::WidgetBuilder,
+    window::{WindowBuilder, WindowTitle},
+    BuildContext, HorizontalAlignment, Orientation, RcUiNodeHandle, Thickness, UiNode,
+    UserInterface,
 };
+use fyrox_core::log::{LogMessage, MessageKind};
+use fyrox_core::pool::Handle;
+use fyrox_graph::BaseSceneGraph;
+use fyrox_resource::untyped::UntypedResource;
 use std::sync::mpsc::Receiver;
 
 struct ContextMenu {
@@ -82,22 +75,19 @@ impl ContextMenu {
         }
     }
 
-    pub fn handle_ui_message(&mut self, message: &UiMessage, engine: &mut Engine) {
+    pub fn handle_ui_message(&mut self, message: &UiMessage, ui: &mut UserInterface) {
         if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
             if message.destination() == self.menu.handle() {
                 self.placement_target = *target;
             }
         } else if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination() == self.copy {
-                if let Some(field) = engine
-                    .user_interfaces
-                    .first_mut()
+                if let Some(field) = ui
                     .try_get(self.placement_target)
                     .and_then(|n| n.query_component::<Text>())
                 {
                     let text = field.text();
-                    if let Some(mut clipboard) = engine.user_interfaces.first_mut().clipboard_mut()
-                    {
+                    if let Some(mut clipboard) = ui.clipboard_mut() {
                         let _ = clipboard.set_contents(text);
                     }
                 }
@@ -117,7 +107,11 @@ pub struct LogPanel {
 }
 
 impl LogPanel {
-    pub fn new(ctx: &mut BuildContext, message_receiver: Receiver<LogMessage>) -> Self {
+    pub fn new(
+        ctx: &mut BuildContext,
+        message_receiver: Receiver<LogMessage>,
+        clear_icon: Option<UntypedResource>,
+    ) -> Self {
         let messages;
         let clear;
         let severity_list;
@@ -138,7 +132,7 @@ impl LogPanel {
                                             ctx,
                                             24.0,
                                             24.0,
-                                            load_image!("../resources/clear.png"),
+                                            clear_icon,
                                             "Clear the log.",
                                             Some(0),
                                         );
@@ -204,17 +198,14 @@ impl LogPanel {
         }
     }
 
-    pub fn handle_ui_message(&mut self, message: &UiMessage, engine: &mut Engine) {
+    pub fn handle_ui_message(&mut self, message: &UiMessage, ui: &mut UserInterface) {
         if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
             if message.destination() == self.clear {
-                engine
-                    .user_interfaces
-                    .first_mut()
-                    .send_message(ListViewMessage::items(
-                        self.messages,
-                        MessageDirection::ToWidget,
-                        vec![],
-                    ));
+                ui.send_message(ListViewMessage::items(
+                    self.messages,
+                    MessageDirection::ToWidget,
+                    vec![],
+                ));
             }
         } else if let Some(DropdownListMessage::SelectionChanged(Some(idx))) =
             message.data::<DropdownListMessage>()
@@ -231,12 +222,10 @@ impl LogPanel {
             }
         }
 
-        self.context_menu.handle_ui_message(message, engine);
+        self.context_menu.handle_ui_message(message, ui);
     }
 
-    pub fn update(&mut self, settings: &Settings, engine: &mut Engine) {
-        let ui = engine.user_interfaces.first();
-
+    pub fn update(&mut self, max_log_entries: usize, ui: &mut UserInterface) {
         let existing_items = ui
             .node(self.messages)
             .cast::<ListView>()
@@ -245,8 +234,8 @@ impl LogPanel {
 
         let mut count = existing_items.len();
 
-        if count > settings.general.max_log_entries {
-            let delta = count - settings.general.max_log_entries;
+        if count > max_log_entries {
+            let delta = count - max_log_entries;
             // Remove every item in the head of the list of entries to keep the amount of entries
             // in the limits.
             //
@@ -272,7 +261,7 @@ impl LogPanel {
 
             let text = format!("[{:.2}s] {}", msg.time.as_secs_f32(), msg.content);
 
-            let ctx = &mut engine.user_interfaces.first_mut().build_ctx();
+            let ctx = &mut ui.build_ctx();
             let item = BorderBuilder::new(
                 WidgetBuilder::new()
                     .with_background(if count % 2 == 0 {
@@ -302,14 +291,11 @@ impl LogPanel {
             )
             .build(ctx);
 
-            engine
-                .user_interfaces
-                .first_mut()
-                .send_message(ListViewMessage::add_item(
-                    self.messages,
-                    MessageDirection::ToWidget,
-                    item,
-                ));
+            ui.send_message(ListViewMessage::add_item(
+                self.messages,
+                MessageDirection::ToWidget,
+                item,
+            ));
 
             item_to_bring_into_view = item;
 
@@ -317,14 +303,11 @@ impl LogPanel {
         }
 
         if item_to_bring_into_view.is_some() {
-            engine
-                .user_interfaces
-                .first_mut()
-                .send_message(ListViewMessage::bring_item_into_view(
-                    self.messages,
-                    MessageDirection::ToWidget,
-                    item_to_bring_into_view,
-                ));
+            ui.send_message(ListViewMessage::bring_item_into_view(
+                self.messages,
+                MessageDirection::ToWidget,
+                item_to_bring_into_view,
+            ));
         }
     }
 }

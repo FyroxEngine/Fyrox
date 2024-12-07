@@ -46,7 +46,6 @@ use crate::plugins::absm::{
 };
 use crate::{
     command::{Command, CommandGroup},
-    gui::make_dropdown_list_option,
     load_image,
     message::MessageSender,
     scene::{
@@ -58,6 +57,7 @@ use crate::{
 };
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
+use fyrox::gui::utils::make_dropdown_list_option;
 
 pub struct Toolbar {
     pub panel: Handle<UiNode>,

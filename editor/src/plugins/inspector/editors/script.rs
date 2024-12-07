@@ -50,11 +50,11 @@ use crate::fyrox::{
 };
 use crate::plugins::inspector::EditorEnvironment;
 use crate::{
-    gui::make_dropdown_list_option,
     send_sync_message,
     settings::{general::ScriptEditor, SettingsData},
     DropdownListBuilder, MSG_SYNC_FLAG,
 };
+use fyrox::gui::utils::make_dropdown_list_option;
 use std::{
     any::TypeId,
     cell::Cell,

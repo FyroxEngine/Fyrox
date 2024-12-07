@@ -46,7 +46,6 @@ use crate::{
             VerticalAlignment,
         },
     },
-    gui::make_image_button_with_tooltip,
     load_image,
     message::MessageSender,
     send_sync_message,
@@ -56,6 +55,7 @@ use crate::{
 };
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
+use fyrox::gui::utils::make_image_button_with_tooltip;
 use rust_fuzzy_search::fuzzy_compare;
 use std::{
     borrow::Cow,

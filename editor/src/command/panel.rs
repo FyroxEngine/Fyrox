@@ -34,11 +34,11 @@ use crate::fyrox::{
     },
 };
 use crate::{
-    gui::make_image_button_with_tooltip, load_image, message::MessageSender, send_sync_message,
-    utils::window_content, Message, Mode,
+    load_image, message::MessageSender, send_sync_message, utils::window_content, Message, Mode,
 };
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
+use fyrox::gui::utils::make_image_button_with_tooltip;
 
 pub struct CommandStackViewer {
     pub window: Handle<UiNode>,

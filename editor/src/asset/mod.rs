@@ -66,7 +66,6 @@ use crate::{
         scene::sound::SoundBuffer,
         walkdir,
     },
-    gui::{make_dropdown_list_option, make_image_button_with_tooltip},
     load_image,
     message::MessageSender,
     preview::PreviewPanel,
@@ -75,6 +74,7 @@ use crate::{
 };
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
+use fyrox::gui::utils::{make_dropdown_list_option, make_image_button_with_tooltip};
 use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::fs::File;
 use std::io::Write;
