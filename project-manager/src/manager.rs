@@ -24,8 +24,6 @@ use crate::{
     settings::{Project, Settings},
     utils::{self, is_production_ready, load_image, make_button},
 };
-use fyrox::gui::log::LogPanel;
-use fyrox::gui::text::TextMessage;
 use fyrox::{
     core::{color::Color, log::Log, pool::Handle, some_or_return},
     gui::{
@@ -39,16 +37,18 @@ use fyrox::{
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
         list_view::{ListViewBuilder, ListViewMessage},
+        log::LogPanel,
         message::{MessageDirection, UiMessage},
+        messagebox::{MessageBoxBuilder, MessageBoxButtons, MessageBoxMessage, MessageBoxResult},
         navigation::NavigationLayerBuilder,
         screen::ScreenBuilder,
         searchbar::{SearchBarBuilder, SearchBarMessage},
         stack_panel::StackPanelBuilder,
         style::{resource::StyleResourceExt, Style},
-        text::TextBuilder,
+        text::{TextBuilder, TextMessage},
         utils::make_simple_tooltip,
         widget::{WidgetBuilder, WidgetMessage},
-        window::{WindowBuilder, WindowMessage},
+        window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, HorizontalAlignment, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
 };
@@ -88,6 +88,7 @@ pub struct ProjectManager {
     log: LogPanel,
     open_log: Handle<UiNode>,
     message_count: Handle<UiNode>,
+    deletion_confirmation_dialog: Handle<UiNode>,
 }
 
 fn make_project_item(
@@ -265,7 +266,7 @@ impl ProjectManager {
         .build(ctx);
 
         let message_count;
-        let open_log = ButtonBuilder::new(WidgetBuilder::new().on_column(3))
+        let open_log = ButtonBuilder::new(WidgetBuilder::new().on_column(3).with_visibility(false))
             .with_content(
                 GridBuilder::new(
                     WidgetBuilder::new()
@@ -291,7 +292,7 @@ impl ProjectManager {
                                     .with_vertical_alignment(VerticalAlignment::Center)
                                     .with_foreground(Brush::Solid(Color::GOLD).into()),
                             )
-                            .with_text("2")
+                            .with_text("0")
                             .build(ctx);
                             message_count
                         }),
@@ -418,6 +419,7 @@ impl ProjectManager {
             log,
             open_log,
             message_count,
+            deletion_confirmation_dialog: Default::default(),
         }
     }
 
@@ -497,6 +499,11 @@ impl ProjectManager {
                 self.message_count,
                 MessageDirection::ToWidget,
                 self.log.message_count.to_string(),
+            ));
+            ui.send_message(WidgetMessage::visibility(
+                self.open_log,
+                MessageDirection::ToWidget,
+                true,
             ));
         }
 
@@ -585,11 +592,22 @@ impl ProjectManager {
                     };
                     self.run_build_profile("game", &profile, ui);
                 } else if button == self.delete {
-                    if let Some(dir) = project.manifest_path.parent() {
-                        let _ = std::fs::remove_dir_all(dir);
-                    }
-                    self.settings.projects.remove(index);
-                    self.refresh(ui);
+                    let ctx = &mut ui.build_ctx();
+                    self.deletion_confirmation_dialog = MessageBoxBuilder::new(
+                        WindowBuilder::new(WidgetBuilder::new())
+                            .with_remove_on_close(true)
+                            .with_title(WindowTitle::text("Delete Project"))
+                            .open(false),
+                    )
+                    .with_text(&format!("Do you really want to delete {}?", project.name))
+                    .with_buttons(MessageBoxButtons::YesNo)
+                    .build(ctx);
+                    ui.send_message(WindowMessage::open_modal(
+                        self.deletion_confirmation_dialog,
+                        MessageDirection::ToWidget,
+                        true,
+                        true,
+                    ));
                 }
             }
         }
@@ -670,6 +688,18 @@ impl ProjectManager {
         } else if let Some(FileSelectorMessage::Commit(path)) = message.data() {
             if message.destination() == self.import_project_dialog {
                 self.try_import(path, ui);
+            }
+        } else if let Some(MessageBoxMessage::Close(MessageBoxResult::Yes)) = message.data() {
+            if message.destination() == self.deletion_confirmation_dialog {
+                if let Some(index) = self.selection {
+                    if let Some(project) = self.settings.projects.get(index) {
+                        if let Some(dir) = project.manifest_path.parent() {
+                            let _ = std::fs::remove_dir_all(dir);
+                        }
+                        self.settings.projects.remove(index);
+                        self.refresh(ui);
+                    }
+                }
             }
         }
     }
