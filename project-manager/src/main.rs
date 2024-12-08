@@ -20,6 +20,8 @@
 
 //! Project manager is used to create, import, rename, delete, run and edit projects built with Fyrox.
 
+#![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
+
 mod build;
 mod manager;
 mod project;
@@ -27,9 +29,8 @@ mod settings;
 mod utils;
 
 use crate::{manager::ProjectManager, utils::make_button};
-use fyrox::utils::translate_cursor_icon;
 use fyrox::{
-    asset::manager::ResourceManager,
+    asset::{manager::ResourceManager, untyped::ResourceKind},
     core::{
         algebra::Matrix3,
         instant::Instant,
@@ -42,11 +43,12 @@ use fyrox::{
     },
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
+    gui::font::FontResource,
     gui::{
         constructor::new_widget_constructor_container, font::Font, message::MessageDirection,
         widget::WidgetMessage, UserInterface,
     },
-    utils::translate_event,
+    utils::{translate_cursor_icon, translate_event},
     window::WindowAttributes,
 };
 use std::sync::Arc;
@@ -82,9 +84,11 @@ fn main() {
     .unwrap();
 
     let primary_ui = engine.user_interfaces.first_mut();
-    primary_ui.default_font = engine
-        .resource_manager
-        .request::<Font>("resources/arial.ttf");
+
+    primary_ui.default_font = FontResource::new_ok(
+        ResourceKind::Embedded,
+        Font::from_memory(include_bytes!("../resources/arial.ttf").to_vec(), 1024).unwrap(),
+    );
     let mut project_manager = ProjectManager::new(&mut primary_ui.build_ctx());
 
     let event_loop = EventLoop::new().unwrap();
