@@ -124,17 +124,17 @@ fn main() {
                     previous = Instant::now();
                     lag += elapsed.as_secs_f32();
 
+                    let ui = engine.user_interfaces.first_mut();
+                    while let Some(message) = ui.poll_message() {
+                        project_manager.handle_ui_message(&message, ui);
+                    }
+
                     while lag >= fixed_time_step {
                         engine.update(fixed_time_step, window_target, &mut lag, Default::default());
 
                         project_manager.update(engine.user_interfaces.first_mut());
 
                         lag -= fixed_time_step;
-                    }
-
-                    let ui = engine.user_interfaces.first_mut();
-                    while let Some(message) = ui.poll_message() {
-                        project_manager.handle_ui_message(&message, ui);
                     }
 
                     if let GraphicsContext::Initialized(ref ctx) = engine.graphics_context {
