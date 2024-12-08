@@ -134,6 +134,7 @@ pub enum ScriptEditor {
     VSCode,
     Emacs,
     XCode,
+    Zed,
 }
 
 uuid_provider!(ScriptEditor = "d0c942e8-24e4-40f2-ad2e-1b9f189d3ca2");

@@ -172,6 +172,7 @@ impl Control for ScriptPropertyEditor {
                                     }
                                     ScriptEditor::XCode => Some("xcode"),
                                     ScriptEditor::Emacs => Some("emacs"),
+                                    ScriptEditor::Zed => Some("zed"),
                                     ScriptEditor::SystemDefault => None,
                                 };
 
