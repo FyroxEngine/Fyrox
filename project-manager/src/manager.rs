@@ -22,6 +22,7 @@ use crate::{
     build::BuildWindow,
     project::ProjectWizard,
     settings::{Project, Settings},
+    upgrade::UpgradeTool,
     utils::{self, is_production_ready, load_image, make_button},
 };
 use fyrox::{
@@ -89,6 +90,8 @@ pub struct ProjectManager {
     open_log: Handle<UiNode>,
     message_count: Handle<UiNode>,
     deletion_confirmation_dialog: Handle<UiNode>,
+    upgrade: Handle<UiNode>,
+    upgrade_tool: Option<UpgradeTool>,
 }
 
 fn make_project_item(
@@ -96,6 +99,7 @@ fn make_project_item(
     path: &Path,
     hot_reload: bool,
     visible: bool,
+    engine_version: &str,
     ctx: &mut BuildContext,
 ) -> Handle<UiNode> {
     let icon = ImageBuilder::new(
@@ -153,6 +157,17 @@ fn make_project_item(
     .with_opt_texture(load_image(include_bytes!("../resources/flame.png")))
     .build(ctx);
 
+    let engine_version = TextBuilder::new(
+        WidgetBuilder::new()
+            .on_row(0)
+            .on_column(2)
+            .with_vertical_alignment(VerticalAlignment::Bottom)
+            .with_horizontal_alignment(HorizontalAlignment::Right)
+            .with_margin(Thickness::uniform(3.0)),
+    )
+    .with_text(engine_version)
+    .build(ctx);
+
     DecoratorBuilder::new(
         BorderBuilder::new(
             WidgetBuilder::new()
@@ -163,7 +178,8 @@ fn make_project_item(
                         WidgetBuilder::new()
                             .with_child(icon)
                             .with_child(item)
-                            .with_child(hot_reload),
+                            .with_child(hot_reload)
+                            .with_child(engine_version),
                     )
                     .add_column(Column::auto())
                     .add_column(Column::stretch())
@@ -193,11 +209,17 @@ fn make_project_items(
                     .to_lowercase()
                     .contains(&search_text.to_lowercase());
 
+            let engine_version = utils::read_crate_metadata(&project.manifest_path)
+                .ok()
+                .and_then(|metadata| utils::fyrox_version(&metadata))
+                .unwrap_or_default();
+
             make_project_item(
                 &project.name,
                 &project.manifest_path,
                 project.hot_reload,
                 visible,
+                &engine_version,
                 ctx,
             )
         })
@@ -323,11 +345,13 @@ impl ProjectManager {
         let edit_tooltip = "Build the editor and run it.";
         let run_tooltip = "Build the game and run it.";
         let delete_tooltip = "Delete the entire project with all its assets. \
-        WARNING: This is irreversible operation and permanently deletes your project!";
+        WARNING: This is irreversible operation and it permanently deletes your project!";
+        let upgrade_tooltip = "Allows you to change the engine version in a few clicks.";
 
         let edit = make_button("Edit", 130.0, 25.0, 3, 0, 0, Some(edit_tooltip), ctx);
         let run = make_button("Run", 130.0, 25.0, 4, 0, 0, Some(run_tooltip), ctx);
         let delete = make_button("Delete", 130.0, 25.0, 5, 0, 0, Some(delete_tooltip), ctx);
+        let upgrade = make_button("Upgrade", 130.0, 25.0, 6, 0, 0, Some(upgrade_tooltip), ctx);
         let hot_reload = CheckBoxBuilder::new(
             WidgetBuilder::new()
                 .with_margin(Thickness::uniform(1.0))
@@ -353,7 +377,8 @@ impl ProjectManager {
                 .with_child(hot_reload)
                 .with_child(edit)
                 .with_child(run)
-                .with_child(delete),
+                .with_child(delete)
+                .with_child(upgrade),
         )
         .build(ctx);
 
@@ -420,6 +445,8 @@ impl ProjectManager {
             open_log,
             message_count,
             deletion_confirmation_dialog: Default::default(),
+            upgrade,
+            upgrade_tool: None,
         }
     }
 
@@ -573,6 +600,13 @@ impl ProjectManager {
             let _ = open::that("https://rustup.rs/");
         } else if button == self.open_log {
             self.log.open(ui);
+        } else if button == self.upgrade {
+            if let Some(index) = self.selection {
+                if let Some(project) = self.settings.projects.get(index) {
+                    let ctx = &mut ui.build_ctx();
+                    self.upgrade_tool = Some(UpgradeTool::new(project, ctx));
+                }
+            }
         }
 
         if let Some(index) = self.selection {
@@ -641,6 +675,14 @@ impl ProjectManager {
 
         if let Some(build_window) = self.build_window.as_mut() {
             build_window.handle_ui_message(message, ui);
+        }
+
+        if let Some(upgrade_tool) = self.upgrade_tool.take() {
+            if let Some(index) = self.selection {
+                if let Some(project) = self.settings.projects.get(index) {
+                    self.upgrade_tool = upgrade_tool.handle_ui_message(message, ui, project);
+                }
+            }
         }
 
         if let Some(ButtonMessage::Click) = message.data() {

@@ -133,6 +133,9 @@ pub fn folder_to_manifest_path(path: &Path) -> PathBuf {
 pub fn read_crate_metadata(manifest_path: &Path) -> Result<Metadata, String> {
     match Command::new("cargo")
         .arg("metadata")
+        .arg("--no-deps")
+        .arg("--format-version")
+        .arg("1")
         .arg("--manifest-path")
         .arg(manifest_path)
         .stdout(Stdio::piped())
@@ -151,11 +154,27 @@ pub fn read_crate_metadata(manifest_path: &Path) -> Result<Metadata, String> {
     }
 }
 
+pub fn fyrox_version(metadata: &Metadata) -> Option<String> {
+    for package in metadata.packages.iter() {
+        for dependency in package.dependencies.iter() {
+            if dependency.name == "fyrox" {
+                let version = dependency.req.to_string();
+                let pretty_version = version.replace('^', "");
+                let pretty_version = pretty_version.replace('+', "");
+                return Some(pretty_version);
+            }
+        }
+    }
+    None
+}
+
+pub fn fyrox_version_or_default(manifest_path: &Path) -> String {
+    read_crate_metadata(manifest_path)
+        .ok()
+        .and_then(|metadata| fyrox_version(&metadata))
+        .unwrap_or_default()
+}
+
 pub fn has_fyrox_in_deps(metadata: &Metadata) -> bool {
-    metadata.packages.iter().any(|package| {
-        package
-            .dependencies
-            .iter()
-            .any(|dependency| dependency.name == "fyrox")
-    })
+    fyrox_version(metadata).is_some()
 }

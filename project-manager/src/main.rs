@@ -20,12 +20,11 @@
 
 //! Project manager is used to create, import, rename, delete, run and edit projects built with Fyrox.
 
-#![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
-
 mod build;
 mod manager;
 mod project;
 mod settings;
+mod upgrade;
 mod utils;
 
 use crate::{manager::ProjectManager, utils::make_button};
