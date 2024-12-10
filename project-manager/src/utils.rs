@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use cargo_metadata::Metadata;
+use cargo_metadata::{Dependency, Metadata};
 use fyrox::gui::utils::make_simple_tooltip;
 use fyrox::{
     asset::untyped::UntypedResource,
@@ -154,25 +154,29 @@ pub fn read_crate_metadata(manifest_path: &Path) -> Result<Metadata, String> {
     }
 }
 
-pub fn fyrox_version(metadata: &Metadata) -> Option<String> {
+pub fn fyrox_dependency(metadata: &Metadata) -> Option<&Dependency> {
     for package in metadata.packages.iter() {
         for dependency in package.dependencies.iter() {
             if dependency.name == "fyrox" {
-                let version = dependency.req.to_string();
-                let pretty_version = version.replace('^', "");
-                let pretty_version = pretty_version.replace('+', "");
-                return Some(pretty_version);
+                return Some(dependency);
             }
         }
     }
     None
 }
 
-pub fn fyrox_version_or_default(manifest_path: &Path) -> String {
+pub fn fyrox_version(metadata: &Metadata) -> Option<String> {
+    fyrox_dependency(metadata).map(|dependency| {
+        let version = dependency.req.to_string();
+        let pretty_version = version.replace('^', "");
+        pretty_version.replace('+', "")
+    })
+}
+
+pub fn fyrox_dependency_from_path(manifest_path: &Path) -> Option<Dependency> {
     read_crate_metadata(manifest_path)
         .ok()
-        .and_then(|metadata| fyrox_version(&metadata))
-        .unwrap_or_default()
+        .and_then(|metadata| fyrox_dependency(&metadata).cloned())
 }
 
 pub fn has_fyrox_in_deps(metadata: &Metadata) -> bool {
