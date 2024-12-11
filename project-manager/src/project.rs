@@ -22,7 +22,6 @@ use crate::{
     make_button,
     settings::{Project, Settings},
     utils,
-    utils::make_dropdown_list_option,
 };
 use fyrox::{
     core::pool::Handle,
@@ -35,6 +34,7 @@ use fyrox::{
         stack_panel::StackPanelBuilder,
         text::{TextBuilder, TextMessage},
         text_box::TextBoxBuilder,
+        utils::make_dropdown_list_option,
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,

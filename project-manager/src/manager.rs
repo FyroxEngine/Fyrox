@@ -130,6 +130,7 @@ fn make_project_item(
                 TextBuilder::new(
                     WidgetBuilder::new()
                         .on_row(1)
+                        .with_foreground(ctx.style.property(Style::BRUSH_BRIGHTEST))
                         .with_margin(Thickness::uniform(2.0))
                         .with_vertical_alignment(VerticalAlignment::Center),
                 )
@@ -163,8 +164,15 @@ fn make_project_item(
             .on_column(2)
             .with_vertical_alignment(VerticalAlignment::Bottom)
             .with_horizontal_alignment(HorizontalAlignment::Right)
-            .with_margin(Thickness::uniform(3.0)),
+            .with_foreground(ctx.style.property(Style::BRUSH_BRIGHTEST))
+            .with_margin(Thickness {
+                left: 0.0,
+                top: 0.0,
+                right: 3.0,
+                bottom: 6.0,
+            }),
     )
+    .with_font_size(13.0.into())
     .with_text(engine_version)
     .build(ctx);
 
@@ -211,7 +219,7 @@ fn make_project_items(
 
             let engine_version = utils::read_crate_metadata(&project.manifest_path)
                 .ok()
-                .and_then(|metadata| utils::fyrox_version(&metadata))
+                .and_then(|metadata| utils::fyrox_version_string(&metadata))
                 .unwrap_or_default();
 
             make_project_item(
@@ -680,7 +688,12 @@ impl ProjectManager {
         if let Some(upgrade_tool) = self.upgrade_tool.take() {
             if let Some(index) = self.selection {
                 if let Some(project) = self.settings.projects.get(index) {
-                    self.upgrade_tool = upgrade_tool.handle_ui_message(message, ui, project);
+                    let mut need_refresh = false;
+                    self.upgrade_tool =
+                        upgrade_tool.handle_ui_message(message, ui, project, &mut need_refresh);
+                    if need_refresh {
+                        self.refresh(ui);
+                    }
                 }
             }
         }

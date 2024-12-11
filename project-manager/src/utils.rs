@@ -18,15 +18,14 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use cargo_metadata::{Dependency, Metadata};
-use fyrox::gui::utils::make_simple_tooltip;
+use cargo_metadata::{semver::VersionReq, Dependency, Metadata};
 use fyrox::{
     asset::untyped::UntypedResource,
     core::pool::Handle,
     gui::{
-        border::BorderBuilder, button::ButtonBuilder, decorator::DecoratorBuilder,
-        text::TextBuilder, widget::WidgetBuilder, BuildContext, HorizontalAlignment, Thickness,
-        UiNode, VerticalAlignment,
+        button::ButtonBuilder, text::TextBuilder, utils::make_simple_tooltip,
+        widget::WidgetBuilder, BuildContext, HorizontalAlignment, Thickness, UiNode,
+        VerticalAlignment,
     },
     resource::texture::{
         CompressionOptions, TextureImportOptions, TextureMinificationFilter, TextureResource,
@@ -35,8 +34,7 @@ use fyrox::{
 };
 use std::{
     path::{Path, PathBuf},
-    process::Command,
-    process::Stdio,
+    process::{Command, Stdio},
 };
 
 pub fn is_tool_installed(name: &str) -> bool {
@@ -49,23 +47,6 @@ pub fn is_tool_installed(name: &str) -> bool {
 
 pub fn is_production_ready() -> bool {
     is_tool_installed("rustc") && is_tool_installed("cargo")
-}
-
-pub fn make_dropdown_list_option(ctx: &mut BuildContext, name: &str) -> Handle<UiNode> {
-    DecoratorBuilder::new(
-        BorderBuilder::new(
-            WidgetBuilder::new().with_child(
-                TextBuilder::new(WidgetBuilder::new())
-                    .with_vertical_text_alignment(VerticalAlignment::Center)
-                    .with_horizontal_text_alignment(HorizontalAlignment::Center)
-                    .with_text(name)
-                    .build(ctx),
-            ),
-        )
-        .with_corner_radius(4.0f32.into())
-        .with_pad_by_corner_radius(false),
-    )
-    .build(ctx)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -165,11 +146,24 @@ pub fn fyrox_dependency(metadata: &Metadata) -> Option<&Dependency> {
     None
 }
 
-pub fn fyrox_version(metadata: &Metadata) -> Option<String> {
-    fyrox_dependency(metadata).map(|dependency| {
-        let version = dependency.req.to_string();
-        let pretty_version = version.replace('^', "");
-        pretty_version.replace('+', "")
+fn to_pretty_version(version_req: &VersionReq) -> String {
+    let version = version_req.to_string();
+    let pretty_version = version.replace('^', "");
+    pretty_version.replace('+', "")
+}
+
+pub fn fyrox_version_string(metadata: &Metadata) -> Option<String> {
+    fyrox_dependency(metadata).and_then(|dependency| {
+        if let Some(source) = dependency.source.as_ref() {
+            if source.contains("registry+") {
+                return Some(to_pretty_version(&dependency.req));
+            } else if source.contains("git+") {
+                return Some("nightly".to_string());
+            }
+        } else if let Some(path) = dependency.path.as_ref() {
+            return Some(path.to_string());
+        }
+        None
     })
 }
 
@@ -180,5 +174,5 @@ pub fn fyrox_dependency_from_path(manifest_path: &Path) -> Option<Dependency> {
 }
 
 pub fn has_fyrox_in_deps(metadata: &Metadata) -> bool {
-    fyrox_version(metadata).is_some()
+    fyrox_dependency(metadata).is_some()
 }

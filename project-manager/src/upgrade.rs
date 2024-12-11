@@ -30,8 +30,7 @@ use fyrox::{
         text::{TextBuilder, TextMessage},
         text_box::TextBoxBuilder,
         utils::make_dropdown_list_option,
-        widget::WidgetBuilder,
-        widget::WidgetMessage,
+        widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
         VerticalAlignment,
@@ -64,7 +63,6 @@ impl Version {
 
 pub struct UpgradeTool {
     window: Handle<UiNode>,
-    version: Handle<UiNode>,
     version_type_selector: Handle<UiNode>,
     upgrade: Handle<UiNode>,
     cancel: Handle<UiNode>,
@@ -186,7 +184,6 @@ impl UpgradeTool {
 
         Self {
             window,
-            version,
             version_type_selector,
             upgrade,
             cancel,
@@ -200,6 +197,7 @@ impl UpgradeTool {
         message: &UiMessage,
         ui: &mut UserInterface,
         project: &Project,
+        need_refresh: &mut bool,
     ) -> Option<Self> {
         if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.upgrade {
@@ -210,6 +208,11 @@ impl UpgradeTool {
                         matches!(self.selected_version, Version::Local),
                     ));
                 }
+                *need_refresh = true;
+                ui.send_message(WindowMessage::close(
+                    self.window,
+                    MessageDirection::ToWidget,
+                ));
             } else if message.destination() == self.cancel {
                 ui.send_message(WindowMessage::close(
                     self.window,
