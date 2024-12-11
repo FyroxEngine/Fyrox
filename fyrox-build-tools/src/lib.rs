@@ -21,10 +21,7 @@
 use fyrox_core::{reflect::prelude::*, type_traits::prelude::*};
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
-use std::{
-    fmt::{Display, Formatter},
-    process::Stdio,
-};
+use std::fmt::{Display, Formatter};
 
 #[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Default, Reflect, TypeUuidProvider)]
 #[type_uuid(id = "55e7651e-8840-4c81-aa93-3f01348855e6")]
@@ -45,15 +42,11 @@ impl BuildCommand {
     pub fn make_command(&self) -> std::process::Command {
         let mut command = std::process::Command::new(&self.command);
 
-        command
-            .stderr(Stdio::piped())
-            .stdout(Stdio::piped())
-            .args(self.args.iter())
-            .envs(
-                self.environment_variables
-                    .iter()
-                    .map(|v| (&v.name, &v.value)),
-            );
+        command.args(self.args.iter()).envs(
+            self.environment_variables
+                .iter()
+                .map(|v| (&v.name, &v.value)),
+        );
 
         command
     }

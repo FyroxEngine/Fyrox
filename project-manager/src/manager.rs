@@ -54,6 +54,7 @@ use fyrox::{
     },
 };
 use fyrox_build_tools::{BuildCommand, BuildProfile};
+use std::process::Stdio;
 use std::{
     collections::VecDeque,
     path::{Path, PathBuf},
@@ -485,7 +486,7 @@ impl ProjectManager {
 
                 let mut command = build_command.make_command();
 
-                command.current_dir(current_dir);
+                command.stderr(Stdio::piped()).current_dir(current_dir);
 
                 match command.spawn() {
                     Ok(mut new_process) => {

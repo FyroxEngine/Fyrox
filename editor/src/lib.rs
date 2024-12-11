@@ -173,6 +173,7 @@ use fyrox::gui::log::LogPanel;
 use fyrox_build_tools::BuildCommand;
 pub use message::Message;
 use plugins::inspector::InspectorPlugin;
+use std::process::Stdio;
 use std::{
     cell::RefCell,
     collections::VecDeque,
@@ -1495,7 +1496,11 @@ impl Editor {
 
         let mut command = build_profile.run_command.make_command();
 
-        command.arg("--").arg("--override-scene").arg(path);
+        command
+            .stdout(Stdio::piped())
+            .arg("--")
+            .arg("--override-scene")
+            .arg(path);
 
         match command.spawn() {
             Ok(mut process) => {
@@ -2127,7 +2132,7 @@ impl Editor {
                     if let Some(build_command) = queue.pop_front() {
                         Log::info(format!("Trying to run build command: {build_command}"));
 
-                        match build_command.make_command().spawn() {
+                        match build_command.make_command().stderr(Stdio::piped()).spawn() {
                             Ok(mut new_process) => {
                                 self.build_window.listen(
                                     new_process.stderr.take().unwrap(),
