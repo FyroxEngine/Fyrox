@@ -558,31 +558,28 @@ pub struct RestrictionEntry {
 }
 
 #[derive(Clone, Debug)]
-struct TooltipEntry {
-    tooltip: RcUiNodeHandle,
+pub struct TooltipEntry {
+    pub tooltip: RcUiNodeHandle,
+    pub appear_timer: f32,
+    pub shown: bool,
     /// Time remaining until this entry should disappear (in seconds).
-    time: f32,
+    pub disappear_timer: f32,
     /// Maximum time that it should be kept for
     /// This is stored here as well, because when hovering
     /// over the tooltip, we don't know the time it should stay for and
     /// so we use this to refresh the timer.
-    max_time: f32,
+    pub max_time: f32,
 }
+
 impl TooltipEntry {
-    fn new(tooltip: RcUiNodeHandle, time: f32) -> TooltipEntry {
+    fn new(tooltip: RcUiNodeHandle, appear_timeout: f32, disappear_timeout: f32) -> TooltipEntry {
         Self {
             tooltip,
-            time,
-            max_time: time,
+            appear_timer: appear_timeout,
+            shown: false,
+            disappear_timer: disappear_timeout,
+            max_time: disappear_timeout,
         }
-    }
-
-    fn decrease(&mut self, amount: f32) {
-        self.time -= amount;
-    }
-
-    fn should_display(&self) -> bool {
-        self.time > 0.0
     }
 }
 
@@ -696,6 +693,7 @@ pub struct UserInterface {
     #[reflect(hidden)]
     double_click_entries: FxHashMap<MouseButton, DoubleClickEntry>,
     pub double_click_time_slice: f32,
+    pub tooltip_appear_delay: f32,
 }
 
 impl Visit for UserInterface {
@@ -726,6 +724,9 @@ impl Visit for UserInterface {
         self.cursor_icon.visit("CursorIcon", &mut region)?;
         self.double_click_time_slice
             .visit("DoubleClickTimeSlice", &mut region)?;
+        let _ = self
+            .tooltip_appear_delay
+            .visit("TooltipAppearDelay", &mut region);
 
         if region.is_reading() {
             for node in self.nodes.iter() {
@@ -779,6 +780,7 @@ impl Clone for UserInterface {
             default_font: self.default_font.clone(),
             double_click_entries: self.double_click_entries.clone(),
             double_click_time_slice: self.double_click_time_slice,
+            tooltip_appear_delay: self.tooltip_appear_delay,
         }
     }
 }
@@ -1078,6 +1080,7 @@ impl UserInterface {
             default_font: BUILT_IN_FONT.resource(),
             double_click_entries: Default::default(),
             double_click_time_slice: 0.5, // 500 ms is standard in most operating systems.
+            tooltip_appear_delay: 0.55,
         };
         let root_node = UiNode::new(Canvas {
             widget: WidgetBuilder::new().build(&ui.build_ctx()),
@@ -1085,6 +1088,18 @@ impl UserInterface {
         ui.root_canvas = ui.add_node(root_node);
         ui.keyboard_focus_node = ui.root_canvas;
         ui
+    }
+
+    pub fn set_tooltip_appear_delay(&mut self, appear_delay: f32) {
+        self.tooltip_appear_delay = appear_delay;
+    }
+
+    pub fn tooltip_appear_delay(&self) -> f32 {
+        self.tooltip_appear_delay
+    }
+
+    pub fn active_tooltip(&self) -> Option<&TooltipEntry> {
+        self.active_tooltip.as_ref()
     }
 
     pub fn keyboard_modifiers(&self) -> KeyboardModifiers {
@@ -2094,16 +2109,20 @@ impl UserInterface {
         ));
     }
 
-    fn replace_or_update_tooltip(&mut self, tooltip: RcUiNodeHandle, time: f32) {
+    fn replace_or_update_tooltip(&mut self, tooltip: RcUiNodeHandle, disappear_timeout: f32) {
         if let Some(entry) = self.active_tooltip.as_mut() {
             if entry.tooltip == tooltip {
-                // Keep current visible.
-                entry.time = time;
+                if entry.shown {
+                    // Keep current visible.
+                    entry.disappear_timer = disappear_timeout;
+                }
             } else {
                 let old_tooltip = entry.tooltip.clone();
 
+                entry.shown = false;
+                entry.appear_timer = self.tooltip_appear_delay;
+                entry.disappear_timer = disappear_timeout;
                 entry.tooltip = tooltip.clone();
-                self.show_tooltip(tooltip);
 
                 // Hide previous.
                 self.send_message(WidgetMessage::visibility(
@@ -2113,8 +2132,11 @@ impl UserInterface {
                 ));
             }
         } else {
-            self.show_tooltip(tooltip.clone());
-            self.active_tooltip = Some(TooltipEntry::new(tooltip, time));
+            self.active_tooltip = Some(TooltipEntry::new(
+                tooltip,
+                self.tooltip_appear_delay,
+                disappear_timeout,
+            ));
         }
     }
 
@@ -2123,19 +2145,28 @@ impl UserInterface {
     fn update_tooltips(&mut self, dt: f32) {
         let sender = &self.sender;
         if let Some(entry) = self.active_tooltip.as_mut() {
-            entry.decrease(dt);
-            if !entry.should_display() {
-                // This uses sender directly since we're currently mutably borrowing
-                // visible_tooltips
-                sender
-                    .send(WidgetMessage::visibility(
-                        entry.tooltip.handle(),
-                        MessageDirection::ToWidget,
-                        false,
-                    ))
-                    .unwrap();
+            if entry.shown {
+                entry.disappear_timer -= dt;
+                if entry.disappear_timer <= 0.0 {
+                    // This uses sender directly since we're currently mutably borrowing
+                    // visible_tooltips
+                    sender
+                        .send(WidgetMessage::visibility(
+                            entry.tooltip.handle(),
+                            MessageDirection::ToWidget,
+                            false,
+                        ))
+                        .unwrap();
 
-                self.active_tooltip = None;
+                    self.active_tooltip = None;
+                }
+            } else {
+                entry.appear_timer -= dt;
+                if entry.appear_timer <= 0.0 {
+                    entry.shown = true;
+                    let tooltip = entry.tooltip.clone();
+                    self.show_tooltip(tooltip);
+                }
             }
         }
 
@@ -2148,14 +2179,14 @@ impl UserInterface {
 
             if let Some(tooltip) = node.tooltip() {
                 // They have a tooltip, we stop here and use that.
-                let tooltip_time = node.tooltip_time();
-                self.replace_or_update_tooltip(tooltip, tooltip_time);
+                let disappear_timeout = node.tooltip_time();
+                self.replace_or_update_tooltip(tooltip, disappear_timeout);
                 break;
             } else if let Some(entry) = self.active_tooltip.as_mut() {
                 if entry.tooltip.handle() == handle {
                     // The current node was a tooltip.
                     // We refresh the timer back to the stored max time.
-                    entry.time = entry.max_time;
+                    entry.disappear_timer = entry.max_time;
                     break;
                 }
             }
