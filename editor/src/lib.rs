@@ -2190,6 +2190,14 @@ impl Editor {
         self.handle_modes();
 
         let ui = self.engine.user_interfaces.first_mut();
+
+        if let Some(active_tooltip) = ui.active_tooltip() {
+            if !active_tooltip.shown {
+                // Keep the editor running until the current tooltip is not shown.
+                self.update_loop_state.request_update_in_next_frame();
+            }
+        }
+
         self.log.update(self.settings.general.max_log_entries, ui);
         if let Some(export_window) = self.export_window.as_mut() {
             export_window.update(ui);
