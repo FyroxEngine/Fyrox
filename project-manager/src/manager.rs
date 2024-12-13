@@ -25,7 +25,6 @@ use crate::{
     upgrade::UpgradeTool,
     utils::{self, is_production_ready, load_image, make_button},
 };
-use fyrox::gui::Orientation;
 use fyrox::{
     core::{color::Color, log::Log, pool::Handle, some_or_return},
     gui::{
@@ -40,7 +39,7 @@ use fyrox::{
         image::ImageBuilder,
         list_view::{ListViewBuilder, ListViewMessage},
         log::LogPanel,
-        message::{MessageDirection, UiMessage},
+        message::{KeyCode, MessageDirection, UiMessage},
         messagebox::{MessageBoxBuilder, MessageBoxButtons, MessageBoxMessage, MessageBoxResult},
         navigation::NavigationLayerBuilder,
         screen::ScreenBuilder,
@@ -51,14 +50,15 @@ use fyrox::{
         utils::make_simple_tooltip,
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, HorizontalAlignment, Thickness, UiNode, UserInterface, VerticalAlignment,
+        BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+        VerticalAlignment,
     },
 };
 use fyrox_build_tools::{BuildCommand, BuildProfile};
-use std::process::Stdio;
 use std::{
     collections::VecDeque,
     path::{Path, PathBuf},
+    process::Stdio,
 };
 
 enum Mode {
@@ -279,8 +279,9 @@ impl ProjectManager {
         .build(ctx);
 
         let create_tooltip = "Opens a new dialog window that creates a new project with specified \
-        settings.";
-        let import_tooltip = "Allows you to import an existing project in the project manager.";
+        settings.\nHotkey: Ctrl+C";
+        let import_tooltip = "Allows you to import an existing project in the project manager.\
+        \nHotkey: Ctrl+I";
 
         let create = make_button("+ Create", 100.0, 25.0, 0, 0, 0, Some(create_tooltip), ctx);
         let import = make_button("Import", 100.0, 25.0, 1, 0, 1, Some(import_tooltip), ctx);
@@ -348,11 +349,17 @@ impl ProjectManager {
         .add_row(Row::auto())
         .build(ctx);
 
-        let edit_tooltip = "Build the editor and run it.";
-        let run_tooltip = "Build the game and run it.";
+        let edit_tooltip = "Build the editor and run it.\nHotkey: Shift+Enter";
+        let run_tooltip = "Build the game and run it.\nHotkey: Enter";
         let delete_tooltip = "Delete the entire project with all its assets. \
-        WARNING: This is irreversible operation and it permanently deletes your project!";
-        let upgrade_tooltip = "Allows you to change the engine version in a few clicks.";
+        WARNING: This is irreversible operation and it permanently deletes your project!\
+        \nHotkey: Delete";
+        let upgrade_tooltip = "Allows you to change the engine version in a few clicks.\
+        \nHotkey: Ctrl+U";
+        let hot_reload_tooltip = "Run the project with code hot reloading support. \
+            Significantly reduces iteration times, but might result in subtle bugs due to \
+            experimental and unsafe nature of code hot reloading.\
+            \nHotkey: Ctrl+H";
 
         let edit = make_button("Edit", 130.0, 25.0, 3, 0, 0, Some(edit_tooltip), ctx);
         let run = make_button("Run", 130.0, 25.0, 4, 0, 0, Some(run_tooltip), ctx);
@@ -361,12 +368,7 @@ impl ProjectManager {
         let hot_reload = CheckBoxBuilder::new(
             WidgetBuilder::new()
                 .with_margin(Thickness::uniform(1.0))
-                .with_tooltip(make_simple_tooltip(
-                    ctx,
-                    "Run the project with code hot reloading support. \
-            Significantly reduces iteration times, but might result in subtle bugs due to \
-            experimental and unsafe nature of code hot reloading.",
-                )),
+                .with_tooltip(make_simple_tooltip(ctx, hot_reload_tooltip)),
         )
         .with_content(
             TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::left(2.0)))
@@ -428,6 +430,13 @@ impl ProjectManager {
             BorderBuilder::new(WidgetBuilder::new().with_child(navigation_layer)).build(ctx),
         ))
         .build(ctx);
+
+        ctx.sender()
+            .send(WidgetMessage::focus(
+                navigation_layer,
+                MessageDirection::ToWidget,
+            ))
+            .unwrap();
 
         Self {
             create,
@@ -583,73 +592,94 @@ impl ProjectManager {
         }
     }
 
+    fn on_run_clicked(&mut self, ui: &mut UserInterface) {
+        let project = some_or_return!(self.selection.and_then(|i| self.settings.projects.get(i)));
+
+        let profile = if project.hot_reload {
+            BuildProfile::debug_hot_reloading()
+        } else {
+            BuildProfile::debug()
+        };
+        self.run_build_profile("game", &profile, ui);
+    }
+
+    fn on_edit_clicked(&mut self, ui: &mut UserInterface) {
+        let project = some_or_return!(self.selection.and_then(|i| self.settings.projects.get(i)));
+
+        let profile = if project.hot_reload {
+            BuildProfile::debug_editor_hot_reloading()
+        } else {
+            BuildProfile::debug_editor()
+        };
+        self.run_build_profile("editor", &profile, ui);
+    }
+
+    fn on_delete_clicked(&mut self, ui: &mut UserInterface) {
+        let project = some_or_return!(self.selection.and_then(|i| self.settings.projects.get(i)));
+
+        let ctx = &mut ui.build_ctx();
+        self.deletion_confirmation_dialog = MessageBoxBuilder::new(
+            WindowBuilder::new(WidgetBuilder::new())
+                .with_remove_on_close(true)
+                .with_title(WindowTitle::text("Delete Project"))
+                .open(false),
+        )
+        .with_text(&format!("Do you really want to delete {}?", project.name))
+        .with_buttons(MessageBoxButtons::YesNo)
+        .build(ctx);
+        ui.send_message(WindowMessage::open_modal(
+            self.deletion_confirmation_dialog,
+            MessageDirection::ToWidget,
+            true,
+            true,
+        ));
+    }
+
+    fn on_upgrade_clicked(&mut self, ui: &mut UserInterface) {
+        let project = some_or_return!(self.selection.and_then(|i| self.settings.projects.get(i)));
+        let ctx = &mut ui.build_ctx();
+        self.upgrade_tool = Some(UpgradeTool::new(project, ctx));
+    }
+
+    fn on_import_clicked(&mut self, ui: &mut UserInterface) {
+        let ctx = &mut ui.build_ctx();
+        self.import_project_dialog = FileSelectorBuilder::new(
+            WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
+                .open(false)
+                .with_remove_on_close(true),
+        )
+        .with_filter(Filter::new(|path| path.is_dir()))
+        .with_mode(FileBrowserMode::Open)
+        .build(ctx);
+        ui.send_message(WindowMessage::open_modal(
+            self.import_project_dialog,
+            MessageDirection::ToWidget,
+            true,
+            true,
+        ));
+    }
+
+    fn on_create_clicked(&mut self, ui: &mut UserInterface) {
+        self.project_wizard = Some(ProjectWizard::new(&mut ui.build_ctx()));
+    }
+
     fn on_button_click(&mut self, button: Handle<UiNode>, ui: &mut UserInterface) {
         if button == self.create {
-            self.project_wizard = Some(ProjectWizard::new(&mut ui.build_ctx()));
+            self.on_create_clicked(ui);
         } else if button == self.import {
-            let ctx = &mut ui.build_ctx();
-            self.import_project_dialog = FileSelectorBuilder::new(
-                WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
-                    .open(false)
-                    .with_remove_on_close(true),
-            )
-            .with_filter(Filter::new(|path| path.is_dir()))
-            .with_mode(FileBrowserMode::Open)
-            .build(ctx);
-            ui.send_message(WindowMessage::open_modal(
-                self.import_project_dialog,
-                MessageDirection::ToWidget,
-                true,
-                true,
-            ));
+            self.on_import_clicked(ui);
         } else if button == self.download {
             let _ = open::that("https://rustup.rs/");
         } else if button == self.open_log {
             self.log.open(ui);
         } else if button == self.upgrade {
-            if let Some(index) = self.selection {
-                if let Some(project) = self.settings.projects.get(index) {
-                    let ctx = &mut ui.build_ctx();
-                    self.upgrade_tool = Some(UpgradeTool::new(project, ctx));
-                }
-            }
-        }
-
-        if let Some(index) = self.selection {
-            if let Some(project) = self.settings.projects.get(index) {
-                if button == self.edit {
-                    let profile = if project.hot_reload {
-                        BuildProfile::debug_editor_hot_reloading()
-                    } else {
-                        BuildProfile::debug_editor()
-                    };
-                    self.run_build_profile("editor", &profile, ui);
-                } else if button == self.run {
-                    let profile = if project.hot_reload {
-                        BuildProfile::debug_hot_reloading()
-                    } else {
-                        BuildProfile::debug()
-                    };
-                    self.run_build_profile("game", &profile, ui);
-                } else if button == self.delete {
-                    let ctx = &mut ui.build_ctx();
-                    self.deletion_confirmation_dialog = MessageBoxBuilder::new(
-                        WindowBuilder::new(WidgetBuilder::new())
-                            .with_remove_on_close(true)
-                            .with_title(WindowTitle::text("Delete Project"))
-                            .open(false),
-                    )
-                    .with_text(&format!("Do you really want to delete {}?", project.name))
-                    .with_buttons(MessageBoxButtons::YesNo)
-                    .build(ctx);
-                    ui.send_message(WindowMessage::open_modal(
-                        self.deletion_confirmation_dialog,
-                        MessageDirection::ToWidget,
-                        true,
-                        true,
-                    ));
-                }
-            }
+            self.on_upgrade_clicked(ui);
+        } else if button == self.edit {
+            self.on_edit_clicked(ui);
+        } else if button == self.run {
+            self.on_run_clicked(ui);
+        } else if button == self.delete {
+            self.on_delete_clicked(ui);
         }
     }
 
@@ -668,6 +698,35 @@ impl ProjectManager {
             current_dir: project.manifest_path.parent().unwrap().into(),
         };
         self.build_window = Some(BuildWindow::new(name, &mut ui.build_ctx()));
+    }
+
+    fn on_hot_reload_changed(&mut self, value: bool, ui: &mut UserInterface) {
+        let project = some_or_return!(self
+            .selection
+            .and_then(|i| self.settings.projects.get_mut(i)));
+        if project.hot_reload != value {
+            project.hot_reload = value;
+            self.refresh(ui);
+        }
+    }
+
+    fn on_hot_key(&mut self, key_code: KeyCode, ui: &mut UserInterface) {
+        let modifiers = ui.keyboard_modifiers();
+        match key_code {
+            KeyCode::Enter | KeyCode::NumpadEnter => {
+                if modifiers.shift {
+                    self.on_edit_clicked(ui);
+                } else {
+                    self.on_run_clicked(ui);
+                }
+            }
+            KeyCode::Delete => self.on_delete_clicked(ui),
+            KeyCode::KeyU if modifiers.control => self.on_upgrade_clicked(ui),
+            KeyCode::KeyI if modifiers.control => self.on_import_clicked(ui),
+            KeyCode::KeyC if modifiers.control => self.on_create_clicked(ui),
+            KeyCode::KeyH if modifiers.control => self.on_hot_reload_changed(true, ui),
+            _ => (),
+        }
     }
 
     pub fn handle_ui_message(&mut self, message: &UiMessage, ui: &mut UserInterface) {
@@ -729,14 +788,7 @@ impl ProjectManager {
             if message.destination() == self.hot_reload
                 && message.direction() == MessageDirection::FromWidget
             {
-                if let Some(selection) = self.selection {
-                    if let Some(project) = self.settings.projects.get_mut(selection) {
-                        if project.hot_reload != *value {
-                            project.hot_reload = *value;
-                            self.refresh(ui);
-                        }
-                    }
-                }
+                self.on_hot_reload_changed(*value, ui);
             }
         } else if let Some(FileSelectorMessage::Commit(path)) = message.data() {
             if message.destination() == self.import_project_dialog {
@@ -753,6 +805,10 @@ impl ProjectManager {
                         self.refresh(ui);
                     }
                 }
+            }
+        } else if let Some(WidgetMessage::KeyDown(key)) = message.data() {
+            if !message.handled() {
+                self.on_hot_key(*key, ui)
             }
         }
     }
