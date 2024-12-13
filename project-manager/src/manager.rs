@@ -25,6 +25,7 @@ use crate::{
     upgrade::UpgradeTool,
     utils::{self, is_production_ready, load_image, make_button},
 };
+use fyrox::gui::Orientation;
 use fyrox::{
     core::{color::Color, log::Log, pool::Handle, some_or_return},
     gui::{
@@ -113,9 +114,44 @@ fn make_project_item(
     .with_opt_texture(load_image(include_bytes!("../resources/icon.png")))
     .build(ctx);
 
+    let hot_reload = ImageBuilder::new(
+        WidgetBuilder::new()
+            .with_width(18.0)
+            .with_height(18.0)
+            .with_margin(Thickness::uniform(2.0))
+            .with_visibility(hot_reload),
+    )
+    .with_opt_texture(load_image(include_bytes!("../resources/flame.png")))
+    .build(ctx);
+
+    let engine_version = TextBuilder::new(
+        WidgetBuilder::new()
+            .with_foreground(ctx.style.property(Style::BRUSH_BRIGHTEST))
+            .with_margin(Thickness {
+                left: 0.0,
+                top: 6.0,
+                right: 3.0,
+                bottom: 0.0,
+            }),
+    )
+    .with_font_size(13.0.into())
+    .with_text(engine_version)
+    .build(ctx);
+
+    let info = StackPanelBuilder::new(
+        WidgetBuilder::new()
+            .with_horizontal_alignment(HorizontalAlignment::Right)
+            .with_vertical_alignment(VerticalAlignment::Center)
+            .with_child(engine_version)
+            .with_child(hot_reload),
+    )
+    .with_orientation(Orientation::Horizontal)
+    .build(ctx);
+
     let item = GridBuilder::new(
         WidgetBuilder::new()
             .on_column(1)
+            .with_child(info)
             .with_child(
                 TextBuilder::new(
                     WidgetBuilder::new()
@@ -140,41 +176,9 @@ fn make_project_item(
                 .build(ctx),
             ),
     )
-    .add_column(Column::auto())
+    .add_column(Column::stretch())
     .add_row(Row::auto())
     .add_row(Row::auto())
-    .build(ctx);
-
-    let hot_reload = ImageBuilder::new(
-        WidgetBuilder::new()
-            .on_row(0)
-            .on_column(2)
-            .with_width(18.0)
-            .with_height(18.0)
-            .with_margin(Thickness::uniform(2.0))
-            .with_visibility(hot_reload)
-            .with_horizontal_alignment(HorizontalAlignment::Right)
-            .with_vertical_alignment(VerticalAlignment::Top),
-    )
-    .with_opt_texture(load_image(include_bytes!("../resources/flame.png")))
-    .build(ctx);
-
-    let engine_version = TextBuilder::new(
-        WidgetBuilder::new()
-            .on_row(0)
-            .on_column(2)
-            .with_vertical_alignment(VerticalAlignment::Bottom)
-            .with_horizontal_alignment(HorizontalAlignment::Right)
-            .with_foreground(ctx.style.property(Style::BRUSH_BRIGHTEST))
-            .with_margin(Thickness {
-                left: 0.0,
-                top: 0.0,
-                right: 3.0,
-                bottom: 6.0,
-            }),
-    )
-    .with_font_size(13.0.into())
-    .with_text(engine_version)
     .build(ctx);
 
     DecoratorBuilder::new(
@@ -183,18 +187,11 @@ fn make_project_item(
                 .with_visibility(visible)
                 .with_margin(Thickness::uniform(1.0))
                 .with_child(
-                    GridBuilder::new(
-                        WidgetBuilder::new()
-                            .with_child(icon)
-                            .with_child(item)
-                            .with_child(hot_reload)
-                            .with_child(engine_version),
-                    )
-                    .add_column(Column::auto())
-                    .add_column(Column::stretch())
-                    .add_column(Column::auto())
-                    .add_row(Row::auto())
-                    .build(ctx),
+                    GridBuilder::new(WidgetBuilder::new().with_child(icon).with_child(item))
+                        .add_column(Column::auto())
+                        .add_column(Column::stretch())
+                        .add_row(Row::auto())
+                        .build(ctx),
                 ),
         )
         .with_corner_radius(4.0f32.into()),
