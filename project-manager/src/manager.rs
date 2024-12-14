@@ -364,13 +364,14 @@ impl ProjectManager {
         let locate_tooltip = "Opens project folder in the default OS file manager.\
         \nHotkey: Ctrl+O";
 
-        let edit = make_button("Edit", 130.0, 25.0, 3, 0, 0, Some(edit_tooltip), ctx);
-        let run = make_button("Run", 130.0, 25.0, 4, 0, 0, Some(run_tooltip), ctx);
-        let delete = make_button("Delete", 130.0, 25.0, 5, 0, 0, Some(delete_tooltip), ctx);
-        let upgrade = make_button("Upgrade", 130.0, 25.0, 6, 0, 0, Some(upgrade_tooltip), ctx);
-        let locate = make_button("Locate", 130.0, 25.0, 6, 0, 0, Some(locate_tooltip), ctx);
+        let edit = make_button("Edit", 130.0, 25.0, 5, 0, 0, Some(edit_tooltip), ctx);
+        let run = make_button("Run", 130.0, 25.0, 6, 0, 0, Some(run_tooltip), ctx);
+        let delete = make_button("Delete", 130.0, 25.0, 7, 0, 0, Some(delete_tooltip), ctx);
+        let upgrade = make_button("Upgrade", 130.0, 25.0, 8, 0, 0, Some(upgrade_tooltip), ctx);
+        let locate = make_button("Locate", 130.0, 25.0, 9, 0, 0, Some(locate_tooltip), ctx);
         let hot_reload = CheckBoxBuilder::new(
             WidgetBuilder::new()
+                .with_tab_index(Some(4))
                 .with_margin(Thickness::uniform(1.0))
                 .with_tooltip(make_simple_tooltip(ctx, hot_reload_tooltip)),
         )
@@ -398,7 +399,7 @@ impl ProjectManager {
         let projects = ListViewBuilder::new(
             WidgetBuilder::new()
                 .with_enabled(is_ready)
-                .with_tab_index(Some(6))
+                .with_tab_index(Some(3))
                 .with_margin(Thickness::uniform(1.0))
                 .on_column(0),
         )
