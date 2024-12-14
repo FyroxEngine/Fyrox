@@ -93,6 +93,7 @@ pub struct ProjectManager {
     message_count: Handle<UiNode>,
     deletion_confirmation_dialog: Handle<UiNode>,
     upgrade: Handle<UiNode>,
+    locate: Handle<UiNode>,
     upgrade_tool: Option<UpgradeTool>,
 }
 
@@ -360,11 +361,14 @@ impl ProjectManager {
             Significantly reduces iteration times, but might result in subtle bugs due to \
             experimental and unsafe nature of code hot reloading.\
             \nHotkey: Ctrl+H";
+        let locate_tooltip = "Opens project folder in the default OS file manager.\
+        \nHotkey: Ctrl+O";
 
         let edit = make_button("Edit", 130.0, 25.0, 3, 0, 0, Some(edit_tooltip), ctx);
         let run = make_button("Run", 130.0, 25.0, 4, 0, 0, Some(run_tooltip), ctx);
         let delete = make_button("Delete", 130.0, 25.0, 5, 0, 0, Some(delete_tooltip), ctx);
         let upgrade = make_button("Upgrade", 130.0, 25.0, 6, 0, 0, Some(upgrade_tooltip), ctx);
+        let locate = make_button("Locate", 130.0, 25.0, 6, 0, 0, Some(locate_tooltip), ctx);
         let hot_reload = CheckBoxBuilder::new(
             WidgetBuilder::new()
                 .with_margin(Thickness::uniform(1.0))
@@ -386,7 +390,8 @@ impl ProjectManager {
                 .with_child(edit)
                 .with_child(run)
                 .with_child(delete)
-                .with_child(upgrade),
+                .with_child(upgrade)
+                .with_child(locate),
         )
         .build(ctx);
 
@@ -461,6 +466,7 @@ impl ProjectManager {
             message_count,
             deletion_confirmation_dialog: Default::default(),
             upgrade,
+            locate,
             upgrade_tool: None,
         }
     }
@@ -680,7 +686,15 @@ impl ProjectManager {
             self.on_run_clicked(ui);
         } else if button == self.delete {
             self.on_delete_clicked(ui);
+        } else if button == self.locate {
+            self.on_locate_click();
         }
+    }
+
+    fn on_locate_click(&mut self) {
+        let project = some_or_return!(self.selection.and_then(|i| self.settings.projects.get(i)));
+        let folder = some_or_return!(project.manifest_path.parent());
+        Log::verify(open::that_detached(folder));
     }
 
     fn run_build_profile(
@@ -725,6 +739,7 @@ impl ProjectManager {
             KeyCode::KeyI if modifiers.control => self.on_import_clicked(ui),
             KeyCode::KeyC if modifiers.control => self.on_create_clicked(ui),
             KeyCode::KeyH if modifiers.control => self.on_hot_reload_changed(true, ui),
+            KeyCode::KeyO if modifiers.control => self.on_locate_click(),
             _ => (),
         }
     }
