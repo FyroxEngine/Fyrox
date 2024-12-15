@@ -170,7 +170,7 @@ use crate::{
     world::{graph::menu::SceneNodeContextMenu, graph::EditorSceneWrapper, WorldViewer},
 };
 use fyrox::gui::log::LogPanel;
-use fyrox_build_tools::BuildCommand;
+use fyrox_build_tools::CommandDescriptor;
 pub use message::Message;
 use plugins::inspector::InspectorPlugin;
 use std::process::Stdio;
@@ -303,7 +303,7 @@ pub fn make_save_file_selector(
 pub enum Mode {
     Edit,
     Build {
-        queue: VecDeque<BuildCommand>,
+        queue: VecDeque<CommandDescriptor>,
         process: Option<std::process::Child>,
     },
     Play {

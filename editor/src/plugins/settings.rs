@@ -67,7 +67,7 @@ use crate::{
     },
     Editor, MSG_SYNC_FLAG,
 };
-use fyrox_build_tools::{BuildCommand, BuildProfile, EnvironmentVariable};
+use fyrox_build_tools::{BuildProfile, CommandDescriptor, EnvironmentVariable};
 use std::sync::Arc;
 
 fn make_property_editors_container(
@@ -100,8 +100,8 @@ fn make_property_editors_container(
     container.insert(InspectablePropertyEditorDefinition::<EnvironmentVariable>::new());
     container.insert(VecCollectionPropertyEditorDefinition::<BuildProfile>::new());
     container.insert(InspectablePropertyEditorDefinition::<BuildProfile>::new());
-    container.insert(VecCollectionPropertyEditorDefinition::<BuildCommand>::new());
-    container.insert(InspectablePropertyEditorDefinition::<BuildCommand>::new());
+    container.insert(VecCollectionPropertyEditorDefinition::<CommandDescriptor>::new());
+    container.insert(InspectablePropertyEditorDefinition::<CommandDescriptor>::new());
     container.insert(HotKeyPropertyEditorDefinition);
     Arc::new(container)
 }

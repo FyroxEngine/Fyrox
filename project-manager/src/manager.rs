@@ -18,10 +18,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::settings::MANIFEST_PATH_VAR;
 use crate::{
     build::BuildWindow,
     project::ProjectWizard,
-    settings::{Project, Settings},
+    settings::{Project, Settings, SettingsWindow},
     upgrade::UpgradeTool,
     utils::{self, is_production_ready, load_image, make_button},
 };
@@ -47,14 +48,14 @@ use fyrox::{
         stack_panel::StackPanelBuilder,
         style::{resource::StyleResourceExt, Style},
         text::{TextBuilder, TextMessage},
-        utils::make_simple_tooltip,
+        utils::{make_image_button_with_tooltip, make_simple_tooltip},
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
         VerticalAlignment,
     },
 };
-use fyrox_build_tools::{BuildCommand, BuildProfile};
+use fyrox_build_tools::{BuildProfile, CommandDescriptor};
 use std::{
     collections::VecDeque,
     path::{Path, PathBuf},
@@ -64,7 +65,7 @@ use std::{
 enum Mode {
     Normal,
     Build {
-        queue: VecDeque<BuildCommand>,
+        queue: VecDeque<CommandDescriptor>,
         process: Option<std::process::Child>,
         current_dir: PathBuf,
     },
@@ -94,7 +95,10 @@ pub struct ProjectManager {
     deletion_confirmation_dialog: Handle<UiNode>,
     upgrade: Handle<UiNode>,
     locate: Handle<UiNode>,
+    open_settings: Handle<UiNode>,
+    open_ide: Handle<UiNode>,
     upgrade_tool: Option<UpgradeTool>,
+    settings_window: Option<SettingsWindow>,
 }
 
 fn make_project_item(
@@ -294,9 +298,18 @@ impl ProjectManager {
                 .with_height(25.0),
         )
         .build(ctx);
+        let open_settings = make_image_button_with_tooltip(
+            ctx,
+            18.0,
+            18.0,
+            load_image(include_bytes!("../resources/gear.png")),
+            "Settings\nHotkey: Ctrl+S",
+            Some(7),
+        );
+        ctx[open_settings].set_column(3);
 
         let message_count;
-        let open_log = ButtonBuilder::new(WidgetBuilder::new().on_column(3).with_visibility(false))
+        let open_log = ButtonBuilder::new(WidgetBuilder::new().on_column(4).with_visibility(false))
             .with_content(
                 GridBuilder::new(
                     WidgetBuilder::new()
@@ -341,11 +354,13 @@ impl ProjectManager {
                 .with_child(create)
                 .with_child(import)
                 .with_child(search_bar)
+                .with_child(open_settings)
                 .with_child(open_log),
         )
         .add_column(Column::auto())
         .add_column(Column::auto())
         .add_column(Column::stretch())
+        .add_column(Column::auto())
         .add_column(Column::auto())
         .add_row(Row::auto())
         .build(ctx);
@@ -362,13 +377,25 @@ impl ProjectManager {
             experimental and unsafe nature of code hot reloading.\
             \nHotkey: Ctrl+H";
         let locate_tooltip = "Opens project folder in the default OS file manager.\
-        \nHotkey: Ctrl+O";
+        \nHotkey: Ctrl+L";
+        let open_ide_tooltip = "Opens project folder in the currently selected IDE \
+        (can be changed in settings).\nHotkey: Ctrl+O";
 
         let edit = make_button("Edit", 130.0, 25.0, 5, 0, 0, Some(edit_tooltip), ctx);
         let run = make_button("Run", 130.0, 25.0, 6, 0, 0, Some(run_tooltip), ctx);
         let delete = make_button("Delete", 130.0, 25.0, 7, 0, 0, Some(delete_tooltip), ctx);
         let upgrade = make_button("Upgrade", 130.0, 25.0, 8, 0, 0, Some(upgrade_tooltip), ctx);
         let locate = make_button("Locate", 130.0, 25.0, 9, 0, 0, Some(locate_tooltip), ctx);
+        let open_ide = make_button(
+            "Open IDE",
+            130.0,
+            25.0,
+            9,
+            0,
+            0,
+            Some(open_ide_tooltip),
+            ctx,
+        );
         let hot_reload = CheckBoxBuilder::new(
             WidgetBuilder::new()
                 .with_tab_index(Some(4))
@@ -392,7 +419,8 @@ impl ProjectManager {
                 .with_child(run)
                 .with_child(delete)
                 .with_child(upgrade)
-                .with_child(locate),
+                .with_child(locate)
+                .with_child(open_ide),
         )
         .build(ctx);
 
@@ -468,7 +496,10 @@ impl ProjectManager {
             deletion_confirmation_dialog: Default::default(),
             upgrade,
             locate,
+            open_settings,
+            open_ide,
             upgrade_tool: None,
+            settings_window: None,
         }
     }
 
@@ -559,6 +590,8 @@ impl ProjectManager {
         if let Some(build_window) = self.build_window.as_mut() {
             build_window.update(ui);
         }
+
+        self.settings.try_save();
     }
 
     fn try_import(&mut self, path: &Path, ui: &mut UserInterface) {
@@ -689,6 +722,10 @@ impl ProjectManager {
             self.on_delete_clicked(ui);
         } else if button == self.locate {
             self.on_locate_click();
+        } else if button == self.open_ide {
+            self.on_open_ide_click();
+        } else if button == self.open_settings {
+            self.on_open_settings_click(ui);
         }
     }
 
@@ -696,6 +733,32 @@ impl ProjectManager {
         let project = some_or_return!(self.selection.and_then(|i| self.settings.projects.get(i)));
         let folder = some_or_return!(project.manifest_path.parent());
         Log::verify(open::that_detached(folder));
+    }
+
+    fn on_open_ide_click(&mut self) {
+        let project = some_or_return!(self.selection.and_then(|i| self.settings.projects.get(i)));
+        let mut open_ide_command = self.settings.open_ide_command.clone();
+        if let Some(manifest_path_arg) = open_ide_command
+            .args
+            .iter_mut()
+            .find(|cmd| cmd.as_str() == MANIFEST_PATH_VAR)
+        {
+            *manifest_path_arg = project.manifest_path.to_string_lossy().to_string();
+        } else {
+            Log::warn(format!("{} variable is not specified!", MANIFEST_PATH_VAR));
+        }
+        let mut command = open_ide_command.make_command();
+        if let Err(err) = command.spawn() {
+            Log::err(format!(
+                "Unable to open the IDE using {} command. Reason: {:?}",
+                open_ide_command, err
+            ));
+        }
+    }
+
+    fn on_open_settings_click(&mut self, ui: &mut UserInterface) {
+        let ctx = &mut ui.build_ctx();
+        self.settings_window = Some(SettingsWindow::new(&self.settings, ctx));
     }
 
     fn run_build_profile(
@@ -740,7 +803,9 @@ impl ProjectManager {
             KeyCode::KeyI if modifiers.control => self.on_import_clicked(ui),
             KeyCode::KeyC if modifiers.control => self.on_create_clicked(ui),
             KeyCode::KeyH if modifiers.control => self.on_hot_reload_changed(true, ui),
-            KeyCode::KeyO if modifiers.control => self.on_locate_click(),
+            KeyCode::KeyL if modifiers.control => self.on_locate_click(),
+            KeyCode::KeyO if modifiers.control => self.on_open_ide_click(),
+            KeyCode::KeyS if modifiers.control => self.on_open_settings_click(ui),
             _ => (),
         }
     }
@@ -756,6 +821,10 @@ impl ProjectManager {
 
         if let Some(build_window) = self.build_window.as_mut() {
             build_window.handle_ui_message(message, ui);
+        }
+
+        if let Some(settings_window) = self.settings_window.take() {
+            self.settings_window = settings_window.handle_ui_message(&mut self.settings, message);
         }
 
         if let Some(upgrade_tool) = self.upgrade_tool.take() {

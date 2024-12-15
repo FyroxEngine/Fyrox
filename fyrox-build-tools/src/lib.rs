@@ -32,13 +32,13 @@ pub struct EnvironmentVariable {
 
 #[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Default, Reflect, TypeUuidProvider)]
 #[type_uuid(id = "67b93136-17fe-4776-b5f0-f4a9ef3d8972")]
-pub struct BuildCommand {
+pub struct CommandDescriptor {
     pub command: String,
     pub args: Vec<String>,
     pub environment_variables: Vec<EnvironmentVariable>,
 }
 
-impl BuildCommand {
+impl CommandDescriptor {
     pub fn make_command(&self) -> std::process::Command {
         let mut command = std::process::Command::new(&self.command);
 
@@ -52,7 +52,7 @@ impl BuildCommand {
     }
 }
 
-impl Display for BuildCommand {
+impl Display for CommandDescriptor {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         for var in self.environment_variables.iter() {
             write!(f, "{}=\"{}\" ", var.name, var.value)?;
@@ -73,11 +73,11 @@ impl Display for BuildCommand {
 pub struct BuildProfile {
     pub name: String,
     #[reflect(description = "A set of commands that will be used to build your game.")]
-    pub build_commands: Vec<BuildCommand>,
+    pub build_commands: Vec<CommandDescriptor>,
     #[reflect(description = "A set of commands that will be used to run your game. \
         This set of commands will be executed right after build commands (if the \
         build was successful)")]
-    pub run_command: BuildCommand,
+    pub run_command: CommandDescriptor,
 }
 
 impl BuildProfile {
@@ -91,7 +91,7 @@ impl BuildProfile {
         }
     }
 
-    pub fn build_and_run_queue(&self) -> VecDeque<BuildCommand> {
+    pub fn build_and_run_queue(&self) -> VecDeque<CommandDescriptor> {
         let mut queue = self.build_commands.iter().cloned().collect::<VecDeque<_>>();
         queue.push_back(self.run_command.clone());
         queue
@@ -100,7 +100,7 @@ impl BuildProfile {
     pub fn debug() -> Self {
         BuildProfile {
             name: "Debug".to_string(),
-            build_commands: vec![BuildCommand {
+            build_commands: vec![CommandDescriptor {
                 command: "cargo".to_string(),
                 args: vec![
                     "build".to_string(),
@@ -109,7 +109,7 @@ impl BuildProfile {
                 ],
                 environment_variables: vec![],
             }],
-            run_command: BuildCommand {
+            run_command: CommandDescriptor {
                 command: "cargo".to_string(),
                 args: vec![
                     "run".to_string(),
@@ -133,7 +133,7 @@ impl BuildProfile {
             name: "Debug (HR)".to_string(),
             build_commands: vec![
                 Self::build_game(), // Build the executor.
-                BuildCommand {
+                CommandDescriptor {
                     command: "cargo".to_string(),
                     args: vec![
                         "build".to_string(),
@@ -163,9 +163,9 @@ impl BuildProfile {
         release_hot_reloading
     }
 
-    fn build_game() -> BuildCommand {
+    fn build_game() -> CommandDescriptor {
         // Build the game plugin DLL first.
-        BuildCommand {
+        CommandDescriptor {
             command: "cargo".to_string(),
             args: vec![
                 "build".to_string(),
@@ -184,8 +184,8 @@ impl BuildProfile {
         }
     }
 
-    fn run_hot_reload(package_name: &str) -> BuildCommand {
-        BuildCommand {
+    fn run_hot_reload(package_name: &str) -> CommandDescriptor {
+        CommandDescriptor {
             command: "cargo".to_string(),
             args: vec![
                 "run".to_string(),
@@ -222,7 +222,7 @@ impl BuildProfile {
     pub fn debug_editor() -> Self {
         BuildProfile {
             name: "Debug Editor".to_string(),
-            build_commands: vec![BuildCommand {
+            build_commands: vec![CommandDescriptor {
                 command: "cargo".to_string(),
                 args: vec![
                     "build".to_string(),
@@ -231,7 +231,7 @@ impl BuildProfile {
                 ],
                 environment_variables: vec![],
             }],
-            run_command: BuildCommand {
+            run_command: CommandDescriptor {
                 command: "cargo".to_string(),
                 args: vec![
                     "run".to_string(),
