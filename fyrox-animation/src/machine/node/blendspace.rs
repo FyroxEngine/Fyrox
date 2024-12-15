@@ -227,7 +227,7 @@ pub struct PointsMut<'a, T: EntityId> {
     blend_space: &'a mut BlendSpace<T>,
 }
 
-impl<'a, T: EntityId> Deref for PointsMut<'a, T> {
+impl<T: EntityId> Deref for PointsMut<'_, T> {
     type Target = Vec<BlendSpacePoint<T>>;
 
     fn deref(&self) -> &Self::Target {
@@ -235,13 +235,13 @@ impl<'a, T: EntityId> Deref for PointsMut<'a, T> {
     }
 }
 
-impl<'a, T: EntityId> DerefMut for PointsMut<'a, T> {
+impl<T: EntityId> DerefMut for PointsMut<'_, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.blend_space.points
     }
 }
 
-impl<'a, T: EntityId> Drop for PointsMut<'a, T> {
+impl<T: EntityId> Drop for PointsMut<'_, T> {
     fn drop(&mut self) {
         self.blend_space.triangulate();
     }

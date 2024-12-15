@@ -318,7 +318,7 @@ impl TileSetEditor {
 
         let side_panel = BorderBuilder::new(
             WidgetBuilder::new()
-                .with_foreground(Brush::Solid(Color::BLACK))
+                .with_foreground(Brush::Solid(Color::BLACK).into())
                 .on_column(1)
                 .with_margin(Thickness::uniform(4.0))
                 .with_child(

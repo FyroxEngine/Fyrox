@@ -124,7 +124,7 @@ where
     phantom: PhantomData<T>,
 }
 
-impl<'a, T> ResourceHeaderGuard<'a, T>
+impl<T> ResourceHeaderGuard<'_, T>
 where
     T: TypedResourceData,
 {
@@ -427,7 +427,7 @@ where
     phantom: PhantomData<T>,
 }
 
-impl<'a, T> ResourceDataRef<'a, T>
+impl<T> ResourceDataRef<'_, T>
 where
     T: TypedResourceData,
 {
@@ -448,7 +448,7 @@ where
     }
 }
 
-impl<'a, T> Debug for ResourceDataRef<'a, T>
+impl<T> Debug for ResourceDataRef<'_, T>
 where
     T: TypedResourceData,
 {
@@ -473,7 +473,7 @@ where
     }
 }
 
-impl<'a, T> Deref for ResourceDataRef<'a, T>
+impl<T> Deref for ResourceDataRef<'_, T>
 where
     T: TypedResourceData,
 {
@@ -500,7 +500,7 @@ where
     }
 }
 
-impl<'a, T> DerefMut for ResourceDataRef<'a, T>
+impl<T> DerefMut for ResourceDataRef<'_, T>
 where
     T: TypedResourceData,
 {

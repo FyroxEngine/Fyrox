@@ -64,7 +64,7 @@ pub struct EditorSceneWrapper<'a> {
     pub instantiation_scale: Vector3<f32>,
 }
 
-impl<'a> WorldViewerDataProvider for EditorSceneWrapper<'a> {
+impl WorldViewerDataProvider for EditorSceneWrapper<'_> {
     fn root_node(&self) -> ErasedHandle {
         self.game_scene.scene_content_root.into()
     }

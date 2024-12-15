@@ -25,14 +25,13 @@ use crate::{
     fyrox::{
         asset::{manager::ResourceManager, untyped::ResourceKind, untyped::UntypedResource},
         core::{
-            color::Color, futures::executor::block_on, pool::Handle, replace_slashes,
-            some_or_return, visitor::Visitor,
+            futures::executor::block_on, pool::Handle, replace_slashes, some_or_return,
+            visitor::Visitor,
         },
         engine::SerializationContext,
         graph::{BaseSceneGraph, SceneGraph},
         gui::{
             border::BorderBuilder,
-            brush::Brush,
             button::{ButtonBuilder, ButtonMessage},
             decorator::DecoratorBuilder,
             file_browser::{FileSelectorBuilder, FileSelectorMessage},
@@ -55,6 +54,8 @@ use crate::{
     plugin::EditorPlugin,
     Editor, Message,
 };
+use fyrox::gui::style::resource::StyleResourceExt;
+use fyrox::gui::style::Style;
 use std::{
     path::{Path, PathBuf},
     sync::Arc,
@@ -264,7 +265,7 @@ impl PathFixer {
         ui.send_message(WidgetMessage::foreground(
             item_text,
             MessageDirection::ToWidget,
-            Brush::Solid(Color::GREEN),
+            ui.style.property(Style::BRUSH_OK),
         ));
         ui.send_message(TextMessage::text(
             item_text,
@@ -338,7 +339,9 @@ impl PathFixer {
                                                 TextBuilder::new(
                                                     WidgetBuilder::new()
                                                         .with_margin(Thickness::uniform(1.0))
-                                                        .with_foreground(Brush::Solid(Color::RED)),
+                                                        .with_foreground(
+                                                            ctx.style.property(Style::BRUSH_ERROR),
+                                                        ),
                                                 )
                                                 .with_vertical_text_alignment(
                                                     VerticalAlignment::Center,

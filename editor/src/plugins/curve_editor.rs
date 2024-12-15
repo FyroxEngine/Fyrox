@@ -23,13 +23,12 @@ use crate::{
     fyrox::{
         asset::{untyped::ResourceKind, Resource},
         core::{
-            color::Color, futures::executor::block_on, math::curve::Curve, pool::Handle,
-            type_traits::prelude::*, visitor::prelude::*,
+            futures::executor::block_on, math::curve::Curve, pool::Handle, type_traits::prelude::*,
+            visitor::prelude::*,
         },
         engine::Engine,
         gui::{
             border::BorderBuilder,
-            brush::Brush,
             button::{ButtonBuilder, ButtonMessage},
             curve::{CurveEditorBuilder, CurveEditorMessage},
             file_browser::{FileBrowserMode, FileSelectorMessage},
@@ -51,6 +50,8 @@ use crate::{
     Editor, MessageBoxButtons, MessageBoxMessage, MSG_SYNC_FLAG,
 };
 use fyrox::core::some_or_return;
+use fyrox::gui::style::resource::StyleResourceExt;
+use fyrox::gui::style::Style;
 use std::{fmt::Debug, path::PathBuf};
 
 #[derive(Debug, ComponentProvider)]
@@ -232,7 +233,7 @@ impl CurveEditorWindow {
                                 WidgetBuilder::new()
                                     .on_row(1)
                                     .on_column(0)
-                                    .with_background(Brush::Solid(Color::opaque(20, 20, 20)))
+                                    .with_background(ctx.style.property(Style::BRUSH_DARKEST))
                                     .with_child({
                                         curve_editor = CurveEditorBuilder::new(
                                             WidgetBuilder::new().with_enabled(false),

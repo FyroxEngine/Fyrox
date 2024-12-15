@@ -616,7 +616,7 @@ impl InteractionMode for EditNavmeshMode {
         let scene = &mut engine.scenes[game_scene.scene];
 
         if let Some(selection) = fetch_selection(editor_selection) {
-            return match key {
+            match key {
                 KeyCode::Delete => {
                     if scene
                         .graph
@@ -672,7 +672,7 @@ impl InteractionMode for EditNavmeshMode {
                     true
                 }
                 _ => false,
-            };
+            }
         } else {
             false
         }

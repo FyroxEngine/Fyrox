@@ -70,11 +70,11 @@ pub fn make_mark(ctx: &mut BuildContext, column: usize, color: Color) -> Handle<
         WidgetBuilder::new()
             .on_row(0)
             .on_column(column)
-            .with_background(Brush::Solid(color))
-            .with_foreground(Brush::Solid(Color::TRANSPARENT))
+            .with_background(Brush::Solid(color).into())
+            .with_foreground(Brush::Solid(Color::TRANSPARENT).into())
             .with_width(4.0),
     )
-    .with_corner_radius(2.0)
+    .with_corner_radius(2.0f32.into())
     .with_pad_by_corner_radius(false)
     .build(ctx)
 }

@@ -76,7 +76,6 @@ use crate::{
         },
         resource::texture::TextureBytes,
     },
-    gui::make_image_button_with_tooltip,
     load_image,
     menu::create_menu_item,
     message::MessageSender,
@@ -94,6 +93,7 @@ use crate::{
 use fyrox::generic_animation::track::TrackBinding;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
+use fyrox::gui::utils::make_image_button_with_tooltip;
 use fyrox::renderer::framework::DrawParameters;
 use fyrox::scene::mesh::buffer::{TriangleBuffer, VertexBuffer};
 use fyrox::scene::sound::Samples;
@@ -372,9 +372,9 @@ impl Control for TrackView {
                             self.name_text,
                             MessageDirection::ToWidget,
                             if result.is_ok() {
-                                ui.style.get_or_default(Style::BRUSH_TEXT)
+                                ui.style.property(Style::BRUSH_TEXT)
                             } else {
-                                Brush::Solid(Color::RED)
+                                ui.style.property(Style::BRUSH_ERROR)
                             },
                         ));
 
@@ -550,7 +550,7 @@ impl Toolbar {
                     .with_content(
                         ImageBuilder::new(
                             WidgetBuilder::new()
-                                .with_background(ctx.style.get_or_default(Style::BRUSH_BRIGHT))
+                                .with_background(ctx.style.property(Style::BRUSH_BRIGHT))
                                 .with_width(16.0)
                                 .with_height(16.0),
                         )
@@ -570,7 +570,7 @@ impl Toolbar {
                     .with_content(
                         ImageBuilder::new(
                             WidgetBuilder::new()
-                                .with_background(ctx.style.get_or_default(Style::BRUSH_BRIGHT))
+                                .with_background(ctx.style.property(Style::BRUSH_BRIGHT))
                                 .with_width(16.0)
                                 .with_height(16.0),
                         )
@@ -1445,13 +1445,15 @@ impl TrackList {
                                                 BorderBuilder::new(
                                                     WidgetBuilder::new()
                                                         .on_column(0)
-                                                        .with_foreground(Brush::Solid(
-                                                            Color::TRANSPARENT,
-                                                        ))
-                                                        .with_background(Brush::Solid(colors[i])),
+                                                        .with_foreground(
+                                                            Brush::Solid(Color::TRANSPARENT).into(),
+                                                        )
+                                                        .with_background(
+                                                            Brush::Solid(colors[i]).into(),
+                                                        ),
                                                 )
                                                 .with_pad_by_corner_radius(false)
-                                                .with_corner_radius(2.0)
+                                                .with_corner_radius(2.0f32.into())
                                                 .build(ctx),
                                             )
                                             .with_child(

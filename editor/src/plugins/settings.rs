@@ -20,6 +20,8 @@
 
 //! Settings window plugin.
 
+use crate::settings::build::BuildSettings;
+use crate::settings::general::EditorStyle;
 use crate::{
     fyrox::{
         core::{log::Log, pool::Handle, some_or_return},
@@ -51,7 +53,6 @@ use crate::{
     message::MessageSender,
     plugin::EditorPlugin,
     settings::{
-        build::{BuildCommand, BuildProfile, BuildSettings, EnvironmentVariable},
         camera::CameraSettings,
         debugging::DebuggingSettings,
         general::{GeneralSettings, ScriptEditor},
@@ -66,6 +67,7 @@ use crate::{
     },
     Editor, MSG_SYNC_FLAG,
 };
+use fyrox_build_tools::{BuildProfile, CommandDescriptor, EnvironmentVariable};
 use std::sync::Arc;
 
 fn make_property_editors_container(
@@ -78,6 +80,7 @@ fn make_property_editors_container(
     container.insert(InspectablePropertyEditorDefinition::<SelectionSettings>::new());
     container.insert(EnumPropertyEditorDefinition::<ShadowMapPrecision>::new());
     container.insert(EnumPropertyEditorDefinition::<ScriptEditor>::new());
+    container.insert(EnumPropertyEditorDefinition::<EditorStyle>::new());
     container.insert(InspectablePropertyEditorDefinition::<DebuggingSettings>::new());
     container.insert(InspectablePropertyEditorDefinition::<CsmSettings>::new());
     container.insert(InspectablePropertyEditorDefinition::<QualitySettings>::new());
@@ -97,8 +100,8 @@ fn make_property_editors_container(
     container.insert(InspectablePropertyEditorDefinition::<EnvironmentVariable>::new());
     container.insert(VecCollectionPropertyEditorDefinition::<BuildProfile>::new());
     container.insert(InspectablePropertyEditorDefinition::<BuildProfile>::new());
-    container.insert(VecCollectionPropertyEditorDefinition::<BuildCommand>::new());
-    container.insert(InspectablePropertyEditorDefinition::<BuildCommand>::new());
+    container.insert(VecCollectionPropertyEditorDefinition::<CommandDescriptor>::new());
+    container.insert(InspectablePropertyEditorDefinition::<CommandDescriptor>::new());
     container.insert(HotKeyPropertyEditorDefinition);
     Arc::new(container)
 }

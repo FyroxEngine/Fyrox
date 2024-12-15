@@ -102,7 +102,7 @@ pub fn make_list_item(ctx: &mut BuildContext, collider: &TileSetColliderLayer) -
                         .with_vertical_alignment(VerticalAlignment::Center)
                         .with_width(16.0)
                         .with_height(16.0)
-                        .with_background(Brush::Solid(collider.color)),
+                        .with_background(Brush::Solid(collider.color).into()),
                 )
                 .build(ctx),
             )
@@ -124,7 +124,7 @@ pub fn make_list_item(ctx: &mut BuildContext, collider: &TileSetColliderLayer) -
     .build(ctx);
     DecoratorBuilder::new(
         BorderBuilder::new(WidgetBuilder::new().with_child(content))
-            .with_corner_radius(4.0)
+            .with_corner_radius(4.0.into())
             .with_pad_by_corner_radius(false),
     )
     .build(ctx)

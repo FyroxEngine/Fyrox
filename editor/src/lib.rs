@@ -37,11 +37,9 @@ pub mod camera;
 pub mod command;
 pub mod configurator;
 pub mod export;
-pub mod gui;
 pub mod highlight;
 pub mod interaction;
 pub mod light;
-pub mod log;
 pub mod menu;
 pub mod mesh;
 pub mod message;
@@ -60,7 +58,8 @@ pub mod world;
 
 pub use fyrox;
 
-use crate::plugins::path_fixer::PathFixerPlugin;
+use crate::asset::item::AssetItem;
+use crate::plugins::absm::AbsmEditor;
 use crate::{
     asset::AssetBrowser,
     audio::{preview::AudioPreviewPanel, AudioPanel},
@@ -70,7 +69,10 @@ use crate::{
     configurator::Configurator,
     export::ExportWindow,
     fyrox::{
-        asset::{io::FsResourceIo, manager::ResourceManager, untyped::UntypedResource},
+        asset::{
+            io::FsResourceIo, manager::ResourceManager, untyped::ResourceKind,
+            untyped::UntypedResource,
+        },
         core::{
             algebra::{Matrix3, Vector2},
             color::Color,
@@ -92,6 +94,7 @@ use crate::{
         gui::{
             brush::Brush,
             button::ButtonBuilder,
+            constructor::new_widget_constructor_container,
             dock::{
                 DockingManager, DockingManagerBuilder, DockingManagerMessage, TileBuilder,
                 TileContent,
@@ -106,6 +109,7 @@ use crate::{
             messagebox::{
                 MessageBoxBuilder, MessageBoxButtons, MessageBoxMessage, MessageBoxResult,
             },
+            style::{resource::StyleResource, Style},
             text::TextBuilder,
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
@@ -117,12 +121,12 @@ use crate::{
         },
         plugin::{dylib::DyLibDynamicPlugin, DynamicPlugin, Plugin, PluginContainer},
         resource::texture::{
-            CompressionOptions, TextureImportOptions, TextureKind, TextureMinificationFilter,
-            TextureResource, TextureResourceExtension,
+            CompressionOptions, TextureImportOptions, TextureMinificationFilter, TextureResource,
+            TextureResourceExtension,
         },
         scene::{graph::GraphUpdateSwitches, mesh::Mesh, Scene, SceneLoader},
         utils::{translate_cursor_icon, translate_event},
-        window::{Icon, WindowAttributes},
+        window::WindowAttributes,
     },
     highlight::HighlightRenderPass,
     interaction::{
@@ -134,7 +138,6 @@ use crate::{
         terrain::TerrainInteractionMode,
     },
     light::LightPanel,
-    log::LogPanel,
     menu::{Menu, MenuContext, Panels},
     mesh::{MeshControlPanel, SurfaceDataViewer},
     message::MessageSender,
@@ -143,8 +146,9 @@ use crate::{
     plugin::{EditorPlugin, EditorPluginsContainer},
     plugins::{
         absm::AbsmEditorPlugin, animation::AnimationEditorPlugin, collider::ColliderPlugin,
-        curve_editor::CurveEditorPlugin, material::MaterialPlugin, ragdoll::RagdollPlugin,
-        settings::SettingsPlugin, stats::UiStatisticsPlugin, tilemap::TileMapEditorPlugin,
+        curve_editor::CurveEditorPlugin, material::MaterialPlugin, path_fixer::PathFixerPlugin,
+        ragdoll::RagdollPlugin, settings::SettingsPlugin, stats::UiStatisticsPlugin,
+        tilemap::TileMapEditorPlugin,
     },
     scene::{
         commands::{
@@ -156,8 +160,7 @@ use crate::{
         GameScene, Selection,
     },
     scene_viewer::SceneViewer,
-    settings::build::BuildCommand,
-    settings::Settings,
+    settings::{general::EditorStyle, Settings},
     stats::{StatisticsWindow, StatisticsWindowAction},
     ui_scene::{
         commands::graph::PasteWidgetCommand, menu::WidgetContextMenu,
@@ -166,15 +169,16 @@ use crate::{
     utils::doc::DocWindow,
     world::{graph::menu::SceneNodeContextMenu, graph::EditorSceneWrapper, WorldViewer},
 };
-use fyrox::gui::constructor::new_widget_constructor_container;
+use fyrox::gui::log::LogPanel;
+use fyrox_build_tools::CommandDescriptor;
 pub use message::Message;
 use plugins::inspector::InspectorPlugin;
+use std::process::Stdio;
 use std::{
     cell::RefCell,
     collections::VecDeque,
     io::{BufRead, BufReader},
     path::{Path, PathBuf},
-    process::Stdio,
     rc::Rc,
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -299,7 +303,7 @@ pub fn make_save_file_selector(
 pub enum Mode {
     Edit,
     Build {
-        queue: VecDeque<BuildCommand>,
+        queue: VecDeque<CommandDescriptor>,
         process: Option<std::process::Child>,
     },
     Play {
@@ -557,6 +561,7 @@ pub struct Editor {
     pub statistics_window: Option<StatisticsWindow>,
     pub surface_data_viewer: Option<SurfaceDataViewer>,
     pub processed_ui_messages: usize,
+    pub styles: FxHashMap<EditorStyle, StyleResource>,
 }
 
 impl Editor {
@@ -564,6 +569,71 @@ impl Editor {
         let (log_message_sender, log_message_receiver) = channel();
 
         Log::add_listener(log_message_sender);
+
+        let mut dark_style = Style::dark_style();
+        dark_style
+            .set(
+                WorldViewer::INSTANCE_BRUSH,
+                Brush::Solid(Color::opaque(160, 160, 200)),
+            )
+            .set(
+                AssetItem::SELECTED_FOREGROUND,
+                Brush::Solid(Color::opaque(200, 220, 240)),
+            )
+            .set(
+                AssetItem::SELECTED_BACKGROUND,
+                Brush::Solid(Color::opaque(100, 100, 100)),
+            )
+            .set(
+                AssetItem::DESELECTED_BRUSH,
+                Brush::Solid(Color::TRANSPARENT),
+            )
+            .set(ExportWindow::TITLE_BRUSH, Brush::Solid(Color::CORN_SILK))
+            .set(
+                AbsmEditor::NORMAL_ROOT_COLOR,
+                Brush::Solid(Color::opaque(40, 80, 0)),
+            )
+            .set(
+                AbsmEditor::SELECTED_ROOT_COLOR,
+                Brush::Solid(Color::opaque(60, 100, 0)),
+            );
+
+        let dark_style = StyleResource::new_ok(ResourceKind::Embedded, dark_style);
+        let mut light_style = Style::light_style();
+        light_style
+            .set(
+                WorldViewer::INSTANCE_BRUSH,
+                Brush::Solid(Color::opaque(160, 160, 200)),
+            )
+            .set(
+                AssetItem::SELECTED_FOREGROUND,
+                Brush::Solid(Color::opaque(200, 220, 240)),
+            )
+            .set(
+                AssetItem::SELECTED_BACKGROUND,
+                Brush::Solid(Color::opaque(100, 100, 100)),
+            )
+            .set(
+                AssetItem::DESELECTED_BRUSH,
+                Brush::Solid(Color::TRANSPARENT),
+            )
+            .set(ExportWindow::TITLE_BRUSH, Brush::Solid(Color::CORN_SILK))
+            .set(
+                AbsmEditor::NORMAL_ROOT_COLOR,
+                Brush::Solid(Color::opaque(40, 80, 0)),
+            )
+            .set(
+                AbsmEditor::SELECTED_ROOT_COLOR,
+                Brush::Solid(Color::opaque(60, 100, 0)),
+            );
+
+        let light_style = StyleResource::new_ok(ResourceKind::Embedded, light_style);
+        let styles = [
+            (EditorStyle::Dark, dark_style),
+            (EditorStyle::Light, light_style),
+        ]
+        .into_iter()
+        .collect::<FxHashMap<_, _>>();
 
         let mut settings = Settings::default();
 
@@ -623,10 +693,12 @@ impl Editor {
                     .unwrap();
         }
 
-        let configurator = Configurator::new(
-            message_sender.clone(),
-            &mut engine.user_interfaces.first_mut().build_ctx(),
-        );
+        let ui = engine.user_interfaces.first_mut();
+        if let Some(style) = styles.get(&settings.general.style) {
+            ui.set_style(style.clone());
+        }
+
+        let configurator = Configurator::new(message_sender.clone(), &mut ui.build_ctx());
 
         let scene_viewer = SceneViewer::new(&mut engine, message_sender.clone(), &mut settings);
         let asset_browser = AssetBrowser::new(&mut engine);
@@ -646,7 +718,12 @@ impl Editor {
         )));
         let world_outliner = WorldViewer::new(ctx, message_sender.clone(), &settings);
         let command_stack_viewer = CommandStackViewer::new(ctx, message_sender.clone());
-        let log = LogPanel::new(ctx, log_message_receiver);
+        let log = LogPanel::new(
+            ctx,
+            log_message_receiver,
+            load_image!("../resources/clear.png"),
+            true,
+        );
         let inspector_plugin = InspectorPlugin::new(ctx, message_sender.clone());
         let particle_system_control_panel =
             ParticleSystemPreviewControlPanel::new(scene_viewer.frame(), ctx);
@@ -888,6 +965,7 @@ impl Editor {
             statistics_window: None,
             surface_data_viewer: None,
             processed_ui_messages: 0,
+            styles,
         };
 
         if let Some(data) = startup_data {
@@ -1215,12 +1293,18 @@ impl Editor {
             self.surface_data_viewer = surface_data_viewer.handle_ui_message(message, engine);
         }
 
-        self.build_window.handle_ui_message(
-            message,
-            &self.message_sender,
-            engine.user_interfaces.first(),
-        );
-        self.log.handle_ui_message(message, engine);
+        let ui = engine.user_interfaces.first_mut();
+        self.build_window
+            .handle_ui_message(message, &self.message_sender, ui);
+        if let Some(export_window) = self.export_window.as_mut() {
+            export_window.handle_ui_message(message, ui, &self.message_sender);
+        }
+        if let Some(stats) = self.statistics_window.as_ref() {
+            if let StatisticsWindowAction::Remove = stats.handle_ui_message(message, ui) {
+                self.statistics_window.take();
+            }
+        }
+        self.log.handle_ui_message(message, ui);
         self.asset_browser
             .handle_ui_message(message, engine, self.message_sender.clone());
         self.command_stack_viewer.handle_ui_message(message);
@@ -1231,20 +1315,6 @@ impl Editor {
             &mut self.settings,
             &self.mode,
         );
-        if let Some(export_window) = self.export_window.as_mut() {
-            export_window.handle_ui_message(
-                message,
-                engine.user_interfaces.first_mut(),
-                &self.message_sender,
-            );
-        }
-        if let Some(stats) = self.statistics_window.as_ref() {
-            if let StatisticsWindowAction::Remove =
-                stats.handle_ui_message(message, engine.user_interfaces.first())
-            {
-                self.statistics_window.take();
-            }
-        }
 
         let current_scene_entry = self.scenes.current_scene_entry_mut();
 
@@ -1424,22 +1494,15 @@ impl Editor {
             build_profile.run_command
         ));
 
-        let mut process = std::process::Command::new(&build_profile.run_command.command);
+        let mut command = build_profile.run_command.make_command();
 
-        process
+        command
             .stdout(Stdio::piped())
-            .args(build_profile.run_command.args.iter())
-            .envs(
-                build_profile
-                    .run_command
-                    .environment_variables
-                    .iter()
-                    .map(|v| (&v.name, &v.value)),
-            );
+            .arg("--")
+            .arg("--override-scene")
+            .arg(path);
 
-        process.arg("--").arg("--override-scene").arg(path);
-
-        match process.spawn() {
+        match command.spawn() {
             Ok(mut process) => {
                 let active = Arc::new(AtomicBool::new(true));
 
@@ -2066,21 +2129,10 @@ impl Editor {
                 ref mut queue,
             } => {
                 if process.is_none() {
-                    if let Some(command) = queue.pop_front() {
-                        Log::info(format!("Trying to run build command: {command}"));
+                    if let Some(build_command) = queue.pop_front() {
+                        Log::info(format!("Trying to run build command: {build_command}"));
 
-                        let mut new_process = std::process::Command::new(&command.command);
-                        new_process
-                            .stderr(Stdio::piped())
-                            .args(command.args.iter())
-                            .envs(
-                                command
-                                    .environment_variables
-                                    .iter()
-                                    .map(|v| (&v.name, &v.value)),
-                            );
-
-                        match new_process.spawn() {
+                        match build_command.make_command().stderr(Stdio::piped()).spawn() {
                             Ok(mut new_process) => {
                                 self.build_window.listen(
                                     new_process.stderr.take().unwrap(),
@@ -2137,12 +2189,22 @@ impl Editor {
 
         self.handle_modes();
 
-        self.log.update(&self.settings, &mut self.engine);
+        let ui = self.engine.user_interfaces.first_mut();
+
+        if let Some(active_tooltip) = ui.active_tooltip() {
+            if !active_tooltip.shown {
+                // Keep the editor running until the current tooltip is not shown.
+                self.update_loop_state.request_update_in_next_frame();
+            }
+        }
+
+        self.log.update(self.settings.general.max_log_entries, ui);
+        if let Some(export_window) = self.export_window.as_mut() {
+            export_window.update(ui);
+        }
+
         self.asset_browser
             .update(&mut self.engine, &self.message_sender);
-        if let Some(export_window) = self.export_window.as_mut() {
-            export_window.update(self.engine.user_interfaces.first_mut());
-        }
         if let Some(surface_data_viewer) = self.surface_data_viewer.as_mut() {
             surface_data_viewer.update(&mut self.engine);
         }
@@ -2397,7 +2459,14 @@ impl Editor {
             }
         }
 
-        self.settings.update();
+        if self.settings.try_save() {
+            let ui = self.engine.user_interfaces.first_mut();
+            if let Some(style) = self.styles.get(&self.settings.general.style) {
+                if style != ui.style() {
+                    ui.set_style(style.clone());
+                }
+            }
+        }
     }
 
     fn save_layout(&mut self) {
@@ -2496,20 +2565,7 @@ impl Editor {
 
         let graphics_context = engine.graphics_context.as_initialized_mut();
 
-        if let Ok(icon_img) = TextureResource::load_from_memory(
-            "../resources/icon.png".into(),
-            include_bytes!("../resources/icon.png"),
-            TextureImportOptions::default()
-                .with_compression(CompressionOptions::NoCompression)
-                .with_minification_filter(TextureMinificationFilter::Linear),
-        ) {
-            let data = icon_img.data_ref();
-            if let TextureKind::Rectangle { width, height } = data.kind() {
-                if let Ok(img) = Icon::from_rgba(data.data().to_vec(), width, height) {
-                    graphics_context.window.set_window_icon(Some(img));
-                }
-            }
-        }
+        graphics_context.set_window_icon_from_memory(include_bytes!("../resources/icon.png"));
 
         // High-DPI screen support
         Log::info(format!(

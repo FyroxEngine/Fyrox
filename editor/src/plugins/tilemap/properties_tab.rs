@@ -115,7 +115,7 @@ fn make_type_widget(ctx: &mut BuildContext, prop_type: TileSetPropertyType) -> H
     TextBuilder::new(WidgetBuilder::new().with_vertical_alignment(VerticalAlignment::Center))
         .with_vertical_text_alignment(VerticalAlignment::Center)
         .with_horizontal_text_alignment(HorizontalAlignment::Right)
-        .with_font_size(10.0)
+        .with_font_size((10.0).into())
         .with_text(type_name)
         .build(ctx)
 }
@@ -142,7 +142,7 @@ fn make_list_item(ctx: &mut BuildContext, property: &TileSetPropertyLayer) -> Ha
     .build(ctx);
     DecoratorBuilder::new(
         BorderBuilder::new(WidgetBuilder::new().with_child(content))
-            .with_corner_radius(4.0)
+            .with_corner_radius((4.0).into())
             .with_pad_by_corner_radius(false),
     )
     .build(ctx)
@@ -180,7 +180,7 @@ fn make_name_list_item(ctx: &mut BuildContext, named_value: &NamedValue) -> Hand
                         .with_vertical_alignment(VerticalAlignment::Center)
                         .with_width(16.0)
                         .with_height(16.0)
-                        .with_background(Brush::Solid(named_value.color)),
+                        .with_background(Brush::Solid(named_value.color).into()),
                 )
                 .build(ctx),
             )
@@ -204,7 +204,7 @@ fn make_name_list_item(ctx: &mut BuildContext, named_value: &NamedValue) -> Hand
     .build(ctx);
     DecoratorBuilder::new(
         BorderBuilder::new(WidgetBuilder::new().with_child(content))
-            .with_corner_radius(4.0)
+            .with_corner_radius((4.0).into())
             .with_pad_by_corner_radius(false),
     )
     .build(ctx)

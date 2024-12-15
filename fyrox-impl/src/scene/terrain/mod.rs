@@ -129,7 +129,7 @@ pub struct ChunkHeightData<'a>(pub ResourceDataRef<'a, Texture>);
 /// (0,0) is the actual origin of the chunk, while (-1,-1) is the in the margin of the chunk.
 pub struct ChunkHeightMutData<'a>(pub TextureDataRefMut<'a>);
 
-impl<'a> ChunkHeightData<'a> {
+impl ChunkHeightData<'_> {
     /// The size of the hight map, excluding the margins
     pub fn size(&self) -> Vector2<u32> {
         match self.0.kind() {
@@ -159,7 +159,7 @@ impl<'a> ChunkHeightData<'a> {
     }
 }
 
-impl<'a> ChunkHeightMutData<'a> {
+impl ChunkHeightMutData<'_> {
     /// The size of the hight map, excluding the margins
     pub fn size(&self) -> Vector2<u32> {
         match self.0.kind() {
@@ -197,7 +197,7 @@ impl<'a> ChunkHeightMutData<'a> {
     }
 }
 
-impl<'a> std::ops::Index<Vector2<i32>> for ChunkHeightData<'a> {
+impl std::ops::Index<Vector2<i32>> for ChunkHeightData<'_> {
     type Output = f32;
 
     fn index(&self, position: Vector2<i32>) -> &Self::Output {
@@ -211,7 +211,7 @@ impl<'a> std::ops::Index<Vector2<i32>> for ChunkHeightData<'a> {
         }
     }
 }
-impl<'a> std::ops::Index<Vector2<i32>> for ChunkHeightMutData<'a> {
+impl std::ops::Index<Vector2<i32>> for ChunkHeightMutData<'_> {
     type Output = f32;
 
     fn index(&self, position: Vector2<i32>) -> &Self::Output {
@@ -222,7 +222,7 @@ impl<'a> std::ops::Index<Vector2<i32>> for ChunkHeightMutData<'a> {
         &self.0.data_of_type::<f32>().unwrap()[y * row_size + x]
     }
 }
-impl<'a> std::ops::IndexMut<Vector2<i32>> for ChunkHeightMutData<'a> {
+impl std::ops::IndexMut<Vector2<i32>> for ChunkHeightMutData<'_> {
     fn index_mut(&mut self, position: Vector2<i32>) -> &mut Self::Output {
         assert!(self.is_valid_index(position));
         let row_size = self.row_size();

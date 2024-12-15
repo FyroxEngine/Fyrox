@@ -91,14 +91,14 @@ impl Control for Connection {
                     ui.send_message(WidgetMessage::foreground(
                         self.handle(),
                         MessageDirection::ToWidget,
-                        PICKED_BRUSH.clone(),
+                        PICKED_BRUSH.clone().into(),
                     ));
                 }
                 WidgetMessage::MouseLeave => {
                     ui.send_message(WidgetMessage::foreground(
                         self.handle(),
                         MessageDirection::ToWidget,
-                        NORMAL_BRUSH.clone(),
+                        NORMAL_BRUSH.clone().into(),
                     ));
                 }
                 _ => (),
@@ -152,7 +152,7 @@ impl ConnectionBuilder {
         let connection = Connection {
             widget: self
                 .widget_builder
-                .with_foreground(NORMAL_BRUSH)
+                .with_foreground(NORMAL_BRUSH.into())
                 .with_clip_to_bounds(false)
                 .build(ctx),
             segment: Segment {

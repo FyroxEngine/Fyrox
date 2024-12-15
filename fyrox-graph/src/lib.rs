@@ -104,7 +104,6 @@ where
 
     /// Maps each handle in the slice to a handle of its origin, or sets it to [Handle::NONE] if there is no such node.
     /// It should be used when you are sure that respective origin exists.
-
     #[inline]
     pub fn map_slice<T>(&self, handles: &mut [T]) -> &Self
     where

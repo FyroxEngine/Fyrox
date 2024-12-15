@@ -22,7 +22,10 @@ use std::{fmt::Display, sync::Arc};
 
 use fyrox::{
     core::algebra::Vector2,
-    gui::{grid::SizeMode, stack_panel::StackPanelBuilder, text::TextBuilder, window::Window},
+    gui::{
+        grid::SizeMode, stack_panel::StackPanelBuilder, text::TextBuilder,
+        utils::make_dropdown_list_option, window::Window,
+    },
     scene::tilemap::{tileset::TileSet, TileResource, *},
 };
 
@@ -37,7 +40,6 @@ use crate::{
         graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
         gui::{
             border::BorderBuilder,
-            brush::Brush,
             button::{Button, ButtonBuilder, ButtonMessage},
             decorator::{DecoratorBuilder, DecoratorMessage},
             dropdown_list::{DropdownListBuilder, DropdownListMessage},
@@ -56,7 +58,6 @@ use crate::{
             tilemap::{brush::TileMapBrush, tileset::TileSetResource, TileMap},
         },
     },
-    gui::make_dropdown_list_option,
     load_image,
     message::MessageSender,
     plugins::tilemap::{
@@ -166,7 +167,7 @@ impl TileMapPanel {
         let preview_frame = BorderBuilder::new(
             WidgetBuilder::new()
                 .on_column(1)
-                .with_foreground(Brush::Solid(Color::BLACK))
+                .with_foreground(Brush::Solid(Color::BLACK).into())
                 .with_child(preview),
         )
         .build(ctx);
@@ -174,7 +175,7 @@ impl TileMapPanel {
             WidgetBuilder::new()
                 .on_row(3)
                 .with_margin(Thickness::uniform(2.0))
-                .with_foreground(Brush::Solid(Color::BLACK))
+                .with_foreground(Brush::Solid(Color::BLACK).into())
                 .with_child(pages),
         )
         .build(ctx);
@@ -182,7 +183,7 @@ impl TileMapPanel {
             WidgetBuilder::new()
                 .on_row(4)
                 .with_margin(Thickness::uniform(2.0))
-                .with_foreground(Brush::Solid(Color::BLACK))
+                .with_foreground(Brush::Solid(Color::BLACK).into())
                 .with_child(palette),
         )
         .build(ctx);

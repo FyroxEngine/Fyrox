@@ -340,7 +340,7 @@ pub fn make_named_value_list_option(
     let icon = BorderBuilder::new(
         WidgetBuilder::new()
             .on_column(0)
-            .with_background(Brush::Solid(color)),
+            .with_background(Brush::Solid(color).into()),
     )
     .build(ctx);
     let text = TextBuilder::new(WidgetBuilder::new().on_column(1))
@@ -355,7 +355,7 @@ pub fn make_named_value_list_option(
         .build(ctx);
     DecoratorBuilder::new(
         BorderBuilder::new(WidgetBuilder::new().with_child(grid))
-            .with_corner_radius(4.0)
+            .with_corner_radius((4.0).into())
             .with_pad_by_corner_radius(false),
     )
     .build(ctx)
@@ -418,22 +418,22 @@ fn make_paint_button(tab_index: Option<usize>, ctx: &mut BuildContext) -> Handle
     .with_back(
         DecoratorBuilder::new(
             BorderBuilder::new(
-                WidgetBuilder::new().with_foreground(ctx.style.get_or_default(Style::BRUSH_DARKER)),
+                WidgetBuilder::new().with_foreground(ctx.style.property(Style::BRUSH_DARKER)),
             )
             .with_pad_by_corner_radius(false)
-            .with_corner_radius(4.0)
-            .with_stroke_thickness(Thickness::uniform(1.0)),
+            .with_corner_radius((4.0).into())
+            .with_stroke_thickness(Thickness::uniform(1.0).into()),
         )
-        .with_selected_brush(ctx.style.get_or_default(Style::BRUSH_BRIGHT_BLUE))
-        .with_normal_brush(ctx.style.get_or_default(Style::BRUSH_LIGHT))
-        .with_hover_brush(ctx.style.get_or_default(Style::BRUSH_LIGHTER))
-        .with_pressed_brush(ctx.style.get_or_default(Style::BRUSH_LIGHTEST))
+        .with_selected_brush(ctx.style.property(Style::BRUSH_BRIGHT_BLUE))
+        .with_normal_brush(ctx.style.property(Style::BRUSH_LIGHT))
+        .with_hover_brush(ctx.style.property(Style::BRUSH_LIGHTER))
+        .with_pressed_brush(ctx.style.property(Style::BRUSH_LIGHTEST))
         .build(ctx),
     )
     .with_content(
         ImageBuilder::new(
             WidgetBuilder::new()
-                .with_background(Brush::Solid(Color::opaque(180, 180, 180)))
+                .with_background(Brush::Solid(Color::opaque(180, 180, 180)).into())
                 .with_margin(Thickness::uniform(2.0))
                 .with_width(PAINT_BUTTON_WIDTH)
                 .with_height(PAINT_BUTTON_HEIGHT),
@@ -481,22 +481,22 @@ fn apply_specs_to_nine(specs: &NineButtonSpec, handle: Handle<UiNode>, ui: &mut 
     ui.send_message(DecoratorMessage::selected_brush(
         decorator,
         MessageDirection::ToWidget,
-        specs.selected_brush(),
+        specs.selected_brush().into(),
     ));
     ui.send_message(DecoratorMessage::normal_brush(
         decorator,
         MessageDirection::ToWidget,
-        specs.normal_brush(),
+        specs.normal_brush().into(),
     ));
     ui.send_message(DecoratorMessage::pressed_brush(
         decorator,
         MessageDirection::ToWidget,
-        specs.pressed_brush(),
+        specs.pressed_brush().into(),
     ));
     ui.send_message(DecoratorMessage::hover_brush(
         decorator,
         MessageDirection::ToWidget,
-        specs.hover_brush(),
+        specs.hover_brush().into(),
     ));
 }
 
@@ -517,16 +517,16 @@ fn build_nine_button(
     .with_back(
         DecoratorBuilder::new(
             BorderBuilder::new(
-                WidgetBuilder::new().with_foreground(ctx.style.get_or_default(Style::BRUSH_DARKER)),
+                WidgetBuilder::new().with_foreground(ctx.style.property(Style::BRUSH_DARKER)),
             )
             .with_pad_by_corner_radius(false)
-            .with_corner_radius(4.0)
-            .with_stroke_thickness(Thickness::uniform(1.0)),
+            .with_corner_radius((4.0).into())
+            .with_stroke_thickness(Thickness::uniform(1.0).into()),
         )
-        .with_selected_brush(specs.selected_brush())
-        .with_normal_brush(specs.normal_brush())
-        .with_hover_brush(specs.hover_brush())
-        .with_pressed_brush(specs.pressed_brush())
+        .with_selected_brush(specs.selected_brush().into())
+        .with_normal_brush(specs.normal_brush().into())
+        .with_hover_brush(specs.hover_brush().into())
+        .with_pressed_brush(specs.pressed_brush().into())
         .build(ctx),
     )
     .build(ctx)

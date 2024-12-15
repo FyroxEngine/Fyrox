@@ -38,10 +38,9 @@ use crate::fyrox::{
         VerticalAlignment,
     },
 };
-use crate::plugins::absm::{
-    selectable::{Selectable, SelectableMessage},
-    BORDER_COLOR, NORMAL_BACKGROUND, SELECTED_BACKGROUND,
-};
+use crate::plugins::absm::selectable::{Selectable, SelectableMessage};
+use fyrox::gui::style::resource::StyleResourceExt;
+use fyrox::gui::style::{Style, StyledProperty};
 use std::{
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
@@ -68,8 +67,8 @@ where
     pub base: AbsmBaseNode,
     pub add_input: Handle<UiNode>,
     input_sockets_panel: Handle<UiNode>,
-    normal_color: Color,
-    selected_color: Color,
+    normal_brush: StyledProperty<Brush>,
+    selected_brush: StyledProperty<Brush>,
     name: Handle<UiNode>,
     edit: Handle<UiNode>,
 }
@@ -94,8 +93,8 @@ where
             base: self.base.clone(),
             add_input: self.add_input,
             input_sockets_panel: self.input_sockets_panel,
-            normal_color: self.normal_color,
-            selected_color: self.selected_color,
+            normal_brush: self.normal_brush.clone(),
+            selected_brush: self.selected_brush.clone(),
             name: self.name,
             edit: self.edit,
         }
@@ -130,23 +129,23 @@ where
         ui.send_message(WidgetMessage::background(
             self.background,
             MessageDirection::ToWidget,
-            Brush::Solid(if self.selectable.selected {
-                self.selected_color
+            if self.selectable.selected {
+                self.selected_brush.clone()
             } else {
-                self.normal_color
-            }),
+                self.normal_brush.clone()
+            },
         ));
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum AbsmNodeMessage {
     Name(String),
     Enter,
     AddInput,
     InputSockets(Vec<Handle<UiNode>>),
-    NormalColor(Color),
-    SelectedColor(Color),
+    NormalBrush(StyledProperty<Brush>),
+    SelectedBrush(StyledProperty<Brush>),
     SetActive(bool),
     Edit,
 }
@@ -156,8 +155,8 @@ impl AbsmNodeMessage {
     define_constructor!(AbsmNodeMessage:Enter => fn enter(), layout: false);
     define_constructor!(AbsmNodeMessage:AddInput => fn add_input(), layout: false);
     define_constructor!(AbsmNodeMessage:InputSockets => fn input_sockets(Vec<Handle<UiNode>>), layout: false);
-    define_constructor!(AbsmNodeMessage:NormalColor => fn normal_color(Color), layout: false);
-    define_constructor!(AbsmNodeMessage:SelectedColor => fn selected_color(Color), layout: false);
+    define_constructor!(AbsmNodeMessage:NormalBrush => fn normal_color(StyledProperty<Brush>), layout: false);
+    define_constructor!(AbsmNodeMessage:SelectedBrush => fn selected_color(StyledProperty<Brush>), layout: false);
     define_constructor!(AbsmNodeMessage:SetActive => fn set_active(bool), layout: false);
     define_constructor!(AbsmNodeMessage:Edit => fn edit(), layout: false);
 }
@@ -233,15 +232,15 @@ where
                             self.base.input_sockets.clone_from(input_sockets);
                         }
                     }
-                    AbsmNodeMessage::NormalColor(color) => {
-                        if &self.normal_color != color {
-                            self.normal_color = *color;
+                    AbsmNodeMessage::NormalBrush(color) => {
+                        if &self.normal_brush != color {
+                            self.normal_brush = color.clone();
                             self.update_colors(ui);
                         }
                     }
-                    AbsmNodeMessage::SelectedColor(color) => {
-                        if &self.selected_color != color {
-                            self.selected_color = *color;
+                    AbsmNodeMessage::SelectedBrush(color) => {
+                        if &self.selected_brush != color {
+                            self.selected_brush = color.clone();
                             self.update_colors(ui);
                         }
                     }
@@ -257,21 +256,27 @@ where
                         }
                     }
                     AbsmNodeMessage::SetActive(active) => {
-                        let (thickness, color) = if *active {
-                            (Thickness::uniform(3.0), Color::opaque(120, 80, 60))
+                        let (thickness, brush) = if *active {
+                            (
+                                Thickness::uniform(3.0),
+                                Brush::Solid(Color::opaque(120, 80, 60)).into(),
+                            )
                         } else {
-                            (Thickness::uniform(1.0), BORDER_COLOR)
+                            (
+                                Thickness::uniform(1.0),
+                                ui.style.property(Style::BRUSH_LIGHT),
+                            )
                         };
 
                         ui.send_message(BorderMessage::stroke_thickness(
                             self.background,
                             MessageDirection::ToWidget,
-                            thickness,
+                            thickness.into(),
                         ));
                         ui.send_message(WidgetMessage::foreground(
                             self.background,
                             MessageDirection::ToWidget,
-                            Brush::Solid(color),
+                            brush,
                         ));
                     }
                     _ => (),
@@ -292,8 +297,8 @@ where
     output_socket: Handle<UiNode>,
     can_add_sockets: bool,
     title: Option<String>,
-    normal_color: Color,
-    selected_color: Color,
+    normal_brush: Option<StyledProperty<Brush>>,
+    selected_brush: Option<StyledProperty<Brush>>,
     editable: bool,
 }
 
@@ -310,8 +315,8 @@ where
             output_socket: Default::default(),
             can_add_sockets: false,
             title: None,
-            normal_color: NORMAL_BACKGROUND,
-            selected_color: SELECTED_BACKGROUND,
+            normal_brush: None,
+            selected_brush: None,
             editable: false,
         }
     }
@@ -346,13 +351,13 @@ where
         self
     }
 
-    pub fn with_normal_color(mut self, color: Color) -> Self {
-        self.normal_color = color;
+    pub fn with_normal_brush(mut self, brush: StyledProperty<Brush>) -> Self {
+        self.normal_brush = Some(brush);
         self
     }
 
-    pub fn with_selected_color(mut self, color: Color) -> Self {
-        self.selected_color = color;
+    pub fn with_selected_brush(mut self, brush: StyledProperty<Brush>) -> Self {
+        self.selected_brush = Some(brush);
         self
     }
 
@@ -457,7 +462,7 @@ where
                             BorderBuilder::new(
                                 WidgetBuilder::new()
                                     .with_height(24.0)
-                                    .with_background(Brush::Solid(Color::opaque(30, 30, 30)))
+                                    .with_background(ctx.style.property(Style::BRUSH_DARKER))
                                     .with_child(
                                         TextBuilder::new(
                                             WidgetBuilder::new()
@@ -472,8 +477,8 @@ where
                                     ),
                             )
                             .with_pad_by_corner_radius(false)
-                            .with_corner_radius(12.0)
-                            .with_stroke_thickness(Thickness::zero())
+                            .with_corner_radius(12.0f32.into())
+                            .with_stroke_thickness(Thickness::zero().into())
                             .build(ctx)
                         })
                         .unwrap_or_default(),
@@ -485,14 +490,22 @@ where
         .add_column(Column::stretch())
         .build(ctx);
 
+        let normal_brush = self
+            .normal_brush
+            .unwrap_or_else(|| ctx.style.property(Style::BRUSH_LIGHTER_PRIMARY));
+
+        let selected_brush = self
+            .selected_brush
+            .unwrap_or_else(|| ctx.style.property(Style::BRUSH_LIGHTER));
+
         let background = BorderBuilder::new(
             WidgetBuilder::new()
-                .with_foreground(Brush::Solid(BORDER_COLOR))
-                .with_background(Brush::Solid(self.normal_color))
+                .with_foreground(ctx.style.property(Style::BRUSH_LIGHT))
+                .with_background(normal_brush.clone())
                 .with_child(grid2),
         )
         .with_pad_by_corner_radius(false)
-        .with_corner_radius(12.0)
+        .with_corner_radius(12.0f32.into())
         .build(ctx);
 
         let node = AbsmNode {
@@ -507,8 +520,8 @@ where
             },
             add_input,
             input_sockets_panel,
-            normal_color: self.normal_color,
-            selected_color: self.selected_color,
+            normal_brush,
+            selected_brush,
             name,
             edit,
         };

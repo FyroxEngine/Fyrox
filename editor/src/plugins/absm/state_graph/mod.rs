@@ -39,7 +39,7 @@ use crate::plugins::absm::{
     selection::{AbsmSelection, SelectedEntity},
     state_graph::context::{CanvasContextMenu, NodeContextMenu, TransitionContextMenu},
     transition::{TransitionBuilder, TransitionMessage, TransitionView},
-    NORMAL_BACKGROUND, NORMAL_ROOT_COLOR, SELECTED_BACKGROUND, SELECTED_ROOT_COLOR,
+    AbsmEditor,
 };
 use crate::{
     command::{Command, CommandGroup},
@@ -47,6 +47,8 @@ use crate::{
     scene::{commands::ChangeSelectionCommand, Selection},
     send_sync_message,
 };
+use fyrox::gui::style::resource::StyleResourceExt;
+use fyrox::gui::style::Style;
 use std::cmp::Ordering;
 
 mod context;
@@ -359,15 +361,15 @@ impl StateGraphViewer {
                                 .with_context_menu(self.node_context_menu.menu.clone())
                                 .with_desired_position(state.position),
                         )
-                        .with_normal_color(if state_handle == machine_layer.entry_state() {
-                            NORMAL_ROOT_COLOR
+                        .with_normal_brush(if state_handle == machine_layer.entry_state() {
+                            ui.style.property(AbsmEditor::NORMAL_ROOT_COLOR)
                         } else {
-                            NORMAL_BACKGROUND
+                            ui.style.property(Style::BRUSH_LIGHTER_PRIMARY)
                         })
-                        .with_selected_color(if state_handle == machine_layer.entry_state() {
-                            SELECTED_ROOT_COLOR
+                        .with_selected_brush(if state_handle == machine_layer.entry_state() {
+                            ui.style.property(AbsmEditor::SELECTED_ROOT_COLOR)
                         } else {
-                            SELECTED_BACKGROUND
+                            ui.style.property(Style::BRUSH_LIGHTER)
                         })
                         .with_model_handle(state_handle)
                         .with_name(state.name.clone())
@@ -454,9 +456,9 @@ impl StateGraphViewer {
                     *state,
                     MessageDirection::ToWidget,
                     if state_model_handle == machine_layer.entry_state() {
-                        NORMAL_ROOT_COLOR
+                        ui.style.property(AbsmEditor::NORMAL_ROOT_COLOR)
                     } else {
-                        NORMAL_BACKGROUND
+                        ui.style.property(Style::BRUSH_LIGHTER_PRIMARY)
                     },
                 ),
             );
@@ -466,9 +468,9 @@ impl StateGraphViewer {
                     *state,
                     MessageDirection::ToWidget,
                     if state_model_handle == machine_layer.entry_state() {
-                        SELECTED_ROOT_COLOR
+                        ui.style.property(AbsmEditor::SELECTED_ROOT_COLOR)
                     } else {
-                        SELECTED_BACKGROUND
+                        ui.style.property(Style::BRUSH_LIGHTER)
                     },
                 ),
             );

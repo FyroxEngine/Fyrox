@@ -233,7 +233,7 @@ impl<'a, T: Pod> PodVecView<'a, T> {
     }
 }
 
-impl<'a, T: Pod> Visit for PodVecView<'a, T> {
+impl<T: Pod> Visit for PodVecView<'_, T> {
     #[allow(clippy::uninit_vec)]
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         if visitor.reading {
@@ -538,7 +538,7 @@ impl_field_data!(Vector2<u64>, FieldKind::Vector2U64);
 impl_field_data!(Vector3<u64>, FieldKind::Vector3U64);
 impl_field_data!(Vector4<u64>, FieldKind::Vector4U64);
 
-impl<'a, T> Visit for BinaryBlob<'a, T>
+impl<T> Visit for BinaryBlob<'_, T>
 where
     T: Copy,
 {
@@ -1162,7 +1162,7 @@ impl Default for VisitorNode {
 #[must_use = "the guard must be used"]
 pub struct RegionGuard<'a>(&'a mut Visitor);
 
-impl<'a> Deref for RegionGuard<'a> {
+impl Deref for RegionGuard<'_> {
     type Target = Visitor;
 
     fn deref(&self) -> &Self::Target {
@@ -1170,13 +1170,13 @@ impl<'a> Deref for RegionGuard<'a> {
     }
 }
 
-impl<'a> DerefMut for RegionGuard<'a> {
+impl DerefMut for RegionGuard<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.0
     }
 }
 
-impl<'a> Drop for RegionGuard<'a> {
+impl Drop for RegionGuard<'_> {
     fn drop(&mut self) {
         // If we acquired RegionGuard instance, then it is safe to assert that
         // `leave_region` was successful.

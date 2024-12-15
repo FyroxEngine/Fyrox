@@ -18,20 +18,24 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use cargo_metadata::{semver::VersionReq, Dependency, Metadata};
 use fyrox::{
     asset::untyped::UntypedResource,
     core::pool::Handle,
     gui::{
-        border::BorderBuilder, button::ButtonBuilder, decorator::DecoratorBuilder,
-        text::TextBuilder, widget::WidgetBuilder, BuildContext, HorizontalAlignment, Thickness,
-        UiNode, VerticalAlignment,
+        button::ButtonBuilder, text::TextBuilder, utils::make_simple_tooltip,
+        widget::WidgetBuilder, BuildContext, HorizontalAlignment, Thickness, UiNode,
+        VerticalAlignment,
     },
     resource::texture::{
         CompressionOptions, TextureImportOptions, TextureMinificationFilter, TextureResource,
         TextureResourceExtension,
     },
 };
-use std::process::Command;
+use std::{
+    path::{Path, PathBuf},
+    process::{Command, Stdio},
+};
 
 pub fn is_tool_installed(name: &str) -> bool {
     let Ok(output) = Command::new(name).output() else {
@@ -45,46 +49,39 @@ pub fn is_production_ready() -> bool {
     is_tool_installed("rustc") && is_tool_installed("cargo")
 }
 
-pub fn make_dropdown_list_option(ctx: &mut BuildContext, name: &str) -> Handle<UiNode> {
-    DecoratorBuilder::new(
-        BorderBuilder::new(
-            WidgetBuilder::new().with_child(
-                TextBuilder::new(WidgetBuilder::new())
-                    .with_vertical_text_alignment(VerticalAlignment::Center)
-                    .with_horizontal_text_alignment(HorizontalAlignment::Center)
-                    .with_text(name)
-                    .build(ctx),
-            ),
-        )
-        .with_corner_radius(4.0)
-        .with_pad_by_corner_radius(false),
-    )
-    .build(ctx)
-}
-
+#[allow(clippy::too_many_arguments)]
 pub fn make_button(
     text: &str,
     width: f32,
     height: f32,
     tab_index: usize,
+    row: usize,
+    column: usize,
+    tooltip: Option<&str>,
     ctx: &mut BuildContext,
 ) -> Handle<UiNode> {
-    ButtonBuilder::new(
-        WidgetBuilder::new()
-            .with_width(width)
-            .with_height(height)
-            .with_tab_index(Some(tab_index))
-            .with_margin(Thickness::uniform(1.0)),
-    )
-    .with_content(
-        TextBuilder::new(WidgetBuilder::new())
-            .with_text(text)
-            .with_font_size(16.0)
-            .with_vertical_text_alignment(VerticalAlignment::Center)
-            .with_horizontal_text_alignment(HorizontalAlignment::Center)
-            .build(ctx),
-    )
-    .build(ctx)
+    let mut widget_builder = WidgetBuilder::new()
+        .on_row(row)
+        .on_column(column)
+        .with_width(width)
+        .with_height(height)
+        .with_tab_index(Some(tab_index))
+        .with_margin(Thickness::uniform(1.0));
+
+    if let Some(tooltip) = tooltip {
+        widget_builder = widget_builder.with_tooltip(make_simple_tooltip(ctx, tooltip));
+    }
+
+    ButtonBuilder::new(widget_builder)
+        .with_content(
+            TextBuilder::new(WidgetBuilder::new())
+                .with_text(text)
+                .with_font_size(16.0.into())
+                .with_vertical_text_alignment(VerticalAlignment::Center)
+                .with_horizontal_text_alignment(HorizontalAlignment::Center)
+                .build(ctx),
+        )
+        .build(ctx)
 }
 
 pub fn load_image(data: &[u8]) -> Option<UntypedResource> {
@@ -99,4 +96,83 @@ pub fn load_image(data: &[u8]) -> Option<UntypedResource> {
         .ok()?
         .into(),
     )
+}
+
+pub fn folder_to_manifest_path(path: &Path) -> PathBuf {
+    let manifest_path = path
+        .join("Cargo.toml")
+        .canonicalize()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .to_string();
+    // Remove "\\?\" prefix on Windows, otherwise it will be impossible to compile anything,
+    // because there are some quirks on Unicode path handling on Windows and any path starting
+    // from two slashes will not work correctly as a working directory for a child process.
+    manifest_path.replace(r"\\?\", r"").into()
+}
+
+pub fn read_crate_metadata(manifest_path: &Path) -> Result<Metadata, String> {
+    match Command::new("cargo")
+        .arg("metadata")
+        .arg("--no-deps")
+        .arg("--format-version")
+        .arg("1")
+        .arg("--manifest-path")
+        .arg(manifest_path)
+        .stdout(Stdio::piped())
+        .spawn()
+    {
+        Ok(handle) => match handle.wait_with_output() {
+            Ok(output) => match serde_json::from_slice::<Metadata>(&output.stdout) {
+                Ok(metadata) => Ok(metadata),
+                Err(err) => Err(format!(
+                    "Unable to parse workspace metadata. Reason {err:?}"
+                )),
+            },
+            Err(err) => Err(format!("Unable to fetch project metadata. Reason {err:?}")),
+        },
+        Err(err) => Err(format!("Unable to fetch project metadata. Reason {err:?}")),
+    }
+}
+
+pub fn fyrox_dependency(metadata: &Metadata) -> Option<&Dependency> {
+    for package in metadata.packages.iter() {
+        for dependency in package.dependencies.iter() {
+            if dependency.name == "fyrox" {
+                return Some(dependency);
+            }
+        }
+    }
+    None
+}
+
+fn to_pretty_version(version_req: &VersionReq) -> String {
+    let version = version_req.to_string();
+    let pretty_version = version.replace('^', "");
+    pretty_version.replace('+', "")
+}
+
+pub fn fyrox_version_string(metadata: &Metadata) -> Option<String> {
+    fyrox_dependency(metadata).and_then(|dependency| {
+        if let Some(source) = dependency.source.as_ref() {
+            if source.contains("registry+") {
+                return Some(to_pretty_version(&dependency.req));
+            } else if source.contains("git+") {
+                return Some("nightly".to_string());
+            }
+        } else if let Some(path) = dependency.path.as_ref() {
+            return Some(path.to_string());
+        }
+        None
+    })
+}
+
+pub fn fyrox_dependency_from_path(manifest_path: &Path) -> Option<Dependency> {
+    read_crate_metadata(manifest_path)
+        .ok()
+        .and_then(|metadata| fyrox_dependency(&metadata).cloned())
+}
+
+pub fn has_fyrox_in_deps(metadata: &Metadata) -> bool {
+    fyrox_dependency(metadata).is_some()
 }

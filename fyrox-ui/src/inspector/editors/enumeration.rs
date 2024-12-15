@@ -431,7 +431,7 @@ where
                                     .build(ctx.build_context),
                             ),
                         )
-                        .with_corner_radius(4.0)
+                        .with_corner_radius(4.0f32.into())
                         .with_pad_by_corner_radius(false),
                     )
                     .build(ctx.build_context)

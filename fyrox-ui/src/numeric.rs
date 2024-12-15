@@ -26,10 +26,8 @@ use crate::style::resource::StyleResourceExt;
 use crate::style::Style;
 use crate::{
     border::BorderBuilder,
-    brush::Brush,
     button::{ButtonBuilder, ButtonMessage},
     core::{
-        color::Color,
         num_traits::{clamp, Bounded, NumAssign, NumCast, NumOps},
         pool::Handle,
         reflect::{prelude::*, Reflect},
@@ -644,14 +642,14 @@ fn make_button(
     .with_back(
         DecoratorBuilder::new(
             BorderBuilder::new(
-                WidgetBuilder::new().with_foreground(Brush::Solid(Color::opaque(90, 90, 90))),
+                WidgetBuilder::new().with_foreground(ctx.style.property(Style::BRUSH_LIGHTER)),
             )
-            .with_corner_radius(2.0)
+            .with_corner_radius(2.0f32.into())
             .with_pad_by_corner_radius(false),
         )
-        .with_normal_brush(Brush::Solid(Color::opaque(60, 60, 60)))
-        .with_hover_brush(Brush::Solid(Color::opaque(80, 80, 80)))
-        .with_pressed_brush(Brush::Solid(Color::opaque(80, 118, 178)))
+        .with_normal_brush(ctx.style.property(Style::BRUSH_PRIMARY))
+        .with_hover_brush(ctx.style.property(Style::BRUSH_LIGHT))
+        .with_pressed_brush(ctx.style.property(Style::BRUSH_BRIGHT_BLUE))
         .build(ctx),
     )
     .with_content(make_arrow(ctx, arrow, 6.0))
@@ -737,12 +735,12 @@ impl<T: NumericType> NumericUpDownBuilder<T> {
         let field;
         let back = BorderBuilder::new(
             WidgetBuilder::new()
-                .with_background(ctx.style.get_or_default(Style::BRUSH_DARK))
-                .with_foreground(ctx.style.get_or_default(Style::BRUSH_LIGHT)),
+                .with_background(ctx.style.property(Style::BRUSH_DARK))
+                .with_foreground(ctx.style.property(Style::BRUSH_LIGHT)),
         )
-        .with_corner_radius(4.0)
+        .with_corner_radius(4.0f32.into())
         .with_pad_by_corner_radius(false)
-        .with_stroke_thickness(Thickness::uniform(1.0))
+        .with_stroke_thickness(Thickness::uniform(1.0).into())
         .build(ctx);
 
         let text = format!("{:.1$}", self.value, self.precision);

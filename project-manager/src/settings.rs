@@ -18,16 +18,55 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use fyrox::{
+    core::{log::Log, pool::Handle, reflect::prelude::*},
+    gui::{
+        inspector::{
+            editors::{
+                collection::VecCollectionPropertyEditorDefinition,
+                inspectable::InspectablePropertyEditorDefinition,
+                PropertyEditorDefinitionContainer,
+            },
+            InspectorBuilder, InspectorContext,
+        },
+        inspector::{InspectorMessage, PropertyAction},
+        message::{MessageDirection, UiMessage},
+        scroll_viewer::ScrollViewerBuilder,
+        widget::WidgetBuilder,
+        window::{WindowBuilder, WindowMessage, WindowTitle},
+        BuildContext, UiNode,
+    },
+};
+use fyrox_build_tools::{CommandDescriptor, EnvironmentVariable};
 use ron::ser::PrettyConfig;
 use serde::{Deserialize, Serialize};
-use std::{fs::File, io::Write, path::PathBuf};
+use std::ops::{Deref, DerefMut};
+use std::{fs::File, io::Write, path::PathBuf, sync::Arc};
 
-#[derive(Default, Serialize, Deserialize)]
-pub struct Settings {
+pub const MANIFEST_PATH_VAR: &str = "%MANIFEST_PATH%";
+
+#[derive(Default, Serialize, Deserialize, Reflect, Debug)]
+pub struct SettingsData {
+    #[serde(default = "default_open_ide_command")]
+    #[reflect(
+        description = "Defines a command to run an IDE in a project folder. This command \
+    should use %MANIFEST_PATH% built-in variable to provide the selected project path to the \
+    chosen IDE."
+    )]
+    pub open_ide_command: CommandDescriptor,
+    #[reflect(hidden)]
     pub projects: Vec<Project>,
 }
 
-impl Settings {
+fn default_open_ide_command() -> CommandDescriptor {
+    CommandDescriptor {
+        command: "rustrover64".to_string(),
+        args: vec![MANIFEST_PATH_VAR.to_string()],
+        environment_variables: vec![],
+    }
+}
+
+impl SettingsData {
     pub const PATH: &'static str = "pm_settings.ron";
 
     pub fn load() -> Self {
@@ -47,9 +86,119 @@ impl Settings {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+pub struct Settings {
+    data: SettingsData,
+    need_save: bool,
+}
+
+impl Deref for Settings {
+    type Target = SettingsData;
+
+    fn deref(&self) -> &Self::Target {
+        &self.data
+    }
+}
+
+impl DerefMut for Settings {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.need_save = true;
+        &mut self.data
+    }
+}
+
+impl Settings {
+    pub fn load() -> Self {
+        Self {
+            data: SettingsData::load(),
+            need_save: false,
+        }
+    }
+
+    pub fn try_save(&mut self) {
+        if self.need_save {
+            self.need_save = false;
+            self.data.save();
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Project {
     pub manifest_path: PathBuf,
     pub name: String,
     pub hot_reload: bool,
+}
+
+pub struct SettingsWindow {
+    window: Handle<UiNode>,
+    inspector: Handle<UiNode>,
+}
+
+impl SettingsWindow {
+    pub fn new(settings: &Settings, ctx: &mut BuildContext) -> Self {
+        let property_editors = PropertyEditorDefinitionContainer::with_default_editors();
+        property_editors.insert(InspectablePropertyEditorDefinition::<CommandDescriptor>::new());
+        property_editors
+            .insert(VecCollectionPropertyEditorDefinition::<EnvironmentVariable>::new());
+        property_editors.insert(InspectablePropertyEditorDefinition::<EnvironmentVariable>::new());
+        let property_editors = Arc::new(property_editors);
+        let context = InspectorContext::from_object(
+            settings.deref(),
+            ctx,
+            property_editors,
+            None,
+            1,
+            0,
+            true,
+            Default::default(),
+            200.0,
+        );
+        let inspector = InspectorBuilder::new(WidgetBuilder::new())
+            .with_context(context)
+            .build(ctx);
+
+        let window = WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
+            .with_content(
+                ScrollViewerBuilder::new(WidgetBuilder::new())
+                    .with_content(inspector)
+                    .build(ctx),
+            )
+            .open(false)
+            .with_title(WindowTitle::text("Settings"))
+            .with_remove_on_close(true)
+            .build(ctx);
+
+        ctx.sender()
+            .send(WindowMessage::open_modal(
+                window,
+                MessageDirection::ToWidget,
+                true,
+                true,
+            ))
+            .unwrap();
+
+        Self { window, inspector }
+    }
+
+    pub fn handle_ui_message(self, settings: &mut Settings, message: &UiMessage) -> Option<Self> {
+        if let Some(WindowMessage::Close) = message.data() {
+            if message.destination() == self.window {
+                return None;
+            }
+        } else if let Some(InspectorMessage::PropertyChanged(args)) = message.data() {
+            if message.destination() == self.inspector
+                && message.direction() == MessageDirection::FromWidget
+            {
+                PropertyAction::from_field_kind(&args.value).apply(
+                    &args.path(),
+                    settings.deref_mut(),
+                    &mut |result| {
+                        Log::verify(result);
+                    },
+                );
+            }
+        }
+
+        Some(self)
+    }
 }

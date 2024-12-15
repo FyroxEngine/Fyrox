@@ -21,11 +21,10 @@
 use crate::fyrox::core::pool::ErasedHandle;
 use crate::fyrox::{
     core::{
-        algebra::Vector2, color::Color, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
+        algebra::Vector2, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
         uuid_provider, visitor::prelude::*,
     },
     gui::{
-        brush::Brush,
         define_constructor, define_widget_deref,
         grid::{Column, GridBuilder, Row},
         message::{MessageDirection, MouseButton, UiMessage},
@@ -36,10 +35,9 @@ use crate::fyrox::{
         BuildContext, Control, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
 };
+use fyrox::gui::style::resource::StyleResourceExt;
+use fyrox::gui::style::Style;
 use std::ops::{Deref, DerefMut};
-
-const PICKED_BRUSH: Brush = Brush::Solid(Color::opaque(170, 170, 170));
-const NORMAL_BRUSH: Brush = Brush::Solid(Color::opaque(120, 120, 120));
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SocketMessage {
@@ -116,14 +114,14 @@ impl Control for Socket {
                     ui.send_message(WidgetMessage::foreground(
                         self.pin,
                         MessageDirection::ToWidget,
-                        NORMAL_BRUSH,
+                        ui.style.property(Style::BRUSH_BRIGHT),
                     ));
                 }
                 WidgetMessage::MouseEnter => {
                     ui.send_message(WidgetMessage::foreground(
                         self.pin,
                         MessageDirection::ToWidget,
-                        PICKED_BRUSH,
+                        ui.style.property(Style::BRUSH_BRIGHTEST),
                     ));
                 }
                 _ => (),
@@ -195,7 +193,7 @@ impl SocketBuilder {
                                     WidgetBuilder::new()
                                         .on_row(0)
                                         .on_column(0)
-                                        .with_foreground(NORMAL_BRUSH),
+                                        .with_foreground(ctx.style.property(Style::BRUSH_BRIGHT)),
                                 )
                                 .with_primitives(vec![Primitive::Circle {
                                     center: Vector2::new(RADIUS, RADIUS),

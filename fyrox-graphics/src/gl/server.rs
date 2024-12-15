@@ -1106,10 +1106,14 @@ impl GraphicsServer for GlGraphicsServer {
     fn invalidate_resource_bindings_cache(&self) {
         let mut state = self.state.borrow_mut();
 
-        for unit in state.texture_units_storage.units.iter() {
-            for binding in unit.bindings.iter() {
-                unsafe { self.gl.bind_texture(binding.target, None) };
+        unsafe {
+            for (unit_index, unit) in state.texture_units_storage.units.iter().enumerate() {
+                self.gl.active_texture(glow::TEXTURE0 + unit_index as u32);
+                for binding in unit.bindings.iter() {
+                    self.gl.bind_texture(binding.target, None)
+                }
             }
+            self.gl.active_texture(glow::TEXTURE0);
         }
         state.texture_units_storage = Default::default();
 

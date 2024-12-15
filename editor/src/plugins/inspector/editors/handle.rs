@@ -172,9 +172,9 @@ impl Control for HandlePropertyEditor {
                             ));
 
                             let color = if self.value.is_none() {
-                                Brush::Solid(Color::ORANGE)
+                                ui.style.property(Style::BRUSH_WARNING)
                             } else {
-                                ui.style.get_or_default(Style::BRUSH_FOREGROUND)
+                                ui.style.property(Style::BRUSH_FOREGROUND)
                             };
                             ui.send_message(WidgetMessage::foreground(
                                 self.text,
@@ -191,7 +191,7 @@ impl Control for HandlePropertyEditor {
                             ui.send_message(WidgetMessage::foreground(
                                 self.text,
                                 MessageDirection::ToWidget,
-                                Brush::Solid(Color::RED),
+                                ui.style.property(Style::BRUSH_ERROR),
                             ));
                         };
                     }
@@ -292,7 +292,7 @@ fn make_icon(data: &[u8], color: Color, ctx: &mut BuildContext) -> Handle<UiNode
             .with_width(16.0)
             .with_height(16.0)
             .with_margin(Thickness::uniform(1.0))
-            .with_background(Brush::Solid(color)),
+            .with_background(Brush::Solid(color).into()),
     )
     .with_opt_texture(load_image_internal(data))
     .build(ctx)

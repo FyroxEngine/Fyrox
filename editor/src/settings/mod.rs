@@ -18,13 +18,14 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::settings::build::BuildSettings;
 use crate::{
     fyrox::core::{log::Log, reflect::prelude::*},
     settings::{
-        build::BuildSettings, camera::CameraSettings, debugging::DebuggingSettings,
-        general::GeneralSettings, graphics::GraphicsSettings, keys::KeyBindings,
-        model::ModelSettings, move_mode::MoveInteractionModeSettings, navmesh::NavmeshSettings,
-        recent::RecentFiles, rotate_mode::RotateInteractionModeSettings, scene::SceneSettings,
+        camera::CameraSettings, debugging::DebuggingSettings, general::GeneralSettings,
+        graphics::GraphicsSettings, keys::KeyBindings, model::ModelSettings,
+        move_mode::MoveInteractionModeSettings, navmesh::NavmeshSettings, recent::RecentFiles,
+        rotate_mode::RotateInteractionModeSettings, scene::SceneSettings,
         selection::SelectionSettings, windows::WindowsSettings,
     },
 };
@@ -122,10 +123,13 @@ impl Settings {
         Log::verify(self.settings.save());
     }
 
-    pub fn update(&mut self) {
+    pub fn try_save(&mut self) -> bool {
         if self.need_save {
             self.need_save = false;
             Log::verify(self.settings.save());
+            true
+        } else {
+            false
         }
     }
 }

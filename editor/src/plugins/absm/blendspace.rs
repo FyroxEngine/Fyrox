@@ -172,8 +172,8 @@ fn make_points<P: Iterator<Item = Vector2<f32>>>(
             BlendSpaceFieldPointBuilder::new(
                 WidgetBuilder::new()
                     .with_context_menu(context_menu.clone())
-                    .with_background(ctx.style.get_or_default(Style::BRUSH_LIGHTEST))
-                    .with_foreground(Brush::Solid(Color::WHITE))
+                    .with_background(ctx.style.property(Style::BRUSH_LIGHTEST))
+                    .with_foreground(ctx.style.property(Style::BRUSH_TEXT))
                     .with_desired_position(p),
                 i,
             )
@@ -658,8 +658,8 @@ impl BlendSpaceEditor {
                 .on_row(0)
                 .on_column(1)
                 .with_margin(Thickness::uniform(15.0))
-                .with_foreground(ctx.style.get_or_default(Style::BRUSH_LIGHTEST))
-                .with_background(ctx.style.get_or_default(Style::BRUSH_DARK)),
+                .with_foreground(ctx.style.property(Style::BRUSH_LIGHTEST))
+                .with_background(ctx.style.property(Style::BRUSH_DARK)),
         )
         .build(ctx);
 

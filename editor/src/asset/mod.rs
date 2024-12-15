@@ -35,14 +35,13 @@ use crate::{
             untyped::{ResourceHeader, ResourceKind, UntypedResource},
         },
         core::{
-            color::Color, futures::executor::block_on, log::Log, make_relative_path,
+            futures::executor::block_on, log::Log, make_relative_path,
             parking_lot::lock_api::Mutex, pool::Handle, TypeUuidProvider, Uuid,
         },
         engine::Engine,
         graph::BaseSceneGraph,
         gui::{
             border::BorderBuilder,
-            brush::Brush,
             button::{ButtonBuilder, ButtonMessage},
             copypasta::ClipboardProvider,
             file_browser::{FileBrowserBuilder, FileBrowserMessage, Filter},
@@ -67,7 +66,6 @@ use crate::{
         scene::sound::SoundBuffer,
         walkdir,
     },
-    gui::{make_dropdown_list_option, make_image_button_with_tooltip},
     load_image,
     message::MessageSender,
     preview::PreviewPanel,
@@ -76,6 +74,7 @@ use crate::{
 };
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
+use fyrox::gui::utils::{make_dropdown_list_option, make_image_button_with_tooltip};
 use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::fs::File;
 use std::io::Write;
@@ -661,7 +660,7 @@ impl AssetBrowser {
                         .with_child(
                             BorderBuilder::new(
                                 WidgetBuilder::new()
-                                    .with_background(ctx.style.get_or_default(Style::BRUSH_DARK))
+                                    .with_background(ctx.style.property(Style::BRUSH_DARK))
                                     .with_child({
                                         folder_browser = FileBrowserBuilder::new(
                                             WidgetBuilder::new()
@@ -712,7 +711,7 @@ impl AssetBrowser {
                             BorderBuilder::new(
                                 WidgetBuilder::new()
                                     .on_column(2)
-                                    .with_foreground(Brush::Solid(Color::opaque(80, 80, 80)))
+                                    .with_foreground(ctx.style.property(Style::BRUSH_LIGHTER))
                                     .with_child(
                                         GridBuilder::new(
                                             WidgetBuilder::new()
