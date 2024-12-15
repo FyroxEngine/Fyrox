@@ -424,7 +424,7 @@ impl NinePatchBuilder {
     }
     pub fn build(mut self, ctx: &mut BuildContext) -> Handle<UiNode> {
         if self.widget_builder.background.is_none() {
-            self.widget_builder.background = Some(Brush::Solid(Color::WHITE))
+            self.widget_builder.background = Some(Brush::Solid(Color::WHITE).into())
         }
 
         // if one of the margins hasn't been set just mirror the opposite one.

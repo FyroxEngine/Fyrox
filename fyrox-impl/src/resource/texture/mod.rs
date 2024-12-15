@@ -1760,13 +1760,13 @@ pub struct TextureDataRefMut<'a> {
     texture: &'a mut Texture,
 }
 
-impl<'a> Drop for TextureDataRefMut<'a> {
+impl Drop for TextureDataRefMut<'_> {
     fn drop(&mut self) {
         self.texture.modifications_counter += 1;
     }
 }
 
-impl<'a> Deref for TextureDataRefMut<'a> {
+impl Deref for TextureDataRefMut<'_> {
     type Target = Texture;
 
     fn deref(&self) -> &Self::Target {
@@ -1774,13 +1774,13 @@ impl<'a> Deref for TextureDataRefMut<'a> {
     }
 }
 
-impl<'a> DerefMut for TextureDataRefMut<'a> {
+impl DerefMut for TextureDataRefMut<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.texture
     }
 }
 
-impl<'a> TextureDataRefMut<'a> {
+impl TextureDataRefMut<'_> {
     /// Returns mutable reference to the data of the texture.
     pub fn data_mut(&mut self) -> &mut [u8] {
         &mut self.texture.bytes
@@ -1803,6 +1803,7 @@ impl<'a> TextureDataRefMut<'a> {
 }
 
 #[cfg(test)]
+#[allow(missing_docs)]
 pub mod test {
     use crate::resource::texture::{
         TextureKind, TexturePixelKind, TextureResource, TextureResourceExtension,

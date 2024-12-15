@@ -24,6 +24,7 @@
 #![warn(missing_docs)]
 
 use crate::style::resource::StyleResource;
+use crate::style::StyledProperty;
 use crate::{
     brush::Brush,
     core::{
@@ -213,12 +214,12 @@ pub enum WidgetMessage {
     /// A request to change background brush of a widget. Background brushes are used to fill volume of widgets.
     ///
     /// Direction: **From/To UI**
-    Background(Brush),
+    Background(StyledProperty<Brush>),
 
     /// A request to change foreground brush of a widget. Foreground brushes are used for text, borders and so on.
     ///
     /// Direction: **From/To UI**
-    Foreground(Brush),
+    Foreground(StyledProperty<Brush>),
 
     /// A request to change name of a widget. Name is given to widget mostly for debugging purposes.
     ///
@@ -460,12 +461,12 @@ impl WidgetMessage {
 
     define_constructor!(
         /// Creates [`WidgetMessage::Background`] message.
-        WidgetMessage:Background => fn background(Brush), layout: false
+        WidgetMessage:Background => fn background(StyledProperty<Brush>), layout: false
     );
 
     define_constructor!(
         /// Creates [`WidgetMessage::Foreground`] message.
-        WidgetMessage:Foreground => fn foreground(Brush), layout: false
+        WidgetMessage:Foreground => fn foreground(StyledProperty<Brush>), layout: false
     );
 
     define_constructor!(
@@ -762,9 +763,9 @@ pub struct Widget {
     #[reflect(setter = "set_max_size_notify")]
     pub max_size: InheritableVariable<Vector2<f32>>,
     /// Background brush of the widget.
-    pub background: InheritableVariable<Brush>,
+    pub background: InheritableVariable<StyledProperty<Brush>>,
     /// Foreground brush of the widget.
-    pub foreground: InheritableVariable<Brush>,
+    pub foreground: InheritableVariable<StyledProperty<Brush>>,
     /// Index of the row to which this widget belongs to. It is valid only in when used in [`crate::grid::Grid`] widget.
     #[reflect(setter = "set_row_notify")]
     pub row: InheritableVariable<usize>,
@@ -1140,27 +1141,27 @@ impl Widget {
     /// Sets the new background of the widget.
     #[inline]
     pub fn set_background(&mut self, brush: Brush) -> &mut Self {
-        self.background.set_value_and_mark_modified(brush);
+        self.background.property = brush;
         self
     }
 
     /// Returns current background of the widget.
     #[inline]
     pub fn background(&self) -> Brush {
-        (*self.background).clone()
+        self.background.property.clone()
     }
 
     /// Sets new foreground of the widget.
     #[inline]
     pub fn set_foreground(&mut self, brush: Brush) -> &mut Self {
-        self.foreground.set_value_and_mark_modified(brush);
+        self.foreground.property = brush;
         self
     }
 
     /// Returns current foreground of the widget.
     #[inline]
     pub fn foreground(&self) -> Brush {
-        (*self.foreground).clone()
+        self.foreground.property.clone()
     }
 
     /// Sets new width of the widget.
@@ -1398,12 +1399,10 @@ impl Widget {
                         self.opacity.set_value_and_mark_modified(opacity);
                     }
                     WidgetMessage::Background(background) => {
-                        self.background
-                            .set_value_and_mark_modified(background.clone());
+                        *self.background = background.clone();
                     }
                     WidgetMessage::Foreground(foreground) => {
-                        self.foreground
-                            .set_value_and_mark_modified(foreground.clone());
+                        *self.foreground = foreground.clone();
                     }
                     WidgetMessage::Name(name) => self.name = ImmutableString::new(name),
                     &WidgetMessage::Width(width) => {
@@ -1488,6 +1487,10 @@ impl Widget {
                         self.children
                             .sort_unstable_by(|a, b| predicate.0(*a, *b, ui));
                         self.invalidate_layout();
+                    }
+                    WidgetMessage::Style(style) => {
+                        self.background.update(style);
+                        self.foreground.update(style);
                     }
                     _ => (),
                 }
@@ -1816,9 +1819,9 @@ pub struct WidgetBuilder {
     /// Min size of the widget.
     pub min_size: Option<Vector2<f32>>,
     /// Background brush of the widget.
-    pub background: Option<Brush>,
+    pub background: Option<StyledProperty<Brush>>,
     /// Foreground brush of the widget.
-    pub foreground: Option<Brush>,
+    pub foreground: Option<StyledProperty<Brush>>,
     /// Row index of the widget.
     pub row: usize,
     /// Column index of the widget.
@@ -1996,13 +1999,13 @@ impl WidgetBuilder {
     }
 
     /// Sets the desired background brush of the widget.
-    pub fn with_background(mut self, brush: Brush) -> Self {
+    pub fn with_background(mut self, brush: StyledProperty<Brush>) -> Self {
         self.background = Some(brush);
         self
     }
 
     /// Sets the desired foreground brush of the widget.
-    pub fn with_foreground(mut self, brush: Brush) -> Self {
+    pub fn with_foreground(mut self, brush: StyledProperty<Brush>) -> Self {
         self.foreground = Some(brush);
         self
     }
@@ -2197,11 +2200,11 @@ impl WidgetBuilder {
                 .into(),
             background: self
                 .background
-                .unwrap_or_else(|| ctx.style.get_or_default(Style::BRUSH_PRIMARY))
+                .unwrap_or_else(|| ctx.style.property(Style::BRUSH_PRIMARY))
                 .into(),
             foreground: self
                 .foreground
-                .unwrap_or_else(|| ctx.style.get_or_default(Style::BRUSH_FOREGROUND))
+                .unwrap_or_else(|| ctx.style.property(Style::BRUSH_FOREGROUND))
                 .into(),
             row: self.row.into(),
             column: self.column.into(),

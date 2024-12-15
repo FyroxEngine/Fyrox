@@ -91,7 +91,7 @@ pub struct BuildContext<'a> {
     pub style: StyleResource,
 }
 
-impl<'a> Index<Handle<UiNode>> for BuildContext<'a> {
+impl Index<Handle<UiNode>> for BuildContext<'_> {
     type Output = UiNode;
 
     fn index(&self, index: Handle<UiNode>) -> &Self::Output {
@@ -99,7 +99,7 @@ impl<'a> Index<Handle<UiNode>> for BuildContext<'a> {
     }
 }
 
-impl<'a> IndexMut<Handle<UiNode>> for BuildContext<'a> {
+impl IndexMut<Handle<UiNode>> for BuildContext<'_> {
     fn index_mut(&mut self, index: Handle<UiNode>) -> &mut Self::Output {
         &mut self.ui.nodes[index]
     }
@@ -114,7 +114,7 @@ impl<'a> From<&'a mut UserInterface> for BuildContext<'a> {
     }
 }
 
-impl<'a> BuildContext<'a> {
+impl BuildContext<'_> {
     /// Returns default font instance used by the UI.
     pub fn default_font(&self) -> FontResource {
         self.ui.default_font.clone()

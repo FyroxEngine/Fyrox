@@ -21,12 +21,11 @@
 use crate::fyrox::graph::BaseSceneGraph;
 use crate::fyrox::{
     core::{
-        algebra::Vector2, color::Color, parking_lot::Mutex, pool::Handle, reflect::prelude::*,
+        algebra::Vector2, parking_lot::Mutex, pool::Handle, reflect::prelude::*,
         type_traits::prelude::*, uuid_provider, visitor::prelude::*,
     },
     gui::{
         border::BorderBuilder,
-        brush::Brush,
         button::{ButtonBuilder, ButtonMessage},
         check_box::{CheckBoxBuilder, CheckBoxMessage},
         draw::DrawingContext,
@@ -45,6 +44,8 @@ use crate::fyrox::{
     scene::animation::spritesheet::prelude::*,
 };
 use crate::plugins::inspector::editors::spritesheet::SpriteSheetFramesPropertyEditorMessage;
+use fyrox::gui::style::resource::StyleResourceExt;
+use fyrox::gui::style::Style;
 use std::{
     ops::{Deref, DerefMut},
     sync::{mpsc::Sender, Arc},
@@ -218,7 +219,7 @@ fn make_grid(
     let grid = GridBuilder::new(
         WidgetBuilder::new()
             .with_margin(Thickness::uniform(1.0))
-            .with_foreground(Brush::Solid(Color::opaque(127, 127, 127)))
+            .with_foreground(ctx.style.property(Style::BRUSH_BRIGHT))
             .with_children(cells.clone()),
     )
     .add_columns((0..container.size().x).map(|_| Column::stretch()).collect())

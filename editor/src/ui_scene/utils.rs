@@ -55,7 +55,7 @@ pub struct UiSceneWorldViewerDataProvider<'a> {
     pub resource_manager: &'a ResourceManager,
 }
 
-impl<'a> WorldViewerDataProvider for UiSceneWorldViewerDataProvider<'a> {
+impl WorldViewerDataProvider for UiSceneWorldViewerDataProvider<'_> {
     fn root_node(&self) -> ErasedHandle {
         self.ui.root().into()
     }

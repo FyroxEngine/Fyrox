@@ -41,7 +41,6 @@ use crate::{
         },
         scene::sound::{AudioBus, AudioBusGraph, DistanceModel, HrirSphereResourceData, Renderer},
     },
-    gui::make_dropdown_list_option,
     message::MessageSender,
     scene::{
         commands::{
@@ -57,6 +56,7 @@ use crate::{
     ChangeSelectionCommand, Command, GameScene, GridBuilder, MessageDirection, Mode, Selection,
     UserInterface,
 };
+use fyrox::gui::utils::make_dropdown_list_option;
 use std::cmp::Ordering;
 use strum::VariantNames;
 

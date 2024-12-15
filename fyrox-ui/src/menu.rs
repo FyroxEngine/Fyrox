@@ -915,7 +915,7 @@ impl MenuBuilder {
 
         let back = BorderBuilder::new(
             WidgetBuilder::new()
-                .with_background(ctx.style.get_or_default(Style::BRUSH_PRIMARY))
+                .with_background(ctx.style.property(Style::BRUSH_PRIMARY))
                 .with_child(
                     StackPanelBuilder::new(
                         WidgetBuilder::new().with_children(self.items.iter().cloned()),
@@ -1111,7 +1111,7 @@ impl MenuItemBuilder {
                                     .on_column(3)
                                     .with_width(8.0)
                                     .with_height(8.0)
-                                    .with_foreground(ctx.style.get_or_default(Style::BRUSH_BRIGHT))
+                                    .with_foreground(ctx.style.property(Style::BRUSH_BRIGHT))
                                     .with_horizontal_alignment(HorizontalAlignment::Center)
                                     .with_vertical_alignment(VerticalAlignment::Center),
                             )
@@ -1145,12 +1145,12 @@ impl MenuItemBuilder {
         let decorator = self.back.unwrap_or_else(|| {
             DecoratorBuilder::new(
                 BorderBuilder::new(WidgetBuilder::new())
-                    .with_stroke_thickness(Thickness::uniform(0.0)),
+                    .with_stroke_thickness(Thickness::uniform(0.0).into()),
             )
-            .with_hover_brush(ctx.style.get_or_default(Style::BRUSH_BRIGHT_BLUE))
-            .with_selected_brush(ctx.style.get_or_default(Style::BRUSH_BRIGHT_BLUE))
-            .with_normal_brush(ctx.style.get_or_default(Style::BRUSH_PRIMARY))
-            .with_pressed_brush(Brush::Solid(Color::TRANSPARENT))
+            .with_hover_brush(ctx.style.property(Style::BRUSH_BRIGHT_BLUE))
+            .with_selected_brush(ctx.style.property(Style::BRUSH_BRIGHT_BLUE))
+            .with_normal_brush(ctx.style.property(Style::BRUSH_PRIMARY))
+            .with_pressed_brush(Brush::Solid(Color::TRANSPARENT).into())
             .with_pressable(false)
             .build(ctx)
         });

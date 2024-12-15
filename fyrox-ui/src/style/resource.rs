@@ -18,13 +18,14 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::style::{IntoPrimitive, Style, StyleProperty};
-use fyrox_core::log::Log;
+//! Contains all types related to shared style resource.
+
+use crate::style::{IntoPrimitive, Style, StyleProperty, StyledProperty};
 use fyrox_core::{
     io::FileLoadError,
+    log::Log,
     type_traits::prelude::*,
-    visitor::prelude::*,
-    visitor::{VisitError, Visitor},
+    visitor::{prelude::*, VisitError, Visitor},
     ImmutableString, Uuid,
 };
 use fyrox_resource::{
@@ -104,6 +105,7 @@ impl ResourceData for Style {
     }
 }
 
+/// A loader for style resource.
 pub struct StyleLoader;
 
 impl ResourceLoader for StyleLoader {
@@ -125,17 +127,32 @@ impl ResourceLoader for StyleLoader {
     }
 }
 
+/// Style resource.
 pub type StyleResource = Resource<Style>;
 
+/// Extension methods for [`StyleResource`].
 pub trait StyleResourceExt {
+    /// Same as [`Style::set`].
     fn set(&self, name: impl Into<ImmutableString>, property: impl Into<StyleProperty>);
+
+    /// Same as [`Style::get`].
     fn get<P>(&self, name: impl Into<ImmutableString>) -> Option<P>
     where
         StyleProperty: IntoPrimitive<P>;
+
+    /// Same as [`Style::get_or`].
     fn get_or<P>(&self, name: impl Into<ImmutableString>, default: P) -> P
     where
         StyleProperty: IntoPrimitive<P>;
+
+    /// Same as [`Style::get_or_default`].
     fn get_or_default<P>(&self, name: impl Into<ImmutableString>) -> P
+    where
+        P: Default,
+        StyleProperty: IntoPrimitive<P>;
+
+    /// Same as [`Style::property`].
+    fn property<P>(&self, name: impl Into<ImmutableString>) -> StyledProperty<P>
     where
         P: Default,
         StyleProperty: IntoPrimitive<P>;
@@ -168,7 +185,13 @@ impl StyleResourceExt for StyleResource {
     where
         StyleProperty: IntoPrimitive<P>,
     {
-        self.get(name).unwrap_or(default)
+        let state = self.state();
+        if let Some(data) = state.data_ref() {
+            data.get_or(name, default)
+        } else {
+            Log::err("Unable to get style property, because the resource is invalid!");
+            default
+        }
     }
 
     fn get_or_default<P>(&self, name: impl Into<ImmutableString>) -> P
@@ -182,6 +205,20 @@ impl StyleResourceExt for StyleResource {
         } else {
             Log::err("Unable to get style property, because the resource is invalid!");
             P::default()
+        }
+    }
+
+    fn property<P>(&self, name: impl Into<ImmutableString>) -> StyledProperty<P>
+    where
+        P: Default,
+        StyleProperty: IntoPrimitive<P>,
+    {
+        let state = self.state();
+        if let Some(data) = state.data_ref() {
+            data.property(name)
+        } else {
+            Log::err("Unable to get style property, because the resource is invalid!");
+            Default::default()
         }
     }
 }

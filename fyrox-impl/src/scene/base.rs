@@ -481,7 +481,6 @@ pub struct Base {
 
     /// A set of custom properties that can hold almost any data. It can be used to set additional
     /// properties to scene nodes.
-
     #[reflect(setter = "set_properties")]
     pub properties: InheritableVariable<Vec<Property>>,
 

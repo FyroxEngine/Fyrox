@@ -22,14 +22,12 @@ use crate::{
     fyrox::{
         core::{
             algebra::{Vector2, Vector3},
-            color::Color,
             pool::Handle,
             uuid::Uuid,
             TypeUuidProvider,
         },
         gui::{
             border::BorderBuilder,
-            brush::Brush,
             button::ButtonBuilder,
             decorator::DecoratorBuilder,
             image::ImageBuilder,
@@ -213,23 +211,23 @@ pub fn make_interaction_mode_button(
     .with_back(
         DecoratorBuilder::new(
             BorderBuilder::new(
-                WidgetBuilder::new().with_foreground(ctx.style.get_or_default(Style::BRUSH_DARKER)),
+                WidgetBuilder::new().with_foreground(ctx.style.property(Style::BRUSH_DARKER)),
             )
             .with_pad_by_corner_radius(false)
-            .with_corner_radius(4.0)
-            .with_stroke_thickness(Thickness::uniform(1.0)),
+            .with_corner_radius(4.0f32.into())
+            .with_stroke_thickness(Thickness::uniform(1.0).into()),
         )
-        .with_normal_brush(ctx.style.get_or_default(Style::BRUSH_LIGHT))
-        .with_hover_brush(ctx.style.get_or_default(Style::BRUSH_LIGHTER))
-        .with_pressed_brush(ctx.style.get_or_default(Style::BRUSH_LIGHTEST))
-        .with_selected_brush(ctx.style.get_or_default(Style::BRUSH_BRIGHT_BLUE))
+        .with_normal_brush(ctx.style.property(Style::BRUSH_LIGHT))
+        .with_hover_brush(ctx.style.property(Style::BRUSH_LIGHTER))
+        .with_pressed_brush(ctx.style.property(Style::BRUSH_LIGHTEST))
+        .with_selected_brush(ctx.style.property(Style::BRUSH_BRIGHT_BLUE))
         .with_selected(selected)
         .build(ctx),
     )
     .with_content(
         ImageBuilder::new(
             WidgetBuilder::new()
-                .with_background(Brush::Solid(Color::opaque(220, 220, 220)))
+                .with_background(ctx.style.property(Style::BRUSH_TEXT))
                 .with_margin(Thickness::uniform(2.0))
                 .with_width(23.0)
                 .with_height(23.0),

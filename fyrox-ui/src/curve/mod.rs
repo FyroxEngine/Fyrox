@@ -1946,7 +1946,7 @@ impl CurveEditorBuilder {
         let context_menu = RcUiNodeHandle::new(context_menu, ctx.sender());
 
         if self.widget_builder.foreground.is_none() {
-            self.widget_builder.foreground = Some(ctx.style.get_or_default(Style::BRUSH_BRIGHT))
+            self.widget_builder.foreground = Some(ctx.style.property(Style::BRUSH_BRIGHT))
         }
 
         let editor = CurveEditor {

@@ -859,7 +859,7 @@ impl ColorPicker {
         ui.send_message(mark_handled(WidgetMessage::background(
             self.color_mark,
             MessageDirection::ToWidget,
-            Brush::Solid(color),
+            Brush::Solid(color).into(),
         )));
     }
 }

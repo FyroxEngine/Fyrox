@@ -229,14 +229,14 @@ pub struct NavmeshModificationContext<'a> {
     navmesh: &'a mut Navmesh,
 }
 
-impl<'a> Drop for NavmeshModificationContext<'a> {
+impl Drop for NavmeshModificationContext<'_> {
     fn drop(&mut self) {
         let graph = make_graph(&self.navmesh.triangles, &self.navmesh.vertices);
         self.navmesh.graph = graph;
     }
 }
 
-impl<'a> NavmeshModificationContext<'a> {
+impl NavmeshModificationContext<'_> {
     /// Adds the triangle to the navigational mesh and returns its index in the internal array. Vertex indices in
     /// the triangle must be valid!
     pub fn add_triangle(&mut self, triangle: TriangleDefinition) -> u32 {

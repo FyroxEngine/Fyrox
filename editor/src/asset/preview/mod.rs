@@ -658,7 +658,7 @@ impl AssetPreviewGenerator for FontPreview {
                 WidgetBuilder::new().with_child(
                     TextBuilder::new(WidgetBuilder::new())
                         .with_font(font)
-                        .with_font_size(16.0)
+                        .with_font_size(16.0.into())
                         .with_vertical_text_alignment(VerticalAlignment::Center)
                         .with_horizontal_text_alignment(HorizontalAlignment::Center)
                         .with_wrap(WrapMode::Letter)

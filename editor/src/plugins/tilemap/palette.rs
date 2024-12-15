@@ -587,7 +587,7 @@ impl Control for BrushTileView {
             drawing_context.push_rect(&self.bounding_rect(), 1.0);
             drawing_context.commit(
                 self.clip_bounds(),
-                (*self.foreground).clone(),
+                self.foreground.property.clone(),
                 CommandTexture::None,
                 None,
             );

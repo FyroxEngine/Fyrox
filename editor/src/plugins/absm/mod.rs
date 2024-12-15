@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 use crate::fyrox::{
-    core::{color::Color, pool::ErasedHandle, pool::Handle, variable::InheritableVariable},
+    core::{pool::ErasedHandle, pool::Handle, variable::InheritableVariable},
     fxhash::FxHashSet,
     generic_animation::{
         machine::{
@@ -74,12 +74,6 @@ mod state_graph;
 mod state_viewer;
 mod toolbar;
 mod transition;
-
-const NORMAL_BACKGROUND: Color = Color::opaque(60, 60, 60);
-const SELECTED_BACKGROUND: Color = Color::opaque(80, 80, 80);
-const BORDER_COLOR: Color = Color::opaque(70, 70, 70);
-const NORMAL_ROOT_COLOR: Color = Color::opaque(40, 80, 0);
-const SELECTED_ROOT_COLOR: Color = Color::opaque(60, 100, 0);
 
 struct PreviewModeData<N: 'static> {
     machine: Machine<Handle<N>>,
@@ -202,6 +196,9 @@ pub struct AbsmEditor {
 
 impl AbsmEditor {
     const WINDOW_NAME: &'static str = "AsbmEditor";
+
+    pub const NORMAL_ROOT_COLOR: &'static str = "AsbmEditor.NormalRootColor";
+    pub const SELECTED_ROOT_COLOR: &'static str = "AsbmEditor.SelectedRootColor";
 
     pub fn new(ctx: &mut BuildContext, sender: MessageSender) -> Self {
         let state_graph_viewer = StateGraphViewer::new(ctx);

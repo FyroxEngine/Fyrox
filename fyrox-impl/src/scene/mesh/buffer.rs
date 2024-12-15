@@ -414,13 +414,13 @@ pub struct VertexBufferRefMut<'a> {
     vertex_buffer: &'a mut VertexBuffer,
 }
 
-impl<'a> Drop for VertexBufferRefMut<'a> {
+impl Drop for VertexBufferRefMut<'_> {
     fn drop(&mut self) {
         self.vertex_buffer.modifications_counter += 1;
     }
 }
 
-impl<'a> Deref for VertexBufferRefMut<'a> {
+impl Deref for VertexBufferRefMut<'_> {
     type Target = VertexBuffer;
 
     fn deref(&self) -> &Self::Target {
@@ -428,13 +428,13 @@ impl<'a> Deref for VertexBufferRefMut<'a> {
     }
 }
 
-impl<'a> DerefMut for VertexBufferRefMut<'a> {
+impl DerefMut for VertexBufferRefMut<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.vertex_buffer
     }
 }
 
-impl<'a> VertexBufferRefMut<'a> {
+impl VertexBufferRefMut<'_> {
     /// Tries to append a vertex to the buffer.
     ///
     /// # Safety and validation
@@ -1163,7 +1163,7 @@ pub struct VertexViewRef<'a> {
     sparse_layout: &'a [Option<VertexAttribute>],
 }
 
-impl<'a> PartialEq for VertexViewRef<'a> {
+impl PartialEq for VertexViewRef<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.vertex_data == other.vertex_data
     }
@@ -1176,7 +1176,7 @@ pub struct VertexViewMut<'a> {
     sparse_layout: &'a [Option<VertexAttribute>],
 }
 
-impl<'a> PartialEq for VertexViewMut<'a> {
+impl PartialEq for VertexViewMut<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.vertex_data == other.vertex_data
     }
@@ -1305,7 +1305,7 @@ pub trait VertexReadTrait {
     }
 }
 
-impl<'a> VertexReadTrait for VertexViewRef<'a> {
+impl VertexReadTrait for VertexViewRef<'_> {
     fn data_layout_ref(&self) -> (&[u8], &[Option<VertexAttribute>]) {
         (self.vertex_data, self.sparse_layout)
     }
@@ -1370,13 +1370,13 @@ pub trait VertexWriteTrait: VertexReadTrait {
     ) -> Result<(), VertexFetchError>;
 }
 
-impl<'a> VertexReadTrait for VertexViewMut<'a> {
+impl VertexReadTrait for VertexViewMut<'_> {
     fn data_layout_ref(&self) -> (&[u8], &[Option<VertexAttribute>]) {
         (self.vertex_data, self.sparse_layout)
     }
 }
 
-impl<'a> VertexWriteTrait for VertexViewMut<'a> {
+impl VertexWriteTrait for VertexViewMut<'_> {
     #[inline(always)]
     fn data_layout_mut(&mut self) -> (&mut [u8], &[Option<VertexAttribute>]) {
         (self.vertex_data, self.sparse_layout)
@@ -1531,7 +1531,7 @@ pub struct TriangleBufferRefMut<'a> {
     triangle_buffer: &'a mut TriangleBuffer,
 }
 
-impl<'a> Deref for TriangleBufferRefMut<'a> {
+impl Deref for TriangleBufferRefMut<'_> {
     type Target = TriangleBuffer;
 
     fn deref(&self) -> &Self::Target {
@@ -1539,19 +1539,19 @@ impl<'a> Deref for TriangleBufferRefMut<'a> {
     }
 }
 
-impl<'a> DerefMut for TriangleBufferRefMut<'a> {
+impl DerefMut for TriangleBufferRefMut<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.triangle_buffer
     }
 }
 
-impl<'a> Drop for TriangleBufferRefMut<'a> {
+impl Drop for TriangleBufferRefMut<'_> {
     fn drop(&mut self) {
         self.triangle_buffer.modifications_counter += 1;
     }
 }
 
-impl<'a> TriangleBufferRefMut<'a> {
+impl TriangleBufferRefMut<'_> {
     /// Returns mutable iterator.
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut TriangleDefinition> {
         self.triangles.iter_mut()
@@ -1595,7 +1595,7 @@ impl<'a> TriangleBufferRefMut<'a> {
     }
 }
 
-impl<'a> Index<usize> for TriangleBufferRefMut<'a> {
+impl Index<usize> for TriangleBufferRefMut<'_> {
     type Output = TriangleDefinition;
 
     fn index(&self, index: usize) -> &Self::Output {
@@ -1603,7 +1603,7 @@ impl<'a> Index<usize> for TriangleBufferRefMut<'a> {
     }
 }
 
-impl<'a> IndexMut<usize> for TriangleBufferRefMut<'a> {
+impl IndexMut<usize> for TriangleBufferRefMut<'_> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         &mut self.triangle_buffer.triangles[index]
     }

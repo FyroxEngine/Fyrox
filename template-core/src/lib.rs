@@ -37,9 +37,9 @@ use uuid::Uuid;
 // However, it does not seem to work with builds published to crates.io, because when
 // the template generator is published, it does not have these Cargo.toml's available
 // and to solve this we just hard code these values and pray for the best.
-const CURRENT_ENGINE_VERSION: &str = "0.34.0";
-const CURRENT_EDITOR_VERSION: &str = "0.21.0";
-const CURRENT_SCRIPTS_VERSION: &str = "0.3.0";
+pub const CURRENT_ENGINE_VERSION: &str = "0.34.0";
+pub const CURRENT_EDITOR_VERSION: &str = "0.21.0";
+pub const CURRENT_SCRIPTS_VERSION: &str = "0.3.0";
 
 fn write_file<P: AsRef<Path>, S: AsRef<str>>(path: P, content: S) -> Result<(), String> {
     let mut file = File::create(path.as_ref()).map_err(|e| e.to_string())?;
@@ -780,74 +780,83 @@ pub fn upgrade_project(root_path: &Path, version: &str, local: bool) -> Result<(
 
     // Open workspace manifest.
     let workspace_manifest_path = root_path.join("Cargo.toml");
-    if let Ok(mut file) = File::open(&workspace_manifest_path) {
-        let mut toml = String::new();
-        if file.read_to_string(&mut toml).is_ok() {
-            drop(file);
+    match File::open(&workspace_manifest_path) {
+        Ok(mut file) => {
+            let mut toml = String::new();
+            if file.read_to_string(&mut toml).is_ok() {
+                drop(file);
 
-            if let Ok(mut document) = toml.parse::<DocumentMut>() {
-                if let Some(workspace) =
-                    document.get_mut("workspace").and_then(|i| i.as_table_mut())
-                {
-                    if let Some(dependencies) = workspace
-                        .get_mut("dependencies")
-                        .and_then(|i| i.as_table_mut())
+                if let Ok(mut document) = toml.parse::<DocumentMut>() {
+                    if let Some(workspace) =
+                        document.get_mut("workspace").and_then(|i| i.as_table_mut())
                     {
-                        if version == "latest" {
-                            if local {
-                                let mut engine_table = table();
-                                engine_table["path"] = value("../Fyrox/fyrox");
-                                dependencies["fyrox"] = engine_table;
+                        if let Some(dependencies) = workspace
+                            .get_mut("dependencies")
+                            .and_then(|i| i.as_table_mut())
+                        {
+                            if version == "latest" {
+                                if local {
+                                    let mut engine_table = table();
+                                    engine_table["path"] = value("../Fyrox/fyrox");
+                                    dependencies["fyrox"] = engine_table;
 
-                                let mut editor_table = table();
-                                editor_table["path"] = value("../Fyrox/editor");
-                                dependencies["fyroxed_base"] = editor_table;
+                                    let mut editor_table = table();
+                                    editor_table["path"] = value("../Fyrox/editor");
+                                    dependencies["fyroxed_base"] = editor_table;
 
-                                if dependencies.contains_key("fyrox_scripts") {
-                                    let mut scripts_table = table();
-                                    scripts_table["path"] = value("../Fyrox/fyrox-scripts");
-                                    dependencies["fyrox_scripts"] = scripts_table;
-                                }
-                            } else {
-                                dependencies["fyrox"] = value(CURRENT_ENGINE_VERSION);
-                                dependencies["fyroxed_base"] = value(CURRENT_EDITOR_VERSION);
-                                if dependencies.contains_key("fyrox_scripts") {
-                                    dependencies["fyrox_scripts"] = value(CURRENT_SCRIPTS_VERSION);
-                                }
-                            }
-                        } else if version == "nightly" {
-                            let mut table = table();
-                            table["git"] = value("https://github.com/FyroxEngine/Fyrox");
-
-                            dependencies["fyrox"] = table.clone();
-                            dependencies["fyroxed_base"] = table.clone();
-                        } else {
-                            dependencies["fyrox"] = value(version);
-                            if let Some((editor_version, scripts_version)) =
-                                editor_versions.get(version)
-                            {
-                                dependencies["fyroxed_base"] = value(editor_version);
-                                if let Some(scripts_version) = scripts_version {
                                     if dependencies.contains_key("fyrox_scripts") {
-                                        dependencies["fyrox_scripts"] = value(scripts_version);
+                                        let mut scripts_table = table();
+                                        scripts_table["path"] = value("../Fyrox/fyrox-scripts");
+                                        dependencies["fyrox_scripts"] = scripts_table;
+                                    }
+                                } else {
+                                    dependencies["fyrox"] = value(CURRENT_ENGINE_VERSION);
+                                    dependencies["fyroxed_base"] = value(CURRENT_EDITOR_VERSION);
+                                    if dependencies.contains_key("fyrox_scripts") {
+                                        dependencies["fyrox_scripts"] =
+                                            value(CURRENT_SCRIPTS_VERSION);
                                     }
                                 }
+                            } else if version == "nightly" {
+                                let mut table = table();
+                                table["git"] = value("https://github.com/FyroxEngine/Fyrox");
+
+                                dependencies["fyrox"] = table.clone();
+                                dependencies["fyroxed_base"] = table.clone();
                             } else {
-                                println!("WARNING: matching editor/scripts version not found!");
+                                dependencies["fyrox"] = value(version);
+                                if let Some((editor_version, scripts_version)) =
+                                    editor_versions.get(version)
+                                {
+                                    dependencies["fyroxed_base"] = value(editor_version);
+                                    if let Some(scripts_version) = scripts_version {
+                                        if dependencies.contains_key("fyrox_scripts") {
+                                            dependencies["fyrox_scripts"] = value(scripts_version);
+                                        }
+                                    }
+                                } else {
+                                    println!("WARNING: matching editor/scripts version not found!");
+                                }
                             }
                         }
                     }
-                }
 
-                let mut file = File::create(workspace_manifest_path).map_err(|e| e.to_string())?;
-                file.write_all(document.to_string().as_bytes())
-                    .map_err(|e| e.to_string())?;
+                    let mut file =
+                        File::create(&workspace_manifest_path).map_err(|e| e.to_string())?;
+                    file.write_all(document.to_string().as_bytes())
+                        .map_err(|e| e.to_string())?;
+                }
             }
+        }
+        Err(err) => {
+            return Err(err.to_string());
         }
     }
 
     Command::new("cargo")
-        .args(["update"])
+        .arg("update")
+        .arg("--manifest-path")
+        .arg(workspace_manifest_path)
         .output()
         .map_err(|e| e.to_string())?;
 

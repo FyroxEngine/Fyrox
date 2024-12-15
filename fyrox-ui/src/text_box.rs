@@ -118,7 +118,7 @@ pub enum VerticalDirection {
 
 pub use crate::formatted_text::Position;
 use crate::style::resource::StyleResourceExt;
-use crate::style::Style;
+use crate::style::{Style, StyledProperty};
 
 /// Defines the way, how the text box widget will commit the text that was typed in
 #[derive(
@@ -280,7 +280,7 @@ pub type FilterCallback = dyn FnMut(char) -> bool + Send;
 /// # };
 /// fn create_text(ui: &mut UserInterface, text: &str) -> Handle<UiNode> {
 ///     //                  vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-///     TextBoxBuilder::new(WidgetBuilder::new().with_foreground(Brush::Solid(Color::RED)))
+///     TextBoxBuilder::new(WidgetBuilder::new().with_foreground(Brush::Solid(Color::RED).into()))
 ///         .with_text(text)
 ///         .build(&mut ui.build_ctx())
 /// }
@@ -302,7 +302,7 @@ pub type FilterCallback = dyn FnMut(char) -> bool + Send;
 ///     TextBoxBuilder::new(WidgetBuilder::new())
 ///         .with_font(resource_manager.request::<Font>("path/to/your/font.ttf"))
 ///         .with_text(text)
-///         .with_font_size(20.0)
+///         .with_font_size(20.0f32.into())
 ///         .build(&mut ui.build_ctx())
 /// }
 /// ```
@@ -1045,7 +1045,7 @@ impl Control for TextBox {
                 caret_pos.x,
                 caret_pos.y,
                 2.0,
-                self.formatted_text.borrow().font_size(),
+                **self.formatted_text.borrow().font_size(),
             );
             drawing_context.push_rect_filled(&caret_bounds, None);
             drawing_context.commit(
@@ -1415,9 +1415,9 @@ impl Control for TextBox {
                                 ui.send_message(message.reverse());
                             }
                         }
-                        &TextMessage::FontSize(height) => {
+                        TextMessage::FontSize(height) => {
                             if text.font_size() != height {
-                                text.set_font_size(height);
+                                text.set_font_size(height.clone());
                                 drop(text);
                                 self.invalidate_layout();
                                 ui.send_message(message.reverse());
@@ -1486,7 +1486,7 @@ pub struct TextBoxBuilder {
     shadow_dilation: f32,
     shadow_offset: Vector2<f32>,
     skip_chars: Vec<char>,
-    font_size: f32,
+    font_size: Option<StyledProperty<f32>>,
 }
 
 impl TextBoxBuilder {
@@ -1511,7 +1511,7 @@ impl TextBoxBuilder {
             shadow_dilation: 1.0,
             shadow_offset: Vector2::new(1.0, 1.0),
             skip_chars: Default::default(),
-            font_size: 14.0,
+            font_size: None,
         }
     }
 
@@ -1582,8 +1582,8 @@ impl TextBoxBuilder {
     }
 
     /// Sets the desired height of the text.
-    pub fn with_font_size(mut self, font_size: f32) -> Self {
-        self.font_size = font_size;
+    pub fn with_font_size(mut self, font_size: StyledProperty<f32>) -> Self {
+        self.font_size = Some(font_size);
         self
     }
 
@@ -1632,10 +1632,10 @@ impl TextBoxBuilder {
         let style = &ctx.style;
 
         if self.widget_builder.foreground.is_none() {
-            self.widget_builder.foreground = Some(style.get_or_default(Style::BRUSH_TEXT));
+            self.widget_builder.foreground = Some(style.property(Style::BRUSH_TEXT));
         }
         if self.widget_builder.background.is_none() {
-            self.widget_builder.background = Some(style.get_or_default(Style::BRUSH_DARKER));
+            self.widget_builder.background = Some(style.property(Style::BRUSH_DARKER));
         }
         if self.widget_builder.cursor.is_none() {
             self.widget_builder.cursor = Some(CursorIcon::Text);
@@ -1662,7 +1662,10 @@ impl TextBoxBuilder {
                     .with_shadow_brush(self.shadow_brush)
                     .with_shadow_dilation(self.shadow_dilation)
                     .with_shadow_offset(self.shadow_offset)
-                    .with_font_size(self.font_size)
+                    .with_font_size(
+                        self.font_size
+                            .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE)),
+                    )
                     .build(),
             ),
             selection_range: None.into(),

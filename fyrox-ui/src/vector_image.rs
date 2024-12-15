@@ -178,7 +178,7 @@ impl Primitive {
 ///     VectorImageBuilder::new(
 ///         WidgetBuilder::new()
 ///             // Color of the image is defined by the foreground brush of the base widget.
-///             .with_foreground(ctx.style.get_or_default(Style::BRUSH_BRIGHT)),
+///             .with_foreground(ctx.style.property(Style::BRUSH_BRIGHT)),
 ///     )
 ///     .with_primitives(vec![
 ///         Primitive::Line {

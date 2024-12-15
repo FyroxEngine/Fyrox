@@ -49,7 +49,7 @@ pub struct SoundContextGuard<'a> {
     guard: MutexGuard<'a, fyrox_sound::context::State>,
 }
 
-impl<'a> SoundContextGuard<'a> {
+impl SoundContextGuard<'_> {
     /// Returns a reference to the audio bus graph.
     pub fn bus_graph_ref(&self) -> &AudioBusGraph {
         self.guard.bus_graph_ref()

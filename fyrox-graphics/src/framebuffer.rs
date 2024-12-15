@@ -75,7 +75,7 @@ pub enum ResourceBinding<'a> {
     },
 }
 
-impl<'a> ResourceBinding<'a> {
+impl ResourceBinding<'_> {
     pub fn texture(
         texture: &Rc<RefCell<dyn GpuTexture>>,
         shader_location: &UniformLocation,

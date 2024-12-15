@@ -143,7 +143,7 @@ impl ThumbBuilder {
             widget: self
                 .widget_builder
                 .with_hit_test_visibility(false)
-                .with_foreground(ctx.style.get_or_default(Style::BRUSH_BRIGHT))
+                .with_foreground(ctx.style.property(Style::BRUSH_BRIGHT))
                 .build(ctx),
             transform: CurveTransformCell::default(),
             position: 0.0,

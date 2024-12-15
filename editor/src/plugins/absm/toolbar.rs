@@ -46,7 +46,6 @@ use crate::plugins::absm::{
 };
 use crate::{
     command::{Command, CommandGroup},
-    gui::make_dropdown_list_option,
     load_image,
     message::MessageSender,
     scene::{
@@ -58,6 +57,7 @@ use crate::{
 };
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
+use fyrox::gui::utils::make_dropdown_list_option;
 
 pub struct Toolbar {
     pub panel: Handle<UiNode>,
@@ -157,7 +157,7 @@ impl Toolbar {
                                 .with_width(18.0)
                                 .with_height(18.0)
                                 .with_margin(Thickness::uniform(1.0))
-                                .with_background(ctx.style.get_or_default(Style::BRUSH_BRIGHT)),
+                                .with_background(ctx.style.property(Style::BRUSH_BRIGHT)),
                         )
                         .with_opt_texture(load_image!("../../../resources/filter.png"))
                         .build(ctx),

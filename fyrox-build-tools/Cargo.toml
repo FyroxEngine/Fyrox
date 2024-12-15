@@ -1,0 +1,8 @@
+[package]
+name = "fyrox-build-tools"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+fyrox-core = { path = "../fyrox-core", version = "0.28.1" }
+serde = { version = "1.0.215", features = ["derive"] }

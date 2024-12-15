@@ -53,12 +53,14 @@ use crate::plugins::absm::{
     selection::{AbsmSelection, SelectedEntity},
     socket::{Socket, SocketBuilder, SocketDirection},
     state_viewer::context::{CanvasContextMenu, ConnectionContextMenu, NodeContextMenu},
-    NORMAL_BACKGROUND, NORMAL_ROOT_COLOR, SELECTED_BACKGROUND, SELECTED_ROOT_COLOR,
+    AbsmEditor,
 };
 use crate::{
     scene::{commands::ChangeSelectionCommand, Selection},
     send_sync_message,
 };
+use fyrox::gui::style::resource::StyleResourceExt;
+use fyrox::gui::style::Style;
 use std::cmp::Ordering;
 
 mod context;
@@ -533,15 +535,15 @@ impl StateViewer {
                                 pose_definition,
                                 ui,
                             ))
-                            .with_normal_color(if pose_definition == parent_state_ref.root {
-                                NORMAL_ROOT_COLOR
+                            .with_normal_brush(if pose_definition == parent_state_ref.root {
+                                ui.style.property(AbsmEditor::NORMAL_ROOT_COLOR)
                             } else {
-                                NORMAL_BACKGROUND
+                                ui.style.property(Style::BRUSH_LIGHTER_PRIMARY)
                             })
-                            .with_selected_color(if pose_definition == parent_state_ref.root {
-                                SELECTED_ROOT_COLOR
+                            .with_selected_brush(if pose_definition == parent_state_ref.root {
+                                ui.style.property(AbsmEditor::SELECTED_ROOT_COLOR)
                             } else {
-                                SELECTED_BACKGROUND
+                                ui.style.property(Style::BRUSH_LIGHTER)
                             })
                             .with_editable(editable)
                             .with_model_handle(pose_definition)
@@ -642,9 +644,9 @@ impl StateViewer {
                             view,
                             MessageDirection::ToWidget,
                             if model_handle == parent_state_ref.root {
-                                NORMAL_ROOT_COLOR
+                                ui.style.property(AbsmEditor::NORMAL_ROOT_COLOR)
                             } else {
-                                NORMAL_BACKGROUND
+                                ui.style.property(Style::BRUSH_LIGHTER_PRIMARY)
                             },
                         ),
                     );
@@ -654,9 +656,9 @@ impl StateViewer {
                             view,
                             MessageDirection::ToWidget,
                             if model_handle == parent_state_ref.root {
-                                SELECTED_ROOT_COLOR
+                                ui.style.property(AbsmEditor::SELECTED_ROOT_COLOR)
                             } else {
-                                SELECTED_BACKGROUND
+                                ui.style.property(Style::BRUSH_LIGHTER)
                             },
                         ),
                     );
