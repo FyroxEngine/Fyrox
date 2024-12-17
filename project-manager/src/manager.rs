@@ -24,8 +24,9 @@ use crate::{
     project::ProjectWizard,
     settings::{Project, Settings, SettingsWindow},
     upgrade::UpgradeTool,
-    utils::{self, is_production_ready, load_image, make_button},
+    utils::{self, is_production_ready, load_image},
 };
+use fyrox::gui::utils::make_text_and_image_button_with_tooltip;
 use fyrox::{
     core::{color::Color, log::Log, pool::Handle, some_or_return},
     gui::{
@@ -288,8 +289,33 @@ impl ProjectManager {
         let import_tooltip = "Allows you to import an existing project in the project manager.\
         \nHotkey: Ctrl+I";
 
-        let create = make_button("+ Create", 100.0, 25.0, 0, 0, 0, Some(create_tooltip), ctx);
-        let import = make_button("Import", 100.0, 25.0, 1, 0, 1, Some(import_tooltip), ctx);
+        let font_size = 16.0;
+        let create = make_text_and_image_button_with_tooltip(
+            ctx,
+            "Create",
+            20.0,
+            20.0,
+            load_image(include_bytes!("../resources/plus.png")),
+            create_tooltip,
+            0,
+            0,
+            Some(0),
+            Color::LIME_GREEN,
+            font_size,
+        );
+        let import = make_text_and_image_button_with_tooltip(
+            ctx,
+            "Import",
+            22.0,
+            22.0,
+            load_image(include_bytes!("../resources/open-folder.png")),
+            import_tooltip,
+            0,
+            1,
+            Some(1),
+            Color::GOLD,
+            font_size,
+        );
         let search_bar = SearchBarBuilder::new(
             WidgetBuilder::new()
                 .on_column(2)
@@ -381,20 +407,83 @@ impl ProjectManager {
         let open_ide_tooltip = "Opens project folder in the currently selected IDE \
         (can be changed in settings).\nHotkey: Ctrl+O";
 
-        let edit = make_button("Edit", 130.0, 25.0, 5, 0, 0, Some(edit_tooltip), ctx);
-        let run = make_button("Run", 130.0, 25.0, 6, 0, 0, Some(run_tooltip), ctx);
-        let delete = make_button("Delete", 130.0, 25.0, 7, 0, 0, Some(delete_tooltip), ctx);
-        let upgrade = make_button("Upgrade", 130.0, 25.0, 8, 0, 0, Some(upgrade_tooltip), ctx);
-        let locate = make_button("Locate", 130.0, 25.0, 9, 0, 0, Some(locate_tooltip), ctx);
-        let open_ide = make_button(
-            "Open IDE",
-            130.0,
-            25.0,
-            9,
-            0,
-            0,
-            Some(open_ide_tooltip),
+        let edit = make_text_and_image_button_with_tooltip(
             ctx,
+            "Edit",
+            22.0,
+            22.0,
+            load_image(include_bytes!("../resources/pencil.png")),
+            edit_tooltip,
+            0,
+            0,
+            Some(5),
+            Color::GOLD,
+            font_size,
+        );
+        let run = make_text_and_image_button_with_tooltip(
+            ctx,
+            "Run",
+            22.0,
+            22.0,
+            load_image(include_bytes!("../resources/play.png")),
+            run_tooltip,
+            0,
+            0,
+            Some(6),
+            Color::GREEN,
+            font_size,
+        );
+        let delete = make_text_and_image_button_with_tooltip(
+            ctx,
+            "Delete",
+            22.0,
+            22.0,
+            load_image(include_bytes!("../resources/delete.png")),
+            delete_tooltip,
+            0,
+            0,
+            Some(7),
+            Color::ORANGE_RED,
+            font_size,
+        );
+        let upgrade = make_text_and_image_button_with_tooltip(
+            ctx,
+            "Upgrade",
+            22.0,
+            22.0,
+            load_image(include_bytes!("../resources/up.png")),
+            upgrade_tooltip,
+            0,
+            0,
+            Some(8),
+            Color::NAVY,
+            font_size,
+        );
+        let locate = make_text_and_image_button_with_tooltip(
+            ctx,
+            "Locate",
+            22.0,
+            22.0,
+            load_image(include_bytes!("../resources/location.png")),
+            locate_tooltip,
+            0,
+            0,
+            Some(9),
+            Color::CADET_BLUE,
+            font_size,
+        );
+        let open_ide = make_text_and_image_button_with_tooltip(
+            ctx,
+            "Open IDE",
+            22.0,
+            22.0,
+            load_image(include_bytes!("../resources/ide.png")),
+            open_ide_tooltip,
+            0,
+            0,
+            Some(9),
+            Color::FOREST_GREEN,
+            font_size,
         );
         let hot_reload = CheckBoxBuilder::new(
             WidgetBuilder::new()
@@ -404,7 +493,6 @@ impl ProjectManager {
         )
         .with_content(
             TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::left(2.0)))
-                .with_font_size(16.0f32.into())
                 .with_text("Hot Reloading")
                 .build(ctx),
         )
@@ -417,10 +505,10 @@ impl ProjectManager {
                 .with_child(hot_reload)
                 .with_child(edit)
                 .with_child(run)
-                .with_child(delete)
+                .with_child(open_ide)
                 .with_child(upgrade)
                 .with_child(locate)
-                .with_child(open_ide),
+                .with_child(delete),
         )
         .build(ctx);
 

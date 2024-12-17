@@ -64,7 +64,7 @@ fn set_ui_scaling(ui: &UserInterface, scale: f32) {
 #[allow(clippy::unnecessary_to_owned)]
 fn main() {
     let mut window_attributes = WindowAttributes::default();
-    window_attributes.inner_size = Some(PhysicalSize::new(520, 562).into());
+    window_attributes.inner_size = Some(PhysicalSize::new(720, 520).into());
     window_attributes.resizable = true;
     window_attributes.title = "Fyrox Project Manager".to_string();
 
