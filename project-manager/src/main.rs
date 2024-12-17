@@ -156,6 +156,21 @@ fn main() {
                                     format!("Unable to set frame size: {e:?}"),
                                 );
                             }
+
+                            let window = &engine.graphics_context.as_initialized_ref().window;
+
+                            let logical_size = size.to_logical(window.scale_factor());
+                            let ui = engine.user_interfaces.first_mut();
+                            ui.send_message(WidgetMessage::width(
+                                project_manager.root_grid,
+                                MessageDirection::ToWidget,
+                                logical_size.width,
+                            ));
+                            ui.send_message(WidgetMessage::height(
+                                project_manager.root_grid,
+                                MessageDirection::ToWidget,
+                                logical_size.height,
+                            ));
                         }
                         WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
                             let ui = engine.user_interfaces.first_mut();

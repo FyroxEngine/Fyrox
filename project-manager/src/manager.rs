@@ -18,15 +18,13 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::settings::MANIFEST_PATH_VAR;
 use crate::{
     build::BuildWindow,
     project::ProjectWizard,
-    settings::{Project, Settings, SettingsWindow},
+    settings::{Project, Settings, SettingsWindow, MANIFEST_PATH_VAR},
     upgrade::UpgradeTool,
     utils::{self, is_production_ready, load_image},
 };
-use fyrox::gui::utils::make_text_and_image_button_with_tooltip;
 use fyrox::{
     core::{color::Color, log::Log, pool::Handle, some_or_return},
     gui::{
@@ -44,12 +42,14 @@ use fyrox::{
         message::{KeyCode, MessageDirection, UiMessage},
         messagebox::{MessageBoxBuilder, MessageBoxButtons, MessageBoxMessage, MessageBoxResult},
         navigation::NavigationLayerBuilder,
-        screen::ScreenBuilder,
         searchbar::{SearchBarBuilder, SearchBarMessage},
         stack_panel::StackPanelBuilder,
         style::{resource::StyleResourceExt, Style},
         text::{TextBuilder, TextMessage},
-        utils::{make_image_button_with_tooltip, make_simple_tooltip},
+        utils::{
+            make_image_button_with_tooltip, make_simple_tooltip,
+            make_text_and_image_button_with_tooltip,
+        },
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
@@ -73,6 +73,7 @@ enum Mode {
 }
 
 pub struct ProjectManager {
+    pub root_grid: Handle<UiNode>,
     create: Handle<UiNode>,
     import: Handle<UiNode>,
     projects: Handle<UiNode>,
@@ -548,9 +549,11 @@ impl ProjectManager {
         let navigation_layer =
             NavigationLayerBuilder::new(WidgetBuilder::new().with_child(main_content)).build(ctx);
 
-        ScreenBuilder::new(WidgetBuilder::new().with_child(
+        let root_grid = GridBuilder::new(WidgetBuilder::new().with_child(
             BorderBuilder::new(WidgetBuilder::new().with_child(navigation_layer)).build(ctx),
         ))
+        .add_row(Row::stretch())
+        .add_column(Column::stretch())
         .build(ctx);
 
         ctx.sender()
@@ -561,6 +564,7 @@ impl ProjectManager {
             .unwrap();
 
         Self {
+            root_grid,
             create,
             import,
             projects,
