@@ -949,6 +949,13 @@ impl Control for TextBox {
             .build()
     }
 
+    fn on_visual_transform_changed(&self) {
+        self.formatted_text
+            .borrow_mut()
+            .set_super_sampling_scale(self.visual_max_scaling())
+            .build();
+    }
+
     fn draw(&self, drawing_context: &mut DrawingContext) {
         let bounds = self.widget.bounding_rect();
         drawing_context.push_rect_filled(&bounds, None);

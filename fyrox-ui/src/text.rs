@@ -371,6 +371,13 @@ impl Control for Text {
         );
     }
 
+    fn on_visual_transform_changed(&self) {
+        self.formatted_text
+            .borrow_mut()
+            .set_super_sampling_scale(self.visual_max_scaling())
+            .build();
+    }
+
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
