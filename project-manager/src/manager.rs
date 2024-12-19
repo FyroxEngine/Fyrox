@@ -457,7 +457,7 @@ impl ProjectManager {
             0,
             0,
             Some(8),
-            Color::NAVY,
+            Color::DODGER_BLUE,
             font_size,
         );
         let locate = make_text_and_image_button_with_tooltip(
@@ -756,7 +756,11 @@ impl ProjectManager {
                 .with_title(WindowTitle::text("Delete Project"))
                 .open(false),
         )
-        .with_text(&format!("Do you really want to delete {}?", project.name))
+        .with_text(&format!(
+            "Do you really want to delete {} project?\n\
+        WARNING: This is irreversible operation and it permanently deletes the project!",
+            project.name
+        ))
         .with_buttons(MessageBoxButtons::YesNo)
         .build(ctx);
         ui.send_message(WindowMessage::open_modal(
