@@ -34,10 +34,7 @@ use crate::{
                 ResourceBinding,
             },
             geometry_buffer::{DrawCallStatistics, GeometryBuffer},
-            gpu_texture::{
-                GpuTexture, GpuTextureDescriptor, GpuTextureKind, MagnificationFilter,
-                MinificationFilter, PixelKind, WrapMode,
-            },
+            gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
             server::GraphicsServer,
             uniform::StaticUniformBuffer,
             DrawParameters, ElementRange,
@@ -139,14 +136,8 @@ impl HighDynamicRangeRenderer {
                     depth: 1,
                 },
                 pixel_kind: PixelKind::RGB8,
-                min_filter: MinificationFilter::Linear,
-                mag_filter: MagnificationFilter::Linear,
-                mip_count: 1,
-                s_wrap_mode: WrapMode::Repeat,
-                t_wrap_mode: WrapMode::Repeat,
-                r_wrap_mode: WrapMode::Repeat,
-                anisotropy: 1.0,
                 data: Some(&[0, 0, 0]),
+                ..Default::default()
             })?,
             lum_calculation_method: LuminanceCalculationMethod::DownSampling,
         })

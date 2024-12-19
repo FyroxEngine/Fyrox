@@ -125,12 +125,10 @@ pub trait GraphicsServer: Any {
             pixel_kind,
             min_filter: MinificationFilter::Nearest,
             mag_filter: MagnificationFilter::Nearest,
-            mip_count: 1,
             s_wrap_mode: WrapMode::ClampToEdge,
             t_wrap_mode: WrapMode::ClampToEdge,
             r_wrap_mode: WrapMode::ClampToEdge,
-            anisotropy: 1.0,
-            data: None,
+            ..Default::default()
         })
     }
 }
