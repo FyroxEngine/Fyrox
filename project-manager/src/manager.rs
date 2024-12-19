@@ -431,7 +431,7 @@ impl ProjectManager {
             0,
             0,
             Some(6),
-            Color::GREEN,
+            Color::opaque(73, 156, 84),
             font_size,
         );
         let delete = make_text_and_image_button_with_tooltip(
@@ -457,7 +457,7 @@ impl ProjectManager {
             0,
             0,
             Some(8),
-            Color::DODGER_BLUE,
+            Color::MEDIUM_PURPLE,
             font_size,
         );
         let locate = make_text_and_image_button_with_tooltip(
@@ -470,7 +470,7 @@ impl ProjectManager {
             0,
             0,
             Some(9),
-            Color::CADET_BLUE,
+            Color::DODGER_BLUE,
             font_size,
         );
         let open_ide = make_text_and_image_button_with_tooltip(
@@ -483,7 +483,7 @@ impl ProjectManager {
             0,
             0,
             Some(9),
-            Color::FOREST_GREEN,
+            Color::LIGHT_GRAY,
             font_size,
         );
         let hot_reload = CheckBoxBuilder::new(
