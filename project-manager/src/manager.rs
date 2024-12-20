@@ -793,6 +793,10 @@ impl ProjectManager {
             true,
             true,
         ));
+        ui.send_message(FileSelectorMessage::focus_current_path(
+            self.import_project_dialog,
+            MessageDirection::ToWidget,
+        ));
     }
 
     fn on_create_clicked(&mut self, ui: &mut UserInterface) {
