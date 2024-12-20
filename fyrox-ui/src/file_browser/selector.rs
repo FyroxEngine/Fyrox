@@ -205,7 +205,7 @@ impl FileSelectorBuilder {
             window_builder,
             filter: None,
             mode: FileBrowserMode::Open,
-            path: Default::default(),
+            path: "./".into(),
             root: None,
         }
     }

@@ -897,7 +897,7 @@ impl FileBrowserBuilder {
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
-            path: Default::default(),
+            path: "./".into(),
             filter: None,
             root: None,
             mode: FileBrowserMode::Open,
