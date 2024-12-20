@@ -75,6 +75,7 @@ pub enum FileBrowserMessage {
     Filter(Option<Filter>),
     Add(PathBuf),
     Remove(PathBuf),
+    FocusCurrentPath,
     Rescan,
     Drop {
         dropped: Handle<UiNode>,
@@ -92,6 +93,7 @@ impl FileBrowserMessage {
     define_constructor!(FileBrowserMessage:Add => fn add(PathBuf), layout: false);
     define_constructor!(FileBrowserMessage:Remove => fn remove(PathBuf), layout: false);
     define_constructor!(FileBrowserMessage:Rescan => fn rescan(), layout: false);
+    define_constructor!(FileBrowserMessage:FocusCurrentPath => fn focus_current_path(), layout: false);
     define_constructor!(FileBrowserMessage:Drop => fn drop(
         dropped: Handle<UiNode>,
         path_item: Handle<UiNode>,
@@ -389,6 +391,18 @@ impl Control for FileBrowser {
                         }
                     }
                     FileBrowserMessage::Rescan | FileBrowserMessage::Drop { .. } => (),
+                    FileBrowserMessage::FocusCurrentPath => {
+                        if let Ok(canonical_path) = self.path.canonicalize() {
+                            let item = find_tree(self.tree_root, &canonical_path, ui);
+                            if item.is_some() {
+                                ui.send_message(ScrollViewerMessage::bring_into_view(
+                                    self.scroll_viewer,
+                                    MessageDirection::ToWidget,
+                                    item,
+                                ));
+                            }
+                        }
+                    }
                 }
             }
         } else if let Some(TextMessage::Text(txt)) = message.data::<TextMessage>() {
