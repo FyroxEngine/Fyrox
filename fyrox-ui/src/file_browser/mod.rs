@@ -395,6 +395,12 @@ impl Control for FileBrowser {
                         if let Ok(canonical_path) = self.path.canonicalize() {
                             let item = find_tree(self.tree_root, &canonical_path, ui);
                             if item.is_some() {
+                                // Select item of new path.
+                                ui.send_message(TreeRootMessage::select(
+                                    self.tree_root,
+                                    MessageDirection::ToWidget,
+                                    vec![item],
+                                ));
                                 ui.send_message(ScrollViewerMessage::bring_into_view(
                                     self.scroll_viewer,
                                     MessageDirection::ToWidget,
