@@ -36,10 +36,10 @@ use crate::{
 use std::{
     any::Any,
     cell::RefCell,
-    fmt::{Display, Formatter},
     rc::{Rc, Weak},
 };
 
+#[derive(Debug)]
 pub struct ServerCapabilities {
     /// The maximum size in basic machine units of a uniform block, which must be at least 16384.
     pub max_uniform_block_size: usize,
@@ -48,22 +48,6 @@ pub struct ServerCapabilities {
     /// The maximum, absolute value of the texture level-of-detail bias. The value must be at least
     /// 2.0.
     pub max_lod_bias: f32,
-}
-
-impl Display for ServerCapabilities {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        writeln!(
-            f,
-            "\tMax Uniform Block Size: {}",
-            self.max_uniform_block_size
-        )?;
-        writeln!(
-            f,
-            "\tUniform Block Offset Alignment: {}",
-            self.uniform_buffer_offset_alignment
-        )?;
-        Ok(())
-    }
 }
 
 pub type SharedGraphicsServer = Rc<dyn GraphicsServer>;

@@ -941,7 +941,7 @@ impl Renderer {
         )?;
 
         let caps = server.capabilities();
-        Log::info(format!("Graphics Server Capabilities\n{caps}",));
+        Log::info(format!("Graphics Server Capabilities\n{caps:?}",));
 
         let frame_size = (window.inner_size().width, window.inner_size().height);
 
