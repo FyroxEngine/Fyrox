@@ -41,8 +41,13 @@ use std::{
 };
 
 pub struct ServerCapabilities {
+    /// The maximum size in basic machine units of a uniform block, which must be at least 16384.
     pub max_uniform_block_size: usize,
+    /// The minimum required alignment for uniform buffer sizes and offset. The initial value is 1.
     pub uniform_buffer_offset_alignment: usize,
+    /// The maximum, absolute value of the texture level-of-detail bias. The value must be at least
+    /// 2.0.
+    pub max_lod_bias: f32,
 }
 
 impl Display for ServerCapabilities {
