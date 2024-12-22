@@ -65,7 +65,7 @@ use crate::{
         sstorage::ImmutableString,
         uuid_provider,
     },
-    engine::{error::EngineError, GraphicsContextParams},
+    engine::error::EngineError,
     graph::SceneGraph,
     gui::draw::DrawingContext,
     material::shader::{Shader, ShaderDefinition, ShaderResource, ShaderResourceExtension},
@@ -87,7 +87,6 @@ use crate::{
                 ResourceBinding,
             },
             geometry_buffer::{DrawCallStatistics, GeometryBuffer},
-            gl::server::GlGraphicsServer,
             gpu_program::SamplerFallback,
             gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
             server::{GraphicsServer, SharedGraphicsServer},
@@ -110,10 +109,7 @@ use serde::{Deserialize, Serialize};
 pub use stats::*;
 use std::{any::TypeId, cell::RefCell, collections::hash_map::Entry, rc::Rc, sync::mpsc::Receiver};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
-use winit::{
-    event_loop::EventLoopWindowTarget,
-    window::{Window, WindowBuilder},
-};
+use winit::window::Window;
 
 lazy_static! {
     static ref GBUFFER_PASS_NAME: ImmutableString = ImmutableString::new("GBuffer");
@@ -911,12 +907,12 @@ impl<const N: usize> Default for LightData<N> {
 }
 
 impl Renderer {
-    pub(crate) fn new(
+    /// Creates a new renderer with the given graphics server.
+    pub fn new(
+        server: Rc<dyn GraphicsServer>,
+        frame_size: (u32, u32),
         resource_manager: &ResourceManager,
-        params: &GraphicsContextParams,
-        window_target: &EventLoopWindowTarget<()>,
-        window_builder: WindowBuilder,
-    ) -> Result<(Window, Self), EngineError> {
+    ) -> Result<Self, EngineError> {
         let settings = QualitySettings::default();
 
         let (texture_event_sender, texture_event_receiver) = std::sync::mpsc::channel();
@@ -933,17 +929,8 @@ impl Renderer {
             .event_broadcaster
             .add(shader_event_sender);
 
-        let (window, server) = GlGraphicsServer::new(
-            params.vsync,
-            params.msaa_sample_count,
-            window_target,
-            window_builder,
-        )?;
-
         let caps = server.capabilities();
         Log::info(format!("Graphics Server Capabilities\n{caps:?}",));
-
-        let frame_size = (window.inner_size().width, window.inner_size().height);
 
         let mut shader_cache = ShaderCache::default();
 
@@ -1032,7 +1019,7 @@ impl Renderer {
             },
         };
 
-        let renderer = Self {
+        Ok(Self {
             backbuffer: server.back_buffer(),
             frame_size,
             deferred_light_renderer: DeferredLightRenderer::new(&*server, frame_size, &settings)?,
@@ -1064,9 +1051,7 @@ impl Renderer {
             server,
             visibility_cache: Default::default(),
             uniform_memory_allocator,
-        };
-
-        Ok((window, renderer))
+        })
     }
 
     /// Adds a custom render pass.

@@ -104,6 +104,7 @@ use crate::{
 };
 use fxhash::{FxHashMap, FxHashSet};
 use fyrox_animation::AnimationTracksData;
+use fyrox_graphics::gl::server::GlGraphicsServer;
 use fyrox_sound::{
     buffer::{loader::SoundBufferLoader, SoundBuffer},
     renderer::hrtf::{HrirSphereLoader, HrirSphereResourceData},
@@ -1408,18 +1409,18 @@ impl Engine {
                 .with_window_level(params.window_attributes.window_level)
                 .with_active(params.window_attributes.active);
 
-            let (window, renderer) = Renderer::new(
-                &self.resource_manager,
-                params,
+            let (window, server) = GlGraphicsServer::new(
+                params.vsync,
+                params.msaa_sample_count,
                 window_target,
                 window_builder,
             )?;
+            let frame_size = (window.inner_size().width, window.inner_size().height);
+
+            let renderer = Renderer::new(server, frame_size, &self.resource_manager)?;
 
             for ui in self.user_interfaces.iter_mut() {
-                ui.set_screen_size(Vector2::new(
-                    window.inner_size().width as f32,
-                    window.inner_size().height as f32,
-                ));
+                ui.set_screen_size(Vector2::new(frame_size.0 as f32, frame_size.1 as f32));
             }
 
             self.graphics_context = GraphicsContext::Initialized(InitializedGraphicsContext {
