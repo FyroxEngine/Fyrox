@@ -101,6 +101,7 @@ pub struct ProjectManager {
     open_ide: Handle<UiNode>,
     upgrade_tool: Option<UpgradeTool>,
     settings_window: Option<SettingsWindow>,
+    no_projects_warning: Handle<UiNode>,
 }
 
 fn make_project_item(
@@ -517,16 +518,35 @@ impl ProjectManager {
             WidgetBuilder::new()
                 .with_enabled(is_ready)
                 .with_tab_index(Some(3))
-                .with_margin(Thickness::uniform(1.0))
-                .on_column(0),
+                .with_margin(Thickness::uniform(1.0)),
         )
         .with_items(make_project_items(&settings, "", ctx))
+        .build(ctx);
+
+        let no_projects_warning =
+            TextBuilder::new(WidgetBuilder::new().with_visibility(settings.projects.is_empty()))
+                .with_text(
+                    "At this moment you don't have any existing projects.\n\
+                        Click \"+Create\" button to create a new project or \"Import\" an \
+                        existing one.",
+                )
+                .with_font_size(16.0f32.into())
+                .with_horizontal_text_alignment(HorizontalAlignment::Center)
+                .with_vertical_text_alignment(VerticalAlignment::Center)
+                .build(ctx);
+
+        let border = BorderBuilder::new(
+            WidgetBuilder::new()
+                .on_column(0)
+                .with_child(projects)
+                .with_child(no_projects_warning),
+        )
         .build(ctx);
 
         let inner_content = GridBuilder::new(
             WidgetBuilder::new()
                 .on_row(2)
-                .with_child(projects)
+                .with_child(border)
                 .with_child(project_controls),
         )
         .add_column(Column::stretch())
@@ -592,16 +612,22 @@ impl ProjectManager {
             open_ide,
             upgrade_tool: None,
             settings_window: None,
+            no_projects_warning,
         }
     }
 
     fn refresh(&mut self, ui: &mut UserInterface) {
         let items = make_project_items(&self.settings, &self.search_text, &mut ui.build_ctx());
+        ui.send_message(WidgetMessage::visibility(
+            self.no_projects_warning,
+            MessageDirection::ToWidget,
+            items.is_empty(),
+        ));
         ui.send_message(ListViewMessage::items(
             self.projects,
             MessageDirection::ToWidget,
             items,
-        ))
+        ));
     }
 
     fn handle_modes(&mut self, ui: &mut UserInterface) {
