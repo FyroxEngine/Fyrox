@@ -670,6 +670,7 @@ impl Editor {
             window_attributes,
             vsync: true,
             msaa_sample_count: Some(4),
+            graphics_server_constructor: Default::default(),
         };
 
         let serialization_context = Arc::new(SerializationContext::new());

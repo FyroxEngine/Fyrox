@@ -105,10 +105,12 @@ use crate::{
 use fxhash::{FxHashMap, FxHashSet};
 use fyrox_animation::AnimationTracksData;
 use fyrox_graphics::gl::server::GlGraphicsServer;
+use fyrox_graphics::server::SharedGraphicsServer;
 use fyrox_sound::{
     buffer::{loader::SoundBufferLoader, SoundBuffer},
     renderer::hrtf::{HrirSphereLoader, HrirSphereResourceData},
 };
+use std::rc::Rc;
 use std::{
     any::TypeId,
     collections::{HashSet, VecDeque},
@@ -1033,6 +1035,37 @@ impl ResourceDependencyGraph {
     }
 }
 
+/// A result returned by a graphics server constructor.
+pub type GraphicsServerConstructorResult = Result<(Window, SharedGraphicsServer), FrameworkError>;
+
+/// Graphics server constructor callback responsible for actual server creation. Graphics server
+/// initialization usually tied together with window creation on some operating systems, that's why
+/// the constructor accepts window builder and must return the window built with the builder as well
+/// as the server.
+pub type GraphicsServerConstructorCallback = dyn Fn(
+    &GraphicsContextParams,
+    &EventLoopWindowTarget<()>,
+    WindowBuilder,
+) -> GraphicsServerConstructorResult;
+
+/// Graphics server constructor is used to initialize different graphics servers in unified manner.
+/// [`Default`] trait implementation currently creates OpenGL graphics server.
+#[derive(Clone)]
+pub struct GraphicsServerConstructor(Rc<GraphicsServerConstructorCallback>);
+
+impl Default for GraphicsServerConstructor {
+    fn default() -> Self {
+        Self(Rc::new(|params, window_target, window_builder| {
+            GlGraphicsServer::new(
+                params.vsync,
+                params.msaa_sample_count,
+                window_target,
+                window_builder,
+            )
+        }))
+    }
+}
+
 /// A set of parameters that could be used to initialize graphics context.
 #[derive(Clone)]
 pub struct GraphicsContextParams {
@@ -1046,6 +1079,9 @@ pub struct GraphicsContextParams {
     /// Amount of samples for MSAA. Must be a power of two (1, 2, 4, 8). `None` means disabled.
     /// MSAA works only for forward rendering and does not work for deferred rendering.
     pub msaa_sample_count: Option<u8>,
+
+    /// Graphic server constructor. See [`GraphicsServerConstructor`] docs for more info.
+    pub graphics_server_constructor: GraphicsServerConstructor,
 }
 
 impl Default for GraphicsContextParams {
@@ -1054,6 +1090,7 @@ impl Default for GraphicsContextParams {
             window_attributes: Default::default(),
             vsync: true,
             msaa_sample_count: None,
+            graphics_server_constructor: Default::default(),
         }
     }
 }
@@ -1306,7 +1343,8 @@ impl Engine {
     /// let graphics_context_params = GraphicsContextParams {
     ///     window_attributes,
     ///     vsync: true,
-    ///     msaa_sample_count: None
+    ///     msaa_sample_count: None,
+    ///     graphics_server_constructor: Default::default()
     /// };
     /// let task_pool = Arc::new(TaskPool::new());
     ///
@@ -1409,12 +1447,8 @@ impl Engine {
                 .with_window_level(params.window_attributes.window_level)
                 .with_active(params.window_attributes.active);
 
-            let (window, server) = GlGraphicsServer::new(
-                params.vsync,
-                params.msaa_sample_count,
-                window_target,
-                window_builder,
-            )?;
+            let (window, server) =
+                params.graphics_server_constructor.0(params, window_target, window_builder)?;
             let frame_size = (window.inner_size().width, window.inner_size().height);
 
             let renderer = Renderer::new(server, frame_size, &self.resource_manager)?;
@@ -1476,6 +1510,7 @@ impl Engine {
                 window_attributes,
                 vsync: params.vsync,
                 msaa_sample_count: params.msaa_sample_count,
+                graphics_server_constructor: params.graphics_server_constructor.clone(),
             });
 
             self.sound_engine.destroy_audio_output_device();

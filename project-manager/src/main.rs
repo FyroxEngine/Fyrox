@@ -75,6 +75,7 @@ fn main() {
             window_attributes,
             vsync: true,
             msaa_sample_count: Some(2),
+            graphics_server_constructor: Default::default(),
         },
         resource_manager: ResourceManager::new(task_pool.clone()),
         serialization_context,
