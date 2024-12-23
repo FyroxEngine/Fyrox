@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use clap::Parser;
+use fyrox::core::log::Log;
 use fyrox::event_loop::EventLoop;
 use fyroxed_base::{Editor, StartupData};
 
@@ -35,6 +36,8 @@ struct Args {
 }
 
 fn main() {
+    Log::set_file_name("fyrox.log");
+
     let args = Args::parse();
     let startup_data = if let Some(proj_dir) = args.project_directory {
         Some(StartupData {

@@ -18,16 +18,18 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-//! Simple logger, it writes in file and in console at the same time.
+//! Simple logger. By default, it writes in the console only. To enable logging into a file, call
+//! [`Log::set_file_name`] somewhere in your `main` function.
 
-use crate::lazy_static::lazy_static;
 use crate::parking_lot::Mutex;
 use std::fmt::{Debug, Display};
 
 use crate::instant::Instant;
 #[cfg(not(target_arch = "wasm32"))]
 use std::io::{self, Write};
+use std::path::Path;
 use std::sync::mpsc::Sender;
+use std::sync::LazyLock;
 use std::time::Duration;
 
 #[cfg(target_arch = "wasm32")]
@@ -53,15 +55,15 @@ pub struct LogMessage {
     pub time: Duration,
 }
 
-lazy_static! {
-    static ref LOG: Mutex<Log> = Mutex::new(Log {
+static LOG: LazyLock<Mutex<Log>> = LazyLock::new(|| {
+    Mutex::new(Log {
         #[cfg(all(not(target_arch = "wasm32"), not(target_os = "android")))]
-        file: std::fs::File::create("fyrox.log").unwrap(),
+        file: None,
         verbosity: MessageKind::Information,
         listeners: Default::default(),
-        time_origin: Instant::now()
-    });
-}
+        time_origin: Instant::now(),
+    })
+});
 
 /// A kind of message.
 #[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Ord, Hash)]
@@ -88,13 +90,31 @@ impl MessageKind {
 /// See module docs.
 pub struct Log {
     #[cfg(all(not(target_arch = "wasm32"), not(target_os = "android")))]
-    file: std::fs::File,
+    file: Option<std::fs::File>,
     verbosity: MessageKind,
     listeners: Vec<Sender<LogMessage>>,
     time_origin: Instant,
 }
 
 impl Log {
+    /// Creates a new log file at the specified path.
+    pub fn set_file_name<P: AsRef<Path>>(#[allow(unused_variables)] path: P) {
+        #[cfg(all(not(target_arch = "wasm32"), not(target_os = "android")))]
+        {
+            let mut guard = LOG.lock();
+            guard.file = std::fs::File::create(path).ok();
+        }
+    }
+
+    /// Sets new file to write the log to.
+    pub fn set_file(#[allow(unused_variables)] file: Option<std::fs::File>) {
+        #[cfg(all(not(target_arch = "wasm32"), not(target_os = "android")))]
+        {
+            let mut guard = LOG.lock();
+            guard.file = file;
+        }
+    }
+
     fn write_internal<S>(&mut self, kind: MessageKind, message: S)
     where
         S: AsRef<str>,
@@ -122,7 +142,11 @@ impl Log {
             #[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
             {
                 let _ = io::stdout().write_all(msg.as_bytes());
-                let _ = self.file.write_all(msg.as_bytes());
+
+                if let Some(log_file) = self.file.as_mut() {
+                    let _ = log_file.write_all(msg.as_bytes());
+                    let _ = log_file.flush();
+                }
             }
 
             #[cfg(target_os = "android")]

@@ -241,8 +241,11 @@ dylib = ["fyrox/dylib"]
         format!(
             r#"//! Executor with your game connected to it as a plugin.
 use fyrox::engine::executor::Executor;
+use fyrox::core::log::Log;
 
 fn main() {{
+    Log::set_file_name("{name}.log");
+
     let mut executor = Executor::new();
    
     // Dynamic linking with hot reloading.
@@ -407,9 +410,11 @@ dylib = ["fyroxed_base/dylib_engine"]
         base_path.join("editor/src/main.rs"),
         format!(
             r#"//! Editor with your game connected to it as a plugin.
-use fyroxed_base::{{fyrox::event_loop::EventLoop, Editor, StartupData}};
+use fyroxed_base::{{fyrox::event_loop::EventLoop, Editor, StartupData, fyrox::core::log::Log}};
 
 fn main() {{
+    Log::set_file_name("{name}.log");
+
     let event_loop = EventLoop::new().unwrap();
     let mut editor = Editor::new(
         Some(StartupData {{
