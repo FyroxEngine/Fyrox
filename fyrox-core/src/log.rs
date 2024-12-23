@@ -108,8 +108,11 @@ impl Log {
 
     /// Sets new file to write the log to.
     pub fn set_file(#[allow(unused_variables)] file: Option<std::fs::File>) {
-        let mut guard = LOG.lock();
-        guard.file = file;
+        #[cfg(all(not(target_arch = "wasm32"), not(target_os = "android")))]
+        {
+            let mut guard = LOG.lock();
+            guard.file = file;
+        }
     }
 
     fn write_internal<S>(&mut self, kind: MessageKind, message: S)
