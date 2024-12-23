@@ -131,18 +131,26 @@ impl GlyphMetrics<'_> {
     fn ascender(&self) -> f32 {
         self.font.ascender(self.size)
     }
+
     fn descender(&self) -> f32 {
         self.font.descender(self.size)
     }
+
     fn newline_advance(&self) -> f32 {
         self.size / 2.0
     }
+
+    fn horizontal_kerning(&self, left: char, right: char) -> Option<f32> {
+        self.font.horizontal_kerning(self.size, left, right)
+    }
+
     fn advance(&mut self, c: char) -> f32 {
         match c {
             '\n' => self.newline_advance(),
             _ => self.font.glyph_advance(c, self.size),
         }
     }
+
     fn glyph(&mut self, c: char, super_sampling_scale: f32) -> Option<&FontGlyph> {
         self.font.glyph(c, self.size * super_sampling_scale)
     }
@@ -150,13 +158,17 @@ impl GlyphMetrics<'_> {
 
 fn build_glyph(
     metrics: &mut GlyphMetrics,
-    x: f32,
-    y: f32,
+    mut x: f32,
+    mut y: f32,
     character: char,
+    prev_character: Option<char>,
     super_sampling_scale: f32,
 ) -> (TextGlyph, f32) {
     let ascender = metrics.ascender();
     let font_size = metrics.size;
+
+    x = x.round();
+    y = y.floor();
 
     // Request larger glyph with super sampling scaling.
     match metrics.glyph(character, super_sampling_scale) {
@@ -166,7 +178,7 @@ fn build_glyph(
             let k = 1.0 / super_sampling_scale;
             // Insert glyph
             let rect = Rect::new(
-                x + glyph.left.floor() * k,
+                x + glyph.left.round() * k,
                 y + ascender.floor() - glyph.top.floor() * k - (glyph.bitmap_height as f32 * k),
                 glyph.bitmap_width as f32 * k,
                 glyph.bitmap_height as f32 * k,
@@ -176,7 +188,11 @@ fn build_glyph(
                 tex_coords: glyph.tex_coords,
                 atlas_page_index: glyph.page_index,
             };
-            (text_glyph, glyph.advance * k)
+            let advance = glyph.advance
+                + prev_character
+                    .and_then(|prev| metrics.horizontal_kerning(prev, character))
+                    .unwrap_or_default();
+            (text_glyph, advance * k)
         }
         None => {
             // Insert invalid symbol
@@ -701,17 +717,20 @@ impl FormattedText {
             VerticalAlignment::Stretch => 0.0,
         };
 
-        let mut y: f32 = cursor_y_start;
+        let mut y: f32 = cursor_y_start.floor();
         for line in self.lines.iter_mut() {
             let mut x = line.x_offset;
             if let Some(mask) = *self.mask_char {
+                let mut prev = None;
                 for c in std::iter::repeat::<char>(mask).take(line.len()) {
                     let (glyph, advance) =
-                        build_glyph(&mut metrics, x, y, c, self.super_sampling_scale);
+                        build_glyph(&mut metrics, x, y, c, prev, self.super_sampling_scale);
                     self.glyphs.push(glyph);
                     x += advance;
+                    prev = Some(c);
                 }
             } else {
+                let mut prev = None;
                 for c in self.text.iter().take(line.end).skip(line.begin).cloned() {
                     match c {
                         '\n' => {
@@ -719,11 +738,12 @@ impl FormattedText {
                         }
                         _ => {
                             let (glyph, advance) =
-                                build_glyph(&mut metrics, x, y, c, self.super_sampling_scale);
+                                build_glyph(&mut metrics, x, y, c, prev, self.super_sampling_scale);
                             self.glyphs.push(glyph);
                             x += advance;
                         }
                     }
+                    prev = Some(c);
                 }
             }
             line.height = line_height;

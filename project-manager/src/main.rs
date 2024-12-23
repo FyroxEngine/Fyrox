@@ -27,7 +27,7 @@ mod settings;
 mod upgrade;
 mod utils;
 
-use crate::{manager::ProjectManager, utils::make_button};
+use crate::{manager::ProjectManager, settings::DATA_DIR, utils::make_button};
 use fyrox::{
     asset::{manager::ResourceManager, untyped::ResourceKind},
     core::{
@@ -42,10 +42,12 @@ use fyrox::{
     },
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
-    gui::font::FontResource,
     gui::{
-        constructor::new_widget_constructor_container, font::Font, message::MessageDirection,
-        widget::WidgetMessage, UserInterface,
+        constructor::new_widget_constructor_container,
+        font::{Font, FontResource},
+        message::MessageDirection,
+        widget::WidgetMessage,
+        UserInterface,
     },
     utils::{translate_cursor_icon, translate_event},
     window::WindowAttributes,
@@ -63,6 +65,8 @@ fn set_ui_scaling(ui: &UserInterface, scale: f32) {
 
 #[allow(clippy::unnecessary_to_owned)]
 fn main() {
+    Log::set_file_name(DATA_DIR.join("project_manager.log"));
+
     let mut window_attributes = WindowAttributes::default();
     window_attributes.inner_size = Some(PhysicalSize::new(720, 520).into());
     window_attributes.resizable = true;

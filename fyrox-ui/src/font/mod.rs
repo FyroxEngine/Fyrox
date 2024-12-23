@@ -342,6 +342,14 @@ impl Font {
     }
 
     #[inline]
+    pub fn horizontal_kerning(&self, height: f32, left: char, right: char) -> Option<f32> {
+        self.inner
+            .as_ref()
+            .unwrap()
+            .horizontal_kern(left, right, height)
+    }
+
+    #[inline]
     pub fn page_size(&self) -> usize {
         self.page_size
     }
