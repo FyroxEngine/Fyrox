@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use directories::ProjectDirs;
 use fyrox::{
     core::{log::Log, pool::Handle, reflect::prelude::*},
     gui::{
@@ -40,10 +41,29 @@ use fyrox::{
 use fyrox_build_tools::{CommandDescriptor, EnvironmentVariable};
 use ron::ser::PrettyConfig;
 use serde::{Deserialize, Serialize};
-use std::ops::{Deref, DerefMut};
-use std::{fs::File, io::Write, path::PathBuf, sync::Arc};
+use std::{
+    fs::File,
+    io::Write,
+    ops::{Deref, DerefMut},
+    path::PathBuf,
+    sync::{Arc, LazyLock},
+};
 
 pub const MANIFEST_PATH_VAR: &str = "%MANIFEST_PATH%";
+
+static CONFIG_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
+    let config_dir = ProjectDirs::from("", "Fyrox", "Fyrox Project Manager")
+        .map(|dirs| dirs.config_dir().to_path_buf())
+        .unwrap_or_else(|| {
+            eprintln!("Unable to fetch project dirs! Using current folder instead...");
+            PathBuf::from("./")
+        });
+    if let Err(err) = std::fs::create_dir_all(&config_dir) {
+        eprintln!("Unable to create config dir: {err:?}",);
+    }
+    println!("Config dir: {:?}", config_dir);
+    config_dir
+});
 
 #[derive(Default, Serialize, Deserialize, Reflect, Debug)]
 pub struct SettingsData {
@@ -67,21 +87,34 @@ fn default_open_ide_command() -> CommandDescriptor {
 }
 
 impl SettingsData {
-    pub const PATH: &'static str = "pm_settings.ron";
+    pub const FILE_NAME: &'static str = "pm_settings.ron";
+
+    fn actual_path() -> PathBuf {
+        CONFIG_DIR.join(Self::FILE_NAME)
+    }
 
     pub fn load() -> Self {
-        if let Ok(file) = File::open(Self::PATH) {
-            ron::de::from_reader(file).unwrap_or_default()
-        } else {
-            Default::default()
+        match File::open(Self::actual_path()) {
+            Ok(file) => ron::de::from_reader(file).unwrap_or_default(),
+            Err(err) => {
+                eprintln!("Unable to load project manager settings! Reason: {err:?}");
+                Default::default()
+            }
         }
     }
 
     pub fn save(&self) {
-        if let Ok(mut file) = File::create(Self::PATH) {
-            let pretty_string =
-                ron::ser::to_string_pretty(self, PrettyConfig::default()).unwrap_or_default();
-            let _ = file.write_all(pretty_string.as_bytes());
+        match File::create(Self::actual_path()) {
+            Ok(mut file) => {
+                let pretty_string =
+                    ron::ser::to_string_pretty(self, PrettyConfig::default()).unwrap_or_default();
+                if let Err(err) = file.write_all(pretty_string.as_bytes()) {
+                    eprintln!("Unable to save project manager settings! Reason: {err:?}");
+                }
+            }
+            Err(err) => {
+                eprintln!("Unable to create project manager settings file! Reason: {err:?}");
+            }
         }
     }
 }
