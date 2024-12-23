@@ -139,6 +139,10 @@ impl Control for PathEditor {
                     true,
                     true,
                 ));
+                ui.send_message(FileSelectorMessage::focus_current_path(
+                    *self.selector,
+                    MessageDirection::ToWidget,
+                ));
             }
         } else if let Some(PathEditorMessage::Path(path)) = message.data() {
             if message.destination() == self.handle

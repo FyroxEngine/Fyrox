@@ -276,6 +276,11 @@ pub struct Texture {
     s_wrap_mode: TextureWrapMode,
     t_wrap_mode: TextureWrapMode,
     r_wrap_mode: TextureWrapMode,
+    base_level: usize,
+    max_level: usize,
+    min_lod: f32,
+    max_lod: f32,
+    lod_bias: f32,
     mip_count: u32,
     anisotropy: f32,
     modifications_counter: u64,
@@ -373,12 +378,18 @@ impl Visit for Texture {
         let mut bytes_view = PodVecView::from_pod_vec(&mut self.bytes);
         let _ = bytes_view.visit("Data", &mut region);
 
+        let _ = self.base_level.visit("BaseLevel", &mut region);
+        let _ = self.max_level.visit("MaxLevel", &mut region);
+        let _ = self.min_lod.visit("MinLod", &mut region);
+        let _ = self.max_lod.visit("MaxLod", &mut region);
+        let _ = self.lod_bias.visit("LodBias", &mut region);
+
         Ok(())
     }
 }
 
 impl Default for Texture {
-    /// It is very important to mention that defaults may be different for texture when you
+    /// It is very important to mention that defaults may be different for texture when you're
     /// importing them through resource manager, see
     /// [TextureImportOptions](../engine/resource_manager/struct.TextureImportOptions.html) for more info.
     fn default() -> Self {
@@ -394,6 +405,11 @@ impl Default for Texture {
             s_wrap_mode: TextureWrapMode::Repeat,
             t_wrap_mode: TextureWrapMode::Repeat,
             r_wrap_mode: TextureWrapMode::Repeat,
+            base_level: 0,
+            max_level: default_max_level(),
+            min_lod: default_min_lod(),
+            max_lod: default_max_lod(),
+            lod_bias: 0.0,
             mip_count: 1,
             anisotropy: 16.0,
             modifications_counter: 0,
@@ -476,6 +492,28 @@ pub struct TextureImportOptions {
     pub(crate) mip_filter: MipFilter,
     #[serde(default)]
     pub(crate) flip_green_channel: bool,
+    #[serde(default)]
+    pub(crate) base_level: usize,
+    #[serde(default = "default_max_level")]
+    pub(crate) max_level: usize,
+    #[serde(default = "default_min_lod")]
+    pub(crate) min_lod: f32,
+    #[serde(default = "default_max_lod")]
+    pub(crate) max_lod: f32,
+    #[serde(default)]
+    pub(crate) lod_bias: f32,
+}
+
+fn default_max_level() -> usize {
+    1000
+}
+
+fn default_min_lod() -> f32 {
+    -1000.0
+}
+
+fn default_max_lod() -> f32 {
+    1000.0
 }
 
 impl Default for TextureImportOptions {
@@ -490,6 +528,11 @@ impl Default for TextureImportOptions {
             compression: CompressionOptions::default(),
             mip_filter: Default::default(),
             flip_green_channel: false,
+            base_level: 0,
+            max_level: default_max_level(),
+            min_lod: default_min_lod(),
+            max_lod: default_max_lod(),
+            lod_bias: 0.0,
         }
     }
 }
@@ -578,6 +621,61 @@ impl TextureImportOptions {
     pub fn set_compression(&mut self, compression: CompressionOptions) {
         self.compression = compression;
     }
+
+    /// Same effect as [`Texture::set_base_level`].
+    pub fn with_base_level(mut self, base_level: usize) -> Self {
+        self.base_level = base_level;
+        self
+    }
+
+    /// Same effect as [`Texture::set_base_level`].
+    pub fn set_base_level(&mut self, base_level: usize) {
+        self.base_level = base_level;
+    }
+
+    /// Same effect as [`Texture::set_max_level`].
+    pub fn with_max_level(mut self, max_level: usize) -> Self {
+        self.max_level = max_level;
+        self
+    }
+
+    /// Same effect as [`Texture::set_max_level`].
+    pub fn set_max_level(&mut self, max_level: usize) {
+        self.max_level = max_level;
+    }
+
+    /// Same effect as [`Texture::set_min_lod`].
+    pub fn with_min_lod(mut self, min_lod: f32) -> Self {
+        self.min_lod = min_lod;
+        self
+    }
+
+    /// Same effect as [`Texture::set_min_lod`].
+    pub fn set_min_lod(&mut self, min_lod: f32) {
+        self.min_lod = min_lod;
+    }
+
+    /// Same effect as [`Texture::set_max_lod`].
+    pub fn with_max_lod(mut self, max_lod: f32) -> Self {
+        self.max_lod = max_lod;
+        self
+    }
+
+    /// Same effect as [`Texture::set_max_lod`].
+    pub fn set_max_lod(&mut self, max_lod: f32) {
+        self.max_lod = max_lod;
+    }
+
+    /// Same effect as [`Texture::set_lod_bias`].
+    pub fn with_lod_bias(mut self, lod_bias: f32) -> Self {
+        self.lod_bias = lod_bias;
+        self
+    }
+
+    /// Same effect as [`Texture::set_lod_bias`].
+    pub fn set_lod_bias(&mut self, lod_bias: f32) {
+        self.lod_bias = lod_bias;
+    }
 }
 
 lazy_static! {
@@ -654,6 +752,11 @@ impl TextureResourceExtension for TextureResource {
                 s_wrap_mode: TextureWrapMode::Repeat,
                 t_wrap_mode: TextureWrapMode::Repeat,
                 r_wrap_mode: TextureWrapMode::Repeat,
+                base_level: 0,
+                max_level: 1000,
+                min_lod: -1000.0,
+                max_lod: 1000.0,
+                lod_bias: 0.0,
                 mip_count: 1,
                 anisotropy: 1.0,
                 modifications_counter: 0,
@@ -1401,6 +1504,10 @@ impl Texture {
                 s_wrap_mode: import_options.s_wrap_mode,
                 t_wrap_mode: import_options.t_wrap_mode,
                 r_wrap_mode: import_options.r_wrap_mode,
+                base_level: import_options.base_level,
+                max_level: import_options.max_level,
+                min_lod: import_options.min_lod,
+                max_lod: import_options.max_lod,
                 anisotropy: import_options.anisotropy,
                 mip_count,
                 bytes: bytes.into(),
@@ -1423,6 +1530,7 @@ impl Texture {
                 },
                 is_render_target: false,
                 cache_index: Default::default(),
+                lod_bias: import_options.lod_bias,
             })
         } else {
             // Commonly used formats are all rectangle textures.
@@ -1553,9 +1661,14 @@ impl Texture {
                 s_wrap_mode: import_options.s_wrap_mode,
                 t_wrap_mode: import_options.t_wrap_mode,
                 r_wrap_mode: import_options.r_wrap_mode,
+                base_level: import_options.base_level,
+                max_level: import_options.max_level,
+                min_lod: import_options.min_lod,
+                max_lod: import_options.max_lod,
                 anisotropy: import_options.anisotropy,
                 is_render_target: false,
                 cache_index: Default::default(),
+                lod_bias: import_options.lod_bias,
             })
         }
     }
@@ -1599,78 +1712,164 @@ impl Texture {
     }
 
     /// Sets new minification filter. It is used when texture becomes smaller.
+    #[inline]
     pub fn set_minification_filter(&mut self, filter: TextureMinificationFilter) {
         self.minification_filter = filter;
     }
 
     /// Returns current minification filter.
+    #[inline]
     pub fn minification_filter(&self) -> TextureMinificationFilter {
         self.minification_filter
     }
 
     /// Sets new magnification filter. It is used when texture is "stretching".
+    #[inline]
     pub fn set_magnification_filter(&mut self, filter: TextureMagnificationFilter) {
         self.magnification_filter = filter;
     }
 
     /// Returns current magnification filter.
+    #[inline]
     pub fn magnification_filter(&self) -> TextureMagnificationFilter {
         self.magnification_filter
     }
 
     /// Sets new S coordinate wrap mode.
+    #[inline]
     pub fn set_s_wrap_mode(&mut self, s_wrap_mode: TextureWrapMode) {
         self.s_wrap_mode = s_wrap_mode;
     }
 
     /// Returns current S coordinate wrap mode.
+    #[inline]
     pub fn s_wrap_mode(&self) -> TextureWrapMode {
         self.s_wrap_mode
     }
 
     /// Sets new T coordinate wrap mode.
+    #[inline]
     pub fn set_t_wrap_mode(&mut self, t_wrap_mode: TextureWrapMode) {
         self.t_wrap_mode = t_wrap_mode;
     }
 
     /// Returns current T coordinate wrap mode.
+    #[inline]
     pub fn t_wrap_mode(&self) -> TextureWrapMode {
         self.t_wrap_mode
     }
 
     /// Sets new R coordinate wrap mode.
+    #[inline]
     pub fn set_r_wrap_mode(&mut self, r_wrap_mode: TextureWrapMode) {
         self.r_wrap_mode = r_wrap_mode;
     }
 
     /// Returns current T coordinate wrap mode.
+    #[inline]
     pub fn r_wrap_mode(&self) -> TextureWrapMode {
         self.r_wrap_mode
     }
 
     /// Returns total mip count.
+    #[inline]
     pub fn mip_count(&self) -> u32 {
         self.mip_count
     }
 
     /// Returns texture kind.
+    #[inline]
     pub fn kind(&self) -> TextureKind {
         self.kind
     }
 
     /// Returns total amount of modifications done on the texture.
+    #[inline]
     pub fn modifications_count(&self) -> u64 {
         self.modifications_counter
     }
 
     /// Calculates current data hash.
+    #[inline]
     pub fn calculate_data_hash(&self) -> u64 {
         data_hash(&self.bytes.0)
     }
 
     /// Returns current pixel kind.
+    #[inline]
     pub fn pixel_kind(&self) -> TexturePixelKind {
         self.pixel_kind
+    }
+
+    /// Returns the index of the lowest defined mipmap level.
+    #[inline]
+    pub fn base_level(&self) -> usize {
+        self.base_level
+    }
+
+    /// Specifies the index of the lowest defined mipmap level. Keep in mind, that the texture data
+    /// should provide the actual mip map level defined by the provided value, otherwise the
+    /// rendering will be incorrect (probably just black on majority of implementations) and glitchy.
+    #[inline]
+    pub fn set_base_level(&mut self, base_level: usize) {
+        self.base_level = base_level;
+    }
+
+    /// Returns the index of the highest defined mipmap level.
+    #[inline]
+    pub fn max_level(&self) -> usize {
+        self.max_level
+    }
+
+    /// Sets the index of the highest defined mipmap level. Keep in mind, that the texture data
+    /// should provide the actual mip map level defined by the provided value, otherwise the
+    /// rendering will be incorrect (probably just black on majority of implementations) and glitchy.
+    #[inline]
+    pub fn set_max_level(&mut self, max_level: usize) {
+        self.max_level = max_level;
+    }
+
+    /// Returns the minimum level-of-detail parameter. See [`Self::set_min_lod`] for more info.
+    #[inline]
+    pub fn min_lod(&self) -> f32 {
+        self.min_lod
+    }
+
+    /// Sets the minimum level-of-detail parameter. This floating-point value limits the selection
+    /// of highest resolution mipmap (lowest mipmap level). The initial value is -1000.0.
+    #[inline]
+    pub fn set_min_lod(&mut self, min_lod: f32) {
+        self.min_lod = min_lod;
+    }
+
+    /// Returns the maximum level-of-detail parameter. See [`Self::set_max_lod`] for more info.
+    #[inline]
+    pub fn max_lod(&self) -> f32 {
+        self.max_lod
+    }
+
+    /// Sets the maximum level-of-detail parameter. This floating-point value limits the selection
+    /// of the lowest resolution mipmap (highest mipmap level). The initial value is 1000.
+    #[inline]
+    pub fn set_max_lod(&mut self, max_lod: f32) {
+        self.max_lod = max_lod;
+    }
+
+    /// Returns a fixed bias value that is to be added to the level-of-detail parameter for the
+    /// texture before texture sampling. See [`Self::set_lod_bias`] for more info.
+    #[inline]
+    pub fn lod_bias(&self) -> f32 {
+        self.lod_bias
+    }
+
+    /// Specifies a fixed bias value that is to be added to the level-of-detail parameter for the
+    /// texture before texture sampling. The specified value is added to the shader-supplied bias
+    /// value (if any) and subsequently clamped into the implementation-defined range
+    /// `−bias_max..bias_max`, where `bias_max` is the value that can be fetched from the current
+    /// graphics server. The initial value is 0.0.
+    #[inline]
+    pub fn set_lod_bias(&mut self, lod_bias: f32) {
+        self.lod_bias = lod_bias;
     }
 
     /// Returns current data as immutable slice.
@@ -1701,6 +1900,7 @@ impl Texture {
     }
 
     /// Returns data of the given mip level.
+    #[inline]
     pub fn mip_level_data(&self, mip: usize) -> &[u8] {
         let mip_begin = mip
             .checked_sub(1)
@@ -1730,6 +1930,7 @@ impl Texture {
     }
 
     /// Returns true if the texture is used as render target.
+    #[inline]
     pub fn is_render_target(&self) -> bool {
         self.is_render_target
     }
@@ -1738,17 +1939,20 @@ impl Texture {
     /// However real value passed to GPU will be clamped to maximum supported
     /// by current GPU. To disable anisotropic filtering set this to 1.0.
     /// Typical values are 2.0, 4.0, 8.0, 16.0.
+    #[inline]
     pub fn set_anisotropy_level(&mut self, anisotropy: f32) {
         self.anisotropy = anisotropy.max(1.0);
     }
 
     /// Returns current anisotropy level.
+    #[inline]
     pub fn anisotropy_level(&self) -> f32 {
         self.anisotropy
     }
 
     /// Returns a special reference holder that provides mutable access to content of the
     /// texture and automatically calculates hash of the data in its destructor.
+    #[inline]
     pub fn modify(&mut self) -> TextureDataRefMut<'_> {
         TextureDataRefMut { texture: self }
     }

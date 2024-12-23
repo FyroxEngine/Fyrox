@@ -128,6 +128,7 @@ impl Executor {
                 window_attributes,
                 vsync: true,
                 msaa_sample_count: None,
+                graphics_server_constructor: Default::default(),
             },
         )
     }

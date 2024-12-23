@@ -151,7 +151,7 @@ impl SettingsWindow {
             0,
             true,
             Default::default(),
-            200.0,
+            170.0,
         );
         let inspector = InspectorBuilder::new(WidgetBuilder::new())
             .with_context(context)

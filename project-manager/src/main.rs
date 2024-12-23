@@ -64,7 +64,7 @@ fn set_ui_scaling(ui: &UserInterface, scale: f32) {
 #[allow(clippy::unnecessary_to_owned)]
 fn main() {
     let mut window_attributes = WindowAttributes::default();
-    window_attributes.inner_size = Some(PhysicalSize::new(520, 562).into());
+    window_attributes.inner_size = Some(PhysicalSize::new(720, 520).into());
     window_attributes.resizable = true;
     window_attributes.title = "Fyrox Project Manager".to_string();
 
@@ -75,6 +75,7 @@ fn main() {
             window_attributes,
             vsync: true,
             msaa_sample_count: Some(2),
+            graphics_server_constructor: Default::default(),
         },
         resource_manager: ResourceManager::new(task_pool.clone()),
         serialization_context,
@@ -156,6 +157,21 @@ fn main() {
                                     format!("Unable to set frame size: {e:?}"),
                                 );
                             }
+
+                            let window = &engine.graphics_context.as_initialized_ref().window;
+
+                            let logical_size = size.to_logical(window.scale_factor());
+                            let ui = engine.user_interfaces.first_mut();
+                            ui.send_message(WidgetMessage::width(
+                                project_manager.root_grid,
+                                MessageDirection::ToWidget,
+                                logical_size.width,
+                            ));
+                            ui.send_message(WidgetMessage::height(
+                                project_manager.root_grid,
+                                MessageDirection::ToWidget,
+                                logical_size.height,
+                            ));
                         }
                         WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
                             let ui = engine.user_interfaces.first_mut();

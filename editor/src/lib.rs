@@ -216,7 +216,8 @@ pub fn load_texture_internal(data: &[u8]) -> Option<TextureResource> {
             data,
             TextureImportOptions::default()
                 .with_compression(CompressionOptions::NoCompression)
-                .with_minification_filter(TextureMinificationFilter::Linear),
+                .with_minification_filter(TextureMinificationFilter::LinearMipMapLinear)
+                .with_lod_bias(-1.0),
         )
         .ok()?;
 
@@ -669,6 +670,7 @@ impl Editor {
             window_attributes,
             vsync: true,
             msaa_sample_count: Some(4),
+            graphics_server_constructor: Default::default(),
         };
 
         let serialization_context = Arc::new(SerializationContext::new());

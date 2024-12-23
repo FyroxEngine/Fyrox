@@ -143,29 +143,40 @@ impl GlyphMetrics<'_> {
             _ => self.font.glyph_advance(c, self.size),
         }
     }
-    fn glyph(&mut self, c: char) -> Option<&FontGlyph> {
-        self.font.glyph(c, self.size)
+    fn glyph(&mut self, c: char, super_sampling_scale: f32) -> Option<&FontGlyph> {
+        self.font.glyph(c, self.size * super_sampling_scale)
     }
 }
 
-fn build_glyph(metrics: &mut GlyphMetrics, x: f32, y: f32, character: char) -> (TextGlyph, f32) {
+fn build_glyph(
+    metrics: &mut GlyphMetrics,
+    x: f32,
+    y: f32,
+    character: char,
+    super_sampling_scale: f32,
+) -> (TextGlyph, f32) {
     let ascender = metrics.ascender();
     let font_size = metrics.size;
-    match metrics.glyph(character) {
+
+    // Request larger glyph with super sampling scaling.
+    match metrics.glyph(character, super_sampling_scale) {
         Some(glyph) => {
+            // Discard super sampling scaling in the produced glyphs, because we're interested only
+            // in larger texture size, not the "physical" size.
+            let k = 1.0 / super_sampling_scale;
             // Insert glyph
             let rect = Rect::new(
-                x + glyph.left.floor(),
-                y + ascender.floor() - glyph.top.floor() - glyph.bitmap_height as f32,
-                glyph.bitmap_width as f32,
-                glyph.bitmap_height as f32,
+                x + glyph.left.floor() * k,
+                y + ascender.floor() - glyph.top.floor() * k - (glyph.bitmap_height as f32 * k),
+                glyph.bitmap_width as f32 * k,
+                glyph.bitmap_height as f32 * k,
             );
             let text_glyph = TextGlyph {
                 bounds: rect,
                 tex_coords: glyph.tex_coords,
                 atlas_page_index: glyph.page_index,
             };
-            (text_glyph, glyph.advance)
+            (text_glyph, glyph.advance * k)
         }
         None => {
             // Insert invalid symbol
@@ -221,6 +232,9 @@ pub struct FormattedText {
     constraint: Vector2<f32>,
     wrap: InheritableVariable<WrapMode>,
     mask_char: InheritableVariable<Option<char>>,
+    #[visit(skip)]
+    #[reflect(hidden)]
+    pub(crate) super_sampling_scale: f32,
     #[visit(rename = "Height")]
     font_size: InheritableVariable<StyledProperty<f32>>,
     pub shadow: InheritableVariable<bool>,
@@ -459,6 +473,10 @@ impl FormattedText {
         &self.font_size
     }
 
+    pub fn super_sampled_font_size(&self) -> f32 {
+        **self.font_size * self.super_sampling_scale
+    }
+
     pub fn set_font_size(&mut self, font_size: StyledProperty<f32>) -> &mut Self {
         self.font_size.set_value_and_mark_modified(font_size);
         self
@@ -498,6 +516,11 @@ impl FormattedText {
 
     pub fn brush(&self) -> Brush {
         (*self.brush).clone()
+    }
+
+    pub fn set_super_sampling_scale(&mut self, scale: f32) -> &mut Self {
+        self.super_sampling_scale = scale;
+        self
     }
 
     pub fn set_constraint(&mut self, constraint: Vector2<f32>) -> &mut Self {
@@ -683,7 +706,8 @@ impl FormattedText {
             let mut x = line.x_offset;
             if let Some(mask) = *self.mask_char {
                 for c in std::iter::repeat::<char>(mask).take(line.len()) {
-                    let (glyph, advance) = build_glyph(&mut metrics, x, y, c);
+                    let (glyph, advance) =
+                        build_glyph(&mut metrics, x, y, c, self.super_sampling_scale);
                     self.glyphs.push(glyph);
                     x += advance;
                 }
@@ -694,7 +718,8 @@ impl FormattedText {
                             x += metrics.newline_advance();
                         }
                         _ => {
-                            let (glyph, advance) = build_glyph(&mut metrics, x, y, c);
+                            let (glyph, advance) =
+                                build_glyph(&mut metrics, x, y, c, self.super_sampling_scale);
                             self.glyphs.push(glyph);
                             x += advance;
                         }
@@ -747,6 +772,7 @@ pub struct FormattedTextBuilder {
     shadow_dilation: f32,
     shadow_offset: Vector2<f32>,
     font_size: StyledProperty<f32>,
+    super_sampling_scaling: f32,
 }
 
 impl FormattedTextBuilder {
@@ -766,6 +792,7 @@ impl FormattedTextBuilder {
             shadow_dilation: 1.0,
             shadow_offset: Vector2::new(1.0, 1.0),
             font_size: 14.0f32.into(),
+            super_sampling_scaling: 1.0,
         }
     }
 
@@ -834,6 +861,12 @@ impl FormattedTextBuilder {
         self
     }
 
+    /// Sets desired super sampling scaling.
+    pub fn with_super_sampling_scaling(mut self, scaling: f32) -> Self {
+        self.super_sampling_scaling = scaling;
+        self
+    }
+
     pub fn build(self) -> FormattedText {
         FormattedText {
             text: self.text.chars().collect::<Vec<char>>().into(),
@@ -845,6 +878,7 @@ impl FormattedTextBuilder {
             constraint: self.constraint,
             wrap: self.wrap.into(),
             mask_char: self.mask_char.into(),
+            super_sampling_scale: self.super_sampling_scaling,
             font_size: self.font_size.into(),
             shadow: self.shadow.into(),
             shadow_brush: self.shadow_brush.into(),

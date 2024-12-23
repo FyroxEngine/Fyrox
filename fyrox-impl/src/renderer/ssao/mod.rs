@@ -39,7 +39,6 @@ use crate::{
             gpu_program::{GpuProgram, UniformLocation},
             gpu_texture::{
                 GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind,
-                WrapMode,
             },
             server::GraphicsServer,
             uniform::StaticUniformBuffer,
@@ -164,12 +163,8 @@ impl ScreenSpaceAmbientOcclusionRenderer {
                     pixel_kind: PixelKind::RGB8,
                     min_filter: MinificationFilter::Nearest,
                     mag_filter: MagnificationFilter::Nearest,
-                    mip_count: 1,
-                    s_wrap_mode: WrapMode::Repeat,
-                    t_wrap_mode: WrapMode::Repeat,
-                    r_wrap_mode: WrapMode::Repeat,
-                    anisotropy: 1.0,
                     data: Some(&pixels),
+                    ..Default::default()
                 })?
             },
             radius: 0.5,

@@ -1339,6 +1339,19 @@ impl Widget {
         &self.visual_transform
     }
 
+    /// Returns scaling along both axes.
+    #[inline]
+    pub fn visual_scaling(&self) -> Vector2<f32> {
+        self.visual_transform
+            .transform_vector(&Vector2::new(1.0, 1.0))
+    }
+
+    /// Returns max uniform scaling of both axes.
+    #[inline]
+    pub fn visual_max_scaling(&self) -> f32 {
+        self.visual_scaling().max()
+    }
+
     /// Returns current render transform of the widget.
     #[inline]
     pub fn render_transform(&self) -> &Matrix3<f32> {

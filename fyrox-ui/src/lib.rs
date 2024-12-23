@@ -1195,6 +1195,7 @@ impl UserInterface {
                 };
 
                 widget.visual_transform = visual_transform;
+                widget.on_visual_transform_changed();
             }
         }
     }
