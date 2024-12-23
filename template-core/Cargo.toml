@@ -11,7 +11,7 @@ include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md"]
 homepage = "https://fyrox.rs"
 repository = "https://github.com/FyroxEngine/Fyrox"
 readme = "README.md"
-rust-version = "1.72"
+rust-version = "1.80"
 
 [dependencies]
 uuid = { version = "1", features = ["v4"] }

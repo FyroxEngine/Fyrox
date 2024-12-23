@@ -12,7 +12,7 @@ homepage = "https://fyrox.rs"
 documentation = "https://docs.rs/fyrox-animation"
 repository = "https://github.com/FyroxEngine/Fyrox"
 readme = "README.md"
-rust-version = "1.72"
+rust-version = "1.80"
 
 [dependencies]
 fyrox-core = { version = "0.28.1", path = "../fyrox-core" }
