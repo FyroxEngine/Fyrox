@@ -272,6 +272,8 @@ pub trait Control:
     /// for [`DrawingContext`] for more info.
     fn draw(&self, #[allow(unused_variables)] drawing_context: &mut DrawingContext) {}
 
+    fn on_visual_transform_changed(&self) {}
+
     /// The same as [`Self::draw`], but it runs after all descendant widgets are rendered.
     fn post_draw(&self, #[allow(unused_variables)] drawing_context: &mut DrawingContext) {}
 

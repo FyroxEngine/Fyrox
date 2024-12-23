@@ -354,6 +354,7 @@ impl Control for Text {
     fn measure_override(&self, _: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         self.formatted_text
             .borrow_mut()
+            .set_super_sampling_scale(self.visual_max_scaling())
             .set_constraint(available_size)
             .build()
     }
@@ -368,6 +369,13 @@ impl Control for Text {
             bounds.position,
             &self.formatted_text.borrow(),
         );
+    }
+
+    fn on_visual_transform_changed(&self) {
+        self.formatted_text
+            .borrow_mut()
+            .set_super_sampling_scale(self.visual_max_scaling())
+            .build();
     }
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {

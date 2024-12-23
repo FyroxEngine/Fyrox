@@ -114,6 +114,11 @@ pub struct GlTexture {
     r_wrap_mode: WrapMode,
     anisotropy: f32,
     pixel_kind: PixelKind,
+    base_level: usize,
+    max_level: usize,
+    min_lod: f32,
+    max_lod: f32,
+    lod_bias: f32,
     // Force compiler to not implement Send and Sync, because OpenGL is not thread-safe.
     thread_mark: PhantomData<*const u8>,
 }
@@ -302,6 +307,46 @@ impl TempBinding {
             );
         }
     }
+
+    fn set_base_level(&mut self, level: usize) {
+        unsafe {
+            self.server
+                .gl
+                .tex_parameter_i32(self.target, glow::TEXTURE_BASE_LEVEL, level as i32);
+        }
+    }
+
+    fn set_max_level(&mut self, level: usize) {
+        unsafe {
+            self.server
+                .gl
+                .tex_parameter_i32(self.target, glow::TEXTURE_MAX_LEVEL, level as i32);
+        }
+    }
+
+    fn set_min_lod(&mut self, min_lod: f32) {
+        unsafe {
+            self.server
+                .gl
+                .tex_parameter_f32(self.target, glow::TEXTURE_MIN_LOD, min_lod);
+        }
+    }
+
+    fn set_max_lod(&mut self, max_lod: f32) {
+        unsafe {
+            self.server
+                .gl
+                .tex_parameter_f32(self.target, glow::TEXTURE_MAX_LOD, max_lod);
+        }
+    }
+
+    fn set_lod_bias(&mut self, bias: f32) {
+        unsafe {
+            self.server
+                .gl
+                .tex_parameter_f32(self.target, glow::TEXTURE_LOD_BIAS, bias);
+        }
+    }
 }
 
 impl Drop for TempBinding {
@@ -328,8 +373,20 @@ impl GlTexture {
     /// smaller than previous.
     pub fn new(
         server: &GlGraphicsServer,
-        desc: GpuTextureDescriptor,
+        mut desc: GpuTextureDescriptor,
     ) -> Result<Self, FrameworkError> {
+        // Clamp the mip level values to sensible range to prevent weird behavior.
+        let actual_max_level = desc.mip_count.saturating_sub(1);
+        if desc.max_level > actual_max_level {
+            desc.max_level = actual_max_level;
+        }
+        if desc.base_level > desc.max_level {
+            desc.base_level = desc.max_level;
+        }
+        if desc.base_level > actual_max_level {
+            desc.base_level = actual_max_level;
+        }
+
         unsafe {
             let texture = server.gl.create_texture()?;
 
@@ -344,6 +401,11 @@ impl GlTexture {
                 r_wrap_mode: desc.r_wrap_mode,
                 anisotropy: desc.anisotropy,
                 pixel_kind: desc.pixel_kind,
+                base_level: desc.base_level,
+                max_level: desc.max_level,
+                min_lod: desc.min_lod,
+                max_lod: desc.max_lod,
+                lod_bias: desc.lod_bias,
                 thread_mark: PhantomData,
             };
 
@@ -356,6 +418,11 @@ impl GlTexture {
             binding.set_wrap(Coordinate::T, desc.t_wrap_mode);
             binding.set_wrap(Coordinate::R, desc.r_wrap_mode);
             binding.set_anisotropy(desc.anisotropy);
+            binding.set_base_level(desc.base_level);
+            binding.set_max_level(desc.max_level);
+            binding.set_min_lod(desc.min_lod);
+            binding.set_max_lod(desc.max_lod);
+            binding.set_lod_bias(desc.lod_bias);
 
             Ok(result)
         }
@@ -528,16 +595,11 @@ impl GpuTexture for GlTexture {
         self.kind = kind;
         self.pixel_kind = pixel_kind;
 
-        let temp_binding = self.make_temp_binding();
+        let mut temp_binding = self.make_temp_binding();
+        temp_binding.set_max_level(mip_count.saturating_sub(1));
         let target = kind.gl_texture_target();
 
         unsafe {
-            temp_binding.server.gl.tex_parameter_i32(
-                target,
-                glow::TEXTURE_MAX_LEVEL,
-                mip_count as i32 - 1,
-            );
-
             let PixelDescriptor {
                 data_type,
                 format,
@@ -815,5 +877,50 @@ impl GpuTexture for GlTexture {
 
     fn pixel_kind(&self) -> PixelKind {
         self.pixel_kind
+    }
+
+    fn set_base_level(&mut self, level: usize) {
+        self.make_temp_binding().set_base_level(level);
+        self.base_level = level;
+    }
+
+    fn base_level(&self) -> usize {
+        self.base_level
+    }
+
+    fn set_max_level(&mut self, level: usize) {
+        self.make_temp_binding().set_max_level(level);
+        self.max_level = level;
+    }
+
+    fn max_level(&self) -> usize {
+        self.max_level
+    }
+
+    fn set_min_lod(&mut self, min_lod: f32) {
+        self.make_temp_binding().set_min_lod(min_lod);
+        self.min_lod = min_lod;
+    }
+
+    fn min_lod(&self) -> f32 {
+        self.min_lod
+    }
+
+    fn set_max_lod(&mut self, max_lod: f32) {
+        self.make_temp_binding().set_max_lod(max_lod);
+        self.max_lod = max_lod;
+    }
+
+    fn max_lod(&self) -> f32 {
+        self.max_lod
+    }
+
+    fn set_lod_bias(&mut self, bias: f32) {
+        self.make_temp_binding().set_lod_bias(bias);
+        self.lod_bias = bias;
+    }
+
+    fn lod_bias(&self) -> f32 {
+        self.lod_bias
     }
 }

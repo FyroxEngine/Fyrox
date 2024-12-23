@@ -24,8 +24,10 @@
 //! OS file selector.
 
 use crate::{
-    core::pool::Handle,
-    core::{reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
+    core::{
+        parking_lot::Mutex, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
+        uuid_provider, visitor::prelude::*,
+    },
     define_constructor,
     file_browser::menu::ItemContextMenu,
     grid::{Column, GridBuilder, Row},
@@ -38,6 +40,11 @@ use crate::{
     BuildContext, Control, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use core::time;
+use fyrox_graph::{
+    constructor::{ConstructorProvider, GraphNodeConstructor},
+    BaseSceneGraph,
+};
+use notify::Watcher;
 use std::{
     borrow::BorrowMut,
     cmp::Ordering,
@@ -51,18 +58,15 @@ use std::{
     },
     thread,
 };
+#[cfg(not(target_arch = "wasm32"))]
+use sysinfo::{DiskExt, RefreshKind, SystemExt};
 
 mod menu;
 mod selector;
 
-use fyrox_core::parking_lot::Mutex;
-use fyrox_core::uuid_provider;
-use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
-use fyrox_graph::BaseSceneGraph;
-use notify::Watcher;
+use crate::button::{ButtonBuilder, ButtonMessage};
+use crate::utils::make_simple_tooltip;
 pub use selector::*;
-#[cfg(not(target_arch = "wasm32"))]
-use sysinfo::{DiskExt, RefreshKind, SystemExt};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum FileBrowserMessage {
@@ -71,6 +75,7 @@ pub enum FileBrowserMessage {
     Filter(Option<Filter>),
     Add(PathBuf),
     Remove(PathBuf),
+    FocusCurrentPath,
     Rescan,
     Drop {
         dropped: Handle<UiNode>,
@@ -88,6 +93,7 @@ impl FileBrowserMessage {
     define_constructor!(FileBrowserMessage:Add => fn add(PathBuf), layout: false);
     define_constructor!(FileBrowserMessage:Remove => fn remove(PathBuf), layout: false);
     define_constructor!(FileBrowserMessage:Rescan => fn rescan(), layout: false);
+    define_constructor!(FileBrowserMessage:FocusCurrentPath => fn focus_current_path(), layout: false);
     define_constructor!(FileBrowserMessage:Drop => fn drop(
         dropped: Handle<UiNode>,
         path_item: Handle<UiNode>,
@@ -132,6 +138,8 @@ pub enum FileBrowserMode {
 pub struct FileBrowser {
     pub widget: Widget,
     pub tree_root: Handle<UiNode>,
+    pub home_dir: Handle<UiNode>,
+    pub desktop_dir: Handle<UiNode>,
     pub path_text: Handle<UiNode>,
     pub scroll_viewer: Handle<UiNode>,
     pub path: PathBuf,
@@ -171,6 +179,8 @@ impl Clone for FileBrowser {
         Self {
             widget: self.widget.clone(),
             tree_root: self.tree_root,
+            home_dir: self.home_dir,
+            desktop_dir: self.desktop_dir,
             path_text: self.path_text,
             scroll_viewer: self.scroll_viewer,
             path: self.path.clone(),
@@ -381,6 +391,24 @@ impl Control for FileBrowser {
                         }
                     }
                     FileBrowserMessage::Rescan | FileBrowserMessage::Drop { .. } => (),
+                    FileBrowserMessage::FocusCurrentPath => {
+                        if let Ok(canonical_path) = self.path.canonicalize() {
+                            let item = find_tree(self.tree_root, &canonical_path, ui);
+                            if item.is_some() {
+                                // Select item of new path.
+                                ui.send_message(TreeRootMessage::select(
+                                    self.tree_root,
+                                    MessageDirection::ToWidget,
+                                    vec![item],
+                                ));
+                                ui.send_message(ScrollViewerMessage::bring_into_view(
+                                    self.scroll_viewer,
+                                    MessageDirection::ToWidget,
+                                    item,
+                                ));
+                            }
+                        }
+                    }
                 }
             }
         } else if let Some(TextMessage::Text(txt)) = message.data::<TextMessage>() {
@@ -499,6 +527,34 @@ impl Control for FileBrowser {
                                 path,
                             ));
                         }
+                    }
+                }
+            }
+        } else if let Some(ButtonMessage::Click) = message.data() {
+            if message.direction() == MessageDirection::FromWidget {
+                #[cfg(not(target_arch = "wasm32"))]
+                if message.destination() == self.desktop_dir {
+                    let user_dirs = directories::UserDirs::new();
+                    if let Some(desktop_dir) =
+                        user_dirs.as_ref().and_then(|dirs| dirs.desktop_dir())
+                    {
+                        ui.send_message(FileBrowserMessage::path(
+                            self.handle,
+                            MessageDirection::ToWidget,
+                            desktop_dir.to_path_buf(),
+                        ));
+                    }
+                }
+
+                #[cfg(not(target_arch = "wasm32"))]
+                if message.destination() == self.home_dir {
+                    let user_dirs = directories::UserDirs::new();
+                    if let Some(home_dir) = user_dirs.as_ref().map(|dirs| dirs.home_dir()) {
+                        ui.send_message(FileBrowserMessage::path(
+                            self.handle,
+                            MessageDirection::ToWidget,
+                            home_dir.to_path_buf(),
+                        ));
                     }
                 }
             }
@@ -861,7 +917,7 @@ impl FileBrowserBuilder {
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
-            path: Default::default(),
+            path: "./".into(),
             filter: None,
             root: None,
             mode: FileBrowserMode::Open,
@@ -944,6 +1000,8 @@ impl FileBrowserBuilder {
         })
         .build(ctx);
 
+        let home_dir;
+        let desktop_dir;
         let grid = GridBuilder::new(
             WidgetBuilder::new()
                 .with_child(
@@ -951,24 +1009,37 @@ impl FileBrowserBuilder {
                         WidgetBuilder::new()
                             .with_visibility(self.show_path)
                             .with_height(24.0)
-                            .with_child(
-                                TextBuilder::new(
+                            .with_child({
+                                home_dir = ButtonBuilder::new(
                                     WidgetBuilder::new()
-                                        .on_row(0)
                                         .on_column(0)
-                                        .with_vertical_alignment(VerticalAlignment::Center)
+                                        .with_width(24.0)
+                                        .with_tooltip(make_simple_tooltip(ctx, "Home Folder"))
                                         .with_margin(Thickness::uniform(1.0)),
                                 )
-                                .with_text("Path:")
-                                .build(ctx),
-                            )
+                                .with_text("H")
+                                .build(ctx);
+                                home_dir
+                            })
+                            .with_child({
+                                desktop_dir = ButtonBuilder::new(
+                                    WidgetBuilder::new()
+                                        .on_column(1)
+                                        .with_width(24.0)
+                                        .with_tooltip(make_simple_tooltip(ctx, "Desktop Folder"))
+                                        .with_margin(Thickness::uniform(1.0)),
+                                )
+                                .with_text("D")
+                                .build(ctx);
+                                desktop_dir
+                            })
                             .with_child({
                                 path_text = TextBoxBuilder::new(
                                     WidgetBuilder::new()
                                         // Disable path if we're in Save mode
                                         .with_enabled(matches!(self.mode, FileBrowserMode::Open))
                                         .on_row(0)
-                                        .on_column(1)
+                                        .on_column(2)
                                         .with_margin(Thickness::uniform(2.0)),
                                 )
                                 .with_text_commit_mode(TextCommitMode::Immediate)
@@ -979,7 +1050,8 @@ impl FileBrowserBuilder {
                             }),
                     )
                     .add_row(Row::stretch())
-                    .add_column(Column::strict(80.0))
+                    .add_column(Column::auto())
+                    .add_column(Column::auto())
                     .add_column(Column::stretch())
                     .build(ctx),
                 )
@@ -1056,6 +1128,8 @@ impl FileBrowserBuilder {
             fs_receiver: Some(fs_receiver),
             widget,
             tree_root,
+            home_dir,
+            desktop_dir,
             path_text,
             path: match self.mode {
                 FileBrowserMode::Open => self.path,

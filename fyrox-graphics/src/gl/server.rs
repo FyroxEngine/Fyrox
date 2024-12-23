@@ -1152,14 +1152,14 @@ impl GraphicsServer for GlGraphicsServer {
     }
 
     fn capabilities(&self) -> ServerCapabilities {
+        let gl = &self.gl;
         unsafe {
             ServerCapabilities {
-                max_uniform_block_size: self.gl.get_parameter_i32(glow::MAX_UNIFORM_BLOCK_SIZE)
-                    as usize,
-                uniform_buffer_offset_alignment: self
-                    .gl
+                max_uniform_block_size: gl.get_parameter_i32(glow::MAX_UNIFORM_BLOCK_SIZE) as usize,
+                uniform_buffer_offset_alignment: gl
                     .get_parameter_i32(glow::UNIFORM_BUFFER_OFFSET_ALIGNMENT)
                     as usize,
+                max_lod_bias: gl.get_parameter_f32(glow::MAX_TEXTURE_LOD_BIAS),
             }
         }
     }

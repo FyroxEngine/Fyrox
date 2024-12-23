@@ -953,7 +953,9 @@ impl DrawingContext {
                         CommandTexture::Font {
                             font: font.clone(),
                             page_index: current_page_index,
-                            height: FontHeight::from(**formatted_text.font_size()),
+                            // Use font size scaled by super sampling scaling to pick correct atlas
+                            // page.
+                            height: FontHeight::from(formatted_text.super_sampled_font_size()),
                         },
                         None,
                     );
@@ -980,7 +982,9 @@ impl DrawingContext {
                 CommandTexture::Font {
                     font: font.clone(),
                     page_index: current_page_index,
-                    height: FontHeight::from(**formatted_text.font_size()),
+                    // Use font size scaled by super sampling scaling to pick correct atlas
+                    // page.
+                    height: FontHeight::from(formatted_text.super_sampled_font_size()),
                 },
                 None,
             );

@@ -383,6 +383,38 @@ pub struct GpuTextureDescriptor<'a> {
     pub r_wrap_mode: WrapMode,
     pub anisotropy: f32,
     pub data: Option<&'a [u8]>,
+    pub base_level: usize,
+    pub max_level: usize,
+    pub min_lod: f32,
+    pub max_lod: f32,
+    pub lod_bias: f32,
+}
+
+impl Default for GpuTextureDescriptor<'_> {
+    // WARNING: Do NOT change these default values. This will affect a lot of places in the engine
+    // and may potentially lead to weird behavior!
+    fn default() -> Self {
+        Self {
+            kind: GpuTextureKind::Rectangle {
+                width: 1,
+                height: 1,
+            },
+            pixel_kind: PixelKind::RGBA8,
+            min_filter: Default::default(),
+            mag_filter: Default::default(),
+            mip_count: 1,
+            s_wrap_mode: Default::default(),
+            t_wrap_mode: Default::default(),
+            r_wrap_mode: Default::default(),
+            anisotropy: 1.0,
+            data: None,
+            base_level: 0,
+            max_level: 1000,
+            min_lod: -1000.0,
+            max_lod: 1000.0,
+            lod_bias: 0.0,
+        }
+    }
 }
 
 pub trait GpuTexture: Any {
@@ -408,6 +440,16 @@ pub trait GpuTexture: Any {
     fn read_pixels(&self) -> Vec<u8>;
     fn kind(&self) -> GpuTextureKind;
     fn pixel_kind(&self) -> PixelKind;
+    fn set_base_level(&mut self, level: usize);
+    fn base_level(&self) -> usize;
+    fn set_max_level(&mut self, level: usize);
+    fn max_level(&self) -> usize;
+    fn set_min_lod(&mut self, min_lod: f32);
+    fn min_lod(&self) -> f32;
+    fn set_max_lod(&mut self, max_lod: f32);
+    fn max_lod(&self) -> f32;
+    fn set_lod_bias(&mut self, bias: f32);
+    fn lod_bias(&self) -> f32;
 }
 
 impl dyn GpuTexture {

@@ -59,6 +59,11 @@ fn create_gpu_texture(
             r_wrap_mode: texture.r_wrap_mode().into(),
             anisotropy: texture.anisotropy_level(),
             data: Some(texture.data()),
+            base_level: texture.base_level(),
+            max_level: texture.max_level(),
+            min_lod: texture.min_lod(),
+            max_lod: texture.max_lod(),
+            lod_bias: texture.lod_bias(),
         })
         .map(|gpu_texture| TextureRenderData {
             gpu_texture,

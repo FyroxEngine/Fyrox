@@ -91,7 +91,8 @@ pub fn load_image(data: &[u8]) -> Option<UntypedResource> {
             data,
             TextureImportOptions::default()
                 .with_compression(CompressionOptions::NoCompression)
-                .with_minification_filter(TextureMinificationFilter::Linear),
+                .with_minification_filter(TextureMinificationFilter::LinearMipMapLinear)
+                .with_lod_bias(-1.0),
         )
         .ok()?
         .into(),
