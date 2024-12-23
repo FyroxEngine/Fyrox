@@ -240,9 +240,12 @@ impl Control for Border {
                 None,
             );
         } else {
+            let thickness = self.stroke_thickness.left;
+            let half_thickness = thickness / 2.0;
+
             DrawingContext::push_rounded_rect_filled(
                 drawing_context,
-                &bounds,
+                &bounds.deflate(half_thickness, half_thickness),
                 **self.corner_radius,
                 16,
             );
@@ -253,12 +256,7 @@ impl Control for Border {
                 None,
             );
 
-            drawing_context.push_rounded_rect(
-                &bounds,
-                self.stroke_thickness.left,
-                **self.corner_radius,
-                16,
-            );
+            drawing_context.push_rounded_rect(&bounds, thickness, **self.corner_radius, 16);
             drawing_context.commit(
                 self.clip_bounds(),
                 self.widget.foreground(),
