@@ -51,18 +51,41 @@ use std::{
 
 pub const MANIFEST_PATH_VAR: &str = "%MANIFEST_PATH%";
 
-static CONFIG_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
-    let config_dir = ProjectDirs::from("", "Fyrox", "Fyrox Project Manager")
+pub static PROJECT_DIRS: LazyLock<Option<ProjectDirs>> =
+    LazyLock::new(|| ProjectDirs::from("", "Fyrox", "Fyrox Project Manager"));
+
+pub static CONFIG_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
+    let config_dir = PROJECT_DIRS
+        .as_ref()
         .map(|dirs| dirs.config_dir().to_path_buf())
         .unwrap_or_else(|| {
             eprintln!("Unable to fetch project dirs! Using current folder instead...");
             PathBuf::from("./")
         });
-    if let Err(err) = std::fs::create_dir_all(&config_dir) {
-        eprintln!("Unable to create config dir: {err:?}",);
+    if !config_dir.exists() {
+        if let Err(err) = std::fs::create_dir_all(&config_dir) {
+            eprintln!("Unable to create config dir: {err:?}",);
+        }
     }
     println!("Config dir: {:?}", config_dir);
     config_dir
+});
+
+pub static DATA_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
+    let data_dir = PROJECT_DIRS
+        .as_ref()
+        .map(|dirs| dirs.data_dir().to_path_buf())
+        .unwrap_or_else(|| {
+            eprintln!("Unable to fetch project dirs! Using current folder instead...");
+            PathBuf::from("./")
+        });
+    if !data_dir.exists() {
+        if let Err(err) = std::fs::create_dir_all(&data_dir) {
+            eprintln!("Unable to create data dir: {err:?}",);
+        }
+    }
+    println!("Data dir: {:?}", data_dir);
+    data_dir
 });
 
 #[derive(Default, Serialize, Deserialize, Reflect, Debug)]
