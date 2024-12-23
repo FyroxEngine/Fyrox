@@ -18,35 +18,31 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use std::{fmt::Display, sync::Arc};
-
+use brush::TileMapBrushResource;
 use fyrox::{
     core::algebra::Vector2,
     gui::{
-        grid::SizeMode, stack_panel::StackPanelBuilder, text::TextBuilder,
-        utils::make_dropdown_list_option, window::Window,
+        grid::SizeMode,
+        stack_panel::StackPanelBuilder,
+        text::{TextBuilder, TextMessage},
+        window::Window,
     },
     scene::tilemap::{tileset::TileSet, TileResource, *},
 };
 
 use crate::{
     asset::item::AssetItem,
-    command::{Command, CommandGroup, SetPropertyCommand},
     fyrox::{
-        asset::untyped::UntypedResource,
         core::color::Color,
-        core::{parking_lot::Mutex, pool::Handle, TypeUuidProvider, Uuid},
-        fxhash::FxHashSet,
-        graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
+        core::pool::Handle,
+        graph::{BaseSceneGraph, SceneGraph},
         gui::{
             border::BorderBuilder,
-            button::{Button, ButtonBuilder, ButtonMessage},
-            decorator::{DecoratorBuilder, DecoratorMessage},
-            dropdown_list::{DropdownListBuilder, DropdownListMessage},
+            brush::Brush,
+            button::{Button, ButtonMessage},
+            decorator::DecoratorMessage,
             grid::{Column, GridBuilder, Row},
-            image::ImageBuilder,
             message::{MessageDirection, UiMessage},
-            utils::make_simple_tooltip,
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
             wrap_panel::WrapPanelBuilder,
@@ -55,70 +51,74 @@ use crate::{
         },
         scene::{
             node::Node,
-            tilemap::{brush::TileMapBrush, tileset::TileSetResource, TileMap},
+            tilemap::{brush::TileMapBrush, TileMap},
         },
     },
-    load_image,
     message::MessageSender,
     plugins::tilemap::{
-        palette::{PaletteMessage, PaletteWidget, PaletteWidgetBuilder, TileViewMessage},
-        DrawingMode, TileMapInteractionMode,
+        palette::{PaletteMessage, PaletteWidgetBuilder},
+        DrawingMode,
     },
-    scene::{commands::GameSceneContext, container::EditorSceneEntry},
-    Message,
+    scene::container::EditorSceneEntry,
 };
 
 use super::*;
 
-#[derive(Clone)]
-enum BrushEntry {
-    FromTileMap(TileResource),
-    FromOther(TileResource),
+const DEFAULT_PAGE: Vector2<i32> = Vector2::new(0, 0);
+
+fn highlight_tool_button(button: Handle<UiNode>, highlight: bool, ui: &UserInterface) {
+    let decorator = *ui.try_get_of_type::<Button>(button).unwrap().decorator;
+    ui.send_message(DecoratorMessage::select(
+        decorator,
+        MessageDirection::ToWidget,
+        highlight,
+    ));
 }
 
-impl BrushEntry {
-    #[inline]
-    fn resource(&self) -> &TileResource {
-        match self {
-            BrushEntry::FromTileMap(r) => r,
-            BrushEntry::FromOther(r) => r,
-        }
-    }
-}
-
-impl Display for BrushEntry {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            BrushEntry::FromTileMap(r) => {
-                if let Some(p) = r.path() {
-                    write!(f, "{} (from tile map)", p.to_string_lossy())
-                } else {
-                    write!(f, "Missing Path")
-                }
-            }
-            BrushEntry::FromOther(r) => {
-                if let Some(p) = r.path() {
-                    p.to_string_lossy().fmt(f)
-                } else {
-                    write!(f, "Missing Path")
-                }
-            }
-        }
-    }
+fn make_resource_chooser(
+    ctx: &mut BuildContext,
+    text: &str,
+    tooltip: &str,
+    tab_index: Option<usize>,
+    column: usize,
+) -> Handle<UiNode> {
+    ButtonBuilder::new(
+        WidgetBuilder::new()
+            .on_column(column)
+            .with_tab_index(tab_index)
+            .with_tooltip(make_simple_tooltip(ctx, tooltip))
+            .with_margin(Thickness::uniform(1.0)),
+    )
+    .with_back(
+        DecoratorBuilder::new(
+            BorderBuilder::new(
+                WidgetBuilder::new().with_foreground(ctx.style.property(Style::BRUSH_DARKER)),
+            )
+            .with_pad_by_corner_radius(false)
+            .with_corner_radius((4.0).into())
+            .with_stroke_thickness(Thickness::uniform(1.0).into()),
+        )
+        .with_selected_brush(ctx.style.property(Style::BRUSH_BRIGHT_BLUE))
+        .with_normal_brush(ctx.style.property(Style::BRUSH_LIGHT))
+        .with_hover_brush(ctx.style.property(Style::BRUSH_LIGHTER))
+        .with_pressed_brush(ctx.style.property(Style::BRUSH_LIGHTEST))
+        .build(ctx),
+    )
+    .with_text(text)
+    .build(ctx)
 }
 
 pub struct TileMapPanel {
     pub state: TileDrawStateRef,
-    pub brush: TileResource,
+    pub tile_resource: TileResource,
     pub window: Handle<UiNode>,
-    pub tile_set: Option<TileSetResource>,
-    brushes: Vec<BrushEntry>,
+    brush: Option<TileMapBrushResource>,
     tile_set_name: Handle<UiNode>,
     preview: Handle<UiNode>,
     pages: Handle<UiNode>,
     palette: Handle<UiNode>,
-    active_brush_selector: Handle<UiNode>,
-    drawing_modes_panel: Handle<UiNode>,
+    brush_button: Handle<UiNode>,
+    tile_set_button: Handle<UiNode>,
     draw_button: Handle<UiNode>,
     erase_button: Handle<UiNode>,
     flood_fill_button: Handle<UiNode>,
@@ -136,13 +136,6 @@ pub struct TileMapPanel {
 impl TileMapPanel {
     pub fn new(ctx: &mut BuildContext, state: TileDrawStateRef, sender: MessageSender) -> Self {
         let tile_set_name = TextBuilder::new(WidgetBuilder::new().on_row(0)).build(ctx);
-        let active_brush_selector = DropdownListBuilder::new(
-            WidgetBuilder::new()
-                .on_row(1)
-                .with_min_size(Vector2::new(250.0, 20.0))
-                .with_height(20.0),
-        )
-        .build(ctx);
         let preview = PanelPreviewBuilder::new(
             WidgetBuilder::new()
                 .with_margin(Thickness::uniform(1.0))
@@ -155,6 +148,7 @@ impl TileMapPanel {
             sender.clone(),
             state.clone(),
         )
+        .with_page(DEFAULT_PAGE)
         .with_kind(TilePaletteStage::Pages)
         .build(ctx);
         let palette = PaletteWidgetBuilder::new(
@@ -162,6 +156,7 @@ impl TileMapPanel {
             sender.clone(),
             state.clone(),
         )
+        .with_page(DEFAULT_PAGE)
         .with_kind(TilePaletteStage::Tiles)
         .build(ctx);
         let preview_frame = BorderBuilder::new(
@@ -173,7 +168,7 @@ impl TileMapPanel {
         .build(ctx);
         let pages_frame = BorderBuilder::new(
             WidgetBuilder::new()
-                .on_row(3)
+                .on_row(2)
                 .with_margin(Thickness::uniform(2.0))
                 .with_foreground(Brush::Solid(Color::BLACK).into())
                 .with_child(pages),
@@ -181,11 +176,24 @@ impl TileMapPanel {
         .build(ctx);
         let palette_frame = BorderBuilder::new(
             WidgetBuilder::new()
-                .on_row(4)
+                .on_row(3)
                 .with_margin(Thickness::uniform(2.0))
                 .with_foreground(Brush::Solid(Color::BLACK).into())
                 .with_child(palette),
         )
+        .build(ctx);
+
+        let brush_button = make_resource_chooser(ctx, "Brush", "Draw tiles from a brush.", None, 0);
+        let tile_set_button =
+            make_resource_chooser(ctx, "Tile Set", "Draw tiles from the tile set.", None, 1);
+        let resource_selector = GridBuilder::new(
+            WidgetBuilder::new()
+                .with_child(brush_button)
+                .with_child(tile_set_button),
+        )
+        .add_column(Column::stretch())
+        .add_column(Column::stretch())
+        .add_row(Row::auto())
         .build(ctx);
 
         let width = 20.0;
@@ -312,15 +320,15 @@ impl TileMapPanel {
 
         let toolbar = StackPanelBuilder::new(
             WidgetBuilder::new()
+                .with_child(resource_selector)
                 .with_child(drawing_modes_panel)
-                .with_child(modifiers_panel)
-                .with_child(active_brush_selector),
+                .with_child(modifiers_panel),
         )
         .build(ctx);
 
         let header = GridBuilder::new(
             WidgetBuilder::new()
-                .on_row(2)
+                .on_row(1)
                 .with_child(toolbar)
                 .with_child(preview_frame),
         )
@@ -332,12 +340,10 @@ impl TileMapPanel {
         let content = GridBuilder::new(
             WidgetBuilder::new()
                 .with_child(tile_set_name)
-                .with_child(active_brush_selector)
                 .with_child(header)
                 .with_child(pages_frame)
                 .with_child(palette_frame),
         )
-        .add_row(Row::auto())
         .add_row(Row::auto())
         .add_row(Row::auto())
         .add_row(Row::stretch())
@@ -353,16 +359,15 @@ impl TileMapPanel {
 
         Self {
             state,
-            tile_set: None,
-            brush: TileResource::Empty,
-            brushes: Vec::new(),
+            brush: None,
+            tile_resource: TileResource::Empty,
             window,
             tile_set_name,
             preview,
             pages,
             palette,
-            active_brush_selector,
-            drawing_modes_panel,
+            brush_button,
+            tile_set_button,
             draw_button,
             erase_button,
             flood_fill_button,
@@ -433,51 +438,94 @@ impl TileMapPanel {
         ));
     }
 
-    pub fn add_brush(&mut self, brush: TileResource, _ui: &mut UserInterface) {
-        self.brushes.push(BrushEntry::FromOther(brush));
-    }
-
-    pub fn set_tile_map(&mut self, tile_map: &TileMap, ui: &mut UserInterface) {
-        // TODO
-    }
-
     pub fn set_resource(&mut self, resource: TileResource, ui: &mut UserInterface) {
-        self.brush = resource;
+        // Update the current brush based upon the new resource.
+        match &resource {
+            // An empty resource has no brush.
+            TileResource::Empty => self.brush = None,
+            // A tile set has no brush, but if this is the tile set of our current brush
+            // then keep the current brush since it meant to be used with given resource.
+            TileResource::TileSet(tile_set) => {
+                if let Some(brush) = &self.brush {
+                    if brush.data_ref().tile_set.as_ref() != Some(tile_set) {
+                        self.brush = None;
+                    }
+                }
+            }
+            // We are being given a brush, so that becomes our brush.
+            TileResource::Brush(brush) => {
+                self.brush = Some(brush.clone());
+            }
+        }
+        self.tile_resource = resource.clone();
+        self.sync_to_model(ui);
+        self.send_tile_resource(ui);
+    }
+
+    pub fn switch_to_brush(&mut self, ui: &mut UserInterface) {
+        if let Some(brush) = &self.brush {
+            self.tile_resource = TileResource::Brush(brush.clone());
+            self.sync_to_model(ui);
+            self.send_tile_resource(ui);
+        }
+    }
+
+    pub fn switch_to_tile_set(&mut self, ui: &mut UserInterface) {
+        let Some(brush) = &self.brush else {
+            return;
+        };
+        let brush = brush.data_ref();
+        let Some(tile_set) = brush.tile_set.clone() else {
+            return;
+        };
+        self.tile_resource = TileResource::TileSet(tile_set);
+        self.sync_to_model(ui);
+        self.send_tile_resource(ui);
+    }
+
+    fn send_tile_resource(&self, ui: &mut UserInterface) {
         ui.send_message(PaletteMessage::set_page(
             self.pages,
             MessageDirection::ToWidget,
-            self.brush.clone(),
-            None,
+            self.tile_resource.clone(),
+            Some(DEFAULT_PAGE),
         ));
         ui.send_message(PaletteMessage::set_page(
             self.palette,
             MessageDirection::ToWidget,
-            self.brush.clone(),
-            None,
+            self.tile_resource.clone(),
+            Some(DEFAULT_PAGE),
         ));
     }
 
+    pub fn is_brush(&self) -> bool {
+        self.tile_resource.is_brush()
+    }
+
+    pub fn is_tile_set(&self) -> bool {
+        self.tile_resource.is_tile_set()
+    }
+
+    pub fn has_brush(&self) -> bool {
+        self.brush.is_some()
+    }
+
     pub fn set_focus(&mut self, handle: TileDefinitionHandle, ui: &mut UserInterface) {
-        let mut state = self.state.lock_mut();
+        let mut state = self.state.lock_mut("set_focus");
         state.selection.source = SelectionSource::Widget(self.palette);
-        let tiles = state.selection_tiles_mut();
-        tiles.clear();
-        if let Some(handle) =
-            self.brush
-                .get_tile_handle(TilePaletteStage::Tiles, handle.page(), handle.tile())
-        {
-            tiles.insert(handle.tile(), handle);
-        }
+        let sel = state.selection_positions_mut();
+        sel.clear();
+        sel.insert(handle.tile());
         ui.send_message(PaletteMessage::set_page(
             self.pages,
             MessageDirection::ToWidget,
-            self.brush.clone(),
+            self.tile_resource.clone(),
             Some(handle.page()),
         ));
         ui.send_message(PaletteMessage::set_page(
             self.palette,
             MessageDirection::ToWidget,
-            self.brush.clone(),
+            self.tile_resource.clone(),
             Some(handle.page()),
         ));
         ui.send_message(PaletteMessage::center(
@@ -486,6 +534,11 @@ impl TileMapPanel {
             handle.page(),
         ));
         ui.send_message(PaletteMessage::center(
+            self.palette,
+            MessageDirection::ToWidget,
+            handle.tile(),
+        ));
+        ui.send_message(PaletteMessage::select_one(
             self.palette,
             MessageDirection::ToWidget,
             handle.tile(),
@@ -500,66 +553,36 @@ impl TileMapPanel {
         ));
     }
 
-    fn make_brush_entries(&self, ctx: &mut BuildContext) -> Vec<Handle<UiNode>> {
-        let Some(tile_set) = &self.tile_set else {
-            return Vec::default();
-        };
-        let make = make_dropdown_list_option;
-        let mut tile_set_name: String = "tile set: ".into();
-        tile_set_name.push_str(tile_set.kind().to_string().as_str());
-        std::iter::once(make(ctx, tile_set_name.as_str()))
-            .chain(
-                self.brushes
-                    .iter()
-                    .map(|brush| make(ctx, &brush.to_string())),
-            )
-            .collect()
-    }
-
-    fn find_brush_index(&self, brush: &TileResource) -> Option<usize> {
-        self.brushes
-            .iter()
-            .position(|b| b.resource() == brush)
-            .map(|i| i + 1)
-    }
-
-    fn get_brush_at_index(&self, index: usize) -> Option<TileResource> {
-        if index == 0 {
-            Some(TileResource::TileSet(self.tile_set.clone()?))
-        } else {
-            self.brushes
-                .get(index - 1)
-                .map(BrushEntry::resource)
-                .cloned()
-        }
-    }
-
     fn handle_button(&mut self, button: Handle<UiNode>, ui: &mut UserInterface) {
         if button == self.draw_button {
-            self.state.lock_mut().drawing_mode = DrawingMode::Draw;
+            self.state.lock_mut("tool button").drawing_mode = DrawingMode::Draw;
         } else if button == self.erase_button {
-            self.state.lock_mut().drawing_mode = DrawingMode::Erase;
+            self.state.lock_mut("tool button").drawing_mode = DrawingMode::Erase;
         } else if button == self.flood_fill_button {
-            self.state.lock_mut().drawing_mode = DrawingMode::FloodFill;
+            self.state.lock_mut("tool button").drawing_mode = DrawingMode::FloodFill;
         } else if button == self.pick_button {
-            self.state.lock_mut().drawing_mode = DrawingMode::Pick;
+            self.state.lock_mut("tool button").drawing_mode = DrawingMode::Pick;
         } else if button == self.rect_fill_button {
-            self.state.lock_mut().drawing_mode = DrawingMode::RectFill;
+            self.state.lock_mut("tool button").drawing_mode = DrawingMode::RectFill;
         } else if button == self.nine_slice_button {
-            self.state.lock_mut().drawing_mode = DrawingMode::NineSlice;
+            self.state.lock_mut("tool button").drawing_mode = DrawingMode::NineSlice;
         } else if button == self.line_button {
-            self.state.lock_mut().drawing_mode = DrawingMode::Line;
+            self.state.lock_mut("tool button").drawing_mode = DrawingMode::Line;
         } else if button == self.random_button {
-            let mut state = self.state.lock_mut();
+            let mut state = self.state.lock_mut("tool_button");
             state.random_mode = !state.random_mode;
         } else if button == self.left_button {
-            self.state.lock_mut().stamp.rotate(1);
+            self.state.lock_mut("tool button").stamp.rotate(1);
         } else if button == self.right_button {
-            self.state.lock_mut().stamp.rotate(-1);
+            self.state.lock_mut("tool_button").stamp.rotate(-1);
         } else if button == self.flip_x_button {
-            self.state.lock_mut().stamp.x_flip();
+            self.state.lock_mut("tool_button").stamp.x_flip();
         } else if button == self.flip_y_button {
-            self.state.lock_mut().stamp.y_flip();
+            self.state.lock_mut("tool_button").stamp.y_flip();
+        } else if button == self.brush_button {
+            self.switch_to_brush(ui);
+        } else if button == self.tile_set_button {
+            self.switch_to_tile_set(ui);
         }
     }
 
@@ -567,10 +590,10 @@ impl TileMapPanel {
         mut self,
         message: &UiMessage,
         ui: &mut UserInterface,
-        tile_map_handle: Handle<Node>,
-        tile_map: Option<&TileMap>,
-        sender: &MessageSender,
-        editor_scene: Option<&mut EditorSceneEntry>,
+        _tile_map_handle: Handle<Node>,
+        _tile_map: Option<&TileMap>,
+        _sender: &MessageSender,
+        _editor_scene: Option<&mut EditorSceneEntry>,
     ) -> Option<Self> {
         if let Some(WindowMessage::Close) = message.data() {
             if message.destination() == self.window {
@@ -593,7 +616,7 @@ impl TileMapPanel {
             }
         } else if let Some(WidgetMessage::Drop(dropped)) = message.data() {
             if ui.is_node_child_of(message.destination(), self.window) {
-                let tile_res = if let Some(item) = ui.node(*dropped).cast::<AssetItem>() {
+                let tile_resource = if let Some(item) = ui.node(*dropped).cast::<AssetItem>() {
                     if let Some(brush) = item.resource::<TileMapBrush>() {
                         Some(TileResource::Brush(brush))
                     } else {
@@ -602,42 +625,45 @@ impl TileMapPanel {
                 } else {
                     None
                 };
-                if let Some(tile_res) = tile_res {
-                    self.add_brush(tile_res, ui);
-                }
-            }
-        } else if let Some(DropdownListMessage::SelectionChanged(Some(index))) = message.data() {
-            if message.destination() == self.active_brush_selector
-                && message.direction() == MessageDirection::FromWidget
-            {
-                if let Some(tile_map) = tile_map {
-                    if let Some(brush) = tile_map.brushes().get(*index) {
-                        sender.do_command(SetPropertyCommand::new(
-                            "active_brush".into(),
-                            Box::new(brush.clone()),
-                            move |ctx| {
-                                ctx.get_mut::<GameSceneContext>()
-                                    .scene
-                                    .graph
-                                    .node_mut(tile_map_handle)
-                            },
-                        ));
-                    }
+                if let Some(tile_resource) = tile_resource {
+                    self.set_resource(tile_resource, ui);
                 }
             }
         }
         Some(self)
     }
 
+    pub fn sync_to_model(&self, ui: &mut UserInterface) {
+        let name = if let Some(path) = self.tile_resource.path() {
+            path.to_string_lossy().into_owned()
+        } else {
+            "".into()
+        };
+        ui.send_message(TextMessage::text(
+            self.tile_set_name,
+            MessageDirection::ToWidget,
+            name,
+        ));
+        highlight_tool_button(self.brush_button, self.tile_resource.is_brush(), ui);
+        highlight_tool_button(self.tile_set_button, self.tile_resource.is_tile_set(), ui);
+        ui.send_message(WidgetMessage::enabled(
+            self.brush_button,
+            MessageDirection::ToWidget,
+            self.brush.is_some(),
+        ));
+        let has_tile_set = match &self.tile_resource {
+            TileResource::Empty => false,
+            TileResource::TileSet(_) => true,
+            TileResource::Brush(brush) => brush.data_ref().tile_set.is_some(),
+        };
+        ui.send_message(WidgetMessage::enabled(
+            self.tile_set_button,
+            MessageDirection::ToWidget,
+            has_tile_set,
+        ));
+        self.sync_to_state(ui);
+    }
     pub fn sync_to_state(&self, ui: &mut UserInterface) {
-        fn highlight_tool_button(button: Handle<UiNode>, highlight: bool, ui: &UserInterface) {
-            let decorator = *ui.try_get_of_type::<Button>(button).unwrap().decorator;
-            ui.send_message(DecoratorMessage::select(
-                decorator,
-                MessageDirection::ToWidget,
-                highlight,
-            ));
-        }
         fn highlight_all_except(
             button: Handle<UiNode>,
             buttons: &[Handle<UiNode>],
@@ -705,15 +731,6 @@ impl TileMapPanel {
         ui.send_message(PaletteMessage::sync_to_state(
             self.palette,
             MessageDirection::ToWidget,
-        ));
-    }
-
-    pub fn sync_to_model(&self, ui: &mut UserInterface, tile_map: &TileMap) {
-        let items = self.make_brush_entries(&mut ui.build_ctx());
-        ui.send_message(DropdownListMessage::items(
-            self.active_brush_selector,
-            MessageDirection::ToWidget,
-            items,
         ));
     }
 }

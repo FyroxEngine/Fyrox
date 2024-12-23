@@ -19,16 +19,11 @@
 // SOFTWARE.
 
 use super::*;
-use crate::{
-    core::{algebra::Vector2, color::Color, type_traits::prelude::*},
-    material::MaterialResource,
-};
+use crate::core::{algebra::Vector2, color::Color, type_traits::prelude::*};
 use fxhash::FxHashMap;
+use fyrox_core::log::Log;
 use std::ops::{Deref, DerefMut};
-use std::{
-    borrow::Cow,
-    collections::hash_map::{Entry, Keys},
-};
+use std::{borrow::Cow, collections::hash_map::Entry};
 
 struct BresenhamLineIter {
     dx: i32,
@@ -129,6 +124,8 @@ pub enum TileDataUpdate {
     /// Remove this tile.
     #[default]
     Erase,
+    /// Make no change to the tile.
+    DoNothing,
     /// This variant is for changing a material page tile.
     MaterialTile(TileData),
     /// This variant is for changing a freeform page tile.
@@ -144,12 +141,72 @@ pub enum TileDataUpdate {
     /// This variant is for changing some of a tile property's nine slices.
     PropertySlice(Uuid, [Option<i8>; 9]),
     /// This variant is for changing a tile's collider.
-    Collider(Uuid, Option<TileCollider>),
+    Collider(FxHashMap<Uuid, TileCollider>),
     /// This variant is for changing a tile's material.
     Material(TileMaterialBounds),
 }
 
 impl TileDataUpdate {
+    /// Use this update to create a new property value based on the given property id and value.
+    pub fn apply_to_property_value(
+        &self,
+        property_id: Uuid,
+        value: TileSetPropertyValue,
+    ) -> TileSetPropertyValue {
+        match self {
+            TileDataUpdate::Erase => value.make_default(),
+            TileDataUpdate::DoNothing => value,
+            TileDataUpdate::MaterialTile(tile_data) => tile_data
+                .properties
+                .get(&property_id)
+                .cloned()
+                .unwrap_or(value.make_default()),
+            TileDataUpdate::FreeformTile(tile_definition) => tile_definition
+                .data
+                .properties
+                .get(&property_id)
+                .cloned()
+                .unwrap_or(value.make_default()),
+            TileDataUpdate::TransformSet(_) => value,
+            TileDataUpdate::Color(_) => value,
+            TileDataUpdate::Property(uuid, new_value) => {
+                if *uuid == property_id {
+                    new_value.as_ref().cloned().unwrap_or(value.make_default())
+                } else {
+                    value
+                }
+            }
+            TileDataUpdate::PropertySlice(uuid, data) => match value {
+                TileSetPropertyValue::NineSlice(mut old_data) if property_id == *uuid => {
+                    for (i, v) in data.iter().enumerate() {
+                        old_data[i] = v.unwrap_or(old_data[i]);
+                    }
+                    TileSetPropertyValue::NineSlice(old_data)
+                }
+                _ if property_id == *uuid => {
+                    TileSetPropertyValue::NineSlice(data.map(|x| x.unwrap_or_default()))
+                }
+                _ => value,
+            },
+            TileDataUpdate::Collider(_) => value,
+            TileDataUpdate::Material(_) => value,
+        }
+    }
+    /// The tile collider for the given id, if the collider is being replaced by this update.
+    /// None if the collider is not changed by this update.
+    pub fn get_tile_collider(&self, uuid: &Uuid) -> Option<&TileCollider> {
+        match self {
+            TileDataUpdate::Erase => Some(&TileCollider::None),
+            TileDataUpdate::MaterialTile(data) => {
+                data.collider.get(uuid).or(Some(&TileCollider::None))
+            }
+            TileDataUpdate::FreeformTile(def) => {
+                def.data.collider.get(uuid).or(Some(&TileCollider::None))
+            }
+            TileDataUpdate::Collider(map) => map.get(uuid),
+            _ => None,
+        }
+    }
     /// The handle that should be used in place of the given handle, if this update has changed
     /// the handle of a transform set tile.
     /// None is returned if no tile should be rendered.
@@ -203,17 +260,35 @@ impl TileDataUpdate {
         }
     }
     /// Swap whatever value is in this tile update with the corresponding value in the given TileData.
-    /// If this update is `Erase` then it has no data to swap, so panic.
+    /// If this update has no data to swap, then do nothing and set this update to `DoNothing`.
     pub fn swap_with_data(&mut self, data: &mut TileData) {
         match self {
-            TileDataUpdate::Erase => panic!(),
+            TileDataUpdate::DoNothing => (),
+            TileDataUpdate::Erase => {
+                Log::err("Tile data swap error");
+                *self = Self::DoNothing;
+            }
             TileDataUpdate::MaterialTile(tile_data) => std::mem::swap(tile_data, data),
             TileDataUpdate::FreeformTile(tile_definition) => {
                 std::mem::swap(&mut tile_definition.data, data)
             }
             TileDataUpdate::Color(color) => std::mem::swap(color, &mut data.color),
-            TileDataUpdate::Collider(uuid, value) => {
-                swap_hash_map_entry(data.collider.entry(*uuid), value)
+            TileDataUpdate::Collider(colliders) => {
+                for (uuid, value) in colliders.iter_mut() {
+                    match data.collider.entry(*uuid) {
+                        Entry::Occupied(mut e) => {
+                            if let TileCollider::None = value {
+                                *value = e.remove();
+                            } else {
+                                std::mem::swap(e.get_mut(), value)
+                            }
+                        }
+                        Entry::Vacant(e) => {
+                            e.insert(value.clone());
+                            *value = TileCollider::None;
+                        }
+                    }
+                }
             }
             TileDataUpdate::Property(uuid, value) => {
                 swap_hash_map_entry(data.properties.entry(*uuid), value)
@@ -235,8 +310,14 @@ impl TileDataUpdate {
                     *self = TileDataUpdate::Property(*uuid, None);
                 }
             },
-            TileDataUpdate::TransformSet(_) => panic!(),
-            TileDataUpdate::Material(_) => panic!(),
+            TileDataUpdate::TransformSet(_) => {
+                Log::err("Tile data swap error");
+                *self = Self::DoNothing;
+            }
+            TileDataUpdate::Material(_) => {
+                Log::err("Tile data swap error");
+                *self = Self::DoNothing;
+            }
         }
     }
 }
@@ -248,14 +329,27 @@ impl TileSetUpdate {
     /// as appropriate for the kind of page we are updating.
     ///
     /// Nothing is done if the given page does not exist or if it is a Material page that cannot be written to.
-    pub fn convert(&mut self, tiles: &TransTilesUpdate, tile_set: &TileSet, page: Vector2<i32>) {
+    pub fn convert(
+        &mut self,
+        tiles: &TransTilesUpdate,
+        tile_set: &TileSetResource,
+        page: Vector2<i32>,
+        source_set: &TileSetResource,
+    ) {
+        let tile_set = tile_set.data_ref();
         let Some(page_object) = tile_set.get_page(page) else {
             return;
         };
         match &page_object.source {
             TileSetPageSource::Material(_) => self.convert_material(tiles, page),
-            TileSetPageSource::Freeform(_) => self.convert_freeform(tiles, tile_set, page),
-            TileSetPageSource::TransformSet(_) => self.convert_transform(tiles, tile_set, page),
+            TileSetPageSource::Freeform(_) => {
+                drop(tile_set);
+                self.convert_freeform(tiles, &TileSetRef::new(source_set), page);
+            }
+            TileSetPageSource::TransformSet(_) => {
+                drop(tile_set);
+                self.convert_transform(tiles, &TileSetRef::new(source_set), page);
+            }
         }
     }
     fn convert_material(&mut self, tiles: &TransTilesUpdate, page: Vector2<i32>) {
@@ -273,7 +367,7 @@ impl TileSetUpdate {
     fn convert_freeform(
         &mut self,
         tiles: &TransTilesUpdate,
-        tile_set: &TileSet,
+        tile_set: &TileSetRef,
         page: Vector2<i32>,
     ) {
         for (pos, value) in tiles.iter() {
@@ -290,7 +384,7 @@ impl TileSetUpdate {
     fn convert_transform(
         &mut self,
         tiles: &TransTilesUpdate,
-        tile_set: &TileSet,
+        tile_set: &TileSetRef,
         page: Vector2<i32>,
     ) {
         for (pos, value) in tiles.iter() {
@@ -371,16 +465,10 @@ impl TileSetUpdate {
         &self,
         page: Vector2<i32>,
         position: Vector2<i32>,
-        collider_id: Uuid,
-    ) -> Option<Option<TileCollider>> {
+        collider_id: &Uuid,
+    ) -> Option<&TileCollider> {
         let handle = TileDefinitionHandle::try_new(page, position)?;
-        match self.get(&handle)? {
-            TileDataUpdate::Erase => Some(None),
-            TileDataUpdate::MaterialTile(data) => Some(data.collider.get(&collider_id).copied()),
-            TileDataUpdate::FreeformTile(def) => Some(def.data.collider.get(&collider_id).copied()),
-            TileDataUpdate::Collider(id, value) if *id == collider_id => Some(*value),
-            _ => None,
-        }
+        self.get(&handle)?.get_tile_collider(collider_id)
     }
     /// Set the given color on the given tile.
     pub fn set_color(&mut self, page: Vector2<i32>, position: Vector2<i32>, color: Color) {
@@ -437,21 +525,20 @@ impl TileSetUpdate {
             }
         }
     }
-    /// Set the given property value on the givne tile.
-    pub fn set_collider(
+    /// Set the given property value on the given tile.
+    pub fn set_collider<I: Iterator<Item = Uuid>>(
         &mut self,
         page: Vector2<i32>,
         position: Vector2<i32>,
-        property_id: Uuid,
-        value: TileCollider,
+        property_ids: I,
+        value: &TileCollider,
     ) {
-        let value = match value {
-            TileCollider::None => None,
-            x => Some(x),
+        let Some(handle) = TileDefinitionHandle::try_new(page, position) else {
+            return;
         };
-        if let Some(handle) = TileDefinitionHandle::try_new(page, position) {
-            self.insert(handle, TileDataUpdate::Collider(property_id, value));
-        }
+        let mut colliders = FxHashMap::default();
+        colliders.extend(property_ids.map(|uuid| (uuid, value.clone())));
+        self.insert(handle, TileDataUpdate::Collider(colliders));
     }
     /// Set the given material on the given tile.
     pub fn set_material(
@@ -510,18 +597,14 @@ impl DerefMut for TransTilesUpdate {
 impl TransTilesUpdate {
     /// Construct a TilesUpdate by finding the transformed version of each tile
     /// in the given tile set.
-    pub fn build_tiles_update(&self, tile_set: &TileSet) -> TilesUpdate {
+    pub fn build_tiles_update(&self, tile_set: &TileSetRef) -> TilesUpdate {
         let mut result = TilesUpdate::default();
         for (pos, value) in self.iter() {
             if let Some((trans, handle)) = value {
-                result.insert(
-                    *pos,
-                    Some(
-                        tile_set
-                            .get_transformed_version(*trans, *handle)
-                            .unwrap_or(*handle),
-                    ),
-                );
+                let handle = tile_set
+                    .get_transformed_version(*trans, *handle)
+                    .unwrap_or(*handle);
+                result.insert(*pos, Some(handle));
             } else {
                 result.insert(*pos, None);
             }
@@ -675,7 +758,7 @@ impl TransTilesUpdate {
         let inner_region = region.clone().deflate(1, 1);
 
         let stamp_region = TileRegion::from_bounds_and_direction(stamp_rect.into(), start - end);
-        let mut inner_stamp_region = stamp_region.clone().deflate(1, 1);
+        let inner_stamp_region = stamp_region.clone().deflate(1, 1);
 
         // Place corners first.
         let trans = stamp.transformation();

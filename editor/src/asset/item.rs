@@ -124,11 +124,6 @@ impl AssetItem {
     }
 
     pub fn open(&self) {
-        Log::info(format!(
-            "Open {:?} : {:?}",
-            self.path,
-            self.path.extension()
-        ));
         let Some(sender) = self.sender.as_ref() else {
             return;
         };
@@ -150,18 +145,9 @@ impl AssetItem {
                 }
             }
         } else if self.path.extension().map_or(false, |ext| ext == "tileset") {
-            Log::info(format!(
-                "Found tileset extension {:?} : {:?}",
-                self.path,
-                self.path.extension()
-            ));
             if let Ok(path) = make_relative_path(&self.path) {
-                Log::info(format!("Make relative path {:?} : {:?}", self.path, path));
                 match block_on(resource_manager.request::<TileSet>(path)) {
-                    Ok(tile_set) => {
-                        Log::info(format!("send OpenTileSetEditor {tile_set:?}"));
-                        sender.send(Message::OpenTileSetEditor(tile_set))
-                    }
+                    Ok(tile_set) => sender.send(Message::OpenTileSetEditor(tile_set)),
                     Err(err) => Log::err(format!("Open tileset error: {err:?}")),
                 }
             }
@@ -170,11 +156,6 @@ impl AssetItem {
             .extension()
             .map_or(false, |ext| ext == "tile_map_brush")
         {
-            Log::info(format!(
-                "Found tile_map_brush extension {:?} : {:?}",
-                self.path,
-                self.path.extension()
-            ));
             if let Ok(path) = make_relative_path(&self.path) {
                 match block_on(resource_manager.request::<TileMapBrush>(path)) {
                     Ok(brush) => sender.send(Message::OpenTileMapBrushEditor(brush)),

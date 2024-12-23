@@ -97,7 +97,7 @@ pub fn make_list_option(ctx: &mut BuildContext, name: &str) -> Handle<UiNode> {
         .build(ctx);
     DecoratorBuilder::new(
         BorderBuilder::new(WidgetBuilder::new().with_child(text))
-            .with_corner_radius(4.0)
+            .with_corner_radius((4.0).into())
             .with_pad_by_corner_radius(false),
     )
     .build(ctx)
@@ -119,7 +119,7 @@ impl TileColliderEditor {
         let color_icon = BorderBuilder::new(
             WidgetBuilder::new()
                 .on_column(2)
-                .with_background(Brush::Solid(collider_layer.color.to_opaque())),
+                .with_background(Brush::Solid(collider_layer.color.to_opaque()).into()),
         )
         .build(ctx);
         let draw_button = make_draw_button(Some(0), ctx);
@@ -195,7 +195,7 @@ impl TileColliderEditor {
         ui.send_message(WidgetMessage::background(
             self.color_icon,
             MessageDirection::ToWidget,
-            Brush::Solid(layer.color.to_opaque()),
+            Brush::Solid(layer.color.to_opaque()).into(),
         ));
     }
     fn find_value(&self, state: &TileEditorState) -> Option<TileCollider> {
@@ -390,22 +390,22 @@ fn make_button(
     .with_back(
         DecoratorBuilder::new(
             BorderBuilder::new(
-                WidgetBuilder::new().with_foreground(ctx.style.get_or_default(Style::BRUSH_DARKER)),
+                WidgetBuilder::new().with_foreground(ctx.style.property(Style::BRUSH_DARKER)),
             )
             .with_pad_by_corner_radius(false)
-            .with_corner_radius(4.0)
-            .with_stroke_thickness(Thickness::uniform(1.0)),
+            .with_corner_radius((4.0).into())
+            .with_stroke_thickness(Thickness::uniform(1.0).into()),
         )
-        .with_selected_brush(ctx.style.get_or_default(Style::BRUSH_BRIGHT_BLUE))
-        .with_normal_brush(ctx.style.get_or_default(Style::BRUSH_LIGHT))
-        .with_hover_brush(ctx.style.get_or_default(Style::BRUSH_LIGHTER))
-        .with_pressed_brush(ctx.style.get_or_default(Style::BRUSH_LIGHTEST))
+        .with_selected_brush(ctx.style.property(Style::BRUSH_BRIGHT_BLUE))
+        .with_normal_brush(ctx.style.property(Style::BRUSH_LIGHT))
+        .with_hover_brush(ctx.style.property(Style::BRUSH_LIGHTER))
+        .with_pressed_brush(ctx.style.property(Style::BRUSH_LIGHTEST))
         .build(ctx),
     )
     .with_content(
         ImageBuilder::new(
             WidgetBuilder::new()
-                .with_background(Brush::Solid(Color::opaque(180, 180, 180)))
+                .with_background(Brush::Solid(Color::opaque(180, 180, 180)).into())
                 .with_margin(Thickness::uniform(2.0))
                 .with_width(DRAW_BUTTON_WIDTH)
                 .with_height(DRAW_BUTTON_HEIGHT),

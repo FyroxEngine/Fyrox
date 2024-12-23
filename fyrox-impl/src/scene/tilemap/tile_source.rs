@@ -48,23 +48,23 @@ fn position_to_vector(source: PalettePosition) -> Vector2<i32> {
 }
 
 /// A 2D grid that contains tile data.
-#[derive(Default, Clone, Debug, PartialEq)]
-pub struct TileGridMap<V>(FxHashMap<Vector2<i32>, V>);
+#[derive(Default, Debug, Clone, PartialEq, Reflect)]
+pub struct TileGridMap<V: Debug>(FxHashMap<Vector2<i32>, V>);
 
-impl<V: Visit + Default> Visit for TileGridMap<V> {
+impl<V: Visit + Default + Debug> Visit for TileGridMap<V> {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         self.0.visit(name, visitor)
     }
 }
 
-impl<V> Deref for TileGridMap<V> {
+impl<V: Debug> Deref for TileGridMap<V> {
     type Target = FxHashMap<Vector2<i32>, V>;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl<V> DerefMut for TileGridMap<V> {
+impl<V: Debug> DerefMut for TileGridMap<V> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
@@ -148,6 +148,9 @@ impl TileDefinitionHandle {
     pub fn tile(&self) -> Vector2<i32> {
         position_to_vector(self.tile)
     }
+    /// Convert a string into a tile definition handle by finding four numbers.
+    /// The first two numbers are the page coodrinates. The second two numbers are the tile coordinates.
+    /// None is returned if there are more than four numbers, fewer than four numbers, or any number produces an error in parsing.
     pub fn parse(s: &str) -> Option<Self> {
         let mut iter = s
             .split(|c: char| c != '-' && !c.is_ascii_digit())
@@ -193,7 +196,7 @@ impl TileRegion {
         };
         Self {
             origin: Vector2::new(x0, y0),
-            bounds: bounds.clone().into(),
+            bounds: bounds.into(),
         }
     }
     /// Construct a region with `bounds` that contain `origin` and `end`.
@@ -203,6 +206,7 @@ impl TileRegion {
             bounds: OptionTileRect::from_points(origin, end),
         }
     }
+    /// Copy the a region and replace its bound.
     pub fn with_bounds(mut self, bounds: OptionTileRect) -> Self {
         self.bounds = bounds;
         self
@@ -342,12 +346,25 @@ impl TileSource for Stamp {
 }
 
 impl Stamp {
+    /// Iterate over the tile handles of the stamp.
+    pub fn tile_iter(&self) -> impl Iterator<Item = TileDefinitionHandle> + '_ {
+        self.1.values().copied()
+    }
     /// Create a repeating tile source from this stamp to repeat from `start` to `end.`
     pub fn repeat(&self, start: Vector2<i32>, end: Vector2<i32>) -> RepeatTileSource<Stamp> {
         let bounds = self.bounding_rect();
         RepeatTileSource {
             source: self,
             region: TileRegion::from_bounds_and_direction(bounds, start - end),
+        }
+    }
+
+    /// Create a repeating tile source from the stamp with no specified direction for the repeat.
+    pub fn repeat_anywhere(&self) -> RepeatTileSource<Stamp> {
+        let bounds = self.bounding_rect();
+        RepeatTileSource {
+            source: self,
+            region: TileRegion::from_bounds_and_direction(bounds, Vector2::new(0, 0)),
         }
     }
 
@@ -394,6 +411,11 @@ impl Stamp {
     pub fn y_flip(&mut self) {
         self.0 = self.0.y_flipped();
         self.1 = std::mem::take(&mut self.1).y_flipped();
+    }
+    /// Rotate the stamp by the given number of 90-degree turns.
+    pub fn transform(&mut self, amount: OrthoTransformation) {
+        self.0 = self.0.transformed(amount);
+        self.1 = std::mem::take(&mut self.1).transformed(amount);
     }
 }
 

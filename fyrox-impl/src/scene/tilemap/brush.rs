@@ -25,6 +25,7 @@ use crate::{
     asset::{
         io::ResourceIo,
         loader::{BoxedLoaderFuture, LoaderPayload, ResourceLoader},
+        manager::ResourceManager,
         state::LoadError,
         Resource, ResourceData,
     },
@@ -91,7 +92,7 @@ impl From<VisitError> for TileMapBrushResourceError {
 #[derive(Default, Debug, Clone, Visit, Reflect)]
 pub struct TileMapBrushPage {
     /// The tile that represents this page in the editor
-    pub icon: Option<TileDefinitionHandle>,
+    pub icon: TileDefinitionHandle,
     /// The tiles on this page, organized by position.
     #[reflect(hidden)]
     pub tiles: Tiles,
@@ -181,11 +182,16 @@ pub struct TileMapBrush {
 }
 
 impl TileMapBrush {
+    /// True if there is a tile at the given position.
     pub fn has_tile_at(&self, page: Vector2<i32>, tile: Vector2<i32>) -> bool {
         let Some(page) = self.pages.get(&page) else {
             return false;
         };
         page.tiles.contains_key(&tile)
+    }
+    /// The handle stored at the given position.
+    pub fn tile_redirect(&self, handle: TileDefinitionHandle) -> Option<TileDefinitionHandle> {
+        self.find_tile_at_position(TilePaletteStage::Tiles, handle.page(), handle.tile())
     }
     /// Returns bounding rectangle of pages in grid coordinates.
     #[inline]
@@ -196,8 +202,9 @@ impl TileMapBrush {
         }
         result
     }
+    /// The handle of the tile that represents the page at the given position.
     pub fn page_icon(&self, page: Vector2<i32>) -> Option<TileDefinitionHandle> {
-        self.pages.get(&page).and_then(|p| p.icon)
+        self.pages.get(&page).map(|p| p.icon)
     }
     /// The bounds of the tiles on the given page.
     pub fn tiles_bounds(&self, stage: TilePaletteStage, page: Vector2<i32>) -> OptionTileRect {
@@ -212,6 +219,7 @@ impl TileMapBrush {
         }
     }
 
+    /// The handle of the tile at the given position, either the icon of a page or the tile stored at that position in the brush.
     pub fn find_tile_at_position(
         &self,
         stage: TilePaletteStage,
@@ -219,7 +227,7 @@ impl TileMapBrush {
         position: Vector2<i32>,
     ) -> Option<TileDefinitionHandle> {
         match stage {
-            TilePaletteStage::Pages => self.pages.get(&position).and_then(|p| p.icon),
+            TilePaletteStage::Pages => self.pages.get(&position).map(|p| p.icon),
             TilePaletteStage::Tiles => self
                 .pages
                 .get(&page)
@@ -238,7 +246,7 @@ impl TileMapBrush {
         match stage {
             TilePaletteStage::Pages => {
                 for pos in iter {
-                    if let Some(handle) = self.pages.get(&pos).and_then(|p| p.icon) {
+                    if let Some(handle) = self.pages.get(&pos).map(|p| p.icon) {
                         tiles.insert(pos, handle);
                     }
                 }
@@ -251,6 +259,36 @@ impl TileMapBrush {
         }
     }
 
+    /// Return true if this brush has no tile set.
+    pub fn is_missing_tile_set(&self) -> bool {
+        self.tile_set.is_none()
+    }
+
+    fn palette_render_loop_without_tile_set<F>(
+        &self,
+        stage: TilePaletteStage,
+        page: Vector2<i32>,
+        mut func: F,
+    ) where
+        F: FnMut(Vector2<i32>, TileRenderData),
+    {
+        match stage {
+            TilePaletteStage::Pages => {
+                for k in self.pages.keys() {
+                    func(*k, TileRenderData::missing_data());
+                }
+            }
+            TilePaletteStage::Tiles => {
+                let Some(page) = self.pages.get(&page) else {
+                    return;
+                };
+                for k in page.tiles.keys() {
+                    func(*k, TileRenderData::missing_data());
+                }
+            }
+        }
+    }
+
     /// Loops through the tiles of the given page and finds the render data for each tile
     /// in the tile set, then passes it to the given function.
     pub fn palette_render_loop<F>(&self, stage: TilePaletteStage, page: Vector2<i32>, mut func: F)
@@ -258,24 +296,21 @@ impl TileMapBrush {
         F: FnMut(Vector2<i32>, TileRenderData),
     {
         let Some(tile_set) = self.tile_set.as_ref() else {
+            self.palette_render_loop_without_tile_set(stage, page, func);
             return;
         };
         let mut state = tile_set.state();
         let Some(tile_set) = state.data() else {
+            self.palette_render_loop_without_tile_set(stage, page, func);
             return;
         };
         match stage {
             TilePaletteStage::Pages => {
                 for (k, p) in self.pages.iter() {
-                    let Some(handle) = p.icon else {
-                        func(*k, TileRenderData::missing_data());
-                        continue;
-                    };
-                    if let Some(data) =
-                        tile_set.get_tile_render_data(TilePaletteStage::Tiles, handle)
-                    {
-                        func(*k, data);
-                    }
+                    let data = tile_set
+                        .get_tile_render_data(TilePaletteStage::Tiles, p.icon)
+                        .unwrap_or_else(TileRenderData::missing_data);
+                    func(*k, data);
                 }
             }
             TilePaletteStage::Tiles => {
@@ -283,11 +318,10 @@ impl TileMapBrush {
                     return;
                 };
                 for (k, handle) in page.tiles.iter() {
-                    if let Some(data) =
-                        tile_set.get_tile_render_data(TilePaletteStage::Tiles, *handle)
-                    {
-                        func(*k, data);
-                    }
+                    let data = tile_set
+                        .get_tile_render_data(TilePaletteStage::Tiles, *handle)
+                        .unwrap_or_else(TileRenderData::missing_data);
+                    func(*k, data);
                 }
             }
         }
@@ -307,10 +341,7 @@ impl TileMapBrush {
                 let page = self.pages.get(&handle.page())?;
                 page.tiles.get_at(handle.tile())
             }
-            TilePaletteStage::Pages => {
-                let page = self.pages.get(&handle.tile())?;
-                page.icon
-            }
+            TilePaletteStage::Pages => self.pages.get(&handle.tile()).map(|page| page.icon),
         }
     }
 
@@ -365,10 +396,12 @@ impl TileMapBrush {
     /// Load a tile map brush resource from the specific file path.
     pub async fn from_file(
         path: &Path,
+        resource_manager: ResourceManager,
         io: &dyn ResourceIo,
     ) -> Result<Self, TileMapBrushResourceError> {
         let bytes = io.load_file(path).await?;
         let mut visitor = Visitor::load_from_memory(&bytes)?;
+        visitor.blackboard.register(Arc::new(resource_manager));
         let mut tile_map_brush = Self::default();
         tile_map_brush.visit("TileMapBrush", &mut visitor)?;
         Ok(tile_map_brush)
@@ -405,7 +438,10 @@ impl ResourceData for TileMapBrush {
 }
 
 /// Standard tile map brush loader.
-pub struct TileMapBrushLoader {}
+pub struct TileMapBrushLoader {
+    /// The resource manager to use to load the brush's tile set.
+    pub resource_manager: ResourceManager,
+}
 
 impl ResourceLoader for TileMapBrushLoader {
     fn extensions(&self) -> &[&str] {
@@ -417,8 +453,9 @@ impl ResourceLoader for TileMapBrushLoader {
     }
 
     fn load(&self, path: PathBuf, io: Arc<dyn ResourceIo>) -> BoxedLoaderFuture {
+        let resource_manager = self.resource_manager.clone();
         Box::pin(async move {
-            let tile_map_brush = TileMapBrush::from_file(&path, io.as_ref())
+            let tile_map_brush = TileMapBrush::from_file(&path, resource_manager, io.as_ref())
                 .await
                 .map_err(LoadError::new)?;
             Ok(LoaderPayload::new(tile_map_brush))

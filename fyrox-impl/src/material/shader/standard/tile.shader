@@ -67,7 +67,7 @@
             vertex_shader:
                r#"
                 layout(location = 0) in vec3 vertexPosition;
-                layout(location = 1) in uvec2 vertexTexCoord;
+                layout(location = 1) in vec2 vertexTexCoord;
                 layout(location = 2) in vec4 vertexColor;
 
                 out vec2 texCoord;
@@ -76,7 +76,7 @@
 
                 void main()
                 {
-                    texCoord = (vec2(vertexTexCoord) + vec2(0.5)) / vec2(textureSize(diffuseTexture, 0));
+                    texCoord = vertexTexCoord / vec2(textureSize(diffuseTexture, 0));
                     fragmentPosition = (fyrox_instanceData.worldMatrix * vec4(vertexPosition, 1.0)).xyz;
                     gl_Position = fyrox_instanceData.worldViewProjection * vec4(vertexPosition, 1.0);
                     color = vertexColor;

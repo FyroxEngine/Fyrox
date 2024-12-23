@@ -18,64 +18,53 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use fyrox::scene::tilemap::tileset::{TileSetPage, TileSetPageSource};
-use fyrox::scene::tilemap::TileSource;
+use fyrox::{
+    gui::formatted_text::{FormattedText, FormattedTextBuilder},
+    scene::tilemap::TileSource,
+};
 
-use crate::asset::item::AssetItem;
 use crate::fyrox::{
     core::{
-        algebra::{Matrix3, Point2, Vector2},
-        color::Color,
-        math::{OptionRect, Rect},
-        parking_lot::Mutex,
+        algebra::{Matrix3, Vector2},
+        math::Rect,
         pool::Handle,
         reflect::prelude::*,
         type_traits::prelude::*,
         visitor::prelude::*,
     },
-    fxhash::FxHashMap,
-    graph::{BaseSceneGraph, SceneGraph},
     gui::{
         brush::Brush,
-        define_constructor, define_widget_deref,
+        define_widget_deref,
         draw::{CommandTexture, Draw, DrawingContext},
-        formatted_text::{FormattedText, FormattedTextBuilder},
-        message::{KeyCode, MessageDirection, MouseButton, UiMessage},
-        widget::{Widget, WidgetBuilder, WidgetMessage},
+        message::UiMessage,
+        widget::{Widget, WidgetBuilder},
         BuildContext, Control, UiNode, UserInterface,
     },
-    material::{Material, MaterialResource},
     resource::texture::TextureKind,
-    scene::tilemap::{
-        tileset::TileSetResource, Stamp, TileDefinitionHandle, TilePaletteStage, TileRect,
-        TileRenderData, TileResource, TileSetUpdate, Tiles, TransTilesUpdate,
-    },
+    scene::tilemap::TileRenderData,
 };
 use std::ops::{Deref, DerefMut};
 
 use super::*;
-
-pub const DEFAULT_MATERIAL_COLOR: Color = Color::from_rgba(255, 255, 255, 125);
 
 #[derive(Clone, Debug, Visit, Reflect, TypeUuidProvider, ComponentProvider)]
 #[type_uuid(id = "5356a864-c026-4bd7-a4b1-30bacf77d8fa")]
 pub struct PanelPreview {
     widget: Widget,
     #[reflect(hidden)]
+    #[visit(skip)]
     pub state: TileDrawStateRef,
     tile_size: Vector2<f32>,
     transform: Matrix3<f32>,
+    #[visit(skip)]
+    #[reflect(hidden)]
+    handle_text: FormattedText,
+    #[visit(skip)]
+    #[reflect(hidden)]
+    handle_text_size: Vector2<f32>,
 }
 
 define_widget_deref!(PanelPreview);
-
-fn apply_transform(trans: &Matrix3<f32>, point: Vector2<f32>) -> Vector2<f32> {
-    trans.transform_point(&Point2::from(point)).coords
-}
-
-fn invert_transform(trans: &Matrix3<f32>) -> Matrix3<f32> {
-    trans.try_inverse().unwrap_or(Matrix3::identity())
-}
 
 fn draw_tile(
     position: Rect<f32>,
@@ -123,6 +112,7 @@ fn draw_tile(
 
 impl PanelPreview {
     fn sync_to_state(&mut self) {
+        self.sync_handle_text();
         let bounds = self.state.lock().stamp.bounding_rect();
         let Some(bounds) = *bounds else {
             self.transform = Matrix3::identity();
@@ -144,31 +134,32 @@ impl PanelPreview {
         self.transform =
             Matrix3::new_translation(&translate) * Matrix3::new_nonuniform_scaling(&scale);
     }
-
-    fn grid_pos_to_rect(&self, pos: Vector2<i32>) -> Rect<f32> {
-        let size = self.tile_size;
-        let position = Vector2::new(pos.x as f32 * size.x, pos.y as f32 * size.y);
-        Rect { position, size }
+    fn sync_handle_text(&mut self) {
+        let text = self.get_handle_text();
+        self.handle_text_size = self.handle_text.set_text(text).build();
     }
-    fn push_cell_rect(&self, position: Vector2<i32>, thickness: f32, ctx: &mut DrawingContext) {
-        let size = self.tile_size;
-        let position = Vector2::new(position.x as f32 * size.x, position.y as f32 * size.y);
-        let rect = Rect { position, size }.inflate(thickness * 0.5, thickness * 0.5);
-        ctx.push_rect(&rect, thickness);
-    }
-    fn push_cell_rect_filled(&self, position: Vector2<i32>, ctx: &mut DrawingContext) {
-        let size = self.tile_size;
-        let position = Vector2::new(position.x as f32 * size.x, position.y as f32 * size.y);
-        let rect = Rect { position, size };
-        ctx.push_rect_filled(&rect, None);
-    }
-    fn commit_color(&self, color: Color, ctx: &mut DrawingContext) {
-        ctx.commit(
-            self.clip_bounds(),
-            Brush::Solid(color),
-            CommandTexture::None,
-            None,
-        );
+    fn get_handle_text(&self) -> String {
+        let state = self.state.lock();
+        let Some(mut tile_set) = state.tile_set.as_ref().map(|t| t.state()) else {
+            return "".into();
+        };
+        let Some(tile_set) = tile_set.data() else {
+            return "".into();
+        };
+        let stamp = &state.stamp;
+        let mut iter = stamp.tile_iter();
+        let Some(handle) = iter.next() else {
+            return "".into();
+        };
+        if iter.next().is_some() {
+            return "".into();
+        }
+        let transform = stamp.transformation();
+        if let Some(handle) = tile_set.get_transformed_version(transform, handle) {
+            handle.to_string()
+        } else {
+            format!("{}*", handle)
+        }
     }
 }
 
@@ -205,6 +196,11 @@ impl Control for PanelPreview {
         }
 
         ctx.transform_stack.pop();
+        ctx.draw_text(
+            self.clip_bounds(),
+            bounds.right_bottom_corner() - self.handle_text_size,
+            &self.handle_text,
+        );
     }
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
@@ -235,6 +231,10 @@ impl PanelPreviewBuilder {
             state: self.state,
             tile_size: Vector2::repeat(32.0),
             transform: Matrix3::identity(),
+            handle_text: FormattedTextBuilder::new(ctx.inner().default_font.clone())
+                .with_brush(Brush::Solid(Color::WHITE))
+                .build(),
+            handle_text_size: Vector2::default(),
         }))
     }
 }

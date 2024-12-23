@@ -24,15 +24,24 @@ use std::{
 };
 
 use crate::asset::untyped::UntypedResource;
-use crate::core::{algebra::Vector2, reflect::prelude::*, visitor::prelude::*};
+use crate::core::{algebra::Vector2, parking_lot::Mutex, reflect::prelude::*, visitor::prelude::*};
 use fxhash::FxHashMap;
 
 /// A map from 2D i32 coordinates to values that keeps a list of the resource references
 /// stored in its values.
-#[derive(Default, Clone, Debug)]
+#[derive(Default, Debug)]
 pub struct ResourceGrid<V> {
     content: FxHashMap<Vector2<i32>, V>,
-    resources: ResourceList,
+    resources: Mutex<ResourceList>,
+}
+
+impl<V: Clone> Clone for ResourceGrid<V> {
+    fn clone(&self) -> Self {
+        Self {
+            content: self.content.clone(),
+            resources: Mutex::new(self.resources.lock().clone()),
+        }
+    }
 }
 
 #[derive(Default, Clone, Debug)]
@@ -84,11 +93,12 @@ impl DerefMut for ResourceList {
 impl<V: ResourceGridElement> ResourceGrid<V> {
     /// Update the list of resources based on the values stored in the grid.
     pub fn build_cache(&mut self) {
-        self.resources.clear();
+        let mut resources = self.resources.lock();
+        resources.clear();
         for element in self.content.values() {
             element.find_resources(|x| {
-                if !self.resources.contains(&x) {
-                    self.resources.push(x);
+                if !resources.contains(&x) {
+                    resources.push(x);
                 }
             });
         }
@@ -156,7 +166,7 @@ impl<V: Debug + 'static> Reflect for ResourceGrid<V> {
     }
 
     fn as_list(&self, func: &mut dyn FnMut(Option<&dyn ReflectList>)) {
-        func(Some(&self.resources))
+        func(Some(self.resources.lock().deref()))
     }
 
     fn as_list_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectList>)) {

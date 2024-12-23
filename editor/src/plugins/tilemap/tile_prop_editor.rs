@@ -18,17 +18,17 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use commands::SetTileSetTilesCommand;
 use fyrox::{
     core::{
-        algebra::Vector2, color::Color, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-        visitor::prelude::*, ImmutableString,
+        algebra::Vector2, color::Color, pool::Handle, type_traits::prelude::*, ImmutableString,
     },
+    fxhash::FxHashMap,
     gui::{
         border::BorderBuilder,
         brush::Brush,
         button::{Button, ButtonBuilder, ButtonMessage},
         decorator::{DecoratorBuilder, DecoratorMessage},
-        define_constructor, define_widget_deref,
         dropdown_list::{DropdownListBuilder, DropdownListMessage},
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
@@ -38,68 +38,143 @@ use fyrox::{
         text::{TextBuilder, TextMessage},
         text_box::TextBoxBuilder,
         utils::make_simple_tooltip,
-        widget::{Widget, WidgetBuilder},
-        BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
-        VerticalAlignment,
+        widget::WidgetBuilder,
+        BuildContext, HorizontalAlignment, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
-    scene::tilemap::tileset::*,
+    scene::tilemap::{tileset::*, TileDataUpdate, TileSetUpdate},
 };
-use std::ops::{Deref, DerefMut};
+use palette::Subposition;
+
+use crate::{send_sync_message, MSG_SYNC_FLAG};
 
 use super::*;
 
-#[derive(Debug, PartialEq, Clone)]
-pub enum TilePropertyMessage {
-    Value(TileSetPropertyOptionValue),
-    SetSlice { index: usize, value: Option<i8> },
-    SyncToState,
-    UpdateProperty,
-    UpdateValue,
+#[derive(Debug, Clone, Visit, Reflect, PartialEq)]
+enum DrawValue {
+    I8(i8),
+    I32(i32),
+    F32(f32),
+    String(ImmutableString),
+    Color(Color),
+    Material(TileMaterialBounds),
+    Collider(TileCollider),
 }
 
-impl TilePropertyMessage {
-    define_constructor!(TilePropertyMessage:Value => fn value(TileSetPropertyOptionValue), layout: false);
-    define_constructor!(TilePropertyMessage:SetSlice => fn set_slice(index: usize, value: Option<i8>), layout: false);
-    define_constructor!(TilePropertyMessage:SyncToState => fn sync_to_state(), layout: false);
-    define_constructor!(TilePropertyMessage:UpdateProperty => fn update_property(), layout: false);
-    define_constructor!(TilePropertyMessage:UpdateValue => fn update_value(), layout: false);
+impl Default for DrawValue {
+    fn default() -> Self {
+        Self::I32(0)
+    }
 }
 
-#[derive(Clone, Default, Debug, Visit, Reflect, TypeUuidProvider, ComponentProvider)]
-#[type_uuid(id = "d4be71a2-a9fc-41b4-9fcf-a767beb769ea")]
 pub struct TilePropertyEditor {
-    widget: Widget,
-    tile_set: TileSetResource,
+    handle: Handle<UiNode>,
     prop_type: TileSetPropertyType,
-    #[reflect(hidden)]
-    state: TileDrawStateRef,
     property_id: Uuid,
     draw_value: DrawValue,
     value: TileSetPropertyOptionValue,
-    paint_button: Handle<UiNode>,
+    draw_button: Handle<UiNode>,
     name_field: Handle<UiNode>,
     value_field: Handle<UiNode>,
     list: Handle<UiNode>,
-    nine: Handle<UiNode>,
     nine_buttons: Option<Box<[Handle<UiNode>; 9]>>,
 }
 
-define_widget_deref!(TilePropertyEditor);
-
 impl TilePropertyEditor {
+    pub fn new(
+        prop_layer: &TileSetPropertyLayer,
+        value: &TileSetPropertyOptionValue,
+        ctx: &mut BuildContext,
+    ) -> Self {
+        let draw_button = make_draw_button(Some(0), ctx);
+        let name_field = TextBuilder::new(WidgetBuilder::new())
+            .with_text(prop_layer.name.clone())
+            .build(ctx);
+        let value_field = match prop_layer.prop_type {
+            TileSetPropertyType::I32 => {
+                NumericUpDownBuilder::<i32>::new(WidgetBuilder::new().on_column(1)).build(ctx)
+            }
+            TileSetPropertyType::F32 => {
+                NumericUpDownBuilder::<f32>::new(WidgetBuilder::new().on_column(1)).build(ctx)
+            }
+            TileSetPropertyType::String => {
+                TextBoxBuilder::new(WidgetBuilder::new().on_column(1)).build(ctx)
+            }
+            TileSetPropertyType::NineSlice => {
+                NumericUpDownBuilder::<i8>::new(WidgetBuilder::new().on_column(1)).build(ctx)
+            }
+        };
+        let index = prop_layer
+            .find_value_index_from_property(value)
+            .map(|x| x + 1)
+            .unwrap_or(0);
+        let list = DropdownListBuilder::new(
+            WidgetBuilder::new()
+                .on_row(1)
+                .on_column(1)
+                .with_visibility(!prop_layer.named_values.is_empty()),
+        )
+        .with_items(build_list(prop_layer, ctx))
+        .with_selected(index)
+        .build(ctx);
+        let grid = GridBuilder::new(
+            WidgetBuilder::new()
+                .on_column(1)
+                .with_child(name_field)
+                .with_child(value_field)
+                .with_child(list),
+        )
+        .add_column(Column::strict(100.0))
+        .add_column(Column::stretch())
+        .add_row(Row::auto())
+        .add_row(Row::auto())
+        .build(ctx);
+        let pair = GridBuilder::new(
+            WidgetBuilder::new()
+                .with_child(draw_button)
+                .with_child(grid),
+        )
+        .add_column(Column::auto())
+        .add_column(Column::stretch())
+        .add_row(Row::auto())
+        .build(ctx);
+        let is_nine = matches!(prop_layer.prop_type, TileSetPropertyType::NineSlice);
+        let (nine, nine_buttons) = if is_nine {
+            let (nine, nine_buttons) = build_nine(create_nine_specs(value, prop_layer), ctx);
+            (nine, Some(nine_buttons))
+        } else {
+            (Handle::NONE, None)
+        };
+        let handle = if is_nine {
+            StackPanelBuilder::new(WidgetBuilder::new().with_child(pair).with_child(nine))
+                .build(ctx)
+        } else {
+            pair
+        };
+        let draw_value = match prop_layer.prop_type {
+            TileSetPropertyType::I32 => DrawValue::I32(0),
+            TileSetPropertyType::F32 => DrawValue::F32(0.0),
+            TileSetPropertyType::String => DrawValue::String(ImmutableString::default()),
+            TileSetPropertyType::NineSlice => DrawValue::I8(0),
+        };
+        Self {
+            handle,
+            prop_type: prop_layer.prop_type,
+            property_id: prop_layer.uuid,
+            value: value.clone(),
+            draw_value,
+            draw_button,
+            name_field,
+            value_field,
+            list,
+            nine_buttons,
+        }
+    }
     #[inline]
     pub fn property_id(&self) -> Uuid {
         self.property_id
     }
-    fn sync_to_state(&mut self, ui: &mut UserInterface) {
-        let state = self.state.lock();
-        let paint_active =
-            state.drawing_mode == DrawingMode::Property && state.active_prop == Some(self.id);
-        highlight_tool_button(self.paint_button, paint_active, ui);
-    }
-    fn apply_property_update(&mut self, ui: &mut UserInterface) {
-        let tile_set = self.tile_set.data_ref();
-        let layer = tile_set.find_property(self.property_id).unwrap();
+    fn apply_property_update(&mut self, state: &TileEditorState, ui: &mut UserInterface) {
+        let layer = state.find_property(self.property_id).unwrap();
         ui.send_message(TextMessage::text(
             self.name_field,
             MessageDirection::ToWidget,
@@ -116,128 +191,169 @@ impl TilePropertyEditor {
             MessageDirection::ToWidget,
             !layer.named_values.is_empty(),
         ));
+        self.sync_list_index(state, ui);
     }
-    fn apply_value_update(&mut self, ui: &mut UserInterface) {
-        let tile_set = self.tile_set.data_ref();
-        let layer = tile_set.find_property(self.property_id).unwrap();
-        let default_value = layer.prop_type.default_value();
-        let state = self.state.lock();
-        let tiles = state.selection_tiles();
-        let mut value = TileSetPropertyOptionValue::default();
-        for handle in tiles.values().copied() {
-            let Some(data) = tile_set.get_tile_data(TilePaletteStage::Tiles, handle) else {
-                continue;
-            };
-            let tile_value = data.properties.get(&self.id).unwrap_or(&default_value);
-            value.intersect(tile_value);
+    fn find_value(&self, state: &TileEditorState) -> TileSetPropertyOptionValue {
+        let default_value = self.prop_type.default_value();
+        let mut iter = state.tile_data().map(|(_, d)| {
+            d.properties
+                .get(&self.property_id)
+                .unwrap_or(&default_value)
+        });
+        let Some(value) = iter.next() else {
+            return self.prop_type.default_option_value();
+        };
+        let mut value = TileSetPropertyOptionValue::from(value.clone());
+        for v in iter {
+            value.intersect(v);
         }
-        match value {
-            TileSetPropertyOptionValue::I32(Some(v)) => {
-                ui.send_message(NumericUpDownMessage::value(
-                    self.value_field,
-                    MessageDirection::ToWidget,
-                    v,
-                ));
-                self.update_list(ui);
+        value
+    }
+    fn sync_value_to_field(&mut self, state: &TileEditorState, ui: &mut UserInterface) {
+        match &self.value {
+            &TileSetPropertyOptionValue::I32(Some(v)) => {
+                send_sync_message(
+                    ui,
+                    NumericUpDownMessage::value(self.value_field, MessageDirection::ToWidget, v),
+                );
             }
             TileSetPropertyOptionValue::I32(None) => {
-                ui.send_message(NumericUpDownMessage::value(
-                    self.value_field,
-                    MessageDirection::ToWidget,
-                    0,
-                ));
-                self.update_list(ui);
+                send_sync_message(
+                    ui,
+                    NumericUpDownMessage::value(self.value_field, MessageDirection::ToWidget, 0),
+                );
             }
-            TileSetPropertyOptionValue::F32(Some(v)) => {
-                ui.send_message(NumericUpDownMessage::value(
-                    self.value_field,
-                    MessageDirection::ToWidget,
-                    v,
-                ));
-                self.update_list(ui);
+            &TileSetPropertyOptionValue::F32(Some(v)) => {
+                send_sync_message(
+                    ui,
+                    NumericUpDownMessage::value(self.value_field, MessageDirection::ToWidget, v),
+                );
             }
             TileSetPropertyOptionValue::F32(None) => {
-                ui.send_message(NumericUpDownMessage::value(
-                    self.value_field,
-                    MessageDirection::ToWidget,
-                    0.0,
-                ));
-                self.update_list(ui);
+                send_sync_message(
+                    ui,
+                    NumericUpDownMessage::value(self.value_field, MessageDirection::ToWidget, 0.0),
+                );
             }
             TileSetPropertyOptionValue::String(Some(v)) => {
-                ui.send_message(TextMessage::text(
-                    self.value_field,
-                    MessageDirection::ToWidget,
-                    v.to_string(),
-                ));
+                send_sync_message(
+                    ui,
+                    TextMessage::text(self.value_field, MessageDirection::ToWidget, v.to_string()),
+                );
             }
             TileSetPropertyOptionValue::String(None) => {
-                ui.send_message(TextMessage::text(
-                    self.value_field,
-                    MessageDirection::ToWidget,
-                    String::default(),
-                ));
+                send_sync_message(
+                    ui,
+                    TextMessage::text(
+                        self.value_field,
+                        MessageDirection::ToWidget,
+                        String::default(),
+                    ),
+                );
             }
             TileSetPropertyOptionValue::NineSlice(_) => {
-                let specs = create_nine_specs(&value, layer);
-                for (i, specs) in specs.iter().enumerate() {
-                    apply_specs_to_nine(specs, self.nine_buttons.as_ref().unwrap()[i], ui);
+                if let DrawValue::I8(v) = self.draw_value {
+                    send_sync_message(
+                        ui,
+                        NumericUpDownMessage::value(
+                            self.value_field,
+                            MessageDirection::ToWidget,
+                            v,
+                        ),
+                    );
+                }
+                if let Some(layer) = state.find_property(self.property_id) {
+                    let specs = create_nine_specs(&self.value, layer);
+                    for (i, specs) in specs.iter().enumerate() {
+                        apply_specs_to_nine(specs, self.nine_buttons.as_ref().unwrap()[i], ui);
+                    }
                 }
             }
         }
     }
-    fn update_list(&self, ui: &mut UserInterface) {
-        let tile_set = self.tile_set.data_ref();
-        let layer = tile_set.find_property(self.property_id).unwrap();
-        let index = layer
-            .find_value_index(&self.value)
-            .map(|x| x + 1)
-            .unwrap_or(0);
-        ui.send_message(DropdownListMessage::selection(
-            self.list,
-            MessageDirection::ToWidget,
-            Some(index),
-        ));
+    fn sync_list_index(&self, state: &TileEditorState, ui: &mut UserInterface) {
+        let layer = state.find_property(self.property_id).unwrap();
+        if layer.prop_type == TileSetPropertyType::String {
+            return;
+        }
+        let index = if let DrawValue::I8(v) = self.draw_value {
+            layer.find_value_index(NamableValue::I8(v))
+        } else {
+            layer.find_value_index_from_property(&self.value)
+        }
+        .map(|x| x + 1)
+        .unwrap_or(0);
+        send_sync_message(
+            ui,
+            DropdownListMessage::selection(self.list, MessageDirection::ToWidget, Some(index)),
+        );
     }
-    fn set_value_from_text(&mut self, v: ImmutableString, ui: &mut UserInterface) {
+    fn set_value_from_list(
+        &mut self,
+        index: usize,
+        state: &mut TileEditorState,
+        ui: &mut UserInterface,
+        sender: &MessageSender,
+        tile_resource: &TileResource,
+    ) {
+        if index == 0 {
+            return;
+        }
+        let Some(layer) = state.find_property(self.property_id) else {
+            return;
+        };
+        let Some(value) = layer.named_values.get(index.saturating_sub(1)) else {
+            return;
+        };
+        match &value.value {
+            NamableValue::I8(v) => {
+                self.draw_value = DrawValue::I8(*v);
+                self.sync_value_to_field(state, ui);
+                state.touch();
+            }
+            NamableValue::I32(v) => {
+                self.draw_value = DrawValue::I32(*v);
+                self.value = TileSetPropertyOptionValue::I32(Some(*v));
+                self.sync_value_to_field(state, ui);
+                self.send_value(state, sender, tile_resource);
+            }
+            NamableValue::F32(v) => {
+                self.draw_value = DrawValue::F32(*v);
+                self.value = TileSetPropertyOptionValue::F32(Some(*v));
+                self.sync_value_to_field(state, ui);
+                self.send_value(state, sender, tile_resource);
+            }
+        }
+    }
+    fn set_value_from_text(&mut self, v: ImmutableString) {
         self.value = TileSetPropertyOptionValue::String(Some(v.clone()));
         self.draw_value = DrawValue::String(v);
-        ui.send_message(TilePropertyMessage::value(
-            self.handle,
-            MessageDirection::FromWidget,
-            self.value.clone(),
-        ));
     }
-    fn set_value_from_i32(&mut self, v: i32, ui: &mut UserInterface) {
+    fn set_value_from_i32(&mut self, v: i32, state: &TileEditorState, ui: &mut UserInterface) {
         self.value = TileSetPropertyOptionValue::I32(Some(v));
         self.draw_value = DrawValue::I32(v);
-        ui.send_message(TilePropertyMessage::value(
-            self.handle,
-            MessageDirection::FromWidget,
-            self.value.clone(),
-        ));
-        self.update_list(ui);
+        self.sync_list_index(state, ui);
     }
-    fn set_value_from_f32(&mut self, v: f32, ui: &mut UserInterface) {
+    fn set_value_from_f32(&mut self, v: f32, state: &TileEditorState, ui: &mut UserInterface) {
         self.value = TileSetPropertyOptionValue::F32(Some(v));
         self.draw_value = DrawValue::F32(v);
-        ui.send_message(TilePropertyMessage::value(
-            self.handle,
-            MessageDirection::FromWidget,
-            self.value.clone(),
-        ));
-        self.update_list(ui);
+        self.sync_list_index(state, ui);
     }
-    fn set_value_from_i8(&mut self, v: i8, _ui: &mut UserInterface) {
+    fn set_value_from_i8(&mut self, v: i8) {
         self.draw_value = DrawValue::I8(v);
     }
-    fn handle_nine_click(&mut self, handle: Handle<UiNode>, ui: &mut UserInterface) {
-        let index = self
-            .nine_buttons
-            .as_ref()
-            .unwrap()
-            .iter()
-            .position(|x| *x == handle);
+    fn handle_nine_click(
+        &mut self,
+        handle: Handle<UiNode>,
+        state: &TileEditorState,
+        ui: &mut UserInterface,
+        sender: &MessageSender,
+        tile_resource: &TileResource,
+    ) {
+        let Some(buttons) = self.nine_buttons.as_ref() else {
+            return;
+        };
+        let index = buttons.iter().position(|x| *x == handle);
         let Some(index) = index else {
             return;
         };
@@ -251,85 +367,254 @@ impl TilePropertyEditor {
             return;
         }
         v[index] = Some(slice_value);
-        ui.send_message(TilePropertyMessage::set_slice(
-            self.handle,
-            MessageDirection::FromWidget,
-            index,
-            Some(slice_value),
-        ));
-        let tile_set = self.tile_set.data_ref();
-        let layer = tile_set.find_property(self.property_id).unwrap();
+        let Some(layer) = state.find_property(self.property_id) else {
+            return;
+        };
         let specs = create_nine_specs(&self.value, layer);
         apply_specs_to_nine(&specs[index], handle, ui);
-        ui.send_message(TilePropertyMessage::value(
-            self.handle,
-            MessageDirection::FromWidget,
-            self.value.clone(),
-        ));
+        let Some(tile_set) = tile_resource.tile_set_ref().cloned() else {
+            return;
+        };
+        let Some(page) = state.page() else {
+            return;
+        };
+        let mut update = TileSetUpdate::default();
+        for position in state.selected_positions() {
+            update.set_property_slice(
+                page,
+                position,
+                TileSetPropertyValue::index_to_nine_position(index),
+                self.property_id,
+                slice_value,
+            );
+        }
+        sender.do_command(SetTileSetTilesCommand {
+            tile_set,
+            tiles: update,
+        });
+    }
+    fn send_value(
+        &self,
+        state: &TileEditorState,
+        sender: &MessageSender,
+        tile_resource: &TileResource,
+    ) {
+        let Some(tile_set) = tile_resource.tile_set_ref().cloned() else {
+            return;
+        };
+        let Some(page) = state.page() else {
+            return;
+        };
+        let mut update = TileSetUpdate::default();
+        for position in state.selected_positions() {
+            update.set_property(
+                page,
+                position,
+                self.property_id,
+                Some(self.value.clone().into()),
+            );
+        }
+        sender.do_command(SetTileSetTilesCommand {
+            tile_set,
+            tiles: update,
+        });
     }
 }
 
-impl Control for TilePropertyEditor {
-    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
-        self.widget.handle_routed_message(ui, message);
-
-        if let Some(ButtonMessage::Click) = message.data() {
-            if message.destination() == self.paint_button {
-                let mut state = self.state.lock_mut();
-                let paint_active = state.drawing_mode == DrawingMode::Property
-                    && state.active_prop == Some(self.id);
-                let paint_active = !paint_active;
-                if paint_active {
-                    state.drawing_mode = DrawingMode::Property;
-                    state.active_prop = Some(self.id);
-                } else {
-                    state.drawing_mode = DrawingMode::Pick;
-                    state.active_prop = None;
-                }
-            } else {
-                self.handle_nine_click(message.destination(), ui);
-            }
-        } else if let Some(TilePropertyMessage::SyncToState) = message.data() {
-            self.sync_to_state(ui);
-        } else if let Some(TilePropertyMessage::UpdateProperty) = message.data() {
-            self.apply_property_update(ui);
-        } else if let Some(TilePropertyMessage::UpdateValue) = message.data() {
-            self.apply_value_update(ui);
-        } else if let Some(TextMessage::Text(v)) = message.data() {
-            if message.direction == MessageDirection::FromWidget
-                && message.destination() == self.value_field
-            {
-                self.set_value_from_text(v.into(), ui);
-            }
-        } else if let Some(&NumericUpDownMessage::<i32>::Value(v)) = message.data() {
-            if message.direction == MessageDirection::FromWidget
-                && message.destination() == self.value_field
-            {
-                self.set_value_from_i32(v, ui);
-            }
-        } else if let Some(&NumericUpDownMessage::<i8>::Value(v)) = message.data() {
-            if message.direction == MessageDirection::FromWidget
-                && message.destination() == self.value_field
-            {
-                self.set_value_from_i8(v, ui);
-            }
-        } else if let Some(&NumericUpDownMessage::<f32>::Value(v)) = message.data() {
-            if message.direction == MessageDirection::FromWidget
-                && message.destination() == self.value_field
-            {
-                self.set_value_from_f32(v, ui);
-            }
+fn build_property_highlight_cell(
+    position: Vector2<i32>,
+    data: &TileData,
+    data_update: Option<&TileDataUpdate>,
+    layer: &TileSetPropertyLayer,
+    draw_value: &DrawValue,
+    highlight: &mut FxHashMap<Subposition, Color>,
+) {
+    use TileSetPropertyValueElement as Element;
+    let value0 = data
+        .properties
+        .get(&layer.uuid)
+        .cloned()
+        .unwrap_or_else(|| layer.prop_type.default_value());
+    let value = if let Some(update) = data_update {
+        update.apply_to_property_value(layer.uuid, value0.clone())
+    } else {
+        value0.clone()
+    };
+    let element_value = match draw_value {
+        DrawValue::I8(v) => Element::I8(*v),
+        DrawValue::I32(v) => Element::I32(*v),
+        DrawValue::F32(v) => Element::F32(*v),
+        DrawValue::String(v) => Element::String(v.clone()),
+        _ => return,
+    };
+    for x in 0..3 {
+        for y in 0..3 {
+            let subtile = Vector2::new(x, y);
+            let pos = Subposition {
+                tile: position,
+                subtile,
+            };
+            let Some(color) = layer.highlight_color(subtile, &value, &element_value) else {
+                continue;
+            };
+            let _ = highlight.insert(pos, color);
         }
     }
 }
 
-fn highlight_tool_button(button: Handle<UiNode>, highlight: bool, ui: &UserInterface) {
-    let decorator = *ui.try_get_of_type::<Button>(button).unwrap().decorator;
-    ui.send_message(DecoratorMessage::select(
-        decorator,
-        MessageDirection::ToWidget,
-        highlight,
-    ));
+impl TileEditor for TilePropertyEditor {
+    fn handle(&self) -> Handle<UiNode> {
+        self.handle
+    }
+    fn draw_button(&self) -> Handle<UiNode> {
+        self.draw_button
+    }
+    fn slice_mode(&self) -> bool {
+        self.prop_type == TileSetPropertyType::NineSlice
+    }
+
+    fn highlight(
+        &self,
+        highlight: &mut FxHashMap<palette::Subposition, Color>,
+        page: Vector2<i32>,
+        tile_resource: &TileResource,
+        update: &TileSetUpdate,
+    ) {
+        let Some(tile_set) = tile_resource.tile_set_ref() else {
+            return;
+        };
+        let tile_set = tile_set.data_ref();
+        let property_id = self.property_id;
+        let Some(layer) = tile_set.find_property(property_id) else {
+            return;
+        };
+        let draw_value = &self.draw_value;
+        let Some(page_source) = tile_set.get_page(page).map(|p| &p.source) else {
+            return;
+        };
+        match page_source {
+            TileSetPageSource::Material(source) => {
+                for (position, data) in source.iter() {
+                    let data_update =
+                        TileDefinitionHandle::try_new(page, *position).and_then(|h| update.get(&h));
+                    build_property_highlight_cell(
+                        *position,
+                        data,
+                        data_update,
+                        layer,
+                        draw_value,
+                        highlight,
+                    );
+                }
+            }
+            TileSetPageSource::Freeform(source) => {
+                for (position, def) in source.iter() {
+                    let data_update =
+                        TileDefinitionHandle::try_new(page, *position).and_then(|h| update.get(&h));
+                    build_property_highlight_cell(
+                        *position,
+                        &def.data,
+                        data_update,
+                        layer,
+                        draw_value,
+                        highlight,
+                    );
+                }
+            }
+            _ => (),
+        }
+    }
+
+    fn sync_to_model(&mut self, state: &TileEditorState, ui: &mut UserInterface) {
+        self.apply_property_update(state, ui);
+    }
+
+    fn sync_to_state(&mut self, state: &TileEditorState, ui: &mut UserInterface) {
+        self.value = self.find_value(state);
+        self.sync_value_to_field(state, ui);
+        match &self.value {
+            TileSetPropertyOptionValue::I32(v) => {
+                self.draw_value = DrawValue::I32(v.unwrap_or_default())
+            }
+            TileSetPropertyOptionValue::F32(v) => {
+                self.draw_value = DrawValue::F32(v.unwrap_or_default())
+            }
+            TileSetPropertyOptionValue::String(v) => {
+                self.draw_value = DrawValue::String(v.as_ref().cloned().unwrap_or_default())
+            }
+            TileSetPropertyOptionValue::NineSlice(_) => (),
+        };
+        self.sync_list_index(state, ui);
+    }
+
+    fn draw_tile(
+        &self,
+        handle: TileDefinitionHandle,
+        subposition: Vector2<usize>,
+        _state: &TileDrawState,
+        update: &mut TileSetUpdate,
+        _tile_resource: &TileResource,
+    ) {
+        use TileSetPropertyValue as Value;
+        let page = handle.page();
+        let position = handle.tile();
+        let property_id = self.property_id;
+        match &self.draw_value {
+            DrawValue::I8(v) => {
+                update.set_property_slice(page, position, subposition, property_id, *v)
+            }
+            DrawValue::I32(v) => {
+                update.set_property(page, position, property_id, Some(Value::I32(*v)))
+            }
+            DrawValue::F32(v) => {
+                update.set_property(page, position, property_id, Some(Value::F32(*v)))
+            }
+            DrawValue::String(v) => {
+                update.set_property(page, position, property_id, Some(Value::String(v.clone())))
+            }
+            _ => (),
+        }
+    }
+
+    fn handle_ui_message(
+        &mut self,
+        state: &mut TileEditorState,
+        message: &UiMessage,
+        ui: &mut UserInterface,
+        tile_resource: &TileResource,
+        sender: &MessageSender,
+    ) {
+        if message.flags == MSG_SYNC_FLAG || message.direction() == MessageDirection::ToWidget {
+            return;
+        }
+        if let Some(ButtonMessage::Click) = message.data() {
+            self.handle_nine_click(message.destination(), state, ui, sender, tile_resource);
+        } else if let Some(TextMessage::Text(v)) = message.data() {
+            if message.destination() == self.value_field {
+                self.set_value_from_text(v.into());
+                self.send_value(state, sender, tile_resource);
+            }
+        } else if let Some(&NumericUpDownMessage::<i32>::Value(v)) = message.data() {
+            if message.destination() == self.value_field {
+                self.set_value_from_i32(v, state, ui);
+                self.send_value(state, sender, tile_resource);
+            }
+        } else if let Some(&NumericUpDownMessage::<i8>::Value(v)) = message.data() {
+            if message.destination() == self.value_field {
+                self.set_value_from_i8(v);
+                state.touch();
+            }
+        } else if let Some(&NumericUpDownMessage::<f32>::Value(v)) = message.data() {
+            if message.destination() == self.value_field {
+                self.set_value_from_f32(v, state, ui);
+                self.send_value(state, sender, tile_resource);
+            }
+        } else if let Some(DropdownListMessage::SelectionChanged(Some(index))) = message.data() {
+            if message.destination() == self.list {
+                self.set_value_from_list(*index, state, ui, sender, tile_resource);
+            }
+        }
+    }
 }
 
 pub fn make_named_value_list_option(
@@ -362,13 +647,14 @@ pub fn make_named_value_list_option(
 }
 
 fn build_list(layer: &TileSetPropertyLayer, ctx: &mut BuildContext) -> Vec<Handle<UiNode>> {
-    let custom = make_named_value_list_option(ctx, Color::TRANSPARENT, "Custom");
+    let custom =
+        make_named_value_list_option(ctx, ELEMENT_MATCH_HIGHLIGHT_COLOR.to_opaque(), "Custom");
     std::iter::once(custom)
         .chain(
             layer
                 .named_values
                 .iter()
-                .map(|v| make_named_value_list_option(ctx, v.color, &v.name)),
+                .map(|v| make_named_value_list_option(ctx, v.color.to_opaque(), &v.name)),
         )
         .collect()
 }
@@ -381,11 +667,20 @@ struct NineButtonSpec {
 
 impl NineButtonSpec {
     fn base_color(&self) -> Color {
-        let color = self.color.to_opaque();
-        if color.r > 230 && color.g > 230 && color.b > 230 {
-            color.lerp(Color::BLACK, 0.3)
+        self.color.to_opaque()
+    }
+    fn is_bright(&self) -> bool {
+        let r = self.color.r as usize;
+        let b = self.color.b as usize;
+        let g = self.color.g as usize;
+        let brightness = 2 * r + b + 3 * g;
+        brightness > 765
+    }
+    fn foreground_brush(&self) -> Brush {
+        if self.is_bright() {
+            Brush::Solid(Color::BLACK)
         } else {
-            color
+            Brush::Solid(Color::WHITE)
         }
     }
     fn selected_brush(&self) -> Brush {
@@ -395,7 +690,7 @@ impl NineButtonSpec {
         )
     }
     fn normal_brush(&self) -> Brush {
-        Brush::Solid(self.base_color().lerp(Color::WHITE, 0.4))
+        Brush::Solid(self.base_color())
     }
     fn hover_brush(&self) -> Brush {
         Brush::Solid(self.base_color().lerp(Color::WHITE, 0.6))
@@ -405,14 +700,14 @@ impl NineButtonSpec {
     }
 }
 
-const PAINT_BUTTON_WIDTH: f32 = 20.0;
-const PAINT_BUTTON_HEIGHT: f32 = 20.0;
+const DRAW_BUTTON_WIDTH: f32 = 20.0;
+const DRAW_BUTTON_HEIGHT: f32 = 20.0;
 
-fn make_paint_button(tab_index: Option<usize>, ctx: &mut BuildContext) -> Handle<UiNode> {
+fn make_draw_button(tab_index: Option<usize>, ctx: &mut BuildContext) -> Handle<UiNode> {
     ButtonBuilder::new(
         WidgetBuilder::new()
             .with_tab_index(tab_index)
-            .with_tooltip(make_simple_tooltip(ctx, "Paint with value."))
+            .with_tooltip(make_simple_tooltip(ctx, "Apply property value to tiles"))
             .with_margin(Thickness::uniform(1.0)),
     )
     .with_back(
@@ -435,8 +730,8 @@ fn make_paint_button(tab_index: Option<usize>, ctx: &mut BuildContext) -> Handle
             WidgetBuilder::new()
                 .with_background(Brush::Solid(Color::opaque(180, 180, 180)).into())
                 .with_margin(Thickness::uniform(2.0))
-                .with_width(PAINT_BUTTON_WIDTH)
-                .with_height(PAINT_BUTTON_HEIGHT),
+                .with_width(DRAW_BUTTON_WIDTH)
+                .with_height(DRAW_BUTTON_HEIGHT),
         )
         .with_opt_texture(BRUSH_IMAGE.clone())
         .build(ctx),
@@ -452,7 +747,9 @@ fn create_nine_specs(
         value.map(|z| {
             z.map(|x| NineButtonSpec {
                 name: layer.value_to_name(NamableValue::I8(x)),
-                color: layer.value_to_color(NamableValue::I8(x)),
+                color: layer
+                    .value_to_color(NamableValue::I8(x))
+                    .unwrap_or(ELEMENT_MATCH_HIGHLIGHT_COLOR),
             })
             .unwrap_or_else(|| NineButtonSpec {
                 name: "?".into(),
@@ -468,16 +765,19 @@ fn create_nine_specs(
 }
 
 fn apply_specs_to_nine(specs: &NineButtonSpec, handle: Handle<UiNode>, ui: &mut UserInterface) {
+    let button = ui.try_get_of_type::<Button>(handle).unwrap();
+    let text = *button.content.clone();
+    let decorator = *button.decorator.clone();
     ui.send_message(TextMessage::text(
-        handle,
+        text,
         MessageDirection::ToWidget,
         specs.name.clone(),
     ));
-    let decorator = *ui
-        .try_get_of_type::<Button>(handle)
-        .unwrap()
-        .decorator
-        .clone();
+    ui.send_message(WidgetMessage::foreground(
+        text,
+        MessageDirection::ToWidget,
+        specs.foreground_brush().into(),
+    ));
     ui.send_message(DecoratorMessage::selected_brush(
         decorator,
         MessageDirection::ToWidget,
@@ -510,7 +810,7 @@ fn build_nine_button(
     ButtonBuilder::new(
         WidgetBuilder::new()
             .on_column(x)
-            .on_row(y)
+            .on_row(2 - y)
             .with_tab_index(tab_index),
     )
     .with_text(specs.name.as_str())
@@ -538,8 +838,8 @@ fn build_nine(
 ) -> (Handle<UiNode>, Box<[Handle<UiNode>; 9]>) {
     let mut buttons: Box<[Handle<UiNode>; 9]> = [Handle::NONE; 9].into();
     let mut tab_index = 0;
-    for y in (0..4).rev() {
-        for x in 0..4 {
+    for y in 0..3 {
+        for x in 0..3 {
             let i = TileSetPropertyValue::nine_position_to_index(Vector2::new(x, y));
             buttons[i] = build_nine_button(&specs[i], x, y, Some(tab_index), ctx);
             tab_index += 1;
@@ -554,118 +854,4 @@ fn build_nine(
         .add_row(Row::auto())
         .build(ctx);
     (nine, buttons)
-}
-
-pub struct TilePropertyEditorBuilder {
-    widget_builder: WidgetBuilder,
-    tile_set: TileSetResource,
-    state: TileDrawStateRef,
-    prop_layer: TileSetPropertyLayer,
-    value: TileSetPropertyOptionValue,
-}
-
-impl TilePropertyEditorBuilder {
-    pub fn new(
-        widget_builder: WidgetBuilder,
-        tile_set: TileSetResource,
-        state: TileDrawStateRef,
-        prop_layer: TileSetPropertyLayer,
-    ) -> Self {
-        Self {
-            widget_builder,
-            tile_set,
-            state,
-            prop_layer,
-            value: TileSetPropertyOptionValue::default(),
-        }
-    }
-    pub fn with_value(mut self, value: TileSetPropertyOptionValue) -> Self {
-        self.value = value;
-        self
-    }
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
-        let paint_button = make_paint_button(Some(0), ctx);
-        let name_field = TextBuilder::new(WidgetBuilder::new())
-            .with_text(self.prop_layer.name.clone())
-            .build(ctx);
-        let value_field = match self.prop_layer.prop_type {
-            TileSetPropertyType::I32 => {
-                NumericUpDownBuilder::<i32>::new(WidgetBuilder::new()).build(ctx)
-            }
-            TileSetPropertyType::F32 => {
-                NumericUpDownBuilder::<f32>::new(WidgetBuilder::new()).build(ctx)
-            }
-            TileSetPropertyType::String => TextBoxBuilder::new(WidgetBuilder::new()).build(ctx),
-            TileSetPropertyType::NineSlice => {
-                NumericUpDownBuilder::<i8>::new(WidgetBuilder::new()).build(ctx)
-            }
-        };
-        let index = self
-            .prop_layer
-            .find_value_index(&self.value)
-            .map(|x| x + 1)
-            .unwrap_or(0);
-        let list = DropdownListBuilder::new(
-            WidgetBuilder::new().with_visibility(!self.prop_layer.named_values.is_empty()),
-        )
-        .with_items(build_list(&self.prop_layer, ctx))
-        .with_selected(index)
-        .build(ctx);
-        let grid = GridBuilder::new(
-            WidgetBuilder::new()
-                .on_column(1)
-                .with_child(name_field)
-                .with_child(value_field)
-                .with_child(list),
-        )
-        .add_column(Column::strict(50.0))
-        .add_column(Column::stretch())
-        .add_row(Row::auto())
-        .add_row(Row::auto())
-        .build(ctx);
-        let pair = GridBuilder::new(
-            WidgetBuilder::new()
-                .with_child(paint_button)
-                .with_child(grid),
-        )
-        .add_column(Column::auto())
-        .add_column(Column::stretch())
-        .add_row(Row::auto())
-        .build(ctx);
-        let is_nine = matches!(self.prop_layer.prop_type, TileSetPropertyType::NineSlice);
-        let (nine, nine_buttons) = if is_nine {
-            let (nine, nine_buttons) =
-                build_nine(create_nine_specs(&self.value, &self.prop_layer), ctx);
-            (nine, Some(nine_buttons))
-        } else {
-            (Handle::NONE, None)
-        };
-        let content = if is_nine {
-            StackPanelBuilder::new(WidgetBuilder::new().with_child(pair).with_child(nine))
-                .build(ctx)
-        } else {
-            grid
-        };
-        let draw_value = match self.prop_layer.prop_type {
-            TileSetPropertyType::I32 => DrawValue::I32(0),
-            TileSetPropertyType::F32 => DrawValue::F32(0.0),
-            TileSetPropertyType::String => DrawValue::String(ImmutableString::default()),
-            TileSetPropertyType::NineSlice => DrawValue::I8(0),
-        };
-        ctx.add_node(UiNode::new(TilePropertyEditor {
-            widget: self.widget_builder.with_child(content).build(ctx),
-            tile_set: self.tile_set,
-            prop_type: self.prop_layer.prop_type,
-            property_id: self.prop_layer.uuid,
-            state: self.state,
-            value: self.value,
-            draw_value,
-            paint_button,
-            name_field,
-            value_field,
-            list,
-            nine,
-            nine_buttons,
-        }))
-    }
 }

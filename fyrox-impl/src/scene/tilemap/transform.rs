@@ -26,7 +26,7 @@ use std::{
 use fxhash::FxHashMap;
 
 use crate::core::{
-    algebra::{Scalar, SimdPartialOrd, Vector2},
+    algebra::{Matrix2, Scalar, SimdPartialOrd, Vector2},
     math::{Number, Rect},
     reflect::prelude::*,
     visitor::prelude::*,
@@ -58,13 +58,22 @@ impl Default for OrthoTransformation {
     }
 }
 
+const ROTATION_MATRICES: [Matrix2<f32>; 4] = [
+    Matrix2::new(1.0, 0.0, 0.0, 1.0),
+    Matrix2::new(0.0, -1.0, 1.0, 0.0),
+    Matrix2::new(-1.0, 0.0, 0.0, -1.0),
+    Matrix2::new(0.0, 1.0, -1.0, 0.0),
+];
+
+const X_FLIP_MATRIX: Matrix2<f32> = Matrix2::new(-1.0, 0.0, 0.0, 1.0);
+
 impl OrthoTransformation {
     /// The transform that does nothing. It has no flip, and rotates by 0 right-angle turns.
     #[inline]
     pub const fn identity() -> Self {
         Self(1)
     }
-    /// The transform that first does an optional x-flip,
+    /// The transformation that first does an optional x-flip,
     /// then rotates counter-clockwise by the given amount.
     /// The rotation is measured in units of 90-degree rotations.
     /// Positive rotation is counter-clockwise. Negative rotation is clockwise.
@@ -72,6 +81,12 @@ impl OrthoTransformation {
     pub const fn new(flipped: bool, rotation: i8) -> Self {
         let rotation = rotation.rem_euclid(4);
         Self(if flipped { -rotation - 1 } else { rotation + 1 })
+    }
+    /// An iterator over all 8 possible OrthoTransformations.
+    pub fn all() -> impl Iterator<Item = OrthoTransformation> {
+        [-4i8, -3, -2, -1, 1, 2, 3, 4]
+            .into_iter()
+            .map(OrthoTransformation)
     }
     /// True if this tranformation is the idenity transformation that leaves the transformed object unmodified.
     #[inline]
@@ -106,6 +121,15 @@ impl OrthoTransformation {
     #[inline]
     pub const fn rotation(&self) -> i8 {
         self.0.abs() - 1
+    }
+    /// Matrix representation of this transformation.
+    pub fn matrix(&self) -> Matrix2<f32> {
+        let matrix = if self.is_flipped() {
+            X_FLIP_MATRIX
+        } else {
+            Matrix2::identity()
+        };
+        ROTATION_MATRICES[self.rotation() as usize] * matrix
     }
 }
 
@@ -328,10 +352,79 @@ impl<'a, V> Iterator for Keys<'a, V> {
     }
 }
 
+/// TransformSetCell represents a position within a transform set page and the corresponding transform.
+/// This object fascilitates using a transform set page to transform tiles by moving between positions
+/// in the page based on the desired transformation.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct TransformSetCell(Vector2<i32>, OrthoTransformation);
+
+fn transform_to_cell_position(rotation: i8) -> Vector2<i32> {
+    match rotation {
+        -1 => Vector2::new(3, 0),
+        -2 => Vector2::new(3, 1),
+        -3 => Vector2::new(2, 1),
+        -4 => Vector2::new(2, 0),
+        1 => Vector2::new(0, 0),
+        2 => Vector2::new(1, 0),
+        3 => Vector2::new(1, 1),
+        4 => Vector2::new(0, 1),
+        _ => panic!(),
+    }
+}
+
+fn cell_position_to_transform(position: Vector2<i32>) -> i8 {
+    match (position.x, position.y) {
+        (3, 0) => -1,
+        (3, 1) => -2,
+        (2, 1) => -3,
+        (2, 0) => -4,
+        (0, 0) => 1,
+        (1, 0) => 2,
+        (1, 1) => 3,
+        (0, 1) => 4,
+        _ => panic!(),
+    }
+}
+
+impl TransformSetCell {
+    /// Convert this cell into the corresponding position within a TransformSet page.
+    pub fn into_position(self) -> Vector2<i32> {
+        self.0 + transform_to_cell_position(self.1 .0)
+    }
+    /// Convert a position within a TransformSet into a transform set cell that specifies the corresponding orthogonal transformation.
+    pub fn from_position(position: Vector2<i32>) -> Self {
+        let rem = Vector2::new(position.x.rem_euclid(4), position.y.rem_euclid(2));
+        let pos = Vector2::new(position.x - rem.x, position.y - rem.y);
+        TransformSetCell(pos, OrthoTransformation(cell_position_to_transform(rem)))
+    }
+    /// Replace the transformation of this cell with a different transformation.
+    /// This is part of the process of rotating a tile:
+    /// 1. Find the transform set [`TileDefinitionHandle`] from the tile's data.
+    /// 2. Convert the tile position from the `TileDefinitonHandle` into a `TransformSetCell` using [TransformSetCell::from_position].
+    /// 3. Use `with_transformation` to replace the transformation from the `TransformSetCell` with the desired transformation.
+    /// 4. Convert the updated `TransformSetCell` into a tile position using [TransformSetCell::into_position].
+    /// 5. Get the `TileDefinitionHandle` from the transform set page at that position.
+    pub fn with_transformation(self, trans: OrthoTransformation) -> Self {
+        TransformSetCell(self.0, trans)
+    }
+}
+
+impl OrthoTransform for TransformSetCell {
+    fn x_flipped(self) -> Self {
+        Self(self.0, self.1.x_flipped())
+    }
+
+    fn rotated(self, amount: i8) -> Self {
+        Self(self.0, self.1.rotated(amount))
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::OrthoTransformation as Trans;
     use super::*;
+    use crate::core::algebra::Point2;
+    use OrthoTransformation as Trans;
+    use TransformSetCell as Cell;
 
     #[test]
     fn identity() {
@@ -343,6 +436,21 @@ mod tests {
             Vector2::new(-2, -2),
         ] {
             assert_eq!(v.transformed(Trans::identity()), v);
+        }
+    }
+    fn matrix_check(trans: OrthoTransformation) {
+        let v = Vector2::new(1.0, 0.5);
+        let m = trans.matrix().to_homogeneous();
+        let p = m.transform_point(&Point2::from(v)).coords;
+        assert_eq!(p, v.transformed(trans), "{}", trans);
+    }
+    #[test]
+    fn matrix() {
+        for i in 0..4 {
+            matrix_check(Trans::new(false, i))
+        }
+        for i in 0..4 {
+            matrix_check(Trans::new(true, i))
         }
     }
     #[test]
@@ -475,5 +583,133 @@ mod tests {
     #[test]
     fn double_y_flip() {
         assert_eq!(Trans::identity(), Trans::identity().y_flipped().y_flipped())
+    }
+    #[test]
+    fn cell_from_position_0() {
+        assert_eq!(
+            Cell::from_position(Vector2::new(0, 0)),
+            Cell(Vector2::new(0, 0), Trans::identity())
+        );
+    }
+    #[test]
+    fn cell_from_position_1() {
+        assert_eq!(
+            Cell::from_position(Vector2::new(1, 0)),
+            Cell(Vector2::new(0, 0), Trans::identity().rotated(1))
+        );
+    }
+    #[test]
+    fn cell_from_position_2() {
+        assert_eq!(
+            Cell::from_position(Vector2::new(2, 0)),
+            Cell(Vector2::new(0, 0), Trans::identity().x_flipped().rotated(3))
+        );
+    }
+    #[test]
+    fn cell_from_position_negative_0() {
+        assert_eq!(
+            Cell::from_position(Vector2::new(0, -2)),
+            Cell(Vector2::new(0, -2), Trans::identity())
+        );
+    }
+    #[test]
+    fn cell_into_position_0() {
+        assert_eq!(
+            Cell(Vector2::new(0, 0), Trans::identity().rotated(0)).into_position(),
+            Vector2::new(0, 0),
+        );
+        assert_eq!(
+            Cell(Vector2::new(0, 0), Trans::identity().rotated(1)).into_position(),
+            Vector2::new(1, 0),
+        );
+        assert_eq!(
+            Cell(Vector2::new(0, 0), Trans::identity().rotated(2)).into_position(),
+            Vector2::new(1, 1),
+        );
+        assert_eq!(
+            Cell(Vector2::new(0, 0), Trans::identity().rotated(3)).into_position(),
+            Vector2::new(0, 1),
+        );
+    }
+    #[test]
+    fn cell_into_position_1() {
+        assert_eq!(
+            Cell(Vector2::new(0, 0), Trans::identity().x_flipped().rotated(0)).into_position(),
+            Vector2::new(3, 0),
+        );
+        assert_eq!(
+            Cell(Vector2::new(0, 0), Trans::identity().x_flipped().rotated(1)).into_position(),
+            Vector2::new(3, 1),
+        );
+        assert_eq!(
+            Cell(Vector2::new(0, 0), Trans::identity().x_flipped().rotated(2)).into_position(),
+            Vector2::new(2, 1),
+        );
+        assert_eq!(
+            Cell(Vector2::new(0, 0), Trans::identity().x_flipped().rotated(3)).into_position(),
+            Vector2::new(2, 0),
+        );
+    }
+    #[test]
+    fn cell_into_position_negative_0() {
+        assert_eq!(
+            Cell(Vector2::new(0, -2), Trans::identity().rotated(0)).into_position(),
+            Vector2::new(0, -2),
+        );
+        assert_eq!(
+            Cell(Vector2::new(0, -2), Trans::identity().rotated(1)).into_position(),
+            Vector2::new(1, -2),
+        );
+        assert_eq!(
+            Cell(Vector2::new(0, -2), Trans::identity().rotated(2)).into_position(),
+            Vector2::new(1, -1),
+        );
+        assert_eq!(
+            Cell(Vector2::new(0, -2), Trans::identity().rotated(3)).into_position(),
+            Vector2::new(0, -1),
+        );
+    }
+    #[test]
+    fn cell_uniqueness() {
+        let mut set = fxhash::FxHashSet::<Vector2<i32>>::default();
+        for t in Trans::all() {
+            set.insert(Cell(Vector2::new(0, 0), t).into_position());
+        }
+        assert_eq!(set.len(), 8, "{set:?}");
+    }
+    #[test]
+    fn cell_correctness() {
+        for x in 0..4 {
+            for y in 0..2 {
+                assert_eq!(
+                    Cell::from_position(Vector2::new(x, y)).0,
+                    Vector2::new(0, 0),
+                    "{x}, {y}"
+                );
+            }
+        }
+        for x in 4..8 {
+            for y in -2..0 {
+                assert_eq!(
+                    Cell::from_position(Vector2::new(x, y)).0,
+                    Vector2::new(4, -2),
+                    "{x}, {y}"
+                );
+            }
+        }
+    }
+    #[test]
+    fn cell_from_position_and_back() {
+        for x in -3..4 {
+            for y in -2..4 {
+                let p = Vector2::new(x, y);
+                assert_eq!(
+                    Cell::from_position(p).into_position(),
+                    p,
+                    "Cell: {:?}",
+                    Cell::from_position(p)
+                );
+            }
+        }
     }
 }

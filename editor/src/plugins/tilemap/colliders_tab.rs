@@ -25,11 +25,9 @@ use fyrox::{
         color::{ColorFieldBuilder, ColorFieldMessage},
         grid::*,
         list_view::{ListView, ListViewBuilder, ListViewMessage},
-        numeric::NumericUpDownBuilder,
         scroll_viewer::ScrollViewerBuilder,
-        stack_panel::StackPanelBuilder,
         text::{TextBuilder, TextMessage},
-        text_box::{TextBoxBuilder, TextBoxMessage, TextCommitMode},
+        text_box::{TextBoxBuilder, TextCommitMode},
         utils::{make_arrow, ArrowDirection},
         HorizontalAlignment, VerticalAlignment,
     },
@@ -45,7 +43,6 @@ use commands::*;
 pub struct CollidersTab {
     handle: Handle<UiNode>,
     list: Handle<UiNode>,
-    tile_resource: TileResource,
     up_button: Handle<UiNode>,
     down_button: Handle<UiNode>,
     remove_button: Handle<UiNode>,
@@ -130,9 +127,9 @@ pub fn make_list_item(ctx: &mut BuildContext, collider: &TileSetColliderLayer) -
     .build(ctx)
 }
 
-pub fn make_items(ctx: &mut BuildContext, tile_set: &TileSet) -> Vec<Handle<UiNode>> {
+fn make_items(ctx: &mut BuildContext, tile_set: &TileSetRef) -> Vec<Handle<UiNode>> {
     tile_set
-        .colliders
+        .colliders()
         .iter()
         .map(|c| make_list_item(ctx, c))
         .collect()
@@ -141,7 +138,7 @@ pub fn make_items(ctx: &mut BuildContext, tile_set: &TileSet) -> Vec<Handle<UiNo
 impl CollidersTab {
     pub fn new(tile_resource: TileResource, ctx: &mut BuildContext) -> Self {
         let items = if let TileResource::TileSet(t) = &tile_resource {
-            make_items(ctx, &t.data_ref())
+            make_items(ctx, &TileSetRef::new(t))
         } else {
             Vec::default()
         };
@@ -245,7 +242,6 @@ impl CollidersTab {
             .add_column(Column::stretch())
             .build(ctx),
             list,
-            tile_resource,
             up_button,
             down_button,
             add_button,
@@ -258,7 +254,7 @@ impl CollidersTab {
     pub fn handle(&self) -> Handle<UiNode> {
         self.handle
     }
-    pub fn sync_to_model(&mut self, tile_set: &TileSet, ui: &mut UserInterface) {
+    pub fn sync_to_model(&mut self, tile_set: &TileSetRef, ui: &mut UserInterface) {
         let items = make_items(&mut ui.build_ctx(), tile_set);
         ui.send_message(ListViewMessage::items(
             self.list,
@@ -267,11 +263,11 @@ impl CollidersTab {
         ));
         self.sync_data(tile_set, ui);
     }
-    fn sync_data(&mut self, tile_set: &TileSet, ui: &mut UserInterface) {
+    fn sync_data(&mut self, tile_set: &TileSetRef, ui: &mut UserInterface) {
         let sel_index = self.selection_index(ui);
         let name = match sel_index {
             Some(index) => tile_set
-                .colliders
+                .colliders()
                 .get(index)
                 .map(|c| c.name.to_string())
                 .unwrap_or_default(),
@@ -279,7 +275,7 @@ impl CollidersTab {
         };
         let color = match sel_index {
             Some(index) => tile_set
-                .colliders
+                .colliders()
                 .get(index)
                 .map(|c| c.color)
                 .unwrap_or(Color::BLACK),
@@ -311,7 +307,7 @@ impl CollidersTab {
         }
         if let Some(ListViewMessage::SelectionChanged(_)) = message.data() {
             if message.destination() == self.list {
-                self.sync_data(&tile_set.data_ref(), ui);
+                self.sync_data(&TileSetRef::new(&tile_set), ui);
             }
         } else if let Some(TextMessage::Text(value)) = message.data() {
             if message.destination() == self.name_field {
@@ -347,14 +343,15 @@ impl CollidersTab {
         ui: &UserInterface,
         sender: &MessageSender,
     ) {
-        let tile_set = resource.data_ref();
+        let tile_set = TileSetRef::new(&resource);
+        let colliders = tile_set.colliders();
         let Some(sel_index) = self
             .selection_index(ui)
-            .map(|i| i.clamp(0, tile_set.colliders.len() - 1))
+            .map(|i| i.clamp(0, colliders.len() - 1))
         else {
             return;
         };
-        let Some(uuid) = tile_set.colliders.get(sel_index).map(|l| l.uuid) else {
+        let Some(uuid) = colliders.get(sel_index).map(|l| l.uuid) else {
             return;
         };
         ui.send_message(WidgetMessage::focus(

@@ -19,8 +19,9 @@
 // SOFTWARE.
 
 use fyrox::fxhash::FxHashSet;
-use fyrox::scene::tilemap::tileset::{TileSetPageSource, TileSetPropertyValue};
-use fyrox::scene::tilemap::TileSource;
+use fyrox::gui::message::CursorIcon;
+use fyrox::scene::tilemap::tileset::{TileSetPageSource, TileSetRef};
+use fyrox::scene::tilemap::{OrthoTransformation, TileSource};
 
 use crate::asset::item::AssetItem;
 use crate::fyrox::{
@@ -50,11 +51,16 @@ use crate::fyrox::{
         TilePaletteStage, TileRect, TileRenderData, TileResource, TileSetUpdate, TransTilesUpdate,
     },
 };
+use std::cell::RefCell;
 use std::ops::{Deref, DerefMut};
 
 use super::{commands::*, *};
 
 pub const DEFAULT_MATERIAL_COLOR: Color = Color::from_rgba(255, 255, 255, 125);
+pub const CURSOR_HIGHLIGHT_COLOR: Color = Color::from_rgba(255, 255, 255, 50);
+
+const MOUSE_CLICK_DELAY_FRAMES: usize = 1;
+const NO_PAGE_COLOR: Color = Color::from_rgba(20, 5, 5, 255);
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum PaletteMessage {
@@ -64,18 +70,22 @@ pub enum PaletteMessage {
     },
     Center(Vector2<i32>),
     SelectAll,
+    SelectOne(Vector2<i32>),
     Delete,
     MaterialColor(Color),
     SyncToState,
+    BeginMotion(Vector2<f32>),
 }
 
 impl PaletteMessage {
     define_constructor!(PaletteMessage:SetPage => fn set_page(source: TileResource, page: Option<Vector2<i32>>), layout: false);
     define_constructor!(PaletteMessage:Center => fn center(Vector2<i32>), layout: false);
     define_constructor!(PaletteMessage:SelectAll => fn select_all(), layout: false);
+    define_constructor!(PaletteMessage:SelectOne => fn select_one(Vector2<i32>), layout: false);
     define_constructor!(PaletteMessage:Delete => fn delete(), layout: false);
     define_constructor!(PaletteMessage:MaterialColor => fn material_color(Color), layout: false);
     define_constructor!(PaletteMessage:SyncToState => fn sync_to_state(), layout: false);
+    define_constructor!(PaletteMessage:BeginMotion => fn begin_motion(Vector2<f32>), layout: false);
 }
 
 #[derive(Clone, Default, Debug, PartialEq)]
@@ -137,6 +147,7 @@ pub struct PaletteWidget {
     #[visit(skip)]
     #[reflect(hidden)]
     pub tile_set_update: TileSetUpdate,
+    #[visit(skip)]
     #[reflect(hidden)]
     pub state: TileDrawStateRef,
     pub kind: TilePaletteStage,
@@ -151,7 +162,17 @@ pub struct PaletteWidget {
     highlight: FxHashMap<Subposition, Color>,
     #[visit(skip)]
     #[reflect(hidden)]
+    colliders: Vec<ColliderHighlight>,
+    #[visit(skip)]
+    #[reflect(hidden)]
     cursor_position: Option<Vector2<i32>>,
+    /// A copy of the current drawing mode that is made whenever the user
+    /// presses the mouse button. While the actual drawing mode may change
+    /// during a mouse stroke, this value never will, so nothing breaks by changing
+    /// tool in the middle of a mouse stroke.
+    #[visit(skip)]
+    #[reflect(hidden)]
+    current_tool: DrawingMode,
     #[visit(skip)]
     #[reflect(hidden)]
     slice_position: Vector2<usize>,
@@ -167,13 +188,34 @@ pub struct PaletteWidget {
     #[visit(skip)]
     #[reflect(hidden)]
     mode: MouseMode,
+    #[visit(skip)]
+    #[reflect(hidden)]
+    collider_triangles: RefCell<PaletteTriangleData>,
 }
 
 define_widget_deref!(PaletteWidget);
 
+type PaletteTriangleData = (Vec<Point2<f32>>, Vec<[u32; 3]>);
+
+#[derive(Debug, Clone)]
+struct ColliderHighlight {
+    position: Vector2<i32>,
+    color: Color,
+    tile_collider: TileCollider,
+}
+
+impl ColliderHighlight {
+    fn new(position: Vector2<i32>, color: Color, tile_collider: TileCollider) -> Self {
+        Self {
+            position,
+            color,
+            tile_collider,
+        }
+    }
+}
+
 #[derive(Default, Clone, Debug)]
 struct PaletteOverlay {
-    active: bool,
     movable_position: Vector2<i32>,
     movable_tiles: FxHashMap<Vector2<i32>, TileRenderData>,
     erased_tiles: FxHashSet<Vector2<i32>>,
@@ -181,24 +223,22 @@ struct PaletteOverlay {
 
 impl PaletteOverlay {
     pub fn covers(&self, position: Vector2<i32>) -> bool {
-        self.active
-            && (self.erased_tiles.contains(&position)
-                || self
-                    .movable_tiles
-                    .contains_key(&(position - self.movable_position)))
+        self.erased_tiles.contains(&position)
+            || self
+                .movable_tiles
+                .contains_key(&(position - self.movable_position))
     }
     pub fn iter(&self) -> impl Iterator<Item = (Vector2<i32>, &TileRenderData)> {
         let offset = self.movable_position;
         self.movable_tiles
             .iter()
-            .filter(|_| self.active)
             .map(move |(p, d)| (*p + offset, d))
     }
     pub fn clear(&mut self) {
         self.movable_tiles.clear();
         self.erased_tiles.clear();
     }
-    pub fn set_to_stamp(&mut self, stamp: &Stamp, tile_set: &TileSet) {
+    pub fn set_to_stamp(&mut self, stamp: &Stamp, tile_set: TileSetRef) {
         self.movable_tiles.clear();
         self.erased_tiles.clear();
         for (pos, handle) in stamp.iter() {
@@ -226,25 +266,83 @@ impl PaletteWidget {
         }
     }
 
-    fn sync_to_state(&mut self) {
+    fn send_cursor_icon(&self, icon: Option<CursorIcon>, ui: &mut UserInterface) {
+        ui.send_message(WidgetMessage::cursor(
+            self.handle(),
+            MessageDirection::ToWidget,
+            icon,
+        ));
+    }
+    fn sync_to_state(&mut self, ui: &mut UserInterface) {
         let state = self.state.lock();
+        let drawing_mode = if self.editable {
+            match self.kind {
+                TilePaletteStage::Pages => DrawingMode::Pick,
+                TilePaletteStage::Tiles => state.drawing_mode,
+            }
+        } else {
+            DrawingMode::Pick
+        };
+        let icon = match drawing_mode {
+            DrawingMode::Pick => Some(CursorIcon::Pointer),
+            DrawingMode::Draw => Some(CursorIcon::Crosshair),
+            DrawingMode::Erase => Some(CursorIcon::Crosshair),
+            DrawingMode::FloodFill => Some(CursorIcon::Crosshair),
+            DrawingMode::RectFill => Some(CursorIcon::Crosshair),
+            DrawingMode::Line => Some(CursorIcon::Crosshair),
+            DrawingMode::NineSlice => Some(CursorIcon::Crosshair),
+            DrawingMode::Editor => None,
+        };
+        self.send_cursor_icon(icon, ui);
         if state.selection_palette() != self.handle {
             self.selecting_tiles.clear();
         }
-        self.slice_mode = state.drawing_mode == DrawingMode::Property
-            && matches!(state.draw_value, DrawValue::I8(_));
+        self.slice_mode = if let Some(editor) = &state.active_editor {
+            self.editable
+                && self.kind == TilePaletteStage::Tiles
+                && state.drawing_mode == DrawingMode::Editor
+                && editor.lock().slice_mode()
+        } else {
+            false
+        };
+        self.colliders.clear();
+        if self.kind == TilePaletteStage::Tiles
+            && self.page.is_some()
+            && !state.visible_colliders.is_empty()
+        {
+            let page = self.page.unwrap();
+            self.content
+                .tile_collider_loop(page, |pos, uuid, color, tile_collider| {
+                    if !state.visible_colliders.contains(&uuid) {
+                        return;
+                    }
+                    self.colliders
+                        .push(ColliderHighlight::new(pos, color, tile_collider.clone()));
+                });
+        }
         if self.editable && self.kind == TilePaletteStage::Tiles {
-            if state.drawing_mode == DrawingMode::Draw
-                || state.drawing_mode == DrawingMode::FloodFill
-            {
-                if let Some(tile_set) = self.content.get_tile_set() {
-                    self.overlay
-                        .set_to_stamp(&state.stamp, &tile_set.data_ref());
-                } else {
-                    self.overlay.clear();
+            self.overlay.clear();
+            self.highlight.clear();
+            match state.drawing_mode {
+                DrawingMode::Draw | DrawingMode::FloodFill => {
+                    if let Some(tile_set) = state.tile_set.as_ref() {
+                        self.overlay
+                            .set_to_stamp(&state.stamp, TileSetRef::new(tile_set));
+                    }
                 }
-            } else {
-                self.overlay.clear();
+                DrawingMode::Editor => {
+                    if let Some(editor) = &state.active_editor {
+                        if let &Some(page) = &self.page {
+                            editor.lock().highlight(
+                                &mut self.highlight,
+                                page,
+                                &self.content,
+                                &self.tile_set_update,
+                            );
+                        }
+                    }
+                }
+                _ => (),
             }
         }
     }
@@ -308,12 +406,18 @@ impl PaletteWidget {
         let Some(page) = self.page else {
             return;
         };
+        let state = self.state.lock();
+        let source_set = state.tile_set.as_ref();
         match &self.content {
             TileResource::Empty => (),
             TileResource::TileSet(resource) => {
                 self.tile_set_update.clear();
-                self.tile_set_update
-                    .convert(&self.update, &resource.data_ref(), page);
+                self.tile_set_update.convert(
+                    &self.update,
+                    resource,
+                    page,
+                    source_set.unwrap_or(resource),
+                );
                 self.sender.do_command(SetTileSetTilesCommand {
                     tile_set: resource.clone(),
                     tiles: self.tile_set_update.clone(),
@@ -322,13 +426,18 @@ impl PaletteWidget {
                 self.update.clear();
             }
             TileResource::Brush(resource) => {
-                if let Some(tile_set) = &resource.data_ref().tile_set {
+                if let Some(source_set) = source_set
+                    .cloned()
+                    .or_else(|| resource.state().data()?.tile_set.clone())
+                {
+                    let source_set = TileSetRef::new(&source_set);
                     self.sender.do_command(SetBrushTilesCommand {
                         brush: resource.clone(),
                         page,
-                        tiles: self.update.build_tiles_update(&tile_set.data_ref()),
+                        tiles: self.update.build_tiles_update(&source_set),
                     });
                 }
+                self.update.clear();
             }
         }
     }
@@ -344,8 +453,8 @@ impl PaletteWidget {
             self.tile_set_update.clear();
         }
     }
-    fn delete_tiles(&mut self, ui: &mut UserInterface) -> bool {
-        let state = self.state.lock_mut();
+    fn delete_tiles(&mut self, _ui: &mut UserInterface) -> bool {
+        let state = self.state.lock_mut("delete_tiles");
         if state.selection_palette() != self.handle || !state.has_selection() {
             return false;
         }
@@ -360,15 +469,17 @@ impl PaletteWidget {
         &mut self,
         resource: TileResource,
         page: Option<Vector2<i32>>,
-        _ui: &mut UserInterface,
+        ui: &mut UserInterface,
     ) {
-        let mut state = self.state.lock_mut();
+        let mut state = self.state.lock_mut("set_page");
         if state.selection_palette() == self.handle {
             self.selecting_tiles.clear();
             state.clear_selection();
         }
         self.page = page;
         self.content = resource;
+        drop(state);
+        self.sync_to_state(ui);
     }
     fn send_new_page(&mut self, page: Vector2<i32>, ui: &mut UserInterface) {
         self.page = Some(page);
@@ -379,28 +490,26 @@ impl PaletteWidget {
             Some(page),
         ));
     }
-    fn drawing_mode(&self) -> Option<DrawingMode> {
+    fn drawing_mode(&self) -> DrawingMode {
         if self.editable {
             match self.kind {
-                TilePaletteStage::Pages => Some(DrawingMode::Pick),
-                TilePaletteStage::Tiles => Some(self.state.lock().drawing_mode),
+                TilePaletteStage::Pages => DrawingMode::Pick,
+                TilePaletteStage::Tiles => self.current_tool,
             }
         } else {
-            Some(DrawingMode::Pick)
+            DrawingMode::Pick
         }
     }
     pub fn sync_selection_to_model(&mut self) {
         let page = self.page.unwrap_or_default();
-        let mut state = self.state.lock_mut();
-        self.selecting_tiles.clone_from(state.selection_positions());
-        let tiles = state.selection_tiles_mut();
-        self.content.get_tiles(
-            self.stage(),
-            page,
-            self.selecting_tiles.iter().copied(),
-            tiles,
-        );
+        let mut state = self.state.lock_mut("sync_selection_to_model");
+        state.tile_set = self.content.get_tile_set();
         self.selecting_tiles.clear();
+        let stamp_trans = state.stamp.transformation();
+        state.update_stamp(self.content.get_tile_set(), |p| {
+            self.content.get_tile_handle(self.stage(), page, p)
+        });
+        state.stamp.transform(stamp_trans);
     }
     fn update_selection(&mut self) {
         let MouseMode::Drawing { start_tile, end } = self.mode.clone() else {
@@ -411,26 +520,23 @@ impl PaletteWidget {
             return;
         }
         let page = self.page.unwrap_or_default();
-        let mut state = self.state.lock_mut();
+        let mut state = self.state.lock_mut("update_selection");
+        state.tile_set = self.content.get_tile_set();
         state.set_palette(self.handle);
         let positions = state.selection_positions_mut();
         positions.clone_from(&self.selecting_tiles);
-        positions.extend(TileRect::from_points(start_tile, end_tile).iter());
-        let tiles = state.selection_tiles_mut();
-        tiles.clear();
-        self.content.get_tiles(
-            self.stage(),
-            page,
-            self.selecting_tiles.iter().copied(),
-            tiles,
-        );
         let rect = TileRect::from_points(start_tile, end_tile);
-        self.content
-            .get_tiles(self.stage(), page, rect.iter(), tiles);
-        state.update_stamp(self.content.get_tile_set());
+        if self.selecting_tiles.contains(&start_tile) {
+            positions.retain(|p| !rect.contains(*p))
+        } else {
+            positions.extend(rect.iter());
+        }
+        state.update_stamp(self.content.get_tile_set(), |p| {
+            self.content.get_tile_handle(self.stage(), page, p)
+        });
     }
     fn finalize_selection(&mut self, ui: &mut UserInterface) {
-        let MouseMode::Drawing { start_tile, end } = self.mode.clone() else {
+        let MouseMode::Drawing { end, .. } = self.mode.clone() else {
             return;
         };
         let end_tile = end.grid;
@@ -441,40 +547,48 @@ impl PaletteWidget {
                 }
             }
             TilePaletteStage::Pages => self.send_new_page(end_tile, ui),
-            _ => (),
         }
         let page = self.page.unwrap_or_default();
-        self.selecting_tiles
-            .extend(TileRect::from_points(start_tile, end_tile).iter());
-        let mut state = self.state.lock_mut();
+        let mut state = self.state.lock_mut("finalize_selection");
+        state.tile_set = self.content.get_tile_set();
         state.set_palette(self.handle);
-        let positions = state.selection_positions_mut();
-        positions.clone_from(&self.selecting_tiles);
-        let tiles = state.selection_tiles_mut();
-        tiles.clear();
-        self.content.get_tiles(
-            self.stage(),
-            page,
-            self.selecting_tiles.iter().copied(),
-            tiles,
-        );
-        state.update_stamp(self.content.get_tile_set());
+        let positions = state.selection_positions();
+        self.selecting_tiles.clone_from(positions);
+        state.update_stamp(self.content.get_tile_set(), |p| {
+            self.content.get_tile_handle(self.stage(), page, p)
+        });
     }
     fn select_all(&mut self) {
         let Some(page) = self.page else {
             return;
         };
-        let mut state = self.state.lock_mut();
+        let mut state = self.state.lock_mut("select_all");
         let results = match self.stage() {
             TilePaletteStage::Tiles => self.content.get_all_tile_positions(page),
             TilePaletteStage::Pages => self.content.get_all_page_positions(),
         };
+        state.tile_set = self.content.get_tile_set();
         state.set_palette(self.handle);
-        let tiles = state.selection_tiles_mut();
-        tiles.clear();
-        self.content
-            .get_tiles(self.stage(), page, results.into_iter(), tiles);
-        state.update_stamp(self.content.get_tile_set());
+        let sel = state.selection_positions_mut();
+        sel.clear();
+        sel.extend(results.iter().copied());
+        state.update_stamp(self.content.get_tile_set(), |p| {
+            self.content.get_tile_handle(self.stage(), page, p)
+        });
+    }
+    fn select_one(&mut self, position: Vector2<i32>) {
+        let Some(page) = self.page else {
+            return;
+        };
+        let mut state = self.state.lock_mut("select_one");
+        state.tile_set = self.content.get_tile_set();
+        state.set_palette(self.handle);
+        let sel = state.selection_positions_mut();
+        sel.clear();
+        sel.insert(position);
+        state.update_stamp(self.content.get_tile_set(), |p| {
+            self.content.get_tile_handle(self.stage(), page, p)
+        });
     }
     fn begin_motion(&mut self, mode: DrawingMode, pos: MousePos, ui: &mut UserInterface) {
         match mode {
@@ -514,6 +628,7 @@ impl PaletteWidget {
         Vector2::new((p.x / t.x).round() as i32, -(p.y / t.y).round() as i32)
     }
     fn continue_motion(&mut self, mode: DrawingMode, pos: MousePos, ui: &mut UserInterface) {
+        self.overlay.movable_position = pos.grid;
         match mode {
             DrawingMode::Pick => match &self.mode {
                 MouseMode::Dragging {
@@ -537,13 +652,8 @@ impl PaletteWidget {
                 }
                 _ => (),
             },
-            mode => match self.mode.clone() {
-                MouseMode::None => {
-                    if mode == DrawingMode::Draw || mode == DrawingMode::FloodFill {
-                        self.overlay.movable_position = pos.grid;
-                    }
-                }
-                MouseMode::Drawing { start_tile, end } => {
+            mode => {
+                if let MouseMode::Drawing { start_tile, end } = self.mode.clone() {
                     if end.grid != pos.grid || self.slice_mode && end.subgrid != pos.subgrid {
                         self.draw(mode, start_tile, pos.grid, pos.subgrid, ui);
                         self.mode = MouseMode::Drawing {
@@ -552,8 +662,7 @@ impl PaletteWidget {
                         };
                     }
                 }
-                _ => (),
-            },
+            }
         }
     }
 
@@ -586,7 +695,7 @@ impl PaletteWidget {
         }
     }
 
-    fn begin_drag(&mut self, pos: MousePos, ui: &mut UserInterface) {
+    fn begin_drag(&mut self, _pos: MousePos, _ui: &mut UserInterface) {
         let state = self.state.lock();
         if state.selection_palette() != self.handle {
             return;
@@ -597,7 +706,7 @@ impl PaletteWidget {
         if self.kind == TilePaletteStage::Tiles && self.content.is_material_page(page) {
             return;
         }
-        let Some(tile_set) = self.content.get_tile_set() else {
+        let Some(tile_set) = state.tile_set.as_ref() else {
             return;
         };
         let mut tile_set = tile_set.state();
@@ -625,7 +734,7 @@ impl PaletteWidget {
             TilePaletteStage::Pages => self.end_page_drag(offset),
             TilePaletteStage::Tiles => self.end_tile_drag(offset),
         }
-        let mut state = self.state.lock_mut();
+        let mut state = self.state.lock_mut("end_drag");
         let sel = state.selection_positions_mut();
         sel.clear();
         sel.extend(self.overlay.iter().map(|(p, _)| p));
@@ -663,18 +772,24 @@ impl PaletteWidget {
         let Some(page) = self.page else {
             return;
         };
-        let tiles = state
-            .selection_positions()
-            .iter()
-            .copied()
-            .collect::<Vec<_>>();
+        let tiles = state.selection_positions().iter().copied();
         match self.content.clone() {
             TileResource::Empty => (),
             TileResource::TileSet(tile_set) => {
+                let data = tile_set.data_ref();
+                let tiles = tiles
+                    .filter(|p| data.has_tile_at(page, *p))
+                    .collect::<Vec<_>>();
+                drop(data);
                 self.sender
                     .do_command(MoveTileSetTileCommand::new(tile_set, page, tiles, offset));
             }
             TileResource::Brush(brush) => {
+                let data = brush.data_ref();
+                let tiles = tiles
+                    .filter(|p| data.has_tile_at(page, *p))
+                    .collect::<Vec<_>>();
+                drop(data);
                 self.sender
                     .do_command(MoveBrushTileCommand::new(brush, page, tiles, offset));
             }
@@ -687,7 +802,7 @@ impl PaletteWidget {
         start: Vector2<i32>,
         end: Vector2<i32>,
         sub_pos: Vector2<usize>,
-        ui: &mut UserInterface,
+        _ui: &mut UserInterface,
     ) {
         let Some(page) = self.page else {
             return;
@@ -728,50 +843,24 @@ impl PaletteWidget {
                     self.update.draw_line(start, end, &stamp.repeat(start, end));
                 }
             }
-            DrawingMode::Material => {
-                if let DrawValue::Material(value) = &state.draw_value {
-                    self.tile_set_update.set_material(page, end, value.clone());
-                }
-            }
-            DrawingMode::Property => {
-                use TileSetPropertyValue as Value;
-                if let Some(prop_id) = &state.active_prop {
-                    match &state.draw_value {
-                        DrawValue::I8(v) => self
-                            .tile_set_update
-                            .set_property_slice(page, end, sub_pos, *prop_id, *v),
-                        DrawValue::I32(v) => self.tile_set_update.set_property(
+            DrawingMode::Editor => {
+                if let Some(editor) = &state.active_editor {
+                    if let Some(handle) = TileDefinitionHandle::try_new(page, end) {
+                        let editor = editor.lock();
+                        editor.draw_tile(
+                            handle,
+                            sub_pos,
+                            &state,
+                            &mut self.tile_set_update,
+                            &self.content,
+                        );
+                        editor.highlight(
+                            &mut self.highlight,
                             page,
-                            end,
-                            *prop_id,
-                            Some(Value::I32(*v)),
-                        ),
-                        DrawValue::F32(v) => self.tile_set_update.set_property(
-                            page,
-                            end,
-                            *prop_id,
-                            Some(Value::F32(*v)),
-                        ),
-                        DrawValue::String(v) => self.tile_set_update.set_property(
-                            page,
-                            end,
-                            *prop_id,
-                            Some(Value::String(v.clone())),
-                        ),
-                        _ => (),
+                            &self.content,
+                            &self.tile_set_update,
+                        );
                     }
-                }
-            }
-            DrawingMode::Color => {
-                if let DrawValue::Color(v) = &state.draw_value {
-                    self.tile_set_update.set_color(page, end, *v);
-                }
-            }
-            DrawingMode::Collider => {
-                if let (Some(prop_id), DrawValue::Collider(v)) =
-                    (&state.active_prop, &state.draw_value)
-                {
-                    self.tile_set_update.set_collider(page, end, *prop_id, *v);
                 }
             }
         }
@@ -791,15 +880,120 @@ impl PaletteWidget {
             DrawingMode::FloodFill => self.send_update(),
             DrawingMode::RectFill => self.send_update(),
             DrawingMode::NineSlice => self.send_update(),
-            DrawingMode::Material => self.send_tile_set_update(),
-            DrawingMode::Property => self.send_tile_set_update(),
-            DrawingMode::Color => self.send_tile_set_update(),
-            DrawingMode::Collider => self.send_tile_set_update(),
+            DrawingMode::Editor => self.send_tile_set_update(),
         }
     }
     fn accept_material_drop(&mut self, _material: MaterialResource, _ui: &UserInterface) {
         // TODO
-        todo!();
+    }
+    fn push_tile_collider(
+        &self,
+        position: Vector2<i32>,
+        transformation: OrthoTransformation,
+        collider: &TileCollider,
+        ctx: &mut DrawingContext,
+    ) {
+        let mut tris = self.collider_triangles.borrow_mut();
+        let (vertices, triangles) = &mut *tris;
+        let s = self.tile_size;
+        let scaling = Matrix4::<f32>::new_nonuniform_scaling(&Vector3::new(s.x, s.y, 1.0));
+        let transform = if transformation.is_identity() {
+            scaling
+        } else {
+            let center = Vector3::new(0.5 + position.x as f32, 0.5 + position.y as f32, 0.0);
+            let matrix = transformation.matrix().to_homogeneous().to_homogeneous();
+            scaling
+                * Matrix4::new_translation(&center)
+                * matrix
+                * Matrix4::new_translation(&-center)
+        };
+        let position = position.cast::<f32>().to_homogeneous();
+        collider.build_collider_shape(&transform, position, vertices, triangles);
+        let origin = ctx.last_vertex_index();
+        for v in vertices.iter() {
+            ctx.push_vertex(v.coords, Vector2::new(0.0, 0.0));
+        }
+        for [a, b, c] in triangles.iter().map(|tri| tri.map(|i| i + origin)) {
+            ctx.push_triangle(a, b, c);
+        }
+        vertices.clear();
+        triangles.clear();
+    }
+    fn draw_tile_colliders(&self, page: Vector2<i32>, ctx: &mut DrawingContext) {
+        let is_overlay_visible = self.is_overlay_visible();
+        let mut current_color = None;
+        for highlight in self.colliders.iter() {
+            let pos = highlight.position;
+            let Some(handle) = TileDefinitionHandle::try_new(page, pos) else {
+                continue;
+            };
+            if is_overlay_visible && self.overlay.covers(pos) {
+                continue;
+            }
+            if self.update.contains_key(&pos) || self.tile_set_update.contains_key(&handle) {
+                continue;
+            }
+            if let Some(cur) = current_color {
+                if cur != highlight.color {
+                    self.commit_color(cur, ctx);
+                    current_color = Some(highlight.color);
+                }
+            } else {
+                current_color = Some(highlight.color);
+            }
+            self.push_tile_collider(
+                highlight.position,
+                OrthoTransformation::identity(),
+                &highlight.tile_collider,
+                ctx,
+            );
+        }
+        if let Some(cur) = current_color {
+            self.commit_color(cur, ctx);
+        }
+        let Some(tile_set) = self.content.get_tile_set() else {
+            return;
+        };
+        let tile_set = tile_set.data_ref();
+        for uuid in self.state.lock().visible_colliders.iter() {
+            for (pos, handle) in self.update.iter() {
+                let Some((trans, handle)) = handle else {
+                    continue;
+                };
+                let Some(color) = tile_set.collider_color(*uuid) else {
+                    continue;
+                };
+                let tile_collider = tile_set.tile_collider(*handle, *uuid);
+                if tile_collider.is_none() {
+                    continue;
+                }
+                self.push_tile_collider(*pos, *trans, tile_collider, ctx);
+                self.commit_color(color, ctx);
+            }
+        }
+        if self.tile_set_update.is_empty() {
+            return;
+        }
+        for uuid in self.state.lock().visible_colliders.iter() {
+            for (handle, value) in self.tile_set_update.iter() {
+                let Some(handle) = value.substitute_transform_handle(*handle) else {
+                    continue;
+                };
+                let Some(color) = tile_set.collider_color(*uuid) else {
+                    continue;
+                };
+                let tile_collider = value
+                    .get_tile_collider(uuid)
+                    .unwrap_or_else(|| tile_set.tile_collider(handle, *uuid));
+                self.push_tile_collider(
+                    handle.tile(),
+                    OrthoTransformation::identity(),
+                    tile_collider,
+                    ctx,
+                );
+                self.commit_color(color, ctx);
+            }
+        }
     }
     fn push_cell_rect(&self, position: Vector2<i32>, thickness: f32, ctx: &mut DrawingContext) {
         let size = self.tile_size;
@@ -824,6 +1018,7 @@ impl PaletteWidget {
             position,
             size: subsize,
         };
+        let rect = rect.deflate(2.0, 2.0);
         ctx.push_rect(&rect, thickness);
     }
     fn push_subcell_rect_filled(&self, position: Subposition, ctx: &mut DrawingContext) {
@@ -837,6 +1032,7 @@ impl PaletteWidget {
             position,
             size: subsize,
         };
+        let rect = rect.deflate(2.0, 2.0);
         ctx.push_rect_filled(&rect, None);
     }
     fn push_erase_area(&self, thickness: f32, ctx: &mut DrawingContext) {
@@ -918,10 +1114,63 @@ impl PaletteWidget {
         );
         ctx.transform_stack.pop();
     }
+    fn is_overlay_visible(&self) -> bool {
+        match self.drawing_mode() {
+            DrawingMode::Draw => self.is_mouse_directly_over && self.mode == MouseMode::None,
+            DrawingMode::Erase => self.is_mouse_directly_over,
+            DrawingMode::FloodFill => self.is_mouse_directly_over,
+            DrawingMode::Pick => matches!(self.mode, MouseMode::Dragging { .. }),
+            DrawingMode::RectFill => true,
+            DrawingMode::NineSlice => true,
+            DrawingMode::Line => true,
+            DrawingMode::Editor => false,
+        }
+    }
+    fn draw_no_page(&self, ctx: &mut DrawingContext) {
+        let bounds = self.bounding_rect();
+        ctx.push_rect_filled(&bounds, None);
+        self.commit_color(NO_PAGE_COLOR, ctx);
+        let transform = self.tile_to_local();
+        let inv_transform = invert_transform(&transform);
+        let bounds = bounds.transform(&inv_transform);
+        ctx.transform_stack
+            .push(self.visual_transform() * transform);
+        ctx.push_grid(self.zoom, self.tile_size, bounds);
+        self.commit_color(Color::DIM_GRAY, ctx);
+        let line_thickness = 1.0 / self.zoom;
+        let left = bounds.left_bottom_corner().x;
+        let right = bounds.right_bottom_corner().x;
+        let top = bounds.left_top_corner().y;
+        let bottom = bounds.left_bottom_corner().y;
+        // Axis lines
+        ctx.push_line(
+            Vector2::new(left, 0.0),
+            Vector2::new(right, 0.0),
+            line_thickness,
+        );
+        ctx.push_line(
+            Vector2::new(0.0, top),
+            Vector2::new(0.0, bottom),
+            line_thickness,
+        );
+        self.commit_color(Color::RED, ctx);
+    }
 }
 
 impl Control for PaletteWidget {
     fn draw(&self, ctx: &mut DrawingContext) {
+        let page = if let Some(page) = self.page {
+            page
+        } else if self.kind == TilePaletteStage::Pages {
+            Vector2::new(0, 0)
+        } else {
+            self.draw_no_page(ctx);
+            return;
+        };
+        if self.kind == TilePaletteStage::Tiles && !self.content.has_page_at(page) {
+            self.draw_no_page(ctx);
+            return;
+        }
         let bounds = self.bounding_rect();
         ctx.push_rect_filled(&bounds, None);
         ctx.commit(
@@ -930,7 +1179,6 @@ impl Control for PaletteWidget {
             CommandTexture::None,
             None,
         );
-        let page = self.page.unwrap_or_default();
         let transform = self.tile_to_local();
         let inv_transform = invert_transform(&transform);
         let bounds = bounds.transform(&inv_transform);
@@ -940,30 +1188,27 @@ impl Control for PaletteWidget {
         self.draw_material_background(ctx);
 
         let stage = self.stage();
-        if stage == TilePaletteStage::Tiles && self.page.is_some()
-            || stage == TilePaletteStage::Pages
-        {
-            self.content.tile_render_loop(stage, page, |pos, data| {
-                if self.overlay.covers(pos) {
-                    return;
-                }
-                if self.update.contains_key(&pos) {
-                    return;
-                }
-                let Some(handle) = TileDefinitionHandle::try_new(page, pos) else {
-                    return;
-                };
-                if self.tile_set_update.contains_key(&handle) {
-                    return;
-                }
-                let t = self.tile_size;
-                let position = Vector2::new(pos.x as f32 * t.x, pos.y as f32 * t.y);
-                let rect = Rect { position, size: t };
-                draw_tile(rect, self.clip_bounds(), &data, ctx);
-            });
-        }
+        let is_overlay_visible = self.is_overlay_visible();
+        self.content.tile_render_loop(stage, page, |pos, data| {
+            if is_overlay_visible && self.overlay.covers(pos) {
+                return;
+            }
+            if self.update.contains_key(&pos) {
+                return;
+            }
+            let Some(handle) = TileDefinitionHandle::try_new(page, pos) else {
+                return;
+            };
+            if self.tile_set_update.contains_key(&handle) {
+                return;
+            }
+            let t = self.tile_size;
+            let position = Vector2::new(pos.x as f32 * t.x, pos.y as f32 * t.y);
+            let rect = Rect { position, size: t };
+            draw_tile(rect, self.clip_bounds(), &data, ctx);
+        });
 
-        if let Some(tile_set) = self.content.get_tile_set() {
+        if let Some(tile_set) = self.state.lock().tile_set.as_ref() {
             let mut tile_set = tile_set.state();
             if let Some(tile_set) = tile_set.data() {
                 for (pos, v) in self.update.iter() {
@@ -994,13 +1239,19 @@ impl Control for PaletteWidget {
                     let rect = Rect { position, size: t };
                     draw_tile(rect, self.clip_bounds(), &data, ctx);
                 }
-                for (pos, data) in self.overlay.iter() {
-                    let t = self.tile_size;
-                    let position = Vector2::new(pos.x as f32 * t.x, pos.y as f32 * t.y);
-                    let rect = Rect { position, size: t };
-                    draw_tile(rect, self.clip_bounds(), data, ctx);
-                }
             }
+        }
+        if is_overlay_visible {
+            for (pos, data) in self.overlay.iter() {
+                let t = self.tile_size;
+                let position = Vector2::new(pos.x as f32 * t.x, pos.y as f32 * t.y);
+                let rect = Rect { position, size: t };
+                draw_tile(rect, self.clip_bounds(), data, ctx);
+            }
+        }
+
+        if self.kind == TilePaletteStage::Tiles {
+            self.draw_tile_colliders(page, ctx);
         }
 
         ctx.push_grid(self.zoom, self.tile_size, bounds);
@@ -1051,7 +1302,7 @@ impl Control for PaletteWidget {
             } else {
                 self.push_cell_rect_filled(pos, ctx);
             }
-            self.commit_color(Color::WHITE.with_new_alpha(150), ctx);
+            self.commit_color(CURSOR_HIGHLIGHT_COLOR, ctx);
         }
 
         if self.editable
@@ -1091,24 +1342,23 @@ impl Control for PaletteWidget {
 
         if let Some(WidgetMessage::MouseDown { pos, button }) = message.data() {
             ui.capture_mouse(self.handle());
+            self.current_tool = self.state.lock().drawing_mode;
             if *button == MouseButton::Middle {
                 self.mode = MouseMode::Panning {
                     initial_view_position: self.view_position,
                     click_position: *pos,
                 };
             } else if *button == MouseButton::Left && !message.handled() {
-                if let Some(mode) = self.drawing_mode() {
-                    let mouse_pos = self.calc_mouse_position(*pos);
-                    self.begin_motion(mode, mouse_pos, ui);
-                }
+                ui.send_message(DelayedMessage::message(
+                    MOUSE_CLICK_DELAY_FRAMES,
+                    PaletteMessage::begin_motion(self.handle(), MessageDirection::ToWidget, *pos),
+                ));
             }
         } else if let Some(WidgetMessage::MouseUp { pos, button, .. }) = message.data() {
             ui.release_mouse_capture();
             if *button == MouseButton::Left {
-                if let Some(mode) = self.drawing_mode() {
-                    let mouse_pos = self.calc_mouse_position(*pos);
-                    self.end_motion(mode, mouse_pos, ui);
-                }
+                let mouse_pos = self.calc_mouse_position(*pos);
+                self.end_motion(self.drawing_mode(), mouse_pos, ui);
             }
             self.mode = MouseMode::None;
         } else if let Some(WidgetMessage::MouseMove { pos, .. }) = message.data() {
@@ -1122,13 +1372,8 @@ impl Control for PaletteWidget {
             let mouse_pos = self.calc_mouse_position(*pos);
             self.slice_position = mouse_pos.subgrid;
             self.set_cursor_position(Some(mouse_pos.grid));
-            if let Some(drawing_mode) = self.drawing_mode() {
-                self.continue_motion(drawing_mode, mouse_pos, ui);
-            }
-        } else if let Some(WidgetMessage::MouseEnter { .. }) = message.data() {
-            self.overlay.active = true;
+            self.continue_motion(self.drawing_mode(), mouse_pos, ui);
         } else if let Some(WidgetMessage::MouseLeave { .. }) = message.data() {
-            self.overlay.active = false;
             self.set_cursor_position(None);
         } else if let Some(WidgetMessage::MouseWheel { amount, pos }) = message.data() {
             let tile_pos = self.screen_point_to_tile_point(*pos);
@@ -1147,11 +1392,24 @@ impl Control for PaletteWidget {
                     PaletteMessage::SetPage { source, page } => {
                         self.set_page(source.clone(), *page, ui)
                     }
+                    PaletteMessage::Center(v) => {
+                        let s = self.tile_size;
+                        let s = Vector2::new(s.x * -self.zoom, s.y * self.zoom);
+                        self.view_position = Vector2::new(v.x as f32 * s.x, v.y as f32 * s.y);
+                    }
                     PaletteMessage::SelectAll => self.select_all(),
+                    PaletteMessage::SelectOne(v) => self.select_one(*v),
                     PaletteMessage::Delete => drop(self.delete_tiles(ui)),
                     PaletteMessage::MaterialColor(color) => self.material_color = *color,
-                    PaletteMessage::SyncToState => self.sync_to_state(),
-                    _ => (),
+                    PaletteMessage::SyncToState => self.sync_to_state(ui),
+                    PaletteMessage::BeginMotion(pos) => {
+                        let mouse_pos = self.calc_mouse_position(*pos);
+                        self.begin_motion(self.drawing_mode(), mouse_pos.clone(), ui);
+                        if self.handle() != ui.captured_node() {
+                            self.end_motion(self.drawing_mode(), mouse_pos, ui);
+                            self.mode = MouseMode::None;
+                        }
+                    }
                 }
             }
         } else if let Some(WidgetMessage::KeyDown(key)) = message.data() {
@@ -1165,6 +1423,7 @@ impl Control for PaletteWidget {
 pub struct PaletteWidgetBuilder {
     widget_builder: WidgetBuilder,
     tile_resource: TileResource,
+    page: Option<Vector2<i32>>,
     sender: MessageSender,
     state: TileDrawStateRef,
     kind: TilePaletteStage,
@@ -1184,7 +1443,13 @@ impl PaletteWidgetBuilder {
             state,
             kind: TilePaletteStage::default(),
             editable: false,
+            page: None,
         }
+    }
+
+    pub fn with_page(mut self, page: Vector2<i32>) -> Self {
+        self.page = Some(page);
+        self
     }
 
     pub fn with_resource(mut self, tile_resource: TileResource) -> Self {
@@ -1216,21 +1481,24 @@ impl PaletteWidgetBuilder {
             kind: self.kind,
             editable: self.editable,
             material_color: DEFAULT_MATERIAL_COLOR,
-            page: None,
+            page: self.page,
             cursor_position: None,
+            current_tool: DrawingMode::Pick,
             slice_position: Vector2::default(),
-            slice_mode: true,
+            slice_mode: false,
             position_text: FormattedTextBuilder::new(ctx.inner().default_font.clone())
                 .with_brush(Brush::Solid(Color::WHITE))
                 .build(),
             selecting_tiles: FxHashSet::default(),
             highlight: FxHashMap::default(),
+            colliders: Vec::default(),
             update: TransTilesUpdate::default(),
             tile_set_update: TileSetUpdate::default(),
             view_position: Default::default(),
             zoom: 1.0,
             tile_size: Vector2::repeat(32.0),
             mode: MouseMode::None,
+            collider_triangles: RefCell::default(),
         }))
     }
 }

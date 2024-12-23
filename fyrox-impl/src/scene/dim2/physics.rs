@@ -22,7 +22,6 @@
 
 use crate::{
     core::{
-        algebra::Point3,
         algebra::{
             Isometry2, Isometry3, Matrix4, Point2, Rotation3, Translation2, Translation3,
             UnitComplex, UnitQuaternion, UnitVector2, Vector2, Vector3,
@@ -53,7 +52,7 @@ use crate::{
             Graph, NodePool,
         },
         node::{Node, NodeTrait},
-        tilemap::{tileset::TileCollider, TileMap, TilePaletteStage},
+        tilemap::{TileMap, TilePaletteStage},
     },
 };
 pub use rapier2d::geometry::shape::*;
@@ -339,11 +338,12 @@ fn tile_map_to_collider_shape(
     let tile_scale = tile_map.tile_scale();
     let global_transform = owner_inv_transform
         * tile_map.global_transform()
-        * Matrix4::new_nonuniform_scaling(&Vector3::new(tile_scale.x, tile_scale.y, 1.0));
+        * Matrix4::new_nonuniform_scaling(&Vector3::new(-tile_scale.x, tile_scale.y, 1.0));
 
     let mut vertices = Vec::new();
     let mut triangles = Vec::new();
 
+    let collider_uuid = tile_set.collider_name_to_uuid(collider_name.clone())?;
     for tile in tile_map.iter() {
         let Some(tile_definition) =
             tile_set.get_tile_data(TilePaletteStage::Tiles, tile.definition_handle)
@@ -351,40 +351,14 @@ fn tile_map_to_collider_shape(
             continue;
         };
 
-        let collider_uuid = tile_set.collider_name_to_uuid(collider_name.clone())?;
-        match tile_definition.collider.get(&collider_uuid)? {
-            TileCollider::None => {}
-            TileCollider::Rectangle => {
-                let origin = vertices.len() as u32;
-
-                let position = tile.position.cast::<f32>().to_homogeneous();
-                vertices.push(
-                    global_transform
-                        .transform_point(&Point3::from(position))
-                        .xy(),
-                );
-                vertices.push(
-                    global_transform
-                        .transform_point(&Point3::from(position + Vector3::new(1.0, 0.0, 0.0)))
-                        .xy(),
-                );
-                vertices.push(
-                    global_transform
-                        .transform_point(&Point3::from(position + Vector3::new(1.0, 1.0, 0.0)))
-                        .xy(),
-                );
-                vertices.push(
-                    global_transform
-                        .transform_point(&Point3::from(position + Vector3::new(0.0, 1.0, 0.0)))
-                        .xy(),
-                );
-
-                triangles.push([origin, origin + 1, origin + 2]);
-                triangles.push([origin, origin + 2, origin + 3]);
-            }
-            TileCollider::Mesh => {
-                // TODO: Add image-to-mesh conversion.
-            }
+        if let Some(collider) = tile_definition.collider.get(&collider_uuid) {
+            let position = tile.position.cast::<f32>().to_homogeneous();
+            collider.build_collider_shape(
+                &global_transform,
+                position,
+                &mut vertices,
+                &mut triangles,
+            );
         }
     }
 

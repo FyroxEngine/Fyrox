@@ -19,16 +19,18 @@
 // SOFTWARE.
 
 use fyrox::{
-    core::{color::Color, ImmutableString, Uuid},
+    core::{color::Color, log::Log, pool::Handle, ImmutableString, Uuid},
     fxhash::FxHashMap,
     material::MaterialResource,
-    scene::tilemap::{
-        tileset::{
-            AbstractTile, NamableValue, NamedValue, TileCollider, TileSetColliderLayer,
-            TileSetPage, TileSetPageSource, TileSetPropertyLayer, TileSetPropertyType,
-            TileSetPropertyValue,
+    scene::{
+        node::Node,
+        tilemap::{
+            tileset::{
+                AbstractTile, NamableValue, NamedValue, TileSetColliderLayer, TileSetPage,
+                TileSetPageSource, TileSetPropertyLayer, TileSetPropertyType, TileSetPropertyValue,
+            },
+            OrthoTransform, OrthoTransformation, TileCollider, TileDefinitionHandle, TileMap,
         },
-        OrthoTransform, OrthoTransformation, TileDefinitionHandle,
     },
 };
 
@@ -37,10 +39,13 @@ use crate::{
     fyrox::{
         core::algebra::Vector2,
         scene::tilemap::{
-            brush::TileMapBrushPage, brush::TileMapBrushResource, swap_hash_map_entry,
-            tileset::TileSetResource, TileSetUpdate, TilesUpdate,
+            brush::{TileMapBrushPage, TileMapBrushResource},
+            swap_hash_map_entry,
+            tileset::TileSetResource,
+            TileSetUpdate, TilesUpdate,
         },
     },
+    scene::commands::GameSceneContext,
 };
 
 #[derive(Debug)]
@@ -782,7 +787,10 @@ impl MoveBrushTileCommand {
     }
     fn swap(&mut self) {
         let mut brush = self.brush.data_ref();
-        let page = brush.pages.get_mut(&self.page).unwrap();
+        let Some(page) = brush.pages.get_mut(&self.page) else {
+            Log::err("Move brush tile on non-existent page.");
+            return;
+        };
         for (i, p) in self.tiles.iter().enumerate() {
             swap_hash_map_entry(page.tiles.entry(*p + self.start_offset), &mut self.data[i]);
         }
@@ -809,6 +817,60 @@ impl CommandTrait for MoveBrushTileCommand {
 }
 
 #[derive(Debug)]
+pub struct MoveMapTileCommand {
+    pub tile_map: Handle<Node>,
+    pub tiles: Vec<Vector2<i32>>,
+    data: Vec<Option<TileDefinitionHandle>>,
+    pub start_offset: Vector2<i32>,
+    pub end_offset: Vector2<i32>,
+}
+
+impl MoveMapTileCommand {
+    pub fn new(tile_map: Handle<Node>, tiles: Vec<Vector2<i32>>, offset: Vector2<i32>) -> Self {
+        Self {
+            data: vec![None; tiles.len()],
+            tile_map,
+            tiles,
+            start_offset: Vector2::new(0, 0),
+            end_offset: offset,
+        }
+    }
+    fn swap(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
+        let tile_map = context.scene.graph[self.tile_map]
+            .cast_mut::<TileMap>()
+            .expect("Cast to TileMap failed!");
+        for (i, p) in self.tiles.iter().enumerate() {
+            swap_hash_map_entry(
+                tile_map.tiles.entry(*p + self.start_offset),
+                &mut self.data[i],
+            );
+        }
+        for (i, p) in self.tiles.iter().enumerate() {
+            swap_hash_map_entry(
+                tile_map.tiles.entry(*p + self.end_offset),
+                &mut self.data[i],
+            );
+        }
+        std::mem::swap(&mut self.start_offset, &mut self.end_offset);
+    }
+}
+
+impl CommandTrait for MoveMapTileCommand {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
+        "Move Tile".into()
+    }
+
+    fn execute(&mut self, context: &mut dyn CommandContext) {
+        self.swap(context)
+    }
+
+    fn revert(&mut self, context: &mut dyn CommandContext) {
+        self.swap(context)
+    }
+}
+
+#[derive(Debug)]
 pub struct TransformTilesCommand {
     pub tile_set: TileSetResource,
     pub page: Vector2<i32>,
@@ -819,13 +881,13 @@ pub struct TransformTilesCommand {
 impl TransformTilesCommand {
     fn swap(&mut self) {
         let mut tile_set = self.tile_set.data_ref();
-        let source = tile_set
-            .pages
-            .get_mut(&self.page)
-            .map(|p| &mut p.source)
-            .unwrap();
+        let Some(source) = tile_set.pages.get_mut(&self.page).map(|p| &mut p.source) else {
+            Log::err("Transform tile command on non-existent page.");
+            return;
+        };
         let TileSetPageSource::Freeform(map) = source else {
-            panic!();
+            Log::err("Transform tile command on non-freeform tiles.");
+            return;
         };
         for p in self.tiles.iter() {
             let Some(def) = map.get_mut(p) else {
@@ -917,6 +979,36 @@ impl CommandTrait for SetTileSetTilesCommand {
 }
 
 #[derive(Debug)]
+pub struct SetMapTilesCommand {
+    pub tile_map: Handle<Node>,
+    pub tiles: TilesUpdate,
+}
+
+impl SetMapTilesCommand {
+    fn swap(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
+        let tile_map = context.scene.graph[self.tile_map]
+            .cast_mut::<TileMap>()
+            .expect("Cast to TileMap failed!");
+        tile_map.tiles.swap_tiles(&mut self.tiles);
+    }
+}
+
+impl CommandTrait for SetMapTilesCommand {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
+        "Draw Tiles".into()
+    }
+
+    fn execute(&mut self, context: &mut dyn CommandContext) {
+        self.swap(context)
+    }
+
+    fn revert(&mut self, context: &mut dyn CommandContext) {
+        self.swap(context)
+    }
+}
+
+#[derive(Debug)]
 pub struct ModifyPageTileSizeCommand {
     pub tile_set: TileSetResource,
     pub page: Vector2<i32>,
@@ -926,10 +1018,11 @@ pub struct ModifyPageTileSizeCommand {
 impl ModifyPageTileSizeCommand {
     fn swap(&mut self) {
         let mut tile_set = self.tile_set.data_ref();
-        let TileSetPageSource::Material(mat) =
-            &mut tile_set.pages.get_mut(&self.page).unwrap().source
+        let Some(TileSetPageSource::Material(mat)) =
+            &mut tile_set.pages.get_mut(&self.page).map(|p| &mut p.source)
         else {
-            panic!();
+            Log::err("Modify tile size on non-material tile page.");
+            return;
         };
         std::mem::swap(&mut self.size, &mut mat.tile_size);
         tile_set.change_count.increment();
@@ -960,10 +1053,11 @@ pub struct ModifyPageMaterialCommand {
 impl ModifyPageMaterialCommand {
     fn swap(&mut self) {
         let mut tile_set = self.tile_set.data_ref();
-        let TileSetPageSource::Material(mat) =
-            &mut tile_set.pages.get_mut(&self.page).unwrap().source
+        let Some(TileSetPageSource::Material(mat)) =
+            &mut tile_set.pages.get_mut(&self.page).map(|p| &mut p.source)
         else {
-            panic!();
+            Log::err("Modify tile page material on non-material page.");
+            return;
         };
         std::mem::swap(&mut self.material, &mut mat.material);
         tile_set.change_count.increment();
@@ -988,13 +1082,16 @@ impl CommandTrait for ModifyPageMaterialCommand {
 pub struct ModifyPageIconCommand {
     pub tile_set: TileSetResource,
     pub page: Vector2<i32>,
-    pub icon: Option<TileDefinitionHandle>,
+    pub icon: TileDefinitionHandle,
 }
 
 impl ModifyPageIconCommand {
     fn swap(&mut self) {
         let mut tile_set = self.tile_set.data_ref();
-        let page = &mut tile_set.pages.get_mut(&self.page).unwrap();
+        let Some(page) = &mut tile_set.pages.get_mut(&self.page) else {
+            Log::err("Modify icon of non-existent tile page.");
+            return;
+        };
         std::mem::swap(&mut self.icon, &mut page.icon);
         tile_set.change_count.increment();
     }
@@ -1003,6 +1100,67 @@ impl ModifyPageIconCommand {
 impl CommandTrait for ModifyPageIconCommand {
     fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Modify Tile Page Icon".into()
+    }
+
+    fn execute(&mut self, _context: &mut dyn CommandContext) {
+        self.swap()
+    }
+
+    fn revert(&mut self, _context: &mut dyn CommandContext) {
+        self.swap()
+    }
+}
+
+#[derive(Debug)]
+pub struct ModifyBrushPageIconCommand {
+    pub brush: TileMapBrushResource,
+    pub page: Vector2<i32>,
+    pub icon: TileDefinitionHandle,
+}
+
+impl ModifyBrushPageIconCommand {
+    fn swap(&mut self) {
+        let mut brush = self.brush.data_ref();
+        let Some(page) = &mut brush.pages.get_mut(&self.page) else {
+            Log::err("Modify icon of non-existent tile page.");
+            return;
+        };
+        std::mem::swap(&mut self.icon, &mut page.icon);
+        brush.change_count.increment();
+    }
+}
+
+impl CommandTrait for ModifyBrushPageIconCommand {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
+        "Modify Tile Page Icon".into()
+    }
+
+    fn execute(&mut self, _context: &mut dyn CommandContext) {
+        self.swap()
+    }
+
+    fn revert(&mut self, _context: &mut dyn CommandContext) {
+        self.swap()
+    }
+}
+
+#[derive(Debug)]
+pub struct ModifyBrushTileSetCommand {
+    pub brush: TileMapBrushResource,
+    pub tile_set: Option<TileSetResource>,
+}
+
+impl ModifyBrushTileSetCommand {
+    fn swap(&mut self) {
+        let mut brush = self.brush.data_ref();
+        std::mem::swap(&mut self.tile_set, &mut brush.tile_set);
+        brush.change_count.increment();
+    }
+}
+
+impl CommandTrait for ModifyBrushTileSetCommand {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
+        "Choose Tile Set for Brush".into()
     }
 
     fn execute(&mut self, _context: &mut dyn CommandContext) {

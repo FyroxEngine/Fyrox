@@ -22,7 +22,10 @@
 //! build game worlds quickly and easily. See [`TileMap`] docs for more info and usage examples.
 
 pub mod brush;
+mod edit;
+mod property;
 mod resource_grid;
+mod tile_collider;
 mod tile_rect;
 mod tile_source;
 pub mod tileset;
@@ -30,8 +33,10 @@ mod transform;
 mod update;
 
 use brush::*;
+pub use edit::*;
 use fyrox_graph::constructor::ConstructorProvider;
 use resource_grid::*;
+pub use tile_collider::*;
 pub use tile_rect::*;
 pub use tile_source::*;
 use tileset::*;
@@ -41,9 +46,9 @@ pub use update::*;
 use crate::{
     asset::untyped::ResourceKind,
     core::{
-        algebra::{Vector2, Vector3},
+        algebra::{Matrix4, Vector2, Vector3},
         color::Color,
-        math::{aabb::AxisAlignedBoundingBox, TriangleDefinition},
+        math::{aabb::AxisAlignedBoundingBox, Matrix4Ext, TriangleDefinition},
         pool::Handle,
         reflect::prelude::*,
         type_traits::prelude::*,
@@ -51,7 +56,7 @@ use crate::{
         visitor::prelude::*,
     },
     graph::BaseSceneGraph,
-    material::{shader::ShaderResource, Material, MaterialResource, STANDARD_2D},
+    material::{Material, MaterialResource, STANDARD_2D},
     renderer::{self, bundle::RenderContext},
     scene::{
         base::{Base, BaseBuilder},
@@ -109,6 +114,139 @@ pub fn swap_hash_map_entries<K0, K1, V>(entry0: Entry<K0, V>, entry1: Entry<K1, 
     }
 }
 
+/// Basic data required for rendering TileMap tiles.
+pub struct TileRenderPosition {
+    /// The handle of the TileMap.
+    pub tile_map_handle: Handle<Node>,
+    /// The global transformation of the TileMap.
+    pub transform: Matrix4<f32>,
+}
+
+fn make_rect_vertex(
+    transform: &Matrix4<f32>,
+    position: Vector2<f32>,
+    color: Color,
+) -> RectangleVertex {
+    RectangleVertex {
+        position: transform
+            .transform_point(&position.to_homogeneous().into())
+            .coords,
+        tex_coord: Vector2::default(),
+        color,
+    }
+}
+
+fn make_tile_vertex(
+    transform: &Matrix4<f32>,
+    position: Vector2<f32>,
+    tex_coord: Vector2<u32>,
+    color: Color,
+) -> TileVertex {
+    TileVertex {
+        position: transform
+            .transform_point(&position.to_homogeneous().into())
+            .coords,
+        tex_coord: tex_coord.cast::<f32>(),
+        color,
+    }
+}
+
+impl TileRenderPosition {
+    /// The global position of the TileMap.
+    pub fn position(&self) -> Vector3<f32> {
+        self.transform.position()
+    }
+
+    /// Render the given tile data at the given cell position.
+    pub fn push_tile(
+        &self,
+        position: Vector2<i32>,
+        data: &TileRenderData,
+        ctx: &mut RenderContext,
+    ) {
+        let color = data.color;
+        if let Some(tile_bounds) = data.material_bounds.as_ref() {
+            let material = &tile_bounds.material;
+            let bounds = &tile_bounds.bounds;
+            self.push_material_tile(position, material, bounds, color, ctx);
+        } else {
+            self.push_color_tile(position, color, ctx);
+        }
+    }
+
+    fn push_color_tile(&self, position: Vector2<i32>, color: Color, ctx: &mut RenderContext) {
+        let position = position.cast::<f32>();
+        let vertices = [(0.0, 1.0), (1.0, 1.0), (1.0, 0.0), (0.0, 0.0)]
+            .map(|(x, y)| Vector2::new(x, y))
+            .map(|p| make_rect_vertex(&self.transform, position + p, color));
+
+        let triangles = [[0, 1, 2], [2, 3, 0]].map(TriangleDefinition);
+
+        let sort_index = ctx.calculate_sorting_index(self.position());
+
+        ctx.storage.push_triangles(
+            RectangleVertex::layout(),
+            &STANDARD_2D.resource,
+            RenderPath::Forward,
+            sort_index,
+            self.tile_map_handle,
+            &mut move |mut vertex_buffer, mut triangle_buffer| {
+                let start_vertex_index = vertex_buffer.vertex_count();
+
+                vertex_buffer.push_vertices(&vertices).unwrap();
+
+                triangle_buffer
+                    .push_triangles_iter_with_offset(start_vertex_index, triangles.into_iter());
+            },
+        );
+    }
+
+    fn push_material_tile(
+        &self,
+        position: Vector2<i32>,
+        material: &MaterialResource,
+        bounds: &TileBounds,
+        color: Color,
+        ctx: &mut RenderContext,
+    ) {
+        let position = position.cast::<f32>();
+        let uvs = [
+            bounds.right_top_corner,
+            bounds.left_top_corner,
+            bounds.left_bottom_corner,
+            bounds.right_bottom_corner,
+        ];
+        let vertices = [
+            (1.0, 1.0, uvs[0]),
+            (0.0, 1.0, uvs[1]),
+            (0.0, 0.0, uvs[2]),
+            (1.0, 0.0, uvs[3]),
+        ]
+        .map(|(x, y, uv)| (Vector2::new(x, y), uv))
+        .map(|(p, uv)| make_tile_vertex(&self.transform, position + p, uv, color));
+
+        let triangles = [[0, 1, 2], [2, 3, 0]].map(TriangleDefinition);
+
+        let sort_index = ctx.calculate_sorting_index(self.position());
+
+        ctx.storage.push_triangles(
+            TileVertex::layout(),
+            material,
+            RenderPath::Forward,
+            sort_index,
+            self.tile_map_handle,
+            &mut move |mut vertex_buffer, mut triangle_buffer| {
+                let start_vertex_index = vertex_buffer.vertex_count();
+
+                vertex_buffer.push_vertices(&vertices).unwrap();
+
+                triangle_buffer
+                    .push_triangles_iter_with_offset(start_vertex_index, triangles.into_iter());
+            },
+        );
+    }
+}
+
 /// A record of the number of changes that have happened since the most recent save.
 /// It is potentially negative, which represents undo changes to reach a state
 /// from before the most recent save.
@@ -140,7 +278,7 @@ pub struct TileVertex {
     /// Position of vertex in local coordinates.
     pub position: Vector3<f32>,
     /// Texture coordinates measured in pixels.
-    pub tex_coord: Vector2<u32>,
+    pub tex_coord: Vector2<f32>,
     /// Diffuse color.
     pub color: Color,
 }
@@ -158,7 +296,7 @@ impl VertexTrait for TileVertex {
             },
             VertexAttributeDescriptor {
                 usage: VertexAttributeUsage::TexCoord0,
-                data_type: VertexAttributeDataType::U32,
+                data_type: VertexAttributeDataType::F32,
                 size: 2,
                 divisor: 0,
                 shader_location: 1,
@@ -233,6 +371,7 @@ pub enum TileResource {
 }
 
 impl TileResource {
+    /// The TileDefinitionHandle of hte icon that represents the page at the iven position.
     #[inline]
     pub fn page_icon(&self, position: Vector2<i32>) -> Option<TileDefinitionHandle> {
         match self {
@@ -250,6 +389,11 @@ impl TileResource {
     #[inline]
     pub fn is_brush(&self) -> bool {
         matches!(self, TileResource::Brush(_))
+    }
+    /// Returns true if this contains no resource.
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        matches!(self, TileResource::Empty)
     }
     /// Return the path of the resource.
     pub fn path(&self) -> Option<PathBuf> {
@@ -298,6 +442,13 @@ impl TileResource {
                     Ok(())
                 }
             }
+        }
+    }
+    /// A reference to the TileSetResource, if this is a TileSetResource.
+    pub fn tile_set_ref(&self) -> Option<&TileSetResource> {
+        match self {
+            TileResource::TileSet(r) => Some(r),
+            _ => None,
         }
     }
     /// Returns the tile set associated with this resource.
@@ -481,6 +632,20 @@ impl TileResource {
             }
         }
     }
+
+    /// Returns true if the resource is a brush that has no tile set.
+    pub fn is_missing_tile_set(&self) -> bool {
+        match self {
+            TileResource::Empty => false,
+            TileResource::TileSet(_) => false,
+            TileResource::Brush(resource) => resource
+                .state()
+                .data()
+                .map(|b| b.is_missing_tile_set())
+                .unwrap_or(false),
+        }
+    }
+
     /// Repeatedly call the given function with each tile for the given stage and page.
     /// The function is given the position of the tile within the palette and the
     /// data for rendering the tile.
@@ -500,6 +665,22 @@ impl TileResource {
                     data.palette_render_loop(stage, page, func)
                 }
             }
+        };
+    }
+    /// Repeatedly call the given function with each collider for each tile on the given page.
+    /// The function is given the position of the tile
+    pub fn tile_collider_loop<F>(&self, page: Vector2<i32>, func: F)
+    where
+        F: FnMut(Vector2<i32>, Uuid, Color, &TileCollider),
+    {
+        match self {
+            TileResource::Empty => (),
+            TileResource::TileSet(res) => {
+                if let Some(data) = res.state().data() {
+                    data.tile_collider_loop(page, func)
+                }
+            }
+            TileResource::Brush(_) => (),
         };
     }
     /// Returns the rectangle within a material that a tile should show
@@ -688,8 +869,12 @@ pub struct TileMap {
     #[reflect(hidden)]
     pub tiles: InheritableVariable<Tiles>,
     tile_scale: InheritableVariable<Vector2<f32>>,
-    brushes: InheritableVariable<Vec<Option<TileMapBrushResource>>>,
     active_brush: InheritableVariable<Option<TileMapBrushResource>>,
+    /// Data for editing a tile map, or None if the tile map is not being edited.
+    /// Having this data can potentially change how the tile map is rendered.
+    #[reflect(hidden)]
+    #[visit(skip)]
+    pub editor_data: Option<TileMapEditorDataRef>,
 }
 
 impl TileSource for TileMap {
@@ -702,6 +887,11 @@ impl TileSource for TileMap {
 }
 
 impl TileMap {
+    /// The global transform of the tile map with initial x-axis flip applied, so the positive x-axis points left instead of right.
+    pub fn tile_map_transform(&self) -> Matrix4<f32> {
+        self.global_transform()
+            .prepend_nonuniform_scaling(&Vector3::new(-1.0, 1.0, 1.0))
+    }
     /// Returns a reference to the current tile set (if any).
     #[inline]
     pub fn tile_set(&self) -> Option<&TileSetResource> {
@@ -718,6 +908,12 @@ impl TileMap {
     #[inline]
     pub fn tiles(&self) -> &Tiles {
         &self.tiles
+    }
+
+    /// Returns a reference to the tile container.
+    #[inline]
+    pub fn tiles_mut(&mut self) -> &mut Tiles {
+        &mut self.tiles
     }
 
     /// Iterate the tiles.
@@ -765,26 +961,14 @@ impl TileMap {
 
     /// Returns active brush of the tile map.
     #[inline]
-    pub fn active_brush(&self) -> Option<TileMapBrushResource> {
-        (*self.active_brush).clone()
+    pub fn active_brush(&self) -> Option<&TileMapBrushResource> {
+        self.active_brush.as_ref()
     }
 
     /// Sets new active brush of the tile map.
     #[inline]
     pub fn set_active_brush(&mut self, brush: Option<TileMapBrushResource>) {
         self.active_brush.set_value_and_mark_modified(brush);
-    }
-
-    /// Returns a reference to the set of brushes.
-    #[inline]
-    pub fn brushes(&self) -> &[Option<TileMapBrushResource>] {
-        &self.brushes
-    }
-
-    /// Sets news brushes of the tile map. This set could be used to store the most used brushes.
-    #[inline]
-    pub fn set_brushes(&mut self, brushes: Vec<Option<TileMapBrushResource>>) {
-        self.brushes.set_value_and_mark_modified(brushes);
     }
 
     /// Calculates bounding rectangle in grid coordinates.
@@ -798,11 +982,11 @@ impl TileMap {
     /// map is rotated or shifted.
     #[inline]
     pub fn world_to_grid(&self, world_position: Vector3<f32>) -> Vector2<i32> {
-        let inv_global_transform = self.global_transform().try_inverse().unwrap_or_default();
+        let inv_global_transform = self.tile_map_transform().try_inverse().unwrap_or_default();
         let local_space_position = inv_global_transform.transform_point(&world_position.into());
         Vector2::new(
-            local_space_position.x.round() as i32,
-            local_space_position.y.round() as i32,
+            local_space_position.x.floor() as i32,
+            local_space_position.y.floor() as i32,
         )
     }
 
@@ -810,124 +994,7 @@ impl TileMap {
     #[inline]
     pub fn grid_to_world(&self, grid_position: Vector2<i32>) -> Vector3<f32> {
         let v3 = grid_position.cast::<f32>().to_homogeneous();
-        self.global_transform().transform_point(&v3.into()).coords
-    }
-
-    fn push_color_tile(&self, position: Vector2<i32>, color: Color, ctx: &mut RenderContext) {
-        let global_transform = self.global_transform();
-        let position = position.cast::<f32>().to_homogeneous();
-        let vertices = [
-            RectangleVertex {
-                position: global_transform
-                    .transform_point(&(position + Vector3::new(0.0, 1.0, 0.0)).into())
-                    .coords,
-                tex_coord: Vector2::default(),
-                color,
-            },
-            RectangleVertex {
-                position: global_transform
-                    .transform_point(&(position + Vector3::new(1.0, 1.0, 0.0)).into())
-                    .coords,
-                tex_coord: Vector2::default(),
-                color,
-            },
-            RectangleVertex {
-                position: global_transform
-                    .transform_point(&(position + Vector3::new(1.00, 0.0, 0.0)).into())
-                    .coords,
-                tex_coord: Vector2::default(),
-                color,
-            },
-            RectangleVertex {
-                position: global_transform
-                    .transform_point(&(position + Vector3::new(0.0, 0.0, 0.0)).into())
-                    .coords,
-                tex_coord: Vector2::default(),
-                color,
-            },
-        ];
-
-        let triangles = [TriangleDefinition([0, 1, 2]), TriangleDefinition([2, 3, 0])];
-
-        let sort_index = ctx.calculate_sorting_index(self.global_position());
-
-        ctx.storage.push_triangles(
-            RectangleVertex::layout(),
-            &STANDARD_2D.resource,
-            RenderPath::Forward,
-            sort_index,
-            self.handle(),
-            &mut move |mut vertex_buffer, mut triangle_buffer| {
-                let start_vertex_index = vertex_buffer.vertex_count();
-
-                vertex_buffer.push_vertices(&vertices).unwrap();
-
-                triangle_buffer
-                    .push_triangles_iter_with_offset(start_vertex_index, triangles.into_iter());
-            },
-        );
-    }
-
-    fn push_tile(
-        &self,
-        position: Vector2<i32>,
-        material: &MaterialResource,
-        bounds: &TileBounds,
-        color: Color,
-        ctx: &mut RenderContext,
-    ) {
-        let global_transform = self.global_transform();
-        let position = position.cast::<f32>().to_homogeneous();
-        let vertices = [
-            TileVertex {
-                position: global_transform
-                    .transform_point(&(position + Vector3::new(0.0, 1.0, 0.0)).into())
-                    .coords,
-                tex_coord: bounds.right_top_corner,
-                color,
-            },
-            TileVertex {
-                position: global_transform
-                    .transform_point(&(position + Vector3::new(1.0, 1.0, 0.0)).into())
-                    .coords,
-                tex_coord: bounds.left_top_corner,
-                color,
-            },
-            TileVertex {
-                position: global_transform
-                    .transform_point(&(position + Vector3::new(1.00, 0.0, 0.0)).into())
-                    .coords,
-                tex_coord: bounds.left_bottom_corner,
-                color,
-            },
-            TileVertex {
-                position: global_transform
-                    .transform_point(&(position + Vector3::new(0.0, 0.0, 0.0)).into())
-                    .coords,
-                tex_coord: bounds.right_bottom_corner,
-                color,
-            },
-        ];
-
-        let triangles = [TriangleDefinition([0, 1, 2]), TriangleDefinition([2, 3, 0])];
-
-        let sort_index = ctx.calculate_sorting_index(self.global_position());
-
-        ctx.storage.push_triangles(
-            TileVertex::layout(),
-            material,
-            RenderPath::Forward,
-            sort_index,
-            self.handle(),
-            &mut move |mut vertex_buffer, mut triangle_buffer| {
-                let start_vertex_index = vertex_buffer.vertex_count();
-
-                vertex_buffer.push_vertices(&vertices).unwrap();
-
-                triangle_buffer
-                    .push_triangles_iter_with_offset(start_vertex_index, triangles.into_iter());
-            },
-        );
+        self.tile_map_transform().transform_point(&v3.into()).coords
     }
 }
 
@@ -938,8 +1005,8 @@ impl Default for TileMap {
             tile_set: Default::default(),
             tiles: Default::default(),
             tile_scale: Vector2::repeat(1.0).into(),
-            brushes: Default::default(),
             active_brush: Default::default(),
+            editor_data: None,
         }
     }
 }
@@ -976,10 +1043,13 @@ impl NodeTrait for TileMap {
             return AxisAlignedBoundingBox::default();
         };
 
-        let min_pos = rect.position.cast::<f32>().to_homogeneous();
-        let max_pos = (rect.position + rect.size).cast::<f32>().to_homogeneous();
+        let mut min_pos = rect.position.cast::<f32>().to_homogeneous();
+        let mut max_pos = (rect.position + rect.size).cast::<f32>().to_homogeneous();
+        min_pos.x *= -1.0;
+        max_pos.x *= -1.0;
+        let (min, max) = min_pos.inf_sup(&max_pos);
 
-        AxisAlignedBoundingBox::from_min_max(min_pos, max_pos)
+        AxisAlignedBoundingBox::from_min_max(min, max)
     }
 
     fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
@@ -1004,31 +1074,29 @@ impl NodeTrait for TileMap {
             return RdcControlFlow::Continue;
         };
 
-        if !tile_set_resource.is_ok() {
-            return RdcControlFlow::Continue;
+        let tile_set = TileSetRef::new(tile_set_resource);
+
+        let render_position = TileRenderPosition {
+            tile_map_handle: self.handle(),
+            transform: self.tile_map_transform(),
+        };
+
+        let editor_data = self.editor_data.as_ref().map(|d| d.lock());
+        for (position, definition_handle) in self.tiles.iter() {
+            if let Some(editor_data) = editor_data.as_ref() {
+                if editor_data.erased_at(*position) {
+                    continue;
+                }
+            }
+            if let Some(data) =
+                tile_set.get_tile_render_data(TilePaletteStage::Tiles, *definition_handle)
+            {
+                render_position.push_tile(*position, &data, ctx);
+            }
         }
 
-        let tile_set = tile_set_resource.data_ref();
-
-        for (position, definition_handle) in self.tiles.iter() {
-            let Some(data) =
-                tile_set.get_tile_render_data(TilePaletteStage::Tiles, *definition_handle)
-            else {
-                continue;
-            };
-            let tile_bounds = &data.material_bounds;
-            let mat = tile_bounds.as_ref().map(|b| &b.material);
-            let def_bounds = TileBounds::default();
-            let bounds = tile_bounds
-                .as_ref()
-                .map(|b| &b.bounds)
-                .unwrap_or(&def_bounds);
-            let color = data.color;
-            if let Some(material) = mat {
-                self.push_tile(*position, material, bounds, color, ctx);
-            } else {
-                self.push_color_tile(*position, color, ctx);
-            }
+        if let Some(editor_data) = editor_data.as_ref() {
+            editor_data.collect_render_data(&render_position, tile_set, ctx);
         }
 
         RdcControlFlow::Continue
@@ -1098,8 +1166,8 @@ impl TileMapBuilder {
             tile_set: self.tile_set.into(),
             tiles: self.tiles.into(),
             tile_scale: self.tile_scale.into(),
-            brushes: self.brushes.into(),
             active_brush: Default::default(),
+            editor_data: None,
         })
     }
 
