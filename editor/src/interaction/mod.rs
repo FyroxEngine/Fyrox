@@ -115,6 +115,33 @@ pub trait InteractionMode: BaseInteractionMode {
         settings: &Settings,
     );
 
+    /// Called when the mouse enters the scene viewer while this interaction mode is active.
+    #[allow(unused_variables)]
+    fn on_mouse_enter(
+        &mut self,
+        editor_selection: &Selection,
+        controller: &mut dyn SceneController,
+        engine: &mut Engine,
+        frame_size: Vector2<f32>,
+        settings: &Settings,
+    ) {
+    }
+
+    /// Called when the mouse leaves the scene viewer while this interaction mode is active.
+    /// - `mouse_position`: The position of the mouse relative to the scene viewer, with (0,0) being the left-top corner.
+    /// - `editor_selection`: The currently selected object in the editor.
+    #[allow(unused_variables)]
+    fn on_mouse_leave(
+        &mut self,
+        mouse_position: Vector2<f32>,
+        editor_selection: &Selection,
+        controller: &mut dyn SceneController,
+        engine: &mut Engine,
+        frame_size: Vector2<f32>,
+        settings: &Settings,
+    ) {
+    }
+
     fn update(
         &mut self,
         #[allow(unused_variables)] editor_selection: &Selection,

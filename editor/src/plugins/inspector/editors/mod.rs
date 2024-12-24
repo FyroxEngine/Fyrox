@@ -106,7 +106,7 @@ use crate::{
             },
             terrain::{Chunk, Layer},
             tilemap::brush::{TileMapBrush, TileMapBrushResource},
-            tilemap::tileset::TileCollider,
+            tilemap::TileCollider,
             tilemap::{tileset::TileSet, Tile},
             transform::Transform,
         },
