@@ -690,9 +690,11 @@ impl Editor {
         {
             let mut font_state = engine.user_interfaces.first_mut().default_font.state();
             let font_state_data = font_state.data().unwrap();
-            *font_state_data =
-                Font::from_memory(include_bytes!("../resources/arial.ttf").as_slice(), 1024)
-                    .unwrap();
+            *font_state_data = Font::from_memory(
+                include_bytes!("../resources/Roboto-Regular.ttf").as_slice(),
+                1024,
+            )
+            .unwrap();
         }
 
         let ui = engine.user_interfaces.first_mut();
