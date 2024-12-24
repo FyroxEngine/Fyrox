@@ -176,26 +176,6 @@ impl OptionTileRect {
     }
 
     /// Extends the rectangle so it will contain the other rectangle.
-    ///
-    /// # Notes
-    ///
-    /// To build a bounding rectangle, initialize an OptionRect to default.
-    ///
-    /// ```
-    /// # use nalgebra::Vector2;
-    /// # use rectutils::Rect;
-    ///
-    /// let vertices = [Vector2::new(1, 2), Vector2::new(-3, 5)];
-    ///
-    /// let mut bounding_rect = OptionTileRect::default();
-    ///
-    /// for &v in &vertices {
-    ///     bounding_rect.push(v);
-    /// }
-    ///
-    /// // So long as vertices is not empty, bounding_rect is guaranteed to be some.
-    /// let bounding_rect = bounding_rect.unwrap();
-    /// ```
     #[inline]
     pub fn extend_to_contain(&mut self, other: TileRect) {
         if let Some(rect) = &mut self.0 {
