@@ -167,7 +167,7 @@ fn build_glyph(
     let ascender = metrics.ascender();
     let font_size = metrics.size;
 
-    x = x.round();
+    x = x.floor();
     y = y.floor();
 
     // Request larger glyph with super sampling scaling.
@@ -178,10 +178,10 @@ fn build_glyph(
             let k = 1.0 / super_sampling_scale;
             // Insert glyph
             let rect = Rect::new(
-                x + glyph.left.round() * k,
-                y + ascender.floor() - glyph.top.floor() * k - (glyph.bitmap_height as f32 * k),
-                glyph.bitmap_width as f32 * k,
-                glyph.bitmap_height as f32 * k,
+                x + glyph.bitmap_left * k,
+                y + ascender.floor() - glyph.bitmap_top * k - (glyph.bitmap_height * k),
+                glyph.bitmap_width * k,
+                glyph.bitmap_height * k,
             );
             let text_glyph = TextGlyph {
                 bounds: rect,
@@ -719,7 +719,7 @@ impl FormattedText {
 
         let mut y: f32 = cursor_y_start.floor();
         for line in self.lines.iter_mut() {
-            let mut x = line.x_offset;
+            let mut x = line.x_offset.floor();
             if let Some(mask) = *self.mask_char {
                 let mut prev = None;
                 for c in std::iter::repeat::<char>(mask).take(line.len()) {
