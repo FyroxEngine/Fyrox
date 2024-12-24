@@ -92,7 +92,11 @@ fn main() {
 
     primary_ui.default_font = FontResource::new_ok(
         ResourceKind::Embedded,
-        Font::from_memory(include_bytes!("../resources/arial.ttf").to_vec(), 1024).unwrap(),
+        Font::from_memory(
+            include_bytes!("../resources/Roboto-Regular.ttf").to_vec(),
+            1024,
+        )
+        .unwrap(),
     );
     let mut project_manager = ProjectManager::new(&mut primary_ui.build_ctx());
 
