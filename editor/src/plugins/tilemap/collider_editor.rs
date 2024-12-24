@@ -181,10 +181,6 @@ impl TileColliderEditor {
             has_error: false,
         }
     }
-    #[inline]
-    pub fn collider_id(&self) -> Uuid {
-        self.collider_id
-    }
     fn apply_collider_update(&mut self, state: &TileEditorState, ui: &mut UserInterface) {
         let layer = state.find_collider(self.collider_id).unwrap();
         ui.send_message(TextMessage::text(

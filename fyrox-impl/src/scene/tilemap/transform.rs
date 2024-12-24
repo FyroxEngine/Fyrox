@@ -45,7 +45,7 @@ use super::OptionTileRect;
 #[derive(Copy, Clone, Hash, Eq, PartialEq, Visit, Reflect)]
 pub struct OrthoTransformation(i8);
 
-/// A map from Vector2<i32> to values. It can be transformed to flip and rotate the positions of the values.
+/// A map from `Vector2<i32>` to values. It can be transformed to flip and rotate the positions of the values.
 #[derive(Default, Clone, Debug, Visit)]
 pub struct OrthoTransformMap<V> {
     transform: OrthoTransformation,
@@ -343,7 +343,7 @@ impl<'a, V> Iterator for Iter<'a, V> {
         Some((k.transformed(self.0), v))
     }
 }
-impl<'a, V> Iterator for Keys<'a, V> {
+impl<V> Iterator for Keys<'_, V> {
     type Item = Vector2<i32>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -399,7 +399,7 @@ impl TransformSetCell {
     }
     /// Replace the transformation of this cell with a different transformation.
     /// This is part of the process of rotating a tile:
-    /// 1. Find the transform set [`TileDefinitionHandle`] from the tile's data.
+    /// 1. Find the transform set [`TileDefinitionHandle`](super::TileDefinitionHandle) from the tile's data.
     /// 2. Convert the tile position from the `TileDefinitonHandle` into a `TransformSetCell` using [TransformSetCell::from_position].
     /// 3. Use `with_transformation` to replace the transformation from the `TransformSetCell` with the desired transformation.
     /// 4. Convert the updated `TransformSetCell` into a tile position using [TransformSetCell::into_position].

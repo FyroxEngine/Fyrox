@@ -709,7 +709,7 @@ enum PaletteIterator<'a> {
     Pages(Keys<'a, Vector2<i32>, TileSetPage>),
 }
 
-impl<'a> Iterator for TileSetPaletteIterator<'a> {
+impl Iterator for TileSetPaletteIterator<'_> {
     type Item = TileDefinitionHandle;
     fn next(&mut self) -> Option<Self::Item> {
         match &mut self.keys {

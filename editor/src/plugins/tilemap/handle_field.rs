@@ -79,12 +79,6 @@ fn make_label(name: &str, ctx: &mut BuildContext) -> Handle<UiNode> {
         .build(ctx)
 }
 
-impl TileHandleField {
-    pub fn value(&self) -> Option<TileDefinitionHandle> {
-        self.value
-    }
-}
-
 impl Control for TileHandleField {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);

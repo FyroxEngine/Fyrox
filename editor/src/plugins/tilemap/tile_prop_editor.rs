@@ -169,10 +169,6 @@ impl TilePropertyEditor {
             nine_buttons,
         }
     }
-    #[inline]
-    pub fn property_id(&self) -> Uuid {
-        self.property_id
-    }
     fn apply_property_update(&mut self, state: &TileEditorState, ui: &mut UserInterface) {
         let layer = state.find_property(self.property_id).unwrap();
         ui.send_message(TextMessage::text(

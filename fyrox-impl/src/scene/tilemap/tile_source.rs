@@ -252,7 +252,7 @@ impl TileSource for SingleTileSource {
 /// A tile source that produces a random tile from the included set of tiles.
 pub struct RandomTileSource<'a>(pub &'a Stamp);
 
-impl<'a> TileSource for RandomTileSource<'a> {
+impl TileSource for RandomTileSource<'_> {
     fn transformation(&self) -> OrthoTransformation {
         self.0.transformation()
     }
@@ -264,7 +264,7 @@ impl<'a> TileSource for RandomTileSource<'a> {
 /// A tile source that produces a random tile from the included set of tiles.
 pub struct PartialRandomTileSource<'a>(pub &'a Stamp, pub OptionTileRect);
 
-impl<'a> TileSource for PartialRandomTileSource<'a> {
+impl TileSource for PartialRandomTileSource<'_> {
     fn transformation(&self) -> OrthoTransformation {
         self.0.transformation()
     }
@@ -283,7 +283,7 @@ pub struct RepeatTileSource<'a, S> {
     pub region: TileRegion,
 }
 
-impl<'a, S: TileSource> TileSource for RepeatTileSource<'a, S> {
+impl<S: TileSource> TileSource for RepeatTileSource<'_, S> {
     fn transformation(&self) -> OrthoTransformation {
         self.source.transformation()
     }
