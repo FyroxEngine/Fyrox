@@ -1520,12 +1520,51 @@ impl TileViewMessage {
     define_constructor!(TileViewMessage:LocalPosition => fn local_position(Vector2<i32>), layout: false);
 }
 
+const CHECKERSIZE: f32 = 10.0;
+
+pub fn draw_checker_board(bounds: Rect<f32>, clip_bounds: Rect<f32>, ctx: &mut DrawingContext) {
+    let transform = ctx.transform_stack.transform();
+    let bounds = bounds.transform(transform);
+    let Some(clip_bounds) = *clip_bounds.clip_by(bounds) else {
+        return;
+    };
+    ctx.transform_stack.push(Matrix3::identity());
+    let start = bounds.left_top_corner() / CHECKERSIZE;
+    let end = bounds.right_bottom_corner() / CHECKERSIZE;
+    let start = Vector2::new(start.x.floor() as i64, start.y.floor() as i64);
+    let end = Vector2::new(end.x.ceil() as i64, end.y.ceil() as i64);
+    for y in start.y..end.y {
+        for x in start.x..end.x {
+            let rect = Rect::new(
+                x as f32 * CHECKERSIZE,
+                y as f32 * CHECKERSIZE,
+                CHECKERSIZE,
+                CHECKERSIZE,
+            );
+            let color = if (x + y) & 1 == 0 {
+                Color::opaque(127, 127, 127)
+            } else {
+                Color::WHITE
+            };
+            ctx.push_rect_multicolor(&rect, [color; 4]);
+        }
+    }
+    ctx.commit(
+        clip_bounds,
+        Brush::Solid(Color::WHITE),
+        CommandTexture::None,
+        None,
+    );
+    ctx.transform_stack.pop();
+}
+
 fn draw_tile(
     position: Rect<f32>,
     clip_bounds: Rect<f32>,
     tile: &TileRenderData,
-    drawing_context: &mut DrawingContext,
+    ctx: &mut DrawingContext,
 ) {
+    draw_checker_board(position, clip_bounds, ctx);
     let color = tile.color;
     if let Some(material_bounds) = &tile.material_bounds {
         if let Some(texture) = material_bounds
@@ -1538,7 +1577,7 @@ fn draw_tile(
             if let TextureKind::Rectangle { width, height } = kind {
                 let size = Vector2::new(width, height);
                 let bounds = &material_bounds.bounds;
-                drawing_context.push_rect_filled(
+                ctx.push_rect_filled(
                     &position,
                     Some(&[
                         bounds.left_bottom_uv(size),
@@ -1547,7 +1586,7 @@ fn draw_tile(
                         bounds.left_top_uv(size),
                     ]),
                 );
-                drawing_context.commit(
+                ctx.commit(
                     clip_bounds,
                     Brush::Solid(color),
                     CommandTexture::Texture(texture.into()),
@@ -1555,11 +1594,11 @@ fn draw_tile(
                 );
             }
         } else {
-            drawing_context.push_rect_filled(&position, None);
-            drawing_context.commit(clip_bounds, Brush::Solid(color), CommandTexture::None, None);
+            ctx.push_rect_filled(&position, None);
+            ctx.commit(clip_bounds, Brush::Solid(color), CommandTexture::None, None);
         }
     } else {
-        drawing_context.push_rect_filled(&position, None);
-        drawing_context.commit(clip_bounds, Brush::Solid(color), CommandTexture::None, None);
+        ctx.push_rect_filled(&position, None);
+        ctx.commit(clip_bounds, Brush::Solid(color), CommandTexture::None, None);
     }
 }
