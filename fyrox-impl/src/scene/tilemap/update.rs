@@ -630,9 +630,7 @@ impl TransTilesUpdate {
         while let Some(position) = stack.pop() {
             let definition = tiles.get_at(position);
             if definition == allowed_definition && !self.contains_key(&position) {
-                let value = brush
-                    .get_at(position - start_point)
-                    .map(|h| (brush.transformation(), h));
+                let value = brush.get_at(position).map(|h| (brush.transformation(), h));
                 self.insert(position, value);
 
                 // Continue on neighbours.

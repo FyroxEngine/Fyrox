@@ -32,9 +32,9 @@ const CURSOR_COLOR: Color = Color::from_rgba(255, 255, 255, 30);
 const SELECT_COLOR: Color = Color::from_rgba(255, 255, 0, 200);
 const ERASE_COLOR: Color = Color::from_rgba(255, 0, 0, 255);
 
-const PICK_KEY: KeyCode = KeyCode::KeyZ;
-const ERASE_KEY: KeyCode = KeyCode::KeyX;
-const RECT_KEY: KeyCode = KeyCode::ControlLeft;
+const PICK_KEY: KeyCode = KeyCode::Digit1;
+const ERASE_KEY: KeyCode = KeyCode::Digit2;
+const RECT_KEY: KeyCode = KeyCode::Digit3;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum MouseMode {
@@ -594,6 +594,7 @@ impl InteractionMode for TileMapInteractionMode {
                     }
                 }
                 RECT_KEY => {
+                    println!("{:?}", state.drawing_mode);
                     if state.drawing_mode == DrawingMode::RectFill {
                         state.into_mut("Hotkey").drawing_mode = DrawingMode::Draw;
                         return true;
