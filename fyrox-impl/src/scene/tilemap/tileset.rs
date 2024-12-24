@@ -172,7 +172,7 @@ impl OrthoTransform for TileMaterialBounds {
 #[visit(optional)]
 pub struct TileData {
     /// Colliders of the tile.
-    pub collider: FxHashMap<Uuid, TileCollider>,
+    pub colliders: FxHashMap<Uuid, TileCollider>,
     /// Color of the tile.
     pub color: Color,
     /// A custom set of properties. Properties could be used to assign additional information for
@@ -186,7 +186,7 @@ impl TileData {
     where
         F: FnMut(UntypedResource),
     {
-        for collider in self.collider.values() {
+        for collider in self.colliders.values() {
             if let TileCollider::Custom(r) = collider {
                 func(r.clone().into_untyped());
             }
@@ -199,7 +199,7 @@ impl OrthoTransform for TileData {
         for (_, value) in self.properties.iter_mut() {
             *value = value.clone().x_flipped();
         }
-        for (_, value) in self.collider.iter_mut() {
+        for (_, value) in self.colliders.iter_mut() {
             *value = value.clone().x_flipped();
         }
         self
@@ -209,7 +209,7 @@ impl OrthoTransform for TileData {
         for (_, value) in self.properties.iter_mut() {
             *value = value.clone().rotated(amount);
         }
-        for (_, value) in self.collider.iter_mut() {
+        for (_, value) in self.colliders.iter_mut() {
             *value = value.clone().rotated(amount);
         }
         self
@@ -358,12 +358,6 @@ impl TileSetPage {
             TileSetPageSource::TransformSet(tiles) => tiles.keys().copied().collect(),
         }
     }
-    /// Clear the cache of a transform set page. Does nothing to any other type of page.
-    pub fn invalidate_transform_set(&mut self) {
-        if let TileSetPageSource::TransformSet(tiles) = &mut self.source {
-            tiles.clear();
-        }
-    }
     /// The rect that contains all the tiles of this page.
     pub fn get_bounds(&self) -> OptionTileRect {
         let mut result = OptionTileRect::default();
@@ -443,7 +437,7 @@ impl TileSetPage {
                     let Some(handle) = TileDefinitionHandle::try_new(page, *tile) else {
                         continue;
                     };
-                    swap_hash_map_entries(data.collider.entry(collider_id), values.entry(handle));
+                    swap_hash_map_entries(data.colliders.entry(collider_id), values.entry(handle));
                 }
             }
             TileSetPageSource::Freeform(tiles) => {
@@ -452,7 +446,7 @@ impl TileSetPage {
                         continue;
                     };
                     swap_hash_map_entries(
-                        tile_def.data.collider.entry(collider_id),
+                        tile_def.data.colliders.entry(collider_id),
                         values.entry(handle),
                     );
                 }
@@ -594,11 +588,18 @@ impl TileSetPageSource {
     }
 }
 
-/// This is a cache generated using the `transform_map` field of the [`TileSet`].
+/// The tile data for transform set pages of a [`TileSet`].
+/// Each transform set page contains a hash map of [`TileDefinitionHandle`]
+/// that are divided into groups of 8, and each group is arranged into 2x4,
+/// with two rows and four columns. The left 2x2 represent four 90-degree rotations
+/// of a tile, so any tile within that 2x2 can be transformed into any other by rotation.
+/// The right 2x2 represents the same rotated tile but flipped horizontally, which allows
+/// for any combination of 90-degree rotations, horizontal flips, and vertical flips by
+/// moving around the 2x4 grid.
 #[derive(Default, Clone, PartialEq, Debug, Reflect, Visit)]
 pub struct TransformSetTiles(
-    #[visit(skip)]
     #[reflect(hidden)]
+    #[visit(optional)]
     pub Tiles,
 );
 
@@ -1100,6 +1101,7 @@ impl<'a> TileSetRef<'a> {
 #[type_uuid(id = "7b7e057b-a41e-4150-ab3b-0ae99f4024f0")]
 pub struct TileSet {
     /// A mapping from transformable tiles to the corresponding cells on transform set pages.
+    #[visit(skip)]
     pub transform_map: FxHashMap<TileDefinitionHandle, TileDefinitionHandle>,
     /// The set of pages, organized by position.
     pub pages: FxHashMap<Vector2<i32>, TileSetPage>,
@@ -1125,7 +1127,7 @@ impl TileSet {
         let Some(data) = self.tile_data(handle) else {
             return &TileCollider::None;
         };
-        data.collider.get(&uuid).unwrap_or(&TileCollider::None)
+        data.colliders.get(&uuid).unwrap_or(&TileCollider::None)
     }
     /// The color of the given tile.
     pub fn tile_color(&self, handle: TileDefinitionHandle) -> Option<Color> {
@@ -1212,21 +1214,20 @@ impl TileSet {
     pub fn find_collider_mut(&mut self, uuid: Uuid) -> Option<&mut TileSetColliderLayer> {
         self.colliders.iter_mut().find(|p| p.uuid == uuid)
     }
-    /// Find every transform set tile handle in this set. A transform set tile reference is a tile
-    /// with data that includes `transform_tile` with some value.
-    /// The given function will be called as `func(source_tile, transform_tile)` where
-    /// `source_tile` is the handle of the tile containing the data.
+    /// Iterate through the tiles of every transform set page and establish the connection between
+    /// the tiles of other pages and their corresponding position in a transform set page.
+    /// This should happen after any transform set is changed and before it is next used.
     pub fn rebuild_transform_sets(&mut self) {
-        for page in self.pages.values_mut() {
-            page.invalidate_transform_set();
-        }
-        for (source, target) in self.transform_map.iter() {
-            let Some(page) = self.pages.get_mut(&target.page()) else {
+        self.transform_map.clear();
+        for (&position, page) in self.pages.iter_mut() {
+            let TileSetPageSource::TransformSet(tiles) = &page.source else {
                 continue;
             };
-            if let TileSetPageSource::TransformSet(tiles) = &mut page.source {
-                tiles.insert(target.tile(), *source);
-            }
+            self.transform_map.extend(
+                tiles
+                    .iter()
+                    .filter_map(|(&k, &v)| Some((v, TileDefinitionHandle::try_new(position, k)?))),
+            );
         }
     }
     /// Find a texture from some material page to serve as a preview for the tile set.
@@ -1241,67 +1242,28 @@ impl TileSet {
     /// Update the tile set using data stored in the given `TileSetUpdate`
     /// and modify the `TileSetUpdate` to become the reverse of the changes by storing
     /// the data that was removed from this TileSet.
+    ///
+    /// [`rebuild_transform_sets`](Self::rebuild_transform_sets) is automatically called if a transform set page is
+    /// modified.
+    ///
     /// Wherever there is incompatibility between the tile set and the given update,
     /// the tile set should gracefully ignore that part of the update, log the error,
     /// and set the update to [`TileDataUpdate::DoNothing`], because that is the correct
     /// reversal of nothing being done.
     pub fn swap(&mut self, update: &mut TileSetUpdate) {
-        let mut transform_changes = Vec::default();
+        let mut transform_changes = false;
         for (handle, tile_update) in update.iter_mut() {
             let Some(page) = self.pages.get_mut(&handle.page()) else {
                 Log::err("Tile set update page missing.");
                 continue;
             };
             if page.is_transform_set() {
-                transform_changes.push((self.get_transform_tile_source(*handle), *handle));
-                if let Some(page) = self.pages.get_mut(&handle.page()) {
-                    page.swap_tile(handle.tile(), tile_update);
-                } else {
-                    *tile_update = TileDataUpdate::DoNothing;
-                }
-            } else {
-                page.swap_tile(handle.tile(), tile_update);
+                transform_changes = true;
             }
+            page.swap_tile(handle.tile(), tile_update);
         }
-        for (source, target) in transform_changes.iter().copied() {
-            self.apply_transform_change(source, target, update);
-        }
-        for source in transform_changes.into_iter().filter_map(|(s, _)| s) {
-            self.remove_source_if_obsolete(source);
-        }
-    }
-    fn apply_transform_change(
-        &mut self,
-        source: Option<TileDefinitionHandle>,
-        target: TileDefinitionHandle,
-        update: &mut TileSetUpdate,
-    ) {
-        let new_source = self.get_transform_tile_source(target);
-        if source == new_source {
-            return;
-        }
-        if let Some(new_source) = new_source {
-            let prev_target = self.transform_map.insert(new_source, target);
-            if let Some(prev_target) = prev_target {
-                let _ = update
-                    .entry(prev_target)
-                    .or_insert(TileDataUpdate::TransformSet(Some(new_source)));
-            }
-        }
-    }
-    fn remove_source_if_obsolete(&mut self, source: TileDefinitionHandle) {
-        let entry = self.transform_map.entry(source);
-        if let Entry::Occupied(entry) = entry {
-            let target = *entry.get();
-            match self.pages.get(&target.page()).map(|p| &p.source) {
-                Some(TileSetPageSource::TransformSet(tiles)) => {
-                    let new_source = tiles.get_at(target.tile());
-                    if Some(source) != new_source {
-                        let _ = entry.remove();
-                    }
-                }
-                _ => drop(entry.remove()),
-            }
+        if transform_changes {
+            self.rebuild_transform_sets();
         }
     }
     /// Get the page at the given position.
@@ -1446,7 +1408,7 @@ impl TileSet {
         }
         let handle = self.redirect_handle(TilePaletteStage::Tiles, handle)?;
         let data = self.get_tile_data(TilePaletteStage::Tiles, handle)?;
-        data.collider.get(&uuid)
+        data.colliders.get(&uuid)
     }
     /// An iterator over the `TileDefinitionHandle` of each tile on the given page.
     pub fn palette_iterator(

@@ -499,7 +499,10 @@ fn find_collider_value(
     state: &TileEditorState,
 ) -> TileCollider {
     let uuid = &collider_layer.uuid;
-    let mut iter = state.tile_data().map(|d| d.1).map(|d| d.collider.get(uuid));
+    let mut iter = state
+        .tile_data()
+        .map(|d| d.1)
+        .map(|d| d.colliders.get(uuid));
     iter.next()
         .map(|c| c.cloned().unwrap_or_default())
         .unwrap_or_default()

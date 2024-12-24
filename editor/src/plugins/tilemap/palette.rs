@@ -1115,7 +1115,15 @@ impl PaletteWidget {
         ctx.transform_stack.pop();
     }
     fn is_overlay_visible(&self) -> bool {
-        match self.drawing_mode() {
+        let drawing_mode = if self.editable {
+            match self.kind {
+                TilePaletteStage::Pages => DrawingMode::Pick,
+                TilePaletteStage::Tiles => self.state.lock().drawing_mode,
+            }
+        } else {
+            DrawingMode::Pick
+        };
+        match drawing_mode {
             DrawingMode::Draw => self.is_mouse_directly_over && self.mode == MouseMode::None,
             DrawingMode::Erase => self.is_mouse_directly_over,
             DrawingMode::FloodFill => self.is_mouse_directly_over,

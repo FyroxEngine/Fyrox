@@ -959,7 +959,6 @@ impl SetTileSetTilesCommand {
     fn swap(&mut self) {
         let mut tile_set = self.tile_set.data_ref();
         tile_set.swap(&mut self.tiles);
-        tile_set.rebuild_transform_sets();
         tile_set.change_count.increment();
     }
 }

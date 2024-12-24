@@ -351,7 +351,7 @@ fn tile_map_to_collider_shape(
             continue;
         };
 
-        if let Some(collider) = tile_definition.collider.get(&collider_uuid) {
+        if let Some(collider) = tile_definition.colliders.get(&collider_uuid) {
             let position = tile.position.cast::<f32>().to_homogeneous();
             collider.build_collider_shape(
                 &global_transform,

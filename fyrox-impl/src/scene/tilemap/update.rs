@@ -198,10 +198,10 @@ impl TileDataUpdate {
         match self {
             TileDataUpdate::Erase => Some(&TileCollider::None),
             TileDataUpdate::MaterialTile(data) => {
-                data.collider.get(uuid).or(Some(&TileCollider::None))
+                data.colliders.get(uuid).or(Some(&TileCollider::None))
             }
             TileDataUpdate::FreeformTile(def) => {
-                def.data.collider.get(uuid).or(Some(&TileCollider::None))
+                def.data.colliders.get(uuid).or(Some(&TileCollider::None))
             }
             TileDataUpdate::Collider(map) => map.get(uuid),
             _ => None,
@@ -275,7 +275,7 @@ impl TileDataUpdate {
             TileDataUpdate::Color(color) => std::mem::swap(color, &mut data.color),
             TileDataUpdate::Collider(colliders) => {
                 for (uuid, value) in colliders.iter_mut() {
-                    match data.collider.entry(*uuid) {
+                    match data.colliders.entry(*uuid) {
                         Entry::Occupied(mut e) => {
                             if let TileCollider::None = value {
                                 *value = e.remove();

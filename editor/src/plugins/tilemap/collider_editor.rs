@@ -196,7 +196,7 @@ impl TileColliderEditor {
     }
     fn find_value(&self, state: &TileEditorState) -> Option<TileCollider> {
         let mut iter = state.tile_data().map(|(_, d)| {
-            d.collider
+            d.colliders
                 .get(&self.collider_id)
                 .cloned()
                 .unwrap_or_default()
