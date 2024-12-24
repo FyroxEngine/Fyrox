@@ -114,13 +114,6 @@ impl TileDefinition {
             data: TileData::default(),
         }
     }
-    fn find_resources<F>(&self, mut func: F)
-    where
-        F: FnMut(UntypedResource),
-    {
-        func(self.material_bounds.material.clone().into_untyped());
-        self.data.find_resources(&mut func);
-    }
 }
 
 impl OrthoTransform for TileDefinition {
@@ -179,19 +172,6 @@ pub struct TileData {
     /// tiles, such surface type (for example, lava, ice, dirt, etc.), physics properties and so
     /// on.
     pub properties: FxHashMap<Uuid, TileSetPropertyValue>,
-}
-
-impl TileData {
-    fn find_resources<F>(&self, mut func: F)
-    where
-        F: FnMut(UntypedResource),
-    {
-        for collider in self.colliders.values() {
-            if let TileCollider::Custom(r) = collider {
-                func(r.clone().into_untyped());
-            }
-        }
-    }
 }
 
 impl OrthoTransform for TileData {
@@ -305,28 +285,6 @@ pub struct TileSetPage {
     pub icon: TileDefinitionHandle,
     /// The source of the page's data.
     pub source: TileSetPageSource,
-}
-
-impl ResourceGridElement for TileSetPage {
-    fn find_resources<F>(&self, mut func: F)
-    where
-        F: FnMut(fyrox_resource::untyped::UntypedResource),
-    {
-        match &self.source {
-            TileSetPageSource::Material(mat) => {
-                func(mat.material.clone().into_untyped());
-                for data in mat.values() {
-                    data.find_resources(&mut func);
-                }
-            }
-            TileSetPageSource::Freeform(map) => {
-                for def in map.values() {
-                    def.find_resources(&mut func);
-                }
-            }
-            _ => (),
-        }
-    }
 }
 
 impl TileSetPage {
@@ -1670,7 +1628,9 @@ impl TileSet {
     ) -> bool {
         match stage {
             TilePaletteStage::Pages => self.get_page(position).is_none(),
-            TilePaletteStage::Tiles => !self.has_tile_at(page, position),
+            TilePaletteStage::Tiles => {
+                self.get_page(page).is_some() && !self.has_tile_at(page, position)
+            }
         }
     }
 

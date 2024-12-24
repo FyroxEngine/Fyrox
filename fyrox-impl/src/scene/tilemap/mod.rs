@@ -24,7 +24,6 @@
 pub mod brush;
 mod edit;
 mod property;
-mod resource_grid;
 mod tile_collider;
 mod tile_rect;
 mod tile_source;
@@ -35,7 +34,6 @@ mod update;
 use brush::*;
 pub use edit::*;
 use fyrox_graph::constructor::ConstructorProvider;
-use resource_grid::*;
 pub use tile_collider::*;
 pub use tile_rect::*;
 pub use tile_source::*;
