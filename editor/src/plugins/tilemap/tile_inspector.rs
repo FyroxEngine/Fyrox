@@ -98,7 +98,7 @@ enum TileResourceData<'a> {
     Brush(ResourceDataRef<'a, TileMapBrush>),
 }
 
-impl<'a> Debug for TileResourceData<'a> {
+impl Debug for TileResourceData<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Empty => write!(f, "Empty"),

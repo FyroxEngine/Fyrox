@@ -287,7 +287,7 @@ pub struct TileDrawStateRef(Arc<Mutex<TileDrawState>>);
 pub struct TileDrawStateGuard<'a>(MutexGuard<'a, TileDrawState>);
 pub struct TileDrawStateGuardMut<'a>(MutexGuard<'a, TileDrawState>);
 
-impl<'a> Deref for TileDrawStateGuard<'a> {
+impl Deref for TileDrawStateGuard<'_> {
     type Target = TileDrawState;
 
     fn deref(&self) -> &Self::Target {
@@ -295,7 +295,7 @@ impl<'a> Deref for TileDrawStateGuard<'a> {
     }
 }
 
-impl<'a> Deref for TileDrawStateGuardMut<'a> {
+impl Deref for TileDrawStateGuardMut<'_> {
     type Target = TileDrawState;
 
     fn deref(&self) -> &Self::Target {
@@ -303,7 +303,7 @@ impl<'a> Deref for TileDrawStateGuardMut<'a> {
     }
 }
 
-impl<'a> DerefMut for TileDrawStateGuardMut<'a> {
+impl DerefMut for TileDrawStateGuardMut<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
