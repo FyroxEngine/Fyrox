@@ -822,7 +822,7 @@ pub struct TileMapDataRef<'a> {
     handle: TileDefinitionHandle,
 }
 
-impl<'a> Deref for TileMapDataRef<'a> {
+impl Deref for TileMapDataRef<'_> {
     type Target = TileData;
 
     fn deref(&self) -> &Self::Target {
