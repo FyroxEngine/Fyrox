@@ -19,32 +19,27 @@
 // SOFTWARE.
 
 use fyrox::{
-    core::{color::Color, log::Log, pool::Handle, ImmutableString, Uuid},
+    core::{algebra::Vector2, color::Color, log::Log, pool::Handle, ImmutableString, Uuid},
     fxhash::FxHashMap,
     material::MaterialResource,
     scene::{
         node::Node,
         tilemap::{
+            brush::{TileMapBrushPage, TileMapBrushResource},
+            swap_hash_map_entry,
             tileset::{
                 AbstractTile, NamableValue, NamedValue, TileSetColliderLayer, TileSetPage,
                 TileSetPageSource, TileSetPropertyLayer, TileSetPropertyType, TileSetPropertyValue,
+                TileSetResource,
             },
             OrthoTransform, OrthoTransformation, TileCollider, TileDefinitionHandle, TileMap,
+            TileSetUpdate, TilesUpdate,
         },
     },
 };
 
 use crate::{
     command::{CommandContext, CommandTrait},
-    fyrox::{
-        core::algebra::Vector2,
-        scene::tilemap::{
-            brush::{TileMapBrushPage, TileMapBrushResource},
-            swap_hash_map_entry,
-            tileset::TileSetResource,
-            TileSetUpdate, TilesUpdate,
-        },
-    },
     scene::commands::GameSceneContext,
 };
 

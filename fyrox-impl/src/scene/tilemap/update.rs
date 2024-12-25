@@ -19,11 +19,13 @@
 // SOFTWARE.
 
 use super::*;
-use crate::core::{algebra::Vector2, color::Color, type_traits::prelude::*};
+use crate::core::{algebra::Vector2, color::Color, log::Log, type_traits::prelude::*};
 use fxhash::FxHashMap;
-use fyrox_core::log::Log;
-use std::ops::{Deref, DerefMut};
-use std::{borrow::Cow, collections::hash_map::Entry};
+use std::{
+    borrow::Cow,
+    collections::hash_map::Entry,
+    ops::{Deref, DerefMut},
+};
 
 struct BresenhamLineIter {
     dx: i32,

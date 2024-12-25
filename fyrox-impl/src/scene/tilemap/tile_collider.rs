@@ -33,12 +33,10 @@ use crate::{
 use std::{
     any::Any,
     error::Error,
-    fmt::{Display, Formatter},
-};
-use std::{fmt::Debug, str::FromStr};
-use std::{
+    fmt::{Debug, Display, Formatter},
     num::{ParseFloatError, ParseIntError},
     path::Path,
+    str::FromStr,
 };
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 

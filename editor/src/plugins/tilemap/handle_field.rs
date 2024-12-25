@@ -18,20 +18,16 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use fyrox::gui::{
-    button::ButtonMessage,
-    text::{TextBuilder, TextMessage},
-    Control,
-};
-
 use crate::{
     fyrox::gui::{
+        button::ButtonMessage,
         define_constructor, define_widget_deref,
         grid::{Column, GridBuilder, Row},
         stack_panel::StackPanelBuilder,
+        text::{TextBuilder, TextMessage},
         text_box::TextBoxBuilder,
         widget::Widget,
-        Orientation,
+        Control, Orientation,
     },
     send_sync_message,
 };

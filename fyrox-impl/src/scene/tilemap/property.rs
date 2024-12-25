@@ -19,10 +19,9 @@
 // SOFTWARE.
 
 use crate::core::{
-    algebra::Vector2, color::Color, reflect::prelude::*, type_traits::prelude::*,
-    visitor::prelude::*, ImmutableString,
+    algebra::Vector2, color::Color, num_traits::Euclid, reflect::prelude::*,
+    type_traits::prelude::*, visitor::prelude::*, ImmutableString,
 };
-use fyrox_core::num_traits::Euclid;
 use std::fmt::{Display, Formatter};
 
 use super::*;

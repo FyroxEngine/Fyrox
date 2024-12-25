@@ -18,21 +18,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use brush::TileMapBrushResource;
-use fyrox::{
-    core::algebra::Vector2,
-    gui::{
-        grid::SizeMode,
-        stack_panel::StackPanelBuilder,
-        text::{TextBuilder, TextMessage},
-        window::Window,
-    },
-    scene::tilemap::{tileset::TileSet, TileResource, *},
-};
-
 use crate::{
     asset::item::AssetItem,
     fyrox::{
+        core::algebra::Vector2,
         core::color::Color,
         core::pool::Handle,
         graph::{BaseSceneGraph, SceneGraph},
@@ -49,9 +38,19 @@ use crate::{
             BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
             VerticalAlignment,
         },
+        gui::{
+            grid::SizeMode,
+            stack_panel::StackPanelBuilder,
+            text::{TextBuilder, TextMessage},
+            window::Window,
+        },
+        scene::tilemap::{tileset::TileSet, TileResource, *},
         scene::{
             node::Node,
-            tilemap::{brush::TileMapBrush, TileMap},
+            tilemap::{
+                brush::{TileMapBrush, TileMapBrushResource},
+                TileMap,
+            },
         },
     },
     message::MessageSender,

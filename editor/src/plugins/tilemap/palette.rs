@@ -18,11 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use fyrox::fxhash::FxHashSet;
-use fyrox::gui::message::CursorIcon;
-use fyrox::scene::tilemap::tileset::{TileSetPageSource, TileSetRef};
-use fyrox::scene::tilemap::{OrthoTransformation, TileSource};
-
 use crate::asset::item::AssetItem;
 use crate::fyrox::{
     core::{
@@ -35,12 +30,14 @@ use crate::fyrox::{
         visitor::prelude::*,
     },
     fxhash::FxHashMap,
+    fxhash::FxHashSet,
     graph::BaseSceneGraph,
     gui::{
         brush::Brush,
         define_constructor, define_widget_deref,
         draw::{CommandTexture, Draw, DrawingContext},
         formatted_text::{FormattedText, FormattedTextBuilder},
+        message::CursorIcon,
         message::{KeyCode, MessageDirection, MouseButton, UiMessage},
         widget::{Widget, WidgetBuilder, WidgetMessage},
         BuildContext, Control, UiNode, UserInterface,
@@ -48,7 +45,9 @@ use crate::fyrox::{
     material::{Material, MaterialResource},
     resource::texture::TextureKind,
     scene::tilemap::{
-        TilePaletteStage, TileRect, TileRenderData, TileResource, TileSetUpdate, TransTilesUpdate,
+        tileset::{TileSetPageSource, TileSetRef},
+        OrthoTransformation, TilePaletteStage, TileRect, TileRenderData, TileResource,
+        TileSetUpdate, TileSource, TransTilesUpdate,
     },
 };
 use std::cell::RefCell;

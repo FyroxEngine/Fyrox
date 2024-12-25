@@ -18,11 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use fyrox::{
-    gui::formatted_text::{FormattedText, FormattedTextBuilder},
-    scene::tilemap::TileSource,
-};
-
 use crate::fyrox::{
     core::{
         algebra::{Matrix3, Vector2},
@@ -32,6 +27,7 @@ use crate::fyrox::{
         type_traits::prelude::*,
         visitor::prelude::*,
     },
+    gui::formatted_text::{FormattedText, FormattedTextBuilder},
     gui::{
         brush::Brush,
         define_widget_deref,
@@ -41,7 +37,7 @@ use crate::fyrox::{
         BuildContext, Control, UiNode, UserInterface,
     },
     resource::texture::TextureKind,
-    scene::tilemap::TileRenderData,
+    scene::tilemap::{TileRenderData, TileSource},
 };
 use std::ops::{Deref, DerefMut};
 

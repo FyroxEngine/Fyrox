@@ -25,7 +25,6 @@ use crate::{
     plugins::material::editor::{MaterialFieldEditorBuilder, MaterialFieldMessage},
     send_sync_message, MSG_SYNC_FLAG,
 };
-use brush::TileMapBrushPage;
 use fyrox::{
     asset::{manager::ResourceManager, ResourceDataRef},
     core::{
@@ -45,7 +44,7 @@ use fyrox::{
         BuildContext, UiNode, UserInterface,
     },
     material::{MaterialResource, MaterialResourceExtension},
-    scene::tilemap::{tileset::*, *},
+    scene::tilemap::{brush::*, tileset::*, *},
 };
 
 use super::*;

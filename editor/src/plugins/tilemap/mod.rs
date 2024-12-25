@@ -87,7 +87,6 @@ use crate::fyrox::{
         debug::Line,
         node::Node,
         tilemap::{
-            brush::TileMapBrush,
             tileset::{TileSet, TileSetResource},
             RandomTileSource, Stamp, TileCollider, TileDefinitionHandle, TileMap, TilePaletteStage,
             TileResource, Tiles,

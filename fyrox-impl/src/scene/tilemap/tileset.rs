@@ -21,31 +21,28 @@
 //! Tile set is a special storage for tile descriptions. It is a sort of database, that contains
 //! descriptions (definitions) for tiles. See [`TileSet`] docs for more info and usage examples.
 
-use crate::material::MaterialResourceExtension;
-use crate::resource::texture::TextureResource;
 use crate::{
     asset::{
         io::ResourceIo,
         loader::{BoxedLoaderFuture, LoaderPayload, ResourceLoader},
         manager::ResourceManager,
         state::LoadError,
-        untyped::UntypedResource,
         Resource, ResourceData, ResourceDataRef,
     },
     core::{
-        algebra::Vector2, color::Color, io::FileLoadError, reflect::prelude::*,
+        algebra::Vector2, color::Color, io::FileLoadError, log::Log, reflect::prelude::*,
         type_traits::prelude::*, visitor::prelude::*, ImmutableString,
     },
-    material::MaterialResource,
+    fxhash::{FxHashMap, FxHashSet},
+    material::{MaterialResource, MaterialResourceExtension},
+    resource::texture::TextureResource,
 };
-use fxhash::{FxHashMap, FxHashSet};
-use fyrox_core::log::Log;
-use std::collections::hash_map::{Entry, Keys};
-use std::ops::{Deref, DerefMut};
 use std::{
     any::Any,
+    collections::hash_map::{Entry, Keys},
     error::Error,
     fmt::{Display, Formatter},
+    ops::{Deref, DerefMut},
     path::{Path, PathBuf},
     sync::Arc,
 };

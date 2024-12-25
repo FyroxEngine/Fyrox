@@ -22,35 +22,29 @@ use crate::{
     command::{Command, CommandGroup},
     fyrox::{
         asset::manager::ResourceManager,
-        core::{color::Color, log::Log, pool::Handle},
+        core::{algebra::Vector2, color::Color, log::Log, pool::Handle},
         engine::SerializationContext,
         gui::{
             border::BorderBuilder,
             brush::Brush,
             button::ButtonMessage,
+            color::{ColorFieldBuilder, ColorFieldMessage},
+            grid::SizeMode,
             grid::{Column, GridBuilder, Row},
             message::{MessageDirection, UiMessage},
+            scroll_viewer::ScrollViewerBuilder,
+            stack_panel::StackPanelBuilder,
+            tab_control::{TabControl, TabControlBuilder, TabControlMessage, TabDefinition},
+            text::TextBuilder,
+            text::TextMessage,
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
             BuildContext, Thickness, UiNode, UserInterface,
         },
-        scene::tilemap::TileDefinitionHandle,
+        scene::tilemap::{tileset::TileSetRef, TileDefinitionHandle, TileResource},
     },
     message::MessageSender,
     plugins::inspector::editors::resource::{ResourceFieldBuilder, ResourceFieldMessage},
-};
-use fyrox::gui::text::TextBuilder;
-use fyrox::{
-    core::algebra::Vector2,
-    gui::{
-        color::{ColorFieldBuilder, ColorFieldMessage},
-        grid::SizeMode,
-        scroll_viewer::ScrollViewerBuilder,
-        stack_panel::StackPanelBuilder,
-        tab_control::{TabControl, TabControlBuilder, TabControlMessage, TabDefinition},
-        text::TextMessage,
-    },
-    scene::tilemap::{tileset::TileSetRef, TileResource},
 };
 use palette::{PaletteWidgetBuilder, DEFAULT_MATERIAL_COLOR};
 use std::sync::Arc;

@@ -20,9 +20,9 @@
 
 use crate::{
     core::{algebra::Vector2, reflect::prelude::*, visitor::prelude::*},
+    fxhash::FxHashMap,
     rand::{seq::IteratorRandom, thread_rng},
 };
-use fxhash::FxHashMap;
 use std::{
     fmt::{Debug, Display, Formatter},
     ops::{Deref, DerefMut},
