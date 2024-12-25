@@ -129,34 +129,54 @@ fn main() {
                         .expect("Unable to destroy graphics context!");
                 }
                 Event::AboutToWait => {
-                    let elapsed = previous.elapsed();
-                    previous = Instant::now();
-                    lag += elapsed.as_secs_f32();
-
                     let ui = engine.user_interfaces.first_mut();
-                    while let Some(message) = ui.poll_message() {
-                        project_manager.handle_ui_message(&message, ui);
-                    }
 
-                    while lag >= fixed_time_step {
-                        engine.update(fixed_time_step, window_target, &mut lag, Default::default());
+                    if project_manager.is_active(ui) {
+                        let elapsed = previous.elapsed();
+                        previous = Instant::now();
+                        lag += elapsed.as_secs_f32();
 
-                        project_manager.update(engine.user_interfaces.first_mut());
+                        let mut processed = 0;
+                        while let Some(message) = ui.poll_message() {
+                            project_manager.handle_ui_message(&message, ui);
+                            processed += 1;
+                        }
+                        if processed > 0 {
+                            project_manager
+                                .update_loop_state
+                                .request_update_in_next_frame();
+                        }
 
-                        lag -= fixed_time_step;
-                    }
+                        while lag >= fixed_time_step {
+                            engine.update(
+                                fixed_time_step,
+                                window_target,
+                                &mut lag,
+                                Default::default(),
+                            );
 
-                    if let GraphicsContext::Initialized(ref ctx) = engine.graphics_context {
-                        let window = &ctx.window;
-                        window.set_cursor_icon(translate_cursor_icon(
-                            engine.user_interfaces.first_mut().cursor(),
-                        ));
+                            project_manager.update(engine.user_interfaces.first_mut());
 
-                        ctx.window.request_redraw();
+                            lag -= fixed_time_step;
+                        }
+
+                        if let GraphicsContext::Initialized(ref ctx) = engine.graphics_context {
+                            let window = &ctx.window;
+                            window.set_cursor_icon(translate_cursor_icon(
+                                engine.user_interfaces.first_mut().cursor(),
+                            ));
+
+                            ctx.window.request_redraw();
+                        }
+
+                        project_manager.update_loop_state.decrease_counter();
                     }
                 }
                 Event::WindowEvent { event, .. } => {
                     match event {
+                        WindowEvent::Focused(focus) => {
+                            project_manager.focused = focus;
+                        }
                         WindowEvent::CloseRequested => window_target.exit(),
                         WindowEvent::Resized(size) => {
                             if let Err(e) = engine.set_frame_size(size.into()) {
@@ -186,9 +206,21 @@ fn main() {
                             set_ui_scaling(ui, scale_factor as f32);
                         }
                         WindowEvent::RedrawRequested => {
-                            engine.render().unwrap();
+                            let ui = engine.user_interfaces.first();
+                            if project_manager.is_active(ui) {
+                                engine.render().unwrap();
+                            }
                         }
                         _ => (),
+                    }
+
+                    // Any action in the window, other than a redraw request forces the project manager to
+                    // do another update pass which then pushes a redraw request to the event
+                    // queue. This check prevents infinite loop of this kind.
+                    if !matches!(event, WindowEvent::RedrawRequested) {
+                        project_manager
+                            .update_loop_state
+                            .request_update_in_current_frame();
                     }
 
                     if let Some(os_event) = translate_event(&event) {

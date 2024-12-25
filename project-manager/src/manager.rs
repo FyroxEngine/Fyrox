@@ -72,6 +72,41 @@ enum Mode {
     },
 }
 
+pub struct UpdateLoopState(u32);
+
+impl Default for UpdateLoopState {
+    fn default() -> Self {
+        // Run at least a second from the start to ensure that all OS-specific stuff was done.
+        Self(60)
+    }
+}
+
+impl UpdateLoopState {
+    pub fn request_update_in_next_frame(&mut self) {
+        if !self.is_warming_up() {
+            self.0 = 2;
+        }
+    }
+
+    pub fn request_update_in_current_frame(&mut self) {
+        if !self.is_warming_up() {
+            self.0 = 1;
+        }
+    }
+
+    pub fn is_warming_up(&self) -> bool {
+        self.0 > 2
+    }
+
+    pub fn decrease_counter(&mut self) {
+        self.0 = self.0.saturating_sub(1);
+    }
+
+    pub fn is_suspended(&self) -> bool {
+        self.0 == 0
+    }
+}
+
 pub struct ProjectManager {
     pub root_grid: Handle<UiNode>,
     create: Handle<UiNode>,
@@ -102,6 +137,8 @@ pub struct ProjectManager {
     upgrade_tool: Option<UpgradeTool>,
     settings_window: Option<SettingsWindow>,
     no_projects_warning: Handle<UiNode>,
+    pub focused: bool,
+    pub update_loop_state: UpdateLoopState,
 }
 
 fn make_project_item(
@@ -613,7 +650,13 @@ impl ProjectManager {
             upgrade_tool: None,
             settings_window: None,
             no_projects_warning,
+            focused: true,
+            update_loop_state: Default::default(),
         }
+    }
+
+    pub fn is_active(&self, ui: &UserInterface) -> bool {
+        !self.update_loop_state.is_suspended() && self.focused || ui.captured_node().is_some()
     }
 
     fn refresh(&mut self, ui: &mut UserInterface) {
@@ -692,6 +735,14 @@ impl ProjectManager {
 
     pub fn update(&mut self, ui: &mut UserInterface) {
         self.handle_modes(ui);
+
+        if let Some(active_tooltip) = ui.active_tooltip() {
+            if !active_tooltip.shown {
+                // Keep the manager running until the current tooltip is not shown.
+                self.update_loop_state.request_update_in_next_frame();
+            }
+        }
+
         if self.log.update(65536, ui) {
             ui.send_message(TextMessage::text(
                 self.message_count,
