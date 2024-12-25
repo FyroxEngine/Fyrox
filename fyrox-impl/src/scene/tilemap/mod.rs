@@ -927,7 +927,7 @@ impl TileMap {
         } else {
             let property = tile_set
                 .find_property(property_id)
-                .ok_or_else(|| TilePropertyError::UnrecognizedUuid(property_id))?;
+                .ok_or(TilePropertyError::UnrecognizedUuid(property_id))?;
             Ok(property.prop_type.default_value())
         }
     }
