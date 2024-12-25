@@ -33,7 +33,6 @@ mod update;
 
 use brush::*;
 pub use edit::*;
-use fyrox_graph::constructor::ConstructorProvider;
 pub use tile_collider::*;
 pub use tile_rect::*;
 pub use tile_source::*;
@@ -42,7 +41,7 @@ pub use transform::*;
 pub use update::*;
 
 use crate::{
-    asset::untyped::ResourceKind,
+    asset::{untyped::ResourceKind, ResourceDataRef},
     core::{
         algebra::{Matrix4, Vector2, Vector3},
         color::Color,
@@ -52,8 +51,9 @@ use crate::{
         type_traits::prelude::*,
         variable::InheritableVariable,
         visitor::prelude::*,
+        ImmutableString,
     },
-    graph::BaseSceneGraph,
+    graph::{constructor::ConstructorProvider, BaseSceneGraph},
     material::{Material, MaterialResource, STANDARD_2D},
     renderer::{self, bundle::RenderContext},
     scene::{
@@ -74,6 +74,7 @@ use bytemuck::{Pod, Zeroable};
 use std::{
     collections::hash_map::Entry,
     error::Error,
+    fmt::Display,
     ops::{Deref, DerefMut},
     path::PathBuf,
 };
@@ -783,11 +784,16 @@ impl OrthoTransform for TileRenderData {
 }
 
 /// Tile map is a 2D "image", made out of a small blocks called tiles. Tile maps used in 2D games to
-/// build game worlds quickly and easily.
+/// build game worlds quickly and easily. Each tile is represented by a [`TileDefinitionHandle`] which
+/// contains the position of a page and the position of a tile within that page.
+///
+/// When rendering the TileMap, the rendering data is fetched from the tile map's tile set resource,
+/// which contains all the pages that may be referenced by the tile map's handles.
 #[derive(Clone, Reflect, Debug, Visit, ComponentProvider, TypeUuidProvider)]
 #[type_uuid(id = "aa9a3385-a4af-4faf-a69a-8d3af1a3aa67")]
 pub struct TileMap {
     base: Base,
+    /// The source of rendering data for tiles in this tile map.
     tile_set: InheritableVariable<Option<TileSetResource>>,
     /// Tile container of the tile map.
     #[reflect(hidden)]
@@ -810,7 +816,121 @@ impl TileSource for TileMap {
     }
 }
 
+/// A reference to the tile data of a some tile in a tile set.
+pub struct TileMapDataRef<'a> {
+    tile_set: ResourceDataRef<'a, TileSet>,
+    handle: TileDefinitionHandle,
+}
+
+impl<'a> Deref for TileMapDataRef<'a> {
+    type Target = TileData;
+
+    fn deref(&self) -> &Self::Target {
+        self.tile_set.tile_data(self.handle).unwrap()
+    }
+}
+
+/// An error in finding a property for a tile.
+#[derive(Debug)]
+pub enum TilePropertyError {
+    /// The tile map has no tile set, so not tile data is available.
+    MissingTileSet,
+    /// The tile map has a tile set, but it is not yet loaded.
+    TileSetNotLoaded,
+    /// There is no property with the given name in the tile set.
+    UnrecognizedName(ImmutableString),
+    /// There is no property with the givne UUID in the tile set.
+    UnrecognizedUuid(Uuid),
+}
+
+impl Display for TilePropertyError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TilePropertyError::MissingTileSet => write!(f, "The tile map has no tile set."),
+            TilePropertyError::TileSetNotLoaded => {
+                write!(f, "The tile map's tile set is not loaded.")
+            }
+            TilePropertyError::UnrecognizedName(name) => {
+                write!(f, "There is no property with this name: {name}")
+            }
+            TilePropertyError::UnrecognizedUuid(uuid) => {
+                write!(f, "There is no property with this UUID: {uuid}")
+            }
+        }
+    }
+}
+
+impl Error for TilePropertyError {}
+
 impl TileMap {
+    /// The tile data for the tile at the given position, if that position has a tile and this tile map
+    /// has a tile set that contains data for the tile's handle.
+    pub fn tile_data(&self, position: Vector2<i32>) -> Option<TileMapDataRef> {
+        let handle = self.get_at(position)?;
+        let tile_set = self.tile_set.as_ref()?.data_ref();
+        if tile_set.as_loaded_ref()?.tile_data(handle).is_some() {
+            Some(TileMapDataRef { tile_set, handle })
+        } else {
+            None
+        }
+    }
+    /// The property value for the property of the given name for the tile at the given position in this tile map.
+    /// This requires that the tile map has a loaded tile set and the tile set contains a property with the given name.
+    /// Otherwise an error is returned to indicate which of these conditions failed.
+    /// If the only problem is that there is no tile at the given position, then the default value for the property's value type
+    /// is returned.
+    pub fn tile_property_value_by_name(
+        &self,
+        position: Vector2<i32>,
+        property_name: &ImmutableString,
+    ) -> Result<TileSetPropertyValue, TilePropertyError> {
+        let tile_set = self
+            .tile_set
+            .as_ref()
+            .ok_or(TilePropertyError::MissingTileSet)?
+            .data_ref();
+        let tile_set = tile_set
+            .as_loaded_ref()
+            .ok_or(TilePropertyError::TileSetNotLoaded)?;
+        let property = tile_set
+            .find_property_by_name(property_name)
+            .ok_or_else(|| TilePropertyError::UnrecognizedName(property_name.clone()))?;
+        Ok(self
+            .get_at(position)
+            .and_then(|handle| tile_set.property_value(handle, property.uuid))
+            .unwrap_or_else(|| property.prop_type.default_value()))
+    }
+    /// The property value for the property of the given UUID for the tile at the given position in this tile map.
+    /// This requires that the tile map has a loaded tile set and the tile set contains a property with the given UUID.
+    /// Otherwise an error is returned to indicate which of these conditions failed.
+    /// If the only problem is that there is no tile at the given position, then the default value for the property's value type
+    /// is returned.
+    pub fn tile_property_value_by_uuid(
+        &self,
+        position: Vector2<i32>,
+        property_id: Uuid,
+    ) -> Result<TileSetPropertyValue, TilePropertyError> {
+        let tile_set = self
+            .tile_set
+            .as_ref()
+            .ok_or(TilePropertyError::MissingTileSet)?
+            .data_ref();
+        let tile_set = tile_set
+            .as_loaded_ref()
+            .ok_or(TilePropertyError::TileSetNotLoaded)?;
+        if let Some(value) = self.get_at(position).and_then(|handle| {
+            tile_set
+                .tile_data(handle)
+                .and_then(|d| d.properties.get(&property_id))
+        }) {
+            Ok(value.clone())
+        } else {
+            let property = tile_set
+                .find_property(property_id)
+                .ok_or_else(|| TilePropertyError::UnrecognizedUuid(property_id))?;
+            Ok(property.prop_type.default_value())
+        }
+    }
     /// The global transform of the tile map with initial x-axis flip applied, so the positive x-axis points left instead of right.
     pub fn tile_map_transform(&self) -> Matrix4<f32> {
         self.global_transform()

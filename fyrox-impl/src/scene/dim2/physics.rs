@@ -325,7 +325,7 @@ fn tile_map_to_collider_shape(
     tile_map_shape: &TileMapShape,
     owner_inv_transform: Matrix4<f32>,
     nodes: &NodePool,
-    collider_name: ImmutableString,
+    collider_name: &ImmutableString,
 ) -> Option<SharedShape> {
     let tile_map_handle = tile_map_shape.tile_map.0;
     let tile_map = nodes
@@ -343,7 +343,7 @@ fn tile_map_to_collider_shape(
     let mut vertices = Vec::new();
     let mut triangles = Vec::new();
 
-    let collider_uuid = tile_set.collider_name_to_uuid(collider_name.clone())?;
+    let collider_uuid = tile_set.collider_name_to_uuid(collider_name)?;
     for tile in tile_map.iter() {
         let Some(tile_definition) =
             tile_set.get_tile_data(TilePaletteStage::Tiles, tile.definition_handle)
@@ -401,7 +401,7 @@ fn collider_shape_into_native_shape(
             None // TODO
         }
         ColliderShape::TileMap(tilemap, name) => {
-            tile_map_to_collider_shape(tilemap, owner_inv_transform, nodes, name.clone())
+            tile_map_to_collider_shape(tilemap, owner_inv_transform, nodes, name)
         }
     }
 }

@@ -781,13 +781,13 @@ impl<'a> TileSetRef<'a> {
             .unwrap_or_default()
     }
     /// Get the UUID of the property with the given name, if that property exists.
-    pub fn property_name_to_uuid(&self, name: ImmutableString) -> Option<Uuid> {
+    pub fn property_name_to_uuid(&self, name: &ImmutableString) -> Option<Uuid> {
         self.as_loaded_ref()
             .map(|t| t.property_name_to_uuid(name))
             .unwrap_or_default()
     }
     /// Get the UUID of the collider with the given name, if that collider exists.
-    pub fn collider_name_to_uuid(&self, name: ImmutableString) -> Option<Uuid> {
+    pub fn collider_name_to_uuid(&self, name: &ImmutableString) -> Option<Uuid> {
         self.as_loaded_ref()
             .map(|t| t.collider_name_to_uuid(name))
             .unwrap_or_default()
@@ -1140,18 +1140,22 @@ impl TileSet {
         self.pages.get(&page).map(|p| p.icon)
     }
     /// Get the UUID of the property with the given name, if that property exists.
-    pub fn property_name_to_uuid(&self, name: ImmutableString) -> Option<Uuid> {
-        self.properties
-            .iter()
-            .find(|p| p.name == name)
-            .map(|p| p.uuid)
+    pub fn property_name_to_uuid(&self, name: &ImmutableString) -> Option<Uuid> {
+        self.find_property_by_name(name).map(|p| p.uuid)
     }
     /// Get the UUID of the collider with the given name, if that collider exists.
-    pub fn collider_name_to_uuid(&self, name: ImmutableString) -> Option<Uuid> {
+    pub fn collider_name_to_uuid(&self, name: &ImmutableString) -> Option<Uuid> {
         self.colliders
             .iter()
-            .find(|c| c.name == name)
+            .find(|c| &c.name == name)
             .map(|c| c.uuid)
+    }
+    /// Find a property layer by its name.
+    pub fn find_property_by_name(
+        &self,
+        property_name: &ImmutableString,
+    ) -> Option<&TileSetPropertyLayer> {
+        self.properties.iter().find(|p| &p.name == property_name)
     }
     /// Find a property layer by its UUID.
     pub fn find_property(&self, uuid: Uuid) -> Option<&TileSetPropertyLayer> {
