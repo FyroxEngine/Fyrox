@@ -397,6 +397,66 @@ impl Default for TileSetPropertyOptionValue {
     }
 }
 
+impl TryFrom<TileSetPropertyValue> for i32 {
+    type Error = TilePropertyError;
+
+    fn try_from(value: TileSetPropertyValue) -> Result<Self, Self::Error> {
+        use TilePropertyError::*;
+        use TileSetPropertyValue::*;
+        match value {
+            I32(v) => Ok(v),
+            F32(_) => Err(WrongType("Expected: i32, Found: f32")),
+            String(_) => Err(WrongType("Expected: i32, Found: ImmutableString")),
+            NineSlice(_) => Err(WrongType("Expected: i32, Found: [i8;9]")),
+        }
+    }
+}
+
+impl TryFrom<TileSetPropertyValue> for f32 {
+    type Error = TilePropertyError;
+
+    fn try_from(value: TileSetPropertyValue) -> Result<Self, Self::Error> {
+        use TilePropertyError::*;
+        use TileSetPropertyValue::*;
+        match value {
+            I32(_) => Err(WrongType("Expected: f32, Found: i32")),
+            F32(v) => Ok(v),
+            String(_) => Err(WrongType("Expected: f32, Found: ImmutableString")),
+            NineSlice(_) => Err(WrongType("Expected: f32, Found: [i8;9]")),
+        }
+    }
+}
+
+impl TryFrom<TileSetPropertyValue> for ImmutableString {
+    type Error = TilePropertyError;
+
+    fn try_from(value: TileSetPropertyValue) -> Result<Self, Self::Error> {
+        use TilePropertyError::*;
+        use TileSetPropertyValue::*;
+        match value {
+            I32(_) => Err(WrongType("Expected: ImmutableString, Found: i32")),
+            F32(_) => Err(WrongType("Expected: ImmutableString, Found: f32")),
+            String(v) => Ok(v),
+            NineSlice(_) => Err(WrongType("Expected: ImmutableString, Found: [i8;9]")),
+        }
+    }
+}
+
+impl TryFrom<TileSetPropertyValue> for [i8; 9] {
+    type Error = TilePropertyError;
+
+    fn try_from(value: TileSetPropertyValue) -> Result<Self, Self::Error> {
+        use TilePropertyError::*;
+        use TileSetPropertyValue::*;
+        match value {
+            I32(_) => Err(WrongType("Expected: [i8;9], Found: i32")),
+            F32(_) => Err(WrongType("Expected: [i8;9], Found: f32")),
+            String(_) => Err(WrongType("Expected: [i8;9], Found: ImmutableString")),
+            NineSlice(v) => Ok(v),
+        }
+    }
+}
+
 impl From<TileSetPropertyValue> for TileSetPropertyOptionValue {
     fn from(value: TileSetPropertyValue) -> Self {
         use TileSetPropertyOptionValue as OValue;

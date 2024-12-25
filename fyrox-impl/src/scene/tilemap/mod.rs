@@ -841,6 +841,8 @@ pub enum TilePropertyError {
     UnrecognizedName(ImmutableString),
     /// There is no property with the givne UUID in the tile set.
     UnrecognizedUuid(Uuid),
+    /// The property has the wrong type.
+    WrongType(&'static str),
 }
 
 impl Display for TilePropertyError {
@@ -856,6 +858,7 @@ impl Display for TilePropertyError {
             TilePropertyError::UnrecognizedUuid(uuid) => {
                 write!(f, "There is no property with this UUID: {uuid}")
             }
+            TilePropertyError::WrongType(message) => write!(f, "Property type error: {message}"),
         }
     }
 }
@@ -873,6 +876,35 @@ impl TileMap {
         } else {
             None
         }
+    }
+    /// The property value for the property of the given name for the tile at the given position in this tile map.
+    /// This requires that the tile map has a loaded tile set and the tile set contains a property with the given name.
+    /// Otherwise an error is returned to indicate which of these conditions failed.
+    /// If the only problem is that there is no tile at the given position, then the default value for the property's value type
+    /// is returned.
+    pub fn tile_property_value<T>(
+        &self,
+        position: Vector2<i32>,
+        property_id: Uuid,
+    ) -> Result<T, TilePropertyError>
+    where
+        T: TryFrom<TileSetPropertyValue, Error = TilePropertyError> + Default,
+    {
+        let tile_set = self
+            .tile_set
+            .as_ref()
+            .ok_or(TilePropertyError::MissingTileSet)?
+            .data_ref();
+        let tile_set = tile_set
+            .as_loaded_ref()
+            .ok_or(TilePropertyError::TileSetNotLoaded)?;
+        self.get_at(position)
+            .and_then(|handle| {
+                tile_set
+                    .property_value(handle, property_id)
+                    .map(T::try_from)
+            })
+            .unwrap_or_else(|| Ok(T::default()))
     }
     /// The property value for the property of the given name for the tile at the given position in this tile map.
     /// This requires that the tile map has a loaded tile set and the tile set contains a property with the given name.
@@ -905,7 +937,7 @@ impl TileMap {
     /// Otherwise an error is returned to indicate which of these conditions failed.
     /// If the only problem is that there is no tile at the given position, then the default value for the property's value type
     /// is returned.
-    pub fn tile_property_value_by_uuid(
+    pub fn tile_property_value_by_uuid_untyped(
         &self,
         position: Vector2<i32>,
         property_id: Uuid,
