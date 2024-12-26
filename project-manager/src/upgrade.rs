@@ -225,9 +225,8 @@ impl UpgradeTool {
             if message.destination() == self.version_type_selector {
                 match *index {
                     0 => {
-                        self.selected_version = Version::Specific(
-                            fyrox_template_core::CURRENT_ENGINE_VERSION.to_string(),
-                        );
+                        self.selected_version =
+                            Version::Specific(fyrox_template_core::CURRENT_VERSION.to_string());
                     }
                     1 => {
                         self.selected_version = Version::Local;
