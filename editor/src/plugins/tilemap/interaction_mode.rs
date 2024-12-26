@@ -345,12 +345,15 @@ impl InteractionMode for TileMapInteractionMode {
         match self.mouse_mode {
             MouseMode::None => (),
             MouseMode::Dragging => {
-                editor_data.overlay.clear();
-                editor_data.erased_area.clear();
-                let tiles = editor_data.selected.iter().copied().collect::<Vec<_>>();
                 if let (Some(start), Some(end)) = (start, end) {
                     let offset = end - start;
                     if offset != Vector2::new(0, 0) {
+                        let tiles = editor_data
+                            .overlay
+                            .keys()
+                            .copied()
+                            .map(|p| p + start)
+                            .collect::<Vec<_>>();
                         editor_data.selected.clear();
                         editor_data
                             .selected
@@ -362,6 +365,8 @@ impl InteractionMode for TileMapInteractionMode {
                         ));
                     }
                 }
+                editor_data.overlay.clear();
+                editor_data.erased_area.clear();
             }
             MouseMode::Drawing => {
                 let state = self.state.lock();

@@ -705,22 +705,12 @@ impl PaletteWidget {
         if self.kind == TilePaletteStage::Tiles && self.content.is_material_page(page) {
             return;
         }
-        let Some(tile_set) = state.tile_set.as_ref() else {
-            return;
-        };
-        let mut tile_set = tile_set.state();
-        let Some(tile_set) = tile_set.data() else {
-            return;
-        };
         let tiles = state.selection_positions();
         self.overlay.movable_position = Vector2::default();
         self.overlay.erased_tiles.clear();
         self.overlay.movable_tiles.clear();
         for pos in tiles.iter() {
-            let Some(handle) = TileDefinitionHandle::try_new(page, *pos) else {
-                continue;
-            };
-            let Some(data) = tile_set.get_tile_render_data(self.kind, handle) else {
+            let Some(data) = self.content.get_tile_render_data(self.kind, page, *pos) else {
                 continue;
             };
             let _ = self.overlay.erased_tiles.insert(*pos);

@@ -327,6 +327,34 @@ impl TileMapBrush {
         }
     }
 
+    /// Return the `TileRenderData` needed to render the tile at the given position on the givne page.
+    /// If there is no tile at that position or the tile set is missing or not loaded, then None is returned.
+    /// If there is a tile and a tile set, but the handle of the tile does not exist in the tile set,
+    /// then the rendering data for an error tile is returned using `TileRenderData::missing_tile()`.
+    pub fn get_tile_render_data(
+        &self,
+        stage: TilePaletteStage,
+        page: Vector2<i32>,
+        tile: Vector2<i32>,
+    ) -> Option<TileRenderData> {
+        let handle = match stage {
+            TilePaletteStage::Pages => {
+                let page = self.pages.get(&tile)?;
+                page.icon
+            }
+            TilePaletteStage::Tiles => {
+                let page = self.pages.get(&page)?;
+                *page.tiles.get(&tile)?
+            }
+        };
+        let mut tile_set = self.tile_set.as_ref()?.state();
+        let data = tile_set
+            .data()?
+            .get_tile_render_data(TilePaletteStage::Tiles, handle)
+            .unwrap_or_else(TileRenderData::missing_data);
+        Some(data)
+    }
+
     /// The tiles of a brush are references to tiles in the tile set.
     /// This method converts handles within the brush into the handle that points to the corresponding
     /// tile definition within the tile set.

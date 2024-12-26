@@ -645,6 +645,29 @@ impl TileResource {
         }
     }
 
+    /// Return the `TileRenderData` needed to render the tile at the given position on the givne page.
+    /// If there is no tile at that position or the tile set is missing or not loaded, then None is returned.
+    /// If there is a tile and a tile set, but the handle of the tile does not exist in the tile set,
+    /// then the rendering data for an error tile is returned using `TileRenderData::missing_tile()`.
+    pub fn get_tile_render_data(
+        &self,
+        stage: TilePaletteStage,
+        page: Vector2<i32>,
+        tile: Vector2<i32>,
+    ) -> Option<TileRenderData> {
+        match self {
+            TileResource::Empty => None,
+            TileResource::TileSet(resource) => resource
+                .state()
+                .data()?
+                .get_tile_render_data(stage, TileDefinitionHandle::try_new(page, tile)?),
+            TileResource::Brush(resource) => resource
+                .state()
+                .data()?
+                .get_tile_render_data(stage, page, tile),
+        }
+    }
+
     /// Repeatedly call the given function with each tile for the given stage and page.
     /// The function is given the position of the tile within the palette and the
     /// data for rendering the tile.
