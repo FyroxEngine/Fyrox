@@ -55,13 +55,11 @@ impl PropertyEditorDefinition for CurvePropertyEditorDefinition {
         .with_curves(vec![value.clone()])
         .build(ctx.build_context);
         ctx.build_context
-            .sender()
-            .send(CurveEditorMessage::zoom_to_fit(
+            .send_message(CurveEditorMessage::zoom_to_fit(
                 editor,
                 MessageDirection::ToWidget,
                 true,
-            ))
-            .unwrap();
+            ));
         Ok(PropertyEditorInstance::Simple { editor })
     }
 

@@ -613,12 +613,10 @@ impl ProjectManager {
         .add_column(Column::stretch())
         .build(ctx);
 
-        ctx.sender()
-            .send(WidgetMessage::focus(
-                navigation_layer,
-                MessageDirection::ToWidget,
-            ))
-            .unwrap();
+        ctx.send_message(WidgetMessage::focus(
+            navigation_layer,
+            MessageDirection::ToWidget,
+        ));
 
         Self {
             root_grid,
