@@ -23,6 +23,7 @@
 mod collider_editor;
 mod colliders_tab;
 mod commands;
+mod handle_editor;
 mod handle_field;
 mod interaction_mode;
 mod misc;
@@ -44,6 +45,7 @@ use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
 use fyrox::scene::tilemap::TileMapEditorDataRef;
 use fyrox::{gui::message::KeyCode, scene::tilemap::TileMapEditorData};
+pub use handle_editor::*;
 use handle_field::*;
 use interaction_mode::*;
 use palette::PaletteWidget;
@@ -612,6 +614,10 @@ impl EditorPlugin for TileMapEditorPlugin {
 
         if let Some(OpenTilePanelMessage { resource, center }) = message.data() {
             self.open_panel_for_tile_set(resource.clone(), *center, ui, &editor.message_sender);
+        } else if let Some(&TileDefinitionHandleEditorMessage::Goto(handle)) = message.data() {
+            if let Some(panel) = &mut self.panel {
+                panel.set_focus(handle, ui);
+            }
         }
 
         if let Some(panel) = self.panel.take() {

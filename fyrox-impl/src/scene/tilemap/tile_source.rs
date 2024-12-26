@@ -71,7 +71,8 @@ impl<V: Debug> DerefMut for TileGridMap<V> {
 }
 
 /// Position of a tile definition within some tile set
-#[derive(Eq, PartialEq, Clone, Copy, Default, Hash, Reflect, Visit)]
+#[derive(Eq, PartialEq, Clone, Copy, Default, Hash, Reflect, Visit, TypeUuidProvider)]
+#[type_uuid(id = "3eb69303-d361-482d-8094-44b9f9c323ca")]
 pub struct TileDefinitionHandle {
     /// Position of the tile's page
     pub page: PalettePosition,
