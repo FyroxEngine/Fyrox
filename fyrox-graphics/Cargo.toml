@@ -1,10 +1,19 @@
 [package]
 name = "fyrox-graphics"
-version = "0.1.0"
+version = "0.36.0"
 edition = "2021"
+license = "MIT"
+description = "Graphics API abstraction for Fyrox Game Engine"
+keywords = ["graphics", "gapi"]
+categories = ["graphics", "rendering::graphics-api"]
+include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md"]
+homepage = "https://fyrox.rs"
+documentation = "https://docs.rs/fyrox-ui"
+repository = "https://github.com/FyroxEngine/Fyrox"
+rust-version = "1.80"
 
 [dependencies]
-fyrox-core = { path = "../fyrox-core", version = "0.28.1", features = ["serde"] }
+fyrox-core = { path = "../fyrox-core", version = "0.36.0", features = ["serde"] }
 glow = "0.15"
 serde = { version = "1", features = ["derive"] }
 strum = "0.26.1"
