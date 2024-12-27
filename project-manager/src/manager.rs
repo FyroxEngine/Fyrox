@@ -137,6 +137,7 @@ pub struct ProjectManager {
     upgrade_tool: Option<UpgradeTool>,
     settings_window: Option<SettingsWindow>,
     no_projects_warning: Handle<UiNode>,
+    exclude_project: Handle<UiNode>,
     pub focused: bool,
     pub update_loop_state: UpdateLoopState,
 }
@@ -445,6 +446,8 @@ impl ProjectManager {
         \nHotkey: Ctrl+L";
         let open_ide_tooltip = "Opens project folder in the currently selected IDE \
         (can be changed in settings).\nHotkey: Ctrl+O";
+        let exclude_project_tooltip = "Removes the project from the project manager, \
+        but does NOT delete it.\nHotkey: Ctrl+E";
 
         let edit = make_text_and_image_button_with_tooltip(
             ctx,
@@ -524,6 +527,19 @@ impl ProjectManager {
             Color::LIGHT_GRAY,
             font_size,
         );
+        let exclude_project = make_text_and_image_button_with_tooltip(
+            ctx,
+            "Exclude",
+            22.0,
+            22.0,
+            load_image(include_bytes!("../resources/cross.png")),
+            exclude_project_tooltip,
+            0,
+            0,
+            Some(10),
+            Color::ORANGE,
+            font_size,
+        );
         let hot_reload = CheckBoxBuilder::new(
             WidgetBuilder::new()
                 .with_tab_index(Some(4))
@@ -547,7 +563,8 @@ impl ProjectManager {
                 .with_child(open_ide)
                 .with_child(upgrade)
                 .with_child(locate)
-                .with_child(delete),
+                .with_child(delete)
+                .with_child(exclude_project),
         )
         .build(ctx);
 
@@ -648,6 +665,7 @@ impl ProjectManager {
             upgrade_tool: None,
             settings_window: None,
             no_projects_warning,
+            exclude_project,
             focused: true,
             update_loop_state: Default::default(),
         }
@@ -878,6 +896,14 @@ impl ProjectManager {
         self.project_wizard = Some(ProjectWizard::new(&mut ui.build_ctx()));
     }
 
+    fn on_exclude_project_clicked(&mut self, ui: &mut UserInterface) {
+        let project_index = some_or_return!(self.selection);
+        if project_index < self.settings.projects.len() {
+            self.settings.projects.remove(project_index);
+        }
+        self.refresh(ui);
+    }
+
     fn on_button_click(&mut self, button: Handle<UiNode>, ui: &mut UserInterface) {
         if button == self.create {
             self.on_create_clicked(ui);
@@ -901,6 +927,8 @@ impl ProjectManager {
             self.on_open_ide_click();
         } else if button == self.open_settings {
             self.on_open_settings_click(ui);
+        } else if button == self.exclude_project {
+            self.on_exclude_project_clicked(ui);
         }
     }
 
@@ -981,6 +1009,7 @@ impl ProjectManager {
             KeyCode::KeyL if modifiers.control => self.on_locate_click(),
             KeyCode::KeyO if modifiers.control => self.on_open_ide_click(),
             KeyCode::KeyS if modifiers.control => self.on_open_settings_click(ui),
+            KeyCode::KeyE if modifiers.control => self.on_exclude_project_clicked(ui),
             _ => (),
         }
     }
