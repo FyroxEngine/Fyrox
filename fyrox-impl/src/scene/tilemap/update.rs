@@ -181,12 +181,12 @@ impl TileDataUpdate {
             TileDataUpdate::PropertySlice(uuid, data) => match value {
                 TileSetPropertyValue::NineSlice(mut old_data) if property_id == *uuid => {
                     for (i, v) in data.iter().enumerate() {
-                        old_data[i] = v.unwrap_or(old_data[i]);
+                        old_data.0[i] = v.unwrap_or(old_data.0[i]);
                     }
                     TileSetPropertyValue::NineSlice(old_data)
                 }
                 _ if property_id == *uuid => {
-                    TileSetPropertyValue::NineSlice(data.map(|x| x.unwrap_or_default()))
+                    TileSetPropertyValue::NineSlice(NineI8(data.map(|x| x.unwrap_or_default())))
                 }
                 _ => value,
             },
@@ -298,7 +298,7 @@ impl TileDataUpdate {
             TileDataUpdate::PropertySlice(uuid, value) => match data.properties.entry(*uuid) {
                 Entry::Occupied(mut e) => {
                     if let TileSetPropertyValue::NineSlice(v0) = e.get_mut() {
-                        for (v0, v1) in v0.iter_mut().zip(value.iter_mut()) {
+                        for (v0, v1) in v0.0.iter_mut().zip(value.iter_mut()) {
                             if let Some(v1) = v1 {
                                 std::mem::swap(v0, v1);
                             }
@@ -306,9 +306,9 @@ impl TileDataUpdate {
                     }
                 }
                 Entry::Vacant(e) => {
-                    let _ = e.insert(TileSetPropertyValue::NineSlice(
+                    let _ = e.insert(TileSetPropertyValue::NineSlice(NineI8(
                         value.map(|v| v.unwrap_or_default()),
-                    ));
+                    )));
                     *self = TileDataUpdate::Property(*uuid, None);
                 }
             },
@@ -510,13 +510,15 @@ impl TileSetUpdate {
                     TileDataUpdate::Property(uuid, Some(PropValue::NineSlice(d0)))
                         if *uuid == property_id =>
                     {
-                        d0[index] = value;
+                        d0.0[index] = value;
                     }
                     d0 => {
                         let mut data = [0; 9];
                         data[index] = value;
-                        *d0 =
-                            TileDataUpdate::Property(property_id, Some(PropValue::NineSlice(data)));
+                        *d0 = TileDataUpdate::Property(
+                            property_id,
+                            Some(PropValue::NineSlice(NineI8(data))),
+                        );
                     }
                 },
                 Entry::Vacant(e) => {

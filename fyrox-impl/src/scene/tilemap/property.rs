@@ -22,7 +22,7 @@ use crate::core::{
     algebra::Vector2, color::Color, num_traits::Euclid, reflect::prelude::*,
     type_traits::prelude::*, visitor::prelude::*, ImmutableString,
 };
-use std::fmt::{Display, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 
 use super::*;
 use tileset::*;
@@ -179,7 +179,7 @@ impl TileSetPropertyLayer {
                 }
             }
             (PropValue::NineSlice(v0), &Element::I8(v1)) => {
-                let v = v0[PropValue::nine_position_to_index(position)];
+                let v = v0.value_at(position);
                 self.value_to_color(NamableValue::I8(v)).or({
                     if v == v1 {
                         Some(ELEMENT_MATCH_HIGHLIGHT_COLOR)
@@ -219,7 +219,7 @@ impl TileSetPropertyType {
             PropType::I32 => PropValue::I32(0),
             PropType::F32 => PropValue::F32(0.0),
             PropType::String => PropValue::String(ImmutableString::default()),
-            PropType::NineSlice => PropValue::NineSlice([0; 9]),
+            PropType::NineSlice => PropValue::NineSlice(NineI8::default()),
         }
     }
     /// The none value when no value is available.
@@ -246,7 +246,76 @@ pub enum TileSetPropertyValue {
     String(ImmutableString),
     /// Nine-slice properties allow a tile to have nine separate values,
     /// one value for each of its corners, each of its edges, and its center.
-    NineSlice([i8; 9]),
+    NineSlice(NineI8),
+}
+
+/// Storing a slice of 9 values in a tile is critical to some automatic tiling algorithms
+/// that need to be able identify the content of the edges, corners, or center of each tile.
+/// [Wang tiles](https://en.wikipedia.org/wiki/Wang_tile) are an example of this, where each edge of each tile
+/// is assigned a color and tiles are arranged so that whenever two tiles are adjacent the touching edges
+/// are the same color.
+#[derive(Default, Clone, Copy, PartialEq, Reflect)]
+pub struct NineI8(pub [i8; 9]);
+
+impl Visit for NineI8 {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        self.0.visit(name, visitor)
+    }
+}
+
+impl Debug for NineI8 {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let [v0, v1, v2, v3, v4, v5, v6, v7, v8] = self.0;
+        write!(f, "NineI8[{v0} {v1} {v2}/{v3} {v4} {v5}/{v6} {v7} {v8}]")
+    }
+}
+
+impl Display for NineI8 {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let [v0, v1, v2, v3, v4, v5, v6, v7, v8] = self.0;
+        write!(f, "[{v0} {v1} {v2}/{v3} {v4} {v5}/{v6} {v7} {v8}]")
+    }
+}
+
+impl From<[i8; 9]> for NineI8 {
+    fn from(value: [i8; 9]) -> Self {
+        NineI8(value)
+    }
+}
+
+impl From<NineI8> for [i8; 9] {
+    fn from(value: NineI8) -> Self {
+        value.0
+    }
+}
+
+impl NineI8 {
+    /// The value at the given position, with (1,1) being the center of the tile.
+    /// (1,2) represents the top edge of the tile.
+    /// (0,1) represents the left edge of the tile.
+    /// (2,1) represents the right edge of the tile.
+    /// (1,0) represents the bottom edge of the tile.
+    /// Other positions represent the four corners of the tile.
+    pub fn value_at(&self, position: Vector2<usize>) -> i8 {
+        let index = TileSetPropertyValue::nine_position_to_index(position);
+        self.0[index]
+    }
+    /// The value at the given position, with (1,1) being the center of the tile.
+    /// (1,2) represents the top edge of the tile.
+    /// (0,1) represents the left edge of the tile.
+    /// (2,1) represents the right edge of the tile.
+    /// (1,0) represents the bottom edge of the tile.
+    /// Other positions represent the four corners of the tile.
+    pub fn value_at_mut(&mut self, position: Vector2<usize>) -> &mut i8 {
+        let index = TileSetPropertyValue::nine_position_to_index(position);
+        &mut self.0[index]
+    }
+    /// Swap the values at two positions in the slice.
+    pub fn swap(&mut self, a: Vector2<usize>, b: Vector2<usize>) {
+        let a_index = TileSetPropertyValue::nine_position_to_index(a);
+        let b_index = TileSetPropertyValue::nine_position_to_index(b);
+        self.0.swap(a_index, b_index);
+    }
 }
 
 /// An element of data stored within a tile's property.
@@ -279,8 +348,8 @@ impl Default for TileSetPropertyValueElement {
 impl OrthoTransform for TileSetPropertyValue {
     fn x_flipped(self) -> Self {
         if let Self::NineSlice(mut v) = self {
-            fn pos(x: usize, y: usize) -> usize {
-                TileSetPropertyValue::nine_position_to_index(Vector2::new(x, y))
+            fn pos(x: usize, y: usize) -> Vector2<usize> {
+                Vector2::new(x, y)
             }
             v.swap(pos(2, 0), pos(0, 0));
             v.swap(pos(2, 1), pos(0, 1));
@@ -317,7 +386,8 @@ const NINE_ROTATE_LIST: [usize; 8] = [
     nine_index(0, 1),
 ];
 
-fn nine_rotate(nine: &mut [i8; 9], amount: usize) {
+fn nine_rotate(nine: &mut NineI8, amount: usize) {
+    let nine = &mut nine.0;
     let copy = *nine;
     for i in 0..(8 - amount) {
         nine[NINE_ROTATE_LIST[i + amount]] = copy[NINE_ROTATE_LIST[i]];
@@ -365,7 +435,7 @@ impl TileSetPropertyValue {
             (PropValue::F32(x0), OptValue::F32(Some(x1))) => *x0 = *x1,
             (PropValue::String(x0), OptValue::String(Some(x1))) => *x0 = x1.clone(),
             (PropValue::NineSlice(arr0), OptValue::NineSlice(arr1)) => {
-                for (x0, x1) in arr0.iter_mut().zip(arr1.iter()) {
+                for (x0, x1) in arr0.0.iter_mut().zip(arr1.iter()) {
                     if let Some(v) = x1 {
                         *x0 = *v;
                     }
@@ -407,7 +477,7 @@ impl TryFrom<TileSetPropertyValue> for i32 {
             I32(v) => Ok(v),
             F32(_) => Err(WrongType("Expected: i32, Found: f32")),
             String(_) => Err(WrongType("Expected: i32, Found: ImmutableString")),
-            NineSlice(_) => Err(WrongType("Expected: i32, Found: [i8;9]")),
+            NineSlice(_) => Err(WrongType("Expected: i32, Found: NineI8")),
         }
     }
 }
@@ -422,7 +492,7 @@ impl TryFrom<TileSetPropertyValue> for f32 {
             I32(_) => Err(WrongType("Expected: f32, Found: i32")),
             F32(v) => Ok(v),
             String(_) => Err(WrongType("Expected: f32, Found: ImmutableString")),
-            NineSlice(_) => Err(WrongType("Expected: f32, Found: [i8;9]")),
+            NineSlice(_) => Err(WrongType("Expected: f32, Found: NineI8")),
         }
     }
 }
@@ -437,21 +507,21 @@ impl TryFrom<TileSetPropertyValue> for ImmutableString {
             I32(_) => Err(WrongType("Expected: ImmutableString, Found: i32")),
             F32(_) => Err(WrongType("Expected: ImmutableString, Found: f32")),
             String(v) => Ok(v),
-            NineSlice(_) => Err(WrongType("Expected: ImmutableString, Found: [i8;9]")),
+            NineSlice(_) => Err(WrongType("Expected: ImmutableString, Found: NineI8")),
         }
     }
 }
 
-impl TryFrom<TileSetPropertyValue> for [i8; 9] {
+impl TryFrom<TileSetPropertyValue> for NineI8 {
     type Error = TilePropertyError;
 
     fn try_from(value: TileSetPropertyValue) -> Result<Self, Self::Error> {
         use TilePropertyError::*;
         use TileSetPropertyValue::*;
         match value {
-            I32(_) => Err(WrongType("Expected: [i8;9], Found: i32")),
-            F32(_) => Err(WrongType("Expected: [i8;9], Found: f32")),
-            String(_) => Err(WrongType("Expected: [i8;9], Found: ImmutableString")),
+            I32(_) => Err(WrongType("Expected: NineI8, Found: i32")),
+            F32(_) => Err(WrongType("Expected: NineI8, Found: f32")),
+            String(_) => Err(WrongType("Expected: NineI8, Found: ImmutableString")),
             NineSlice(v) => Ok(v),
         }
     }
@@ -465,7 +535,7 @@ impl From<TileSetPropertyValue> for TileSetPropertyOptionValue {
             Value::I32(x) => OValue::I32(Some(x)),
             Value::F32(x) => OValue::F32(Some(x)),
             Value::String(x) => OValue::String(Some(x)),
-            Value::NineSlice(arr) => OValue::NineSlice(arr.map(Some)),
+            Value::NineSlice(arr) => OValue::NineSlice(arr.0.map(Some)),
         }
     }
 }
@@ -478,7 +548,7 @@ impl From<TileSetPropertyOptionValue> for TileSetPropertyValue {
             OValue::I32(x) => Value::I32(x.unwrap_or_default()),
             OValue::F32(x) => Value::F32(x.unwrap_or_default()),
             OValue::String(x) => Value::String(x.unwrap_or_default()),
-            OValue::NineSlice(arr) => Value::NineSlice(arr.map(Option::unwrap_or_default)),
+            OValue::NineSlice(arr) => Value::NineSlice(NineI8(arr.map(Option::unwrap_or_default))),
         }
     }
 }
@@ -517,7 +587,7 @@ impl TileSetPropertyOptionValue {
             }
             OptValue::NineSlice(arr0) => {
                 if let PropValue::NineSlice(arr1) = value {
-                    for (x0, x1) in arr0.iter_mut().zip(arr1.iter()) {
+                    for (x0, x1) in arr0.iter_mut().zip(arr1.0.iter()) {
                         if let Some(x) = x0 {
                             if *x != *x1 {
                                 *x0 = None
