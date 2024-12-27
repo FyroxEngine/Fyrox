@@ -21,6 +21,7 @@
 use directories::ProjectDirs;
 use fyrox::{
     core::{log::Log, pool::Handle, reflect::prelude::*},
+    fxhash::FxHashSet,
     gui::{
         inspector::{
             editors::{
@@ -118,7 +119,12 @@ impl SettingsData {
 
     pub fn load() -> Self {
         match File::open(Self::actual_path()) {
-            Ok(file) => ron::de::from_reader(file).unwrap_or_default(),
+            Ok(file) => {
+                let mut settings: SettingsData = ron::de::from_reader(file).unwrap_or_default();
+                settings.remove_non_existent_projects();
+                settings.remove_duplicates();
+                settings
+            }
             Err(err) => {
                 eprintln!("Unable to load project manager settings! Reason: {err:?}");
                 Default::default()
@@ -139,6 +145,23 @@ impl SettingsData {
                 eprintln!("Unable to create project manager settings file! Reason: {err:?}");
             }
         }
+    }
+
+    fn remove_non_existent_projects(&mut self) {
+        self.projects
+            .retain(|project| project.manifest_path.exists())
+    }
+
+    fn remove_duplicates(&mut self) {
+        let mut existing = FxHashSet::default();
+        self.projects.retain(|project| {
+            if existing.contains(&project.manifest_path) {
+                false
+            } else {
+                existing.insert(project.manifest_path.clone());
+                true
+            }
+        });
     }
 }
 
