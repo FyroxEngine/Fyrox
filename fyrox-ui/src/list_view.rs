@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 //! List view is used to display lists with arbitrary items. It supports single-selection and by default, it stacks the items
-//! vertically.  
+//! vertically.
 
 #![warn(missing_docs)]
 
@@ -84,7 +84,7 @@ impl ListViewMessage {
 }
 
 /// List view is used to display lists with arbitrary items. It supports single-selection and by default, it stacks the items
-/// vertically.  
+/// vertically.
 ///
 /// ## Example
 ///
@@ -419,24 +419,14 @@ impl Control for ListView {
             {
                 match msg {
                     ListViewMessage::Items(items) => {
-                        // Remove previous items.
-                        for child in ui.node(*self.panel).children() {
-                            ui.send_message(WidgetMessage::remove(
-                                *child,
-                                MessageDirection::ToWidget,
-                            ));
-                        }
-
                         // Generate new items.
                         let item_containers = generate_item_containers(&mut ui.build_ctx(), items);
 
-                        for item_container in item_containers.iter() {
-                            ui.send_message(WidgetMessage::link(
-                                *item_container,
-                                MessageDirection::ToWidget,
-                                *self.panel,
-                            ));
-                        }
+                        ui.send_message(WidgetMessage::replace_children(
+                            *self.panel,
+                            MessageDirection::ToWidget,
+                            item_containers.clone(),
+                        ));
 
                         self.item_containers
                             .set_value_and_mark_modified(item_containers);

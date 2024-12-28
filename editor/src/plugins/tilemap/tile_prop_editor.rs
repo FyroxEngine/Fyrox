@@ -661,6 +661,8 @@ struct NineButtonSpec {
     color: Color,
 }
 
+const BRIGHTNESS_LIMIT: usize = 500;
+
 impl NineButtonSpec {
     fn base_color(&self) -> Color {
         self.color.to_opaque()
@@ -670,7 +672,7 @@ impl NineButtonSpec {
         let b = self.color.b as usize;
         let g = self.color.g as usize;
         let brightness = 2 * r + b + 3 * g;
-        brightness > 765
+        brightness > BRIGHTNESS_LIMIT
     }
     fn foreground_brush(&self) -> Brush {
         if self.is_bright() {

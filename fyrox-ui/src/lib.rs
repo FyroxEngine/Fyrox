@@ -1882,6 +1882,26 @@ impl UserInterface {
                                 self.link_nodes(message.destination(), parent, true);
                             }
                         }
+                        WidgetMessage::ReplaceChildren(children) => {
+                            if self.nodes.is_valid_handle(message.destination()) {
+                                let old_children =
+                                    self.node(message.destination()).children().to_vec();
+                                for child in old_children.iter() {
+                                    if self.nodes.is_valid_handle(*child) {
+                                        if children.contains(child) {
+                                            self.unlink_node(*child);
+                                        } else {
+                                            self.remove_node(*child);
+                                        }
+                                    }
+                                }
+                                for &child in children.iter() {
+                                    if self.nodes.is_valid_handle(child) {
+                                        self.link_nodes(child, message.destination(), false);
+                                    }
+                                }
+                            }
+                        }
                         WidgetMessage::Remove => {
                             if self.nodes.is_valid_handle(message.destination()) {
                                 self.remove_node(message.destination());
