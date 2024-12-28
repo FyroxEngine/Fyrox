@@ -32,7 +32,6 @@ use fyrox::{
     asset::{manager::ResourceManager, untyped::ResourceKind},
     core::{
         algebra::Matrix3,
-        instant::Instant,
         log::{Log, MessageKind},
         task::TaskPool,
     },
@@ -52,7 +51,10 @@ use fyrox::{
     utils::{translate_cursor_icon, translate_event},
     window::WindowAttributes,
 };
-use std::sync::Arc;
+use std::{
+    sync::Arc,
+    time::{Duration, Instant},
+};
 
 fn set_ui_scaling(ui: &UserInterface, scale: f32) {
     // High-DPI screen support
@@ -108,7 +110,16 @@ fn main() {
 
     event_loop
         .run(move |event, window_target| {
-            window_target.set_control_flow(ControlFlow::Wait);
+            if project_manager.mode.is_build() {
+                // Keep updating with reduced rate to keep printing to the build log, but do not
+                // eat as much time as in normal update mode.
+                window_target.set_control_flow(ControlFlow::wait_duration(
+                    Duration::from_secs_f32(1.0 / 10.0),
+                ));
+            } else {
+                // Wait for an event.
+                window_target.set_control_flow(ControlFlow::Wait);
+            }
 
             match event {
                 Event::Resumed => {

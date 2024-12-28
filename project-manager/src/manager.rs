@@ -63,13 +63,19 @@ use std::{
     process::Stdio,
 };
 
-enum Mode {
+pub enum Mode {
     Normal,
     Build {
         queue: VecDeque<CommandDescriptor>,
         process: Option<std::process::Child>,
         current_dir: PathBuf,
     },
+}
+
+impl Mode {
+    pub fn is_build(&self) -> bool {
+        matches!(self, Mode::Build { .. })
+    }
 }
 
 pub struct UpdateLoopState(u32);
@@ -124,7 +130,7 @@ pub struct ProjectManager {
     project_wizard: Option<ProjectWizard>,
     build_window: Option<BuildWindow>,
     import_project_dialog: Handle<UiNode>,
-    mode: Mode,
+    pub mode: Mode,
     search_text: String,
     log: LogPanel,
     open_log: Handle<UiNode>,
@@ -672,7 +678,9 @@ impl ProjectManager {
     }
 
     pub fn is_active(&self, ui: &UserInterface) -> bool {
-        !self.update_loop_state.is_suspended() && self.focused || ui.captured_node().is_some()
+        !self.update_loop_state.is_suspended() && self.focused
+            || ui.captured_node().is_some()
+            || self.mode.is_build()
     }
 
     fn refresh(&mut self, ui: &mut UserInterface) {
