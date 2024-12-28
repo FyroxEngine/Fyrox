@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use fyrox::scene::tilemap::ResourceTilePosition;
+
 use crate::asset::item::AssetItem;
 use crate::fyrox::{
     core::{
@@ -506,7 +508,8 @@ impl PaletteWidget {
         self.selecting_tiles.clear();
         let stamp_trans = state.stamp.transformation();
         state.update_stamp(self.content.get_tile_set(), |p| {
-            self.content.get_tile_handle(self.stage(), page, p)
+            self.content
+                .get_tile_handle(ResourceTilePosition::new(self.stage(), page, p))
         });
         state.stamp.transform(stamp_trans);
     }
@@ -531,7 +534,8 @@ impl PaletteWidget {
             positions.extend(rect.iter());
         }
         state.update_stamp(self.content.get_tile_set(), |p| {
-            self.content.get_tile_handle(self.stage(), page, p)
+            self.content
+                .get_tile_handle(ResourceTilePosition::new(self.stage(), page, p))
         });
     }
     fn finalize_selection(&mut self, ui: &mut UserInterface) {
@@ -554,7 +558,8 @@ impl PaletteWidget {
         let positions = state.selection_positions();
         self.selecting_tiles.clone_from(positions);
         state.update_stamp(self.content.get_tile_set(), |p| {
-            self.content.get_tile_handle(self.stage(), page, p)
+            self.content
+                .get_tile_handle(ResourceTilePosition::new(self.stage(), page, p))
         });
     }
     fn select_all(&mut self) {
@@ -572,7 +577,8 @@ impl PaletteWidget {
         sel.clear();
         sel.extend(results.iter().copied());
         state.update_stamp(self.content.get_tile_set(), |p| {
-            self.content.get_tile_handle(self.stage(), page, p)
+            self.content
+                .get_tile_handle(ResourceTilePosition::new(self.stage(), page, p))
         });
     }
     fn select_one(&mut self, position: Vector2<i32>) {
@@ -586,7 +592,8 @@ impl PaletteWidget {
         sel.clear();
         sel.insert(position);
         state.update_stamp(self.content.get_tile_set(), |p| {
-            self.content.get_tile_handle(self.stage(), page, p)
+            self.content
+                .get_tile_handle(ResourceTilePosition::new(self.stage(), page, p))
         });
     }
     fn begin_motion(&mut self, mode: DrawingMode, pos: MousePos, ui: &mut UserInterface) {
@@ -710,7 +717,10 @@ impl PaletteWidget {
         self.overlay.erased_tiles.clear();
         self.overlay.movable_tiles.clear();
         for pos in tiles.iter() {
-            let Some(data) = self.content.get_tile_render_data(self.kind, page, *pos) else {
+            let Some(data) = self
+                .content
+                .get_tile_render_data(ResourceTilePosition::new(self.kind, page, *pos))
+            else {
                 continue;
             };
             let _ = self.overlay.erased_tiles.insert(*pos);
@@ -1226,7 +1236,7 @@ impl Control for PaletteWidget {
                         continue;
                     };
                     let data = tile_set
-                        .get_tile_render_data(TilePaletteStage::Tiles, handle)
+                        .get_tile_render_data(handle.into())
                         .unwrap_or_else(TileRenderData::missing_data);
                     let Some(data) = v.modify_render(&data) else {
                         continue;

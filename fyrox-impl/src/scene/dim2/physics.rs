@@ -52,7 +52,7 @@ use crate::{
             Graph, NodePool,
         },
         node::{Node, NodeTrait},
-        tilemap::{TileMap, TilePaletteStage},
+        tilemap::TileMap,
     },
 };
 pub use rapier2d::geometry::shape::*;
@@ -345,9 +345,7 @@ fn tile_map_to_collider_shape(
 
     let collider_uuid = tile_set.collider_name_to_uuid(collider_name)?;
     for tile in tile_map.iter() {
-        let Some(tile_definition) =
-            tile_set.get_tile_data(TilePaletteStage::Tiles, tile.definition_handle)
-        else {
+        let Some(tile_definition) = tile_set.get_tile_data(tile.definition_handle.into()) else {
             continue;
         };
 

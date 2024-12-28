@@ -280,9 +280,7 @@ impl InteractionMode for TileMapInteractionMode {
                             editor_data.erased_area.insert(*pos);
                             let render_data = tile_set
                                 .as_ref()
-                                .and_then(|t| {
-                                    t.get_tile_render_data(TilePaletteStage::Tiles, handle)
-                                })
+                                .and_then(|t| t.get_tile_render_data(handle.into()))
                                 .unwrap_or_else(TileRenderData::missing_data);
                             let _ = overlay.insert(*pos - grid_coord, render_data);
                         }

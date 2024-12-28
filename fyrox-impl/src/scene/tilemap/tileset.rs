@@ -541,6 +541,14 @@ impl TileSetPageSource {
     pub fn new_transform() -> Self {
         Self::TransformSet(TransformSetTiles::default())
     }
+    /// True if this page contains some tile at the given position.
+    pub fn contains_tile_at(&self, position: Vector2<i32>) -> bool {
+        match self {
+            TileSetPageSource::Material(map) => map.contains_key(&position),
+            TileSetPageSource::Freeform(map) => map.contains_key(&position),
+            TileSetPageSource::TransformSet(map) => map.contains_key(&position),
+        }
+    }
 }
 
 /// The tile data for transform set pages of a [`TileSet`].
@@ -651,7 +659,7 @@ impl TileMaterial {
     }
 }
 
-/// Iterates through the handles of a single page within a tile set.
+/// Iterates through the positions of the tiles of a single page within a tile set.
 pub struct TileSetPaletteIterator<'a> {
     keys: PaletteIterator<'a>,
     page: Vector2<i32>,
@@ -666,22 +674,20 @@ enum PaletteIterator<'a> {
 }
 
 impl Iterator for TileSetPaletteIterator<'_> {
-    type Item = TileDefinitionHandle;
+    type Item = ResourceTilePosition;
     fn next(&mut self) -> Option<Self::Item> {
         match &mut self.keys {
             PaletteIterator::Empty => None,
-            PaletteIterator::Material(iter) => {
-                iter.find_map(|t| TileDefinitionHandle::try_new(self.page, *t))
-            }
-            PaletteIterator::Freeform(iter) => {
-                iter.find_map(|t| TileDefinitionHandle::try_new(self.page, *t))
-            }
-            PaletteIterator::TransformSet(iter) => {
-                iter.find_map(|t| TileDefinitionHandle::try_new(self.page, *t))
-            }
-            PaletteIterator::Pages(iter) => {
-                iter.find_map(|t| TileDefinitionHandle::try_new(self.page, *t))
-            }
+            PaletteIterator::Material(iter) => iter
+                .next()
+                .map(|t| ResourceTilePosition::Tile(self.page, *t)),
+            PaletteIterator::Freeform(iter) => iter
+                .next()
+                .map(|t| ResourceTilePosition::Tile(self.page, *t)),
+            PaletteIterator::TransformSet(iter) => iter
+                .next()
+                .map(|t| ResourceTilePosition::Tile(self.page, *t)),
+            PaletteIterator::Pages(iter) => iter.next().copied().map(ResourceTilePosition::Page),
         }
     }
 }
@@ -864,13 +870,9 @@ impl<'a> TileSetRef<'a> {
     /// then `TileRenderData::missing_tile()` is returned to that an error tile will be rendered.
     /// If the given handle does not point to a reference and it does not point to a tile definition,
     /// then None is returned since nothing should be rendered.
-    pub fn get_tile_render_data(
-        &self,
-        stage: TilePaletteStage,
-        handle: TileDefinitionHandle,
-    ) -> Option<TileRenderData> {
+    pub fn get_tile_render_data(&self, position: ResourceTilePosition) -> Option<TileRenderData> {
         self.as_loaded_ref()
-            .map(|t| t.get_tile_render_data(stage, handle))
+            .map(|t| t.get_tile_render_data(position))
             .unwrap_or_else(|| Some(TileRenderData::missing_data()))
     }
     /// The tile collider with the given UUID for the tile at the given handle.
@@ -906,17 +908,13 @@ impl<'a> TileSetRef<'a> {
 
     /// Some tiles in a tile set are references to tiles elsewhere in the tile set.
     /// In particular, the tiles of a transform set page all contain references to other pages,
-    /// and the page tiles are also references. If this method is given the handle of one of these
+    /// and the page tiles are also references. If this method is given the position of one of these
     /// reference tiles, then it returns the handle of the referenced tile.
-    /// If the given handle does not refer to a reference, then it is returned.
-    /// If the given handle points to a non-existent page, then None is returned.
-    pub fn redirect_handle(
-        &self,
-        stage: TilePaletteStage,
-        handle: TileDefinitionHandle,
-    ) -> Option<TileDefinitionHandle> {
+    /// If the given position points to a tile without a redirect, then the tile's handle is returned.
+    /// If the given position points to a non-existent page or a non-existent tile, then None is returned.
+    pub fn redirect_handle(&self, position: ResourceTilePosition) -> Option<TileDefinitionHandle> {
         self.as_loaded_ref()
-            .map(|t| t.redirect_handle(stage, handle))
+            .map(|t| t.redirect_handle(position))
             .unwrap_or_default()
     }
     /// If the given handle refers to a transform set page, find the tile on that page and return the handle of wherever
@@ -947,13 +945,9 @@ impl<'a> TileSetRef<'a> {
             .unwrap_or_default()
     }
     /// Get the tile definition at the given position.
-    pub fn get_tile_bounds(
-        &self,
-        stage: TilePaletteStage,
-        handle: TileDefinitionHandle,
-    ) -> Option<TileMaterialBounds> {
+    pub fn get_tile_bounds(&self, position: ResourceTilePosition) -> Option<TileMaterialBounds> {
         self.as_loaded_ref()
-            .map(|t| t.get_tile_bounds(stage, handle))
+            .map(|t| t.get_tile_bounds(position))
             .unwrap_or_default()
     }
     /// The value of the property with the given UUID for the given tile.
@@ -967,13 +961,9 @@ impl<'a> TileSetRef<'a> {
             .unwrap_or_default()
     }
     /// Get the tile data at the given position.
-    pub fn get_tile_data(
-        &self,
-        stage: TilePaletteStage,
-        handle: TileDefinitionHandle,
-    ) -> Option<&TileData> {
+    pub fn get_tile_data(&self, position: ResourceTilePosition) -> Option<&TileData> {
         self.as_loaded_ref()
-            .map(|t| t.get_tile_data(stage, handle))
+            .map(|t| t.get_tile_data(position))
             .unwrap_or_default()
     }
     /// Get the tile data at the given position.
@@ -1024,27 +1014,10 @@ impl<'a> TileSetRef<'a> {
             .unwrap_or_default()
     }
 
-    /// Tries to find a tile definition with the given position.
-    pub fn find_tile_at_position(
-        &self,
-        stage: TilePaletteStage,
-        page: Vector2<i32>,
-        position: Vector2<i32>,
-    ) -> Option<TileDefinitionHandle> {
-        self.as_loaded_ref()
-            .map(|t| t.find_tile_at_position(stage, page, position))
-            .unwrap_or_default()
-    }
-
     /// Returns true if the tile set is unoccupied at the given position.
-    pub fn is_free_at(
-        &self,
-        stage: TilePaletteStage,
-        page: Vector2<i32>,
-        position: Vector2<i32>,
-    ) -> bool {
+    pub fn is_free_at(&self, position: ResourceTilePosition) -> bool {
         self.as_loaded_ref()
-            .map(|t| t.is_free_at(stage, page, position))
+            .map(|t| t.is_free_at(position))
             .unwrap_or(true)
     }
 }
@@ -1317,12 +1290,9 @@ impl TileSet {
         handle: TileDefinitionHandle,
     ) -> Option<TileRenderData> {
         if let Some(handle) = self.get_transformed_version(trans, handle) {
-            self.get_tile_render_data(TilePaletteStage::Tiles, handle)
+            self.get_tile_render_data(handle.into())
         } else {
-            Some(
-                self.get_tile_render_data(TilePaletteStage::Tiles, handle)?
-                    .transformed(trans),
-            )
+            Some(self.get_tile_render_data(handle.into())?.transformed(trans))
         }
     }
     /// Return the `TileRenderData` needed to render the tile at the given handle.
@@ -1331,26 +1301,18 @@ impl TileSet {
     /// then `TileRenderData::missing_tile()` is returned to that an error tile will be rendered.
     /// If the given handle does not point to a reference and it does not point to a tile definition,
     /// then None is returned since nothing should be rendered.
-    pub fn get_tile_render_data(
-        &self,
-        stage: TilePaletteStage,
-        handle: TileDefinitionHandle,
-    ) -> Option<TileRenderData> {
-        if self.is_free_at(stage, handle.page(), handle.tile()) {
+    pub fn get_tile_render_data(&self, position: ResourceTilePosition) -> Option<TileRenderData> {
+        if self.is_free_at(position) {
             return None;
         }
-        self.inner_get_render_data(stage, handle)
+        self.inner_get_render_data(position)
             .or_else(|| Some(TileRenderData::missing_data()))
     }
-    fn inner_get_render_data(
-        &self,
-        stage: TilePaletteStage,
-        handle: TileDefinitionHandle,
-    ) -> Option<TileRenderData> {
-        if self.is_valid_tile(self.redirect_handle(stage, handle)?) {
+    fn inner_get_render_data(&self, position: ResourceTilePosition) -> Option<TileRenderData> {
+        if self.is_valid_tile(self.redirect_handle(position)?) {
             Some(TileRenderData {
-                material_bounds: Some(self.get_tile_bounds(stage, handle)?),
-                color: self.get_tile_data(stage, handle)?.color,
+                material_bounds: Some(self.get_tile_bounds(position)?),
+                color: self.get_tile_data(position)?.color,
             })
         } else {
             Some(TileRenderData::missing_data())
@@ -1362,11 +1324,11 @@ impl TileSet {
         handle: TileDefinitionHandle,
         uuid: Uuid,
     ) -> Option<&TileCollider> {
-        if self.is_free_at(TilePaletteStage::Tiles, handle.page(), handle.tile()) {
+        if self.is_free_at(handle.into()) {
             return None;
         }
-        let handle = self.redirect_handle(TilePaletteStage::Tiles, handle)?;
-        let data = self.get_tile_data(TilePaletteStage::Tiles, handle)?;
+        let handle = self.redirect_handle(handle.into())?;
+        let data = self.get_tile_data(handle.into())?;
         data.colliders.get(&uuid)
     }
     /// An iterator over the `TileDefinitionHandle` of each tile on the given page.
@@ -1404,9 +1366,9 @@ impl TileSet {
     where
         F: FnMut(Vector2<i32>, TileRenderData),
     {
-        for handle in self.palette_iterator(stage, page) {
-            if let Some(data) = self.get_tile_render_data(stage, handle) {
-                func(handle.tile(), data);
+        for position in self.palette_iterator(stage, page) {
+            if let Some(data) = self.get_tile_render_data(position) {
+                func(position.stage_position(), data);
             }
         }
     }
@@ -1417,10 +1379,17 @@ impl TileSet {
         F: FnMut(Vector2<i32>, Uuid, Color, &TileCollider),
     {
         for layer in self.colliders.iter() {
-            for handle in self.palette_iterator(TilePaletteStage::Tiles, page) {
-                if let Some(tile_collider) = self.get_tile_collider(handle, layer.uuid) {
+            for position in self.palette_iterator(TilePaletteStage::Tiles, page) {
+                if let Some(tile_collider) =
+                    self.get_tile_collider(position.handle().unwrap(), layer.uuid)
+                {
                     if !tile_collider.is_none() {
-                        func(handle.tile(), layer.uuid, layer.color, tile_collider);
+                        func(
+                            position.stage_position(),
+                            layer.uuid,
+                            layer.color,
+                            tile_collider,
+                        );
                     }
                 }
             }
@@ -1429,24 +1398,26 @@ impl TileSet {
 
     /// Some tiles in a tile set are references to tiles elsewhere in the tile set.
     /// In particular, the tiles of a transform set page all contain references to other pages,
-    /// and the page tiles are also references. If this method is given the handle of one of these
+    /// and the page tiles are also references. If this method is given the position of one of these
     /// reference tiles, then it returns the handle of the referenced tile.
-    /// If the given handle does not refer to a reference, then the given handle is returned.
-    /// If the given handle points to a non-existent page, then None is returned.
-    pub fn redirect_handle(
-        &self,
-        stage: TilePaletteStage,
-        handle: TileDefinitionHandle,
-    ) -> Option<TileDefinitionHandle> {
-        match stage {
-            TilePaletteStage::Tiles => match &self.pages.get(&handle.page())?.source {
-                TileSetPageSource::TransformSet(tiles) => tiles.get_at(handle.tile()),
-                _ => Some(handle),
+    /// If the given position points to a tile without a redirect, then the tile's handle is returned.
+    /// If the given position points to a non-existent page or a non-existent tile, then None is returned.
+    pub fn redirect_handle(&self, position: ResourceTilePosition) -> Option<TileDefinitionHandle> {
+        match position.stage() {
+            TilePaletteStage::Tiles => match &self.pages.get(&position.page())?.source {
+                TileSetPageSource::TransformSet(tiles) => tiles.get_at(position.stage_position()),
+                page => {
+                    if page.contains_tile_at(position.stage_position()) {
+                        position.handle()
+                    } else {
+                        None
+                    }
+                }
             },
             TilePaletteStage::Pages => self
                 .pages
-                .get(&handle.tile())
-                .and_then(|p| self.redirect_handle(TilePaletteStage::Tiles, p.icon)),
+                .get(&position.stage_position())
+                .and_then(|p| self.redirect_handle(ResourceTilePosition::from(p.icon))),
         }
     }
     /// If the given handle refers to a transform set page, find the tile on that page and return the handle of wherever
@@ -1464,10 +1435,8 @@ impl TileSet {
     /// Use [TileSet::get_tile_data] if a clone is not needed.
     pub fn get_definition(&self, handle: TileDefinitionHandle) -> Option<TileDefinition> {
         Some(TileDefinition {
-            material_bounds: self.get_tile_bounds(TilePaletteStage::Tiles, handle)?,
-            data: self
-                .get_tile_data(TilePaletteStage::Tiles, handle)
-                .cloned()?,
+            material_bounds: self.get_tile_bounds(handle.into())?,
+            data: self.get_tile_data(handle.into()).cloned()?,
         })
     }
     /// Return a copy of the definition of the tile at the given handle with the given transformation applied.
@@ -1483,12 +1452,8 @@ impl TileSet {
         }
     }
     /// Get the tile definition at the given position.
-    pub fn get_tile_bounds(
-        &self,
-        stage: TilePaletteStage,
-        handle: TileDefinitionHandle,
-    ) -> Option<TileMaterialBounds> {
-        let handle = self.redirect_handle(stage, handle)?;
+    pub fn get_tile_bounds(&self, position: ResourceTilePosition) -> Option<TileMaterialBounds> {
+        let handle = self.redirect_handle(position)?;
         match &self.pages.get(&handle.page())?.source {
             TileSetPageSource::Material(mat) => mat.get_tile_bounds(handle.tile()),
             TileSetPageSource::Freeform(map) => {
@@ -1503,21 +1468,16 @@ impl TileSet {
         handle: TileDefinitionHandle,
         property_id: Uuid,
     ) -> Option<TileSetPropertyValue> {
-        self.get_tile_data(TilePaletteStage::Tiles, handle)
-            .and_then(|d| {
-                d.properties.get(&property_id).cloned().or_else(|| {
-                    self.find_property(property_id)
-                        .map(|p| p.prop_type.default_value())
-                })
+        self.get_tile_data(handle.into()).and_then(|d| {
+            d.properties.get(&property_id).cloned().or_else(|| {
+                self.find_property(property_id)
+                    .map(|p| p.prop_type.default_value())
             })
+        })
     }
     /// Get the tile definition at the given position.
-    pub fn get_tile_data(
-        &self,
-        stage: TilePaletteStage,
-        handle: TileDefinitionHandle,
-    ) -> Option<&TileData> {
-        let handle = self.redirect_handle(stage, handle)?;
+    pub fn get_tile_data(&self, position: ResourceTilePosition) -> Option<&TileData> {
+        let handle = self.redirect_handle(position)?;
         match &self.pages.get(&handle.page())?.source {
             TileSetPageSource::Material(mat) => mat.get_tile_data(handle.tile()),
             TileSetPageSource::Freeform(map) => Some(&map.get(&handle.tile())?.data),
@@ -1567,9 +1527,7 @@ impl TileSet {
         tiles: &mut Tiles,
     ) {
         for pos in iter {
-            if let Some(tile) = TileDefinitionHandle::try_new(page, pos)
-                .and_then(|h| self.redirect_handle(stage, h))
-            {
+            if let Some(tile) = self.redirect_handle(ResourceTilePosition::new(stage, page, pos)) {
                 tiles.insert(pos, tile);
             }
         }
@@ -1609,28 +1567,13 @@ impl TileSet {
         Ok(tile_set)
     }
 
-    /// Tries to find a tile definition with the given position.
-    pub fn find_tile_at_position(
-        &self,
-        stage: TilePaletteStage,
-        page: Vector2<i32>,
-        position: Vector2<i32>,
-    ) -> Option<TileDefinitionHandle> {
-        let handle = TileDefinitionHandle::try_new(page, position)?;
-        self.redirect_handle(stage, handle)
-    }
-
     /// Returns true if the tile set is unoccupied at the given position.
-    pub fn is_free_at(
-        &self,
-        stage: TilePaletteStage,
-        page: Vector2<i32>,
-        position: Vector2<i32>,
-    ) -> bool {
-        match stage {
-            TilePaletteStage::Pages => self.get_page(position).is_none(),
+    pub fn is_free_at(&self, position: ResourceTilePosition) -> bool {
+        match position.stage() {
+            TilePaletteStage::Pages => self.get_page(position.stage_position()).is_none(),
             TilePaletteStage::Tiles => {
-                self.get_page(page).is_some() && !self.has_tile_at(page, position)
+                self.get_page(position.page()).is_some()
+                    && !self.has_tile_at(position.page(), position.stage_position())
             }
         }
     }
@@ -1650,7 +1593,7 @@ impl TileSet {
                 continue;
             }
             visited.insert(pos);
-            if self.is_free_at(stage, page, pos) {
+            if self.is_free_at(ResourceTilePosition::new(stage, page, pos)) {
                 return pos;
             } else {
                 stack.extend_from_slice(&[

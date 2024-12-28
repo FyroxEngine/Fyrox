@@ -345,11 +345,11 @@ impl<'a> TileEditorState<'a> {
             .iter()
             .copied()
             .filter_map(move |p| TileDefinitionHandle::try_new(page?, p))
-            .filter(|h| {
+            .filter(|handle| {
                 let Some(tile_set) = self.tile_set() else {
                     return false;
                 };
-                tile_set.is_free_at(TilePaletteStage::Tiles, h.page(), h.tile())
+                tile_set.is_free_at((*handle).into())
             })
     }
     pub fn tile_material_bounds(

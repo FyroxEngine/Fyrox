@@ -308,7 +308,7 @@ impl TileMapBrush {
             TilePaletteStage::Pages => {
                 for (k, p) in self.pages.iter() {
                     let data = tile_set
-                        .get_tile_render_data(TilePaletteStage::Tiles, p.icon)
+                        .get_tile_render_data(p.icon.into())
                         .unwrap_or_else(TileRenderData::missing_data);
                     func(*k, data);
                 }
@@ -317,9 +317,9 @@ impl TileMapBrush {
                 let Some(page) = self.pages.get(&page) else {
                     return;
                 };
-                for (k, handle) in page.tiles.iter() {
+                for (k, &handle) in page.tiles.iter() {
                     let data = tile_set
-                        .get_tile_render_data(TilePaletteStage::Tiles, *handle)
+                        .get_tile_render_data(handle.into())
                         .unwrap_or_else(TileRenderData::missing_data);
                     func(*k, data);
                 }
@@ -331,94 +331,41 @@ impl TileMapBrush {
     /// If there is no tile at that position or the tile set is missing or not loaded, then None is returned.
     /// If there is a tile and a tile set, but the handle of the tile does not exist in the tile set,
     /// then the rendering data for an error tile is returned using `TileRenderData::missing_tile()`.
-    pub fn get_tile_render_data(
-        &self,
-        stage: TilePaletteStage,
-        page: Vector2<i32>,
-        tile: Vector2<i32>,
-    ) -> Option<TileRenderData> {
-        let handle = match stage {
-            TilePaletteStage::Pages => {
-                let page = self.pages.get(&tile)?;
-                page.icon
-            }
-            TilePaletteStage::Tiles => {
-                let page = self.pages.get(&page)?;
-                *page.tiles.get(&tile)?
-            }
-        };
+    pub fn get_tile_render_data(&self, position: ResourceTilePosition) -> Option<TileRenderData> {
+        let handle = self.redirect_handle(position)?;
         let mut tile_set = self.tile_set.as_ref()?.state();
         let data = tile_set
             .data()?
-            .get_tile_render_data(TilePaletteStage::Tiles, handle)
+            .get_tile_render_data(handle.into())
             .unwrap_or_else(TileRenderData::missing_data);
         Some(data)
     }
 
     /// The tiles of a brush are references to tiles in the tile set.
-    /// This method converts handles within the brush into the handle that points to the corresponding
+    /// This method converts positions within the brush into the handle that points to the corresponding
     /// tile definition within the tile set.
-    /// If this brush does not contain a reference at the given handle, then None is returned.
-    pub fn redirect_handle(
-        &self,
-        stage: TilePaletteStage,
-        handle: TileDefinitionHandle,
-    ) -> Option<TileDefinitionHandle> {
-        match stage {
+    /// If this brush does not contain a reference at the given position, then None is returned.
+    pub fn redirect_handle(&self, position: ResourceTilePosition) -> Option<TileDefinitionHandle> {
+        match position.stage() {
             TilePaletteStage::Tiles => {
-                let page = self.pages.get(&handle.page())?;
-                page.tiles.get_at(handle.tile())
+                let page = self.pages.get(&position.page())?;
+                page.tiles.get_at(position.stage_position())
             }
-            TilePaletteStage::Pages => self.pages.get(&handle.tile()).map(|page| page.icon),
+            TilePaletteStage::Pages => self
+                .pages
+                .get(&position.stage_position())
+                .map(|page| page.icon),
         }
     }
 
     /// The `TileMaterialBounds` taken from the tile set for the tile in the brush at the given position.
-    pub fn get_tile_bounds(
-        &self,
-        stage: TilePaletteStage,
-        handle: TileDefinitionHandle,
-    ) -> Option<TileMaterialBounds> {
-        let handle = self.redirect_handle(stage, handle)?;
+    pub fn get_tile_bounds(&self, position: ResourceTilePosition) -> Option<TileMaterialBounds> {
+        let handle = self.redirect_handle(position)?;
         self.tile_set
             .as_ref()?
             .state()
             .data()?
-            .get_tile_bounds(TilePaletteStage::Tiles, handle)
-    }
-    /// The `TileData` taken from the tile set for the tile in the brush at the given position.
-    /// Instead of cloning the entire data, a reference to the data is passed to the given function so that
-    /// the relevant portion can be cloned and returned.
-    pub fn get_tile_data<F, V>(
-        &self,
-        stage: TilePaletteStage,
-        handle: TileDefinitionHandle,
-        func: F,
-    ) -> Option<V>
-    where
-        F: FnOnce(&TileData) -> V,
-    {
-        let handle = self.redirect_handle(stage, handle)?;
-        Some(func(
-            self.tile_set
-                .as_ref()?
-                .state()
-                .data()?
-                .get_tile_data(TilePaletteStage::Tiles, handle)?,
-        ))
-    }
-    /// The `TileData` taken from the tile set for the tile in the brush at the given position.
-    /// Since the tile set is a resource and must be guarded, we cannot return a mutable reference.
-    /// Instead, the mutable reference is passed to the given function which can do whatever is needed.
-    pub fn get_tile_data_mut<F, V>(&mut self, handle: TileDefinitionHandle, func: F) -> Option<V>
-    where
-        F: FnOnce(&mut TileData) -> V,
-    {
-        let page = self.pages.get(&handle.page())?;
-        let tile = page.tiles.get_at(handle.tile())?;
-        Some(func(
-            self.tile_set.as_ref()?.data_ref().get_tile_data_mut(tile)?,
-        ))
+            .get_tile_bounds(handle.into())
     }
 
     /// Load a tile map brush resource from the specific file path.

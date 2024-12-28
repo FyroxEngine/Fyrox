@@ -93,7 +93,7 @@ impl TileMapEditorData {
             let handle = tile_set
                 .get_transformed_version(*transform, *handle)
                 .unwrap_or(*handle);
-            let Some(data) = tile_set.get_tile_render_data(TilePaletteStage::Tiles, handle) else {
+            let Some(data) = tile_set.get_tile_render_data(handle.into()) else {
                 continue;
             };
             render_position.push_tile(*position, &data, ctx);

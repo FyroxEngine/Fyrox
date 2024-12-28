@@ -326,6 +326,79 @@ pub enum TilePaletteStage {
     Tiles,
 }
 
+/// The position of a page or a tile within a tile resource.
+/// Despite the difference between pages and tiles, they have enough similarities
+/// that it is sometimes useful to view them abstractly as the same.
+/// Both pages and tiles have a `Vecto2<i32>` position.
+/// Both pages and tiles have a TileDefinitionHandle and are rendered using
+/// [`TileRenderData`]. For pages this is due to having an icon to allow the user to select the page.
+/// Both pages and tiles can be selected by the user, moved, and deleted.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum ResourceTilePosition {
+    /// This position refers to some page, and so it lacks tile coordinates.
+    Page(Vector2<i32>),
+    /// This position refers to some tile, and so it has page coordinates and
+    /// the coordinates of the tile within the page.
+    Tile(Vector2<i32>, Vector2<i32>),
+}
+
+impl From<TileDefinitionHandle> for ResourceTilePosition {
+    fn from(value: TileDefinitionHandle) -> Self {
+        Self::Tile(value.page(), value.tile())
+    }
+}
+
+impl ResourceTilePosition {
+    /// Construct a position from the given stage, page, and tile.
+    /// If the stage is [`TilePaletteStage::Pages`] then this position is refering to some page
+    /// as if it were a tile, and therefore the `page` argument is ignored and the `tile` argument
+    /// is taken as the page's position.
+    pub fn new(stage: TilePaletteStage, page: Vector2<i32>, tile: Vector2<i32>) -> Self {
+        match stage {
+            TilePaletteStage::Pages => Self::Page(tile),
+            TilePaletteStage::Tiles => Self::Tile(page, tile),
+        }
+    }
+    /// This position refers to some page.
+    pub fn is_page(&self) -> bool {
+        matches!(self, Self::Page(_))
+    }
+    /// This position refers to a tile within a page.
+    pub fn is_tile(&self) -> bool {
+        matches!(self, Self::Tile(_, _))
+    }
+    /// The stage that contains this position.
+    pub fn stage(&self) -> TilePaletteStage {
+        match self {
+            Self::Page(_) => TilePaletteStage::Pages,
+            Self::Tile(_, _) => TilePaletteStage::Tiles,
+        }
+    }
+    /// The position within the stage. For a page position, this is the page's coordinates.
+    /// For a tile position, this is the tile's coordinates.
+    pub fn stage_position(&self) -> Vector2<i32> {
+        match self {
+            Self::Page(p) => *p,
+            Self::Tile(_, p) => *p,
+        }
+    }
+    /// The page coordinates of the position. For a page position, this is
+    pub fn page(&self) -> Vector2<i32> {
+        match self {
+            Self::Page(p) => *p,
+            Self::Tile(p, _) => *p,
+        }
+    }
+    /// The handle associated with this position, if this is a tile position.
+    pub fn handle(&self) -> Option<TileDefinitionHandle> {
+        if let Self::Tile(p, t) = self {
+            TileDefinitionHandle::try_new(*p, *t)
+        } else {
+            None
+        }
+    }
+}
+
 /// Tile is a base block of a tile map. It has a position and a handle of tile definition, stored
 /// in the respective tile set.
 #[derive(Clone, Reflect, Default, Debug, PartialEq, Visit, ComponentProvider, TypeUuidProvider)]
@@ -351,7 +424,9 @@ impl<I: Iterator<Item = Vector2<i32>>> Iterator for TileIter<I> {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.positions.find_map(|p| {
-            let h = self.source.get_tile_handle(self.stage, self.page, p)?;
+            let h = self
+                .source
+                .get_tile_handle(ResourceTilePosition::new(self.stage, self.page, p))?;
             Some((p, h))
         })
     }
@@ -574,22 +649,11 @@ impl TileResource {
     /// Returns the TileDefinitionHandle that points to the data in the tile set that represents this tile.
     /// Even if this resource is actually a brush, the handle returned still refers to some page and position
     /// in the brush's tile set.
-    pub fn get_tile_handle(
-        &self,
-        stage: TilePaletteStage,
-        page: Vector2<i32>,
-        position: Vector2<i32>,
-    ) -> Option<TileDefinitionHandle> {
+    pub fn get_tile_handle(&self, position: ResourceTilePosition) -> Option<TileDefinitionHandle> {
         match self {
             TileResource::Empty => None,
-            TileResource::TileSet(r) => r
-                .state()
-                .data()?
-                .find_tile_at_position(stage, page, position),
-            TileResource::Brush(r) => r
-                .state()
-                .data()?
-                .find_tile_at_position(stage, page, position),
+            TileResource::TileSet(r) => r.state().data()?.redirect_handle(position),
+            TileResource::Brush(r) => r.state().data()?.redirect_handle(position),
         }
     }
     /// Returns an iterator over `(Vector2<i32>, TileDefinitionHandle)` where the first
@@ -649,22 +713,15 @@ impl TileResource {
     /// If there is no tile at that position or the tile set is missing or not loaded, then None is returned.
     /// If there is a tile and a tile set, but the handle of the tile does not exist in the tile set,
     /// then the rendering data for an error tile is returned using `TileRenderData::missing_tile()`.
-    pub fn get_tile_render_data(
-        &self,
-        stage: TilePaletteStage,
-        page: Vector2<i32>,
-        tile: Vector2<i32>,
-    ) -> Option<TileRenderData> {
+    pub fn get_tile_render_data(&self, position: ResourceTilePosition) -> Option<TileRenderData> {
         match self {
             TileResource::Empty => None,
-            TileResource::TileSet(resource) => resource
-                .state()
-                .data()?
-                .get_tile_render_data(stage, TileDefinitionHandle::try_new(page, tile)?),
-            TileResource::Brush(resource) => resource
-                .state()
-                .data()?
-                .get_tile_render_data(stage, page, tile),
+            TileResource::TileSet(resource) => {
+                resource.state().data()?.get_tile_render_data(position)
+            }
+            TileResource::Brush(resource) => {
+                resource.state().data()?.get_tile_render_data(position)
+            }
         }
     }
 
@@ -707,39 +764,19 @@ impl TileResource {
     }
     /// Returns the rectangle within a material that a tile should show
     /// at the given stage and handle.
-    pub fn get_tile_bounds(
-        &self,
-        stage: TilePaletteStage,
-        handle: TileDefinitionHandle,
-    ) -> Option<TileMaterialBounds> {
+    pub fn get_tile_bounds(&self, position: ResourceTilePosition) -> Option<TileMaterialBounds> {
         match self {
             TileResource::Empty => None,
             TileResource::TileSet(res) => res
                 .state()
                 .data()
-                .map(|d| d.get_tile_bounds(stage, handle))
+                .map(|d| d.get_tile_bounds(position))
                 .unwrap_or_default(),
             TileResource::Brush(res) => res
                 .state()
                 .data()
-                .map(|d| d.get_tile_bounds(stage, handle))
+                .map(|d| d.get_tile_bounds(position))
                 .unwrap_or_default(),
-        }
-    }
-    /// Returns a reference to the data stored with a tile at the given stage and handle.
-    pub fn get_tile_data<F, V>(
-        &self,
-        stage: TilePaletteStage,
-        handle: TileDefinitionHandle,
-        func: F,
-    ) -> Option<V>
-    where
-        F: FnOnce(&TileData) -> V,
-    {
-        match self {
-            TileResource::Empty => None,
-            TileResource::TileSet(res) => Some(func(res.data_ref().get_tile_data(stage, handle)?)),
-            TileResource::Brush(res) => res.data_ref().get_tile_data(stage, handle, func),
         }
     }
     /// The bounds of the tiles on the given page.
@@ -1181,16 +1218,14 @@ impl NodeTrait for TileMap {
         };
 
         let editor_data = self.editor_data.as_ref().map(|d| d.lock());
-        for (position, definition_handle) in self.tiles.iter() {
+        for (&position, &definition_handle) in self.tiles.iter() {
             if let Some(editor_data) = editor_data.as_ref() {
-                if editor_data.erased_at(*position) {
+                if editor_data.erased_at(position) {
                     continue;
                 }
             }
-            if let Some(data) =
-                tile_set.get_tile_render_data(TilePaletteStage::Tiles, *definition_handle)
-            {
-                render_position.push_tile(*position, &data, ctx);
+            if let Some(data) = tile_set.get_tile_render_data(definition_handle.into()) {
+                render_position.push_tile(position, &data, ctx);
             }
         }
 
