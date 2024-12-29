@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+//! Give the Fyrox Inspector the ability to edit [`TileDefinitionHandle`] properties.
+
 use std::any::TypeId;
 use std::ops::{Deref, DerefMut};
 
@@ -64,6 +66,21 @@ impl TileDefinitionHandleEditorMessage {
     define_constructor!(TileDefinitionHandleEditorMessage:Goto => fn goto(TileDefinitionHandle), layout: false);
 }
 
+/// The widget for editing a [`TileDefinitionHandle`].
+/// It has a button that can be used to focus the tile map control panel on the tile
+/// represented by this handle, assuming that the control panel has the correct
+/// tile set. There is no way to ensure this, since a TileDefinitionHandle includes
+/// no information about which tile set it refers to.
+///
+/// The lack of tile set informaiton also means that this widget cannot show an image
+/// of the tile that the TileDefinitionHandle refers to, but a potential future
+/// improvement might be to borrow the tile set from the tile map control panel and
+/// use that to display a tile for this widget.
+///
+/// The value is displayed in a text box in the form "(x,y):(x,y)" where the first
+/// pair is the page coordinates and the second pair is the tile coordinates.
+/// When editing the handle, one need merely type four integers. Whatever
+/// characters separate the integers are ignored, so "1 2 3 4" would be accepted.
 #[derive(Clone, Debug, Visit, Reflect, TypeUuidProvider, ComponentProvider)]
 #[type_uuid(id = "60146cf0-33e3-4757-8e66-e7196324271f")]
 pub struct TileDefinitionHandleEditor {

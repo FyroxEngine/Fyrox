@@ -18,6 +18,13 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+//! [`TilePropertyEditor`] is the [`TileEditor`] for editing a tile's property layer. It shows
+//! the name of the layer, the current value for the selected tile, and optionally
+//! provides a dropdown list of pre-defined values.
+//!
+//! It includes a button to activate [`DrawingMode::Editor`] which allows this value
+//! to be applied to other tiles by clicking in the tile palette.
+
 use commands::SetTileSetTilesCommand;
 use fyrox::{
     core::{
@@ -66,16 +73,39 @@ impl Default for DrawValue {
     }
 }
 
+/// This is the [`TileEditor`] for editing a tile's property layer. It shows
+/// the name of the layer, the current value for the selected tile, and optionally
+/// provides a dropdown list of pre-defined values.
+///
+/// It includes a button to activate [`DrawingMode::Editor`] which allows this value
+/// to be applied to other tiles by clicking in the tile palette.
+///
+/// When the property type is [`TileSetPropertyType::NineSlice`], the editor will show
+/// the value as a grid of nine buttons, and the user my click on those buttons to set
+/// the corresponding element to whatever number is currently in the text field.
 pub struct TilePropertyEditor {
     handle: Handle<UiNode>,
+    /// The data type we are editing.
     prop_type: TileSetPropertyType,
+    /// The UUID of the property layer that we are responsible for editing.
     property_id: Uuid,
+    /// The value that we will draw into other tiles if editor draw tool is active.
     draw_value: DrawValue,
+    /// The value of the currently selected tiles.
     value: TileSetPropertyOptionValue,
+    /// The button to activate the editor draw tool that allows this property value
+    /// to be applied to other tiles.
     draw_button: Handle<UiNode>,
+    /// The label showing the name of the layer.
     name_field: Handle<UiNode>,
+    /// The field for editing the current value.
+    /// This may be several different widgets, depending on the type of the layer.
+    /// For [`TileSetPropertyType::I32`] it will be a [`NumericUpDown`](fyrox::gui::numeric::NumericUpDown) for i32.
+    /// For [`TileSetPropertyType::String`] it will be a [`TextBox`](fyrox::gui::text_box::TextBox), and so on.
     value_field: Handle<UiNode>,
+    /// The dropdown list of pre-defined values.
     list: Handle<UiNode>,
+    /// The handles of the buttons in the 9-button grid.
     nine_buttons: Option<Box<[Handle<UiNode>; 9]>>,
 }
 
@@ -169,6 +199,8 @@ impl TilePropertyEditor {
             nine_buttons,
         }
     }
+    /// The property layer may have changed, so update our widgets to reflect the current
+    /// state of the layer.
     fn apply_property_update(&mut self, state: &TileEditorState, ui: &mut UserInterface) {
         let layer = state.find_property(self.property_id).unwrap();
         ui.send_message(TextMessage::text(
@@ -189,6 +221,7 @@ impl TilePropertyEditor {
         ));
         self.sync_list_index(state, ui);
     }
+    /// Scan the currently selected tiles to find the value that this editor should display.
     fn find_value(&self, state: &TileEditorState) -> TileSetPropertyOptionValue {
         let default_value = self.prop_type.default_value();
         let mut iter = state.tile_data().map(|(_, d)| {
@@ -205,6 +238,7 @@ impl TilePropertyEditor {
         }
         value
     }
+    /// Update the value field to match the current value by sending sync messages.
     fn sync_value_to_field(&mut self, state: &TileEditorState, ui: &mut UserInterface) {
         match &self.value {
             &TileSetPropertyOptionValue::I32(Some(v)) => {
@@ -267,6 +301,7 @@ impl TilePropertyEditor {
             }
         }
     }
+    /// Send a sync message to make the dropdown list selection match the current value.
     fn sync_list_index(&self, state: &TileEditorState, ui: &mut UserInterface) {
         let layer = state.find_property(self.property_id).unwrap();
         if layer.prop_type == TileSetPropertyType::String {
@@ -284,6 +319,7 @@ impl TilePropertyEditor {
             DropdownListMessage::selection(self.list, MessageDirection::ToWidget, Some(index)),
         );
     }
+    /// Update the value using an index from the dropdown list.
     fn set_value_from_list(
         &mut self,
         index: usize,
@@ -338,6 +374,7 @@ impl TilePropertyEditor {
     fn set_value_from_i8(&mut self, v: i8) {
         self.draw_value = DrawValue::I8(v);
     }
+    /// One of the nine buttons has been clicked, so set the corresponding element of the value.
     fn handle_nine_click(
         &mut self,
         handle: Handle<UiNode>,
@@ -389,6 +426,7 @@ impl TilePropertyEditor {
             tiles: update,
         });
     }
+    /// Use the sender to update the selected tiles with the current value.
     fn send_value(
         &self,
         state: &TileEditorState,
@@ -613,6 +651,7 @@ impl TileEditor for TilePropertyEditor {
     }
 }
 
+/// Create one item for the dropdown list.
 pub fn make_named_value_list_option(
     ctx: &mut BuildContext,
     color: Color,
@@ -642,6 +681,7 @@ pub fn make_named_value_list_option(
     .build(ctx)
 }
 
+/// Create the list items for the dropdown list.
 fn build_list(layer: &TileSetPropertyLayer, ctx: &mut BuildContext) -> Vec<Handle<UiNode>> {
     let custom =
         make_named_value_list_option(ctx, ELEMENT_MATCH_HIGHLIGHT_COLOR.to_opaque(), "Custom");
@@ -655,18 +695,25 @@ fn build_list(layer: &TileSetPropertyLayer, ctx: &mut BuildContext) -> Vec<Handl
         .collect()
 }
 
+/// Each of the nine buttons has a label and a color to indicate
+/// which number is stored in the corresponding element of the value.
+/// When the number matches one of the pre-defined values, then the
+/// name and color of the pre-defined value will be used.
 #[derive(Default, Clone)]
 struct NineButtonSpec {
     name: String,
     color: Color,
 }
 
+/// If the color of the button is too bright for white text,
+/// then the text will be rendered as black.
 const BRIGHTNESS_LIMIT: usize = 500;
 
 impl NineButtonSpec {
     fn base_color(&self) -> Color {
         self.color.to_opaque()
     }
+    /// True if the color of the button is too bright for white text.
     fn is_bright(&self) -> bool {
         let r = self.color.r as usize;
         let b = self.color.b as usize;
@@ -674,6 +721,7 @@ impl NineButtonSpec {
         let brightness = 2 * r + b + 3 * g;
         brightness > BRIGHTNESS_LIMIT
     }
+    /// The text color for the button.
     fn foreground_brush(&self) -> Brush {
         if self.is_bright() {
             Brush::Solid(Color::BLACK)
@@ -681,18 +729,22 @@ impl NineButtonSpec {
             Brush::Solid(Color::WHITE)
         }
     }
+    /// The color of the button when selected.
     fn selected_brush(&self) -> Brush {
         Brush::Solid(
             self.base_color()
                 .lerp(Color::from_rgba(80, 118, 178, 255), 0.8),
         )
     }
+    /// The color of the button.
     fn normal_brush(&self) -> Brush {
         Brush::Solid(self.base_color())
     }
+    /// The color of the botton when the mouse is over.
     fn hover_brush(&self) -> Brush {
         Brush::Solid(self.base_color().lerp(Color::WHITE, 0.6))
     }
+    /// The color of the button when pressed.
     fn pressed_brush(&self) -> Brush {
         Brush::Solid(self.base_color().lerp(Color::WHITE, 0.7))
     }
@@ -737,6 +789,8 @@ fn make_draw_button(tab_index: Option<usize>, ctx: &mut BuildContext) -> Handle<
     .build(ctx)
 }
 
+/// Use the given property value to construct nine NineButtonSpec objects,
+/// one for each of the elements of the value.
 fn create_nine_specs(
     value: &TileSetPropertyOptionValue,
     layer: &TileSetPropertyLayer,
@@ -762,6 +816,7 @@ fn create_nine_specs(
     }
 }
 
+/// Send UI messages to update the one of nine buttons to match the given [`NineButtonSpec`].
 fn apply_specs_to_nine(specs: &NineButtonSpec, handle: Handle<UiNode>, ui: &mut UserInterface) {
     let button = ui.try_get_of_type::<Button>(handle).unwrap();
     let text = *button.content.clone();
@@ -798,6 +853,8 @@ fn apply_specs_to_nine(specs: &NineButtonSpec, handle: Handle<UiNode>, ui: &mut 
     ));
 }
 
+/// Use [`ButtonBuilder`] to create a buttons to represent one of the nine buttons
+/// that will represent the elements of a nine-slice property value.
 fn build_nine_button(
     specs: &NineButtonSpec,
     x: usize,
@@ -830,6 +887,8 @@ fn build_nine_button(
     .build(ctx)
 }
 
+/// Build the grid of nine buttons using the given list of [`NineButtonSpec`] to control the color and label
+/// of each button.
 fn build_nine(
     specs: [NineButtonSpec; 9],
     ctx: &mut BuildContext,

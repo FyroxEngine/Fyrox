@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+//! A widget for showing handles in the tile set editor.
+
 use crate::{
     fyrox::gui::{
         button::ButtonMessage,
@@ -49,6 +51,14 @@ impl TileHandleEditorMessage {
     define_constructor!(TileHandleEditorMessage:Value => fn value(Option<TileDefinitionHandle>), layout: false);
 }
 
+/// The widget for editing a [`TileDefinitionHandle`].
+/// It has a button for focusing the tile map control panel on the tile represented
+/// by this handle, and another button for focusing the tile set editor on that tile.
+///
+/// The value is displayed in a text box in the form "(x,y):(x,y)" where the first
+/// pair is the page coordinates and the second pair is the tile coordinates.
+/// When editing the handle, one need merely type four integers. Whatever
+/// characters separate the integers are ignored, so "1 2 3 4" would be accepted.
 #[derive(Debug, Default, Clone, Visit, Reflect, TypeUuidProvider, ComponentProvider)]
 #[type_uuid(id = "86513074-461d-4583-a214-fb84f5aacac1")]
 pub struct TileHandleField {

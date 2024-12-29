@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+//! The editor plugin for editing tile maps, tile sets, and tile map brushes.
+
 #![allow(clippy::collapsible_match)] // STFU
 
 mod collider_editor;
@@ -251,13 +253,24 @@ impl DelayedMessage {
     }
 }
 
+/// The editor plugin for editing tile maps, tile sets, and tile map brushes.
 #[derive(Default)]
 pub struct TileMapEditorPlugin {
+    /// A reference to the editor data of the tile map that is currently being edited.
     editor_data: Option<TileMapEditorDataRef>,
+    /// The state that is shared to allow this plugin to coordinate with the tile map
+    /// interaction mode, the tile map control panel, and the tile set editor.
     state: TileDrawStateRef,
+    /// The tile set editor, if it is open.
     tile_set_editor: Option<TileSetEditor>,
+    /// The tile map control panel, if it is open. The control panel allows the user
+    /// to select editing tools like rect fill, erase, pick, and it allows the user
+    /// to select tiles to draw with. It is centeral to editing a tile map.
     panel: Option<TileMapPanel>,
+    /// The currently selected tile map, or NONE.
     tile_map: Handle<Node>,
+    /// The plugin provides a service where it holds onto some messages and sends them
+    /// in the next frame.
     delayed_messages: Vec<DelayedMessage>,
 }
 
@@ -486,11 +499,15 @@ impl TileDrawState {
     }
 }
 
+/// An abstraction representing whatever object is currently being used to select tiles.
 #[derive(Default, Debug, Copy, Clone, Eq, PartialEq, Visit)]
 pub enum SelectionSource {
+    /// There is no selection.
     #[default]
     None,
+    /// A UI widget is selecting tiles.
     Widget(Handle<UiNode>),
+    /// A tile map is selecting tiles.
     Node(Handle<Node>),
 }
 
