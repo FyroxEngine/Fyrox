@@ -19,7 +19,6 @@
 // SOFTWARE.
 
 use crate::{
-    build::BuildWindow,
     project::ProjectWizard,
     settings::{Project, Settings, SettingsWindow, MANIFEST_PATH_VAR},
     upgrade::UpgradeTool,
@@ -56,6 +55,7 @@ use fyrox::{
         VerticalAlignment,
     },
 };
+use fyrox_build_tools::build::BuildWindow;
 use fyrox_build_tools::{BuildProfile, CommandDescriptor};
 use std::{
     collections::VecDeque,
@@ -1032,7 +1032,7 @@ impl ProjectManager {
         self.log.handle_ui_message(message, ui);
 
         if let Some(build_window) = self.build_window.as_mut() {
-            build_window.handle_ui_message(message, ui);
+            build_window.handle_ui_message(message, ui, || {});
         }
 
         if let Some(settings_window) = self.settings_window.take() {

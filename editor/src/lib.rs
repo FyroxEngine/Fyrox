@@ -32,7 +32,6 @@ extern crate lazy_static;
 
 pub mod asset;
 pub mod audio;
-pub mod build;
 pub mod camera;
 pub mod command;
 pub mod configurator;
@@ -58,12 +57,9 @@ pub mod world;
 
 pub use fyrox;
 
-use crate::asset::item::AssetItem;
-use crate::plugins::absm::AbsmEditor;
 use crate::{
-    asset::AssetBrowser,
+    asset::{item::AssetItem, AssetBrowser},
     audio::{preview::AudioPreviewPanel, AudioPanel},
-    build::BuildWindow,
     camera::panel::CameraPreviewControlPanel,
     command::{panel::CommandStackViewer, Command, CommandTrait},
     configurator::Configurator,
@@ -105,6 +101,7 @@ use crate::{
             formatted_text::WrapMode,
             grid::{Column, GridBuilder, Row},
             key::HotKey,
+            log::LogPanel,
             message::{MessageDirection, UiMessage},
             messagebox::{
                 MessageBoxBuilder, MessageBoxButtons, MessageBoxMessage, MessageBoxResult,
@@ -145,10 +142,10 @@ use crate::{
     particle::ParticleSystemPreviewControlPanel,
     plugin::{EditorPlugin, EditorPluginsContainer},
     plugins::{
-        absm::AbsmEditorPlugin, animation::AnimationEditorPlugin, collider::ColliderPlugin,
-        curve_editor::CurveEditorPlugin, material::MaterialPlugin, path_fixer::PathFixerPlugin,
-        ragdoll::RagdollPlugin, settings::SettingsPlugin, stats::UiStatisticsPlugin,
-        tilemap::TileMapEditorPlugin,
+        absm::AbsmEditor, absm::AbsmEditorPlugin, animation::AnimationEditorPlugin,
+        collider::ColliderPlugin, curve_editor::CurveEditorPlugin, material::MaterialPlugin,
+        path_fixer::PathFixerPlugin, ragdoll::RagdollPlugin, settings::SettingsPlugin,
+        stats::UiStatisticsPlugin, tilemap::TileMapEditorPlugin,
     },
     scene::{
         commands::{
@@ -169,16 +166,15 @@ use crate::{
     utils::doc::DocWindow,
     world::{graph::menu::SceneNodeContextMenu, graph::EditorSceneWrapper, WorldViewer},
 };
-use fyrox::gui::log::LogPanel;
-use fyrox_build_tools::CommandDescriptor;
+use fyrox_build_tools::{build::BuildWindow, CommandDescriptor};
 pub use message::Message;
 use plugins::inspector::InspectorPlugin;
-use std::process::Stdio;
 use std::{
     cell::RefCell,
     collections::VecDeque,
     io::{BufRead, BufReader},
     path::{Path, PathBuf},
+    process::Stdio,
     rc::Rc,
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -896,7 +892,7 @@ impl Editor {
         .build(ctx);
 
         let save_scene_dialog = SaveSceneConfirmationDialog::new(ctx);
-        let build_window = BuildWindow::new(ctx);
+        let build_window = BuildWindow::new("your game", ctx);
         if let Some(layout) = settings.windows.layout.as_ref() {
             engine
                 .user_interfaces
@@ -1298,8 +1294,9 @@ impl Editor {
         }
 
         let ui = engine.user_interfaces.first_mut();
-        self.build_window
-            .handle_ui_message(message, &self.message_sender, ui);
+        self.build_window.handle_ui_message(message, ui, || {
+            self.message_sender.send(Message::SwitchToEditMode)
+        });
         if let Some(export_window) = self.export_window.as_mut() {
             export_window.handle_ui_message(message, ui, &self.message_sender);
         }

@@ -18,21 +18,19 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use fyrox::{
+use fyrox_ui::{
+    border::BorderBuilder,
+    button::{ButtonBuilder, ButtonMessage},
     core::{parking_lot::Mutex, pool::Handle},
-    gui::{
-        border::BorderBuilder,
-        button::{ButtonBuilder, ButtonMessage},
-        grid::{Column, GridBuilder, Row},
-        message::{MessageDirection, UiMessage},
-        scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
-        stack_panel::StackPanelBuilder,
-        style::{resource::StyleResourceExt, Style},
-        text::{TextBuilder, TextMessage},
-        widget::WidgetBuilder,
-        window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
-    },
+    grid::{Column, GridBuilder, Row},
+    message::{MessageDirection, UiMessage},
+    scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
+    stack_panel::StackPanelBuilder,
+    style::{resource::StyleResourceExt, Style},
+    text::{TextBuilder, TextMessage},
+    widget::WidgetBuilder,
+    window::{WindowBuilder, WindowMessage, WindowTitle},
+    BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
 };
 use std::{
     io::{BufRead, BufReader},
@@ -53,8 +51,15 @@ pub struct BuildWindow {
     scroll_viewer: Handle<UiNode>,
 }
 
+impl Drop for BuildWindow {
+    fn drop(&mut self) {
+        // Prevent the listen thread from being alive after the build window is destroyed.
+        self.active.store(false, Ordering::SeqCst);
+    }
+}
+
 impl BuildWindow {
-    pub fn new(project: &str, ctx: &mut BuildContext) -> Self {
+    pub fn new(project_name: &str, ctx: &mut BuildContext) -> Self {
         let log_text;
         let stop;
         let scroll_viewer;
@@ -69,7 +74,9 @@ impl BuildWindow {
                             TextBuilder::new(
                                 WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
                             )
-                            .with_text(format!("Please wait while the {project} is building..."))
+                            .with_text(format!(
+                                "Please wait while {project_name} is building...\nLog:"
+                            ))
                             .build(ctx),
                         )
                         .with_child(
@@ -119,7 +126,7 @@ impl BuildWindow {
                 .add_column(Column::stretch())
                 .build(ctx),
             )
-            .with_title(WindowTitle::text(format!("Building the {project}...")))
+            .with_title(WindowTitle::text(format!("Building {project_name}...")))
             .build(ctx);
 
         Self {
@@ -196,9 +203,15 @@ impl BuildWindow {
         }
     }
 
-    pub fn handle_ui_message(&mut self, message: &UiMessage, ui: &UserInterface) {
+    pub fn handle_ui_message(
+        &mut self,
+        message: &UiMessage,
+        ui: &UserInterface,
+        on_stop: impl FnOnce(),
+    ) {
         if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.stop {
+                on_stop();
                 self.close_and_reset(ui);
             }
         }

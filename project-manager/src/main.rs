@@ -20,7 +20,6 @@
 
 //! Project manager is used to create, import, rename, delete, run and edit projects built with Fyrox.
 
-mod build;
 mod manager;
 mod project;
 mod settings;
