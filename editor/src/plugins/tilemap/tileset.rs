@@ -27,8 +27,10 @@ use crate::{
         gui::{
             border::BorderBuilder,
             brush::Brush,
+            button::Button,
             button::ButtonMessage,
             color::{ColorFieldBuilder, ColorFieldMessage},
+            decorator::DecoratorMessage,
             grid::SizeMode,
             grid::{Column, GridBuilder, Row},
             message::{MessageDirection, UiMessage},
@@ -70,6 +72,7 @@ pub struct TileSetEditor {
     tab_control: Handle<UiNode>,
     pages_palette: Handle<UiNode>,
     tiles_palette: Handle<UiNode>,
+    pick_button: Handle<UiNode>,
     open_control: Handle<UiNode>,
     remove: Handle<UiNode>,
     all_pages: Handle<UiNode>,
@@ -177,30 +180,40 @@ impl TileSetEditor {
         let all_pages;
         let all_tiles;
         let cell_position = TextBuilder::new(WidgetBuilder::new()).build(ctx);
+        let pick_button = make_drawing_mode_button(
+            ctx,
+            20.0,
+            20.0,
+            PICK_IMAGE.clone(),
+            "Pick tiles for drawing from the tile map.",
+            None,
+        );
         let open_control = make_button(
             "Palette",
             "Open the tile palette control window.",
             0,
-            0,
+            1,
             ctx,
         );
         let page_buttons = GridBuilder::new(
             WidgetBuilder::new()
+                .with_child(pick_button)
                 .with_child(open_control)
                 .with_child({
-                    all_pages = make_button("All Pages", "Select all pages.", 0, 1, ctx);
+                    all_pages = make_button("All Pages", "Select all pages.", 0, 2, ctx);
                     all_pages
                 })
                 .with_child({
-                    all_tiles = make_button("All Tiles", "Select all tiles.", 0, 2, ctx);
+                    all_tiles = make_button("All Tiles", "Select all tiles.", 0, 3, ctx);
                     all_tiles
                 })
                 .with_child({
-                    remove = make_button("Delete", "Remove selected tile.", 0, 3, ctx);
+                    remove = make_button("Delete", "Remove selected tile.", 0, 4, ctx);
                     remove
                 }),
         )
         .add_row(Row::auto())
+        .add_column(Column::auto())
         .add_column(Column::stretch())
         .add_column(Column::stretch())
         .add_column(Column::stretch())
@@ -369,6 +382,7 @@ impl TileSetEditor {
             pages_palette,
             tiles_palette,
             tile_resource,
+            pick_button,
             open_control,
             remove,
             all_pages,
@@ -497,6 +511,15 @@ impl TileSetEditor {
 
     pub fn sync_to_state(&mut self, ui: &mut UserInterface) {
         self.tile_inspector.sync_to_state(ui);
+        let decorator = *ui
+            .try_get_of_type::<Button>(self.pick_button)
+            .unwrap()
+            .decorator;
+        ui.send_message(DecoratorMessage::select(
+            decorator,
+            MessageDirection::ToWidget,
+            self.state.lock().drawing_mode == DrawingMode::Pick,
+        ));
         let cell_position = self.cell_position();
         ui.send_message(TextMessage::text(
             self.cell_position,

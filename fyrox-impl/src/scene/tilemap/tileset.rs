@@ -39,6 +39,7 @@ use crate::{
 };
 use std::{
     any::Any,
+    cmp::Ordering,
     collections::hash_map::{Entry, Keys},
     error::Error,
     fmt::{Display, Formatter},
@@ -1164,12 +1165,16 @@ impl TileSet {
     }
     /// Find a texture from some material page to serve as a preview for the tile set.
     pub fn preview_texture(&self) -> Option<TextureResource> {
-        self.pages.values().find_map(|p| match &p.source {
-            TileSetPageSource::Material(mat) => {
-                mat.material.state().data()?.texture("diffuseTexture")
-            }
-            _ => None,
-        })
+        self.pages
+            .iter()
+            .filter_map(|(&pos, p)| match &p.source {
+                TileSetPageSource::Material(mat) => {
+                    Some((pos, mat.material.state().data()?.texture("diffuseTexture")?))
+                }
+                _ => None,
+            })
+            .min_by(|(a, _), (b, _)| a.y.cmp(&b.y).reverse().then(a.x.cmp(&b.x)))
+            .map(|(_, texture)| texture)
     }
     /// Update the tile set using data stored in the given `TileSetUpdate`
     /// and modify the `TileSetUpdate` to become the reverse of the changes by storing

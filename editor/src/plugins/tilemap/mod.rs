@@ -408,7 +408,13 @@ impl TileDrawState {
     }
     #[inline]
     pub fn selection_positions_mut(&mut self) -> &mut FxHashSet<Vector2<i32>> {
+        self.on_selection_changed();
         &mut self.selection.positions
+    }
+    pub fn on_selection_changed(&mut self) {
+        if self.drawing_mode == DrawingMode::Editor {
+            self.drawing_mode = DrawingMode::Pick;
+        }
     }
     #[inline]
     pub fn clear_selection(&mut self) {
