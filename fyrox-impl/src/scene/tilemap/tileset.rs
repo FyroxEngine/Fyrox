@@ -39,7 +39,6 @@ use crate::{
 };
 use std::{
     any::Any,
-    cmp::Ordering,
     collections::hash_map::{Entry, Keys},
     error::Error,
     fmt::{Display, Formatter},
