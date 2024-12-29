@@ -18,6 +18,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+//! This is the tab of the tile set editor that allows the user to modify the property
+//! layers stored within the tile set. Layers can be created, deleted, renamed
+//! and pre-defined values can be edited.
+
 use fyrox::{
     fxhash::FxHashMap,
     gui::{
@@ -43,6 +47,9 @@ use crate::{send_sync_message, MSG_SYNC_FLAG};
 use super::*;
 use commands::*;
 
+/// This is the tab of the tile set editor that allows the user to modify the property
+/// layers stored within the tile set. Layers can be created, deleted, renamed
+/// and pre-defined values can be edited.
 pub struct PropertiesTab {
     handle: Handle<UiNode>,
     list: Handle<UiNode>,

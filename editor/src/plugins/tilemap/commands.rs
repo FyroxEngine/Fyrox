@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+//! Commands that allow modifications to tile maps, tile sets, and brushes.
+
 use fyrox::{
     core::{algebra::Vector2, color::Color, log::Log, pool::Handle, ImmutableString, Uuid},
     fxhash::FxHashMap,

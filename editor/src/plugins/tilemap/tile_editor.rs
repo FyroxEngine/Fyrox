@@ -18,6 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+//! A tile editor is one of the various fields that may appear along the side
+//! of the tile set editor. See the [`TileEditor`] trait for more information.
+
 use crate::{
     plugins::material::editor::{MaterialFieldEditorBuilder, MaterialFieldMessage},
     send_sync_message, MSG_SYNC_FLAG,
@@ -38,12 +41,28 @@ use fyrox::{
 };
 use palette::Subposition;
 
+/// A tile editor is one of the various fields that may appear along the side
+/// of the tile set editor.
 pub trait TileEditor: Send {
+    /// The handle of the editor, so that it can be added to a stack panel along with
+    /// the other editors.
     fn handle(&self) -> Handle<UiNode>;
+    /// The handle of the button which actives this editor for drawing its value onto other
+    /// tiles.
     fn draw_button(&self) -> Handle<UiNode>;
+    /// Slice mode means that the tile set editor allows the user to click on one of nine
+    /// areas within each tile, instead of just clicking on the whole of the tile.
+    /// Normally slice mode is false, because most editors edit the whole of any tile,
+    /// but slice mode will be true when a property layer editor has a nine slice data type.
     fn slice_mode(&self) -> bool {
         false
     }
+    /// This method is used to build the given `highlight` object to represent how tiles
+    /// should be marked to indicate the value of each tile while in editor drawing mode.
+    /// `highlight` is a hash map from [`Subposition`] to [`Color`], where a subposition
+    /// is the coordinates of some tile and the coordinates of one of the nine areas within
+    /// the tile, and the color is how the indicated area should be marked according to
+    /// the value of that tile at that position.
     #[allow(unused_variables)]
     fn highlight(
         &self,
@@ -53,8 +72,18 @@ pub trait TileEditor: Send {
         update: &TileSetUpdate,
     ) {
     }
+    /// The model has changed. Update the editor from the tile set to ensure that
+    /// the editor remains in sync with a potentially modified tile set.
     fn sync_to_model(&mut self, state: &TileEditorState, ui: &mut UserInterface);
+    /// The tile set editor state has changed, such as a different tile being selected.
+    /// Update the editor from the state to ensure that
+    /// the editor remains in sync with the current editing operation.
     fn sync_to_state(&mut self, state: &TileEditorState, ui: &mut UserInterface);
+    /// The tile set editor has the editor drawing mode active, which means that
+    /// the user is applying the current value of this editor to other tiles in the set,
+    /// and now the user has clicked or dragged the mouse over the given tile.
+    /// Update the tile to reflect the appropriate change its data by modifying the given
+    /// [`TileSetUpdate`].
     fn draw_tile(
         &self,
         handle: TileDefinitionHandle,
@@ -63,6 +92,7 @@ pub trait TileEditor: Send {
         update: &mut TileSetUpdate,
         tile_resource: &TileResource,
     );
+    /// A UI message has arrived that may be relevant to this editor.
     fn handle_ui_message(
         &mut self,
         state: &mut TileEditorState,
@@ -146,6 +176,7 @@ fn send_visibility(ui: &UserInterface, destination: Handle<UiNode>, visible: boo
     ));
 }
 
+/// An editor for the material and bounds of a freeform tile.
 pub struct TileMaterialEditor {
     handle: Handle<UiNode>,
     material_line: Handle<UiNode>,
@@ -394,6 +425,7 @@ impl TileEditor for TileMaterialEditor {
     }
 }
 
+/// An editor for the color of a tile.
 pub struct TileColorEditor {
     handle: Handle<UiNode>,
     field: Handle<UiNode>,
@@ -496,6 +528,9 @@ impl TileEditor for TileColorEditor {
     }
 }
 
+/// An editor for a tile handle, especially for editing a brush tile or
+/// a transform set tile, where the only data associated with the tile is
+/// its reference to some other tile.
 pub struct TileHandleEditor {
     handle: Handle<UiNode>,
     value: Option<TileDefinitionHandle>,

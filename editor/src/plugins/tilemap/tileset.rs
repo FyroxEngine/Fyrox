@@ -18,6 +18,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+//! The Tile Set Editor window that opens whenever a tile set or brush is double-clicked.
+//! It serves to edit both tile sets and brushes, since they are conceptually similiar,
+//! with only minor modifications needed when switching between the two modes.
+
 use crate::{
     command::{Command, CommandGroup},
     fyrox::{
@@ -65,22 +69,46 @@ const DEFAULT_PAGE: Vector2<i32> = Vector2::new(0, 0);
 
 pub struct TileSetEditor {
     pub window: Handle<UiNode>,
+    /// The state that is shared by many tile editing objects,
+    /// such as palette widgets that display the tiles,
+    /// the tile map control panel that allows the user to switch
+    /// tools and select stamps, and others.
     state: TileDrawStateRef,
+    /// The resource to be edited. It can either be a tile set or a brush.
     tile_resource: TileResource,
+    /// The field that controls the tint of the background material on tile atlas pages.
+    /// This tint allows the background material to be visually distinguished from actual tiles.
     color_field: Handle<UiNode>,
+    /// A text widget showing the coordinates of the currently selected cells.
     cell_position: Handle<UiNode>,
+    /// The control that allows the editor to switch between the tiles tab,
+    /// the properties tab, and the colliders tabl.
     tab_control: Handle<UiNode>,
+    /// The palette widget for the page icons. It is used to select which page to edit.
     pages_palette: Handle<UiNode>,
+    /// The palette widget for the actual tiles. This is the main work area of the editor.
     tiles_palette: Handle<UiNode>,
+    /// A button to switch to the pick tool.
     pick_button: Handle<UiNode>,
+    /// A button to open the tile map control panel.
+    /// It can sometimes be useful while editing a tile set or brush.
     open_control: Handle<UiNode>,
+    /// A button to deleted the selected tiles or pages.
     remove: Handle<UiNode>,
+    /// A button to select all the pages of the current resource.
     all_pages: Handle<UiNode>,
+    /// A button to select all the tiles of the current page.
     all_tiles: Handle<UiNode>,
+    /// When editing a brush, this is the area that allows the user to choose
+    /// the tile set for the brush.
     tile_set_selector: Handle<UiNode>,
+    /// This is the resource field that lets the user select the tile set for a brush.
     tile_set_field: Handle<UiNode>,
+    /// This is the area that shows the data for the currently selected tiles.
     tile_inspector: TileInspector,
+    /// The tab that allows users to add, remove, and edit property layers.
     properties_tab: PropertiesTab,
+    /// The tab that allows users to add, remove, and edit collider layers.
     colliders_tab: CollidersTab,
 }
 

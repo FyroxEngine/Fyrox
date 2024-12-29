@@ -18,6 +18,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+//! [`TileInspector`] is responsible for the widgets that allow the user to edit a
+//! tile's data. The primary mechanism for doing this is through a collection of
+//! objects that have the [`TileEditor`] trait. Each TileEditor provides its own
+//! widgets and does its own synchronization and message handling, while
+//! `TileInspector` is just responsible for managing the `TileEditor` objects.
+
 use std::fmt::Debug;
 
 use crate::{
@@ -668,27 +674,49 @@ impl ColliderEditors {
 #[derive(Visit, Reflect)]
 pub struct TileInspector {
     handle: Handle<UiNode>,
+    /// The shared state that represents the user's currently selected tool and tiles.
     #[visit(skip)]
     #[reflect(hidden)]
     state: TileDrawStateRef,
+    /// The tile set editor palette widget that allows the user to select a page.
+    /// This is *not* a widget within the TileInspector, but the TileInspector needs to have
+    /// the handle in order to determine where the user is selecting.
     pages_palette: Handle<UiNode>,
+    /// The tile set editor palette widget that allows the user to select a tile.
+    /// This is *not* a widget within the TileInspector, but the TileInspector needs to have
+    /// the handle in order to determine where the user is selecting.
     tiles_palette: Handle<UiNode>,
+    /// The current resource to be edited.
     tile_resource: TileResource,
+    /// The collection of buttons for creating a new tile set page.
     tile_set_page_creator: Handle<UiNode>,
+    /// The panel containing the button for creating a new brush page.
     brush_page_creator: Handle<UiNode>,
+    /// The editor for changing the size of tiles in a tile atlas page.
     tile_size_inspector: InspectorField,
+    /// Button for creating a brush tile.
     create_tile: Handle<UiNode>,
+    /// Button for creating a brush page.
     create_page: Handle<UiNode>,
+    /// Button for creating an atlas page in a tile set.
     create_atlas: Handle<UiNode>,
+    /// Button for creating a freeform page in a tile set.
     create_free: Handle<UiNode>,
+    /// Button for creating a transform set page in a tile set.
     create_transform: Handle<UiNode>,
+    /// A list of tile editors.
     #[visit(skip)]
     #[reflect(hidden)]
     tile_editors: Vec<TileEditorRef>,
+    /// Inspector for setting the material of an atlas page.
     page_material_inspector: InspectorField,
+    /// Handle of the material field of an atlas page.
     page_material_field: Handle<UiNode>,
+    /// Field for setting the icon of a page.
     page_icon_field: Handle<UiNode>,
+    /// Editors for every property layer.
     property_editors: PropertyEditors,
+    /// Editors for every collider layer.
     collider_editors: ColliderEditors,
 }
 

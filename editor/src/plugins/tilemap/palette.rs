@@ -18,6 +18,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+//! The [`PaletteWidget`] is the core of the tile set editor, because this widget
+//! is responsible for displaying a grid of tiles where the user may select tiles,
+//! drag tiles, and use drawing tools upon the tiles.
+
 use fyrox::scene::tilemap::ResourceTilePosition;
 
 use crate::asset::item::AssetItem;
@@ -65,16 +69,27 @@ const NO_PAGE_COLOR: Color = Color::from_rgba(20, 5, 5, 255);
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum PaletteMessage {
+    /// Display the given page of the given resource.
     SetPage {
         source: TileResource,
         page: Option<Vector2<i32>>,
     },
+    /// Center the view on the given grid position.
     Center(Vector2<i32>),
+    /// Select all tiles/pages in this view.
     SelectAll,
+    /// Select the given position.
     SelectOne(Vector2<i32>),
+    /// Delete the selected tiles/pages in this view.
     Delete,
+    /// Set the tint of the background material.
     MaterialColor(Color),
+    /// Notify this widget that the editor state has changed.
     SyncToState,
+    /// Notify that the user has pressed a mouse button.
+    /// This is needed in order to delay the start of mouse operations
+    /// by one frame so that they do not clash with operations that happen
+    /// when de-focusing whatever was previously in focus.
     BeginMotion(Vector2<f32>),
 }
 
@@ -89,50 +104,65 @@ impl PaletteMessage {
     define_constructor!(PaletteMessage:BeginMotion => fn begin_motion(Vector2<f32>), layout: false);
 }
 
+/// The operation of the current mouse motion.
 #[derive(Clone, Default, Debug, PartialEq)]
 enum MouseMode {
+    /// The mouse is doing nothing relevant.
     #[default]
     None,
+    /// The middle mouse button is down and the mouse is dragging to move the view.
     Panning {
         initial_view_position: Vector2<f32>,
         click_position: Vector2<f32>,
     },
+    /// The left mouse button is down and the mouse is moving some tiles.
     Dragging {
         initial_position: Vector2<f32>,
         offset: Vector2<i32>,
     },
+    /// The left mouse button is down and the mouse is performing some draw operation,
+    /// such as a fill rect operation or a flood fill. Possible operations include
+    /// selecting tiles.
     Drawing {
         start_tile: Vector2<i32>,
         end: MousePos,
     },
 }
 
+/// A collection of data relevant to the position of the mouse.
 #[derive(Clone, Default, Debug, PartialEq)]
 struct MousePos {
+    /// The mouse position in floats.
     fine: Vector2<f32>,
+    /// The position of the tile grid cell that contains the mouse.
     grid: Vector2<i32>,
+    /// The position of one of the nine areas within a tile cell that contains the mouse.
+    /// This is used for editing nine slice property values.
     subgrid: Vector2<usize>,
 }
 
-#[derive(Copy, Clone, Default, Debug, Eq, PartialEq, Visit, Reflect)]
-pub enum PaletteKind {
-    #[default]
-    Tiles,
-    Pages,
-}
-
+/// A position within a tile grid, including coordinates within the cell
+/// to indicate one of the nine divisions of the tile for the purpose of
+/// nine slice properties.
 #[derive(Copy, Clone, Default, Debug, Eq, PartialEq, Hash)]
 pub struct Subposition {
+    /// The tile cell coordinates
     pub tile: Vector2<i32>,
+    /// The nine slice area within the cell, with x in 0..3 and y in 0..3.
     pub subtile: Vector2<usize>,
 }
 
+/// Calculate the one of the three subtile positions along some axis when
+/// given the position on the axis and the size of the tiles.
+/// It always returns 0, 1, or 2.
 fn calc_slice_coord(position: f32, step: f32) -> usize {
     let p = position / step;
     let p = (p - p.floor()) * 3.0;
     (p.floor() as i32).clamp(0, 2) as usize
 }
 
+/// Displays a scrollable grid of till cells, with options to allow the tiles
+/// to be selected, dragged, and edits in various ways.
 #[derive(Clone, Debug, Visit, Reflect, TypeUuidProvider, ComponentProvider)]
 #[type_uuid(id = "5356a864-c026-4bd7-a4b1-30bacf77d8fa")]
 pub struct PaletteWidget {
@@ -140,24 +170,50 @@ pub struct PaletteWidget {
     #[visit(skip)]
     #[reflect(hidden)]
     sender: MessageSender,
+    /// The resource that holds the tiles to diaplay or edit.
     pub content: TileResource,
+    /// The page to display within the tile resource.
     pub page: Option<Vector2<i32>>,
+    /// The update that contains the current editing operation when the user
+    /// is doing something like a rect fill, drawing a line, or erasing.
     #[visit(skip)]
     #[reflect(hidden)]
     pub update: TransTilesUpdate,
+    /// The update that contains the current editing operation when the user
+    /// is modifying tile data like color, material, collider shape, or property value.
     #[visit(skip)]
     #[reflect(hidden)]
     pub tile_set_update: TileSetUpdate,
+    /// The current editor state that is shared between palette widgets like this one,
+    /// and the tile map control panel, and the tile map interaction mode.
+    /// This allows these diverse objects to coordinate with each other about what
+    /// the user is currently doing.
     #[visit(skip)]
     #[reflect(hidden)]
     pub state: TileDrawStateRef,
+    /// Whether this palette is showing actual tiles, or whether it is showing the tile icons
+    /// that represent the pages of a tile set or brush.
     pub kind: TilePaletteStage,
+    /// Are these tiles editable, or are they read-only?
     pub editable: bool,
+    /// Is the user editing whole tiles, or is the user editing one of the nine subareas within a tile?
+    /// True if the user is editing subareas.
     pub slice_mode: bool,
+    /// The tint of the background material that is used for tile atlas pages of tile sets.
+    /// This tint makes it possible to visibly distinguish the background material from actual tiles.
     material_color: Color,
+    /// These are the positions of tiles that are in the process of being selected, but not actually selected.
+    /// Tile selection is a two-stage process to give the user a smooth experience. The actually selected tiles
+    /// are stored in the [`TileDrawState::selection`] so that all interested parties can see what is currently
+    /// selected. In contrast, this set contains a record of what was selected before the user began the current
+    /// mouse motion, if the user held shift to prevent that selection from being removed.
+    ///
+    /// In order to calculate the actual selection, this set is combined with the rect created by the current
+    /// mouse motion.
     #[visit(skip)]
     #[reflect(hidden)]
     selecting_tiles: FxHashSet<Vector2<i32>>,
+    /// The highlight that is used to visualize a property layer when in [`DrawingMode::Editor`].
     #[visit(skip)]
     #[reflect(hidden)]
     highlight: FxHashMap<Subposition, Color>,

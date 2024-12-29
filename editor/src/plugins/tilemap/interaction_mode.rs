@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+//! The [`InteractionMode`] for editing a tile map.
+
 use commands::{MoveMapTileCommand, SetMapTilesCommand};
 use fyrox::{
     material::MaterialResource,
@@ -47,20 +49,42 @@ enum MouseMode {
 #[type_uuid(id = "33fa8ef9-a29c-45d4-a493-79571edd870a")]
 pub struct TileMapInteractionMode {
     tile_map: Handle<Node>,
+    /// The state that is shared between this interaction mode and the
+    /// tile map control panel, allowing this object to be aware of the chosen tool
+    /// and the selected stamp.
     state: TileDrawStateRef,
     /// A copy of the current drawing mode that is made whenever the user
     /// presses the mouse button. While the actual drawing mode may change
     /// during a mouse stroke, this value never will, so nothing breaks by changing
     /// tool in the middle of a mouse stroke.
     current_tool: DrawingMode,
+    /// The cell that started the current mouse motion.
     click_grid_position: Option<Vector2<i32>>,
+    /// The most recent cell of the current mouse motion.
+    /// It is used to determine whether the mouse has moved.
     current_grid_position: Option<Vector2<i32>>,
+    /// The sender for sending commands to modify the tile map.
     sender: MessageSender,
+    /// The current state of mouse operations.
     mouse_mode: MouseMode,
+    /// These are the positions of tiles that are in the process of being selected, but not actually selected.
+    /// Tile selection is a two-stage process to give the user a smooth experience. The actually selected tiles
+    /// are stored in the [`TileDrawState::selection`] so that all interested parties can see what is currently
+    /// selected. In contrast, this set contains a record of what was selected before the user began the current
+    /// mouse motion, if the user held shift to prevent that selection from being removed.
+    ///
+    /// In order to calculate the actual selection, this set is combined with the rect created by the current
+    /// mouse motion.
     selecting: FxHashSet<Vector2<i32>>,
+    /// A reference to the same editor data that is stored in the currently edited [`TileMap`].
+    /// This allows the interaction mode to chane how the tile map is rendered to reflect the current editing
+    /// operation, such highlighting the currently selected tiles.
     editor_data: TileMapEditorDataRef,
+    /// The material used to render the cursor position in the tile map.
     cursor_material: MaterialResource,
+    /// The material used to render the highlight of the selected tiles.
     select_material: MaterialResource,
+    /// The material used to render the highlight of tiles that might be erased by the user's current operation.
     erase_material: MaterialResource,
 }
 

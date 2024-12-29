@@ -18,6 +18,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+//! The preview widget of the tile map control panel. This allows the user to see the
+//! currently selected tile stamp, including whatever transformations have been applied
+//! to the stamp.
+
 use crate::fyrox::{
     core::{
         algebra::{Matrix3, Vector2},
@@ -43,20 +47,29 @@ use std::ops::{Deref, DerefMut};
 
 use super::*;
 
+/// The preview widget of the tile map control panel. This allows the user to see the
+/// currently selected tile stamp, including whatever transformations have been applied
+/// to the stamp.
 #[derive(Clone, Debug, Visit, Reflect, TypeUuidProvider, ComponentProvider)]
 #[type_uuid(id = "5356a864-c026-4bd7-a4b1-30bacf77d8fa")]
 pub struct PanelPreview {
     widget: Widget,
+    /// The tile editing state that is shared with palette widgets, the tile map interaction mode,
+    /// the tile map control panel, and others. It allows this widget access to determine
+    /// what stamp to show to the user.
     #[reflect(hidden)]
     #[visit(skip)]
     pub state: TileDrawStateRef,
     tile_size: Vector2<f32>,
     transform: Matrix3<f32>,
+    /// This text is used to show the tile handle when a single tile is selected.
     #[visit(skip)]
     #[reflect(hidden)]
     handle_text: FormattedText,
     #[visit(skip)]
     #[reflect(hidden)]
+    /// This is the size of the handle text, for the purposes of positioning the text
+    /// within the widget.
     handle_text_size: Vector2<f32>,
 }
 

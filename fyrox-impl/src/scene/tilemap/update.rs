@@ -18,6 +18,25 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+//! When a tile set, brush, or tile map is edited, the edit is first collected in
+//! an update object. This update object is rendered in place of the tiles that it will
+//! replace, and when the edit is completed the data in the update object is swapped
+//! with the data in the tile set/brush/tile map. The swap operation allows the edit
+//! to be undone by repeating the swap to put the original data back where it came from.
+//!
+//! [`TileSetUpdate`] is an update object that stores any of the many various ways in which
+//! a tile set may be modified, such as changing the color of tiles, changing the material of tiles,
+//! changing the value of a property or the shape of a collider.
+//!
+//! [`TransTilesUpdate`] stores tile definition handles and orthogonal transformations to be applied
+//! to those tiles before they are written into the object that is being edited. This can be used
+//! to construct either a `TileSetUpdate` or a `TilesUpdate` depending on whether we are editing
+//! a tile set or a tile map. `TransTilesUpdate` has methods for various tile-drawing operations
+//! like lines, rect fills, and flood fills.
+//!
+//! [`TilesUpdate`] stores simple tile definition handles with no transformations. Constructing this
+//! update is the final step before finally applying the modification to a tile map.
+
 use super::*;
 use crate::core::{algebra::Vector2, color::Color, log::Log, type_traits::prelude::*};
 use fxhash::FxHashMap;
@@ -561,12 +580,12 @@ type RotTileHandle = (OrthoTransformation, TileDefinitionHandle);
 
 /// This is a step in the process of performing an edit to a tile map, brush, or tile set.
 /// It provides handles for the tiles to be written and the transformation to apply to those
-/// tiles.
+/// tiles. A None indicates that the tile is to be erased.
 #[derive(Clone, Debug, Default)]
 pub struct TransTilesUpdate(TileGridMap<Option<RotTileHandle>>);
 
 /// A set of changes to a set of tiles. A value of None indicates that a tile
-/// is being removed from the set.
+/// is being removed from the set. A None indicates that the tile is to be erased.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct TilesUpdate(TileGridMap<Option<TileDefinitionHandle>>);
 

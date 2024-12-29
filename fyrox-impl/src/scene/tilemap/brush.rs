@@ -19,7 +19,13 @@
 // SOFTWARE.
 
 //! Tile map brush is a set of tiles arranged in arbitrary shape, that can be used to draw on a tile
-//! map.
+//! map. A brush resembles a tile set in that they are both collections of tiles, but they are distinct
+//! because a brush can be freely organized to suit whatever is most convenient while editing a tile map.
+//! The tiles of a brush can be moved at any time without consequence, and so can the pages.
+//! A brush is like a painter's toolbox, where the sole purpose is to serve the painter's convenience.
+//!
+//! In contrast, a tile set is a directory for finding tile data according to a specific position on
+//! a specific page. Tiles can be moved in a tile set, but doing so will affect the lookup of tile data.
 
 use crate::{
     asset::{

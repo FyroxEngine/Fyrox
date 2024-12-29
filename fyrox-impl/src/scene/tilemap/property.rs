@@ -18,6 +18,22 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+//! A property layer allows a tile set to store arbitrary values along with each tile
+//! in a tile set. A tile may have an integer, a float, or a string that the game may
+//! use to recognize special properties of the tile. These properties can be accessed
+//! using either the property name or the property UUID.
+//!
+//! See [`TileSetPropertyValue`] for the possible value types.
+//!
+//! A property layer may also have a list of pre-defined values which can be named
+//! to specify special meanings to particular values for the property.
+//!
+//! In addition to property layers, there are also collider layers which work much
+//! like property layers, but instead of storing arbitrary data, a collider layer
+//! associates each tile with a shape made from triangles. Each collider layer
+//! has a color that will be used to render the shape in the tile set editor,
+//! so the user can see each tile's shape and the shepe's layer at a glance.
+
 use crate::core::{
     algebra::Vector2, color::Color, num_traits::Euclid, reflect::prelude::*,
     type_traits::prelude::*, visitor::prelude::*, ImmutableString,

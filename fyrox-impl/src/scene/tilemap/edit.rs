@@ -18,6 +18,19 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+//! The editing data for a tile map that is in the process of being edited.
+//! A tile map that is being rendered for a game only needs to show its tiles
+//! exactly as they are stored,
+//! but while a tile map is being edited there is far more complexity to what may
+//! need to be rendered in order to represent a partially completed editing operation.
+//!
+//! Using this data, a tile map can render a highlight around currently selected tiles.
+//! It can also replace the stored tiles with a preview of tiles that may soon replace
+//! the current tiles, among other useful effects during editing.
+//!
+//! See [`TileMapEditorData`] for the full description of the data that controls the
+//! tile map's special rendering functions.
+
 use crate::{
     core::{
         algebra::{Matrix4, Vector2, Vector3, Vector4},
@@ -30,7 +43,7 @@ use std::{fmt::Debug, sync::Arc};
 
 use super::*;
 
-/// A reference to TileMapEditorData. A TileMap keeps one of these if it is in the editor
+/// A reference to [`TileMapEditorData`]. A TileMap keeps one of these if it is in the editor
 /// being edited so that the TileMap can render a partially-constructed state.
 pub type TileMapEditorDataRef = Arc<Mutex<TileMapEditorData>>;
 

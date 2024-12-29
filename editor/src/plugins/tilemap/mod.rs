@@ -196,16 +196,30 @@ fn make_drawing_mode_button(
     .build(ctx)
 }
 
+/// The possible drawing mode when the user is editing tiles.
 #[derive(Default, Clone, Copy, Debug, PartialEq, Eq, Visit, Reflect)]
 pub enum DrawingMode {
+    /// Paste the currently selected tiles as a stamp wherever the user clicks or drags the mouse.
     #[default]
     Draw,
+    /// Erase tiles in the shape of the currently selected tiles wherever the user clicks or drags the mouse,
+    /// or erase a single cell if no tiles are selected.
     Erase,
+    /// Flood a the cells of a tile map, replacing regions of identical cell. This operation is only possible on a tile map.
+    /// For tile set and brush editing, this oepration behaves exactly like [`DrawingMode::Draw`].
     FloodFill,
+    /// Select whatever tiles the user drags the mouse over, creating a rect of selected tiles. Hold shift to select multiple rects.
     Pick,
+    /// Drag the mouse to create a rect filled with the currently selected tiles.
     RectFill,
+    /// Drag the mouse to create a rect filled with the currently selected tiles, with special consideration
+    /// taken for the sides, corners, and center of the selected tiles, so the selection is divided into nine areas
+    /// before it fills the rect.
     NineSlice,
+    /// Drag the mouse to draw a line with the currently selected tiles.
     Line,
+    /// Use the currently active tile set editor field to modify the data of tiles in a tile set.
+    /// This does nothing to tile maps or brushes.
     Editor,
 }
 
@@ -221,6 +235,7 @@ impl OpenTilePanelMessage {
     }
 }
 
+/// This allows a UI message to be stored for a certain number of frames and then sent.
 #[derive(Debug, PartialEq, Clone)]
 struct DelayedMessage {
     delay_frames: usize,
@@ -246,6 +261,9 @@ pub struct TileMapEditorPlugin {
     delayed_messages: Vec<DelayedMessage>,
 }
 
+/// This is the state that is shared between the plugin, the palette widgets, the interaction mode,
+/// and the control panel, so that they can all be synchronized with whatever editing operation the
+/// user is currently performing.
 #[derive(Default, Clone, Visit)]
 pub struct TileDrawState {
     /// True if the state has been changed and the change has not yet caused the UI to update.
@@ -253,6 +271,7 @@ pub struct TileDrawState {
     /// The tile set that contains the definitions of the tiles that are being edited.
     tile_set: Option<TileSetResource>,
     /// The current stamp that the user uses when drawing tiles to a tile set, brush, or tile map.
+    /// The stamp acts as a TileSource for drawing operations and it is rendered in the [`PanelPreview`] widget.
     stamp: Stamp,
     /// The tool that the user has selected for editing tiles: Draw, Pick, Rectangle, Fill, etc.
     drawing_mode: DrawingMode,
@@ -283,9 +302,19 @@ impl Debug for TileDrawState {
 
 type TileEditorRef = Arc<Mutex<dyn TileEditor>>;
 
+/// An Arc Mutex of the shared [`TileDrawState`] state that can be cloned and given
+/// to the various objects that need it. It provides methods to access the state
+/// and automatically takes care of marking the state as dirty when it is accessed
+/// as mutable.
 #[derive(Debug, Default, Clone)]
 pub struct TileDrawStateRef(Arc<Mutex<TileDrawState>>);
+/// A guard object for locking and unlocking shared [`TileDrawState`] when it is
+/// needed only for immutable access to the current state. It can be converted
+/// to the mutable version if necessary.
 pub struct TileDrawStateGuard<'a>(MutexGuard<'a, TileDrawState>);
+/// A guard object for locking and unlocking shared [`TileDrawState`] when it is
+/// needed for mutable access to the current state. The state is automatically
+/// marked as dirty when this is created.
 pub struct TileDrawStateGuardMut<'a>(MutexGuard<'a, TileDrawState>);
 
 impl Deref for TileDrawStateGuard<'_> {
@@ -313,12 +342,17 @@ impl DerefMut for TileDrawStateGuardMut<'_> {
 const STATE_UPDATE_DEBUG: bool = false;
 
 impl TileDrawStateRef {
+    /// Access the state immutably.
     pub fn lock(&self) -> TileDrawStateGuard {
         TileDrawStateGuard(self.0.try_lock().expect("State lock failed."))
     }
+    /// Mutably access the state and mark the state as dirty so that everyone
+    /// that is using the state will know to update themselves.
     pub fn lock_mut(&self, reason: &str) -> TileDrawStateGuardMut {
         self.lock().into_mut(reason)
     }
+    /// Return true if the state has been modified, and reset
+    /// the state to no longer being dirty.
     pub fn check_dirty(&self) -> bool {
         let mut state = self.0.lock();
         let dirty = state.dirty;
@@ -328,6 +362,7 @@ impl TileDrawStateRef {
 }
 
 impl<'a> TileDrawStateGuard<'a> {
+    /// Convert an immutable state into a mutable state, and mark the state as dirty.
     pub fn into_mut(self, reason: &str) -> TileDrawStateGuardMut<'a> {
         if STATE_UPDATE_DEBUG {
             println!("State Update: {reason}");
@@ -339,11 +374,14 @@ impl<'a> TileDrawStateGuard<'a> {
 }
 
 impl<'a> TileDrawStateGuardMut<'a> {
+    /// Convert an mutable state back to an immutable state.
     pub fn into_const(self) -> TileDrawStateGuard<'a> {
         TileDrawStateGuard(self.0)
     }
 }
 
+/// This represents the currently selected tiles, including the positions,
+/// the page, and the widget or tile map where the selection occurred.
 #[derive(Default, Debug, Clone, Visit)]
 struct TileDrawSelection {
     /// The selection either comes from a [`PaletteWidget`] or a tile map node.
@@ -394,34 +432,44 @@ impl TileDrawState {
             _ => Handle::NONE,
         }
     }
+    /// Some [`PaletteWidget`] is being used to select tiles.
     #[inline]
     pub fn set_palette(&mut self, handle: Handle<UiNode>) {
         self.selection.source = SelectionSource::Widget(handle);
     }
+    /// Some [`TileMap`] is being used to select tiles.
     #[inline]
     pub fn set_node(&mut self, handle: Handle<Node>) {
         self.selection.source = SelectionSource::Node(handle);
     }
+    /// The positions of the currently selected tiles.
     #[inline]
     pub fn selection_positions(&self) -> &FxHashSet<Vector2<i32>> {
         &self.selection.positions
     }
+    /// The positions of the currently selected tiles.
     #[inline]
     pub fn selection_positions_mut(&mut self) -> &mut FxHashSet<Vector2<i32>> {
         self.on_selection_changed();
         &mut self.selection.positions
     }
+    /// Perform necessary cleanup when the selected tiles are changed.
     pub fn on_selection_changed(&mut self) {
         if self.drawing_mode == DrawingMode::Editor {
             self.drawing_mode = DrawingMode::Pick;
         }
     }
+    /// Set selection to nothing.
     #[inline]
     pub fn clear_selection(&mut self) {
         self.stamp.clear();
         self.selection.positions.clear();
         self.selection.source = SelectionSource::None;
+        self.on_selection_changed();
     }
+    /// Update the stamp stored within this state to reflect the current selection
+    /// and tile set. The given `tile_handle` function is used to determine the handles
+    /// for each selection position.
     #[inline]
     pub fn update_stamp<F>(&mut self, tile_set: Option<TileSetResource>, tile_handle: F)
     where

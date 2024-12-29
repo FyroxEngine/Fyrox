@@ -18,6 +18,13 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+//! Orthogonal transformations are some combination of 90-degree turns and
+//! flips across the x-axis and y-axis. These transformations are important to
+//! tiles because they are constrained along the tile grid.
+//!
+//! [`OrthoTransformation`] represents some combination of flips and turns,
+//! and [`OrthoTransform`] is a class for objects that can be transformed.
+
 use std::{
     fmt::{Debug, Display},
     ops::{Add, AddAssign, Neg},

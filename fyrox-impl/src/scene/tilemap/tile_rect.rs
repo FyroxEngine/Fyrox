@@ -18,6 +18,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+//! A structure to represent rectanglular regions within a tile set page or
+//! a tile map. See [`TileRect`] for more information.
+//! [`OptionTileRect`] is for regions that may be empty.
+
 use std::ops::{Deref, DerefMut};
 
 use crate::core::algebra::Vector2;

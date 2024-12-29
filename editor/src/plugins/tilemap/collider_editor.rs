@@ -18,6 +18,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+//! The [`TileEditor`] for a tile's collider layer. This allows the tile set editor
+//! to display a dropdown list for the various [`TileCollider`] options, and displays
+//! a text box for editing custom colliders when appropriate.
+//! See [`TileColliderEditor`] for more information.
+
 use commands::SetTileSetTilesCommand;
 use fyrox::{
     asset::{untyped::ResourceKind, Resource},
@@ -76,16 +81,28 @@ fn highlight_tool_button(button: Handle<UiNode>, highlight: bool, ui: &UserInter
 }
 
 pub struct TileColliderEditor {
+    /// The handle for the overall editor.
     handle: Handle<UiNode>,
+    /// The UUID of the collider layer that we are editing.
     collider_id: Uuid,
+    /// The current value being edited.
     value: TileCollider,
+    /// The button which actives this editor as a draw tool
+    /// and allows the user to apply this value to other tiles.
     draw_button: Handle<UiNode>,
+    /// The button which toggles the visibility of the collider layer.
     show_button: Handle<UiNode>,
+    /// The widget that shows the color of the collider layer.
     color_icon: Handle<UiNode>,
+    /// The widget for the name of the collider layer.
     name_field: Handle<UiNode>,
+    /// The dropdown list of collider types.
     list: Handle<UiNode>,
+    /// The textbox for editing a custom collider.
     custom_field: Handle<UiNode>,
+    /// A text widget for showing an error in the custom collider text.
     error_field: Handle<UiNode>,
+    /// True if the custom collider text actually has an error.
     has_error: bool,
 }
 

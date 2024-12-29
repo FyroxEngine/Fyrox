@@ -18,6 +18,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+//! The `tile_source` module contains structs that represent arrangements of tiles
+//! to be used by tile map drawing tools such as rectangular fills and flood fills.
+//! Tile sources can be randomized and they can repeat to create varied effects
+//! while editing tile maps.
+
 use crate::{
     core::{algebra::Vector2, reflect::prelude::*, visitor::prelude::*},
     fxhash::FxHashMap,

@@ -18,6 +18,13 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+//! The tile map control panel window that allows the user to select which tool
+//! will be used for editing the selected tile map. It can also be used when
+//! editing a tile set or a brush. It contains a set of tool buttons that allow
+//! one tool to be selected, as well as a preview widget that shows the tiles that
+//! will be used by that tool. It has buttons that allow the selected tiles to
+//! be rotated and flipped before they are used in the tile map.
+
 use crate::{
     asset::item::AssetItem,
     fyrox::{
@@ -108,27 +115,51 @@ fn make_resource_chooser(
 }
 
 pub struct TileMapPanel {
+    /// A reference to the shared state that allows the tile map interaction mode to
+    /// know what tool is currently selected.
     pub state: TileDrawStateRef,
+    /// The resource that is the source for the tiles that the user may select.
     pub tile_resource: TileResource,
+    /// The window that contains this control panel.
     pub window: Handle<UiNode>,
+    /// The currently selected brush. This brush can be set by choosing a tile map
+    /// with an active brush, or by dragging a brush resource into the control panel window.
     brush: Option<TileMapBrushResource>,
+    /// The name of the tile set or brush from which tiles are being displayed.
     tile_set_name: Handle<UiNode>,
+    /// The widget that displays a preview of the tiles that the selected tool will use.
     preview: Handle<UiNode>,
+    /// The palette widget that allows the user to select the page.
     pages: Handle<UiNode>,
+    /// The palette widget that allows the user to select the tiles to draw with.
     palette: Handle<UiNode>,
+    /// The button that switches the control to using the current brush, if there is one.
     brush_button: Handle<UiNode>,
+    /// The button that switches the control to using the current tile set.
     tile_set_button: Handle<UiNode>,
+    /// Tool selection button for the draw tool.
     draw_button: Handle<UiNode>,
+    /// Tool selection button for the erase tool.
     erase_button: Handle<UiNode>,
+    /// Tool selection button for the flood fill tool.
     flood_fill_button: Handle<UiNode>,
+    /// Tool selection button for the pick tool.
     pick_button: Handle<UiNode>,
+    /// Tool selection button for the rectangle fill tool.
     rect_fill_button: Handle<UiNode>,
+    /// Tool selection button for the nine slice fill tool.
     nine_slice_button: Handle<UiNode>,
+    /// Tool selection button for the line tool.
     line_button: Handle<UiNode>,
+    /// Button that toggles the tools into random mode.
     random_button: Handle<UiNode>,
+    /// Button to rotate the selected tiles counter-clockwise by 90 degrees.
     left_button: Handle<UiNode>,
+    /// Button to rotate the selected tiles clockwise by 90 degrees.
     right_button: Handle<UiNode>,
+    /// Button to horizontally flip the selected tiles.
     flip_x_button: Handle<UiNode>,
+    /// Button to vertically flip the selected tiles.
     flip_y_button: Handle<UiNode>,
 }
 
@@ -382,6 +413,7 @@ impl TileMapPanel {
         }
     }
 
+    /// Bring the window to the front and move it to the top-right of the given node.
     pub fn align(&self, relative_to: Handle<UiNode>, ui: &UserInterface) {
         if ui.node(self.window).visibility() {
             ui.send_message(WidgetMessage::align(
@@ -414,6 +446,7 @@ impl TileMapPanel {
         }
     }
 
+    /// Bring the window to the top.
     pub fn to_top(&self, ui: &UserInterface) {
         ui.send_message(WidgetMessage::topmost(
             self.window,
@@ -430,6 +463,7 @@ impl TileMapPanel {
         ));
     }
 
+    /// Close the window.
     pub fn destroy(self, ui: &UserInterface) {
         ui.send_message(WidgetMessage::remove(
             self.window,
@@ -437,6 +471,7 @@ impl TileMapPanel {
         ));
     }
 
+    /// Set the source for the control panel's tiles.
     pub fn set_resource(&mut self, resource: TileResource, ui: &mut UserInterface) {
         // Update the current brush based upon the new resource.
         match &resource {
@@ -461,6 +496,8 @@ impl TileMapPanel {
         self.send_tile_resource(ui);
     }
 
+    /// Switch the control panel to using the current brush as the source for its tiles,
+    /// if there is a current brush.
     pub fn switch_to_brush(&mut self, ui: &mut UserInterface) {
         if let Some(brush) = &self.brush {
             self.tile_resource = TileResource::Brush(brush.clone());
@@ -469,6 +506,9 @@ impl TileMapPanel {
         }
     }
 
+    /// Switch the control panel to using the current tile set as the source for its tiles.
+    /// Brushes naturally have tile sets, so if the current resource is a brush, then this
+    /// will switch to that brush's tile set.
     pub fn switch_to_tile_set(&mut self, ui: &mut UserInterface) {
         let Some(brush) = &self.brush else {
             return;
@@ -482,6 +522,7 @@ impl TileMapPanel {
         self.send_tile_resource(ui);
     }
 
+    /// Inform the palette widgets that they need to display the current resource.
     fn send_tile_resource(&self, ui: &mut UserInterface) {
         ui.send_message(PaletteMessage::set_page(
             self.pages,
@@ -497,18 +538,21 @@ impl TileMapPanel {
         ));
     }
 
+    /// True if the current resource is a brush.
     pub fn is_brush(&self) -> bool {
         self.tile_resource.is_brush()
     }
-
+    /// True if the current resource is a tile set.
     pub fn is_tile_set(&self) -> bool {
         self.tile_resource.is_tile_set()
     }
-
+    /// True if control panel has a brush, even if
+    /// we are currently using the brush's tile set instead of the brush itself.
     pub fn has_brush(&self) -> bool {
         self.brush.is_some()
     }
 
+    /// Open the page of the given handle and center the view on the tile.
     pub fn set_focus(&mut self, handle: TileDefinitionHandle, ui: &mut UserInterface) {
         let mut state = self.state.lock_mut("set_focus");
         state.selection.source = SelectionSource::Widget(self.palette);
@@ -544,14 +588,7 @@ impl TileMapPanel {
         ));
     }
 
-    pub fn set_visibility(&self, visible: bool, ui: &mut UserInterface) {
-        ui.send_message(WidgetMessage::visibility(
-            self.window,
-            MessageDirection::ToWidget,
-            visible,
-        ));
-    }
-
+    /// Process the effect of pressing one of the buttons.
     fn handle_button(&mut self, button: Handle<UiNode>, ui: &mut UserInterface) {
         if button == self.draw_button {
             self.state.lock_mut("tool button").drawing_mode = DrawingMode::Draw;
@@ -568,16 +605,16 @@ impl TileMapPanel {
         } else if button == self.line_button {
             self.state.lock_mut("tool button").drawing_mode = DrawingMode::Line;
         } else if button == self.random_button {
-            let mut state = self.state.lock_mut("tool_button");
+            let mut state = self.state.lock_mut("random button");
             state.random_mode = !state.random_mode;
         } else if button == self.left_button {
-            self.state.lock_mut("tool button").stamp.rotate(1);
+            self.state.lock_mut("left button").stamp.rotate(1);
         } else if button == self.right_button {
-            self.state.lock_mut("tool_button").stamp.rotate(-1);
+            self.state.lock_mut("right button").stamp.rotate(-1);
         } else if button == self.flip_x_button {
-            self.state.lock_mut("tool_button").stamp.x_flip();
+            self.state.lock_mut("flix x button").stamp.x_flip();
         } else if button == self.flip_y_button {
-            self.state.lock_mut("tool_button").stamp.y_flip();
+            self.state.lock_mut("flip y button").stamp.y_flip();
         } else if button == self.brush_button {
             self.switch_to_brush(ui);
         } else if button == self.tile_set_button {

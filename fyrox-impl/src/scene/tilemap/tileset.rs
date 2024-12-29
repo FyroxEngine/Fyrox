@@ -19,7 +19,14 @@
 // SOFTWARE.
 
 //! Tile set is a special storage for tile descriptions. It is a sort of database, that contains
-//! descriptions (definitions) for tiles. See [`TileSet`] docs for more info and usage examples.
+//! descriptions (definitions) for tiles. Tiles are organized into pages. Each page has particular
+//! (x,y) coordinates and each tile within the page has its own (x,y) coordinates, so finding a tile
+//! requires two pairs of coordinates (x,y):(x,y), which is called a [`TileDefinitionHandle`].
+//!
+//! A [`TileMap`] stores a `TileDefinitionHandle` for each cell, and it uses those handles to index
+//! into a tile set to know how each cell should be rendered.
+//!
+//! See [`TileSet`] docs for more info and usage examples.
 
 use crate::{
     asset::{
@@ -1025,12 +1032,31 @@ impl<'a> TileSetRef<'a> {
 /// Tile set is a special storage for tile descriptions. It is a sort of database, that contains
 /// descriptions (definitions) for tiles. Such approach allows you to change appearance of all tiles
 /// of particular kind at once.
+///
+/// The tile data of the tile set is divided into pages, and pages come in three different types depending
+/// on what kind of data is stored on the page. See [`TileSetPage`] for more information about the
+/// page variants.
+///
+/// A tile set also contains extra layers of data that may be included with each tile:
+/// Collider layers and property layers.
+///
+/// A *property layer* allows a particular value to be assigned to each tile.
+/// The each layer has a name and a data type for the value, and it may optionally have
+/// a list of pre-defined values and names for each of the pre-defined values.
+/// This makes it easier to keep track of values which may have special meanings
+/// when editing the tile set. See [`TileSetPropertyLayer`] for more information.
+///
+/// A *collider layer* allows a shape to be assigned to each tile for the purpose of
+/// constructing a physics object for the tile map.
+/// Each layer has a name and a color. The color is used to allow the user to quickly
+/// identify which shapes correspond to which layers while in the tile set editor.
+/// See [`TileSetColliderLayer`] for more information.
 #[derive(Clone, Default, Debug, Visit, Reflect, TypeUuidProvider, ComponentProvider)]
 #[type_uuid(id = "7b7e057b-a41e-4150-ab3b-0ae99f4024f0")]
 pub struct TileSet {
     /// A mapping from transformable tiles to the corresponding cells on transform set pages.
     #[visit(skip)]
-    pub transform_map: FxHashMap<TileDefinitionHandle, TileDefinitionHandle>,
+    transform_map: FxHashMap<TileDefinitionHandle, TileDefinitionHandle>,
     /// The set of pages, organized by position.
     pub pages: FxHashMap<Vector2<i32>, TileSetPage>,
     /// Collider layers, in the order in which the layers should be presented in the editor.
