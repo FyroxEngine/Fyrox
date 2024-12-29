@@ -536,7 +536,7 @@ pub struct Editor {
     pub settings: Settings,
     pub audio_panel: AudioPanel,
     pub mode: Mode,
-    pub build_window: BuildWindow,
+    pub build_window: Option<BuildWindow>,
     pub scene_settings: SceneSettingsWindow,
     pub particle_system_control_panel: ParticleSystemPreviewControlPanel,
     pub camera_control_panel: CameraPreviewControlPanel,
@@ -892,7 +892,6 @@ impl Editor {
         .build(ctx);
 
         let save_scene_dialog = SaveSceneConfirmationDialog::new(ctx);
-        let build_window = BuildWindow::new("your game", ctx);
         if let Some(layout) = settings.windows.layout.as_ref() {
             engine
                 .user_interfaces
@@ -931,7 +930,7 @@ impl Editor {
                 clock: Instant::now(),
                 lag: 0.0,
             },
-            build_window,
+            build_window: None,
             scene_settings,
             particle_system_control_panel,
             camera_control_panel,
@@ -1294,9 +1293,11 @@ impl Editor {
         }
 
         let ui = engine.user_interfaces.first_mut();
-        self.build_window.handle_ui_message(message, ui, || {
-            self.message_sender.send(Message::SwitchToEditMode)
-        });
+        if let Some(build_window) = self.build_window.take() {
+            self.build_window = build_window.handle_ui_message(message, ui, || {
+                self.message_sender.send(Message::SwitchToEditMode)
+            });
+        }
         if let Some(export_window) = self.export_window.as_mut() {
             export_window.handle_ui_message(message, ui, &self.message_sender);
         }
@@ -1468,6 +1469,10 @@ impl Editor {
     }
 
     fn set_play_mode(&mut self) {
+        if let Some(build_window) = self.build_window.take() {
+            build_window.destroy(self.engine.user_interfaces.first());
+        }
+
         let Some(entry) = self.scenes.current_scene_entry_ref() else {
             Log::err("Cannot enter build mode when there is no scene!");
             return;
@@ -1562,6 +1567,9 @@ impl Editor {
             queue,
             process: None,
         };
+
+        let ui = self.engine.user_interfaces.first_mut();
+        self.build_window = Some(BuildWindow::new("your game", &mut ui.build_ctx()));
 
         self.on_mode_changed();
     }
@@ -2135,10 +2143,12 @@ impl Editor {
 
                         match build_command.make_command().stderr(Stdio::piped()).spawn() {
                             Ok(mut new_process) => {
-                                self.build_window.listen(
-                                    new_process.stderr.take().unwrap(),
-                                    self.engine.user_interfaces.first(),
-                                );
+                                if let Some(build_window) = self.build_window.as_mut() {
+                                    build_window.listen(
+                                        new_process.stderr.take().unwrap(),
+                                        self.engine.user_interfaces.first(),
+                                    );
+                                }
 
                                 *process = Some(new_process);
                             }
@@ -2153,8 +2163,9 @@ impl Editor {
                 }
 
                 if let Some(process_ref) = process {
-                    self.build_window
-                        .update(self.engine.user_interfaces.first());
+                    if let Some(build_window) = self.build_window.as_mut() {
+                        build_window.update(self.engine.user_interfaces.first());
+                    }
 
                     match process_ref.try_wait() {
                         Ok(status) => {
@@ -2168,10 +2179,10 @@ impl Editor {
                                     self.on_mode_changed();
                                 } else if queue.is_empty() {
                                     self.set_play_mode();
-                                    self.build_window.reset(self.engine.user_interfaces.first());
-                                    self.build_window.close(self.engine.user_interfaces.first());
                                 } else {
-                                    self.build_window.reset(self.engine.user_interfaces.first());
+                                    if let Some(build_window) = self.build_window.as_mut() {
+                                        build_window.reset(self.engine.user_interfaces.first());
+                                    }
                                     // Continue on next command.
                                     *process = None;
                                 }

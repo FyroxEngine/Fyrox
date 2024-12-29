@@ -175,16 +175,12 @@ impl BuildWindow {
         ));
     }
 
-    pub fn close(&mut self, ui: &UserInterface) {
+    pub fn destroy(mut self, ui: &UserInterface) {
+        self.reset(ui);
         ui.send_message(WindowMessage::close(
             self.window,
             MessageDirection::ToWidget,
         ));
-    }
-
-    pub fn close_and_reset(&mut self, ui: &UserInterface) {
-        self.reset(ui);
-        self.close(ui);
     }
 
     pub fn update(&mut self, ui: &UserInterface) {
@@ -204,16 +200,18 @@ impl BuildWindow {
     }
 
     pub fn handle_ui_message(
-        &mut self,
+        self,
         message: &UiMessage,
         ui: &UserInterface,
         on_stop: impl FnOnce(),
-    ) {
+    ) -> Option<Self> {
         if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.stop {
                 on_stop();
-                self.close_and_reset(ui);
+                self.destroy(ui);
+                return None;
             }
         }
+        Some(self)
     }
 }

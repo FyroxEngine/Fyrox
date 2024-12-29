@@ -707,8 +707,6 @@ impl ProjectManager {
             return;
         };
 
-        let build_window = some_or_return!(self.build_window.as_mut());
-
         if process.is_none() {
             if let Some(build_command) = queue.pop_front() {
                 Log::info(format!("Trying to run build command: {build_command}"));
@@ -719,7 +717,9 @@ impl ProjectManager {
 
                 match command.spawn() {
                     Ok(mut new_process) => {
-                        build_window.listen(new_process.stderr.take().unwrap(), ui);
+                        if let Some(build_window) = self.build_window.as_mut() {
+                            build_window.listen(new_process.stderr.take().unwrap(), ui);
+                        }
 
                         *process = Some(new_process);
                     }
@@ -743,10 +743,14 @@ impl ProjectManager {
                             Log::err("Failed to build the game!");
                             self.mode = Mode::Normal;
                         } else if queue.is_empty() {
-                            build_window.reset(ui);
-                            build_window.close(ui);
+                            if let Some(build_window) = self.build_window.take() {
+                                build_window.destroy(ui);
+                            }
+                            self.mode = Mode::Normal;
                         } else {
-                            build_window.reset(ui);
+                            if let Some(build_window) = self.build_window.as_mut() {
+                                build_window.reset(ui);
+                            }
                             // Continue on next command.
                             *process = None;
                         }
@@ -1031,8 +1035,8 @@ impl ProjectManager {
 
         self.log.handle_ui_message(message, ui);
 
-        if let Some(build_window) = self.build_window.as_mut() {
-            build_window.handle_ui_message(message, ui, || {});
+        if let Some(build_window) = self.build_window.take() {
+            self.build_window = build_window.handle_ui_message(message, ui, || {});
         }
 
         if let Some(settings_window) = self.settings_window.take() {
