@@ -625,7 +625,9 @@ impl TileSetEditor {
                 ));
             }
         } else if let Some(ButtonMessage::Click) = message.data() {
-            if message.destination() == self.open_control {
+            if message.destination() == self.pick_button {
+                self.state.lock_mut("Pick mode").drawing_mode = DrawingMode::Pick;
+            } else if message.destination() == self.open_control {
                 ui.send_message(OpenTilePanelMessage::message(
                     self.tile_resource.clone(),
                     None,
