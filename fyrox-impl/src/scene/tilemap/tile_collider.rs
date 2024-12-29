@@ -168,7 +168,7 @@ pub type CustomTileColliderResource = Resource<CustomTileCollider>;
 /// and the numbers are therefore parsed as ints. For example, "0,0 1,1 1,0 0,1,2" would be
 /// a valid string for a custom tile collider. The commas (,) are used to connect two numbers
 /// as being part of the same group. Any other characters are ignored, so this would also be
-/// accepted: "(0,0) (1,1) (1,0) [0,1,2]".
+/// accepted: "(0,0) (1,1) (1,0) \[0,1,2\]".
 #[derive(Clone, PartialEq, Debug, Default, Visit, Reflect, TypeUuidProvider)]
 #[type_uuid(id = "118da556-a444-4bd9-bd88-12d78d26107f")]
 pub struct CustomTileCollider {
