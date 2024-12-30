@@ -881,7 +881,7 @@ impl ExportWindow {
         )
         .add_row(Row::auto())
         .add_row(Row::stretch())
-        .add_column(Column::auto())
+        .add_column(Column::stretch())
         .build(ctx);
 
         let buttons_section = StackPanelBuilder::new(
@@ -939,7 +939,7 @@ impl ExportWindow {
                 .add_row(Row::strict(200.0))
                 .add_row(Row::stretch())
                 .add_row(Row::strict(32.0))
-                .add_column(Column::auto())
+                .add_column(Column::stretch())
                 .build(ctx),
             )
             .with_title(WindowTitle::text("Export Project"))
