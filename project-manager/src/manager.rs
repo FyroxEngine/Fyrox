@@ -1040,7 +1040,8 @@ impl ProjectManager {
         }
 
         if let Some(settings_window) = self.settings_window.take() {
-            self.settings_window = settings_window.handle_ui_message(&mut self.settings, message);
+            self.settings_window =
+                settings_window.handle_ui_message(&mut self.settings, message, ui);
         }
 
         if let Some(upgrade_tool) = self.upgrade_tool.take() {

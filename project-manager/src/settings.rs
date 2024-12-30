@@ -22,6 +22,7 @@ use directories::ProjectDirs;
 use fyrox::{
     core::{log::Log, pool::Handle, reflect::prelude::*},
     fxhash::FxHashSet,
+    graph::BaseSceneGraph,
     gui::{
         inspector::{
             editors::{
@@ -29,14 +30,13 @@ use fyrox::{
                 inspectable::InspectablePropertyEditorDefinition,
                 PropertyEditorDefinitionContainer,
             },
-            InspectorBuilder, InspectorContext,
+            Inspector, InspectorBuilder, InspectorContext, InspectorMessage, PropertyAction,
         },
-        inspector::{InspectorMessage, PropertyAction},
         message::{MessageDirection, UiMessage},
         scroll_viewer::ScrollViewerBuilder,
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, UiNode,
+        BuildContext, UiNode, UserInterface,
     },
 };
 use fyrox_build_tools::{CommandDescriptor, EnvironmentVariable};
@@ -257,7 +257,12 @@ impl SettingsWindow {
         Self { window, inspector }
     }
 
-    pub fn handle_ui_message(self, settings: &mut Settings, message: &UiMessage) -> Option<Self> {
+    pub fn handle_ui_message(
+        self,
+        settings: &mut Settings,
+        message: &UiMessage,
+        ui: &mut UserInterface,
+    ) -> Option<Self> {
         if let Some(WindowMessage::Close) = message.data() {
             if message.destination() == self.window {
                 return None;
@@ -273,6 +278,15 @@ impl SettingsWindow {
                         Log::verify(result);
                     },
                 );
+
+                let ctx = ui
+                    .node(self.inspector)
+                    .cast::<Inspector>()
+                    .unwrap()
+                    .context()
+                    .clone();
+
+                Log::verify(ctx.sync(&**settings, ui, 0, true, Default::default()));
             }
         }
 
