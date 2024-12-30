@@ -326,7 +326,7 @@ impl TilePropertyEditor {
         state: &mut TileEditorState,
         ui: &mut UserInterface,
         sender: &MessageSender,
-        tile_resource: &TileResource,
+        tile_book: &TileBook,
     ) {
         if index == 0 {
             return;
@@ -347,13 +347,13 @@ impl TilePropertyEditor {
                 self.draw_value = DrawValue::I32(*v);
                 self.value = TileSetPropertyOptionValue::I32(Some(*v));
                 self.sync_value_to_field(state, ui);
-                self.send_value(state, sender, tile_resource);
+                self.send_value(state, sender, tile_book);
             }
             NamableValue::F32(v) => {
                 self.draw_value = DrawValue::F32(*v);
                 self.value = TileSetPropertyOptionValue::F32(Some(*v));
                 self.sync_value_to_field(state, ui);
-                self.send_value(state, sender, tile_resource);
+                self.send_value(state, sender, tile_book);
             }
         }
     }
@@ -381,7 +381,7 @@ impl TilePropertyEditor {
         state: &TileEditorState,
         ui: &mut UserInterface,
         sender: &MessageSender,
-        tile_resource: &TileResource,
+        tile_book: &TileBook,
     ) {
         let Some(buttons) = self.nine_buttons.as_ref() else {
             return;
@@ -405,7 +405,7 @@ impl TilePropertyEditor {
         };
         let specs = create_nine_specs(&self.value, layer);
         apply_specs_to_nine(&specs[index], handle, ui);
-        let Some(tile_set) = tile_resource.tile_set_ref().cloned() else {
+        let Some(tile_set) = tile_book.tile_set_ref().cloned() else {
             return;
         };
         let Some(page) = state.page() else {
@@ -427,13 +427,8 @@ impl TilePropertyEditor {
         });
     }
     /// Use the sender to update the selected tiles with the current value.
-    fn send_value(
-        &self,
-        state: &TileEditorState,
-        sender: &MessageSender,
-        tile_resource: &TileResource,
-    ) {
-        let Some(tile_set) = tile_resource.tile_set_ref().cloned() else {
+    fn send_value(&self, state: &TileEditorState, sender: &MessageSender, tile_book: &TileBook) {
+        let Some(tile_set) = tile_book.tile_set_ref().cloned() else {
             return;
         };
         let Some(page) = state.page() else {
@@ -511,10 +506,10 @@ impl TileEditor for TilePropertyEditor {
         &self,
         highlight: &mut FxHashMap<palette::Subposition, Color>,
         page: Vector2<i32>,
-        tile_resource: &TileResource,
+        tile_book: &TileBook,
         update: &TileSetUpdate,
     ) {
-        let Some(tile_set) = tile_resource.tile_set_ref() else {
+        let Some(tile_set) = tile_book.tile_set_ref() else {
             return;
         };
         let tile_set = tile_set.data_ref();
@@ -527,7 +522,7 @@ impl TileEditor for TilePropertyEditor {
             return;
         };
         match page_source {
-            TileSetPageSource::Material(source) => {
+            TileSetPageSource::Atlas(source) => {
                 for (position, data) in source.iter() {
                     let data_update =
                         TileDefinitionHandle::try_new(page, *position).and_then(|h| update.get(&h));
@@ -587,7 +582,7 @@ impl TileEditor for TilePropertyEditor {
         subposition: Vector2<usize>,
         _state: &TileDrawState,
         update: &mut TileSetUpdate,
-        _tile_resource: &TileResource,
+        _tile_resource: &TileBook,
     ) {
         use TileSetPropertyValue as Value;
         let page = handle.page();
@@ -615,23 +610,23 @@ impl TileEditor for TilePropertyEditor {
         state: &mut TileEditorState,
         message: &UiMessage,
         ui: &mut UserInterface,
-        tile_resource: &TileResource,
+        tile_book: &TileBook,
         sender: &MessageSender,
     ) {
         if message.flags == MSG_SYNC_FLAG || message.direction() == MessageDirection::ToWidget {
             return;
         }
         if let Some(ButtonMessage::Click) = message.data() {
-            self.handle_nine_click(message.destination(), state, ui, sender, tile_resource);
+            self.handle_nine_click(message.destination(), state, ui, sender, tile_book);
         } else if let Some(TextMessage::Text(v)) = message.data() {
             if message.destination() == self.value_field {
                 self.set_value_from_text(v.into());
-                self.send_value(state, sender, tile_resource);
+                self.send_value(state, sender, tile_book);
             }
         } else if let Some(&NumericUpDownMessage::<i32>::Value(v)) = message.data() {
             if message.destination() == self.value_field {
                 self.set_value_from_i32(v, state, ui);
-                self.send_value(state, sender, tile_resource);
+                self.send_value(state, sender, tile_book);
             }
         } else if let Some(&NumericUpDownMessage::<i8>::Value(v)) = message.data() {
             if message.destination() == self.value_field {
@@ -641,11 +636,11 @@ impl TileEditor for TilePropertyEditor {
         } else if let Some(&NumericUpDownMessage::<f32>::Value(v)) = message.data() {
             if message.destination() == self.value_field {
                 self.set_value_from_f32(v, state, ui);
-                self.send_value(state, sender, tile_resource);
+                self.send_value(state, sender, tile_book);
             }
         } else if let Some(DropdownListMessage::SelectionChanged(Some(index))) = message.data() {
             if message.destination() == self.list {
-                self.set_value_from_list(*index, state, ui, sender, tile_resource);
+                self.set_value_from_list(*index, state, ui, sender, tile_book);
             }
         }
     }

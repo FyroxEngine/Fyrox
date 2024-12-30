@@ -146,7 +146,8 @@ impl TileMapInteractionMode {
                 editor_data.erase_overlay.clear();
                 let stamp = &state.stamp;
                 let tile_set = state.tile_set.as_ref().map(TileSetRef::new);
-                if let Some(tile_set) = tile_set {
+                if let Some(mut tile_set) = tile_set {
+                    let tile_set = tile_set.as_loaded();
                     for (pos, handle) in stamp.iter() {
                         let data = tile_set
                             .get_transformed_render_data(stamp.transformation(), *handle)
@@ -293,7 +294,8 @@ impl InteractionMode for TileMapInteractionMode {
                 DrawingMode::Pick => {
                     if mods.alt {
                         self.mouse_mode = MouseMode::Dragging;
-                        let tile_set = state.tile_set.as_ref().map(TileSetRef::new);
+                        let mut tile_set = state.tile_set.as_ref().map(TileSetRef::new);
+                        let tile_set = tile_set.as_mut().map(|t| t.as_loaded());
                         let overlay = &mut editor_data.overlay;
                         overlay.clear();
                         editor_data.erased_area.clear();
@@ -397,7 +399,7 @@ impl InteractionMode for TileMapInteractionMode {
                 } else if let Some(tile_set) = state.tile_set.as_ref().or(tile_map.tile_set()) {
                     let update = editor_data
                         .update
-                        .build_tiles_update(&TileSetRef::new(tile_set));
+                        .build_tiles_update(&TileSetRef::new(tile_set).as_loaded());
                     self.sender.do_command(SetMapTilesCommand {
                         tile_map: tile_map_handle,
                         tiles: update,

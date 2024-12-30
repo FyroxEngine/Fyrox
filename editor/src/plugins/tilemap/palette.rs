@@ -22,6 +22,7 @@
 //! is responsible for displaying a grid of tiles where the user may select tiles,
 //! drag tiles, and use drawing tools upon the tiles.
 
+use fyrox::scene::tilemap::tileset::OptionTileSet;
 use fyrox::scene::tilemap::ResourceTilePosition;
 
 use crate::asset::item::AssetItem;
@@ -52,8 +53,8 @@ use crate::fyrox::{
     resource::texture::TextureKind,
     scene::tilemap::{
         tileset::{TileSetPageSource, TileSetRef},
-        OrthoTransformation, TilePaletteStage, TileRect, TileRenderData, TileResource,
-        TileSetUpdate, TileSource, TransTilesUpdate,
+        OrthoTransformation, TileBook, TilePaletteStage, TileRect, TileRenderData, TileSetUpdate,
+        TileSource, TransTilesUpdate,
     },
 };
 use std::cell::RefCell;
@@ -71,7 +72,7 @@ const NO_PAGE_COLOR: Color = Color::from_rgba(20, 5, 5, 255);
 pub enum PaletteMessage {
     /// Display the given page of the given resource.
     SetPage {
-        source: TileResource,
+        source: TileBook,
         page: Option<Vector2<i32>>,
     },
     /// Center the view on the given grid position.
@@ -94,7 +95,7 @@ pub enum PaletteMessage {
 }
 
 impl PaletteMessage {
-    define_constructor!(PaletteMessage:SetPage => fn set_page(source: TileResource, page: Option<Vector2<i32>>), layout: false);
+    define_constructor!(PaletteMessage:SetPage => fn set_page(source: TileBook, page: Option<Vector2<i32>>), layout: false);
     define_constructor!(PaletteMessage:Center => fn center(Vector2<i32>), layout: false);
     define_constructor!(PaletteMessage:SelectAll => fn select_all(), layout: false);
     define_constructor!(PaletteMessage:SelectOne => fn select_one(Vector2<i32>), layout: false);
@@ -171,7 +172,7 @@ pub struct PaletteWidget {
     #[reflect(hidden)]
     sender: MessageSender,
     /// The resource that holds the tiles to diaplay or edit.
-    pub content: TileResource,
+    pub content: TileBook,
     /// The page to display within the tile resource.
     pub page: Option<Vector2<i32>>,
     /// The update that contains the current editing operation when the user
@@ -295,7 +296,7 @@ impl PaletteOverlay {
         self.movable_tiles.clear();
         self.erased_tiles.clear();
     }
-    pub fn set_to_stamp(&mut self, stamp: &Stamp, tile_set: TileSetRef) {
+    pub fn set_to_stamp(&mut self, stamp: &Stamp, tile_set: &OptionTileSet) {
         self.movable_tiles.clear();
         self.erased_tiles.clear();
         for (pos, handle) in stamp.iter() {
@@ -384,7 +385,7 @@ impl PaletteWidget {
                 DrawingMode::Draw | DrawingMode::FloodFill => {
                     if let Some(tile_set) = state.tile_set.as_ref() {
                         self.overlay
-                            .set_to_stamp(&state.stamp, TileSetRef::new(tile_set));
+                            .set_to_stamp(&state.stamp, &TileSetRef::new(tile_set).as_loaded());
                     }
                 }
                 DrawingMode::Editor => {
@@ -466,8 +467,8 @@ impl PaletteWidget {
         let state = self.state.lock();
         let source_set = state.tile_set.as_ref();
         match &self.content {
-            TileResource::Empty => (),
-            TileResource::TileSet(resource) => {
+            TileBook::Empty => (),
+            TileBook::TileSet(resource) => {
                 self.tile_set_update.clear();
                 self.tile_set_update.convert(
                     &self.update,
@@ -482,16 +483,16 @@ impl PaletteWidget {
                 self.tile_set_update.clear();
                 self.update.clear();
             }
-            TileResource::Brush(resource) => {
+            TileBook::Brush(resource) => {
                 if let Some(source_set) = source_set
                     .cloned()
                     .or_else(|| resource.state().data()?.tile_set.clone())
                 {
-                    let source_set = TileSetRef::new(&source_set);
+                    let mut source_set = TileSetRef::new(&source_set);
                     self.sender.do_command(SetBrushTilesCommand {
                         brush: resource.clone(),
                         page,
-                        tiles: self.update.build_tiles_update(&source_set),
+                        tiles: self.update.build_tiles_update(&source_set.as_loaded()),
                     });
                 }
                 self.update.clear();
@@ -502,7 +503,7 @@ impl PaletteWidget {
         if self.kind != TilePaletteStage::Tiles {
             panic!();
         }
-        if let TileResource::TileSet(resource) = &self.content {
+        if let TileBook::TileSet(resource) = &self.content {
             self.sender.do_command(SetTileSetTilesCommand {
                 tile_set: resource.clone(),
                 tiles: self.tile_set_update.clone(),
@@ -522,12 +523,7 @@ impl PaletteWidget {
         self.send_update();
         true
     }
-    fn set_page(
-        &mut self,
-        resource: TileResource,
-        page: Option<Vector2<i32>>,
-        ui: &mut UserInterface,
-    ) {
+    fn set_page(&mut self, resource: TileBook, page: Option<Vector2<i32>>, ui: &mut UserInterface) {
         let mut state = self.state.lock_mut("set_page");
         if state.selection_palette() == self.handle {
             self.selecting_tiles.clear();
@@ -765,7 +761,7 @@ impl PaletteWidget {
         let Some(page) = self.page else {
             return;
         };
-        if self.kind == TilePaletteStage::Tiles && self.content.is_material_page(page) {
+        if self.kind == TilePaletteStage::Tiles && self.content.is_atlas_page(page) {
             return;
         }
         let tiles = state.selection_positions();
@@ -808,12 +804,12 @@ impl PaletteWidget {
             .copied()
             .collect::<Vec<_>>();
         match self.content.clone() {
-            TileResource::Empty => (),
-            TileResource::TileSet(tile_set) => {
+            TileBook::Empty => (),
+            TileBook::TileSet(tile_set) => {
                 self.sender
                     .do_command(MoveTileSetPageCommand::new(tile_set, pages, offset));
             }
-            TileResource::Brush(brush) => {
+            TileBook::Brush(brush) => {
                 self.sender
                     .do_command(MoveBrushPageCommand::new(brush, pages, offset));
             }
@@ -829,8 +825,8 @@ impl PaletteWidget {
         };
         let tiles = state.selection_positions().iter().copied();
         match self.content.clone() {
-            TileResource::Empty => (),
-            TileResource::TileSet(tile_set) => {
+            TileBook::Empty => (),
+            TileBook::TileSet(tile_set) => {
                 let data = tile_set.data_ref();
                 let tiles = tiles
                     .filter(|p| data.has_tile_at(page, *p))
@@ -839,7 +835,7 @@ impl PaletteWidget {
                 self.sender
                     .do_command(MoveTileSetTileCommand::new(tile_set, page, tiles, offset));
             }
-            TileResource::Brush(brush) => {
+            TileBook::Brush(brush) => {
                 let data = brush.data_ref();
                 let tiles = tiles
                     .filter(|p| data.has_tile_at(page, *p))
@@ -1126,7 +1122,7 @@ impl PaletteWidget {
         if self.kind != TilePaletteStage::Tiles || !self.editable {
             return;
         }
-        let TileResource::TileSet(tile_set) = &self.content else {
+        let TileBook::TileSet(tile_set) = &self.content else {
             return;
         };
         let Some(page) = self.page else {
@@ -1136,7 +1132,7 @@ impl PaletteWidget {
         let Some(page) = tile_set.data().and_then(|t| t.pages.get(&page)) else {
             return;
         };
-        let TileSetPageSource::Material(mat) = &page.source else {
+        let TileSetPageSource::Atlas(mat) = &page.source else {
             return;
         };
         let tile_size = mat.tile_size;
@@ -1485,7 +1481,7 @@ impl Control for PaletteWidget {
 
 pub struct PaletteWidgetBuilder {
     widget_builder: WidgetBuilder,
-    tile_resource: TileResource,
+    tile_book: TileBook,
     page: Option<Vector2<i32>>,
     sender: MessageSender,
     state: TileDrawStateRef,
@@ -1501,7 +1497,7 @@ impl PaletteWidgetBuilder {
     ) -> Self {
         Self {
             widget_builder,
-            tile_resource: TileResource::Empty,
+            tile_book: TileBook::Empty,
             sender,
             state,
             kind: TilePaletteStage::default(),
@@ -1515,8 +1511,8 @@ impl PaletteWidgetBuilder {
         self
     }
 
-    pub fn with_resource(mut self, tile_resource: TileResource) -> Self {
-        self.tile_resource = tile_resource;
+    pub fn with_resource(mut self, tile_book: TileBook) -> Self {
+        self.tile_book = tile_book;
         self
     }
 
@@ -1540,7 +1536,7 @@ impl PaletteWidgetBuilder {
             sender: self.sender,
             state: self.state,
             overlay: PaletteOverlay::default(),
-            content: self.tile_resource,
+            content: self.tile_book,
             kind: self.kind,
             editable: self.editable,
             material_color: DEFAULT_MATERIAL_COLOR,

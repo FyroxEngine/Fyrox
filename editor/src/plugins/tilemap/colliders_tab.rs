@@ -134,7 +134,7 @@ pub fn make_list_item(ctx: &mut BuildContext, collider: &TileSetColliderLayer) -
     .build(ctx)
 }
 
-fn make_items(ctx: &mut BuildContext, tile_set: &TileSetRef) -> Vec<Handle<UiNode>> {
+fn make_items(ctx: &mut BuildContext, tile_set: &OptionTileSet) -> Vec<Handle<UiNode>> {
     tile_set
         .colliders()
         .iter()
@@ -143,9 +143,9 @@ fn make_items(ctx: &mut BuildContext, tile_set: &TileSetRef) -> Vec<Handle<UiNod
 }
 
 impl CollidersTab {
-    pub fn new(tile_resource: TileResource, ctx: &mut BuildContext) -> Self {
-        let items = if let TileResource::TileSet(t) = &tile_resource {
-            make_items(ctx, &TileSetRef::new(t))
+    pub fn new(tile_book: TileBook, ctx: &mut BuildContext) -> Self {
+        let items = if let TileBook::TileSet(t) = &tile_book {
+            make_items(ctx, &TileSetRef::new(t).as_loaded())
         } else {
             Vec::default()
         };
@@ -261,7 +261,7 @@ impl CollidersTab {
     pub fn handle(&self) -> Handle<UiNode> {
         self.handle
     }
-    pub fn sync_to_model(&mut self, tile_set: &TileSetRef, ui: &mut UserInterface) {
+    pub fn sync_to_model(&mut self, tile_set: &OptionTileSet, ui: &mut UserInterface) {
         let items = make_items(&mut ui.build_ctx(), tile_set);
         ui.send_message(ListViewMessage::items(
             self.list,
@@ -270,7 +270,7 @@ impl CollidersTab {
         ));
         self.sync_data(tile_set, ui);
     }
-    fn sync_data(&mut self, tile_set: &TileSetRef, ui: &mut UserInterface) {
+    fn sync_data(&mut self, tile_set: &OptionTileSet, ui: &mut UserInterface) {
         let sel_index = self.selection_index(ui);
         let name = match sel_index {
             Some(index) => tile_set
@@ -314,7 +314,7 @@ impl CollidersTab {
         }
         if let Some(ListViewMessage::SelectionChanged(_)) = message.data() {
             if message.destination() == self.list {
-                self.sync_data(&TileSetRef::new(&tile_set), ui);
+                self.sync_data(&TileSetRef::new(&tile_set).as_loaded(), ui);
             }
         } else if let Some(TextMessage::Text(value)) = message.data() {
             if message.destination() == self.name_field {
@@ -350,7 +350,8 @@ impl CollidersTab {
         ui: &UserInterface,
         sender: &MessageSender,
     ) {
-        let tile_set = TileSetRef::new(&resource);
+        let mut tile_set = TileSetRef::new(&resource);
+        let tile_set = tile_set.as_loaded();
         let colliders = tile_set.colliders();
         let Some(sel_index) = self
             .selection_index(ui)

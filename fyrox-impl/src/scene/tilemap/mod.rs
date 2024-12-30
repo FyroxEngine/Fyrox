@@ -72,7 +72,6 @@ use crate::{
 };
 use bytemuck::{Pod, Zeroable};
 use std::{
-    collections::hash_map::Entry,
     error::Error,
     fmt::Display,
     ops::{Deref, DerefMut},
@@ -89,28 +88,6 @@ lazy_static! {
         ResourceKind::External("__DefaultTileMaterial".into()),
         Material::standard_tile()
     );
-}
-
-/// Swaps the content of a hash map entry with the content of an `Option`.
-pub fn swap_hash_map_entry<K, V>(entry: Entry<K, V>, value: &mut Option<V>) {
-    match (entry, value) {
-        (Entry::Occupied(entry), p @ None) => *p = Some(entry.remove()),
-        (Entry::Occupied(mut entry), Some(p)) => std::mem::swap(entry.get_mut(), p),
-        (Entry::Vacant(_), None) => (),
-        (Entry::Vacant(entry), p @ Some(_)) => drop(entry.insert(p.take().unwrap())),
-    }
-}
-
-/// Swaps the content of two hash map entries.
-pub fn swap_hash_map_entries<K0, K1, V>(entry0: Entry<K0, V>, entry1: Entry<K1, V>) {
-    match (entry0, entry1) {
-        (Entry::Occupied(e0), Entry::Vacant(e1)) => drop(e1.insert(e0.remove())),
-        (Entry::Occupied(mut e0), Entry::Occupied(mut e1)) => {
-            std::mem::swap(e0.get_mut(), e1.get_mut())
-        }
-        (Entry::Vacant(_), Entry::Vacant(_)) => (),
-        (Entry::Vacant(e0), Entry::Occupied(e1)) => drop(e0.insert(e1.remove())),
-    }
 }
 
 /// Basic data required for rendering TileMap tiles.
@@ -246,26 +223,24 @@ impl TileRenderPosition {
     }
 }
 
-/// A record of the number of changes that have happened since the most recent save.
-/// It is potentially negative, which represents undo changes to reach a state
-/// from before the most recent save.
+/// A record whether a change has happened since the most recent save.
 #[derive(Default, Debug, Copy, Clone)]
-pub struct ChangeCount(bool);
+pub struct ChangeFlag(bool);
 
-impl ChangeCount {
+impl ChangeFlag {
     /// True if there are changes.
     #[inline]
     pub fn needs_save(&self) -> bool {
         self.0
     }
-    /// Reset the number of changes to zero.
+    /// Reset the flag to indicate that there are no unsaved changes.
     #[inline]
     pub fn reset(&mut self) {
         self.0 = false;
     }
-    /// Increase or decrease the number of changes, including the possibility of creating a negative number of changes.
+    /// Set the flat to indicate that there could be unsaved changes.
     #[inline]
-    pub fn increment(&mut self) {
+    pub fn set(&mut self) {
         self.0 = true;
     }
 }
@@ -324,6 +299,22 @@ pub enum TilePaletteStage {
     Pages,
     /// The stage for tiles within a page.
     Tiles,
+}
+
+/// Tile pages come in these types.
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum PageType {
+    /// A page where tiles get their material from a single shared tile atlas,
+    /// and the UV coordinates of the tile are based on its grid coordinates.
+    Atlas,
+    /// A page where each tile can be assigned any material and UV coordinates.
+    Freeform,
+    /// A page that contains no tile data, but contains handles referencing tiles
+    /// on other pages and specifies how tiles can be flipped and rotated.
+    Transform,
+    /// A brush page contains no tile data, but contains handles into a tile set
+    /// where tile data can be found.
+    Brush,
 }
 
 /// The position of a page or a tile within a tile resource.
@@ -413,7 +404,7 @@ pub struct Tile {
 /// Adapt an iterator over positions into an iterator over `(Vector2<i32>, TileHandleDefinition)`.
 #[derive(Debug, Clone)]
 pub struct TileIter<I> {
-    source: TileResource,
+    source: TileBook,
     stage: TilePaletteStage,
     page: Vector2<i32>,
     positions: I,
@@ -434,7 +425,9 @@ impl<I: Iterator<Item = Vector2<i32>>> Iterator for TileIter<I> {
 
 #[derive(Debug, Default, Clone, PartialEq, Visit, Reflect)]
 /// Abstract source of tiles, which can either be a tile set or a brush.
-pub enum TileResource {
+/// It is called a "book" because each of these tile resources contains
+/// pages of tiles.
+pub enum TileBook {
     /// A tile resource containing no tiles.
     #[default]
     Empty,
@@ -444,47 +437,53 @@ pub enum TileResource {
     Brush(TileMapBrushResource),
 }
 
-impl TileResource {
+impl TileBook {
     /// The TileDefinitionHandle of hte icon that represents the page at the iven position.
     #[inline]
     pub fn page_icon(&self, position: Vector2<i32>) -> Option<TileDefinitionHandle> {
         match self {
-            TileResource::Empty => None,
-            TileResource::TileSet(r) => r.state().data()?.page_icon(position),
-            TileResource::Brush(r) => r.state().data()?.page_icon(position),
+            TileBook::Empty => None,
+            TileBook::TileSet(r) => r.state().data()?.page_icon(position),
+            TileBook::Brush(r) => r.state().data()?.page_icon(position),
         }
     }
     /// Returns true if this resource is a tile set.
     #[inline]
     pub fn is_tile_set(&self) -> bool {
-        matches!(self, TileResource::TileSet(_))
+        matches!(self, TileBook::TileSet(_))
     }
     /// Returns true if this resource is a brush.
     #[inline]
     pub fn is_brush(&self) -> bool {
-        matches!(self, TileResource::Brush(_))
+        matches!(self, TileBook::Brush(_))
     }
     /// Returns true if this contains no resource.
     #[inline]
     pub fn is_empty(&self) -> bool {
-        matches!(self, TileResource::Empty)
+        matches!(self, TileBook::Empty)
+    }
+    /// Return the path of the resource as a String.
+    pub fn name(&self) -> String {
+        self.path()
+            .map(|x| x.to_string_lossy().into_owned())
+            .unwrap_or_else(|| "Error".into())
     }
     /// Return the path of the resource.
     pub fn path(&self) -> Option<PathBuf> {
         match self {
-            TileResource::Empty => None,
-            TileResource::TileSet(r) => r.kind().into_path(),
-            TileResource::Brush(r) => r.kind().into_path(),
+            TileBook::Empty => None,
+            TileBook::TileSet(r) => r.kind().into_path(),
+            TileBook::Brush(r) => r.kind().into_path(),
         }
     }
     /// True if the resource is external and its `change_count` is not zero.
     pub fn needs_save(&self) -> bool {
         match self {
-            TileResource::Empty => false,
-            TileResource::TileSet(r) => {
+            TileBook::Empty => false,
+            TileBook::TileSet(r) => {
                 r.header().kind.is_external() && r.data_ref().change_count.needs_save()
             }
-            TileResource::Brush(r) => {
+            TileBook::Brush(r) => {
                 r.header().kind.is_external() && r.data_ref().change_count.needs_save()
             }
         }
@@ -493,8 +492,8 @@ impl TileResource {
     /// Otherwise do nothing and return Ok to indicate success.
     pub fn save(&self) -> Result<(), Box<dyn Error>> {
         match self {
-            TileResource::Empty => Ok(()),
-            TileResource::TileSet(r) => {
+            TileBook::Empty => Ok(()),
+            TileBook::TileSet(r) => {
                 if r.header().kind.is_external() && r.data_ref().change_count.needs_save() {
                     let result = r.save_back();
                     if result.is_ok() {
@@ -505,7 +504,7 @@ impl TileResource {
                     Ok(())
                 }
             }
-            TileResource::Brush(r) => {
+            TileBook::Brush(r) => {
                 if r.header().kind.is_external() && r.data_ref().change_count.needs_save() {
                     let result = r.save_back();
                     if result.is_ok() {
@@ -521,7 +520,7 @@ impl TileResource {
     /// A reference to the TileSetResource, if this is a TileSetResource.
     pub fn tile_set_ref(&self) -> Option<&TileSetResource> {
         match self {
-            TileResource::TileSet(r) => Some(r),
+            TileBook::TileSet(r) => Some(r),
             _ => None,
         }
     }
@@ -530,21 +529,21 @@ impl TileResource {
     /// If the resource is a brush, then return the tile set used by that brush.
     pub fn get_tile_set(&self) -> Option<TileSetResource> {
         match self {
-            TileResource::Empty => None,
-            TileResource::TileSet(r) => Some(r.clone()),
-            TileResource::Brush(r) => r.state().data()?.tile_set.clone(),
+            TileBook::Empty => None,
+            TileBook::TileSet(r) => Some(r.clone()),
+            TileBook::Brush(r) => r.state().data()?.tile_set.clone(),
         }
     }
     /// Build a list of the positions of all tiles on the given page.
     pub fn get_all_tile_positions(&self, page: Vector2<i32>) -> Vec<Vector2<i32>> {
         match self {
-            TileResource::Empty => Vec::new(),
-            TileResource::TileSet(r) => r
+            TileBook::Empty => Vec::new(),
+            TileBook::TileSet(r) => r
                 .state()
                 .data()
                 .map(|r| r.keys_on_page(page))
                 .unwrap_or_default(),
-            TileResource::Brush(r) => r
+            TileBook::Brush(r) => r
                 .state()
                 .data()
                 .and_then(|r| {
@@ -558,9 +557,9 @@ impl TileResource {
     /// Build a list of the posiitons of all pages.
     pub fn get_all_page_positions(&self) -> Vec<Vector2<i32>> {
         match self {
-            TileResource::Empty => Vec::new(),
-            TileResource::TileSet(r) => r.state().data().map(|r| r.page_keys()).unwrap_or_default(),
-            TileResource::Brush(r) => r
+            TileBook::Empty => Vec::new(),
+            TileBook::TileSet(r) => r.state().data().map(|r| r.page_keys()).unwrap_or_default(),
+            TileBook::Brush(r) => r
                 .state()
                 .data()
                 .map(|r| r.pages.keys().copied().collect())
@@ -570,76 +569,59 @@ impl TileResource {
     /// True if there is a page at the given position.
     pub fn has_page_at(&self, position: Vector2<i32>) -> bool {
         match self {
-            TileResource::Empty => false,
-            TileResource::TileSet(r) => r
+            TileBook::Empty => false,
+            TileBook::TileSet(r) => r
                 .state()
                 .data()
                 .map(|r| r.pages.contains_key(&position))
                 .unwrap_or(false),
-            TileResource::Brush(r) => r
+            TileBook::Brush(r) => r
                 .state()
                 .data()
                 .map(|r| r.pages.contains_key(&position))
                 .unwrap_or(false),
         }
     }
-    /// True if there is a material page at the given coordinates.
-    pub fn is_material_page(&self, position: Vector2<i32>) -> bool {
+    /// The type of the page at the given position, if there is one.
+    pub fn page_type(&self, position: Vector2<i32>) -> Option<PageType> {
         match self {
-            TileResource::TileSet(r) => r
-                .state()
-                .data()
-                .and_then(|r| r.pages.get(&position))
-                .map(|p| matches!(p.source, TileSetPageSource::Material(_)))
-                .unwrap_or(false),
-            _ => false,
+            TileBook::Empty => None,
+            TileBook::TileSet(r) => r.state().data()?.get_page(position).map(|p| p.page_type()),
+            TileBook::Brush(r) => {
+                if r.state().data()?.has_page_at(position) {
+                    Some(PageType::Brush)
+                } else {
+                    None
+                }
+            }
         }
+    }
+    /// True if there is a atlas page at the given coordinates.
+    pub fn is_atlas_page(&self, position: Vector2<i32>) -> bool {
+        self.page_type(position) == Some(PageType::Atlas)
     }
     /// True if there is a free tile page at the given coordinates.
     pub fn is_free_page(&self, position: Vector2<i32>) -> bool {
-        match self {
-            TileResource::TileSet(r) => r
-                .state()
-                .data()
-                .and_then(|r| r.pages.get(&position))
-                .map(|p| matches!(p.source, TileSetPageSource::Freeform(_)))
-                .unwrap_or(false),
-            _ => false,
-        }
+        self.page_type(position) == Some(PageType::Freeform)
     }
     /// True if there is a transform page at the given coordinates.
     pub fn is_transform_page(&self, position: Vector2<i32>) -> bool {
-        match self {
-            TileResource::TileSet(r) => r
-                .state()
-                .data()
-                .and_then(|r| r.pages.get(&position))
-                .map(|p| matches!(p.source, TileSetPageSource::TransformSet(_)))
-                .unwrap_or(false),
-            _ => false,
-        }
+        self.page_type(position) == Some(PageType::Transform)
     }
     /// True if there is a brush page at the given coordinates.
     pub fn is_brush_page(&self, position: Vector2<i32>) -> bool {
-        match self {
-            TileResource::Brush(r) => r
-                .state()
-                .data()
-                .map(|r| r.pages.contains_key(&position))
-                .unwrap_or(false),
-            _ => false,
-        }
+        self.page_type(position) == Some(PageType::Brush)
     }
     /// Return true if there is a tile at the given position on the page at the given position.
     pub fn has_tile_at(&self, page: Vector2<i32>, tile: Vector2<i32>) -> bool {
         match self {
-            TileResource::Empty => false,
-            TileResource::TileSet(r) => r
+            TileBook::Empty => false,
+            TileBook::TileSet(r) => r
                 .state()
                 .data()
                 .map(|r| r.has_tile_at(page, tile))
                 .unwrap_or(false),
-            TileResource::Brush(r) => r
+            TileBook::Brush(r) => r
                 .state()
                 .data()
                 .map(|r| r.has_tile_at(page, tile))
@@ -651,9 +633,9 @@ impl TileResource {
     /// in the brush's tile set.
     pub fn get_tile_handle(&self, position: ResourceTilePosition) -> Option<TileDefinitionHandle> {
         match self {
-            TileResource::Empty => None,
-            TileResource::TileSet(r) => r.state().data()?.redirect_handle(position),
-            TileResource::Brush(r) => r.state().data()?.redirect_handle(position),
+            TileBook::Empty => None,
+            TileBook::TileSet(r) => r.state().data()?.redirect_handle(position),
+            TileBook::Brush(r) => r.state().data()?.redirect_handle(position),
         }
     }
     /// Returns an iterator over `(Vector2<i32>, TileDefinitionHandle)` where the first
@@ -682,13 +664,13 @@ impl TileResource {
         tiles: &mut Tiles,
     ) {
         match self {
-            TileResource::Empty => (),
-            TileResource::TileSet(res) => {
+            TileBook::Empty => (),
+            TileBook::TileSet(res) => {
                 if let Some(tile_set) = res.state().data() {
                     tile_set.get_tiles(stage, page, iter, tiles);
                 }
             }
-            TileResource::Brush(res) => {
+            TileBook::Brush(res) => {
                 if let Some(brush) = res.state().data() {
                     brush.get_tiles(stage, page, iter, tiles);
                 }
@@ -699,9 +681,9 @@ impl TileResource {
     /// Returns true if the resource is a brush that has no tile set.
     pub fn is_missing_tile_set(&self) -> bool {
         match self {
-            TileResource::Empty => false,
-            TileResource::TileSet(_) => false,
-            TileResource::Brush(resource) => resource
+            TileBook::Empty => false,
+            TileBook::TileSet(_) => false,
+            TileBook::Brush(resource) => resource
                 .state()
                 .data()
                 .map(|b| b.is_missing_tile_set())
@@ -709,19 +691,15 @@ impl TileResource {
         }
     }
 
-    /// Return the `TileRenderData` needed to render the tile at the given position on the givne page.
+    /// Return the `TileRenderData` needed to render the tile at the given position on the given page.
     /// If there is no tile at that position or the tile set is missing or not loaded, then None is returned.
     /// If there is a tile and a tile set, but the handle of the tile does not exist in the tile set,
     /// then the rendering data for an error tile is returned using `TileRenderData::missing_tile()`.
     pub fn get_tile_render_data(&self, position: ResourceTilePosition) -> Option<TileRenderData> {
         match self {
-            TileResource::Empty => None,
-            TileResource::TileSet(resource) => {
-                resource.state().data()?.get_tile_render_data(position)
-            }
-            TileResource::Brush(resource) => {
-                resource.state().data()?.get_tile_render_data(position)
-            }
+            TileBook::Empty => None,
+            TileBook::TileSet(resource) => resource.state().data()?.get_tile_render_data(position),
+            TileBook::Brush(resource) => resource.state().data()?.get_tile_render_data(position),
         }
     }
 
@@ -733,13 +711,13 @@ impl TileResource {
         F: FnMut(Vector2<i32>, TileRenderData),
     {
         match self {
-            TileResource::Empty => (),
-            TileResource::TileSet(res) => {
+            TileBook::Empty => (),
+            TileBook::TileSet(res) => {
                 if let Some(data) = res.state().data() {
                     data.palette_render_loop(stage, page, func)
                 }
             }
-            TileResource::Brush(res) => {
+            TileBook::Brush(res) => {
                 if let Some(data) = res.state().data() {
                     data.palette_render_loop(stage, page, func)
                 }
@@ -753,26 +731,26 @@ impl TileResource {
         F: FnMut(Vector2<i32>, Uuid, Color, &TileCollider),
     {
         match self {
-            TileResource::Empty => (),
-            TileResource::TileSet(res) => {
+            TileBook::Empty => (),
+            TileBook::TileSet(res) => {
                 if let Some(data) = res.state().data() {
                     data.tile_collider_loop(page, func)
                 }
             }
-            TileResource::Brush(_) => (),
+            TileBook::Brush(_) => (),
         };
     }
     /// Returns the rectangle within a material that a tile should show
     /// at the given stage and handle.
     pub fn get_tile_bounds(&self, position: ResourceTilePosition) -> Option<TileMaterialBounds> {
         match self {
-            TileResource::Empty => None,
-            TileResource::TileSet(res) => res
+            TileBook::Empty => None,
+            TileBook::TileSet(res) => res
                 .state()
                 .data()
                 .map(|d| d.get_tile_bounds(position))
                 .unwrap_or_default(),
-            TileResource::Brush(res) => res
+            TileBook::Brush(res) => res
                 .state()
                 .data()
                 .map(|d| d.get_tile_bounds(position))
@@ -782,9 +760,9 @@ impl TileResource {
     /// The bounds of the tiles on the given page.
     pub fn tiles_bounds(&self, stage: TilePaletteStage, page: Vector2<i32>) -> OptionTileRect {
         match self {
-            TileResource::Empty => OptionTileRect::default(),
-            TileResource::TileSet(res) => res.data_ref().tiles_bounds(stage, page),
-            TileResource::Brush(res) => res.data_ref().tiles_bounds(stage, page),
+            TileBook::Empty => OptionTileRect::default(),
+            TileBook::TileSet(res) => res.data_ref().tiles_bounds(stage, page),
+            TileBook::Brush(res) => res.data_ref().tiles_bounds(stage, page),
         }
     }
     /// Fills the tile resource at the given point using the given tile source. This method
@@ -799,9 +777,9 @@ impl TileResource {
         tiles: &mut TransTilesUpdate,
     ) {
         match self {
-            TileResource::Empty => (),
-            TileResource::TileSet(_) => (),
-            TileResource::Brush(res) => {
+            TileBook::Empty => (),
+            TileBook::TileSet(_) => (),
+            TileBook::Brush(res) => {
                 let data = res.data_ref();
                 let Some(source) = data.pages.get(&page) else {
                     return;
@@ -904,7 +882,7 @@ pub enum TilePropertyError {
     TileSetNotLoaded,
     /// There is no property with the given name in the tile set.
     UnrecognizedName(ImmutableString),
-    /// There is no property with the givne UUID in the tile set.
+    /// There is no property with the given UUID in the tile set.
     UnrecognizedUuid(Uuid),
     /// The property has the wrong type.
     WrongType(&'static str),
@@ -1215,7 +1193,8 @@ impl NodeTrait for TileMap {
             return RdcControlFlow::Continue;
         };
 
-        let tile_set = TileSetRef::new(tile_set_resource);
+        let mut tile_set_lock = TileSetRef::new(tile_set_resource);
+        let tile_set = tile_set_lock.as_loaded();
 
         let render_position = TileRenderPosition {
             tile_map_handle: self.handle(),
@@ -1233,11 +1212,9 @@ impl NodeTrait for TileMap {
                 render_position.push_tile(position, &data, ctx);
             }
         }
-
         if let Some(editor_data) = editor_data.as_ref() {
             editor_data.collect_render_data(&render_position, tile_set, ctx);
         }
-
         RdcControlFlow::Continue
     }
 

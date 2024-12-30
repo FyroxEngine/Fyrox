@@ -55,6 +55,7 @@ use std::{
 };
 
 use super::*;
+use fyrox_core::{swap_hash_map_entries, swap_hash_map_entry};
 pub use property::*;
 
 const DEFAULT_TILE_SIZE: Vector2<u32> = Vector2::new(16, 16);
@@ -294,7 +295,7 @@ pub struct TileSetPage {
 impl TileSetPage {
     /// True if this page is a material page.
     pub fn is_material(&self) -> bool {
-        matches!(self.source, TileSetPageSource::Material(_))
+        matches!(self.source, TileSetPageSource::Atlas(_))
     }
     /// True if this page is a freeform tile page.
     pub fn is_freeform(&self) -> bool {
@@ -302,29 +303,33 @@ impl TileSetPage {
     }
     /// True if this page contains tile transform groups.
     pub fn is_transform_set(&self) -> bool {
-        matches!(self.source, TileSetPageSource::TransformSet(_))
+        matches!(self.source, TileSetPageSource::Transform(_))
+    }
+    /// The type of this page.
+    pub fn page_type(&self) -> PageType {
+        self.source.page_type()
     }
     /// True if a tile exists at the given position in this page.
     pub fn has_tile_at(&self, position: Vector2<i32>) -> bool {
         match &self.source {
-            TileSetPageSource::Material(mat) => mat.tiles.contains_key(&position),
+            TileSetPageSource::Atlas(mat) => mat.tiles.contains_key(&position),
             TileSetPageSource::Freeform(map) => map.contains_key(&position),
-            TileSetPageSource::TransformSet(tiles) => tiles.contains_key(&position),
+            TileSetPageSource::Transform(tiles) => tiles.contains_key(&position),
         }
     }
     /// Generate a list of all tile positions in this page.
     pub fn keys(&self) -> Vec<Vector2<i32>> {
         match &self.source {
-            TileSetPageSource::Material(mat) => mat.tiles.keys().copied().collect(),
+            TileSetPageSource::Atlas(mat) => mat.tiles.keys().copied().collect(),
             TileSetPageSource::Freeform(map) => map.keys().copied().collect(),
-            TileSetPageSource::TransformSet(tiles) => tiles.keys().copied().collect(),
+            TileSetPageSource::Transform(tiles) => tiles.keys().copied().collect(),
         }
     }
     /// The rect that contains all the tiles of this page.
     pub fn get_bounds(&self) -> OptionTileRect {
         let mut result = OptionTileRect::default();
         match &self.source {
-            TileSetPageSource::Material(mat) => {
+            TileSetPageSource::Atlas(mat) => {
                 for pos in mat.tiles.keys() {
                     result.push(*pos);
                 }
@@ -334,7 +339,7 @@ impl TileSetPage {
                     result.push(*pos);
                 }
             }
-            TileSetPageSource::TransformSet(tiles) => {
+            TileSetPageSource::Transform(tiles) => {
                 for pos in tiles.keys() {
                     result.push(*pos);
                 }
@@ -346,9 +351,9 @@ impl TileSetPage {
     /// that it would refers the change to this tile set, if it were applied again at the same position.
     pub fn swap_tile(&mut self, position: Vector2<i32>, update: &mut TileDataUpdate) {
         match &mut self.source {
-            TileSetPageSource::Material(map0) => swap_material_tile(map0, position, update),
+            TileSetPageSource::Atlas(map0) => swap_material_tile(map0, position, update),
             TileSetPageSource::Freeform(map0) => swap_freeform_tile(map0, position, update),
-            TileSetPageSource::TransformSet(map0) => swap_transform_tile(map0, position, update),
+            TileSetPageSource::Transform(map0) => swap_transform_tile(map0, position, update),
         }
     }
 
@@ -361,7 +366,7 @@ impl TileSetPage {
         values: &mut FxHashMap<TileDefinitionHandle, TileSetPropertyValue>,
     ) {
         match &mut self.source {
-            TileSetPageSource::Material(map0) => {
+            TileSetPageSource::Atlas(map0) => {
                 let tiles = &mut map0.tiles;
                 for (tile, data) in tiles.iter_mut() {
                     let Some(handle) = TileDefinitionHandle::try_new(page, *tile) else {
@@ -393,7 +398,7 @@ impl TileSetPage {
         values: &mut FxHashMap<TileDefinitionHandle, TileCollider>,
     ) {
         match &mut self.source {
-            TileSetPageSource::Material(map0) => {
+            TileSetPageSource::Atlas(map0) => {
                 let tiles = &mut map0.tiles;
                 for (tile, data) in tiles.iter_mut() {
                     let Some(handle) = TileDefinitionHandle::try_new(page, *tile) else {
@@ -492,11 +497,9 @@ fn swap_transform_tile(
 /// This enum can represent a tile in any of those three forms.
 #[derive(Debug, Clone)]
 pub enum AbstractTile {
-    /// A material tile contains data but no material information.
-    /// The reason for this counter-intuitive naming is that a material tile
-    /// comes from a material page, which is a page that has a single material atlas
-    /// shared across all of its tiles.
-    Material(TileData),
+    /// A material tile contains data but no material information, because
+    /// the material information comes from an atlas that spans the entire page.
+    Atlas(TileData),
     /// A freeform tile contains a complete definition, including material,
     /// the UV bounds of the tile within that material, and tile data.
     /// Freeform tiles are the most flexible kind of tile.
@@ -514,10 +517,10 @@ pub enum AbstractTile {
 #[derive(Clone, PartialEq, Debug, Visit, Reflect)]
 pub enum TileSetPageSource {
     /// A page that gets its data from a material resource and arranges its tiles according to their positions in the material.
-    /// All tiles in a material page share the same material and their UV data is automatically calculated based on the position
+    /// All tiles in an atlas page share the same material and their UV data is automatically calculated based on the position
     /// of the tile on the page, with the tile at (0,-1) being the top-left corner of the material, and negative-y going toward
     /// the bottom of the material.
-    Material(TileMaterial),
+    Atlas(TileMaterial),
     /// A page that contains arbitrary tile definitions. These tiles are free to specify any material and any UV values for each
     /// tile, and tiles can be positioned anywhere on the page.
     Freeform(TileGridMap<TileDefinition>),
@@ -526,19 +529,19 @@ pub enum TileSetPageSource {
     /// Tiles are arranged in groups of 8, one for each of four 90-degree rotations, and four horizontally flipped 90-degree rotations.
     /// No two transform tiles may share the same handle, because that would
     /// cause the transformations to be ambiguous.
-    TransformSet(TransformSetTiles),
+    Transform(TransformSetTiles),
 }
 
 impl Default for TileSetPageSource {
     fn default() -> Self {
-        Self::Material(TileMaterial::default())
+        Self::Atlas(TileMaterial::default())
     }
 }
 
 impl TileSetPageSource {
     /// Create a new default material page.
     pub fn new_material() -> Self {
-        Self::Material(TileMaterial::default())
+        Self::Atlas(TileMaterial::default())
     }
     /// Create a new default freeform page.
     pub fn new_free() -> Self {
@@ -546,14 +549,22 @@ impl TileSetPageSource {
     }
     /// Create a new default transform page.
     pub fn new_transform() -> Self {
-        Self::TransformSet(TransformSetTiles::default())
+        Self::Transform(TransformSetTiles::default())
+    }
+    /// The type of this page.
+    pub fn page_type(&self) -> PageType {
+        match self {
+            TileSetPageSource::Atlas(_) => PageType::Atlas,
+            TileSetPageSource::Freeform(_) => PageType::Freeform,
+            TileSetPageSource::Transform(_) => PageType::Transform,
+        }
     }
     /// True if this page contains some tile at the given position.
     pub fn contains_tile_at(&self, position: Vector2<i32>) -> bool {
         match self {
-            TileSetPageSource::Material(map) => map.contains_key(&position),
+            TileSetPageSource::Atlas(map) => map.contains_key(&position),
             TileSetPageSource::Freeform(map) => map.contains_key(&position),
-            TileSetPageSource::TransformSet(map) => map.contains_key(&position),
+            TileSetPageSource::Transform(map) => map.contains_key(&position),
         }
     }
 }
@@ -640,7 +651,7 @@ impl TileMaterial {
         })
     }
     fn get_abstract_tile(&self, position: Vector2<i32>) -> Option<AbstractTile> {
-        Some(AbstractTile::Material(self.tiles.get(&position)?.clone()))
+        Some(AbstractTile::Atlas(self.tiles.get(&position)?.clone()))
     }
     fn set_abstract_tile(
         &mut self,
@@ -648,14 +659,12 @@ impl TileMaterial {
         tile: Option<AbstractTile>,
     ) -> Option<AbstractTile> {
         if let Some(tile) = tile {
-            let AbstractTile::Material(data) = tile else {
+            let AbstractTile::Atlas(data) = tile else {
                 panic!();
             };
-            self.tiles
-                .insert(position, data)
-                .map(AbstractTile::Material)
+            self.tiles.insert(position, data).map(AbstractTile::Atlas)
         } else {
-            self.tiles.remove(&position).map(AbstractTile::Material)
+            self.tiles.remove(&position).map(AbstractTile::Atlas)
         }
     }
     fn get_tile_data(&self, position: Vector2<i32>) -> Option<&TileData> {
@@ -702,6 +711,9 @@ impl Iterator for TileSetPaletteIterator<'_> {
 /// A wrapper for a [`TileSet`] resource reference that allows access to the data without panicking
 /// even if the resource is not loaded. A tile set that is not loaded acts like an empty tile set.
 pub struct TileSetRef<'a>(ResourceDataRef<'a, TileSet>);
+/// Maybe a [`TileSet`], maybe not, depending on whether the resource was successfully loaded.
+/// If it is not a `TileSet`, its methods pretend it is an empty `TileSet`.
+pub struct OptionTileSet<'a>(Option<&'a mut TileSet>);
 
 impl<'a> From<ResourceDataRef<'a, TileSet>> for TileSetRef<'a> {
     fn from(value: ResourceDataRef<'a, TileSet>) -> Self {
@@ -717,103 +729,106 @@ impl<'a> TileSetRef<'a> {
     }
     /// Borrows the underlying TileSet, if it is actually loaded.
     #[inline]
-    pub fn as_loaded_ref(&self) -> Option<&TileSet> {
-        self.0.as_loaded_ref()
+    pub fn as_loaded(&mut self) -> OptionTileSet {
+        OptionTileSet(self.0.as_loaded_mut())
+    }
+}
+
+impl<'a> OptionTileSet<'a> {
+    /// A reference to the underlying `TileSet` if it was successfully loaded.
+    pub fn as_ref(&'a self) -> Option<&'a TileSet> {
+        self.0.as_deref()
     }
     /// Slice containing the properties of this tile set, or an empty slice if the tile set is not loaded.
     pub fn properties(&self) -> &[TileSetPropertyLayer] {
-        self.as_loaded_ref()
+        self.as_ref()
             .map(|t| t.properties.deref())
             .unwrap_or_default()
     }
     /// Slice containing the colliders of this tile set, or an empty slice if the tile set is not loaded.
     pub fn colliders(&self) -> &[TileSetColliderLayer] {
-        self.as_loaded_ref()
+        self.as_ref()
             .map(|t| t.colliders.deref())
             .unwrap_or_default()
     }
     /// The color of the collider layer with the given uuid.
     pub fn collider_color(&self, uuid: Uuid) -> Option<Color> {
-        self.as_loaded_ref()
+        self.as_ref()
             .map(|t| t.collider_color(uuid))
             .unwrap_or_default()
     }
     /// The collider of the given tile.
     pub fn tile_collider(&self, handle: TileDefinitionHandle, uuid: Uuid) -> &TileCollider {
-        self.as_loaded_ref()
+        self.as_ref()
             .map(|t| t.tile_collider(handle, uuid))
             .unwrap_or_default()
     }
     /// The color of the given tile.
     pub fn tile_color(&self, handle: TileDefinitionHandle) -> Option<Color> {
-        self.as_loaded_ref()
+        self.as_ref()
             .map(|t| t.tile_color(handle))
             .unwrap_or_default()
     }
     /// The data of the given tile.
     pub fn tile_data(&self, handle: TileDefinitionHandle) -> Option<&TileData> {
-        self.as_loaded_ref()
+        self.as_ref()
             .map(|t| t.tile_data(handle))
             .unwrap_or_default()
     }
     /// The material and bounds of the given tile, if it stores its own material and bounds because it is a freeform tile.
     pub fn tile_bounds(&self, handle: TileDefinitionHandle) -> Option<&TileMaterialBounds> {
-        self.as_loaded_ref()
+        self.as_ref()
             .map(|t| t.tile_bounds(handle))
             .unwrap_or_default()
     }
     /// The redirect target of the given tile. When a tile set tile does not contain its own data, but instead
     /// it points toward a tile elsewhere in the set, this method returns the TileDefinitionHandle of that other tile.
     pub fn tile_redirect(&self, handle: TileDefinitionHandle) -> Option<TileDefinitionHandle> {
-        self.as_loaded_ref()
+        self.as_ref()
             .map(|t| t.tile_redirect(handle))
             .unwrap_or_default()
     }
     /// Generate a list of all tile positions in the given page.
     pub fn keys_on_page(&self, page: Vector2<i32>) -> Vec<Vector2<i32>> {
-        self.as_loaded_ref()
+        self.as_ref()
             .map(|t| t.keys_on_page(page))
             .unwrap_or_default()
     }
     /// Generate a list of all page positions.
     pub fn page_keys(&self) -> Vec<Vector2<i32>> {
-        self.as_loaded_ref()
-            .map(|t| t.page_keys())
-            .unwrap_or_default()
+        self.as_ref().map(|t| t.page_keys()).unwrap_or_default()
     }
     /// True if there is a tile at the given position on the given page.
     pub fn has_tile_at(&self, page: Vector2<i32>, tile: Vector2<i32>) -> bool {
-        self.as_loaded_ref()
+        self.as_ref()
             .map(|t| t.has_tile_at(page, tile))
             .unwrap_or_default()
     }
     /// The handle of the icon that represents the given page.
     pub fn page_icon(&self, page: Vector2<i32>) -> Option<TileDefinitionHandle> {
-        self.as_loaded_ref()
-            .map(|t| t.page_icon(page))
-            .unwrap_or_default()
+        self.as_ref().map(|t| t.page_icon(page)).unwrap_or_default()
     }
     /// Get the UUID of the property with the given name, if that property exists.
     pub fn property_name_to_uuid(&self, name: &ImmutableString) -> Option<Uuid> {
-        self.as_loaded_ref()
+        self.as_ref()
             .map(|t| t.property_name_to_uuid(name))
             .unwrap_or_default()
     }
     /// Get the UUID of the collider with the given name, if that collider exists.
     pub fn collider_name_to_uuid(&self, name: &ImmutableString) -> Option<Uuid> {
-        self.as_loaded_ref()
+        self.as_ref()
             .map(|t| t.collider_name_to_uuid(name))
             .unwrap_or_default()
     }
     /// Find a property layer by its UUID.
     pub fn find_property(&self, uuid: Uuid) -> Option<&TileSetPropertyLayer> {
-        self.as_loaded_ref()
+        self.as_ref()
             .map(|t| t.find_property(uuid))
             .unwrap_or_default()
     }
     /// Find a collider layer by its UUID.
     pub fn find_collider(&self, uuid: Uuid) -> Option<&TileSetColliderLayer> {
-        self.as_loaded_ref()
+        self.as_ref()
             .map(|t| t.find_collider(uuid))
             .unwrap_or_default()
     }
@@ -822,32 +837,32 @@ impl<'a> TileSetRef<'a> {
     /// The given function will be called as `func(source_tile, transform_tile)` where
     /// `source_tile` is the handle of the tile containing the data.
     pub fn rebuild_transform_sets(&mut self) {
-        if let Some(t) = self.0.as_loaded_mut() {
+        if let Some(t) = &mut self.0 {
             t.rebuild_transform_sets()
         }
     }
     /// Find a texture from some material page to serve as a preview for the tile set.
     pub fn preview_texture(&self) -> Option<TextureResource> {
-        self.as_loaded_ref()
+        self.as_ref()
             .map(|t| t.preview_texture())
             .unwrap_or_default()
     }
     /// Get the page at the given position.
     pub fn get_page(&self, position: Vector2<i32>) -> Option<&TileSetPage> {
-        self.as_loaded_ref()
+        self.as_ref()
             .map(|t| t.get_page(position))
             .unwrap_or_default()
     }
     /// Get the page at the given position.
     pub fn get_page_mut(&mut self, position: Vector2<i32>) -> Option<&mut TileSetPage> {
         self.0
-            .as_loaded_mut()
+            .as_mut()
             .map(|t| t.get_page_mut(position))
             .unwrap_or_default()
     }
     /// Returns true if the given handle points to a tile definition.
     pub fn is_valid_tile(&self, handle: TileDefinitionHandle) -> bool {
-        self.as_loaded_ref()
+        self.as_ref()
             .map(|t| t.is_valid_tile(handle))
             .unwrap_or_default()
     }
@@ -857,7 +872,7 @@ impl<'a> TileSetRef<'a> {
         page: Vector2<i32>,
         tile: Vector2<i32>,
     ) -> Option<AbstractTile> {
-        self.as_loaded_ref()
+        self.as_ref()
             .map(|t| t.get_abstract_tile(page, tile))
             .unwrap_or_default()
     }
@@ -867,7 +882,7 @@ impl<'a> TileSetRef<'a> {
         trans: OrthoTransformation,
         handle: TileDefinitionHandle,
     ) -> Option<TileRenderData> {
-        self.as_loaded_ref()
+        self.as_ref()
             .map(|t| t.get_transformed_render_data(trans, handle))
             .unwrap_or_else(|| Some(TileRenderData::missing_data()))
     }
@@ -878,7 +893,7 @@ impl<'a> TileSetRef<'a> {
     /// If the given handle does not point to a reference and it does not point to a tile definition,
     /// then None is returned since nothing should be rendered.
     pub fn get_tile_render_data(&self, position: ResourceTilePosition) -> Option<TileRenderData> {
-        self.as_loaded_ref()
+        self.as_ref()
             .map(|t| t.get_tile_render_data(position))
             .unwrap_or_else(|| Some(TileRenderData::missing_data()))
     }
@@ -888,7 +903,7 @@ impl<'a> TileSetRef<'a> {
         handle: TileDefinitionHandle,
         uuid: Uuid,
     ) -> Option<&TileCollider> {
-        self.as_loaded_ref()
+        self.as_ref()
             .map(|t| t.get_tile_collider(handle, uuid))
             .unwrap_or_default()
     }
@@ -898,7 +913,7 @@ impl<'a> TileSetRef<'a> {
     where
         F: FnMut(Vector2<i32>, TileRenderData),
     {
-        if let Some(tile_set) = self.as_loaded_ref() {
+        if let Some(tile_set) = &self.0 {
             tile_set.palette_render_loop(stage, page, func);
         }
     }
@@ -908,7 +923,7 @@ impl<'a> TileSetRef<'a> {
     where
         F: FnMut(Vector2<i32>, Uuid, Color, &TileCollider),
     {
-        if let Some(tile_set) = self.as_loaded_ref() {
+        if let Some(tile_set) = &self.0 {
             tile_set.tile_collider_loop(page, func);
         }
     }
@@ -920,7 +935,7 @@ impl<'a> TileSetRef<'a> {
     /// If the given position points to a tile without a redirect, then the tile's handle is returned.
     /// If the given position points to a non-existent page or a non-existent tile, then None is returned.
     pub fn redirect_handle(&self, position: ResourceTilePosition) -> Option<TileDefinitionHandle> {
-        self.as_loaded_ref()
+        self.as_ref()
             .map(|t| t.redirect_handle(position))
             .unwrap_or_default()
     }
@@ -930,14 +945,14 @@ impl<'a> TileSetRef<'a> {
         &self,
         handle: TileDefinitionHandle,
     ) -> Option<TileDefinitionHandle> {
-        self.as_loaded_ref()
+        self.as_ref()
             .map(|t| t.get_transform_tile_source(handle))
             .unwrap_or_default()
     }
     /// Returns a clone of the full definition of the tile at the given handle, if possible.
     /// Use [TileSet::get_tile_data] if a clone is not needed.
     pub fn get_definition(&self, handle: TileDefinitionHandle) -> Option<TileDefinition> {
-        self.as_loaded_ref()
+        self.as_ref()
             .map(|t| t.get_definition(handle))
             .unwrap_or_default()
     }
@@ -947,13 +962,13 @@ impl<'a> TileSetRef<'a> {
         trans: OrthoTransformation,
         handle: TileDefinitionHandle,
     ) -> Option<TileDefinition> {
-        self.as_loaded_ref()
+        self.as_ref()
             .map(|t| t.get_transformed_definition(trans, handle))
             .unwrap_or_default()
     }
     /// Get the tile definition at the given position.
     pub fn get_tile_bounds(&self, position: ResourceTilePosition) -> Option<TileMaterialBounds> {
-        self.as_loaded_ref()
+        self.as_ref()
             .map(|t| t.get_tile_bounds(position))
             .unwrap_or_default()
     }
@@ -963,20 +978,20 @@ impl<'a> TileSetRef<'a> {
         handle: TileDefinitionHandle,
         property_id: Uuid,
     ) -> Option<TileSetPropertyValue> {
-        self.as_loaded_ref()
+        self.as_ref()
             .map(|t| t.property_value(handle, property_id))
             .unwrap_or_default()
     }
     /// Get the tile data at the given position.
     pub fn get_tile_data(&self, position: ResourceTilePosition) -> Option<&TileData> {
-        self.as_loaded_ref()
+        self.as_ref()
             .map(|t| t.get_tile_data(position))
             .unwrap_or_default()
     }
     /// Get the tile data at the given position.
     pub fn get_tile_data_mut(&mut self, handle: TileDefinitionHandle) -> Option<&mut TileData> {
         self.0
-            .as_loaded_mut()
+            .as_mut()
             .map(|t| t.get_tile_data_mut(handle))
             .unwrap_or_default()
     }
@@ -991,7 +1006,7 @@ impl<'a> TileSetRef<'a> {
         transform: OrthoTransformation,
         handle: TileDefinitionHandle,
     ) -> Option<TileDefinitionHandle> {
-        self.as_loaded_ref()
+        self.as_ref()
             .map(|t| t.get_transformed_version(transform, handle))
             .unwrap_or_default()
     }
@@ -1004,26 +1019,24 @@ impl<'a> TileSetRef<'a> {
         iter: I,
         tiles: &mut Tiles,
     ) {
-        if let Some(tile_set) = self.as_loaded_ref() {
+        if let Some(tile_set) = &self.0 {
             tile_set.get_tiles(stage, page, iter, tiles);
         }
     }
     /// The bounding rect of the pages.
     pub fn pages_bounds(&self) -> OptionTileRect {
-        self.as_loaded_ref()
-            .map(|t| t.pages_bounds())
-            .unwrap_or_default()
+        self.as_ref().map(|t| t.pages_bounds()).unwrap_or_default()
     }
     /// The bounding rect of the tiles of the given page.
     pub fn tiles_bounds(&self, stage: TilePaletteStage, page: Vector2<i32>) -> OptionTileRect {
-        self.as_loaded_ref()
+        self.as_ref()
             .map(|t| t.tiles_bounds(stage, page))
             .unwrap_or_default()
     }
 
     /// Returns true if the tile set is unoccupied at the given position.
     pub fn is_free_at(&self, position: ResourceTilePosition) -> bool {
-        self.as_loaded_ref()
+        self.as_ref()
             .map(|t| t.is_free_at(position))
             .unwrap_or(true)
     }
@@ -1068,7 +1081,7 @@ pub struct TileSet {
     /// values. Saving is unnecessary whenever this value is 0.
     #[reflect(hidden)]
     #[visit(skip)]
-    pub change_count: ChangeCount,
+    pub change_count: ChangeFlag,
 }
 
 impl TileSet {
@@ -1091,9 +1104,9 @@ impl TileSet {
     pub fn tile_data(&self, handle: TileDefinitionHandle) -> Option<&TileData> {
         let page_source = self.pages.get(&handle.page()).map(|p| &p.source)?;
         match page_source {
-            TileSetPageSource::Material(m) => m.get(&handle.tile()),
+            TileSetPageSource::Atlas(m) => m.get(&handle.tile()),
             TileSetPageSource::Freeform(m) => m.get(&handle.tile()).map(|def| &def.data),
-            TileSetPageSource::TransformSet(_) => None,
+            TileSetPageSource::Transform(_) => None,
         }
     }
     /// The material and bounds of the given tile, if it stores its own material and bounds because it is a freeform tile.
@@ -1109,7 +1122,7 @@ impl TileSet {
     /// it points toward a tile elsewhere in the set, this method returns the TileDefinitionHandle of that other tile.
     pub fn tile_redirect(&self, handle: TileDefinitionHandle) -> Option<TileDefinitionHandle> {
         let page_source = self.pages.get(&handle.page()).map(|p| &p.source)?;
-        if let TileSetPageSource::TransformSet(m) = page_source {
+        if let TileSetPageSource::Transform(m) = page_source {
             m.get(&handle.tile()).copied()
         } else {
             None
@@ -1129,9 +1142,9 @@ impl TileSet {
             return false;
         };
         match page {
-            TileSetPageSource::Material(m) => m.contains_key(&tile),
+            TileSetPageSource::Atlas(m) => m.contains_key(&tile),
             TileSetPageSource::Freeform(m) => m.contains_key(&tile),
-            TileSetPageSource::TransformSet(m) => m.contains_key(&tile),
+            TileSetPageSource::Transform(m) => m.contains_key(&tile),
         }
     }
     /// The handle of the icon that represents the given page.
@@ -1178,7 +1191,7 @@ impl TileSet {
     pub fn rebuild_transform_sets(&mut self) {
         self.transform_map.clear();
         for (&position, page) in self.pages.iter_mut() {
-            let TileSetPageSource::TransformSet(tiles) = &page.source else {
+            let TileSetPageSource::Transform(tiles) = &page.source else {
                 continue;
             };
             self.transform_map.extend(
@@ -1193,7 +1206,7 @@ impl TileSet {
         self.pages
             .iter()
             .filter_map(|(&pos, p)| match &p.source {
-                TileSetPageSource::Material(mat) => {
+                TileSetPageSource::Atlas(mat) => {
                     Some((pos, mat.material.state().data()?.texture("diffuseTexture")?))
                 }
                 _ => None,
@@ -1254,9 +1267,9 @@ impl TileSet {
             return false;
         };
         match source {
-            TileSetPageSource::Material(mat) => mat.contains_key(&handle.tile()),
+            TileSetPageSource::Atlas(mat) => mat.contains_key(&handle.tile()),
             TileSetPageSource::Freeform(map) => map.contains_key(&handle.tile()),
-            TileSetPageSource::TransformSet(_) => false,
+            TileSetPageSource::Transform(_) => false,
         }
     }
     /// The tile at the given page and tile coordinates.
@@ -1267,11 +1280,11 @@ impl TileSet {
     ) -> Option<AbstractTile> {
         let source = self.pages.get(&page).map(|p| &p.source)?;
         match source {
-            TileSetPageSource::Material(tile_material) => tile_material.get_abstract_tile(tile),
+            TileSetPageSource::Atlas(tile_material) => tile_material.get_abstract_tile(tile),
             TileSetPageSource::Freeform(tile_grid_map) => {
                 Some(AbstractTile::Freeform(tile_grid_map.get(&tile)?.clone()))
             }
-            TileSetPageSource::TransformSet(tiles) => {
+            TileSetPageSource::Transform(tiles) => {
                 Some(AbstractTile::Transform(tiles.get(&tile).copied()?))
             }
         }
@@ -1289,12 +1302,12 @@ impl TileSet {
         use AbstractTile as Tile;
         use TileSetPageSource as Source;
         match (source, value) {
-            (Source::Material(d0), value) => d0.set_abstract_tile(tile, value),
+            (Source::Atlas(d0), value) => d0.set_abstract_tile(tile, value),
             (Source::Freeform(d0), Some(Tile::Freeform(d1))) => {
                 Some(Tile::Freeform(d0.insert(tile, d1)?))
             }
             (Source::Freeform(d0), None) => Some(Tile::Freeform(d0.remove(&tile)?)),
-            (Source::TransformSet(d0), Some(Tile::Transform(d1))) => {
+            (Source::Transform(d0), Some(Tile::Transform(d1))) => {
                 let handle = TileDefinitionHandle::try_new(page, tile).unwrap();
                 let result = d0.insert(tile, d1);
                 if let Some(source_handle) = result {
@@ -1303,7 +1316,7 @@ impl TileSet {
                 let _ = self.transform_map.insert(d1, handle);
                 result.map(Tile::Transform)
             }
-            (Source::TransformSet(d0), None) => {
+            (Source::Transform(d0), None) => {
                 let result = d0.remove(&tile);
                 if let Some(source_handle) = result {
                     let _ = self.transform_map.remove(&source_handle);
@@ -1380,9 +1393,9 @@ impl TileSet {
                     return PaletteIterator::Empty;
                 };
                 match &page.source {
-                    TileSetPageSource::Material(mat) => PaletteIterator::Material(mat.tiles.keys()),
+                    TileSetPageSource::Atlas(mat) => PaletteIterator::Material(mat.tiles.keys()),
                     TileSetPageSource::Freeform(map) => PaletteIterator::Freeform(map.keys()),
-                    TileSetPageSource::TransformSet(tiles) => {
+                    TileSetPageSource::Transform(tiles) => {
                         PaletteIterator::TransformSet(tiles.keys())
                     }
                 }
@@ -1435,7 +1448,7 @@ impl TileSet {
     pub fn redirect_handle(&self, position: ResourceTilePosition) -> Option<TileDefinitionHandle> {
         match position.stage() {
             TilePaletteStage::Tiles => match &self.pages.get(&position.page())?.source {
-                TileSetPageSource::TransformSet(tiles) => tiles.get_at(position.stage_position()),
+                TileSetPageSource::Transform(tiles) => tiles.get_at(position.stage_position()),
                 page => {
                     if page.contains_tile_at(position.stage_position()) {
                         position.handle()
@@ -1457,7 +1470,7 @@ impl TileSet {
         handle: TileDefinitionHandle,
     ) -> Option<TileDefinitionHandle> {
         match &self.pages.get(&handle.page())?.source {
-            TileSetPageSource::TransformSet(tiles) => tiles.get_at(handle.tile()),
+            TileSetPageSource::Transform(tiles) => tiles.get_at(handle.tile()),
             _ => None,
         }
     }
@@ -1485,11 +1498,11 @@ impl TileSet {
     pub fn get_tile_bounds(&self, position: ResourceTilePosition) -> Option<TileMaterialBounds> {
         let handle = self.redirect_handle(position)?;
         match &self.pages.get(&handle.page())?.source {
-            TileSetPageSource::Material(mat) => mat.get_tile_bounds(handle.tile()),
+            TileSetPageSource::Atlas(mat) => mat.get_tile_bounds(handle.tile()),
             TileSetPageSource::Freeform(map) => {
                 Some(map.get(&handle.tile())?.material_bounds.clone())
             }
-            TileSetPageSource::TransformSet(_) => None,
+            TileSetPageSource::Transform(_) => None,
         }
     }
     /// The value of the property with the given UUID for the given tile.
@@ -1509,17 +1522,17 @@ impl TileSet {
     pub fn get_tile_data(&self, position: ResourceTilePosition) -> Option<&TileData> {
         let handle = self.redirect_handle(position)?;
         match &self.pages.get(&handle.page())?.source {
-            TileSetPageSource::Material(mat) => mat.get_tile_data(handle.tile()),
+            TileSetPageSource::Atlas(mat) => mat.get_tile_data(handle.tile()),
             TileSetPageSource::Freeform(map) => Some(&map.get(&handle.tile())?.data),
-            TileSetPageSource::TransformSet(_) => None,
+            TileSetPageSource::Transform(_) => None,
         }
     }
     /// Get the tile definition at the given position.
     pub fn get_tile_data_mut(&mut self, handle: TileDefinitionHandle) -> Option<&mut TileData> {
         match &mut self.pages.get_mut(&handle.page())?.source {
-            TileSetPageSource::Material(mat) => mat.get_tile_data_mut(handle.tile()),
+            TileSetPageSource::Atlas(mat) => mat.get_tile_data_mut(handle.tile()),
             TileSetPageSource::Freeform(map) => Some(&mut map.get_mut(&handle.tile())?.data),
-            TileSetPageSource::TransformSet(_) => None,
+            TileSetPageSource::Transform(_) => None,
         }
     }
 
@@ -1539,7 +1552,7 @@ impl TileSet {
         let transform_tile = self.transform_map.get(&handle)?;
         let page = self.get_page(transform_tile.page())?;
         let tiles = match &page.source {
-            TileSetPageSource::TransformSet(TransformSetTiles(tiles)) => Some(tiles),
+            TileSetPageSource::Transform(TransformSetTiles(tiles)) => Some(tiles),
             _ => None,
         }?;
         let cell = TransformSetCell::from_position(transform_tile.tile())

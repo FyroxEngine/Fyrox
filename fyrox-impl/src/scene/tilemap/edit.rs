@@ -68,7 +68,7 @@ pub struct TileMapEditorData {
     pub erase_overlay: FxHashSet<Vector2<i32>>,
     /// The position of the overlay.
     pub overlay_offset: Option<Vector2<i32>>,
-    /// The maerial for the erase overlay.
+    /// The material for the erase overlay.
     pub erase_material: Option<MaterialResource>,
     /// Tiles that are currently in the process of being modified.
     pub update: TransTilesUpdate,
@@ -89,7 +89,7 @@ impl TileMapEditorData {
     pub fn collect_render_data(
         &self,
         render_position: &TileRenderPosition,
-        tile_set: TileSetRef,
+        tile_set: OptionTileSet,
         ctx: &mut RenderContext,
     ) {
         for (position, data) in self.update.iter() {

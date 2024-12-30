@@ -38,7 +38,6 @@ mod tile_bounds_editor;
 mod tile_editor;
 mod tile_inspector;
 mod tile_prop_editor;
-pub mod tile_set_import;
 pub mod tileset;
 
 use collider_editor::*;
@@ -92,8 +91,8 @@ use crate::fyrox::{
         node::Node,
         tilemap::{
             tileset::{TileSet, TileSetResource},
-            RandomTileSource, Stamp, TileCollider, TileDefinitionHandle, TileMap, TilePaletteStage,
-            TileResource, Tiles,
+            RandomTileSource, Stamp, TileBook, TileCollider, TileDefinitionHandle, TileMap,
+            TilePaletteStage, Tiles,
         },
         Scene,
     },
@@ -135,24 +134,6 @@ lazy_static! {
     static ref RANDOM_IMAGE: Option<UntypedResource> = load_image!("../../../resources/die.png");
     static ref PALETTE_IMAGE: Option<UntypedResource> =
         load_image!("../../../resources/palette.png");
-}
-
-fn make_button(
-    title: &str,
-    tooltip: &str,
-    enabled: bool,
-    ctx: &mut BuildContext,
-) -> Handle<UiNode> {
-    ButtonBuilder::new(
-        WidgetBuilder::new()
-            .with_enabled(enabled)
-            .with_width(100.0)
-            .with_height(24.0)
-            .with_margin(Thickness::uniform(1.0))
-            .with_tooltip(make_simple_tooltip(ctx, tooltip)),
-    )
-    .with_text(title)
-    .build(ctx)
 }
 
 fn make_drawing_mode_button(
@@ -227,12 +208,12 @@ pub enum DrawingMode {
 
 #[derive(Debug, PartialEq, Clone)]
 struct OpenTilePanelMessage {
-    resource: TileResource,
+    resource: TileBook,
     center: Option<TileDefinitionHandle>,
 }
 
 impl OpenTilePanelMessage {
-    fn message(resource: TileResource, center: Option<TileDefinitionHandle>) -> UiMessage {
+    fn message(resource: TileBook, center: Option<TileDefinitionHandle>) -> UiMessage {
         UiMessage::with_data(Self { resource, center })
     }
 }
@@ -521,7 +502,7 @@ impl TileMapEditorPlugin {
     }
     fn open_panel_for_tile_set(
         &mut self,
-        resource: TileResource,
+        resource: TileBook,
         center: Option<TileDefinitionHandle>,
         ui: &mut UserInterface,
         sender: &MessageSender,
@@ -543,11 +524,11 @@ impl TileMapEditorPlugin {
     fn open_panel_for_tile_map(&mut self, editor: &mut Editor) {
         let resource = if let Some(tile_map) = self.get_tile_map_mut(editor) {
             if let Some(brush) = tile_map.active_brush() {
-                TileResource::Brush(brush.clone())
+                TileBook::Brush(brush.clone())
             } else if let Some(tile_set) = tile_map.tile_set() {
-                TileResource::TileSet(tile_set.clone())
+                TileBook::TileSet(tile_set.clone())
             } else {
-                TileResource::Empty
+                TileBook::Empty
             }
         } else {
             return;
@@ -715,10 +696,6 @@ impl EditorPlugin for TileMapEditorPlugin {
     }
 
     fn on_update(&mut self, editor: &mut Editor) {
-        if let Some(tile_set_editor) = self.tile_set_editor.as_mut() {
-            tile_set_editor.update();
-        }
-
         self.send_delayed_messages(editor.engine.user_interfaces.first_mut());
 
         self.update_state();
@@ -743,28 +720,27 @@ impl EditorPlugin for TileMapEditorPlugin {
     fn on_message(&mut self, message: &Message, editor: &mut Editor) {
         let ui = editor.engine.user_interfaces.first_mut();
 
-        let tile_resource: Option<TileResource> =
-            if let Message::OpenTileSetEditor(tile_set) = message {
-                Some(TileResource::TileSet(tile_set.clone()))
-            } else if let Message::OpenTileMapBrushEditor(brush) = message {
-                Some(TileResource::Brush(brush.clone()))
-            } else {
-                None
-            };
+        let tile_book: Option<TileBook> = if let Message::OpenTileSetEditor(tile_set) = message {
+            Some(TileBook::TileSet(tile_set.clone()))
+        } else if let Message::OpenTileMapBrushEditor(brush) = message {
+            Some(TileBook::Brush(brush.clone()))
+        } else {
+            None
+        };
 
-        if let Some(tile_resource) = tile_resource {
+        if let Some(tile_book) = tile_book {
             if self.tile_set_editor.is_none() {
                 let mut tile_set_editor = TileSetEditor::new(
-                    tile_resource.clone(),
+                    tile_book.clone(),
                     self.state.clone(),
                     editor.message_sender.clone(),
                     editor.engine.resource_manager.clone(),
                     &mut ui.build_ctx(),
                 );
-                tile_set_editor.set_tile_resource(tile_resource, ui);
+                tile_set_editor.set_tile_resource(tile_book, ui);
                 self.tile_set_editor = Some(tile_set_editor);
             } else if let Some(editor) = &mut self.tile_set_editor {
-                editor.set_tile_resource(tile_resource.clone(), ui);
+                editor.set_tile_resource(tile_book.clone(), ui);
             }
         }
 
@@ -772,11 +748,11 @@ impl EditorPlugin for TileMapEditorPlugin {
             if *uuid == TileMapInteractionMode::type_uuid() && self.panel.is_none() {
                 if let Some(tile_map) = self.get_tile_map_mut(editor) {
                     let resource = if let Some(brush) = tile_map.active_brush() {
-                        TileResource::Brush(brush.clone())
+                        TileBook::Brush(brush.clone())
                     } else if let Some(tile_set) = tile_map.tile_set() {
-                        TileResource::TileSet(tile_set.clone())
+                        TileBook::TileSet(tile_set.clone())
                     } else {
-                        TileResource::Empty
+                        TileBook::Empty
                     };
                     if !resource.is_empty() {
                         self.open_panel_for_tile_map(editor);

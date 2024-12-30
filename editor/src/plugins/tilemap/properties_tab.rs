@@ -38,7 +38,8 @@ use fyrox::{
         HorizontalAlignment, VerticalAlignment,
     },
     scene::tilemap::tileset::{
-        NamableValue, NamedValue, TileSetPropertyLayer, TileSetPropertyType, TileSetRef,
+        NamableValue, NamedValue, OptionTileSet, TileSetPropertyLayer, TileSetPropertyType,
+        TileSetRef,
     },
 };
 
@@ -155,7 +156,7 @@ fn make_list_item(ctx: &mut BuildContext, property: &TileSetPropertyLayer) -> Ha
     .build(ctx)
 }
 
-fn make_items(ctx: &mut BuildContext, tile_set: &TileSetRef) -> Vec<Handle<UiNode>> {
+fn make_items(ctx: &mut BuildContext, tile_set: &OptionTileSet) -> Vec<Handle<UiNode>> {
     tile_set
         .properties()
         .iter()
@@ -242,9 +243,9 @@ fn send_enabled(ui: &UserInterface, destination: Handle<UiNode>, enabled: bool) 
 }
 
 impl PropertiesTab {
-    pub fn new(tile_resource: TileResource, ctx: &mut BuildContext) -> Self {
-        let items = if let TileResource::TileSet(t) = &tile_resource {
-            make_items(ctx, &TileSetRef::new(t))
+    pub fn new(tile_book: TileBook, ctx: &mut BuildContext) -> Self {
+        let items = if let TileBook::TileSet(t) = &tile_book {
+            make_items(ctx, &TileSetRef::new(t).as_loaded())
         } else {
             Vec::default()
         };
@@ -493,7 +494,7 @@ impl PropertiesTab {
     pub fn handle(&self) -> Handle<UiNode> {
         self.handle
     }
-    pub fn sync_to_model(&mut self, tile_set: &TileSetRef, ui: &mut UserInterface) {
+    pub fn sync_to_model(&mut self, tile_set: &OptionTileSet, ui: &mut UserInterface) {
         let items = make_items(&mut ui.build_ctx(), tile_set);
         ui.send_message(ListViewMessage::items(
             self.list,
@@ -502,7 +503,7 @@ impl PropertiesTab {
         ));
         self.sync_data(tile_set, ui);
     }
-    pub fn sync_data(&mut self, tile_set: &TileSetRef, ui: &mut UserInterface) {
+    pub fn sync_data(&mut self, tile_set: &OptionTileSet, ui: &mut UserInterface) {
         let sel_index = self.selection_index(ui);
         let name = match sel_index {
             Some(index) => tile_set
@@ -530,7 +531,7 @@ impl PropertiesTab {
         send_enabled(ui, self.name_list, sel_index.is_some());
         self.sync_name_edit(sel_index.is_some(), tile_set, ui);
     }
-    fn sync_name_edit(&mut self, enabled: bool, tile_set: &TileSetRef, ui: &mut UserInterface) {
+    fn sync_name_edit(&mut self, enabled: bool, tile_set: &OptionTileSet, ui: &mut UserInterface) {
         let prop = self.property(tile_set, ui);
         let name_index = self.name_selection_index(ui);
         let value_name = match (name_index, prop) {
@@ -606,11 +607,11 @@ impl PropertiesTab {
         }
         if let Some(ListViewMessage::SelectionChanged(_)) = message.data() {
             if message.destination() == self.list {
-                self.sync_data(&TileSetRef::new(&tile_set), ui);
+                self.sync_data(&TileSetRef::new(&tile_set).as_loaded(), ui);
             } else if message.destination() == self.name_list {
                 self.sync_name_edit(
                     self.selection_index(ui).is_some(),
-                    &TileSetRef::new(&tile_set),
+                    &TileSetRef::new(&tile_set).as_loaded(),
                     ui,
                 );
             }
@@ -671,7 +672,7 @@ impl PropertiesTab {
     }
     fn property<'a>(
         &self,
-        tile_set: &'a TileSetRef,
+        tile_set: &'a OptionTileSet,
         ui: &UserInterface,
     ) -> Option<&'a TileSetPropertyLayer> {
         let sel_index = self.selection_index(ui)?;
@@ -813,7 +814,8 @@ impl PropertiesTab {
         ui: &UserInterface,
         sender: &MessageSender,
     ) {
-        let tile_set = TileSetRef::new(&resource);
+        let mut tile_set_guard = TileSetRef::new(&resource);
+        let tile_set = tile_set_guard.as_loaded();
         let Some(prop) = self.property(&tile_set, ui) else {
             return;
         };
@@ -832,7 +834,7 @@ impl PropertiesTab {
             vec![new_index],
         ));
         let uuid = prop.uuid;
-        drop(tile_set);
+        drop(tile_set_guard);
         sender.do_command(MovePropertyValueCommand {
             tile_set: resource,
             uuid,
@@ -841,7 +843,8 @@ impl PropertiesTab {
         });
     }
     fn add_name(&self, resource: TileSetResource, ui: &UserInterface, sender: &MessageSender) {
-        let tile_set = TileSetRef::new(&resource);
+        let mut tile_set_guard = TileSetRef::new(&resource);
+        let tile_set = tile_set_guard.as_loaded();
         let Some(prop) = self.property(&tile_set, ui) else {
             return;
         };
@@ -864,7 +867,7 @@ impl PropertiesTab {
         ));
         let uuid = prop.uuid;
         let value_type = prop.prop_type;
-        drop(tile_set);
+        drop(tile_set_guard);
         sender.do_command(AddPropertyValueCommand {
             tile_set: resource,
             uuid,
@@ -873,7 +876,8 @@ impl PropertiesTab {
         });
     }
     fn remove_name(&self, resource: TileSetResource, ui: &UserInterface, sender: &MessageSender) {
-        let tile_set = TileSetRef::new(&resource);
+        let mut tile_set_guard = TileSetRef::new(&resource);
+        let tile_set = tile_set_guard.as_loaded();
         let Some(prop) = self.property(&tile_set, ui) else {
             return;
         };
@@ -884,7 +888,7 @@ impl PropertiesTab {
             return;
         };
         let uuid = prop.uuid;
-        drop(tile_set);
+        drop(tile_set_guard);
         sender.do_command(RemovePropertyValueCommand {
             tile_set: resource,
             uuid,

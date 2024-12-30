@@ -47,7 +47,7 @@ use crate::{
             window::{WindowBuilder, WindowMessage, WindowTitle},
             BuildContext, Thickness, UiNode, UserInterface,
         },
-        scene::tilemap::{tileset::TileSetRef, TileDefinitionHandle, TileResource},
+        scene::tilemap::{tileset::TileSetRef, TileBook, TileDefinitionHandle},
     },
     message::MessageSender,
     plugins::inspector::editors::resource::{ResourceFieldBuilder, ResourceFieldMessage},
@@ -75,7 +75,7 @@ pub struct TileSetEditor {
     /// tools and select stamps, and others.
     state: TileDrawStateRef,
     /// The resource to be edited. It can either be a tile set or a brush.
-    tile_resource: TileResource,
+    tile_book: TileBook,
     /// The field that controls the tint of the background material on tile atlas pages.
     /// This tint allows the background material to be visually distinguished from actual tiles.
     color_field: Handle<UiNode>,
@@ -148,39 +148,17 @@ fn make_label(name: &str, ctx: &mut BuildContext) -> Handle<UiNode> {
         .build(ctx)
 }
 
-fn tile_set_to_title(tile_resource: &TileResource) -> String {
-    match tile_resource {
-        TileResource::Empty => "Missing Resource".into(),
-        TileResource::TileSet(_) => {
-            let mut result = String::new();
-            result.push_str("Tile Set: ");
-            result.push_str(
-                tile_resource
-                    .path()
-                    .map(|x| x.to_string_lossy().into_owned())
-                    .unwrap_or_else(|| "Error".into())
-                    .as_ref(),
-            );
-            result
-        }
-        TileResource::Brush(_) => {
-            let mut result = String::new();
-            result.push_str("Tile Map Brush: ");
-            result.push_str(
-                tile_resource
-                    .path()
-                    .map(|x| x.to_string_lossy().into_owned())
-                    .unwrap_or_else(|| "Error".into())
-                    .as_ref(),
-            );
-            result
-        }
+fn tile_set_to_title(tile_book: &TileBook) -> String {
+    match tile_book {
+        TileBook::Empty => "Missing Resource".into(),
+        TileBook::TileSet(_) => format!("Tile Set: {}", tile_book.name()),
+        TileBook::Brush(_) => format!("Tile Map Brush: {}", tile_book.name()),
     }
 }
 
 impl TileSetEditor {
     pub fn new(
-        tile_resource: TileResource,
+        tile_book: TileBook,
         state: TileDrawStateRef,
         sender: MessageSender,
         resource_manager: ResourceManager,
@@ -188,15 +166,15 @@ impl TileSetEditor {
     ) -> Self {
         let tile_set_field =
             ResourceFieldBuilder::<TileSet>::new(WidgetBuilder::new().on_column(1), sender.clone())
-                .with_resource(if tile_resource.is_brush() {
-                    tile_resource.get_tile_set()
+                .with_resource(if tile_book.is_brush() {
+                    tile_book.get_tile_set()
                 } else {
                     None
                 })
                 .build(ctx, resource_manager.clone());
         let tile_set_selector = GridBuilder::new(
             WidgetBuilder::new()
-                .with_visibility(tile_resource.is_brush())
+                .with_visibility(tile_book.is_brush())
                 .with_child(make_label("Tile Set", ctx))
                 .with_child(tile_set_field),
         )
@@ -270,7 +248,7 @@ impl TileSetEditor {
             state.clone(),
         )
         .with_page(DEFAULT_PAGE)
-        .with_resource(tile_resource.clone())
+        .with_resource(tile_book.clone())
         .with_kind(TilePaletteStage::Pages)
         .with_editable(true)
         .build(ctx);
@@ -283,7 +261,7 @@ impl TileSetEditor {
             state.clone(),
         )
         .with_page(DEFAULT_PAGE)
-        .with_resource(tile_resource.clone())
+        .with_resource(tile_book.clone())
         .with_kind(TilePaletteStage::Tiles)
         .with_editable(true)
         .build(ctx);
@@ -292,7 +270,7 @@ impl TileSetEditor {
             state.clone(),
             pages_palette,
             tiles_palette,
-            tile_resource.clone(),
+            tile_book.clone(),
             resource_manager,
             sender,
             ctx,
@@ -376,8 +354,8 @@ impl TileSetEditor {
         .add_row(Row::stretch())
         .build(ctx);
 
-        let properties_tab = PropertiesTab::new(tile_resource.clone(), ctx);
-        let colliders_tab = CollidersTab::new(tile_resource.clone(), ctx);
+        let properties_tab = PropertiesTab::new(tile_book.clone(), ctx);
+        let colliders_tab = CollidersTab::new(tile_book.clone(), ctx);
         let tab_control = TabControlBuilder::new(WidgetBuilder::new())
             .with_tab(make_tab("Tiles", tile_tab, ctx))
             .with_tab(make_tab("Properties", properties_tab.handle(), ctx))
@@ -386,7 +364,7 @@ impl TileSetEditor {
 
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(800.0).with_height(600.0))
             .open(false)
-            .with_title(WindowTitle::text(tile_set_to_title(&tile_resource)))
+            .with_title(WindowTitle::text(tile_set_to_title(&tile_book)))
             .with_content(tab_control)
             .build(ctx);
 
@@ -409,7 +387,7 @@ impl TileSetEditor {
             cell_position,
             pages_palette,
             tiles_palette,
-            tile_resource,
+            tile_book,
             pick_button,
             open_control,
             remove,
@@ -425,15 +403,14 @@ impl TileSetEditor {
         editor
     }
 
-    pub fn set_tile_resource(&mut self, tile_resource: TileResource, ui: &mut UserInterface) {
+    pub fn set_tile_resource(&mut self, tile_book: TileBook, ui: &mut UserInterface) {
         self.try_save();
-        self.tile_resource = tile_resource.clone();
-        self.tile_inspector
-            .set_tile_resource(tile_resource.clone(), ui);
+        self.tile_book = tile_book.clone();
+        self.tile_inspector.set_tile_resource(tile_book.clone(), ui);
         ui.send_message(WindowMessage::title(
             self.window,
             MessageDirection::ToWidget,
-            WindowTitle::text(tile_set_to_title(&tile_resource)),
+            WindowTitle::text(tile_set_to_title(&tile_book)),
         ));
         let mut state = self.state.lock_mut("set_tile_resource");
         if state.selection_palette() == self.pages_palette
@@ -442,36 +419,32 @@ impl TileSetEditor {
             state.clear_selection();
         }
         drop(state);
-        if let TileResource::Brush(brush) = &tile_resource {
+        if let TileBook::Brush(brush) = &tile_book {
             ui.send_message(ResourceFieldMessage::value(
                 self.tile_set_field,
                 MessageDirection::ToWidget,
                 brush.data_ref().tile_set.clone(),
             ));
         }
-        self.send_tabs_visible(tile_resource.is_tile_set(), ui);
+        self.send_tabs_visible(tile_book.is_tile_set(), ui);
         ui.send_message(WidgetMessage::visibility(
             self.tile_set_selector,
             MessageDirection::ToWidget,
-            tile_resource.is_brush(),
+            tile_book.is_brush(),
         ));
         ui.send_message(TabControlMessage::active_tab(
             self.tab_control,
             MessageDirection::ToWidget,
             Some(0),
         ));
-        ui.send_message(PaletteMessage::set_page(
-            self.pages_palette,
-            MessageDirection::ToWidget,
-            tile_resource.clone(),
-            Some(Vector2::new(0, 0)),
-        ));
-        ui.send_message(PaletteMessage::set_page(
-            self.tiles_palette,
-            MessageDirection::ToWidget,
-            tile_resource,
-            Some(Vector2::new(0, 0)),
-        ));
+        for palette in [self.pages_palette, self.tiles_palette] {
+            ui.send_message(PaletteMessage::set_page(
+                palette,
+                MessageDirection::ToWidget,
+                tile_book.clone(),
+                Some(Vector2::new(0, 0)),
+            ));
+        }
     }
 
     fn send_tabs_visible(&self, visibility: bool, ui: &mut UserInterface) {
@@ -485,18 +458,14 @@ impl TileSetEditor {
     }
 
     pub fn set_position(&self, handle: TileDefinitionHandle, ui: &mut UserInterface) {
-        ui.send_message(PaletteMessage::set_page(
-            self.pages_palette,
-            MessageDirection::ToWidget,
-            self.tile_resource.clone(),
-            Some(handle.page()),
-        ));
-        ui.send_message(PaletteMessage::set_page(
-            self.tiles_palette,
-            MessageDirection::ToWidget,
-            self.tile_resource.clone(),
-            Some(handle.page()),
-        ));
+        for palette in [self.pages_palette, self.tiles_palette] {
+            ui.send_message(PaletteMessage::set_page(
+                palette,
+                MessageDirection::ToWidget,
+                self.tile_book.clone(),
+                Some(handle.page()),
+            ));
+        }
         ui.send_message(PaletteMessage::center(
             self.pages_palette,
             MessageDirection::ToWidget,
@@ -554,24 +523,23 @@ impl TileSetEditor {
             MessageDirection::ToWidget,
             cell_position,
         ));
-        ui.send_message(PaletteMessage::sync_to_state(
-            self.pages_palette,
-            MessageDirection::ToWidget,
-        ));
-        ui.send_message(PaletteMessage::sync_to_state(
-            self.tiles_palette,
-            MessageDirection::ToWidget,
-        ));
+        for palette in [self.pages_palette, self.tiles_palette] {
+            ui.send_message(PaletteMessage::sync_to_state(
+                palette,
+                MessageDirection::ToWidget,
+            ));
+        }
     }
 
     pub fn sync_to_model(&mut self, ui: &mut UserInterface) {
-        if let Some(r) = self.tile_resource.tile_set_ref() {
-            let tile_set = TileSetRef::new(r);
+        if let Some(r) = self.tile_book.tile_set_ref() {
+            let mut tile_set = TileSetRef::new(r);
+            let tile_set = tile_set.as_loaded();
             self.properties_tab.sync_to_model(&tile_set, ui);
             self.colliders_tab.sync_to_model(&tile_set, ui);
         }
         self.tile_inspector.sync_to_model(ui);
-        if let TileResource::Brush(brush) = &self.tile_resource {
+        if let TileBook::Brush(brush) = &self.tile_book {
             let brush = brush.data_ref();
             let tile_set = brush.tile_set.clone();
             ui.send_message(ResourceFieldMessage::value(
@@ -583,7 +551,7 @@ impl TileSetEditor {
     }
 
     pub fn try_save(&self) {
-        Log::verify(self.tile_resource.save());
+        Log::verify(self.tile_book.save());
     }
 
     pub fn handle_ui_message(
@@ -595,7 +563,7 @@ impl TileSetEditor {
         _serialization_context: Arc<SerializationContext>,
     ) -> Option<Self> {
         self.tile_inspector.handle_ui_message(message, ui, sender);
-        if let Some(r) = self.tile_resource.tile_set_ref() {
+        if let Some(r) = self.tile_book.tile_set_ref() {
             self.properties_tab
                 .handle_ui_message(r.clone(), message, ui, sender);
             self.colliders_tab
@@ -611,7 +579,7 @@ impl TileSetEditor {
             if message.destination() == self.tile_set_field
                 && message.direction() == MessageDirection::FromWidget
             {
-                if let TileResource::Brush(brush) = &self.tile_resource {
+                if let TileBook::Brush(brush) = &self.tile_book {
                     sender.do_command(ModifyBrushTileSetCommand {
                         brush: brush.clone(),
                         tile_set: tile_set.clone(),
@@ -619,14 +587,14 @@ impl TileSetEditor {
                 }
             }
         } else if let Some(TileHandleEditorMessage::Goto(handle)) = message.data() {
-            if let Some(tile_set) = self.tile_resource.get_tile_set() {
-                self.set_tile_resource(TileResource::TileSet(tile_set), ui);
+            if let Some(tile_set) = self.tile_book.get_tile_set() {
+                self.set_tile_resource(TileBook::TileSet(tile_set), ui);
                 self.set_position(*handle, ui);
             }
         } else if let Some(TileHandleEditorMessage::OpenPalette(handle)) = message.data() {
-            if let Some(tile_set) = self.tile_resource.get_tile_set() {
+            if let Some(tile_set) = self.tile_book.get_tile_set() {
                 ui.send_message(OpenTilePanelMessage::message(
-                    TileResource::TileSet(tile_set),
+                    TileBook::TileSet(tile_set),
                     Some(*handle),
                 ));
             }
@@ -656,10 +624,7 @@ impl TileSetEditor {
             if message.destination() == self.pick_button {
                 self.state.lock_mut("Pick mode").drawing_mode = DrawingMode::Pick;
             } else if message.destination() == self.open_control {
-                ui.send_message(OpenTilePanelMessage::message(
-                    self.tile_resource.clone(),
-                    None,
-                ));
+                ui.send_message(OpenTilePanelMessage::message(self.tile_book.clone(), None));
             } else if message.destination() == self.remove {
                 self.do_delete_command(ui, sender);
             } else if message.destination() == self.all_tiles {
@@ -697,21 +662,18 @@ impl TileSetEditor {
     }
 
     fn delete_page(&mut self, position: Vector2<i32>) -> Option<Command> {
-        match &self.tile_resource {
-            TileResource::Empty => None,
-            TileResource::TileSet(tile_set) => Some(Command::new(SetTileSetPageCommand {
+        match &self.tile_book {
+            TileBook::Empty => None,
+            TileBook::TileSet(tile_set) => Some(Command::new(SetTileSetPageCommand {
                 tile_set: tile_set.clone(),
                 position,
                 page: None,
             })),
-            TileResource::Brush(brush) => Some(Command::new(SetBrushPageCommand {
+            TileBook::Brush(brush) => Some(Command::new(SetBrushPageCommand {
                 brush: brush.clone(),
                 position,
                 page: None,
             })),
         }
     }
-
-    // TODO: Is this needed?
-    pub fn update(&mut self) {}
 }

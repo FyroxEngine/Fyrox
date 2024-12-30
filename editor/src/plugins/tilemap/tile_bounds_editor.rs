@@ -186,7 +186,7 @@ impl Control for TileBoundsEditor {
                         let mut value = self.value.clone().unwrap_or_default();
                         *value.get_mut(i) = *v;
                         // This does not trigger a Value FromWidget message from the VecEditor
-                        // becaues the values of the fields have not changed.
+                        // because the values of the fields have not changed.
                         ui.send_message(TileBoundsMessage::value(
                             self.handle,
                             MessageDirection::ToWidget,

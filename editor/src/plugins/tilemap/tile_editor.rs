@@ -68,7 +68,7 @@ pub trait TileEditor: Send {
         &self,
         highlight: &mut FxHashMap<Subposition, Color>,
         page: Vector2<i32>,
-        tile_resource: &TileResource,
+        tile_book: &TileBook,
         update: &TileSetUpdate,
     ) {
     }
@@ -90,7 +90,7 @@ pub trait TileEditor: Send {
         subposition: Vector2<usize>,
         state: &TileDrawState,
         update: &mut TileSetUpdate,
-        tile_resource: &TileResource,
+        tile_book: &TileBook,
     );
     /// A UI message has arrived that may be relevant to this editor.
     fn handle_ui_message(
@@ -98,7 +98,7 @@ pub trait TileEditor: Send {
         state: &mut TileEditorState,
         message: &UiMessage,
         ui: &mut UserInterface,
-        tile_resource: &TileResource,
+        tile_book: &TileBook,
         sender: &MessageSender,
     );
 }
@@ -235,14 +235,14 @@ impl TileMaterialEditor {
     fn apply_material(
         material: &MaterialResource,
         state: &TileEditorState,
-        tile_resource: &TileResource,
+        tile_book: &TileBook,
         sender: &MessageSender,
     ) {
         let tiles = state.selected_positions();
         let Some(page) = state.page() else {
             return;
         };
-        let TileResource::TileSet(tile_set) = tile_resource else {
+        let TileBook::TileSet(tile_set) = tile_book else {
             return;
         };
         let iter = tiles
@@ -272,14 +272,14 @@ impl TileMaterialEditor {
     fn apply_bounds(
         bounds: &TileBounds,
         state: &TileEditorState,
-        tile_resource: &TileResource,
+        tile_book: &TileBook,
         sender: &MessageSender,
     ) {
         let tiles = state.selected_positions();
         let Some(page) = state.page() else {
             return;
         };
-        let TileResource::TileSet(tile_set) = tile_resource else {
+        let TileBook::TileSet(tile_set) = tile_book else {
             return;
         };
         let iter = tiles
@@ -309,13 +309,13 @@ impl TileMaterialEditor {
     fn apply_transform(
         transformation: OrthoTransformation,
         state: &TileEditorState,
-        tile_resource: &TileResource,
+        tile_book: &TileBook,
         sender: &MessageSender,
     ) {
         let Some(page) = state.page() else {
             return;
         };
-        let TileResource::TileSet(tile_set) = tile_resource else {
+        let TileBook::TileSet(tile_set) = tile_book else {
             return;
         };
         let tile_set = tile_set.clone();
@@ -374,7 +374,7 @@ impl TileEditor for TileMaterialEditor {
         _subposition: Vector2<usize>,
         _state: &TileDrawState,
         update: &mut TileSetUpdate,
-        _tile_resource: &TileResource,
+        _tile_resource: &TileBook,
     ) {
         update.set_material(handle.page(), handle.tile(), self.material_bounds.clone());
     }
@@ -384,7 +384,7 @@ impl TileEditor for TileMaterialEditor {
         state: &mut TileEditorState,
         message: &UiMessage,
         _ui: &mut UserInterface,
-        tile_resource: &TileResource,
+        tile_book: &TileBook,
         sender: &MessageSender,
     ) {
         if message.flags == MSG_SYNC_FLAG || message.direction() == MessageDirection::ToWidget {
@@ -393,32 +393,32 @@ impl TileEditor for TileMaterialEditor {
         if let Some(MaterialFieldMessage::Material(material)) = message.data() {
             if message.destination() == self.material_field {
                 self.material_bounds.material = material.clone();
-                Self::apply_material(material, state, tile_resource, sender);
+                Self::apply_material(material, state, tile_book, sender);
             }
         } else if let Some(TileBoundsMessage::Value(Some(bounds))) = message.data() {
             if message.destination() == self.bounds_field {
                 self.material_bounds.bounds = bounds.clone();
-                Self::apply_bounds(bounds, state, tile_resource, sender);
+                Self::apply_bounds(bounds, state, tile_book, sender);
             }
         } else if let Some(TileBoundsMessage::Turn(amount)) = message.data() {
             Self::apply_transform(
                 OrthoTransformation::new(false, *amount),
                 state,
-                tile_resource,
+                tile_book,
                 sender,
             );
         } else if let Some(TileBoundsMessage::FlipX) = message.data() {
             Self::apply_transform(
                 OrthoTransformation::identity().x_flipped(),
                 state,
-                tile_resource,
+                tile_book,
                 sender,
             );
         } else if let Some(TileBoundsMessage::FlipY) = message.data() {
             Self::apply_transform(
                 OrthoTransformation::identity().y_flipped(),
                 state,
-                tile_resource,
+                tile_book,
                 sender,
             );
         }
@@ -459,10 +459,10 @@ impl TileColorEditor {
     fn apply_color(
         color: Color,
         state: &TileEditorState,
-        tile_resource: &TileResource,
+        tile_book: &TileBook,
         sender: &MessageSender,
     ) {
-        let TileResource::TileSet(tile_set) = tile_resource else {
+        let TileBook::TileSet(tile_set) = tile_book else {
             return;
         };
         let iter = state
@@ -505,7 +505,7 @@ impl TileEditor for TileColorEditor {
         _subposition: Vector2<usize>,
         _state: &TileDrawState,
         update: &mut TileSetUpdate,
-        _tile_resource: &TileResource,
+        _tile_resource: &TileBook,
     ) {
         update.set_color(handle.page(), handle.tile(), self.color);
     }
@@ -515,7 +515,7 @@ impl TileEditor for TileColorEditor {
         state: &mut TileEditorState,
         message: &UiMessage,
         _ui: &mut UserInterface,
-        tile_resource: &TileResource,
+        tile_book: &TileBook,
         sender: &MessageSender,
     ) {
         if message.direction() == MessageDirection::ToWidget || message.flags == MSG_SYNC_FLAG {
@@ -523,7 +523,7 @@ impl TileEditor for TileColorEditor {
         }
         if let Some(&ColorFieldMessage::Color(color)) = message.data() {
             self.color = color;
-            Self::apply_color(color, state, tile_resource, sender);
+            Self::apply_color(color, state, tile_book, sender);
         }
     }
 }
@@ -556,12 +556,12 @@ impl TileHandleEditor {
     fn apply_value(
         value: Option<TileDefinitionHandle>,
         state: &TileEditorState,
-        tile_resource: &TileResource,
+        tile_book: &TileBook,
         sender: &MessageSender,
     ) {
-        match tile_resource {
-            TileResource::Empty => (),
-            TileResource::TileSet(tile_set) => {
+        match tile_book {
+            TileBook::Empty => (),
+            TileBook::TileSet(tile_set) => {
                 let iter = state
                     .tile_handles()
                     .map(|h| (h, TileDataUpdate::TransformSet(value)));
@@ -572,7 +572,7 @@ impl TileHandleEditor {
                     tiles: update,
                 });
             }
-            TileResource::Brush(resource) => {
+            TileBook::Brush(resource) => {
                 if let Some(page) = state.page() {
                     let iter = state.selected_positions().map(|position| (position, value));
                     let mut update = TilesUpdate::default();
@@ -612,7 +612,7 @@ impl TileEditor for TileHandleEditor {
         _subposition: Vector2<usize>,
         _state: &TileDrawState,
         _update: &mut TileSetUpdate,
-        _tile_resource: &TileResource,
+        _tile_resource: &TileBook,
     ) {
     }
 
@@ -621,7 +621,7 @@ impl TileEditor for TileHandleEditor {
         state: &mut TileEditorState,
         message: &UiMessage,
         _ui: &mut UserInterface,
-        tile_resource: &TileResource,
+        tile_book: &TileBook,
         sender: &MessageSender,
     ) {
         if message.direction() == MessageDirection::ToWidget || message.flags == MSG_SYNC_FLAG {
@@ -630,7 +630,7 @@ impl TileEditor for TileHandleEditor {
         if let Some(&TileHandleEditorMessage::Value(value)) = message.data() {
             if message.destination() == self.handle {
                 self.value = value;
-                Self::apply_value(value, state, tile_resource, sender);
+                Self::apply_value(value, state, tile_book, sender);
             }
         }
     }

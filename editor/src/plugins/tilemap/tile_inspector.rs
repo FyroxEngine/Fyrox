@@ -74,7 +74,7 @@ pub struct TileEditorStateRef {
     pub pages_palette: Handle<UiNode>,
     pub tiles_palette: Handle<UiNode>,
     pub state: TileDrawStateRef,
-    pub tile_resource: TileResource,
+    pub tile_book: TileBook,
 }
 
 impl TileEditorStateRef {
@@ -84,19 +84,33 @@ impl TileEditorStateRef {
             pages_palette: self.pages_palette,
             tiles_palette: self.tiles_palette,
             state: Some(self.state.lock()),
-            data: TileResourceData::new(&self.tile_resource),
+            data: TileResourceData::new(&self.tile_book),
         }
     }
 }
 
+/// A combination of a guard for [`TileDrawState`] and a guard for either a [`TileSetResource`] or a [`TileMapBrushResource`].
+/// This gives a tile editor easy access to all the relevant information, including the current page, the currently selected tiles,
+/// and the data from whatever resource is being edited without needing to keep track of locking and unlocking resources.
 pub struct TileEditorState<'a> {
+    /// The currently open page.
     page: Option<Vector2<i32>>,
+    /// The handle of the palette widget for pages. This is used with `state` to determine whether
+    /// the current selection is a page.
     pages_palette: Handle<UiNode>,
+    /// The handle of the palette widget for tiles. This is used with `state` to determine whether
+    /// the current selection is a tile.
     tiles_palette: Handle<UiNode>,
+    /// The [`TileDrawState`] that contains the currently selected tiles.
+    /// It is Option so that it can be briefly taken and then returned as needed,
+    /// but otherwise it can always be safely assumed to be `Some`.
     state: Option<TileDrawStateGuard<'a>>,
+    /// The resource that we are editing. This is for read-only access.
+    /// Modifying resources is always done through [`commands`].
     data: TileResourceData<'a>,
 }
 
+/// An abstract resource guard that could either guard a [`TileSetResource`] or a [`TileMapBrushResource`].
 enum TileResourceData<'a> {
     Empty,
     TileSet(ResourceDataRef<'a, TileSet>),
@@ -114,11 +128,11 @@ impl Debug for TileResourceData<'_> {
 }
 
 impl<'a> TileResourceData<'a> {
-    fn new(tile_resource: &'a TileResource) -> Self {
-        match tile_resource {
-            TileResource::Empty => Self::Empty,
-            TileResource::TileSet(resource) => Self::TileSet(resource.data_ref()),
-            TileResource::Brush(resource) => Self::Brush(resource.data_ref()),
+    fn new(tile_book: &'a TileBook) -> Self {
+        match tile_book {
+            TileBook::Empty => Self::Empty,
+            TileBook::TileSet(resource) => Self::TileSet(resource.data_ref()),
+            TileBook::Brush(resource) => Self::Brush(resource.data_ref()),
         }
     }
     fn tile_set(&self) -> Option<&ResourceDataRef<'a, TileSet>> {
@@ -188,12 +202,15 @@ impl<'a> TileEditorState<'a> {
     pub fn page(&self) -> Option<Vector2<i32>> {
         self.page
     }
+    /// The user is currently selecting pages.
     pub fn has_pages(&self) -> bool {
         self.state().selection_palette() == self.pages_palette && self.state().has_selection()
     }
+    /// The user is currently selecting tiles.
     pub fn has_tiles(&self) -> bool {
         self.state().selection_palette() == self.tiles_palette && self.state().has_selection()
     }
+    /// The number of selected tile positions, regardless of whether those positions actually contain tiles.
     pub fn tiles_count(&self) -> usize {
         if self.state().selection_palette() == self.tiles_palette {
             self.state().selection_positions().len()
@@ -201,6 +218,7 @@ impl<'a> TileEditorState<'a> {
             0
         }
     }
+    /// The number of selected page positions, regardless of whether those positions actually contain pages.
     pub fn pages_count(&self) -> usize {
         if self.state().selection_palette() == self.pages_palette {
             self.state().selection_positions().len()
@@ -211,15 +229,21 @@ impl<'a> TileEditorState<'a> {
     pub fn selected_positions(&self) -> impl Iterator<Item = Vector2<i32>> + '_ {
         self.state().selection_positions().iter().copied()
     }
+    /// The property layer with the given UUID within the tile set, if we are editing a tile set
+    /// and the tile set has a layer with that UUID. None, otherwise.
     pub fn find_property(&self, property_id: Uuid) -> Option<&TileSetPropertyLayer> {
         self.tile_set()?.find_property(property_id)
     }
+    /// The collider layer with the given UUID within the tile set, if we are editing a tile set
+    /// and the tile set has a layer with that UUID. None, otherwise.
     pub fn find_collider(&self, collider_id: Uuid) -> Option<&TileSetColliderLayer> {
         self.tile_set()?.find_collider(collider_id)
     }
+    /// Iterator over all the property layers of the resource. The iterator will be empty for brushes.
     pub fn properties(&self) -> impl Iterator<Item = &TileSetPropertyLayer> {
         OptionIterator(self.tile_set().map(|d| d.properties.iter()))
     }
+    /// Iterator over all the collider layers of the resource. The iterator will be empty for brushes.
     pub fn colliders(&self) -> impl Iterator<Item = &TileSetColliderLayer> {
         OptionIterator(self.tile_set().map(|d| d.colliders.iter()))
     }
@@ -230,6 +254,7 @@ impl<'a> TileEditorState<'a> {
             OptionIterator(None)
         }
     }
+    /// Iterate through the selected page positions that do not contain pages.
     pub fn empty_page_positions(&self) -> impl Iterator<Item = Vector2<i32>> + '_ {
         if self.state().selection_palette() == self.pages_palette {
             OptionIterator(Some(
@@ -251,6 +276,7 @@ impl<'a> TileEditorState<'a> {
             OptionIterator(None)
         }
     }
+    /// Iterate through the selected tile set pages. If we are editing a brush, this iterator will be empty.
     pub fn tile_set_pages(&self) -> impl Iterator<Item = (Vector2<i32>, &TileSetPage)> {
         if self.state().selection_palette() == self.pages_palette {
             OptionIterator(Some(
@@ -264,6 +290,7 @@ impl<'a> TileEditorState<'a> {
             OptionIterator(None)
         }
     }
+    /// Iterate through the selected brush pages. If we are editing a tile set, this iterator will be empty.
     pub fn brush_pages(&self) -> impl Iterator<Item = (Vector2<i32>, &TileMapBrushPage)> {
         if self.state().selection_palette() == self.pages_palette {
             OptionIterator(Some(
@@ -277,6 +304,7 @@ impl<'a> TileEditorState<'a> {
             OptionIterator(None)
         }
     }
+    /// If exactly one page is selected and it happens to be a tile atlas page, then return the position and the page data.
     pub fn material_page(&self) -> Option<(Vector2<i32>, &TileMaterial)> {
         let mut pages = self.tile_set_pages();
         let result = pages.next();
@@ -284,12 +312,13 @@ impl<'a> TileEditorState<'a> {
             return None;
         }
         let (position, page) = result?;
-        if let TileSetPageSource::Material(m) = &page.source {
+        if let TileSetPageSource::Atlas(m) = &page.source {
             Some((position, m))
         } else {
             None
         }
     }
+    /// Is the page at the given coordinates a tile atlas page?
     pub fn is_material_page(&self, position: Vector2<i32>) -> bool {
         match &self.data {
             TileResourceData::Empty => false,
@@ -303,6 +332,7 @@ impl<'a> TileEditorState<'a> {
             TileResourceData::Brush(_) => false,
         }
     }
+    /// Is the page at the given coordinates a freeform tile page?
     pub fn is_freeform_page(&self, position: Vector2<i32>) -> bool {
         match &self.data {
             TileResourceData::Empty => false,
@@ -316,6 +346,7 @@ impl<'a> TileEditorState<'a> {
             TileResourceData::Brush(_) => false,
         }
     }
+    /// Is the page at the given coordinates a transform set page?
     pub fn is_transform_page(&self, position: Vector2<i32>) -> bool {
         match &self.data {
             TileResourceData::Empty => false,
@@ -329,6 +360,7 @@ impl<'a> TileEditorState<'a> {
             TileResourceData::Brush(_) => false,
         }
     }
+    /// Is the page at the given coordinates a brush page?
     pub fn is_brush_page(&self, position: Vector2<i32>) -> bool {
         match &self.data {
             TileResourceData::Empty => false,
@@ -336,6 +368,7 @@ impl<'a> TileEditorState<'a> {
             TileResourceData::Brush(brush) => brush.pages.contains_key(&position),
         }
     }
+    /// Iterate the selected positions in the form of `TileDefinitionHandle` using the current page for page coordinates.
     pub fn tile_handles(&self) -> impl Iterator<Item = TileDefinitionHandle> + '_ {
         let page = self.page;
         self.state()
@@ -344,6 +377,8 @@ impl<'a> TileEditorState<'a> {
             .copied()
             .filter_map(move |p| TileDefinitionHandle::try_new(page?, p))
     }
+    /// Iterate the selected positions in the form of `TileDefinitionHandle` using the current page for page coordinates.
+    /// and skip any position that already contains a tile.
     pub fn empty_tiles(&self) -> impl Iterator<Item = TileDefinitionHandle> + '_ {
         let page = self.page;
         self.state()
@@ -358,6 +393,7 @@ impl<'a> TileEditorState<'a> {
                 tile_set.is_free_at((*handle).into())
             })
     }
+    /// Iterate the selected freeform tiles to produce pairs of tile handles and borrows of the material bounds for each tile.
     pub fn tile_material_bounds(
         &self,
     ) -> impl Iterator<Item = (TileDefinitionHandle, &TileMaterialBounds)> {
@@ -371,6 +407,7 @@ impl<'a> TileEditorState<'a> {
                 Some((handle, self.tile_set()?.tile_bounds(handle)?))
             })
     }
+    /// Iterate the selected tile set tiles to produce pairs of tile handles and borrows of data for each tile.
     pub fn tile_data(&self) -> impl Iterator<Item = (TileDefinitionHandle, &TileData)> {
         let page = self.page;
         self.state()
@@ -382,6 +419,8 @@ impl<'a> TileEditorState<'a> {
                 Some((handle, self.tile_set()?.tile_data(handle)?))
             })
     }
+    /// Iterate over the selected positions and produce tile handle pairs where the first handle refers to
+    /// the selected position and the second handle refers to handle that the tile redirects to.
     pub fn tile_redirect(
         &self,
     ) -> impl Iterator<Item = (TileDefinitionHandle, TileDefinitionHandle)> + '_ {
@@ -533,6 +572,7 @@ impl InspectorField {
     }
 }
 
+/// Object that keeps track of the editors for all the property layers.
 #[derive(Clone, Default, Visit, Reflect)]
 struct PropertyEditors {
     handle: Handle<UiNode>,
@@ -572,7 +612,9 @@ impl PropertyEditors {
         self.editors.iter().map(|v| &v.1)
     }
     fn sync_to_model(&mut self, state: &TileEditorState, ui: &mut UserInterface) {
+        // Check whether the list of layers has changed. Have layers been added or removed or changed their order?
         if self.needs_rebuild(state) {
+            // The list has changed somehow, so remove the old editors and construct an all new editor for each layer.
             for (_, editor) in self.editors.iter() {
                 ui.send_message(WidgetMessage::remove(
                     editor.lock().handle(),
@@ -588,12 +630,15 @@ impl PropertyEditors {
                 ));
             }
         } else {
+            // The list has not changed, so just sync each editor because one of the layers may have changed.
             for (_, editor) in self.editors.iter() {
                 editor.lock().sync_to_model(state, ui);
             }
         }
     }
+    /// Check whether the tile set's layer list matches our list of editors.
     fn needs_rebuild(&self, state: &TileEditorState) -> bool {
+        // Do the layers and the editors have the same UUIDs in the same order?
         !self
             .editors
             .iter()
@@ -602,6 +647,7 @@ impl PropertyEditors {
     }
 }
 
+/// Object that keeps track of the editors for all the collider layers.
 #[derive(Clone, Default, Visit, Reflect)]
 struct ColliderEditors {
     handle: Handle<UiNode>,
@@ -641,7 +687,9 @@ impl ColliderEditors {
         self.editors.iter().map(|v| &v.1)
     }
     fn sync_to_model(&mut self, state: &TileEditorState, ui: &mut UserInterface) {
+        // Check whether the list of layers has changed. Have layers been added or removed or changed their order?
         if self.needs_rebuild(state) {
+            // The list has changed somehow, so remove the old editors and construct an all new editor for each layer.
             for (_, editor) in self.editors.iter() {
                 ui.send_message(WidgetMessage::remove(
                     editor.lock().handle(),
@@ -657,12 +705,15 @@ impl ColliderEditors {
                 ));
             }
         } else {
+            // The list has not changed, so just sync each editor because one of the layers may have changed.
             for (_, editor) in self.editors.iter() {
                 editor.lock().sync_to_model(state, ui);
             }
         }
     }
+    /// Check whether the tile set's layer list matches our list of editors.
     fn needs_rebuild(&self, state: &TileEditorState) -> bool {
+        // Do the layers and the editors have the same UUIDs in the same order?
         !self
             .editors
             .iter()
@@ -687,7 +738,7 @@ pub struct TileInspector {
     /// the handle in order to determine where the user is selecting.
     tiles_palette: Handle<UiNode>,
     /// The current resource to be edited.
-    tile_resource: TileResource,
+    tile_book: TileBook,
     /// The collection of buttons for creating a new tile set page.
     tile_set_page_creator: Handle<UiNode>,
     /// The panel containing the button for creating a new brush page.
@@ -733,7 +784,7 @@ impl TileInspector {
         state: TileDrawStateRef,
         pages_palette: Handle<UiNode>,
         tiles_palette: Handle<UiNode>,
-        tile_resource: TileResource,
+        tile_book: TileBook,
         _resource_manager: ResourceManager,
         sender: MessageSender,
         ctx: &mut BuildContext,
@@ -805,7 +856,7 @@ impl TileInspector {
             state: state.clone(),
             pages_palette,
             tiles_palette,
-            tile_resource: tile_resource.clone(),
+            tile_book: tile_book.clone(),
         };
         let tile_editor_state_lock = tile_editor_state.lock();
         let property_editors = PropertyEditors::new(&tile_editor_state_lock, ctx);
@@ -828,7 +879,7 @@ impl TileInspector {
             state,
             pages_palette,
             tiles_palette,
-            tile_resource,
+            tile_book,
             tile_editors,
             brush_page_creator,
             tile_set_page_creator,
@@ -848,8 +899,8 @@ impl TileInspector {
     pub fn handle(&self) -> Handle<UiNode> {
         self.handle
     }
-    pub fn set_tile_resource(&mut self, tile_resource: TileResource, ui: &mut UserInterface) {
-        self.tile_resource = tile_resource;
+    pub fn set_tile_resource(&mut self, tile_book: TileBook, ui: &mut UserInterface) {
+        self.tile_book = tile_book;
         self.sync_to_model(ui);
     }
     fn tile_editor_state(&self, ui: &UserInterface) -> TileEditorStateRef {
@@ -866,7 +917,7 @@ impl TileInspector {
             pages_palette: self.pages_palette,
             tiles_palette: self.tiles_palette,
             state: self.state.clone(),
-            tile_resource: self.tile_resource.clone(),
+            tile_book: self.tile_book.clone(),
         }
     }
     pub fn sync_to_model(&mut self, ui: &mut UserInterface) {
@@ -991,7 +1042,7 @@ impl TileInspector {
                 &mut tile_editor_state,
                 message,
                 ui,
-                &self.tile_resource,
+                &self.tile_book,
                 sender,
             );
         }
@@ -1057,9 +1108,9 @@ impl TileInspector {
         state: &TileEditorState,
         sender: &MessageSender,
     ) {
-        let cmds = match &self.tile_resource {
-            TileResource::Empty => return,
-            TileResource::TileSet(tile_set) => state
+        let cmds = match &self.tile_book {
+            TileBook::Empty => return,
+            TileBook::TileSet(tile_set) => state
                 .page_positions()
                 .map(|position| ModifyPageIconCommand {
                     tile_set: tile_set.clone(),
@@ -1068,7 +1119,7 @@ impl TileInspector {
                 })
                 .map(Command::new)
                 .collect::<Vec<_>>(),
-            TileResource::Brush(brush) => state
+            TileBook::Brush(brush) => state
                 .page_positions()
                 .map(|position| ModifyBrushPageIconCommand {
                     brush: brush.clone(),
@@ -1081,7 +1132,7 @@ impl TileInspector {
         sender.do_command(CommandGroup::from(cmds).with_custom_name("Modify Tile Page Icon"));
     }
     fn create_tile(&self, state: &TileEditorState, sender: &MessageSender) {
-        let TileResource::TileSet(tile_set) = &self.tile_resource else {
+        let TileBook::TileSet(tile_set) = &self.tile_book else {
             return;
         };
         let mut update = TileSetUpdate::default();
@@ -1101,7 +1152,7 @@ impl TileInspector {
         });
     }
     fn create_brush_page(&self, state: &TileEditorState, sender: &MessageSender) {
-        let TileResource::Brush(brush) = &self.tile_resource else {
+        let TileBook::Brush(brush) = &self.tile_book else {
             return;
         };
         let cmds = state
@@ -1124,7 +1175,7 @@ impl TileInspector {
         state: &TileEditorState,
         sender: &MessageSender,
     ) {
-        let TileResource::TileSet(tile_set) = &self.tile_resource else {
+        let TileBook::TileSet(tile_set) = &self.tile_book else {
             return;
         };
         let cmds = state
@@ -1149,7 +1200,7 @@ impl TileInspector {
         state: &TileEditorState,
         sender: &MessageSender,
     ) {
-        let TileResource::TileSet(tile_set) = self.tile_resource.clone() else {
+        let TileBook::TileSet(tile_set) = self.tile_book.clone() else {
             return;
         };
         if let Some((page, _)) = state.material_page() {
@@ -1166,7 +1217,7 @@ impl TileInspector {
         state: &TileEditorState,
         sender: &MessageSender,
     ) {
-        let TileResource::TileSet(tile_set) = self.tile_resource.clone() else {
+        let TileBook::TileSet(tile_set) = self.tile_book.clone() else {
             return;
         };
         if let Some((page, _)) = state.material_page() {

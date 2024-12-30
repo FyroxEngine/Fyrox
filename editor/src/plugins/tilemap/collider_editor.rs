@@ -269,13 +269,8 @@ impl TileColliderEditor {
         );
         Resource::new_ok(ResourceKind::Embedded, CustomTileCollider::default())
     }
-    fn send_value(
-        &self,
-        state: &TileEditorState,
-        sender: &MessageSender,
-        tile_resource: &TileResource,
-    ) {
-        let Some(tile_set) = tile_resource.tile_set_ref().cloned() else {
+    fn send_value(&self, state: &TileEditorState, sender: &MessageSender, tile_book: &TileBook) {
+        let Some(tile_set) = tile_book.tile_set_ref().cloned() else {
             return;
         };
         let Some(page) = state.page() else {
@@ -336,7 +331,7 @@ impl TileEditor for TileColliderEditor {
         _subposition: Vector2<usize>,
         state: &TileDrawState,
         update: &mut TileSetUpdate,
-        _tile_resource: &TileResource,
+        _tile_resource: &TileBook,
     ) {
         update.set_collider(
             handle.page(),
@@ -351,7 +346,7 @@ impl TileEditor for TileColliderEditor {
         state: &mut TileEditorState,
         message: &UiMessage,
         ui: &mut UserInterface,
-        tile_resource: &TileResource,
+        tile_book: &TileBook,
         sender: &MessageSender,
     ) {
         if message.flags == MSG_SYNC_FLAG || message.direction() == MessageDirection::ToWidget {
@@ -370,13 +365,13 @@ impl TileEditor for TileColliderEditor {
                     _ => TileCollider::None,
                 };
                 send_visibility(ui, self.custom_field, self.value.is_custom());
-                self.send_value(state, sender, tile_resource);
+                self.send_value(state, sender, tile_book);
             }
         } else if let Some(TextMessage::Text(text)) = message.data() {
             if message.destination() == self.custom_field {
                 if let Some(value) = self.build_custom_collider(text, ui) {
                     self.value = TileCollider::Custom(value);
-                    self.send_value(state, sender, tile_resource);
+                    self.send_value(state, sender, tile_book);
                 }
             }
         }

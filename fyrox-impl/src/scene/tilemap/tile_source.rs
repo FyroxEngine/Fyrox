@@ -23,6 +23,8 @@
 //! Tile sources can be randomized and they can repeat to create varied effects
 //! while editing tile maps.
 
+use fyrox_core::swap_hash_map_entry;
+
 use crate::{
     core::{algebra::Vector2, reflect::prelude::*, visitor::prelude::*},
     fxhash::FxHashMap,

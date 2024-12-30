@@ -40,6 +40,7 @@
 use super::*;
 use crate::core::{algebra::Vector2, color::Color, log::Log, type_traits::prelude::*};
 use fxhash::FxHashMap;
+use fyrox_core::swap_hash_map_entry;
 use std::{
     borrow::Cow,
     collections::hash_map::Entry,
@@ -362,14 +363,14 @@ impl TileSetUpdate {
             return;
         };
         match &page_object.source {
-            TileSetPageSource::Material(_) => self.convert_material(tiles, page),
+            TileSetPageSource::Atlas(_) => self.convert_material(tiles, page),
             TileSetPageSource::Freeform(_) => {
                 drop(tile_set);
-                self.convert_freeform(tiles, &TileSetRef::new(source_set), page);
+                self.convert_freeform(tiles, &TileSetRef::new(source_set).as_loaded(), page);
             }
-            TileSetPageSource::TransformSet(_) => {
+            TileSetPageSource::Transform(_) => {
                 drop(tile_set);
-                self.convert_transform(tiles, &TileSetRef::new(source_set), page);
+                self.convert_transform(tiles, &TileSetRef::new(source_set).as_loaded(), page);
             }
         }
     }
@@ -388,7 +389,7 @@ impl TileSetUpdate {
     fn convert_freeform(
         &mut self,
         tiles: &TransTilesUpdate,
-        tile_set: &TileSetRef,
+        tile_set: &OptionTileSet,
         page: Vector2<i32>,
     ) {
         for (pos, value) in tiles.iter() {
@@ -405,7 +406,7 @@ impl TileSetUpdate {
     fn convert_transform(
         &mut self,
         tiles: &TransTilesUpdate,
-        tile_set: &TileSetRef,
+        tile_set: &OptionTileSet,
         page: Vector2<i32>,
     ) {
         for (pos, value) in tiles.iter() {
@@ -620,7 +621,7 @@ impl DerefMut for TransTilesUpdate {
 impl TransTilesUpdate {
     /// Construct a TilesUpdate by finding the transformed version of each tile
     /// in the given tile set.
-    pub fn build_tiles_update(&self, tile_set: &TileSetRef) -> TilesUpdate {
+    pub fn build_tiles_update(&self, tile_set: &OptionTileSet) -> TilesUpdate {
         let mut result = TilesUpdate::default();
         for (pos, value) in self.iter() {
             if let Some((trans, handle)) = value {

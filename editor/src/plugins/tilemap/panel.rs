@@ -51,7 +51,7 @@ use crate::{
             text::{TextBuilder, TextMessage},
             window::Window,
         },
-        scene::tilemap::{tileset::TileSet, TileResource, *},
+        scene::tilemap::{tileset::TileSet, TileBook, *},
         scene::{
             node::Node,
             tilemap::{
@@ -119,7 +119,7 @@ pub struct TileMapPanel {
     /// know what tool is currently selected.
     pub state: TileDrawStateRef,
     /// The resource that is the source for the tiles that the user may select.
-    pub tile_resource: TileResource,
+    pub tile_book: TileBook,
     /// The window that contains this control panel.
     pub window: Handle<UiNode>,
     /// The currently selected brush. This brush can be set by choosing a tile map
@@ -390,7 +390,7 @@ impl TileMapPanel {
         Self {
             state,
             brush: None,
-            tile_resource: TileResource::Empty,
+            tile_book: TileBook::Empty,
             window,
             tile_set_name,
             preview,
@@ -472,14 +472,14 @@ impl TileMapPanel {
     }
 
     /// Set the source for the control panel's tiles.
-    pub fn set_resource(&mut self, resource: TileResource, ui: &mut UserInterface) {
+    pub fn set_resource(&mut self, resource: TileBook, ui: &mut UserInterface) {
         // Update the current brush based upon the new resource.
         match &resource {
             // An empty resource has no brush.
-            TileResource::Empty => self.brush = None,
+            TileBook::Empty => self.brush = None,
             // A tile set has no brush, but if this is the tile set of our current brush
             // then keep the current brush since it meant to be used with given resource.
-            TileResource::TileSet(tile_set) => {
+            TileBook::TileSet(tile_set) => {
                 if let Some(brush) = &self.brush {
                     if brush.data_ref().tile_set.as_ref() != Some(tile_set) {
                         self.brush = None;
@@ -487,11 +487,11 @@ impl TileMapPanel {
                 }
             }
             // We are being given a brush, so that becomes our brush.
-            TileResource::Brush(brush) => {
+            TileBook::Brush(brush) => {
                 self.brush = Some(brush.clone());
             }
         }
-        self.tile_resource = resource.clone();
+        self.tile_book = resource.clone();
         self.sync_to_model(ui);
         self.send_tile_resource(ui);
     }
@@ -500,7 +500,7 @@ impl TileMapPanel {
     /// if there is a current brush.
     pub fn switch_to_brush(&mut self, ui: &mut UserInterface) {
         if let Some(brush) = &self.brush {
-            self.tile_resource = TileResource::Brush(brush.clone());
+            self.tile_book = TileBook::Brush(brush.clone());
             self.sync_to_model(ui);
             self.send_tile_resource(ui);
         }
@@ -517,7 +517,7 @@ impl TileMapPanel {
         let Some(tile_set) = brush.tile_set.clone() else {
             return;
         };
-        self.tile_resource = TileResource::TileSet(tile_set);
+        self.tile_book = TileBook::TileSet(tile_set);
         self.sync_to_model(ui);
         self.send_tile_resource(ui);
     }
@@ -527,24 +527,24 @@ impl TileMapPanel {
         ui.send_message(PaletteMessage::set_page(
             self.pages,
             MessageDirection::ToWidget,
-            self.tile_resource.clone(),
+            self.tile_book.clone(),
             Some(DEFAULT_PAGE),
         ));
         ui.send_message(PaletteMessage::set_page(
             self.palette,
             MessageDirection::ToWidget,
-            self.tile_resource.clone(),
+            self.tile_book.clone(),
             Some(DEFAULT_PAGE),
         ));
     }
 
     /// True if the current resource is a brush.
     pub fn is_brush(&self) -> bool {
-        self.tile_resource.is_brush()
+        self.tile_book.is_brush()
     }
     /// True if the current resource is a tile set.
     pub fn is_tile_set(&self) -> bool {
-        self.tile_resource.is_tile_set()
+        self.tile_book.is_tile_set()
     }
     /// True if control panel has a brush, even if
     /// we are currently using the brush's tile set instead of the brush itself.
@@ -562,13 +562,13 @@ impl TileMapPanel {
         ui.send_message(PaletteMessage::set_page(
             self.pages,
             MessageDirection::ToWidget,
-            self.tile_resource.clone(),
+            self.tile_book.clone(),
             Some(handle.page()),
         ));
         ui.send_message(PaletteMessage::set_page(
             self.palette,
             MessageDirection::ToWidget,
-            self.tile_resource.clone(),
+            self.tile_book.clone(),
             Some(handle.page()),
         ));
         ui.send_message(PaletteMessage::center(
@@ -652,17 +652,17 @@ impl TileMapPanel {
             }
         } else if let Some(WidgetMessage::Drop(dropped)) = message.data() {
             if ui.is_node_child_of(message.destination(), self.window) {
-                let tile_resource = if let Some(item) = ui.node(*dropped).cast::<AssetItem>() {
+                let tile_book = if let Some(item) = ui.node(*dropped).cast::<AssetItem>() {
                     if let Some(brush) = item.resource::<TileMapBrush>() {
-                        Some(TileResource::Brush(brush))
+                        Some(TileBook::Brush(brush))
                     } else {
-                        item.resource::<TileSet>().map(TileResource::TileSet)
+                        item.resource::<TileSet>().map(TileBook::TileSet)
                     }
                 } else {
                     None
                 };
-                if let Some(tile_resource) = tile_resource {
-                    self.set_resource(tile_resource, ui);
+                if let Some(tile_book) = tile_book {
+                    self.set_resource(tile_book, ui);
                 }
             }
         }
@@ -670,27 +670,23 @@ impl TileMapPanel {
     }
 
     pub fn sync_to_model(&self, ui: &mut UserInterface) {
-        let name = if let Some(path) = self.tile_resource.path() {
-            path.to_string_lossy().into_owned()
-        } else {
-            "".into()
-        };
+        let name = self.tile_book.name();
         ui.send_message(TextMessage::text(
             self.tile_set_name,
             MessageDirection::ToWidget,
             name,
         ));
-        highlight_tool_button(self.brush_button, self.tile_resource.is_brush(), ui);
-        highlight_tool_button(self.tile_set_button, self.tile_resource.is_tile_set(), ui);
+        highlight_tool_button(self.brush_button, self.tile_book.is_brush(), ui);
+        highlight_tool_button(self.tile_set_button, self.tile_book.is_tile_set(), ui);
         ui.send_message(WidgetMessage::enabled(
             self.brush_button,
             MessageDirection::ToWidget,
             self.brush.is_some(),
         ));
-        let has_tile_set = match &self.tile_resource {
-            TileResource::Empty => false,
-            TileResource::TileSet(_) => true,
-            TileResource::Brush(brush) => brush.data_ref().tile_set.is_some(),
+        let has_tile_set = match &self.tile_book {
+            TileBook::Empty => false,
+            TileBook::TileSet(_) => true,
+            TileBook::Brush(brush) => brush.data_ref().tile_set.is_some(),
         };
         ui.send_message(WidgetMessage::enabled(
             self.tile_set_button,

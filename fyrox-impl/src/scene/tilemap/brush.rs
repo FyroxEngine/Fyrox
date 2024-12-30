@@ -184,7 +184,7 @@ pub struct TileMapBrush {
     /// values. Saving is unnecessary whenever this value is 0.
     #[reflect(hidden)]
     #[visit(skip)]
-    pub change_count: ChangeCount,
+    pub change_count: ChangeFlag,
 }
 
 impl TileMapBrush {
@@ -194,6 +194,10 @@ impl TileMapBrush {
             return false;
         };
         page.tiles.contains_key(&tile)
+    }
+    /// True if there is a page at the given position.
+    pub fn has_page_at(&self, page: Vector2<i32>) -> bool {
+        self.pages.contains_key(&page)
     }
     /// The handle stored at the given position.
     pub fn tile_redirect(&self, handle: TileDefinitionHandle) -> Option<TileDefinitionHandle> {
@@ -333,7 +337,7 @@ impl TileMapBrush {
         }
     }
 
-    /// Return the `TileRenderData` needed to render the tile at the given position on the givne page.
+    /// Return the `TileRenderData` needed to render the tile at the given position on the given page.
     /// If there is no tile at that position or the tile set is missing or not loaded, then None is returned.
     /// If there is a tile and a tile set, but the handle of the tile does not exist in the tile set,
     /// then the rendering data for an error tile is returned using `TileRenderData::missing_tile()`.
