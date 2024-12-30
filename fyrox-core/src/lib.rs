@@ -42,6 +42,7 @@ pub use uuid;
 
 use crate::visitor::{Visit, VisitResult, Visitor};
 use fxhash::FxHashMap;
+use std::collections::hash_map::Entry;
 use std::ffi::OsString;
 use std::hash::Hasher;
 use std::{
@@ -470,6 +471,28 @@ where
     S: AsRef<str>,
 {
     iter.find(|(_, value)| value.name() == name.as_ref())
+}
+
+/// Swaps the content of a hash map entry with the content of an `Option`.
+pub fn swap_hash_map_entry<K, V>(entry: Entry<K, V>, value: &mut Option<V>) {
+    match (entry, value) {
+        (Entry::Occupied(entry), p @ None) => *p = Some(entry.remove()),
+        (Entry::Occupied(mut entry), Some(p)) => std::mem::swap(entry.get_mut(), p),
+        (Entry::Vacant(_), None) => (),
+        (Entry::Vacant(entry), p @ Some(_)) => drop(entry.insert(p.take().unwrap())),
+    }
+}
+
+/// Swaps the content of two hash map entries.
+pub fn swap_hash_map_entries<K0, K1, V>(entry0: Entry<K0, V>, entry1: Entry<K1, V>) {
+    match (entry0, entry1) {
+        (Entry::Occupied(e0), Entry::Vacant(e1)) => drop(e1.insert(e0.remove())),
+        (Entry::Occupied(mut e0), Entry::Occupied(mut e1)) => {
+            std::mem::swap(e0.get_mut(), e1.get_mut())
+        }
+        (Entry::Vacant(_), Entry::Vacant(_)) => (),
+        (Entry::Vacant(e0), Entry::Occupied(e1)) => drop(e0.insert(e1.remove())),
+    }
 }
 
 #[cfg(test)]
