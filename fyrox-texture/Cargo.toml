@@ -1,0 +1,17 @@
+[package]
+name = "fyrox-texture"
+version = "0.36.0"
+edition = "2021"
+
+[dependencies]
+fyrox-core = { path = "../fyrox-core", version = "0.36.0" }
+fyrox-resource = { path = "../fyrox-resource", version = "0.36.0" }
+ddsfile = "0.5.0"
+fast_image_resize = "4.0.0"
+serde = { version = "1", features = ["derive"] }
+lazy_static = "1.4.0"
+fxhash = "0.2.1"
+strum = "0.26.1"
+strum_macros = "0.26.1"
+tbc = "0.3.0"
+image = { version = "0.25.1", default-features = false, features = ["gif", "jpeg", "png", "tga", "tiff", "bmp"] }
