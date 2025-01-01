@@ -1189,9 +1189,9 @@ impl UserInterface {
                 layout_transform[7] = widget.actual_local_position().y;
 
                 let visual_transform = if let Some(parent) = parent {
-                    parent.visual_transform * widget.render_transform * layout_transform
+                    parent.visual_transform * layout_transform * widget.render_transform
                 } else {
-                    widget.render_transform * layout_transform
+                    layout_transform * widget.render_transform
                 };
 
                 widget.visual_transform = visual_transform;
