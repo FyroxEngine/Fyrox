@@ -22,7 +22,7 @@
 //! build game worlds quickly and easily. See [`TileMap`] docs for more info and usage examples.
 
 pub mod brush;
-mod edit;
+mod effect;
 mod property;
 mod tile_collider;
 mod tile_rect;
@@ -32,7 +32,12 @@ mod transform;
 mod update;
 
 use brush::*;
-pub use edit::*;
+pub use effect::*;
+use fxhash::FxHashSet;
+use fyrox_core::{
+    math::{frustum::Frustum, plane::Plane, ray::Ray},
+    parking_lot::Mutex,
+};
 pub use tile_collider::*;
 pub use tile_rect::*;
 pub use tile_source::*;
@@ -90,12 +95,152 @@ lazy_static! {
     );
 }
 
-/// Basic data required for rendering TileMap tiles.
-pub struct TileRenderPosition {
+/// Context for rendering tiles in a tile map. It is especially used by
+/// [`TileMapEffect`] objects.
+pub struct TileMapRenderContext<'a, 'b> {
+    /// The underlying render context that tiles will be rendered into.
+    pub context: &'a mut RenderContext<'b>,
     /// The handle of the TileMap.
-    pub tile_map_handle: Handle<Node>,
+    tile_map_handle: Handle<Node>,
     /// The global transformation of the TileMap.
-    pub transform: Matrix4<f32>,
+    transform: Matrix4<f32>,
+    /// The visible tile positions.
+    bounds: OptionTileRect,
+    hidden_tiles: &'a mut FxHashSet<Vector2<i32>>,
+    tile_set: OptionTileSet<'a>,
+}
+
+impl TileMapRenderContext<'_, '_> {
+    /// The transformation to apply before rendering
+    pub fn transform(&self) -> &Matrix4<f32> {
+        &self.transform
+    }
+    /// The handle of the [`TileMap`] node
+    pub fn tile_map_handle(&self) -> Handle<Node> {
+        self.tile_map_handle
+    }
+    /// The global position of the TileMap
+    pub fn position(&self) -> Vector3<f32> {
+        self.transform.position()
+    }
+    /// The area of tiles that are touching the frustum
+    pub fn visible_bounds(&self) -> OptionTileRect {
+        self.bounds
+    }
+    /// Set a position to false in order to prevent later effects from rendering
+    /// a tile at this position. All positions are true by default.
+    /// Normally, once a tile has been rendered at a position, the position
+    /// should be set to false to prevent a second tile from being rendered
+    /// at the same position.
+    pub fn set_tile_visible(&mut self, position: Vector2<i32>, is_visible: bool) {
+        if is_visible {
+            let _ = self.hidden_tiles.remove(&position);
+        } else {
+            let _ = self.hidden_tiles.insert(position);
+        }
+    }
+    /// True if tiles should be rendered at that position.
+    /// Normally this should always be checked before rendering a tile
+    /// to prevent the rendering from conflicting with some previous
+    /// effect that has set the position to false.
+    pub fn is_tile_visible(&self, position: Vector2<i32>) -> bool {
+        !self.hidden_tiles.contains(&position)
+    }
+    /// Render the tile with the given handle at the given position.
+    /// Normally [`TileMapRenderContext::is_tile_visible`] should be checked before calling this method
+    /// to ensure that tiles are permitted to be rendered at this position,
+    /// and then [`TileMapRenderContext::set_tile_visible`] should be used to set the position to false
+    /// to prevent any future effects from rendering at this position.
+    pub fn draw_tile(&mut self, position: Vector2<i32>, handle: TileDefinitionHandle) {
+        let Some(data) = self.tile_set.get_tile_render_data(handle.into()) else {
+            return;
+        };
+        self.push_tile(position, &data);
+    }
+
+    /// Render the given tile data at the given cell position. This makes it possible to render
+    /// a tile that is not in the tile map's tile set.
+    pub fn push_tile(&mut self, position: Vector2<i32>, data: &TileRenderData) {
+        let color = data.color;
+        if let Some(tile_bounds) = data.material_bounds.as_ref() {
+            let material = &tile_bounds.material;
+            let bounds = &tile_bounds.bounds;
+            self.push_material_tile(position, material, bounds, color);
+        } else {
+            self.push_color_tile(position, color);
+        }
+    }
+
+    fn push_color_tile(&mut self, position: Vector2<i32>, color: Color) {
+        let position = position.cast::<f32>();
+        let vertices = [(0.0, 1.0), (1.0, 1.0), (1.0, 0.0), (0.0, 0.0)]
+            .map(|(x, y)| Vector2::new(x, y))
+            .map(|p| make_rect_vertex(&self.transform, position + p, color));
+
+        let triangles = [[0, 1, 2], [2, 3, 0]].map(TriangleDefinition);
+
+        let sort_index = self.context.calculate_sorting_index(self.position());
+
+        self.context.storage.push_triangles(
+            RectangleVertex::layout(),
+            &STANDARD_2D.resource,
+            RenderPath::Forward,
+            sort_index,
+            self.tile_map_handle,
+            &mut move |mut vertex_buffer, mut triangle_buffer| {
+                let start_vertex_index = vertex_buffer.vertex_count();
+
+                vertex_buffer.push_vertices(&vertices).unwrap();
+
+                triangle_buffer
+                    .push_triangles_iter_with_offset(start_vertex_index, triangles.into_iter());
+            },
+        );
+    }
+
+    fn push_material_tile(
+        &mut self,
+        position: Vector2<i32>,
+        material: &MaterialResource,
+        bounds: &TileBounds,
+        color: Color,
+    ) {
+        let position = position.cast::<f32>();
+        let uvs = [
+            bounds.right_top_corner,
+            bounds.left_top_corner,
+            bounds.left_bottom_corner,
+            bounds.right_bottom_corner,
+        ];
+        let vertices = [
+            (1.0, 1.0, uvs[0]),
+            (0.0, 1.0, uvs[1]),
+            (0.0, 0.0, uvs[2]),
+            (1.0, 0.0, uvs[3]),
+        ]
+        .map(|(x, y, uv)| (Vector2::new(x, y), uv))
+        .map(|(p, uv)| make_tile_vertex(&self.transform, position + p, uv, color));
+
+        let triangles = [[0, 1, 2], [2, 3, 0]].map(TriangleDefinition);
+
+        let sort_index = self.context.calculate_sorting_index(self.position());
+
+        self.context.storage.push_triangles(
+            TileVertex::layout(),
+            material,
+            RenderPath::Forward,
+            sort_index,
+            self.tile_map_handle,
+            &mut move |mut vertex_buffer, mut triangle_buffer| {
+                let start_vertex_index = vertex_buffer.vertex_count();
+
+                vertex_buffer.push_vertices(&vertices).unwrap();
+
+                triangle_buffer
+                    .push_triangles_iter_with_offset(start_vertex_index, triangles.into_iter());
+            },
+        );
+    }
 }
 
 fn make_rect_vertex(
@@ -124,102 +269,6 @@ fn make_tile_vertex(
             .coords,
         tex_coord: tex_coord.cast::<f32>(),
         color,
-    }
-}
-
-impl TileRenderPosition {
-    /// The global position of the TileMap.
-    pub fn position(&self) -> Vector3<f32> {
-        self.transform.position()
-    }
-
-    /// Render the given tile data at the given cell position.
-    pub fn push_tile(
-        &self,
-        position: Vector2<i32>,
-        data: &TileRenderData,
-        ctx: &mut RenderContext,
-    ) {
-        let color = data.color;
-        if let Some(tile_bounds) = data.material_bounds.as_ref() {
-            let material = &tile_bounds.material;
-            let bounds = &tile_bounds.bounds;
-            self.push_material_tile(position, material, bounds, color, ctx);
-        } else {
-            self.push_color_tile(position, color, ctx);
-        }
-    }
-
-    fn push_color_tile(&self, position: Vector2<i32>, color: Color, ctx: &mut RenderContext) {
-        let position = position.cast::<f32>();
-        let vertices = [(0.0, 1.0), (1.0, 1.0), (1.0, 0.0), (0.0, 0.0)]
-            .map(|(x, y)| Vector2::new(x, y))
-            .map(|p| make_rect_vertex(&self.transform, position + p, color));
-
-        let triangles = [[0, 1, 2], [2, 3, 0]].map(TriangleDefinition);
-
-        let sort_index = ctx.calculate_sorting_index(self.position());
-
-        ctx.storage.push_triangles(
-            RectangleVertex::layout(),
-            &STANDARD_2D.resource,
-            RenderPath::Forward,
-            sort_index,
-            self.tile_map_handle,
-            &mut move |mut vertex_buffer, mut triangle_buffer| {
-                let start_vertex_index = vertex_buffer.vertex_count();
-
-                vertex_buffer.push_vertices(&vertices).unwrap();
-
-                triangle_buffer
-                    .push_triangles_iter_with_offset(start_vertex_index, triangles.into_iter());
-            },
-        );
-    }
-
-    fn push_material_tile(
-        &self,
-        position: Vector2<i32>,
-        material: &MaterialResource,
-        bounds: &TileBounds,
-        color: Color,
-        ctx: &mut RenderContext,
-    ) {
-        let position = position.cast::<f32>();
-        let uvs = [
-            bounds.right_top_corner,
-            bounds.left_top_corner,
-            bounds.left_bottom_corner,
-            bounds.right_bottom_corner,
-        ];
-        let vertices = [
-            (1.0, 1.0, uvs[0]),
-            (0.0, 1.0, uvs[1]),
-            (0.0, 0.0, uvs[2]),
-            (1.0, 0.0, uvs[3]),
-        ]
-        .map(|(x, y, uv)| (Vector2::new(x, y), uv))
-        .map(|(p, uv)| make_tile_vertex(&self.transform, position + p, uv, color));
-
-        let triangles = [[0, 1, 2], [2, 3, 0]].map(TriangleDefinition);
-
-        let sort_index = ctx.calculate_sorting_index(self.position());
-
-        ctx.storage.push_triangles(
-            TileVertex::layout(),
-            material,
-            RenderPath::Forward,
-            sort_index,
-            self.tile_map_handle,
-            &mut move |mut vertex_buffer, mut triangle_buffer| {
-                let start_vertex_index = vertex_buffer.vertex_count();
-
-                vertex_buffer.push_vertices(&vertices).unwrap();
-
-                triangle_buffer
-                    .push_triangles_iter_with_offset(start_vertex_index, triangles.into_iter());
-            },
-        );
     }
 }
 
@@ -831,7 +880,7 @@ impl OrthoTransform for TileRenderData {
 /// An optional [`TileMapEditorData`] may be included in the TileMap to change how it renders to represent
 /// editing operations that are in-progress, which as highlighting certain tiles to indicate that they are
 /// selected.
-#[derive(Clone, Reflect, Debug, Visit, ComponentProvider, TypeUuidProvider)]
+#[derive(Reflect, Debug, Visit, ComponentProvider, TypeUuidProvider)]
 #[type_uuid(id = "aa9a3385-a4af-4faf-a69a-8d3af1a3aa67")]
 pub struct TileMap {
     base: Base,
@@ -842,12 +891,19 @@ pub struct TileMap {
     pub tiles: InheritableVariable<Tiles>,
     tile_scale: InheritableVariable<Vector2<f32>>,
     active_brush: InheritableVariable<Option<TileMapBrushResource>>,
-    /// Data for editing a tile map, or None if the tile map is not being edited.
-    /// Having this data can potentially change how the tile map is rendered.
-    /// During gameplay this should always be None.
+    /// Temporary space to store which tiles are invisible during `collect_render_data`.
+    /// This is part of how [`TileMapEffect`] can prevent a tile from being rendered.
     #[reflect(hidden)]
     #[visit(skip)]
-    pub editor_data: Option<TileMapEditorDataRef>,
+    hidden_tiles: Mutex<FxHashSet<Vector2<i32>>>,
+    /// Special rendering effects that may change how the tile map renders.
+    /// These effects are processed in order before the tile map performs the
+    /// normal rendering of tiles, and they can prevent some times from being
+    /// rendered and render other tiles in place of what would normally be
+    /// rendered.
+    #[reflect(hidden)]
+    #[visit(skip)]
+    pub effects: Vec<TileMapEffectRef>,
 }
 
 impl TileSource for TileMap {
@@ -1115,6 +1171,56 @@ impl TileMap {
         let v3 = grid_position.cast::<f32>().to_homogeneous();
         self.tile_map_transform().transform_point(&v3.into()).coords
     }
+
+    fn cells_touching_frustum(&self, frustum: &Frustum) -> OptionTileRect {
+        let global_transform = self.global_transform();
+
+        fn make_ray(a: Vector3<f32>, b: Vector3<f32>) -> Ray {
+            Ray {
+                origin: a,
+                dir: b - a,
+            }
+        }
+
+        let left_top_ray = make_ray(
+            frustum.left_top_front_corner(),
+            frustum.left_top_back_corner(),
+        );
+        let right_top_ray = make_ray(
+            frustum.right_top_front_corner(),
+            frustum.right_top_back_corner(),
+        );
+        let left_bottom_ray = make_ray(
+            frustum.left_bottom_front_corner(),
+            frustum.left_bottom_back_corner(),
+        );
+        let right_bottom_ray = make_ray(
+            frustum.right_bottom_front_corner(),
+            frustum.right_bottom_back_corner(),
+        );
+
+        let plane =
+            Plane::from_normal_and_point(&global_transform.look(), &global_transform.position())
+                .unwrap_or_default();
+
+        let Some(left_top) = left_top_ray.plane_intersection_point(&plane) else {
+            return None.into();
+        };
+        let Some(right_top) = right_top_ray.plane_intersection_point(&plane) else {
+            return None.into();
+        };
+        let Some(left_bottom) = left_bottom_ray.plane_intersection_point(&plane) else {
+            return None.into();
+        };
+        let Some(right_bottom) = right_bottom_ray.plane_intersection_point(&plane) else {
+            return None.into();
+        };
+        let mut bounds = OptionTileRect::default();
+        for corner in [left_top, right_top, left_bottom, right_bottom] {
+            bounds.push(self.world_to_grid(corner))
+        }
+        bounds
+    }
 }
 
 impl Default for TileMap {
@@ -1125,7 +1231,22 @@ impl Default for TileMap {
             tiles: Default::default(),
             tile_scale: Vector2::repeat(1.0).into(),
             active_brush: Default::default(),
-            editor_data: None,
+            hidden_tiles: Mutex::default(),
+            effects: Vec::default(),
+        }
+    }
+}
+
+impl Clone for TileMap {
+    fn clone(&self) -> Self {
+        Self {
+            base: self.base.clone(),
+            tile_set: self.tile_set.clone(),
+            tiles: self.tiles.clone(),
+            tile_scale: self.tile_scale.clone(),
+            active_brush: self.active_brush.clone(),
+            hidden_tiles: Mutex::default(),
+            effects: self.effects.clone(),
         }
     }
 }
@@ -1196,24 +1317,34 @@ impl NodeTrait for TileMap {
         let mut tile_set_lock = TileSetRef::new(tile_set_resource);
         let tile_set = tile_set_lock.as_loaded();
 
-        let render_position = TileRenderPosition {
+        let mut hidden_tiles = self.hidden_tiles.lock();
+        hidden_tiles.clear();
+
+        let bounds = ctx
+            .frustum
+            .as_ref()
+            .map(|f| self.cells_touching_frustum(f))
+            .unwrap_or_default();
+
+        let mut tile_render_context = TileMapRenderContext {
             tile_map_handle: self.handle(),
             transform: self.tile_map_transform(),
+            hidden_tiles: &mut hidden_tiles,
+            context: ctx,
+            bounds,
+            tile_set,
         };
 
-        let editor_data = self.editor_data.as_ref().map(|d| d.lock());
-        for (&position, &definition_handle) in self.tiles.iter() {
-            if let Some(editor_data) = editor_data.as_ref() {
-                if editor_data.erased_at(position) {
-                    continue;
-                }
-            }
-            if let Some(data) = tile_set.get_tile_render_data(definition_handle.into()) {
-                render_position.push_tile(position, &data, ctx);
-            }
+        for effect in self.effects.iter() {
+            effect.lock().render_special_tiles(&mut tile_render_context);
         }
-        if let Some(editor_data) = editor_data.as_ref() {
-            editor_data.collect_render_data(&render_position, tile_set, ctx);
+        let bounds = tile_render_context.visible_bounds();
+        for (&position, &handle) in self.tiles.iter() {
+            if (bounds.is_none() || bounds.contains(position))
+                && tile_render_context.is_tile_visible(position)
+            {
+                tile_render_context.draw_tile(position, handle);
+            }
         }
         RdcControlFlow::Continue
     }
@@ -1236,7 +1367,7 @@ pub struct TileMapBuilder {
     tile_set: Option<TileSetResource>,
     tiles: Tiles,
     tile_scale: Vector2<f32>,
-    brushes: Vec<Option<TileMapBrushResource>>,
+    effects: Vec<TileMapEffectRef>,
 }
 
 impl TileMapBuilder {
@@ -1247,7 +1378,7 @@ impl TileMapBuilder {
             tile_set: None,
             tiles: Default::default(),
             tile_scale: Vector2::repeat(1.0),
-            brushes: Default::default(),
+            effects: Default::default(),
         }
     }
 
@@ -1269,9 +1400,9 @@ impl TileMapBuilder {
         self
     }
 
-    /// Sets brushes of the tile map.
-    pub fn with_brushes(mut self, brushes: Vec<Option<TileMapBrushResource>>) -> Self {
-        self.brushes = brushes;
+    /// Adds an effect to the tile map.
+    pub fn with_effect(mut self, effect: TileMapEffectRef) -> Self {
+        self.effects.push(effect);
         self
     }
 
@@ -1283,7 +1414,8 @@ impl TileMapBuilder {
             tiles: self.tiles.into(),
             tile_scale: self.tile_scale.into(),
             active_brush: Default::default(),
-            editor_data: None,
+            hidden_tiles: Mutex::default(),
+            effects: self.effects,
         })
     }
 

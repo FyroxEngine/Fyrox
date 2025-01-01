@@ -42,10 +42,10 @@ pub mod tileset;
 
 use collider_editor::*;
 use colliders_tab::*;
+use fyrox::gui::message::KeyCode;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
-use fyrox::scene::tilemap::TileMapEditorDataRef;
-use fyrox::{gui::message::KeyCode, scene::tilemap::TileMapEditorData};
+use fyrox::scene::tilemap::TileMapEffectRef;
 pub use handle_editor::*;
 use handle_field::*;
 use interaction_mode::*;
@@ -237,8 +237,6 @@ impl DelayedMessage {
 /// The editor plugin for editing tile maps, tile sets, and tile map brushes.
 #[derive(Default)]
 pub struct TileMapEditorPlugin {
-    /// A reference to the editor data of the tile map that is currently being edited.
-    editor_data: Option<TileMapEditorDataRef>,
     /// The state that is shared to allow this plugin to coordinate with the tile map
     /// interaction mode, the tile map control panel, and the tile set editor.
     state: TileDrawStateRef,
@@ -586,22 +584,20 @@ impl TileMapEditorPlugin {
         self.tile_map = handle;
         // Create new editor data and add it to the tile map, so the tile map node
         // will now render itself as being edited.
+        let sender = editor.message_sender.clone();
         let Some(tile_map) = self.get_tile_map_mut(editor) else {
             return;
         };
-        let editor_data = Arc::new(Mutex::new(TileMapEditorData::default()));
-        tile_map.editor_data = Some(editor_data.clone());
-        self.editor_data = Some(editor_data.clone());
+        let mut interaction_mode = TileMapInteractionMode::new(handle, self.state.clone(), sender);
+        interaction_mode.on_tile_map_selected(tile_map);
         // Prepare the tile map interaction mode.
         let Some(entry) = editor.scenes.current_scene_entry_mut() else {
+            if let Some(tile_map) = self.get_tile_map_mut(editor) {
+                tile_map.effects.clear();
+            }
             return;
         };
-        entry.interaction_modes.add(TileMapInteractionMode::new(
-            handle,
-            self.state.clone(),
-            editor.message_sender.clone(),
-            editor_data,
-        ));
+        entry.interaction_modes.add(interaction_mode);
     }
 }
 
@@ -785,7 +781,7 @@ impl EditorPlugin for TileMapEditorPlugin {
                 .try_get_mut(self.tile_map)
                 .and_then(|n| n.component_mut::<TileMap>())
             {
-                tile_map.editor_data = None;
+                tile_map.effects.clear();
             }
 
             if let Some(handle) = selection.nodes().iter().copied().find(|h| {
