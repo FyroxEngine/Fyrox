@@ -18,21 +18,26 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use fyrox::{
+use fyrox_core::algebra::{Matrix3, Vector2};
+use fyrox_resource::untyped::ResourceKind;
+use fyrox_ui::{
+    border::BorderBuilder,
+    button::{ButtonBuilder, ButtonMessage},
     core::{parking_lot::Mutex, pool::Handle},
-    gui::{
-        border::BorderBuilder,
-        button::{ButtonBuilder, ButtonMessage},
-        grid::{Column, GridBuilder, Row},
-        message::{MessageDirection, UiMessage},
-        scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
-        stack_panel::StackPanelBuilder,
-        style::{resource::StyleResourceExt, Style},
-        text::{TextBuilder, TextMessage},
-        widget::WidgetBuilder,
-        window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+    grid::{Column, GridBuilder, Row},
+    image::ImageBuilder,
+    message::{MessageDirection, UiMessage},
+    scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
+    stack_panel::StackPanelBuilder,
+    style::{resource::StyleResourceExt, Style},
+    text::{TextBuilder, TextMessage},
+    texture::{
+        TextureImportOptions, TextureMagnificationFilter, TextureMinificationFilter,
+        TextureResource, TextureResourceExtension,
     },
+    widget::{WidgetBuilder, WidgetMessage},
+    window::{WindowBuilder, WindowMessage, WindowTitle},
+    BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
 };
 use std::{
     io::{BufRead, BufReader},
@@ -51,13 +56,33 @@ pub struct BuildWindow {
     log_text: Handle<UiNode>,
     stop: Handle<UiNode>,
     scroll_viewer: Handle<UiNode>,
+    progress_indicator: Handle<UiNode>,
+    angle: f32,
+}
+
+impl Drop for BuildWindow {
+    fn drop(&mut self) {
+        // Prevent the listen thread from being alive after the build window is destroyed.
+        self.active.store(false, Ordering::SeqCst);
+    }
 }
 
 impl BuildWindow {
-    pub fn new(project: &str, ctx: &mut BuildContext) -> Self {
+    pub fn new(project_name: &str, ctx: &mut BuildContext) -> Self {
+        let progress_image = TextureResource::load_from_memory(
+            ResourceKind::Embedded,
+            include_bytes!("resources/progress.png"),
+            TextureImportOptions::default()
+                .with_minification_filter(TextureMinificationFilter::LinearMipMapLinear)
+                .with_magnification_filter(TextureMagnificationFilter::Linear)
+                .with_lod_bias(-1.0),
+        )
+        .ok();
+
         let log_text;
         let stop;
         let scroll_viewer;
+        let progress_indicator;
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(420.0).with_height(200.0))
             .can_minimize(false)
             .can_close(false)
@@ -66,10 +91,41 @@ impl BuildWindow {
                 GridBuilder::new(
                     WidgetBuilder::new()
                         .with_child(
-                            TextBuilder::new(
-                                WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
+                            GridBuilder::new(
+                                WidgetBuilder::new()
+                                    .with_child(
+                                        TextBuilder::new(
+                                            WidgetBuilder::new()
+                                                .with_margin(Thickness::uniform(1.0))
+                                                .on_column(0),
+                                        )
+                                        .with_text(format!(
+                                    "Please wait while {project_name} is building... Build Log:"
+                                ))
+                                        .build(ctx),
+                                    )
+                                    .with_child({
+                                        progress_indicator = ImageBuilder::new(
+                                            WidgetBuilder::new()
+                                                .with_width(16.0)
+                                                .with_height(16.0)
+                                                .on_column(1)
+                                                .with_margin(Thickness {
+                                                    left: 1.0,
+                                                    top: 1.0,
+                                                    right: 4.0,
+                                                    bottom: 1.0,
+                                                })
+                                                .with_clip_to_bounds(false),
+                                        )
+                                        .with_opt_texture(progress_image)
+                                        .build(ctx);
+                                        progress_indicator
+                                    }),
                             )
-                            .with_text(format!("Please wait while the {project} is building..."))
+                            .add_row(Row::stretch())
+                            .add_column(Column::stretch())
+                            .add_column(Column::auto())
                             .build(ctx),
                         )
                         .with_child(
@@ -119,7 +175,7 @@ impl BuildWindow {
                 .add_column(Column::stretch())
                 .build(ctx),
             )
-            .with_title(WindowTitle::text(format!("Building the {project}...")))
+            .with_title(WindowTitle::text(format!("Building {project_name}...")))
             .build(ctx);
 
         Self {
@@ -130,6 +186,8 @@ impl BuildWindow {
             changed: Arc::new(AtomicBool::new(false)),
             stop,
             scroll_viewer,
+            progress_indicator,
+            angle: 0.0,
         }
     }
 
@@ -168,19 +226,15 @@ impl BuildWindow {
         ));
     }
 
-    pub fn close(&mut self, ui: &UserInterface) {
+    pub fn destroy(mut self, ui: &UserInterface) {
+        self.reset(ui);
         ui.send_message(WindowMessage::close(
             self.window,
             MessageDirection::ToWidget,
         ));
     }
 
-    pub fn close_and_reset(&mut self, ui: &UserInterface) {
-        self.reset(ui);
-        self.close(ui);
-    }
-
-    pub fn update(&mut self, ui: &UserInterface) {
+    pub fn update(&mut self, ui: &UserInterface, dt: f32) {
         if self.changed.load(Ordering::SeqCst) {
             ui.send_message(TextMessage::text(
                 self.log_text,
@@ -194,13 +248,30 @@ impl BuildWindow {
 
             self.changed.store(false, Ordering::SeqCst);
         }
+
+        self.angle += 10.0 * dt;
+        ui.send_message(WidgetMessage::render_transform(
+            self.progress_indicator,
+            MessageDirection::ToWidget,
+            Matrix3::new_translation(&Vector2::new(8.0, 8.0))
+                * Matrix3::new_rotation(self.angle)
+                * Matrix3::new_translation(&Vector2::new(-8.0, -8.0)),
+        ));
     }
 
-    pub fn handle_ui_message(&mut self, message: &UiMessage, ui: &UserInterface) {
+    pub fn handle_ui_message(
+        self,
+        message: &UiMessage,
+        ui: &UserInterface,
+        on_stop: impl FnOnce(),
+    ) -> Option<Self> {
         if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.stop {
-                self.close_and_reset(ui);
+                on_stop();
+                self.destroy(ui);
+                return None;
             }
         }
+        Some(self)
     }
 }

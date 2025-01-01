@@ -1,6 +1,6 @@
 [package]
 name = "fyrox"
-version = "0.34.1"
+version = "0.36.0"
 authors = ["Dmitry Stepanov <d1maxa@yandex.ru>", "Fyrox Engine Contributors"]
 edition = "2021"
 license = "MIT"
@@ -22,5 +22,5 @@ mesh_analysis = ["fyrox-impl/mesh_analysis", "fyrox-dylib/mesh_analysis"]
 gltf_blend_shapes = ["fyrox-impl/gltf_blend_shapes", "fyrox-dylib/gltf_blend_shapes"]
 
 [dependencies]
-fyrox-impl = { version = "0.34.1", path = "../fyrox-impl", optional = true }
-fyrox-dylib = { version = "0.1.0", path = "../fyrox-dylib", optional = true }
+fyrox-impl = { version = "0.36.0", path = "../fyrox-impl", optional = true }
+fyrox-dylib = { version = "0.36.0", path = "../fyrox-dylib", optional = true }

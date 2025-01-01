@@ -21,7 +21,6 @@
 use crate::{
     asset::item::AssetItem,
     fyrox::{
-        asset::untyped::UntypedResource,
         core::pool::{ErasedHandle, Handle},
         graph::{BaseSceneGraph, SceneGraph},
         gui::{
@@ -34,17 +33,21 @@ use crate::{
             scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
             searchbar::{SearchBarBuilder, SearchBarMessage},
             stack_panel::StackPanelBuilder,
+            style::resource::StyleResourceExt,
+            style::Style,
             text::TextBuilder,
             tree::{
                 TreeBuilder, TreeExpansionStrategy, TreeMessage, TreeRoot, TreeRootBuilder,
                 TreeRootMessage,
             },
+            utils::make_image_button_with_tooltip,
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowTitle},
             wrap_panel::WrapPanelBuilder,
             BuildContext, Orientation, RcUiNodeHandle, Thickness, UiNode, UserInterface,
             VerticalAlignment,
         },
+        resource::texture::TextureResource,
     },
     load_image,
     message::MessageSender,
@@ -53,9 +56,6 @@ use crate::{
     world::graph::item::{DropAnchor, SceneItem, SceneItemBuilder, SceneItemMessage},
     Mode, Settings,
 };
-use fyrox::gui::style::resource::StyleResourceExt;
-use fyrox::gui::style::Style;
-use fyrox::gui::utils::make_image_button_with_tooltip;
 use rust_fuzzy_search::fuzzy_compare;
 use std::{
     borrow::Cow,
@@ -87,7 +87,7 @@ pub trait WorldViewerDataProvider {
 
     fn is_valid_handle(&self, node: ErasedHandle) -> bool;
 
-    fn icon_of(&self, node: ErasedHandle) -> Option<UntypedResource>;
+    fn icon_of(&self, node: ErasedHandle) -> Option<TextureResource>;
 
     fn is_instance(&self, node: ErasedHandle) -> bool;
 
@@ -136,7 +136,7 @@ pub struct WorldViewer {
 fn make_graph_node_item(
     name: Cow<str>,
     is_instance: bool,
-    icon: Option<UntypedResource>,
+    icon: Option<TextureResource>,
     handle: ErasedHandle,
     ctx: &mut BuildContext,
     context_menu: RcUiNodeHandle,

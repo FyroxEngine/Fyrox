@@ -234,7 +234,7 @@ impl PreviewPanel {
                             .with_cursor(Some(CursorIcon::Grab)),
                     )
                     .with_flip(true)
-                    .with_texture(render_target.into())
+                    .with_texture(render_target)
                     .build(ctx);
                     frame
                 }),
@@ -413,7 +413,7 @@ impl PreviewPanel {
                     .send_message(ImageMessage::texture(
                         self.frame,
                         MessageDirection::ToWidget,
-                        Some(rt.into()),
+                        Some(rt),
                     ));
             }
         }

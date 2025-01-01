@@ -387,13 +387,22 @@ impl RenderDataBundle {
         // Upload instance uniforms.
         let mut instance_blocks = Vec::with_capacity(self.instances.len());
         for instance in self.instances.iter() {
+            let mut packed_blend_shape_weights =
+                [Vector4::<f32>::default(); ShaderDefinition::MAX_BLEND_SHAPE_WEIGHT_GROUPS];
+
+            for (i, blend_shape_weight) in instance.blend_shapes_weights.iter().enumerate() {
+                let n = i / 4;
+                let c = i % 4;
+                packed_blend_shape_weights[n][c] = *blend_shape_weight;
+            }
+
             let instance_buffer = StaticUniformBuffer::<1024>::new()
                 .with(&instance.world_transform)
                 .with(&(view_projection_matrix * instance.world_transform))
                 .with(&(instance.blend_shapes_weights.len() as i32))
                 .with(&(!instance.bone_matrices.is_empty()))
                 .with_slice_with_max_size(
-                    &instance.blend_shapes_weights,
+                    &packed_blend_shape_weights,
                     ShaderDefinition::MAX_BLEND_SHAPE_WEIGHT_GROUPS,
                 );
 

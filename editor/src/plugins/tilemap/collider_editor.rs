@@ -385,7 +385,7 @@ fn make_button(
     tab_index: Option<usize>,
     column: usize,
     tooltip: &str,
-    icon: Option<UntypedResource>,
+    icon: Option<TextureResource>,
     ctx: &mut BuildContext,
 ) -> Handle<UiNode> {
     ButtonBuilder::new(

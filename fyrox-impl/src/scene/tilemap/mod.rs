@@ -901,7 +901,13 @@ pub struct TileMap {
     /// rendered.
     #[reflect(hidden)]
     #[visit(skip)]
-    pub effects: Vec<TileMapEffectRef>,
+    pub before_effects: Vec<TileMapEffectRef>,
+    /// Special rendering effects that may change how the tile map renders.
+    /// These effects are processed in order after the tile map performs the
+    /// normal rendering of tiles.
+    #[reflect(hidden)]
+    #[visit(skip)]
+    pub after_effects: Vec<TileMapEffectRef>,
 }
 
 impl TileSource for TileMap {
@@ -1230,7 +1236,8 @@ impl Default for TileMap {
             tile_scale: Vector2::repeat(1.0).into(),
             active_brush: Default::default(),
             hidden_tiles: Mutex::default(),
-            effects: Vec::default(),
+            before_effects: Vec::default(),
+            after_effects: Vec::default(),
         }
     }
 }
@@ -1244,7 +1251,8 @@ impl Clone for TileMap {
             tile_scale: self.tile_scale.clone(),
             active_brush: self.active_brush.clone(),
             hidden_tiles: Mutex::default(),
-            effects: self.effects.clone(),
+            before_effects: self.before_effects.clone(),
+            after_effects: self.after_effects.clone(),
         }
     }
 }
@@ -1333,7 +1341,7 @@ impl NodeTrait for TileMap {
             tile_set,
         };
 
-        for effect in self.effects.iter() {
+        for effect in self.before_effects.iter() {
             effect.lock().render_special_tiles(&mut tile_render_context);
         }
         let bounds = tile_render_context.visible_bounds();
@@ -1343,6 +1351,9 @@ impl NodeTrait for TileMap {
             {
                 tile_render_context.draw_tile(position, handle);
             }
+        }
+        for effect in self.after_effects.iter() {
+            effect.lock().render_special_tiles(&mut tile_render_context);
         }
         RdcControlFlow::Continue
     }
@@ -1365,7 +1376,8 @@ pub struct TileMapBuilder {
     tile_set: Option<TileSetResource>,
     tiles: Tiles,
     tile_scale: Vector2<f32>,
-    effects: Vec<TileMapEffectRef>,
+    before_effects: Vec<TileMapEffectRef>,
+    after_effects: Vec<TileMapEffectRef>,
 }
 
 impl TileMapBuilder {
@@ -1376,7 +1388,8 @@ impl TileMapBuilder {
             tile_set: None,
             tiles: Default::default(),
             tile_scale: Vector2::repeat(1.0),
-            effects: Default::default(),
+            before_effects: Default::default(),
+            after_effects: Default::default(),
         }
     }
 
@@ -1398,9 +1411,15 @@ impl TileMapBuilder {
         self
     }
 
-    /// Adds an effect to the tile map.
-    pub fn with_effect(mut self, effect: TileMapEffectRef) -> Self {
-        self.effects.push(effect);
+    /// Adds an effect to the tile map which will run before the tiles render.
+    pub fn with_before_effect(mut self, effect: TileMapEffectRef) -> Self {
+        self.before_effects.push(effect);
+        self
+    }
+
+    /// Adds an effect to the tile map which will run after the tiles render.
+    pub fn with_after_effect(mut self, effect: TileMapEffectRef) -> Self {
+        self.after_effects.push(effect);
         self
     }
 
@@ -1413,7 +1432,8 @@ impl TileMapBuilder {
             tile_scale: self.tile_scale.into(),
             active_brush: Default::default(),
             hidden_tiles: Mutex::default(),
-            effects: self.effects,
+            before_effects: self.before_effects,
+            after_effects: self.after_effects,
         })
     }
 

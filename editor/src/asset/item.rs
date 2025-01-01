@@ -48,6 +48,7 @@ use crate::{
     message::MessageSender,
     Message,
 };
+use fyrox::resource::texture::TextureResource;
 use std::{
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
@@ -57,14 +58,14 @@ use std::{
 pub enum AssetItemMessage {
     Select(bool),
     Icon {
-        texture: Option<UntypedResource>,
+        texture: Option<TextureResource>,
         flip_y: bool,
     },
 }
 
 impl AssetItemMessage {
     define_constructor!(AssetItemMessage:Select => fn select(bool), layout: false);
-    define_constructor!(AssetItemMessage:Icon => fn icon(texture: Option<UntypedResource>, flip_y: bool), layout: false);
+    define_constructor!(AssetItemMessage:Icon => fn icon(texture: Option<TextureResource>, flip_y: bool), layout: false);
 }
 
 #[allow(dead_code)]
@@ -264,7 +265,7 @@ impl Control for AssetItem {
 pub struct AssetItemBuilder {
     widget_builder: WidgetBuilder,
     path: Option<PathBuf>,
-    icon: Option<UntypedResource>,
+    icon: Option<TextureResource>,
 }
 
 fn make_tooltip(ctx: &mut BuildContext, text: &str) -> RcUiNodeHandle {
@@ -303,7 +304,7 @@ impl AssetItemBuilder {
         self
     }
 
-    pub fn with_icon(mut self, icon: Option<UntypedResource>) -> Self {
+    pub fn with_icon(mut self, icon: Option<TextureResource>) -> Self {
         self.icon = icon;
         self
     }

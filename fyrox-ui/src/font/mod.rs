@@ -25,15 +25,16 @@ use crate::core::{
     visitor::prelude::*, TypeUuidProvider,
 };
 use fxhash::FxHashMap;
-use fyrox_resource::manager::BuiltInResource;
-use fyrox_resource::untyped::UntypedResource;
-use fyrox_resource::{embedded_data_source, io::ResourceIo, Resource, ResourceData};
+use fyrox_core::math::Rect;
+use fyrox_resource::{
+    embedded_data_source, io::ResourceIo, manager::BuiltInResource, untyped::UntypedResource,
+    Resource, ResourceData,
+};
 use lazy_static::lazy_static;
-use std::fmt::Formatter;
 use std::{
     any::Any,
     error::Error,
-    fmt::Debug,
+    fmt::{Debug, Formatter},
     hash::{Hash, Hasher},
     ops::Deref,
     path::Path,
@@ -43,13 +44,14 @@ pub mod loader;
 
 #[derive(Debug)]
 pub struct FontGlyph {
-    pub top: f32,
-    pub left: f32,
+    pub bitmap_top: f32,
+    pub bitmap_left: f32,
+    pub bitmap_width: f32,
+    pub bitmap_height: f32,
     pub advance: f32,
     pub tex_coords: [Vector2<f32>; 4],
-    pub bitmap_width: usize,
-    pub bitmap_height: usize,
     pub page_index: usize,
+    pub bounds: Rect<f32>,
 }
 
 /// Page is a storage for rasterized glyphs.
@@ -147,12 +149,18 @@ impl Atlas {
                     page.modified = true;
 
                     let mut glyph = FontGlyph {
-                        left: metrics.xmin as f32,
-                        top: metrics.ymin as f32,
+                        bitmap_left: metrics.xmin as f32,
+                        bitmap_top: metrics.ymin as f32,
                         advance: metrics.advance_width,
                         tex_coords: Default::default(),
-                        bitmap_width: metrics.width,
-                        bitmap_height: metrics.height,
+                        bitmap_width: metrics.width as f32,
+                        bitmap_height: metrics.height as f32,
+                        bounds: Rect::new(
+                            metrics.bounds.xmin,
+                            metrics.bounds.ymin,
+                            metrics.bounds.width,
+                            metrics.bounds.height,
+                        ),
                         page_index,
                     };
 

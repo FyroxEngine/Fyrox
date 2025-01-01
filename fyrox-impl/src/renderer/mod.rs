@@ -68,7 +68,7 @@ use crate::{
     engine::error::EngineError,
     graph::SceneGraph,
     gui::draw::DrawingContext,
-    material::shader::{Shader, ShaderDefinition, ShaderResource, ShaderResourceExtension},
+    material::shader::{Shader, ShaderDefinition},
     renderer::{
         bloom::BloomRenderer,
         bundle::{ObserverInfo, RenderDataBundleStorage, RenderDataBundleStorageOptions},
@@ -932,11 +932,7 @@ impl Renderer {
         let caps = server.capabilities();
         Log::info(format!("Graphics Server Capabilities\n{caps:?}",));
 
-        let mut shader_cache = ShaderCache::default();
-
-        for shader in ShaderResource::standard_shaders() {
-            shader_cache.get(&*server, &shader.resource);
-        }
+        let shader_cache = ShaderCache::default();
 
         let uniform_memory_allocator = UniformMemoryAllocator::new(
             caps.max_uniform_block_size,

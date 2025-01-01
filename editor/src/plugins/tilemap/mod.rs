@@ -42,9 +42,9 @@ pub mod tileset;
 
 use collider_editor::*;
 use colliders_tab::*;
-use fyrox::gui::message::KeyCode;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
+use fyrox::gui::{message::KeyCode, texture::TextureResource};
 use fyrox::scene::tilemap::TileMapEffectRef;
 pub use handle_editor::*;
 use handle_field::*;
@@ -59,7 +59,6 @@ use tile_inspector::*;
 use tile_prop_editor::*;
 
 use crate::fyrox::{
-    asset::untyped::UntypedResource,
     core::{
         algebra::{Matrix4, Vector2, Vector3},
         color::Color,
@@ -114,25 +113,25 @@ use std::{
 };
 
 lazy_static! {
-    static ref VISIBLE_IMAGE: Option<UntypedResource> =
+    static ref VISIBLE_IMAGE: Option<TextureResource> =
         load_image!("../../../resources/visible.png");
-    static ref BRUSH_IMAGE: Option<UntypedResource> = load_image!("../../../resources/brush.png");
-    static ref ERASER_IMAGE: Option<UntypedResource> = load_image!("../../../resources/eraser.png");
-    static ref FILL_IMAGE: Option<UntypedResource> = load_image!("../../../resources/fill.png");
-    static ref PICK_IMAGE: Option<UntypedResource> = load_image!("../../../resources/pipette.png");
-    static ref RECT_FILL_IMAGE: Option<UntypedResource> =
+    static ref BRUSH_IMAGE: Option<TextureResource> = load_image!("../../../resources/brush.png");
+    static ref ERASER_IMAGE: Option<TextureResource> = load_image!("../../../resources/eraser.png");
+    static ref FILL_IMAGE: Option<TextureResource> = load_image!("../../../resources/fill.png");
+    static ref PICK_IMAGE: Option<TextureResource> = load_image!("../../../resources/pipette.png");
+    static ref RECT_FILL_IMAGE: Option<TextureResource> =
         load_image!("../../../resources/rect_fill.png");
-    static ref NINE_SLICE_IMAGE: Option<UntypedResource> =
+    static ref NINE_SLICE_IMAGE: Option<TextureResource> =
         load_image!("../../../resources/nine_slice.png");
-    static ref LINE_IMAGE: Option<UntypedResource> = load_image!("../../../resources/line.png");
-    static ref TURN_LEFT_IMAGE: Option<UntypedResource> =
+    static ref LINE_IMAGE: Option<TextureResource> = load_image!("../../../resources/line.png");
+    static ref TURN_LEFT_IMAGE: Option<TextureResource> =
         load_image!("../../../resources/turn_left.png");
-    static ref TURN_RIGHT_IMAGE: Option<UntypedResource> =
+    static ref TURN_RIGHT_IMAGE: Option<TextureResource> =
         load_image!("../../../resources/turn_right.png");
-    static ref FLIP_X_IMAGE: Option<UntypedResource> = load_image!("../../../resources/flip_x.png");
-    static ref FLIP_Y_IMAGE: Option<UntypedResource> = load_image!("../../../resources/flip_y.png");
-    static ref RANDOM_IMAGE: Option<UntypedResource> = load_image!("../../../resources/die.png");
-    static ref PALETTE_IMAGE: Option<UntypedResource> =
+    static ref FLIP_X_IMAGE: Option<TextureResource> = load_image!("../../../resources/flip_x.png");
+    static ref FLIP_Y_IMAGE: Option<TextureResource> = load_image!("../../../resources/flip_y.png");
+    static ref RANDOM_IMAGE: Option<TextureResource> = load_image!("../../../resources/die.png");
+    static ref PALETTE_IMAGE: Option<TextureResource> =
         load_image!("../../../resources/palette.png");
 }
 
@@ -140,7 +139,7 @@ fn make_drawing_mode_button(
     ctx: &mut BuildContext,
     width: f32,
     height: f32,
-    image: Option<UntypedResource>,
+    image: Option<TextureResource>,
     tooltip: &str,
     tab_index: Option<usize>,
 ) -> Handle<UiNode> {
@@ -593,7 +592,7 @@ impl TileMapEditorPlugin {
         // Prepare the tile map interaction mode.
         let Some(entry) = editor.scenes.current_scene_entry_mut() else {
             if let Some(tile_map) = self.get_tile_map_mut(editor) {
-                tile_map.effects.clear();
+                tile_map.before_effects.clear();
             }
             return;
         };
@@ -781,7 +780,7 @@ impl EditorPlugin for TileMapEditorPlugin {
                 .try_get_mut(self.tile_map)
                 .and_then(|n| n.component_mut::<TileMap>())
             {
-                tile_map.effects.clear();
+                tile_map.before_effects.clear();
             }
 
             if let Some(handle) = selection.nodes().iter().copied().find(|h| {

@@ -21,6 +21,8 @@
 use directories::ProjectDirs;
 use fyrox::{
     core::{log::Log, pool::Handle, reflect::prelude::*},
+    fxhash::FxHashSet,
+    graph::BaseSceneGraph,
     gui::{
         inspector::{
             editors::{
@@ -28,14 +30,13 @@ use fyrox::{
                 inspectable::InspectablePropertyEditorDefinition,
                 PropertyEditorDefinitionContainer,
             },
-            InspectorBuilder, InspectorContext,
+            Inspector, InspectorBuilder, InspectorContext, InspectorMessage, PropertyAction,
         },
-        inspector::{InspectorMessage, PropertyAction},
         message::{MessageDirection, UiMessage},
         scroll_viewer::ScrollViewerBuilder,
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, UiNode,
+        BuildContext, UiNode, UserInterface,
     },
 };
 use fyrox_build_tools::{CommandDescriptor, EnvironmentVariable};
@@ -118,7 +119,12 @@ impl SettingsData {
 
     pub fn load() -> Self {
         match File::open(Self::actual_path()) {
-            Ok(file) => ron::de::from_reader(file).unwrap_or_default(),
+            Ok(file) => {
+                let mut settings: SettingsData = ron::de::from_reader(file).unwrap_or_default();
+                settings.remove_non_existent_projects();
+                settings.remove_duplicates();
+                settings
+            }
             Err(err) => {
                 eprintln!("Unable to load project manager settings! Reason: {err:?}");
                 Default::default()
@@ -139,6 +145,23 @@ impl SettingsData {
                 eprintln!("Unable to create project manager settings file! Reason: {err:?}");
             }
         }
+    }
+
+    fn remove_non_existent_projects(&mut self) {
+        self.projects
+            .retain(|project| project.manifest_path.exists())
+    }
+
+    fn remove_duplicates(&mut self) {
+        let mut existing = FxHashSet::default();
+        self.projects.retain(|project| {
+            if existing.contains(&project.manifest_path) {
+                false
+            } else {
+                existing.insert(project.manifest_path.clone());
+                true
+            }
+        });
     }
 }
 
@@ -224,19 +247,22 @@ impl SettingsWindow {
             .with_remove_on_close(true)
             .build(ctx);
 
-        ctx.sender()
-            .send(WindowMessage::open_modal(
-                window,
-                MessageDirection::ToWidget,
-                true,
-                true,
-            ))
-            .unwrap();
+        ctx.send_message(WindowMessage::open_modal(
+            window,
+            MessageDirection::ToWidget,
+            true,
+            true,
+        ));
 
         Self { window, inspector }
     }
 
-    pub fn handle_ui_message(self, settings: &mut Settings, message: &UiMessage) -> Option<Self> {
+    pub fn handle_ui_message(
+        self,
+        settings: &mut Settings,
+        message: &UiMessage,
+        ui: &mut UserInterface,
+    ) -> Option<Self> {
         if let Some(WindowMessage::Close) = message.data() {
             if message.destination() == self.window {
                 return None;
@@ -252,6 +278,15 @@ impl SettingsWindow {
                         Log::verify(result);
                     },
                 );
+
+                let ctx = ui
+                    .node(self.inspector)
+                    .cast::<Inspector>()
+                    .unwrap()
+                    .context()
+                    .clone();
+
+                Log::verify(ctx.sync(&**settings, ui, 0, true, Default::default()));
             }
         }
 

@@ -174,4 +174,13 @@ impl BuildContext<'_> {
     pub fn inner_mut(&mut self) -> &mut UserInterface {
         self.ui
     }
+
+    /// Sends a message during build stage. It has quite limited use, but could be unavoidable in
+    /// for cases when you need to do some action that relies on fully performed layout stage. When a
+    /// widget is being built, you can't fetch any layout info of it since it wasn't calculated yet.
+    /// In this case all you can do is to "postpone" your action for later moment in current frame
+    /// by sending a message.
+    pub fn send_message(&self, message: UiMessage) {
+        self.ui.send_message(message);
+    }
 }

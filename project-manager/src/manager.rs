@@ -19,7 +19,6 @@
 // SOFTWARE.
 
 use crate::{
-    build::BuildWindow,
     project::ProjectWizard,
     settings::{Project, Settings, SettingsWindow, MANIFEST_PATH_VAR},
     upgrade::UpgradeTool,
@@ -56,6 +55,7 @@ use fyrox::{
         VerticalAlignment,
     },
 };
+use fyrox_build_tools::build::BuildWindow;
 use fyrox_build_tools::{BuildProfile, CommandDescriptor};
 use std::{
     collections::VecDeque,
@@ -63,13 +63,54 @@ use std::{
     process::Stdio,
 };
 
-enum Mode {
+pub enum Mode {
     Normal,
     Build {
         queue: VecDeque<CommandDescriptor>,
         process: Option<std::process::Child>,
         current_dir: PathBuf,
     },
+}
+
+impl Mode {
+    pub fn is_build(&self) -> bool {
+        matches!(self, Mode::Build { .. })
+    }
+}
+
+pub struct UpdateLoopState(u32);
+
+impl Default for UpdateLoopState {
+    fn default() -> Self {
+        // Run at least a second from the start to ensure that all OS-specific stuff was done.
+        Self(60)
+    }
+}
+
+impl UpdateLoopState {
+    pub fn request_update_in_next_frame(&mut self) {
+        if !self.is_warming_up() {
+            self.0 = 2;
+        }
+    }
+
+    pub fn request_update_in_current_frame(&mut self) {
+        if !self.is_warming_up() {
+            self.0 = 1;
+        }
+    }
+
+    pub fn is_warming_up(&self) -> bool {
+        self.0 > 2
+    }
+
+    pub fn decrease_counter(&mut self) {
+        self.0 = self.0.saturating_sub(1);
+    }
+
+    pub fn is_suspended(&self) -> bool {
+        self.0 == 0
+    }
 }
 
 pub struct ProjectManager {
@@ -89,7 +130,7 @@ pub struct ProjectManager {
     project_wizard: Option<ProjectWizard>,
     build_window: Option<BuildWindow>,
     import_project_dialog: Handle<UiNode>,
-    mode: Mode,
+    pub mode: Mode,
     search_text: String,
     log: LogPanel,
     open_log: Handle<UiNode>,
@@ -102,6 +143,9 @@ pub struct ProjectManager {
     upgrade_tool: Option<UpgradeTool>,
     settings_window: Option<SettingsWindow>,
     no_projects_warning: Handle<UiNode>,
+    exclude_project: Handle<UiNode>,
+    pub focused: bool,
+    pub update_loop_state: UpdateLoopState,
 }
 
 fn make_project_item(
@@ -408,6 +452,8 @@ impl ProjectManager {
         \nHotkey: Ctrl+L";
         let open_ide_tooltip = "Opens project folder in the currently selected IDE \
         (can be changed in settings).\nHotkey: Ctrl+O";
+        let exclude_project_tooltip = "Removes the project from the project manager, \
+        but does NOT delete it.\nHotkey: Ctrl+E";
 
         let edit = make_text_and_image_button_with_tooltip(
             ctx,
@@ -487,6 +533,19 @@ impl ProjectManager {
             Color::LIGHT_GRAY,
             font_size,
         );
+        let exclude_project = make_text_and_image_button_with_tooltip(
+            ctx,
+            "Exclude",
+            22.0,
+            22.0,
+            load_image(include_bytes!("../resources/cross.png")),
+            exclude_project_tooltip,
+            0,
+            0,
+            Some(10),
+            Color::ORANGE,
+            font_size,
+        );
         let hot_reload = CheckBoxBuilder::new(
             WidgetBuilder::new()
                 .with_tab_index(Some(4))
@@ -510,7 +569,8 @@ impl ProjectManager {
                 .with_child(open_ide)
                 .with_child(upgrade)
                 .with_child(locate)
-                .with_child(delete),
+                .with_child(delete)
+                .with_child(exclude_project),
         )
         .build(ctx);
 
@@ -576,12 +636,10 @@ impl ProjectManager {
         .add_column(Column::stretch())
         .build(ctx);
 
-        ctx.sender()
-            .send(WidgetMessage::focus(
-                navigation_layer,
-                MessageDirection::ToWidget,
-            ))
-            .unwrap();
+        ctx.send_message(WidgetMessage::focus(
+            navigation_layer,
+            MessageDirection::ToWidget,
+        ));
 
         Self {
             root_grid,
@@ -613,7 +671,16 @@ impl ProjectManager {
             upgrade_tool: None,
             settings_window: None,
             no_projects_warning,
+            exclude_project,
+            focused: true,
+            update_loop_state: Default::default(),
         }
+    }
+
+    pub fn is_active(&self, ui: &UserInterface) -> bool {
+        !self.update_loop_state.is_suspended() && self.focused
+            || ui.captured_node().is_some()
+            || self.mode.is_build()
     }
 
     fn refresh(&mut self, ui: &mut UserInterface) {
@@ -640,8 +707,6 @@ impl ProjectManager {
             return;
         };
 
-        let build_window = some_or_return!(self.build_window.as_mut());
-
         if process.is_none() {
             if let Some(build_command) = queue.pop_front() {
                 Log::info(format!("Trying to run build command: {build_command}"));
@@ -652,7 +717,9 @@ impl ProjectManager {
 
                 match command.spawn() {
                     Ok(mut new_process) => {
-                        build_window.listen(new_process.stderr.take().unwrap(), ui);
+                        if let Some(build_window) = self.build_window.as_mut() {
+                            build_window.listen(new_process.stderr.take().unwrap(), ui);
+                        }
 
                         *process = Some(new_process);
                     }
@@ -676,10 +743,14 @@ impl ProjectManager {
                             Log::err("Failed to build the game!");
                             self.mode = Mode::Normal;
                         } else if queue.is_empty() {
-                            build_window.reset(ui);
-                            build_window.close(ui);
+                            if let Some(build_window) = self.build_window.take() {
+                                build_window.destroy(ui);
+                            }
+                            self.mode = Mode::Normal;
                         } else {
-                            build_window.reset(ui);
+                            if let Some(build_window) = self.build_window.as_mut() {
+                                build_window.reset(ui);
+                            }
                             // Continue on next command.
                             *process = None;
                         }
@@ -690,8 +761,16 @@ impl ProjectManager {
         }
     }
 
-    pub fn update(&mut self, ui: &mut UserInterface) {
+    pub fn update(&mut self, ui: &mut UserInterface, dt: f32) {
         self.handle_modes(ui);
+
+        if let Some(active_tooltip) = ui.active_tooltip() {
+            if !active_tooltip.shown {
+                // Keep the manager running until the current tooltip is not shown.
+                self.update_loop_state.request_update_in_next_frame();
+            }
+        }
+
         if self.log.update(65536, ui) {
             ui.send_message(TextMessage::text(
                 self.message_count,
@@ -706,7 +785,7 @@ impl ProjectManager {
         }
 
         if let Some(build_window) = self.build_window.as_mut() {
-            build_window.update(ui);
+            build_window.update(ui, dt);
         }
 
         self.settings.try_save();
@@ -829,6 +908,14 @@ impl ProjectManager {
         self.project_wizard = Some(ProjectWizard::new(&mut ui.build_ctx()));
     }
 
+    fn on_exclude_project_clicked(&mut self, ui: &mut UserInterface) {
+        let project_index = some_or_return!(self.selection);
+        if project_index < self.settings.projects.len() {
+            self.settings.projects.remove(project_index);
+        }
+        self.refresh(ui);
+    }
+
     fn on_button_click(&mut self, button: Handle<UiNode>, ui: &mut UserInterface) {
         if button == self.create {
             self.on_create_clicked(ui);
@@ -852,6 +939,8 @@ impl ProjectManager {
             self.on_open_ide_click();
         } else if button == self.open_settings {
             self.on_open_settings_click(ui);
+        } else if button == self.exclude_project {
+            self.on_exclude_project_clicked(ui);
         }
     }
 
@@ -932,6 +1021,7 @@ impl ProjectManager {
             KeyCode::KeyL if modifiers.control => self.on_locate_click(),
             KeyCode::KeyO if modifiers.control => self.on_open_ide_click(),
             KeyCode::KeyS if modifiers.control => self.on_open_settings_click(ui),
+            KeyCode::KeyE if modifiers.control => self.on_exclude_project_clicked(ui),
             _ => (),
         }
     }
@@ -945,12 +1035,13 @@ impl ProjectManager {
 
         self.log.handle_ui_message(message, ui);
 
-        if let Some(build_window) = self.build_window.as_mut() {
-            build_window.handle_ui_message(message, ui);
+        if let Some(build_window) = self.build_window.take() {
+            self.build_window = build_window.handle_ui_message(message, ui, || {});
         }
 
         if let Some(settings_window) = self.settings_window.take() {
-            self.settings_window = settings_window.handle_ui_message(&mut self.settings, message);
+            self.settings_window =
+                settings_window.handle_ui_message(&mut self.settings, message, ui);
         }
 
         if let Some(upgrade_tool) = self.upgrade_tool.take() {

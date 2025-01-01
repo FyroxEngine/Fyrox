@@ -20,7 +20,6 @@
 
 //! Project manager is used to create, import, rename, delete, run and edit projects built with Fyrox.
 
-mod build;
 mod manager;
 mod project;
 mod settings;
@@ -32,7 +31,6 @@ use fyrox::{
     asset::{manager::ResourceManager, untyped::ResourceKind},
     core::{
         algebra::Matrix3,
-        instant::Instant,
         log::{Log, MessageKind},
         task::TaskPool,
     },
@@ -52,7 +50,10 @@ use fyrox::{
     utils::{translate_cursor_icon, translate_event},
     window::WindowAttributes,
 };
-use std::sync::Arc;
+use std::{
+    sync::Arc,
+    time::{Duration, Instant},
+};
 
 fn set_ui_scaling(ui: &UserInterface, scale: f32) {
     // High-DPI screen support
@@ -92,19 +93,36 @@ fn main() {
 
     primary_ui.default_font = FontResource::new_ok(
         ResourceKind::Embedded,
-        Font::from_memory(include_bytes!("../resources/arial.ttf").to_vec(), 1024).unwrap(),
+        Font::from_memory(
+            include_bytes!("../resources/Roboto-Regular.ttf").to_vec(),
+            1024,
+        )
+        .unwrap(),
     );
     let mut project_manager = ProjectManager::new(&mut primary_ui.build_ctx());
 
     let event_loop = EventLoop::new().unwrap();
 
     let mut previous = Instant::now();
-    let fixed_time_step = 1.0 / 60.0;
-    let mut lag = 0.0;
+
+    #[allow(unused_assignments)]
+    let mut time_step = 1.0 / 60.0;
 
     event_loop
         .run(move |event, window_target| {
-            window_target.set_control_flow(ControlFlow::Wait);
+            if project_manager.mode.is_build() {
+                // Keep updating with reduced rate to keep printing to the build log, but do not
+                // eat as much time as in normal update mode.
+                time_step = 1.0 / 10.0;
+
+                window_target.set_control_flow(ControlFlow::wait_duration(
+                    Duration::from_secs_f32(time_step),
+                ));
+            } else {
+                // Wait for an event.
+                window_target.set_control_flow(ControlFlow::Wait);
+                time_step = 1.0 / 60.0;
+            }
 
             match event {
                 Event::Resumed => {
@@ -125,34 +143,45 @@ fn main() {
                         .expect("Unable to destroy graphics context!");
                 }
                 Event::AboutToWait => {
-                    let elapsed = previous.elapsed();
-                    previous = Instant::now();
-                    lag += elapsed.as_secs_f32();
-
                     let ui = engine.user_interfaces.first_mut();
-                    while let Some(message) = ui.poll_message() {
-                        project_manager.handle_ui_message(&message, ui);
-                    }
 
-                    while lag >= fixed_time_step {
-                        engine.update(fixed_time_step, window_target, &mut lag, Default::default());
+                    let elapsed = previous.elapsed();
 
-                        project_manager.update(engine.user_interfaces.first_mut());
+                    if project_manager.is_active(ui) && elapsed.as_secs_f32() >= time_step {
+                        previous = Instant::now();
 
-                        lag -= fixed_time_step;
-                    }
+                        let mut processed = 0;
+                        while let Some(message) = ui.poll_message() {
+                            project_manager.handle_ui_message(&message, ui);
+                            processed += 1;
+                        }
+                        if processed > 0 {
+                            project_manager
+                                .update_loop_state
+                                .request_update_in_next_frame();
+                        }
 
-                    if let GraphicsContext::Initialized(ref ctx) = engine.graphics_context {
-                        let window = &ctx.window;
-                        window.set_cursor_icon(translate_cursor_icon(
-                            engine.user_interfaces.first_mut().cursor(),
-                        ));
+                        engine.update(time_step, window_target, &mut 0.0, Default::default());
 
-                        ctx.window.request_redraw();
+                        project_manager.update(engine.user_interfaces.first_mut(), time_step);
+
+                        if let GraphicsContext::Initialized(ref ctx) = engine.graphics_context {
+                            let window = &ctx.window;
+                            window.set_cursor_icon(translate_cursor_icon(
+                                engine.user_interfaces.first_mut().cursor(),
+                            ));
+
+                            ctx.window.request_redraw();
+                        }
+
+                        project_manager.update_loop_state.decrease_counter();
                     }
                 }
                 Event::WindowEvent { event, .. } => {
                     match event {
+                        WindowEvent::Focused(focus) => {
+                            project_manager.focused = focus;
+                        }
                         WindowEvent::CloseRequested => window_target.exit(),
                         WindowEvent::Resized(size) => {
                             if let Err(e) = engine.set_frame_size(size.into()) {
@@ -182,9 +211,21 @@ fn main() {
                             set_ui_scaling(ui, scale_factor as f32);
                         }
                         WindowEvent::RedrawRequested => {
-                            engine.render().unwrap();
+                            let ui = engine.user_interfaces.first();
+                            if project_manager.is_active(ui) {
+                                engine.render().unwrap();
+                            }
                         }
                         _ => (),
+                    }
+
+                    // Any action in the window, other than a redraw request forces the project manager to
+                    // do another update pass which then pushes a redraw request to the event
+                    // queue. This check prevents infinite loop of this kind.
+                    if !matches!(event, WindowEvent::RedrawRequested) {
+                        project_manager
+                            .update_loop_state
+                            .request_update_in_current_frame();
                     }
 
                     if let Some(os_event) = translate_event(&event) {

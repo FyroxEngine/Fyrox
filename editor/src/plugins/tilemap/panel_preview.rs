@@ -105,7 +105,7 @@ fn draw_tile(
                 drawing_context.commit(
                     clip_bounds,
                     Brush::Solid(color),
-                    CommandTexture::Texture(texture.into()),
+                    CommandTexture::Texture(texture),
                     None,
                 );
             }

@@ -146,13 +146,11 @@ impl CreateEntityMenu {
                         root_items.push(group);
                         group
                     });
-                    ctx.sender()
-                        .send(MenuItemMessage::add_item(
-                            group,
-                            MessageDirection::ToWidget,
-                            item,
-                        ))
-                        .unwrap()
+                    ctx.send_message(MenuItemMessage::add_item(
+                        group,
+                        MessageDirection::ToWidget,
+                        item,
+                    ))
                 }
             }
         }

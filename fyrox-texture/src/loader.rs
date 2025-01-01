@@ -20,17 +20,12 @@
 
 //! Texture loader.
 
-use crate::{
-    asset::{
-        io::ResourceIo,
-        loader::{
-            BoxedImportOptionsLoaderFuture, BoxedLoaderFuture, LoaderPayload, ResourceLoader,
-        },
-        options::{try_get_import_settings, try_get_import_settings_opaque, BaseImportOptions},
-        state::LoadError,
-    },
-    core::{uuid::Uuid, TypeUuidProvider},
-    resource::texture::{Texture, TextureImportOptions},
+use crate::{Texture, TextureImportOptions};
+use fyrox_core::{uuid::Uuid, TypeUuidProvider};
+use fyrox_resource::{
+    io::ResourceIo, loader::BoxedImportOptionsLoaderFuture, loader::BoxedLoaderFuture,
+    loader::LoaderPayload, loader::ResourceLoader, options::try_get_import_settings,
+    options::try_get_import_settings_opaque, options::BaseImportOptions, state::LoadError,
 };
 use std::{path::PathBuf, sync::Arc};
 

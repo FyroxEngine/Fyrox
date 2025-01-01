@@ -1160,7 +1160,7 @@ impl PaletteWidget {
         ctx.commit(
             self.clip_bounds(),
             Brush::Solid(self.material_color),
-            CommandTexture::Texture(tex.into_untyped()),
+            CommandTexture::Texture(tex),
             None,
         );
         ctx.transform_stack.pop();
@@ -1640,7 +1640,7 @@ fn draw_tile(
                 ctx.commit(
                     clip_bounds,
                     Brush::Solid(color),
-                    CommandTexture::Texture(texture.into()),
+                    CommandTexture::Texture(texture),
                     None,
                 );
             }

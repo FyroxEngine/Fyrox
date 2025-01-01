@@ -173,14 +173,12 @@ impl UpgradeTool {
             .with_remove_on_close(true)
             .build(ctx);
 
-        ctx.sender()
-            .send(WindowMessage::open_modal(
-                window,
-                MessageDirection::ToWidget,
-                true,
-                true,
-            ))
-            .unwrap();
+        ctx.send_message(WindowMessage::open_modal(
+            window,
+            MessageDirection::ToWidget,
+            true,
+            true,
+        ));
 
         Self {
             window,
@@ -227,9 +225,8 @@ impl UpgradeTool {
             if message.destination() == self.version_type_selector {
                 match *index {
                     0 => {
-                        self.selected_version = Version::Specific(
-                            fyrox_template_core::CURRENT_ENGINE_VERSION.to_string(),
-                        );
+                        self.selected_version =
+                            Version::Specific(fyrox_template_core::CURRENT_VERSION.to_string());
                     }
                     1 => {
                         self.selected_version = Version::Local;

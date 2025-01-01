@@ -18,26 +18,25 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::command::{Command, CommandGroup};
-use crate::fyrox::graph::{BaseSceneGraph, SceneGraphNode};
-use crate::fyrox::{
-    asset::{manager::ResourceManager, untyped::UntypedResource},
-    core::{
-        algebra::Vector3,
-        futures::executor::block_on,
-        make_relative_path,
-        pool::{ErasedHandle, Handle},
-    },
-    graph::SceneGraph,
-    resource::model::{Model, ModelResourceExtension},
-    scene::{node::Node, Scene},
-};
-use crate::scene::commands::graph::SetGraphNodeChildPosition;
 use crate::{
+    command::{Command, CommandGroup},
+    fyrox::{
+        asset::manager::ResourceManager,
+        core::{
+            algebra::Vector3,
+            futures::executor::block_on,
+            make_relative_path,
+            pool::{ErasedHandle, Handle},
+        },
+        graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
+        resource::model::{Model, ModelResourceExtension},
+        scene::{node::Node, Scene},
+    },
     load_image,
     message::MessageSender,
     scene::{
         commands::{
+            graph::SetGraphNodeChildPosition,
             graph::{AddModelCommand, LinkNodesCommand},
             ChangeSelectionCommand,
         },
@@ -48,6 +47,7 @@ use crate::{
         WorldViewerDataProvider,
     },
 };
+use fyrox::resource::texture::TextureResource;
 use std::{borrow::Cow, path::Path, path::PathBuf};
 
 pub mod item;
@@ -130,7 +130,7 @@ impl WorldViewerDataProvider for EditorSceneWrapper<'_> {
         self.scene.graph.is_valid_handle(node.into())
     }
 
-    fn icon_of(&self, node: ErasedHandle) -> Option<UntypedResource> {
+    fn icon_of(&self, node: ErasedHandle) -> Option<TextureResource> {
         let node = self.scene.graph.try_get(node.into()).unwrap();
         if node.is_point_light() || node.is_directional_light() || node.is_spot_light() {
             load_image!("../../../resources/light.png")

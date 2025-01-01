@@ -1,12 +1,12 @@
 [package]
 name = "fyrox-project-manager"
-version = "0.1.0"
+version = "0.36.0"
 edition = "2021"
 
 [dependencies]
-fyrox = { path = "../fyrox" }
-fyrox-template-core = { version = "0.11.0", path = "../template-core" }
-fyrox-build-tools = { version = "0.1.0", path = "../fyrox-build-tools" }
+fyrox = { version = "0.36.0", path = "../fyrox" }
+fyrox-template-core = { version = "0.36.0", path = "../template-core" }
+fyrox-build-tools = { version = "0.36.0", path = "../fyrox-build-tools" }
 serde = { version = "1", features = ["derive"] }
 ron = "0.8.1"
 open = "5.0.1"

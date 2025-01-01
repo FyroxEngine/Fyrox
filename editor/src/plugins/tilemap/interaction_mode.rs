@@ -82,12 +82,12 @@ pub struct TileMapInteractionMode {
     /// In order to calculate the actual selection, this set is combined with the rect created by the current
     /// mouse motion.
     selecting: FxHashSet<Vector2<i32>>,
-    tile_map_cursor: Arc<Mutex<TileCursorEffect>>,
-    tile_map_select: Arc<Mutex<TileSelectionEffect>>,
-    tile_map_erase_select: Arc<Mutex<TileSelectionEffect>>,
-    tile_map_overlay: Arc<Mutex<TileOverlayEffect>>,
-    tile_map_erase: Arc<Mutex<TileEraseEffect>>,
-    tile_map_update: Arc<Mutex<TileUpdateEffect>>,
+    cursor_effect: Arc<Mutex<TileCursorEffect>>,
+    select_effect: Arc<Mutex<TileSelectionEffect>>,
+    erase_select_effect: Arc<Mutex<TileSelectionEffect>>,
+    overlay_effect: Arc<Mutex<TileOverlayEffect>>,
+    erase_effect: Arc<Mutex<TileEraseEffect>>,
+    update_effect: Arc<Mutex<TileUpdateEffect>>,
 }
 
 impl TileMapInteractionMode {
@@ -104,29 +104,29 @@ impl TileMapInteractionMode {
             sender,
             mouse_mode: MouseMode::None,
             selecting: FxHashSet::default(),
-            tile_map_overlay: Arc::new(Mutex::new(TileOverlayEffect {
+            overlay_effect: Arc::new(Mutex::new(TileOverlayEffect {
                 active: false,
                 offset: Vector2::default(),
                 tiles: FxHashMap::default(),
             })),
-            tile_map_cursor: Arc::new(Mutex::new(TileCursorEffect {
+            cursor_effect: Arc::new(Mutex::new(TileCursorEffect {
                 material: Some(cursor_material),
                 position: None,
             })),
-            tile_map_update: Arc::new(Mutex::new(TileUpdateEffect {
+            update_effect: Arc::new(Mutex::new(TileUpdateEffect {
                 active: true,
                 update: TransTilesUpdate::default(),
             })),
-            tile_map_erase_select: Arc::new(Mutex::new(TileSelectionEffect {
+            erase_select_effect: Arc::new(Mutex::new(TileSelectionEffect {
                 material: Some(erase_material),
                 offset: None,
                 positions: FxHashSet::default(),
                 thickness: ERASE_BORDER_THICKNESS,
             })),
-            tile_map_erase: Arc::new(Mutex::new(TileEraseEffect {
+            erase_effect: Arc::new(Mutex::new(TileEraseEffect {
                 positions: FxHashSet::default(),
             })),
-            tile_map_select: Arc::new(Mutex::new(TileSelectionEffect {
+            select_effect: Arc::new(Mutex::new(TileSelectionEffect {
                 material: Some(select_material),
                 offset: Some(Vector2::default()),
                 positions: FxHashSet::default(),
@@ -135,14 +135,17 @@ impl TileMapInteractionMode {
         }
     }
     pub fn on_tile_map_selected(&mut self, tile_map: &mut TileMap) {
-        tile_map.effects.clear();
-        tile_map.effects.extend([
-            self.tile_map_overlay.clone() as TileMapEffectRef,
-            self.tile_map_cursor.clone() as TileMapEffectRef,
-            self.tile_map_update.clone() as TileMapEffectRef,
-            self.tile_map_erase_select.clone() as TileMapEffectRef,
-            self.tile_map_erase.clone() as TileMapEffectRef,
-            self.tile_map_select.clone() as TileMapEffectRef,
+        tile_map.before_effects.clear();
+        tile_map.before_effects.extend([
+            self.overlay_effect.clone() as TileMapEffectRef,
+            self.update_effect.clone() as TileMapEffectRef,
+            self.erase_effect.clone() as TileMapEffectRef,
+        ]);
+        tile_map.after_effects.clear();
+        tile_map.after_effects.extend([
+            self.cursor_effect.clone() as TileMapEffectRef,
+            self.erase_select_effect.clone() as TileMapEffectRef,
+            self.select_effect.clone() as TileMapEffectRef,
         ]);
     }
     fn pick_grid(
@@ -168,13 +171,13 @@ impl TileMapInteractionMode {
     pub fn sync_to_state(&mut self) {
         let state = self.state.lock();
         if state.selection_node() != self.tile_map {
-            self.tile_map_select.lock().positions.clear();
+            self.select_effect.lock().positions.clear();
             self.selecting.clear();
         }
         match state.drawing_mode {
             DrawingMode::Draw => {
-                let mut overlay = self.tile_map_overlay.lock();
-                let mut erase_overlay = self.tile_map_erase_select.lock();
+                let mut overlay = self.overlay_effect.lock();
+                let mut erase_overlay = self.erase_select_effect.lock();
                 overlay.tiles.clear();
                 erase_overlay.positions.clear();
                 let stamp = &state.stamp;
@@ -190,8 +193,8 @@ impl TileMapInteractionMode {
                 }
             }
             DrawingMode::Erase => {
-                let mut overlay = self.tile_map_overlay.lock();
-                let mut erase_overlay = self.tile_map_erase_select.lock();
+                let mut overlay = self.overlay_effect.lock();
+                let mut erase_overlay = self.erase_select_effect.lock();
                 overlay.tiles.clear();
                 erase_overlay.positions.clear();
                 if state.stamp.is_empty() {
@@ -202,18 +205,18 @@ impl TileMapInteractionMode {
             }
             DrawingMode::Pick => {
                 if self.mouse_mode == MouseMode::None {
-                    self.tile_map_overlay.lock().tiles.clear();
-                    self.tile_map_erase_select.lock().positions.clear();
+                    self.overlay_effect.lock().tiles.clear();
+                    self.erase_select_effect.lock().positions.clear();
                 }
             }
             _ => {
-                self.tile_map_overlay.lock().tiles.clear();
-                self.tile_map_erase_select.lock().positions.clear();
+                self.overlay_effect.lock().tiles.clear();
+                self.erase_select_effect.lock().positions.clear();
             }
         }
     }
     fn delete(&mut self) {
-        let sel = &self.tile_map_select.lock().positions;
+        let sel = &self.select_effect.lock().positions;
         if sel.is_empty() {
             return;
         }
@@ -327,8 +330,8 @@ impl InteractionMode for TileMapInteractionMode {
         let Some(tile_map) = scene.graph.try_get_mut_of_type::<TileMap>(self.tile_map) else {
             return;
         };
-        let mut overlay = self.tile_map_overlay.lock();
-        let mut erase_overlay = self.tile_map_erase_select.lock();
+        let mut overlay = self.overlay_effect.lock();
+        let mut erase_overlay = self.erase_select_effect.lock();
         if let Some(grid_coord) = grid_coord {
             overlay.active = true;
             overlay.offset = grid_coord;
@@ -344,10 +347,10 @@ impl InteractionMode for TileMapInteractionMode {
                 DrawingMode::Pick => {
                     if mods.alt {
                         self.mouse_mode = MouseMode::Dragging;
-                        let erased_area = &mut self.tile_map_erase.lock().positions;
+                        let erased_area = &mut self.erase_effect.lock().positions;
                         overlay.tiles.clear();
                         erased_area.clear();
-                        let selected = &self.tile_map_select.lock().positions;
+                        let selected = &self.select_effect.lock().positions;
                         for pos in selected.iter() {
                             let Some(&handle) = tile_map.tiles.get(pos) else {
                                 continue;
@@ -364,7 +367,7 @@ impl InteractionMode for TileMapInteractionMode {
                         state.set_node(self.tile_map);
                         update_select(
                             tile_map,
-                            &mut self.tile_map_select.lock().positions,
+                            &mut self.select_effect.lock().positions,
                             &self.selecting,
                             &mut state,
                             grid_coord,
@@ -375,7 +378,7 @@ impl InteractionMode for TileMapInteractionMode {
                 mode => {
                     self.mouse_mode = MouseMode::Drawing;
                     draw(
-                        &mut self.tile_map_update.lock().update,
+                        &mut self.update_effect.lock().update,
                         &tile_map.tiles,
                         mode,
                         &state,
@@ -412,7 +415,7 @@ impl InteractionMode for TileMapInteractionMode {
         match self.mouse_mode {
             MouseMode::None => (),
             MouseMode::Dragging => {
-                let overlay = &mut self.tile_map_overlay.lock().tiles;
+                let overlay = &mut self.overlay_effect.lock().tiles;
                 if let (Some(start), Some(end)) = (start, end) {
                     let offset = end - start;
                     if offset != Vector2::new(0, 0) {
@@ -421,7 +424,7 @@ impl InteractionMode for TileMapInteractionMode {
                             .copied()
                             .map(|p| p + start)
                             .collect::<Vec<_>>();
-                        let selected = &mut self.tile_map_select.lock().positions;
+                        let selected = &mut self.select_effect.lock().positions;
                         selected.clear();
                         selected.extend(tiles.iter().map(|p| p + offset));
                         self.sender.do_command(MoveMapTileCommand::new(
@@ -432,15 +435,15 @@ impl InteractionMode for TileMapInteractionMode {
                     }
                 }
                 overlay.clear();
-                self.tile_map_erase.lock().positions.clear();
+                self.erase_effect.lock().positions.clear();
             }
             MouseMode::Drawing => {
                 let state = self.state.lock();
                 if let DrawingMode::Pick = self.current_tool {
                     self.selecting
-                        .clone_from(&self.tile_map_select.lock().positions);
+                        .clone_from(&self.select_effect.lock().positions);
                 } else if let Some(tile_set) = state.tile_set.as_ref().or(tile_map.tile_set()) {
-                    let update_source = &mut self.tile_map_update.lock().update;
+                    let update_source = &mut self.update_effect.lock().update;
                     let update =
                         update_source.build_tiles_update(&TileSetRef::new(tile_set).as_loaded());
                     self.sender.do_command(SetMapTilesCommand {
@@ -472,8 +475,8 @@ impl InteractionMode for TileMapInteractionMode {
 
         let grid_coord = self.pick_grid(scene, game_scene, mouse_position, frame_size);
 
-        let mut overlay = self.tile_map_overlay.lock();
-        let mut erase_overlay = self.tile_map_erase_select.lock();
+        let mut overlay = self.overlay_effect.lock();
+        let mut erase_overlay = self.erase_select_effect.lock();
         if let Some(grid_coord) = grid_coord {
             overlay.active = true;
             overlay.offset = grid_coord;
@@ -482,6 +485,7 @@ impl InteractionMode for TileMapInteractionMode {
             overlay.active = false;
             erase_overlay.offset = None;
         }
+        self.cursor_effect.lock().position = grid_coord;
 
         let Some(grid_coord) = grid_coord else {
             return;
@@ -514,7 +518,7 @@ impl InteractionMode for TileMapInteractionMode {
                 if let DrawingMode::Pick = self.current_tool {
                     update_select(
                         tile_map,
-                        &mut self.tile_map_select.lock().positions,
+                        &mut self.select_effect.lock().positions,
                         &self.selecting,
                         &mut state.into_mut("TileMap select"),
                         start,
@@ -522,7 +526,7 @@ impl InteractionMode for TileMapInteractionMode {
                     );
                 } else {
                     draw(
-                        &mut self.tile_map_update.lock().update,
+                        &mut self.update_effect.lock().update,
                         &tile_map.tiles,
                         self.current_tool,
                         &state,
@@ -543,8 +547,8 @@ impl InteractionMode for TileMapInteractionMode {
         _frame_size: Vector2<f32>,
         _settings: &Settings,
     ) {
-        self.tile_map_overlay.lock().active = false;
-        self.tile_map_erase_select.lock().offset = None;
+        self.overlay_effect.lock().active = false;
+        self.erase_select_effect.lock().offset = None;
     }
 
     fn update(

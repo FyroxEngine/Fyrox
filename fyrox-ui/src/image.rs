@@ -37,14 +37,14 @@ use crate::{
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
-use fyrox_resource::untyped::UntypedResource;
+use fyrox_texture::TextureResource;
 use std::ops::{Deref, DerefMut};
 
 /// A set of messages that could be used to alter [`Image`] widget state at runtime.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ImageMessage {
     /// Used to set new texture of the [`Image`] widget.
-    Texture(Option<UntypedResource>),
+    Texture(Option<TextureResource>),
     /// Used to enable or disable texture flip of the [`Image`] widget. See respective [section](Image#vertical-flip)
     /// of the docs for more info.
     Flip(bool),
@@ -59,7 +59,7 @@ pub enum ImageMessage {
 impl ImageMessage {
     define_constructor!(
         /// Creates [`ImageMessage::Texture`] message.
-        ImageMessage:Texture => fn texture(Option<UntypedResource>), layout: false
+        ImageMessage:Texture => fn texture(Option<TextureResource>), layout: false
     );
 
     define_constructor!(
@@ -84,13 +84,13 @@ impl ImageMessage {
 /// ## Usage
 ///
 /// ```rust,no_run
-/// # use fyrox_resource::untyped::UntypedResource;
+/// # use fyrox_texture::TextureResource;
 /// # use fyrox_ui::{
 /// #     core::pool::Handle,
 /// #     image::ImageBuilder, widget::WidgetBuilder, BuildContext, UiNode,
 /// # };
 ///
-/// fn create_image(ctx: &mut BuildContext, texture: UntypedResource) -> Handle<UiNode> {
+/// fn create_image(ctx: &mut BuildContext, texture: TextureResource) -> Handle<UiNode> {
 ///     // You must explicitly set width and height of the image, otherwise it will collapse to a
 ///     // point and you won't see anything.
 ///     let width = 100.0;
@@ -110,13 +110,13 @@ impl ImageMessage {
 /// In some rare cases you need to flip your source image before showing it, there is `.with_flip` option for that:
 ///
 /// ```rust,no_run
-/// # use fyrox_resource::untyped::UntypedResource;
+/// # use fyrox_texture::TextureResource;
 /// # use fyrox_ui::{
 /// #     core::pool::Handle,
 /// #     image::ImageBuilder, widget::WidgetBuilder, BuildContext, UiNode
 /// # };
 ///
-/// fn create_image(ctx: &mut BuildContext, texture: UntypedResource) -> Handle<UiNode> {
+/// fn create_image(ctx: &mut BuildContext, texture: TextureResource) -> Handle<UiNode> {
 ///     ImageBuilder::new(WidgetBuilder::new().with_width(100.0).with_height(100.0))
 ///         .with_flip(true) // Flips an image vertically
 ///         .with_texture(texture)
@@ -136,13 +136,13 @@ impl ImageMessage {
 /// be enabled either when building the widget or via [`ImageMessage::CheckerboardBackground`] message:
 ///
 /// ```rust,no_run
-/// # use fyrox_resource::untyped::UntypedResource;
+/// # use fyrox_texture::TextureResource;
 /// # use fyrox_ui::{
 /// #     core::pool::Handle,
 /// #     image::ImageBuilder, widget::WidgetBuilder, BuildContext, UiNode
 /// # };
 ///
-/// fn create_image(ctx: &mut BuildContext, texture: UntypedResource) -> Handle<UiNode> {
+/// fn create_image(ctx: &mut BuildContext, texture: TextureResource) -> Handle<UiNode> {
 ///     ImageBuilder::new(WidgetBuilder::new().with_width(100.0).with_height(100.0))
 ///         .with_checkerboard_background(true) // Turns on checkerboard background.
 ///         .with_texture(texture)
@@ -156,13 +156,13 @@ impl ImageMessage {
 /// custom UV rect (UV stands for XY coordinates, but texture related):
 ///
 /// ```rust,no_run
-/// # use fyrox_resource::untyped::UntypedResource;
+/// # use fyrox_texture::TextureResource;
 /// # use fyrox_ui::{
 /// #     core::{pool::Handle, math::Rect},
 /// #     image::ImageBuilder, widget::WidgetBuilder, BuildContext, UiNode
 /// # };
 ///
-/// fn create_image(ctx: &mut BuildContext, texture: UntypedResource) -> Handle<UiNode> {
+/// fn create_image(ctx: &mut BuildContext, texture: TextureResource) -> Handle<UiNode> {
 ///     ImageBuilder::new(WidgetBuilder::new().with_width(100.0).with_height(100.0))
 ///         .with_uv_rect(Rect::new(0.0, 0.0, 0.25, 0.25)) // Uses top-left quadrant of the texture.
 ///         .with_texture(texture)
@@ -182,7 +182,7 @@ pub struct Image {
     /// Base widget of the image.
     pub widget: Widget,
     /// Current texture of the image.
-    pub texture: InheritableVariable<Option<UntypedResource>>,
+    pub texture: InheritableVariable<Option<TextureResource>>,
     /// Defines whether to vertically flip the image or not.
     pub flip: InheritableVariable<bool>,
     /// Specifies arbitrary portion of the texture.
@@ -291,7 +291,7 @@ impl Control for Image {
 /// Image builder is used to create [`Image`] widget instances and register them in the user interface.
 pub struct ImageBuilder {
     widget_builder: WidgetBuilder,
-    texture: Option<UntypedResource>,
+    texture: Option<TextureResource>,
     flip: bool,
     uv_rect: Rect<f32>,
     checkerboard_background: bool,
@@ -317,13 +317,13 @@ impl ImageBuilder {
     }
 
     /// Sets the texture that will be used for drawing.
-    pub fn with_texture(mut self, texture: UntypedResource) -> Self {
+    pub fn with_texture(mut self, texture: TextureResource) -> Self {
         self.texture = Some(texture);
         self
     }
 
     /// Specifies the texture that will be used for drawing.
-    pub fn with_opt_texture(mut self, texture: Option<UntypedResource>) -> Self {
+    pub fn with_opt_texture(mut self, texture: Option<TextureResource>) -> Self {
         self.texture = texture;
         self
     }

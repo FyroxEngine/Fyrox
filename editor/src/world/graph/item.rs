@@ -18,32 +18,34 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::core::color::Color;
-use crate::fyrox::graph::BaseSceneGraph;
-use crate::fyrox::gui::draw::{CommandTexture, Draw};
-use crate::fyrox::{
-    asset::untyped::UntypedResource,
-    core::{
-        algebra::Vector2, pool::ErasedHandle, pool::Handle, reflect::prelude::*,
-        type_traits::prelude::*, uuid_provider, visitor::prelude::*,
+use crate::{
+    fyrox::{
+        core::{
+            algebra::Vector2, color::Color, pool::ErasedHandle, pool::Handle, reflect::prelude::*,
+            type_traits::prelude::*, uuid_provider, visitor::prelude::*,
+        },
+        graph::BaseSceneGraph,
+        gui::{
+            brush::Brush,
+            define_constructor,
+            draw::{CommandTexture, Draw, DrawingContext},
+            grid::{Column, GridBuilder, Row},
+            image::ImageBuilder,
+            message::{MessageDirection, OsEvent, UiMessage},
+            style::{resource::StyleResourceExt, Style, StyledProperty},
+            text::{TextBuilder, TextMessage},
+            tree::{Tree, TreeBuilder},
+            utils::make_simple_tooltip,
+            widget::{Widget, WidgetBuilder, WidgetMessage},
+            BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
+        },
+        resource::texture::TextureResource,
     },
-    gui::{
-        brush::Brush,
-        define_constructor,
-        draw::DrawingContext,
-        grid::{Column, GridBuilder, Row},
-        image::ImageBuilder,
-        message::{MessageDirection, OsEvent, UiMessage},
-        text::{TextBuilder, TextMessage},
-        tree::{Tree, TreeBuilder},
-        utils::make_simple_tooltip,
-        widget::{Widget, WidgetBuilder, WidgetMessage},
-        BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
-    },
+    load_image,
+    message::MessageSender,
+    utils::make_node_name,
+    Message,
 };
-use crate::{load_image, message::MessageSender, utils::make_node_name, Message};
-use fyrox::gui::style::resource::StyleResourceExt;
-use fyrox::gui::style::{Style, StyledProperty};
 use std::{
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
@@ -269,7 +271,7 @@ pub struct SceneItemBuilder {
     tree_builder: TreeBuilder,
     entity_handle: ErasedHandle,
     name: String,
-    icon: Option<UntypedResource>,
+    icon: Option<TextureResource>,
     text_brush: Option<StyledProperty<Brush>>,
 }
 
@@ -294,7 +296,7 @@ impl SceneItemBuilder {
         self
     }
 
-    pub fn with_icon(mut self, icon: Option<UntypedResource>) -> Self {
+    pub fn with_icon(mut self, icon: Option<TextureResource>) -> Self {
         self.icon = icon;
         self
     }

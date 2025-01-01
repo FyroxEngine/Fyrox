@@ -28,111 +28,11 @@ use crate::{
             AttributeDefinition, AttributeKind, GeometryBuffer, GeometryBufferDescriptor,
             VertexBufferData, VertexBufferDescriptor,
         },
-        gpu_texture::{
-            GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind, WrapMode,
-        },
         server::GraphicsServer,
-    },
-    resource::texture::{
-        TextureKind, TextureMagnificationFilter, TextureMinificationFilter, TexturePixelKind,
-        TextureWrapMode,
     },
     scene::mesh::{buffer::VertexAttributeDataType, surface::SurfaceData},
 };
 pub use fyrox_graphics::*;
-
-impl From<TextureKind> for GpuTextureKind {
-    fn from(v: TextureKind) -> Self {
-        match v {
-            TextureKind::Line { length } => GpuTextureKind::Line {
-                length: length as usize,
-            },
-            TextureKind::Rectangle { width, height } => GpuTextureKind::Rectangle {
-                width: width as usize,
-                height: height as usize,
-            },
-            TextureKind::Cube { width, height } => GpuTextureKind::Cube {
-                width: width as usize,
-                height: height as usize,
-            },
-            TextureKind::Volume {
-                width,
-                height,
-                depth,
-            } => GpuTextureKind::Volume {
-                width: width as usize,
-                height: height as usize,
-                depth: depth as usize,
-            },
-        }
-    }
-}
-
-impl From<TexturePixelKind> for PixelKind {
-    fn from(texture_kind: TexturePixelKind) -> Self {
-        match texture_kind {
-            TexturePixelKind::R8 => Self::R8,
-            TexturePixelKind::RGB8 => Self::RGB8,
-            TexturePixelKind::RGBA8 => Self::RGBA8,
-            TexturePixelKind::RG8 => Self::RG8,
-            TexturePixelKind::R16 => Self::R16,
-            TexturePixelKind::RG16 => Self::RG16,
-            TexturePixelKind::BGR8 => Self::BGR8,
-            TexturePixelKind::BGRA8 => Self::BGRA8,
-            TexturePixelKind::RGB16 => Self::RGB16,
-            TexturePixelKind::RGBA16 => Self::RGBA16,
-            TexturePixelKind::RGB16F => Self::RGB16F,
-            TexturePixelKind::DXT1RGB => Self::DXT1RGB,
-            TexturePixelKind::DXT1RGBA => Self::DXT1RGBA,
-            TexturePixelKind::DXT3RGBA => Self::DXT3RGBA,
-            TexturePixelKind::DXT5RGBA => Self::DXT5RGBA,
-            TexturePixelKind::R8RGTC => Self::R8RGTC,
-            TexturePixelKind::RG8RGTC => Self::RG8RGTC,
-            TexturePixelKind::RGB32F => Self::RGB32F,
-            TexturePixelKind::RGBA32F => Self::RGBA32F,
-            TexturePixelKind::Luminance8 => Self::L8,
-            TexturePixelKind::LuminanceAlpha8 => Self::LA8,
-            TexturePixelKind::Luminance16 => Self::L16,
-            TexturePixelKind::LuminanceAlpha16 => Self::LA16,
-            TexturePixelKind::R32F => Self::R32F,
-            TexturePixelKind::R16F => Self::R16F,
-        }
-    }
-}
-
-impl From<TextureMagnificationFilter> for MagnificationFilter {
-    fn from(v: TextureMagnificationFilter) -> Self {
-        match v {
-            TextureMagnificationFilter::Nearest => Self::Nearest,
-            TextureMagnificationFilter::Linear => Self::Linear,
-        }
-    }
-}
-
-impl From<TextureMinificationFilter> for MinificationFilter {
-    fn from(v: TextureMinificationFilter) -> Self {
-        match v {
-            TextureMinificationFilter::Nearest => Self::Nearest,
-            TextureMinificationFilter::NearestMipMapNearest => Self::NearestMipMapNearest,
-            TextureMinificationFilter::NearestMipMapLinear => Self::NearestMipMapLinear,
-            TextureMinificationFilter::Linear => Self::Linear,
-            TextureMinificationFilter::LinearMipMapNearest => Self::LinearMipMapNearest,
-            TextureMinificationFilter::LinearMipMapLinear => Self::LinearMipMapLinear,
-        }
-    }
-}
-
-impl From<TextureWrapMode> for WrapMode {
-    fn from(v: TextureWrapMode) -> Self {
-        match v {
-            TextureWrapMode::Repeat => WrapMode::Repeat,
-            TextureWrapMode::ClampToEdge => WrapMode::ClampToEdge,
-            TextureWrapMode::ClampToBorder => WrapMode::ClampToBorder,
-            TextureWrapMode::MirroredRepeat => WrapMode::MirroredRepeat,
-            TextureWrapMode::MirrorClampToEdge => WrapMode::MirrorClampToEdge,
-        }
-    }
-}
 
 /// Extension trait for [`GeometryBuffer`].
 pub trait GeometryBufferExt {

@@ -61,18 +61,16 @@ impl StatisticsWindow {
             .with_title(WindowTitle::text("Rendering Statistics"))
             .build(ctx);
 
-        ctx.sender()
-            .send(WindowMessage::open_and_align(
-                window,
-                MessageDirection::ToWidget,
-                anchor,
-                HorizontalAlignment::Right,
-                VerticalAlignment::Top,
-                Thickness::uniform(2.0),
-                false,
-                false,
-            ))
-            .unwrap();
+        ctx.send_message(WindowMessage::open_and_align(
+            window,
+            MessageDirection::ToWidget,
+            anchor,
+            HorizontalAlignment::Right,
+            VerticalAlignment::Top,
+            Thickness::uniform(2.0),
+            false,
+            false,
+        ));
 
         Self { window, text }
     }

@@ -20,7 +20,6 @@
 
 use cargo_metadata::{semver::VersionReq, Dependency, Metadata};
 use fyrox::{
-    asset::untyped::UntypedResource,
     core::pool::Handle,
     gui::{
         button::ButtonBuilder, text::TextBuilder, utils::make_simple_tooltip,
@@ -84,19 +83,16 @@ pub fn make_button(
         .build(ctx)
 }
 
-pub fn load_image(data: &[u8]) -> Option<UntypedResource> {
-    Some(
-        TextureResource::load_from_memory(
-            Default::default(),
-            data,
-            TextureImportOptions::default()
-                .with_compression(CompressionOptions::NoCompression)
-                .with_minification_filter(TextureMinificationFilter::LinearMipMapLinear)
-                .with_lod_bias(-1.0),
-        )
-        .ok()?
-        .into(),
+pub fn load_image(data: &[u8]) -> Option<TextureResource> {
+    TextureResource::load_from_memory(
+        Default::default(),
+        data,
+        TextureImportOptions::default()
+            .with_compression(CompressionOptions::NoCompression)
+            .with_minification_filter(TextureMinificationFilter::LinearMipMapLinear)
+            .with_lod_bias(-1.0),
     )
+    .ok()
 }
 
 pub fn folder_to_manifest_path(path: &Path) -> PathBuf {

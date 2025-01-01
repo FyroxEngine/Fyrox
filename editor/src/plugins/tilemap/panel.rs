@@ -28,8 +28,6 @@
 use crate::{
     asset::item::AssetItem,
     fyrox::{
-        core::algebra::Vector2,
-        core::color::Color,
         core::pool::Handle,
         graph::{BaseSceneGraph, SceneGraph},
         gui::{

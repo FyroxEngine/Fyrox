@@ -483,7 +483,7 @@ impl SceneViewer {
                 .with_margin(Thickness::uniform(1.0)),
         )
         .with_flip(true)
-        .with_texture(scene_gizmo.render_target.clone().into())
+        .with_texture(scene_gizmo.render_target.clone())
         .build(ctx);
 
         let tab_control;

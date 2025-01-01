@@ -33,13 +33,11 @@ use std::{
 use toml_edit::{table, value, DocumentMut};
 use uuid::Uuid;
 
-// Ideally, this should be take from respective Cargo.toml of the engine and the editor.
+// Ideally, this should be taken from respective Cargo.toml of the engine and the editor.
 // However, it does not seem to work with builds published to crates.io, because when
 // the template generator is published, it does not have these Cargo.toml's available
 // and to solve this we just hard code these values and pray for the best.
-pub const CURRENT_ENGINE_VERSION: &str = "0.34.0";
-pub const CURRENT_EDITOR_VERSION: &str = "0.21.0";
-pub const CURRENT_SCRIPTS_VERSION: &str = "0.3.0";
+pub const CURRENT_VERSION: &str = "0.36.0";
 
 fn write_file<P: AsRef<Path>, S: AsRef<str>>(path: P, content: S) -> Result<(), String> {
     let mut file = File::create(path.as_ref()).map_err(|e| e.to_string())?;
@@ -593,10 +591,10 @@ members = ["editor", "executor", "executor-wasm", "executor-android", "game", "g
 resolver = "2"
 
 [workspace.dependencies.fyrox]
-version = "{CURRENT_ENGINE_VERSION}"
+version = "{CURRENT_VERSION}"
 default-features = false
 [workspace.dependencies.fyroxed_base]
-version = "{CURRENT_EDITOR_VERSION}"
+version = "{CURRENT_VERSION}"
 default-features = false
 
 # Separate build profiles for hot reloading. These profiles ensures that build artifacts for
@@ -759,7 +757,15 @@ pub fn upgrade_project(root_path: &Path, version: &str, local: bool) -> Result<(
     }
 
     // Engine -> (Editor, Scripts) version mapping.
+    // TODO: This will be obsolete in 1.0 and should be removed.
     let editor_versions = [
+        (
+            CURRENT_VERSION.to_string(),
+            (
+                CURRENT_VERSION.to_string(),
+                Some(CURRENT_VERSION.to_string()),
+            ),
+        ),
         (
             "0.34.0".to_string(),
             ("0.21.0".to_string(), Some("0.3.0".to_string())),
@@ -815,11 +821,10 @@ pub fn upgrade_project(root_path: &Path, version: &str, local: bool) -> Result<(
                                         dependencies["fyrox_scripts"] = scripts_table;
                                     }
                                 } else {
-                                    dependencies["fyrox"] = value(CURRENT_ENGINE_VERSION);
-                                    dependencies["fyroxed_base"] = value(CURRENT_EDITOR_VERSION);
+                                    dependencies["fyrox"] = value(CURRENT_VERSION);
+                                    dependencies["fyroxed_base"] = value(CURRENT_VERSION);
                                     if dependencies.contains_key("fyrox_scripts") {
-                                        dependencies["fyrox_scripts"] =
-                                            value(CURRENT_SCRIPTS_VERSION);
+                                        dependencies["fyrox_scripts"] = value(CURRENT_VERSION);
                                     }
                                 }
                             } else if version == "nightly" {

@@ -54,6 +54,7 @@ use crate::state::LoadError;
 use crate::untyped::{ResourceHeader, ResourceKind};
 pub use fyrox_core as core;
 use fyrox_core::combine_uuids;
+use fyrox_core::log::Log;
 
 pub mod constructor;
 pub mod entry;
@@ -179,6 +180,28 @@ where
     T: TypedResourceData,
 {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        // Untyped -> Typed compatibility. Useful in cases when a field was UntypedResource, and
+        // then it changed to the typed version. Strictly speaking, there's no real separation
+        // between typed and untyped resources on serialization/deserialization and this operation
+        // is valid until data types are matching.
+        if visitor.is_reading() {
+            let mut untyped = UntypedResource::default();
+            if untyped.visit(name, visitor).is_ok() {
+                let untyped_data_type = untyped.type_uuid();
+                if untyped_data_type == <T as TypeUuidProvider>::type_uuid() {
+                    self.untyped = untyped;
+                    return Ok(());
+                } else {
+                    Log::err(format!(
+                        "Unable to deserialize untyped resource into its typed \
+                     version, because types do not match! Untyped resource has \
+                     {untyped_data_type} type, but the required type is {}",
+                        <T as TypeUuidProvider>::type_uuid(),
+                    ))
+                }
+            }
+        }
+
         let mut region = visitor.enter_region(name)?;
 
         // Backward compatibility.

@@ -28,6 +28,7 @@ use crate::{
     },
     load_image,
 };
+use fyrox::resource::texture::TextureResource;
 
 pub struct TileSetPreview;
 
@@ -58,7 +59,7 @@ impl AssetPreviewGenerator for TileSetPreview {
         &self,
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
-    ) -> Option<UntypedResource> {
+    ) -> Option<TextureResource> {
         load_image!("../../../resources/tile_set.png")
     }
 }
