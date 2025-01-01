@@ -2109,7 +2109,7 @@ impl Editor {
         processed
     }
 
-    fn handle_modes(&mut self) {
+    fn handle_modes(&mut self, dt: f32) {
         match self.mode {
             Mode::Play {
                 ref mut process,
@@ -2161,7 +2161,7 @@ impl Editor {
 
                 if let Some(process_ref) = process {
                     if let Some(build_window) = self.build_window.as_mut() {
-                        build_window.update(self.engine.user_interfaces.first());
+                        build_window.update(self.engine.user_interfaces.first(), dt);
                     }
 
                     match process_ref.try_wait() {
@@ -2196,7 +2196,7 @@ impl Editor {
     fn update(&mut self, dt: f32) {
         for_each_plugin!(self.plugins => on_update(self));
 
-        self.handle_modes();
+        self.handle_modes(dt);
 
         let ui = self.engine.user_interfaces.first_mut();
 

@@ -761,7 +761,7 @@ impl ProjectManager {
         }
     }
 
-    pub fn update(&mut self, ui: &mut UserInterface) {
+    pub fn update(&mut self, ui: &mut UserInterface, dt: f32) {
         self.handle_modes(ui);
 
         if let Some(active_tooltip) = ui.active_tooltip() {
@@ -785,7 +785,7 @@ impl ProjectManager {
         }
 
         if let Some(build_window) = self.build_window.as_mut() {
-            build_window.update(ui);
+            build_window.update(ui, dt);
         }
 
         self.settings.try_save();

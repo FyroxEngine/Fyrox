@@ -163,7 +163,7 @@ fn main() {
 
                         engine.update(time_step, window_target, &mut 0.0, Default::default());
 
-                        project_manager.update(engine.user_interfaces.first_mut());
+                        project_manager.update(engine.user_interfaces.first_mut(), time_step);
 
                         if let GraphicsContext::Initialized(ref ctx) = engine.graphics_context {
                             let window = &ctx.window;

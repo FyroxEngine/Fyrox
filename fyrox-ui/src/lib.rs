@@ -336,6 +336,7 @@ use crate::style::{Style, DEFAULT_STYLE};
 pub use fyrox_animation as generic_animation;
 use fyrox_core::pool::ErasedHandle;
 use fyrox_resource::untyped::ResourceKind;
+pub use fyrox_texture as texture;
 
 #[derive(Default, Reflect, Debug)]
 pub(crate) struct RcUiNodeHandleInner {
