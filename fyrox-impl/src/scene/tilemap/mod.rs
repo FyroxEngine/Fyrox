@@ -874,12 +874,10 @@ impl OrthoTransform for TileRenderData {
 /// build game worlds quickly and easily. Each tile is represented by a [`TileDefinitionHandle`] which
 /// contains the position of a page and the position of a tile within that page.
 ///
-/// When rendering the TileMap, the rendering data is fetched from the tile map's tile set resource,
+/// When rendering the `TileMap`, the rendering data is fetched from the tile map's tile set resource,
 /// which contains all the pages that may be referenced by the tile map's handles.
 ///
-/// An optional [`TileMapEditorData`] may be included in the TileMap to change how it renders to represent
-/// editing operations that are in-progress, which as highlighting certain tiles to indicate that they are
-/// selected.
+/// Optional [`TileMapEffect`] objects may be included in the `TileMap` to change how it renders.
 #[derive(Reflect, Debug, Visit, ComponentProvider, TypeUuidProvider)]
 #[type_uuid(id = "aa9a3385-a4af-4faf-a69a-8d3af1a3aa67")]
 pub struct TileMap {
