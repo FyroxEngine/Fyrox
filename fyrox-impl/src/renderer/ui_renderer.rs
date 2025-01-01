@@ -309,10 +309,8 @@ impl UiRenderer {
                     }
                 }
                 CommandTexture::Texture(texture) => {
-                    if let Some(resource) = texture.try_cast::<Texture>() {
-                        if let Some(texture) = texture_cache.get(server, &resource) {
-                            diffuse_texture = texture;
-                        }
+                    if let Some(texture) = texture_cache.get(server, texture) {
+                        diffuse_texture = texture;
                     }
                 }
                 _ => (),

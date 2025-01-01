@@ -34,14 +34,14 @@ use crate::{
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::BaseSceneGraph;
-use fyrox_resource::untyped::UntypedResource;
+use fyrox_texture::TextureResource;
 use std::ops::{Deref, DerefMut};
 
 /// Automatically arranges children by rows and columns
 #[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
 pub struct NinePatch {
     pub widget: Widget,
-    pub texture: InheritableVariable<Option<UntypedResource>>,
+    pub texture: InheritableVariable<Option<TextureResource>>,
     pub bottom_margin_uv: InheritableVariable<f32>,
     pub left_margin_uv: InheritableVariable<f32>,
     pub right_margin_uv: InheritableVariable<f32>,
@@ -355,7 +355,7 @@ impl Control for NinePatch {
 
 pub struct NinePatchBuilder {
     widget_builder: WidgetBuilder,
-    texture: Option<UntypedResource>,
+    texture: Option<TextureResource>,
 
     pub bottom_margin_pixel: Option<u32>,
     pub left_margin_pixel: Option<u32>,
@@ -386,7 +386,7 @@ impl NinePatchBuilder {
         }
     }
 
-    pub fn with_texture(mut self, texture: UntypedResource) -> Self {
+    pub fn with_texture(mut self, texture: TextureResource) -> Self {
         self.texture = Some(texture);
         self
     }
@@ -474,7 +474,7 @@ impl NinePatchBuilder {
     }
 }
 fn draw_image(
-    image: &UntypedResource,
+    image: &TextureResource,
     bounds: Rect<f32>,
     tex_coords: &[Vector2<f32>; 4],
     clip_bounds: Rect<f32>,

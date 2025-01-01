@@ -17,6 +17,7 @@ rust-version = "1.80"
 [dependencies]
 fyrox-core = { path = "../fyrox-core", version = "0.36.0", features = ["serde"] }
 fyrox-resource = { path = "../fyrox-resource", version = "0.36.0" }
+fyrox-texture = { path = "../fyrox-texture", version = "0.36.0" }
 fyrox-graph = { path = "../fyrox-graph", version = "0.36.0" }
 fyrox-animation = { path = "../fyrox-animation", version = "0.36.0" }
 lazy_static = "1.4.0"

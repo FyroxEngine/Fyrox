@@ -183,8 +183,7 @@ impl TileSetImporter {
             MessageDirection::ToWidget,
             self.material
                 .as_ref()
-                .and_then(|material| material.data_ref().texture("diffuseTexture"))
-                .map(|texture| texture.into()),
+                .and_then(|material| material.data_ref().texture("diffuseTexture")),
         ));
 
         ui.send_message(WidgetMessage::enabled(

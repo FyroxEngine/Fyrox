@@ -22,7 +22,6 @@ use crate::{
     asset::item::AssetItem,
     command::{Command, CommandGroup, SetPropertyCommand},
     fyrox::{
-        asset::untyped::UntypedResource,
         core::{pool::Handle, TypeUuidProvider, Uuid},
         fxhash::FxHashSet,
         graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
@@ -69,6 +68,7 @@ use crate::{
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
 use fyrox::gui::utils::make_dropdown_list_option;
+use fyrox::resource::texture::TextureResource;
 
 pub struct TileMapPanel {
     pub window: Handle<UiNode>,
@@ -125,7 +125,7 @@ fn make_drawing_mode_button(
     ctx: &mut BuildContext,
     width: f32,
     height: f32,
-    image: Option<UntypedResource>,
+    image: Option<TextureResource>,
     tooltip: &str,
     tab_index: Option<usize>,
 ) -> Handle<UiNode> {

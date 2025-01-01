@@ -577,7 +577,7 @@ impl Control for BrushTileView {
                 drawing_context.commit(
                     self.clip_bounds(),
                     Brush::Solid(Color::WHITE),
-                    CommandTexture::Texture(texture.into()),
+                    CommandTexture::Texture(texture),
                     None,
                 );
             }

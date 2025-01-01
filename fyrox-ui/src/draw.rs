@@ -33,7 +33,7 @@ use crate::{
 };
 use bytemuck::{Pod, Zeroable};
 use fyrox_core::math::round_to_step;
-use fyrox_resource::untyped::UntypedResource;
+use fyrox_texture::TextureResource;
 use std::ops::Range;
 
 #[derive(Clone, Copy, Debug, Pod, Zeroable)]
@@ -57,7 +57,7 @@ impl Vertex {
 #[derive(Clone, Debug)]
 pub enum CommandTexture {
     None,
-    Texture(UntypedResource),
+    Texture(TextureResource),
     Font {
         font: FontResource,
         height: FontHeight,

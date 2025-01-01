@@ -29,7 +29,6 @@ use crate::{
         engine::Engine,
         fxhash::FxHashMap,
         gui::{message::MessageDirection, UiNode},
-        resource::texture::Texture,
     },
 };
 use std::sync::mpsc::Receiver;
@@ -76,7 +75,7 @@ impl AssetPreviewCache {
                     generator.simple_icon(&resource, &engine.resource_manager)
                 {
                     let preview = AssetPreviewTexture {
-                        texture: icon.try_cast::<Texture>().unwrap(),
+                        texture: icon,
                         flip_y: false,
                     };
                     self.container.insert(resource_kind, preview.clone());
@@ -94,7 +93,7 @@ impl AssetPreviewCache {
                 ui.send_message(AssetItemMessage::icon(
                     asset_item,
                     MessageDirection::ToWidget,
-                    Some(preview.texture.into()),
+                    Some(preview.texture),
                     preview.flip_y,
                 ));
             }

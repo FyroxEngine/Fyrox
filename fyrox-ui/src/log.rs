@@ -44,7 +44,7 @@ use fyrox_core::{
     pool::Handle,
 };
 use fyrox_graph::BaseSceneGraph;
-use fyrox_resource::untyped::UntypedResource;
+use fyrox_texture::TextureResource;
 use std::sync::mpsc::Receiver;
 
 struct ContextMenu {
@@ -113,7 +113,7 @@ impl LogPanel {
     pub fn new(
         ctx: &mut BuildContext,
         message_receiver: Receiver<LogMessage>,
-        clear_icon: Option<UntypedResource>,
+        clear_icon: Option<TextureResource>,
         open: bool,
     ) -> Self {
         let messages;

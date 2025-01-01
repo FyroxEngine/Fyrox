@@ -65,10 +65,7 @@ use crate::{
     configurator::Configurator,
     export::ExportWindow,
     fyrox::{
-        asset::{
-            io::FsResourceIo, manager::ResourceManager, untyped::ResourceKind,
-            untyped::UntypedResource,
-        },
+        asset::{io::FsResourceIo, manager::ResourceManager, untyped::ResourceKind},
         core::{
             algebra::{Matrix3, Vector2},
             color::Color,
@@ -223,8 +220,8 @@ pub fn load_texture_internal(data: &[u8]) -> Option<TextureResource> {
     }
 }
 
-pub fn load_image_internal(data: &[u8]) -> Option<UntypedResource> {
-    Some(load_texture_internal(data)?.into())
+pub fn load_image_internal(data: &[u8]) -> Option<TextureResource> {
+    load_texture_internal(data)
 }
 
 #[macro_export]

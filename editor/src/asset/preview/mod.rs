@@ -124,7 +124,7 @@ pub trait AssetPreviewGenerator: Send + Sync + 'static {
         &self,
         resource: &UntypedResource,
         resource_manager: &ResourceManager,
-    ) -> Option<UntypedResource>;
+    ) -> Option<TextureResource>;
 }
 
 pub struct TexturePreview;
@@ -186,8 +186,8 @@ impl AssetPreviewGenerator for TexturePreview {
         &self,
         resource: &UntypedResource,
         _resource_manager: &ResourceManager,
-    ) -> Option<UntypedResource> {
-        resource.try_cast::<Texture>().map(Into::into)
+    ) -> Option<TextureResource> {
+        resource.try_cast::<Texture>()
     }
 }
 
@@ -284,7 +284,7 @@ impl AssetPreviewGenerator for SoundPreview {
         &self,
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
-    ) -> Option<UntypedResource> {
+    ) -> Option<TextureResource> {
         load_image!("../../../resources/sound.png")
     }
 }
@@ -409,7 +409,7 @@ impl AssetPreviewGenerator for ModelPreview {
         &self,
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
-    ) -> Option<UntypedResource> {
+    ) -> Option<TextureResource> {
         load_image!("../../../resources/model.png")
     }
 }
@@ -450,7 +450,7 @@ impl AssetPreviewGenerator for SurfaceDataPreview {
         &self,
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
-    ) -> Option<UntypedResource> {
+    ) -> Option<TextureResource> {
         load_image!("../../../resources/model.png")
     }
 }
@@ -494,7 +494,7 @@ impl AssetPreviewGenerator for ShaderPreview {
         &self,
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
-    ) -> Option<UntypedResource> {
+    ) -> Option<TextureResource> {
         load_image!("../../../resources/shader.png")
     }
 }
@@ -538,7 +538,7 @@ impl AssetPreviewGenerator for MaterialPreview {
         &self,
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
-    ) -> Option<UntypedResource> {
+    ) -> Option<TextureResource> {
         load_image!("../../../resources/material.png")
     }
 }
@@ -569,7 +569,7 @@ impl AssetPreviewGenerator for HrirPreview {
         &self,
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
-    ) -> Option<UntypedResource> {
+    ) -> Option<TextureResource> {
         load_image!("../../../resources/hrir.png")
     }
 }
@@ -599,7 +599,7 @@ impl AssetPreviewGenerator for CurvePreview {
         &self,
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
-    ) -> Option<UntypedResource> {
+    ) -> Option<TextureResource> {
         load_image!("../../../resources/curve.png")
     }
 }
@@ -677,7 +677,7 @@ impl AssetPreviewGenerator for FontPreview {
         &self,
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
-    ) -> Option<UntypedResource> {
+    ) -> Option<TextureResource> {
         load_image!("../../../resources/font.png")
     }
 }
@@ -712,7 +712,7 @@ impl AssetPreviewGenerator for UserInterfacePreview {
         &self,
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
-    ) -> Option<UntypedResource> {
+    ) -> Option<TextureResource> {
         load_image!("../../../resources/ui.png")
     }
 }

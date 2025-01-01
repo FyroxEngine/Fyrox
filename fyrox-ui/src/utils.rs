@@ -32,7 +32,7 @@ use crate::{
     widget::WidgetBuilder,
     Brush, BuildContext, HorizontalAlignment, RcUiNodeHandle, Thickness, UiNode, VerticalAlignment,
 };
-use fyrox_resource::untyped::UntypedResource;
+use fyrox_texture::TextureResource;
 use std::sync::Arc;
 
 pub enum ArrowDirection {
@@ -231,7 +231,7 @@ pub fn make_image_button_with_tooltip(
     ctx: &mut BuildContext,
     width: f32,
     height: f32,
-    image: Option<UntypedResource>,
+    image: Option<TextureResource>,
     tooltip: &str,
     tab_index: Option<usize>,
 ) -> Handle<UiNode> {
@@ -260,7 +260,7 @@ pub fn make_text_and_image_button_with_tooltip(
     text: &str,
     image_width: f32,
     image_height: f32,
-    image: Option<UntypedResource>,
+    image: Option<TextureResource>,
     tooltip: &str,
     row: usize,
     column: usize,

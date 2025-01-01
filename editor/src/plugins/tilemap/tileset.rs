@@ -541,7 +541,7 @@ impl TileSetTileViewBuilder {
                 .with_margin(Thickness::uniform(2.0)),
         )
         .with_uv_rect(tile.uv_rect)
-        .with_opt_texture(texture.map(|t| t.into()))
+        .with_opt_texture(texture)
         .build(ctx);
 
         let decorator =

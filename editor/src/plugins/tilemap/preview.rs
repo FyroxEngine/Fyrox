@@ -32,6 +32,7 @@ use crate::{
     },
     load_image,
 };
+use fyrox::resource::texture::TextureResource;
 
 pub struct TileSetPreview;
 
@@ -59,15 +60,11 @@ impl AssetPreviewGenerator for TileSetPreview {
             WidgetBuilder::new().with_child(
                 WrapPanelBuilder::new(WidgetBuilder::new().with_children(
                     tile_set.tiles.iter().map(|tile| {
-                        let texture =
-                            tile.material
-                                .data_ref()
-                                .as_loaded_ref()
-                                .and_then(|material| {
-                                    material
-                                        .texture("diffuseTexture")
-                                        .map(|texture| texture.into_untyped())
-                                });
+                        let texture = tile
+                            .material
+                            .data_ref()
+                            .as_loaded_ref()
+                            .and_then(|material| material.texture("diffuseTexture"));
 
                         ImageBuilder::new(
                             WidgetBuilder::new()
@@ -92,7 +89,7 @@ impl AssetPreviewGenerator for TileSetPreview {
         &self,
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
-    ) -> Option<UntypedResource> {
+    ) -> Option<TextureResource> {
         load_image!("../../../resources/tile_set.png")
     }
 }
