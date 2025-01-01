@@ -43,7 +43,9 @@ use super::*;
 pub type TileMapEffectRef = Arc<Mutex<dyn TileMapEffect>>;
 
 /// A trait for objects that can perform specialized rendering for a tile map by
-/// adding them to [`TileMap::effects`].
+/// adding them to [`TileMap::before_effects`] or [`TileMap::after_effects`],
+/// depending on whether the effect should render before the tile map renders
+/// or after the tile map renders.
 pub trait TileMapEffect: Send + Debug {
     /// Use the given context to render the special effect for the [`TileMap`].
     fn render_special_tiles(&self, context: &mut TileMapRenderContext);
