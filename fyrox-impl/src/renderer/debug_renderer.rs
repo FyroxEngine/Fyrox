@@ -125,6 +125,7 @@ impl DebugRenderer {
                 ],
                 data: VertexBufferData::new::<Vertex>(None),
             }],
+            usage: BufferUsage::DynamicDraw,
         };
 
         Ok(Self {
