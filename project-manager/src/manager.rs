@@ -965,7 +965,7 @@ impl ProjectManager {
         } else if button == self.locate {
             self.on_locate_click();
         } else if button == self.open_ide {
-            self.on_open_ide_click();
+            self.on_open_ide_click(ui);
         } else if button == self.open_settings {
             self.on_open_settings_click(ui);
         } else if button == self.exclude_project {
@@ -981,7 +981,7 @@ impl ProjectManager {
         Log::verify(open::that_detached(folder));
     }
 
-    fn on_open_ide_click(&mut self) {
+    fn on_open_ide_click(&mut self, ui: &mut UserInterface) {
         let project = some_or_return!(self.selection.and_then(|i| self.settings.projects.get(i)));
         let mut open_ide_command = self.settings.open_ide_command.clone();
         if let Some(manifest_path_arg) = open_ide_command
@@ -999,6 +999,8 @@ impl ProjectManager {
                 "Unable to open the IDE using {} command. Reason: {:?}",
                 open_ide_command, err
             ));
+
+            self.on_open_settings_click(ui);
         }
     }
 
@@ -1058,7 +1060,7 @@ impl ProjectManager {
             KeyCode::KeyC if modifiers.control => self.on_create_clicked(ui),
             KeyCode::KeyH if modifiers.control => self.on_hot_reload_changed(true, ui),
             KeyCode::KeyL if modifiers.control => self.on_locate_click(),
-            KeyCode::KeyO if modifiers.control => self.on_open_ide_click(),
+            KeyCode::KeyO if modifiers.control => self.on_open_ide_click(ui),
             KeyCode::KeyS if modifiers.control => self.on_open_settings_click(ui),
             KeyCode::KeyE if modifiers.control => self.on_exclude_project_clicked(ui),
             KeyCode::KeyN if modifiers.control => self.on_clean_clicked(ui),
