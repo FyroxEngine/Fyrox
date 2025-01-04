@@ -169,20 +169,38 @@ use plugins::inspector::InspectorPlugin;
 use std::{
     cell::RefCell,
     collections::VecDeque,
-    io::{BufRead, BufReader},
+    io::{BufRead, BufReader, Cursor, Read},
     path::{Path, PathBuf},
     process::Stdio,
     rc::Rc,
     sync::{
         atomic::{AtomicBool, Ordering},
         mpsc::{self, channel, Receiver},
-        Arc,
+        Arc, LazyLock,
     },
     time::{Duration, Instant},
 };
+use toml_edit::DocumentMut;
 
 pub const FIXED_TIMESTEP: f32 = 1.0 / 60.0;
 pub const MSG_SYNC_FLAG: u64 = 1;
+
+static EDITOR_VERSION: LazyLock<String> = LazyLock::new(|| {
+    let manifest = include_bytes!("../Cargo.toml");
+    let mut file = Cursor::new(&manifest);
+    let mut toml = String::new();
+    if file.read_to_string(&mut toml).is_ok() {
+        if let Ok(document) = toml.parse::<DocumentMut>() {
+            if let Some(package) = document.get("package").and_then(|i| i.as_table()) {
+                if let Some(version) = package.get("version") {
+                    return version.to_string().replace('\"', "");
+                }
+            }
+        }
+    }
+
+    "<unknown>".to_string()
+});
 
 pub fn send_sync_message(ui: &UserInterface, mut msg: UiMessage) {
     msg.flags = MSG_SYNC_FLAG;
@@ -2066,9 +2084,11 @@ impl Editor {
 
         let graphics_context = engine.graphics_context.as_initialized_mut();
 
-        graphics_context
-            .window
-            .set_title(&format!("Fyroxed: {}", working_directory.to_string_lossy()));
+        graphics_context.window.set_title(&format!(
+            "FyroxEd {}: {}",
+            *EDITOR_VERSION,
+            working_directory.to_string_lossy()
+        ));
 
         match FileSystemWatcher::new(&working_directory, Duration::from_secs(1)) {
             Ok(watcher) => {
