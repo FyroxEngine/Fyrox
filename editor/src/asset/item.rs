@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use fyrox::core::log::Log;
+
 use crate::{
     asset::open_in_explorer,
     fyrox::{
@@ -41,7 +43,7 @@ use crate::{
             UserInterface,
         },
         material::Material,
-        scene::tilemap::tileset::TileSet,
+        scene::tilemap::{brush::TileMapBrush, tileset::TileSet},
     },
     message::MessageSender,
     Message,
@@ -145,8 +147,20 @@ impl AssetItem {
             }
         } else if self.path.extension().map_or(false, |ext| ext == "tileset") {
             if let Ok(path) = make_relative_path(&self.path) {
-                if let Ok(tile_set) = block_on(resource_manager.request::<TileSet>(path)) {
-                    sender.send(Message::OpenTileSetEditor(tile_set));
+                match block_on(resource_manager.request::<TileSet>(path)) {
+                    Ok(tile_set) => sender.send(Message::OpenTileSetEditor(tile_set)),
+                    Err(err) => Log::err(format!("Open tileset error: {err:?}")),
+                }
+            }
+        } else if self
+            .path
+            .extension()
+            .map_or(false, |ext| ext == "tile_map_brush")
+        {
+            if let Ok(path) = make_relative_path(&self.path) {
+                match block_on(resource_manager.request::<TileMapBrush>(path)) {
+                    Ok(brush) => sender.send(Message::OpenTileMapBrushEditor(brush)),
+                    Err(err) => Log::err(format!("Open tile_map_brush error: {err:?}")),
                 }
             }
         } else if self.path.is_dir() {

@@ -24,16 +24,19 @@
 use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
-        algebra::Vector2,
+        algebra::{Isometry2, Translation2, UnitComplex, Vector2},
         log::Log,
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
         reflect::prelude::*,
         type_traits::prelude::*,
         uuid::{uuid, Uuid},
+        uuid_provider,
         variable::InheritableVariable,
         visitor::prelude::*,
+        ImmutableString, TypeUuidProvider,
     },
+    graph::{BaseSceneGraph, SceneGraphNode},
     scene::{
         base::{Base, BaseBuilder},
         collider::InteractionGroups,
@@ -46,10 +49,7 @@ use crate::{
         Scene,
     },
 };
-use fyrox_core::algebra::{Isometry2, Translation2, UnitComplex};
-use fyrox_core::uuid_provider;
 use fyrox_graph::constructor::ConstructorProvider;
-use fyrox_graph::{BaseSceneGraph, SceneGraphNode};
 use rapier2d::geometry::ColliderHandle;
 use std::{
     cell::Cell,
@@ -173,11 +173,13 @@ pub struct HeightfieldShape {
     pub geometry_source: GeometrySource,
 }
 
-/// Arbitrary height field shape.
+/// Arbitrary tile map shape.
 #[derive(Default, Clone, Debug, PartialEq, Visit, Reflect, Eq)]
 pub struct TileMapShape {
     /// A handle to tile map scene node.
     pub tile_map: GeometrySource,
+    /// Name of a collider layer in the tile map's tile set.
+    pub layer_name: ImmutableString,
 }
 
 /// Possible collider shapes.
@@ -730,7 +732,7 @@ impl ColliderBuilder {
         self
     }
 
-    /// Sets desired friction value.    
+    /// Sets desired friction value.
     pub fn with_friction(mut self, friction: f32) -> Self {
         self.friction = friction;
         self
@@ -742,7 +744,7 @@ impl ColliderBuilder {
         self
     }
 
-    /// Sets desired solver groups.    
+    /// Sets desired solver groups.
     pub fn with_solver_groups(mut self, solver_groups: InteractionGroups) -> Self {
         self.solver_groups = solver_groups;
         self

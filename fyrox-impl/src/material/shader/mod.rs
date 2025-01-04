@@ -500,6 +500,9 @@ pub const STANDARD_TWOSIDES_SHADER_SRC: &str = include_str!("standard/standard-t
 /// A name of the standard terrain shader.
 pub const STANDARD_TERRAIN_SHADER_NAME: &str = "StandardTerrain";
 
+/// A name of the standard tile shader.
+pub const STANDARD_TILE_SHADER_NAME: &str = "StandardTile";
+
 /// A name of the standard sprite shader.
 pub const STANDARD_SPRITE_SHADER_NAME: &str = "StandardSprite";
 
@@ -823,11 +826,14 @@ pub trait ShaderResourceExtension: Sized {
     /// Returns an instance of standard terrain shader.
     fn standard_terrain() -> Self;
 
+    /// Returns an instance of standard tile shader.
+    fn standard_tile() -> Self;
+
     /// Returns an instance of standard two-sides terrain shader.
     fn standard_twosides() -> Self;
 
     /// Returns a list of standard shader.
-    fn standard_shaders() -> [&'static BuiltInResource<Shader>; 6];
+    fn standard_shaders() -> [&'static BuiltInResource<Shader>; 7];
 }
 
 impl ShaderResourceExtension for ShaderResource {
@@ -855,11 +861,15 @@ impl ShaderResourceExtension for ShaderResource {
         STANDARD_TERRAIN.resource()
     }
 
+    fn standard_tile() -> Self {
+        STANDARD_TILE.resource()
+    }
+
     fn standard_twosides() -> Self {
         STANDARD_TWOSIDES.resource()
     }
 
-    fn standard_shaders() -> [&'static BuiltInResource<Shader>; 6] {
+    fn standard_shaders() -> [&'static BuiltInResource<Shader>; 7] {
         [
             &STANDARD,
             &STANDARD_2D,
@@ -867,6 +877,7 @@ impl ShaderResourceExtension for ShaderResource {
             &STANDARD_SPRITE,
             &STANDARD_TERRAIN,
             &STANDARD_TWOSIDES,
+            &STANDARD_TILE,
         ]
     }
 }
@@ -904,6 +915,13 @@ lazy_static! {
         BuiltInResource::new(embedded_data_source!("standard/terrain.shader"), |data| {
             ShaderResource::new_ok(
                 STANDARD_TERRAIN_SHADER_NAME.into(),
+                Shader::from_string_bytes(data).unwrap(),
+            )
+        });
+    static ref STANDARD_TILE: BuiltInResource<Shader> =
+        BuiltInResource::new(embedded_data_source!("standard/tile.shader"), |data| {
+            ShaderResource::new_ok(
+                STANDARD_TILE_SHADER_NAME.into(),
                 Shader::from_string_bytes(data).unwrap(),
             )
         });

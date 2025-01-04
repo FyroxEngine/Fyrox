@@ -211,6 +211,12 @@ pub enum WidgetMessage {
     /// Direction: **From/To UI**.
     LinkWithReverse(Handle<UiNode>),
 
+    /// A request to delete all the children widgets and replace them with the given nodes as the
+    /// new child nodes.
+    ///
+    /// Direction: **To UI**.
+    ReplaceChildren(Vec<Handle<UiNode>>),
+
     /// A request to change background brush of a widget. Background brushes are used to fill volume of widgets.
     ///
     /// Direction: **From/To UI**
@@ -457,6 +463,11 @@ impl WidgetMessage {
     define_constructor!(
         /// Creates [`WidgetMessage::LinkWithReverse`] message.
         WidgetMessage:LinkWithReverse => fn link_reverse(Handle<UiNode>), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::ReplaceChildren`] message.
+        WidgetMessage:ReplaceChildren => fn replace_children(Vec<Handle<UiNode>>), layout: false
     );
 
     define_constructor!(
