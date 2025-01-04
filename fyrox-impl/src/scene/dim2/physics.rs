@@ -79,6 +79,8 @@ use std::{
     sync::Arc,
 };
 
+use super::collider::GeometrySource;
+
 /// A trait for ray cast results storage. It has two implementations: Vec and ArrayVec.
 /// Latter is needed for the cases where you need to avoid runtime memory allocations
 /// and do everything on stack.
@@ -322,15 +324,12 @@ fn convert_joint_params(
 }
 
 fn tile_map_to_collider_shape(
-    tile_map_shape: &TileMapShape,
+    tile_map: &GeometrySource,
     owner_inv_transform: Matrix4<f32>,
     nodes: &NodePool,
     collider_name: &ImmutableString,
 ) -> Option<SharedShape> {
-    let tile_map_handle = tile_map_shape.tile_map.0;
-    let tile_map = nodes
-        .try_borrow(tile_map_handle)?
-        .component_ref::<TileMap>()?;
+    let tile_map = nodes.try_borrow(tile_map.0)?.component_ref::<TileMap>()?;
 
     let tile_set_resource = tile_map.tile_set()?.data_ref();
     let tile_set = tile_set_resource.as_loaded_ref()?;
@@ -398,9 +397,10 @@ fn collider_shape_into_native_shape(
         ColliderShape::Heightfield(_) => {
             None // TODO
         }
-        ColliderShape::TileMap(tilemap, name) => {
-            tile_map_to_collider_shape(tilemap, owner_inv_transform, nodes, name)
-        }
+        ColliderShape::TileMap(TileMapShape {
+            tile_map,
+            layer_name: collider_layer_name,
+        }) => tile_map_to_collider_shape(tile_map, owner_inv_transform, nodes, collider_layer_name),
     }
 }
 

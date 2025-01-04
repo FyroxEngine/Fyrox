@@ -173,11 +173,14 @@ pub struct HeightfieldShape {
     pub geometry_source: GeometrySource,
 }
 
-/// Arbitrary height field shape.
+/// Arbitrary tile map shape.
 #[derive(Default, Clone, Debug, PartialEq, Visit, Reflect, Eq)]
 pub struct TileMapShape {
     /// A handle to tile map scene node.
     pub tile_map: GeometrySource,
+    /// Name of a collider layer in the tile map's tile set.
+    #[visit(rename = "collider_layer_name")]
+    pub layer_name: ImmutableString,
 }
 
 /// Possible collider shapes.
@@ -198,7 +201,7 @@ pub enum ColliderShape {
     /// See [`HeightfieldShape`] docs.
     Heightfield(HeightfieldShape),
     /// See [`TileMapShape`] docs.
-    TileMap(TileMapShape, ImmutableString),
+    TileMap(TileMapShape),
 }
 
 uuid_provider!(ColliderShape = "4615485f-f8db-4405-b4a5-437e74b3f5b8");
@@ -662,7 +665,7 @@ impl NodeTrait for Collider {
                     );
                 }
             }
-            ColliderShape::TileMap(tile_map, _) => {
+            ColliderShape::TileMap(tile_map) => {
                 if !scene.graph.is_valid_handle(tile_map.tile_map.0) {
                     message += &format!(
                         "Tile map shape data handle {} is invalid!",
