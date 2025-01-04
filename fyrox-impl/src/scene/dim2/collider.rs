@@ -179,7 +179,6 @@ pub struct TileMapShape {
     /// A handle to tile map scene node.
     pub tile_map: GeometrySource,
     /// Name of a collider layer in the tile map's tile set.
-    #[visit(rename = "collider_layer_name")]
     pub layer_name: ImmutableString,
 }
 
