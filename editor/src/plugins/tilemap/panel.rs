@@ -750,17 +750,11 @@ impl TileMapPanel {
                 highlight_all(&buttons, false, ui);
             }
         }
-        ui.send_message(PaletteMessage::sync_to_state(
-            self.preview,
-            MessageDirection::ToWidget,
-        ));
-        ui.send_message(PaletteMessage::sync_to_state(
-            self.pages,
-            MessageDirection::ToWidget,
-        ));
-        ui.send_message(PaletteMessage::sync_to_state(
-            self.palette,
-            MessageDirection::ToWidget,
-        ));
+        for destination in [self.preview, self.pages, self.palette] {
+            ui.send_message(PaletteMessage::sync_to_state(
+                destination,
+                MessageDirection::ToWidget,
+            ));
+        }
     }
 }

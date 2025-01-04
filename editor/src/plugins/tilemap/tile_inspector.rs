@@ -1131,6 +1131,8 @@ impl TileInspector {
         };
         sender.do_command(CommandGroup::from(cmds).with_custom_name("Modify Tile Page Icon"));
     }
+    /// Create default tiles at any empty tile positions in the current selection, if we are editing
+    /// a tile set.
     fn create_tile(&self, state: &TileEditorState, sender: &MessageSender) {
         let TileBook::TileSet(tile_set) = &self.tile_book else {
             return;
@@ -1143,6 +1145,11 @@ impl TileInspector {
                 update.insert(
                     handle,
                     TileDataUpdate::FreeformTile(TileDefinition::default()),
+                );
+            } else if state.is_transform_page(handle.page()) {
+                update.insert(
+                    handle,
+                    TileDataUpdate::TransformSet(Some(TileDefinitionHandle::default())),
                 );
             }
         }

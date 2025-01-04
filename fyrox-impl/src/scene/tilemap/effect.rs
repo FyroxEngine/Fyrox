@@ -211,7 +211,10 @@ fn push_highlight(
     ]
     .map(TriangleDefinition);
 
-    let sort_index = 0; //ctx.calculate_sorting_index(render_position.position());
+    let sort_index = ctx
+        .context
+        .calculate_sorting_index(ctx.position())
+        .saturating_sub(1);
 
     ctx.context.storage.push_triangles(
         StaticVertex::layout(),

@@ -487,7 +487,7 @@ pub enum TileBook {
 }
 
 impl TileBook {
-    /// The TileDefinitionHandle of hte icon that represents the page at the iven position.
+    /// The TileDefinitionHandle of the icon that represents the page at the given position.
     #[inline]
     pub fn page_icon(&self, position: Vector2<i32>) -> Option<TileDefinitionHandle> {
         match self {
@@ -744,6 +744,11 @@ impl TileBook {
     /// If there is no tile at that position or the tile set is missing or not loaded, then None is returned.
     /// If there is a tile and a tile set, but the handle of the tile does not exist in the tile set,
     /// then the rendering data for an error tile is returned using `TileRenderData::missing_tile()`.
+    ///
+    /// Beware that this method is *slow.* Like most methods in `TileBook`, this method involves
+    /// locking a resource, so none of them should be called many times per frame, as one might be
+    /// tempted to do with this method. Do *not* render a `TileBook` by repeatedly calling this
+    /// method. Use [`tile_render_loop`](Self::tile_render_loop) instead.
     pub fn get_tile_render_data(&self, position: ResourceTilePosition) -> Option<TileRenderData> {
         match self {
             TileBook::Empty => None,
