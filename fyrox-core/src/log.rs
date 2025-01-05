@@ -249,3 +249,24 @@ impl Log {
         }
     }
 }
+
+#[macro_export]
+macro_rules! info {
+    ($($arg:tt)*) => {
+        $crate::log::Log::info(format!($($arg)*))
+    };
+}
+
+#[macro_export]
+macro_rules! warn {
+    ($($arg:tt)*) => {
+        $crate::log::Log::warn(format!($($arg)*))
+    };
+}
+
+#[macro_export]
+macro_rules! err {
+    ($($arg:tt)*) => {
+        $crate::log::Log::err(format!($($arg)*))
+    };
+}
