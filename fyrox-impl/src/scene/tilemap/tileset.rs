@@ -1308,21 +1308,9 @@ impl TileSet {
             }
             (Source::Freeform(d0), None) => Some(Tile::Freeform(d0.remove(&tile)?)),
             (Source::Transform(d0), Some(Tile::Transform(d1))) => {
-                let handle = TileDefinitionHandle::try_new(page, tile).unwrap();
-                let result = d0.insert(tile, d1);
-                if let Some(source_handle) = result {
-                    let _ = self.transform_map.remove(&source_handle);
-                }
-                let _ = self.transform_map.insert(d1, handle);
-                result.map(Tile::Transform)
+                d0.insert(tile, d1).map(Tile::Transform)
             }
-            (Source::Transform(d0), None) => {
-                let result = d0.remove(&tile);
-                if let Some(source_handle) = result {
-                    let _ = self.transform_map.remove(&source_handle);
-                }
-                result.map(Tile::Transform)
-            }
+            (Source::Transform(d0), None) => d0.remove(&tile).map(Tile::Transform),
             _ => panic!(),
         }
     }
