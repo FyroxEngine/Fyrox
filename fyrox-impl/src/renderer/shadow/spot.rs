@@ -119,6 +119,7 @@ impl SpotShadowMapRenderer {
         &mut self,
         server: &dyn GraphicsServer,
         graph: &Graph,
+        elapsed_time: f32,
         light_position: Vector3<f32>,
         light_view_matrix: Matrix4<f32>,
         z_near: f32,
@@ -142,6 +143,7 @@ impl SpotShadowMapRenderer {
 
         let bundle_storage = RenderDataBundleStorage::from_graph(
             graph,
+            elapsed_time,
             ObserverInfo {
                 observer_position: light_position,
                 z_near,

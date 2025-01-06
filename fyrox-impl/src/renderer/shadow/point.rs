@@ -61,6 +61,7 @@ struct PointShadowCubeMapFace {
 }
 
 pub(crate) struct PointShadowMapRenderContext<'a> {
+    pub elapsed_time: f32,
     pub state: &'a dyn GraphicsServer,
     pub graph: &'a Graph,
     pub light_pos: Vector3<f32>,
@@ -183,6 +184,7 @@ impl PointShadowMapRenderer {
         let mut statistics = RenderPassStatistics::default();
 
         let PointShadowMapRenderContext {
+            elapsed_time,
             state,
             graph,
             light_pos,
@@ -218,6 +220,7 @@ impl PointShadowMapRenderer {
 
             let bundle_storage = RenderDataBundleStorage::from_graph(
                 graph,
+                elapsed_time,
                 ObserverInfo {
                     observer_position: light_pos,
                     z_near,

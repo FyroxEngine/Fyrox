@@ -194,9 +194,14 @@ impl Control for PanelPreview {
         ctx.transform_stack
             .push(self.visual_transform() * self.transform);
 
-        for (pos, handle) in stamp.iter() {
+        let time = ctx.elapsed_time;
+
+        for (pos, &handle) in stamp.iter() {
+            let handle = tile_set
+                .get_animated_version(time, handle)
+                .unwrap_or(handle);
             let data = tile_set
-                .get_transformed_render_data(stamp.transformation(), *handle)
+                .get_transformed_render_data(stamp.transformation(), handle)
                 .unwrap_or_else(TileRenderData::missing_data);
             let t = self.tile_size;
             let position = Vector2::new(pos.x as f32 * t.x, pos.y as f32 * t.y);

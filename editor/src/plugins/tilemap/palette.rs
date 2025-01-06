@@ -67,6 +67,7 @@ pub const CURSOR_HIGHLIGHT_COLOR: Color = Color::from_rgba(255, 255, 255, 50);
 
 const MOUSE_CLICK_DELAY_FRAMES: usize = 1;
 const NO_PAGE_COLOR: Color = Color::from_rgba(20, 5, 5, 255);
+const ANIMATION_BOOKEND_COLOR: Color = Color::DARK_CYAN;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum PaletteMessage {
@@ -1118,6 +1119,48 @@ impl PaletteWidget {
             None,
         );
     }
+    fn draw_animation_bookends(&self, ctx: &mut DrawingContext) {
+        let TileBook::TileSet(tile_set) = &self.content else {
+            return;
+        };
+        let Some(page) = self.page else {
+            return;
+        };
+        let mut tile_set = tile_set.state();
+        let Some(page) = tile_set.data().and_then(|t| t.pages.get(&page)) else {
+            return;
+        };
+        let TileSetPageSource::Animation(tiles) = &page.source else {
+            return;
+        };
+        for pos in tiles.keys() {
+            let left = Vector2::new(pos.x - 1, pos.y);
+            let right = Vector2::new(pos.x + 1, pos.y);
+            if !tiles.contains_key(&left) {
+                self.push_left_bookend(left, ctx);
+            }
+            if !tiles.contains_key(&right) {
+                self.push_right_bookend(right, ctx);
+            }
+        }
+        self.commit_color(ANIMATION_BOOKEND_COLOR, ctx);
+    }
+    fn push_left_bookend(&self, position: Vector2<i32>, ctx: &mut DrawingContext) {
+        let t = self.tile_size;
+        let p = position.cast::<f32>();
+        let offset = Vector2::new(p.x * t.x, p.y * t.y);
+        let vertices = [(0.6, 0.5), (0.9, 0.0), (0.9, 1.0)]
+            .map(|(x, y)| Vector2::new(x * t.x, y * t.y) + offset);
+        ctx.push_triangle_filled(vertices);
+    }
+    fn push_right_bookend(&self, position: Vector2<i32>, ctx: &mut DrawingContext) {
+        let t = self.tile_size;
+        let p = position.cast::<f32>();
+        let offset = Vector2::new(p.x * t.x, p.y * t.y);
+        let vertices = [(0.4, 0.5), (0.1, 0.0), (0.1, 1.0)]
+            .map(|(x, y)| Vector2::new(x * t.x, y * t.y) + offset);
+        ctx.push_triangle_filled(vertices);
+    }
     fn draw_material_background(&self, ctx: &mut DrawingContext) {
         if self.kind != TilePaletteStage::Tiles || !self.editable {
             return;
@@ -1321,6 +1364,9 @@ impl Control for PaletteWidget {
             let area_size = Vector2::new(self.tile_size.x * 4.0, self.tile_size.y * 2.0);
             ctx.push_grid(self.zoom, area_size, bounds);
             self.commit_color(Color::ORANGE, ctx);
+        }
+        if stage == TilePaletteStage::Tiles && self.content.is_animation_page(page) {
+            self.draw_animation_bookends(ctx);
         }
 
         let line_thickness = 1.0 / self.zoom;

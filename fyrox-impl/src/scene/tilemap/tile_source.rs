@@ -31,6 +31,7 @@ use crate::{
     rand::{seq::IteratorRandom, thread_rng},
 };
 use std::{
+    cmp::Ordering,
     fmt::{Debug, Display, Formatter},
     ops::{Deref, DerefMut},
     str::FromStr,
@@ -85,6 +86,24 @@ pub struct TileDefinitionHandle {
     pub page: PalettePosition,
     /// Position of the tile definition within the page
     pub tile: PalettePosition,
+}
+
+impl PartialOrd for TileDefinitionHandle {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for TileDefinitionHandle {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.page
+            .y
+            .cmp(&other.page.y)
+            .reverse()
+            .then(self.page.x.cmp(&other.page.x))
+            .then(self.tile.y.cmp(&other.tile.y).reverse())
+            .then(self.tile.x.cmp(&other.tile.x))
+    }
 }
 
 impl Display for TileDefinitionHandle {
@@ -444,6 +463,20 @@ impl Tiles {
     /// Construct a new tile set from the given hash map.
     pub fn new(source: TileGridMap<TileDefinitionHandle>) -> Self {
         Self(source)
+    }
+    /// Find the first empty cell in the negative-x direction and the first empty
+    /// cell in the positive-x direction.
+    pub fn find_continuous_horizontal_span(&self, position: Vector2<i32>) -> (i32, i32) {
+        let y = position.y;
+        let mut min = position.x;
+        while self.contains_key(&Vector2::new(min, y)) {
+            min -= 1;
+        }
+        let mut max = position.x;
+        while self.contains_key(&Vector2::new(max, y)) {
+            max += 1;
+        }
+        (min, max)
     }
     /// Apply the updates specified in the given `TileUpdates` and modify it so that it
     /// contains the tiles require to undo the change. Calling `swap_tiles` twice with the same

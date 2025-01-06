@@ -2275,6 +2275,7 @@ impl Engine {
     #[inline]
     pub fn render(&mut self) -> Result<(), FrameworkError> {
         for ui in self.user_interfaces.iter_mut() {
+            ui.set_time(self.elapsed_time);
             ui.draw();
         }
 
@@ -2288,6 +2289,7 @@ impl Engine {
 
             ctx.renderer.render_and_swap_buffers(
                 &self.scenes,
+                self.elapsed_time,
                 self.user_interfaces
                     .iter()
                     .map(|ui| ui.get_drawing_context()),

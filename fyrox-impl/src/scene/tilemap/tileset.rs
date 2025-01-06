@@ -59,6 +59,7 @@ use fyrox_core::{swap_hash_map_entries, swap_hash_map_entry};
 pub use property::*;
 
 const DEFAULT_TILE_SIZE: Vector2<u32> = Vector2::new(16, 16);
+const DEFAULT_ANIMATION_FRAME_RATE: f32 = 12.0;
 
 /// The color that is used to represent a tile where the property value matches the value that is
 /// currently be drawn. This is only used when the the property value does not have a specially assigned color.
@@ -305,6 +306,10 @@ impl TileSetPage {
     pub fn is_transform_set(&self) -> bool {
         matches!(self.source, TileSetPageSource::Transform(_))
     }
+    /// True if this page contains tile transform groups.
+    pub fn is_animation(&self) -> bool {
+        matches!(self.source, TileSetPageSource::Animation(_))
+    }
     /// The type of this page.
     pub fn page_type(&self) -> PageType {
         self.source.page_type()
@@ -315,6 +320,7 @@ impl TileSetPage {
             TileSetPageSource::Atlas(mat) => mat.tiles.contains_key(&position),
             TileSetPageSource::Freeform(map) => map.contains_key(&position),
             TileSetPageSource::Transform(tiles) => tiles.contains_key(&position),
+            TileSetPageSource::Animation(tiles) => tiles.contains_key(&position),
         }
     }
     /// Generate a list of all tile positions in this page.
@@ -323,6 +329,7 @@ impl TileSetPage {
             TileSetPageSource::Atlas(mat) => mat.tiles.keys().copied().collect(),
             TileSetPageSource::Freeform(map) => map.keys().copied().collect(),
             TileSetPageSource::Transform(tiles) => tiles.keys().copied().collect(),
+            TileSetPageSource::Animation(tiles) => tiles.keys().copied().collect(),
         }
     }
     /// The rect that contains all the tiles of this page.
@@ -344,6 +351,11 @@ impl TileSetPage {
                     result.push(*pos);
                 }
             }
+            TileSetPageSource::Animation(tiles) => {
+                for pos in tiles.keys() {
+                    result.push(*pos);
+                }
+            }
         }
         result
     }
@@ -354,6 +366,7 @@ impl TileSetPage {
             TileSetPageSource::Atlas(map0) => swap_material_tile(map0, position, update),
             TileSetPageSource::Freeform(map0) => swap_freeform_tile(map0, position, update),
             TileSetPageSource::Transform(map0) => swap_transform_tile(map0, position, update),
+            TileSetPageSource::Animation(map0) => swap_animation_tile(map0, position, update),
         }
     }
 
@@ -493,6 +506,18 @@ fn swap_transform_tile(
     swap_hash_map_entry(e0, handle);
 }
 
+fn swap_animation_tile(
+    map0: &mut AnimationTiles,
+    position: Vector2<i32>,
+    update: &mut TileDataUpdate,
+) {
+    let e0 = map0.entry(position);
+    let TileDataUpdate::TransformSet(handle) = update else {
+        panic!()
+    };
+    swap_hash_map_entry(e0, handle);
+}
+
 /// A tile set contains three forms of tile, depending on the type of page.
 /// This enum can represent a tile in any of those three forms.
 #[derive(Debug, Clone)]
@@ -508,8 +533,6 @@ pub enum AbstractTile {
     /// some tile somewhere else in the set. A transform page contains
     /// transform tiles in groups of 8 and specifies how its tiles are to be
     /// rotated and flipped.
-    /// No two transform tiles may share the same handle, because that would
-    /// cause the transformations to be ambiguous.
     Transform(TileDefinitionHandle),
 }
 
@@ -530,6 +553,12 @@ pub enum TileSetPageSource {
     /// No two transform tiles may share the same handle, because that would
     /// cause the transformations to be ambiguous.
     Transform(TransformSetTiles),
+    /// A page that contains no tile data, but contains handles referencing tiles
+    /// on other pages and specifies how tiles animate over time.
+    /// Animations proceed from left-to-right, with increasing x-coordinate,
+    /// along continuous rows of tiles, until an empty cell is found, and then
+    /// the animation returns to the start of the sequence and repeats.
+    Animation(AnimationTiles),
 }
 
 impl Default for TileSetPageSource {
@@ -551,12 +580,17 @@ impl TileSetPageSource {
     pub fn new_transform() -> Self {
         Self::Transform(TransformSetTiles::default())
     }
+    /// Create a new default transform page.
+    pub fn new_animation() -> Self {
+        Self::Animation(AnimationTiles::default())
+    }
     /// The type of this page.
     pub fn page_type(&self) -> PageType {
         match self {
             TileSetPageSource::Atlas(_) => PageType::Atlas,
             TileSetPageSource::Freeform(_) => PageType::Freeform,
             TileSetPageSource::Transform(_) => PageType::Transform,
+            TileSetPageSource::Animation(_) => PageType::Animation,
         }
     }
     /// True if this page contains some tile at the given position.
@@ -565,6 +599,7 @@ impl TileSetPageSource {
             TileSetPageSource::Atlas(map) => map.contains_key(&position),
             TileSetPageSource::Freeform(map) => map.contains_key(&position),
             TileSetPageSource::Transform(map) => map.contains_key(&position),
+            TileSetPageSource::Animation(map) => map.contains_key(&position),
         }
     }
 }
@@ -595,6 +630,44 @@ impl Deref for TransformSetTiles {
 impl DerefMut for TransformSetTiles {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
+    }
+}
+
+/// A page that contains no tile data, but contains handles referencing tiles
+/// on other pages and specifies how tiles animate over time.
+/// Animations proceed from left-to-right, with increasing x-coordinate,
+/// along continuous rows of tiles, until an empty cell is found, and then
+/// the animation returns to the start of the sequence and repeats.
+#[derive(Clone, PartialEq, Debug, Reflect, Visit)]
+pub struct AnimationTiles {
+    /// The speed of the animation in frames per second.
+    pub frame_rate: f32,
+    /// The tile animation sequences represented as a grid of [`TileDefinitionHandle`].
+    #[reflect(hidden)]
+    #[visit(optional)]
+    pub tiles: Tiles,
+}
+
+impl Default for AnimationTiles {
+    fn default() -> Self {
+        Self {
+            frame_rate: DEFAULT_ANIMATION_FRAME_RATE,
+            tiles: Default::default(),
+        }
+    }
+}
+
+impl Deref for AnimationTiles {
+    type Target = Tiles;
+
+    fn deref(&self) -> &Self::Target {
+        &self.tiles
+    }
+}
+
+impl DerefMut for AnimationTiles {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.tiles
     }
 }
 
@@ -841,6 +914,14 @@ impl<'a> OptionTileSet<'a> {
             t.rebuild_transform_sets()
         }
     }
+    /// Iterate through the tiles of every animation page and establish the connection between
+    /// the tiles of other pages and their corresponding position in an animation page.
+    /// This should happen after any animation page is changed and before it is next used.
+    pub fn rebuild_animations(&mut self) {
+        if let Some(t) = &mut self.0 {
+            t.rebuild_animations()
+        }
+    }
     /// Find a texture from some material page to serve as a preview for the tile set.
     pub fn preview_texture(&self) -> Option<TextureResource> {
         self.as_ref()
@@ -1011,6 +1092,18 @@ impl<'a> OptionTileSet<'a> {
             .unwrap_or_default()
     }
 
+    /// The handle of the tile in the animation sequence starting from the given tile handle
+    /// at the given time, or none if the given handle is not part of any animation sequence.
+    pub fn get_animated_version(
+        &self,
+        time: f32,
+        handle: TileDefinitionHandle,
+    ) -> Option<TileDefinitionHandle> {
+        self.as_ref()
+            .map(|t| t.get_animated_version(time, handle))
+            .unwrap_or_default()
+    }
+
     /// Get the tile definition handles for all of the given coordinates on the given page.
     pub fn get_tiles<I: Iterator<Item = Vector2<i32>>>(
         &self,
@@ -1042,6 +1135,62 @@ impl<'a> OptionTileSet<'a> {
     }
 }
 
+/// The index of an animation within the animation list, and an offset
+/// to indicate where we should start playing within the animation.
+#[derive(Debug, Default, Clone)]
+struct AnimationRef {
+    index: usize,
+    offset: i32,
+}
+
+/// The position and length of an animation within some animation page.
+#[derive(Debug, Default, Clone)]
+struct Animation {
+    start: TileDefinitionHandle,
+    length: i32,
+}
+
+impl Animation {
+    fn iter(&self) -> impl Iterator<Item = (TileDefinitionHandle, i32)> {
+        let page = self.start.page();
+        let tile = self.start.tile();
+        (0..self.length).filter_map(move |i| {
+            let x = tile.x.saturating_add(i);
+            let handle = TileDefinitionHandle::try_new(page, Vector2::new(x, tile.y))?;
+            Some((handle, i))
+        })
+    }
+    fn page(&self) -> Vector2<i32> {
+        self.start.page()
+    }
+    fn frame(&self, frame: i32) -> Vector2<i32> {
+        let tile = self.start.tile();
+        Vector2::new(tile.x + frame.rem_euclid(self.length), tile.y)
+    }
+}
+
+/// A lookup table to locate animations within a tile set.
+#[derive(Debug, Default, Clone)]
+struct AnimationCache {
+    handle_to_animation: FxHashMap<TileDefinitionHandle, AnimationRef>,
+    animations: Vec<Animation>,
+}
+
+impl AnimationCache {
+    fn clear(&mut self) {
+        self.handle_to_animation.clear();
+        self.animations.clear();
+    }
+    fn add_animation(&mut self, start: TileDefinitionHandle, length: i32) {
+        self.animations.push(Animation { start, length });
+    }
+    fn get_animation_and_offset(&self, handle: TileDefinitionHandle) -> Option<(&Animation, i32)> {
+        let AnimationRef { index, offset } = self.handle_to_animation.get(&handle)?;
+        let animation = self.animations.get(*index)?;
+        Some((animation, *offset))
+    }
+}
+
 /// Tile set is a special storage for tile descriptions. It is a sort of database, that contains
 /// descriptions (definitions) for tiles. Such approach allows you to change appearance of all tiles
 /// of particular kind at once.
@@ -1067,7 +1216,12 @@ impl<'a> OptionTileSet<'a> {
 #[derive(Clone, Default, Debug, Visit, Reflect, TypeUuidProvider, ComponentProvider)]
 #[type_uuid(id = "7b7e057b-a41e-4150-ab3b-0ae99f4024f0")]
 pub struct TileSet {
+    /// A mapping from animated tiles to the corresponding cells on animation pages.
+    #[reflect(hidden)]
+    #[visit(skip)]
+    animation_map: AnimationCache,
     /// A mapping from transformable tiles to the corresponding cells on transform set pages.
+    #[reflect(hidden)]
     #[visit(skip)]
     transform_map: FxHashMap<TileDefinitionHandle, TileDefinitionHandle>,
     /// The set of pages, organized by position.
@@ -1107,6 +1261,7 @@ impl TileSet {
             TileSetPageSource::Atlas(m) => m.get(&handle.tile()),
             TileSetPageSource::Freeform(m) => m.get(&handle.tile()).map(|def| &def.data),
             TileSetPageSource::Transform(_) => None,
+            TileSetPageSource::Animation(_) => None,
         }
     }
     /// The material and bounds of the given tile, if it stores its own material and bounds because it is a freeform tile.
@@ -1145,6 +1300,7 @@ impl TileSet {
             TileSetPageSource::Atlas(m) => m.contains_key(&tile),
             TileSetPageSource::Freeform(m) => m.contains_key(&tile),
             TileSetPageSource::Transform(m) => m.contains_key(&tile),
+            TileSetPageSource::Animation(m) => m.contains_key(&tile),
         }
     }
     /// The handle of the icon that represents the given page.
@@ -1201,6 +1357,63 @@ impl TileSet {
             );
         }
     }
+    /// Iterate through the tiles of every animation page and establish the connection between
+    /// the tiles of other pages and their corresponding position in an animation page.
+    /// This should happen after any animation page is changed and before it is next used.
+    ///
+    /// If a tile appears in multiple animation pages, the pages with greater y-coordinate
+    /// are prioritized, followed by prioritizing lower x-coordinate. If a tile appears
+    /// more than once on the same page, the cell with greater y-coordinate is prioritized,
+    /// followed by lower x-coordinate. In this way a unique animation is always chosen for
+    /// every tile that appears on any animation page.
+    pub fn rebuild_animations(&mut self) {
+        self.animation_map.clear();
+        for (&position, page) in self.pages.iter_mut() {
+            let TileSetPageSource::Animation(tiles) = &page.source else {
+                continue;
+            };
+            for &k in tiles.keys() {
+                let left = Vector2::new(k.x - 1, k.y);
+                if tiles.contains_key(&left) {
+                    continue;
+                }
+                let mut right = Vector2::new(k.x + 1, k.y);
+                while tiles.contains_key(&right) {
+                    right.x += 1;
+                }
+                let Some(start) = TileDefinitionHandle::try_new(position, k) else {
+                    continue;
+                };
+                let length = right.x - k.x;
+                self.animation_map.add_animation(start, length);
+            }
+        }
+        for (index, animation) in self.animation_map.animations.iter().enumerate() {
+            let page = self.pages.get(&animation.page()).unwrap();
+            let TileSetPageSource::Animation(tiles) = &page.source else {
+                unreachable!();
+            };
+            for (handle, offset) in animation.iter() {
+                let handle = *tiles.get(&handle.tile()).unwrap();
+                let anim_ref = AnimationRef { index, offset };
+                match self.animation_map.handle_to_animation.entry(handle) {
+                    Entry::Occupied(mut entry) => {
+                        let prev = entry.get();
+                        if offset == 0 && prev.offset != 0 {
+                            entry.insert(anim_ref);
+                        } else if (offset == 0) == (prev.offset == 0) {
+                            let new_start = animation.start;
+                            let prev_start = self.animation_map.animations[prev.index].start;
+                            if new_start < prev_start {
+                                entry.insert(anim_ref);
+                            }
+                        }
+                    }
+                    Entry::Vacant(entry) => drop(entry.insert(anim_ref)),
+                }
+            }
+        }
+    }
     /// Find a texture from some material page to serve as a preview for the tile set.
     pub fn preview_texture(&self) -> Option<TextureResource> {
         self.pages
@@ -1220,6 +1433,8 @@ impl TileSet {
     ///
     /// [`rebuild_transform_sets`](Self::rebuild_transform_sets) is automatically called if a transform set page is
     /// modified.
+    /// [`rebuild_animations`](Self::rebuild_animations) is automatically called if an animation page is
+    /// modified.
     ///
     /// Wherever there is incompatibility between the tile set and the given update,
     /// the tile set should gracefully ignore that part of the update, log the error,
@@ -1227,6 +1442,7 @@ impl TileSet {
     /// reversal of nothing being done.
     pub fn swap(&mut self, update: &mut TileSetUpdate) {
         let mut transform_changes = false;
+        let mut animation_changes: bool = false;
         for (handle, tile_update) in update.iter_mut() {
             let Some(page) = self.pages.get_mut(&handle.page()) else {
                 Log::err("Tile set update page missing.");
@@ -1235,10 +1451,16 @@ impl TileSet {
             if page.is_transform_set() {
                 transform_changes = true;
             }
+            if page.is_animation() {
+                animation_changes = true;
+            }
             page.swap_tile(handle.tile(), tile_update);
         }
         if transform_changes {
             self.rebuild_transform_sets();
+        }
+        if animation_changes {
+            self.rebuild_animations();
         }
     }
     /// Get the page at the given position.
@@ -1270,6 +1492,7 @@ impl TileSet {
             TileSetPageSource::Atlas(mat) => mat.contains_key(&handle.tile()),
             TileSetPageSource::Freeform(map) => map.contains_key(&handle.tile()),
             TileSetPageSource::Transform(_) => false,
+            TileSetPageSource::Animation(_) => false,
         }
     }
     /// The tile at the given page and tile coordinates.
@@ -1285,6 +1508,9 @@ impl TileSet {
                 Some(AbstractTile::Freeform(tile_grid_map.get(&tile)?.clone()))
             }
             TileSetPageSource::Transform(tiles) => {
+                Some(AbstractTile::Transform(tiles.get(&tile).copied()?))
+            }
+            TileSetPageSource::Animation(tiles) => {
                 Some(AbstractTile::Transform(tiles.get(&tile).copied()?))
             }
         }
@@ -1311,6 +1537,10 @@ impl TileSet {
                 d0.insert(tile, d1).map(Tile::Transform)
             }
             (Source::Transform(d0), None) => d0.remove(&tile).map(Tile::Transform),
+            (Source::Animation(d0), Some(Tile::Transform(d1))) => {
+                d0.insert(tile, d1).map(Tile::Transform)
+            }
+            (Source::Animation(d0), None) => d0.remove(&tile).map(Tile::Transform),
             _ => panic!(),
         }
     }
@@ -1386,6 +1616,9 @@ impl TileSet {
                     TileSetPageSource::Transform(tiles) => {
                         PaletteIterator::TransformSet(tiles.keys())
                     }
+                    TileSetPageSource::Animation(tiles) => {
+                        PaletteIterator::TransformSet(tiles.keys())
+                    }
                 }
             }
         }
@@ -1437,6 +1670,7 @@ impl TileSet {
         match position.stage() {
             TilePaletteStage::Tiles => match &self.pages.get(&position.page())?.source {
                 TileSetPageSource::Transform(tiles) => tiles.get_at(position.stage_position()),
+                TileSetPageSource::Animation(tiles) => tiles.get_at(position.stage_position()),
                 page => {
                     if page.contains_tile_at(position.stage_position()) {
                         position.handle()
@@ -1491,6 +1725,7 @@ impl TileSet {
                 Some(map.get(&handle.tile())?.material_bounds.clone())
             }
             TileSetPageSource::Transform(_) => None,
+            TileSetPageSource::Animation(_) => None,
         }
     }
     /// The value of the property with the given UUID for the given tile.
@@ -1513,6 +1748,7 @@ impl TileSet {
             TileSetPageSource::Atlas(mat) => mat.get_tile_data(handle.tile()),
             TileSetPageSource::Freeform(map) => Some(&map.get(&handle.tile())?.data),
             TileSetPageSource::Transform(_) => None,
+            TileSetPageSource::Animation(_) => None,
         }
     }
     /// Get the tile definition at the given position.
@@ -1521,7 +1757,30 @@ impl TileSet {
             TileSetPageSource::Atlas(mat) => mat.get_tile_data_mut(handle.tile()),
             TileSetPageSource::Freeform(map) => Some(&mut map.get_mut(&handle.tile())?.data),
             TileSetPageSource::Transform(_) => None,
+            TileSetPageSource::Animation(_) => None,
         }
+    }
+
+    /// The handle of the tile in the animation sequence starting from the given tile handle
+    /// at the given time, or none if the given handle is not part of any animation sequence.
+    pub fn get_animated_version(
+        &self,
+        time: f32,
+        handle: TileDefinitionHandle,
+    ) -> Option<TileDefinitionHandle> {
+        let (animation, offset) = self.animation_map.get_animation_and_offset(handle)?;
+        let page = self.get_page(animation.page())?;
+        let TileSetPageSource::Animation(AnimationTiles { frame_rate, tiles }) = &page.source
+        else {
+            return None;
+        };
+        let frame_rate = *frame_rate;
+        let length = animation.length;
+        let frame_position = (time * frame_rate).rem_euclid(length as f32);
+        let frame_index = (frame_position.floor() as i32).clamp(0, length - 1);
+        let frame_index = (frame_index + offset).rem_euclid(length);
+        let frame = animation.frame(frame_index);
+        tiles.get(&frame).copied()
     }
 
     /// Finds the handle of the tile that represents a transformed version of the tile at the given handle, if such a tile exists.
@@ -1715,6 +1974,7 @@ impl ResourceLoader for TileSetLoader {
                 .await
                 .map_err(LoadError::new)?;
             tile_set.rebuild_transform_sets();
+            tile_set.rebuild_animations();
             Ok(LoaderPayload::new(tile_set))
         })
     }
