@@ -81,12 +81,17 @@ impl<V: Debug> DerefMut for TileGridMap<V> {
 /// Position of a tile definition within some tile set
 #[derive(Eq, PartialEq, Clone, Copy, Default, Hash, Reflect, Visit, TypeUuidProvider)]
 #[type_uuid(id = "3eb69303-d361-482d-8094-44b9f9c323ca")]
+#[repr(C)]
 pub struct TileDefinitionHandle {
     /// Position of the tile's page
     pub page: PalettePosition,
     /// Position of the tile definition within the page
     pub tile: PalettePosition,
 }
+
+unsafe impl bytemuck::Zeroable for TileDefinitionHandle {}
+
+unsafe impl bytemuck::Pod for TileDefinitionHandle {}
 
 impl PartialOrd for TileDefinitionHandle {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
@@ -149,6 +154,12 @@ impl Display for TileDefinitionHandleParseError {
 impl Error for TileDefinitionHandleParseError {}
 
 impl TileDefinitionHandle {
+    /// Handle the represents the absence of a tile.
+    pub const EMPTY: Self = Self::new(i16::MIN, i16::MIN, i16::MIN, i16::MIN);
+    /// True if this handle represents there being no tile, [`EMPTY`](Self::EMPTY).
+    pub fn is_empty(&self) -> bool {
+        self == &Self::EMPTY
+    }
     /// Attempt to construct a handle for the given page and tile positions.
     /// Handles use a pair of i16 vectors, so that the total is 64 bits.
     /// If the given vectors are outside of the range that can be represented as i16 coordinates,
@@ -261,6 +272,13 @@ pub trait TileSource {
     /// tiles is being filled, then the given position represents where the tile
     /// will go within the area.
     fn get_at(&self, position: Vector2<i32>) -> Option<TileDefinitionHandle>;
+}
+
+/// A trait for types that can produce a TileDefinitionHandle upon demand,
+/// for use with drawing on tilemaps.
+pub trait BoundedTileSource: TileSource {
+    /// Calculates bounding rectangle in grid coordinates.
+    fn bounding_rect(&self) -> OptionTileRect;
 }
 
 /// A tile source that always produces the same tile.
@@ -478,9 +496,9 @@ impl Tiles {
         }
         (min, max)
     }
-    /// Apply the updates specified in the given `TileUpdates` and modify it so that it
+    /// Apply the updates specified in the given `TileUpdate` and modify it so that it
     /// contains the tiles require to undo the change. Calling `swap_tiles` twice with the same
-    /// `TileUpdates` object will do the changes and then undo them, leaving the tiles unchanged in the end.
+    /// `TileUpdate` object will do the changes and then undo them, leaving the tiles unchanged in the end.
     pub fn swap_tiles(&mut self, updates: &mut TilesUpdate) {
         for (k, v) in updates.iter_mut() {
             swap_hash_map_entry(self.entry(*k), v);
@@ -500,5 +518,25 @@ impl Tiles {
     #[inline]
     pub fn clear(&mut self) {
         self.0.clear();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Checking that TileDefinitionHandle is using the expected data layout as
+    /// required for its unsafe `bytemuck::Pod` implementation.
+    #[test]
+    fn size_of_handle() {
+        assert_eq!(std::mem::size_of::<TileDefinitionHandle>(), 8);
+    }
+
+    #[test]
+    fn zero_handle() {
+        assert_eq!(
+            TileDefinitionHandle::zeroed(),
+            TileDefinitionHandle::default()
+        );
     }
 }

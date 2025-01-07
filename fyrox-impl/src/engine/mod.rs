@@ -33,7 +33,7 @@ use crate::resource::texture::{
     CompressionOptions, TextureImportOptions, TextureMinificationFilter, TextureResource,
     TextureResourceExtension,
 };
-use crate::scene::tilemap::CustomTileCollider;
+use crate::scene::tilemap::{CustomTileCollider, TileMapData};
 use crate::{
     asset::{
         event::ResourceEvent,
@@ -1287,6 +1287,7 @@ pub(crate) fn initialize_resource_manager_loaders(
     state.constructors_container.add::<SurfaceData>();
     state.constructors_container.add::<TileSet>();
     state.constructors_container.add::<TileMapBrush>();
+    state.constructors_container.add::<TileMapData>();
     state.constructors_container.add::<CustomTileCollider>();
     state.constructors_container.add::<AnimationTracksData>();
     state.constructors_container.add::<Style>();

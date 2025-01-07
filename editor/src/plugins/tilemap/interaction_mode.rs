@@ -24,8 +24,9 @@ use commands::{MoveMapTileCommand, SetMapTilesCommand};
 use fyrox::{
     fxhash::FxHashMap,
     scene::tilemap::{
-        tileset::TileSetRef, OptionTileRect, TileCursorEffect, TileEraseEffect, TileOverlayEffect,
-        TileSelectionEffect, TileSource, TileUpdateEffect, TilesUpdate, TransTilesUpdate,
+        tileset::TileSetRef, OptionTileRect, TileCursorEffect, TileEraseEffect, TileMapData,
+        TileOverlayEffect, TileSelectionEffect, TileSource, TileUpdateEffect, TilesUpdate,
+        TransTilesUpdate,
     },
 };
 
@@ -250,14 +251,18 @@ fn update_select(
         sel.extend(rect.iter());
     }
     selected.clone_from(sel);
-    state.update_stamp(tile_map.tile_set().cloned(), |p| {
-        tile_map.tiles().get(&p).copied()
-    });
+    let Some(tiles) = tile_map.tiles().map(|r| r.data_ref()) else {
+        return;
+    };
+    let Some(tiles) = tiles.as_loaded_ref() else {
+        return;
+    };
+    state.update_stamp(tile_map.tile_set().cloned(), |p| tiles.get(p));
 }
 
 fn draw(
     update: &mut TransTilesUpdate,
-    tiles: &Tiles,
+    tiles: &TileMapData,
     tool: DrawingMode,
     state: &TileDrawStateGuard<'_>,
     start: Vector2<i32>,
@@ -330,6 +335,12 @@ impl InteractionMode for TileMapInteractionMode {
         let Some(tile_map) = scene.graph.try_get_mut_of_type::<TileMap>(self.tile_map) else {
             return;
         };
+        let Some(tiles_guard) = tile_map.tiles().map(|r| r.data_ref()) else {
+            return;
+        };
+        let Some(tiles) = tiles_guard.as_loaded_ref() else {
+            return;
+        };
         let mut overlay = self.overlay_effect.lock();
         let mut erase_overlay = self.erase_select_effect.lock();
         if let Some(grid_coord) = grid_coord {
@@ -352,13 +363,14 @@ impl InteractionMode for TileMapInteractionMode {
                         erased_area.clear();
                         let selected = &self.select_effect.lock().positions;
                         for pos in selected.iter() {
-                            let Some(&handle) = tile_map.tiles.get(pos) else {
+                            let Some(handle) = tiles.get(*pos) else {
                                 continue;
                             };
                             let _ = erased_area.insert(*pos);
                             let _ = overlay.tiles.insert(*pos - grid_coord, handle);
                         }
                     } else {
+                        drop(tiles_guard);
                         self.mouse_mode = MouseMode::Drawing;
                         if !mods.shift {
                             self.selecting.clear();
@@ -379,7 +391,7 @@ impl InteractionMode for TileMapInteractionMode {
                     self.mouse_mode = MouseMode::Drawing;
                     draw(
                         &mut self.update_effect.lock().update,
-                        &tile_map.tiles,
+                        tiles,
                         mode,
                         &state,
                         grid_coord,
@@ -508,6 +520,12 @@ impl InteractionMode for TileMapInteractionMode {
         let Some(tile_map) = scene.graph.try_get_mut_of_type::<TileMap>(tile_map_handle) else {
             return;
         };
+        let Some(tiles_guard) = tile_map.tiles().map(|r| r.data_ref()) else {
+            return;
+        };
+        let Some(tiles) = tiles_guard.as_loaded_ref() else {
+            return;
+        };
 
         let state = self.state.lock();
 
@@ -516,6 +534,7 @@ impl InteractionMode for TileMapInteractionMode {
             MouseMode::Dragging => (),
             MouseMode::Drawing => {
                 if let DrawingMode::Pick = self.current_tool {
+                    drop(tiles_guard);
                     update_select(
                         tile_map,
                         &mut self.select_effect.lock().positions,
@@ -527,7 +546,7 @@ impl InteractionMode for TileMapInteractionMode {
                 } else {
                     draw(
                         &mut self.update_effect.lock().update,
-                        &tile_map.tiles,
+                        tiles,
                         self.current_tool,
                         &state,
                         start,

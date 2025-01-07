@@ -22,6 +22,7 @@
 //! build game worlds quickly and easily. See [`TileMap`] docs for more info and usage examples.
 
 pub mod brush;
+mod data;
 mod effect;
 mod property;
 mod tile_collider;
@@ -32,12 +33,14 @@ mod transform;
 mod update;
 
 use brush::*;
+pub use data::*;
 pub use effect::*;
 use fxhash::FxHashSet;
 use fyrox_core::{
     math::{frustum::Frustum, plane::Plane, ray::Ray},
     parking_lot::Mutex,
 };
+use fyrox_resource::Resource;
 pub use tile_collider::*;
 pub use tile_rect::*;
 pub use tile_source::*;
@@ -86,6 +89,9 @@ use std::{
 use super::{dim2::rectangle::RectangleVertex, node::constructor::NodeConstructor};
 
 use crate::lazy_static::*;
+
+/// Current implementation version marker.
+pub const VERSION: u8 = 1;
 
 lazy_static! {
     /// The default material for tiles that have no material set.
@@ -834,29 +840,6 @@ impl TileBook {
             TileBook::Brush(res) => res.data_ref().tiles_bounds(stage, page),
         }
     }
-    /// Fills the tile resource at the given point using the given tile source. This method
-    /// extends the resource when trying to fill at a point that lies outside the bounding rectangle.
-    /// Keep in mind, that flood fill is only possible either on free cells or on cells with the same
-    /// tile kind.
-    pub fn flood_fill<S: TileSource>(
-        &self,
-        page: Vector2<i32>,
-        position: Vector2<i32>,
-        brush: &S,
-        tiles: &mut TransTilesUpdate,
-    ) {
-        match self {
-            TileBook::Empty => (),
-            TileBook::TileSet(_) => (),
-            TileBook::Brush(res) => {
-                let data = res.data_ref();
-                let Some(source) = data.pages.get(&page) else {
-                    return;
-                };
-                tiles.flood_fill(&source.tiles, position, brush);
-            }
-        }
-    }
 }
 
 /// The specification for how to render a tile.
@@ -898,7 +881,7 @@ impl OrthoTransform for TileRenderData {
 /// which contains all the pages that may be referenced by the tile map's handles.
 ///
 /// Optional [`TileMapEffect`] objects may be included in the `TileMap` to change how it renders.
-#[derive(Reflect, Debug, Visit, ComponentProvider, TypeUuidProvider)]
+#[derive(Reflect, Debug, ComponentProvider, TypeUuidProvider)]
 #[type_uuid(id = "aa9a3385-a4af-4faf-a69a-8d3af1a3aa67")]
 pub struct TileMap {
     base: Base,
@@ -906,13 +889,12 @@ pub struct TileMap {
     tile_set: InheritableVariable<Option<TileSetResource>>,
     /// Tile container of the tile map.
     #[reflect(hidden)]
-    pub tiles: InheritableVariable<Tiles>,
+    pub tiles: InheritableVariable<Option<TileMapDataResource>>,
     tile_scale: InheritableVariable<Vector2<f32>>,
     active_brush: InheritableVariable<Option<TileMapBrushResource>>,
     /// Temporary space to store which tiles are invisible during `collect_render_data`.
     /// This is part of how [`TileMapEffect`] can prevent a tile from being rendered.
     #[reflect(hidden)]
-    #[visit(skip)]
     hidden_tiles: Mutex<FxHashSet<Vector2<i32>>>,
     /// Special rendering effects that may change how the tile map renders.
     /// These effects are processed in order before the tile map performs the
@@ -920,22 +902,42 @@ pub struct TileMap {
     /// rendered and render other tiles in place of what would normally be
     /// rendered.
     #[reflect(hidden)]
-    #[visit(skip)]
     pub before_effects: Vec<TileMapEffectRef>,
     /// Special rendering effects that may change how the tile map renders.
     /// These effects are processed in order after the tile map performs the
     /// normal rendering of tiles.
     #[reflect(hidden)]
-    #[visit(skip)]
     pub after_effects: Vec<TileMapEffectRef>,
 }
 
-impl TileSource for TileMap {
-    fn transformation(&self) -> OrthoTransformation {
-        OrthoTransformation::default()
-    }
-    fn get_at(&self, position: Vector2<i32>) -> Option<TileDefinitionHandle> {
-        self.tiles.get_at(position)
+impl Visit for TileMap {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        let mut region = visitor.enter_region(name)?;
+        let mut version = if region.is_reading() { 0 } else { VERSION };
+        let _ = version.visit("Version", &mut region);
+        println!("DEBUG: VISITING TileMap: version {}", version);
+        self.base.visit("Base", &mut region)?;
+        self.tile_set.visit("TileSet", &mut region)?;
+        self.tile_scale.visit("TileScale", &mut region)?;
+        self.active_brush.visit("ActiveBrush", &mut region)?;
+        match version {
+            0 => {
+                let mut tiles = InheritableVariable::new_non_modified(Tiles::default());
+                let result = tiles.visit("Tiles", &mut region);
+                println!("DEBUG: VISITING Tiles: {:?}", result);
+                result?;
+                let mut data = TileMapData::default();
+                for (p, h) in tiles.iter() {
+                    data.set(*p, *h);
+                }
+                self.tiles = Some(Resource::new_ok(ResourceKind::Embedded, data)).into();
+            }
+            VERSION => {
+                self.tiles.visit("Tiles", &mut region)?;
+            }
+            _ => return Err(VisitError::User("Unknown version".into())),
+        }
+        Ok(())
     }
 }
 
@@ -992,7 +994,8 @@ impl TileMap {
     /// The tile data for the tile at the given position, if that position has a tile and this tile map
     /// has a tile set that contains data for the tile's handle.
     pub fn tile_data(&self, position: Vector2<i32>) -> Option<TileMapDataRef> {
-        let handle = self.get_at(position)?;
+        let tiles = self.tiles.as_ref()?.data_ref();
+        let handle = tiles.as_loaded_ref()?.get(position)?;
         let tile_set = self.tile_set.as_ref()?.data_ref();
         if tile_set.as_loaded_ref()?.tile_data(handle).is_some() {
             Some(TileMapDataRef { tile_set, handle })
@@ -1021,7 +1024,12 @@ impl TileMap {
         let tile_set = tile_set
             .as_loaded_ref()
             .ok_or(TilePropertyError::TileSetNotLoaded)?;
-        self.get_at(position)
+        let Some(tiles) = self.tiles.as_ref().map(|r| r.data_ref()) else {
+            return Ok(T::default());
+        };
+        tiles
+            .as_loaded_ref()
+            .and_then(|tiles| tiles.get(position))
             .and_then(|handle| {
                 tile_set
                     .property_value(handle, property_id)
@@ -1050,8 +1058,12 @@ impl TileMap {
         let property = tile_set
             .find_property_by_name(property_name)
             .ok_or_else(|| TilePropertyError::UnrecognizedName(property_name.clone()))?;
-        Ok(self
-            .get_at(position)
+        let Some(tiles) = self.tiles.as_ref().map(|r| r.data_ref()) else {
+            return Ok(property.prop_type.default_value());
+        };
+        Ok(tiles
+            .as_loaded_ref()
+            .and_then(|tiles| tiles.get(position))
             .and_then(|handle| tile_set.property_value(handle, property.uuid))
             .unwrap_or_else(|| property.prop_type.default_value()))
     }
@@ -1073,11 +1085,21 @@ impl TileMap {
         let tile_set = tile_set
             .as_loaded_ref()
             .ok_or(TilePropertyError::TileSetNotLoaded)?;
-        if let Some(value) = self.get_at(position).and_then(|handle| {
-            tile_set
-                .tile_data(handle)
-                .and_then(|d| d.properties.get(&property_id))
-        }) {
+        let Some(tiles) = self.tiles.as_ref().map(|r| r.data_ref()) else {
+            let property = tile_set
+                .find_property(property_id)
+                .ok_or(TilePropertyError::UnrecognizedUuid(property_id))?;
+            return Ok(property.prop_type.default_value());
+        };
+        if let Some(value) = tiles
+            .as_loaded_ref()
+            .and_then(|tiles| tiles.get(position))
+            .and_then(|handle| {
+                tile_set
+                    .tile_data(handle)
+                    .and_then(|d| d.properties.get(&property_id))
+            })
+        {
             Ok(value.clone())
         } else {
             let property = tile_set
@@ -1105,28 +1127,14 @@ impl TileMap {
 
     /// Returns a reference to the tile container.
     #[inline]
-    pub fn tiles(&self) -> &Tiles {
-        &self.tiles
-    }
-
-    /// Returns a reference to the tile container.
-    #[inline]
-    pub fn tiles_mut(&mut self) -> &mut Tiles {
-        &mut self.tiles
-    }
-
-    /// Iterate the tiles.
-    pub fn iter(&self) -> impl Iterator<Item = Tile> + '_ {
-        self.tiles.iter().map(|(p, h)| Tile {
-            position: *p,
-            definition_handle: *h,
-        })
+    pub fn tiles(&self) -> Option<&TileMapDataResource> {
+        self.tiles.as_ref()
     }
 
     /// Sets new tiles.
     #[inline]
-    pub fn set_tiles(&mut self, tiles: Tiles) {
-        self.tiles.set_value_and_mark_modified(tiles);
+    pub fn set_tiles(&mut self, tiles: TileMapDataResource) {
+        self.tiles.set_value_and_mark_modified(Some(tiles));
     }
 
     /// Returns current tile scaling.
@@ -1149,13 +1157,21 @@ impl TileMap {
         position: Vector2<i32>,
         tile: TileDefinitionHandle,
     ) -> Option<TileDefinitionHandle> {
-        self.tiles.insert(position, tile)
+        self.tiles
+            .as_ref()?
+            .data_ref()
+            .as_loaded_mut()?
+            .replace(position, Some(tile))
     }
 
     /// Removes a tile from the tile map.
     #[inline]
     pub fn remove_tile(&mut self, position: Vector2<i32>) -> Option<TileDefinitionHandle> {
-        self.tiles.remove(&position)
+        self.tiles
+            .as_ref()?
+            .data_ref()
+            .as_loaded_mut()?
+            .replace(position, None)
     }
 
     /// Returns active brush of the tile map.
@@ -1173,7 +1189,13 @@ impl TileMap {
     /// Calculates bounding rectangle in grid coordinates.
     #[inline]
     pub fn bounding_rect(&self) -> OptionTileRect {
-        self.tiles.bounding_rect()
+        let Some(tiles) = self.tiles.as_ref().map(|r| r.data_ref()) else {
+            return OptionTileRect::default();
+        };
+        let Some(tiles) = tiles.as_loaded_ref() else {
+            return OptionTileRect::default();
+        };
+        tiles.bounding_rect()
     }
 
     /// Calculates grid-space position (tile coordinates) from world-space. Could be used to find
@@ -1365,12 +1387,25 @@ impl NodeTrait for TileMap {
             effect.lock().render_special_tiles(&mut tile_render_context);
         }
         let bounds = tile_render_context.visible_bounds();
-        for (&position, &handle) in self.tiles.iter() {
-            if (bounds.is_none() || bounds.contains(position))
-                && tile_render_context.is_tile_visible(position)
-            {
-                let handle = tile_render_context.get_animated_version(handle);
-                tile_render_context.draw_tile(position, handle);
+        let Some(tiles) = self.tiles.as_ref().map(|r| r.data_ref()) else {
+            return RdcControlFlow::Continue;
+        };
+        let Some(tiles) = tiles.as_loaded_ref() else {
+            return RdcControlFlow::Continue;
+        };
+        if bounds.is_some() {
+            for (position, handle) in tiles.bounded_iter(bounds) {
+                if bounds.contains(position) && tile_render_context.is_tile_visible(position) {
+                    let handle = tile_render_context.get_animated_version(handle);
+                    tile_render_context.draw_tile(position, handle);
+                }
+            }
+        } else {
+            for (position, handle) in tiles.iter() {
+                if tile_render_context.is_tile_visible(position) {
+                    let handle = tile_render_context.get_animated_version(handle);
+                    tile_render_context.draw_tile(position, handle);
+                }
             }
         }
         for effect in self.after_effects.iter() {
@@ -1395,7 +1430,7 @@ impl NodeTrait for TileMap {
 pub struct TileMapBuilder {
     base_builder: BaseBuilder,
     tile_set: Option<TileSetResource>,
-    tiles: Tiles,
+    tiles: TileMapData,
     tile_scale: Vector2<f32>,
     before_effects: Vec<TileMapEffectRef>,
     after_effects: Vec<TileMapEffectRef>,
@@ -1407,7 +1442,7 @@ impl TileMapBuilder {
         Self {
             base_builder,
             tile_set: None,
-            tiles: Default::default(),
+            tiles: TileMapData::default(),
             tile_scale: Vector2::repeat(1.0),
             before_effects: Default::default(),
             after_effects: Default::default(),
@@ -1421,8 +1456,10 @@ impl TileMapBuilder {
     }
 
     /// Sets the actual tiles of the tile map.
-    pub fn with_tiles(mut self, tiles: Tiles) -> Self {
-        self.tiles = tiles;
+    pub fn with_tiles(mut self, tiles: &Tiles) -> Self {
+        for (pos, handle) in tiles.iter() {
+            self.tiles.set(*pos, *handle);
+        }
         self
     }
 
@@ -1449,7 +1486,7 @@ impl TileMapBuilder {
         Node::new(TileMap {
             base: self.base_builder.build_base(),
             tile_set: self.tile_set.into(),
-            tiles: self.tiles.into(),
+            tiles: Some(Resource::new_ok(ResourceKind::Embedded, self.tiles)).into(),
             tile_scale: self.tile_scale.into(),
             active_brush: Default::default(),
             hidden_tiles: Mutex::default(),
