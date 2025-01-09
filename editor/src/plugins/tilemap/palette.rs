@@ -458,9 +458,7 @@ impl PaletteWidget {
         Vector2::new((pos.x / s.x).floor() as i32, (pos.y / s.y).floor() as i32)
     }
     fn send_update(&mut self) {
-        if self.kind != TilePaletteStage::Tiles {
-            panic!();
-        }
+        assert_eq!(self.kind, TilePaletteStage::Tiles);
         let Some(page) = self.page else {
             return;
         };
@@ -500,9 +498,7 @@ impl PaletteWidget {
         }
     }
     fn send_tile_set_update(&mut self) {
-        if self.kind != TilePaletteStage::Tiles {
-            panic!();
-        }
+        assert_eq!(self.kind, TilePaletteStage::Tiles);
         if let TileBook::TileSet(resource) = &self.content {
             self.sender.do_command(SetTileSetTilesCommand {
                 tile_set: resource.clone(),
@@ -935,7 +931,8 @@ impl PaletteWidget {
         }
     }
     fn accept_material_drop(&mut self, _material: MaterialResource, _ui: &UserInterface) {
-        // TODO
+        // TODO: Allow users to drag-and-drop materials into a palette to create
+        // tiles or atlas pages.
     }
     fn push_tile_collider(
         &self,
