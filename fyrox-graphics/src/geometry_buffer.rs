@@ -83,6 +83,7 @@ pub struct VertexBufferDescriptor<'a> {
 pub struct GeometryBufferDescriptor<'a> {
     pub element_kind: ElementKind,
     pub buffers: &'a [VertexBufferDescriptor<'a>],
+    pub usage: BufferUsage,
 }
 
 pub trait GeometryBuffer {

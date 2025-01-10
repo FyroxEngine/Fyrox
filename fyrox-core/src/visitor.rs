@@ -40,6 +40,7 @@ use crate::{
         Complex, Const, Matrix, Matrix2, Matrix3, Matrix4, Quaternion, RawStorage, RawStorageMut,
         SVector, Scalar, UnitComplex, UnitQuaternion, Vector2, Vector3, Vector4, U1,
     },
+    array_as_u8_slice_mut,
     io::{self, FileLoadError},
     pool::{Handle, Pool},
     replace_slashes,
@@ -540,24 +541,27 @@ impl_field_data!(Vector4<u64>, FieldKind::Vector4U64);
 
 impl<T> Visit for BinaryBlob<'_, T>
 where
-    T: Copy,
+    T: Copy + bytemuck::Pod,
 {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         if visitor.reading {
             if let Some(field) = visitor.find_field(name) {
                 match &field.kind {
                     FieldKind::BinaryBlob(data) => {
-                        let mut bytes = std::mem::ManuallyDrop::new(data.clone());
+                        let len = data.len() / size_of::<T>();
+                        let mut vec = Vec::<T>::with_capacity(len);
 
-                        // SAFETY: This is kinda safe, but may cause portability issues because of various byte order.
-                        // However it seems to be fine, since big-endian is pretty much dead and unused nowadays.
-                        *self.vec = unsafe {
-                            Vec::from_raw_parts(
-                                bytes.as_mut_ptr() as *mut T,
-                                bytes.len() / std::mem::size_of::<T>(),
-                                bytes.capacity() / std::mem::size_of::<T>(),
-                            )
-                        };
+                        unsafe {
+                            std::ptr::copy_nonoverlapping(
+                                data.as_ptr(),
+                                array_as_u8_slice_mut(&mut vec).as_mut_ptr(),
+                                data.len(),
+                            );
+
+                            vec.set_len(len);
+                        }
+
+                        *self.vec = vec;
 
                         Ok(())
                     }

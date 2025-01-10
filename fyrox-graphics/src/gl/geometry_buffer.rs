@@ -18,17 +18,16 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::geometry_buffer::{AttributeKind, GeometryBuffer, GeometryBufferDescriptor};
 use crate::{
-    buffer::{Buffer, BufferKind, BufferUsage},
+    buffer::{Buffer, BufferKind},
     core::{array_as_u8_slice, math::TriangleDefinition},
     error::FrameworkError,
+    geometry_buffer::{AttributeKind, GeometryBuffer, GeometryBufferDescriptor},
     gl::{buffer::GlBuffer, server::GlGraphicsServer, ToGlConstant},
     ElementKind,
 };
 use glow::HasContext;
-use std::any::Any;
-use std::{cell::Cell, marker::PhantomData, rc::Weak};
+use std::{any::Any, cell::Cell, marker::PhantomData, rc::Weak};
 
 impl AttributeKind {
     fn gl_type(self) -> u32 {
@@ -61,7 +60,7 @@ impl GlGeometryBuffer {
 
         server.set_vertex_array_object(Some(vao));
 
-        let element_buffer = GlBuffer::new(server, 0, BufferKind::Index, BufferUsage::StaticDraw)?;
+        let element_buffer = GlBuffer::new(server, 0, BufferKind::Index, desc.usage)?;
 
         let mut buffers = Vec::new();
         for buffer in desc.buffers {

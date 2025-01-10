@@ -86,6 +86,7 @@ impl BuildWindow {
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(420.0).with_height(200.0))
             .can_minimize(false)
             .can_close(false)
+            .can_maximize(false)
             .open(false)
             .with_content(
                 GridBuilder::new(
@@ -96,12 +97,17 @@ impl BuildWindow {
                                     .with_child(
                                         TextBuilder::new(
                                             WidgetBuilder::new()
-                                                .with_margin(Thickness::uniform(1.0))
+                                                .with_margin(Thickness {
+                                                    left: 5.0,
+                                                    top: 1.0,
+                                                    right: 1.0,
+                                                    bottom: 1.0,
+                                                })
                                                 .on_column(0),
                                         )
                                         .with_text(format!(
-                                    "Please wait while {project_name} is building... Build Log:"
-                                ))
+                                            "Please wait while {project_name} is building..."
+                                        ))
                                         .build(ctx),
                                     )
                                     .with_child({

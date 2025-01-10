@@ -26,18 +26,32 @@ use std::{
     collections::HashMap,
     fmt::Display,
     fs::{create_dir_all, read_dir, remove_dir_all, File},
-    io::{Read, Write},
+    io::{Cursor, Read, Write},
     path::Path,
     process::Command,
+    sync::LazyLock,
 };
 use toml_edit::{table, value, DocumentMut};
 use uuid::Uuid;
 
-// Ideally, this should be taken from respective Cargo.toml of the engine and the editor.
-// However, it does not seem to work with builds published to crates.io, because when
-// the template generator is published, it does not have these Cargo.toml's available
-// and to solve this we just hard code these values and pray for the best.
-pub const CURRENT_VERSION: &str = "0.36.0";
+// Template generator version must match the engine version. This is checked by the CI.
+pub static CURRENT_VERSION: LazyLock<String> = LazyLock::new(|| {
+    let manifest = include_bytes!("../Cargo.toml");
+
+    let mut file = Cursor::new(&manifest);
+    let mut toml = String::new();
+    if file.read_to_string(&mut toml).is_ok() {
+        if let Ok(document) = toml.parse::<DocumentMut>() {
+            if let Some(package) = document.get("package").and_then(|i| i.as_table()) {
+                if let Some(version) = package.get("version") {
+                    return version.to_string().replace('\"', "");
+                }
+            }
+        }
+    }
+
+    panic!("Project manager's Cargo.toml is malformed!");
+});
 
 fn write_file<P: AsRef<Path>, S: AsRef<str>>(path: P, content: S) -> Result<(), String> {
     let mut file = File::create(path.as_ref()).map_err(|e| e.to_string())?;
@@ -582,6 +596,7 @@ fn init_workspace(base_path: &Path, vcs: &str) -> Result<(), String> {
     }
 
     // Write Cargo.toml
+    let version = &*CURRENT_VERSION;
     write_file(
         base_path.join("Cargo.toml"),
         format!(
@@ -591,10 +606,10 @@ members = ["editor", "executor", "executor-wasm", "executor-android", "game", "g
 resolver = "2"
 
 [workspace.dependencies.fyrox]
-version = "{CURRENT_VERSION}"
+version = "{version}"
 default-features = false
 [workspace.dependencies.fyroxed_base]
-version = "{CURRENT_VERSION}"
+version = "{version}"
 default-features = false
 
 # Separate build profiles for hot reloading. These profiles ensures that build artifacts for
@@ -821,10 +836,10 @@ pub fn upgrade_project(root_path: &Path, version: &str, local: bool) -> Result<(
                                         dependencies["fyrox_scripts"] = scripts_table;
                                     }
                                 } else {
-                                    dependencies["fyrox"] = value(CURRENT_VERSION);
-                                    dependencies["fyroxed_base"] = value(CURRENT_VERSION);
+                                    dependencies["fyrox"] = value(&*CURRENT_VERSION);
+                                    dependencies["fyroxed_base"] = value(&*CURRENT_VERSION);
                                     if dependencies.contains_key("fyrox_scripts") {
-                                        dependencies["fyrox_scripts"] = value(CURRENT_VERSION);
+                                        dependencies["fyrox_scripts"] = value(&*CURRENT_VERSION);
                                     }
                                 }
                             } else if version == "nightly" {

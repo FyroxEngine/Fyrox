@@ -78,6 +78,7 @@ impl GeometryBufferExt for dyn GeometryBuffer {
                     bytes: Some(data.vertex_buffer.raw_data()),
                 },
             }],
+            usage,
         };
 
         let geometry_buffer = server.create_geometry_buffer(geometry_buffer_desc)?;

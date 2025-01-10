@@ -1467,7 +1467,11 @@ impl Engine {
                 params: params.clone(),
             });
 
-            self.sound_engine.initialize_audio_output_device()?;
+            if let Err(err) = self.sound_engine.initialize_audio_output_device() {
+                Log::err(format!(
+                    "Unable to initialize audio output device! Reason: {err:?}"
+                ));
+            }
 
             Ok(())
         } else {

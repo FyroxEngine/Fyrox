@@ -55,8 +55,7 @@ use fyrox::{
         VerticalAlignment,
     },
 };
-use fyrox_build_tools::build::BuildWindow;
-use fyrox_build_tools::{BuildProfile, CommandDescriptor};
+use fyrox_build_tools::{build::BuildWindow, BuildProfile, CommandDescriptor};
 use std::{
     collections::VecDeque,
     path::{Path, PathBuf},
@@ -65,7 +64,7 @@ use std::{
 
 pub enum Mode {
     Normal,
-    Build {
+    CommandExecution {
         queue: VecDeque<CommandDescriptor>,
         process: Option<std::process::Child>,
         current_dir: PathBuf,
@@ -74,7 +73,7 @@ pub enum Mode {
 
 impl Mode {
     pub fn is_build(&self) -> bool {
-        matches!(self, Mode::Build { .. })
+        matches!(self, Mode::CommandExecution { .. })
     }
 }
 
@@ -144,6 +143,7 @@ pub struct ProjectManager {
     settings_window: Option<SettingsWindow>,
     no_projects_warning: Handle<UiNode>,
     exclude_project: Handle<UiNode>,
+    clean_project: Handle<UiNode>,
     pub focused: bool,
     pub update_loop_state: UpdateLoopState,
 }
@@ -454,6 +454,7 @@ impl ProjectManager {
         (can be changed in settings).\nHotkey: Ctrl+O";
         let exclude_project_tooltip = "Removes the project from the project manager, \
         but does NOT delete it.\nHotkey: Ctrl+E";
+        let clean_project_tooltip = "Removes project's build artifacts.\nHotkey: Ctrl+N";
 
         let edit = make_text_and_image_button_with_tooltip(
             ctx,
@@ -546,6 +547,19 @@ impl ProjectManager {
             Color::ORANGE,
             font_size,
         );
+        let clean_project = make_text_and_image_button_with_tooltip(
+            ctx,
+            "Clean",
+            22.0,
+            22.0,
+            load_image(include_bytes!("../resources/clean.png")),
+            clean_project_tooltip,
+            0,
+            0,
+            Some(11),
+            Color::LIGHT_STEEL_BLUE,
+            font_size,
+        );
         let hot_reload = CheckBoxBuilder::new(
             WidgetBuilder::new()
                 .with_tab_index(Some(4))
@@ -568,6 +582,7 @@ impl ProjectManager {
                 .with_child(run)
                 .with_child(open_ide)
                 .with_child(upgrade)
+                .with_child(clean_project)
                 .with_child(locate)
                 .with_child(delete)
                 .with_child(exclude_project),
@@ -672,6 +687,7 @@ impl ProjectManager {
             settings_window: None,
             no_projects_warning,
             exclude_project,
+            clean_project,
             focused: true,
             update_loop_state: Default::default(),
         }
@@ -698,7 +714,7 @@ impl ProjectManager {
     }
 
     fn handle_modes(&mut self, ui: &mut UserInterface) {
-        let Mode::Build {
+        let Mode::CommandExecution {
             ref mut process,
             ref mut queue,
             ref current_dir,
@@ -916,6 +932,19 @@ impl ProjectManager {
         self.refresh(ui);
     }
 
+    fn on_clean_clicked(&mut self, ui: &mut UserInterface) {
+        self.run_selected_project_command(
+            "clean",
+            vec![CommandDescriptor {
+                command: "cargo".to_string(),
+                args: vec!["clean".to_string()],
+                environment_variables: vec![],
+            }]
+            .into(),
+            ui,
+        )
+    }
+
     fn on_button_click(&mut self, button: Handle<UiNode>, ui: &mut UserInterface) {
         if button == self.create {
             self.on_create_clicked(ui);
@@ -936,11 +965,13 @@ impl ProjectManager {
         } else if button == self.locate {
             self.on_locate_click();
         } else if button == self.open_ide {
-            self.on_open_ide_click();
+            self.on_open_ide_click(ui);
         } else if button == self.open_settings {
             self.on_open_settings_click(ui);
         } else if button == self.exclude_project {
             self.on_exclude_project_clicked(ui);
+        } else if button == self.clean_project {
+            self.on_clean_clicked(ui);
         }
     }
 
@@ -950,7 +981,7 @@ impl ProjectManager {
         Log::verify(open::that_detached(folder));
     }
 
-    fn on_open_ide_click(&mut self) {
+    fn on_open_ide_click(&mut self, ui: &mut UserInterface) {
         let project = some_or_return!(self.selection.and_then(|i| self.settings.projects.get(i)));
         let mut open_ide_command = self.settings.open_ide_command.clone();
         if let Some(manifest_path_arg) = open_ide_command
@@ -968,6 +999,8 @@ impl ProjectManager {
                 "Unable to open the IDE using {} command. Reason: {:?}",
                 open_ide_command, err
             ));
+
+            self.on_open_settings_click(ui);
         }
     }
 
@@ -976,21 +1009,40 @@ impl ProjectManager {
         self.settings_window = Some(SettingsWindow::new(&self.settings, ctx));
     }
 
+    fn run_selected_project_command(
+        &mut self,
+        action_name: &str,
+        queue: VecDeque<CommandDescriptor>,
+        ui: &mut UserInterface,
+    ) {
+        let index = some_or_return!(self.selection);
+        let project = some_or_return!(self.settings.projects.get(index));
+        self.mode = Mode::CommandExecution {
+            queue,
+            process: None,
+            current_dir: project.manifest_path.parent().unwrap().into(),
+        };
+        self.build_window = Some(BuildWindow::new(action_name, &mut ui.build_ctx()));
+    }
+
     fn run_build_profile(
         &mut self,
         name: &str,
         build_profile: &BuildProfile,
         ui: &mut UserInterface,
     ) {
-        let index = some_or_return!(self.selection);
-        let project = some_or_return!(self.settings.projects.get(index));
-
-        self.mode = Mode::Build {
-            queue: build_profile.build_and_run_queue(),
-            process: None,
-            current_dir: project.manifest_path.parent().unwrap().into(),
-        };
-        self.build_window = Some(BuildWindow::new(name, &mut ui.build_ctx()));
+        let mut build_profile = build_profile.clone();
+        // Force run `cargo update` before running the project to prevent various issues with
+        // dependency versions incompatibility.
+        build_profile.build_commands.insert(
+            0,
+            CommandDescriptor {
+                command: "cargo".to_string(),
+                args: vec!["update".to_string()],
+                environment_variables: vec![],
+            },
+        );
+        self.run_selected_project_command(name, build_profile.build_and_run_queue(), ui);
     }
 
     fn on_hot_reload_changed(&mut self, value: bool, ui: &mut UserInterface) {
@@ -1019,9 +1071,10 @@ impl ProjectManager {
             KeyCode::KeyC if modifiers.control => self.on_create_clicked(ui),
             KeyCode::KeyH if modifiers.control => self.on_hot_reload_changed(true, ui),
             KeyCode::KeyL if modifiers.control => self.on_locate_click(),
-            KeyCode::KeyO if modifiers.control => self.on_open_ide_click(),
+            KeyCode::KeyO if modifiers.control => self.on_open_ide_click(ui),
             KeyCode::KeyS if modifiers.control => self.on_open_settings_click(ui),
             KeyCode::KeyE if modifiers.control => self.on_exclude_project_clicked(ui),
+            KeyCode::KeyN if modifiers.control => self.on_clean_clicked(ui),
             _ => (),
         }
     }
