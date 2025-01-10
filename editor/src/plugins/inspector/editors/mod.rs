@@ -18,18 +18,26 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::plugins::inspector::editors::{
-    animation::{
-        AnimationContainerPropertyEditorDefinition, AnimationPropertyEditorDefinition,
-        MachinePropertyEditorDefinition,
+use fyrox::scene::tilemap::TileDefinitionHandle;
+
+use crate::plugins::{
+    inspector::editors::{
+        animation::{
+            AnimationContainerPropertyEditorDefinition, AnimationPropertyEditorDefinition,
+            MachinePropertyEditorDefinition,
+        },
+        font::FontPropertyEditorDefinition,
+        handle::{EntityKind, NodeHandlePropertyEditorDefinition},
+        resource::ResourceFieldPropertyEditorDefinition,
+        script::ScriptPropertyEditorDefinition,
+        spritesheet::SpriteSheetFramesContainerEditorDefinition,
+        surface::SurfaceDataPropertyEditorDefinition,
+        texture::TexturePropertyEditorDefinition,
     },
-    font::FontPropertyEditorDefinition,
-    handle::{EntityKind, NodeHandlePropertyEditorDefinition},
-    resource::ResourceFieldPropertyEditorDefinition,
-    script::ScriptPropertyEditorDefinition,
-    spritesheet::SpriteSheetFramesContainerEditorDefinition,
-    surface::SurfaceDataPropertyEditorDefinition,
-    texture::TexturePropertyEditorDefinition,
+    tilemap::{
+        OptionTileDefinitionHandlePropertyEditorDefinition,
+        TileDefinitionHandlePropertyEditorDefinition,
+    },
 };
 use crate::{
     fyrox::{
@@ -106,7 +114,7 @@ use crate::{
             },
             terrain::{Chunk, Layer},
             tilemap::brush::{TileMapBrush, TileMapBrushResource},
-            tilemap::tileset::TileCollider,
+            tilemap::TileCollider,
             tilemap::{tileset::TileSet, Tile},
             transform::Transform,
         },
@@ -210,6 +218,11 @@ where
 
 pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorDefinitionContainer {
     let container = PropertyEditorDefinitionContainer::with_default_editors();
+
+    container.insert(TileDefinitionHandlePropertyEditorDefinition);
+    container.insert(OptionTileDefinitionHandlePropertyEditorDefinition);
+    container.register_inheritable_vec_collection::<TileDefinitionHandle>();
+    container.register_inheritable_vec_collection::<Option<TileDefinitionHandle>>();
 
     container.insert(TexturePropertyEditorDefinition { untyped: false });
     container.insert(TexturePropertyEditorDefinition { untyped: true });

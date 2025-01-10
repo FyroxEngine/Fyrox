@@ -1637,7 +1637,7 @@ impl Visit for String {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut region = visitor.enter_region(name)?;
 
-        let mut len = self.as_bytes().len() as u32;
+        let mut len = self.len() as u32;
         len.visit("Length", &mut region)?;
 
         let mut data = if region.reading {

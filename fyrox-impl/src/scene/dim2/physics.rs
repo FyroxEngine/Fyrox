@@ -22,7 +22,6 @@
 
 use crate::{
     core::{
-        algebra::Point3,
         algebra::{
             Isometry2, Isometry3, Matrix4, Point2, Rotation3, Translation2, Translation3,
             UnitComplex, UnitQuaternion, UnitVector2, Vector2, Vector3,
@@ -36,7 +35,7 @@ use crate::{
         reflect::prelude::*,
         variable::{InheritableVariable, VariableFlags},
         visitor::prelude::*,
-        BiDirHashMap,
+        BiDirHashMap, ImmutableString,
     },
     graph::{BaseSceneGraph, SceneGraphNode},
     scene::{
@@ -53,7 +52,7 @@ use crate::{
             Graph, NodePool,
         },
         node::{Node, NodeTrait},
-        tilemap::{tileset::TileCollider, TileMap},
+        tilemap::TileMap,
     },
 };
 pub use rapier2d::geometry::shape::*;
@@ -79,6 +78,8 @@ use std::{
     num::NonZeroUsize,
     sync::Arc,
 };
+
+use super::collider::GeometrySource;
 
 /// A trait for ray cast results storage. It has two implementations: Vec and ArrayVec.
 /// Latter is needed for the cases where you need to avoid runtime memory allocations
@@ -323,14 +324,12 @@ fn convert_joint_params(
 }
 
 fn tile_map_to_collider_shape(
-    tile_map_shape: &TileMapShape,
+    tile_map: &GeometrySource,
     owner_inv_transform: Matrix4<f32>,
     nodes: &NodePool,
+    collider_name: &ImmutableString,
 ) -> Option<SharedShape> {
-    let tile_map_handle = tile_map_shape.tile_map.0;
-    let tile_map = nodes
-        .try_borrow(tile_map_handle)?
-        .component_ref::<TileMap>()?;
+    let tile_map = nodes.try_borrow(tile_map.0)?.component_ref::<TileMap>()?;
 
     let tile_set_resource = tile_map.tile_set()?.data_ref();
     let tile_set = tile_set_resource.as_loaded_ref()?;
@@ -338,49 +337,25 @@ fn tile_map_to_collider_shape(
     let tile_scale = tile_map.tile_scale();
     let global_transform = owner_inv_transform
         * tile_map.global_transform()
-        * Matrix4::new_nonuniform_scaling(&Vector3::new(tile_scale.x, tile_scale.y, 1.0));
+        * Matrix4::new_nonuniform_scaling(&Vector3::new(-tile_scale.x, tile_scale.y, 1.0));
 
     let mut vertices = Vec::new();
     let mut triangles = Vec::new();
 
-    for tile in tile_map.tiles().values() {
-        let Some(tile_definition) = tile_set.tiles.try_borrow(tile.definition_handle) else {
+    let collider_uuid = tile_set.collider_name_to_uuid(collider_name)?;
+    for tile in tile_map.iter() {
+        let Some(tile_definition) = tile_set.get_tile_data(tile.definition_handle.into()) else {
             continue;
         };
 
-        match tile_definition.collider {
-            TileCollider::None => {}
-            TileCollider::Rectangle => {
-                let origin = vertices.len() as u32;
-
-                let position = tile.position.cast::<f32>().to_homogeneous();
-                vertices.push(
-                    global_transform
-                        .transform_point(&Point3::from(position))
-                        .xy(),
-                );
-                vertices.push(
-                    global_transform
-                        .transform_point(&Point3::from(position + Vector3::new(1.0, 0.0, 0.0)))
-                        .xy(),
-                );
-                vertices.push(
-                    global_transform
-                        .transform_point(&Point3::from(position + Vector3::new(1.0, 1.0, 0.0)))
-                        .xy(),
-                );
-                vertices.push(
-                    global_transform
-                        .transform_point(&Point3::from(position + Vector3::new(0.0, 1.0, 0.0)))
-                        .xy(),
-                );
-
-                triangles.push([origin, origin + 1, origin + 2]);
-                triangles.push([origin, origin + 2, origin + 3]);
-            }
-            TileCollider::Mesh => {
-                // TODO: Add image-to-mesh conversion.
-            }
+        if let Some(collider) = tile_definition.colliders.get(&collider_uuid) {
+            let position = tile.position.cast::<f32>().to_homogeneous();
+            collider.build_collider_shape(
+                &global_transform,
+                position,
+                &mut vertices,
+                &mut triangles,
+            );
         }
     }
 
@@ -422,9 +397,10 @@ fn collider_shape_into_native_shape(
         ColliderShape::Heightfield(_) => {
             None // TODO
         }
-        ColliderShape::TileMap(tilemap) => {
-            tile_map_to_collider_shape(tilemap, owner_inv_transform, nodes)
-        }
+        ColliderShape::TileMap(TileMapShape {
+            tile_map,
+            layer_name: collider_layer_name,
+        }) => tile_map_to_collider_shape(tile_map, owner_inv_transform, nodes, collider_layer_name),
     }
 }
 

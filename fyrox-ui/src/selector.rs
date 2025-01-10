@@ -215,7 +215,7 @@ impl SelectorBuilder {
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         for (i, item) in self.items.iter().enumerate() {
-            ctx[*item].set_visibility(self.current.map_or(false, |current| current == i));
+            ctx[*item].set_visibility(self.current == Some(i));
         }
 
         let prev;

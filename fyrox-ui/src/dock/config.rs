@@ -205,6 +205,6 @@ impl DockingManagerLayoutDescriptor {
     pub fn has_window<S: AsRef<str>>(&self, window: S) -> bool {
         self.root_tile_descriptor
             .as_ref()
-            .map_or(false, |desc| desc.content.has_window(window.as_ref()))
+            .is_some_and(|desc| desc.content.has_window(window.as_ref()))
     }
 }

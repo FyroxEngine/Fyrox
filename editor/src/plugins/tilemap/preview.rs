@@ -19,15 +19,11 @@
 // SOFTWARE.
 
 use crate::{
-    asset::preview::{render_ui_to_texture, AssetPreviewGenerator, AssetPreviewTexture},
+    asset::preview::{AssetPreviewGenerator, AssetPreviewTexture},
     fyrox::{
         asset::{manager::ResourceManager, untyped::UntypedResource},
-        core::{algebra::Vector2, pool::Handle},
+        core::pool::Handle,
         engine::Engine,
-        gui::{
-            image::ImageBuilder, screen::ScreenBuilder, widget::WidgetBuilder,
-            wrap_panel::WrapPanelBuilder, Orientation, Thickness, UserInterface,
-        },
         scene::{node::Node, tilemap::tileset::TileSet, Scene},
     },
     load_image,
@@ -49,40 +45,14 @@ impl AssetPreviewGenerator for TileSetPreview {
     fn generate_preview(
         &mut self,
         resource: &UntypedResource,
-        engine: &mut Engine,
+        _engine: &mut Engine,
     ) -> Option<AssetPreviewTexture> {
         let tile_set_resource = resource.try_cast::<TileSet>()?;
-        let tile_set_data = tile_set_resource.data_ref();
-        let tile_set = tile_set_data.as_loaded_ref()?;
-        let mut ui = UserInterface::new(Vector2::new(256.0, 256.0));
-        let ctx = &mut ui.build_ctx();
-        ScreenBuilder::new(
-            WidgetBuilder::new().with_child(
-                WrapPanelBuilder::new(WidgetBuilder::new().with_children(
-                    tile_set.tiles.iter().map(|tile| {
-                        let texture = tile
-                            .material
-                            .data_ref()
-                            .as_loaded_ref()
-                            .and_then(|material| material.texture("diffuseTexture"));
-
-                        ImageBuilder::new(
-                            WidgetBuilder::new()
-                                .with_width(32.0)
-                                .with_height(32.0)
-                                .with_margin(Thickness::uniform(1.0)),
-                        )
-                        .with_uv_rect(tile.uv_rect)
-                        .with_opt_texture(texture)
-                        .build(ctx)
-                    }),
-                ))
-                .with_orientation(Orientation::Horizontal)
-                .build(ctx),
-            ),
-        )
-        .build(ctx);
-        render_ui_to_texture(&mut ui, engine)
+        let texture = tile_set_resource.state().data()?.preview_texture()?;
+        Some(AssetPreviewTexture {
+            texture,
+            flip_y: false,
+        })
     }
 
     fn simple_icon(

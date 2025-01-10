@@ -33,6 +33,7 @@ use crate::resource::texture::{
     CompressionOptions, TextureImportOptions, TextureMinificationFilter, TextureResource,
     TextureResourceExtension,
 };
+use crate::scene::tilemap::CustomTileCollider;
 use crate::{
     asset::{
         event::ResourceEvent,
@@ -982,7 +983,7 @@ impl ResourceGraphVertex {
                         .get_scene()
                         .graph
                         .linear_iter()
-                        .any(|n| n.resource.as_ref().map_or(false, |r| r == &model))
+                        .any(|n| n.resource.as_ref() == Some(&model))
                     {
                         dependent_resources.insert(other_model.clone());
                     }
@@ -1286,6 +1287,7 @@ pub(crate) fn initialize_resource_manager_loaders(
     state.constructors_container.add::<SurfaceData>();
     state.constructors_container.add::<TileSet>();
     state.constructors_container.add::<TileMapBrush>();
+    state.constructors_container.add::<CustomTileCollider>();
     state.constructors_container.add::<AnimationTracksData>();
     state.constructors_container.add::<Style>();
 
@@ -1311,7 +1313,9 @@ pub(crate) fn initialize_resource_manager_loaders(
     loaders.set(TileSetLoader {
         resource_manager: resource_manager.clone(),
     });
-    state.loaders.set(TileMapBrushLoader {});
+    state.loaders.set(TileMapBrushLoader {
+        resource_manager: resource_manager.clone(),
+    });
     state.loaders.set(StyleLoader);
 }
 

@@ -446,7 +446,7 @@ impl StateViewer {
                             if machine_layer
                                 .nodes()
                                 .try_borrow(pose_node.model_handle)
-                                .map_or(false, |node| node.parent_state == self.state.into())
+                                .is_some_and(|node| node.parent_state == self.state.into())
                             {
                                 true
                             } else {

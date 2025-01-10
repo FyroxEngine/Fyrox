@@ -22,102 +22,419 @@
 //! build game worlds quickly and easily. See [`TileMap`] docs for more info and usage examples.
 
 pub mod brush;
+mod effect;
+mod property;
+mod tile_collider;
+mod tile_rect;
+mod tile_source;
 pub mod tileset;
+mod transform;
+mod update;
 
-use crate::scene::node::constructor::NodeConstructor;
+use brush::*;
+pub use effect::*;
+use fxhash::FxHashSet;
+use fyrox_core::{
+    math::{frustum::Frustum, plane::Plane, ray::Ray},
+    parking_lot::Mutex,
+};
+pub use tile_collider::*;
+pub use tile_rect::*;
+pub use tile_source::*;
+use tileset::*;
+pub use transform::*;
+pub use update::*;
+
 use crate::{
+    asset::{untyped::ResourceKind, ResourceDataRef},
     core::{
-        algebra::{Vector2, Vector3},
-        math::{aabb::AxisAlignedBoundingBox, Rect, TriangleDefinition},
+        algebra::{Matrix4, Vector2, Vector3},
+        color::Color,
+        math::{aabb::AxisAlignedBoundingBox, Matrix4Ext, TriangleDefinition},
         pool::Handle,
         reflect::prelude::*,
         type_traits::prelude::*,
         variable::InheritableVariable,
         visitor::prelude::*,
+        ImmutableString,
     },
-    graph::BaseSceneGraph,
-    rand::{seq::IteratorRandom, thread_rng},
+    graph::{constructor::ConstructorProvider, BaseSceneGraph},
+    material::{Material, MaterialResource, STANDARD_2D},
     renderer::{self, bundle::RenderContext},
     scene::{
         base::{Base, BaseBuilder},
-        dim2::rectangle::RectangleVertex,
         graph::Graph,
-        mesh::{buffer::VertexTrait, RenderPath},
-        node::{Node, NodeTrait, RdcControlFlow},
-        tilemap::{
-            brush::{TileMapBrush, TileMapBrushResource},
-            tileset::{TileDefinitionHandle, TileSetResource},
+        mesh::{
+            buffer::{
+                VertexAttributeDataType, VertexAttributeDescriptor, VertexAttributeUsage,
+                VertexTrait,
+            },
+            RenderPath,
         },
+        node::{Node, NodeTrait, RdcControlFlow},
         Scene,
     },
 };
-use fxhash::{FxHashMap, FxHashSet};
-use fyrox_graph::constructor::ConstructorProvider;
-use std::ops::{Deref, DerefMut};
+use bytemuck::{Pod, Zeroable};
+use std::{
+    error::Error,
+    fmt::Display,
+    ops::{Deref, DerefMut},
+    path::PathBuf,
+};
 
-struct BresenhamLineIter {
-    dx: i32,
-    dy: i32,
-    x: i32,
-    y: i32,
-    error: i32,
-    end_x: i32,
-    is_steep: bool,
-    y_step: i32,
+use super::{dim2::rectangle::RectangleVertex, node::constructor::NodeConstructor};
+
+use crate::lazy_static::*;
+
+lazy_static! {
+    /// The default material for tiles that have no material set.
+    pub static ref DEFAULT_TILE_MATERIAL: MaterialResource = MaterialResource::new_ok(
+        ResourceKind::External("__DefaultTileMaterial".into()),
+        Material::standard_tile()
+    );
 }
 
-impl BresenhamLineIter {
-    fn new(start: Vector2<i32>, end: Vector2<i32>) -> BresenhamLineIter {
-        let (mut x0, mut y0) = (start.x, start.y);
-        let (mut x1, mut y1) = (end.x, end.y);
+/// Context for rendering tiles in a tile map. It is especially used by
+/// [`TileMapEffect`] objects.
+pub struct TileMapRenderContext<'a, 'b> {
+    /// The underlying render context that tiles will be rendered into.
+    pub context: &'a mut RenderContext<'b>,
+    /// The handle of the TileMap.
+    tile_map_handle: Handle<Node>,
+    /// The global transformation of the TileMap.
+    transform: Matrix4<f32>,
+    /// The visible tile positions.
+    bounds: OptionTileRect,
+    hidden_tiles: &'a mut FxHashSet<Vector2<i32>>,
+    tile_set: OptionTileSet<'a>,
+}
 
-        let is_steep = (y1 - y0).abs() > (x1 - x0).abs();
-        if is_steep {
-            std::mem::swap(&mut x0, &mut y0);
-            std::mem::swap(&mut x1, &mut y1);
+impl TileMapRenderContext<'_, '_> {
+    /// The transformation to apply before rendering
+    pub fn transform(&self) -> &Matrix4<f32> {
+        &self.transform
+    }
+    /// The handle of the [`TileMap`] node
+    pub fn tile_map_handle(&self) -> Handle<Node> {
+        self.tile_map_handle
+    }
+    /// The global position of the TileMap
+    pub fn position(&self) -> Vector3<f32> {
+        self.transform.position()
+    }
+    /// The area of tiles that are touching the frustum
+    pub fn visible_bounds(&self) -> OptionTileRect {
+        self.bounds
+    }
+    /// Set a position to false in order to prevent later effects from rendering
+    /// a tile at this position. All positions are true by default.
+    /// Normally, once a tile has been rendered at a position, the position
+    /// should be set to false to prevent a second tile from being rendered
+    /// at the same position.
+    pub fn set_tile_visible(&mut self, position: Vector2<i32>, is_visible: bool) {
+        if is_visible {
+            let _ = self.hidden_tiles.remove(&position);
+        } else {
+            let _ = self.hidden_tiles.insert(position);
         }
+    }
+    /// True if tiles should be rendered at that position.
+    /// Normally this should always be checked before rendering a tile
+    /// to prevent the rendering from conflicting with some previous
+    /// effect that has set the position to false.
+    pub fn is_tile_visible(&self, position: Vector2<i32>) -> bool {
+        !self.hidden_tiles.contains(&position)
+    }
+    /// Render the tile with the given handle at the given position.
+    /// Normally [`TileMapRenderContext::is_tile_visible`] should be checked before calling this method
+    /// to ensure that tiles are permitted to be rendered at this position,
+    /// and then [`TileMapRenderContext::set_tile_visible`] should be used to set the position to false
+    /// to prevent any future effects from rendering at this position.
+    pub fn draw_tile(&mut self, position: Vector2<i32>, handle: TileDefinitionHandle) {
+        let Some(data) = self.tile_set.get_tile_render_data(handle.into()) else {
+            return;
+        };
+        self.push_tile(position, &data);
+    }
 
-        if x0 > x1 {
-            std::mem::swap(&mut x0, &mut x1);
-            std::mem::swap(&mut y0, &mut y1);
+    /// Render the given tile data at the given cell position. This makes it possible to render
+    /// a tile that is not in the tile map's tile set.
+    pub fn push_tile(&mut self, position: Vector2<i32>, data: &TileRenderData) {
+        let color = data.color;
+        if let Some(tile_bounds) = data.material_bounds.as_ref() {
+            let material = &tile_bounds.material;
+            let bounds = &tile_bounds.bounds;
+            self.push_material_tile(position, material, bounds, color);
+        } else {
+            self.push_color_tile(position, color);
         }
+    }
 
-        let dx = x1 - x0;
+    fn push_color_tile(&mut self, position: Vector2<i32>, color: Color) {
+        let position = position.cast::<f32>();
+        let vertices = [(0.0, 1.0), (1.0, 1.0), (1.0, 0.0), (0.0, 0.0)]
+            .map(|(x, y)| Vector2::new(x, y))
+            .map(|p| make_rect_vertex(&self.transform, position + p, color));
 
-        BresenhamLineIter {
-            dx,
-            dy: (y1 - y0).abs(),
-            x: x0,
-            y: y0,
-            error: dx / 2,
-            end_x: x1,
-            is_steep,
-            y_step: if y0 < y1 { 1 } else { -1 },
-        }
+        let triangles = [[0, 1, 2], [2, 3, 0]].map(TriangleDefinition);
+
+        let sort_index = self.context.calculate_sorting_index(self.position());
+
+        self.context.storage.push_triangles(
+            RectangleVertex::layout(),
+            &STANDARD_2D.resource,
+            RenderPath::Forward,
+            sort_index,
+            self.tile_map_handle,
+            &mut move |mut vertex_buffer, mut triangle_buffer| {
+                let start_vertex_index = vertex_buffer.vertex_count();
+
+                vertex_buffer.push_vertices(&vertices).unwrap();
+
+                triangle_buffer
+                    .push_triangles_iter_with_offset(start_vertex_index, triangles.into_iter());
+            },
+        );
+    }
+
+    fn push_material_tile(
+        &mut self,
+        position: Vector2<i32>,
+        material: &MaterialResource,
+        bounds: &TileBounds,
+        color: Color,
+    ) {
+        let position = position.cast::<f32>();
+        let uvs = [
+            bounds.right_top_corner,
+            bounds.left_top_corner,
+            bounds.left_bottom_corner,
+            bounds.right_bottom_corner,
+        ];
+        let vertices = [
+            (1.0, 1.0, uvs[0]),
+            (0.0, 1.0, uvs[1]),
+            (0.0, 0.0, uvs[2]),
+            (1.0, 0.0, uvs[3]),
+        ]
+        .map(|(x, y, uv)| (Vector2::new(x, y), uv))
+        .map(|(p, uv)| make_tile_vertex(&self.transform, position + p, uv, color));
+
+        let triangles = [[0, 1, 2], [2, 3, 0]].map(TriangleDefinition);
+
+        let sort_index = self.context.calculate_sorting_index(self.position());
+
+        self.context.storage.push_triangles(
+            TileVertex::layout(),
+            material,
+            RenderPath::Forward,
+            sort_index,
+            self.tile_map_handle,
+            &mut move |mut vertex_buffer, mut triangle_buffer| {
+                let start_vertex_index = vertex_buffer.vertex_count();
+
+                vertex_buffer.push_vertices(&vertices).unwrap();
+
+                triangle_buffer
+                    .push_triangles_iter_with_offset(start_vertex_index, triangles.into_iter());
+            },
+        );
     }
 }
 
-impl Iterator for BresenhamLineIter {
-    type Item = Vector2<i32>;
+fn make_rect_vertex(
+    transform: &Matrix4<f32>,
+    position: Vector2<f32>,
+    color: Color,
+) -> RectangleVertex {
+    RectangleVertex {
+        position: transform
+            .transform_point(&position.to_homogeneous().into())
+            .coords,
+        tex_coord: Vector2::default(),
+        color,
+    }
+}
 
-    fn next(&mut self) -> Option<Vector2<i32>> {
-        if self.x > self.end_x {
-            None
+fn make_tile_vertex(
+    transform: &Matrix4<f32>,
+    position: Vector2<f32>,
+    tex_coord: Vector2<u32>,
+    color: Color,
+) -> TileVertex {
+    TileVertex {
+        position: transform
+            .transform_point(&position.to_homogeneous().into())
+            .coords,
+        tex_coord: tex_coord.cast::<f32>(),
+        color,
+    }
+}
+
+/// A record whether a change has happened since the most recent save.
+#[derive(Default, Debug, Copy, Clone)]
+pub struct ChangeFlag(bool);
+
+impl ChangeFlag {
+    /// True if there are changes.
+    #[inline]
+    pub fn needs_save(&self) -> bool {
+        self.0
+    }
+    /// Reset the flag to indicate that there are no unsaved changes.
+    #[inline]
+    pub fn reset(&mut self) {
+        self.0 = false;
+    }
+    /// Set the flat to indicate that there could be unsaved changes.
+    #[inline]
+    pub fn set(&mut self) {
+        self.0 = true;
+    }
+}
+
+/// A vertex for tiles.
+#[derive(Copy, Clone, Debug, Default, Pod, Zeroable)]
+#[repr(C)] // OpenGL expects this structure packed as in C
+pub struct TileVertex {
+    /// Position of vertex in local coordinates.
+    pub position: Vector3<f32>,
+    /// Texture coordinates measured in pixels.
+    pub tex_coord: Vector2<f32>,
+    /// Diffuse color.
+    pub color: Color,
+}
+
+impl VertexTrait for TileVertex {
+    fn layout() -> &'static [VertexAttributeDescriptor] {
+        &[
+            VertexAttributeDescriptor {
+                usage: VertexAttributeUsage::Position,
+                data_type: VertexAttributeDataType::F32,
+                size: 3,
+                divisor: 0,
+                shader_location: 0,
+                normalized: false,
+            },
+            VertexAttributeDescriptor {
+                usage: VertexAttributeUsage::TexCoord0,
+                data_type: VertexAttributeDataType::F32,
+                size: 2,
+                divisor: 0,
+                shader_location: 1,
+                normalized: false,
+            },
+            VertexAttributeDescriptor {
+                usage: VertexAttributeUsage::Color,
+                data_type: VertexAttributeDataType::U8,
+                size: 4,
+                divisor: 0,
+                shader_location: 2,
+                normalized: true,
+            },
+        ]
+    }
+}
+
+/// Each brush and tile set has two palette areas: the pages and the tiles within each page.
+/// These two areas are called stages, and each of the two stages needs to be handled separately.
+/// Giving a particular `TilePaletteStage` to a tile map palette will control which kind of
+/// tiles it will display.
+#[derive(Clone, Copy, Default, Debug, Visit, Reflect, PartialEq)]
+pub enum TilePaletteStage {
+    /// The page tile stage. These tiles allow the user to select which page they want to use.
+    #[default]
+    Pages,
+    /// The stage for tiles within a page.
+    Tiles,
+}
+
+/// Tile pages come in these types.
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum PageType {
+    /// A page where tiles get their material from a single shared tile atlas,
+    /// and the UV coordinates of the tile are based on its grid coordinates.
+    Atlas,
+    /// A page where each tile can be assigned any material and UV coordinates.
+    Freeform,
+    /// A page that contains no tile data, but contains handles referencing tiles
+    /// on other pages and specifies how tiles can be flipped and rotated.
+    Transform,
+    /// A brush page contains no tile data, but contains handles into a tile set
+    /// where tile data can be found.
+    Brush,
+}
+
+/// The position of a page or a tile within a tile resource.
+/// Despite the difference between pages and tiles, they have enough similarities
+/// that it is sometimes useful to view them abstractly as the same.
+/// Both pages and tiles have a `Vecto2<i32>` position.
+/// Both pages and tiles have a TileDefinitionHandle and are rendered using
+/// [`TileRenderData`]. For pages this is due to having an icon to allow the user to select the page.
+/// Both pages and tiles can be selected by the user, moved, and deleted.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum ResourceTilePosition {
+    /// This position refers to some page, and so it lacks tile coordinates.
+    Page(Vector2<i32>),
+    /// This position refers to some tile, and so it has page coordinates and
+    /// the coordinates of the tile within the page.
+    Tile(Vector2<i32>, Vector2<i32>),
+}
+
+impl From<TileDefinitionHandle> for ResourceTilePosition {
+    fn from(value: TileDefinitionHandle) -> Self {
+        Self::Tile(value.page(), value.tile())
+    }
+}
+
+impl ResourceTilePosition {
+    /// Construct a position from the given stage, page, and tile.
+    /// If the stage is [`TilePaletteStage::Pages`] then this position is refering to some page
+    /// as if it were a tile, and therefore the `page` argument is ignored and the `tile` argument
+    /// is taken as the page's position.
+    pub fn new(stage: TilePaletteStage, page: Vector2<i32>, tile: Vector2<i32>) -> Self {
+        match stage {
+            TilePaletteStage::Pages => Self::Page(tile),
+            TilePaletteStage::Tiles => Self::Tile(page, tile),
+        }
+    }
+    /// This position refers to some page.
+    pub fn is_page(&self) -> bool {
+        matches!(self, Self::Page(_))
+    }
+    /// This position refers to a tile within a page.
+    pub fn is_tile(&self) -> bool {
+        matches!(self, Self::Tile(_, _))
+    }
+    /// The stage that contains this position.
+    pub fn stage(&self) -> TilePaletteStage {
+        match self {
+            Self::Page(_) => TilePaletteStage::Pages,
+            Self::Tile(_, _) => TilePaletteStage::Tiles,
+        }
+    }
+    /// The position within the stage. For a page position, this is the page's coordinates.
+    /// For a tile position, this is the tile's coordinates.
+    pub fn stage_position(&self) -> Vector2<i32> {
+        match self {
+            Self::Page(p) => *p,
+            Self::Tile(_, p) => *p,
+        }
+    }
+    /// The page coordinates of the position. For a page position, this is
+    pub fn page(&self) -> Vector2<i32> {
+        match self {
+            Self::Page(p) => *p,
+            Self::Tile(p, _) => *p,
+        }
+    }
+    /// The handle associated with this position, if this is a tile position.
+    pub fn handle(&self) -> Option<TileDefinitionHandle> {
+        if let Self::Tile(p, t) = self {
+            TileDefinitionHandle::try_new(*p, *t)
         } else {
-            let ret = if self.is_steep {
-                Vector2::new(self.y, self.x)
-            } else {
-                Vector2::new(self.x, self.y)
-            };
-
-            self.x += 1;
-            self.error -= self.dy;
-            if self.error < 0 {
-                self.y += self.y_step;
-                self.error += self.dx;
-            }
-
-            Some(ret)
+            None
         }
     }
 }
@@ -133,394 +450,632 @@ pub struct Tile {
     pub definition_handle: TileDefinitionHandle,
 }
 
-/// A set of tiles.
-#[derive(Clone, Reflect, Debug, Default, PartialEq)]
-pub struct Tiles(FxHashMap<Vector2<i32>, Tile>);
+/// Adapt an iterator over positions into an iterator over `(Vector2<i32>, TileHandleDefinition)`.
+#[derive(Debug, Clone)]
+pub struct TileIter<I> {
+    source: TileBook,
+    stage: TilePaletteStage,
+    page: Vector2<i32>,
+    positions: I,
+}
 
-impl Visit for Tiles {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        self.0.visit(name, visitor)
+impl<I: Iterator<Item = Vector2<i32>>> Iterator for TileIter<I> {
+    type Item = (Vector2<i32>, TileDefinitionHandle);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.positions.find_map(|p| {
+            let h = self
+                .source
+                .get_tile_handle(ResourceTilePosition::new(self.stage, self.page, p))?;
+            Some((p, h))
+        })
     }
 }
 
-impl Deref for Tiles {
-    type Target = FxHashMap<Vector2<i32>, Tile>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
+#[derive(Debug, Default, Clone, PartialEq, Visit, Reflect)]
+/// Abstract source of tiles, which can either be a tile set or a brush.
+/// It is called a "book" because each of these tile resources contains
+/// pages of tiles.
+pub enum TileBook {
+    /// A tile resource containing no tiles.
+    #[default]
+    Empty,
+    /// Getting tiles from a tile set
+    TileSet(TileSetResource),
+    /// Getting tiles from a brush
+    Brush(TileMapBrushResource),
 }
 
-impl Tiles {
-    /// Calculates bounding rectangle in grid coordinates.
+impl TileBook {
+    /// The TileDefinitionHandle of the icon that represents the page at the given position.
     #[inline]
-    pub fn bounding_rect(&self) -> Rect<i32> {
-        if self.0.is_empty() {
-            return Rect::default();
-        }
-
-        let mut min = Vector2::repeat(i32::MAX);
-        let mut max = Vector2::repeat(i32::MIN);
-
-        for tile in self.0.values() {
-            min = tile.position.inf(&min);
-
-            let right_bottom_corner = tile.position + Vector2::repeat(1);
-            max = right_bottom_corner.sup(&max);
-        }
-
-        Rect::from_points(min, max)
-    }
-
-    /// Draws on the tile map using the given brush.
-    #[inline]
-    pub fn draw(&mut self, origin: Vector2<i32>, brush: &TileMapBrush) {
-        for brush_tile in brush.tiles.iter() {
-            self.insert(Tile {
-                position: origin + brush_tile.local_position,
-                definition_handle: brush_tile.definition_handle,
-            });
+    pub fn page_icon(&self, position: Vector2<i32>) -> Option<TileDefinitionHandle> {
+        match self {
+            TileBook::Empty => None,
+            TileBook::TileSet(r) => r.state().data()?.page_icon(position),
+            TileBook::Brush(r) => r.state().data()?.page_icon(position),
         }
     }
-
-    /// Erases the tiles under the given brush.
+    /// Returns true if this resource is a tile set.
     #[inline]
-    pub fn erase(&mut self, origin: Vector2<i32>, brush: &TileMapBrush) {
-        for brush_tile in brush.tiles.iter() {
-            self.remove(origin + brush_tile.local_position);
+    pub fn is_tile_set(&self) -> bool {
+        matches!(self, TileBook::TileSet(_))
+    }
+    /// Returns true if this resource is a brush.
+    #[inline]
+    pub fn is_brush(&self) -> bool {
+        matches!(self, TileBook::Brush(_))
+    }
+    /// Returns true if this contains no resource.
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        matches!(self, TileBook::Empty)
+    }
+    /// Return the path of the resource as a String.
+    pub fn name(&self) -> String {
+        self.path()
+            .map(|x| x.to_string_lossy().into_owned())
+            .unwrap_or_else(|| "Error".into())
+    }
+    /// Return the path of the resource.
+    pub fn path(&self) -> Option<PathBuf> {
+        match self {
+            TileBook::Empty => None,
+            TileBook::TileSet(r) => r.kind().into_path(),
+            TileBook::Brush(r) => r.kind().into_path(),
         }
     }
-
-    /// Inserts a tile in the tile container. Returns previous tile, located at the same position as
-    /// the new one (if any).
-    #[inline]
-    pub fn insert(&mut self, tile: Tile) -> Option<Tile> {
-        self.0.insert(tile.position, tile)
+    /// True if the resource is external and its `change_count` is not zero.
+    pub fn needs_save(&self) -> bool {
+        match self {
+            TileBook::Empty => false,
+            TileBook::TileSet(r) => {
+                r.header().kind.is_external() && r.data_ref().change_count.needs_save()
+            }
+            TileBook::Brush(r) => {
+                r.header().kind.is_external() && r.data_ref().change_count.needs_save()
+            }
+        }
     }
-
-    /// Tries to remove a tile at the given position.
-    #[inline]
-    pub fn remove(&mut self, position: Vector2<i32>) -> Option<Tile> {
-        self.0.remove(&position)
+    /// Attempt to save the resource to its file, if it has one and if `change_count` not zero.
+    /// Otherwise do nothing and return Ok to indicate success.
+    pub fn save(&self) -> Result<(), Box<dyn Error>> {
+        match self {
+            TileBook::Empty => Ok(()),
+            TileBook::TileSet(r) => {
+                if r.header().kind.is_external() && r.data_ref().change_count.needs_save() {
+                    let result = r.save_back();
+                    if result.is_ok() {
+                        r.data_ref().change_count.reset();
+                    }
+                    result
+                } else {
+                    Ok(())
+                }
+            }
+            TileBook::Brush(r) => {
+                if r.header().kind.is_external() && r.data_ref().change_count.needs_save() {
+                    let result = r.save_back();
+                    if result.is_ok() {
+                        r.data_ref().change_count.reset();
+                    }
+                    result
+                } else {
+                    Ok(())
+                }
+            }
+        }
     }
-
-    /// Clears the tile container.
-    #[inline]
-    pub fn clear(&mut self) {
-        self.0.clear();
+    /// A reference to the TileSetResource, if this is a TileSetResource.
+    pub fn tile_set_ref(&self) -> Option<&TileSetResource> {
+        match self {
+            TileBook::TileSet(r) => Some(r),
+            _ => None,
+        }
     }
-
-    /// Tries to fetch tile definition index at the given point.
-    #[inline]
-    pub fn definition_at(&self, point: Vector2<i32>) -> Option<TileDefinitionHandle> {
-        self.0.get(&point).map(|tile| tile.definition_handle)
+    /// Returns the tile set associated with this resource.
+    /// If the resource is a tile set, the return that tile set.
+    /// If the resource is a brush, then return the tile set used by that brush.
+    pub fn get_tile_set(&self) -> Option<TileSetResource> {
+        match self {
+            TileBook::Empty => None,
+            TileBook::TileSet(r) => Some(r.clone()),
+            TileBook::Brush(r) => r.state().data()?.tile_set.clone(),
+        }
     }
-
-    /// Fills the tile map at the given point using random tiles from the given brush. This method
-    /// extends tile map when trying to fill at a point that lies outside the bounding rectangle.
-    /// Keep in mind, that flood fill is only possible either on free cells or on cells with the same
-    /// tile kind.
-    #[inline]
-    pub fn flood_fill_immutable(
+    /// Build a list of the positions of all tiles on the given page.
+    pub fn get_all_tile_positions(&self, page: Vector2<i32>) -> Vec<Vector2<i32>> {
+        match self {
+            TileBook::Empty => Vec::new(),
+            TileBook::TileSet(r) => r
+                .state()
+                .data()
+                .map(|r| r.keys_on_page(page))
+                .unwrap_or_default(),
+            TileBook::Brush(r) => r
+                .state()
+                .data()
+                .and_then(|r| {
+                    r.pages
+                        .get(&page)
+                        .map(|p| p.tiles.keys().copied().collect())
+                })
+                .unwrap_or_default(),
+        }
+    }
+    /// Build a list of the posiitons of all pages.
+    pub fn get_all_page_positions(&self) -> Vec<Vector2<i32>> {
+        match self {
+            TileBook::Empty => Vec::new(),
+            TileBook::TileSet(r) => r.state().data().map(|r| r.page_keys()).unwrap_or_default(),
+            TileBook::Brush(r) => r
+                .state()
+                .data()
+                .map(|r| r.pages.keys().copied().collect())
+                .unwrap_or_default(),
+        }
+    }
+    /// True if there is a page at the given position.
+    pub fn has_page_at(&self, position: Vector2<i32>) -> bool {
+        match self {
+            TileBook::Empty => false,
+            TileBook::TileSet(r) => r
+                .state()
+                .data()
+                .map(|r| r.pages.contains_key(&position))
+                .unwrap_or(false),
+            TileBook::Brush(r) => r
+                .state()
+                .data()
+                .map(|r| r.pages.contains_key(&position))
+                .unwrap_or(false),
+        }
+    }
+    /// The type of the page at the given position, if there is one.
+    pub fn page_type(&self, position: Vector2<i32>) -> Option<PageType> {
+        match self {
+            TileBook::Empty => None,
+            TileBook::TileSet(r) => r.state().data()?.get_page(position).map(|p| p.page_type()),
+            TileBook::Brush(r) => {
+                if r.state().data()?.has_page_at(position) {
+                    Some(PageType::Brush)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+    /// True if there is a atlas page at the given coordinates.
+    pub fn is_atlas_page(&self, position: Vector2<i32>) -> bool {
+        self.page_type(position) == Some(PageType::Atlas)
+    }
+    /// True if there is a free tile page at the given coordinates.
+    pub fn is_free_page(&self, position: Vector2<i32>) -> bool {
+        self.page_type(position) == Some(PageType::Freeform)
+    }
+    /// True if there is a transform page at the given coordinates.
+    pub fn is_transform_page(&self, position: Vector2<i32>) -> bool {
+        self.page_type(position) == Some(PageType::Transform)
+    }
+    /// True if there is a brush page at the given coordinates.
+    pub fn is_brush_page(&self, position: Vector2<i32>) -> bool {
+        self.page_type(position) == Some(PageType::Brush)
+    }
+    /// Return true if there is a tile at the given position on the page at the given position.
+    pub fn has_tile_at(&self, page: Vector2<i32>, tile: Vector2<i32>) -> bool {
+        match self {
+            TileBook::Empty => false,
+            TileBook::TileSet(r) => r
+                .state()
+                .data()
+                .map(|r| r.has_tile_at(page, tile))
+                .unwrap_or(false),
+            TileBook::Brush(r) => r
+                .state()
+                .data()
+                .map(|r| r.has_tile_at(page, tile))
+                .unwrap_or(false),
+        }
+    }
+    /// Returns the TileDefinitionHandle that points to the data in the tile set that represents this tile.
+    /// Even if this resource is actually a brush, the handle returned still refers to some page and position
+    /// in the brush's tile set.
+    pub fn get_tile_handle(&self, position: ResourceTilePosition) -> Option<TileDefinitionHandle> {
+        match self {
+            TileBook::Empty => None,
+            TileBook::TileSet(r) => r.state().data()?.redirect_handle(position),
+            TileBook::Brush(r) => r.state().data()?.redirect_handle(position),
+        }
+    }
+    /// Returns an iterator over `(Vector2<i32>, TileDefinitionHandle)` where the first
+    /// member of the pair is the position of the tile on the page as provided by `positions`
+    /// and the second member is the handle that would be returned from [`get_tile_handle`](Self::get_tile_handle).
+    pub fn get_tile_iter<I: Iterator<Item = Vector2<i32>>>(
         &self,
-        start_point: Vector2<i32>,
-        brush: &TileMapBrush,
-    ) -> Vec<Tile> {
-        let mut bounds = self.bounding_rect();
-        bounds.push(start_point);
-
-        let allowed_definition = self.definition_at(start_point);
-        let mut visited = FxHashSet::default();
-        let mut tiles = Vec::new();
-        let mut stack = vec![start_point];
-        while let Some(position) = stack.pop() {
-            let definition = self.definition_at(position);
-            if definition == allowed_definition && !visited.contains(&position) {
-                if let Some(random_tile) = brush.tiles.iter().choose(&mut thread_rng()) {
-                    tiles.push(Tile {
-                        position,
-                        definition_handle: random_tile.definition_handle,
-                    });
+        stage: TilePaletteStage,
+        page: Vector2<i32>,
+        positions: I,
+    ) -> TileIter<I> {
+        TileIter {
+            source: self.clone(),
+            stage,
+            page,
+            positions,
+        }
+    }
+    /// Construct a Tiles object holding the tile definition handles for the tiles
+    /// at the given positions on the given page.
+    pub fn get_tiles<I: Iterator<Item = Vector2<i32>>>(
+        &self,
+        stage: TilePaletteStage,
+        page: Vector2<i32>,
+        iter: I,
+        tiles: &mut Tiles,
+    ) {
+        match self {
+            TileBook::Empty => (),
+            TileBook::TileSet(res) => {
+                if let Some(tile_set) = res.state().data() {
+                    tile_set.get_tiles(stage, page, iter, tiles);
                 }
-
-                visited.insert(position);
-
-                // Continue on neighbours.
-                for neighbour_position in [
-                    Vector2::new(position.x - 1, position.y),
-                    Vector2::new(position.x + 1, position.y),
-                    Vector2::new(position.x, position.y - 1),
-                    Vector2::new(position.x, position.y + 1),
-                ] {
-                    if bounds.contains(neighbour_position) {
-                        stack.push(neighbour_position);
-                    }
+            }
+            TileBook::Brush(res) => {
+                if let Some(brush) = res.state().data() {
+                    brush.get_tiles(stage, page, iter, tiles);
                 }
             }
         }
-        tiles
     }
 
-    /// Fills the tile map at the given point using random tiles from the given brush. This method
-    /// extends tile map when trying to fill at a point that lies outside the bounding rectangle.
+    /// Returns true if the resource is a brush that has no tile set.
+    pub fn is_missing_tile_set(&self) -> bool {
+        match self {
+            TileBook::Empty => false,
+            TileBook::TileSet(_) => false,
+            TileBook::Brush(resource) => resource
+                .state()
+                .data()
+                .map(|b| b.is_missing_tile_set())
+                .unwrap_or(false),
+        }
+    }
+
+    /// Return the `TileRenderData` needed to render the tile at the given position on the given page.
+    /// If there is no tile at that position or the tile set is missing or not loaded, then None is returned.
+    /// If there is a tile and a tile set, but the handle of the tile does not exist in the tile set,
+    /// then the rendering data for an error tile is returned using `TileRenderData::missing_tile()`.
+    ///
+    /// Beware that this method is *slow.* Like most methods in `TileBook`, this method involves
+    /// locking a resource, so none of them should be called many times per frame, as one might be
+    /// tempted to do with this method. Do *not* render a `TileBook` by repeatedly calling this
+    /// method. Use [`tile_render_loop`](Self::tile_render_loop) instead.
+    pub fn get_tile_render_data(&self, position: ResourceTilePosition) -> Option<TileRenderData> {
+        match self {
+            TileBook::Empty => None,
+            TileBook::TileSet(resource) => resource.state().data()?.get_tile_render_data(position),
+            TileBook::Brush(resource) => resource.state().data()?.get_tile_render_data(position),
+        }
+    }
+
+    /// Repeatedly call the given function with each tile for the given stage and page.
+    /// The function is given the position of the tile within the palette and the
+    /// data for rendering the tile.
+    pub fn tile_render_loop<F>(&self, stage: TilePaletteStage, page: Vector2<i32>, func: F)
+    where
+        F: FnMut(Vector2<i32>, TileRenderData),
+    {
+        match self {
+            TileBook::Empty => (),
+            TileBook::TileSet(res) => {
+                if let Some(data) = res.state().data() {
+                    data.palette_render_loop(stage, page, func)
+                }
+            }
+            TileBook::Brush(res) => {
+                if let Some(data) = res.state().data() {
+                    data.palette_render_loop(stage, page, func)
+                }
+            }
+        };
+    }
+    /// Repeatedly call the given function with each collider for each tile on the given page.
+    /// The function is given the position of the tile
+    pub fn tile_collider_loop<F>(&self, page: Vector2<i32>, func: F)
+    where
+        F: FnMut(Vector2<i32>, Uuid, Color, &TileCollider),
+    {
+        match self {
+            TileBook::Empty => (),
+            TileBook::TileSet(res) => {
+                if let Some(data) = res.state().data() {
+                    data.tile_collider_loop(page, func)
+                }
+            }
+            TileBook::Brush(_) => (),
+        };
+    }
+    /// Returns the rectangle within a material that a tile should show
+    /// at the given stage and handle.
+    pub fn get_tile_bounds(&self, position: ResourceTilePosition) -> Option<TileMaterialBounds> {
+        match self {
+            TileBook::Empty => None,
+            TileBook::TileSet(res) => res
+                .state()
+                .data()
+                .map(|d| d.get_tile_bounds(position))
+                .unwrap_or_default(),
+            TileBook::Brush(res) => res
+                .state()
+                .data()
+                .map(|d| d.get_tile_bounds(position))
+                .unwrap_or_default(),
+        }
+    }
+    /// The bounds of the tiles on the given page.
+    pub fn tiles_bounds(&self, stage: TilePaletteStage, page: Vector2<i32>) -> OptionTileRect {
+        match self {
+            TileBook::Empty => OptionTileRect::default(),
+            TileBook::TileSet(res) => res.data_ref().tiles_bounds(stage, page),
+            TileBook::Brush(res) => res.data_ref().tiles_bounds(stage, page),
+        }
+    }
+    /// Fills the tile resource at the given point using the given tile source. This method
+    /// extends the resource when trying to fill at a point that lies outside the bounding rectangle.
     /// Keep in mind, that flood fill is only possible either on free cells or on cells with the same
     /// tile kind.
-    #[inline]
-    pub fn flood_fill(&mut self, start_point: Vector2<i32>, brush: &TileMapBrush) {
-        for tile in self.flood_fill_immutable(start_point, brush) {
-            self.insert(tile);
-        }
-    }
-
-    /// Fills the given rectangle using the specified brush.
-    #[inline]
-    pub fn rect_fill(&mut self, rect: Rect<i32>, brush: &TileMapBrush) {
-        let brush_rect = brush.bounding_rect();
-
-        if brush_rect.size.x == 0 || brush_rect.size.y == 0 {
-            return;
-        }
-
-        for y in
-            (rect.position.y..(rect.position.y + rect.size.y)).step_by(brush_rect.size.y as usize)
-        {
-            for x in (rect.position.x..(rect.position.x + rect.size.x))
-                .step_by(brush_rect.size.x as usize)
-            {
-                for brush_tile in brush.tiles.iter() {
-                    let position =
-                        Vector2::new(x, y) + brush_tile.local_position - brush_rect.position;
-                    if position.x >= rect.position.x
-                        && position.x < rect.position.x + rect.size.x
-                        && position.y >= rect.position.y
-                        && position.y < rect.position.y + rect.size.y
-                    {
-                        self.insert(Tile {
-                            position,
-                            definition_handle: brush_tile.definition_handle,
-                        });
-                    }
-                }
-            }
-        }
-    }
-
-    /// Draw a line from a point to point.
-    #[inline]
-    pub fn draw_line(
-        &mut self,
-        from: Vector2<i32>,
-        to: Vector2<i32>,
-        definition_handle: TileDefinitionHandle,
+    pub fn flood_fill<S: TileSource>(
+        &self,
+        page: Vector2<i32>,
+        position: Vector2<i32>,
+        brush: &S,
+        tiles: &mut TransTilesUpdate,
     ) {
-        for position in BresenhamLineIter::new(from, to) {
-            self.insert(Tile {
-                position,
-                definition_handle,
-            });
-        }
-    }
-
-    /// Draw a line from a point to point using random tiles from the given brush.
-    #[inline]
-    pub fn draw_line_with_brush(
-        &mut self,
-        from: Vector2<i32>,
-        to: Vector2<i32>,
-        brush: &TileMapBrush,
-    ) {
-        for position in BresenhamLineIter::new(from, to) {
-            if let Some(random_tile) = brush.tiles.iter().choose(&mut thread_rng()) {
-                self.insert(Tile {
-                    position,
-                    definition_handle: random_tile.definition_handle,
-                });
+        match self {
+            TileBook::Empty => (),
+            TileBook::TileSet(_) => (),
+            TileBook::Brush(res) => {
+                let data = res.data_ref();
+                let Some(source) = data.pages.get(&page) else {
+                    return;
+                };
+                tiles.flood_fill(&source.tiles, position, brush);
             }
         }
     }
+}
 
-    /// Fills in a rectangle using special brush with 3x3 tiles. It puts
-    /// corner tiles in the respective corners of the target rectangle and draws lines between each
-    /// corner using middle tiles.
-    #[inline]
-    pub fn nine_slice(&mut self, rect: Rect<i32>, brush: &TileMapBrush) {
-        let brush_rect = brush.bounding_rect();
+/// The specification for how to render a tile.
+#[derive(Clone, Default, Debug)]
+pub struct TileRenderData {
+    /// The material to use to render this tile.
+    pub material_bounds: Option<TileMaterialBounds>,
+    /// The color to use to render the tile
+    pub color: Color,
+}
 
-        // Place corners first.
-        for (corner_position, actual_corner_position) in [
-            (Vector2::new(0, 0), rect.left_top_corner()),
-            (Vector2::new(2, 0), rect.right_top_corner()),
-            (Vector2::new(2, 2), rect.right_bottom_corner()),
-            (Vector2::new(0, 2), rect.left_bottom_corner()),
-        ] {
-            if let Some(tile) = brush
-                .tiles
-                .iter()
-                .find(|tile| tile.local_position - brush_rect.position == corner_position)
-            {
-                self.insert(Tile {
-                    position: actual_corner_position,
-                    definition_handle: tile.definition_handle,
-                });
-            }
+impl TileRenderData {
+    /// Returns TileRenderData to represent an error due to render data being unavailable.
+    pub fn missing_data() -> TileRenderData {
+        Self {
+            material_bounds: None,
+            color: Color::HOT_PINK,
         }
+    }
+}
 
-        // Fill gaps.
-        for (brush_tile_position, (begin, end)) in [
-            (
-                Vector2::new(0, 1),
-                (
-                    Vector2::new(rect.position.x, rect.position.y + 1),
-                    Vector2::new(rect.position.x, rect.position.y + rect.size.y - 1),
-                ),
-            ),
-            (
-                Vector2::new(1, 0),
-                (
-                    Vector2::new(rect.position.x + 1, rect.position.y),
-                    Vector2::new(rect.position.x + rect.size.x - 1, rect.position.y),
-                ),
-            ),
-            (
-                Vector2::new(2, 1),
-                (
-                    Vector2::new(rect.position.x + rect.size.x, rect.position.y + 1),
-                    Vector2::new(
-                        rect.position.x + rect.size.x,
-                        rect.position.y + rect.size.y - 1,
-                    ),
-                ),
-            ),
-            (
-                Vector2::new(1, 2),
-                (
-                    Vector2::new(rect.position.x + 1, rect.position.y + rect.size.y),
-                    Vector2::new(
-                        rect.position.x + rect.size.x - 1,
-                        rect.position.y + rect.size.y,
-                    ),
-                ),
-            ),
-        ] {
-            if let Some(tile) = brush
-                .tiles
-                .iter()
-                .find(|tile| tile.local_position - brush_rect.position == brush_tile_position)
-            {
-                self.draw_line(begin, end, tile.definition_handle);
-            }
-        }
+impl OrthoTransform for TileRenderData {
+    fn x_flipped(mut self) -> Self {
+        self.material_bounds = self.material_bounds.map(|b| b.x_flipped());
+        self
+    }
 
-        if let Some(center_tile) = brush
-            .tiles
-            .iter()
-            .find(|tile| tile.local_position - brush_rect.position == Vector2::new(1, 1))
-        {
-            self.flood_fill(
-                rect.center(),
-                &TileMapBrush {
-                    // TODO: Remove alloc.
-                    tiles: vec![center_tile.clone()],
-                },
-            );
-        }
+    fn rotated(mut self, amount: i8) -> Self {
+        self.material_bounds = self.material_bounds.map(|b| b.rotated(amount));
+        self
     }
 }
 
 /// Tile map is a 2D "image", made out of a small blocks called tiles. Tile maps used in 2D games to
-/// build game worlds quickly and easily.
+/// build game worlds quickly and easily. Each tile is represented by a [`TileDefinitionHandle`] which
+/// contains the position of a page and the position of a tile within that page.
 ///
-/// ## Example
+/// When rendering the `TileMap`, the rendering data is fetched from the tile map's tile set resource,
+/// which contains all the pages that may be referenced by the tile map's handles.
 ///
-/// The following example creates a simple tile map with two tile types - grass and stone. It creates
-/// stone foundation and lays grass on top of it.
-///
-/// ```rust
-/// use fyrox_impl::{
-///     asset::untyped::ResourceKind,
-///     core::{algebra::Vector2, color::Color, math::Rect, pool::Handle},
-///     material::{Material, MaterialResource},
-///     scene::{
-///         base::BaseBuilder,
-///         graph::Graph,
-///         node::Node,
-///         tilemap::{
-///             tileset::{TileCollider, TileDefinition, TileSet, TileSetResource},
-///             Tile, TileMapBuilder, Tiles,
-///         },
-///     },
-/// };
-///
-/// fn create_tile_map(graph: &mut Graph) -> Handle<Node> {
-///     // Each tile could have its own material, for simplicity it is just a standard 2D material.
-///     let material = MaterialResource::new_ok(ResourceKind::Embedded, Material::standard_2d());
-///
-///     // Create a tile set - it is a data source for the tile map. Tile map will reference the tiles
-///     // stored in the tile set by handles. We'll create two tile types with different colors.
-///     let mut tile_set = TileSet::default();
-///     let stone_tile = tile_set.add_tile(TileDefinition {
-///         material: material.clone(),
-///         uv_rect: Rect::new(0.0, 0.0, 1.0, 1.0),
-///         collider: TileCollider::Rectangle,
-///         color: Color::BROWN,
-///         position: Default::default(),
-///         properties: vec![],
-///     });
-///     let grass_tile = tile_set.add_tile(TileDefinition {
-///         material,
-///         uv_rect: Rect::new(0.0, 0.0, 1.0, 1.0),
-///         collider: TileCollider::Rectangle,
-///         color: Color::GREEN,
-///         position: Default::default(),
-///         properties: vec![],
-///     });
-///     let tile_set = TileSetResource::new_ok(ResourceKind::Embedded, tile_set);
-///
-///     let mut tiles = Tiles::default();
-///
-///     // Create stone foundation.
-///     for x in 0..10 {
-///         for y in 0..2 {
-///             tiles.insert(Tile {
-///                 position: Vector2::new(x, y),
-///                 definition_handle: stone_tile,
-///             });
-///         }
-///     }
-///
-///     // Add grass on top of it.
-///     for x in 0..10 {
-///         tiles.insert(Tile {
-///             position: Vector2::new(x, 2),
-///             definition_handle: grass_tile,
-///         });
-///     }
-///
-///     // Finally create the tile map.
-///     TileMapBuilder::new(BaseBuilder::new())
-///         .with_tile_set(tile_set)
-///         .with_tiles(tiles)
-///         .build(graph)
-/// }
-/// ```
-#[derive(Clone, Reflect, Debug, Visit, ComponentProvider, TypeUuidProvider)]
+/// Optional [`TileMapEffect`] objects may be included in the `TileMap` to change how it renders.
+#[derive(Reflect, Debug, Visit, ComponentProvider, TypeUuidProvider)]
 #[type_uuid(id = "aa9a3385-a4af-4faf-a69a-8d3af1a3aa67")]
 pub struct TileMap {
     base: Base,
+    /// The source of rendering data for tiles in this tile map.
     tile_set: InheritableVariable<Option<TileSetResource>>,
     /// Tile container of the tile map.
-    #[reflect(read_only)]
+    #[reflect(hidden)]
     pub tiles: InheritableVariable<Tiles>,
     tile_scale: InheritableVariable<Vector2<f32>>,
-    brushes: InheritableVariable<Vec<Option<TileMapBrushResource>>>,
     active_brush: InheritableVariable<Option<TileMapBrushResource>>,
-    /// Tiles that will be rendered on top of everything else.
-    #[reflect(read_only)]
+    /// Temporary space to store which tiles are invisible during `collect_render_data`.
+    /// This is part of how [`TileMapEffect`] can prevent a tile from being rendered.
+    #[reflect(hidden)]
     #[visit(skip)]
-    pub overlay_tiles: InheritableVariable<Tiles>,
+    hidden_tiles: Mutex<FxHashSet<Vector2<i32>>>,
+    /// Special rendering effects that may change how the tile map renders.
+    /// These effects are processed in order before the tile map performs the
+    /// normal rendering of tiles, and they can prevent some times from being
+    /// rendered and render other tiles in place of what would normally be
+    /// rendered.
+    #[reflect(hidden)]
+    #[visit(skip)]
+    pub before_effects: Vec<TileMapEffectRef>,
+    /// Special rendering effects that may change how the tile map renders.
+    /// These effects are processed in order after the tile map performs the
+    /// normal rendering of tiles.
+    #[reflect(hidden)]
+    #[visit(skip)]
+    pub after_effects: Vec<TileMapEffectRef>,
 }
 
+impl TileSource for TileMap {
+    fn transformation(&self) -> OrthoTransformation {
+        OrthoTransformation::default()
+    }
+    fn get_at(&self, position: Vector2<i32>) -> Option<TileDefinitionHandle> {
+        self.tiles.get_at(position)
+    }
+}
+
+/// A reference to the tile data of a some tile in a tile set.
+pub struct TileMapDataRef<'a> {
+    tile_set: ResourceDataRef<'a, TileSet>,
+    handle: TileDefinitionHandle,
+}
+
+impl Deref for TileMapDataRef<'_> {
+    type Target = TileData;
+
+    fn deref(&self) -> &Self::Target {
+        self.tile_set.tile_data(self.handle).unwrap()
+    }
+}
+
+/// An error in finding a property for a tile.
+#[derive(Debug)]
+pub enum TilePropertyError {
+    /// The tile map has no tile set, so not tile data is available.
+    MissingTileSet,
+    /// The tile map has a tile set, but it is not yet loaded.
+    TileSetNotLoaded,
+    /// There is no property with the given name in the tile set.
+    UnrecognizedName(ImmutableString),
+    /// There is no property with the given UUID in the tile set.
+    UnrecognizedUuid(Uuid),
+    /// The property has the wrong type.
+    WrongType(&'static str),
+}
+
+impl Display for TilePropertyError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TilePropertyError::MissingTileSet => write!(f, "The tile map has no tile set."),
+            TilePropertyError::TileSetNotLoaded => {
+                write!(f, "The tile map's tile set is not loaded.")
+            }
+            TilePropertyError::UnrecognizedName(name) => {
+                write!(f, "There is no property with this name: {name}")
+            }
+            TilePropertyError::UnrecognizedUuid(uuid) => {
+                write!(f, "There is no property with this UUID: {uuid}")
+            }
+            TilePropertyError::WrongType(message) => write!(f, "Property type error: {message}"),
+        }
+    }
+}
+
+impl Error for TilePropertyError {}
+
 impl TileMap {
+    /// The tile data for the tile at the given position, if that position has a tile and this tile map
+    /// has a tile set that contains data for the tile's handle.
+    pub fn tile_data(&self, position: Vector2<i32>) -> Option<TileMapDataRef> {
+        let handle = self.get_at(position)?;
+        let tile_set = self.tile_set.as_ref()?.data_ref();
+        if tile_set.as_loaded_ref()?.tile_data(handle).is_some() {
+            Some(TileMapDataRef { tile_set, handle })
+        } else {
+            None
+        }
+    }
+    /// The property value for the property of the given name for the tile at the given position in this tile map.
+    /// This requires that the tile map has a loaded tile set and the tile set contains a property with the given name.
+    /// Otherwise an error is returned to indicate which of these conditions failed.
+    /// If the only problem is that there is no tile at the given position, then the default value for the property's value type
+    /// is returned.
+    pub fn tile_property_value<T>(
+        &self,
+        position: Vector2<i32>,
+        property_id: Uuid,
+    ) -> Result<T, TilePropertyError>
+    where
+        T: TryFrom<TileSetPropertyValue, Error = TilePropertyError> + Default,
+    {
+        let tile_set = self
+            .tile_set
+            .as_ref()
+            .ok_or(TilePropertyError::MissingTileSet)?
+            .data_ref();
+        let tile_set = tile_set
+            .as_loaded_ref()
+            .ok_or(TilePropertyError::TileSetNotLoaded)?;
+        self.get_at(position)
+            .and_then(|handle| {
+                tile_set
+                    .property_value(handle, property_id)
+                    .map(T::try_from)
+            })
+            .unwrap_or_else(|| Ok(T::default()))
+    }
+    /// The property value for the property of the given name for the tile at the given position in this tile map.
+    /// This requires that the tile map has a loaded tile set and the tile set contains a property with the given name.
+    /// Otherwise an error is returned to indicate which of these conditions failed.
+    /// If the only problem is that there is no tile at the given position, then the default value for the property's value type
+    /// is returned.
+    pub fn tile_property_value_by_name(
+        &self,
+        position: Vector2<i32>,
+        property_name: &ImmutableString,
+    ) -> Result<TileSetPropertyValue, TilePropertyError> {
+        let tile_set = self
+            .tile_set
+            .as_ref()
+            .ok_or(TilePropertyError::MissingTileSet)?
+            .data_ref();
+        let tile_set = tile_set
+            .as_loaded_ref()
+            .ok_or(TilePropertyError::TileSetNotLoaded)?;
+        let property = tile_set
+            .find_property_by_name(property_name)
+            .ok_or_else(|| TilePropertyError::UnrecognizedName(property_name.clone()))?;
+        Ok(self
+            .get_at(position)
+            .and_then(|handle| tile_set.property_value(handle, property.uuid))
+            .unwrap_or_else(|| property.prop_type.default_value()))
+    }
+    /// The property value for the property of the given UUID for the tile at the given position in this tile map.
+    /// This requires that the tile map has a loaded tile set and the tile set contains a property with the given UUID.
+    /// Otherwise an error is returned to indicate which of these conditions failed.
+    /// If the only problem is that there is no tile at the given position, then the default value for the property's value type
+    /// is returned.
+    pub fn tile_property_value_by_uuid_untyped(
+        &self,
+        position: Vector2<i32>,
+        property_id: Uuid,
+    ) -> Result<TileSetPropertyValue, TilePropertyError> {
+        let tile_set = self
+            .tile_set
+            .as_ref()
+            .ok_or(TilePropertyError::MissingTileSet)?
+            .data_ref();
+        let tile_set = tile_set
+            .as_loaded_ref()
+            .ok_or(TilePropertyError::TileSetNotLoaded)?;
+        if let Some(value) = self.get_at(position).and_then(|handle| {
+            tile_set
+                .tile_data(handle)
+                .and_then(|d| d.properties.get(&property_id))
+        }) {
+            Ok(value.clone())
+        } else {
+            let property = tile_set
+                .find_property(property_id)
+                .ok_or(TilePropertyError::UnrecognizedUuid(property_id))?;
+            Ok(property.prop_type.default_value())
+        }
+    }
+    /// The global transform of the tile map with initial x-axis flip applied, so the positive x-axis points left instead of right.
+    pub fn tile_map_transform(&self) -> Matrix4<f32> {
+        self.global_transform()
+            .prepend_nonuniform_scaling(&Vector3::new(-1.0, 1.0, 1.0))
+    }
     /// Returns a reference to the current tile set (if any).
     #[inline]
     pub fn tile_set(&self) -> Option<&TileSetResource> {
@@ -537,6 +1092,20 @@ impl TileMap {
     #[inline]
     pub fn tiles(&self) -> &Tiles {
         &self.tiles
+    }
+
+    /// Returns a reference to the tile container.
+    #[inline]
+    pub fn tiles_mut(&mut self) -> &mut Tiles {
+        &mut self.tiles
+    }
+
+    /// Iterate the tiles.
+    pub fn iter(&self) -> impl Iterator<Item = Tile> + '_ {
+        self.tiles.iter().map(|(p, h)| Tile {
+            position: *p,
+            definition_handle: *h,
+        })
     }
 
     /// Sets new tiles.
@@ -560,20 +1129,24 @@ impl TileMap {
     /// Inserts a tile in the tile map. Returns previous tile, located at the same position as
     /// the new one (if any).
     #[inline]
-    pub fn insert_tile(&mut self, tile: Tile) -> Option<Tile> {
-        self.tiles.insert(tile)
+    pub fn insert_tile(
+        &mut self,
+        position: Vector2<i32>,
+        tile: TileDefinitionHandle,
+    ) -> Option<TileDefinitionHandle> {
+        self.tiles.insert(position, tile)
     }
 
     /// Removes a tile from the tile map.
     #[inline]
-    pub fn remove_tile(&mut self, position: Vector2<i32>) -> Option<Tile> {
-        self.tiles.remove(position)
+    pub fn remove_tile(&mut self, position: Vector2<i32>) -> Option<TileDefinitionHandle> {
+        self.tiles.remove(&position)
     }
 
     /// Returns active brush of the tile map.
     #[inline]
-    pub fn active_brush(&self) -> Option<TileMapBrushResource> {
-        (*self.active_brush).clone()
+    pub fn active_brush(&self) -> Option<&TileMapBrushResource> {
+        self.active_brush.as_ref()
     }
 
     /// Sets new active brush of the tile map.
@@ -582,21 +1155,9 @@ impl TileMap {
         self.active_brush.set_value_and_mark_modified(brush);
     }
 
-    /// Returns a reference to the set of brushes.
-    #[inline]
-    pub fn brushes(&self) -> &[Option<TileMapBrushResource>] {
-        &self.brushes
-    }
-
-    /// Sets news brushes of the tile map. This set could be used to store the most used brushes.
-    #[inline]
-    pub fn set_brushes(&mut self, brushes: Vec<Option<TileMapBrushResource>>) {
-        self.brushes.set_value_and_mark_modified(brushes);
-    }
-
     /// Calculates bounding rectangle in grid coordinates.
     #[inline]
-    pub fn bounding_rect(&self) -> Rect<i32> {
+    pub fn bounding_rect(&self) -> OptionTileRect {
         self.tiles.bounding_rect()
     }
 
@@ -605,11 +1166,11 @@ impl TileMap {
     /// map is rotated or shifted.
     #[inline]
     pub fn world_to_grid(&self, world_position: Vector3<f32>) -> Vector2<i32> {
-        let inv_global_transform = self.global_transform().try_inverse().unwrap_or_default();
+        let inv_global_transform = self.tile_map_transform().try_inverse().unwrap_or_default();
         let local_space_position = inv_global_transform.transform_point(&world_position.into());
         Vector2::new(
-            local_space_position.x.round() as i32,
-            local_space_position.y.round() as i32,
+            local_space_position.x.floor() as i32,
+            local_space_position.y.floor() as i32,
         )
     }
 
@@ -617,7 +1178,57 @@ impl TileMap {
     #[inline]
     pub fn grid_to_world(&self, grid_position: Vector2<i32>) -> Vector3<f32> {
         let v3 = grid_position.cast::<f32>().to_homogeneous();
-        self.global_transform().transform_point(&v3.into()).coords
+        self.tile_map_transform().transform_point(&v3.into()).coords
+    }
+
+    fn cells_touching_frustum(&self, frustum: &Frustum) -> OptionTileRect {
+        let global_transform = self.global_transform();
+
+        fn make_ray(a: Vector3<f32>, b: Vector3<f32>) -> Ray {
+            Ray {
+                origin: a,
+                dir: b - a,
+            }
+        }
+
+        let left_top_ray = make_ray(
+            frustum.left_top_front_corner(),
+            frustum.left_top_back_corner(),
+        );
+        let right_top_ray = make_ray(
+            frustum.right_top_front_corner(),
+            frustum.right_top_back_corner(),
+        );
+        let left_bottom_ray = make_ray(
+            frustum.left_bottom_front_corner(),
+            frustum.left_bottom_back_corner(),
+        );
+        let right_bottom_ray = make_ray(
+            frustum.right_bottom_front_corner(),
+            frustum.right_bottom_back_corner(),
+        );
+
+        let plane =
+            Plane::from_normal_and_point(&global_transform.look(), &global_transform.position())
+                .unwrap_or_default();
+
+        let Some(left_top) = left_top_ray.plane_intersection_point(&plane) else {
+            return None.into();
+        };
+        let Some(right_top) = right_top_ray.plane_intersection_point(&plane) else {
+            return None.into();
+        };
+        let Some(left_bottom) = left_bottom_ray.plane_intersection_point(&plane) else {
+            return None.into();
+        };
+        let Some(right_bottom) = right_bottom_ray.plane_intersection_point(&plane) else {
+            return None.into();
+        };
+        let mut bounds = OptionTileRect::default();
+        for corner in [left_top, right_top, left_bottom, right_bottom] {
+            bounds.push(self.world_to_grid(corner))
+        }
+        bounds
     }
 }
 
@@ -628,9 +1239,25 @@ impl Default for TileMap {
             tile_set: Default::default(),
             tiles: Default::default(),
             tile_scale: Vector2::repeat(1.0).into(),
-            brushes: Default::default(),
             active_brush: Default::default(),
-            overlay_tiles: Default::default(),
+            hidden_tiles: Mutex::default(),
+            before_effects: Vec::default(),
+            after_effects: Vec::default(),
+        }
+    }
+}
+
+impl Clone for TileMap {
+    fn clone(&self) -> Self {
+        Self {
+            base: self.base.clone(),
+            tile_set: self.tile_set.clone(),
+            tiles: self.tiles.clone(),
+            tile_scale: self.tile_scale.clone(),
+            active_brush: self.active_brush.clone(),
+            hidden_tiles: Mutex::default(),
+            before_effects: self.before_effects.clone(),
+            after_effects: self.after_effects.clone(),
         }
     }
 }
@@ -663,12 +1290,17 @@ impl ConstructorProvider<Node, Graph> for TileMap {
 
 impl NodeTrait for TileMap {
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
-        let rect = self.bounding_rect();
+        let Some(rect) = *self.bounding_rect() else {
+            return AxisAlignedBoundingBox::default();
+        };
 
-        let min_pos = rect.position.cast::<f32>().to_homogeneous();
-        let max_pos = (rect.position + rect.size).cast::<f32>().to_homogeneous();
+        let mut min_pos = rect.position.cast::<f32>().to_homogeneous();
+        let mut max_pos = (rect.position + rect.size).cast::<f32>().to_homogeneous();
+        min_pos.x *= -1.0;
+        max_pos.x *= -1.0;
+        let (min, max) = min_pos.inf_sup(&max_pos);
 
-        AxisAlignedBoundingBox::from_min_max(min_pos, max_pos)
+        AxisAlignedBoundingBox::from_min_max(min, max)
     }
 
     fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
@@ -693,78 +1325,41 @@ impl NodeTrait for TileMap {
             return RdcControlFlow::Continue;
         };
 
-        if !tile_set_resource.is_ok() {
-            return RdcControlFlow::Continue;
+        let mut tile_set_lock = TileSetRef::new(tile_set_resource);
+        let tile_set = tile_set_lock.as_loaded();
+
+        let mut hidden_tiles = self.hidden_tiles.lock();
+        hidden_tiles.clear();
+
+        let bounds = ctx
+            .frustum
+            .as_ref()
+            .map(|f| self.cells_touching_frustum(f))
+            .unwrap_or_default();
+
+        let mut tile_render_context = TileMapRenderContext {
+            tile_map_handle: self.handle(),
+            transform: self.tile_map_transform(),
+            hidden_tiles: &mut hidden_tiles,
+            context: ctx,
+            bounds,
+            tile_set,
+        };
+
+        for effect in self.before_effects.iter() {
+            effect.lock().render_special_tiles(&mut tile_render_context);
         }
-
-        let tile_set = tile_set_resource.data_ref();
-
-        for tiles in [&self.tiles, &self.overlay_tiles] {
-            for tile in tiles.values() {
-                let Some(tile_definition) = tile_set.tiles.try_borrow(tile.definition_handle)
-                else {
-                    continue;
-                };
-
-                let global_transform = self.global_transform();
-
-                let position = tile.position.cast::<f32>().to_homogeneous();
-
-                let vertices = [
-                    RectangleVertex {
-                        position: global_transform
-                            .transform_point(&(position + Vector3::new(0.0, 1.0, 0.0)).into())
-                            .coords,
-                        tex_coord: tile_definition.uv_rect.right_top_corner(),
-                        color: tile_definition.color,
-                    },
-                    RectangleVertex {
-                        position: global_transform
-                            .transform_point(&(position + Vector3::new(1.0, 1.0, 0.0)).into())
-                            .coords,
-                        tex_coord: tile_definition.uv_rect.left_top_corner(),
-                        color: tile_definition.color,
-                    },
-                    RectangleVertex {
-                        position: global_transform
-                            .transform_point(&(position + Vector3::new(1.00, 0.0, 0.0)).into())
-                            .coords,
-                        tex_coord: tile_definition.uv_rect.left_bottom_corner(),
-                        color: tile_definition.color,
-                    },
-                    RectangleVertex {
-                        position: global_transform
-                            .transform_point(&(position + Vector3::new(0.0, 0.0, 0.0)).into())
-                            .coords,
-                        tex_coord: tile_definition.uv_rect.right_bottom_corner(),
-                        color: tile_definition.color,
-                    },
-                ];
-
-                let triangles = [TriangleDefinition([0, 1, 2]), TriangleDefinition([2, 3, 0])];
-
-                let sort_index = ctx.calculate_sorting_index(self.global_position());
-
-                ctx.storage.push_triangles(
-                    RectangleVertex::layout(),
-                    &tile_definition.material,
-                    RenderPath::Forward,
-                    sort_index,
-                    self.handle(),
-                    &mut move |mut vertex_buffer, mut triangle_buffer| {
-                        let start_vertex_index = vertex_buffer.vertex_count();
-
-                        vertex_buffer.push_vertices(&vertices).unwrap();
-
-                        triangle_buffer.push_triangles_iter_with_offset(
-                            start_vertex_index,
-                            triangles.into_iter(),
-                        );
-                    },
-                );
+        let bounds = tile_render_context.visible_bounds();
+        for (&position, &handle) in self.tiles.iter() {
+            if (bounds.is_none() || bounds.contains(position))
+                && tile_render_context.is_tile_visible(position)
+            {
+                tile_render_context.draw_tile(position, handle);
             }
         }
-
+        for effect in self.after_effects.iter() {
+            effect.lock().render_special_tiles(&mut tile_render_context);
+        }
         RdcControlFlow::Continue
     }
 
@@ -786,7 +1381,8 @@ pub struct TileMapBuilder {
     tile_set: Option<TileSetResource>,
     tiles: Tiles,
     tile_scale: Vector2<f32>,
-    brushes: Vec<Option<TileMapBrushResource>>,
+    before_effects: Vec<TileMapEffectRef>,
+    after_effects: Vec<TileMapEffectRef>,
 }
 
 impl TileMapBuilder {
@@ -797,7 +1393,8 @@ impl TileMapBuilder {
             tile_set: None,
             tiles: Default::default(),
             tile_scale: Vector2::repeat(1.0),
-            brushes: Default::default(),
+            before_effects: Default::default(),
+            after_effects: Default::default(),
         }
     }
 
@@ -819,9 +1416,15 @@ impl TileMapBuilder {
         self
     }
 
-    /// Sets brushes of the tile map.
-    pub fn with_brushes(mut self, brushes: Vec<Option<TileMapBrushResource>>) -> Self {
-        self.brushes = brushes;
+    /// Adds an effect to the tile map which will run before the tiles render.
+    pub fn with_before_effect(mut self, effect: TileMapEffectRef) -> Self {
+        self.before_effects.push(effect);
+        self
+    }
+
+    /// Adds an effect to the tile map which will run after the tiles render.
+    pub fn with_after_effect(mut self, effect: TileMapEffectRef) -> Self {
+        self.after_effects.push(effect);
         self
     }
 
@@ -832,9 +1435,10 @@ impl TileMapBuilder {
             tile_set: self.tile_set.into(),
             tiles: self.tiles.into(),
             tile_scale: self.tile_scale.into(),
-            brushes: self.brushes.into(),
             active_brush: Default::default(),
-            overlay_tiles: Default::default(),
+            hidden_tiles: Mutex::default(),
+            before_effects: self.before_effects,
+            after_effects: self.after_effects,
         })
     }
 
