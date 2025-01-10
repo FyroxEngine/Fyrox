@@ -146,6 +146,8 @@ impl TileMapRenderContext<'_, '_> {
     pub fn is_tile_visible(&self, position: Vector2<i32>) -> bool {
         !self.hidden_tiles.contains(&position)
     }
+    /// The handle of the tile that should be rendered at the current time in order
+    /// to animate the tile at the given handle.
     pub fn get_animated_version(&self, handle: TileDefinitionHandle) -> TileDefinitionHandle {
         self.tile_set
             .get_animated_version(self.context.elapsed_time, handle)

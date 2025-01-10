@@ -983,7 +983,7 @@ impl ResourceGraphVertex {
                         .get_scene()
                         .graph
                         .linear_iter()
-                        .any(|n| n.resource.as_ref().map_or(false, |r| r == &model))
+                        .any(|n| n.resource.as_ref() == Some(&model))
                     {
                         dependent_resources.insert(other_model.clone());
                     }

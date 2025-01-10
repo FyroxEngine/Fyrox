@@ -132,7 +132,7 @@ impl StateGraphViewer {
         if let Some(view_handle) = ui.node(self.canvas).children().iter().cloned().find(|c| {
             ui.node(*c)
                 .query_component::<TransitionView>()
-                .map_or(false, |transition_view_ref| {
+                .is_some_and(|transition_view_ref| {
                     transition == transition_view_ref.model_handle.into()
                 })
         }) {

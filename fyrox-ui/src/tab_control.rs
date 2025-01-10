@@ -301,16 +301,12 @@ impl TabControl {
             ui.send_message(WidgetMessage::visibility(
                 tab.content,
                 MessageDirection::ToWidget,
-                active_tab.map_or(false, |active_tab_index| {
-                    existing_tab_index == active_tab_index
-                }),
+                active_tab == Some(existing_tab_index),
             ));
             ui.send_message(DecoratorMessage::select(
                 tab.decorator,
                 MessageDirection::ToWidget,
-                active_tab.map_or(false, |active_tab_index| {
-                    existing_tab_index == active_tab_index
-                }),
+                active_tab == Some(existing_tab_index),
             ))
         }
 

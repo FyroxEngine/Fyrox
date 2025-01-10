@@ -26,6 +26,7 @@ use fyrox::scene::tilemap::tileset::OptionTileSet;
 use fyrox::scene::tilemap::ResourceTilePosition;
 
 use crate::asset::item::AssetItem;
+use crate::command::{Command, CommandGroup};
 use crate::fyrox::{
     core::{
         algebra::{Matrix3, Point2, Vector2},
@@ -459,9 +460,7 @@ impl PaletteWidget {
         Vector2::new((pos.x / s.x).floor() as i32, (pos.y / s.y).floor() as i32)
     }
     fn send_update(&mut self) {
-        if self.kind != TilePaletteStage::Tiles {
-            panic!();
-        }
+        assert_eq!(self.kind, TilePaletteStage::Tiles);
         let Some(page) = self.page else {
             return;
         };
@@ -501,9 +500,7 @@ impl PaletteWidget {
         }
     }
     fn send_tile_set_update(&mut self) {
-        if self.kind != TilePaletteStage::Tiles {
-            panic!();
-        }
+        assert_eq!(self.kind, TilePaletteStage::Tiles);
         if let TileBook::TileSet(resource) = &self.content {
             self.sender.do_command(SetTileSetTilesCommand {
                 tile_set: resource.clone(),
@@ -517,12 +514,45 @@ impl PaletteWidget {
         if state.selection_palette() != self.handle || !state.has_selection() {
             return false;
         }
-        for position in state.selection_positions() {
-            self.update.insert(*position, None);
+        match self.kind {
+            TilePaletteStage::Pages => {
+                let sel = state
+                    .selection_positions()
+                    .iter()
+                    .copied()
+                    .collect::<Vec<_>>();
+                drop(state);
+                let commands = sel
+                    .into_iter()
+                    .filter_map(|p| self.delete_page(p))
+                    .collect::<Vec<_>>();
+                self.sender
+                    .do_command(CommandGroup::from(commands).with_custom_name("Delete Pages"));
+            }
+            TilePaletteStage::Tiles => {
+                for position in state.selection_positions() {
+                    self.update.insert(*position, None);
+                }
+                drop(state);
+                self.send_update();
+            }
         }
-        drop(state);
-        self.send_update();
         true
+    }
+    fn delete_page(&mut self, position: Vector2<i32>) -> Option<Command> {
+        match &self.content {
+            TileBook::Empty => None,
+            TileBook::TileSet(tile_set) => Some(Command::new(SetTileSetPageCommand {
+                tile_set: tile_set.clone(),
+                position,
+                page: None,
+            })),
+            TileBook::Brush(brush) => Some(Command::new(SetBrushPageCommand {
+                brush: brush.clone(),
+                position,
+                page: None,
+            })),
+        }
     }
     fn set_page(&mut self, resource: TileBook, page: Option<Vector2<i32>>, ui: &mut UserInterface) {
         let mut state = self.state.lock_mut("set_page");
@@ -936,7 +966,8 @@ impl PaletteWidget {
         }
     }
     fn accept_material_drop(&mut self, _material: MaterialResource, _ui: &UserInterface) {
-        // TODO
+        // TODO: Allow users to drag-and-drop materials into a palette to create
+        // tiles or atlas pages.
     }
     fn push_tile_collider(
         &self,

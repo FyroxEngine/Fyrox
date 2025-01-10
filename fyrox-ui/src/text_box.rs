@@ -841,7 +841,7 @@ impl TextBox {
             .borrow()
             .get_lines()
             .get(position.line)
-            .map_or(false, |line| position.offset < line.len())
+            .is_some_and(|line| position.offset < line.len())
     }
 
     fn set_caret_position(&mut self, position: Position) {

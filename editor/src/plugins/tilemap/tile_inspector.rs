@@ -136,6 +136,23 @@ impl<'a> TileResourceData<'a> {
             TileBook::Brush(resource) => Self::Brush(resource.data_ref()),
         }
     }
+    /// The type of the page at the given position, such as atlas, freeform, transform, brush, etc.
+    fn page_type(&self, position: Vector2<i32>) -> Option<PageType> {
+        match self {
+            TileResourceData::Empty => None,
+            TileResourceData::TileSet(tile_set) => tile_set
+                .as_loaded_ref()
+                .and_then(|t| t.get_page(position))
+                .map(|p| p.page_type()),
+            TileResourceData::Brush(brush) => brush.as_loaded_ref().and_then(|t| {
+                if t.has_page_at(position) {
+                    Some(PageType::Brush)
+                } else {
+                    None
+                }
+            }),
+        }
+    }
     fn tile_set(&self) -> Option<&ResourceDataRef<'a, TileSet>> {
         if let Self::TileSet(v) = self {
             Some(v)
@@ -331,56 +348,6 @@ impl<'a> TileEditorState<'a> {
             Some((position, m))
         } else {
             None
-        }
-    }
-    /// Is the page at the given coordinates a tile atlas page?
-    pub fn is_material_page(&self, position: Vector2<i32>) -> bool {
-        match &self.data {
-            TileResourceData::Empty => false,
-            TileResourceData::TileSet(tile_set) => {
-                if let Some(page) = tile_set.pages.get(&position) {
-                    page.is_material()
-                } else {
-                    false
-                }
-            }
-            TileResourceData::Brush(_) => false,
-        }
-    }
-    /// Is the page at the given coordinates a freeform tile page?
-    pub fn is_freeform_page(&self, position: Vector2<i32>) -> bool {
-        match &self.data {
-            TileResourceData::Empty => false,
-            TileResourceData::TileSet(tile_set) => {
-                if let Some(page) = tile_set.pages.get(&position) {
-                    page.is_freeform()
-                } else {
-                    false
-                }
-            }
-            TileResourceData::Brush(_) => false,
-        }
-    }
-    /// Is the page at the given coordinates a transform set page?
-    pub fn is_transform_page(&self, position: Vector2<i32>) -> bool {
-        match &self.data {
-            TileResourceData::Empty => false,
-            TileResourceData::TileSet(tile_set) => {
-                if let Some(page) = tile_set.pages.get(&position) {
-                    page.is_transform_set()
-                } else {
-                    false
-                }
-            }
-            TileResourceData::Brush(_) => false,
-        }
-    }
-    /// Is the page at the given coordinates a brush page?
-    pub fn is_brush_page(&self, position: Vector2<i32>) -> bool {
-        match &self.data {
-            TileResourceData::Empty => false,
-            TileResourceData::TileSet(_) => false,
-            TileResourceData::Brush(brush) => brush.pages.contains_key(&position),
         }
     }
     /// Iterate the selected positions in the form of `TileDefinitionHandle` using the current page for page coordinates.
@@ -1202,18 +1169,23 @@ impl TileInspector {
         };
         let mut update = TileSetUpdate::default();
         for handle in state.empty_tiles() {
-            if state.is_material_page(handle.page()) {
-                update.insert(handle, TileDataUpdate::MaterialTile(TileData::default()));
-            } else if state.is_freeform_page(handle.page()) {
-                update.insert(
+            match state.data.page_type(handle.page()) {
+                Some(PageType::Atlas) => {
+                    drop(update.insert(handle, TileDataUpdate::MaterialTile(TileData::default())))
+                }
+                Some(PageType::Freeform) => drop(update.insert(
                     handle,
                     TileDataUpdate::FreeformTile(TileDefinition::default()),
-                );
-            } else if state.is_transform_page(handle.page()) {
-                update.insert(
+                )),
+                Some(PageType::Transform) => drop(update.insert(
                     handle,
                     TileDataUpdate::TransformSet(Some(TileDefinitionHandle::default())),
-                );
+                )),
+                Some(PageType::Animation) => drop(update.insert(
+                    handle,
+                    TileDataUpdate::TransformSet(Some(TileDefinitionHandle::default())),
+                )),
+                _ => (),
             }
         }
         sender.do_command(SetTileSetTilesCommand {

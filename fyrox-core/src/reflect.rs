@@ -555,8 +555,8 @@ impl<R: Reflect> GetField for R {
 unsafe fn make_fake_string_from_slice(string: &str) -> ManuallyDrop<String> {
     ManuallyDrop::new(String::from_utf8_unchecked(Vec::from_raw_parts(
         string.as_bytes().as_ptr() as *mut _,
-        string.as_bytes().len(),
-        string.as_bytes().len(),
+        string.len(),
+        string.len(),
     )))
 }
 
@@ -1078,7 +1078,7 @@ impl dyn Reflect {
 }
 
 pub fn is_path_to_array_element(path: &str) -> bool {
-    path.chars().last().map_or(false, |c| c == ']')
+    path.ends_with(']')
 }
 
 // Make it a trait?

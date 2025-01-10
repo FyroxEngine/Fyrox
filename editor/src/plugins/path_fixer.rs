@@ -326,7 +326,7 @@ impl PathFixer {
                                 // Turn hash map into vec to be able to index it.
                                 self.orphaned_scene_resources = scene_resources
                                     .into_iter()
-                                    .filter(|r| !r.kind().path().map_or(false, |p| p.exists()))
+                                    .filter(|r| !r.kind().path().is_some_and(|p| p.exists()))
                                     .collect::<Vec<_>>();
 
                                 let ctx = &mut ui.build_ctx();
