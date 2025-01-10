@@ -92,7 +92,7 @@ impl WorldViewerDataProvider for UiSceneWorldViewerDataProvider<'_> {
     fn is_node_has_child(&self, node: ErasedHandle, child: ErasedHandle) -> bool {
         self.ui
             .try_get(node.into())
-            .map_or(false, |n| n.children().iter().any(|c| *c == child.into()))
+            .is_some_and(|n| n.children().iter().any(|c| *c == child.into()))
     }
 
     fn parent_of(&self, node: ErasedHandle) -> ErasedHandle {
@@ -167,7 +167,7 @@ impl WorldViewerDataProvider for UiSceneWorldViewerDataProvider<'_> {
     fn is_instance(&self, node: ErasedHandle) -> bool {
         self.ui
             .try_get(node.into())
-            .map_or(false, |n| n.resource().is_some())
+            .is_some_and(|n| n.resource().is_some())
     }
 
     fn selection(&self) -> Vec<ErasedHandle> {

@@ -956,7 +956,7 @@ impl<T: EntityId> Animation<T> {
     #[inline]
     pub fn has_signal<S: AsRef<str>>(&self, name: S, id: Uuid) -> bool {
         self.find_signal_by_name_ref(name)
-            .map_or(false, |(_, s)| s.id == id)
+            .is_some_and(|(_, s)| s.id == id)
     }
 
     /// Removes all tracks from the animation.

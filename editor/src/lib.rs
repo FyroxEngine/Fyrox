@@ -272,9 +272,8 @@ pub fn create_terrain_layer_material() -> MaterialResource {
 pub fn make_scene_file_filter() -> Filter {
     Filter::new(|p: &Path| {
         p.is_dir()
-            || p.extension().map_or(false, |ext| {
-                matches!(ext.to_string_lossy().as_ref(), "rgs" | "ui")
-            })
+            || p.extension()
+                .is_some_and(|ext| matches!(ext.to_string_lossy().as_ref(), "rgs" | "ui"))
     })
 }
 
@@ -1812,7 +1811,7 @@ impl Editor {
             || self
                 .scenes
                 .current_scene_controller_ref()
-                .map_or(false, |s| s.is_interacting())
+                .is_some_and(|s| s.is_interacting())
             || stays_active
     }
 
@@ -1858,7 +1857,7 @@ impl Editor {
 
     fn load_scene(&mut self, scene_path: PathBuf) {
         for entry in self.scenes.entries.iter() {
-            if entry.path.as_ref().map_or(false, |p| p == &scene_path) {
+            if entry.path.as_ref() == Some(&scene_path) {
                 self.set_current_scene(entry.id);
                 return;
             }

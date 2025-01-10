@@ -825,12 +825,12 @@ impl Toolbar {
                 .with_title(WindowTitle::text("Select Animation To Import")),
         )
         .with_filter(Filter::new(|p: &Path| {
+            // TODO: Here we allow importing only FBX files, but they can contain
+            // multiple animations and it might be good to also add animation selector
+            // that will be used to select a particular animation to import.
             p.is_dir()
-                || p.extension().map_or(false, |ext|
-                // TODO: Here we allow importing only FBX files, but they can contain
-                // multiple animations and it might be good to also add animation selector
-                // that will be used to select a particular animation to import.
-                ext.to_string_lossy().as_ref() == "fbx")
+                || p.extension()
+                    .is_some_and(|ext| ext.to_string_lossy().as_ref() == "fbx")
         }))
         .build(ctx);
 

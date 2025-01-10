@@ -1413,11 +1413,11 @@ impl Selection {
     }
 
     pub fn is_single_selection(&self) -> bool {
-        self.0.as_ref().map_or(false, |s| s.is_single_selection())
+        self.0.as_ref().is_some_and(|s| s.is_single_selection())
     }
 
     pub fn is_multi_selection(&self) -> bool {
-        self.0.as_ref().map_or(false, |s| s.is_multi_selection())
+        self.0.as_ref().is_some_and(|s| s.is_multi_selection())
     }
 
     define_downcast!(GraphSelection, as_graph, as_graph_mut, is_graph);

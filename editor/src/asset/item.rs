@@ -136,16 +136,16 @@ impl AssetItem {
         if self
             .path
             .extension()
-            .map_or(false, |ext| ext == "rgs" || ext == "ui")
+            .is_some_and(|ext| ext == "rgs" || ext == "ui")
         {
             sender.send(Message::LoadScene(self.path.clone()));
-        } else if self.path.extension().map_or(false, |ext| ext == "material") {
+        } else if self.path.extension().is_some_and(|ext| ext == "material") {
             if let Ok(path) = make_relative_path(&self.path) {
                 if let Ok(material) = block_on(resource_manager.request::<Material>(path)) {
                     sender.send(Message::OpenMaterialEditor(material));
                 }
             }
-        } else if self.path.extension().map_or(false, |ext| ext == "tileset") {
+        } else if self.path.extension().is_some_and(|ext| ext == "tileset") {
             if let Ok(path) = make_relative_path(&self.path) {
                 match block_on(resource_manager.request::<TileSet>(path)) {
                     Ok(tile_set) => sender.send(Message::OpenTileSetEditor(tile_set)),
@@ -155,7 +155,7 @@ impl AssetItem {
         } else if self
             .path
             .extension()
-            .map_or(false, |ext| ext == "tile_map_brush")
+            .is_some_and(|ext| ext == "tile_map_brush")
         {
             if let Ok(path) = make_relative_path(&self.path) {
                 match block_on(resource_manager.request::<TileMapBrush>(path)) {

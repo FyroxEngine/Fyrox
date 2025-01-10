@@ -430,7 +430,7 @@ impl SceneNodeContextMenu {
                                 game_scene,
                                 engine,
                             )
-                            .map_or(false, |p| utils::is_native_scene(&p)),
+                            .is_some_and(|p| utils::is_native_scene(&p)),
                         ));
                 }
             } else if let Some(FileSelectorMessage::Commit(path)) = message.data() {

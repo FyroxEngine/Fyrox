@@ -108,7 +108,7 @@ impl WorldViewerDataProvider for EditorSceneWrapper<'_> {
         self.scene
             .graph
             .try_get(node.into())
-            .map_or(false, |node| node.children().contains(&child.into()))
+            .is_some_and(|node| node.children().contains(&child.into()))
     }
 
     fn parent_of(&self, node: ErasedHandle) -> ErasedHandle {
@@ -151,7 +151,7 @@ impl WorldViewerDataProvider for EditorSceneWrapper<'_> {
         self.scene
             .graph
             .try_get(node.into())
-            .map_or(false, |n| n.resource().is_some())
+            .is_some_and(|n| n.resource().is_some())
     }
 
     fn selection(&self) -> Vec<ErasedHandle> {

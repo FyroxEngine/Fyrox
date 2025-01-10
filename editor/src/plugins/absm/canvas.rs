@@ -211,7 +211,7 @@ impl AbsmCanvas {
     {
         if ui
             .try_get(node_handle)
-            .map_or(false, |n| n.has_component::<T>())
+            .is_some_and(|n| n.has_component::<T>())
         {
             return node_handle;
         }
