@@ -1277,10 +1277,10 @@ impl TileSet {
     /// it points toward a tile elsewhere in the set, this method returns the TileDefinitionHandle of that other tile.
     pub fn tile_redirect(&self, handle: TileDefinitionHandle) -> Option<TileDefinitionHandle> {
         let page_source = self.pages.get(&handle.page()).map(|p| &p.source)?;
-        if let TileSetPageSource::Transform(m) = page_source {
-            m.get(&handle.tile()).copied()
-        } else {
-            None
+        match page_source {
+            TileSetPageSource::Transform(m) => m.get(&handle.tile()).copied(),
+            TileSetPageSource::Animation(m) => m.get(&handle.tile()).copied(),
+            _ => None,
         }
     }
     /// Generate a list of all tile positions in the given page.
