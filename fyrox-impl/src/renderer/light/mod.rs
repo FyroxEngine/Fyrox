@@ -94,6 +94,7 @@ pub struct DeferredLightRenderer {
 }
 
 pub(crate) struct DeferredRendererContext<'a> {
+    pub elapsed_time: f32,
     pub server: &'a dyn GraphicsServer,
     pub scene: &'a Scene,
     pub camera: &'a Camera,
@@ -281,6 +282,7 @@ impl DeferredLightRenderer {
         let mut light_stats = LightingStatistics::default();
 
         let DeferredRendererContext {
+            elapsed_time,
             server,
             scene,
             camera,
@@ -652,6 +654,7 @@ impl DeferredLightRenderer {
                         pass_stats += self.spot_shadow_map_renderer.render(
                             server,
                             &scene.graph,
+                            elapsed_time,
                             light.position,
                             light_view_matrix,
                             z_near,
@@ -671,6 +674,7 @@ impl DeferredLightRenderer {
                         pass_stats +=
                             self.point_shadow_map_renderer
                                 .render(PointShadowMapRenderContext {
+                                    elapsed_time,
                                     state: server,
                                     graph: &scene.graph,
                                     light_pos: light.position,
@@ -687,6 +691,7 @@ impl DeferredLightRenderer {
                     }
                     LightSourceKind::Directional { .. } => {
                         pass_stats += self.csm_renderer.render(CsmRenderContext {
+                            elapsed_time,
                             frame_size: Vector2::new(gbuffer.width as f32, gbuffer.height as f32),
                             state: server,
                             graph: &scene.graph,

@@ -177,6 +177,7 @@ impl BatchContainer {
             }
 
             descendant.collect_render_data(&mut RenderContext {
+                elapsed_time: ctx.elapsed_time,
                 observer_info: ctx.observer_info,
                 frustum: None,
                 storage: self,

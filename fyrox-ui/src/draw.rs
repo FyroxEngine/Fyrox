@@ -786,6 +786,10 @@ pub struct DrawingContext {
     opacity_stack: Vec<f32>,
     triangles_to_commit: usize,
     pub style: StyleResource,
+    /// Amount of time (in seconds) that passed from creation of the engine. Keep in mind, that
+    /// this value is **not** guaranteed to match real time. A user can change delta time with
+    /// which the engine "ticks" and this delta time affects elapsed time.
+    pub elapsed_time: f32,
 }
 
 fn get_line_thickness_vector(a: Vector2<f32>, b: Vector2<f32>, thickness: f32) -> Vector2<f32> {
@@ -830,6 +834,7 @@ impl DrawingContext {
             opacity_stack: vec![1.0],
             transform_stack: Default::default(),
             style,
+            elapsed_time: 0.0,
         }
     }
 

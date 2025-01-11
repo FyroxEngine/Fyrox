@@ -146,6 +146,13 @@ impl TileMapRenderContext<'_, '_> {
     pub fn is_tile_visible(&self, position: Vector2<i32>) -> bool {
         !self.hidden_tiles.contains(&position)
     }
+    /// The handle of the tile that should be rendered at the current time in order
+    /// to animate the tile at the given handle.
+    pub fn get_animated_version(&self, handle: TileDefinitionHandle) -> TileDefinitionHandle {
+        self.tile_set
+            .get_animated_version(self.context.elapsed_time, handle)
+            .unwrap_or(handle)
+    }
     /// Render the tile with the given handle at the given position.
     /// Normally [`TileMapRenderContext::is_tile_visible`] should be checked before calling this method
     /// to ensure that tiles are permitted to be rendered at this position,
@@ -361,6 +368,12 @@ pub enum PageType {
     /// A page that contains no tile data, but contains handles referencing tiles
     /// on other pages and specifies how tiles can be flipped and rotated.
     Transform,
+    /// A page that contains no tile data, but contains handles referencing tiles
+    /// on other pages and specifies how tiles animate over time.
+    /// Animations proceed from left-to-right, with increasing x-coordinate,
+    /// along continuous rows of tiles, until an empty cell is found, and then
+    /// the animation returns to the start of the sequence and repeats.
+    Animation,
     /// A brush page contains no tile data, but contains handles into a tile set
     /// where tile data can be found.
     Brush,
@@ -656,6 +669,10 @@ impl TileBook {
     /// True if there is a transform page at the given coordinates.
     pub fn is_transform_page(&self, position: Vector2<i32>) -> bool {
         self.page_type(position) == Some(PageType::Transform)
+    }
+    /// True if there is a transform page at the given coordinates.
+    pub fn is_animation_page(&self, position: Vector2<i32>) -> bool {
+        self.page_type(position) == Some(PageType::Animation)
     }
     /// True if there is a brush page at the given coordinates.
     pub fn is_brush_page(&self, position: Vector2<i32>) -> bool {
@@ -1354,6 +1371,7 @@ impl NodeTrait for TileMap {
             if (bounds.is_none() || bounds.contains(position))
                 && tile_render_context.is_tile_visible(position)
             {
+                let handle = tile_render_context.get_animated_version(handle);
                 tile_render_context.draw_tile(position, handle);
             }
         }

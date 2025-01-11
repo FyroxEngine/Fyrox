@@ -1360,6 +1360,10 @@ impl UserInterface {
         self.cursor_icon
     }
 
+    pub fn set_time(&mut self, elapsed_time: f32) {
+        self.drawing_context.elapsed_time = elapsed_time;
+    }
+
     pub fn draw(&mut self) -> &DrawingContext {
         self.drawing_context.clear();
 

@@ -43,6 +43,7 @@ use fyrox::{
         expander::ExpanderBuilder,
         grid::{Column, GridBuilder, Row},
         message::UiMessage,
+        numeric::{NumericUpDownBuilder, NumericUpDownMessage},
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
         vec::{Vec2EditorBuilder, Vec2EditorMessage},
@@ -335,6 +336,20 @@ impl<'a> TileEditorState<'a> {
             None
         }
     }
+    /// If exactly one page is selected and it happens to be an animation page, then return the position and the page data.
+    pub fn animation_page(&self) -> Option<(Vector2<i32>, &AnimationTiles)> {
+        let mut pages = self.tile_set_pages();
+        let result = pages.next();
+        if pages.next().is_some() {
+            return None;
+        }
+        let (position, page) = result?;
+        if let TileSetPageSource::Animation(m) = &page.source {
+            Some((position, m))
+        } else {
+            None
+        }
+    }
     /// Iterate the selected positions in the form of `TileDefinitionHandle` using the current page for page coordinates.
     pub fn tile_handles(&self) -> impl Iterator<Item = TileDefinitionHandle> + '_ {
         let page = self.page;
@@ -529,11 +544,16 @@ impl InspectorField {
     fn new(label: &str, field: Handle<UiNode>, ctx: &mut BuildContext) -> Self {
         let label = make_label(label, ctx);
         Self {
-            handle: GridBuilder::new(WidgetBuilder::new().with_child(label).with_child(field))
-                .add_row(Row::auto())
-                .add_column(Column::strict(FIELD_LABEL_WIDTH))
-                .add_column(Column::stretch())
-                .build(ctx),
+            handle: GridBuilder::new(
+                WidgetBuilder::new()
+                    .with_margin(Thickness::top_bottom(3.0))
+                    .with_child(label)
+                    .with_child(field),
+            )
+            .add_row(Row::auto())
+            .add_column(Column::strict(FIELD_LABEL_WIDTH))
+            .add_column(Column::stretch())
+            .build(ctx),
             field,
         }
     }
@@ -712,6 +732,8 @@ pub struct TileInspector {
     brush_page_creator: Handle<UiNode>,
     /// The editor for changing the size of tiles in a tile atlas page.
     tile_size_inspector: InspectorField,
+    /// The editor for changing the frame rate of an animation page.
+    animation_speed_inspector: InspectorField,
     /// Button for creating a brush tile.
     create_tile: Handle<UiNode>,
     /// Button for creating a brush page.
@@ -722,6 +744,8 @@ pub struct TileInspector {
     create_free: Handle<UiNode>,
     /// Button for creating a transform set page in a tile set.
     create_transform: Handle<UiNode>,
+    /// Button for creating a animation page in a tile set.
+    create_animation: Handle<UiNode>,
     /// A list of tile editors.
     #[visit(skip)]
     #[reflect(hidden)]
@@ -760,6 +784,7 @@ impl TileInspector {
         let create_atlas;
         let create_free;
         let create_transform;
+        let create_animation;
 
         let tile_editors: Vec<TileEditorRef> = vec![
             Arc::new(Mutex::new(TileMaterialEditor::new(ctx, sender.clone()))) as TileEditorRef,
@@ -801,7 +826,13 @@ impl TileInspector {
                     make_button("Transform", "Create a page that controls how tiles flip and rotate.", 3, 0, ctx);
                 create_transform
             })
+            .with_child({
+                create_animation =
+                    make_button("Animation", "Create a page that controls how tiles animate.", 4, 0, ctx);
+                create_animation
+            })
         ).add_column(Column::stretch())
+        .add_row(Row::auto())
         .add_row(Row::auto())
         .add_row(Row::auto())
         .add_row(Row::auto())
@@ -815,6 +846,10 @@ impl TileInspector {
         let tile_size_field =
             Vec2EditorBuilder::<u32>::new(WidgetBuilder::new().on_column(1)).build(ctx);
         let tile_size_inspector = InspectorField::new("Tile Size", tile_size_field, ctx);
+        let frame_rate_field = NumericUpDownBuilder::<f32>::new(WidgetBuilder::new().on_column(1))
+            .with_min_value(0.0)
+            .build(ctx);
+        let animation_speed_inspector = InspectorField::new("Frame Rate", frame_rate_field, ctx);
         let page_icon_field = TileHandleFieldBuilder::new(WidgetBuilder::new())
             .with_label("Page Icon")
             .build(ctx);
@@ -835,6 +870,7 @@ impl TileInspector {
                 .with_child(page_icon_field)
                 .with_child(page_material_inspector.handle)
                 .with_child(tile_size_inspector.handle)
+                .with_child(animation_speed_inspector.handle)
                 .with_child(create_tile)
                 .with_children(tile_editors.iter().map(|e| e.lock().handle()))
                 .with_child(property_editors.handle)
@@ -853,11 +889,13 @@ impl TileInspector {
             page_material_inspector,
             page_material_field,
             tile_size_inspector,
+            animation_speed_inspector,
             create_tile,
             create_page,
             create_atlas,
             create_free,
             create_transform,
+            create_animation,
             page_icon_field,
             property_editors,
             collider_editors,
@@ -904,10 +942,16 @@ impl TileInspector {
         let brush_empty_pages = state.brush().is_some() && empty_pages;
         let tile_data_selected = state.tile_data().next().is_some();
         let mat_page_selected = state.material_page().is_some();
+        let anim_page_selected = state.animation_page().is_some();
         send_visibility(ui, self.tile_set_page_creator, tile_set_empty_pages);
         send_visibility(ui, self.brush_page_creator, brush_empty_pages);
         send_visibility(ui, self.create_tile, empty_tiles);
         send_visibility(ui, self.tile_set_page_creator, tile_set_empty_pages);
+        send_visibility(
+            ui,
+            self.animation_speed_inspector.handle,
+            anim_page_selected,
+        );
         send_visibility(ui, self.tile_size_inspector.handle, mat_page_selected);
         send_visibility(ui, self.page_material_inspector.handle, mat_page_selected);
         send_visibility(
@@ -983,6 +1027,15 @@ impl TileInspector {
                     mat.material.clone(),
                 ),
             );
+        } else if let Some((_, anim)) = state.animation_page() {
+            send_sync_message(
+                ui,
+                NumericUpDownMessage::value(
+                    self.animation_speed_inspector.field,
+                    MessageDirection::ToWidget,
+                    anim.frame_rate,
+                ),
+            );
         }
     }
     pub fn handle_ui_message(
@@ -1032,6 +1085,12 @@ impl TileInspector {
                     &tile_editor_state,
                     sender,
                 );
+            } else if message.destination() == self.create_animation {
+                self.create_tile_set_page(
+                    TileSetPageSource::new_animation(),
+                    &tile_editor_state,
+                    sender,
+                );
             } else if message.destination() == self.create_page {
                 self.create_brush_page(&tile_editor_state, sender);
             } else if message.destination() == self.create_tile {
@@ -1062,6 +1121,10 @@ impl TileInspector {
         } else if let Some(Vec2EditorMessage::<u32>::Value(size)) = message.data() {
             if message.destination() == self.tile_size_inspector.field {
                 self.set_page_tile_size(*size, &tile_editor_state, sender);
+            }
+        } else if let Some(NumericUpDownMessage::<f32>::Value(speed)) = message.data() {
+            if message.destination() == self.animation_speed_inspector.field {
+                self.set_animation_speed(*speed, &tile_editor_state, sender);
             }
         } else if let Some(TileHandleEditorMessage::Value(Some(handle))) = message.data() {
             if message.destination() == self.page_icon_field {
@@ -1115,6 +1178,10 @@ impl TileInspector {
                     TileDataUpdate::FreeformTile(TileDefinition::default()),
                 )),
                 Some(PageType::Transform) => drop(update.insert(
+                    handle,
+                    TileDataUpdate::TransformSet(Some(TileDefinitionHandle::default())),
+                )),
+                Some(PageType::Animation) => drop(update.insert(
                     handle,
                     TileDataUpdate::TransformSet(Some(TileDefinitionHandle::default())),
                 )),
@@ -1200,6 +1267,23 @@ impl TileInspector {
                 tile_set,
                 page,
                 size,
+            });
+        }
+    }
+    fn set_animation_speed(
+        &self,
+        frame_rate: f32,
+        state: &TileEditorState,
+        sender: &MessageSender,
+    ) {
+        let TileBook::TileSet(tile_set) = self.tile_book.clone() else {
+            return;
+        };
+        if let Some((page, _)) = state.animation_page() {
+            sender.do_command(ModifyAnimationSpeedCommand {
+                tile_set,
+                page,
+                frame_rate,
             });
         }
     }
