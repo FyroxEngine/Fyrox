@@ -116,14 +116,6 @@ mod test {
     struct Stub {}
 
     impl ResourceData for Stub {
-        fn as_any(&self) -> &dyn std::any::Any {
-            self
-        }
-
-        fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-            self
-        }
-
         fn type_uuid(&self) -> Uuid {
             Uuid::default()
         }

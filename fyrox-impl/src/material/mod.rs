@@ -47,9 +47,9 @@ use crate::{
     resource::texture::TextureResource,
 };
 use fxhash::FxHashMap;
+use fyrox_core::Downcast;
 use lazy_static::lazy_static;
 use std::{
-    any::Any,
     error::Error,
     fmt::{Display, Formatter},
     path::Path,
@@ -636,14 +636,6 @@ impl TypeUuidProvider for Material {
 }
 
 impl ResourceData for Material {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
     fn type_uuid(&self) -> Uuid {
         <Self as TypeUuidProvider>::type_uuid()
     }
@@ -1121,7 +1113,7 @@ impl MaterialResourceExtension for MaterialResource {
             }
             ResourceState::Ok(ref material) => MaterialResource::new_ok(
                 kind,
-                ResourceData::as_any(&**material)
+                Downcast::as_any(&**material)
                     .downcast_ref::<Material>()
                     .unwrap()
                     .clone(),

@@ -32,7 +32,6 @@ use fyrox_resource::{
 };
 use lazy_static::lazy_static;
 use std::{
-    any::Any,
     error::Error,
     fmt::{Debug, Formatter},
     hash::{Hash, Hasher},
@@ -220,14 +219,6 @@ pub struct Font {
 uuid_provider!(Font = "692fec79-103a-483c-bb0b-9fc3a349cb48");
 
 impl ResourceData for Font {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
     fn type_uuid(&self) -> Uuid {
         <Self as TypeUuidProvider>::type_uuid()
     }

@@ -24,20 +24,17 @@ use crate::{
     core::{append_extension, log::Log, reflect::Reflect},
     io::ResourceIo,
 };
+use fyrox_core::Downcast;
 use ron::ser::PrettyConfig;
 use serde::{de::DeserializeOwned, Serialize};
-use std::{any::Any, fs::File, path::Path};
+use std::{fs::File, path::Path};
 
 /// Extension of import options file.
 pub const OPTIONS_EXTENSION: &str = "options";
 
 /// Base type-agnostic trait for resource import options. This trait has automatic implementation
 /// for everything that implements [`ImportOptions`] trait.
-pub trait BaseImportOptions: Reflect {
-    /// Returns self as any and used for downcasting to a particular type.
-    fn as_any(&self) -> &dyn Any;
-    /// Returns self as any and used for downcasting to a particular type.
-    fn as_any_mut(&mut self) -> &mut dyn Any;
+pub trait BaseImportOptions: Downcast + Reflect {
     /// Saves the options to a file at the given path.
     fn save(&self, path: &Path) -> bool;
 }
@@ -61,14 +58,6 @@ impl<T> BaseImportOptions for T
 where
     T: ImportOptions,
 {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
     fn save(&self, path: &Path) -> bool {
         self.save_internal(path)
     }

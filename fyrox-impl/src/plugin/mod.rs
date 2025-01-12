@@ -30,6 +30,7 @@ use crate::{
         pool::Handle,
         reflect::Reflect,
         visitor::{Visit, VisitError},
+        Downcast,
     },
     engine::{
         task::TaskPoolHandler, AsyncSceneLoader, GraphicsContext, PerformanceStatistics,
@@ -43,7 +44,6 @@ use crate::{
     scene::{Scene, SceneContainer},
 };
 use std::{
-    any::Any,
     ops::{Deref, DerefMut},
     path::Path,
     sync::Arc,
@@ -187,37 +187,15 @@ pub struct PluginContext<'a, 'b> {
     pub task_pool: &'a mut TaskPoolHandler,
 }
 
-/// Base plugin automatically implements type casting for plugins.
-pub trait BasePlugin: Any + 'static {
-    /// Returns a reference to Any trait. It is used for type casting.
-    fn as_any(&self) -> &dyn Any;
-
-    /// Returns a reference to Any trait. It is used for type casting.
-    fn as_any_mut(&mut self) -> &mut dyn Any;
-}
-
-impl<T> BasePlugin for T
-where
-    T: Any + Plugin + 'static,
-{
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-}
-
 impl dyn Plugin {
     /// Performs downcasting to a particular type.
     pub fn cast<T: Plugin>(&self) -> Option<&T> {
-        BasePlugin::as_any(self).downcast_ref::<T>()
+        Downcast::as_any(self).downcast_ref::<T>()
     }
 
     /// Performs downcasting to a particular type.
     pub fn cast_mut<T: Plugin>(&mut self) -> Option<&mut T> {
-        BasePlugin::as_any_mut(self).downcast_mut::<T>()
+        Downcast::as_any_mut(self).downcast_mut::<T>()
     }
 }
 
@@ -267,7 +245,7 @@ impl dyn Plugin {
 ///     }
 /// }
 /// ```
-pub trait Plugin: BasePlugin + Visit + Reflect {
+pub trait Plugin: Downcast + Visit + Reflect {
     /// The method is called when the plugin constructor was just registered in the engine. The main
     /// use of this method is to register scripts and custom scene graph nodes in [`SerializationContext`].
     fn register(&self, #[allow(unused_variables)] context: PluginRegistrationContext) {}

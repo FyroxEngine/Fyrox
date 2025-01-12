@@ -458,7 +458,6 @@ pub use fyrox_graphics::gpu_program::{
 use ron::ser::PrettyConfig;
 use serde::{Deserialize, Serialize};
 use std::{
-    any::Any,
     error::Error,
     fmt::{Display, Formatter},
     fs::File,
@@ -736,14 +735,6 @@ impl Shader {
 }
 
 impl ResourceData for Shader {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
     fn type_uuid(&self) -> Uuid {
         <Self as TypeUuidProvider>::type_uuid()
     }

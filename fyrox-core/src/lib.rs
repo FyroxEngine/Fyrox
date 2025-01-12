@@ -504,6 +504,8 @@ pub trait Downcast: Any {
     /// Converts self reference as a reference to [`Any`]. Could be used to downcast a trait object
     /// to a particular type.
     fn as_any_mut(&mut self) -> &mut dyn Any;
+
+    fn into_any(self: Box<Self>) -> Box<dyn Any>;
 }
 
 impl<T: Any> Downcast for T {
@@ -512,6 +514,10 @@ impl<T: Any> Downcast for T {
     }
 
     fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn into_any(self: Box<Self>) -> Box<dyn Any> {
         self
     }
 }

@@ -35,7 +35,6 @@ use fyrox_resource::{
     Resource, ResourceData,
 };
 use std::{
-    any::Any,
     error::Error,
     fmt::{Display, Formatter},
     path::{Path, PathBuf},
@@ -81,14 +80,6 @@ impl From<VisitError> for StyleResourceError {
 }
 
 impl ResourceData for Style {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
     fn type_uuid(&self) -> Uuid {
         <Self as TypeUuidProvider>::type_uuid()
     }

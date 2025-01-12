@@ -99,9 +99,9 @@ use crate::{
     Message, Settings,
 };
 use fyrox::asset::untyped::ResourceKind;
+use fyrox::core::Downcast;
 use fyrox::graph::SceneGraphNode;
 use std::{
-    any::Any,
     cell::RefCell,
     fmt::Debug,
     fs::File,
@@ -479,14 +479,6 @@ impl GameScene {
 }
 
 impl SceneController for GameScene {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
     #[must_use]
     fn on_key_up(
         &mut self,
@@ -1297,10 +1289,8 @@ impl SceneController for GameScene {
     }
 }
 
-pub trait BaseSelectionContainer: Debug + 'static {
+pub trait BaseSelectionContainer: Downcast + Debug {
     fn clone_boxed(&self) -> Box<dyn SelectionContainer>;
-    fn as_any(&self) -> &dyn Any;
-    fn as_any_mut(&mut self) -> &mut dyn Any;
     fn eq_ref(&self, other: &dyn SelectionContainer) -> bool;
 }
 
@@ -1310,14 +1300,6 @@ where
 {
     fn clone_boxed(&self) -> Box<dyn SelectionContainer> {
         Box::new(self.clone())
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
     }
 
     fn eq_ref(&self, other: &dyn SelectionContainer) -> bool {

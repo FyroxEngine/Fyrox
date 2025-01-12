@@ -24,7 +24,7 @@ use crate::{
             algebra::{Vector2, Vector3},
             pool::Handle,
             uuid::Uuid,
-            TypeUuidProvider,
+            Downcast, TypeUuidProvider,
         },
         gui::{
             border::BorderBuilder,
@@ -33,6 +33,7 @@ use crate::{
             image::ImageBuilder,
             key::HotKey,
             message::{KeyCode, UiMessage},
+            style::{resource::StyleResourceExt, Style},
             utils::make_simple_tooltip,
             widget::WidgetBuilder,
             BuildContext, Thickness, UiNode,
@@ -45,9 +46,6 @@ use crate::{
     settings::Settings,
     Engine, Message,
 };
-use fyrox::gui::style::resource::StyleResourceExt;
-use fyrox::gui::style::Style;
-use std::any::Any;
 
 pub mod gizmo;
 pub mod move_mode;
@@ -58,32 +56,7 @@ pub mod scale_mode;
 pub mod select_mode;
 pub mod terrain;
 
-pub trait BaseInteractionMode: 'static {
-    fn as_any(&self) -> &dyn Any;
-
-    fn as_any_mut(&mut self) -> &mut dyn Any;
-
-    fn into_any(self: Box<Self>) -> Box<dyn Any>;
-}
-
-impl<T> BaseInteractionMode for T
-where
-    T: 'static,
-{
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
-    fn into_any(self: Box<Self>) -> Box<dyn Any> {
-        self
-    }
-}
-
-pub trait InteractionMode: BaseInteractionMode {
+pub trait InteractionMode: Downcast {
     fn on_left_mouse_button_down(
         &mut self,
         editor_selection: &Selection,

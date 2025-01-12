@@ -95,7 +95,7 @@ use fyrox_resource::{
 use hrtf::HrirSphere;
 use std::error::Error;
 use std::path::Path;
-use std::{any::Any, fmt::Debug, fmt::Formatter, path::PathBuf, sync::Arc};
+use std::{fmt::Debug, fmt::Formatter, path::PathBuf, sync::Arc};
 
 /// See module docs.
 #[derive(Clone, Debug, Default, Reflect)]
@@ -222,14 +222,6 @@ impl TypeUuidProvider for HrirSphereResourceData {
 }
 
 impl ResourceData for HrirSphereResourceData {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
     fn type_uuid(&self) -> Uuid {
         <Self as TypeUuidProvider>::type_uuid()
     }
