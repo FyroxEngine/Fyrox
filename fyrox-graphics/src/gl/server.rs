@@ -54,7 +54,6 @@ use glutin::{
 use glutin_winit::{DisplayBuilder, GlWindow};
 #[cfg(not(target_arch = "wasm32"))]
 use raw_window_handle::HasRawWindowHandle;
-use std::any::Any;
 use std::cell::RefCell;
 use std::ops::DerefMut;
 use std::rc::{Rc, Weak};
@@ -1077,14 +1076,6 @@ impl GraphicsServer for GlGraphicsServer {
         desc: GeometryBufferDescriptor,
     ) -> Result<Box<dyn GeometryBuffer>, FrameworkError> {
         Ok(Box::new(GlGeometryBuffer::new(self, desc)?))
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
     }
 
     fn weak(self: Rc<Self>) -> Weak<dyn GraphicsServer> {

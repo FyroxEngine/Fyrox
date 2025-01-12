@@ -23,49 +23,21 @@
 use crate::{
     core::uuid::Uuid, io::ResourceIo, options::BaseImportOptions, state::LoadError, ResourceData,
 };
-use std::{any::Any, future::Future, path::PathBuf, pin::Pin, sync::Arc};
+use fyrox_core::Downcast;
+use std::{future::Future, path::PathBuf, pin::Pin, sync::Arc};
 
 #[cfg(target_arch = "wasm32")]
 #[doc(hidden)]
-pub trait BaseResourceLoader: 'static {}
+pub trait BaseResourceLoader: Downcast {}
 
 #[cfg(not(target_arch = "wasm32"))]
 #[doc(hidden)]
-pub trait BaseResourceLoader: Send + 'static {}
+pub trait BaseResourceLoader: Send + Downcast {}
 
 impl<T> BaseResourceLoader for T where T: ResourceLoader {}
 
-/// A simple type-casting trait that has auto-impl.
-pub trait ResourceLoaderTypeTrait: BaseResourceLoader {
-    /// Converts `self` into boxed `Any`.
-    fn into_any(self: Box<Self>) -> Box<dyn Any>;
-
-    /// Returns `self` as `&dyn Any`. It is useful for downcasting to a particular type.
-    fn as_any(&self) -> &dyn Any;
-
-    /// Returns `self` as `&mut dyn Any`. It is useful for downcasting to a particular type.
-    fn as_any_mut(&mut self) -> &mut dyn Any;
-}
-
-impl<T> ResourceLoaderTypeTrait for T
-where
-    T: ResourceLoader,
-{
-    fn into_any(self: Box<Self>) -> Box<dyn Any> {
-        self
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-}
-
 /// Trait for resource loading.
-pub trait ResourceLoader: ResourceLoaderTypeTrait {
+pub trait ResourceLoader: BaseResourceLoader {
     /// Returns a list of file extensions supported by the loader. Resource manager will use this list
     /// to pick the correct resource loader when the user requests a resource.
     fn extensions(&self) -> &[&str];

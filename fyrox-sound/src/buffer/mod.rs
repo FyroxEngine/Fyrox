@@ -41,7 +41,6 @@ use fyrox_resource::{
 };
 use std::error::Error;
 use std::{
-    any::Any,
     fmt::Debug,
     io::{Cursor, Read, Seek, SeekFrom},
     ops::{Deref, DerefMut},
@@ -286,14 +285,6 @@ impl DerefMut for SoundBuffer {
 }
 
 impl ResourceData for SoundBuffer {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
     fn type_uuid(&self) -> Uuid {
         SOUND_BUFFER_RESOURCE_UUID
     }

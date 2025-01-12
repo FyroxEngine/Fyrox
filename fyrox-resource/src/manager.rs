@@ -884,14 +884,6 @@ mod test {
     }
 
     impl ResourceData for Stub {
-        fn as_any(&self) -> &dyn std::any::Any {
-            unimplemented!()
-        }
-
-        fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-            unimplemented!()
-        }
-
         fn type_uuid(&self) -> Uuid {
             <Self as TypeUuidProvider>::type_uuid()
         }

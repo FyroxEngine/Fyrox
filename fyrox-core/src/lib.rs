@@ -41,7 +41,9 @@ pub use sstorage::ImmutableString;
 pub use uuid;
 
 use crate::visitor::{Visit, VisitResult, Visitor};
+use bytemuck::Pod;
 use fxhash::FxHashMap;
+use std::any::Any;
 use std::collections::hash_map::Entry;
 use std::ffi::OsString;
 use std::hash::Hasher;
@@ -51,8 +53,6 @@ use std::{
     hash::Hash,
     path::{Path, PathBuf},
 };
-
-use bytemuck::Pod;
 pub mod color;
 pub mod color_gradient;
 pub mod early;
@@ -492,6 +492,33 @@ pub fn swap_hash_map_entries<K0, K1, V>(entry0: Entry<K0, V>, entry1: Entry<K1, 
         }
         (Entry::Vacant(_), Entry::Vacant(_)) => (),
         (Entry::Vacant(e0), Entry::Occupied(e1)) => drop(e0.insert(e1.remove())),
+    }
+}
+
+/// A simple trait for downcasting through [`Any`] trait.
+pub trait Downcast: Any {
+    /// Converts self reference as a reference to [`Any`]. Could be used to downcast a trait object
+    /// to a particular type.
+    fn as_any(&self) -> &dyn Any;
+
+    /// Converts self reference as a reference to [`Any`]. Could be used to downcast a trait object
+    /// to a particular type.
+    fn as_any_mut(&mut self) -> &mut dyn Any;
+
+    fn into_any(self: Box<Self>) -> Box<dyn Any>;
+}
+
+impl<T: Any> Downcast for T {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn into_any(self: Box<Self>) -> Box<dyn Any> {
+        self
     }
 }
 

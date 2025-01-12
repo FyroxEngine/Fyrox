@@ -23,7 +23,7 @@ fyrox-animation = { path = "../fyrox-animation", version = "0.36.0" }
 lazy_static = "1.4.0"
 copypasta = "0.10.1"
 fontdue = "0.9.2"
-notify = "6"
+notify = "8"
 fxhash = "0.2.1"
 strum = "0.26.1"
 strum_macros = "0.26.1"

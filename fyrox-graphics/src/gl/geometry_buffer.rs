@@ -27,7 +27,7 @@ use crate::{
     ElementKind,
 };
 use glow::HasContext;
-use std::{any::Any, cell::Cell, marker::PhantomData, rc::Weak};
+use std::{cell::Cell, marker::PhantomData, rc::Weak};
 
 impl AttributeKind {
     fn gl_type(self) -> u32 {
@@ -134,14 +134,6 @@ impl GlGeometryBuffer {
 }
 
 impl GeometryBuffer for GlGeometryBuffer {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
     fn set_buffer_data(&self, buffer: usize, data: &[u8]) {
         self.state
             .upgrade()

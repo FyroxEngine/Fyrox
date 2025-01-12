@@ -18,10 +18,14 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::{core::math::Rect, error::FrameworkError, framebuffer::FrameBuffer};
+use crate::{
+    core::{math::Rect, Downcast},
+    error::FrameworkError,
+    framebuffer::FrameBuffer,
+};
 use bytemuck::Pod;
 
-pub trait AsyncReadBuffer {
+pub trait AsyncReadBuffer: Downcast {
     fn schedule_pixels_transfer(
         &mut self,
         framebuffer: &dyn FrameBuffer,

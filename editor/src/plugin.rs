@@ -18,23 +18,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::gui::message::UiMessage;
-use crate::{Editor, Message};
-use std::any::Any;
-
-pub trait BaseEditorPlugin: Any {
-    fn as_any(&self) -> &dyn Any;
-    fn as_any_mut(&mut self) -> &mut dyn Any;
-}
-
-impl<T: EditorPlugin> BaseEditorPlugin for T {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-}
+use crate::{
+    fyrox::{core::Downcast, gui::message::UiMessage},
+    Editor, Message,
+};
 
 /// Editor plugin allows you to extend editor functionality with custom tools. It provides a standard way of interaction
 /// between your plugin and built-in editor's functionality.
@@ -55,7 +42,7 @@ impl<T: EditorPlugin> BaseEditorPlugin for T {
 /// The editor usually operates on scenes (there could be multiple opened scenes, but only one active) and any modification of
 /// their content **must** be done via _commands_. [Command](https://en.wikipedia.org/wiki/Command_pattern) is a standard
 /// pattern that encapsulates an action. Command pattern is used for undo/redo functionality.
-pub trait EditorPlugin: BaseEditorPlugin {
+pub trait EditorPlugin: Downcast {
     /// This method is called right after the editor was fully initialized. It is guaranteed to be called only once.
     fn on_start(&mut self, #[allow(unused_variables)] editor: &mut Editor) {}
 

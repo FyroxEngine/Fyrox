@@ -28,9 +28,8 @@ use crate::{
         PixelKind, WrapMode,
     },
 };
-use glow::{HasContext, PixelPackData, COMPRESSED_RED_RGTC1, COMPRESSED_RG_RGTC2};
+use glow::{HasContext, PixelPackData, PixelUnpackData, COMPRESSED_RED_RGTC1, COMPRESSED_RG_RGTC2};
 use std::{
-    any::Any,
     marker::PhantomData,
     rc::{Rc, Weak},
 };
@@ -457,14 +456,6 @@ impl Drop for GlTexture {
 }
 
 impl GpuTexture for GlTexture {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
     fn set_anisotropy(&mut self, anisotropy: f32) {
         self.make_temp_binding().set_anisotropy(anisotropy);
         self.anisotropy = anisotropy;
@@ -660,7 +651,7 @@ impl GpuTexture for GlTexture {
                                     0,
                                     format,
                                     data_type,
-                                    pixels,
+                                    PixelUnpackData::Slice(pixels),
                                 );
                             }
 
@@ -701,7 +692,7 @@ impl GpuTexture for GlTexture {
                                     0,
                                     format,
                                     data_type,
-                                    pixels,
+                                    PixelUnpackData::Slice(pixels),
                                 );
                             }
 
@@ -744,7 +735,7 @@ impl GpuTexture for GlTexture {
                                         0,
                                         format,
                                         data_type,
-                                        face_pixels,
+                                        PixelUnpackData::Slice(face_pixels),
                                     );
                                 }
                             }
@@ -793,7 +784,7 @@ impl GpuTexture for GlTexture {
                                     0,
                                     format,
                                     data_type,
-                                    pixels,
+                                    PixelUnpackData::Slice(pixels),
                                 );
                             }
 
@@ -843,7 +834,7 @@ impl GpuTexture for GlTexture {
                 level as i32,
                 desc.format,
                 desc.data_type,
-                PixelPackData::Slice(bytes.as_mut_slice()),
+                PixelPackData::Slice(Some(bytes.as_mut_slice())),
             );
             bytes
         }
@@ -862,7 +853,7 @@ impl GpuTexture for GlTexture {
                     height as i32,
                     pixel_info.format,
                     pixel_info.data_type,
-                    PixelPackData::Slice(buffer.as_mut_slice()),
+                    PixelPackData::Slice(Some(buffer.as_mut_slice())),
                 );
                 buffer
             } else {

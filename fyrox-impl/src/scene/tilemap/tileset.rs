@@ -45,7 +45,6 @@ use crate::{
     resource::texture::TextureResource,
 };
 use std::{
-    any::Any,
     collections::hash_map::{Entry, Keys},
     error::Error,
     fmt::{Display, Formatter},
@@ -1926,14 +1925,6 @@ impl TileSet {
 }
 
 impl ResourceData for TileSet {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
     fn type_uuid(&self) -> Uuid {
         <Self as TypeUuidProvider>::type_uuid()
     }

@@ -40,7 +40,6 @@ use crate::{
 use fxhash::FxHashMap;
 use fyrox_resource::{Resource, ResourceData};
 use std::{
-    any::Any,
     collections::VecDeque,
     error::Error,
     fmt::Debug,
@@ -124,14 +123,6 @@ impl Visit for AnimationTracksData {
 }
 
 impl ResourceData for AnimationTracksData {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
     fn type_uuid(&self) -> Uuid {
         <AnimationTracksData as TypeUuidProvider>::type_uuid()
     }

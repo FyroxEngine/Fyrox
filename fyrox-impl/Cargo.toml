@@ -24,8 +24,8 @@ fyrox-animation = { path = "../fyrox-animation", version = "0.36.0" }
 fyrox-graph = { path = "../fyrox-graph", version = "0.36.0" }
 fyrox-graphics = { path = "../fyrox-graphics", version = "0.36.0" }
 fyrox-texture = { path = "../fyrox-texture", version = "0.36.0" }
-rapier2d = { version = "0.22", features = ["debug-render"] }
-rapier3d = { version = "0.22", features = ["debug-render"] }
+rapier2d = { version = "0.23", features = ["debug-render"] }
+rapier3d = { version = "0.23", features = ["debug-render"] }
 image = { version = "0.25.1", default-features = false, features = ["gif", "jpeg", "png", "tga", "tiff", "bmp"] }
 inflate = "0.4.5"
 serde = { version = "1", features = ["derive"] }

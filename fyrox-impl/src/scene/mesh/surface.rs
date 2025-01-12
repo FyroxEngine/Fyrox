@@ -63,7 +63,6 @@ use fyrox_resource::manager::BuiltInResource;
 use half::f16;
 use lazy_static::lazy_static;
 use std::{
-    any::Any,
     error::Error,
     hash::Hasher,
     path::{Path, PathBuf},
@@ -238,14 +237,6 @@ pub struct SurfaceData {
 }
 
 impl ResourceData for SurfaceData {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
     fn type_uuid(&self) -> Uuid {
         <SurfaceData as fyrox_core::TypeUuidProvider>::type_uuid()
     }

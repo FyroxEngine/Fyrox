@@ -23,10 +23,10 @@
 use crate::{
     core::{
         pool::Handle, reflect::prelude::*, uuid_provider, variable, visitor::prelude::*,
-        ComponentProvider, NameProvider,
+        ComponentProvider, Downcast, NameProvider,
     },
     widget::Widget,
-    BaseControl, Control, UserInterface,
+    Control, UserInterface,
 };
 use fyrox_graph::SceneGraphNode;
 use fyrox_resource::{untyped::UntypedResource, Resource};
@@ -209,7 +209,7 @@ impl UiNode {
     where
         T: Control,
     {
-        BaseControl::as_any(&*self.0).downcast_ref::<T>()
+        Downcast::as_any(&*self.0).downcast_ref::<T>()
     }
 
     /// Tries to perform **direct** downcasting to a particular widget type. It is just a simple wrapper
@@ -218,7 +218,7 @@ impl UiNode {
     where
         T: Control,
     {
-        BaseControl::as_any_mut(&mut *self.0).downcast_mut::<T>()
+        Downcast::as_any_mut(&mut *self.0).downcast_mut::<T>()
     }
 
     /// Tries to fetch a component of the given type `T`. At very basis it mimics [`Self::cast`] behaviour, but
@@ -302,7 +302,7 @@ impl Reflect for UiNode {
     }
 
     fn into_any(self: Box<Self>) -> Box<dyn Any> {
-        self.0.into_any()
+        Reflect::into_any(self.0)
     }
 
     fn as_any(&self, func: &mut dyn FnMut(&dyn Any)) {

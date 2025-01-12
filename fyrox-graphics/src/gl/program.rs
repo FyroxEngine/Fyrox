@@ -18,7 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::gpu_program::ShaderPropertyKind;
 use crate::{
     core::{
         log::{Log, MessageKind},
@@ -27,13 +26,13 @@ use crate::{
     error::FrameworkError,
     gl::server::{GlGraphicsServer, GlKind},
     gpu_program::{
-        GpuProgram, SamplerKind, ShaderResourceDefinition, ShaderResourceKind, UniformLocation,
+        GpuProgram, SamplerKind, ShaderPropertyKind, ShaderResourceDefinition, ShaderResourceKind,
+        UniformLocation,
     },
 };
 use fxhash::FxHashMap;
 use glow::HasContext;
 use std::{
-    any::Any,
     cell::RefCell,
     marker::PhantomData,
     ops::Deref,
@@ -419,14 +418,6 @@ struct TempBinding {
 }
 
 impl GpuProgram for GlProgram {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
     fn uniform_location(&self, name: &ImmutableString) -> Result<UniformLocation, FrameworkError> {
         self.uniform_location_internal(name)
             .ok_or_else(|| FrameworkError::UnableToFindShaderUniform(name.deref().to_owned()))

@@ -1403,7 +1403,6 @@ mod test {
     };
     use fyrox_resource::{Resource, ResourceData};
     use std::{
-        any::Any,
         error::Error,
         ops::{Deref, DerefMut, Index, IndexMut},
         path::Path,
@@ -1499,14 +1498,6 @@ mod test {
     }
 
     impl ResourceData for Graph {
-        fn as_any(&self) -> &dyn Any {
-            self
-        }
-
-        fn as_any_mut(&mut self) -> &mut dyn Any {
-            self
-        }
-
         fn type_uuid(&self) -> Uuid {
             <Graph as TypeUuidProvider>::type_uuid()
         }
