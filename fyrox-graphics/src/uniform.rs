@@ -18,6 +18,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#![warn(missing_docs)]
+
+//! Uniform buffer is a special byte storage that ensures correct data alignment suitable for GPU.
+//! Current implementation supports `std140` data layout scheme.
+
 use crate::core::{
     algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4},
     array_as_u8_slice,
@@ -26,11 +31,17 @@ use crate::core::{
     value_as_u8_slice,
 };
 
+/// A trait for any storage suitable to store bytes for uniforms.
 pub trait ByteStorage: Default {
+    /// Clears the storage.
     fn reset(&mut self);
+    /// Returns a reference to the internal bytes array.
     fn bytes(&self) -> &[u8];
+    /// Returns total number of bytes that is currently in the storage.
     fn bytes_count(&self) -> usize;
+    /// Writes the given number of bytes to the storage.
     fn write_bytes(&mut self, bytes: &[u8]);
+    /// Writes the given number of zero bytes to the storage.
     fn write_zeros(&mut self, count: usize);
 }
 
@@ -95,17 +106,40 @@ impl ByteStorage for Vec<u8> {
     }
 }
 
+/// Uniform buffer is a special byte storage that ensures correct data alignment suitable for GPU.
+/// Current implementation supports `std140` data layout scheme.
+///
+/// ## Examples
+///
+/// ```rust
+/// # use fyrox_core::{
+/// #     algebra::{Matrix4, Vector3},
+/// #     color::Color
+/// # };
+/// # use fyrox_graphics::uniform::StaticUniformBuffer;
+/// let bytes = StaticUniformBuffer::<256>::new()
+///     .with(&Matrix4::identity())
+///     .with(&Color::WHITE)
+///     .with(&Vector3::new(0.0, 1.0, 0.0))
+///     .finish();
+/// ```
 #[derive(Default)]
 pub struct UniformBuffer<S: ByteStorage> {
     storage: S,
 }
 
+/// A uniform buffer backed by an array of fixed size.
 pub type StaticUniformBuffer<const N: usize> = UniformBuffer<ArrayVec<u8, N>>;
+
+/// A uniform buffer backed by a dynamic array.
 pub type DynamicUniformBuffer = UniformBuffer<Vec<u8>>;
 
+/// A trait for entities that supports `std140` data layout.
 pub trait Std140 {
+    /// Alignment in bytes.
     const ALIGNMENT: usize;
 
+    /// Writes self to the given bytes storage.
     fn write<T: ByteStorage>(&self, dest: &mut T);
 }
 
@@ -215,28 +249,36 @@ impl<S> UniformBuffer<S>
 where
     S: ByteStorage + Default,
 {
+    /// Creates a new uniform buffer with an empty storage.
     pub fn new() -> Self {
         Self {
             storage: S::default(),
         }
     }
 
+    /// Creates a new uniform buffer with the given storage.
     pub fn with_storage(storage: S) -> Self {
         Self { storage }
     }
 
+    /// Clears the uniform buffer.
     pub fn clear(&mut self) {
         self.storage.reset();
     }
 
+    /// Returns total number of bytes stored in the uniform buffer. Keep in mind, that the number
+    /// in the vast majority of cases won't match the sum of all pushed elements due to alignment
+    /// requirements.
     pub fn len(&self) -> usize {
         self.storage.bytes_count()
     }
 
+    /// Checks if the buffer is empty or not.
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
+    /// Pushes the given amount of padding bytes to the storage.
     pub fn push_padding(&mut self, alignment: usize) {
         debug_assert!(alignment.is_power_of_two());
         let bytes_count = self.storage.bytes_count();
@@ -247,6 +289,8 @@ where
         }
     }
 
+    /// Pushes a value to the storage. This method ensures that the correct alignment for the pushed
+    /// value is preserved.
     pub fn push<T>(&mut self, value: &T) -> &mut Self
     where
         T: Std140,
@@ -256,6 +300,7 @@ where
         self
     }
 
+    /// The same as [`Self::push`], but allows chained calls in a builder manner.
     pub fn with<T>(mut self, value: &T) -> Self
     where
         T: Std140,
@@ -270,6 +315,9 @@ where
         self.push_padding(16);
     }
 
+    /// Pushes a slice of given values. Keep in mind, that this method is not the same as pushing
+    /// individual slice elements one by one. Instead, this method preserves alignment requirements
+    /// for arrays as `std140` rule set requires.
     pub fn push_slice<T>(&mut self, slice: &[T]) -> &mut Self
     where
         T: Std140,
@@ -310,6 +358,7 @@ where
         self
     }
 
+    /// The same as [`Self::push_slice`], but allows chained calls in a builder manner.
     pub fn with_slice<T>(mut self, slice: &[T]) -> Self
     where
         T: Std140,
@@ -318,15 +367,20 @@ where
         self
     }
 
+    /// Returns a reference to the internal bytes storage of the uniform buffer.
     pub fn storage(&self) -> &S {
         &self.storage
     }
 
+    /// Finishes buffer filling process and returns the backing storage by consuming the buffer. This
+    /// method **must** be called before sending the data GPU, otherwise the buffer may contain misaligned
+    /// data.
     pub fn finish(mut self) -> S {
         self.push_padding(16);
         self.storage
     }
 
+    /// Calculates position for the next element including the given alignment.
     pub fn next_write_aligned_position(&self, alignment: usize) -> usize {
         let position = self.storage.bytes_count();
         let remainder = (alignment - 1) & position;
@@ -338,6 +392,9 @@ where
         }
     }
 
+    /// Writes bytes directly to the buffer with the given alignment. Important: this method could
+    /// be dangerous if misused, the alignment argument must be correct and comply with `std140`
+    /// data layout rules.
     pub fn write_bytes_with_alignment(&mut self, bytes: &[u8], alignment: usize) -> usize {
         self.push_padding(alignment);
         let data_location = self.storage.bytes_count();
