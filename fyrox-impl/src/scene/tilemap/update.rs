@@ -368,7 +368,7 @@ impl TileSetUpdate {
                 drop(tile_set);
                 self.convert_freeform(tiles, &TileSetRef::new(source_set).as_loaded(), page);
             }
-            TileSetPageSource::Transform(_) => {
+            TileSetPageSource::Transform(_) | TileSetPageSource::Animation(_) => {
                 drop(tile_set);
                 self.convert_transform(tiles, &TileSetRef::new(source_set).as_loaded(), page);
             }

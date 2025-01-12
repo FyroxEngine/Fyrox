@@ -99,6 +99,7 @@ pub struct CsmRenderer {
 }
 
 pub(crate) struct CsmRenderContext<'a, 'c> {
+    pub elapsed_time: f32,
     pub frame_size: Vector2<f32>,
     pub state: &'a dyn GraphicsServer,
     pub graph: &'c Graph,
@@ -147,6 +148,7 @@ impl CsmRenderer {
         let mut stats = RenderPassStatistics::default();
 
         let CsmRenderContext {
+            elapsed_time,
             frame_size,
             state,
             graph,
@@ -250,6 +252,7 @@ impl CsmRenderer {
 
             let bundle_storage = RenderDataBundleStorage::from_graph(
                 graph,
+                elapsed_time,
                 ObserverInfo {
                     observer_position,
                     z_near,

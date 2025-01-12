@@ -740,6 +740,10 @@ fn make_ui_frame_buffer(
 
 /// A context for custom scene render passes.
 pub struct SceneRenderPassContext<'a, 'b> {
+    /// Amount of time (in seconds) that passed from creation of the engine. Keep in mind, that
+    /// this value is **not** guaranteed to match real time. A user can change delta time with
+    /// which the engine "ticks" and this delta time affects elapsed time.
+    pub elapsed_time: f32,
     /// A graphics server that is used as a wrapper to underlying graphics API.
     pub server: &'a dyn GraphicsServer,
 
@@ -1284,6 +1288,7 @@ impl Renderer {
         &mut self,
         scene_handle: Handle<Scene>,
         scene: &Scene,
+        elapsed_time: f32,
         dt: f32,
     ) -> Result<&AssociatedSceneData, FrameworkError> {
         let graph = &scene.graph;
@@ -1371,6 +1376,7 @@ impl Renderer {
 
             let bundle_storage = RenderDataBundleStorage::from_graph(
                 graph,
+                elapsed_time,
                 ObserverInfo {
                     observer_position: camera.global_position(),
                     z_near: camera.projection().z_near(),
@@ -1425,6 +1431,7 @@ impl Renderer {
             let (pass_stats, light_stats) =
                 self.deferred_light_renderer
                     .render(DeferredRendererContext {
+                        elapsed_time,
                         server,
                         scene,
                         camera,
@@ -1468,6 +1475,7 @@ impl Renderer {
                     render_pass
                         .borrow_mut()
                         .on_hdr_render(SceneRenderPassContext {
+                            elapsed_time,
                             server,
                             texture_cache: &mut self.texture_cache,
                             geometry_cache: &mut self.geometry_cache,
@@ -1549,6 +1557,7 @@ impl Renderer {
                     render_pass
                         .borrow_mut()
                         .on_ldr_render(SceneRenderPassContext {
+                            elapsed_time,
                             server,
                             texture_cache: &mut self.texture_cache,
                             geometry_cache: &mut self.geometry_cache,
@@ -1595,6 +1604,7 @@ impl Renderer {
     fn render_frame<'a>(
         &mut self,
         scenes: &SceneContainer,
+        elapsed_time: f32,
         drawing_contexts: impl Iterator<Item = &'a DrawingContext>,
     ) -> Result<(), FrameworkError> {
         if self.frame_size.0 == 0 || self.frame_size.1 == 0 {
@@ -1628,7 +1638,7 @@ impl Renderer {
         let backbuffer_height = self.frame_size.1 as f32;
 
         for (scene_handle, scene) in scenes.pair_iter().filter(|(_, s)| *s.enabled) {
-            self.render_scene(scene_handle, scene, dt)?;
+            self.render_scene(scene_handle, scene, elapsed_time, dt)?;
         }
 
         self.graphics_server()
@@ -1670,10 +1680,11 @@ impl Renderer {
     pub(crate) fn render_and_swap_buffers<'a>(
         &mut self,
         scenes: &SceneContainer,
+        elapsed_time: f32,
         drawing_contexts: impl Iterator<Item = &'a DrawingContext>,
         window: &Window,
     ) -> Result<(), FrameworkError> {
-        self.render_frame(scenes, drawing_contexts)?;
+        self.render_frame(scenes, elapsed_time, drawing_contexts)?;
         self.statistics.end_frame();
         window.pre_present_notify();
         self.graphics_server().swap_buffers()?;

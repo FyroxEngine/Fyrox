@@ -107,6 +107,10 @@ pub struct ObserverInfo {
 /// Render context is used to collect render data from the scene nodes. It provides all required information about
 /// the observer (camera, light source virtual camera, etc.), that could be used for culling.
 pub struct RenderContext<'a> {
+    /// Amount of time (in seconds) that passed from creation of the engine. Keep in mind, that
+    /// this value is **not** guaranteed to match real time. A user can change delta time with
+    /// which the engine "ticks" and this delta time affects elapsed time.
+    pub elapsed_time: f32,
     pub observer_info: &'a ObserverInfo,
     /// Frustum of the observer, it is built using observer's view and projection matrix. Use the frustum to do
     /// frustum culling.
@@ -759,6 +763,7 @@ impl RenderDataBundleStorage {
     /// Frustum culling is done on scene node side ([`crate::scene::node::NodeTrait::collect_render_data`]).
     pub fn from_graph(
         graph: &Graph,
+        elapsed_time: f32,
         observer_info: ObserverInfo,
         render_pass_name: ImmutableString,
         options: RenderDataBundleStorageOptions,
@@ -846,6 +851,7 @@ impl RenderDataBundleStorage {
         }
 
         let mut ctx = RenderContext {
+            elapsed_time,
             observer_info: &observer_info,
             frustum: Some(&frustum),
             storage: &mut storage,

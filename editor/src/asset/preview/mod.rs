@@ -112,7 +112,7 @@ pub trait AssetPreviewGenerator: Send + Sync + 'static {
 
     /// Generates a preview image for an asset. For example, in case of prefabs, it will be the
     /// entire prefab content rendered to an image. In case of sounds it will be its waveform, and
-    /// so on.  
+    /// so on.
     fn generate_preview(
         &mut self,
         resource: &UntypedResource,
@@ -294,6 +294,7 @@ fn render_scene_to_texture(
     scene: &mut Scene,
     rt_size: Vector2<f32>,
 ) -> Option<AssetPreviewTexture> {
+    let elapsed_time = engine.elapsed_time();
     let GraphicsContext::Initialized(ref mut graphics_context) = engine.graphics_context else {
         Log::warn("Cannot render an asset preview when the renderer is not initialized!");
         return None;
@@ -334,7 +335,7 @@ fn render_scene_to_texture(
     let temp_handle = Handle::new(u32::MAX, u32::MAX);
     if let Some(ldr_texture) = graphics_context
         .renderer
-        .render_scene(temp_handle, scene, 0.0)
+        .render_scene(temp_handle, scene, elapsed_time, 0.0)
         .ok()
         .and_then(|data| {
             data.ldr_scene_framebuffer

@@ -581,6 +581,7 @@ impl SetTileSetPageCommand {
         let mut tile_set = self.tile_set.data_ref();
         swap_hash_map_entry(tile_set.pages.entry(self.position), &mut self.page);
         tile_set.rebuild_transform_sets();
+        tile_set.rebuild_animations();
         tile_set.change_count.set();
     }
 }
@@ -634,6 +635,7 @@ impl MoveTileSetPageCommand {
         }
         std::mem::swap(&mut self.start_offset, &mut self.end_offset);
         tile_set.rebuild_transform_sets();
+        tile_set.rebuild_animations();
         tile_set.change_count.set();
     }
 }
@@ -740,6 +742,7 @@ impl MoveTileSetTileCommand {
         }
         std::mem::swap(&mut self.start_offset, &mut self.end_offset);
         tile_set.rebuild_transform_sets();
+        tile_set.rebuild_animations();
         tile_set.change_count.set();
     }
 }
@@ -1003,6 +1006,41 @@ impl CommandTrait for SetMapTilesCommand {
 
     fn revert(&mut self, context: &mut dyn CommandContext) {
         self.swap(context)
+    }
+}
+
+#[derive(Debug)]
+pub struct ModifyAnimationSpeedCommand {
+    pub tile_set: TileSetResource,
+    pub page: Vector2<i32>,
+    pub frame_rate: f32,
+}
+
+impl ModifyAnimationSpeedCommand {
+    fn swap(&mut self) {
+        let mut tile_set = self.tile_set.data_ref();
+        let Some(TileSetPageSource::Animation(anim)) =
+            &mut tile_set.pages.get_mut(&self.page).map(|p| &mut p.source)
+        else {
+            Log::err("Modify animation speed on non-animation tile page.");
+            return;
+        };
+        std::mem::swap(&mut self.frame_rate, &mut anim.frame_rate);
+        tile_set.change_count.set();
+    }
+}
+
+impl CommandTrait for ModifyAnimationSpeedCommand {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
+        "Modify Tile Animation Speed".into()
+    }
+
+    fn execute(&mut self, _context: &mut dyn CommandContext) {
+        self.swap()
+    }
+
+    fn revert(&mut self, _context: &mut dyn CommandContext) {
+        self.swap()
     }
 }
 
