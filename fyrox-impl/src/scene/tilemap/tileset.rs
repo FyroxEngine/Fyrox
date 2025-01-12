@@ -399,7 +399,8 @@ impl TileSetPage {
                     );
                 }
             }
-            _ => panic!(),
+            TileSetPageSource::Transform(_) => (),
+            TileSetPageSource::Animation(_) => (),
         }
     }
     /// Take all the colliders for the given collider id, remove them from the page, and put them into the given hash map.
