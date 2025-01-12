@@ -23,23 +23,23 @@
 //! Graphics server is an abstraction layer over various graphics APIs used on different platforms
 //! supported by the engine.
 
-use crate::gpu_texture::{
-    GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind, WrapMode,
-};
 use crate::{
     buffer::{Buffer, BufferKind, BufferUsage},
+    core::Downcast,
     error::FrameworkError,
     framebuffer::{Attachment, FrameBuffer},
     geometry_buffer::{GeometryBuffer, GeometryBufferDescriptor},
     gpu_program::{GpuProgram, ShaderResourceDefinition},
-    gpu_texture::{GpuTexture, GpuTextureDescriptor},
+    gpu_texture::{
+        GpuTexture, GpuTextureDescriptor, GpuTextureKind, MagnificationFilter, MinificationFilter,
+        PixelKind, WrapMode,
+    },
     query::Query,
     read_buffer::AsyncReadBuffer,
     stats::PipelineStatistics,
     PolygonFace, PolygonFillMode,
 };
 use std::{
-    any::Any,
     cell::RefCell,
     rc::{Rc, Weak},
 };
@@ -65,13 +65,7 @@ pub type SharedGraphicsServer = Rc<dyn GraphicsServer>;
 ///
 /// Low-level GAPI-specific optimizations could be performed using direct access to the underlying API,
 /// by downcasting to a specific type.
-pub trait GraphicsServer: Any {
-    /// Downcasts self reference as reference to [`Any`].
-    fn as_any(&self) -> &dyn Any;
-
-    /// Downcasts self reference as reference to [`Any`].
-    fn as_any_mut(&mut self) -> &mut dyn Any;
-
+pub trait GraphicsServer: Downcast {
     /// Creates a GPU buffer with the given size and kind. Usage is a hint to the video driver
     /// that allows to perform some potential performance optimizations.
     fn create_buffer(

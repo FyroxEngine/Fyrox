@@ -23,8 +23,7 @@
 
 use crate::error::FrameworkError;
 use bytemuck::Pod;
-use fyrox_core::{array_as_u8_slice, array_as_u8_slice_mut};
-use std::any::Any;
+use fyrox_core::{array_as_u8_slice, array_as_u8_slice_mut, Downcast};
 
 /// GPU buffer kind.
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
@@ -90,11 +89,7 @@ pub enum BufferUsage {
 
 /// Buffer is a type-agnostic data storage located directly in GPU memory. It could be considered
 /// as a data block which content is a pile of bytes, whose meaning is defined externally.
-pub trait Buffer: Any {
-    /// Downcasts self reference as reference to [`Any`].
-    fn as_any(&self) -> &dyn Any;
-    /// Downcasts self reference as reference to [`Any`].
-    fn as_any_mut(&mut self) -> &mut dyn Any;
+pub trait Buffer: Downcast {
     /// Returns usage kind of the buffer.
     fn usage(&self) -> BufferUsage;
     /// Returns buffer kind.

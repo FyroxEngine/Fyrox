@@ -18,10 +18,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::error::FrameworkError;
+use crate::{
+    core::{color::Color, Downcast},
+    error::FrameworkError,
+};
 use bytemuck::Pod;
-use fyrox_core::color::Color;
-use std::any::Any;
 
 #[derive(Copy, Clone)]
 pub enum GpuTextureKind {
@@ -417,9 +418,7 @@ impl Default for GpuTextureDescriptor<'_> {
     }
 }
 
-pub trait GpuTexture: Any {
-    fn as_any(&self) -> &dyn Any;
-    fn as_any_mut(&mut self) -> &mut dyn Any;
+pub trait GpuTexture: Downcast {
     fn set_anisotropy(&mut self, anisotropy: f32);
     fn anisotropy(&self) -> f32;
     fn set_minification_filter(&mut self, min_filter: MinificationFilter);

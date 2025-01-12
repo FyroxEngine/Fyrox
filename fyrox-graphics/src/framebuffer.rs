@@ -26,14 +26,14 @@
 
 use crate::{
     buffer::Buffer,
-    core::{color::Color, math::Rect},
+    core::{color::Color, math::Rect, Downcast},
     error::FrameworkError,
     geometry_buffer::{DrawCallStatistics, GeometryBuffer},
     gpu_program::{GpuProgram, UniformLocation},
     gpu_texture::{CubeMapFace, GpuTexture},
     DrawParameters, ElementRange,
 };
-use std::{any::Any, cell::RefCell, rc::Rc};
+use std::{cell::RefCell, rc::Rc};
 
 /// Frame buffer attachment kind.
 #[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Eq)]
@@ -158,15 +158,7 @@ pub struct ResourceBindGroup<'a> {
 /// It consists of one or more color buffers and an optional depth/stencil buffer. Frame buffer is
 /// a high level abstraction that consolidates multiple images and supports drawing meshes to them
 /// with various drawing options.
-pub trait FrameBuffer: Any {
-    /// Converts self reference as a reference to [`Any`]. Could be used to downcast a trait object
-    /// to a particular type.
-    fn as_any(&self) -> &dyn Any;
-
-    /// Converts self reference as a reference to [`Any`]. Could be used to downcast a trait object
-    /// to a particular type.
-    fn as_any_mut(&mut self) -> &mut dyn Any;
-
+pub trait FrameBuffer: Downcast {
     /// Returns a list of color attachments.
     fn color_attachments(&self) -> &[Attachment];
 

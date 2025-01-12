@@ -18,24 +18,25 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::framebuffer::{BufferDataUsage, BufferLocation, TextureShaderLocation};
-use crate::gl::geometry_buffer::GlGeometryBuffer;
 use crate::{
     buffer::{Buffer, BufferKind},
     core::{color::Color, math::Rect},
     error::FrameworkError,
-    framebuffer::{Attachment, AttachmentKind, FrameBuffer, ResourceBindGroup, ResourceBinding},
+    framebuffer::{
+        Attachment, AttachmentKind, BufferDataUsage, BufferLocation, FrameBuffer,
+        ResourceBindGroup, ResourceBinding, TextureShaderLocation,
+    },
     geometry_buffer::{DrawCallStatistics, GeometryBuffer},
     gl::{
-        buffer::GlBuffer, program::GlProgram, server::GlGraphicsServer, texture::GlTexture,
-        ToGlConstant,
+        buffer::GlBuffer, geometry_buffer::GlGeometryBuffer, program::GlProgram,
+        server::GlGraphicsServer, texture::GlTexture, ToGlConstant,
     },
     gpu_program::GpuProgram,
     gpu_texture::{CubeMapFace, GpuTexture, GpuTextureKind, PixelElementKind},
     ColorMask, DrawParameters, ElementRange,
 };
 use glow::HasContext;
-use std::{any::Any, rc::Weak};
+use std::rc::Weak;
 
 pub struct GlFrameBuffer {
     state: Weak<GlGraphicsServer>,
@@ -156,14 +157,6 @@ impl GlFrameBuffer {
 }
 
 impl FrameBuffer for GlFrameBuffer {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
     fn color_attachments(&self) -> &[Attachment] {
         &self.color_attachments
     }

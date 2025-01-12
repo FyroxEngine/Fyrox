@@ -30,7 +30,6 @@ use crate::{
 };
 use glow::{HasContext, PixelPackData, COMPRESSED_RED_RGTC1, COMPRESSED_RG_RGTC2};
 use std::{
-    any::Any,
     marker::PhantomData,
     rc::{Rc, Weak},
 };
@@ -457,14 +456,6 @@ impl Drop for GlTexture {
 }
 
 impl GpuTexture for GlTexture {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
     fn set_anisotropy(&mut self, anisotropy: f32) {
         self.make_temp_binding().set_anisotropy(anisotropy);
         self.anisotropy = anisotropy;
