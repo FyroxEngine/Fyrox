@@ -95,7 +95,7 @@ pub enum BufferLocation {
     /// compatibility with the old code.
     Auto {
         /// An automatically generated index fetched from the video driver using
-        /// [`GpuProgram::uniform_location`].
+        /// [`GpuProgram::uniform_block_index`].
         shader_location: usize,
     },
     /// Explicit binding mode where you strictly define expected binding point for the buffer.
