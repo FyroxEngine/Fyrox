@@ -991,11 +991,15 @@ impl Display for TilePropertyError {
 impl Error for TilePropertyError {}
 
 impl TileMap {
+    /// The handle that is stored in the tile map at the given position to refer to some tile in the tile set.
+    pub fn tile_handle(&self, position: Vector2<i32>) -> Option<TileDefinitionHandle> {
+        let tiles = self.tiles.as_ref()?.data_ref();
+        tiles.as_loaded_ref()?.get(position)
+    }
     /// The tile data for the tile at the given position, if that position has a tile and this tile map
     /// has a tile set that contains data for the tile's handle.
     pub fn tile_data(&self, position: Vector2<i32>) -> Option<TileMapDataRef> {
-        let tiles = self.tiles.as_ref()?.data_ref();
-        let handle = tiles.as_loaded_ref()?.get(position)?;
+        let handle = self.tile_handle(position)?;
         let tile_set = self.tile_set.as_ref()?.data_ref();
         if tile_set.as_loaded_ref()?.tile_data(handle).is_some() {
             Some(TileMapDataRef { tile_set, handle })
@@ -1016,6 +1020,9 @@ impl TileMap {
     where
         T: TryFrom<TileSetPropertyValue, Error = TilePropertyError> + Default,
     {
+        let Some(handle) = self.tile_handle(position) else {
+            return Ok(T::default());
+        };
         let tile_set = self
             .tile_set
             .as_ref()
@@ -1024,17 +1031,9 @@ impl TileMap {
         let tile_set = tile_set
             .as_loaded_ref()
             .ok_or(TilePropertyError::TileSetNotLoaded)?;
-        let Some(tiles) = self.tiles.as_ref().map(|r| r.data_ref()) else {
-            return Ok(T::default());
-        };
-        tiles
-            .as_loaded_ref()
-            .and_then(|tiles| tiles.get(position))
-            .and_then(|handle| {
-                tile_set
-                    .property_value(handle, property_id)
-                    .map(T::try_from)
-            })
+        tile_set
+            .property_value(handle, property_id)
+            .map(T::try_from)
             .unwrap_or_else(|| Ok(T::default()))
     }
     /// The property value for the property of the given name for the tile at the given position in this tile map.
@@ -1058,13 +1057,11 @@ impl TileMap {
         let property = tile_set
             .find_property_by_name(property_name)
             .ok_or_else(|| TilePropertyError::UnrecognizedName(property_name.clone()))?;
-        let Some(tiles) = self.tiles.as_ref().map(|r| r.data_ref()) else {
+        let Some(handle) = self.tile_handle(position) else {
             return Ok(property.prop_type.default_value());
         };
-        Ok(tiles
-            .as_loaded_ref()
-            .and_then(|tiles| tiles.get(position))
-            .and_then(|handle| tile_set.property_value(handle, property.uuid))
+        Ok(tile_set
+            .property_value(handle, property.uuid)
             .unwrap_or_else(|| property.prop_type.default_value()))
     }
     /// The property value for the property of the given UUID for the tile at the given position in this tile map.
@@ -1085,22 +1082,16 @@ impl TileMap {
         let tile_set = tile_set
             .as_loaded_ref()
             .ok_or(TilePropertyError::TileSetNotLoaded)?;
-        let Some(tiles) = self.tiles.as_ref().map(|r| r.data_ref()) else {
-            let property = tile_set
-                .find_property(property_id)
-                .ok_or(TilePropertyError::UnrecognizedUuid(property_id))?;
-            return Ok(property.prop_type.default_value());
+        let value = if let Some(handle) = self.tile_handle(position) {
+            tile_set
+                .tile_data(handle)
+                .and_then(|d| d.properties.get(&property_id))
+                .cloned()
+        } else {
+            None
         };
-        if let Some(value) = tiles
-            .as_loaded_ref()
-            .and_then(|tiles| tiles.get(position))
-            .and_then(|handle| {
-                tile_set
-                    .tile_data(handle)
-                    .and_then(|d| d.properties.get(&property_id))
-            })
-        {
-            Ok(value.clone())
+        if let Some(value) = value {
+            Ok(value)
         } else {
             let property = tile_set
                 .find_property(property_id)
