@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use std::{any::Any, collections::hash_map, path::Path};
+use std::{collections::hash_map, path::Path};
 
 use crate::asset::{Resource, ResourceData};
 use fxhash::FxHashMap;
@@ -177,21 +177,22 @@ impl<'a, P: FnMut(Vector2<i32>) -> bool> TileMapDataIterator<'a, P> {
 }
 
 /// Asset containing the tile handles of a tile map.
-#[derive(Clone, Default, Visit, Debug, Reflect, TypeUuidProvider, ComponentProvider)]
+#[derive(Clone, Default, Debug, Reflect, TypeUuidProvider, ComponentProvider)]
 #[type_uuid(id = "a8e4b6b4-c1bd-4ed9-a753-0d5a3dfe1729")]
 pub struct TileMapData {
     content: FxHashMap<Vector2<i32>, Chunk>,
 }
 
+impl Visit for TileMapData {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        if visitor.is_reading() {
+            self.shrink_to_fit();
+        }
+        self.content.visit(name, visitor)
+    }
+}
+
 impl ResourceData for TileMapData {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
     fn type_uuid(&self) -> Uuid {
         <Self as TypeUuidProvider>::type_uuid()
     }

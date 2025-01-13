@@ -917,7 +917,6 @@ impl Visit for TileMap {
         let mut region = visitor.enter_region(name)?;
         let mut version = if region.is_reading() { 0 } else { VERSION };
         let _ = version.visit("Version", &mut region);
-        println!("DEBUG: VISITING TileMap: version {}", version);
         self.base.visit("Base", &mut region)?;
         self.tile_set.visit("TileSet", &mut region)?;
         self.tile_scale.visit("TileScale", &mut region)?;
@@ -926,7 +925,6 @@ impl Visit for TileMap {
             0 => {
                 let mut tiles = InheritableVariable::new_non_modified(Tiles::default());
                 let result = tiles.visit("Tiles", &mut region);
-                println!("DEBUG: VISITING Tiles: {:?}", result);
                 result?;
                 let mut data = TileMapData::default();
                 for (p, h) in tiles.iter() {
