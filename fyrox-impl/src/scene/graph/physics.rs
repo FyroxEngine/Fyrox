@@ -469,7 +469,7 @@ fn make_trimesh(
     owner: Handle<Node>,
     sources: &[GeometrySource],
     nodes: &NodePool,
-) -> SharedShape {
+) -> Option<SharedShape> {
     let mut mesh_builder = RawMeshBuilder::new(0, 0);
 
     // Create inverse transform that will discard rotation and translation, but leave scaling and
@@ -554,9 +554,9 @@ fn make_trimesh(
             ),
         );
 
-        SharedShape::trimesh(vec![Point3::new(0.0, 0.0, 0.0)], vec![[0, 0, 0]])
+        SharedShape::trimesh(vec![Point3::new(0.0, 0.0, 0.0)], vec![[0, 0, 0]]).ok()
     } else {
-        SharedShape::trimesh(vertices, indices)
+        SharedShape::trimesh(vertices, indices).ok()
     }
 }
 
@@ -756,12 +756,12 @@ fn collider_shape_into_native_shape(
             if trimesh.sources.is_empty() {
                 None
             } else {
-                Some(make_trimesh(
+                make_trimesh(
                     owner_inv_global_transform,
                     owner_collider,
                     &trimesh.sources,
                     pool,
-                ))
+                )
             }
         }
         ColliderShape::Heightfield(heightfield) => pool
@@ -1767,7 +1767,7 @@ impl PhysicsWorld {
             return;
         }
 
-        if let Some(native) = self.joints.set.get_mut(joint.native.get()) {
+        if let Some(native) = self.joints.set.get_mut(joint.native.get(), false) {
             joint.body1.try_sync_model(|v| {
                 if let Some(rigid_body_node) = nodes
                     .try_borrow(v)

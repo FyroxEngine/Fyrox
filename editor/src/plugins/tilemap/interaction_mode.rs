@@ -568,6 +568,7 @@ impl InteractionMode for TileMapInteractionMode {
     ) {
         self.overlay_effect.lock().active = false;
         self.erase_select_effect.lock().offset = None;
+        self.cursor_effect.lock().position = None;
     }
 
     fn update(

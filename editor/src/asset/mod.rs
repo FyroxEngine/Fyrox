@@ -953,7 +953,7 @@ impl AssetBrowser {
                         folders.push(entry_path);
                     } else if entry_path
                         .extension()
-                        .map_or(false, |ext| is_supported_resource(ext, resource_manager))
+                        .is_some_and(|ext| is_supported_resource(ext, resource_manager))
                     {
                         resources.push(entry_path);
                     }

@@ -244,7 +244,7 @@ impl TileRegion {
             bounds: OptionTileRect::from_points(origin, end),
         }
     }
-    /// Copy the a region and replace its bound.
+    /// Copy the region and replace its bound.
     pub fn with_bounds(mut self, bounds: OptionTileRect) -> Self {
         self.bounds = bounds;
         self

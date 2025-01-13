@@ -40,6 +40,7 @@ pub mod server;
 pub mod stats;
 pub mod uniform;
 
+/// A set of possible polygon filling modes.
 #[derive(
     Copy,
     Clone,
@@ -55,20 +56,21 @@ pub mod uniform;
     EnumString,
     VariantNames,
     TypeUuidProvider,
+    Default,
 )]
 #[type_uuid(id = "47aff01a-7daa-427c-874c-87464a7ffe28")]
 pub enum PolygonFillMode {
+    /// Only vertices of polygons are rendered. Their size is 1px by default.
     Point,
+    /// Only edges of polygons are rendered using 1px lines. This mode is useful for wireframe
+    /// drawing.
     Line,
+    /// The entire polygon surface is rendered. This is default rendering mode.
+    #[default]
     Fill,
 }
 
-impl Default for PolygonFillMode {
-    fn default() -> Self {
-        Self::Fill
-    }
-}
-
+/// A function used to compare two values. Usually it is used for depth and stencil testing.
 #[derive(
     Copy,
     Clone,
@@ -85,6 +87,7 @@ impl Default for PolygonFillMode {
     AsRefStr,
     EnumString,
     VariantNames,
+    Default,
 )]
 pub enum CompareFunc {
     /// Never passes.
@@ -97,6 +100,7 @@ pub enum CompareFunc {
     Equal,
 
     /// Passes if the incoming value is less than or equal to the stored value.
+    #[default]
     LessOrEqual,
 
     /// Passes if the incoming value is greater than the stored value.
@@ -112,12 +116,7 @@ pub enum CompareFunc {
     Always,
 }
 
-impl Default for CompareFunc {
-    fn default() -> Self {
-        Self::LessOrEqual
-    }
-}
-
+/// Defines a set values (per color) for blending operation.
 #[derive(
     Copy,
     Clone,
@@ -134,8 +133,10 @@ impl Default for CompareFunc {
     AsRefStr,
     EnumString,
     VariantNames,
+    Default,
 )]
 pub enum BlendFactor {
+    #[default]
     Zero,
     One,
     SrcColor,
@@ -157,29 +158,38 @@ pub enum BlendFactor {
     OneMinusSrc1Alpha,
 }
 
-impl Default for BlendFactor {
-    fn default() -> Self {
-        Self::Zero
-    }
-}
-
+/// Defines an operation used in blending equation.
 #[derive(
-    Copy, Clone, Hash, PartialOrd, PartialEq, Eq, Ord, Serialize, Deserialize, Visit, Debug, Reflect,
+    Copy,
+    Clone,
+    Hash,
+    PartialOrd,
+    PartialEq,
+    Eq,
+    Ord,
+    Serialize,
+    Deserialize,
+    Visit,
+    Debug,
+    Reflect,
+    Default,
 )]
 pub enum BlendMode {
+    /// Addition of two operands (`Source + Dest`). This is default operation.
+    #[default]
     Add,
+    /// Subtraction of two operands (`Source - Dest`).
     Subtract,
+    /// Reverse subtraction of two operands (`Dest - Source`).
     ReverseSubtract,
+    /// Per-component min function of two operands (`min(Source, Dest)`).
     Min,
+    /// Per-component max function of two operands (`max(Source, Dest)`).
     Max,
 }
 
-impl Default for BlendMode {
-    fn default() -> Self {
-        Self::Add
-    }
-}
-
+/// An equation used for blending a source pixel color with the destination color (the one that is
+/// already in a frame buffer). This equation has different modes for rgb/alpha parts.
 #[derive(
     Copy,
     Clone,
@@ -196,21 +206,33 @@ impl Default for BlendMode {
     Reflect,
 )]
 pub struct BlendEquation {
+    /// An operation for RGB part.
     pub rgb: BlendMode,
+    /// An operation for alpha part.
     pub alpha: BlendMode,
 }
 
+/// Blending function defines sources of data for both operands in blending equation (separately
+/// for RGB and Alpha parts). Default blending function is replacing destination values with the
+/// source ones.
 #[derive(
     Copy, Clone, PartialOrd, PartialEq, Ord, Eq, Hash, Serialize, Deserialize, Visit, Debug, Reflect,
 )]
 pub struct BlendFunc {
+    /// Data for source (the value that is produced by a shader) in the blending equation (RGB part).
     pub sfactor: BlendFactor,
+    /// Data for destination (the value that is already in a frame buffer) in the blending equation
+    /// (RGB part).
     pub dfactor: BlendFactor,
+    /// Data for source (the value that is produced by a shader) in the blending equation (alpha part).
     pub alpha_sfactor: BlendFactor,
+    /// Data for destination (the value that is already in a frame buffer) in the blending equation
+    /// (alpha part).
     pub alpha_dfactor: BlendFactor,
 }
 
 impl BlendFunc {
+    /// Creates a new blending function where both RGB and Alpha parts have the same blending factor.
     pub fn new(sfactor: BlendFactor, dfactor: BlendFactor) -> Self {
         Self {
             sfactor,
@@ -220,6 +242,7 @@ impl BlendFunc {
         }
     }
 
+    /// Creates a new blending function where RGB and Alpha parts have different blending factor.
     pub fn new_separate(
         sfactor: BlendFactor,
         dfactor: BlendFactor,
@@ -246,13 +269,19 @@ impl Default for BlendFunc {
     }
 }
 
+/// A mask that defines which colors will be stored in a frame buffer during rendering operation.
+/// By default, all colors are stored (every field is set to `true`).
 #[derive(
     Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Serialize, Deserialize, Visit, Eq, Reflect,
 )]
 pub struct ColorMask {
+    /// A flag, that defines whether the red channel is written or not in a frame buffer.
     pub red: bool,
+    /// A flag, that defines whether the green channel is written or not in a frame buffer.
     pub green: bool,
+    /// A flag, that defines whether the blue channel is written or not in a frame buffer.
     pub blue: bool,
+    /// A flag, that defines whether the alpha channel is written or not in a frame buffer.
     pub alpha: bool,
 }
 
@@ -268,6 +297,7 @@ impl Default for ColorMask {
 }
 
 impl ColorMask {
+    /// Creates a new color mask where all the components will have the specified value.
     pub fn all(value: bool) -> Self {
         Self {
             red: value,
@@ -278,6 +308,8 @@ impl ColorMask {
     }
 }
 
+/// Defines a polygon face that will be rendered. This is usually used for back face culling.
+/// Default value is [`PolygonFace::FrontAndBack`].
 #[derive(
     Copy,
     Clone,
@@ -292,25 +324,32 @@ impl ColorMask {
     AsRefStr,
     EnumString,
     VariantNames,
+    Default,
 )]
 pub enum PolygonFace {
+    /// Only front faces will be rendered.
     Front,
+    /// Only back faces will be rendered.
     Back,
+    /// Both, back and front faces will be rendered.
+    #[default]
     FrontAndBack,
 }
 
-impl Default for PolygonFace {
-    fn default() -> Self {
-        Self::FrontAndBack
-    }
-}
-
+/// Defines a function that used in a stencil test.
 #[derive(
     Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Serialize, Deserialize, Visit, Eq, Reflect,
 )]
 pub struct StencilFunc {
+    /// A function that is used to compare two values. Default value is [`CompareFunc::Always`].
     pub func: CompareFunc,
+    /// Reference value that is used to compare against the current value in the stencil buffer.
+    /// Default value is 0.
     pub ref_value: u32,
+    /// A mask value that is used to filter out some bits (using logical AND operation) of a value
+    /// in the stencil buffer and the ref value (for example if a [`CompareFunc::Less`] is used
+    /// then the entire equation will look like `(ref & mask) < (stencil & mask)`). Default value
+    /// is `0xFFFFFFFF`.
     pub mask: u32,
 }
 
@@ -324,6 +363,7 @@ impl Default for StencilFunc {
     }
 }
 
+/// An action with the stencil value in the stencil buffer is the stencil test passed.
 #[derive(
     Copy,
     Clone,
@@ -339,9 +379,11 @@ impl Default for StencilFunc {
     AsRefStr,
     EnumString,
     VariantNames,
+    Default,
 )]
 pub enum StencilAction {
-    /// Keeps the current value.
+    /// Keeps the current value. This is the default variant.
+    #[default]
     Keep,
 
     /// Sets the stencil buffer value to 0.
@@ -372,19 +414,19 @@ pub enum StencilAction {
     Invert,
 }
 
-impl Default for StencilAction {
-    fn default() -> Self {
-        Self::Keep
-    }
-}
-
+/// A set of actions that will be performed with the stencil buffer during various testing stages.
 #[derive(
     Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Serialize, Deserialize, Visit, Eq, Reflect,
 )]
 pub struct StencilOp {
+    /// An action that happens when the stencil test has failed.
     pub fail: StencilAction,
+    /// An action that happens when the depth test has failed.
     pub zfail: StencilAction,
+    /// An action that happens when the depth test has passed.
     pub zpass: StencilAction,
+    /// A mask that is used to filter out some bits (using `AND` logical operation) from the source
+    /// value before writing it to the stencil buffer.
     pub write_mask: u32,
 }
 
@@ -399,43 +441,70 @@ impl Default for StencilOp {
     }
 }
 
+/// A face side to cull.
 #[derive(
-    Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Serialize, Deserialize, Visit, Eq, Reflect,
+    Copy,
+    Clone,
+    PartialOrd,
+    PartialEq,
+    Hash,
+    Debug,
+    Serialize,
+    Deserialize,
+    Visit,
+    Eq,
+    Reflect,
+    Default,
 )]
 pub enum CullFace {
+    /// Cull only back faces.
+    #[default]
     Back,
+    /// Cull only front faces.
     Front,
 }
 
-impl Default for CullFace {
-    fn default() -> Self {
-        Self::Back
-    }
-}
-
+/// Blending parameters (such as blending function and its equation).
 #[derive(Serialize, Deserialize, Default, Visit, Debug, PartialEq, Clone, Eq, Reflect)]
 pub struct BlendParameters {
+    /// Blending function, see [`BlendFunc`] for more info.
     pub func: BlendFunc,
+    /// Blending equation, see [`BlendEquation`] for more info.
     pub equation: BlendEquation,
 }
 
+/// A rectangular area that defines which pixels will be rendered in a frame buffer or not.
 #[derive(Serialize, Deserialize, Default, Visit, Debug, PartialEq, Clone, Copy, Eq, Reflect)]
 pub struct ScissorBox {
+    /// X coordinate of the box's origin.
     pub x: i32,
+    /// Y coordinate of the box's origin. Located at the bottom of the rectangle.
     pub y: i32,
+    /// Width of the box.
     pub width: i32,
+    /// Height of the box.
     pub height: i32,
 }
 
+/// A set of drawing parameters, that are used during draw call. It defines pretty much all pipeline
+/// settings all at once.
 #[derive(Serialize, Deserialize, Visit, Debug, PartialEq, Clone, Eq, Reflect)]
 pub struct DrawParameters {
+    /// An optional cull face. If [`None`], then the culling is disabled.
     pub cull_face: Option<CullFace>,
+    /// Color write mask.
     pub color_write: ColorMask,
+    /// A flag, that defines whether the depth values should be written to the depth buffer or not.
     pub depth_write: bool,
+    /// Stencil test options. If [`None`], then the stencil test is disabled.
     pub stencil_test: Option<StencilFunc>,
+    /// Depth test options. If [`None`], then the depth test is disabled.
     pub depth_test: Option<CompareFunc>,
+    /// Blending options. If [`None`], then the blending is disabled.
     pub blend: Option<BlendParameters>,
+    /// Stencil operation.
     pub stencil_op: StencilOp,
+    /// Optional scissor box. If [`None`], then the scissor test is disabled.
     pub scissor_box: Option<ScissorBox>,
 }
 
@@ -454,22 +523,30 @@ impl Default for DrawParameters {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+/// A range of elements (usually it's triangles) to draw in a draw call.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Default)]
 pub enum ElementRange {
+    /// All available elements. This is the default option.
+    #[default]
     Full,
-    Specific { offset: usize, count: usize },
+    /// Specific range of elements. Useful if you have a large buffer that contains multiple smaller
+    /// elements at once.
+    Specific {
+        /// Offset (in elements) from the beginning of the buffer.
+        offset: usize,
+        /// Total count of elements to draw.
+        count: usize,
+    },
 }
 
-impl Default for ElementRange {
-    fn default() -> Self {
-        Self::Full
-    }
-}
-
+/// Element kind of geometry.
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum ElementKind {
+    /// Triangles.
     Triangle,
+    /// Lines.
     Line,
+    /// Points.
     Point,
 }
 

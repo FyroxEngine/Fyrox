@@ -300,15 +300,13 @@ use fyrox_resource::{
     ResourceData,
 };
 use serde::{Deserialize, Serialize};
-use std::any::TypeId;
-use std::ops::{Deref, Index, IndexMut};
 use std::{
-    any::Any,
+    any::TypeId,
     cell::{Ref, RefCell, RefMut},
     collections::{btree_set::BTreeSet, hash_map::Entry, VecDeque},
     error::Error,
     fmt::{Debug, Formatter},
-    ops::DerefMut,
+    ops::{Deref, DerefMut, Index, IndexMut},
     path::Path,
     sync::{
         mpsc::{self, Receiver, Sender, TryRecvError},
@@ -3457,14 +3455,6 @@ fn transform_size(transform_space_bounds: Vector2<f32>, matrix: &Matrix3<f32>) -
 uuid_provider!(UserInterface = "0d065c93-ef9c-4dd2-9fe7-e2b33c1a21b6");
 
 impl ResourceData for UserInterface {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
     fn type_uuid(&self) -> Uuid {
         <Self as TypeUuidProvider>::type_uuid()
     }

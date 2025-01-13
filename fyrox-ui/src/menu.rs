@@ -492,7 +492,7 @@ crate::define_widget_deref!(MenuItem);
 impl MenuItem {
     fn is_opened(&self, ui: &UserInterface) -> bool {
         ui.try_get_of_type::<ContextMenu>(*self.items_panel)
-            .map_or(false, |items_panel| *items_panel.popup.is_open)
+            .is_some_and(|items_panel| *items_panel.popup.is_open)
     }
 
     fn sync_arrow_visibility(&self, ui: &UserInterface) {

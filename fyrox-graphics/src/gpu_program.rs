@@ -25,16 +25,15 @@ use crate::{
         sstorage::ImmutableString,
         type_traits::prelude::*,
         visitor::prelude::*,
+        Downcast,
     },
     error::FrameworkError,
 };
 use serde::{Deserialize, Serialize};
-use std::{any::Any, marker::PhantomData};
+use std::marker::PhantomData;
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
-pub trait GpuProgram: Any {
-    fn as_any(&self) -> &dyn Any;
-    fn as_any_mut(&mut self) -> &mut dyn Any;
+pub trait GpuProgram: Downcast {
     fn uniform_location(&self, name: &ImmutableString) -> Result<UniformLocation, FrameworkError>;
     fn uniform_block_index(&self, name: &ImmutableString) -> Result<usize, FrameworkError>;
 }

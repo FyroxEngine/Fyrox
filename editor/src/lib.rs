@@ -169,20 +169,38 @@ use plugins::inspector::InspectorPlugin;
 use std::{
     cell::RefCell,
     collections::VecDeque,
-    io::{BufRead, BufReader},
+    io::{BufRead, BufReader, Cursor, Read},
     path::{Path, PathBuf},
     process::Stdio,
     rc::Rc,
     sync::{
         atomic::{AtomicBool, Ordering},
         mpsc::{self, channel, Receiver},
-        Arc,
+        Arc, LazyLock,
     },
     time::{Duration, Instant},
 };
+use toml_edit::DocumentMut;
 
 pub const FIXED_TIMESTEP: f32 = 1.0 / 60.0;
 pub const MSG_SYNC_FLAG: u64 = 1;
+
+static EDITOR_VERSION: LazyLock<String> = LazyLock::new(|| {
+    let manifest = include_bytes!("../Cargo.toml");
+    let mut file = Cursor::new(&manifest);
+    let mut toml = String::new();
+    if file.read_to_string(&mut toml).is_ok() {
+        if let Ok(document) = toml.parse::<DocumentMut>() {
+            if let Some(package) = document.get("package").and_then(|i| i.as_table()) {
+                if let Some(version) = package.get("version") {
+                    return version.to_string().replace('\"', "");
+                }
+            }
+        }
+    }
+
+    "<unknown>".to_string()
+});
 
 pub fn send_sync_message(ui: &UserInterface, mut msg: UiMessage) {
     msg.flags = MSG_SYNC_FLAG;
@@ -272,9 +290,8 @@ pub fn create_terrain_layer_material() -> MaterialResource {
 pub fn make_scene_file_filter() -> Filter {
     Filter::new(|p: &Path| {
         p.is_dir()
-            || p.extension().map_or(false, |ext| {
-                matches!(ext.to_string_lossy().as_ref(), "rgs" | "ui")
-            })
+            || p.extension()
+                .is_some_and(|ext| matches!(ext.to_string_lossy().as_ref(), "rgs" | "ui"))
     })
 }
 
@@ -560,6 +577,10 @@ pub struct Editor {
 
 impl Editor {
     pub fn new(startup_data: Option<StartupData>) -> Self {
+        // Useful for debugging purposes when users don't bother to mention editor version
+        // they're using.
+        Log::info(format!("Editor version: {}", &*EDITOR_VERSION));
+
         let (log_message_sender, log_message_receiver) = channel();
 
         Log::add_listener(log_message_sender);
@@ -1812,7 +1833,7 @@ impl Editor {
             || self
                 .scenes
                 .current_scene_controller_ref()
-                .map_or(false, |s| s.is_interacting())
+                .is_some_and(|s| s.is_interacting())
             || stays_active
     }
 
@@ -1858,7 +1879,7 @@ impl Editor {
 
     fn load_scene(&mut self, scene_path: PathBuf) {
         for entry in self.scenes.entries.iter() {
-            if entry.path.as_ref().map_or(false, |p| p == &scene_path) {
+            if entry.path.as_ref() == Some(&scene_path) {
                 self.set_current_scene(entry.id);
                 return;
             }
@@ -2066,9 +2087,11 @@ impl Editor {
 
         let graphics_context = engine.graphics_context.as_initialized_mut();
 
-        graphics_context
-            .window
-            .set_title(&format!("Fyroxed: {}", working_directory.to_string_lossy()));
+        graphics_context.window.set_title(&format!(
+            "FyroxEd {}: {}",
+            *EDITOR_VERSION,
+            working_directory.to_string_lossy()
+        ));
 
         match FileSystemWatcher::new(&working_directory, Duration::from_secs(1)) {
             Ok(watcher) => {

@@ -18,16 +18,15 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::geometry_buffer::{AttributeKind, GeometryBuffer, GeometryBufferDescriptor};
 use crate::{
-    buffer::{Buffer, BufferKind, BufferUsage},
+    buffer::{Buffer, BufferKind},
     core::{array_as_u8_slice, math::TriangleDefinition},
     error::FrameworkError,
+    geometry_buffer::{AttributeKind, GeometryBuffer, GeometryBufferDescriptor},
     gl::{buffer::GlBuffer, server::GlGraphicsServer, ToGlConstant},
     ElementKind,
 };
 use glow::HasContext;
-use std::any::Any;
 use std::{cell::Cell, marker::PhantomData, rc::Weak};
 
 impl AttributeKind {
@@ -61,7 +60,7 @@ impl GlGeometryBuffer {
 
         server.set_vertex_array_object(Some(vao));
 
-        let element_buffer = GlBuffer::new(server, 0, BufferKind::Index, BufferUsage::StaticDraw)?;
+        let element_buffer = GlBuffer::new(server, 0, BufferKind::Index, desc.usage)?;
 
         let mut buffers = Vec::new();
         for buffer in desc.buffers {
@@ -135,14 +134,6 @@ impl GlGeometryBuffer {
 }
 
 impl GeometryBuffer for GlGeometryBuffer {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
     fn set_buffer_data(&self, buffer: usize, data: &[u8]) {
         self.state
             .upgrade()

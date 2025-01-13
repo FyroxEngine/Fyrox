@@ -1,4 +1,5 @@
-use std::{any::Any, fmt::Debug};
+use crate::core::Downcast;
+use std::fmt::Debug;
 
 #[repr(u32)]
 #[derive(Copy, Clone, Debug)]
@@ -13,9 +14,7 @@ pub enum QueryResult {
     AnySamplesPassed(bool),
 }
 
-pub trait Query: Any + Debug {
-    fn as_any(&self) -> &dyn Any;
-    fn as_any_mut(&mut self) -> &mut dyn Any;
+pub trait Query: Downcast + Debug {
     fn begin(&self, kind: QueryKind);
     fn end(&self);
     fn try_get_result(&self) -> Option<QueryResult>;

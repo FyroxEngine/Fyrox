@@ -29,7 +29,6 @@ use crate::{
 };
 use std::error::Error;
 use std::{
-    any::Any,
     fmt::{Display, Formatter},
     path::Path,
 };
@@ -82,14 +81,6 @@ pub struct CurveResourceState {
 }
 
 impl ResourceData for CurveResourceState {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
     fn type_uuid(&self) -> Uuid {
         <Self as TypeUuidProvider>::type_uuid()
     }

@@ -20,11 +20,10 @@
 
 use crate::{
     buffer::BufferUsage,
-    core::{array_as_u8_slice, math::TriangleDefinition},
+    core::{array_as_u8_slice, math::TriangleDefinition, Downcast},
     ElementKind,
 };
 use bytemuck::Pod;
-use std::any::Any;
 use std::mem::size_of;
 
 #[derive(Copy, Clone)]
@@ -83,11 +82,10 @@ pub struct VertexBufferDescriptor<'a> {
 pub struct GeometryBufferDescriptor<'a> {
     pub element_kind: ElementKind,
     pub buffers: &'a [VertexBufferDescriptor<'a>],
+    pub usage: BufferUsage,
 }
 
-pub trait GeometryBuffer {
-    fn as_any(&self) -> &dyn Any;
-    fn as_any_mut(&mut self) -> &mut dyn Any;
+pub trait GeometryBuffer: Downcast {
     fn set_buffer_data(&self, buffer: usize, data: &[u8]);
     fn element_count(&self) -> usize;
     fn set_triangles(&self, triangles: &[TriangleDefinition]);

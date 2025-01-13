@@ -361,11 +361,7 @@ fn tile_map_to_collider_shape(
         }
     }
 
-    if triangles.is_empty() {
-        None
-    } else {
-        Some(SharedShape::trimesh(vertices, triangles))
-    }
+    SharedShape::trimesh(vertices, triangles).ok()
 }
 
 // Converts descriptor in a shared shape.
@@ -1210,7 +1206,7 @@ impl PhysicsWorld {
             return;
         }
 
-        if let Some(native) = self.joints.set.get_mut(joint.native.get()) {
+        if let Some(native) = self.joints.set.get_mut(joint.native.get(), false) {
             joint.body1.try_sync_model(|v| {
                 if let Some(rigid_body_node) = nodes
                     .try_borrow(v)

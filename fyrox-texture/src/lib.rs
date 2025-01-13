@@ -64,7 +64,6 @@ use image::{ColorType, DynamicImage, ImageError, ImageFormat, Pixel};
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use std::{
-    any::Any,
     fmt::{Debug, Display, Formatter},
     hash::{Hash, Hasher},
     io::Cursor,
@@ -294,14 +293,6 @@ impl TypeUuidProvider for Texture {
 }
 
 impl ResourceData for Texture {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
     fn type_uuid(&self) -> Uuid {
         <Self as TypeUuidProvider>::type_uuid()
     }

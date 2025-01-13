@@ -69,7 +69,6 @@ use fyrox_core::math;
 use fyrox_ui::{UiNode, UserInterface};
 use serde::{Deserialize, Serialize};
 use std::{
-    any::Any,
     error::Error,
     fmt::{Display, Formatter},
     path::{Path, PathBuf},
@@ -598,14 +597,6 @@ impl ModelResourceExtension for ModelResource {
 }
 
 impl ResourceData for Model {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
     fn type_uuid(&self) -> Uuid {
         <Self as TypeUuidProvider>::type_uuid()
     }

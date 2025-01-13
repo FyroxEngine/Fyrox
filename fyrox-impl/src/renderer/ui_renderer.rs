@@ -137,6 +137,7 @@ impl UiRenderer {
                 ],
                 data: VertexBufferData::new::<crate::gui::draw::Vertex>(None),
             }],
+            usage: BufferUsage::DynamicDraw,
         };
 
         let clipping_geometry_buffer_desc = GeometryBufferDescriptor {
@@ -155,6 +156,7 @@ impl UiRenderer {
                 ],
                 data: VertexBufferData::new::<crate::gui::draw::Vertex>(None),
             }],
+            usage: BufferUsage::DynamicDraw,
         };
 
         Ok(Self {

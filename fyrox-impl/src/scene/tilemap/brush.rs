@@ -46,7 +46,6 @@ use crate::{
     scene::debug::SceneDrawingContext,
 };
 use std::{
-    any::Any,
     error::Error,
     fmt::{Display, Formatter},
     path::{Path, PathBuf},
@@ -401,14 +400,6 @@ impl TileMapBrush {
 }
 
 impl ResourceData for TileMapBrush {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
     fn type_uuid(&self) -> Uuid {
         <Self as TypeUuidProvider>::type_uuid()
     }

@@ -365,7 +365,7 @@ impl<T: EntityId> LogicNode<T> {
         animations: &AnimationContainer<T>,
     ) -> bool {
         match self {
-            LogicNode::Parameter(rule_name) => parameters.get(rule_name).map_or(false, |p| {
+            LogicNode::Parameter(rule_name) => parameters.get(rule_name).is_some_and(|p| {
                 if let Parameter::Rule(rule_value) = p {
                     *rule_value
                 } else {

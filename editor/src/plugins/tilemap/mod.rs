@@ -188,7 +188,7 @@ pub enum DrawingMode {
     /// or erase a single cell if no tiles are selected.
     Erase,
     /// Flood a the cells of a tile map, replacing regions of identical cell. This operation is only possible on a tile map.
-    /// For tile set and brush editing, this oepration behaves exactly like [`DrawingMode::Draw`].
+    /// For tile set and brush editing, this operation behaves exactly like [`DrawingMode::Draw`].
     FloodFill,
     /// Select whatever tiles the user drags the mouse over, creating a rect of selected tiles. Hold shift to select multiple rects.
     Pick,
@@ -591,8 +591,10 @@ impl TileMapEditorPlugin {
         interaction_mode.on_tile_map_selected(tile_map);
         // Prepare the tile map interaction mode.
         let Some(entry) = editor.scenes.current_scene_entry_mut() else {
+            // We have somehow lost the scene entry, so remove the effects from the tile map.
             if let Some(tile_map) = self.get_tile_map_mut(editor) {
                 tile_map.before_effects.clear();
+                tile_map.after_effects.clear();
             }
             return;
         };
@@ -781,15 +783,15 @@ impl EditorPlugin for TileMapEditorPlugin {
                 .and_then(|n| n.component_mut::<TileMap>())
             {
                 tile_map.before_effects.clear();
+                tile_map.after_effects.clear();
             }
 
-            if let Some(handle) = selection.nodes().iter().copied().find(|h| {
-                scene
-                    .graph
-                    .try_get(*h)
-                    .and_then(|n| n.component_ref::<TileMap>())
-                    .is_some()
-            }) {
+            if let Some(handle) = selection
+                .nodes()
+                .iter()
+                .copied()
+                .find(|h| scene.graph.try_get_of_type::<TileMap>(*h).is_some())
+            {
                 self.on_tile_map_selected(handle, editor);
             }
         }

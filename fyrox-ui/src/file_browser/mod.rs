@@ -797,7 +797,7 @@ fn build_all(
 
     let mut root_items = Vec::new();
     let mut parent = if let Some(root) = root {
-        let path = if std::env::current_dir().map_or(false, |dir| &dir == root) {
+        let path = if std::env::current_dir().is_ok_and(|dir| &dir == root) {
             Path::new(".")
         } else {
             root.as_path()
@@ -817,7 +817,7 @@ fn build_all(
                 .map(|i| i.mount_point().to_string_lossy())
             {
                 let disk_letter = disk.chars().next().unwrap() as u8;
-                let is_disk_part_of_path = dest_disk.map_or(false, |d| d == disk_letter);
+                let is_disk_part_of_path = dest_disk == Some(disk_letter);
 
                 let item =
                     build_tree_item(disk.as_ref(), "", menu.clone(), is_disk_part_of_path, ctx);
@@ -869,7 +869,7 @@ fn build_all(
                     .as_mut()
                     .map_or(true, |f| f.0.borrow_mut().deref_mut().lock()(&path))
                 {
-                    let is_part_of_final_path = next.as_ref().map_or(false, |next| *next == path);
+                    let is_part_of_final_path = next.as_ref().is_some_and(|next| *next == path);
 
                     let item = build_tree_item(
                         &path,

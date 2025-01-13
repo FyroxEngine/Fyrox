@@ -582,7 +582,7 @@ impl Control for CurveEditor {
                         let is_dragging = self
                             .operation_context
                             .as_ref()
-                            .map_or(false, |ctx| ctx.is_dragging());
+                            .is_some_and(|ctx| ctx.is_dragging());
                         if self.pick(*pos).is_some() || is_dragging {
                             if self.cursor.is_none() {
                                 ui.send_message(WidgetMessage::cursor(

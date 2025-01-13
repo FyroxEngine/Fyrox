@@ -7,7 +7,7 @@ edition = "2021"
 fyrox-core = { path = "../fyrox-core", version = "0.36.0" }
 fyrox-resource = { path = "../fyrox-resource", version = "0.36.0" }
 ddsfile = "0.5.0"
-fast_image_resize = "4.0.0"
+fast_image_resize = "5.0.0"
 serde = { version = "1", features = ["derive"] }
 lazy_static = "1.4.0"
 fxhash = "0.2.1"

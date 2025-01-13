@@ -83,7 +83,7 @@ pub fn create_file_selector(
         path.is_dir()
             || path
                 .extension()
-                .map_or(false, |ext| ext.to_string_lossy().as_ref() == extension)
+                .is_some_and(|ext| ext.to_string_lossy().as_ref() == extension)
     }))
     .with_mode(mode)
     .build(ctx)

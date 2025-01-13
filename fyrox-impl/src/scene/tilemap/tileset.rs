@@ -45,7 +45,6 @@ use crate::{
     resource::texture::TextureResource,
 };
 use std::{
-    any::Any,
     collections::hash_map::{Entry, Keys},
     error::Error,
     fmt::{Display, Formatter},
@@ -399,7 +398,8 @@ impl TileSetPage {
                     );
                 }
             }
-            _ => panic!(),
+            TileSetPageSource::Transform(_) => (),
+            TileSetPageSource::Animation(_) => (),
         }
     }
     /// Take all the colliders for the given collider id, remove them from the page, and put them into the given hash map.
@@ -1277,10 +1277,10 @@ impl TileSet {
     /// it points toward a tile elsewhere in the set, this method returns the TileDefinitionHandle of that other tile.
     pub fn tile_redirect(&self, handle: TileDefinitionHandle) -> Option<TileDefinitionHandle> {
         let page_source = self.pages.get(&handle.page()).map(|p| &p.source)?;
-        if let TileSetPageSource::Transform(m) = page_source {
-            m.get(&handle.tile()).copied()
-        } else {
-            None
+        match page_source {
+            TileSetPageSource::Transform(m) => m.get(&handle.tile()).copied(),
+            TileSetPageSource::Animation(m) => m.get(&handle.tile()).copied(),
+            _ => None,
         }
     }
     /// Generate a list of all tile positions in the given page.
@@ -1925,14 +1925,6 @@ impl TileSet {
 }
 
 impl ResourceData for TileSet {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
     fn type_uuid(&self) -> Uuid {
         <Self as TypeUuidProvider>::type_uuid()
     }

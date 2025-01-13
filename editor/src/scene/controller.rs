@@ -18,30 +18,26 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::command::{Command, CommandStack};
-use crate::fyrox::{
-    core::{algebra::Vector2, math::Rect, pool::Handle, reflect::Reflect},
-    engine::Engine,
-    gui::{
-        inspector::PropertyChanged,
-        message::{KeyCode, MouseButton},
-        UiNode,
-    },
-    resource::texture::TextureResource,
-    scene::SceneContainer,
-};
 use crate::{
+    command::{Command, CommandStack},
+    fyrox::{
+        core::{algebra::Vector2, math::Rect, pool::Handle, reflect::Reflect, Downcast},
+        engine::Engine,
+        gui::{
+            inspector::PropertyChanged,
+            message::{KeyCode, MouseButton},
+            UiNode,
+        },
+        resource::texture::TextureResource,
+        scene::SceneContainer,
+    },
     scene::Selection,
     settings::{keys::KeyBindings, Settings},
     Message,
 };
-use std::{any::Any, path::Path};
+use std::path::Path;
 
-pub trait SceneController: 'static {
-    fn as_any(&self) -> &dyn Any;
-
-    fn as_any_mut(&mut self) -> &mut dyn Any;
-
+pub trait SceneController: Downcast {
     fn on_key_up(&mut self, key: KeyCode, engine: &mut Engine, key_bindings: &KeyBindings) -> bool;
 
     fn on_key_down(
