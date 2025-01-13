@@ -185,7 +185,7 @@ pub struct TileMapData {
 
 impl Visit for TileMapData {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        if visitor.is_reading() {
+        if !visitor.is_reading() {
             self.shrink_to_fit();
         }
         self.content.visit(name, visitor)
