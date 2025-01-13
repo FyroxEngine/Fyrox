@@ -163,7 +163,7 @@ impl EditorPluginsContainer {
         self.0.iter().find_map(|container| {
             container
                 .as_ref()
-                .and_then(|plugin| plugin.as_any().downcast_ref::<T>())
+                .and_then(|plugin| (**plugin).as_any().downcast_ref::<T>())
         })
     }
 
@@ -182,7 +182,7 @@ impl EditorPluginsContainer {
         self.0.iter_mut().find_map(|container| {
             container
                 .as_mut()
-                .and_then(|plugin| plugin.as_any_mut().downcast_mut::<T>())
+                .and_then(|plugin| (**plugin).as_any_mut().downcast_mut::<T>())
         })
     }
 
