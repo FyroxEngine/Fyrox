@@ -842,17 +842,19 @@ impl MoveMapTileCommand {
         let tile_map = context.scene.graph[self.tile_map]
             .cast_mut::<TileMap>()
             .expect("Cast to TileMap failed!");
+        let Some(mut tiles) = tile_map.tiles().map(|r| r.data_ref()) else {
+            return;
+        };
+        let Some(tiles) = tiles.as_loaded_mut() else {
+            return;
+        };
         for (i, p) in self.tiles.iter().enumerate() {
-            swap_hash_map_entry(
-                tile_map.tiles.entry(*p + self.start_offset),
-                &mut self.data[i],
-            );
+            let data = &mut self.data[i];
+            *data = tiles.replace(*p + self.start_offset, *data);
         }
         for (i, p) in self.tiles.iter().enumerate() {
-            swap_hash_map_entry(
-                tile_map.tiles.entry(*p + self.end_offset),
-                &mut self.data[i],
-            );
+            let data = &mut self.data[i];
+            *data = tiles.replace(*p + self.end_offset, *data);
         }
         std::mem::swap(&mut self.start_offset, &mut self.end_offset);
     }
@@ -991,7 +993,13 @@ impl SetMapTilesCommand {
         let tile_map = context.scene.graph[self.tile_map]
             .cast_mut::<TileMap>()
             .expect("Cast to TileMap failed!");
-        tile_map.tiles.swap_tiles(&mut self.tiles);
+        let Some(mut tiles) = tile_map.tiles().map(|r| r.data_ref()) else {
+            return;
+        };
+        let Some(tiles) = tiles.as_loaded_mut() else {
+            return;
+        };
+        tiles.swap_tiles(&mut self.tiles);
     }
 }
 

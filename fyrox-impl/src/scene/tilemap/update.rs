@@ -640,9 +640,9 @@ impl TransTilesUpdate {
     /// Keep in mind, that flood fill is only possible either on free cells or on cells with the same
     /// tile kind. Modifications to the tile source are written into the given TileUpdates object
     /// rather than modifying the tiles directly.
-    pub fn flood_fill<S: TileSource>(
+    pub fn flood_fill<T: BoundedTileSource, S: TileSource>(
         &mut self,
-        tiles: &Tiles,
+        tiles: &T,
         start_point: Vector2<i32>,
         brush: &S,
     ) {

@@ -91,7 +91,7 @@ use crate::fyrox::{
         tilemap::{
             tileset::{TileSet, TileSetResource},
             RandomTileSource, Stamp, TileBook, TileCollider, TileDefinitionHandle, TileMap,
-            TilePaletteStage, Tiles,
+            TilePaletteStage,
         },
         Scene,
     },
