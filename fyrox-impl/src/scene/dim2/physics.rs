@@ -343,13 +343,15 @@ fn tile_map_to_collider_shape(
     let mut triangles = Vec::new();
 
     let collider_uuid = tile_set.collider_name_to_uuid(collider_name)?;
-    for tile in tile_map.iter() {
-        let Some(tile_definition) = tile_set.get_tile_data(tile.definition_handle.into()) else {
+    let tile_data = tile_map.tiles()?.data_ref();
+    let tile_data = tile_data.as_loaded_ref()?;
+    for (position, handle) in tile_data.iter() {
+        let Some(tile_definition) = tile_set.get_tile_data(handle.into()) else {
             continue;
         };
 
         if let Some(collider) = tile_definition.colliders.get(&collider_uuid) {
-            let position = tile.position.cast::<f32>().to_homogeneous();
+            let position = position.cast::<f32>().to_homogeneous();
             collider.build_collider_shape(
                 &global_transform,
                 position,
