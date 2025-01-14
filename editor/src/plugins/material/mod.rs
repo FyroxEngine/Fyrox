@@ -83,6 +83,7 @@ use crate::{
     },
     send_sync_message, Editor, Engine, Message,
 };
+use fyrox::gui::utils::make_simple_tooltip;
 use std::sync::Arc;
 
 pub mod editor;
@@ -294,6 +295,11 @@ impl MaterialEditor {
 
         let ctx = &mut engine.user_interfaces.first_mut().build_ctx();
 
+        let shader_tooltip = make_simple_tooltip(
+            ctx,
+            "Drag and drop a shader from the asset browser \
+        to assign it here.",
+        );
         let panel;
         let properties_panel;
         let shader;
@@ -317,7 +323,9 @@ impl MaterialEditor {
                                     )
                                     .with_child({
                                         shader = ResourceFieldBuilder::<Shader>::new(
-                                            WidgetBuilder::new().on_column(1),
+                                            WidgetBuilder::new()
+                                                .on_column(1)
+                                                .with_tooltip(shader_tooltip),
                                             sender,
                                         )
                                         .build(ctx, engine.resource_manager.clone());
