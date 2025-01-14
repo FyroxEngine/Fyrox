@@ -336,6 +336,7 @@ impl SceneViewer {
                         make_dropdown_list_option_with_height(ctx, "3D", 22.0),
                         make_dropdown_list_option_with_height(ctx, "2D", 22.0),
                     ])
+                    .with_close_on_selection(true)
                     .with_selected(0)
                     .build(ctx);
                     camera_projection
