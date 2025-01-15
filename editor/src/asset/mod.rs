@@ -609,8 +609,8 @@ impl AssetBrowser {
         let add_resource = ButtonBuilder::new(
             WidgetBuilder::new()
                 .with_tab_index(Some(1))
-                .with_height(20.0)
-                .with_width(20.0)
+                .with_height(24.0)
+                .with_width(24.0)
                 .with_margin(Thickness::uniform(1.0))
                 .with_tooltip(make_simple_tooltip(ctx, "Add New Resource")),
         )

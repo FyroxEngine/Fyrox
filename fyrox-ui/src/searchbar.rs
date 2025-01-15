@@ -204,7 +204,7 @@ impl SearchBarBuilder {
                                         .with_vertical_alignment(VerticalAlignment::Center)
                                         .with_foreground(ctx.style.property(Style::BRUSH_BRIGHT))
                                         .with_margin(Thickness {
-                                            left: 2.0,
+                                            left: 4.0,
                                             top: 2.0,
                                             right: 0.0,
                                             bottom: 0.0,
