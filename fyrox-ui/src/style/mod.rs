@@ -26,6 +26,7 @@
 
 pub mod resource;
 
+use crate::toggle::ToggleButton;
 use crate::{
     brush::Brush,
     button::Button,
@@ -297,7 +298,8 @@ impl Style {
             .set(Self::FONT_SIZE, 14.0f32)
             .merge(&Button::style())
             .merge(&CheckBox::style())
-            .merge(&DropdownList::style());
+            .merge(&DropdownList::style())
+            .merge(&ToggleButton::style());
 
         style
     }

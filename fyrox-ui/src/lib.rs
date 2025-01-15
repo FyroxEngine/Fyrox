@@ -259,6 +259,7 @@ pub mod tab_control;
 pub mod text;
 pub mod text_box;
 mod thickness;
+pub mod toggle;
 pub mod tree;
 pub mod utils;
 pub mod uuid;

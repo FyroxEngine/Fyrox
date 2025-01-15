@@ -59,6 +59,7 @@ use crate::{
     tab_control::TabControl,
     text::Text,
     text_box::TextBox,
+    toggle::ToggleButton,
     tree::{Tree, TreeRoot},
     uuid::UuidEditor,
     vec::VecEditor,
@@ -90,6 +91,7 @@ pub fn new_widget_constructor_container() -> WidgetConstructorContainer {
 
     container.add::<Border>();
     container.add::<Button>();
+    container.add::<ToggleButton>();
     container.add::<Canvas>();
     container.add::<CheckBox>();
     container.add::<Decorator>();
