@@ -26,16 +26,16 @@ use crate::{
         gui::{
             border::BorderBuilder,
             button::{ButtonBuilder, ButtonMessage},
-            check_box::{CheckBoxBuilder, CheckBoxMessage},
             decorator::{Decorator, DecoratorBuilder, DecoratorMessage},
             grid::{Column, GridBuilder, Row},
+            image::ImageBuilder,
             message::{MessageDirection, UiMessage},
             scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
             searchbar::{SearchBarBuilder, SearchBarMessage},
             stack_panel::StackPanelBuilder,
-            style::resource::StyleResourceExt,
-            style::Style,
+            style::{resource::StyleResourceExt, Style},
             text::TextBuilder,
+            toggle::{ToggleButtonBuilder, ToggleButtonMessage},
             tree::{
                 TreeBuilder, TreeExpansionStrategy, TreeMessage, TreeRoot, TreeRootBuilder,
                 TreeRootMessage,
@@ -44,8 +44,8 @@ use crate::{
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowTitle},
             wrap_panel::WrapPanelBuilder,
-            BuildContext, Orientation, RcUiNodeHandle, Thickness, UiNode, UserInterface,
-            VerticalAlignment,
+            BuildContext, HorizontalAlignment, Orientation, RcUiNodeHandle, Thickness, UiNode,
+            UserInterface, VerticalAlignment,
         },
         resource::texture::TextureResource,
     },
@@ -220,7 +220,6 @@ impl WorldViewer {
         let expand_all;
         let locate_selection;
         let scroll_view;
-        let track_selection;
         let search_bar = SearchBarBuilder::new(
             WidgetBuilder::new()
                 .with_tab_index(Some(4))
@@ -228,7 +227,32 @@ impl WorldViewer {
                 .with_margin(Thickness::uniform(1.0)),
         )
         .build(ctx);
+
         let size = 15.0;
+
+        let track_selection = ToggleButtonBuilder::new(
+            WidgetBuilder::new()
+                .with_tab_index(Some(3))
+                .with_vertical_alignment(VerticalAlignment::Center)
+                .with_margin(Thickness::uniform(1.0))
+                .with_width(20.0)
+                .with_height(20.0),
+        )
+        .with_content(
+            ImageBuilder::new(
+                WidgetBuilder::new()
+                    .with_margin(Thickness::uniform(1.0))
+                    .with_width(10.0)
+                    .with_height(14.0)
+                    .with_horizontal_alignment(HorizontalAlignment::Center)
+                    .with_vertical_alignment(VerticalAlignment::Center),
+            )
+            .with_opt_texture(load_image!("../../resources/track.png"))
+            .build(ctx),
+        )
+        .with_toggled(settings.selection.track_selection)
+        .build(ctx);
+
         let window = WindowBuilder::new(WidgetBuilder::new().with_name("WorldOutliner"))
             .can_minimize(false)
             .with_title(WindowTitle::text("World Viewer"))
@@ -273,25 +297,7 @@ impl WorldViewer {
                                         );
                                         locate_selection
                                     })
-                                    .with_child({
-                                        track_selection = CheckBoxBuilder::new(
-                                            WidgetBuilder::new()
-                                                .with_tab_index(Some(3))
-                                                .with_vertical_alignment(VerticalAlignment::Center)
-                                                .with_margin(Thickness::uniform(1.0)),
-                                        )
-                                        .with_content(
-                                            TextBuilder::new(WidgetBuilder::new())
-                                                .with_vertical_text_alignment(
-                                                    VerticalAlignment::Center,
-                                                )
-                                                .with_text("Track Selection")
-                                                .build(ctx),
-                                        )
-                                        .checked(Some(settings.selection.track_selection))
-                                        .build(ctx);
-                                        track_selection
-                                    }),
+                                    .with_child(track_selection),
                             )
                             .with_orientation(Orientation::Horizontal)
                             .build(ctx),
@@ -691,8 +697,7 @@ impl WorldViewer {
             } else if message.destination() == self.locate_selection {
                 self.locate_selection(&data_provider.selection(), ui)
             }
-        } else if let Some(CheckBoxMessage::Check(Some(value))) = message.data::<CheckBoxMessage>()
-        {
+        } else if let Some(ToggleButtonMessage::Toggled(value)) = message.data() {
             if message.destination() == self.track_selection {
                 settings.selection.track_selection = *value;
                 if *value {
@@ -835,10 +840,10 @@ impl WorldViewer {
     }
 
     pub fn on_configure(&self, ui: &UserInterface, settings: &Settings) {
-        ui.send_message(CheckBoxMessage::checked(
+        ui.send_message(ToggleButtonMessage::toggled(
             self.track_selection,
             MessageDirection::ToWidget,
-            Some(settings.selection.track_selection),
+            settings.selection.track_selection,
         ));
     }
 
