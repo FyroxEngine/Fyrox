@@ -37,6 +37,7 @@ pub struct ToggleButton {
     pub widget: Widget,
     pub decorator: Handle<UiNode>,
     pub is_toggled: bool,
+    pub content: Handle<UiNode>,
 }
 
 /// Messages that can be emitted by [`ToggleButton`] widget (or can be sent to the widget).
@@ -88,30 +89,60 @@ impl Control for ToggleButton {
         self.widget.handle_routed_message(ui, message);
 
         if let Some(msg) = message.data::<WidgetMessage>() {
-            match msg {
-                WidgetMessage::MouseDown { .. } => {
-                    ui.capture_mouse(self.handle());
+            if (message.destination() == self.handle()
+                || self.has_descendant(message.destination(), ui))
+                && message.direction() == MessageDirection::FromWidget
+            {
+                match msg {
+                    WidgetMessage::MouseDown { .. } => {
+                        ui.capture_mouse(self.handle());
+                    }
+                    WidgetMessage::MouseUp { .. } => {
+                        if ui.captured_node() == self.handle() {
+                            let new_state = !self.is_toggled;
+
+                            ui.send_message(ToggleButtonMessage::toggled(
+                                self.handle(),
+                                MessageDirection::ToWidget,
+                                new_state,
+                            ));
+
+                            ui.release_mouse_capture();
+                        }
+                    }
+                    _ => {}
                 }
-                WidgetMessage::MouseUp { .. } => {
-                    if ui.captured_node() == self.handle() {
-                        let new_state = !self.is_toggled;
+            }
+        } else if let Some(msg) = message.data::<ToggleButtonMessage>() {
+            if message.destination() == self.handle()
+                && message.direction() == MessageDirection::ToWidget
+            {
+                match msg {
+                    ToggleButtonMessage::Toggled(value) => {
+                        if self.is_toggled != *value {
+                            self.is_toggled = *value;
 
-                        ui.send_message(ToggleButtonMessage::toggled(
-                            self.handle(),
+                            ui.send_message(DecoratorMessage::select(
+                                self.decorator,
+                                MessageDirection::ToWidget,
+                                self.is_toggled,
+                            ));
+
+                            ui.send_message(message.reverse());
+                        }
+                    }
+                    ToggleButtonMessage::Content(content) => {
+                        ui.send_message(WidgetMessage::remove(
+                            self.content,
                             MessageDirection::ToWidget,
-                            new_state,
                         ));
-
-                        ui.send_message(DecoratorMessage::select(
+                        ui.send_message(WidgetMessage::link(
+                            *content,
+                            MessageDirection::ToWidget,
                             self.decorator,
-                            MessageDirection::ToWidget,
-                            new_state,
                         ));
-
-                        ui.release_mouse_capture();
                     }
                 }
-                _ => {}
             }
         }
     }
@@ -149,13 +180,16 @@ impl ToggleButtonBuilder {
                 .with_stroke_thickness(ctx.style.property(ToggleButton::BORDER_THICKNESS))
                 .with_pad_by_corner_radius(true),
         )
+        .with_pressable(true)
+        .with_selected_brush(ctx.style.property(Style::BRUSH_BRIGHT_BLUE))
         .with_selected(self.is_toggled)
         .build(ctx);
 
         let canvas = ToggleButton {
-            widget: self.widget_builder.build(ctx),
+            widget: self.widget_builder.with_child(decorator).build(ctx),
             decorator,
             is_toggled: self.is_toggled,
+            content: self.content,
         };
         ctx.add_node(UiNode::new(canvas))
     }
