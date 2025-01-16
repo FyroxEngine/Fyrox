@@ -223,8 +223,9 @@ impl WorldViewer {
         let search_bar = SearchBarBuilder::new(
             WidgetBuilder::new()
                 .with_tab_index(Some(4))
-                .on_row(1)
-                .with_margin(Thickness::uniform(1.0)),
+                .on_row(0)
+                .on_column(1)
+                .with_margin(Thickness::uniform(2.0)),
         )
         .build(ctx);
 
@@ -235,8 +236,8 @@ impl WorldViewer {
                 .with_tab_index(Some(3))
                 .with_vertical_alignment(VerticalAlignment::Center)
                 .with_margin(Thickness::uniform(1.0))
-                .with_width(20.0)
-                .with_height(20.0),
+                .with_width(22.0)
+                .with_height(22.0),
         )
         .with_content(
             ImageBuilder::new(
@@ -253,58 +254,68 @@ impl WorldViewer {
         .with_toggled(settings.selection.track_selection)
         .build(ctx);
 
+        let buttons = StackPanelBuilder::new(
+            WidgetBuilder::new()
+                .with_margin(Thickness::uniform(1.0))
+                .on_row(0)
+                .on_column(0)
+                .with_child({
+                    collapse_all = make_image_button_with_tooltip(
+                        ctx,
+                        size,
+                        size,
+                        load_image!("../../resources/collapse.png"),
+                        "Collapse Everything",
+                        Some(0),
+                    );
+                    collapse_all
+                })
+                .with_child({
+                    expand_all = make_image_button_with_tooltip(
+                        ctx,
+                        size,
+                        size,
+                        load_image!("../../resources/expand.png"),
+                        "Expand Everything",
+                        Some(1),
+                    );
+                    expand_all
+                })
+                .with_child({
+                    locate_selection = make_image_button_with_tooltip(
+                        ctx,
+                        size,
+                        size,
+                        load_image!("../../resources/locate.png"),
+                        "Locate Selection",
+                        Some(2),
+                    );
+                    locate_selection
+                })
+                .with_child(track_selection),
+        )
+        .with_orientation(Orientation::Horizontal)
+        .build(ctx);
+
+        let toolbar = GridBuilder::new(
+            WidgetBuilder::new()
+                .with_child(buttons)
+                .with_child(search_bar),
+        )
+        .add_row(Row::auto())
+        .add_column(Column::auto())
+        .add_column(Column::stretch())
+        .build(ctx);
+
         let window = WindowBuilder::new(WidgetBuilder::new().with_name("WorldOutliner"))
             .can_minimize(false)
             .with_title(WindowTitle::text("World Viewer"))
             .with_content(
                 GridBuilder::new(
                     WidgetBuilder::new()
-                        .with_child(
-                            StackPanelBuilder::new(
-                                WidgetBuilder::new()
-                                    .with_margin(Thickness::uniform(1.0))
-                                    .on_row(0)
-                                    .with_child({
-                                        collapse_all = make_image_button_with_tooltip(
-                                            ctx,
-                                            size,
-                                            size,
-                                            load_image!("../../resources/collapse.png"),
-                                            "Collapse Everything",
-                                            Some(0),
-                                        );
-                                        collapse_all
-                                    })
-                                    .with_child({
-                                        expand_all = make_image_button_with_tooltip(
-                                            ctx,
-                                            size,
-                                            size,
-                                            load_image!("../../resources/expand.png"),
-                                            "Expand Everything",
-                                            Some(1),
-                                        );
-                                        expand_all
-                                    })
-                                    .with_child({
-                                        locate_selection = make_image_button_with_tooltip(
-                                            ctx,
-                                            size,
-                                            size,
-                                            load_image!("../../resources/locate.png"),
-                                            "Locate Selection",
-                                            Some(2),
-                                        );
-                                        locate_selection
-                                    })
-                                    .with_child(track_selection),
-                            )
-                            .with_orientation(Orientation::Horizontal)
-                            .build(ctx),
-                        )
-                        .with_child(search_bar)
+                        .with_child(toolbar)
                         .with_child({
-                            scroll_view = ScrollViewerBuilder::new(WidgetBuilder::new().on_row(2))
+                            scroll_view = ScrollViewerBuilder::new(WidgetBuilder::new().on_row(1))
                                 .with_content({
                                     tree_root = TreeRootBuilder::new(
                                         WidgetBuilder::new().with_tab_index(Some(5)),
@@ -318,7 +329,7 @@ impl WorldViewer {
                         .with_child({
                             node_path = WrapPanelBuilder::new(
                                 WidgetBuilder::new()
-                                    .on_row(3)
+                                    .on_row(2)
                                     .with_vertical_alignment(VerticalAlignment::Top),
                             )
                             .with_orientation(Orientation::Horizontal)
@@ -327,8 +338,7 @@ impl WorldViewer {
                         }),
                 )
                 .add_column(Column::stretch())
-                .add_row(Row::strict(25.0))
-                .add_row(Row::strict(22.0))
+                .add_row(Row::auto())
                 .add_row(Row::stretch())
                 .add_row(Row::auto())
                 .build(ctx),
