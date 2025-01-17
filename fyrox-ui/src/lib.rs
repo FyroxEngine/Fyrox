@@ -2168,7 +2168,7 @@ impl UserInterface {
     /// Find any tooltips that are being hovered and activate them.
     /// As well, update their time.
     fn update_tooltips(&mut self, dt: f32) {
-        let sender = &self.sender;
+        let sender = self.sender.clone();
         if let Some(entry) = self.active_tooltip.as_mut() {
             if entry.shown {
                 entry.disappear_timer -= dt;
@@ -2186,11 +2186,27 @@ impl UserInterface {
                     self.active_tooltip = None;
                 }
             } else {
-                entry.appear_timer -= dt;
-                if entry.appear_timer <= 0.0 {
-                    entry.shown = true;
-                    let tooltip = entry.tooltip.clone();
-                    self.show_tooltip(tooltip);
+                let mut tooltip_owner_hovered = false;
+                let mut handle = self.picked_node;
+                while let Some(node) = self.nodes.try_borrow(handle) {
+                    if let Some(tooltip) = node.tooltip.as_ref() {
+                        if &entry.tooltip == tooltip {
+                            tooltip_owner_hovered = true;
+                            break;
+                        }
+                    }
+                    handle = node.parent();
+                }
+
+                if tooltip_owner_hovered {
+                    entry.appear_timer -= dt;
+                    if entry.appear_timer <= 0.0 {
+                        entry.shown = true;
+                        let tooltip = entry.tooltip.clone();
+                        self.show_tooltip(tooltip);
+                    }
+                } else {
+                    self.active_tooltip = None;
                 }
             }
         }
@@ -2198,8 +2214,6 @@ impl UserInterface {
         // Check for hovering over a widget with a tooltip, or hovering over a tooltip.
         let mut handle = self.picked_node;
         while let Some(node) = self.nodes.try_borrow(handle) {
-            // Get the parent to avoid the problem with having a immutable access here and a
-            // mutable access later
             let parent = node.parent();
 
             if let Some(tooltip) = node.tooltip() {
