@@ -2052,6 +2052,12 @@ impl WidgetBuilder {
         self
     }
 
+    /// Sets the desired, uniform margin of the widget.
+    pub fn with_uniform_margin(mut self, margin: f32) -> Self {
+        self.margin = Thickness::uniform(margin);
+        self
+    }
+
     /// Sets the desired position of the widget.
     pub fn with_desired_position(mut self, desired_position: Vector2<f32>) -> Self {
         self.desired_position = desired_position;
